@@ -11,10 +11,9 @@ at 1,000 Op files (same pro-rata budget as the doctor ops sweep enumeration).
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from kernel.clock import UTC, datetime, parse_iso, Clock, DEFAULT_CLOCK
 from pathlib import Path
 
-from kernel.clock import Clock, DEFAULT_CLOCK
 
 __all__ = ["render_open_ops_section", "render_open_ops_reminder"]
 
@@ -38,7 +37,7 @@ def _read_first_event(path: Path) -> tuple[str, str]:
 def _format_age(started_at: str, now: datetime) -> str:
     """Human age like ``26h old``; empty string when unparseable."""
     try:
-        started = datetime.fromisoformat(started_at)
+        started = parse_iso(started_at)
     except ValueError:
         return ""
     if started.tzinfo is None:

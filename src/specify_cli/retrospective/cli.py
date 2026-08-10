@@ -13,10 +13,9 @@ Source-of-truth:
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from kernel.clock import now_utc_iso
+from kernel.clock import now_utc_iso, date
 import json
 import sys
-from datetime import date
 from pathlib import Path
 from typing import Optional
 

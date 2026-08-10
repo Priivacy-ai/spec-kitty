@@ -18,7 +18,7 @@ timestamp, making a true byte-identical comparison of the written
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from kernel.clock import UTC, datetime
 from pathlib import Path
 import subprocess
 

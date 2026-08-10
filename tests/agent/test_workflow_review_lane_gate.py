@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from datetime import UTC, datetime
+from kernel.clock import now_utc
 from pathlib import Path
 
 import pytest
@@ -506,7 +506,7 @@ def test_commit_workflow_change_reverts_coord_commit_on_lane_sync_refusal(
     status_path.write_text('{"lane":"planned"}\n', encoding="utf-8")
     receipt = CommitReceipt(
         commit_sha="abc123",
-        committed_at=datetime.now(UTC),
+        committed_at=now_utc(),
         destination_ref=coord_branch,
         worktree_root=workflow_repo / ".worktrees" / f"{mission_slug}-{mid8}-coord",
         event_ids=("evt-1",),

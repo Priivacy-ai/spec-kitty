@@ -12,7 +12,7 @@ suite with additional dashboard e2e coverage.
 from __future__ import annotations
 
 import os
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 
 import pytest
@@ -181,7 +181,7 @@ def _seed_event_log(feature_dir: Path) -> None:
         wp_id=WP_ID,
         from_lane=Lane.GENESIS,
         to_lane=Lane.PLANNED,
-        at=datetime.now(UTC).isoformat(),
+        at=now_utc_iso(),
         actor="fixture",
         force=False,
         execution_mode="worktree",

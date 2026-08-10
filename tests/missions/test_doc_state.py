@@ -1,7 +1,7 @@
 """Tests for documentation state management."""
 
 import json
-from datetime import datetime
+from kernel.clock import datetime
 
 import pytest
 

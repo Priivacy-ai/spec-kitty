@@ -18,7 +18,7 @@ from __future__ import annotations
 import contextlib
 import json
 import threading
-from datetime import UTC, datetime
+from kernel.clock import UTC, datetime
 from pathlib import Path
 
 import pytest

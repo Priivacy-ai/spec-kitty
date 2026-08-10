@@ -19,7 +19,7 @@ import secrets
 import time
 import uuid
 from collections.abc import Callable
-from datetime import datetime, timedelta, UTC
+from kernel.clock import timedelta, now_utc
 from pathlib import Path
 from typing import Any, cast
 
@@ -142,7 +142,7 @@ def _force_refresh_sync() -> bool:
     if session is None:
         raise NotAuthenticatedError("No session to refresh")
     # Bump expiry so refresh_if_needed treats the token as stale.
-    session.access_token_expires_at = datetime.now(UTC) - timedelta(seconds=60)
+    session.access_token_expires_at = now_utc() - timedelta(seconds=60)
     _run_in_fresh_loop(tm.refresh_if_needed())
     return True
 

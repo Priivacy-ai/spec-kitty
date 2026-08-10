@@ -24,7 +24,7 @@ to ``tmp_path``, per the ``unit`` marker's contract in ``pytest.ini``).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -835,7 +835,7 @@ def _event(
         wp_id=wp_id,
         from_lane=from_lane,
         to_lane=to_lane,
-        at=datetime.now(UTC).isoformat(),
+        at=now_utc_iso(),
         actor="reviewer-renata",
         force=False,
         execution_mode="worktree",

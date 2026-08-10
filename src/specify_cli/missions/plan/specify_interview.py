@@ -241,7 +241,7 @@ def run_specify_interview(  # noqa: C901
                 and current_decision_id is not None
                 and mission_id is not None
             ):
-                from datetime import UTC, datetime
+                from kernel.clock import now_utc
 
                 from specify_cli.widen.models import WidenAction, WidenPendingEntry
 
@@ -283,7 +283,7 @@ def run_specify_interview(  # noqa: C901
                                     mission_slug=mission_slug,
                                     question_id=f"specify.{question_id}",
                                     question_text=question_text,
-                                    entered_pending_at=datetime.now(tz=UTC),
+                                    entered_pending_at=now_utc(),
                                     widen_endpoint_response={},
                                 )
                             )

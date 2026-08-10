@@ -212,9 +212,9 @@ class TestAutoDiscoveryIntegration:
 
         MigrationRegistry.clear()
 
-        start = time.time()
+        start = time.monotonic()
         auto_discover_migrations()
-        duration = time.time() - start
+        duration = time.monotonic() - start
 
         # Should be very fast (usually < 100ms, but allow 1s for CI)
         assert duration < 1.0, f"Auto-discovery took {duration:.2f}s (should be < 1s)"

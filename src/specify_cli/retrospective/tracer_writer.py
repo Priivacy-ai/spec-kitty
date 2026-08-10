@@ -43,7 +43,7 @@ persisted with a blanked/empty attribution.
 from __future__ import annotations
 
 import hashlib
-from datetime import UTC, date, datetime
+from kernel.clock import date, now_utc
 from pathlib import Path
 
 from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam
@@ -245,7 +245,7 @@ def append_tracer_finding(
     """
     actor = _require_actor(actor)
     filename = _category_filename(category)
-    resolved_date = entry_date if entry_date is not None else datetime.now(UTC).date()
+    resolved_date = entry_date if entry_date is not None else now_utc().date()
     entry_line = _format_entry_line(entry_date=resolved_date, actor=actor, entry=entry)
 
     current_content = _read_current_coord_content(repo_root, mission_slug, filename)

@@ -125,7 +125,7 @@ def _recover_valid_senses(
             )
             return []
 
-        from datetime import datetime
+        from kernel.clock import now_utc
 
         from ruamel.yaml import YAML
 
@@ -160,7 +160,7 @@ def _recover_valid_senses(
                     definition=term_data["definition"],
                     provenance=Provenance(
                         actor_id="system:seed_file",
-                        timestamp=datetime.now(),
+                        timestamp=now_utc(),
                         source="seed_file",
                     ),
                     confidence=term_data.get("confidence", 1.0),

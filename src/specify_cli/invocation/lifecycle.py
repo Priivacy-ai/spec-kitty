@@ -29,7 +29,7 @@ and ``data-model.md`` §4.
 
 from __future__ import annotations
 
-import datetime as _dt
+from kernel.clock import UTC, datetime, now_utc
 import json
 from collections import defaultdict
 from dataclasses import dataclass
@@ -260,9 +260,9 @@ def doctor_orphan_report(repo_root: Path) -> dict[str, object]:
     }
 
 
-def _format_at(at: _dt.datetime) -> str:
+def _format_at(at: datetime) -> str:
     if at.tzinfo is None:
-        at = at.replace(tzinfo=_dt.timezone.utc)
+        at = at.replace(tzinfo=UTC)
     return at.isoformat()
 
 
@@ -294,7 +294,7 @@ def write_started(
     agent: str,
     mission_id: str,
     wp_id: str | None = None,
-    at: _dt.datetime | None = None,
+    at: datetime | None = None,
 ) -> ProfileInvocationRecord:
     """Append a ``started`` lifecycle record to the local store.
 
@@ -303,7 +303,7 @@ def write_started(
     record = ProfileInvocationRecord(
         canonical_action_id=canonical_action_id,
         phase="started",
-        at=at or _dt.datetime.now(_dt.timezone.utc),
+        at=at or now_utc(),
         agent=agent,
         mission_id=mission_id,
         wp_id=wp_id,
@@ -318,7 +318,7 @@ def write_paired_completion(
     started: ProfileInvocationRecord,
     phase: ProfileInvocationPhase,
     reason: str | None = None,
-    at: _dt.datetime | None = None,
+    at: datetime | None = None,
 ) -> ProfileInvocationRecord:
     """Append a ``completed`` or ``failed`` record paired with ``started``.
 
@@ -331,7 +331,7 @@ def write_paired_completion(
     record = ProfileInvocationRecord(
         canonical_action_id=started.canonical_action_id,
         phase=phase,
-        at=at or _dt.datetime.now(_dt.timezone.utc),
+        at=at or now_utc(),
         agent=started.agent,
         mission_id=started.mission_id,
         wp_id=started.wp_id,

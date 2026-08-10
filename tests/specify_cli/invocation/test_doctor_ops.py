@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import datetime, timedelta, UTC
+from kernel.clock import datetime, timedelta, UTC
 from pathlib import Path
 from typing import Literal
 

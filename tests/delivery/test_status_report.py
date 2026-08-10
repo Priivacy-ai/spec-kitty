@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import time
+from kernel.clock import now_epoch
 from pathlib import Path
 
 import pytest
@@ -144,7 +144,7 @@ def _insert_body_upload_row(db_path: Path) -> None:
                 manifest_version, artifact_path, content_hash, hash_algorithm,
                 content_body, size_bytes, retry_count, next_attempt_at, created_at, last_error)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0.0, ?, NULL)""",
-            ("p", "m", "main", "software-dev", "1", "a/b.md", "h", "sha256", "body", 4, time.time()),
+            ("p", "m", "main", "software-dev", "1", "a/b.md", "h", "sha256", "body", 4, now_epoch()),
         )
         conn.commit()
     finally:

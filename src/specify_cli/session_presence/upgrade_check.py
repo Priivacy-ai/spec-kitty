@@ -16,8 +16,7 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime
-from kernel.clock import now_utc_iso
+from kernel.clock import now_utc_iso, parse_iso
 from pathlib import Path
 
 from specify_cli.core.env import is_truthy
@@ -109,7 +108,7 @@ class UpgradeChecker:
         checked_at_raw = data.get("checked_at")
         if isinstance(checked_at_raw, str):
             try:
-                datetime.fromisoformat(checked_at_raw)
+                parse_iso(checked_at_raw)
             except ValueError:
                 return None
 

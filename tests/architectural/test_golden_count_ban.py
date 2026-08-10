@@ -435,7 +435,7 @@ def _format_site_row(site: GoldenCountSite) -> str:
 
 
 def _render_inventory(sites: list[GoldenCountSite]) -> str:
-    from datetime import UTC, datetime
+    from kernel.clock import now_utc
 
     batch_dirs = {
         "WP12": (
@@ -474,7 +474,7 @@ def _render_inventory(sites: list[GoldenCountSite]) -> str:
     lines.append("# Golden-count inventory (WP11, #2076/FR-014)")
     lines.append("")
     lines.append(
-        f"Generated {datetime.now(UTC).isoformat(timespec='seconds')} by "
+        f"Generated {now_utc().isoformat(timespec='seconds')} by "
         "`python -m tests.architectural.test_golden_count_ban --emit-inventory`. "
         "Classification heuristic: see `tests/architectural/test_golden_count_ban.py` "
         "module docstring."

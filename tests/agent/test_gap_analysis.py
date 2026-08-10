@@ -1,7 +1,7 @@
 """Tests for documentation gap analysis."""
 
 import pytest
-from datetime import datetime
+from kernel.clock import datetime, now_utc
 from pathlib import Path
 
 from specify_cli.doc_analysis.gap_analysis import (
@@ -10,6 +10,7 @@ from specify_cli.doc_analysis.gap_analysis import (
     GapPriority,
     GapAnalysis,
     CoverageMatrix,
+    analyze_documentation_gaps,
     detect_doc_framework,
     classify_divio_type,
     prioritize_gaps,
@@ -330,7 +331,7 @@ def test_gap_analysis_dataclass():
 
     analysis = GapAnalysis(
         project_name="test-project",
-        analysis_date=datetime.now(),
+        analysis_date=now_utc(),
         framework=DocFramework.SPHINX,
         coverage_matrix=matrix,
         gaps=[],
@@ -339,3 +340,38 @@ def test_gap_analysis_dataclass():
     assert analysis.framework == DocFramework.SPHINX
     assert analysis.coverage_matrix == matrix
     assert isinstance(analysis.analysis_date, datetime)
+
+
+def test_analyze_documentation_gaps_analysis_date_is_aware_utc(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-011 (kernel-clock-single-door, WP13c): ``analyze_documentation_gaps``
+    stamps ``analysis_date`` via the door's aware-UTC ``now_utc()``, not a
+    naive local ``datetime.now()``.
+
+    Byte-changing: ``GapAnalysis.to_markdown()`` renders
+    ``self.analysis_date.strftime('%Y-%m-%d %H:%M:%S')`` into the persisted
+    ``gap-analysis.md`` report -- the format string carries no offset marker,
+    so the rendered STRING SHAPE is unchanged, but the VALUE shifts whenever
+    the build host's local time differs from UTC (a naive read would render
+    local wall-clock hours; this pins the frozen UTC instant instead).
+
+    C-009 mutation verified: reverting the site to a naive ``datetime.now()``
+    would make ``analysis_date.tzinfo`` ``None`` and the exact-instant
+    assertion below would fail (the real host-local clock, not the frozen
+    stub, would leak in).
+    """
+    import kernel.clock as clock_module
+    from kernel.clock import UTC, FrozenClock
+
+    frozen_instant = datetime(2026, 3, 4, 5, 6, 7, tzinfo=UTC)
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=frozen_instant))
+
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    analysis = analyze_documentation_gaps(docs_dir, project_root=tmp_path)
+
+    assert analysis.analysis_date.tzinfo is not None
+    assert analysis.analysis_date == frozen_instant
+    assert "2026-03-04 05:06:07" in analysis.to_markdown()

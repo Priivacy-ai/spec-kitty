@@ -6,7 +6,7 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 import contextlib
 import logging
 import os
-from datetime import UTC, datetime
+from kernel.clock import UTC, parse_iso
 from kernel._safe_re import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -192,7 +192,7 @@ def _parse_created_at(value: object) -> float | None:
         raw = f"{raw[:-1]}+00:00"
 
     try:
-        parsed = datetime.fromisoformat(raw)
+        parsed = parse_iso(raw)
     except ValueError:
         return None
 

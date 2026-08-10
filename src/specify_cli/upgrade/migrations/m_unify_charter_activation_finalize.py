@@ -55,7 +55,7 @@ filename encodes the ordering.
 from __future__ import annotations
 
 import functools
-from datetime import UTC, datetime
+from kernel.clock import now_utc_stamp
 from pathlib import Path
 from typing import Any
 
@@ -251,7 +251,7 @@ def _compose_charter_yaml_document(
     # extraction_mode/sections_parsed are retired self-reference fields, not
     # carried forward).
     metadata = CharterYamlMetadata(
-        generated_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        generated_at=now_utc_stamp(),
         bundle_schema_version=2,
     )
 

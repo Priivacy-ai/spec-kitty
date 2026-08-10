@@ -8,12 +8,10 @@ later work packages of mission ``kernel-clock-single-door`` (see
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 import pytest
 
 import kernel.clock as clock_module
-from kernel.clock import now_utc_iso
+from kernel.clock import UTC, datetime, now_utc_iso, parse_iso
 
 pytestmark = pytest.mark.fast
 
@@ -33,7 +31,7 @@ def test_now_utc_iso_returns_aware_iso8601_string() -> None:
     ``datetime.fromisoformat`` and carries timezone info (aware, not naive)."""
     value = now_utc_iso()
     assert isinstance(value, str)
-    parsed = datetime.fromisoformat(value)
+    parsed = parse_iso(value)
     assert parsed.tzinfo is not None
 
 

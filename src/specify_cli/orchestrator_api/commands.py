@@ -30,7 +30,7 @@ from __future__ import annotations
 import json
 import re
 import uuid
-from datetime import datetime, UTC
+from kernel.clock import now_utc_stamp
 from pathlib import Path
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, NoReturn
@@ -1559,7 +1559,7 @@ def append_history(
     from specify_cli.status import StoreError
     from specify_cli.status import emit_inner_state_changed
 
-    timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    timestamp = now_utc_stamp()
     # Byte-identical to the historical rendered Activity Log line (FR-007
     # no-content-loss): the note carries the fully-formatted entry so no
     # information is lost even before a dedicated notes-render surface lands.

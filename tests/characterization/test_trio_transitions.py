@@ -26,7 +26,7 @@ to ``tmp_path``, per the ``unit`` marker's contract in ``pytest.ini``).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from kernel.clock import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest

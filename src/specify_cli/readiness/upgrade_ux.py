@@ -31,11 +31,10 @@ import subprocess
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from kernel.clock import datetime, timedelta, now_utc, Clock, DEFAULT_CLOCK
 from enum import StrEnum
 from typing import TYPE_CHECKING, Literal, Protocol, cast
 
-from kernel.clock import Clock, DEFAULT_CLOCK
 from specify_cli.core.env import is_truthy
 
 if TYPE_CHECKING:
@@ -292,7 +291,7 @@ def _append_upgrade_attempt_record(
         )
         record = UpgradeAttemptRecord(
             attempt_id=str(ulid.ULID()),
-            timestamp=datetime.now(UTC),
+            timestamp=now_utc(),
             install_method=runtime.install_method,
             intent="upgrade",
             outcome=outcome,

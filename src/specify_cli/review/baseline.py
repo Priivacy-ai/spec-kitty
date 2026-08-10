@@ -22,7 +22,7 @@ import xml.etree.ElementTree as ET
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from kernel.clock import now_utc_stamp
 from pathlib import Path
 from typing import Any
 
@@ -426,7 +426,7 @@ def _capture_baseline_via_config(
     # Build result
     result = BaselineTestResult(
         wp_id=wp_id,
-        captured_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        captured_at=now_utc_stamp(),
         base_branch=base_branch,
         base_commit=base_commit,
         test_runner="pytest" if "pytest" in test_command else "custom",
@@ -562,7 +562,7 @@ def _capture_baseline_via_scope_source(
 
     result = BaselineTestResult(
         wp_id=wp_id,
-        captured_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        captured_at=now_utc_stamp(),
         base_branch=base_branch,
         base_commit=base_commit,
         test_runner="pytest" if any("pytest" in part for part in command) else "custom",
@@ -642,7 +642,7 @@ def _make_sentinel(wp_id: str, base_branch: str, base_commit: str) -> BaselineTe
     """Return a sentinel BaselineTestResult indicating capture failure."""
     return BaselineTestResult(
         wp_id=wp_id,
-        captured_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        captured_at=now_utc_stamp(),
         base_branch=base_branch,
         base_commit=base_commit,
         test_runner="pytest",

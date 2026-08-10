@@ -31,7 +31,7 @@ from __future__ import annotations
 import contextlib
 import json
 import subprocess
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -286,7 +286,7 @@ def _write_lanes_manifest(
         mission_branch=mission_branch,
         target_branch=target_branch,
         lanes=lanes,
-        computed_at=datetime.now(UTC).isoformat(),
+        computed_at=now_utc_iso(),
         computed_from="test-fixture",
     )
     write_lanes_json(feature_dir, manifest)

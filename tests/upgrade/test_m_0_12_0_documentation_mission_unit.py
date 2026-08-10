@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from kernel.clock import now_utc
 from pathlib import Path
 
 import pytest
@@ -65,7 +65,7 @@ def test_detect_skips_when_global_runtime_is_configured(
     (tmp_path / "kitty-specs").mkdir()
     ProjectMetadata(
         version="2.0.6",
-        initialized_at=datetime.now(),
+        initialized_at=now_utc(),
     ).save(kittify)
 
     assert migration.detect(tmp_path) is False

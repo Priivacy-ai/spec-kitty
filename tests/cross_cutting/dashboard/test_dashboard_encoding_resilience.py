@@ -284,9 +284,9 @@ class TestDashboardPerformance:
             bad_file.write_bytes(bad_content.encode('cp1252'))
 
             # Time the auto-fix
-            start = time.time()
+            start = time.monotonic()
             content, error = read_file_resilient(bad_file, auto_fix=True)
-            elapsed = (time.time() - start) * 1000  # Convert to ms
+            elapsed = (time.monotonic() - start) * 1000  # Convert to ms
 
             # Should complete quickly
             assert elapsed < 200, \
@@ -310,10 +310,10 @@ class TestDashboardPerformance:
                 files.append(bad_file)
 
             # Time reading all files
-            start = time.time()
+            start = time.monotonic()
             for f in files:
                 read_file_resilient(f, auto_fix=True)
-            elapsed = (time.time() - start) * 1000
+            elapsed = (time.monotonic() - start) * 1000
 
             # Should be reasonable (< 500ms for 10 files)
             assert elapsed < 500, \

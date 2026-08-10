@@ -16,7 +16,7 @@ Validation rules:
 
 from __future__ import annotations
 
-import datetime as _dt
+from kernel.clock import UTC, datetime, parse_iso
 import json
 import re
 from dataclasses import dataclass, field
@@ -254,7 +254,7 @@ class ProfileInvocationRecord:
 
     canonical_action_id: str
     phase: ProfileInvocationPhase
-    at: _dt.datetime
+    at: datetime
     agent: str
     mission_id: str
     wp_id: str | None = None
@@ -289,10 +289,10 @@ class ProfileInvocationRecord:
         Tolerates missing optional fields. Coerces ``at`` from ISO string.
         """
         at_raw = data.get("at")
-        if isinstance(at_raw, _dt.datetime):
+        if isinstance(at_raw, datetime):
             at_value = at_raw
         elif isinstance(at_raw, str) and at_raw:
-            at_value = _dt.datetime.fromisoformat(at_raw)
+            at_value = parse_iso(at_raw)
         else:
             raise ValueError("ProfileInvocationRecord requires 'at' (ISO-8601 string or datetime)")
 
@@ -322,10 +322,10 @@ class ProfileInvocationRecord:
         return json.dumps(self.to_dict(), sort_keys=True)
 
 
-def _ensure_iso_utc(dt: _dt.datetime) -> str:
+def _ensure_iso_utc(dt: datetime) -> str:
     """Return ISO-8601 string. Naive datetimes are assumed UTC."""
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=_dt.timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return dt.isoformat()
 
 

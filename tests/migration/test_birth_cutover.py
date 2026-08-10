@@ -62,7 +62,7 @@ from tests.specify_cli.test_specify_topology_flag import (
 def _write_single_lane(
     feature_dir: Path, slug: str, mission_branch: str, *, wp_id: str = "WP01"
 ) -> None:
-    from datetime import UTC, datetime
+    from kernel.clock import now_utc_iso
 
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
     from specify_cli.lanes.persistence import write_lanes_json
@@ -85,7 +85,7 @@ def _write_single_lane(
                     parallel_group=0,
                 )
             ],
-            computed_at=datetime.now(UTC).isoformat(),
+            computed_at=now_utc_iso(),
             computed_from="test-fixture",
         ),
     )

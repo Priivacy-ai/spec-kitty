@@ -20,7 +20,7 @@ no real auth store is touched. The revoke call is mocked at the
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, UTC
+from kernel.clock import timedelta, now_utc
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
@@ -68,7 +68,7 @@ def _make_session(
     test suite asserts they do NOT appear in stdout, i.e. the logout
     command must not leak tokens into its user-facing output.
     """
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="u_alice",
         email="alice@example.com",

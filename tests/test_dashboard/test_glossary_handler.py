@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import json
-from datetime import datetime
+from kernel.clock import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 

@@ -1,7 +1,7 @@
 """Integration test for upgrade version update behavior."""
 
 import subprocess
-from datetime import datetime
+from kernel.clock import now_utc, parse_iso
 from pathlib import Path
 
 import yaml
@@ -42,7 +42,7 @@ def test_upgrade_updates_metadata_to_correct_version(tmp_path):
     kittify_dir.mkdir()
 
     # Create initial metadata with old version
-    metadata = ProjectMetadata(version="0.12.0", initialized_at=datetime.fromisoformat("2026-01-01T00:00:00"))
+    metadata = ProjectMetadata(version="0.12.0", initialized_at=parse_iso("2026-01-01T00:00:00"))
     metadata.save(kittify_dir)
 
     # Verify initial state
@@ -78,7 +78,7 @@ def test_upgrade_dry_run_does_not_update_version(tmp_path):
     kittify_dir = tmp_path / ".kittify"
     kittify_dir.mkdir()
 
-    metadata = ProjectMetadata(version="0.12.0", initialized_at=datetime.now())
+    metadata = ProjectMetadata(version="0.12.0", initialized_at=now_utc())
     metadata.save(kittify_dir)
 
     # Run upgrade in dry-run mode
@@ -114,7 +114,7 @@ def test_upgrade_persists_schema_version(tmp_path: Path) -> None:
     # Pre-fix-era metadata: spec_kitty.version present but no schema_version.
     metadata = ProjectMetadata(
         version="0.12.0",
-        initialized_at=datetime.fromisoformat("2026-01-01T00:00:00"),
+        initialized_at=parse_iso("2026-01-01T00:00:00"),
     )
     metadata.save(kittify_dir)
 

@@ -8,7 +8,7 @@ ReviewResult derivation.
 
 from __future__ import annotations
 
-from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT
+from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT, now_utc
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.agent_tasks_ports import (
     CommitArtifactResult,
@@ -22,7 +22,6 @@ import re
 import subprocess
 import time
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -661,7 +660,7 @@ def _allocate_and_write_review_cycle_locked(
             wp_id=wp_id,
             mission_slug=mission_slug,
             reviewer_agent=reviewer_agent or "unknown",
-            reviewed_at=datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT),
+            reviewed_at=now_utc().strftime(UTC_SECOND_TIMESTAMP_FORMAT),
             affected_files=affected_files,
             body=body,
         )
