@@ -569,7 +569,7 @@ def test_nfr004_undetermined_and_unanswerable_stay_distinguishable() -> None:
 
     Correction C-1: they are different *causes* with different operator fixes —
     "nothing told the transport whose data it carries" versus "the consent chain
-    raised or answered with a non-bool".
+    raised or returned an unrecognized answer".
     """
     undetermined = egress.project_egress_refusal(None, SAAS_FRAGMENT)
     unanswerable = egress._refusal_for_verdict(
