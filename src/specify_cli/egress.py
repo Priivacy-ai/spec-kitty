@@ -236,7 +236,7 @@ _NO_RESOLVER_REFUSAL = (
 #: not the same problem as an unattributed transport.
 _UNANSWERABLE_TEMPLATE = (
     "consent for the project at {project_root} could not be determined "
-    "(the consent chain raised or answered with a non-bool); refusing to "
+    "(the consent chain raised or returned an unrecognized answer); refusing to "
     "transmit, because inability to determine consent is not consent"
 )
 
