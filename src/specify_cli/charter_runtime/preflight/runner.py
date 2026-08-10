@@ -15,6 +15,19 @@ that:
    ``blocked_reason`` always points the operator at one exact recovery
    command.
 
+Boundary heal semantics (WP04, charter-synthesize-reconciliation-01KZJQN6):
+the ``charter synthesize`` call inside the refresh sequence is invoked
+flagless — no ``--prune``, no ``--dry-run`` — which selects
+``SynthesizeMode.preserve`` (the library default): a successful heal never
+drops backed content, and ``synthesized_drg`` self-clears to ``fresh``
+because ``rewrite_manifest`` re-stamps the manifest's
+``bundle_content_hash`` on every write. This is a "never silently drops
+content" guarantee, NOT a "never refuses" guarantee: orphaned
+(backing-artifact-deleted) content and an unparseable on-disk doctrine
+overlay still make the subprocess exit non-zero, and this runner surfaces
+that as an actionable ``blocked_reason`` exactly like any other refresh
+failure — it never coerces that outcome to ``passed=True``.
+
 Performance contract (NFR-001):
 
 * warm path (everything fresh) — < 300 ms;
@@ -28,6 +41,7 @@ failure produces a result with a sensible ``blocked_reason``.
 
 from __future__ import annotations
 
+import logging
 import os
 import subprocess
 from pathlib import Path
@@ -40,7 +54,9 @@ from .result import CharterPreflightCheck, CharterPreflightResult
 if TYPE_CHECKING:  # pragma: no cover — used only for type hints.
     from specify_cli.charter_runtime.freshness import CharterFreshness
 
-__all__ = ["run_charter_preflight"]
+__all__ = ["refresh_references_if_needed", "run_charter_preflight"]
+
+_logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -339,6 +355,32 @@ def _refresh_timeout_secs() -> float:
     return value
 
 
+def refresh_references_if_needed(repo_root: Path, cause: str) -> None:
+    """References-parity extension point (T019 — install here, WP06 implements).
+
+    No-op stub in this WP: the boundary heal (``_attempt_auto_refresh``)
+    calls this once its refresh sequence has succeeded, so the call site
+    exists for a downstream WP without runner.py needing to import a module
+    that doesn't exist yet (``references_refresh.py`` is WP06's owned file,
+    not WP04's — see ``kitty-specs/charter-synthesize-reconciliation-01KZJQN6/
+    tasks/WP04-boundary-heal-clears-stale.md`` T019). WP06 implements the real
+    references-parity ``generate`` call in
+    ``specify_cli.charter_runtime.preflight.references_refresh`` and re-points
+    this call site at it; until then this is intentionally inert.
+
+    Args:
+        repo_root: Repository root the just-completed heal ran against.
+        cause: Comma-joined names of the freshness checks that triggered the
+            heal (e.g. ``"synthesized_drg"``), threaded through for WP06's
+            future diagnostics.
+    """
+    _logger.debug(
+        "refresh_references_if_needed stub invoked (repo_root=%s, cause=%s)",
+        repo_root,
+        cause,
+    )
+
+
 def _attempt_auto_refresh(
     repo_root: Path,
     freshness: CharterFreshness,
@@ -403,6 +445,11 @@ def _attempt_auto_refresh(
             )
 
     if not drg_fresh:
+        # WP04: flagless invocation — no --prune, no --dry-run — selects
+        # SynthesizeMode.preserve (the library default). See the module
+        # docstring's "Boundary heal semantics" section: this never drops
+        # backed content, but orphaned/unparseable causes still exit
+        # non-zero and are surfaced below via `reason`, never swallowed.
         synth_cmd = [*_SPEC_KITTY_CHARTER_PREFIX, "synthesize"]
         ok, reason = _run_refresh_step(synth_cmd, repo_root, timeout_secs)
         actions.append(" ".join(synth_cmd))
@@ -426,6 +473,12 @@ def _attempt_auto_refresh(
             auto_refresh_actions=actions,
             blocked_reason=reason,
         )
+
+    # T019: references-parity extension point (stub in this WP — WP06
+    # implements the real `generate` call). Fires once the refresh sequence
+    # has succeeded, before the post-refresh freshness recompute.
+    stale_cause = ",".join(sorted({c.name for c in initial_checks if c.state not in _PASS_STATES}))
+    refresh_references_if_needed(repo_root, cause=stale_cause)
 
     # Refresh succeeded — recompute freshness and rebuild checks so
     # callers see the post-refresh state.
