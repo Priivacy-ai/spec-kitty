@@ -32,7 +32,18 @@ sanctioned unfiltered-diagnostic form; see that module's docstring) and
 
 * ``active_languages=infer_repo_languages(repo_root)`` is always computed
   (the pre-existing behaviour of :func:`_build_doctrine_service` below, i.e.
-  this module's own prior behaviour).
+  this module's own prior behaviour). Issue #3292: this was, until then, an
+  independent computation from ``charter.compiler.compile_charter``'s own
+  ``catalog.languages`` stamp -- a compile with no active-language signal
+  wrote a persisted empty list that this builder's *next* invocation of
+  :func:`~charter.language_scope.infer_repo_languages` then read back as
+  authoritative "admit none", degrading language-scoped styleguides/
+  toolguides on the second and every subsequent ``charter generate``. Both
+  call sites now route through the exact same function (``compile_charter``
+  additionally passes its in-memory interview, which this builder --
+  lacking one -- does not), so they can no longer diverge. See
+  :func:`~charter.language_scope.infer_repo_languages`'s docstring for the
+  full resolution contract.
 * ``org_roots`` is always self-resolved via
   :func:`doctrine.drg.org_pack_config.resolve_org_roots` when a caller does
   not supply an explicit override (the prior behaviour of

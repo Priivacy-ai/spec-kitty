@@ -312,11 +312,21 @@ class CharterCatalog(BaseModel):
     ``template_set``, ``languages``, ``references``. Kept honest by the
     catalog<->activation parity check (``consistency_check.py``) plus
     freshness (data-model.md Landmine 2 extension).
+
+    ``languages`` is nullable (issue #3292 fix): ``None`` distinguishes "no
+    active-language signal was found at compile time" from a genuinely
+    persisted empty list. ``charter.language_scope.infer_repo_languages``
+    (the single authority both this compiler and the doctrine-service
+    language gate consume) treats a ``None``/absent field as "keep looking,
+    then admit all" and a present-but-empty list as authoritative "admit
+    none" — collapsing the former into the latter on write is exactly the
+    compile-then-read feedback loop #3292 closes. See that function's
+    docstring for the full resolution contract.
     """
 
     mission: str
     template_set: str
-    languages: list[str] = Field(default_factory=list)
+    languages: list[str] | None = Field(default=None)
     references: list[CharterCatalogReference] = Field(default_factory=list)
 
 

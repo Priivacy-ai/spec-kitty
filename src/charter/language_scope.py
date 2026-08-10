@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import re
+from typing import TYPE_CHECKING
 
 from ruamel.yaml.error import YAMLError
 
@@ -11,6 +12,9 @@ from charter.bundle import CHARTER_YAML
 from charter.charter_yaml_io import load_charter_yaml
 from charter.interview import read_interview_answers
 from doctrine.shared.scoping import normalize_languages
+
+if TYPE_CHECKING:
+    from charter.interview import CharterInterview
 
 __all__ = [
     "extract_declared_languages",
@@ -77,38 +81,78 @@ def _read_compiled_languages(repo_root: Path) -> list[str] | None:
     return list(normalize_languages(str(item) for item in languages))
 
 
-def infer_repo_languages(repo_root: Path) -> list[str] | None:
-    """Infer active project languages, preferring the compiled charter.
+def infer_repo_languages(
+    repo_root: Path | None,
+    *,
+    interview: CharterInterview | None = None,
+) -> list[str] | None:
+    """Infer active project languages — the SINGLE authority for this signal.
+
+    Both consumers of "active languages" — ``charter.compiler.compile_charter``
+    (which stamps the result into ``catalog.languages`` at compile time) and
+    ``charter.doctrine_service_builder`` (which uses the result to gate which
+    language-scoped styleguides/toolguides resolve to real content) — call
+    this one function so they can never independently compute diverging
+    answers (issue #3292: two separate ``extract_declared_languages`` calls
+    used to feed a compile-time-only stamp and a runtime gate respectively,
+    letting the first compile's empty stamp become the second run's
+    authoritative "admit nothing" signal — a self-reinforcing feedback loop).
+
+    *repo_root* is ``Path | None`` (not just ``Path``) so ``compile_charter``
+    can call this same function even when it has no repository to read a
+    compiled charter or an on-disk interview transcript from (e.g. tests
+    that compile in-memory only). ``None`` skips tiers 1 and disk-tier-2
+    entirely and resolves purely from *interview*, if supplied.
 
     Resolution precedence (FR-008/FR-009/FR-010):
       1. The structured ``languages`` field persisted in ``charter.yaml``'s
          ``catalog`` section at ``charter generate``/``charter sync`` time.
-         Once present, this is authoritative and unconditionally wins — the
-         interview transcript is never consulted, even if it would produce
-         a different answer. An empty compiled list (``catalog.languages:
-         []``) is a legitimate, deliberate answer — a configured project
-         whose interview transcript named no recognized language — and is
-         returned as ``[]``, not promoted to ``None``.
+         Once *present* (the key exists and is a list), this is authoritative
+         and unconditionally wins — the interview transcript is never
+         consulted, even if it would produce a different answer, and even
+         when the persisted list is empty (``catalog.languages: []`` is a
+         legitimate, load-bearing answer if something actually wrote it —
+         see the next paragraph for why nothing in this codebase does,
+         post-#3292).
       2. Otherwise (no compiled charter yet, or a ``charter.yaml`` compiled
-         before this field existed): fall back to the interview transcript,
-         if one exists. Its extraction result is returned as-is, including
-         ``[]`` when the transcript exists but names no recognized language
-         — an interview transcript is itself a completed signal, not an
-         absence of one, so it is never promoted to ``None`` either.
-      3. Only when NEITHER a compiled charter NOR an interview transcript
-         exists is there truly no active-language signal at all. That bare/
-         unconfigured-project case resolves to ``None`` — explicitly
-         distinct from the deliberate ``[]`` results above.
+         before this field existed, i.e. tier 1 found no persisted list at
+         all): fall back to the interview transcript. *interview*, when
+         supplied, is used directly — this is how a caller mid-compile (which
+         holds the freshly-loaded interview in memory, possibly not yet
+         persisted to disk) shares the exact answer this function would give
+         a caller reading only from disk. When *interview* is not supplied,
+         the on-disk transcript at ``.kittify/charter/interview/answers.yaml``
+         is read instead. Either way, the extraction result is returned only
+         when it is **non-empty** — an interview that names no recognized
+         language is treated the same as no interview at all (#3292 fix: this
+         tier used to return the empty extraction result as a "legitimate"
+         answer, which is indistinguishable from tier 1's genuinely-empty
+         case once it round-trips through a compile — see below).
+      3. When no tier above yields a result — no compiled charter, no
+         interview transcript, OR an interview/transcript that names no
+         recognized language — there is no active-language signal. Resolves
+         to ``None``, distinct from an empty list.
 
     The ``None`` vs. ``[]`` distinction is load-bearing for callers, not
-    cosmetic (regression fix, charter-sole-door-bypass-closure-01KZ3WAA
-    landing fold): ``doctrine.shared.scoping.applies_to_languages_match``
-    treats ``active_languages=None`` as "admit every scoped artifact" and an
-    explicitly empty active set as "admit none". Collapsing "no signal yet"
-    into ``[]`` silently drops every language-scoped built-in profile
-    (``python-pedro``, ``frontend-freddy``, ``java-jenny``, ``node-norris``,
-    …) from an otherwise-unconfigured project's catalog — this happened on
-    PR #3175 and was caught by two independent adversarial review lenses.
+    cosmetic: ``doctrine.shared.scoping.applies_to_languages_match`` treats
+    ``active_languages=None`` as "admit every scoped artifact" and an
+    explicitly empty active set as "admit none". #3292's root cause was
+    ``charter.compiler.compile_charter`` independently re-scanning the
+    interview on every compile and unconditionally stamping the (possibly
+    empty) result into ``catalog.languages``, while this function's tier 1
+    then read that persisted empty list back as authoritative "admit none" on
+    the *next* run — even though the compile that produced it had no real
+    signal at all. ``compile_charter`` now calls this exact function
+    (passing its in-memory *interview*) instead of scanning independently,
+    and tier 2 no longer treats an empty scan as a legitimate answer — so a
+    language-agnostic or absent interview resolves to ``None`` at compile
+    time too, and ``compile_charter`` persists that as an *absent* structured
+    field (schema-null / omitted key), which tier 1 above also reads back as
+    "not present" on the next run. A tier-1 ``[]`` therefore can only appear
+    from a hand-edited or externally-authored ``charter.yaml`` — the sole
+    built-in producer never emits one anymore, which is what makes tier 1's
+    "authoritative even when empty" rule safe: it never observes its own
+    compiler's output looping back as a false "admit none" signal.
 
     There is no further ``charter.md`` prose fallback (WP08 / FR-009):
     ``charter.md`` is a curated narrative document, not a decision input, and
@@ -116,14 +160,19 @@ def infer_repo_languages(repo_root: Path) -> list[str] | None:
     compile time — so a free-text re-scan of the prose would be redundant
     with tier-2, never additive.
     """
-    compiled_languages = _read_compiled_languages(repo_root)
+    compiled_languages = _read_compiled_languages(repo_root) if repo_root is not None else None
     if compiled_languages is not None:
         return compiled_languages
 
-    interview_path = repo_root / ".kittify" / "charter" / "interview" / "answers.yaml"
-    interview = read_interview_answers(interview_path)
-    if interview is not None:
-        combined = "\n".join(str(value) for value in interview.answers.values())
-        return extract_declared_languages(combined)
+    resolved_interview = interview
+    if resolved_interview is None and repo_root is not None:
+        interview_path = repo_root / ".kittify" / "charter" / "interview" / "answers.yaml"
+        resolved_interview = read_interview_answers(interview_path)
+
+    if resolved_interview is not None:
+        combined = "\n".join(str(value) for value in resolved_interview.answers.values())
+        declared = extract_declared_languages(combined)
+        if declared:
+            return declared
 
     return None
