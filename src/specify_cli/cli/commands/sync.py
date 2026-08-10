@@ -504,6 +504,7 @@ class _EventSyncRuntime:
     journal: EventJournal
     ledger: SqliteDeliveryLedger
     registry: SqliteDeliveryTargetRegistry
+    context: Any
 
     def close(self) -> None:
         # Closing the diagnostic SQLite handles must never mask the primary
@@ -563,7 +564,7 @@ def _open_event_sync_runtime(*, create: bool = True) -> _EventSyncRuntime:
     registry = SqliteDeliveryTargetRegistry(
         str(registry_path) if create or registry_path.exists() else ":memory:"
     )
-    return _EventSyncRuntime(target=target, journal=journal, ledger=ledger, registry=registry)
+    return _EventSyncRuntime(target=target, journal=journal, ledger=ledger, registry=registry, context=None)
 
 
 def _open_event_sync_runtime_readonly() -> _EventSyncRuntime:
@@ -833,10 +834,12 @@ def _run_dispatch_batches(
     skip: set[str] = set()
     while True:
         batch = dispatch(
+            store=getattr(runtime, "store", None),
             journal=runtime.journal,
             ledger=runtime.ledger,
             receiver=receiver,
             target=delivery_target,
+            context=runtime.context,
             limit=limit,
             exclude=frozenset(skip),
         )

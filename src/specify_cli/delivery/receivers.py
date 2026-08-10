@@ -417,6 +417,16 @@ def _build_payload(events: Sequence[OutboundEvent]) -> bytes:
     return json.dumps({"events": [dict(e.payload) for e in events]}).encode("utf-8")
 
 
+def disclosed_event_payload_bytes(event: OutboundEvent) -> bytes:
+    """Serialize one event's exact disclosed envelope for durable identity hashing.
+
+    The HTTP request wraps these event envelopes in ``{"events": [...]}``. WP07's
+    per-item attempts must hash what can actually reach SaaS, not the raw journal
+    bytes that may have been decoded or wrapped before disclosure.
+    """
+    return json.dumps(dict(event.payload)).encode("utf-8")
+
+
 def _error_text(entry: Mapping[str, Any]) -> str | None:
     """Pull a rejection reason, accepting both ``error_message`` and ``error`` (§3.2)."""
     reason = entry.get("error_message") or entry.get("error")
@@ -873,6 +883,7 @@ __all__ = [
     "ReceiverGate",
     "GateDecision",
     "DeliveryReceiver",
+    "disclosed_event_payload_bytes",
     "HttpResponse",
     "HttpPoster",
     "evaluate_gates",

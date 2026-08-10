@@ -50,7 +50,7 @@ from specify_cli.delivery.consent_gate import (
     ProjectTransportRefusal,
     consented_batch,
     default_transport_deadline,
-    execute_project_transport_disclosure,
+    execute_project_transport_batch,
     stable_transport_id,
 )
 from specify_cli.delivery.ledger import SqliteDeliveryLedger
@@ -58,9 +58,13 @@ from specify_cli.delivery.receivers import (
     DeliveryOutcome,
     DeliveryResult,
     OutboundEvent,
+    disclosed_event_payload_bytes,
 )
+from specify_cli.delivery.targets import compute_target_id
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
+from specify_cli.sync.project_context import ProjectSyncContext
+from specify_cli.sync.project_store import ProjectSyncStore
 from .selection import select_consented
 
 if TYPE_CHECKING:
@@ -213,6 +217,7 @@ def _select_undelivered(
     ledger: SqliteDeliveryLedger,
     target_id: str,
     *,
+    context: ProjectSyncContext,
     limit: int | None = None,
     exclude: frozenset[str] = frozenset(),
 ) -> _Selected:
@@ -242,7 +247,7 @@ def _select_undelivered(
     # Ordering is load-bearing: consent filtering must precede the ledger's limit,
     # or 2,000 non-consented rows ahead of 10 consented ones fill the window and
     # the drain starves permanently (NFR-002/SC-002).
-    selection = select_consented(journal)
+    selection = select_consented(journal, context=context)
     universe_ids = [event_id for event_id in selection.event_ids if event_id not in exclude]
 
     selected_ids = ledger.select_undelivered(
@@ -291,34 +296,84 @@ def _transport_outcome_for_delivery_result(
         return TransportOutcome.DELIVERED.value, None
     if result.outcome is DeliveryOutcome.DUPLICATE:
         return TransportOutcome.DUPLICATE.value, None
-    if result.outcome in {DeliveryOutcome.REJECTED, DeliveryOutcome.TERMINAL_FAILED}:
+    if result.outcome is DeliveryOutcome.PENDING:
+        return TransportOutcome.PENDING.value, None
+    if result.outcome is DeliveryOutcome.REJECTED:
+        return TransportOutcome.REJECTED.value, None
+    if result.outcome is DeliveryOutcome.TRANSIENT:
+        return TransportOutcome.TRANSIENT.value, None
+    if result.outcome is DeliveryOutcome.TERMINAL_FAILED:
         return (
             TransportOutcome.REFUSED.value,
             (result.error or result.outcome.value).strip() or result.outcome.value,
         )
-    return TransportOutcome.UNKNOWN.value, None
+    return TransportOutcome.TRANSIENT.value, None
 
 
-def _post_one(
-    receiver: DeliveryReceiver,
+def _dispatcher_payload_reference(event_id: str, target_id: str) -> str:
+    """Structured correlation stored inside the canonical WP06 attempt metadata."""
+    return json.dumps(
+        {
+            "schema": "spec-kitty.dispatcher.v1",
+            "event_id": event_id,
+            "target_id": target_id,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def _outbound_event(event: Event, *, native_identity: str) -> OutboundEvent:
+    payload = dict(_decode_payload(event))
+    payload.setdefault("event_id", event.event_id)
+    payload["spec_kitty_delivery_identity"] = native_identity
+    return OutboundEvent(event_id=event.event_id, payload=payload)
+
+
+def _target_id_for_event(
     event: Event,
-    answer: ConsentAnswer,
     *,
     target: DeliveryTarget,
-) -> DeliveryResult:
-    """Deliver one event through the WP06 project attempt/lease final gate."""
+    context: ProjectSyncContext,
+) -> str:
     project_uuid = event.project_uuid
     if project_uuid is None:
-        return DeliveryResult(
-            event_id=event.event_id,
-            outcome=DeliveryOutcome.TERMINAL_FAILED,
-            error="project_not_admitted: event has no project_uuid",
-        )
-    outbound = OutboundEvent(event_id=event.event_id, payload=_decode_payload(event))
-    payload_hash = "sha256:" + hashlib.sha256(event.payload).hexdigest()  # noqa: TID251 - transport payload identity, not charter content
-    native_identity = "dispatcher-http:" + stable_transport_id(project_uuid, target.target_id, event.event_id, payload_hash)
-    disclosure = ProjectTransportDisclosure(
+        raise ValueError("event has no project_uuid")
+    if target.project_uuid.storage_token != project_uuid:
+        raise ValueError("target project_uuid does not match event project_uuid")
+    target_id = compute_target_id(
+        target_identity=target.target_identity,
+        account_identity=target.account_identity,
+        private_teamspace_id=target.private_teamspace_id,
+        project_uuid=target.project_uuid,
+        configuration_generation=target.configuration_generation,
+    )
+    if target.target_id != target_id:
+        raise ValueError("target_id does not match the admitted audience tuple")
+    if context.epoch_id is None or context.consent_generation is None:
+        raise ValueError("dispatch requires a consenting project context")
+    return target_id
+
+
+def _disclosure_for_event(
+    event: Event,
+    *,
+    target: DeliveryTarget,
+    context: ProjectSyncContext,
+    target_id: str,
+    native_identity: str,
+    outbound: OutboundEvent,
+) -> ProjectTransportDisclosure:
+    """Build the immutable per-event WP06 identity selected by this dispatch pass."""
+    project_uuid = event.project_uuid
+    assert project_uuid is not None
+    assert context.epoch_id is not None
+    assert context.consent_generation is not None
+    payload_hash = "sha256:" + hashlib.sha256(disclosed_event_payload_bytes(outbound)).hexdigest()  # noqa: TID251 - transport payload identity, not charter content
+    return ProjectTransportDisclosure(
         project_uuid=project_uuid,
+        epoch_id=context.epoch_id,
+        consent_generation=context.consent_generation,
         target_identity=target.target_identity,
         account_identity=target.account_identity,
         private_teamspace_id=target.private_teamspace_id,
@@ -329,67 +384,34 @@ def _post_one(
         write_kind="dispatcher_http_event",
         native_identity=native_identity,
         payload_hash=payload_hash,
-        payload_reference=f"dispatcher:{target.target_id}:{event.event_id}",
-        attempt_id="dispatcher-http:" + stable_transport_id("attempt", project_uuid, target.target_id, event.event_id),
+        payload_reference=_dispatcher_payload_reference(event.event_id, target_id),
+        attempt_id="dispatcher-http:" + stable_transport_id("attempt", project_uuid, target_id, event.event_id),
         deadline_at=default_transport_deadline(),
+        reconciliation_policy="native_identity_retry",
     )
 
-    def _send() -> object:
-        return list(
-            receiver.deliver(
-                consented_batch(
-                    [outbound],
-                    answer=answer,
-                    event_projects={event.event_id: project_uuid},
-                )
-            )
-        )
 
-    def _classify(value: object) -> tuple[str, str | None]:
-        if not isinstance(value, list) or not value:
-            return _transport_outcome_for_delivery_result(
-                DeliveryResult(
-                    event_id=event.event_id,
-                    outcome=DeliveryOutcome.TRANSIENT,
-                    error="receiver returned no result for event",
-                )
-            )
-        result = value[0]
-        if not isinstance(result, DeliveryResult) or result.event_id != event.event_id:
-            return _transport_outcome_for_delivery_result(
-                DeliveryResult(
-                    event_id=event.event_id,
-                    outcome=DeliveryOutcome.TRANSIENT,
-                    error="receiver returned an uncorrelated result",
-                )
-            )
-        return _transport_outcome_for_delivery_result(result)
-
-    gated = execute_project_transport_disclosure(
-        disclosure,
-        send=_send,
-        classify=_classify,
-    )
-    if isinstance(gated, ProjectTransportRefusal):
-        return DeliveryResult(
-            event_id=event.event_id,
-            outcome=DeliveryOutcome.TERMINAL_FAILED,
-            error=f"{gated.category}: {gated.diagnostic}",
-        )
-    if not isinstance(gated, list) or not gated:
-        return DeliveryResult(
-            event_id=event.event_id,
-            outcome=DeliveryOutcome.TRANSIENT,
-            error="receiver returned no result for event",
-        )
-    result = gated[0]
-    if not isinstance(result, DeliveryResult) or result.event_id != event.event_id:
-        return DeliveryResult(
-            event_id=event.event_id,
-            outcome=DeliveryOutcome.TRANSIENT,
-            error="receiver returned an uncorrelated result",
-        )
-    return result
+def _correlate_batch_results(
+    value: object,
+    *,
+    disclosures_by_event: Mapping[str, ProjectTransportDisclosure],
+) -> tuple[list[DeliveryResult], Mapping[str, tuple[str, str | None]]]:
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+        raise ValueError("receiver did not return a per-event result sequence")
+    by_event: dict[str, DeliveryResult] = {}
+    for item in value:
+        if not isinstance(item, DeliveryResult):
+            raise ValueError("receiver returned a non-DeliveryResult item")
+        if item.event_id not in disclosures_by_event:
+            raise ValueError(f"receiver returned result for unselected event {item.event_id}")
+        if item.event_id in by_event:
+            raise ValueError(f"receiver returned duplicate result for event {item.event_id}")
+        by_event[item.event_id] = item
+    missing = set(disclosures_by_event) - set(by_event)
+    if missing:
+        raise ValueError(f"receiver omitted results for events: {', '.join(sorted(missing))}")
+    outcomes = {disclosures_by_event[event_id].attempt_id: _transport_outcome_for_delivery_result(result) for event_id, result in by_event.items()}
+    return [by_event[event_id] for event_id in disclosures_by_event], outcomes
 
 
 def _post(
@@ -398,6 +420,7 @@ def _post(
     answer: ConsentAnswer,
     *,
     target: DeliveryTarget | None = None,
+    context: ProjectSyncContext | None = None,
     target_id: str | None = None,
 ) -> list[DeliveryResult]:
     """Deliver *events* through the active *receiver* (one path; contract §4).
@@ -418,7 +441,63 @@ def _post(
         return []
     if target is None:
         raise TypeError("non-empty dispatcher post requires a DeliveryTarget final-gate audience")
-    return [_post_one(receiver, event, answer, target=target) for event in events]
+    if context is None:
+        raise TypeError("non-empty dispatcher post requires the immutable selected ProjectSyncContext")
+    immediate: list[DeliveryResult] = []
+    outbounds: list[OutboundEvent] = []
+    disclosures: list[ProjectTransportDisclosure] = []
+    projects: dict[str, str] = {}
+    for event in events:
+        try:
+            target_id = _target_id_for_event(event, target=target, context=context)
+            native_identity = f"dispatcher-http:{target_id}:{event.event_id}"
+            outbound = _outbound_event(event, native_identity=native_identity)
+            disclosure = _disclosure_for_event(
+                event,
+                target=target,
+                context=context,
+                target_id=target_id,
+                native_identity=native_identity,
+                outbound=outbound,
+            )
+        except ValueError as exc:
+            immediate.append(
+                DeliveryResult(
+                    event_id=event.event_id,
+                    outcome=DeliveryOutcome.TERMINAL_FAILED,
+                    error=f"project_not_admitted: {exc}",
+                )
+            )
+            continue
+        outbounds.append(outbound)
+        disclosures.append(disclosure)
+        assert event.project_uuid is not None
+        projects[event.event_id] = event.project_uuid
+    if not disclosures:
+        return immediate
+    event_ids = [event.event_id for event in events if event.event_id in projects]
+    disclosures_by_event = dict(zip(event_ids, disclosures, strict=True))
+    correlated_results: list[DeliveryResult] = []
+
+    def _send() -> object:
+        return list(receiver.deliver(consented_batch(outbounds, answer=answer, event_projects=projects)))
+
+    def _classify(value: object) -> Mapping[str, tuple[str, str | None]]:
+        nonlocal correlated_results
+        correlated_results, outcomes = _correlate_batch_results(value, disclosures_by_event=disclosures_by_event)
+        return outcomes
+
+    gated = execute_project_transport_batch(disclosures, send=_send, classify=_classify)
+    if isinstance(gated, ProjectTransportRefusal):
+        return immediate + [
+            DeliveryResult(
+                event_id=event_id,
+                outcome=DeliveryOutcome.TERMINAL_FAILED,
+                error=f"{gated.category}: {gated.diagnostic}",
+            )
+            for event_id in disclosures_by_event
+        ]
+    return immediate + correlated_results
 
 
 # --------------------------------------------------------------------------- #
@@ -512,6 +591,46 @@ def _record(
     )
 
 
+def _summarize_results(
+    target_id: str,
+    results: Sequence[DeliveryResult],
+    *,
+    selected: int,
+) -> DispatchSummary:
+    """Summarize live WP06-recorded results without writing a second ledger row."""
+    counts: dict[DeliveryOutcome, int] = dict.fromkeys(DeliveryOutcome, 0)
+    failures: list[DispatchFailure] = []
+    retryable_event_ids: list[str] = []
+    for result in results:
+        counts[result.outcome] += 1
+        if result.outcome in {
+            DeliveryOutcome.PENDING,
+            DeliveryOutcome.REJECTED,
+            DeliveryOutcome.TRANSIENT,
+        }:
+            retryable_event_ids.append(result.event_id)
+        if result.outcome in {
+            DeliveryOutcome.REJECTED,
+            DeliveryOutcome.TRANSIENT,
+            DeliveryOutcome.TERMINAL_FAILED,
+        }:
+            failures.append(
+                DispatchFailure(
+                    event_id=result.event_id,
+                    outcome=result.outcome.value,
+                    http_status=result.http_status,
+                    error=result.error,
+                )
+            )
+    return DispatchSummary.from_counts(
+        target_id,
+        selected=selected,
+        counts=counts,
+        failures=failures,
+        retryable_event_ids=retryable_event_ids,
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Public entry point — the thin select -> post -> record orchestrator           #
 # --------------------------------------------------------------------------- #
@@ -519,10 +638,12 @@ def _record(
 
 def dispatch(
     *,
-    journal: EventJournal,
-    ledger: SqliteDeliveryLedger,
+    store: ProjectSyncStore | None = None,
+    journal: EventJournal | None = None,
+    ledger: SqliteDeliveryLedger | None = None,
     receiver: DeliveryReceiver,
     target: DeliveryTarget | None,
+    context: ProjectSyncContext | None = None,
     limit: int | None = None,
     exclude: frozenset[str] = frozenset(),
 ) -> DispatchSummary:
@@ -545,11 +666,30 @@ def dispatch(
     head-of-line-block deliverable events behind it. It never mutates the ledger,
     so those events stay selectable on the next drain.
     """
-    _install_coalescing(ledger)
     if target is None:
         return DispatchSummary.empty()
-    selected = _select_undelivered(journal, ledger, target.target_id, limit=limit, exclude=exclude)
-    results = _post(receiver, selected.events, selected.answer, target=target)
+    if store is not None:
+        if context is None:
+            raise TypeError("dispatch(store=...) requires a caller-owned immutable ProjectSyncContext")
+        with store.unit_of_work() as unit:
+            phase_journal = EventJournal(unit, store.layout_generation())
+            phase_ledger = SqliteDeliveryLedger(unit, store.layout_generation())
+            _install_coalescing(phase_ledger)
+            selected = _select_undelivered(
+                phase_journal,
+                phase_ledger,
+                target.target_id,
+                context=context,
+                limit=limit,
+                exclude=exclude,
+            )
+        results = _post(receiver, selected.events, selected.answer, target=target, context=context)
+        return _summarize_results(target.target_id, results, selected=len(selected.events))
+    if journal is None or ledger is None or context is None:
+        raise TypeError("dispatch requires either ProjectSyncStore or journal, ledger, and ProjectSyncContext")
+    _install_coalescing(ledger)
+    selected = _select_undelivered(journal, ledger, target.target_id, context=context, limit=limit, exclude=exclude)
+    results = _post(receiver, selected.events, selected.answer, target=target, context=context)
     return _record(ledger, target.target_id, results, selected=len(selected.events))
 
 

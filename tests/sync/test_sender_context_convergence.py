@@ -14,6 +14,7 @@ from specify_cli.delivery.consent_gate import (
     execute_project_transport_disclosure,
 )
 from specify_cli.delivery.interfaces import DeliveryTarget, TargetIdentity
+from specify_cli.delivery.targets import compute_target_id
 from specify_cli.sync.body_queue import BodyUploadTask
 from specify_cli.sync.body_transport import push_content_with_transport_gate
 from specify_cli.sync.consent import record_project_opt_in
@@ -29,15 +30,22 @@ OTHER = "bbbbbbbb-0000-0000-0000-0000000000bb"
 
 
 def _target(project_uuid: str = PROJECT) -> DeliveryTarget:
+    identity = TargetIdentity(
+        target_identity="https://app.spec-kitty.ai",
+        account_identity="account-1",
+        private_teamspace_id="teamspace-1",
+        project_uuid=CanonicalProjectUUID.parse(project_uuid),
+        configuration_generation=4,
+    )
     return DeliveryTarget(
-        target_id="target-wp07",
-        identity=TargetIdentity(
-            target_identity="https://app.spec-kitty.ai",
-            account_identity="account-1",
-            private_teamspace_id="teamspace-1",
-            project_uuid=CanonicalProjectUUID.parse(project_uuid),
-            configuration_generation=4,
+        target_id=compute_target_id(
+            target_identity=identity.target_identity,
+            account_identity=identity.account_identity,
+            private_teamspace_id=identity.private_teamspace_id,
+            project_uuid=identity.project_uuid,
+            configuration_generation=identity.configuration_generation,
         ),
+        identity=identity,
         admission_state=AdmissionState.ADMITTED,
         admission_generation=9,
         binding_audience="private-teamspace:teamspace-1",
@@ -70,6 +78,8 @@ def _disclosure(
 ) -> ProjectTransportDisclosure:
     return ProjectTransportDisclosure(
         project_uuid=project_uuid or target.project_uuid.storage_token,
+        epoch_id=1,
+        consent_generation=1,
         target_identity=target.target_identity,
         account_identity=target.account_identity,
         private_teamspace_id=target.private_teamspace_id,
@@ -196,7 +206,7 @@ def test_send_exception_leaves_original_attempt_unknown_without_fresh_identity(t
         )
 
     assert _attempt_state(store, "attempt-exception")[0] == DeliveryAttemptState.UNKNOWN.value
-    assert _result_outcomes(store, "attempt-exception") == [DeliveryOutcome.UNKNOWN.value]
+    assert _result_outcomes(store, "attempt-exception") == []
     with store.unit_of_work() as unit:
         rows = unit.execute(
             "SELECT attempt_id FROM delivery_attempts WHERE project_uuid = ?",

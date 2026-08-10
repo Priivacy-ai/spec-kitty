@@ -101,6 +101,8 @@ class ProjectTransportDisclosure:
     """Immutable per-write identity consumed by the WP06 transport final gate."""
 
     project_uuid: str
+    epoch_id: int
+    consent_generation: int
     target_identity: str
     account_identity: str
     private_teamspace_id: str
@@ -158,21 +160,144 @@ def execute_project_transport_disclosure(
     current consent/admission/kill-switch eligibility, *send* is never invoked and
     the refusal is scoped to this exact project/attempt.
     """
+
+    def _batch_send() -> object:
+        return send()
+
+    def _batch_classify(value: object) -> Mapping[str, tuple[str, str | None]]:
+        return {disclosure.attempt_id: classify(value)}
+
+    result = execute_project_transport_batch(
+        [disclosure],
+        send=_batch_send,
+        classify=_batch_classify,
+    )
+    return result
+
+
+def execute_project_transport_batch(
+    disclosures: Sequence[ProjectTransportDisclosure],
+    *,
+    send: Callable[[], object],
+    classify: Callable[[object], Mapping[str, tuple[str, str | None]]],
+) -> object | ProjectTransportRefusal:
+    """Run a same-project batch through per-item WP06 durable attempts.
+
+    Every item is prepared and started in its own durable row before the single
+    receiver call. Result correlation is supplied by *classify* and persisted per
+    original attempt; if the send or result classification becomes uncertain, the
+    original attempts are marked ``unknown`` rather than replaced or recorded as a
+    fake terminal outcome.
+    """
+    if not disclosures:
+        return send()
+    project_uuids = {disclosure.project_uuid for disclosure in disclosures}
+    if len(project_uuids) != 1:
+        first = disclosures[0]
+        return ProjectTransportRefusal(
+            project_uuid=first.project_uuid,
+            attempt_id=first.attempt_id,
+            category="project_not_admitted",
+            diagnostic="transport batch spans more than one project",
+        )
     from specify_cli.sync.project_store import ProjectStoreError, ProjectSyncStore
     from specify_cli.sync.transport_attempts import (
-        DeliveryAttemptSpec,
         DeliveryAttemptState,
         DeliveryOutcome,
-        RecoveryAction,
+        get_delivery_attempt_record,
         mark_transport_started,
-        plan_delivery_attempt_recovery,
         prepare_delivery_attempt,
         record_delivery_result,
     )
     from specify_cli.sync.transport_lease import acquire_project_transport_lease
 
-    store = ProjectSyncStore(disclosure.project_uuid)
-    spec = DeliveryAttemptSpec(
+    store = ProjectSyncStore(disclosures[0].project_uuid)
+    specs = {disclosure.attempt_id: _attempt_spec(disclosure) for disclosure in disclosures}
+    start_required: set[str] = set()
+    with acquire_project_transport_lease(store) as lease:
+        with lease.unit_of_work() as (unit, context):
+            for disclosure in disclosures:
+                try:
+                    _assert_expected_transport_authority(disclosure, context)
+                    existing = get_delivery_attempt_record(unit, attempt_id=disclosure.attempt_id)
+                    if existing is None:
+                        prepare_delivery_attempt(unit, context, specs[disclosure.attempt_id])
+                        start_required.add(disclosure.attempt_id)
+                    elif (
+                        existing.state is not DeliveryAttemptState.PREPARED
+                        or existing.native_identity != disclosure.native_identity
+                        or existing.payload_hash != disclosure.payload_hash
+                    ):
+                        return ProjectTransportRefusal(
+                            project_uuid=disclosure.project_uuid,
+                            attempt_id=disclosure.attempt_id,
+                            category="delivery_attempt_recovery_required",
+                            diagnostic="existing delivery attempt is not a prepared retry of the same native identity",
+                        )
+                    else:
+                        start_required.add(disclosure.attempt_id)
+                except ProjectStoreError as exc:
+                    return ProjectTransportRefusal(
+                        project_uuid=disclosure.project_uuid,
+                        attempt_id=disclosure.attempt_id,
+                        category="project_not_admitted",
+                        diagnostic=str(exc),
+                    )
+
+        with lease.unit_of_work() as (unit, context):
+            for disclosure in disclosures:
+                if disclosure.attempt_id not in start_required:
+                    continue
+                try:
+                    _assert_expected_transport_authority(disclosure, context)
+                    mark_transport_started(unit, context, disclosure.attempt_id)
+                except ProjectStoreError as exc:
+                    return ProjectTransportRefusal(
+                        project_uuid=disclosure.project_uuid,
+                        attempt_id=disclosure.attempt_id,
+                        category="project_not_admitted",
+                        diagnostic=str(exc),
+                    )
+
+        try:
+            value = send()
+        except Exception:
+            _mark_unknown(disclosures, lease=lease, reason="send raised before result correlation")
+            raise
+
+        try:
+            outcomes = classify(value)
+        except (ProjectStoreError, ValueError, TypeError) as exc:
+            _mark_unknown(disclosures, lease=lease, reason=f"result classification failed: {exc}")
+            raise ProjectTransportResultError(
+                f"delivery disclosed bytes but result correlation failed; recover original attempts: {', '.join(d.attempt_id for d in disclosures)}"
+            ) from exc
+
+        for disclosure in disclosures:
+            try:
+                outcome_value, category = outcomes[disclosure.attempt_id]
+                with lease.unit_of_work() as (unit, context):
+                    _assert_expected_transport_authority(disclosure, context)
+                    record_delivery_result(
+                        unit,
+                        context,
+                        result_id=_transport_result_id(disclosure.attempt_id, "result"),
+                        attempt_id=disclosure.attempt_id,
+                        outcome=DeliveryOutcome(outcome_value),
+                        terminal_refusal_category=category,
+                    )
+            except (KeyError, ProjectStoreError, ValueError) as exc:
+                _mark_unknown([disclosure], lease=lease, reason=f"result persistence failed: {exc}")
+                raise ProjectTransportResultError(
+                    f"delivery disclosed bytes but the durable result fence could not be recorded; recover original attempt {disclosure.attempt_id}: {exc}"
+                ) from exc
+        return value
+
+
+def _attempt_spec(disclosure: ProjectTransportDisclosure) -> Any:
+    from specify_cli.sync.transport_attempts import DeliveryAttemptSpec
+
+    return DeliveryAttemptSpec(
         attempt_id=disclosure.attempt_id,
         write_kind=disclosure.write_kind,
         native_identity=disclosure.native_identity,
@@ -181,84 +306,30 @@ def execute_project_transport_disclosure(
         deadline_at=disclosure.deadline_at,
         reconciliation_policy=disclosure.reconciliation_policy,
     )
-    with acquire_project_transport_lease(store) as lease:
-        with lease.unit_of_work() as (unit, context):
-            try:
-                _assert_expected_transport_audience(disclosure, context)
-                prepare_delivery_attempt(unit, context, spec)
-            except ProjectStoreError as exc:
-                if "already exists" not in str(exc):
-                    return ProjectTransportRefusal(
-                        project_uuid=disclosure.project_uuid,
-                        attempt_id=disclosure.attempt_id,
-                        category="project_not_admitted",
-                        diagnostic=str(exc),
-                    )
-                decision = plan_delivery_attempt_recovery(unit, attempt_id=disclosure.attempt_id)
-                if decision.state is not DeliveryAttemptState.PREPARED or decision.action is not RecoveryAction.RETRY_NATIVE_IDENTITY:
-                    return ProjectTransportRefusal(
-                        project_uuid=disclosure.project_uuid,
-                        attempt_id=disclosure.attempt_id,
-                        category="delivery_attempt_recovery_required",
-                        diagnostic=decision.diagnostic,
-                    )
 
-        with lease.unit_of_work() as (unit, context):
-            try:
-                _assert_expected_transport_audience(disclosure, context)
-                mark_transport_started(unit, context, disclosure.attempt_id)
-            except ProjectStoreError as exc:
-                return ProjectTransportRefusal(
-                    project_uuid=disclosure.project_uuid,
-                    attempt_id=disclosure.attempt_id,
-                    category="project_not_admitted",
-                    diagnostic=str(exc),
-                )
 
+def _mark_unknown(disclosures: Sequence[ProjectTransportDisclosure], *, lease: Any, reason: str) -> None:
+    from specify_cli.sync.project_store import ProjectStoreError
+    from specify_cli.sync.transport_attempts import mark_delivery_result_unknown
+
+    for disclosure in disclosures:
         try:
-            value = send()
-        except Exception:
             with lease.unit_of_work() as (unit, context):
-                record_delivery_result(
+                mark_delivery_result_unknown(
                     unit,
                     context,
-                    result_id=f"{disclosure.attempt_id}:unknown",
                     attempt_id=disclosure.attempt_id,
-                    outcome=DeliveryOutcome.UNKNOWN,
+                    reason=reason,
                 )
-            raise
-
-        try:
-            outcome_value, category = classify(value)
-            with lease.unit_of_work() as (unit, context):
-                _assert_expected_transport_audience(disclosure, context)
-                record_delivery_result(
-                    unit,
-                    context,
-                    result_id=f"{disclosure.attempt_id}:result",
-                    attempt_id=disclosure.attempt_id,
-                    outcome=DeliveryOutcome(outcome_value),
-                    terminal_refusal_category=category,
-                )
-        except ProjectStoreError as exc:
-            try:
-                with lease.unit_of_work() as (unit, context):
-                    record_delivery_result(
-                        unit,
-                        context,
-                        result_id=f"{disclosure.attempt_id}:unknown",
-                        attempt_id=disclosure.attempt_id,
-                        outcome=DeliveryOutcome.UNKNOWN,
-                    )
-            except ProjectStoreError:
-                pass
-            raise ProjectTransportResultError(
-                f"delivery disclosed bytes but the durable result fence could not be recorded; recover original attempt {disclosure.attempt_id}: {exc}"
-            ) from exc
-        return value
+        except ProjectStoreError:
+            pass
 
 
-def _assert_expected_transport_audience(
+def _transport_result_id(attempt_id: str, kind: str) -> str:
+    return f"{attempt_id}:{kind}:{datetime.now(UTC).isoformat()}"
+
+
+def _assert_expected_transport_authority(
     disclosure: ProjectTransportDisclosure,
     context: Any,
 ) -> None:
@@ -277,6 +348,8 @@ def _assert_expected_transport_audience(
         "target_generation": str(disclosure.target_generation),
         "admission_generation": disclosure.admission_generation,
         "binding_audience": disclosure.binding_audience,
+        "epoch_id": str(disclosure.epoch_id),
+        "consent_generation": str(disclosure.consent_generation),
     }
     actual = {
         "project_uuid": str(context.project_uuid.storage_token),
@@ -287,6 +360,8 @@ def _assert_expected_transport_audience(
         "target_generation": str(target.configuration_generation),
         "admission_generation": str(context.admission_generation),
         "binding_audience": str(context.binding_audience),
+        "epoch_id": str(context.epoch_id),
+        "consent_generation": str(context.consent_generation),
     }
     for key, expected_value in expected.items():
         if actual[key] != expected_value:

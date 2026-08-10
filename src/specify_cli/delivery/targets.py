@@ -41,17 +41,36 @@ def compute_url_hash(canonical_url: str) -> str:
     return hashlib.sha256(canonical_url.encode("utf-8")).hexdigest()  # noqa: TID251 - target identity digest, not charter freshness
 
 
-def _target_id(audience: AdmissionAudience) -> str:
+def compute_target_id(
+    *,
+    target_identity: str,
+    account_identity: str,
+    private_teamspace_id: str,
+    project_uuid: CanonicalProjectUUID,
+    configuration_generation: int,
+) -> str:
+    """Derive the canonical project-owned target key from its authority tuple."""
     material = "\x00".join(
         (
-            audience.target_identity,
-            audience.account_identity,
-            audience.private_teamspace_id,
-            audience.project_uuid.storage_token,
-            str(audience.configuration_generation),
+            target_identity,
+            account_identity,
+            private_teamspace_id,
+            project_uuid.storage_token,
+            str(configuration_generation),
         )
     )
     return f"tgt_{hashlib.sha256(material.encode('utf-8')).hexdigest()[:32]}"  # noqa: TID251 - target identity digest, not charter freshness
+
+
+def target_id_for_audience(audience: AdmissionAudience) -> str:
+    """Return the canonical target key for an admission audience."""
+    return compute_target_id(
+        target_identity=audience.target_identity,
+        account_identity=audience.account_identity,
+        private_teamspace_id=audience.private_teamspace_id,
+        project_uuid=audience.project_uuid,
+        configuration_generation=audience.configuration_generation,
+    )
 
 
 def _row_to_target(row: SQLiteRow) -> DeliveryTarget:
@@ -59,7 +78,7 @@ def _row_to_target(row: SQLiteRow) -> DeliveryTarget:
     project_uuid = CanonicalProjectUUID.parse(str(values[0]))
     generation = values[6]
     return DeliveryTarget(
-        target_id=_target_id(
+        target_id=target_id_for_audience(
             AdmissionAudience(
                 normalized_server_origin=str(values[1]),
                 account_identity=str(values[2]),
@@ -166,5 +185,7 @@ __all__ = [
     "ProjectDeliveryTargetRegistry",
     "SqliteDeliveryTargetRegistry",
     "canonicalize_url",
+    "compute_target_id",
     "compute_url_hash",
+    "target_id_for_audience",
 ]

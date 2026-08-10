@@ -39,12 +39,14 @@ from specify_cli.delivery.dispatcher import (
 )
 from specify_cli.delivery.ledger import (
     STATUS_DUPLICATE,
+    STATUS_PENDING,
     STATUS_SUCCESS,
     STATUS_TERMINAL_FAILED,
     TERMINAL_SUCCESS_STATUSES,
     SqliteDeliveryLedger,
 )
 from specify_cli.delivery.interfaces import DeliveryTarget, TargetIdentity
+from specify_cli.delivery.targets import compute_target_id
 from specify_cli.delivery.receivers import (
     DeliveryOutcome,
     DeliveryResult,
@@ -54,7 +56,7 @@ from specify_cli.delivery.receivers import (
 )
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
-from specify_cli.sync.project_context import AdmissionState
+from specify_cli.sync.project_context import AdmissionState, ProjectSyncContext
 from specify_cli.sync.project_identity import CanonicalProjectUUID
 from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork
 from tests._support.consented_batches import granting
@@ -121,7 +123,13 @@ def _make_event(index: int) -> Event:
 
 @pytest.fixture
 def store() -> ProjectSyncStore:
-    return ProjectSyncStore(_TEST_PROJECT_UUID)
+    value = ProjectSyncStore(_TEST_PROJECT_UUID)
+    with value.unit_of_work() as active:
+        journal = EventJournal(active, value.layout_generation())
+        if journal.count() == 0:
+            for index in range(3):
+                journal.append(_make_event(index))
+    return value
 
 
 @pytest.fixture
@@ -131,12 +139,14 @@ def unit(store: ProjectSyncStore) -> Any:
 
 
 @pytest.fixture
+def context(store: ProjectSyncStore) -> ProjectSyncContext:
+    return store.create_context()
+
+
+@pytest.fixture
 def journal(store: ProjectSyncStore, unit: ProjectUnitOfWork) -> EventJournal:
     """A journal seeded with three distinct events (the drain universe)."""
-    jrnl = EventJournal(unit, store.layout_generation())
-    for index in range(3):
-        jrnl.append(_make_event(index))
-    return jrnl
+    return EventJournal(unit, store.layout_generation())
 
 
 @pytest.fixture
@@ -144,10 +154,42 @@ def ledger(store: ProjectSyncStore, unit: ProjectUnitOfWork) -> SqliteDeliveryLe
     return SqliteDeliveryLedger(unit, store.layout_generation())
 
 
+def _journal_count(store: ProjectSyncStore) -> int:
+    with store.unit_of_work() as unit:
+        return EventJournal(unit, store.layout_generation()).count()
+
+
+def _journal_read_by_id(store: ProjectSyncStore, event_id: str) -> Event | None:
+    with store.unit_of_work() as unit:
+        return EventJournal(unit, store.layout_generation()).read_by_id(event_id)
+
+
+def _ledger_get(store: ProjectSyncStore, event_id: str, target_id: str) -> Any:
+    with store.unit_of_work() as unit:
+        return SqliteDeliveryLedger(unit, store.layout_generation()).get(event_id, target_id)
+
+
+def _select_with_store(
+    store: ProjectSyncStore,
+    target_id: str,
+    *,
+    limit: int | None = None,
+) -> Any:
+    context = store.create_context()
+    with store.unit_of_work() as unit:
+        return _select_undelivered(
+            EventJournal(unit, store.layout_generation()),
+            SqliteDeliveryLedger(unit, store.layout_generation()),
+            target_id,
+            context=context,
+            limit=limit,
+        )
+
+
 @pytest.fixture
 def target_a() -> DeliveryTarget:
-    return DeliveryTarget(
-        target_id="target-a",
+    target = DeliveryTarget(
+        target_id="",
         identity=TargetIdentity(
             target_identity="dispatcher-test-target",
             account_identity="account-test",
@@ -159,25 +201,73 @@ def target_a() -> DeliveryTarget:
         admission_generation=1,
         binding_audience="private-teamspace:teamspace-test",
         last_error_category=None,
+    )
+    return DeliveryTarget(
+        target_id=compute_target_id(
+            target_identity=target.target_identity,
+            account_identity=target.account_identity,
+            private_teamspace_id=target.private_teamspace_id,
+            project_uuid=target.project_uuid,
+            configuration_generation=target.configuration_generation,
+        ),
+        identity=target.identity,
+        admission_state=target.admission_state,
+        admission_generation=target.admission_generation,
+        binding_audience=target.binding_audience,
+        last_error_category=target.last_error_category,
     )
 
 
 @pytest.fixture
 def target_b() -> DeliveryTarget:
-    return DeliveryTarget(
-        target_id="target-b",
+    target = DeliveryTarget(
+        target_id="",
         identity=TargetIdentity(
-            target_identity="dispatcher-test-target",
+            target_identity="dispatcher-test-target-b",
             account_identity="account-test",
             private_teamspace_id="teamspace-test",
             project_uuid=CanonicalProjectUUID.parse(_TEST_PROJECT_UUID),
-            configuration_generation=1,
+            configuration_generation=2,
         ),
         admission_state=AdmissionState.ADMITTED,
-        admission_generation=1,
+        admission_generation=2,
         binding_audience="private-teamspace:teamspace-test",
         last_error_category=None,
     )
+    return DeliveryTarget(
+        target_id=compute_target_id(
+            target_identity=target.target_identity,
+            account_identity=target.account_identity,
+            private_teamspace_id=target.private_teamspace_id,
+            project_uuid=target.project_uuid,
+            configuration_generation=target.configuration_generation,
+        ),
+        identity=target.identity,
+        admission_state=target.admission_state,
+        admission_generation=target.admission_generation,
+        binding_audience=target.binding_audience,
+        last_error_category=target.last_error_category,
+    )
+
+
+def _admit_target(store: ProjectSyncStore, target: DeliveryTarget) -> ProjectSyncContext:
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "UPDATE project_target_admissions SET target_identity = ?, account_identity = ?, "
+            "private_teamspace_id = ?, configuration_generation = ?, admission_state = ?, "
+            "admission_generation = ?, binding_audience = ? WHERE project_uuid = ?",
+            (
+                target.target_identity,
+                target.account_identity,
+                target.private_teamspace_id,
+                target.configuration_generation,
+                target.admission_state.value,
+                str(target.admission_generation),
+                target.binding_audience,
+                _TEST_PROJECT_UUID,
+            ),
+        )
+    return store.create_context()
 
 
 class _TerminalFailStub:
@@ -257,6 +347,42 @@ class _PendingHeadStub:
         ]
 
 
+class _DuplicateStub:
+    """Return duplicate for every event on the first canonical WP06 attempt."""
+
+    @property
+    def endpoint_url(self) -> str:
+        return "http://localhost/__duplicate-stub__/api/v1/events/batch/"
+
+    def auth_headers(self) -> dict[str, str]:
+        return {}
+
+    def gates(self) -> tuple[Any, ...]:
+        return ()
+
+    def deliver(self, batch: Sequence[OutboundEvent]) -> list[DeliveryResult]:
+        return [DeliveryResult(event_id=event.event_id, outcome=DeliveryOutcome.DUPLICATE) for event in batch]
+
+
+class _RaisingStub:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    @property
+    def endpoint_url(self) -> str:
+        return "http://localhost/__raising-stub__/api/v1/events/batch/"
+
+    def auth_headers(self) -> dict[str, str]:
+        return {}
+
+    def gates(self) -> tuple[Any, ...]:
+        return ()
+
+    def deliver(self, batch: Sequence[OutboundEvent]) -> list[DeliveryResult]:
+        self.calls += 1
+        raise RuntimeError("network died after start")
+
+
 class _AdaptiveOversizedStub:
     """Exercise the canonical mapper's batch-413 then singleton-terminal path."""
 
@@ -302,30 +428,31 @@ class _FakeCoalesce:
 
 
 def test_replay_to_new_target_redelivers_and_retains(
-    journal: EventJournal,
-    ledger: SqliteDeliveryLedger,
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
     target_a: DeliveryTarget,
     target_b: DeliveryTarget,
 ) -> None:
     stub_a = StubReceiver()
     stub_b = StubReceiver()
 
-    summary_a = dispatch(journal=journal, ledger=ledger, receiver=stub_a, target=target_a)
+    summary_a = dispatch(store=store, receiver=stub_a, target=target_a, context=context)
     assert summary_a.delivered == 3
-    assert journal.count() == 3  # retention: nothing deleted on success (FR-001)
+    assert _journal_count(store) == 3  # retention: nothing deleted on success (FR-001)
     assert set(stub_a.received_event_ids()) == {"evt-0", "evt-1", "evt-2"}
     for index in range(3):
-        row = ledger.get(f"evt-{index}", target_a.target_id)
+        row = _ledger_get(store, f"evt-{index}", target_a.target_id)
         assert row is not None and row.status in TERMINAL_SUCCESS_STATUSES
 
     # Switch the active target: the same retained events have no terminal-success
     # row for B, so they re-select and re-deliver — zero manual SQLite copying.
-    summary_b = dispatch(journal=journal, ledger=ledger, receiver=stub_b, target=target_b)
+    context_b = _admit_target(store, target_b)
+    summary_b = dispatch(store=store, receiver=stub_b, target=target_b, context=context_b)
     assert summary_b.delivered == 3
-    assert journal.count() == 3  # still fully retained after BOTH drains (SC-002)
+    assert _journal_count(store) == 3  # still fully retained after BOTH drains (SC-002)
     assert set(stub_b.received_event_ids()) == {"evt-0", "evt-1", "evt-2"}
     for index in range(3):
-        row = ledger.get(f"evt-{index}", target_b.target_id)
+        row = _ledger_get(store, f"evt-{index}", target_b.target_id)
         assert row is not None and row.status in TERMINAL_SUCCESS_STATUSES
 
 
@@ -335,16 +462,16 @@ def test_replay_to_new_target_redelivers_and_retains(
 
 
 def test_resync_to_same_target_skips_delivered(
-    journal: EventJournal,
-    ledger: SqliteDeliveryLedger,
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
     target_a: DeliveryTarget,
 ) -> None:
     stub = StubReceiver()
 
-    first = dispatch(journal=journal, ledger=ledger, receiver=stub, target=target_a)
+    first = dispatch(store=store, receiver=stub, target=target_a, context=context)
     assert first.selected == 3 and first.delivered == 3
 
-    second = dispatch(journal=journal, ledger=ledger, receiver=stub, target=target_a)
+    second = dispatch(store=store, receiver=stub, target=target_a, context=context)
     assert second.selected == 0  # all terminal-successful for A → nothing to drain
     assert second.delivered == 0
     # The stub was not asked to deliver anything new on the second drain.
@@ -357,20 +484,20 @@ def test_resync_to_same_target_skips_delivered(
 
 
 def test_success_is_non_destructive(
-    journal: EventJournal,
-    ledger: SqliteDeliveryLedger,
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
     target_a: DeliveryTarget,
 ) -> None:
-    before = journal.count()
+    before = _journal_count(store)
     stub = StubReceiver()
 
-    dispatch(journal=journal, ledger=ledger, receiver=stub, target=target_a)
+    dispatch(store=store, receiver=stub, target=target_a, context=context)
 
-    assert journal.count() == before  # row count identical before/after (no DELETE)
+    assert _journal_count(store) == before  # row count identical before/after (no DELETE)
     for index in range(3):
         event_id = f"evt-{index}"
-        assert journal.read_by_id(event_id) is not None  # payload retained
-        row = ledger.get(event_id, target_a.target_id)
+        assert _journal_read_by_id(store, event_id) is not None  # payload retained
+        row = _ledger_get(store, event_id, target_a.target_id)
         assert row is not None and row.status == STATUS_SUCCESS
 
 
@@ -380,13 +507,13 @@ def test_success_is_non_destructive(
 
 
 def test_terminal_failed_parks_event_and_drain_progresses(
-    journal: EventJournal,
-    ledger: SqliteDeliveryLedger,
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
     target_a: DeliveryTarget,
 ) -> None:
     stub = _TerminalFailStub(fail_id="evt-1")
 
-    summary = dispatch(journal=journal, ledger=ledger, receiver=stub, target=target_a)
+    summary = dispatch(store=store, receiver=stub, target=target_a, context=context)
 
     # The deliverable events progressed; the oversized one parked — drain did not stall.
     assert summary.delivered == 2
@@ -394,31 +521,32 @@ def test_terminal_failed_parks_event_and_drain_progresses(
     assert stub.delivered_ids() == ("evt-0", "evt-2")
 
     # The oversized event is terminal-failed (NOT deleted, NOT success) and retained.
-    parked = ledger.get("evt-1", target_a.target_id)
+    parked = _ledger_get(store, "evt-1", target_a.target_id)
     assert parked is not None and parked.status == STATUS_TERMINAL_FAILED
-    assert journal.count() == 3  # nothing destroyed
-    assert journal.read_by_id("evt-1") is not None  # inspectable (FR-015)
+    assert _journal_count(store) == 3  # nothing destroyed
+    assert _journal_read_by_id(store, "evt-1") is not None  # inspectable (FR-015)
 
     # The next drain does NOT re-select the parked event (selector-exclusion is how
     # we keep the drain progressing without destroying the payload).
-    next_selection = _select_undelivered(journal, ledger, target_a.target_id)
+    next_selection = _select_with_store(store, target_a.target_id)
     assert [event.event_id for event in next_selection.events] == []
 
-    second = dispatch(journal=journal, ledger=ledger, receiver=stub, target=target_a)
+    second = dispatch(store=store, receiver=stub, target=target_a, context=context)
     assert second.selected == 0  # parked + delivered all excluded
 
 
 def test_terminal_failed_is_per_target(
-    journal: EventJournal,
-    ledger: SqliteDeliveryLedger,
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
     target_a: DeliveryTarget,
     target_b: DeliveryTarget,
 ) -> None:
-    dispatch(journal=journal, ledger=ledger, receiver=_TerminalFailStub(fail_id="evt-1"), target=target_a)
+    dispatch(store=store, receiver=_TerminalFailStub(fail_id="evt-1"), target=target_a, context=context)
 
     # An event terminal-failed on A is still selectable for B (terminal-failed is
     # per-target, contract §3 / T043 edge case).
-    selectable_for_b = _select_undelivered(journal, ledger, target_b.target_id)
+    _admit_target(store, target_b)
+    selectable_for_b = _select_with_store(store, target_b.target_id)
     assert "evt-1" in [event.event_id for event in selectable_for_b.events]
 
 
@@ -428,29 +556,120 @@ def test_terminal_failed_is_per_target(
 
 
 def test_idempotent_redelivery_yields_duplicate(
-    journal: EventJournal,
-    ledger: SqliteDeliveryLedger,
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
     target_a: DeliveryTarget,
 ) -> None:
-    stub = StubReceiver()
-    selection = _select_undelivered(journal, ledger, target_a.target_id)
-    events = selection.events
-
-    first_results = _post(stub, events, selection.answer, target_id=target_a.target_id)
-    _record(ledger, target_a.target_id, first_results, selected=len(events))
-
-    # Re-post the SAME events through the SAME stub: the server reports duplicates;
-    # recording is idempotent — no row duplication and the event IDs are unchanged.
-    repeat_results = _post(stub, events, selection.answer, target_id=target_a.target_id)
-    summary = _record(ledger, target_a.target_id, repeat_results, selected=len(events))
+    summary = dispatch(store=store, receiver=_DuplicateStub(), target=target_a, context=context)
 
     assert summary.duplicate == 3
-    assert journal.count() == 3
-    assert {event.event_id for event in journal.read_all()} == {"evt-0", "evt-1", "evt-2"}
+    assert _journal_count(store) == 3
     for index in range(3):
-        row = ledger.get(f"evt-{index}", target_a.target_id)
+        row = _ledger_get(store, f"evt-{index}", target_a.target_id)
         assert row is not None and row.status == STATUS_DUPLICATE
-        assert row.attempt_count == 2  # merged onto one row, not duplicated
+        assert row.attempt_count == 1
+
+
+def test_unknown_dispatch_attempt_is_not_resent_or_replaced(
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
+    target_a: DeliveryTarget,
+) -> None:
+    raising = _RaisingStub()
+
+    with pytest.raises(RuntimeError, match="network died"):
+        dispatch(store=store, receiver=raising, target=target_a, context=context, limit=1)
+
+    retry = StubReceiver()
+    second = dispatch(store=store, receiver=retry, target=target_a, context=context, limit=1)
+
+    assert second.selected == 1
+    assert second.delivered == 1
+    assert raising.calls == 1
+    assert retry.received_event_ids() == ("evt-1",)
+    with store.unit_of_work() as unit:
+        attempts = unit.execute(
+            "SELECT payload_reference, state FROM delivery_attempts WHERE project_uuid = ? ORDER BY attempt_id",
+            (_TEST_PROJECT_UUID,),
+        ).fetchall()
+    evt0_attempts = [row for row in attempts if "evt-0" in str(row[0])]
+    assert len(evt0_attempts) == 1
+    assert str(evt0_attempts[0][1]) == "unknown"
+
+
+def test_dispatcher_projection_ignores_unrelated_transport_attempts(
+    store: ProjectSyncStore,
+    target_a: DeliveryTarget,
+) -> None:
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO delivery_attempts "
+            "(attempt_id, project_uuid, epoch_id, consent_generation, target_generation, "
+            "admission_generation, binding_audience, payload_hash, payload_reference, "
+            "state, deadline_at, reconciliation_policy, created_at) "
+            "VALUES ('body-attempt', ?, 1, 1, 1, '1', 'private-teamspace:teamspace-test', "
+            "'sha256:body', ?, 'prepared', '2999-01-01T00:00:00Z', 'operator_review', ?)",
+            (
+                _TEST_PROJECT_UUID,
+                json.dumps({"write_kind": "body_upload", "payload_reference": "body:x"}),
+                _OCCURRED_AT,
+            ),
+        )
+    selected = _select_with_store(store, target_a.target_id)
+    assert [event.event_id for event in selected.events] == ["evt-0", "evt-1", "evt-2"]
+
+
+def test_dispatcher_projection_rejects_conflicting_terminal_history(
+    store: ProjectSyncStore,
+    target_a: DeliveryTarget,
+) -> None:
+    reference = json.dumps(
+        {
+            "schema": "spec-kitty.dispatcher.v1",
+            "event_id": "evt-0",
+            "target_id": target_a.target_id,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    metadata = json.dumps(
+        {
+            "write_kind": "dispatcher_http_event",
+            "payload_reference": reference,
+        },
+        sort_keys=True,
+    )
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO delivery_attempts "
+            "(attempt_id, project_uuid, epoch_id, consent_generation, target_generation, "
+            "admission_generation, binding_audience, payload_hash, payload_reference, "
+            "state, deadline_at, reconciliation_policy, created_at) "
+            "VALUES ('dispatcher-conflict', ?, 1, 1, 1, '1', 'private-teamspace:teamspace-test', "
+            "'sha256:event', ?, 'succeeded', '2999-01-01T00:00:00Z', 'native_identity_retry', ?)",
+            (_TEST_PROJECT_UUID, metadata, _OCCURRED_AT),
+        )
+        for result_id, outcome in (
+            ("dispatcher-conflict:delivered", "delivered"),
+            ("dispatcher-conflict:refused", "refused"),
+        ):
+            unit.execute(
+                "INSERT INTO delivery_results "
+                "(result_id, project_uuid, epoch_id, attempt_id, target_generation, "
+                "admission_generation, outcome, terminal_refusal_category, recorded_at) "
+                "VALUES (?, ?, 1, 'dispatcher-conflict', 1, '1', ?, ?, ?)",
+                (
+                    result_id,
+                    _TEST_PROJECT_UUID,
+                    outcome,
+                    "project_refused" if outcome == "refused" else None,
+                    _OCCURRED_AT,
+                ),
+            )
+    with store.unit_of_work() as unit:
+        ledger = SqliteDeliveryLedger(unit, store.layout_generation())
+        with pytest.raises(ValueError, match="conflicting result history"):
+            ledger.get("evt-0", target_a.target_id)
 
 
 def test_record_rolls_back_batch_on_mid_record_failure(
@@ -460,7 +679,17 @@ def test_record_rolls_back_batch_on_mid_record_failure(
     target_a: DeliveryTarget,
 ) -> None:
     """A ledger failure while recording a remote batch leaves no partial rows."""
-    del journal
+    for event_id in ("evt-a", "evt-b"):
+        journal.append(
+            Event(
+                event_id=event_id,
+                event_type="mission.updated",
+                payload=json.dumps({"event_id": event_id}).encode("utf-8"),
+                occurred_at=_OCCURRED_AT,
+                created_at="2026-06-29T00:00:09+00:00",
+                project_uuid=_TEST_PROJECT_UUID,
+            )
+        )
 
     class _FailAfterFirstLedger(SqliteDeliveryLedger):
         calls = 0
@@ -489,16 +718,16 @@ def test_record_rolls_back_batch_on_mid_record_failure(
 # --------------------------------------------------------------------------- #
 
 
-def test_no_active_target_is_a_noop(journal: EventJournal, ledger: SqliteDeliveryLedger) -> None:
+def test_no_active_target_is_a_noop(store: ProjectSyncStore) -> None:
     stub = StubReceiver()
 
-    summary = dispatch(journal=journal, ledger=ledger, receiver=stub, target=None)
+    summary = dispatch(store=store, receiver=stub, target=None)
 
     assert summary.target_id is None
     assert summary.selected == 0
     assert summary.recorded == 0
     assert stub.received_event_ids() == ()  # the receiver was never invoked
-    assert journal.count() == 3  # nothing touched
+    assert _journal_count(store) == 3  # nothing touched
 
 
 # --------------------------------------------------------------------------- #
@@ -509,25 +738,27 @@ def test_no_active_target_is_a_noop(journal: EventJournal, ledger: SqliteDeliver
 def test_select_undelivered_uses_universe_and_excludes_terminal(
     journal: EventJournal,
     ledger: SqliteDeliveryLedger,
+    context: ProjectSyncContext,
     target_a: DeliveryTarget,
 ) -> None:
     # Initially every journal event is undelivered for A.
-    selected = _select_undelivered(journal, ledger, target_a.target_id)
+    selected = _select_undelivered(journal, ledger, target_a.target_id, context=context)
     assert [event.event_id for event in selected.events] == ["evt-0", "evt-1", "evt-2"]
 
     # Mark one delivered and one terminal-failed → both leave the selection set.
     ledger.record_success("evt-0", target_a.target_id)
     ledger.record_terminal_failed("evt-2", target_a.target_id)
-    remaining = _select_undelivered(journal, ledger, target_a.target_id)
+    remaining = _select_undelivered(journal, ledger, target_a.target_id, context=context)
     assert [event.event_id for event in remaining.events] == ["evt-1"]
 
 
 def test_select_undelivered_honours_limit(
     journal: EventJournal,
     ledger: SqliteDeliveryLedger,
+    context: ProjectSyncContext,
     target_a: DeliveryTarget,
 ) -> None:
-    selected = _select_undelivered(journal, ledger, target_a.target_id, limit=2)
+    selected = _select_undelivered(journal, ledger, target_a.target_id, context=context, limit=2)
     assert [event.event_id for event in selected.events] == ["evt-0", "evt-1"]
 
 
@@ -645,15 +876,16 @@ def test_record_exposes_retryable_ids_without_calling_pending_a_failure(
 
 
 def test_multi_batch_drain_skips_pending_head_through_live_dispatcher(
-    journal: EventJournal,
-    ledger: SqliteDeliveryLedger,
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
     target_a: DeliveryTarget,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Pending rows defer to the next command while later rows drain now."""
-    journal.append(_make_event(3))
+    """Pending rows enter recovery/query state while later rows drain now."""
+    with store.unit_of_work() as unit:
+        EventJournal(unit, store.layout_generation()).append(_make_event(3))
     receiver = _PendingHeadStub()
-    runtime = SimpleNamespace(journal=journal, ledger=ledger)
+    runtime = SimpleNamespace(store=store, journal=None, ledger=None, context=context)
     monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 2)
 
     summary = sync_module._run_dispatch_batches(runtime, receiver, target_a)
@@ -662,13 +894,15 @@ def test_multi_batch_drain_skips_pending_head_through_live_dispatcher(
     assert summary.selected == 4
     assert summary.pending == 2
     assert summary.delivered == 2
-    remaining = _select_undelivered(journal, ledger, target_a.target_id)
-    assert [event.event_id for event in remaining.events] == ["evt-0", "evt-1"]
+    remaining = _select_with_store(store, target_a.target_id)
+    assert [event.event_id for event in remaining.events] == []
+    assert _ledger_get(store, "evt-0", target_a.target_id).status == STATUS_PENDING
+    assert _ledger_get(store, "evt-1", target_a.target_id).status == STATUS_PENDING
 
 
 def test_multi_batch_drain_continues_after_singleton_terminal_failure(
-    journal: EventJournal,
-    ledger: SqliteDeliveryLedger,
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
     target_a: DeliveryTarget,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -681,7 +915,7 @@ def test_multi_batch_drain_continues_after_singleton_terminal_failure(
     ``("evt-1",), ("evt-2",)`` as separate singleton calls.
     """
     receiver = _AdaptiveOversizedStub()
-    runtime = SimpleNamespace(journal=journal, ledger=ledger)
+    runtime = SimpleNamespace(store=store, journal=None, ledger=None, context=context)
     monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 2)
 
     summary = sync_module._run_dispatch_batches(runtime, receiver, target_a)
@@ -694,7 +928,7 @@ def test_multi_batch_drain_continues_after_singleton_terminal_failure(
     assert summary.selected == 3
     assert summary.terminal_failed == 1
     assert summary.delivered == 2
-    assert _select_undelivered(journal, ledger, target_a.target_id).events == []
+    assert _select_with_store(store, target_a.target_id).events == []
 
 
 # --------------------------------------------------------------------------- #
@@ -725,8 +959,8 @@ def test_install_coalescing_degrades_when_module_absent(
 
 
 def test_dispatch_activates_coalescing_on_live_path(
-    journal: EventJournal,
-    ledger: SqliteDeliveryLedger,
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
     target_a: DeliveryTarget,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -734,8 +968,9 @@ def test_dispatch_activates_coalescing_on_live_path(
     monkeypatch.setattr("specify_cli.delivery.dispatcher._load_coalesce", lambda: fake)
     stub = StubReceiver()
 
-    dispatch(journal=journal, ledger=ledger, receiver=stub, target=target_a)
+    dispatch(store=store, receiver=stub, target=target_a, context=context)
 
     # The live dispatch path registered the real coalescing strategy bound to the
     # delivery ledger (D-020): without this, FR-011 coalescing is dead in production.
-    assert fake.installed_with is ledger
+    assert isinstance(fake.installed_with, SqliteDeliveryLedger)
+    assert fake.installed_with.project_uuid == _TEST_PROJECT_UUID

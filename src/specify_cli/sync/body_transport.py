@@ -109,6 +109,7 @@ def push_content_with_transport_gate(
     target: DeliveryTarget,
     server_url: str,
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
+    context: object | None = None,
 ) -> UploadOutcome:
     """POST one body only after WP06's durable per-project final gate opens."""
     from specify_cli.delivery.consent_gate import (
@@ -118,16 +119,47 @@ def push_content_with_transport_gate(
         execute_project_transport_disclosure,
         stable_transport_id,
     )
+    from specify_cli.delivery.targets import compute_target_id
+    from specify_cli.sync.project_store import ProjectSyncStore
     from specify_cli.sync.transport_attempts import DeliveryOutcome
 
+    if context is None:
+        context = ProjectSyncStore(task.project_uuid).create_context()
+    epoch_id = getattr(context, "epoch_id", None)
+    consent_generation = getattr(context, "consent_generation", None)
+    if not isinstance(epoch_id, int) or not isinstance(consent_generation, int):
+        return UploadOutcome(
+            artifact_path=task.artifact_path,
+            status=UploadStatus.FAILED,
+            reason="project_not_admitted: body upload requires a consenting project context",
+            content_hash=task.content_hash,
+            retryable=False,
+        )
+    target_id = compute_target_id(
+        target_identity=target.target_identity,
+        account_identity=target.account_identity,
+        private_teamspace_id=target.private_teamspace_id,
+        project_uuid=target.project_uuid,
+        configuration_generation=target.configuration_generation,
+    )
+    if target.target_id != target_id:
+        return UploadOutcome(
+            artifact_path=task.artifact_path,
+            status=UploadStatus.FAILED,
+            reason="project_not_admitted: body target_id does not match the admitted audience tuple",
+            content_hash=task.content_hash,
+            retryable=False,
+        )
     native_identity = "body-upload:" + stable_transport_id(
         task.project_uuid,
-        target.target_id,
+        target_id,
         task.artifact_path,
         task.content_hash,
     )
     disclosure = ProjectTransportDisclosure(
         project_uuid=task.project_uuid,
+        epoch_id=epoch_id,
+        consent_generation=consent_generation,
         target_identity=target.target_identity,
         account_identity=target.account_identity,
         private_teamspace_id=target.private_teamspace_id,
@@ -143,7 +175,7 @@ def push_content_with_transport_gate(
         + stable_transport_id(
             "attempt",
             task.project_uuid,
-            target.target_id,
+            target_id,
             task.artifact_path,
             task.content_hash,
         ),

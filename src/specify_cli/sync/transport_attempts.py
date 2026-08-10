@@ -29,6 +29,9 @@ class DeliveryOutcome(StrEnum):
 
     DELIVERED = "delivered"
     DUPLICATE = "duplicate"
+    PENDING = "pending"
+    REJECTED = "rejected"
+    TRANSIENT = "transient"
     REFUSED = "refused"
     UNKNOWN = "unknown"
     TERMINAL_UNKNOWN = "terminal_unknown"
@@ -180,6 +183,35 @@ def prepare_delivery_attempt(
     )
 
 
+def get_delivery_attempt_record(
+    unit: ProjectUnitOfWork,
+    *,
+    attempt_id: str,
+) -> DeliveryAttemptRecord | None:
+    """Return an existing durable attempt by ID without parsing error strings.
+
+    WP07 senders use this as the typed idempotency seam before calling
+    :func:`prepare_delivery_attempt`: absence means a new attempt may be prepared;
+    presence means the caller must recover or resume that exact attempt identity.
+    """
+    _require_non_empty(attempt_id=attempt_id)
+    row = unit.execute(
+        "SELECT state, payload_reference, payload_hash, reconciliation_policy FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ?",
+        (unit.project_uuid.storage_token, attempt_id),
+    ).fetchone()
+    if row is None:
+        return None
+    metadata = _metadata_from_payload_reference(row[1])
+    native_identity = metadata.get("native_identity")
+    return DeliveryAttemptRecord(
+        attempt_id=attempt_id,
+        state=DeliveryAttemptState(str(row[0])),
+        native_identity=native_identity,
+        payload_hash=str(row[2]) if row[2] is not None else None,
+        reconciliation_policy=str(row[3]) if row[3] is not None else None,
+    )
+
+
 def mark_transport_started(
     unit: ProjectUnitOfWork,
     context: ProjectSyncContext,
@@ -275,6 +307,8 @@ def record_delivery_result(
         terminal_state = DeliveryAttemptState.REFUSED
     elif outcome is DeliveryOutcome.TERMINAL_UNKNOWN:
         terminal_state = DeliveryAttemptState.TERMINAL_UNKNOWN
+    elif outcome in {DeliveryOutcome.REJECTED, DeliveryOutcome.TRANSIENT}:
+        terminal_state = DeliveryAttemptState.PREPARED
     else:
         terminal_state = DeliveryAttemptState.UNKNOWN
     row = unit.execute(
@@ -846,6 +880,7 @@ __all__ = [
     "RecoveryAction",
     "mark_transport_started",
     "mark_delivery_result_unknown",
+    "get_delivery_attempt_record",
     "plan_delivery_attempt_recovery",
     "prepare_delivery_attempt",
     "record_delivery_result",
