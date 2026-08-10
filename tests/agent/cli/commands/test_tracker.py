@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import json
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -36,6 +37,18 @@ def _stub_check_readiness(request, monkeypatch):
     care about the readiness path.  Tests that explicitly test readiness
     should mark themselves with ``no_readiness_stub`` or use their own stubs.
     """
+    # #3108 / PR #3135 HIGH-1: `_check_sync_readiness` now consults the hosted
+    # `tracker_egress_verdict` before the readiness probe. These mock-boundary
+    # tests mock `_service()` (bypassing the transport-layer gate) and carry no
+    # recorded consent, so the real gate would refuse. Stub it to permit for
+    # *every* test in this file — including `no_readiness_stub` ones, which
+    # drive `_check_sync_readiness` directly — because egress consent is out of
+    # scope here (it has its own suite under `tests/sync/tracker/`); this file
+    # asserts command dispatch/rendering only.
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.tracker_egress_verdict",
+        lambda *args, **kwargs: SimpleNamespace(refused=False),
+    )
     if "no_readiness_stub" in {m.name for m in request.node.iter_markers()}:
         return
     monkeypatch.setattr(
@@ -1581,4 +1594,72 @@ def test_ws5_remediation_string_matches_saas_readiness_source(monkeypatch) -> No
 
     _msg, action = _WORDING[ReadinessState.MISSING_AUTH]
     assert action == "Run `spec-kitty auth login`."
+
+
+@pytest.mark.no_readiness_stub
+def test_sync_pull_pre_flight_gate_and_transport_share_one_resolved_root(monkeypatch, tmp_path) -> None:
+    """#3108 landing hardening: the hosted egress pre-flight and the transport must
+    judge the SAME project.
+
+    ``_check_sync_readiness`` consults ``tracker_egress_verdict`` for the hosted
+    destination, and the transport (``SaaSTrackerClient._request`` via ``_service``)
+    consults it again. If each resolved ``require_repo_root()`` independently, a
+    caller whose cwd is not the data-owning root could have the two gates answer for
+    two different projects. The four sync commands now resolve the root ONCE and
+    thread the same value into both ``_check_sync_readiness(root=...)`` and
+    ``_service(root=...)``.
+
+    Red-first: a stateful ``require_repo_root`` that returns a distinct path per call
+    makes the pre-fix code feed the gate call #1 and the transport call #2 — two
+    different roots. The fix resolves once, so both see the same path.
+    """
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    from specify_cli.cli.commands import tracker as tracker_module
+
+    roots = [tmp_path / "p0", tmp_path / "p1", tmp_path / "p2", tmp_path / "p3"]
+    for p in roots:
+        p.mkdir()
+    call_iter = iter(roots)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.require_repo_root",
+        lambda: next(call_iter),
+    )
+    # Force the hosted branch (not a local binding) so the pre-flight consults the verdict.
+    monkeypatch.setattr("specify_cli.cli.commands.tracker._is_local_binding", lambda: False)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker._check_readiness",
+        lambda *, require_mission_binding, probe_reachability: None,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker._check_daemon_policy",
+        lambda *, is_sync_run=False: None,
+    )
+
+    seen: dict[str, object] = {}
+
+    def _record_verdict(root, *, destination, identifiers):
+        seen["gate_root"] = root
+        return SimpleNamespace(refused=False)
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.tracker_egress_verdict", _record_verdict
+    )
+
+    def _fake_service(*, allow_unbound: bool = False, root=None):
+        # Mirror the real _service resolution so an unthreaded call (root=None)
+        # resolves its OWN require_repo_root() — the exact divergence under test.
+        effective = root if root is not None else tracker_module.require_repo_root()
+        seen["transport_root"] = effective
+        svc = MagicMock()
+        svc.sync_pull.return_value = {"stats": {}}
+        return svc
+
+    monkeypatch.setattr("specify_cli.cli.commands.tracker._service", _fake_service)
+
+    result = runner.invoke(tracker_module.app, ["sync", "pull"])
+    assert result.exit_code == 0, result.output
+    assert seen["gate_root"] == seen["transport_root"], (
+        f"pre-flight gate judged {seen['gate_root']} but the transport used "
+        f"{seen['transport_root']} — the two hosted gates answered for different projects"
+    )
 

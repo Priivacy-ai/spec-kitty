@@ -348,7 +348,26 @@ def _read_project_local(
     ``identity/project.py``'s ``_identity_from_mapping``.
     """
     config_path = Path(repo_root) / ".kittify" / "config.yaml"
-    if not config_path.is_file():
+    try:
+        exists = config_path.is_file()
+    except OSError as exc:
+        # An unreadable *enclosing directory* (e.g. ``.kittify`` itself chmod 000)
+        # makes even the existence probe raise: pathlib re-raises ``PermissionError``
+        # (EACCES) out of ``is_file()`` rather than swallowing it. Carry it as the
+        # same ``unreadable`` fault as an unopenable file below (same operator remedy
+        # -- chmod, not an edit), honouring this function's "never raises" contract.
+        # #3291: previously this propagated a full traceback to stderr while the
+        # verdict still refused correctly -- the answer was right, the noise was not.
+        logger.debug("Unreadable project config directory for %s: %s", config_path, exc)
+        return (
+            None,
+            None,
+            ConfigReadFault(
+                kind="unreadable",
+                detail=f"{config_path}: could not be accessed ({exc})",
+            ),
+        )
+    if not exists:
         # Absence, and the common case: the drain and the capture path both offer
         # whatever checkout they stand in, and most have no project config at all.
         # Calling this a fault would deny every delivery on the machine.
@@ -816,6 +835,11 @@ def allocate_capture_sequence(unit: ProjectUnitOfWork) -> CaptureAssignment:
 
 def get_project_consent(project_uuid: str) -> bool | None:
     """Compatibility read backed exclusively by the project-store decision."""
+    # TODO(WP06-deferred): main's tracker-egress-refusal mission still has
+    # positive controls that seed/expect legacy ``sync.enabled`` config as a
+    # granting authority. This mission deliberately does not fall back to that
+    # machine/config index; reconcile the tracker-egress channel-1 fixtures and
+    # remedies against the project-store consent authority in a follow-up slice.
     diagnostic = read_project_consent_decision(project_uuid)
     if diagnostic.status is ConsentAuthorityStatus.GRANTED:
         return True

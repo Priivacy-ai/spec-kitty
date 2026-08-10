@@ -32,10 +32,12 @@ from specify_cli.tracker.config import (
 )
 from specify_cli.identity.project import ensure_identity
 from specify_cli.tracker.discovery import BindResult, ResolutionResult
+from specify_cli.tracker.egress_verdict import EgressDestination, tracker_egress_verdict
 from specify_cli.tracker.factory import normalize_provider
 from specify_cli.saas.readiness import evaluate_readiness
 from specify_cli.saas.rollout import is_saas_sync_enabled, saas_sync_disabled_message
 from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
+from specify_cli.tracker.saas_client import TRACKER_EGRESS_IDENTIFIER_KINDS, TrackerEgressRefusedError
 from specify_cli.tracker.service import TrackerService, TrackerServiceError, parse_kv_pairs
 
 app = typer.Typer(
@@ -293,21 +295,69 @@ def _is_local_binding() -> bool:
     return False
 
 
-def _check_sync_readiness(*, is_sync_run: bool = False) -> None:
+def _check_sync_readiness(*, is_sync_run: bool = False, root: Path | None = None) -> None:
     """Provider-aware readiness gate for sync subcommands.
 
     Local providers (beads, fp) reach the sync command without going through
-    the SaaS surface at all: no auth token, no ``SPEC_KITTY_SAAS_URL``, no
-    reachability probe, no background daemon.  Their direct connectors handle
+    the SaaS *readiness* surface: no auth token, no ``SPEC_KITTY_SAAS_URL``,
+    no reachability probe, no background daemon.  Their direct connectors handle
     connectivity errors on their own.  For those bindings this helper is a
     no-op — the rollout gate is already enforced by :func:`tracker_callback`
     and the binding itself is the proof that setup is complete.
 
+    **This no longer means "without going through the SaaS surface at all"
+    (#3108).** ``LocalTrackerService.sync_pull``/``sync_push``/``sync_run``
+    each consult ``tracker_egress_verdict`` as the first executable statement
+    of their body, and that verdict's Channel 1 reaches the same hosted-sync
+    consent chain (``specify_cli.sync.consent`` / ``specify_cli.sync.routing``)
+    used elsewhere -- independently of whatever this helper decides. So "no
+    auth token, no reachability probe, no background daemon" still holds
+    (nothing here calls the SaaS HTTP client), but a local binding is no
+    longer entirely insulated from hosted-sync consent state: it is consulted
+    as one half of a two-channel join, not skipped.
+
+    **HIGH-1 fix (2026-08-10):** for a SaaS-backed binding, the hosted egress
+    verdict is now consulted *here*, before ``_check_readiness`` is ever
+    called. Previously this function's first act on the hosted path was
+    ``_check_readiness(..., probe_reachability=True)``, which -- when auth
+    and host-config both resolve -- issues a real ``urllib.request.urlopen``
+    HEAD probe to the configured SaaS host (``saas/readiness.py:_probe_reachability``)
+    *before* ``SaaSTrackerClient._request``'s own Channel-1/Channel-2 gate ever
+    ran. A project whose hosted-sync consent is absent or refused therefore
+    still emitted one HTTP HEAD to the tracker host ahead of the eventual
+    refusal, violating "refusal precedes any HTTP attempt." Refusing here,
+    with the exact ``tracker_egress_verdict``/``TrackerEgressRefusedError``
+    pairing ``SaaSTrackerClient._request`` already uses, keeps the message
+    byte-identical to the transport-layer refusal while moving it ahead of
+    the network probe. A permitted verdict changes nothing: execution falls
+    through to the readiness probe exactly as before.
+
     SaaS-backed (or unknown/unconfigured) bindings get the full readiness
     chain plus the manual-mode daemon-policy check.
+
+    **Pass ``root`` so the pre-flight gate judges the same project the transport
+    will.** ``SaaSTrackerClient._request`` resolves its own ``project_root``
+    from the ``TrackerService`` the command builds (``_service`` →
+    ``require_repo_root()``). If this pre-flight resolved ``require_repo_root()``
+    independently, the two hosted gates could -- for a caller whose cwd is not
+    the data-owning root -- answer for two different projects. The sync commands
+    resolve the root once and thread the same value into both this gate and
+    ``_service(root=...)``, so a single resolution decides both. Absent ``root``
+    (direct callers) this falls back to ``require_repo_root()`` unchanged.
     """
     if _is_local_binding():
         return
+
+    verdict = tracker_egress_verdict(
+        root if root is not None else require_repo_root(),
+        destination=EgressDestination.HOSTED_SERVICE,
+        identifiers=TRACKER_EGRESS_IDENTIFIER_KINDS,
+    )
+    if verdict.refused:
+        exc = TrackerEgressRefusedError(verdict.message)
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(1) from exc
+
     _check_readiness(require_mission_binding=True, probe_reachability=True)
     _check_daemon_policy(is_sync_run=is_sync_run)
 
@@ -318,13 +368,28 @@ def _check_binding_readiness(*, probe_reachability: bool = False) -> None:
     Mirrors :func:`_check_sync_readiness` without the daemon-policy step: used
     by ``status``, ``map add``, ``map list``, and ``unbind`` which require a
     binding to operate on but do not interact with the background sync daemon.
+
+    **Does not inherit :func:`_check_sync_readiness`'s corrected note about
+    ``tracker_egress_verdict`` and Channel 1 (#3108).** The commands this
+    helper gates construct no connector and run no subprocess -- ``status``
+    reaches ``load_tracker_config`` directly, and ``map add``/``map list``/
+    ``unbind`` are deliberately left ungated by the tracker-egress verdict
+    (only ``sync_pull``/``sync_push``/``sync_run`` consult it) -- so nothing
+    reachable through this helper touches the hosted-sync consent chain at
+    all, and the mirroring stops there.
     """
     if _is_local_binding():
         return
     _check_readiness(require_mission_binding=True, probe_reachability=probe_reachability)
 
 
-def _service(*, allow_unbound: bool = False) -> TrackerService:
+def _service(*, allow_unbound: bool = False, root: Path | None = None) -> TrackerService:
+    # ``root`` lets a caller pin the exact project root (see _check_sync_readiness):
+    # the sync commands resolve the root once and pass the same value to both the
+    # egress pre-flight and the transport, so the two hosted gates cannot answer
+    # for different projects.
+    if root is not None:
+        return TrackerService(root)
     if allow_unbound:
         try:
             repo_root = require_repo_root()
@@ -563,7 +628,14 @@ def bind_command(
     For local providers (beads, fp):
       Requires --provider, --workspace, and --credential flags.
     """
-    _check_readiness(require_mission_binding=False, probe_reachability=False)
+    # HIGH-3 fix (#3174, 2026-08-10): a local-provider bind must not require hosted
+    # readiness. `bind` creates the binding, so `_is_local_binding()` (which reads an
+    # *existing* config) cannot be used here -- gate on the `--provider` argument itself
+    # instead, mirroring how the sync commands skip readiness for an already-local binding.
+    # SaaS providers (and removed/unknown provider strings, which `_run` rejects on their
+    # own terms below) keep the existing hosted readiness check.
+    if normalize_provider(provider) not in LOCAL_PROVIDERS:
+        _check_readiness(require_mission_binding=False, probe_reachability=False)
 
     def _run() -> None:
         provider_normalized = normalize_provider(provider)
@@ -1030,10 +1102,11 @@ def sync_pull_command(
 
     For local providers: pulls directly from the tracker API.
     """
-    _check_sync_readiness()
+    root = require_repo_root()
+    _check_sync_readiness(root=root)
 
     def _run() -> None:
-        payload = _service().sync_pull(limit=limit)
+        payload = _service(root=root).sync_pull(limit=limit)
         if as_json:
             _print_json(payload)
             return
@@ -1089,12 +1162,13 @@ def sync_push_command(
 
     For local providers: pushes directly to the tracker API using --limit.
     """
-    _check_sync_readiness()
+    root = require_repo_root()
+    _check_sync_readiness(root=root)
     import sys as _sys
 
     def _run() -> None:
-        service = _service()
-        config = load_tracker_config(require_repo_root())
+        service = _service(root=root)
+        config = load_tracker_config(root)
 
         if config.provider and config.provider in SAAS_PROVIDERS:
             # --- SaaS path: explicit items required ---
@@ -1171,10 +1245,11 @@ def sync_run_command(
 
     For local providers: runs pull then push using direct connectors.
     """
-    _check_sync_readiness(is_sync_run=True)
+    root = require_repo_root()
+    _check_sync_readiness(is_sync_run=True, root=root)
 
     def _run() -> None:
-        payload = _service().sync_run(limit=limit)
+        payload = _service(root=root).sync_run(limit=limit)
         if as_json:
             _print_json(payload)
             return
@@ -1219,10 +1294,11 @@ def sync_publish_command(
     For local providers: the facade will raise an error if this operation
     is not supported by the bound provider.
     """
-    _check_sync_readiness()
+    root = require_repo_root()
+    _check_sync_readiness(root=root)
 
     def _run() -> None:
-        payload = _service().sync_publish()
+        payload = _service(root=root).sync_publish()
         if as_json:
             _print_json(payload)
             return

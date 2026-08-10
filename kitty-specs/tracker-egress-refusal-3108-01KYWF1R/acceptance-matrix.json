@@ -1,0 +1,742 @@
+{
+  "mission_slug": "tracker-egress-refusal-3108-01KYWF1R",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "measurement_base_sha": "bb2020fea",
+  "overall_verdict": "pending",
+  "criteria": [
+    {
+      "criterion_id": "SC-001",
+      "description": "With `tracker.egress: refused`, Channel-1 hosted-sync consent granted, and the store SEEDED with an issue titled `ACME Holdings carve-out`, a `beads` push produces 0 captured argv and 0 occurrences of the title across all captured argv elements.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP01 authors the pin red; WP04 flips it green. The red on the base is the recorder capturing 3 argv with the title inside the `create` -- the leak itself, not a return code. Seeded store is load-bearing (FR-018 H8)."
+    },
+    {
+      "criterion_id": "SC-002",
+      "description": "The paired consenting control produces exactly 3 captured argv -- `list`, `create`, `show` -- the second containing the title verbatim as an element. Green on the base and after.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP01 T004. Exactly 3, never `>= 3`: a status outside {TODO, IN_PROGRESS} gives 5. A control capturing 1 means the store was empty and every absence assertion in the file is void."
+    },
+    {
+      "criterion_id": "SC-003",
+      "description": "SC-001/SC-002 hold for EACH of `sync pull`, `sync push`, `sync run` -- three refusing cases and three controls, each exercised end to end. A parametrised pair run once and asserted three times does not satisfy this.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP01 T006 authors; WP04 T022 flips. NFR-004."
+    },
+    {
+      "criterion_id": "SC-004",
+      "description": "With no record at either channel the command refuses, exits non-zero, and the printed text names the Channel-1 state as `no record found` and carries all three remedies; applying each remedy in turn and re-running makes the title reach the recorder -- asserted by EXECUTION, not by substring.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP01 T006 step 3 (H5). WP08 may document only remedies backed by a passing executed-remedy test."
+    },
+    {
+      "criterion_id": "SC-005",
+      "description": "On a `jira` binding, `tracker.egress: permitted` with hosted-sync consent absent still refuses with 0 HTTP attempts, and the message states the recorded tracker grant does not apply at HOSTED_SERVICE. Paired with the mutation pin: with Channel 2 removed by a PYTHONPATH-injected plugin, US1 sc1 goes red while SC-005 stays green.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP01 T007 authors (US5 sc2); WP05 T030 flips. The pairing is what proves SC-001, not SC-005, carries the Mission."
+    },
+    {
+      "criterion_id": "SC-005a",
+      "description": "With on-disk `provider: beads`, committed `tracker: {egress: permitted}` and hosted-sync consent ABSENT, `spec-kitty tracker list-tickets --provider jira` refuses with 0 HTTP attempts and a message naming Channel 1 -- paired with a positive control (on-disk `provider: jira`, Channel 1 granted, no tracker key, same command -> `No valid access token`).",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "GREEN BEFORE AND AFTER. `saas_client._request` already calls `project_egress_refusal(self._project_root)` at :329-331 before `_fetch_access_token_sync()` at :333, and `saas_service.py:110` passes a non-None `project_root`, so the base already refuses naming Channel 1. This criterion is NOT a red-then-green transition: it reds only on a destination-as-derivation implementation, and its evidentiary value is contingent on guards G5 and G6, not on a transition. WP01 T007 authors it; WP05 T028 re-measures it."
+    },
+    {
+      "criterion_id": "SC-006",
+      "description": "On a `beads` binding with NO hosted-sync record and `tracker.egress: permitted` committed, the title reaches the recorder; removing that one line makes the same command capture zero argv. The two fixtures differ by exactly one committed line.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP01 T005 (US2 sc1/sc2). The one-line claim is checkable by diffing the two rendered fixtures."
+    },
+    {
+      "criterion_id": "SC-007",
+      "description": "A checkout whose project identity does not resolve refuses with the `not consentable` wording and `spec-kitty init` as its Channel-1 remedy; applying `spec-kitty init` then either Channel-1 remedy, or the Channel-2 grant alone, makes the title reach the recorder on re-run.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP01 T006. The state exists because today's message tells the operator to do what they just did."
+    },
+    {
+      "criterion_id": "SC-008",
+      "description": "`spec-kitty tracker bind` on a project with no tracker key writes a `tracker:` block containing NO `egress` key at all; and for every value in the probed set -- EXACTLY 15 -- a `bind` round-trips the `egress:` line byte-identically. The parametrised test prints and asserts its own case count is 15.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP02 T010 and T011. The null-planting red does not exist on the base -- it is manufactured by T009's promotion to `_KNOWN_KEYS` and must be observed and quoted on the FR-002-only tree."
+    },
+    {
+      "criterion_id": "SC-009",
+      "description": "`spec-kitty tracker unbind` on a project with a committed `egress` leaves the key present with its value unchanged and every other `tracker:` key gone -- asserted for BOTH `refused` and `permitted`; on a project without the key it removes the `tracker:` block entirely; and the sibling `sync:` block survives all three, as the control.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP02 T014 (sites C and D)."
+    },
+    {
+      "criterion_id": "SC-010",
+      "description": "Every value in the probed set outside the closed pair -- including `Refused`, `REFUSED`, `refuse`, `deny`, the wrong types, and a mapping and a list at the key -- refuses at BOTH destinations without raising, and each is reported as a fault naming the key, quoting the offending raw value verbatim, and naming both legal values `refused` and `permitted`.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Split: WP02 owns the fault CLASSIFICATION for all 15; WP03 T019 owns the fault WORDING and the both-destinations unit pins; WP05's swap makes the hosted half true in the transport, confirmed end to end by WP01's US5 sc5 near-miss cell."
+    },
+    {
+      "criterion_id": "SC-011",
+      "description": "A refused tracker command records 0 HTTP attempts on the `httpx.Client.request` trip-wire and 0 `subprocess.run` invocations; on the SEEDED pair it leaves the tracker db file byte-identical, on the UNSEEDED pair (US3 sc4) it leaves NO file at the resolved db path while the consenting control creates one. All four assertions are proven to bind by their controls.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "The resolved db path is `LocalTrackerService._resolve_db_path` -> `store.default_tracker_db_path(provider=, workspace=, server_url=, username=, team_slug=)` -> `build_tracker_scope` (sha256[:16]) -> `_trackers_dir()/<scope>.db`. The fixture must compute it with the same credential values it wrote, or the `leaves no file` clause passes vacuously."
+    },
+    {
+      "criterion_id": "SC-012",
+      "description": "The gate's bind counter is non-zero in every acceptance test that reaches a gated destination, asserted per test; and one test proves the counting wrapper does not change any outcome.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Split per destination: a wrapper on the name `local_service.py` binds `tracker_egress_verdict` under, asserted non-zero in the local cells; a second on `specify_cli.tracker.saas_client.tracker_egress_verdict`, asserted non-zero in the US5 cells. US1 sc4 (the `sync now` drain) is EXEMPT, with the reason recorded in the file. Not applied to the consenting controls."
+    },
+    {
+      "criterion_id": "SC-013",
+      "description": "In every refusing acceptance test the matched refusal text is NOT `saas_sync_disabled_message()`, and `SPEC_KITTY_ENABLE_SAAS_SYNC=1` is set explicitly in the fixture.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP01 T005 (US1 sc3). Without it the arming abort at `cli/commands/tracker.py:354-366` satisfies every refusing assertion with nothing built."
+    },
+    {
+      "criterion_id": "SC-014",
+      "description": "`sync doctor` renders seven distinguishable tracker-egress blocks, each carrying one row per destination, for 14 rows in total; prints the block in all seven checkouts; each row's rendered verdict equals the verdict enforced at that destination field-for-field; at least one checkout renders two different answers on its two rows. The new block contributes 0 to `flat.count(\"REPAIR THE FILE'S SYNTAX\")` and never prints `This is NOT a missing consent record`.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP06 T033-T035. The `== 4` count at `test_sync_doctor_consent_health_3030.py:366` is the detection signal, not a planned edit."
+    },
+    {
+      "criterion_id": "SC-015",
+      "description": "`len(_JOIN) == 8` as a structural assertion AND all 8 cells exercised by one parametrised test that prints and asserts the number of cells it ran is exactly 8.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP03 T017. Structural half survives a test being deleted; behavioural half survives an entry being wrong. Both required."
+    },
+    {
+      "criterion_id": "SC-016",
+      "description": "The hosted path reproduces its three measured Channel-1 outcomes with byte-identical refusal text (absence -> refused; recorded `false` -> refused; recorded `true` -> gate passes to the token check), plus `root=None` -> `UNDETERMINED_PROJECT_REFUSAL` byte-identical; and the local and hosted raise sites produce byte-identical text for the same Channel-1 state.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP03 T019 pins the bytes at the unit level; WP05 T030 proves it across the swap with a four-row comparison whose third row is the positive control."
+    },
+    {
+      "criterion_id": "SC-017",
+      "description": "All six falsity guards (FR-015 G1-G6) assert exact membership and an exact count, print a non-zero input count, and each fails against synthetic mutated source passed to the guard's analyzer callable -- never a source edit -- with the killed-pin count reported. G4 and G5 each kill three mutants; G6 kills one.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP07. G4's mutant (ii) is an ADDED sixth call site whose literals are swapped (a swap at existing sites leaves G4's counts unchanged and cannot kill it); G5's mutant (ii) is the swap at existing sites, which kills the per-site mapping clause. The asymmetry is deliberate."
+    },
+    {
+      "criterion_id": "SC-018",
+      "description": "`CHANGELOG.md` carries a Breaking Changes entry and `docs/migrations/` carries the upgrade note, linked from `docs/migrations/index.md`; the anchor check fails when the section is removed or renamed.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "CHANGELOG half is WP04 T027, in the SAME commit as the gate. Note, index link and anchor check are WP08 T043-T045. The anchor check's failure is demonstrated against synthetic mutants, never by editing the shipped note."
+    },
+    {
+      "criterion_id": "SC-019",
+      "description": "The five docstrings named in FR-017 -- three amended (`local_service.py:8`, `_check_sync_readiness`, `_check_binding_readiness`) and two authored (`egress_verdict.py`'s module docstring, the Channel-1 classifier's docstring) -- carry their required sentences, pinned by ONE test so a revert of any of them reds. The two authored ones contain the literal strings `invocation/adapters.py:81`, `Q3`, `delete` and `not migrate`.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP03 authors deliverables 4 and 5; WP04 T025 owns the single pinning test."
+    },
+    {
+      "criterion_id": "SC-020",
+      "description": "`tests/sync/tracker/test_local_service.py::TestSyncOperations` is green with its fixture repaired by a committed `tracker: {egress: permitted}` and with `_build_engine` still patched only for its own delegation assertions -- and the acceptance suite for this Mission patches `_build_engine` NOWHERE, asserted by a grep-based pin over the new test files with its input count printed.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP04 T026. The one-committed-line repair is possible only because WP04's own T024 (site A1) landed first -- NOT because of WP02, which is forbidden `local_service.py`. T024 must precede T026."
+    },
+    {
+      "criterion_id": "FR-001",
+      "description": "The verdict is consulted as the FIRST EXECUTABLE STATEMENT of `LocalTrackerService.sync_pull`, `sync_push` and `sync_run`, ahead of `self._load_runtime()`, written out at each site with no `_require_egress` helper.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP04 T022; structurally guarded by G3."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "`tracker.egress` is a first-class known field of `TrackerProjectConfig` holding the RAW loaded value plus a DERIVED FAULT -- never a narrowed type -- with absence spelled as the key being missing and distinguished from a present `null` by a module-local sentinel.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP02 T009. Measured on the `doctrine.mode` precedent: a known field with an unusable value is silently replaced by its default on round trip."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Exactly ONE function `tracker_egress_verdict(root: Path | None, *, destination: EgressDestination)` composes the two channels for a named destination, returning a value object with no `binding_kind` field and no binding-kind derivation.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP03 T015. Five enclosing functions, six call expressions, pinned by G4."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Polarity follows the destination and the destination is a PARAMETER, never a derivation: two-way at LOCAL_SUBPROCESS, narrowing-only at HOSTED_SERVICE.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP03 (mechanism), WP04/WP05/WP06 (literal call sites), WP07 G5/G6 (structure), SC-005a (behaviour)."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "The combination is a total, enumerated 8-cell table held as module-level DATA (`_JOIN`), not a branch chain, and both channels are always evaluated -- a Channel-1-first short-circuit would refuse a project Channel 2 permits.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP03 T017. The join's VALUE vocabulary is four-valued: refuse / permit / defer / defer-and-report-a-no-op."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Absence and unusability stated per channel: Channel 2 absence records nothing and defers; a non-mapping `tracker:` block is ABSENCE, not a fault; every present value outside the closed pair is a fault, and a fault refuses. The decode is `isinstance(raw, str) and raw in _LEGAL`, never `raw in _LEGAL` alone.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP02 T009 (classification), WP03 T016 (verdict). The bare membership test raises `TypeError: unhashable type` for a mapping and a list -- both enumerated fault values."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Absence of BOTH channels denies. The rejected alternative (honour recorded refusals, absence permits) was rejected because the refusal carries its own remedy and absence-permits rests on the unverified premise that `bd`/`fp` make no network calls.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Recorded so it is not re-litigated (C-017)."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "`#3030` FR-003 governs UNDETERMINED, not UNRECORDED: undetermined denies because FR-003 says so; absence denies because the operator chose it.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Design record; pinned indirectly by FR-007's behaviour."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "`save_tracker_config` OMITS `egress` from the emitted `tracker:` block when no decision is recorded, rather than emitting a null the way `to_dict` emits every other unset known field.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP02 T010. The defect is MANUFACTURED by T009's promotion; the red must be observed and quoted on the FR-002-only tree, and CLASSIFIED from what is actually seen -- it may be a `RepresenterError` out of `save_tracker_config` rather than an `AssertionError` on a rendered `null`."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Every value in the probed set of exactly 15 round-trips byte-identically on the `egress:` line, with the rest of the file differing only in lines the operation is supposed to touch.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP02 T011. `preserve_quotes` on `load_tracker_config` and on `clear_tracker_config`'s third `YAML()` are in scope."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "A recorded tracker-egress decision outlives its binding at EVERY construction site that reaches disk: A1, A2, A3, A4, B1, B2, C, D.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Split across two WPs: A1 is WP04 T024 (it is in `local_service.py`); A2, A3, A4, B1, B2, C, D are WP02 T012-T014. The split leaves a window in which `LocalTrackerService.bind` still erases -- named in both prompts."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "The refusal is raised as a `RuntimeError` subclass so `_run_or_exit` prints it in red and exits 1, and its message names the Channel-1 state (no record / recorded refusal / not consentable) with ordered remedies. Both messages are the `message` field of the same verdict value.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP03 T019 composes; WP04 T023 raises. No path-local message strings anywhere."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "The breaking change is carried in three places: the refusal message, a CHANGELOG Breaking Changes entry, and an upgrade note under `docs/migrations/` linked from `index.md`, pinned by an anchor check.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP04 T027 (CHANGELOG, same commit as the gate); WP08 T043-T045 (note, link, anchor check)."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "`sync doctor` gets a NEW renderer printing one row per destination -- two rows, always, in every checkout -- and never consults the on-disk provider to decide what to show.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP06. Explicitly NOT a third scope through `_render_consent_fault`, which is measured wrong three ways for this content."
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Six falsity guards G1-G6 over `src/`, each asserting exact membership and an exact count (never `<=`), printing a non-zero input count, and killed by synthetic mutated source passed to an analyzer callable.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP07. Each guard is an analyzer callable invoked twice; nothing on disk is edited."
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "`SaaSTrackerClient._request` consults `tracker_egress_verdict(self._project_root, destination=EgressDestination.HOSTED_SERVICE)` instead of `project_egress_refusal` directly, with the destination literal unconditional, the gate's position unchanged before `_fetch_access_token_sync()`, and byte-identical Channel-1 refusal text.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP05. Highest-consequence edit, least new value: it must change no verdict for any Channel-1 state."
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "The three docstrings this Mission falsifies are amended and the two the Mission must author carry the cause, the retirement condition and the unregistered-consumer note IN SOURCE.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP03 authors 4 and 5; WP04 T025 amends 1-3 and owns the single pinning test. Bundle B's implementer opens `src/`, never this Mission's spec."
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "The acceptance harness is a contract: H1 ownership mode, H2 the recorder IS a fake executable on disk, H3 explicit arming, H4 bind counter, H5 executed remedies, H6 per-site patch reporting, H7 isolation and trip-wires, H8 the store is seeded.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP01. Four independent mechanisms have each been MEASURED to produce a green suite with no gate."
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "For every refusing fixture, across all three entry points, the recorder captures ZERO argv; on `push` and `run` additionally no captured element equals or contains the seeded sentinel title. Every absence assertion is paired with a consenting control in the same file against the same recorder.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP01 authors, WP04 flips. On `pull` the title assertion is NOT made -- no title crosses on pull today."
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "A refused command performs no network I/O, no subprocess, and no local side effect. The local-side-effect clause is stated twice over two fixture pairs: (a) content-identity on the seeded pair (digest before == digest after, control's differs); (b) non-existence on a dedicated unseeded pair (US3 sc4).",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Clause (b) is the pin that reds if the gate is moved back to `_build_engine`, where `TrackerSqliteStore.__init__` mkdirs and creates a SQLite file with three tables (`store.py:278-281`). Clause (a) alone would not catch that move."
+    },
+    {
+      "criterion_id": "NFR-003",
+      "description": "`tracker_egress_verdict` and Channel 2's resolver never raise: twelve enumerated input shapes x two destinations = 24 cases, and the parametrised test prints and asserts it ran 24. No import-time dependency on `specify_cli.sync`.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP03 T020. Proven where the function has no callers, because once it is behind a gate an exception surfaces as a CLI traceback and costs a bisect."
+    },
+    {
+      "criterion_id": "NFR-004",
+      "description": "The gate is total across the three entry points: `sync_pull`, `sync_push` and `sync_run` each have their own refusing case and their own consenting control, each exercised end to end. A parametrised pair run once and asserted three times does not satisfy this.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP01 T006, WP04 T022."
+    },
+    {
+      "criterion_id": "NFR-005",
+      "description": "`ruff check` and `mypy --strict` clean on all new code with no blanket suppressions, and >=90% coverage on new branches from focused tests executing the new helpers directly.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Every WP. `ruff format` is NOT clean on this repo (line-length = 164) and is not evidence. `# noqa: C901` is forbidden on `egress_verdict.py`."
+    },
+    {
+      "criterion_id": "C-001",
+      "description": "The key lives in the `tracker:` block, carries its raw value, and uses a MODULE-LOCAL sentinel with the same semantics as `sync/consent.py`'s `_MISSING` -- the reasoning cited, never the private object imported.",
+      "proof_type": "code_review",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Importing it would give `tracker/` an import-time dependency on `sync.consent` and risk an `ImportError` out of a gate NFR-003 says never raises. WP02 names the sentinel and homes it; WP03 consumes it."
+    },
+    {
+      "criterion_id": "C-002",
+      "description": "Channel 2's polarity is fixed by destination; the destination is supplied, never inferred. Any implementation computing the destination from a configuration read is out of contract regardless of the answers it happens to give.",
+      "proof_type": "code_review",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "G5 pins it structurally at the call sites; G6 pins it structurally in the body; SC-005a pins it behaviourally."
+    },
+    {
+      "criterion_id": "C-003",
+      "description": "No new `ConsentLevel` member. `PROJECT_CONSENT_PRECEDENCE` is walked first-level-that-answers-wins, so a tracker key inserted there would answer the hosted-sync question -- verbatim the `sync.auto_start` failure mode.",
+      "proof_type": "code_review",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "This Mission needs an AND-conjunct; the tuple expresses precedence. Different algebra. Survived steelmanning by two squad lenses (C-017)."
+    },
+    {
+      "criterion_id": "C-004",
+      "description": "No new `EgressConsent` member; the resolver contract is unchanged; the Channel-1 state is reporting-only. The enforced verdict has exactly one derivation: `project_egress_refusal` -> `resolve_egress_consent` -> `permits_egress`.",
+      "proof_type": "code_review",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP03 T018's two non-authoritativeness pins are the executable half."
+    },
+    {
+      "criterion_id": "C-005",
+      "description": "Two keyings because two invariants: Channel 1 keys on `project_uuid`; Channel 2 keys on the project whose `.kittify/config.yaml` it is.",
+      "proof_type": "code_review",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "One representation each; neither substitutes for the other."
+    },
+    {
+      "criterion_id": "C-006",
+      "description": "Falsifying preconditions: (1) `build_connector` stays restricted to (\"beads\", \"fp\") [G1]; (2) `_build_engine` stays the sole connector-construction site and its callers stay exactly the three gated methods [G2, G3]; (3) the tracker path stays operator-invoked -- PROSE ONLY, no executable guard.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP07 must NOT invent a guard for precondition (3), and must state in its report that it did not."
+    },
+    {
+      "criterion_id": "C-007",
+      "description": "`from X import f` rebinds by value: tests patch the DECIDING module's bound name and report the per-site split.",
+      "proof_type": "code_review",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Measured at bb2020fea: after patching `specify_cli.tracker.egress_consent.project_egress_refusal`, `TSC.project_egress_refusal is TE.project_egress_refusal` -> False. The hosted path has two targets that apply at different times because WP05 deletes the first."
+    },
+    {
+      "criterion_id": "C-008",
+      "description": "`saas_client/egress_consent.py:92` is a SECOND DEFINITION, not a re-export (different id, different `__module__` from `tracker/egress_consent.py:147`). This Mission adds no third definition and does not touch the `saas_client/` package.",
+      "proof_type": "code_review",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Conflating a second definition with a re-export produces a patch-site table that is wrong for one of the two."
+    },
+    {
+      "criterion_id": "C-009",
+      "description": "Bundle B moves this Mission's call sites. G4's exact-membership assertion and G5's literal-member assertion are things Bundle B must UPDATE, not things Bundle B may let fall to zero.",
+      "proof_type": "code_review",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP07's failure messages and module docstring must say so."
+    },
+    {
+      "criterion_id": "C-010",
+      "description": "`local_service.py` cannot be egress-allowlisted and must not be added; no `_baselines.yaml` bump (`egress_allowlist_files: 28`). The same applies to the new `egress_verdict.py`.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Measured: `local_service.py` holds 0 HTTP sinks against a control of 8 in `saas_client.py` over 1198 scanned files; `test_every_listed_file_still_holds_a_sink` deletes entries that guard nothing."
+    },
+    {
+      "criterion_id": "C-011",
+      "description": "Measurement discipline, binding on every claim: never pipe a suite whose exit status you intend to trust; quote the `N passed` line; an empty output file is no measurement; a killed run is neither a pass nor a fail; measure in a worktree with PYTHONPATH=$WT/src; read the failure text, not the tally; print the input count; red first, and make the red the consequence; include a positive control; mutations as PYTHONPATH plugins, never source edits. AND: every line citation is revalidated BY SYMBOL NAME against the implementation base before it is trusted.",
+      "proof_type": "manual_qa",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "The citation-revalidation clause binds all eight WPs and is carried in each prompt's standing-rules block. Four drifts were already found at bb2020fea itself. A symbol that moved SEMANTICALLY is a re-plan trigger, not a bookkeeping fix."
+    },
+    {
+      "criterion_id": "C-012",
+      "description": "Blast radius named before the work starts: (1) `test_local_service.py::TestSyncOperations`; (2) `test_sync_doctor_consent_health_3030.py:366`; (3) `test_consent_fault_vocabulary_3030.py:261`; (4) `saas_service.py:219` and `:316`; (5) `tests/specify_cli/` entered the blast radius with `saas_service.py`.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Items (2), (3) and (5) are DETECTION SIGNALS, not planned edits. If they move, the implementation is wrong."
+    },
+    {
+      "criterion_id": "C-013",
+      "description": "Known pre-existing failures are not this Mission's to green: `test_tid251_enforcement.py` (4), `test_charter_package_exports::...cold_import...`, two `test_safe_commit_cmd::..._3033`, `test_charter_io::...malformed`, `test_doctor_ops::test_sweep_nfr_002_10k_files_under_5s`; `typer` ModuleNotFoundError in subprocess daemon tests is environmental.",
+      "proof_type": "manual_qa",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Do not chase, do not fix in-PR, do not retry to green. A NEWLY encountered pre-existing failure is filed as an issue before being treated as baseline."
+    },
+    {
+      "criterion_id": "C-014",
+      "description": "Chain B is named, not touched, and FILED -- framed as `finish #3030 FR-031's migration at the two remaining enforcement sites`, not as `consolidate two consent chains`, because the second framing is what got it deferred last time.",
+      "proof_type": "manual_qa",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP01 T001, BEFORE implementation starts. Must carry the two enforcement sites, the two display-only reads, the named canonical replacement, and the reachability sentence that makes it urgent rather than tidy."
+    },
+    {
+      "criterion_id": "C-015",
+      "description": "Explicit non-goals filed as issues rather than absorbed: `LocalTrackerService.sync_publish` AttributeError; `_extra`'s unaudited consumers; and the `finalize-tasks` requirement-ID scraping gap.",
+      "proof_type": "manual_qa",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP01 T001. FOUR follow-ups minimum, filed before any other subtask, with URLs."
+    },
+    {
+      "criterion_id": "C-016",
+      "description": "Separability, and the direction still not delivered: DELIVERED permit-hosted/refuse-tracker (US1) and refuse-hosted/permit-local (US2); NOT DELIVERED a SaaS tracker binding without hosted-sync consent. Stated in the upgrade note as a decided limitation, not an oversight.",
+      "proof_type": "code_review",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "WP05 makes the limitation true in code; WP08 states it."
+    },
+    {
+      "criterion_id": "C-017",
+      "description": "Raised and judged wrong, recorded so it is not re-raised: both the `ConsentLevel` and `EgressConsent` rejections survived steelmanning by two squad lenses.",
+      "proof_type": "manual_qa",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Do not re-litigate."
+    },
+    {
+      "criterion_id": "C-018",
+      "description": "Where the gate sits, and what a later reader must not do with it: moving it back to `_build_engine` reintroduces, on a refused command, a machine-global credential-store read and a `TrackerSqliteStore` construction that mkdirs and creates a SQLite file with three tables -- no egress, which is exactly why the move would look harmless.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "G3 is the structural half; US3 sc4's unseeded pair is the behavioural half."
+    },
+    {
+      "criterion_id": "C-019",
+      "description": "Stated limits carried forward unresolved: (1) whether `bd`/`fp` make network calls is unverified; (2) ...; (3) `TrackerProjectConfig._extra`'s consumers are unaudited -- two are now known (`saas_service.py:219`, `:316`) and this Mission's field promotion breaks them.",
+      "proof_type": "manual_qa",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "C-001's known-field placement is the mitigation, not the answer. Filed, not absorbed."
+    },
+    {
+      "criterion_id": "C-020",
+      "description": "A typo fails closed and says what to type instead: `refuse` (singular), `Refused`, `deny`, a stray `true` are each a fault, and a fault refuses. The fault text names the offending value VERBATIM and names BOTH legal values `refused` and `permitted`, and `sync doctor` renders the same wording on both destination rows.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Intended, not a side effect: on a confidentiality control the only safe reading of a value nobody defined is refusal. The mitigation is the message, not a looser decode."
+    },
+    {
+      "criterion_id": "C-021",
+      "description": "The unparseable-config acceptance scenario is CUT and must not be re-authored. `_is_local_binding()` wraps its `load_tracker_config` in `with suppress(Exception)` and returns False, so for an unparseable file `_check_sync_readiness` takes the SaaS branch and the local gate is never reached through the CLI at all.",
+      "proof_type": "code_review",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "The fault-refuses property is pinned at the UNIT level against `tracker_egress_verdict` (WP03, NFR-003). Changing `_is_local_binding`'s exception handling is explicitly out of scope."
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "The `REPAIR THE FILE'S SYNTAX` count must NOT move from 4. `tests/cli/commands/test_sync_doctor_consent_health_3030.py:366` asserts `flat.count(\"REPAIR THE FILE'S SYNTAX\") == 4` over the WHOLE rendered output. If it moves, WP06's new tracker-egress block routed through `_render_consent_fault` -- the defect FR-014 exists to prevent. It is a detection signal, not a planned edit; the test is never repaired.",
+      "verification_method": "custom_command",
+      "verification_command": "grep -q \"SYNTAX.) == 4\" tests/cli/commands/test_sync_doctor_consent_health_3030.py",
+      "result": "pending",
+      "evidence": null,
+      "scope": "tests/cli/commands/test_sync_doctor_consent_health_3030.py"
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "`CONFIG_FAULT_KINDS` must NOT be extended. It is pinned by EXACT equality at `tests/sync/test_consent_fault_vocabulary_3030.py:261` to (\"unreadable\", \"unparseable\", \"wrong_shape\", \"unusable\"). WP06 renders a VERDICT, not a readability fault, and therefore mints no new fault kind.",
+      "verification_method": "custom_command",
+      "verification_command": "grep -Fq 'CONFIG_FAULT_KINDS == (\"unreadable\", \"unparseable\", \"wrong_shape\", \"unusable\")' tests/sync/test_consent_fault_vocabulary_3030.py",
+      "result": "pending",
+      "evidence": null,
+      "scope": "tests/sync/test_consent_fault_vocabulary_3030.py"
+    },
+    {
+      "invariant_id": "NI-003",
+      "description": "`TrackerProjectConfig._extra` must KEEP carrying `future_flag`. `test_apply_binding_upgrade_preserves_extra_fields` asserts `svc._config._extra == {\"future_flag\": True}` at the exact line WP02's B1 fix modifies. A red there means the B1 fix REPLACED the `_extra` carry instead of adding an `egress` carry beside it -- it is never repaired by weakening the assertion.",
+      "verification_method": "custom_command",
+      "verification_command": "grep -Fq '_extra == {\"future_flag\": True}' tests/specify_cli/tracker/test_binding_report_only.py",
+      "result": "pending",
+      "evidence": null,
+      "scope": "tests/specify_cli/tracker/test_binding_report_only.py"
+    },
+    {
+      "invariant_id": "NI-004",
+      "description": "The Mission's acceptance suite patches `_build_engine` NOWHERE (SC-020). A plugin-injected gate on that seam measured bind count 0 with 519 tests green, which is the single sharpest false-green in this Mission.",
+      "verification_method": "custom_command",
+      "verification_command": "! test -f tests/sync/tracker/test_tracker_egress_refusal_3108.py || ! grep -q _build_engine tests/sync/tracker/test_tracker_egress_refusal_3108.py",
+      "result": "pending",
+      "evidence": null,
+      "scope": "tests/sync/tracker/test_tracker_egress_refusal_3108.py"
+    },
+    {
+      "invariant_id": "NI-005",
+      "description": "No `_require_egress`-style helper is introduced anywhere in `src/`. A helper would let G3's `first executable statement` property be satisfied by a call to the helper, which stops pinning `tracker_egress_verdict` at all.",
+      "verification_method": "grep_absence",
+      "verification_command": "_require_egress",
+      "result": "pending",
+      "evidence": null,
+      "scope": "src"
+    },
+    {
+      "invariant_id": "NI-006",
+      "description": "`src/specify_cli/tracker/egress_verdict.py` contains no `LOCAL_PROVIDERS` or `SAAS_PROVIDERS` reference -- guard G6's subject. A body-side derivation passes G5 at all six call expressions and only SC-005a would catch it.",
+      "verification_method": "custom_command",
+      "verification_command": "! test -f src/specify_cli/tracker/egress_verdict.py || ! grep -qE 'LOCAL_PROVIDERS|SAAS_PROVIDERS' src/specify_cli/tracker/egress_verdict.py",
+      "result": "pending",
+      "evidence": null,
+      "scope": "src/specify_cli/tracker/egress_verdict.py"
+    },
+    {
+      "invariant_id": "NI-007",
+      "description": "The verdict value object carries NO `binding_kind` field and no binding-kind derivation (FR-003). The caller states the destination; the function never reads the provider.",
+      "verification_method": "custom_command",
+      "verification_command": "! test -f src/specify_cli/tracker/egress_verdict.py || ! grep -q binding_kind src/specify_cli/tracker/egress_verdict.py",
+      "result": "pending",
+      "evidence": null,
+      "scope": "src/specify_cli/tracker/egress_verdict.py"
+    },
+    {
+      "invariant_id": "NI-008",
+      "description": "No `# noqa: C901` on `egress_verdict.py`. A conservative monolithic implementation measured `C901 17 > 15`; the charter's ceiling is 15 and the resolution is decomposition, never suppression.",
+      "verification_method": "custom_command",
+      "verification_command": "! test -f src/specify_cli/tracker/egress_verdict.py || ! grep -q 'noqa: C901' src/specify_cli/tracker/egress_verdict.py",
+      "result": "pending",
+      "evidence": null,
+      "scope": "src/specify_cli/tracker/egress_verdict.py"
+    },
+    {
+      "invariant_id": "NI-009",
+      "description": "No `_baselines.yaml` bump: `egress_allowlist_files: 28` is unchanged (C-010). `local_service.py` and the new `egress_verdict.py` hold zero HTTP sinks and therefore CANNOT be allowlisted -- `test_every_listed_file_still_holds_a_sink` deletes entries that guard nothing.",
+      "verification_method": "custom_command",
+      "verification_command": "grep -q 'egress_allowlist_files: 28' tests/architectural/_baselines.yaml",
+      "result": "pending",
+      "evidence": null,
+      "scope": "tests/architectural/_baselines.yaml"
+    }
+  ]
+}

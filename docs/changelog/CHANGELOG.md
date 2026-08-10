@@ -347,6 +347,16 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **A spec commit that genuinely FAILS is no longer silently reported as
+  "unchanged" (`#3269`).** When a `git commit` failed for a real reason — a
+  rejecting pre-commit hook, a lock error — `safe_commit` collapsed every
+  non-zero exit onto the same "nothing to commit" path, so `spec-commit` printed
+  _"Spec artifact(s) unchanged, no commit needed"_ and the spec silently never
+  landed. Emptiness is now decided by the **staged tree** (`git diff --cached`),
+  not by matching git's output text: a genuine no-op is still reported as
+  unchanged, while a real failure surfaces as an error carrying git's own
+  diagnostic — even when a failing hook prints its own "nothing to
+  commit"-shaped message.
 - **`spec-kitty` no longer crashes when an arbiter override lands on a
   conflict-marked review-cycle file (mission `verdict-seam-boundary-hardening`;
   `#3244`).** An arbiter override written against a `review-cycle-N.md` that
@@ -1429,6 +1439,51 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   automatically on `spec-kitty upgrade`, does nothing on a project that never
   had the entry, and is safe to run more than once. If you deliberately want
   RTK guidance, keep it in your own org doctrine pack.
+- **Local tracker providers (`beads`/`fp`) now require a recorded egress
+  decision, and absence of both channels denies (mission
+  `tracker-egress-refusal-3108`).** Every `spec-kitty tracker sync
+  pull`/`push`/`run` on a local binding used to ship issue titles, bodies,
+  labels, and assignees as `argv` of an operator-named executable
+  (`tracker/factory.py`'s `command` key, defaulting to `bd`/`fp`) with no
+  consent check at all — a committed `sync.enabled: false` did not stop it.
+  It is now gated by a join of two independently-recorded consent channels:
+  **Channel 1**, the existing hosted-sync consent chain (`sync.enabled` /
+  `spec-kitty sync opt-in`), and **Channel 2**, a new `tracker.egress` key
+  (`refused` / `permitted`) in the project's own committed
+  `.kittify/config.yaml`. At this destination Channel 2 is two-way: a
+  recorded `permitted` grants local sync independently of Channel 1, because
+  the subprocess involved is the operator's own machine, never spec-kitty's
+  hosted service; a recorded `refused`, or absence at _both_ channels,
+  denies. **This is the breaking change:** an existing `beads`/`fp` binding
+  that has never recorded hosted-sync consent and has no `tracker.egress` key
+  stops syncing on upgrade until one of the two is recorded — record
+  `tracker.egress: permitted` to keep syncing without consenting to hosted
+  sync at all, or run `spec-kitty sync opt-in` / record `sync.enabled: true`
+  to consent to hosted sync instead. Absence denies by design, but the
+  two-way local grant is the deliberate escape from a coercion the old,
+  ungated behaviour otherwise implied: without it, "consent to hosted sync or
+  lose your local tracker" would be the only way to keep a `beads`/`fp`
+  binding working, and recording `tracker.egress: permitted` is never a
+  de facto opt-in to hosted sync — it grants the local subprocess path only.
+  Only `sync pull`/`push`/`run` are gated: `tracker bind`, `status`, `unbind`,
+  and `map add` stay available on a refusing project, and a local `beads`/`fp`
+  `bind` no longer needs hosted authentication to run — an unauthenticated
+  project can still bind and use a local tracker. The refusal is also raised
+  before any network probe, so a refused hosted sync makes no HTTP request to
+  the tracker host at all. See
+  [the upgrade note](../migrations/tracker-egress-refusal.md) for the full
+  remediation paths.
+
+  <!-- WP04 review, HIGH-1 (named, both-ends window — same pattern as the
+       WP02→WP04 A1 window): the link above is deliberately forward. It
+       resolves once WP08 lands `docs/migrations/tracker-egress-refusal.md`,
+       not before, and until then it reds `tests/docs/test_relative_link_fixer.py`:
+       `TestLiveTreeGate::test_assembled_tree_has_no_unexpected_dead_links` and
+       `TestLiveTreeGate::test_full_tree_no_exclude_is_green`. Do not
+       allowlist it in `_KNOWN_GAPS` (that gate is deliberately reserved for
+       links that will never resolve) and do not drop the sentence -- WP08
+       does not own this file. Re-measure `tests/docs/test_relative_link_fixer.py`
+       green after WP08 lands, before the PR opens. -->
 
 ## [3.2.5] - 2026-07-08
 

@@ -20,6 +20,7 @@ related:
 - docs/migrations/shared-package-boundary-cutover.md
 - docs/migrations/teamspace-mission-state-920-closeout.md
 - docs/migrations/teamspace-mission-state-repair.md
+- docs/migrations/tracker-egress-refusal.md
 - docs/migrations/upgrade-to-0-12-0.md
 ---
 > Migration note: This page collects migration paths and historical cutover notes. For new projects, start with [Getting Started](../guides/getting-started.md).
@@ -44,6 +45,8 @@ Use these pages when an existing project, script, or operator habit predates the
 - [Legacy topology to the coordination model](legacy-to-coordination.md)
 - [Mission type flag deprecation](mission-type-flag-deprecation.md)
 - [Feature flag deprecation](feature-flag-deprecation.md)
+- [Tracker egress refusal](tracker-egress-refusal.md) — your `beads`/`fp`
+  tracker binding stopped working after upgrading.
 
 ## Migration and shim rules
 
