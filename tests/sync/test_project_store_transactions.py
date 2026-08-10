@@ -193,11 +193,13 @@ def test_failing_savepoint_rolls_back_inner_work_without_ending_outer_transactio
         unit.execute(
             "INSERT INTO admission_operations "
             "(operation_key, project_uuid, action, target_identity, account_identity, "
-            "private_teamspace_id, state) "
+            "private_teamspace_id, configuration_generation, request_payload_hash, "
+            "request_payload_version, state, created_at, updated_at) "
             "VALUES ('outer-before', ?, 'admit', 'target', 'account', 'teamspace', "
-            "'pending')",
-            (PROJECT_UUID,),
+            "1, ?, 1, 'prepared', '2026-08-10T00:00:00Z', '2026-08-10T00:00:00Z')",
+            (PROJECT_UUID, "a" * 64),
         )
+        assert unit.execute("SELECT state FROM admission_operations WHERE operation_key = 'outer-before'").fetchone() == ("prepared",)
         with (
             pytest.raises(RuntimeError, match="inner failure"),
             unit.savepoint("expected_failure"),
@@ -205,19 +207,22 @@ def test_failing_savepoint_rolls_back_inner_work_without_ending_outer_transactio
             unit.execute(
                 "INSERT INTO admission_operations "
                 "(operation_key, project_uuid, action, target_identity, "
-                "account_identity, private_teamspace_id, state) "
+                "account_identity, private_teamspace_id, configuration_generation, "
+                "request_payload_hash, request_payload_version, state, created_at, updated_at) "
                 "VALUES ('inner', ?, 'admit', 'target', 'account', 'teamspace', "
-                "'pending')",
-                (PROJECT_UUID,),
+                "1, ?, 1, 'prepared', '2026-08-10T00:00:01Z', '2026-08-10T00:00:01Z')",
+                (PROJECT_UUID, "b" * 64),
             )
+            assert unit.execute("SELECT state FROM admission_operations WHERE operation_key = 'inner'").fetchone() == ("prepared",)
             raise RuntimeError("inner failure")
         unit.execute(
             "INSERT INTO admission_operations "
             "(operation_key, project_uuid, action, target_identity, account_identity, "
-            "private_teamspace_id, state) "
+            "private_teamspace_id, configuration_generation, request_payload_hash, "
+            "request_payload_version, state, created_at, updated_at) "
             "VALUES ('outer-after', ?, 'admit', 'target', 'account', 'teamspace', "
-            "'pending')",
-            (PROJECT_UUID,),
+            "1, ?, 1, 'prepared', '2026-08-10T00:00:02Z', '2026-08-10T00:00:02Z')",
+            (PROJECT_UUID, "c" * 64),
         )
 
     with store.unit_of_work() as unit:
