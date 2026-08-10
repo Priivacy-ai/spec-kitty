@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import json
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -36,6 +37,18 @@ def _stub_check_readiness(request, monkeypatch):
     care about the readiness path.  Tests that explicitly test readiness
     should mark themselves with ``no_readiness_stub`` or use their own stubs.
     """
+    # #3108 / PR #3135 HIGH-1: `_check_sync_readiness` now consults the hosted
+    # `tracker_egress_verdict` before the readiness probe. These mock-boundary
+    # tests mock `_service()` (bypassing the transport-layer gate) and carry no
+    # recorded consent, so the real gate would refuse. Stub it to permit for
+    # *every* test in this file — including `no_readiness_stub` ones, which
+    # drive `_check_sync_readiness` directly — because egress consent is out of
+    # scope here (it has its own suite under `tests/sync/tracker/`); this file
+    # asserts command dispatch/rendering only.
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.tracker_egress_verdict",
+        lambda *args, **kwargs: SimpleNamespace(refused=False),
+    )
     if "no_readiness_stub" in {m.name for m in request.node.iter_markers()}:
         return
     monkeypatch.setattr(
