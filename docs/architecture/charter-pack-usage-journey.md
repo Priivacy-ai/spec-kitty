@@ -86,7 +86,9 @@ config merge — it introduces no new compiler. That means `--compile` also **in
 git-worktree requirement**: default `apply` stays git-agnostic, but `apply --compile` needs a git
 working tree, exactly like a standalone `charter generate` call.
 
-### Why `apply` does not auto-compile {#why-apply-does-not-auto-compile}
+<a id="why-apply-does-not-auto-compile"></a>
+
+### Why `apply` does not auto-compile
 
 Compiling is opt-in rather than automatic because `generate` does more than the bare minimum:
 it requires a git working tree, seeds `charter.md` when absent, creates `library/`, writes
