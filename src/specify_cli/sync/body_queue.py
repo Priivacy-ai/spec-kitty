@@ -30,6 +30,10 @@ DEFAULT_BODY_QUEUE_SIZE = DEFAULT_MAX_QUEUE_SIZE
 _BACKOFF_BASE = 1.0
 _BACKOFF_CAP = 300.0
 
+# S1192: exact SQL literals shared by several row-count / delete call sites below.
+_SELECT_COUNT_BODY_QUEUE_SQL = "SELECT COUNT(*) FROM body_upload_queue"
+_DELETE_BODY_QUEUE_ROW_SQL = "DELETE FROM body_upload_queue WHERE id = ?"
+
 
 @dataclass
 class BodyUploadTask:
@@ -136,7 +140,7 @@ class OfflineBodyUploadQueue:
         """Enqueue a body upload task."""
         conn = sqlite3.connect(self.db_path)
         try:
-            row = conn.execute("SELECT COUNT(*) FROM body_upload_queue").fetchone()
+            row = conn.execute(_SELECT_COUNT_BODY_QUEUE_SQL).fetchone()
             count = int(row[0]) if row else 0
             if count >= self._max_queue_size:
                 # Keep normal CLI output quiet in offline-first mode. Saturation can
@@ -257,7 +261,7 @@ class OfflineBodyUploadQueue:
         """Remove a successfully uploaded task from the queue."""
         conn = sqlite3.connect(self.db_path)
         try:
-            conn.execute("DELETE FROM body_upload_queue WHERE id = ?", (row_id,))
+            conn.execute(_DELETE_BODY_QUEUE_ROW_SQL, (row_id,))
             conn.commit()
         finally:
             conn.close()
@@ -266,7 +270,7 @@ class OfflineBodyUploadQueue:
         """Remove a task whose content already exists on the server."""
         conn = sqlite3.connect(self.db_path)
         try:
-            conn.execute("DELETE FROM body_upload_queue WHERE id = ?", (row_id,))
+            conn.execute(_DELETE_BODY_QUEUE_ROW_SQL, (row_id,))
             conn.commit()
         finally:
             conn.close()
@@ -299,7 +303,7 @@ class OfflineBodyUploadQueue:
         """Remove a permanently failed task (non-retryable error)."""
         conn = sqlite3.connect(self.db_path)
         try:
-            conn.execute("DELETE FROM body_upload_queue WHERE id = ?", (row_id,))
+            conn.execute(_DELETE_BODY_QUEUE_ROW_SQL, (row_id,))
             conn.commit()
         finally:
             conn.close()
@@ -452,7 +456,7 @@ class OfflineBodyUploadQueue:
         """Get current body queue size."""
         conn = sqlite3.connect(self.db_path)
         try:
-            row = conn.execute("SELECT COUNT(*) FROM body_upload_queue").fetchone()
+            row = conn.execute(_SELECT_COUNT_BODY_QUEUE_SQL).fetchone()
             return row[0] if row else 0
         finally:
             conn.close()
@@ -463,7 +467,7 @@ class OfflineBodyUploadQueue:
         try:
             now = now_epoch()
 
-            row = conn.execute("SELECT COUNT(*) FROM body_upload_queue").fetchone()
+            row = conn.execute(_SELECT_COUNT_BODY_QUEUE_SQL).fetchone()
             total_count = int(row[0]) if row else 0
 
             if total_count == 0:

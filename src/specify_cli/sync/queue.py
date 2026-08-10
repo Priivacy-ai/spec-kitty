@@ -54,6 +54,13 @@ DEFAULT_STRICT_CAP_SIZE = 10_000
 NAMESPACE_PROJECT_UUID = "namespace.project_uuid"
 NAMESPACE_MISSION_SLUG = "namespace.mission_slug"
 
+# S1192: literal dev server URL used as a fallback when no server_url is
+# configured; referenced from every ``_read_server_url_for_scope`` branch.
+_DEFAULT_SYNC_SERVER_URL = "https://spec-kitty-dev.fly.dev"
+# S1192: exact ``SELECT COUNT(*)`` query shared by the queue-table row-count
+# helpers below.
+_SELECT_COUNT_QUEUE_SQL = "SELECT COUNT(*) FROM queue"
+
 
 class OfflineQueueFull(RuntimeError):
     """Raised by :meth:`OfflineQueue.append` when the queue is at capacity.
@@ -357,7 +364,9 @@ def get_max_queue_size() -> int:
         value = data.get("sync", {}).get("max_queue_size")
         if value is not None:
             return int(value)
-    except (toml.TomlDecodeError, OSError, TypeError, ValueError):
+    # S5713: ``toml.TomlDecodeError`` derives from ``ValueError``, so it is
+    # already covered by the ``ValueError`` branch below.
+    except (OSError, TypeError, ValueError):
         pass
     return DEFAULT_MAX_QUEUE_SIZE
 
@@ -461,12 +470,12 @@ def read_queue_scope_from_credentials(credentials_path: Path | None = None) -> s
 def _read_server_url_for_scope() -> str:
     config_file = _spec_kitty_dir() / "config.toml"
     if not config_file.exists():
-        return "https://spec-kitty-dev.fly.dev"
+        return _DEFAULT_SYNC_SERVER_URL
     try:
         data = toml.load(config_file)
     except (toml.TomlDecodeError, OSError):
-        return "https://spec-kitty-dev.fly.dev"
-    value = data.get("sync", {}).get("server_url", "https://spec-kitty-dev.fly.dev")
+        return _DEFAULT_SYNC_SERVER_URL
+    value = data.get("sync", {}).get("server_url", _DEFAULT_SYNC_SERVER_URL)
     return str(value)
 
 
@@ -543,7 +552,7 @@ def _table_row_count(conn: sqlite3.Connection, table_name: str) -> int:
     if cursor.fetchone() is None:
         return 0
     query = {
-        "queue": "SELECT COUNT(*) FROM queue",
+        "queue": _SELECT_COUNT_QUEUE_SQL,
         "body_upload_queue": "SELECT COUNT(*) FROM body_upload_queue",
         "body_upload_failure_log": "SELECT COUNT(*) FROM body_upload_failure_log",
     }[table_name]
@@ -1176,7 +1185,7 @@ class OfflineQueue:
         """
         conn = sqlite3.connect(self.db_path)
         try:
-            row = conn.execute("SELECT COUNT(*) FROM queue").fetchone()
+            row = conn.execute(_SELECT_COUNT_QUEUE_SQL).fetchone()
         finally:
             conn.close()
         count = int(row[0]) if row is not None else 0
@@ -1203,7 +1212,7 @@ class OfflineQueue:
         """
         conn = sqlite3.connect(self.db_path)
         try:
-            row = conn.execute("SELECT COUNT(*) FROM queue").fetchone()
+            row = conn.execute(_SELECT_COUNT_QUEUE_SQL).fetchone()
         finally:
             conn.close()
         return int(row[0]) if row is not None else 0

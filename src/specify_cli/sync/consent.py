@@ -336,7 +336,8 @@ def _read_project_local(
                 detail=f"{config_path}: could not be opened ({exc})",
             ),
         )
-    except Exception as exc:  # noqa: BLE001 - carried as a fault, never raised
+    # Carried as a fault, never raised.
+    except Exception as exc:  # noqa: BLE001
         # It opened and its syntax does not parse. In practice this is a
         # ``ruamel.yaml.YAMLError``; the catch stays broad because this function's
         # contract is to answer rather than raise, and anything else escaping the
@@ -706,7 +707,8 @@ def _reconcile_index(project_uuid: str, granted: bool) -> None:
     try:
         if get_project_consent(project_uuid) != granted:
             set_project_consent(project_uuid, granted)
-    except Exception as exc:  # noqa: BLE001 - the decision stands regardless
+    # The decision stands regardless.
+    except Exception as exc:  # noqa: BLE001
         logger.debug("Could not reconcile consent index for %s: %s", project_uuid, exc)
 
 

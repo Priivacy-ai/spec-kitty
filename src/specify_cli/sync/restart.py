@@ -163,8 +163,16 @@ def _registered_daemon_metadata_present_after_grace() -> bool:
     return _restartable_daemon_state_metadata_present()
 
 
-def restart_daemon(repo_root: Path) -> RestartResult:  # noqa: ARG001 — reserved for future repo-scoped state
+def restart_daemon(_repo_root: Path) -> RestartResult:
     """Restart the registered sync daemon at the foreground version/source.
+
+    ``_repo_root`` is accepted (and underscore-prefixed as an intentionally
+    unused contract slot, S1172) for API symmetry with the rest of the
+    preflight surface — see ``_daemon_doctor.run_restart_daemon``, which
+    resolves and passes it. The function does not currently consult the
+    repo for any field; a future refactor that reads repo-relative state
+    picks the parameter up automatically without a CLI-facing signature
+    change.
 
     Composition pipeline:
 

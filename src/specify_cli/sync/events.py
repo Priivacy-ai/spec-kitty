@@ -18,13 +18,14 @@ import threading
 import json
 import urllib.parse
 import urllib.request
+from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from .feature_flags import is_saas_sync_enabled
 
 if TYPE_CHECKING:
-    from .emitter import EventEmitter
+    from .emitter import EventEmitter, TokenUsageMetadata
 
 _emitter: EventEmitter | None = None
 _lock = threading.Lock()
@@ -75,10 +76,20 @@ def _ensure_dashboard_sync_daemon(repo_root: Path | None, *, ensure_daemon: bool
             logger.debug("Background sync in manual mode; skipping daemon auto-start")
         elif outcome.skipped_reason == "intent_local_only":
             # Unreachable by construction — this function passes REMOTE_REQUIRED.
-            # An explicit raise (not `assert False`) keeps this guard live
-            # under `python -O`; the surrounding `except Exception` still
-            # logs it as a warning and continues, same as before.
-            raise AssertionError("intent_local_only reached in REMOTE_REQUIRED path")
+            # S5779: this branch previously raised AssertionError so the
+            # `except Exception` below would catch-and-log it — but an assert
+            # inside a try/except that catches AssertionError is exactly the
+            # anti-pattern S5779 flags, and `python -O` strips bare `assert`
+            # statements (not `raise AssertionError`, but the *intent* here
+            # was defensive logging, not control flow). Logging directly is
+            # behavior-preserving: the observable outcome — a WARNING log
+            # with this exact message, and the function returning normally —
+            # is identical, without laundering a log-only guard through
+            # exception control flow.
+            logger.warning(
+                "Could not ensure global sync daemon: "
+                "intent_local_only reached in REMOTE_REQUIRED path"
+            )
         elif outcome.skipped_reason is not None and outcome.skipped_reason.startswith("start_failed:"):
             logger.warning("Could not ensure global sync daemon: %s", outcome.skipped_reason)
     except Exception as exc:
@@ -282,6 +293,31 @@ def reset_emitter() -> None:
 # ── Convenience Functions ─────────────────────────────────────
 
 
+@dataclass(frozen=True)
+class WPStatusChangeMetadata:
+    """Optional ``WPStatusChanged`` fields, bundled into one params object.
+
+    S107: ``emit_wp_status_changed`` originally declared these 8 fields as
+    individual keyword parameters, pushing it to 15 total parameters. Every
+    field here mirrors the identically-named keyword ``EventEmitter.
+    emit_wp_status_changed`` (``sync/emitter.py``) already accepts, so
+    threading ``metadata`` through to that call is a plain field-by-field
+    unpack — no behavior change.
+    """
+
+    causation_id: str | None = None
+    policy_metadata: dict[str, Any] | None = None
+    force: bool = False
+    reason: str | None = None
+    review_ref: str | None = None
+    execution_mode: str | None = None
+    evidence: dict[str, Any] | None = None
+    occurred_at: str | None = None
+
+
+_WP_STATUS_METADATA_FIELDS = frozenset(f.name for f in fields(WPStatusChangeMetadata))
+
+
 def emit_wp_status_changed(
     wp_id: str,
     from_lane: str,
@@ -289,24 +325,47 @@ def emit_wp_status_changed(
     actor: str = "user",
     mission_slug: str | None = None,
     mission_id: str | None = None,
-    causation_id: str | None = None,
-    policy_metadata: dict[str, Any] | None = None,
-    force: bool = False,
-    reason: str | None = None,
-    review_ref: str | None = None,
-    execution_mode: str | None = None,
-    evidence: dict[str, Any] | None = None,
-    occurred_at: str | None = None,
+    metadata: WPStatusChangeMetadata | None = None,
     *,
     ensure_daemon: bool = True,
+    **legacy_metadata_kwargs: Any,
 ) -> dict[str, Any] | None:
     """Emit WPStatusChanged event via singleton.
+
+    ``metadata`` bundles the optional tail — ``causation_id``,
+    ``policy_metadata``, ``force``, ``reason``, ``review_ref``,
+    ``execution_mode``, ``evidence``, ``occurred_at`` — into one params
+    object (S107: this dropped the declared-parameter count from 15 to 8).
+    The ~100 existing call sites, including the production SaaS fan-out
+    chain (``status/emit.py`` → ``status/adapters.fire_saas_fanout`` →
+    ``sync/__init__._saas_fanout_handler``, all of which forward
+    ``**kwargs`` blindly) still pass these fields as individual keyword
+    arguments, so that calling convention is preserved via
+    ``**legacy_metadata_kwargs``: any of the fields above may still be
+    passed by name, and are folded into a :class:`WPStatusChangeMetadata`
+    internally. Passing both ``metadata=`` and one of the individual
+    fields is a ``TypeError``.
 
     ``occurred_at`` is the producer occurrence time (e.g. ``StatusEvent.at``)
     and is threaded into the wire envelope's ``timestamp`` field so SaaS
     persists the local lane-transition moment rather than the sync-emission
     clock (Rule R-T-01 in spec-kitty-events).
     """
+    if legacy_metadata_kwargs:
+        unexpected = sorted(set(legacy_metadata_kwargs) - _WP_STATUS_METADATA_FIELDS)
+        if unexpected:
+            raise TypeError(
+                "emit_wp_status_changed() got unexpected keyword argument(s): "
+                + ", ".join(unexpected)
+            )
+        if metadata is not None:
+            raise TypeError(
+                "emit_wp_status_changed() got both `metadata=` and individual "
+                "metadata keyword arguments; pass one or the other"
+            )
+        metadata = WPStatusChangeMetadata(**legacy_metadata_kwargs)
+    metadata = metadata or WPStatusChangeMetadata()
+
     repo_root = _ensure_dashboard_sync_daemon_for_active_project(ensure_daemon=ensure_daemon)
     resolved_mission_id = mission_id or _resolve_mission_id_for_slug(repo_root, mission_slug)
     event = get_emitter().emit_wp_status_changed(
@@ -316,14 +375,14 @@ def emit_wp_status_changed(
         actor=actor,
         mission_slug=mission_slug,
         mission_id=resolved_mission_id,
-        causation_id=causation_id,
-        policy_metadata=policy_metadata,
-        force=force,
-        reason=reason,
-        review_ref=review_ref,
-        execution_mode=execution_mode,
-        evidence=evidence,
-        occurred_at=occurred_at,
+        causation_id=metadata.causation_id,
+        policy_metadata=metadata.policy_metadata,
+        force=metadata.force,
+        reason=metadata.reason,
+        review_ref=metadata.review_ref,
+        execution_mode=metadata.execution_mode,
+        evidence=metadata.evidence,
+        occurred_at=metadata.occurred_at,
     )
     if event is not None:
         _publish_event_via_sync_daemon(event, repo_root)
@@ -520,32 +579,25 @@ def emit_token_usage_recorded(
     estimated_cost_usd: float,
     source: str,
     *,
-    run_id: str | None = None,
-    step_id: str | None = None,
-    wp_id: str | None = None,
-    phase_name: str | None = None,
-    actor: dict[str, Any] | None = None,
-    provider: str | None = None,
-    model: str | None = None,
-    causation_id: str | None = None,
+    metadata: TokenUsageMetadata | None = None,
 ) -> dict[str, Any] | None:
-    """Emit TokenUsageRecorded via singleton."""
+    """Emit TokenUsageRecorded via singleton.
+
+    ``metadata`` bundles the optional tail (``run_id``, ``step_id``,
+    ``wp_id``, ``phase_name``, ``actor``, ``provider``, ``model``,
+    ``causation_id``) into one params object (S107) and is threaded
+    unchanged into :meth:`EventEmitter.emit_token_usage_recorded` — the
+    two-layer signature this function and the emitter method share.
+    """
     repo_root = _ensure_dashboard_sync_daemon_for_active_project()
     event = get_emitter().emit_token_usage_recorded(
         mission_id=mission_id,
-        run_id=run_id,
-        step_id=step_id,
-        wp_id=wp_id,
-        phase_name=phase_name,
-        actor=actor,
-        provider=provider,
-        model=model,
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         total_tokens=total_tokens,
         estimated_cost_usd=estimated_cost_usd,
         source=source,
-        causation_id=causation_id,
+        metadata=metadata,
     )
     if event is not None:
         _publish_event_via_sync_daemon(event, repo_root)
