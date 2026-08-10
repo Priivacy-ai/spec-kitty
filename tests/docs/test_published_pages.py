@@ -58,7 +58,7 @@ COUNT_TOLERANCE = 150
 #: ``adr/3.x/…`` (two levels down).
 CANARY_PAGES = (
     Path("docs/api/slash-commands.md"),
-    Path("docs/guides/install-spec-kitty.md"),
+    Path("docs/guides/how-to/installation/install-spec-kitty.md"),
     Path("docs/adr/3.x/2026-07-08-1-mission-resolver-port.md"),
     Path("docs/index.md"),
 )

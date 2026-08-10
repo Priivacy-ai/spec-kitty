@@ -93,9 +93,12 @@ check_frontmatter_contract = _lint.check_frontmatter_contract
 check_index_completeness = _lint.check_index_completeness
 check_point_in_time_placement = _lint.check_point_in_time_placement
 check_shadow_tree_basename = _lint.check_shadow_tree_basename
+check_sanctioned_section_membership = _lint.check_sanctioned_section_membership
+check_one_index_per_dir = _lint.check_one_index_per_dir
 load_config = _lint.load_config
 main = _lint.main
 run = _lint.run
+run_extended = _lint.run_extended
 _resolve_styleguide = _lint._resolve_styleguide
 
 
@@ -356,6 +359,95 @@ def test_frontmatter_contract_exempts_adr_bodies_via_config(tmp_path: Path) -> N
         frontmatter_in_scope_exclusions=("**/README.md", "adr/**"),
     )
     assert check_frontmatter_contract([adr], docs, tmp_path, with_adr) == []
+
+
+# =============================================================================
+# T004 invariants: nested non_content_dir matching + one_index exemptions.
+# =============================================================================
+
+
+def _t004_config() -> Any:
+    """Config exercising the T004 structural invariants with a NESTED (two-segment)
+    non-content dir entry — the WP04-reviewer bug fixture."""
+    return dataclasses.replace(
+        _fixture_config(),
+        sanctioned_content_sections=("index", "architecture", "guides"),
+        non_content_dirs=("assets/", "templates/spec-kitty/"),
+        curated_complete_sections=("architecture",),
+        one_index_per_dir=True,
+    )
+
+
+def test_sanctioned_section_membership_honours_nested_non_content_dir(tmp_path: Path) -> None:
+    """A page under a TWO-SEGMENT ``non_content_dirs`` entry is exempt (bug fix).
+
+    The prior top-level-only comparison mapped ``templates/spec-kitty/public/x.md``
+    to the top segment ``templates`` — which is not in the list — so the whole
+    nested scaffolding zone was wrongly flagged. Prefix matching honours it.
+    """
+    docs = tmp_path / "docs"
+    nested = docs / "templates" / "spec-kitty" / "public" / "layout.md"
+    _write(nested, frontmatter=_ACTIVE_FRONTMATTER)
+
+    violations = check_sanctioned_section_membership([nested], docs, tmp_path, _t004_config())
+
+    assert violations == [], (
+        "a page under the nested non_content_dir templates/spec-kitty/ must be "
+        f"exempt, got: {[v.path for v in violations]}"
+    )
+
+
+def test_sanctioned_section_membership_flags_unlisted_and_shallow_nested(tmp_path: Path) -> None:
+    """Control: the nested exemption is scoped — it does not blanket the parent.
+
+    ``templates/index.md`` (under ``templates/`` but NOT ``templates/spec-kitty/``)
+    and an unsanctioned ``bogus/`` section are still flagged, proving the prefix
+    match is exact and not a substring/top-level free pass.
+    """
+    docs = tmp_path / "docs"
+    shallow = docs / "templates" / "index.md"          # not under templates/spec-kitty/
+    bogus = docs / "bogus" / "page.md"                  # unsanctioned section
+    _write(shallow, frontmatter=_ACTIVE_FRONTMATTER)
+    _write(bogus, frontmatter=_ACTIVE_FRONTMATTER)
+
+    flagged = {
+        v.path
+        for v in check_sanctioned_section_membership(
+            [shallow, bogus], docs, tmp_path, _t004_config()
+        )
+    }
+
+    assert flagged == {"docs/templates/index.md", "docs/bogus/page.md"}
+
+
+def test_one_index_per_dir_exempts_redirect_stub_and_curated_readme(tmp_path: Path) -> None:
+    """``index.md`` + a redirect-stub README, or + a curated-section README, is clean.
+
+    A normal (non-stub, non-curated) index+README pair is still flagged so the
+    check keeps its teeth.
+    """
+    docs = tmp_path / "docs"
+    config = _t004_config()
+
+    # adr era dir: index.md + a redirect-stub README.md (FR-022) — exempt.
+    _write(docs / "adr" / "1.x" / "index.md", frontmatter=_ACTIVE_FRONTMATTER)
+    _write(
+        docs / "adr" / "1.x" / "README.md",
+        frontmatter={"description": "Redirect stub: moved to adr/1.x/index.md", **_ACTIVE_FRONTMATTER},
+    )
+    # curated-complete section: index.md + prose README.md — exempt.
+    _write(docs / "architecture" / "index.md", frontmatter=_ACTIVE_FRONTMATTER)
+    _write(docs / "architecture" / "README.md", frontmatter=_ACTIVE_FRONTMATTER)
+    # ordinary dir: index.md + a plain README.md — STILL flagged (teeth).
+    _write(docs / "guides" / "index.md", frontmatter=_ACTIVE_FRONTMATTER)
+    _write(docs / "guides" / "README.md", frontmatter=_ACTIVE_FRONTMATTER)
+
+    md_files = sorted(docs.rglob("*.md"))
+    flagged = {
+        v.path for v in check_one_index_per_dir(md_files, docs, tmp_path, config)
+    }
+
+    assert flagged == {"docs/guides/README.md"}, flagged
 
 
 def test_frontmatter_contract_catches_missing_field(tmp_path: Path) -> None:

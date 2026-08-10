@@ -33,6 +33,14 @@ procedures:
   - Express cross-references with a `related:` frontmatter list of resolvable
     repo-relative `.md` paths; do not reintroduce the dead `citation_refs`
     sidecar field.
+  - Declare the target reader of every documentation page touched by a change
+    with an `audience:` frontmatter field — one resolvable repo-relative `.md`
+    path, or a list of such paths, targeting a persona under
+    `docs/context/audience/`. The field is required on touched pages only; it is
+    deliberately NOT added to the structural lint's
+    `frontmatter_required_fields`, so untouched legacy pages are never
+    red-lined for lacking it (C-012). This is the machine-checkable form of the
+    audience-oriented-writing rule (DIRECTIVE_047).
   - File Architecture Decision Records under `adr/<era>/` with YAML frontmatter,
     preserving the era-of-decision history; the living architectural design
     collapses into a single unversioned `architecture/` location.
@@ -50,6 +58,10 @@ integrity_rules:
     `status` for the MADR decision status (Proposed / Accepted / Deprecated /
     Superseded).
   - Every `related:` entry must resolve to an existing repo-relative `.md` path.
+  - Every `audience:` entry on a touched page must resolve to an existing
+    persona file under `docs/context/audience/`; a dangling audience reference
+    is a red-line violation on that page. `audience:` is required on touched
+    pages only and is never added to `frontmatter_required_fields` (C-012).
 validation_criteria:
   - The common-docs-structural-lint doctrine asset (the structural lint
     shipped with this pack) is the live mechanical gate that
@@ -68,6 +80,9 @@ validation_criteria:
     (`doc_status` is used instead); ADR frontmatter retains `status` for the MADR
     decision status by design.
   - The `related:` path validator confirms every cross-reference resolves.
+  - The `audience:` path resolver confirms every audience reference on a touched
+    page resolves to an existing persona under `docs/context/audience/`. It is
+    non-vacuous (fails on zero examined) and runs `--strict` on pull requests.
 references:
   - type: styleguide
     id: common-docs

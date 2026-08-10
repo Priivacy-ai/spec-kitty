@@ -321,6 +321,13 @@ _STRUCTURAL_LINT_CONFIG_DEF: dict[str, Any] = {
         "shadow_tree_nav_exemptions": {"type": "array", "items": {"type": "string"}},
         "guides_boundary": {"type": "string"},
         "redirect_stub_description_prefix": {"type": "string"},
+        # T004 invariant fields (common-docs-convergence WP04): the closed
+        # section/dir/root allowlists + the one-index toggle the extended
+        # structural-lint check-fns and the root-allowlist gate consume.
+        "sanctioned_content_sections": {"type": "array", "items": {"type": "string"}},
+        "non_content_dirs": {"type": "array", "items": {"type": "string"}},
+        "root_allowlist": {"type": "array", "items": {"type": "string"}},
+        "one_index_per_dir": {"type": "boolean"},
     },
 }
 

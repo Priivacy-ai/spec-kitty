@@ -31,9 +31,6 @@ doctrine:
   - ruff
   template_set: software-dev-default
   authority_paths:
-  - glossary/contexts/
   - docs/context/
-  - architecture/3.x/adr/
   - docs/adr/3.x/
-  - architecture/adrs/
 enforcement: {}
