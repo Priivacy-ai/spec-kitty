@@ -385,38 +385,13 @@ def apply_org_charter_pre_fill_to_answers(
     yaml = YAML()
     yaml.default_flow_style = False
 
-    existing: dict[str, Any] = {}
-    if answers_path.exists():
-        try:
-            with answers_path.open("r", encoding="utf-8") as handle:
-                loaded = yaml.load(handle)
-        except Exception:  # noqa: BLE001 — malformed YAML treated as empty
-            loaded = None
-        if isinstance(loaded, dict):
-            existing = loaded
+    existing = _load_existing_answers(answers_path, yaml)
+
+    prefilled = _prefill_answer_defaults(existing, interview_defaults)
+    new_required = _merge_required_directives(existing, required_directives)
 
     messages: list[str] = []
-    prefilled = 0
-    for key, value in interview_defaults.items():
-        if key not in existing:
-            existing[key] = value
-            prefilled += 1
-
-    existing_directives_raw = existing.get("selected_directives")
-    if isinstance(existing_directives_raw, list):
-        existing_directives: list[str] = [
-            str(d) for d in existing_directives_raw
-        ]
-    elif isinstance(existing_directives_raw, str):
-        existing_directives = _normalize_csv(existing_directives_raw)
-    else:
-        existing_directives = []
-
-    new_required = [
-        d for d in required_directives if d not in existing_directives
-    ]
     if new_required:
-        existing["selected_directives"] = existing_directives + new_required
         messages.append(
             f"Pre-selected {len(new_required)} directives from org charter "
             "required_directives."
@@ -433,6 +408,63 @@ def apply_org_charter_pre_fill_to_answers(
             yaml.dump(existing, handle)
 
     return messages
+
+
+def _load_existing_answers(answers_path: Path, yaml: YAML) -> dict[str, Any]:
+    """Load ``answers_path`` as a dict, tolerating a missing or malformed file.
+
+    Mirrors the pre-existing resilience contract: a missing file or a file
+    that fails to parse (or does not decode to a mapping) degrades to an
+    empty dict rather than raising.
+    """
+    if not answers_path.exists():
+        return {}
+    try:
+        with answers_path.open("r", encoding="utf-8") as handle:
+            loaded = yaml.load(handle)
+    except Exception:  # noqa: BLE001 — malformed YAML treated as empty
+        loaded = None
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def _prefill_answer_defaults(
+    existing: dict[str, Any], interview_defaults: dict[str, str | bool]
+) -> int:
+    """Set each default whose key is missing from ``existing`` in place.
+
+    Returns the count of keys that were prefilled.
+    """
+    prefilled = 0
+    for key, value in interview_defaults.items():
+        if key not in existing:
+            existing[key] = value
+            prefilled += 1
+    return prefilled
+
+
+def _existing_directives_from(existing: dict[str, Any]) -> list[str]:
+    """Normalize ``existing["selected_directives"]`` to a list of strings."""
+    raw = existing.get("selected_directives")
+    if isinstance(raw, list):
+        return [str(d) for d in raw]
+    if isinstance(raw, str):
+        return _normalize_csv(raw)
+    return []
+
+
+def _merge_required_directives(
+    existing: dict[str, Any], required_directives: list[str]
+) -> list[str]:
+    """Append any missing ``required_directives`` to ``existing`` in place.
+
+    Returns the subset of ``required_directives`` that was newly added
+    (order preserved), or an empty list when nothing was missing.
+    """
+    existing_directives = _existing_directives_from(existing)
+    new_required = [d for d in required_directives if d not in existing_directives]
+    if new_required:
+        existing["selected_directives"] = existing_directives + new_required
+    return new_required
 
 
 def apply_answer_overrides(

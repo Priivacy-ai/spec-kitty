@@ -22,7 +22,13 @@ from pathlib import Path
 import pytest
 
 from charter import kind_vocabulary
-from charter.kind_vocabulary import _scan_roots
+from charter.kind_vocabulary import (
+    _built_in_scan_dir,
+    _layer_candidate_dir,
+    _layer_scan_dirs,
+    _org_scan_dirs,
+    _scan_roots,
+)
 from doctrine.artifact_kinds import ArtifactKind
 from doctrine.pack_paths import BuiltInContentDirNotAvailable, PackRootNotFound
 
@@ -82,3 +88,75 @@ def test_scan_roots_still_returns_org_root_when_built_in_unresolvable(
     )
 
     assert (org_built_in, True) in result
+
+
+# ---------------------------------------------------------------------------
+# Direct coverage for the helpers extracted from ``_scan_roots`` during Sonar
+# S3776 cognitive-complexity remediation (WP03).
+# ---------------------------------------------------------------------------
+
+
+class TestBuiltInScanDirHelper:
+    def test_returns_none_when_built_in_dir_raises(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def _raise(_kind: ArtifactKind) -> Path:
+            raise PackRootNotFound("built-in")
+
+        monkeypatch.setattr(kind_vocabulary, "built_in_dir", _raise)
+        assert _built_in_scan_dir(ArtifactKind.TACTIC) is None
+
+    def test_returns_none_when_resolved_dir_does_not_exist(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        missing = tmp_path / "does-not-exist"
+        monkeypatch.setattr(kind_vocabulary, "built_in_dir", lambda _kind: missing)
+        assert _built_in_scan_dir(ArtifactKind.TACTIC) is None
+
+    def test_returns_recursive_pair_when_dir_exists(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        present = tmp_path / "built-in"
+        present.mkdir()
+        monkeypatch.setattr(kind_vocabulary, "built_in_dir", lambda _kind: present)
+        assert _built_in_scan_dir(ArtifactKind.TACTIC) == (present, True)
+
+
+class TestOrgScanDirsHelper:
+    def test_none_org_roots_returns_empty_list(self) -> None:
+        assert _org_scan_dirs(ArtifactKind.TACTIC, None) == []
+
+    def test_missing_org_built_in_dir_skipped(self, tmp_path: Path) -> None:
+        assert _org_scan_dirs(ArtifactKind.TACTIC, [tmp_path]) == []
+
+    def test_existing_org_built_in_dir_returned(self, tmp_path: Path) -> None:
+        candidate = tmp_path / ArtifactKind.TACTIC.plural / "built-in"
+        candidate.mkdir(parents=True)
+        assert _org_scan_dirs(ArtifactKind.TACTIC, [tmp_path]) == [(candidate, True)]
+
+
+class TestLayerCandidateDirHelper:
+    def test_project_layer_uses_project_kind_dirs_mapping(self, tmp_path: Path) -> None:
+        expected = tmp_path / "doctrine" / kind_vocabulary.PROJECT_KIND_DIRS.get(
+            ArtifactKind.TACTIC, ArtifactKind.TACTIC.plural
+        )
+        assert _layer_candidate_dir(ArtifactKind.TACTIC, "project", tmp_path) == expected
+
+    def test_non_project_layer_uses_plural_subdir(self, tmp_path: Path) -> None:
+        expected = tmp_path / "doctrine" / ArtifactKind.TACTIC.plural / "org"
+        assert _layer_candidate_dir(ArtifactKind.TACTIC, "org", tmp_path) == expected
+
+
+class TestLayerScanDirsHelper:
+    def test_none_layer_roots_returns_empty_list(self) -> None:
+        assert _layer_scan_dirs(ArtifactKind.TACTIC, None) == []
+
+    def test_missing_layer_dir_skipped(self, tmp_path: Path) -> None:
+        assert _layer_scan_dirs(ArtifactKind.TACTIC, {"org": tmp_path}) == []
+
+    def test_existing_layer_dir_returned_as_non_recursive(self, tmp_path: Path) -> None:
+        candidate = tmp_path / "doctrine" / ArtifactKind.TACTIC.plural / "org"
+        candidate.mkdir(parents=True)
+        assert _layer_scan_dirs(ArtifactKind.TACTIC, {"org": tmp_path}) == [
+            (candidate, False)
+        ]

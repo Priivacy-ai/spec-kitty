@@ -147,6 +147,96 @@ def format_inline_named_body(artifact: object) -> list[str]:
     return body
 
 
+def _resolve_catalog_artifact(
+    repo: _CatalogRepoLike | None,
+    artifact_id: str,
+) -> object | None:
+    """Best-effort catalog lookup; ``None`` on a missing repo or a lookup failure."""
+    if repo is None:
+        return None
+    try:
+        return repo.get(artifact_id)
+    except Exception:  # noqa: BLE001 — best-effort catalog lookup
+        return None
+
+
+def _catalog_miss_lines(
+    *,
+    selector_kind: str,
+    artifact_id: str,
+    repo: _CatalogRepoLike | None,
+    profile_id: str,
+) -> list[str]:
+    """Return the structured catalog-miss stanza and emit the diagnostic warning.
+
+    Shared by every profile-section renderer: a missing catalog artifact
+    degrades to the structured miss stanza + warning (FR-013) instead of
+    crashing the resolver.
+    """
+    diagnosis = _diagnose_catalog_miss(artifact_id, repo)
+    lines: list[str] = format_catalog_miss_stanza(
+        selector_kind=selector_kind,
+        artifact_id=artifact_id,
+        diagnosis=diagnosis,
+        indent="    ",
+    )
+    emit_catalog_miss_warning(
+        selector_kind=selector_kind,
+        artifact_id=artifact_id,
+        diagnosis=diagnosis,
+        context=f"profile:{profile_id}",
+    )
+    return lines
+
+
+def _render_selector_entry(
+    *,
+    raw_id: str,
+    rationale: str,
+    repo: _CatalogRepoLike | None,
+    selector_kind: str,
+    profile_id: str,
+    when_clause: str,
+    body_fn: Callable[[object], list[str]] | None,
+) -> list[str]:
+    """Render one selector-ref entry: header line + inline body or fetch stanza.
+
+    Mirrors :func:`render_profile_selector_refs`'s per-entry contract: the
+    inline body (when ``body_fn`` yields one under the per-entry budget) wins
+    over the fetch stanza; a catalog miss degrades to the structured miss
+    stanza instead.
+    """
+    artifact_id = str(raw_id).strip()
+    header_line = f"  - {artifact_id}"
+    if rationale:
+        header_line = f"{header_line}: {rationale}"
+    lines = [header_line]
+
+    artifact = _resolve_catalog_artifact(repo, artifact_id)
+    if artifact is None:
+        lines.extend(
+            _catalog_miss_lines(
+                selector_kind=selector_kind,
+                artifact_id=artifact_id,
+                repo=repo,
+                profile_id=profile_id,
+            )
+        )
+        return lines
+
+    body_lines = body_fn(artifact) if body_fn is not None else []
+    if body_lines and _budget_estimate(body_lines) <= _PROFILE_INLINE_BODY_LIMIT_CHARS:
+        lines.extend(body_lines)
+    else:
+        lines.extend(
+            _render_fetch_stanza(
+                selector=f"{selector_kind}:{artifact_id}",
+                when_clause=when_clause,
+            )
+        )
+    return lines
+
+
 def render_profile_selector_refs(
     *,
     header: str,
@@ -179,46 +269,17 @@ def render_profile_selector_refs(
     lines: list[str] = [header]
     for raw_id, rationale in entries:
         artifact_id = str(raw_id).strip()
-        header_line = f"  - {artifact_id}"
-        if rationale:
-            header_line = f"{header_line}: {rationale}"
-        lines.append(header_line)
-
-        artifact = None
-        if repo is not None:
-            try:
-                artifact = repo.get(artifact_id)
-            except Exception:  # noqa: BLE001 — best-effort catalog lookup
-                artifact = None
-
-        if artifact is None:
-            diagnosis = _diagnose_catalog_miss(artifact_id, repo)
-            lines.extend(
-                format_catalog_miss_stanza(
-                    selector_kind=selector_kind,
-                    artifact_id=artifact_id,
-                    diagnosis=diagnosis,
-                    indent="    ",
-                )
-            )
-            emit_catalog_miss_warning(
+        lines.extend(
+            _render_selector_entry(
+                raw_id=raw_id,
+                rationale=rationale,
+                repo=repo,
                 selector_kind=selector_kind,
-                artifact_id=artifact_id,
-                diagnosis=diagnosis,
-                context=f"profile:{profile_id}",
+                profile_id=profile_id,
+                when_clause=per_entry_when.get(artifact_id) or when_clause,
+                body_fn=body_fn,
             )
-            continue
-
-        body_lines = body_fn(artifact) if body_fn is not None else []
-        if body_lines and _budget_estimate(body_lines) <= _PROFILE_INLINE_BODY_LIMIT_CHARS:
-            lines.extend(body_lines)
-        else:
-            lines.extend(
-                _render_fetch_stanza(
-                    selector=f"{selector_kind}:{artifact_id}",
-                    when_clause=per_entry_when.get(artifact_id) or when_clause,
-                )
-            )
+        )
 
     return lines
 
@@ -413,6 +474,52 @@ def render_profile_suggested_doctrine(
 # ---------------------------------------------------------------------------
 
 
+def _render_directive_entry(
+    ref: object,
+    repo: _CatalogRepoLike | None,
+    profile_id: str,
+) -> list[str]:
+    """Render one directive-reference entry: header line + inline body or fetch stanza.
+
+    RISK-3 (Mission B post-merge): a missing directive degrades to the
+    structured catalog-miss stanza + warning instead of the generic
+    placeholder. FR-013: ``_diagnose_catalog_miss`` checks
+    ``scope_filtered_ids`` first so a scope-filtered directive surfaces
+    SCOPE_FILTERED rather than MISSING_ARTIFACT.
+    """
+    code = _format_profile_directive_code(getattr(ref, "code", ""))
+    title = getattr(ref, "name", "") or ""
+    rationale = getattr(ref, "rationale", "") or ""
+    header_line = f"  - {code}: {title}"
+    if rationale:
+        header_line = f"{header_line} — {rationale}"
+    lines = [header_line]
+
+    directive = _resolve_catalog_artifact(repo, code)
+    if directive is None:
+        lines.extend(
+            _catalog_miss_lines(
+                selector_kind="directive",
+                artifact_id=code,
+                repo=repo,
+                profile_id=profile_id,
+            )
+        )
+        return lines
+
+    body_lines = _format_inline_directive_body(directive)
+    if body_lines and _budget_estimate(body_lines) <= _PROFILE_INLINE_BODY_LIMIT_CHARS:
+        lines.extend(body_lines)
+    else:
+        lines.extend(
+            _render_fetch_stanza(
+                selector=f"directive:{code}",
+                when_clause=_PROFILE_CODE_CHANGE_WHEN,
+            )
+        )
+    return lines
+
+
 def _render_profile_directives(
     profile: AgentProfile,
     service: object,
@@ -433,54 +540,7 @@ def _render_profile_directives(
     repo = getattr(service, "directives", None)
 
     for ref in refs:
-        code = _format_profile_directive_code(getattr(ref, "code", ""))
-        title = getattr(ref, "name", "") or ""
-        rationale = getattr(ref, "rationale", "") or ""
-        header_line = f"  - {code}: {title}"
-        if rationale:
-            header_line = f"{header_line} — {rationale}"
-        lines.append(header_line)
-
-        directive = None
-        if repo is not None:
-            try:
-                directive = repo.get(code)
-            except Exception:  # noqa: BLE001 — best-effort catalog lookup
-                directive = None
-
-        if directive is None:
-            # RISK-3 (Mission B post-merge): structured catalog-miss
-            # stanza + warning instead of the generic placeholder.
-            # FR-013: _diagnose_catalog_miss checks scope_filtered_ids
-            # first so a scope-filtered directive surfaces SCOPE_FILTERED
-            # rather than MISSING_ARTIFACT.
-            diagnosis = _diagnose_catalog_miss(code, repo)
-            lines.extend(
-                format_catalog_miss_stanza(
-                    selector_kind="directive",
-                    artifact_id=code,
-                    diagnosis=diagnosis,
-                    indent="    ",
-                )
-            )
-            emit_catalog_miss_warning(
-                selector_kind="directive",
-                artifact_id=code,
-                diagnosis=diagnosis,
-                context=f"profile:{profile.profile_id}",
-            )
-            continue
-
-        body_lines = _format_inline_directive_body(directive)
-        if body_lines and _budget_estimate(body_lines) <= _PROFILE_INLINE_BODY_LIMIT_CHARS:
-            lines.extend(body_lines)
-        else:
-            lines.extend(
-                _render_fetch_stanza(
-                    selector=f"directive:{code}",
-                    when_clause="are about to apply a code change",
-                )
-            )
+        lines.extend(_render_directive_entry(ref, repo, profile.profile_id))
 
     return lines
 
@@ -510,7 +570,7 @@ def _render_profile_tactics(
         repo=getattr(service, "tactics", None),
         selector_kind="tactic",
         profile_id=profile.profile_id,
-        when_clause="are about to apply a code change",
+        when_clause=_PROFILE_CODE_CHANGE_WHEN,
         body_fn=format_inline_named_body,
     )
 
