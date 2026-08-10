@@ -8142,6 +8142,7 @@ pages:
     - {slug: "ad-hoc-specialist-session", text: "Ad-hoc specialist session", level: 2}
     - {slug: "adversarial-squad", text: "Adversarial squad", level: 2}
     - {slug: "full-mission", text: "Full mission", level: 2}
+    - {slug: "compare-the-four-paths", text: "Compare the four paths", level: 2}
     - {slug: "alternate-visual", text: "Alternate visual", level: 2}
     - {slug: "related-guides", text: "Related guides", level: 2}
   - path: "docs/index.md"
