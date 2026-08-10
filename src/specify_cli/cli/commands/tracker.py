@@ -612,7 +612,14 @@ def bind_command(
     For local providers (beads, fp):
       Requires --provider, --workspace, and --credential flags.
     """
-    _check_readiness(require_mission_binding=False, probe_reachability=False)
+    # HIGH-3 fix (#3174, 2026-08-10): a local-provider bind must not require hosted
+    # readiness. `bind` creates the binding, so `_is_local_binding()` (which reads an
+    # *existing* config) cannot be used here -- gate on the `--provider` argument itself
+    # instead, mirroring how the sync commands skip readiness for an already-local binding.
+    # SaaS providers (and removed/unknown provider strings, which `_run` rejects on their
+    # own terms below) keep the existing hosted readiness check.
+    if normalize_provider(provider) not in LOCAL_PROVIDERS:
+        _check_readiness(require_mission_binding=False, probe_reachability=False)
 
     def _run() -> None:
         provider_normalized = normalize_provider(provider)
