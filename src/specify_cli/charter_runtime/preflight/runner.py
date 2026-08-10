@@ -53,7 +53,7 @@ from .result import CharterPreflightCheck, CharterPreflightResult
 if TYPE_CHECKING:  # pragma: no cover — used only for type hints.
     from specify_cli.charter_runtime.freshness import CharterFreshness
 
-__all__ = ["refresh_references_if_needed", "run_charter_preflight"]
+__all__ = ["run_charter_preflight"]
 
 
 # ---------------------------------------------------------------------------

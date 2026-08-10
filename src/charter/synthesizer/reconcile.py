@@ -54,12 +54,9 @@ if TYPE_CHECKING:
 
 __all__ = [
     "DRGLoadError",
-    "ManifestDelta",
-    "ManifestEntryRef",
     "NodeOrEdgeRef",
     "ReconciliationConflict",
     "ReconciliationDelta",
-    "ReconciliationOutcome",
     "SynthesizeMode",
     "apply_prune",
     "merge_project_overlay",
