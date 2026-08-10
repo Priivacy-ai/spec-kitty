@@ -19,6 +19,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **Opt-in local event webhook (`SPEC_KITTY_EVENT_WEBHOOK`).** Set the variable to an HTTP(S) URL to receive every sync event envelope as a best-effort JSON POST, independent of SaaS sync. This is a generic observability seam for external local tools - it fires even when hosted sync is disabled, and is a single cheap check with zero network cost when the variable is unset.
 - **`spec-kitty accept --json` now surfaces stranded-verdict advisories in a
   top-level `advisories` array (mission `verdict-seam-boundary-hardening`;
   `#3255`).** When a mission carries a review verdict that no longer has a home
