@@ -48,3 +48,31 @@ ambiguous historical data.
 - Isolated fixture databases cover mixed legacy rows and body uploads.
 - Ambiguous rows remain local-only/refused until ownership is proven.
 - Migration is idempotent and records imported/refused/ambiguous/unchanged counts.
+
+## Implementation evidence — 2026-08-10
+
+Current origin HEAD already implements the migration/backfill invariants relevant
+to WP03:
+
+- `src/specify_cli/sync/migrate_journal.py` discovers legacy and scoped queue DBs,
+  imports currently queued payloads into the event journal, records provenance,
+  quarantines divergent duplicates, and keeps source DBs untouched until the
+  explicit cleanup path.
+- `sync migrate` backfills identity onto pre-mission journal rows and leaves
+  genuinely unresolvable rows with `project_uuid IS NULL`, which keeps them
+  unselectable/fail-closed.
+- Plain migration does not silently write consent records; consent-index backfill
+  remains behind the explicit flag.
+
+Focused validation:
+
+```bash
+SPEC_KITTY_NO_UPGRADE_CHECK=1 env -u SPEC_KITTY_ENABLE_SAAS_SYNC \
+  uv run --group dev --extra test pytest \
+  tests/sync/test_migrate_journal.py \
+  tests/cli/commands/test_sync_migrate_backfills_h4.py \
+  tests/sync/test_journal_identity_backfill_3030.py \
+  tests/event_journal/test_identity_migration_3030.py -q
+```
+
+Result: `60 passed in 49.77s`.
