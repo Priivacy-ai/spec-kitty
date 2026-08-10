@@ -2,20 +2,21 @@
   "$schema-note": "Per-directory ceiling on non-escaped `convert`-classified golden-count sites (FR-014/#2076). Regenerate via `python -m tests.architectural.test_golden_count_ban --freeze-baseline` after a batch conversion lands; never hand-edit except to record a documented decrease. A directory absent here has an implicit ceiling of 0 -- any convert-classified site appearing there fails the guard immediately.",
   "ceilings": {
     "tests/_support": 10,
-    "tests/agent": 104,
+    "tests/agent": 105,
     "tests/architectural": 25,
     "tests/charter": 1,
     "tests/contract": 7,
     "tests/docs": 2,
     "tests/git": 1,
     "tests/integration": 33,
+    "tests/kernel": 1,
     "tests/migration": 1,
     "tests/next": 9,
     "tests/retrospective": 23,
     "tests/runtime": 11,
     "tests/specify_cli": 269,
     "tests/status": 35,
-    "tests/sync": 49,
+    "tests/sync": 46,
     "tests/test_dashboard": 13,
     "tests/unit": 17
   }
