@@ -750,7 +750,7 @@ class TestGateNonVacuity:
         """
         drifted = dict(RELATION_DESCRIPTIONS)
         drifted[Relation.REQUIRES] = drifted[Relation.REQUIRES].replace(
-            "(320 edges)", "(265 edges)"
+            "(321 edges)", "(265 edges)"
         )
         assert drifted != RELATION_DESCRIPTIONS, "the mutation did not apply"
 
@@ -772,7 +772,7 @@ class TestGateNonVacuity:
         checked claim, actually unchecked.
         """
         claims = claimed_edge_counts()
-        assert claims[Relation.REQUIRES] == 320  # "(320 edges)"
+        assert claims[Relation.REQUIRES] == 321  # "(321 edges)"
         assert claims[Relation.INSTANTIATES] == 11  # "Emitted 11 times"
 
     def test_an_unrecognised_count_phrasing_is_flagged(self) -> None:
