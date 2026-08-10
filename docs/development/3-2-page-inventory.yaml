@@ -4172,6 +4172,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/runbooks/hosted-sync-consent-incident.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/security/index.md
   tag: current
   divio_type: none

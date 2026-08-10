@@ -12111,6 +12111,16 @@ pages:
     divio_type: "none"
     abstract: "Redirect stub: this page moved to architecture/retrospective-learning-loop.md; retained so existing links to the old docs-root path continue to resolve cleanly."
     anchors: []
+  - path: "docs/runbooks/hosted-sync-consent-incident.md"
+    title: "Hosted Sync Consent Incident Runbook"
+    divio_type: "none"
+    abstract: "How to verify per-project hosted sync consent prevention while keeping SaaS #585 historical remediation separate."
+    anchors:
+    - {slug: "incident-boundary", text: "Incident boundary", level: 2}
+    - {slug: "operator-rules", text: "Operator rules", level: 2}
+    - {slug: "prevention-evidence-checklist", text: "Prevention evidence checklist", level: 2}
+    - {slug: "closure-procedure", text: "Closure procedure", level: 2}
+    - {slug: "reopening-triggers", text: "Reopening triggers", level: 2}
   - path: "docs/security/index.md"
     title: "Security"
     divio_type: "none"
