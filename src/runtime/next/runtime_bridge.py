@@ -1495,7 +1495,7 @@ def _dn_composition_blocked_decision(
     )
     prompt_file = (
         _build_prompt_safe(
-            action or current_step_id,
+            action,
             ctx.feature_dir,
             ctx.mission_slug,
             wp_id,

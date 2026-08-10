@@ -769,11 +769,11 @@ def materialize(feature_dir: Path) -> StatusSnapshot:
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Skip write when content unchanged (FR-001, NFR-001)
-    if out_path.exists() and out_path.read_text(encoding="utf-8") == json_str:
-        return snapshot
-
-    tmp_path.write_text(json_str, encoding="utf-8")
-    os.replace(str(tmp_path), str(out_path))
+    # Guard only the write side effect: skip when byte-identical (FR-001, NFR-001);
+    # otherwise atomic tmp-write + os.replace. The returned snapshot is the freshly
+    # reduced one on both paths (S3516 -> single return).
+    if not (out_path.exists() and out_path.read_text(encoding="utf-8") == json_str):
+        tmp_path.write_text(json_str, encoding="utf-8")
+        os.replace(str(tmp_path), str(out_path))
 
     return snapshot
