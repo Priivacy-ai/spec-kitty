@@ -85,7 +85,10 @@ GLOSSARY_PAGE_RELATIVE = "kitty-specs/glossary.html"
 GLOSSARY_HREF_PREFIX = "/kitty-specs/glossary.html#term-"
 GLOSSARY_LINK_CLASS = "glossary-link"
 
-SKIP_TAG_NAMES: Final[frozenset[str]] = frozenset({"code", "pre", "script", "style", "a"})
+# ``head``/``title`` are skipped so glossary links never land inside document
+# metadata: a ``<title>`` must be plain text, and linking it also desynchronises
+# it from the ``og:title`` meta the SEO verifier pins to the plain title (V-09).
+SKIP_TAG_NAMES: Final[frozenset[str]] = frozenset({"code", "pre", "script", "style", "a", "head", "title"})
 VOID_ELEMENTS: Final[frozenset[str]] = frozenset(
     {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
 )
