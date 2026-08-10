@@ -121,7 +121,7 @@ def run_charter_preflight(
     *,
     auto_refresh: bool = False,
     allow_missing_charter: bool = False,
-    strict: bool = False,  # noqa: ARG001 — surfaced for caller symmetry; consumed by CLI exit-code mapping, not by the runner itself.
+    strict: bool = False,
 ) -> CharterPreflightResult:
     """Compute charter freshness, optionally refresh, return a result.
 
@@ -145,6 +145,7 @@ def run_charter_preflight(
     Returns:
         A frozen :class:`CharterPreflightResult`.  Never raises.
     """
+    del strict  # kept for caller symmetry; consumed by the CLI exit-code mapping, not by the runner itself.
     freshness = compute_freshness(repo_root)
     checks = _build_checks(freshness)
 
