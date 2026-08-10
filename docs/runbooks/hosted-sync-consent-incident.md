@@ -1,3 +1,15 @@
+---
+title: Hosted Sync Consent Incident Runbook
+description: 'How to verify per-project hosted sync consent prevention while keeping SaaS #585 historical remediation separate.'
+doc_status: active
+updated: '2026-08-10'
+type: runbook
+related:
+- docs/guides/accept-and-merge.md
+- docs/development/red-main-and-release-readiness.md
+- docs/api/environment-variables.md
+---
+
 # Hosted sync consent incident runbook
 
 This runbook separates the prevention closure for core #3262 from the historical

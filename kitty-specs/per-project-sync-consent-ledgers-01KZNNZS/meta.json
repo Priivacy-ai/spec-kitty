@@ -22,6 +22,7 @@
   "purpose_context": "This mission advances per project sync consent ledgers on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "per project sync consent ledgers",
   "slug": "per-project-sync-consent-ledgers-01KZNNZS",
+  "status_phase": "1",
   "target_branch": "main",
   "topology": "lanes_with_coord",
   "vcs": "git",
