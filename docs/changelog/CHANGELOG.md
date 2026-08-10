@@ -424,6 +424,23 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     tree's own root rather than the gate file's location, so a cross-tree
     (git-worktree baseline) scan no longer produces absolute paths that silently
     over-count `mission_metadata.py` as a violation (`#3241`, PART 2).
+
+- **The #2804 gate-artifact merge invariant is guarded again at the driver level,
+  and the doctrine module's Sonar maintainability debt is cleared (mission
+  `gate-artifact-merge-driver-unit-gate`; `#3232`).** A prior refactor (`b04da00e1`)
+  deleted the unit test that pinned "a merge must never reset a filled acceptance/
+  issue gate artifact back to a scaffold placeholder", and it was never restored
+  because it had been written for a whole-file heuristic the row-union authority
+  model (`#3076`) replaced. This restores that guard as a fast, in-memory unit gate
+  over the shipped row-union reconcilers: a filled/accepted criterion is never reset
+  to the scaffold marker, the accepted evidence handle survives a merge (including
+  inside a structured conflict marker), and the merged verdict stays in its
+  admissible domain — each with a falsifying control. Bundled opportunistically:
+  the `src/doctrine/` Sonar backlog is cleared — 37 duplicate-literal findings hoisted
+  to named constants, 7 over-complex functions reduced to the ≤15 cognitive-complexity
+  ceiling via tested helper extraction, and 3 minor smells resolved — all
+  behavior-preserving with no new suppressions. (One 183-complexity function is
+  deferred to a dedicated mission.)
 - **`spec-kitty auth login` (and any caller of the SaaS URL helper) now points
   you at the real hosted service when `SPEC_KITTY_SAAS_URL` is unset, not a fake
   placeholder (`#3297`, closes `#3296`).** Previously, running the command
