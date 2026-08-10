@@ -203,27 +203,50 @@ _RAW_FORM_EXEMPT: dict[str, str] = {
 }
 
 
-def _is_utc_alias(node: ast.expr) -> bool:
-    """Every aware-UTC spelling, including module-aliased imports.
+def _utc_alias_names(tree: ast.AST) -> tuple[set[str], set[str]]:
+    """Local names that resolve to aware-UTC, honouring ``import ... as``.
 
-    Covers ``UTC`` / ``<mod>.UTC`` / ``timezone.utc`` / ``<mod>.timezone.utc``.
-    The module segment is matched by *shape*, not by the literal name
-    ``datetime``, so an ``import datetime as _dt`` alias (``_dt.UTC`` /
-    ``_dt.timezone.utc``) is caught too -- the exact idiom two of this PR's
-    own migrated modules used before migration. An attribute chain ending in
-    ``.UTC`` or ``.timezone.utc`` passed to a bare ``.now(...)`` is, in
-    practice, always stdlib datetime.
+    Returns ``(utc_names, timezone_names)`` -- the names bound to
+    ``datetime.UTC`` and to the ``datetime.timezone`` class respectively,
+    including alias spellings (``from datetime import UTC as U`` /
+    ``timezone as tz2``). Without this, ``datetime.now(U).isoformat()`` and
+    ``datetime.now(tz2.utc).isoformat()`` -- byte-identical to the banned
+    form -- would sail past the gate.
+    """
+    utc_names = {"UTC"}
+    timezone_names = {"timezone"}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module == "datetime":
+            for alias in node.names:
+                if alias.name == "UTC":
+                    utc_names.add(alias.asname or alias.name)
+                elif alias.name == "timezone":
+                    timezone_names.add(alias.asname or alias.name)
+    return utc_names, timezone_names
+
+
+def _is_utc_alias(node: ast.expr, utc_names: set[str], timezone_names: set[str]) -> bool:
+    """Every aware-UTC spelling, including module- and name-aliased imports.
+
+    Covers ``UTC`` / ``<mod>.UTC`` / ``timezone.utc`` / ``<mod>.timezone.utc``
+    plus their ``import ... as`` aliases (``U``, ``tz2`` ...) resolved by
+    :func:`_utc_alias_names`. The module segment of an attribute chain is
+    matched by *shape*, not the literal name ``datetime``, so
+    ``import datetime as _dt`` (``_dt.UTC`` / ``_dt.timezone.utc``) is caught
+    too -- the exact idiom two of this PR's own migrated modules used before
+    migration. An attribute chain ending in ``.UTC`` / ``.timezone.utc``
+    passed to a bare ``.now(...)`` is, in practice, always stdlib datetime.
     """
     if isinstance(node, ast.Name):
-        return node.id == "UTC"
+        return node.id in utc_names
     if isinstance(node, ast.Attribute):
         base = node.value
         # <mod>.UTC  (datetime.UTC, _dt.UTC)
         if node.attr == "UTC" and isinstance(base, ast.Name):
             return True
         if node.attr == "utc":
-            # timezone.utc  (bare, or aliased to a bare name)
-            if isinstance(base, ast.Name) and base.id == "timezone":
+            # timezone.utc  (bare or name-aliased)
+            if isinstance(base, ast.Name) and base.id in timezone_names:
                 return True
             # <mod>.timezone.utc  (datetime.timezone.utc, _dt.timezone.utc)
             if (
@@ -235,7 +258,7 @@ def _is_utc_alias(node: ast.expr) -> bool:
     return False
 
 
-def _now_call_passes_utc(call: ast.Call) -> bool:
+def _now_call_passes_utc(call: ast.Call, utc_names: set[str], timezone_names: set[str]) -> bool:
     """True for ``<x>.now(<aware-UTC>)`` where the timezone is passed either
     positionally (``now(UTC)``) or by the ``tz=`` keyword (``now(tz=UTC)``) -
     the two spellings serialize byte-identically.
@@ -243,25 +266,36 @@ def _now_call_passes_utc(call: ast.Call) -> bool:
     if not (isinstance(call.func, ast.Attribute) and call.func.attr == "now"):
         return False
     if len(call.args) == 1 and not call.keywords:  # now(UTC)
-        return _is_utc_alias(call.args[0])
+        return _is_utc_alias(call.args[0], utc_names, timezone_names)
     if not call.args and len(call.keywords) == 1:  # now(tz=UTC)
         kw = call.keywords[0]
-        return kw.arg == "tz" and _is_utc_alias(kw.value)
+        return kw.arg == "tz" and _is_utc_alias(kw.value, utc_names, timezone_names)
     return False
 
 
 def _raw_utc_isoformat_lines(tree: ast.AST) -> list[int]:
-    """Line numbers of every raw ``datetime.now(<aware-UTC>).isoformat()``.
+    """Line numbers of the fluent ``<x>.now(<aware-UTC>).isoformat()`` idiom.
 
-    Deliberately NARROW - it flags only the byte-identical form that
-    ``now_utc_iso()`` replaces:
+    Enforces exactly ONE spelling: the single-expression fluent idiom -- the
+    byte-identical form ``now_utc_iso()`` replaces. ``import ... as`` aliases
+    of ``UTC``/``timezone`` ARE resolved (see :func:`_utc_alias_names`), so
+    ``now(U)`` / ``now(tz2.utc)`` are caught.
 
-    - ``.isoformat()`` must take NO arguments. ``isoformat(timespec=...)`` is a
-      different serialization (a distinct contract), not a violation.
-    - the ``now()`` timezone must be an aware-UTC alias, passed positionally
-      (``now(UTC)``) or by the ``tz=`` keyword (``now(tz=UTC)``). A naive
-      ``now()`` and ``now(some_other_tz)`` are different contracts too.
+    It deliberately does NOT match the following -- each is either a distinct
+    serialization or needs dataflow to detect and has no live instance in-tree
+    (documented so a future reader does not over-trust the ratchet):
+
+    - ``.isoformat(timespec=...)`` -- a different serialization.
+    - a naive ``now()`` or ``now(<non-UTC tz>)`` -- different contracts.
+    - a two-statement split (``d = datetime.now(UTC)`` then ``d.isoformat()``):
+      needs intra-function taint analysis. The only such site, ``decisions/
+      emit.py``, is the *datetime-returning* family -- a genuinely distinct
+      contract, not this stamp.
+    - ``str(<aware now()>)`` -- uses a space separator, not ``T`` (e.g.
+      ``2026-01-01 00:00:00+00:00``), so it is NOT byte-identical to
+      ``isoformat()`` and is a different string entirely.
     """
+    utc_names, timezone_names = _utc_alias_names(tree)
     hits: list[int] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
@@ -272,16 +306,20 @@ def _raw_utc_isoformat_lines(tree: ast.AST) -> list[int]:
         if node.args or node.keywords:
             continue  # timespec= etc. -> a distinct serialization contract
         inner = outer.value
-        if isinstance(inner, ast.Call) and _now_call_passes_utc(inner):
+        if isinstance(inner, ast.Call) and _now_call_passes_utc(inner, utc_names, timezone_names):
             hits.append(node.lineno)
     return hits
 
 
 def test_no_raw_aware_utc_isoformat_outside_the_canonical_helper() -> None:
-    """THE RATCHET: no module may mint the raw form locally.
+    """THE RATCHET: no module mints the fluent raw idiom locally.
 
     Structural, not inventory-based - a module added after this test was
-    written is covered automatically.
+    written is covered automatically. Scope is precise, not total: this
+    enforces the single-expression ``<x>.now(<aware-UTC>).isoformat()`` idiom
+    (alias-resolved), which is the form ``now_utc_iso()`` replaces. See
+    :func:`_raw_utc_isoformat_lines` for the forms deliberately left out of
+    scope (variable-split, ``str()``, the datetime-returning family).
     """
     offenders: list[str] = []
     scanned = 0
@@ -319,6 +357,10 @@ def test_the_ratchet_is_non_vacuous() -> None:
         # this PR's own migrated modules used before migration
         "import datetime as _dt\nx = _dt.datetime.now(_dt.UTC).isoformat()\n",
         "import datetime as _dt\nx = _dt.datetime.now(_dt.timezone.utc).isoformat()\n",
+        # name-aliased imports (``from datetime import UTC as U`` /
+        # ``timezone as tz2``) - resolved via _utc_alias_names
+        "from datetime import UTC as U, datetime\nx = datetime.now(U).isoformat()\n",
+        "from datetime import datetime, timezone as tz2\nx = datetime.now(tz2.utc).isoformat()\n",
     )
     for src in violations:
         assert _raw_utc_isoformat_lines(ast.parse(src)), f"detector MISSED a violation:\n{src}"
