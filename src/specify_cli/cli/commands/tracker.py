@@ -32,10 +32,12 @@ from specify_cli.tracker.config import (
 )
 from specify_cli.identity.project import ensure_identity
 from specify_cli.tracker.discovery import BindResult, ResolutionResult
+from specify_cli.tracker.egress_verdict import EgressDestination, tracker_egress_verdict
 from specify_cli.tracker.factory import normalize_provider
 from specify_cli.saas.readiness import evaluate_readiness
 from specify_cli.saas.rollout import is_saas_sync_enabled, saas_sync_disabled_message
 from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
+from specify_cli.tracker.saas_client import TRACKER_EGRESS_IDENTIFIER_KINDS, TrackerEgressRefusedError
 from specify_cli.tracker.service import TrackerService, TrackerServiceError, parse_kv_pairs
 
 app = typer.Typer(
@@ -314,11 +316,38 @@ def _check_sync_readiness(*, is_sync_run: bool = False) -> None:
     longer entirely insulated from hosted-sync consent state: it is consulted
     as one half of a two-channel join, not skipped.
 
+    **HIGH-1 fix (2026-08-10):** for a SaaS-backed binding, the hosted egress
+    verdict is now consulted *here*, before ``_check_readiness`` is ever
+    called. Previously this function's first act on the hosted path was
+    ``_check_readiness(..., probe_reachability=True)``, which -- when auth
+    and host-config both resolve -- issues a real ``urllib.request.urlopen``
+    HEAD probe to the configured SaaS host (``saas/readiness.py:_probe_reachability``)
+    *before* ``SaaSTrackerClient._request``'s own Channel-1/Channel-2 gate ever
+    ran. A project whose hosted-sync consent is absent or refused therefore
+    still emitted one HTTP HEAD to the tracker host ahead of the eventual
+    refusal, violating "refusal precedes any HTTP attempt." Refusing here,
+    with the exact ``tracker_egress_verdict``/``TrackerEgressRefusedError``
+    pairing ``SaaSTrackerClient._request`` already uses, keeps the message
+    byte-identical to the transport-layer refusal while moving it ahead of
+    the network probe. A permitted verdict changes nothing: execution falls
+    through to the readiness probe exactly as before.
+
     SaaS-backed (or unknown/unconfigured) bindings get the full readiness
     chain plus the manual-mode daemon-policy check.
     """
     if _is_local_binding():
         return
+
+    verdict = tracker_egress_verdict(
+        require_repo_root(),
+        destination=EgressDestination.HOSTED_SERVICE,
+        identifiers=TRACKER_EGRESS_IDENTIFIER_KINDS,
+    )
+    if verdict.refused:
+        exc = TrackerEgressRefusedError(verdict.message)
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(1) from exc
+
     _check_readiness(require_mission_binding=True, probe_reachability=True)
     _check_daemon_policy(is_sync_run=is_sync_run)
 

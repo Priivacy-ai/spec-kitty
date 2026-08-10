@@ -1796,16 +1796,24 @@ _CHANNEL2_REFUSAL_FRAGMENT = (
 )
 
 #: Every module-level binding of ``tracker_egress_verdict`` that exists in the product today.
-#: Re-derived by AST over ``src/`` rather than copied from the mission documents: 6 call
-#: expressions across 5 enclosing functions (``sync._render_tracker_egress`` x2,
-#: ``LocalTrackerService.sync_pull``/``sync_push``/``sync_run``, ``SaaSTrackerClient._request``),
-#: bound in exactly these three modules. Each caller does ``from ... import
-#: tracker_egress_verdict`` at import time, so the *caller's* module attribute is the only
-#: observable seam -- patching the definition module would count nothing.
+#: Re-derived by AST over ``src/`` rather than copied from the mission documents -- see
+#: ``tests/architectural/test_tracker_egress_guards_3108.py``'s G4 census, the authoritative full
+#: count across ``src/``: (as of the 2026-08-10 landing pass, PR #3135, HIGH-1 / #3108 follow-up)
+#: 7 call expressions across 6 enclosing functions (``sync._render_tracker_egress`` x2,
+#: ``LocalTrackerService.sync_pull``/``sync_push``/``sync_run``, ``SaaSTrackerClient._request``,
+#: ``cli.commands.tracker._check_sync_readiness``), bound in exactly these four modules. The
+#: fourth (``cli.commands.tracker``) is never reached by any cell in this class -- every fixture
+#: here binds a LOCAL provider, and ``_check_sync_readiness``'s own verdict call sits on the
+#: HOSTED_SERVICE branch, past the ``_is_local_binding()`` early return -- so it is watched here
+#: purely for completeness (it is asserted at 0 in both cells below, the same way
+#: ``saas_client``'s HOSTED-only binding already was before this addition). Each caller does
+#: ``from ... import tracker_egress_verdict`` at import time, so the *caller's* module attribute
+#: is the only observable seam -- patching the definition module would count nothing.
 _VERDICT_BINDING_TARGETS = (
     "specify_cli.tracker.local_service.tracker_egress_verdict",
     "specify_cli.tracker.saas_client.tracker_egress_verdict",
     "specify_cli.cli.commands.sync.tracker_egress_verdict",
+    "specify_cli.cli.commands.tracker.tracker_egress_verdict",
 )
 
 
@@ -2008,4 +2016,113 @@ class TestUS7NoOverGatingUngatedCommandsSurviveRefusal:
             "specify_cli.tracker.local_service.tracker_egress_verdict": 1,
             "specify_cli.tracker.saas_client.tracker_egress_verdict": 0,
             "specify_cli.cli.commands.sync.tracker_egress_verdict": 0,
+            "specify_cli.cli.commands.tracker.tracker_egress_verdict": 0,
         }  # golden-count: cardinality-is-contract
+
+
+# ===========================================================================
+# Landing pass (PR #3135, 2026-08-10) -- HIGH-1: refusal precedes the
+# readiness network probe on the hosted sync path (#3108 follow-up).
+# ===========================================================================
+
+
+class TestHigh1RefusalPrecedesReadinessNetworkProbe:
+    """HIGH-1 (#3108 follow-up): ``_check_sync_readiness``'s hosted (SaaS-backed) branch called
+    ``_check_readiness(..., probe_reachability=True)`` as its very first act. Once auth and
+    host-config both resolve, that call issues a real ``urllib.request.urlopen`` HEAD probe
+    (``saas/readiness.py:_probe_reachability``) to the configured SaaS host -- *before*
+    ``SaaSTrackerClient._request``'s own Channel-1/Channel-2 ``tracker_egress_verdict`` gate
+    (the one this Mission's WP04/WP05 landed) ever ran. A project whose hosted-sync consent is
+    absent or refused therefore still emitted one HTTP HEAD to the tracker host ahead of the
+    eventual refusal -- "refusal precedes any HTTP attempt" was violated on the CLI's own
+    pre-flight, one layer above every gate this Mission's own harness (above) exercises.
+
+    Fixed by consulting ``tracker_egress_verdict`` inside ``_check_sync_readiness`` itself,
+    before ``_check_readiness`` is called at all, reusing the exact
+    ``TrackerEgressRefusedError`` / ``TRACKER_EGRESS_IDENTIFIER_KINDS`` pairing
+    ``SaaSTrackerClient._request`` already uses so the refusal text stays byte-identical.
+
+    Auth and host-config are monkeypatched to *pass* here -- not because the fix depends on it,
+    but because the pre-fix bug is only reachable once both already resolve (an isolated,
+    unauthenticated ``HOME`` hits ``MISSING_AUTH`` before reachability regardless, which would
+    make the reachability probe unreachable for an unrelated reason on both the red and the
+    green run, proving nothing about this specific ordering defect).
+    """
+
+    def test_sync_pull_refuses_before_any_reachability_probe(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Red on the pre-fix ``_check_sync_readiness`` (the reachability probe fires before
+        refusal); green after (refusal fires first, the probe is never reached)."""
+        root = _project(tmp_path, "high1-sync-pull")
+        # Channel 1 refuses: no `project.uuid`, so the project's identity never resolves --
+        # `_classify_channel1`'s `CHANNEL1_NOT_CONSENTABLE` state. Channel 2 is absent (no
+        # `tracker.egress` key), so the verdict is Channel-1-decided either way.
+        _write_jira_config(root, project_uuid=None, sync_block=None, tracker_egress=None)
+
+        monkeypatch.setattr("specify_cli.saas.readiness._probe_auth", lambda *_: True)
+        monkeypatch.setattr(
+            "specify_cli.saas.readiness._probe_host_config", lambda: "https://saas.example.test"
+        )
+
+        reachability_calls: list[str] = []
+
+        def _counting_probe_reachability(server_url: str, timeout_s: float = 2.0) -> bool:
+            reachability_calls.append(server_url)
+            return False
+
+        monkeypatch.setattr(
+            "specify_cli.saas.readiness._probe_reachability", _counting_probe_reachability
+        )
+
+        result = _invoke(monkeypatch, root, ["tracker", "sync", "pull"])
+
+        # The HIGH-1 pin: on the pre-fix tree this list is non-empty (the probe fired ahead of
+        # refusal); the fix must leave it empty.
+        assert reachability_calls == [], (
+            f"HIGH-1: the reachability probe fired {len(reachability_calls)} time(s) "
+            f"({reachability_calls}) before the hosted-egress refusal was ever consulted."
+        )
+        assert result.exit_code != 0, result.output
+        assert "Refusing to send tracker data to Spec Kitty SaaS" in result.output, result.output
+
+    def test_sync_pull_permitting_verdict_still_reaches_the_reachability_probe(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Companion positive control: a PERMITTED verdict must change nothing -- execution still
+        falls through to ``_check_readiness`` and its reachability probe exactly as before. Proves
+        the fix narrows (refuse-first) rather than removes (skip-always) the existing readiness
+        chain."""
+        root = _project(tmp_path, "high1-sync-pull-permitted")
+        _write_jira_config(
+            root,
+            project_uuid=CONSENTING_PROJECT_UUID,
+            sync_block={"enabled": True},
+            tracker_egress=None,
+        )
+
+        monkeypatch.setattr("specify_cli.saas.readiness._probe_auth", lambda *_: True)
+        monkeypatch.setattr(
+            "specify_cli.saas.readiness._probe_host_config", lambda: "https://saas.example.test"
+        )
+
+        reachability_calls: list[str] = []
+
+        def _counting_probe_reachability(server_url: str, timeout_s: float = 2.0) -> bool:
+            reachability_calls.append(server_url)
+            return False
+
+        monkeypatch.setattr(
+            "specify_cli.saas.readiness._probe_reachability", _counting_probe_reachability
+        )
+
+        result = _invoke(monkeypatch, root, ["tracker", "sync", "pull"])
+
+        assert reachability_calls == ["https://saas.example.test"], reachability_calls
+        # Reachability fails (mocked False) -> HOST_UNREACHABLE -> non-zero exit. The point of
+        # this control is that the probe *ran*, not that the overall command succeeded. Rendered
+        # under this harness's non-interactive OutputPolicy as the stable
+        # ``readiness=host_unreachable`` token (see ``_render_readiness_failure``), not the
+        # 2-line interactive message.
+        assert result.exit_code != 0, result.output
+        assert "readiness=host_unreachable" in result.output, result.output
