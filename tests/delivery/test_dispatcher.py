@@ -74,10 +74,28 @@ _TEST_PROJECT_UUID = "dddddddd-0000-0000-0000-00000000000d"
 def _consent_to_the_test_project(tmp_path: Any, monkeypatch: Any) -> None:
     """Record hosted-sync consent for this module's single project."""
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "consent-home"))
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     (tmp_path / "consent-home").mkdir(parents=True, exist_ok=True)
-    from specify_cli.sync.consent import set_project_consent
+    from specify_cli.sync.consent import record_project_opt_in
 
-    set_project_consent(_TEST_PROJECT_UUID, True)
+    record_project_opt_in(_TEST_PROJECT_UUID, actor="tester")
+    _admit_project_for_transport(_TEST_PROJECT_UUID)
+
+
+def _admit_project_for_transport(project_uuid: str) -> None:
+    """Seed the WP06 target admission needed by WP07's final transport gate."""
+    from specify_cli.sync.project_store import ProjectSyncStore
+
+    store = ProjectSyncStore(project_uuid)
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO project_target_admissions "
+            "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, binding_audience) "
+            "VALUES (?, 'dispatcher-test-target', 'account-test', 'teamspace-test', 1, "
+            "'admitted', 'dispatcher-generation-1', 'private-teamspace:teamspace-test')",
+            (project_uuid,),
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -399,12 +417,12 @@ def test_idempotent_redelivery_yields_duplicate(
     selection = _select_undelivered(journal, ledger, target_a.target_id)
     events = selection.events
 
-    first_results = _post(stub, events, selection.answer)
+    first_results = _post(stub, events, selection.answer, target_id=target_a.target_id)
     _record(ledger, target_a.target_id, first_results, selected=len(events))
 
     # Re-post the SAME events through the SAME stub: the server reports duplicates;
     # recording is idempotent — no row duplication and the event IDs are unchanged.
-    repeat_results = _post(stub, events, selection.answer)
+    repeat_results = _post(stub, events, selection.answer, target_id=target_a.target_id)
     summary = _record(ledger, target_a.target_id, repeat_results, selected=len(events))
 
     assert summary.duplicate == 3
@@ -494,7 +512,7 @@ def test_select_undelivered_honours_limit(
 
 def test_post_empty_selection_short_circuits() -> None:
     stub = StubReceiver()
-    assert _post(stub, [], granting()) == []
+    assert _post(stub, [], granting(), target_id="target-test") == []
     assert stub.received_event_ids() == ()  # receiver not called for an empty batch
 
 

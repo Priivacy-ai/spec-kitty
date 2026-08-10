@@ -49,13 +49,15 @@ constructors, so the claim is bounded and worth stating exactly:
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+import hashlib
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, final
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
-    from collections.abc import Callable, Iterator
+    from collections.abc import Iterator
     from pathlib import Path
 
     from specify_cli.delivery.receivers import OutboundEvent
@@ -92,6 +94,203 @@ class UnconsentedDelivery(RuntimeError):
         self.project_uuids: tuple[str | None, ...] = tuple(project_uuids)
         named = ", ".join(str(uuid) if uuid else "<unresolvable identity>" for uuid in self.project_uuids)
         super().__init__(f"refused before send: no consent answer grants {named}; absence of a consent record is not consent (#3030 FR-002/FR-028)")
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectTransportDisclosure:
+    """Immutable per-write identity consumed by the WP06 transport final gate."""
+
+    project_uuid: str
+    target_identity: str
+    account_identity: str
+    private_teamspace_id: str
+    target_project_uuid: str
+    target_generation: int
+    admission_generation: str
+    binding_audience: str
+    write_kind: str
+    native_identity: str
+    payload_hash: str
+    payload_reference: str
+    attempt_id: str
+    deadline_at: str
+    reconciliation_policy: str = "native_identity_query"
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectTransportRefusal:
+    """A correlated, no-I/O refusal from the per-project final gate."""
+
+    project_uuid: str
+    attempt_id: str
+    category: str
+    diagnostic: str
+
+
+class ProjectTransportResultError(RuntimeError):
+    """Raised after I/O when the durable result fence cannot be recorded."""
+
+
+def default_transport_deadline(*, now: datetime | None = None) -> str:
+    """Return the bounded disclosure deadline used by interactive senders."""
+    base = now or datetime.now(UTC)
+    return (base + timedelta(minutes=5)).isoformat()
+
+
+def stable_transport_id(*parts: object) -> str:
+    """Build a stable, adapter-neutral identifier without leaking payload bytes."""
+    text = "\x1f".join(str(part) for part in parts)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()  # noqa: TID251 - native idempotency key, not charter content
+
+
+def execute_project_transport_disclosure(
+    disclosure: ProjectTransportDisclosure,
+    *,
+    send: Callable[[], object],
+    classify: Callable[[object], tuple[str, str | None]],
+) -> object | ProjectTransportRefusal:
+    """Run one interactive hosted write through WP06's attempt/lease/result gate.
+
+    The caller supplies the immutable project/write identity and the I/O closure.
+    This helper opens the project store, persists the durable attempt before I/O,
+    proves a live per-project transport lease immediately before calling *send*,
+    then records the genuine result under that same lease. If the project lacks
+    current consent/admission/kill-switch eligibility, *send* is never invoked and
+    the refusal is scoped to this exact project/attempt.
+    """
+    from specify_cli.sync.project_store import ProjectStoreError, ProjectSyncStore
+    from specify_cli.sync.transport_attempts import (
+        DeliveryAttemptSpec,
+        DeliveryAttemptState,
+        DeliveryOutcome,
+        RecoveryAction,
+        mark_transport_started,
+        plan_delivery_attempt_recovery,
+        prepare_delivery_attempt,
+        record_delivery_result,
+    )
+    from specify_cli.sync.transport_lease import acquire_project_transport_lease
+
+    store = ProjectSyncStore(disclosure.project_uuid)
+    spec = DeliveryAttemptSpec(
+        attempt_id=disclosure.attempt_id,
+        write_kind=disclosure.write_kind,
+        native_identity=disclosure.native_identity,
+        payload_hash=disclosure.payload_hash,
+        payload_reference=disclosure.payload_reference,
+        deadline_at=disclosure.deadline_at,
+        reconciliation_policy=disclosure.reconciliation_policy,
+    )
+    with acquire_project_transport_lease(store) as lease:
+        with lease.unit_of_work() as (unit, context):
+            try:
+                _assert_expected_transport_audience(disclosure, context)
+                prepare_delivery_attempt(unit, context, spec)
+            except ProjectStoreError as exc:
+                if "already exists" not in str(exc):
+                    return ProjectTransportRefusal(
+                        project_uuid=disclosure.project_uuid,
+                        attempt_id=disclosure.attempt_id,
+                        category="project_not_admitted",
+                        diagnostic=str(exc),
+                    )
+                decision = plan_delivery_attempt_recovery(unit, attempt_id=disclosure.attempt_id)
+                if decision.state is not DeliveryAttemptState.PREPARED or decision.action is not RecoveryAction.RETRY_NATIVE_IDENTITY:
+                    return ProjectTransportRefusal(
+                        project_uuid=disclosure.project_uuid,
+                        attempt_id=disclosure.attempt_id,
+                        category="delivery_attempt_recovery_required",
+                        diagnostic=decision.diagnostic,
+                    )
+
+        with lease.unit_of_work() as (unit, context):
+            try:
+                _assert_expected_transport_audience(disclosure, context)
+                mark_transport_started(unit, context, disclosure.attempt_id)
+            except ProjectStoreError as exc:
+                return ProjectTransportRefusal(
+                    project_uuid=disclosure.project_uuid,
+                    attempt_id=disclosure.attempt_id,
+                    category="project_not_admitted",
+                    diagnostic=str(exc),
+                )
+
+        try:
+            value = send()
+        except Exception:
+            with lease.unit_of_work() as (unit, context):
+                record_delivery_result(
+                    unit,
+                    context,
+                    result_id=f"{disclosure.attempt_id}:unknown",
+                    attempt_id=disclosure.attempt_id,
+                    outcome=DeliveryOutcome.UNKNOWN,
+                )
+            raise
+
+        try:
+            outcome_value, category = classify(value)
+            with lease.unit_of_work() as (unit, context):
+                _assert_expected_transport_audience(disclosure, context)
+                record_delivery_result(
+                    unit,
+                    context,
+                    result_id=f"{disclosure.attempt_id}:result",
+                    attempt_id=disclosure.attempt_id,
+                    outcome=DeliveryOutcome(outcome_value),
+                    terminal_refusal_category=category,
+                )
+        except ProjectStoreError as exc:
+            try:
+                with lease.unit_of_work() as (unit, context):
+                    record_delivery_result(
+                        unit,
+                        context,
+                        result_id=f"{disclosure.attempt_id}:unknown",
+                        attempt_id=disclosure.attempt_id,
+                        outcome=DeliveryOutcome.UNKNOWN,
+                    )
+            except ProjectStoreError:
+                pass
+            raise ProjectTransportResultError(
+                f"delivery disclosed bytes but the durable result fence could not be recorded; recover original attempt {disclosure.attempt_id}: {exc}"
+            ) from exc
+        return value
+
+
+def _assert_expected_transport_audience(
+    disclosure: ProjectTransportDisclosure,
+    context: Any,
+) -> None:
+    """Reject a leased context that does not match the exact target being called."""
+    from specify_cli.sync.project_store import ProjectStoreError
+
+    target = context.target_audience
+    if target is None:
+        raise ProjectStoreError("delivery attempt requires an admitted target audience")
+    expected = {
+        "project_uuid": disclosure.project_uuid,
+        "target_identity": disclosure.target_identity,
+        "account_identity": disclosure.account_identity,
+        "private_teamspace_id": disclosure.private_teamspace_id,
+        "target_project_uuid": disclosure.target_project_uuid,
+        "target_generation": str(disclosure.target_generation),
+        "admission_generation": disclosure.admission_generation,
+        "binding_audience": disclosure.binding_audience,
+    }
+    actual = {
+        "project_uuid": str(context.project_uuid.storage_token),
+        "target_identity": target.target_identity,
+        "account_identity": target.account_identity,
+        "private_teamspace_id": target.private_teamspace_id,
+        "target_project_uuid": target.project_uuid.storage_token,
+        "target_generation": str(target.configuration_generation),
+        "admission_generation": str(context.admission_generation),
+        "binding_audience": str(context.binding_audience),
+    }
+    for key, expected_value in expected.items():
+        if actual[key] != expected_value:
+            raise ProjectStoreError(f"delivery target audience mismatch for {key}")
 
 
 def _forbid_subclassing(cls: type) -> None:
@@ -294,8 +493,14 @@ __all__ = [
     "ConsentAnswer",
     "ConsentNotResolved",
     "ConsentedBatch",
+    "ProjectTransportDisclosure",
+    "ProjectTransportRefusal",
+    "ProjectTransportResultError",
     "UnconsentedDelivery",
     "consented_batch",
+    "default_transport_deadline",
+    "execute_project_transport_disclosure",
     "resolve_consent_answer",
     "resolve_envelope_project",
+    "stable_transport_id",
 ]

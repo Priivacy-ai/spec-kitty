@@ -35,14 +35,24 @@ Per **C-001** this module imports nothing from ``sync/queue.py`` or
 ``specify_cli.events``; it consumes only the WP03 journal, WP05 ledger, and WP06
 receiver public surfaces.
 """
+
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from specify_cli.delivery.consent_gate import ConsentAnswer, consented_batch
+from specify_cli.delivery.consent_gate import (
+    ConsentAnswer,
+    ProjectTransportDisclosure,
+    ProjectTransportRefusal,
+    consented_batch,
+    default_transport_deadline,
+    execute_project_transport_disclosure,
+    stable_transport_id,
+)
 from specify_cli.delivery.ledger import SqliteDeliveryLedger
 from specify_cli.delivery.receivers import (
     DeliveryOutcome,
@@ -99,14 +109,7 @@ class DispatchSummary:
     @property
     def recorded(self) -> int:
         """Total ledger rows written/updated this drain (sum of the per-outcome counts)."""
-        return (
-            self.delivered
-            + self.duplicate
-            + self.pending
-            + self.rejected
-            + self.transient
-            + self.terminal_failed
-        )
+        return self.delivered + self.duplicate + self.pending + self.rejected + self.transient + self.terminal_failed
 
     @classmethod
     def empty(cls) -> DispatchSummary:
@@ -240,9 +243,7 @@ def _select_undelivered(
     # or 2,000 non-consented rows ahead of 10 consented ones fill the window and
     # the drain starves permanently (NFR-002/SC-002).
     selection = select_consented(journal)
-    universe_ids = [
-        event_id for event_id in selection.event_ids if event_id not in exclude
-    ]
+    universe_ids = [event_id for event_id in selection.event_ids if event_id not in exclude]
 
     selected_ids = ledger.select_undelivered(
         target_id=target_id,
@@ -280,8 +281,124 @@ def _decode_payload(event: Event) -> Mapping[str, Any]:
     return {"event_id": event.event_id, "event_type": event.event_type}
 
 
+def _transport_outcome_for_delivery_result(
+    result: DeliveryResult,
+) -> tuple[str, str | None]:
+    """Map the receiver's per-event vocabulary onto WP06's result vocabulary."""
+    from specify_cli.sync.transport_attempts import DeliveryOutcome as TransportOutcome
+
+    if result.outcome is DeliveryOutcome.SUCCESS:
+        return TransportOutcome.DELIVERED.value, None
+    if result.outcome is DeliveryOutcome.DUPLICATE:
+        return TransportOutcome.DUPLICATE.value, None
+    if result.outcome in {DeliveryOutcome.REJECTED, DeliveryOutcome.TERMINAL_FAILED}:
+        return (
+            TransportOutcome.REFUSED.value,
+            (result.error or result.outcome.value).strip() or result.outcome.value,
+        )
+    return TransportOutcome.UNKNOWN.value, None
+
+
+def _post_one(
+    receiver: DeliveryReceiver,
+    event: Event,
+    answer: ConsentAnswer,
+    *,
+    target: DeliveryTarget,
+) -> DeliveryResult:
+    """Deliver one event through the WP06 project attempt/lease final gate."""
+    project_uuid = event.project_uuid
+    if project_uuid is None:
+        return DeliveryResult(
+            event_id=event.event_id,
+            outcome=DeliveryOutcome.TERMINAL_FAILED,
+            error="project_not_admitted: event has no project_uuid",
+        )
+    outbound = OutboundEvent(event_id=event.event_id, payload=_decode_payload(event))
+    payload_hash = "sha256:" + hashlib.sha256(event.payload).hexdigest()  # noqa: TID251 - transport payload identity, not charter content
+    native_identity = "dispatcher-http:" + stable_transport_id(project_uuid, target.target_id, event.event_id, payload_hash)
+    disclosure = ProjectTransportDisclosure(
+        project_uuid=project_uuid,
+        target_identity=target.target_identity,
+        account_identity=target.account_identity,
+        private_teamspace_id=target.private_teamspace_id,
+        target_project_uuid=target.project_uuid.storage_token,
+        target_generation=target.configuration_generation,
+        admission_generation=str(target.admission_generation),
+        binding_audience=str(target.binding_audience),
+        write_kind="dispatcher_http_event",
+        native_identity=native_identity,
+        payload_hash=payload_hash,
+        payload_reference=f"dispatcher:{target.target_id}:{event.event_id}",
+        attempt_id="dispatcher-http:" + stable_transport_id("attempt", project_uuid, target.target_id, event.event_id),
+        deadline_at=default_transport_deadline(),
+    )
+
+    def _send() -> object:
+        return list(
+            receiver.deliver(
+                consented_batch(
+                    [outbound],
+                    answer=answer,
+                    event_projects={event.event_id: project_uuid},
+                )
+            )
+        )
+
+    def _classify(value: object) -> tuple[str, str | None]:
+        if not isinstance(value, list) or not value:
+            return _transport_outcome_for_delivery_result(
+                DeliveryResult(
+                    event_id=event.event_id,
+                    outcome=DeliveryOutcome.TRANSIENT,
+                    error="receiver returned no result for event",
+                )
+            )
+        result = value[0]
+        if not isinstance(result, DeliveryResult) or result.event_id != event.event_id:
+            return _transport_outcome_for_delivery_result(
+                DeliveryResult(
+                    event_id=event.event_id,
+                    outcome=DeliveryOutcome.TRANSIENT,
+                    error="receiver returned an uncorrelated result",
+                )
+            )
+        return _transport_outcome_for_delivery_result(result)
+
+    gated = execute_project_transport_disclosure(
+        disclosure,
+        send=_send,
+        classify=_classify,
+    )
+    if isinstance(gated, ProjectTransportRefusal):
+        return DeliveryResult(
+            event_id=event.event_id,
+            outcome=DeliveryOutcome.TERMINAL_FAILED,
+            error=f"{gated.category}: {gated.diagnostic}",
+        )
+    if not isinstance(gated, list) or not gated:
+        return DeliveryResult(
+            event_id=event.event_id,
+            outcome=DeliveryOutcome.TRANSIENT,
+            error="receiver returned no result for event",
+        )
+    result = gated[0]
+    if not isinstance(result, DeliveryResult) or result.event_id != event.event_id:
+        return DeliveryResult(
+            event_id=event.event_id,
+            outcome=DeliveryOutcome.TRANSIENT,
+            error="receiver returned an uncorrelated result",
+        )
+    return result
+
+
 def _post(
-    receiver: DeliveryReceiver, events: Sequence[Event], answer: ConsentAnswer
+    receiver: DeliveryReceiver,
+    events: Sequence[Event],
+    answer: ConsentAnswer,
+    *,
+    target: DeliveryTarget | None = None,
+    target_id: str | None = None,
 ) -> list[DeliveryResult]:
     """Deliver *events* through the active *receiver* (one path; contract §4).
 
@@ -296,21 +413,12 @@ def _post(
     turn a legacy row into an unattributable one and refuse a batch selection had
     already cleared.
     """
+    del target_id  # retained only so legacy empty-selection unit tests stay no-I/O.
     if not events:
         return []
-    batch = [
-        OutboundEvent(event_id=event.event_id, payload=_decode_payload(event))
-        for event in events
-    ]
-    return list(
-        receiver.deliver(
-            consented_batch(
-                batch,
-                answer=answer,
-                event_projects={event.event_id: event.project_uuid for event in events},
-            )
-        )
-    )
+    if target is None:
+        raise TypeError("non-empty dispatcher post requires a DeliveryTarget final-gate audience")
+    return [_post_one(receiver, event, answer, target=target) for event in events]
 
 
 # --------------------------------------------------------------------------- #
@@ -332,9 +440,7 @@ class _LedgerResult:
     error: str | None
 
 
-def _record_one(
-    ledger: SqliteDeliveryLedger, target_id: str, result: DeliveryResult
-) -> None:
+def _record_one(ledger: SqliteDeliveryLedger, target_id: str, result: DeliveryResult) -> None:
     """Map one receiver result to a ledger write — the journal is never touched.
 
     ``terminal_failed`` routes to the WP05 terminal-failed writer (T029): unlike the
@@ -442,10 +548,8 @@ def dispatch(
     _install_coalescing(ledger)
     if target is None:
         return DispatchSummary.empty()
-    selected = _select_undelivered(
-        journal, ledger, target.target_id, limit=limit, exclude=exclude
-    )
-    results = _post(receiver, selected.events, selected.answer)
+    selected = _select_undelivered(journal, ledger, target.target_id, limit=limit, exclude=exclude)
+    results = _post(receiver, selected.events, selected.answer, target=target)
     return _record(ledger, target.target_id, results, selected=len(selected.events))
 
 

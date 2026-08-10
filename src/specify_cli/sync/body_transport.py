@@ -21,6 +21,8 @@ from specify_cli.sync._team import CATEGORY_MISSING_PRIVATE_TEAM
 from .namespace import UploadOutcome, UploadStatus
 
 if TYPE_CHECKING:
+    from specify_cli.delivery.interfaces import DeliveryTarget
+
     from .body_queue import BodyUploadTask
 
 logger = logging.getLogger(__name__)
@@ -58,7 +60,10 @@ def push_content(
 
     try:
         response = requests.post(
-            url, json=payload, headers=headers, timeout=timeout,
+            url,
+            json=payload,
+            headers=headers,
+            timeout=timeout,
         )
     except requests.ConnectionError as e:
         fallback = request_with_stdlib_fallback_sync(
@@ -96,6 +101,88 @@ def push_content(
         )
 
     return _classify_response(task, response)
+
+
+def push_content_with_transport_gate(
+    task: BodyUploadTask,
+    auth_token: str,
+    target: DeliveryTarget,
+    server_url: str,
+    timeout: float = DEFAULT_TIMEOUT_SECONDS,
+) -> UploadOutcome:
+    """POST one body only after WP06's durable per-project final gate opens."""
+    from specify_cli.delivery.consent_gate import (
+        ProjectTransportDisclosure,
+        ProjectTransportRefusal,
+        default_transport_deadline,
+        execute_project_transport_disclosure,
+        stable_transport_id,
+    )
+    from specify_cli.sync.transport_attempts import DeliveryOutcome
+
+    native_identity = "body-upload:" + stable_transport_id(
+        task.project_uuid,
+        target.target_id,
+        task.artifact_path,
+        task.content_hash,
+    )
+    disclosure = ProjectTransportDisclosure(
+        project_uuid=task.project_uuid,
+        target_identity=target.target_identity,
+        account_identity=target.account_identity,
+        private_teamspace_id=target.private_teamspace_id,
+        target_project_uuid=target.project_uuid.storage_token,
+        target_generation=target.configuration_generation,
+        admission_generation=str(target.admission_generation),
+        binding_audience=str(target.binding_audience),
+        write_kind="body_upload",
+        native_identity=native_identity,
+        payload_hash=f"{task.hash_algorithm}:{task.content_hash}",
+        payload_reference=f"body:{task.artifact_path}:{task.content_hash}",
+        attempt_id="body-upload:"
+        + stable_transport_id(
+            "attempt",
+            task.project_uuid,
+            target.target_id,
+            task.artifact_path,
+            task.content_hash,
+        ),
+        deadline_at=default_transport_deadline(),
+    )
+
+    def _classify(value: object) -> tuple[str, str | None]:
+        if not isinstance(value, UploadOutcome):
+            return DeliveryOutcome.UNKNOWN.value, None
+        if value.status is UploadStatus.UPLOADED:
+            return DeliveryOutcome.DELIVERED.value, None
+        if value.status is UploadStatus.ALREADY_EXISTS:
+            return DeliveryOutcome.DUPLICATE.value, None
+        if value.status is UploadStatus.FAILED and not value.retryable:
+            return DeliveryOutcome.REFUSED.value, value.reason or "body_upload_refused"
+        return DeliveryOutcome.UNKNOWN.value, None
+
+    gated = execute_project_transport_disclosure(
+        disclosure,
+        send=lambda: push_content(task, auth_token, server_url, timeout=timeout),
+        classify=_classify,
+    )
+    if isinstance(gated, ProjectTransportRefusal):
+        return UploadOutcome(
+            artifact_path=task.artifact_path,
+            status=UploadStatus.FAILED,
+            reason=f"{gated.category}: {gated.diagnostic}",
+            content_hash=task.content_hash,
+            retryable=False,
+        )
+    if not isinstance(gated, UploadOutcome):
+        return UploadOutcome(
+            artifact_path=task.artifact_path,
+            status=UploadStatus.FAILED,
+            reason="body upload returned an uncorrelated result",
+            content_hash=task.content_hash,
+            retryable=True,
+        )
+    return gated
 
 
 def _build_request_body(task: BodyUploadTask) -> dict[str, Any]:
@@ -156,15 +243,12 @@ def _body_mentions_missing_private_team(body: dict[str, Any]) -> bool:
         body.get("detail"),
     ]
     text = " ".join(str(value) for value in values if value is not None).lower()
-    return (
-        CATEGORY_MISSING_PRIVATE_TEAM in text
-        or "private teamspace" in text
-        or ("private team" in text and "direct ingress" in text)
-    )
+    return CATEGORY_MISSING_PRIVATE_TEAM in text or "private teamspace" in text or ("private team" in text and "direct ingress" in text)
 
 
 def _classify_response(
-    task: BodyUploadTask, response: Any,
+    task: BodyUploadTask,
+    response: Any,
 ) -> UploadOutcome:
     """Map HTTP response to UploadOutcome with retryable semantics."""
     status = response.status_code
@@ -206,11 +290,7 @@ def _classify_response(
 
     if status == 403:
         body = _safe_json(response)
-        reason = (
-            CATEGORY_MISSING_PRIVATE_TEAM
-            if _body_mentions_missing_private_team(body)
-            else "unauthorized"
-        )
+        reason = CATEGORY_MISSING_PRIVATE_TEAM if _body_mentions_missing_private_team(body) else "unauthorized"
         return UploadOutcome(
             artifact_path=task.artifact_path,
             status=UploadStatus.FAILED,
@@ -250,7 +330,8 @@ def _classify_response(
 
 
 def _dispatch_404(
-    task: BodyUploadTask, response: requests.Response,
+    task: BodyUploadTask,
+    response: requests.Response,
 ) -> UploadOutcome:
     """Dispatch 404 based on error field in response body.
 
