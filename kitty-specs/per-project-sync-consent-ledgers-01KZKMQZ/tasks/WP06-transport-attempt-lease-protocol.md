@@ -159,3 +159,8 @@ Reviewers must inspect durable state across real process death and force both
 lease orderings. Reject unlocked final checks, broad retry-on-unknown behavior,
 fresh recovery identities, unbounded opt-out, or any late-success promotion after
 `terminal_unknown`.
+
+## Activity Log
+
+- 2026-08-10T07:35:53Z – codex – shell_pid=64936 – Progress slice committed: 15de39cc4 adds opt-out settlement for durable transport attempts, cross-process lease exclusion, and lease-bound final recheck after opt-out. Validation: uv run --extra test pytest tests/sync/test_transport_attempt_recovery.py tests/sync/test_transport_result_lease.py tests/sync/test_transport_orphan_settlement.py -q passed 6/6; ruff clean; strict mypy clean for transport_attempts.py and transport_lease.py. WP06 remains in progress for fuller adapter integration and process-death/barrier coverage.
+- 2026-08-10T08:18:00Z – codex – PR reconciliation note: merging current `origin/main` into draft PR #3293 brought in `tracker-egress-refusal-3108-01KYWF1R`. Focused consent/tracker validation now exposes a material semantic interaction: tracker-egress positive controls still seed or expect legacy `sync.enabled`/config consent as channel-1 granting authority, while this mission intentionally makes `read_project_consent_decision()` / the project store authoritative and refuses `set_project_consent()` legacy grants. Parked as follow-up rather than adapting tests in-place; see the `TODO(WP06-deferred)` beside `get_project_consent()`.
