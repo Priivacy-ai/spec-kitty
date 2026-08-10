@@ -56,6 +56,7 @@ owned_files:
 - src/specify_cli/delivery/receivers.py
 - src/specify_cli/delivery/targets.py
 - src/specify_cli/sync/client.py
+- src/specify_cli/sync/__init__.py
 - src/specify_cli/sync/emitter.py
 - src/specify_cli/sync/events.py
 - src/specify_cli/sync/runtime_event_emitter.py
@@ -83,6 +84,7 @@ owned_files:
 - tests/sync/test_history_import_upload.py
 - tests/dossier/test_emitter_adapter.py
 - tests/dossier/test_events.py
+- tests/status/test_emit_fanout_after_adapter.py
 - tests/sync/test_dossier_pipeline.py
 - tests/sync/test_dossier_trigger.py
 - tests/sync/test_saas_refusal_parking.py
@@ -212,3 +214,4 @@ typed refusal, or a tracker permission used as a hosted-sync grant.
 - 2026-08-10T19:20:00Z – codex – Added sequential ownership of `src/specify_cli/cli/commands/sync.py` after the live dispatcher redesign proved final/exit sync must release transaction-bound journal/ledger UoWs before WP06's separately committed attempt/start/result phases. WP10 retains later migration-command ownership and now depends on WP07; the two packages may not edit this shared file concurrently.
 - 2026-08-10T22:05:00Z – codex – Corrected sequential WP05→WP07 ownership for the target-ID seam and lane scope. T032 requires one public target-ID derivation shared by target registration and dispatcher attempts; WP07 therefore owns the minimal `delivery/targets.py` API/test amendment rather than duplicating its hash algorithm. `delivery/receivers.py`, already task-owned for exact disclosed-byte serialization, is also restored to lane-e's write scope. No WP05 admission semantics are reopened.
 - 2026-08-10T22:35:00Z – codex – Corrected T033 live-caller ownership before implementation crossed the boundary. The explicit history capability/context/target contract must be threaded by `history_import/pipeline.py`, and dossier event builders must forward the explicit context to the owned emitter adapter; otherwise the new gate is dead or suppresses every valid event. Their focused compatibility tests are sequentially assigned to WP07. This is an ownership correction only; WP03 remains the capability authority and WP04 remains the project-store authority.
+- 2026-08-10T22:42:00Z – codex – Sequentially transferred the dossier registration wrapper in `sync/__init__.py` from approved WP04 to WP07. The wrapper is the only live bridge from the explicit dossier adapter into canonical local capture; without accepting the store-minted context, every valid dossier event fails closed with a signature error. WP07 may change only that explicit forwarding seam and its fanout regression, preserving WP04's repository exports and local-capture authority.
