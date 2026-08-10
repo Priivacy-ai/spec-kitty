@@ -230,6 +230,7 @@ def test_apply_creates_backup_when_charter_md_exists(tmp_path: Path) -> None:
     assert Path(backup_files[0]).read_text(encoding="utf-8") == "# My Charter"
 
 
+@pytest.mark.fast
 def test_apply_backup_filename_timestamp_is_utc_not_local(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
