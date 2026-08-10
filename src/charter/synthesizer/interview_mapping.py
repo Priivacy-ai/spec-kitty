@@ -232,27 +232,55 @@ def normalize_interview_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
     for section_label, aliases in _INTERVIEW_SECTION_ALIASES.items():
         if section_label == "language_scope":
             continue
-        answer, source_key = _section_answer_with_source(normalized, section_label)
-        if answer and source_key != section_label:
-            normalized[section_label] = answer
-        if answer:
-            for alias in aliases:
-                normalized.pop(alias, None)
+        _copy_alias_answer_into_canonical_section(normalized, section_label, aliases)
 
+    _normalize_language_scope_section(normalized)
+
+    return normalized
+
+
+def _copy_alias_answer_into_canonical_section(
+    normalized: dict[str, Any],
+    section_label: str,
+    aliases: tuple[str, ...],
+) -> None:
+    """Copy an alias producer key's answer onto its canonical section label.
+
+    Mutates ``normalized`` in place: when the canonical section is blank but
+    an alias key carries a non-blank answer, the answer is copied onto the
+    canonical key, then every alias key for this section is removed so the
+    snapshot carries a single, canonical representation.
+    """
+    answer, source_key = _section_answer_with_source(normalized, section_label)
+    if answer and source_key != section_label:
+        normalized[section_label] = answer
+    if answer:
+        for alias in aliases:
+            normalized.pop(alias, None)
+
+
+def _normalize_language_scope_section(normalized: dict[str, Any]) -> None:
+    """Populate ``language_scope`` from the ``languages_frameworks`` alias.
+
+    Mutates ``normalized`` in place. ``language_scope`` is list-valued (each
+    entry drives a distinct styleguide target), so it cannot reuse
+    :func:`_copy_alias_answer_into_canonical_section`, which handles only
+    scalar answers.
+    """
     languages = _iter_clean_strings(normalized.get("language_scope", []))
     if not languages and "languages_frameworks" in normalized:
-        raw_alias = normalized["languages_frameworks"]
-        languages = (
-            tuple(extract_declared_languages(raw_alias))
-            if isinstance(raw_alias, str)
-            else _iter_clean_strings(raw_alias)
-        )
+        languages = _extract_languages_from_alias(normalized["languages_frameworks"])
         if languages:
             normalized["language_scope"] = list(languages)
     if languages:
         normalized.pop("languages_frameworks", None)
 
-    return normalized
+
+def _extract_languages_from_alias(raw_alias: object) -> tuple[str, ...]:
+    """Extract declared languages from the ``languages_frameworks`` alias value."""
+    if isinstance(raw_alias, str):
+        return tuple(extract_declared_languages(raw_alias))
+    return _iter_clean_strings(raw_alias)
 
 
 def _section_answer_with_source(

@@ -253,6 +253,70 @@ def _resolve_org_layer_dir(root: Path, kind: ArtifactKind, base_dir: str) -> Pat
     return root / base_dir / "org"
 
 
+def _resolve_layer_candidate(
+    layer: str,
+    root: Path,
+    kind: ArtifactKind | None,
+    base_dir: str,
+    *,
+    layered: bool,
+) -> Path | None:
+    """Resolve the scan directory for one ``(layer, root)`` pair.
+
+    Returns ``None`` when the ``(layer, kind, layered)`` combination has no
+    known directory layout — :meth:`CharterPackManager._scan_layer_dirs`
+    then skips that layer for this kind (mirrors the pre-extraction
+    ``else: continue`` branch).
+    """
+    if layered and layer == "project" and kind is not None:
+        kind_dir = _PROJECT_KIND_DIRS.get(kind, kind.plural)
+        return root / "doctrine" / kind_dir
+    if layered and layer == "org" and kind is not None:
+        return _resolve_org_layer_dir(root, kind, base_dir)
+    if layered and layer == "built-in" and kind is not None:
+        # The built-in layer relocated from ``src/doctrine/<plural>/built-in``
+        # to the flattened ``packs/built-in/<plural>`` tree
+        # (mission relocate-builtin-doctrine-packs). Resolve it through the
+        # canonical per-kind seam (mission
+        # doctrine-built-in-seam-consolidation-01KYW3TX, WP01/T020)
+        # rather than composing the ``resolve_pack_root("built-in") /
+        # kind.plural`` join locally -- this branch only runs when
+        # ``layered`` is ``True`` (see ``_scan_layout_for``), and
+        # ``mission_step_contract`` is the sole charter-activatable
+        # kind (``CHARTER_KIND_TOKENS``) with
+        # ``has_built_in_content_dir is False``; it is also the sole
+        # kind for which ``_scan_layout_for`` returns
+        # ``layered=False``, so the ``layered`` guard above already
+        # excludes it before ``built_in_dir(kind)`` is ever called --
+        # this never raises ``BuiltInContentDirNotAvailable``.
+        return built_in_dir(kind)
+    if layered:
+        return root / base_dir / layer
+    if layer == "built-in":
+        # Flat-directory kinds (mission-type / step contracts) only have
+        # the built-in layer. Their content lives under
+        # packs/built-in/missions/<segment> (mission #3091/FR-005
+        # relocated missions/ there), not under _SRC_ROOT. Neither
+        # outlier is resolvable through built_in_dir(kind) --
+        # mission-type is not an ArtifactKind at all, and
+        # MISSION_STEP_CONTRACT is part of the derived complement
+        # built_in_dir refuses (no packs/built-in/<plural>/ content
+        # dir) -- and `built_in_root() / base_dir` would be the exact
+        # "reuse the bare-root seam and reconstruct a path locally"
+        # drift the architectural gate
+        # (test_no_builtin_path_joins_outside_pack_paths_authority)
+        # exists to catch. Route through the SAME missions-root
+        # authority doctrine.missions.repository.MissionTemplateRepository
+        # already provides instead (one of the three sanctioned
+        # kernel.sibling_paths convergent call sites). `base_dir` is
+        # always "missions/<segment>" for both outlier kinds (see
+        # _scan_layout_for), so only its final segment is joined onto
+        # the missions root. (`root` here is `_SRC_ROOT`, deliberately
+        # unused in this branch.)
+        return MissionTemplateRepository.default_missions_root() / Path(base_dir).name
+    return None
+
+
 def _config_stem(path: Path) -> str:
     """Return the config/file-stem ID for an artifact path.
 
@@ -684,55 +748,8 @@ class CharterPackManager:
             root = roots.get(layer)
             if root is None:
                 continue
-            if layered and layer == "project" and kind is not None:
-                kind_dir = _PROJECT_KIND_DIRS.get(kind, kind.plural)
-                candidate = root / "doctrine" / kind_dir
-            elif layered and layer == "org" and kind is not None:
-                candidate = _resolve_org_layer_dir(root, kind, base_dir)
-            elif layered and layer == "built-in" and kind is not None:
-                # The built-in layer relocated from ``src/doctrine/<plural>/built-in``
-                # to the flattened ``packs/built-in/<plural>`` tree
-                # (mission relocate-builtin-doctrine-packs). Resolve it through the
-                # canonical per-kind seam (mission
-                # doctrine-built-in-seam-consolidation-01KYW3TX, WP01/T020)
-                # rather than composing the ``resolve_pack_root("built-in") /
-                # kind.plural`` join locally -- this branch only runs when
-                # ``layered`` is ``True`` (see ``_scan_layout_for``), and
-                # ``mission_step_contract`` is the sole charter-activatable
-                # kind (``CHARTER_KIND_TOKENS``) with
-                # ``has_built_in_content_dir is False``; it is also the sole
-                # kind for which ``_scan_layout_for`` returns
-                # ``layered=False``, so the ``layered`` guard above already
-                # excludes it before ``built_in_dir(kind)`` is ever called --
-                # this never raises ``BuiltInContentDirNotAvailable``.
-                candidate = built_in_dir(kind)
-            elif layered:
-                candidate = root / base_dir / layer
-            elif layer == "built-in":
-                # Flat-directory kinds (mission-type / step contracts) only have
-                # the built-in layer. Their content lives under
-                # packs/built-in/missions/<segment> (mission #3091/FR-005
-                # relocated missions/ there), not under _SRC_ROOT. Neither
-                # outlier is resolvable through built_in_dir(kind) --
-                # mission-type is not an ArtifactKind at all, and
-                # MISSION_STEP_CONTRACT is part of the derived complement
-                # built_in_dir refuses (no packs/built-in/<plural>/ content
-                # dir) -- and `built_in_root() / base_dir` would be the exact
-                # "reuse the bare-root seam and reconstruct a path locally"
-                # drift the architectural gate
-                # (test_no_builtin_path_joins_outside_pack_paths_authority)
-                # exists to catch. Route through the SAME missions-root
-                # authority doctrine.missions.repository.MissionTemplateRepository
-                # already provides instead (one of the three sanctioned
-                # kernel.sibling_paths convergent call sites). `base_dir` is
-                # always "missions/<segment>" for both outlier kinds (see
-                # _scan_layout_for), so only its final segment is joined onto
-                # the missions root. (`root` here is `_SRC_ROOT`, deliberately
-                # unused in this branch.)
-                candidate = MissionTemplateRepository.default_missions_root() / Path(base_dir).name
-            else:
-                continue
-            if candidate.is_dir():
+            candidate = _resolve_layer_candidate(layer, root, kind, base_dir, layered=layered)
+            if candidate is not None and candidate.is_dir():
                 dirs.append((layer, candidate))
         return dirs
 

@@ -52,6 +52,7 @@ from .manifest import (
     finalize_manifest,
 )
 from .manifest import load_yaml as load_manifest
+from .path_guard import PathGuard
 from .provenance import dump_yaml as dump_provenance, provenance_path_for
 from .request import SynthesisRequest
 from .staging import StagingDir
@@ -448,6 +449,239 @@ def stage_and_validate(
 # ---------------------------------------------------------------------------
 
 
+def _stage_artifacts(
+    guard: PathGuard,
+    staging_dir: StagingDir,
+    results: list[tuple[Mapping[str, Any], ProvenanceEntry]],
+) -> list[tuple[str, str, str, str, bytes]]:
+    """Write every (body, provenance) pair into the staged subtrees (step 1).
+
+    Returns the staged item tuples ``(kind, slug, filename, artifact_id,
+    yaml_bytes)`` — extracted from :func:`promote` (S3776) as its own
+    testable unit.
+    """
+    staged_items: list[tuple[str, str, str, str, bytes]] = []
+
+    for body, prov in results:
+        kind = prov.artifact_kind
+        slug = prov.artifact_slug
+
+        # Infer artifact_id from the provenance URN for directive filename
+        artifact_id = _artifact_id_from_provenance(prov)
+
+        filename = _artifact_filename(kind, slug, artifact_id)
+        yaml_bytes = canonical_yaml(body)
+
+        # Write content into staged doctrine tree
+        staged_content_path = staging_dir.path_for_content(kind, filename)
+        guard.write_bytes(staged_content_path, yaml_bytes, caller="write_pipeline.promote[content]")
+
+        # Write provenance sidecar into staged charter tree
+        staged_prov_path = staging_dir.path_for_provenance(kind, slug)
+        dump_provenance(prov, staged_prov_path, guard)
+
+        staged_items.append((kind, slug, filename, artifact_id or slug, yaml_bytes))
+
+    return staged_items
+
+
+def _validate_or_fail(
+    staging_dir: StagingDir,
+    validation_callback: Callable[[StagingDir], None],
+) -> None:
+    """Run the validation callback; route a failure to ``.failed/`` (step 2).
+
+    WP04 wires its DRG + schema validation gate in via ``validation_callback``.
+    A raised exception aborts and routes to ``staging_dir.commit_to_failed()``.
+    """
+    try:
+        validation_callback(staging_dir)
+    except Exception as exc:
+        staging_dir.commit_to_failed(f"Validation failed: {exc}")
+        raise
+
+
+def _ensure_live_dirs(guard: PathGuard, repo_root: Path) -> None:
+    """Create destination directories for every doctrine kind + provenance.
+
+    Uses ``doctrine_kind_subdir()`` so the names match the .gitignore
+    whitelist (step 3 prep).
+    """
+    for kind in ("directive", "tactic", "styleguide"):
+        guard.mkdir(
+            repo_root / _KITTIFY_DIRNAME / _DOCTRINE_DIRNAME / _doctrine_kind_subdir(kind),
+            caller="write_pipeline.promote[mkdir-doctrine]",
+        )
+
+    guard.mkdir(
+        repo_root / _KITTIFY_DIRNAME / _CHARTER_DIRNAME / _PROVENANCE_DIRNAME,
+        caller="write_pipeline.promote[mkdir-provenance]",
+    )
+
+
+def _replace_one_artifact(
+    guard: PathGuard,
+    staging_dir: StagingDir,
+    repo_root: Path,
+    body: Mapping[str, Any],
+    prov: ProvenanceEntry,
+) -> ManifestArtifactEntry:
+    """Promote one staged (body, provenance) pair into the live tree.
+
+    No-op-stable (#1912): skips the ``os.replace`` for content/provenance
+    when the staged bytes are unchanged modulo their respective volatile
+    fields, so an unchanged file's mtime is left alone. Returns the
+    resulting manifest entry.
+    """
+    kind = prov.artifact_kind
+    slug = prov.artifact_slug
+
+    artifact_id_ = _artifact_id_from_provenance(prov)
+
+    filename = _artifact_filename(kind, slug, artifact_id_)
+    yaml_bytes = canonical_yaml(body)
+    content_hash = _compute_content_hash(yaml_bytes)
+
+    # Content: staging → .kittify/doctrine/<kind-subdir>/<filename>
+    #
+    # The doctrine body YAML carries no volatile fields, so a no-op run
+    # produces byte-identical content. Skip the replace when unchanged
+    # so the tracked file (and its mtime) is left alone (#1912).
+    staged_content = staging_dir.path_for_content(kind, filename)
+    live_content = (
+        repo_root / _KITTIFY_DIRNAME / _DOCTRINE_DIRNAME / _doctrine_kind_subdir(kind) / filename
+    )
+    if not _substantively_equal(yaml_bytes, live_content, frozenset()):
+        guard.replace(staged_content, live_content, caller="write_pipeline.promote[content-replace]")
+    # else: unchanged — staged copy is discarded by staging_dir.wipe().
+
+    # Provenance: staging → .kittify/charter/provenance/<kind>-<slug>.yaml
+    #
+    # Provenance sidecars stamp volatile fields (produced_at,
+    # synthesizer_version, synthesis_run_id, generated_at) every run.
+    # Skip the replace when the sidecar is unchanged modulo those
+    # fields so the prior committed timestamp/version survives (#1912).
+    staged_prov = staging_dir.path_for_provenance(kind, slug)
+    live_prov = (
+        repo_root / _KITTIFY_DIRNAME / _CHARTER_DIRNAME / _PROVENANCE_DIRNAME / f"{kind}-{slug}.yaml"
+    )
+    staged_prov_bytes = staged_prov.read_bytes()
+    if not _substantively_equal(staged_prov_bytes, live_prov, _VOLATILE_PROVENANCE_FIELDS):
+        guard.replace(staged_prov, live_prov, caller="write_pipeline.promote[prov-replace]")
+    # else: unchanged — staged copy is discarded by staging_dir.wipe().
+
+    rel_content = str(live_content.relative_to(repo_root))
+    rel_prov = provenance_path_for(kind, slug)
+
+    return ManifestArtifactEntry(
+        kind=kind,
+        slug=slug,
+        path=rel_content,
+        provenance_path=rel_prov,
+        content_hash=content_hash,
+    )
+
+
+def _promote_graph_overlay(guard: PathGuard, staging_dir: StagingDir, repo_root: Path) -> None:
+    """Promote the staged DRG overlay graph, if any (no-op-stable).
+
+    The graph overlay stamps generated_at/generated_by on regeneration, so
+    skip the replace when only those volatile fields changed (#1912 — avoid
+    graph.yaml churn).
+    """
+    staged_graph = staging_dir.root / "doctrine" / _GRAPH_FILENAME
+    if not staged_graph.exists():
+        return
+
+    live_graph = repo_root / _KITTIFY_DIRNAME / _DOCTRINE_DIRNAME / _GRAPH_FILENAME
+    if not _substantively_equal(staged_graph.read_bytes(), live_graph, _VOLATILE_GRAPH_FIELDS):
+        guard.replace(staged_graph, live_graph, caller="write_pipeline.promote[graph-replace]")
+
+
+def _promote_artifacts(
+    guard: PathGuard,
+    staging_dir: StagingDir,
+    repo_root: Path,
+    results: list[tuple[Mapping[str, Any], ProvenanceEntry]],
+) -> list[ManifestArtifactEntry]:
+    """Ordered ``os.replace`` of every artifact + the graph overlay (step 3).
+
+    Extracted from :func:`promote` (S3776) as the caller's single try/except
+    boundary around all live-tree replaces.
+    """
+    manifest_entries = [
+        _replace_one_artifact(guard, staging_dir, repo_root, body, prov) for body, prov in results
+    ]
+    _promote_graph_overlay(guard, staging_dir, repo_root)
+    return manifest_entries
+
+
+def _build_manifest(
+    mission_id: str | None,
+    run_id: str,
+    results: list[tuple[Mapping[str, Any], ProvenanceEntry]],
+    manifest_entries: list[ManifestArtifactEntry],
+    repo_root: Path,
+) -> SynthesisManifest:
+    """Assemble + finalize a fresh ``SynthesisManifest`` (step 4, no override).
+
+    Builds a ``SynthesisManifest`` instance and routes it through the single
+    canonical finalizer (data-model.md "Contract: finalize_manifest") instead
+    of hand-syncing a raw dict — the hash is always derived from the FULL
+    instance, so no field (incl. bundle_content_hash) can be silently
+    omitted (closes BLOCKER-2).
+    """
+    # Determine primary adapter id/version (aggregate from provenance).
+    adapter_ids = {prov.adapter_id for _, prov in results}
+    adapter_versions = {prov.adapter_version for _, prov in results}
+    primary_adapter_id = adapter_ids.pop() if len(adapter_ids) == 1 else ""
+    primary_adapter_version = adapter_versions.pop() if len(adapter_versions) == 1 else ""
+
+    synthesizer_ver = _get_synthesizer_version()
+    sorted_artifacts = sorted(manifest_entries, key=lambda e: (e.kind, e.slug))
+
+    manifest = SynthesisManifest(
+        mission_id=mission_id,
+        created_at=now_utc_iso(),
+        run_id=run_id,
+        adapter_id=primary_adapter_id,
+        adapter_version=primary_adapter_version,
+        synthesizer_version=synthesizer_ver,
+        manifest_hash="0" * 64,
+        artifacts=sorted_artifacts,
+        bundle_content_hash=compute_bundle_content_hash(repo_root),
+    )
+    return finalize_manifest(manifest)
+
+
+def _write_manifest_file(
+    guard: PathGuard,
+    repo_root: Path,
+    manifest: SynthesisManifest,
+) -> SynthesisManifest:
+    """Write the manifest-last commit marker, no-op-stably (step 4 write).
+
+    The manifest stamps volatile fields (created_at, run_id,
+    synthesizer_version, manifest_hash) on every run. Skip the rewrite when
+    the manifest is unchanged modulo those fields. A substantive change
+    (artifact set, hashes, adapter identity) still alters the comparison and
+    triggers a rewrite, so the on-disk manifest can never go stale relative
+    to the artifacts.
+
+    Returns the manifest callers should observe: the freshly written one, or
+    — when the write was skipped — the prior on-disk manifest (preserving its
+    timestamps) so callers see the persisted state rather than the discarded
+    fresh one.
+    """
+    manifest_path = repo_root / MANIFEST_PATH
+    guard.mkdir(manifest_path.parent, caller="write_pipeline.promote[mkdir-manifest]")
+    new_manifest_bytes = canonical_yaml(manifest.model_dump(mode="python"))
+    if not _substantively_equal(new_manifest_bytes, manifest_path, _VOLATILE_MANIFEST_FIELDS):
+        dump_manifest(manifest, manifest_path, guard)
+        return manifest
+    return load_manifest(manifest_path)
+
+
 def promote(
     request: SynthesisRequest,
     staging_dir: StagingDir,
@@ -500,40 +734,11 @@ def promote(
     guard = staging_dir.guard
     run_id = staging_dir.run_id
 
-    # ------------------------------------------------------------------
-    # Step 1: write every (body, provenance) pair into the staged subtrees
-    # ------------------------------------------------------------------
-    staged_items: list[tuple[str, str, str, str, bytes]] = []
-    # Each item: (kind, slug, artifact_filename, artifact_id, yaml_bytes)
+    # Step 1: write every (body, provenance) pair into the staged subtrees.
+    _stage_artifacts(guard, staging_dir, results)
 
-    for body, prov in results:
-        kind = prov.artifact_kind
-        slug = prov.artifact_slug
-
-        # Infer artifact_id from the provenance URN for directive filename
-        artifact_id = _artifact_id_from_provenance(prov)
-
-        filename = _artifact_filename(kind, slug, artifact_id)
-        yaml_bytes = canonical_yaml(body)
-
-        # Write content into staged doctrine tree
-        staged_content_path = staging_dir.path_for_content(kind, filename)
-        guard.write_bytes(staged_content_path, yaml_bytes, caller="write_pipeline.promote[content]")
-
-        # Write provenance sidecar into staged charter tree
-        staged_prov_path = staging_dir.path_for_provenance(kind, slug)
-        dump_provenance(prov, staged_prov_path, guard)
-
-        staged_items.append((kind, slug, filename, artifact_id or slug, yaml_bytes))
-
-    # ------------------------------------------------------------------
-    # Step 2: validation callback (WP04 wires DRG + schema validation here)
-    # ------------------------------------------------------------------
-    try:
-        validation_callback(staging_dir)
-    except Exception as exc:
-        staging_dir.commit_to_failed(f"Validation failed: {exc}")
-        raise
+    # Step 2: validation callback (WP04 wires DRG + schema validation here).
+    _validate_or_fail(staging_dir, validation_callback)
 
     # ------------------------------------------------------------------
     # Step 2b: neutrality lint gate (FR-011, FR-012)
@@ -545,103 +750,10 @@ def promote(
     # ------------------------------------------------------------------
     _run_neutrality_gate(staging_dir, results, request.evidence)
 
-    # ------------------------------------------------------------------
-    # Step 3: ordered os.replace into final live trees
-    # ------------------------------------------------------------------
-    # Ensure destination directories exist.
-    # Use doctrine_kind_subdir() so the names match the .gitignore whitelist.
-    for kind in ("directive", "tactic", "styleguide"):
-        guard.mkdir(
-            repo_root / _KITTIFY_DIRNAME / _DOCTRINE_DIRNAME / _doctrine_kind_subdir(kind),
-            caller="write_pipeline.promote[mkdir-doctrine]",
-        )
-
-    guard.mkdir(
-        repo_root / _KITTIFY_DIRNAME / _CHARTER_DIRNAME / _PROVENANCE_DIRNAME,
-        caller="write_pipeline.promote[mkdir-provenance]",
-    )
-
+    # Step 3: ordered os.replace into final live trees.
+    _ensure_live_dirs(guard, repo_root)
     try:
-        manifest_entries: list[ManifestArtifactEntry] = []
-
-        for body, prov in results:
-            kind = prov.artifact_kind
-            slug = prov.artifact_slug
-
-            artifact_id_ = _artifact_id_from_provenance(prov)
-
-            filename = _artifact_filename(kind, slug, artifact_id_)
-            yaml_bytes = canonical_yaml(body)
-            content_hash = _compute_content_hash(yaml_bytes)
-
-            # Content: staging → .kittify/doctrine/<kind-subdir>/<filename>
-            #
-            # The doctrine body YAML carries no volatile fields, so a no-op run
-            # produces byte-identical content. Skip the replace when unchanged
-            # so the tracked file (and its mtime) is left alone (#1912).
-            staged_content = staging_dir.path_for_content(kind, filename)
-            live_content = (
-                repo_root
-                / _KITTIFY_DIRNAME
-                / _DOCTRINE_DIRNAME
-                / _doctrine_kind_subdir(kind)
-                / filename
-            )
-            if not _substantively_equal(yaml_bytes, live_content, frozenset()):
-                guard.replace(
-                    staged_content, live_content, caller="write_pipeline.promote[content-replace]"
-                )
-            # else: unchanged — staged copy is discarded by staging_dir.wipe().
-
-            # Provenance: staging → .kittify/charter/provenance/<kind>-<slug>.yaml
-            #
-            # Provenance sidecars stamp volatile fields (produced_at,
-            # synthesizer_version, synthesis_run_id, generated_at) every run.
-            # Skip the replace when the sidecar is unchanged modulo those
-            # fields so the prior committed timestamp/version survives (#1912).
-            staged_prov = staging_dir.path_for_provenance(kind, slug)
-            live_prov = (
-                repo_root
-                / _KITTIFY_DIRNAME
-                / _CHARTER_DIRNAME
-                / _PROVENANCE_DIRNAME
-                / f"{kind}-{slug}.yaml"
-            )
-            staged_prov_bytes = staged_prov.read_bytes()
-            if not _substantively_equal(
-                staged_prov_bytes, live_prov, _VOLATILE_PROVENANCE_FIELDS
-            ):
-                guard.replace(
-                    staged_prov, live_prov, caller="write_pipeline.promote[prov-replace]"
-                )
-            # else: unchanged — staged copy is discarded by staging_dir.wipe().
-
-            rel_content = str(live_content.relative_to(repo_root))
-            rel_prov = provenance_path_for(kind, slug)
-
-            manifest_entries.append(
-                ManifestArtifactEntry(
-                    kind=kind,
-                    slug=slug,
-                    path=rel_content,
-                    provenance_path=rel_prov,
-                    content_hash=content_hash,
-                )
-            )
-
-        # Check for a staged DRG overlay graph and promote it. The graph overlay
-        # stamps generated_at/generated_by on regeneration, so skip the replace
-        # when only those volatile fields changed (#1912 — avoid graph.yaml churn).
-        staged_graph = staging_dir.root / "doctrine" / _GRAPH_FILENAME
-        if staged_graph.exists():
-            live_graph = repo_root / _KITTIFY_DIRNAME / _DOCTRINE_DIRNAME / _GRAPH_FILENAME
-            if not _substantively_equal(
-                staged_graph.read_bytes(), live_graph, _VOLATILE_GRAPH_FIELDS
-            ):
-                guard.replace(
-                    staged_graph, live_graph, caller="write_pipeline.promote[graph-replace]"
-                )
-
+        manifest_entries = _promote_artifacts(guard, staging_dir, repo_root, results)
     except Exception as exc:
         # Do NOT wipe staging — let the caller (StagingDir context manager) route
         # to .failed/.  Manifest has NOT been written → partial-and-rerunable state.
@@ -651,59 +763,15 @@ def promote(
             cause=str(exc),
         ) from exc
 
-    # ------------------------------------------------------------------
-    # Step 4: manifest last — the authoritative commit marker (KD-2)
-    # ------------------------------------------------------------------
-    if manifest_override is None:
-        # Determine primary adapter id/version (aggregate from provenance).
-        adapter_ids = {prov.adapter_id for _, prov in results}
-        adapter_versions = {prov.adapter_version for _, prov in results}
-        primary_adapter_id = adapter_ids.pop() if len(adapter_ids) == 1 else ""
-        primary_adapter_version = adapter_versions.pop() if len(adapter_versions) == 1 else ""
-
-        synthesizer_ver = _get_synthesizer_version()
-        sorted_artifacts = sorted(manifest_entries, key=lambda e: (e.kind, e.slug))
-
-        # Build a SynthesisManifest instance and route it through the single
-        # canonical finalizer (data-model.md "Contract: finalize_manifest")
-        # instead of hand-syncing a raw manifest_data_without_hash dict — the
-        # hash is always derived from the FULL instance, so no field (incl.
-        # bundle_content_hash) can be silently omitted (closes BLOCKER-2).
-        manifest = SynthesisManifest(
-            mission_id=mission_id,
-            created_at=now_utc_iso(),
-            run_id=run_id,
-            adapter_id=primary_adapter_id,
-            adapter_version=primary_adapter_version,
-            synthesizer_version=synthesizer_ver,
-            manifest_hash="0" * 64,
-            artifacts=sorted_artifacts,
-            bundle_content_hash=compute_bundle_content_hash(repo_root),
-        )
-        manifest = finalize_manifest(manifest)
-    else:
-        manifest = manifest_override
+    # Step 4: manifest last — the authoritative commit marker (KD-2).
+    manifest = (
+        _build_manifest(mission_id, run_id, results, manifest_entries, repo_root)
+        if manifest_override is None
+        else manifest_override
+    )
 
     try:
-        manifest_path = repo_root / MANIFEST_PATH
-        guard.mkdir(manifest_path.parent, caller="write_pipeline.promote[mkdir-manifest]")
-        # No-op-stable manifest write (#1912): the manifest stamps volatile
-        # fields (created_at, run_id, synthesizer_version, manifest_hash) on
-        # every run. Skip the rewrite when the manifest is unchanged modulo
-        # those fields. A substantive change (artifact set, hashes, adapter
-        # identity) still alters the comparison and triggers a rewrite, so the
-        # on-disk manifest can never go stale relative to the artifacts.
-        new_manifest_bytes = canonical_yaml(manifest.model_dump(mode="python"))
-        if not _substantively_equal(
-            new_manifest_bytes, manifest_path, _VOLATILE_MANIFEST_FIELDS
-        ):
-            dump_manifest(manifest, manifest_path, guard)
-            written_manifest = manifest
-        else:
-            # Preserve the prior committed manifest (and its timestamps) so the
-            # tree stays clean. Return the on-disk manifest so callers observe
-            # the persisted state rather than the discarded fresh one.
-            written_manifest = load_manifest(manifest_path)
+        written_manifest = _write_manifest_file(guard, repo_root, manifest)
     except Exception as exc:
         # Manifest write failed — staging NOT wiped; partial state preserved.
         raise StagingPromoteError(
@@ -712,14 +780,10 @@ def promote(
             cause=f"manifest write failed: {exc}",
         ) from exc
 
-    # ------------------------------------------------------------------
-    # Step 5: wipe staging dir (only on full success)
-    # ------------------------------------------------------------------
+    # Step 5: wipe staging dir (only on full success).
     staging_dir.wipe()
 
-    # ------------------------------------------------------------------
-    # Step 6: return manifest
-    # ------------------------------------------------------------------
+    # Step 6: return manifest.
     return written_manifest
 
 

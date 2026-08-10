@@ -162,6 +162,69 @@ def _render_action_doctrine_lines(
         )
 
 
+def _append_policy_summary_lines(lines: list[str], summary: list[str]) -> None:
+    """Append up to 8 policy-summary bullet lines, or the "no summary" fallback."""
+    if not summary:
+        lines.append(NO_POLICY_SUMMARY_MESSAGE)
+        return
+    for item in summary[:8]:
+        lines.append(f"  - {item}")
+
+
+def _append_block(lines: list[str], block: str) -> None:
+    """Append a blank separator followed by ``block``, when ``block`` is non-empty."""
+    if block:
+        lines.append("")
+        lines.append(block)
+
+
+def _resolve_authority_block(
+    repo_root: Path | None,
+    doctrine_selection: DoctrineSelectionConfig | None,
+) -> str:
+    """Render the authority-paths block, or "" when a prerequisite is absent.
+
+    ``block`` keeps its ``str``-inferred type from the ``""`` literal across
+    the reassignment below (mirrors the pre-refactor inline pattern) so the
+    conditionally-``skip``-followed ``charter.context_renderers`` import
+    (see ``[[tool.mypy.overrides]]`` for ``charter.*`` in pyproject.toml)
+    cannot make this function's return type look like ``Any`` to mypy.
+    """
+    block = ""
+    if repo_root is not None and doctrine_selection is not None:
+        block = render_authority_paths(repo_root, doctrine_selection)
+    return block
+
+
+def _resolve_reference_block(
+    repo_root: Path | None,
+    doctrine_selection: DoctrineSelectionConfig | None,
+) -> str:
+    """Render the governance-references block, or "" when a prerequisite is absent.
+
+    See :func:`_resolve_authority_block` for why ``block`` starts as a
+    ``str`` literal rather than being returned directly from the call.
+    """
+    block = ""
+    if repo_root is not None and doctrine_selection is not None:
+        block = render_governance_references(repo_root, doctrine_selection.governance_references)
+    return block
+
+
+def _append_reference_docs_lines(
+    lines: list[str],
+    selected_references: list[tuple[dict[str, str], Path]],
+) -> None:
+    """Append one line per selected reference pointer, or the "missing" fallback."""
+    if not selected_references:
+        lines.append(MISSING_REFERENCES_MESSAGE)
+        return
+    for reference, resolved_path in selected_references:
+        ref_id = reference.get("id", "unknown")
+        title = reference.get("title", "")
+        lines.append(f"  - {ref_id}: {title} ({resolved_path})")
+
+
 def _render_bootstrap_text(
     *,
     charter_path: Path,
@@ -184,37 +247,17 @@ def _render_bootstrap_text(
         "",
         POLICY_SUMMARY_HEADER,
     ]
-    if summary:
-        for item in summary[:8]:
-            lines.append(f"  - {item}")
-    else:
-        lines.append(NO_POLICY_SUMMARY_MESSAGE)
+    _append_policy_summary_lines(lines, summary)
 
     # WP04 (FR-003) — authority paths block, between Policy Summary and the
     # action-critical bodies (resolved-context anchor order, data-model.md §3).
-    authority_block = ""
-    if repo_root is not None and doctrine_selection is not None:
-        authority_block = render_authority_paths(repo_root, doctrine_selection)
-    if authority_block:
-        lines.append("")
-        lines.append(authority_block)
-
-    reference_block = ""
-    if repo_root is not None and doctrine_selection is not None:
-        reference_block = render_governance_references(
-            repo_root,
-            doctrine_selection.governance_references,
-        )
-    if reference_block:
-        lines.append("")
-        lines.append(reference_block)
+    _append_block(lines, _resolve_authority_block(repo_root, doctrine_selection))
+    _append_block(lines, _resolve_reference_block(repo_root, doctrine_selection))
 
     # WP04 (FR-001) — action-critical charter section bodies; an absent heading
     # emits a fetch stanza so the agent still has a recovery path.
     section_block = render_critical_section_bodies(charter_content, action)
-    if section_block:
-        lines.append("")
-        lines.append(section_block)
+    _append_block(lines, section_block)
 
     # Cycle note: ``_render_profile_sections`` stays in ``charter.context``
     # (profile-driven-rendering cluster, see module docstring); function-local
@@ -222,18 +265,14 @@ def _render_bootstrap_text(
     from charter.context import _render_profile_sections  # noqa: PLC0415
 
     profile_block = _render_profile_sections(profile, service)
-    if profile_block:
-        lines.append("")
-        lines.append(profile_block)
+    _append_block(lines, profile_block)
 
     # WP04 (FR-005) — charter-level global selection rendering: the 5-kind block
     # surfaces every ``DoctrineSelectionConfig.selected_<kind>`` (with org provenance).
     selection_block = _render_selection_block(
         doctrine_selection, service, repo_root=repo_root
     )
-    if selection_block:
-        lines.append("")
-        lines.append(selection_block)
+    _append_block(lines, selection_block)
 
     # WP04 T023 — activation-registry hook (FR-007); renderer body is WP05's
     # surface (``charter._activation_render``), this only ships the call site.
@@ -244,9 +283,7 @@ def _render_bootstrap_text(
         mission_type=doctrine_bundle.mission,
         action=action,
     )
-    if activation_block:
-        lines.append("")
-        lines.append(activation_block)
+    _append_block(lines, activation_block)
 
     lines.append("")
     lines.append(f"Action Doctrine ({action}):")
@@ -265,18 +302,13 @@ def _render_bootstrap_text(
     # still points at the now-emptied ``src/doctrine`` tree (used for templates), so it
     # resolves nothing and every pointer dies. Resolve the built-in pack root instead,
     # mirroring how the DoctrineService repositories self-resolve ``packs/built-in/<kind>``.
-    from doctrine.pack_paths import built_in_root  # noqa: PLC0415 — lazy, avoids import cycle
+    # Lazy import: avoids a load-time cycle (see module docstring).
+    from doctrine.pack_paths import built_in_root  # noqa: PLC0415
 
     selected_references = _select_reference_pointers(
         references, action, built_in_root()
     )
-    if selected_references:
-        for reference, resolved_path in selected_references:
-            ref_id = reference.get("id", "unknown")
-            title = reference.get("title", "")
-            lines.append(f"  - {ref_id}: {title} ({resolved_path})")
-    else:
-        lines.append(MISSING_REFERENCES_MESSAGE)
+    _append_reference_docs_lines(lines, selected_references)
     text = "\n".join(lines)
 
     # WP05 (NFR-001) — token budget enforcement.  When the bootstrap

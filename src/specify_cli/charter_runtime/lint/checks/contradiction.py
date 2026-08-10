@@ -30,6 +30,36 @@ def _content_hash(text: str | None) -> str:
     return hashlib.sha256(text.encode()).hexdigest()[:16]  # noqa: TID251 - production raw SHA-256 owner
 
 
+def _adr_topic_and_decision_hash(node: Any) -> tuple[str, str] | None:
+    """Return ``(topic, decision_hash)`` for an ADR *node*, or ``None``.
+
+    Returns ``None`` when *node* is not an ``adr`` node, or when it has no
+    ``topic`` metadata (both cases are skipped by the caller).
+    """
+    kind = getattr(node, "kind", None)
+    kind_val = getattr(kind, "value", str(kind) if kind else "")
+    if kind_val != "adr":
+        return None
+
+    # ``topic`` may live in a ``metadata`` dict or as a direct attribute
+    metadata = getattr(node, "metadata", None) or {}
+    topic: str = (
+        getattr(node, "topic", None)
+        or (metadata.get("topic") if isinstance(metadata, dict) else None)
+        or ""
+    )
+    if not topic:
+        return None
+
+    decision: str = (
+        getattr(node, "decision", None)
+        or (metadata.get("decision") if isinstance(metadata, dict) else None)
+        or getattr(node, "label", None)
+        or ""
+    )
+    return topic, _content_hash(decision)
+
+
 class ContradictionChecker:
     """Detect contradictory ADR decisions and duplicate glossary senses."""
 
@@ -54,58 +84,54 @@ class ContradictionChecker:
         self, drg: Any, feature_scope: str | None
     ) -> list[LintFinding]:
         """Find ADR nodes with the same topic but different decision hashes."""
-        # topic -> list of (urn, decision_hash)
-        by_topic: dict[str, list[tuple[str, str]]] = defaultdict(list)
-
-        for node in getattr(drg, "nodes", []):
-            kind = getattr(node, "kind", None)
-            kind_val = getattr(kind, "value", str(kind) if kind else "")
-            if kind_val != "adr":
-                continue
-
-            urn: str = getattr(node, "urn", "") or ""
-            # ``topic`` may live in a ``metadata`` dict or as a direct attribute
-            metadata = getattr(node, "metadata", None) or {}
-            topic: str = (
-                getattr(node, "topic", None)
-                or (metadata.get("topic") if isinstance(metadata, dict) else None)
-                or ""
-            )
-            decision: str = (
-                getattr(node, "decision", None)
-                or (metadata.get("decision") if isinstance(metadata, dict) else None)
-                or getattr(node, "label", None)
-                or ""
-            )
-
-            if not topic:
-                continue
-
-            by_topic[topic].append((urn, _content_hash(decision)))
+        by_topic = self._group_adr_decisions_by_topic(drg)
 
         findings: list[LintFinding] = []
         for topic, entries in by_topic.items():
             hashes = {h for _, h in entries}
             if len(hashes) > 1:
-                urns = [u for u, _ in entries]
                 findings.append(
-                    LintFinding(
-                        category="contradiction",
-                        type="adr_topic_clash",
-                        id=f"topic:{topic}",
-                        severity="high",
-                        message=(
-                            f"ADR topic '{topic}' has {len(urns)} nodes with "
-                            f"conflicting decision content: {', '.join(urns)}"
-                        ),
-                        feature_id=feature_scope,
-                        remediation_hint=(
-                            "Review the conflicting ADRs and supersede the older ones."
-                        ),
-                    )
+                    self._build_topic_clash_finding(topic, entries, feature_scope)
                 )
 
         return findings
+
+    @staticmethod
+    def _group_adr_decisions_by_topic(
+        drg: Any,
+    ) -> dict[str, list[tuple[str, str]]]:
+        """Group ``(urn, decision_hash)`` pairs by ADR topic."""
+        by_topic: dict[str, list[tuple[str, str]]] = defaultdict(list)
+        for node in getattr(drg, "nodes", []):
+            result = _adr_topic_and_decision_hash(node)
+            if result is None:
+                continue
+            topic, decision_hash = result
+            urn: str = getattr(node, "urn", "") or ""
+            by_topic[topic].append((urn, decision_hash))
+        return by_topic
+
+    @staticmethod
+    def _build_topic_clash_finding(
+        topic: str,
+        entries: list[tuple[str, str]],
+        feature_scope: str | None,
+    ) -> LintFinding:
+        urns = [u for u, _ in entries]
+        return LintFinding(
+            category="contradiction",
+            type="adr_topic_clash",
+            id=f"topic:{topic}",
+            severity="high",
+            message=(
+                f"ADR topic '{topic}' has {len(urns)} nodes with "
+                f"conflicting decision content: {', '.join(urns)}"
+            ),
+            feature_id=feature_scope,
+            remediation_hint=(
+                "Review the conflicting ADRs and supersede the older ones."
+            ),
+        )
 
     # ------------------------------------------------------------------
     # Duplicate glossary senses
