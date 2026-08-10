@@ -60,6 +60,8 @@ from typing import TYPE_CHECKING
 
 from ruamel.yaml import YAML
 
+from charter.bundle import CHARTER_YAML
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
@@ -70,8 +72,6 @@ _logger = logging.getLogger(__name__)
 #: The freshness-check name that stands in for "references-parity drift" —
 #: see the module docstring's mapping note.
 _REFERENCES_PARITY_CAUSE_NAME = "synthesized_drg"
-
-_CHARTER_YAML_REL_PATH = Path(".kittify") / "charter" / "charter.yaml"
 
 #: Targeted-generate timeout — mirrors ``preflight.runner``'s refresh-step
 #: default (the whole boundary sequence budgets 30s/step; this hook fires
@@ -107,7 +107,7 @@ def _read_catalog_mission_and_template_set(
     unparseable, or missing a ``catalog`` section — callers then fall back
     to ``generate``'s own defaults rather than failing the refresh.
     """
-    charter_yaml_path = repo_root / _CHARTER_YAML_REL_PATH
+    charter_yaml_path = repo_root / CHARTER_YAML
     if not charter_yaml_path.exists():
         return None, None
     try:
