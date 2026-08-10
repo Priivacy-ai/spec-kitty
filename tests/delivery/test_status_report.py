@@ -35,7 +35,7 @@ from specify_cli.delivery.retention import (
     gc_payloads,
 )
 from specify_cli.delivery.interfaces import DeliveryTarget
-from specify_cli.delivery.ledger import SqliteDeliveryLedger
+from specify_cli.delivery.ledger import LedgerRow, SqliteDeliveryLedger
 from specify_cli.delivery.status_report import (
     ADDITIVE_SECTION_KEYS,
     BODY_UPLOAD_COMPAT_KEY,
@@ -58,6 +58,10 @@ from specify_cli.sync.body_queue import OfflineBodyUploadQueue
 from specify_cli.sync.consent import record_project_opt_in
 from specify_cli.sync.migrate_journal import MigrationAudit, MigrationConflict
 from specify_cli.sync.namespace import NamespaceRef
+from specify_cli.sync.project_context import (
+    ProjectSyncContext,
+    VerifiedProjectStoreIdentity,
+)
 from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork
 from specify_cli.sync.target_authority import (
     OverrideMode,
@@ -81,6 +85,44 @@ class _ReadCountingBodyQueue(OfflineBodyUploadQueue):
     def size(self) -> int:
         self.size_reads += 1
         return super().size()
+
+
+class _ReadCountingJournal(EventJournal):
+    count_reads = 0
+
+    def count(self) -> int:
+        self.count_reads += 1
+        return super().count()
+
+
+class _ReadCountingLedger(SqliteDeliveryLedger):
+    rows_reads = 0
+
+    def rows(self) -> list[LedgerRow]:
+        self.rows_reads += 1
+        return super().rows()
+
+
+def _clone_context_with_identity(
+    context: ProjectSyncContext,
+    store_identity: VerifiedProjectStoreIdentity,
+) -> ProjectSyncContext:
+    clone = object.__new__(ProjectSyncContext)
+    for name in (
+        "project_uuid",
+        "consent_state",
+        "consent_generation",
+        "epoch_id",
+        "target_audience",
+        "admission_state",
+        "admission_generation",
+        "binding_audience",
+        "kill_switch_allows",
+        "transport_lease_identity",
+    ):
+        object.__setattr__(clone, name, getattr(context, name))
+    object.__setattr__(clone, "store_identity", store_identity)
+    return clone
 
 
 # ---------------------------------------------------------------------------
@@ -186,6 +228,91 @@ def test_project_store_status_rejects_a_context_b_queue_before_read(
                 body_upload_queue=queue_b,
             )
         assert queue_b.size_reads == 0
+
+
+def test_project_store_status_rejects_same_uuid_from_another_physical_home_before_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home-a"))
+    store_a = ProjectSyncStore(PROJECT)
+    authority_a = store_a.layout_generation()
+    authority_a.begin_cutover("status-home-a")
+    authority_a.publish_project_only("status-home-a", verify_exact=lambda: True)
+    record_project_opt_in(PROJECT, actor="test")
+    with store_a.unit_of_work() as unit_a:
+        context_a = store_a.create_context()
+        assert context_a.store_identity.database_path == store_a.database_path
+        assert unit_a.project_uuid == store_a.project_uuid
+
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home-b"))
+    store_b = ProjectSyncStore(PROJECT)
+    authority_b = store_b.layout_generation()
+    authority_b.begin_cutover("status-home-b")
+    authority_b.publish_project_only("status-home-b", verify_exact=lambda: True)
+    with store_b.unit_of_work() as unit_b:
+        seed_queue = OfflineBodyUploadQueue(unit_b, authority_b)
+        seed_queue.enqueue(
+            NamespaceRef(PROJECT, "mission-a", "develop", "software-dev", "1"),
+            "spec.md",
+            "hash-a",
+            "# private body",
+            14,
+        )
+        journal_b = _ReadCountingJournal(unit_b, authority_b)
+        ledger_b = _ReadCountingLedger(unit_b, authority_b)
+        queue_b = _ReadCountingBodyQueue(unit_b, authority_b)
+
+        with pytest.raises(ValueError, match="verified project store"):
+            build_project_store_status(
+                context=context_a,
+                journal=journal_b,
+                ledger=ledger_b,
+                body_upload_queue=queue_b,
+            )
+
+        assert journal_b.count_reads == 0
+        assert ledger_b.rows_reads == 0
+        assert queue_b.size_reads == 0
+        same_store = build_project_store_status(
+            context=store_b.create_context(),
+            journal=journal_b,
+            ledger=ledger_b,
+            body_upload_queue=queue_b,
+        )
+        assert same_store["body_task_count"] == 1
+
+
+def test_project_store_status_rejects_fabricated_store_identity_before_read(
+    store: ProjectSyncStore,
+    unit: ProjectUnitOfWork,
+) -> None:
+    context = store.create_context()
+    genuine = context.store_identity
+    fabricated = object.__new__(VerifiedProjectStoreIdentity)
+    for name in (
+        "project_uuid",
+        "database_path",
+        "schema_version",
+        "layout_version",
+    ):
+        object.__setattr__(fabricated, name, getattr(genuine, name))
+    fabricated_context = _clone_context_with_identity(context, fabricated)
+    journal = _ReadCountingJournal(unit, store.layout_generation())
+    ledger = _ReadCountingLedger(unit, store.layout_generation())
+    queue = _ReadCountingBodyQueue(unit, store.layout_generation())
+
+    with pytest.raises(ValueError, match="verified project store"):
+        build_project_store_status(
+            context=fabricated_context,
+            journal=journal,
+            ledger=ledger,
+            body_upload_queue=queue,
+        )
+
+    assert journal.count_reads == 0
+    assert ledger.rows_reads == 0
+    assert queue.size_reads == 0
 
 
 # ---------------------------------------------------------------------------
