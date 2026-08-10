@@ -1849,9 +1849,16 @@ jobs:
   # already covered by fast-tests-doctrine / integration-tests-core-misc /
   # fast-tests-charter etc. Running those directories whole here would
   # duplicate that coverage on every push/mixed PR; `-m corpus` scopes the
-  # run to exactly the marked reader set (T005). Residual overlap (a marked
-  # module also running in its home job on a mixed PR or on `push`) is small
-  # and intentional (NFR-004) -- not claimed as zero.
+  # run to exactly the marked reader set (T005). The overlap this causes is
+  # NOT small: on `push` and on any mixed PR, every corpus-marked test also
+  # runs in its home fast shard, so the overlap is the full corpus reader set
+  # (all ~1274 corpus tests, not a residual few) -- that duplication is the
+  # accepted cost of closing the data-only-PR trigger gap (NFR-004), not a
+  # claim of near-zero overlap. The same-tier shard-selection uniqueness
+  # invariant (tests/architectural/test_same_tier_uniqueness.py) treats
+  # fast-tests-corpus as a trigger-disjoint overlay gate and excludes it from
+  # its peer set for exactly this reason -- see #3315 for the durable model
+  # reconciliation.
   # No default `-m` addopts exists in pytest.ini (only `--tb=short`); the
   # mutmut-only `-m` list in pyproject.toml's [tool.mutmut] is never seen by
   # plain pytest/CI, so `-m "corpus and not windows_ci"` is the sole filter
