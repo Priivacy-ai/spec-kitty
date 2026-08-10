@@ -70,9 +70,16 @@ DEFAULT_BASELINE = _REPO_ROOT / "scripts" / "docs" / "redirect_baseline_urls.jso
 DEFAULT_REDIRECT_MAP = _REPO_ROOT / "scripts" / "docs" / "redirect_map.yaml"
 DEFAULT_SITE_DIR = _REPO_ROOT / "docs" / "_site"
 
-# This redirect map is specific to mission B's move spine; the derivation reads
-# that mission's ``occurrence_map.yaml`` (override with ``--occurrence-map``).
-MISSION_SLUG = "common-docs-structural-move-01KW3SBK"
+# The derivation reads a mission's ``occurrence_map.yaml`` ``moves:`` spine. The
+# default points at the CURRENTLY-ACTIVE convergence mission, whose map is a
+# *collapsed cumulative spine* (it carries the closed structural-move mission's
+# entries forward — see that map's header), so a default-driven regen reproduces
+# every prior redirect entry plus the new ones with no coverage regression. The
+# closed ``common-docs-structural-move-01KW3SBK`` default was retired here so no
+# invocation silently regenerates against the stale closed map (WP03 T009).
+# IC-11 / the PR gates always pass ``--occurrence-map <this mission>`` explicitly;
+# the constant only governs an argument-less invocation.
+MISSION_SLUG = "common-docs-convergence-01KZMTR9"
 DEFAULT_OCCURRENCE_MAP = (
     _REPO_ROOT / "kitty-specs" / MISSION_SLUG / "occurrence_map.yaml"
 )

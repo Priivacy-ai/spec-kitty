@@ -1,7 +1,7 @@
 # Canonical Producer Lint
 #
 # Enforces the canonical-producer non-negotiable (C-007 in
-# spec-kitty-mission-workflow.md) at PR time. Detects hand-rolled event
+# docs/architecture/spec-kitty-mission-workflow.md) at PR time. Detects hand-rolled event
 # dicts that bypass the spec_kitty_events.lifecycle.*Payload pydantic
 # models. The rc14->rc22 release-candidate chain happened because doctrine
 # alone (reviewer attention) failed seven times in eight releases; CI

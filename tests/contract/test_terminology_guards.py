@@ -82,7 +82,6 @@ FORBIDDEN_SCAN_ROOTS = (
     # docs — the active planning pages at docs/plans/*.md stay scanned.
     "docs/plans/engineering-notes/",
     "docs/plans/initiatives/",
-    "docs/plans/notes/",
 )
 
 
@@ -134,7 +133,6 @@ def _live_doc_scan_targets() -> list[tuple[Path, str]]:
                     "docs/adr/",
                     "docs/plans/engineering-notes/",
                     "docs/plans/initiatives/",
-                    "docs/plans/notes/",
                 )
             ):
                 continue

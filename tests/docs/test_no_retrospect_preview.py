@@ -6,7 +6,8 @@ takes ``--apply`` to mutate; it does NOT accept a ``--preview`` flag (see
 
 Stale guidance that tells operators to run ``... synthesize ... --preview`` is a
 documentation bug because the flag does not exist. This test scans the owned
-source tree (``src/`` and ``docs/``) plus the repo-root mission-workflow file and
+source tree (``src/`` and ``docs/``, which now includes the mission-workflow
+authority doc at ``docs/architecture/spec-kitty-mission-workflow.md``) and
 fails if any ``retrospect synthesize`` reference still pairs with ``--preview``.
 
 Excluded from the scan:
@@ -32,8 +33,10 @@ SCAN_ROOTS = (
     REPO_ROOT / "docs",
 )
 
-# Repo-root standalone files that document the workflow.
-SCAN_FILES = (REPO_ROOT / "spec-kitty-mission-workflow.md",)
+# Extra standalone files that document the workflow. The mission-workflow
+# authority doc now lives at docs/architecture/spec-kitty-mission-workflow.md,
+# already covered by the docs/ SCAN_ROOT above; kept empty for explicit extras.
+SCAN_FILES: tuple[Path, ...] = ()
 
 # File extensions worth scanning for command guidance.
 SCAN_SUFFIXES = {".md", ".py", ".txt", ".rst"}

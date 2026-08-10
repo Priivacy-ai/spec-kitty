@@ -28,6 +28,14 @@ procedures:
   - When a single source artifact must serve genuinely divergent audiences,
     prefer producing persona-specific variants over one artifact that tries
     to serve everyone and therefore serves no one well.
+  - For documentation pages under the Common Docs root, name the persona
+    through the canonical `audience:` frontmatter field — one resolvable
+    repo-relative `.md` path (or a list of paths) targeting a persona under
+    `docs/context/audience/` — rather than an ad-hoc prose note. This is the
+    machine-checkable form of "name the target persona explicitly"; the field
+    contract, the tooling row that verifies it, and its scoping (touched pages
+    only; NOT in `frontmatter_required_fields`, C-012) live in DIRECTIVE_042
+    and the common-docs styleguide.
 integrity_rules:
   - An artifact with no identifiable target audience is incomplete, not
     merely stylistically weak.
@@ -37,6 +45,14 @@ validation_criteria:
   - The artifact names its target persona.
   - A reader unfamiliar with the artifact's origin can infer, from tone and
     detail level alone, roughly who it was written for.
+  - For Common Docs pages, the named persona is expressed as an `audience:`
+    frontmatter path that resolves to an existing file under
+    `docs/context/audience/` (see DIRECTIVE_042 and the common-docs styleguide
+    for the field contract and the resolver that verifies it).
 references:
+  - type: directive
+    id: DIRECTIVE_042
+  - type: styleguide
+    id: common-docs
   - type: tactic
     id: writing-audience-catalog

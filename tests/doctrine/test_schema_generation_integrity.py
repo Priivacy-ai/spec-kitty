@@ -129,6 +129,11 @@ def test_structural_lint_config_is_emitted_with_its_full_contract() -> None:
         "shadow_tree_nav_exemptions",
         "guides_boundary",
         "redirect_stub_description_prefix",
+        # T004 invariant fields (common-docs-convergence WP04).
+        "sanctioned_content_sections",
+        "non_content_dirs",
+        "root_allowlist",
+        "one_index_per_dir",
     }
 
 

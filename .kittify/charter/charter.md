@@ -372,7 +372,7 @@ Agents are **not allowed** to push directly to `origin/main` under any circumsta
 
 ### Historical Context
 
-The 1.x/2.x branch split was originally documented in [ADR-12: Two-Branch Strategy for SaaS Transformation](../../architecture/adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md). That strategy served its purpose during the SaaS transformation and is now superseded by single-branch development on `main`.
+The 1.x/2.x branch split was originally documented in [ADR-12: Two-Branch Strategy for SaaS Transformation](../../docs/adr/2.x/2026-01-27-12-two-branch-strategy-for-saas-transformation.md). That strategy served its purpose during the SaaS transformation and is now superseded by single-branch development on `main`.
 
 ---
 
@@ -557,14 +557,10 @@ template sets, tools, or authority directories.
 template_set: software-dev-default
 available_tools: [git, spec-kitty, pytest, mypy, ruff]
 authority_paths:
-  # Mission B dual-read (C-003): legacy + new homes listed together so the
-  # authority-path read resolves both before and after the docs/ fold (WP03).
-  # The legacy branches are dropped in WP08's reference sweep.
-  - glossary/contexts/        # canonical terminology (legacy home)
-  - docs/context/             # canonical terminology (new home, FR-009)
-  - architecture/3.x/adr/    # canonical architectural decisions (legacy, 3.x era)
-  - docs/adr/3.x/             # canonical architectural decisions (new home)
-  - architecture/adrs/        # active ADR directory (legacy de-facto convention)
+  # Common Docs fold complete: legacy homes dropped, canonical new homes only
+  # (matches charter.yaml/governance.yaml; keeps `charter sync` idempotent).
+  - docs/context/             # canonical terminology (FR-009)
+  - docs/adr/3.x/             # canonical architectural decisions
 ```
 
 ---

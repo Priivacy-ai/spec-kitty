@@ -12,7 +12,7 @@ with zero ``model_violations`` and zero ``schema_violations``.
 The intent: bind every producer's payload shape to the canonical contract
 so future drift is an emit-time error caught here in CI, not an RC-canary
 failure days later. See start-here.md C-007 and
-spec-kitty-mission-workflow.md non-negotiables.
+docs/architecture/spec-kitty-mission-workflow.md non-negotiables.
 """
 
 from __future__ import annotations

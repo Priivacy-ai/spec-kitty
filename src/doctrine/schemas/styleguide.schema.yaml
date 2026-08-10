@@ -102,6 +102,20 @@ definitions:
         type: string
       redirect_stub_description_prefix:
         type: string
+      sanctioned_content_sections:
+        type: array
+        items:
+          type: string
+      non_content_dirs:
+        type: array
+        items:
+          type: string
+      root_allowlist:
+        type: array
+        items:
+          type: string
+      one_index_per_dir:
+        type: boolean
     description: Machine-parseable policy block a companion lint script LOADS as its single source of truth (e.g. 
       common-docs' docs_structural_lint.py config, FR-011). Plain scalars/lists/mappings only.
 properties:

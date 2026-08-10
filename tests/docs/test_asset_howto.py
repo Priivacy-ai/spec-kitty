@@ -35,7 +35,8 @@ runner = CliRunner()
 _HOWTO = (
     Path(__file__).resolve().parents[2]
     / "docs"
-    / "doctrine"
+    / "development"
+    / "how-to"
     / "create-a-doctrine-artifact.md"
 )
 

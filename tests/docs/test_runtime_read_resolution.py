@@ -257,11 +257,19 @@ class TestGovernanceAuthorityPathsRepointed:
         assert "docs/context/" in paths
         assert "docs/adr/3.x/" in paths
 
-    def test_charter_retains_old_homes_dual_read(self) -> None:
-        """Dual-read: the legacy authority paths are still declared."""
+    def test_charter_dropped_legacy_homes_post_fold(self) -> None:
+        """Post Common Docs fold: the legacy authority paths are dropped.
+
+        The transitional dual-read (legacy + new homes) is collapsed once the
+        docs/ fold lands — the reference sweep removes the dead legacy branches
+        (glossary/contexts/, architecture/3.x/adr/, architecture/adrs/) so the
+        charter names only the canonical new homes. This inverts the former
+        dual-read guard, which asserted the legacy paths were still present.
+        """
         paths = _charter_authority_paths()
-        assert "glossary/contexts/" in paths
-        assert "architecture/3.x/adr/" in paths
+        assert "glossary/contexts/" not in paths
+        assert "architecture/3.x/adr/" not in paths
+        assert "architecture/adrs/" not in paths
 
     def test_charter_declared_new_homes_resolve_through_renderer(
         self, tmp_path: Path

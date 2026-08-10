@@ -2,7 +2,7 @@
 """AST lint rule against hand-rolled event dicts.
 
 This script enforces the canonical-producer non-negotiable (C-007 in
-`spec-kitty-mission-workflow.md`): all lifecycle event payloads must be
+`docs/architecture/spec-kitty-mission-workflow.md`): all lifecycle event payloads must be
 constructed through the canonical `spec_kitty_events` pydantic models, not
 assembled by hand as `dict[str, Any]` shapes.
 
@@ -720,7 +720,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         description=(
             "AST lint rule against hand-rolled event dicts. "
             "Enforces the canonical-producer non-negotiable from "
-            "spec-kitty-mission-workflow.md C-007."
+            "docs/architecture/spec-kitty-mission-workflow.md C-007."
         ),
     )
     p.add_argument(
@@ -809,7 +809,7 @@ def main(argv: list[str] | None = None) -> int:
             msg += f" ({silenced_count} silenced by baseline)"
         msg += (
             ". See https://github.com/Priivacy-ai/spec-kitty/issues/1248 "
-            "and spec-kitty-mission-workflow.md C-007."
+            "and docs/architecture/spec-kitty-mission-workflow.md C-007."
         )
         print(msg, file=sys.stderr)
         return 1

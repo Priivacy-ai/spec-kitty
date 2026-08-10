@@ -17,7 +17,9 @@ pytestmark = [pytest.mark.unit]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCS_DIR = REPO_ROOT / "docs"
-ARCHIVE_DIR = DOCS_DIR / "archive"
+# The archived 1.x/2.x tracks were rehomed docs/archive/ -> docs/changelog/ by the
+# common-docs-convergence mission (WP12); the versioned-docs integrity checks follow.
+ARCHIVE_DIR = DOCS_DIR / "changelog"
 TRACKS = ("1x", "2x")
 
 FORBIDDEN_TERMS = (
