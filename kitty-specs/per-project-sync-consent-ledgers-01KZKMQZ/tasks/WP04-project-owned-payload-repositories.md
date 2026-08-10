@@ -161,3 +161,7 @@ Commit a failing public capture/store-open test before implementation. Run the f
 ## Risks and reviewer guidance
 
 Reviewers should search for default constructors, private layout checks, and path fallbacks, not just direct connects. Run existing incident, both layout-ordering, and poison/starvation tests. Confirm changing storage did not convert opt-out into deletion, make sealed history pending, or weaken terminal results. Reject an adapter that accepts independently supplied store and UUID even if current call sites pair them correctly.
+
+## Activity Log
+
+- 2026-08-10T01:18:46Z – codex – shell_pid=1091 – Before source work, recovered the allocator-omitted approved WP03 dependency without conflict at lane merge 36e9cb818 and verified approved WP01 2ee80fbe0, WP02 10dccf3bf, WP03 7f9366cea, and current coordination ancestry. The arbiter authorized ownership of the two T020 architecture ratchets only; recorded as root 867643c73, coordination 4cc32490b, and lane a89d4903e while preserving every TODO(#3280), non-vacuity floor, and mutation guard. Reproductions are attached to #3281; the synthetic baseline JUnit failure is the existing #2929 defect.
