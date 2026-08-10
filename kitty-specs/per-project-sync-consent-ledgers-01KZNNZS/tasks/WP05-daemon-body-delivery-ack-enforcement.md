@@ -60,3 +60,11 @@ old-client/bypass seams, acknowledgement, purge, and retention.
 - Non-consenting projects are refused in daemon/body/background paths.
 - Refused rows are not acknowledged or purged as success.
 - Lower-level bypass seams fail closed.
+
+## Implementation evidence
+
+- Runtime enforcement was already present in the #3030 remediation surface; this WP records closure evidence rather than adding duplicate source churn.
+- Focused validation on 2026-08-10:
+  - `SPEC_KITTY_NO_UPGRADE_CHECK=1 env -u SPEC_KITTY_ENABLE_SAAS_SYNC SPEC_KITTY_TEST_DB_NAME=test_per_project_sync_consent_ledgers_01KZNNZS_lane_e uv run --group dev --extra test pytest tests/delivery/test_dispatch_project_consent_3030.py tests/delivery/test_dispatch_window_consent_3030.py tests/delivery/test_cross_project_refusal_state_3030.py tests/delivery/test_dispatch_honours_drain_blocked_3031.py tests/delivery/test_body_queue_purge_differential_3030.py tests/sync/test_body_upload_consent_3030.py tests/sync/test_body_drain_consent_3030.py tests/sync/test_no_queue_drain_constructed_3030.py tests/sync/test_background_body.py tests/sync/test_background_auth_backoff_3030.py tests/sync/test_daemon_publish_consent_3030.py tests/sync/test_history_import_consent_3030.py tests/sync/tracker/test_saas_client_consent_gate_3030.py tests/specify_cli/saas_client/test_client_consent_gate_3030.py -q`
+  - Result: `132 passed in 54.09s`.
+- The create-intent #3262 filenames remain planned closure labels, but the existing #3030 regression files are the canonical runtime pins for the same incident paths: dispatcher selection/window/refusal state, body queue upload/drain, daemon publish, history import upload, and lower-level SaaS client wrappers.
