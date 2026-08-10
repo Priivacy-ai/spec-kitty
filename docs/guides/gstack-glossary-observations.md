@@ -3,8 +3,10 @@ title: Render Glossary Observations from InvocationPayload (gstack / host agents
 description: How gstack-compatible host agents should interpret and display the glossary_observations field returned by the Spec Kitty invocation executor.
 doc_status: active
 updated: '2026-06-03'
+type: reference
+audience: docs/context/audience/internal/ai-collaboration-agent.md
 related:
-- docs/guides/setup-codex-spec-kitty-launcher.md
+- docs/guides/how-to/harnesses/setup-codex-spec-kitty-launcher.md
 ---
 # Render Glossary Observations from InvocationPayload
 
@@ -99,6 +101,6 @@ for the full event schema.
 
 ## See Also
 
-- [Set Up a Codex Launcher for Spec Kitty](setup-codex-spec-kitty-launcher.md)
+- [Set Up a Codex Launcher for Spec Kitty](how-to/harnesses/setup-codex-spec-kitty-launcher.md)
 - [Trail Model](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/trail-model.md)
 - [CLI Commands](../api/cli-commands.md)

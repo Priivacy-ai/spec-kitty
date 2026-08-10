@@ -12,7 +12,7 @@ related:
 
 This document explains the Charter synthesis model and the DRG-backed context system. For a
 practical walkthrough, see [How Charter Works](../context/charter-overview.md). For step-by-step
-how-to instructions, see [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md).
+how-to instructions, see [How to Synthesize and Maintain Doctrine](../guides/how-to/governance/synthesize-doctrine.md).
 
 ---
 
@@ -167,5 +167,5 @@ after charter edits.
 
 - [How Charter Works](../context/charter-overview.md)
 - [Governance Files Reference](../context/governance-files.md)
-- [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md)
-- [Troubleshooting Charter Failures](../guides/troubleshoot-charter.md)
+- [How to Synthesize and Maintain Doctrine](../guides/how-to/governance/synthesize-doctrine.md)
+- [Troubleshooting Charter Failures](../guides/how-to/governance/troubleshoot-charter.md)

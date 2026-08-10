@@ -278,5 +278,5 @@ a batch reparent):
 ## See also
 
 - [3.2.x Milestone — Roadmap](../3-2-x-milestone-roadmap.md) — § Addendum 2026-08-01
-- [3.2.x — Release Goals](../../release-goals/3.2.x.md) — G2, 2026-08-01 scoping-gap note
+- [3.2.x — Release Goals](../../changelog/3.2.x.md) — G2, 2026-08-01 scoping-gap note
 - [Investigations index](index.md)

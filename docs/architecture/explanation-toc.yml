@@ -30,6 +30,10 @@
   href: org-doctrine-layer.md
 - name: Understanding Governed Profile Invocation
   href: governed-profile-invocation.md
+- name: Doctrine Artifact Kinds
+  href: doctrine-kinds.md
+- name: SPDD and the REASONS Canvas
+  href: spdd-reasons.md
 - name: Understanding the Retrospective Learning Loop
   href: retrospective-learning-loop.md
 - name: Launch-Readiness Behavior (Coming Soon)

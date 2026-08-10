@@ -233,6 +233,6 @@ Edit `charter.yaml`'s `governance`/`directives` sections directly for policy cha
 ## See Also
 
 - [How Charter Works](charter-overview.md) — mental model and synthesis flow
-- [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md) — day-to-day synthesis workflow
+- [How to Synthesize and Maintain Doctrine](../guides/how-to/governance/synthesize-doctrine.md) — day-to-day synthesis workflow
 - [Charter Pack Usage Journey](../architecture/charter-pack-usage-journey.md) — why `charter pack
   apply` alone leaves the compiled bundle absent, and the `generate` follow-up that produces it

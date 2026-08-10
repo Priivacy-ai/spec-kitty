@@ -43,7 +43,7 @@ spec-kitty init my-project --ai claude
 
 Not read directly by Spec Kitty — this is the conventional variable name used
 in org-pack `local_path` indirection examples (see
-[Create an Org Doctrine Pack](../guides/create-an-org-doctrine-pack.md)). Any
+[Create an Org Doctrine Pack](../guides/how-to/governance/create-an-org-doctrine-pack.md)). Any
 environment variable name works; `${VAR}`/`$VAR` tokens in
 `doctrine.org.packs[].local_path` (and the legacy `organisation_packs[].path`)
 are expanded at pack-resolution time, not stored expanded on disk.
@@ -366,13 +366,13 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 
 - [Configuration](configuration.md) — Configuration file reference
 - [CLI Commands](cli-commands.md) — Command line reference
-- [Non-Interactive Init](../guides/non-interactive-init.md) — Common automation patterns
+- [Non-Interactive Init](../guides/how-to/installation/non-interactive-init.md) — Common automation patterns
 
 ## Getting Started
 
-- [Claude Code Workflow](../guides/claude-code-workflow.md)
+- [Claude Code Workflow](../guides/tutorials/claude-code-workflow.md)
 
 ## Practical Usage
 
-- [Non-Interactive Init](../guides/non-interactive-init.md)
-- [Install Spec Kitty](../guides/install-spec-kitty.md)
+- [Non-Interactive Init](../guides/how-to/installation/non-interactive-init.md)
+- [Install Spec Kitty](../guides/how-to/installation/install-spec-kitty.md)

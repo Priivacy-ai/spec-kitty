@@ -3,10 +3,12 @@ title: When to use Spec Kitty modes
 description: 'Choose the lightest Spec Kitty path for your work: no Spec Kitty, ad-hoc specialist session, adversarial squad review, or full mission pipeline.'
 doc_status: active
 updated: '2026-08-06'
+type: explanation
+audience: docs/context/audience/external/project-owner.md
 related:
-- docs/guides/adhoc-specialist-session.md
-- docs/guides/missions-overview.md
-- docs/guides/multi-agent-workflow.md
+- docs/guides/how-to/collaboration/adhoc-specialist-session.md
+- docs/guides/tutorials/missions-overview.md
+- docs/guides/tutorials/multi-agent-workflow.md
 ---
 # When to use Spec Kitty modes
 
@@ -28,7 +30,7 @@ Use your editor and agent directly. Reserve Spec Kitty for work that benefits fr
 
 **Why:** Use `spec-kitty dispatch`; lighter than a mission.
 
-See [Start an ad-hoc specialist session](adhoc-specialist-session.md) for examples and command syntax.
+See [Start an ad-hoc specialist session](how-to/collaboration/adhoc-specialist-session.md) for examples and command syntax.
 
 ## Adversarial squad
 
@@ -44,7 +46,7 @@ Run adversarial review when an artifact is ready for challenge but you are not s
 
 **Why:** Spec->Plan->Tasks->Implement->Review. Parallel agents are a mission capability, not a separate mode.
 
-Expect bookkeeping commits as the mission advances work packages. See [Understanding Spec Kitty Missions](missions-overview.md) and [Multi-agent workflow](multi-agent-workflow.md) for mission setup and parallel work.
+Expect bookkeeping commits as the mission advances work packages. See [Understanding Spec Kitty Missions](tutorials/missions-overview.md) and [Multi-agent workflow](tutorials/multi-agent-workflow.md) for mission setup and parallel work.
 
 ## Alternate visual
 
@@ -52,6 +54,6 @@ Expect bookkeeping commits as the mission advances work packages. See [Understan
 
 ## Related guides
 
-- [Start an ad-hoc specialist session](adhoc-specialist-session.md)
-- [Understanding Spec Kitty Missions](missions-overview.md)
-- [Multi-agent workflow](multi-agent-workflow.md)
+- [Start an ad-hoc specialist session](how-to/collaboration/adhoc-specialist-session.md)
+- [Understanding Spec Kitty Missions](tutorials/missions-overview.md)
+- [Multi-agent workflow](tutorials/multi-agent-workflow.md)

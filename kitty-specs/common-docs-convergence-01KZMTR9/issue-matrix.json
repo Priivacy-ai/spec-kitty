@@ -1,0 +1,125 @@
+{
+  "rows": {
+    "#2215": {
+      "evidence_ref": "Closes #2215; architecture version-shadow collapse in WP07 (FR-008)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP07"
+    },
+    "#2227": {
+      "evidence_ref": "Partially resolves #2227; ADR era-index normalization reconciled in WP08 (FR-015)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP08"
+    },
+    "#2358": {
+      "evidence_ref": "Coordination (C-013/FR-021): moves-ledger home + cross-mission single-writer reconciled with #2358",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2851": {
+      "evidence_ref": "OB-2: this mission does NOT re-sanction the retired anti-sprawl ratchet #2851; structural invariants enforced as terminal verification + curation, not a standing per-PR blocking lint",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2887": {
+      "evidence_ref": "Closes #2887; ADR dated-prefix + doc_status polish in WP08 (FR-015)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP08"
+    },
+    "#3024": {
+      "evidence_ref": "Coordination only (C-013): docs/context/audience ownership + singular/plural coordinated with #3024, not pre-empted",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3147": {
+      "evidence_ref": "C-013: #3147 whole-tree freshness reds noted in PR body; freshness gate scoped to changed paths in WP04 T014",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3227": {
+      "evidence_ref": "Reconciled with #2227 in WP08; freshen_adr_inventory command checked/noted (FR-015)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP08"
+    },
+    "#3265": {
+      "evidence_ref": "FR-017 folds a slice of #3265 (pre-merge DocFX build+redirect-coverage+seo_verify PR job, WP13); remainder out of scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP13"
+    },
+    "#3273": {
+      "evidence_ref": "Folds #3273; residual flat-section subdivision closed across WP09/WP10 (spec Assumptions)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP09"
+    }
+  },
+  "schema_version": 1
+}

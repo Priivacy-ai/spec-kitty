@@ -293,12 +293,12 @@ git checkout -b kitty/mission-my-feature-01J6XW9K-lane-a  # Create and switch to
 
 ## Try It
 
-- [Claude Code Workflow](../guides/claude-code-workflow.md)
+- [Claude Code Workflow](../guides/tutorials/claude-code-workflow.md)
 
 ## How-To Guides
 
-- [Upgrade to 0.11.0](../guides/install-and-upgrade.md)
-- [Install Spec Kitty](../guides/install-spec-kitty.md)
+- [Upgrade to 0.11.0](../guides/how-to/installation/install-and-upgrade.md)
+- [Install Spec Kitty](../guides/how-to/installation/install-spec-kitty.md)
 
 ## Reference
 

@@ -1,14 +1,15 @@
 ---
 title: Development
-description: The contributor/maintainer zone for Spec Kitty — landing PRs, the test suite, release process, and CI/operator internals — kept separate from end-user guides.
+description: The contributor/maintainer zone for Spec Kitty — subdivided into getting-started, how-to runbooks, reference policy, and testing — kept separate from end-user guides.
 doc_status: active
-updated: '2026-07-22'
+updated: '2026-08-10'
+audience: docs/context/audience/internal/maintainer.md
 related:
-- docs/configuration/index.md
+- docs/development/getting-started/index.md
+- docs/development/how-to/index.md
+- docs/development/reference/index.md
+- docs/development/testing/index.md
 - docs/guides/index.md
-- docs/index.md
-- docs/operations/index.md
-- docs/plans/index.md
 ---
 # Development
 
@@ -17,40 +18,16 @@ project itself** — as opposed to [`../guides/`](../guides/index.md), which
 documents *using* Spec Kitty in your own project. This strict split is FR-003:
 no contributor-only page is reachable from end-user navigation.
 
-## Contributing
+This zone is subdivided by concern:
+
+- **[Getting started](getting-started/index.md)** — [onboarding a co-maintainer](getting-started/onboarding-run.md) and [isolated dev environments](getting-started/isolated-dev-environments.md).
+- **[How-to](how-to/index.md)** — task runbooks: [landing PRs](how-to/pr-landing.md), [review gates](how-to/review-gates.md), [local overrides](how-to/local-overrides.md), [the issue tracker](how-to/manage-issue-tracker.md), [contract pinning](how-to/contract-pinning.md), [the cut-over guard](how-to/cutover-guard.md), and [creating a doctrine artifact](how-to/create-a-doctrine-artifact.md).
+- **[Reference](reference/index.md)** — policy and ledgers: [friction points](reference/known-friction-points.md), [coverage signals](reference/coverage-signals.md), [the #3115 seam inventory](reference/process-global-inventory-3115.md), [standing orders](reference/quality-and-tech-debt-standing-orders.md), [the read-side seam ledger](reference/read-side-seam-classification.md), [red-main policy](reference/red-main-and-release-readiness.md), and [terminology exemptions](reference/terminology-exemptions.md).
+- **[Testing](testing/index.md)** — [flakiness policy](testing/testing-flakiness.md), [parallel runs](testing/testing-parallel.md), [mutation tests](testing/run-mutation-tests.md), [UI e2e](testing/ui-e2e.md), and [time-dependent tests](testing/write-time-dependent-tests.md).
+
+## Start here
 
 - [Contributing to Spec Kitty](contributing.md) — developer setup, running tests, submitting PRs, AI-assistance disclosure, and the release process.
-- [Review gates: pre-PR / pre-review checklist](review-gates.md) — the hygiene steps to run locally before requesting review.
-- [Local overrides for cross-package development](local-overrides.md) — dev-only editable installs across `spec-kitty-cli`/`-events`/`-tracker` that must never be committed.
-
-## Maintainer guides
-
-Runbooks scoped to maintainers (and agents acting in a maintainer capacity), not general contributors.
-
-- [Landing contributor PRs](pr-landing.md) — the claim → isolate → rebase → classify → fold → squad → hand-off maintainer runbook.
-- [Onboarding run](onboarding-run.md) — a reusable priming prompt and 12-step SDD cadence for onboarding a prospective co-maintainer.
-- [Known current friction points](known-friction-points.md) — the fast-drifting list of current repo/tooling gotchas an agent hits mid-mission.
-- [Isolated dev environments (Shadow Clones)](isolated_dev_environments.md) — run several standalone checkouts on one machine without cross-mission pollution: clone-local `.venv` plus a clone-local `SPEC_KITTY_HOME` state root, machine-global CLI left intact.
-- [Managing the issue tracker](manage-issue-tracker.md) — epics vs. meta-trackers, native sub-issue parenting, and triage conventions.
-- [Read-side placement-seam classification ledger](read-side-seam-classification.md) — per-site verdicts (migrate-fail-loud / stay-lenient / sanction-infra) for every production call site that bypasses `PlacementSeam.read_dir(kind)`.
-
-## Testing the Spec Kitty codebase
-
-- [Test-flakiness handling policy](testing-flakiness.md) — detection tiers and the never-retry-to-green rule.
-- [Running the test suite in parallel](testing-parallel.md) — the parallel-run workflow and volume gates.
-- [Run mutation tests locally](run-mutation-tests.md) — `mutmut`-based assertion-quality checks.
-- [Write time-dependent tests](write-time-dependent-tests.md) — inject stable clocks; avoid wall-clock reads in assertions.
-- [Contract pinning workflow](contract-pinning.md) — pinning the `spec-kitty-events` envelope contract in tests.
-- [Coverage signals](coverage-signals.md) — reconciling the internal diff-coverage gate with SonarCloud coverage / new_coverage.
-- [`tests/sync/` process-global and thread-seam inventory (#3115)](process-global-inventory-3115.md) — a narrowed inventory of process-global mutable state and thread-spawning seams in the `tests/sync/` cone, with reset-seam and dependence classification.
-
-## Release and CI policy
-
-- [Red main and release readiness](red-main-and-release-readiness.md) — what a red `main` means and why CI status is the release authority.
-- [UI end-to-end tests (Playwright)](ui-e2e.md) — the dashboard browser-regression suite.
-- [Quality & tech-debt standing orders](quality-and-tech-debt-standing-orders.md) — the eight standing practices for spec-driven missions.
-- [Terminology guard exemption policy](terminology-exemptions.md) — surfaces exempted from the terminology drift guards.
-- [Cut-over guard: fail-closed pre-merge gate](cutover-guard.md) — what `spec-kitty cutover-guard` checks, how it is wired into CI so it cannot be silently skipped, and how to register it as a required status check.
 
 ## Non-page artifacts
 

@@ -225,11 +225,11 @@ Rules:
   protected by per-worker HOME isolation, so run them in their own `-n0` pass.
 
 Full rationale, the volume env gates, and the stability ratchet:
-[docs/development/testing-parallel.md](docs/development/testing-parallel.md).
+[docs/development/testing/testing-parallel.md](docs/development/testing/testing-parallel.md).
 
 When a test goes red on CI unrelated to your diff, follow the flakiness policy —
 **tune budget gates, fix correctness flakes at the root, never retry-to-green:**
-[docs/development/testing-flakiness.md](docs/development/testing-flakiness.md).
+[docs/development/testing/testing-flakiness.md](docs/development/testing/testing-flakiness.md).
 
 **⚠️ Test-run baseline-red gotcha (attribute before you fix — applies to every agent, incl.
 dispatched subagents).** A local or backgrounded `pytest` run over anything broad will show
@@ -245,7 +245,7 @@ red that is **NOT your change**. Before treating a failure as yours, classify it
    false reds until you reinstall.
 Only failures that are red on your branch **and** green on the base are yours to fold. Never
 green-wash category 1, and never misattribute categories 2–3 to your own work. Full policy:
-[docs/development/testing-flakiness.md](docs/development/testing-flakiness.md#test-run-baseline-red-gotcha).
+[docs/development/testing/testing-flakiness.md](docs/development/testing/testing-flakiness.md#test-run-baseline-red-gotcha).
 
 ## Code Style
 
@@ -409,7 +409,7 @@ from specify_cli.status.reducer import materialize
 snapshot = materialize(feature_dir)
 ```
 
-**Docs:** [docs/status-model.md](docs/status-model.md), [data-model.md](kitty-specs/034-feature-status-state-model-remediation/data-model.md)
+**Docs:** [docs/architecture/status-model.md](docs/architecture/status-model.md), [data-model.md](kitty-specs/034-feature-status-state-model-remediation/data-model.md)
 
 ---
 
@@ -446,7 +446,7 @@ Full runbook: [docs/migrations/mission-id-canonical-identity.md](docs/migrations
 
 - **Runtime:** `src/runtime/next/_internal_runtime/` (canonical). `src/specify_cli/next/` is a deprecation shim removed in 3.3.0 — do not anchor new code there. `spec-kitty-runtime` PyPI package is retired.
 - **Events / Tracker:** External PyPI dependencies. Consume only via `spec_kitty_events.*` / `spec_kitty_tracker.*` public imports. Vendored copies removed.
-- **Dev editable/path overrides:** never committed in `pyproject.toml [tool.uv.sources]`. See [docs/development/local-overrides.md](docs/development/local-overrides.md).
+- **Dev editable/path overrides:** never committed in `pyproject.toml [tool.uv.sources]`. See [docs/development/how-to/local-overrides.md](docs/development/how-to/local-overrides.md).
 
 Enforced by `tests/architectural/test_shared_package_boundary.py`, `test_pyproject_shape.py`, and the `clean-install-verification` CI job.
 
@@ -586,7 +586,7 @@ unset GITHUB_TOKEN && gh issue comment <issue> --body "..."
 
 ## Other Notes
 
-Never claim frontend works without Playwright proof. API responses don't guarantee UI works; frontend can fail silently (404 caught, shows fallback). This is enforced, not aspirational: the runnable regression guard lives at [`tests/ui/test_dashboard_wp_modal.py`](tests/ui/test_dashboard_wp_modal.py) (`PWHEADLESS=1 .venv/bin/python -m pytest tests/ui/ -q` — **not** a bare `uv run`, which re-syncs the environment and destroys a hand-built `.venv`; this has cost mission `sync-sleep-count-3136` four venv rebuilds), runs headless in CI via [`.github/workflows/ui-e2e.yml`](.github/workflows/ui-e2e.yml), and is copy-template documented in [`docs/development/ui-e2e.md`](docs/development/ui-e2e.md) — extend that suite instead of asserting UI behavior from API responses alone.
+Never claim frontend works without Playwright proof. API responses don't guarantee UI works; frontend can fail silently (404 caught, shows fallback). This is enforced, not aspirational: the runnable regression guard lives at [`tests/ui/test_dashboard_wp_modal.py`](tests/ui/test_dashboard_wp_modal.py) (`PWHEADLESS=1 .venv/bin/python -m pytest tests/ui/ -q` — **not** a bare `uv run`, which re-syncs the environment and destroys a hand-built `.venv`; this has cost mission `sync-sleep-count-3136` four venv rebuilds), runs headless in CI via [`.github/workflows/ui-e2e.yml`](.github/workflows/ui-e2e.yml), and is copy-template documented in [`docs/development/testing/ui-e2e.md`](docs/development/testing/ui-e2e.md) — extend that suite instead of asserting UI behavior from API responses alone.
 
 ---
 

@@ -1,0 +1,160 @@
+---
+title: 'Cut-over guard: fail-closed pre-merge gate for runtime-state cut-over'
+description: What `spec-kitty cutover-guard` checks, how it is wired into CI so it cannot be silently skipped, and how to register it as a required status check.
+doc_status: active
+updated: '2026-07-27'
+audience: docs/context/audience/internal/maintainer.md
+type: how-to
+---
+# Cut-over guard: fail-closed pre-merge gate for runtime-state cut-over
+
+> **Status**: stable
+>
+> **Authority**:
+> - [`kitty-specs/runtime-state-birth-cutover-all-paths-01KYH654/contracts/pre-merge-guard.md`](../../../kitty-specs/runtime-state-birth-cutover-all-paths-01KYH654/contracts/pre-merge-guard.md)
+>   (IC-03 / IC-04; FR-002, FR-003, FR-008, FR-009, NFR-002, NFR-003)
+> - Mission `runtime-state-birth-cutover-all-paths-01KYH654`, WP03 (guard CLI)
+>   and WP04 (CI wiring, this document)
+
+## What the guard does
+
+`spec-kitty cutover-guard` is a diff-scoped, fail-closed check that blocks a
+pull request unless every `kitty-specs/<mission>/` corpus touched by that PR's
+diff has been **cut over** to event-log-authoritative runtime state.
+
+"Cut over" is decided using the same event-log-evidence authority the
+dogfood corpus lock uses
+(`specify_cli.status.cutover_eligibility.is_cut_over`) — a mission carries a
+runtime-state event log
+(`_mission_carries_event_log_runtime`) AND satisfies the non-empty-snapshot
+birth invariant (`_assert_birth_invariant_holds`). `verify_backfill.ok` is
+checked but is **not sufficient on its own** — it is vacuous for
+natively-born missions (they never ran a backfill and can still report
+`ok`), so the guard never keys solely on it.
+
+The guard is a second, independent caller of that same authority; it is not a
+fork of the decision logic.
+
+### Exit behavior
+
+- **Exit 0** — every mission touched by the diff is cut over (including the
+  vacuous case where the diff touches no `kitty-specs/` mission at all).
+- **Exit 1** — one or more touched missions are un-cut-over, OR the diff
+  itself could not be determined (unknown base ref, unreadable
+  `--paths-from` file, missing project root). The guard **never** passes on
+  uncertainty (NFR-003) — any verify error, ambiguous corpus, missing
+  `mission_id`, or missing mission directory is treated as a failure, not a
+  skip.
+
+On failure the guard prints the un-cut-over mission slug(s) and the exact
+remedy:
+
+```
+spec-kitty migrate backfill-runtime-state --mission <slug>
+```
+
+## How it is invoked
+
+```bash
+# CI usage — diff against the PR's base ref
+spec-kitty cutover-guard --base-ref origin/main
+
+# CI usage — host already has the changed-file list (e.g. a PR file listing)
+spec-kitty cutover-guard --paths-from changed-files.txt
+
+# Either form, machine-readable
+spec-kitty cutover-guard --base-ref origin/main --json
+```
+
+Exactly one of `--base-ref` / `--paths-from` is required.
+
+## How it triggers in CI (the corpus-only-PR requirement)
+
+The guard is wired into
+[`.github/workflows/release-readiness.yml`](../../../.github/workflows/release-readiness.yml)
+as the `cutover-guard` job, **not** into `ci-quality.yml`. This placement is
+deliberate:
+
+- `ci-quality.yml`'s job graph is dominated by a `dorny/paths-filter`
+  `changes` gate that decides which fast/integration-test jobs run based on
+  which *source* areas a diff touches. A diff that touches **only**
+  `kitty-specs/**` does not set the `src`-family outputs that gate, so a
+  guard job hosted there and gated the same way would never execute on a
+  corpus-only PR — exactly the leak this WP exists to close (risk R1, and
+  the general "a required check that is `if:`-skipped reports neutral and
+  does not block merge" footgun).
+- `release-readiness.yml` is a small, `pull_request`-scoped workflow with no
+  such gate on its own trigger. Its `on.pull_request.paths` filter has been
+  extended to include `kitty-specs/**` specifically so that a corpus-only
+  PR triggers this workflow (and therefore the `cutover-guard` job) at all.
+  **If `kitty-specs/**` is ever removed from that `paths` list, the guard
+  stops firing on corpus-only PRs with no other symptom** — treat that path
+  entry as load-bearing.
+- The `cutover-guard` job itself carries **no** `changes`/`dorny` step gate.
+  It has exactly one conditional: the standard repo-wide
+  `pr:deferred` / `pr:skip-ci` label skip (the same explicit,
+  operator-visible opt-out every other required check in this repo uses —
+  see `deferral-consistency-check` in `ci-quality.yml` for the same
+  pattern). Beyond that label check, the job runs unconditionally whenever
+  the workflow runs — it does not sit behind any src-changes-shaped filter
+  that a corpus-only diff could fail to satisfy.
+
+## Registering it as a required check (operator action)
+
+Wiring the job into the workflow is necessary but **not sufficient**. GitHub
+branch protection only blocks a merge on checks that are explicitly
+registered as required. The operator must:
+
+1. Open the repository's branch protection settings for the target branch
+   (`main`, and any other protected branch this workflow runs against, e.g.
+   `2.x`).
+2. Under "Require status checks to pass before merging", add
+   **`cutover-guard`** (the job name from `release-readiness.yml`) to the
+   required-checks list.
+3. Confirm the setting was saved — GitHub's UI only offers checks that have
+   run at least once on that branch, so the job must have executed on some
+   PR before it appears in the picker.
+
+### The skipped-required-check footgun
+
+A required check whose job is `if:`-skipped for a given run reports a
+**neutral/"skipped"** conclusion in GitHub's UI, not a failure — and GitHub
+treats a skipped required check as satisfied, letting the PR merge. This is
+exactly why the job above avoids any conditional beyond the label skip: a
+required check that *can* legitimately be skipped for reasons unrelated to
+the label opt-out is a required check that can silently fail open.
+
+If this job is ever refactored, re-verify — with a live scratch PR touching
+only `kitty-specs/**` — that it still executes (not skips) on a corpus-only
+diff. Do not trust a reading of the `paths:`/`if:` YAML alone; the mission
+that produced this guard (`runtime-state-birth-cutover-all-paths-01KYH654`)
+was itself created to close a gap that a path-filter reading alone had
+missed (see `#2968`).
+
+## Local verification (CI-equivalent simulation)
+
+Because a real GitHub Actions run only happens once a PR is opened, the
+job's behavior can be simulated locally with `--paths-from`, which accepts
+exactly the changed-path list the CI job would otherwise obtain from a real
+diff:
+
+```bash
+# 1. A synthetic corpus-only changed-path list (as if only this file changed)
+echo "kitty-specs/<mission-slug>/status.events.jsonl" > /tmp/changed-paths.txt
+
+# 2. Run the guard exactly as CI would
+spec-kitty cutover-guard --paths-from /tmp/changed-paths.txt
+```
+
+This proves, without needing a live GitHub run:
+
+- the guard triggers (evaluates the mission) on a changed-path set that
+  touches only `kitty-specs/**`;
+- it exits non-zero and names the mission plus the remedy command when that
+  mission is un-cut-over;
+- it exits `0` when the named mission is cut over.
+
+The true end-to-end verification — that GitHub itself schedules and runs
+the `cutover-guard` job for a real corpus-only PR — is recorded as a
+separate, mandatory piece of evidence (subtask T019) gathered against a real
+scratch PR, since it cannot be produced from a local git checkout.

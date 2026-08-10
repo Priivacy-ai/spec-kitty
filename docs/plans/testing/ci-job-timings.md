@@ -15,7 +15,7 @@ related:
 This is the mission's **E4 timings artifact** (`data-model.md` E4, mirroring
 `tests/architectural/_gate_coverage.py`'s `_TIMINGS_BASELINE` shape). Per
 IC-07 / the project's flakiness policy
-([docs/development/testing-flakiness.md](../../development/testing-flakiness.md)):
+([docs/development/testing-flakiness.md](../../development/testing/testing-flakiness.md)):
 **budgets here are measured and recorded, never asserted live.** No pytest
 guard reads this file; a human/agent re-measures and updates it when the
 topology changes again.

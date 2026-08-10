@@ -1,32 +1,58 @@
+- name: Development
+  href: index.md
 - name: Contributing to Spec Kitty
   href: contributing.md
-- name: Review Gates (Pre-PR / Pre-Review)
-  href: review-gates.md
-- name: Landing Contributor PRs
-  href: pr-landing.md
-- name: Local Overrides for Cross-Package Development
-  href: local-overrides.md
-- name: Managing the Issue Tracker
-  href: manage-issue-tracker.md
-- name: Test-Flakiness Handling Policy
-  href: testing-flakiness.md
-- name: Running the Test Suite in Parallel
-  href: testing-parallel.md
-- name: 'tests/sync/ Process-Global and Thread-Seam Inventory (#3115)'
-  href: process-global-inventory-3115.md
-- name: Run Mutation Tests Locally
-  href: run-mutation-tests.md
-- name: Write Time-Dependent Tests
-  href: write-time-dependent-tests.md
-- name: Contract Pinning Workflow
-  href: contract-pinning.md
-- name: Coverage Signals
-  href: coverage-signals.md
-- name: Red Main and Release Readiness
-  href: red-main-and-release-readiness.md
-- name: UI End-to-End Tests (Playwright)
-  href: ui-e2e.md
-- name: Quality & Tech-Debt Standing Orders
-  href: quality-and-tech-debt-standing-orders.md
-- name: Terminology Guard Exemption Policy
-  href: terminology-exemptions.md
+- name: Getting started
+  href: getting-started/index.md
+  items:
+    - name: Onboarding run
+      href: getting-started/onboarding-run.md
+    - name: Isolated dev environments (Shadow Clones)
+      href: getting-started/isolated-dev-environments.md
+- name: How-to
+  href: how-to/index.md
+  items:
+    - name: Landing contributor PRs
+      href: how-to/pr-landing.md
+    - name: Review gates (pre-PR / pre-review)
+      href: how-to/review-gates.md
+    - name: Local overrides for cross-package development
+      href: how-to/local-overrides.md
+    - name: Managing the issue tracker
+      href: how-to/manage-issue-tracker.md
+    - name: Contract pinning workflow
+      href: how-to/contract-pinning.md
+    - name: Cut-over guard (fail-closed pre-merge gate)
+      href: how-to/cutover-guard.md
+    - name: Create a doctrine artifact
+      href: how-to/create-a-doctrine-artifact.md
+- name: Reference
+  href: reference/index.md
+  items:
+    - name: Known current friction points
+      href: reference/known-friction-points.md
+    - name: Coverage signals
+      href: reference/coverage-signals.md
+    - name: 'tests/sync/ process-global and thread-seam inventory (#3115)'
+      href: reference/process-global-inventory-3115.md
+    - name: Quality & Tech-Debt Standing Orders
+      href: reference/quality-and-tech-debt-standing-orders.md
+    - name: Read-side placement-seam classification ledger
+      href: reference/read-side-seam-classification.md
+    - name: Red main and release readiness
+      href: reference/red-main-and-release-readiness.md
+    - name: Terminology guard exemption policy
+      href: reference/terminology-exemptions.md
+- name: Testing
+  href: testing/index.md
+  items:
+    - name: Test-flakiness handling policy
+      href: testing/testing-flakiness.md
+    - name: Running the test suite in parallel
+      href: testing/testing-parallel.md
+    - name: Run mutation tests locally
+      href: testing/run-mutation-tests.md
+    - name: UI end-to-end tests (Playwright)
+      href: testing/ui-e2e.md
+    - name: Write time-dependent tests
+      href: testing/write-time-dependent-tests.md

@@ -15,7 +15,7 @@ related:
 
 This page gives a narrative, example-driven walkthrough of the core charter
 interview/generate/sync/synthesize workflow subcommands. For a task-oriented
-walkthrough, see [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md).
+walkthrough, see [How to Synthesize and Maintain Doctrine](../guides/how-to/governance/synthesize-doctrine.md).
 For the complete `spec-kitty charter` subcommand surface — including
 `activate`/`deactivate` (doctrine artifact activation, FR-004/FR-005),
 `preflight`, `list`, `mission-type`, and `pack` — see the exhaustive,
@@ -331,7 +331,7 @@ uv run spec-kitty charter bundle validate --json
 ## See Also
 
 - [How Charter Works](../context/charter-overview.md)
-- [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md)
+- [How to Synthesize and Maintain Doctrine](../guides/how-to/governance/synthesize-doctrine.md)
 - [Governance Files Reference](../context/governance-files.md)
 - [Charter Pack Usage Journey](../architecture/charter-pack-usage-journey.md) — the `charter pack
   apply` → `charter generate` two-step and the dispatch safety net (`charter pack` flags: see the

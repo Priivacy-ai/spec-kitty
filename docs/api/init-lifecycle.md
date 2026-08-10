@@ -12,7 +12,7 @@ audience: end-users
 ---
 # `spec-kitty init` lifecycle
 
-Reference description of what `spec-kitty init` creates, in what order, and how its options interact. For installation, see [Install on macOS / Linux / Windows](../guides/install-macos.md).
+Reference description of what `spec-kitty init` creates, in what order, and how its options interact. For installation, see [Install on macOS / Linux / Windows](../guides/how-to/installation/install-macos.md).
 
 ## Synopsis
 
@@ -165,8 +165,8 @@ spec-kitty init . --ai claude --non-interactive
 
 ## See also
 
-- [Install on macOS](../guides/install-macos.md)
+- [Install on macOS](../guides/how-to/installation/install-macos.md)
 - [Upgrade lifecycle](upgrade-lifecycle.md)
-- [Non-interactive init](../guides/non-interactive-init.md)
+- [Non-interactive init](../guides/how-to/installation/non-interactive-init.md)
 - [CLI commands reference](cli-commands.md)
 - [Supported agents](supported-agents.md)
