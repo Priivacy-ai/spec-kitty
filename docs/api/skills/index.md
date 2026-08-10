@@ -14,7 +14,7 @@ related:
 - docs/api/skills/spk-admin-setup-doctor.md
 - docs/api/skills/spk-meta-skill-map.md
 - docs/api/index.md
-- docs/api/agent-profiles/index.md
+- docs/api/agent_profiles/index.md
 ---
 # Skills
 

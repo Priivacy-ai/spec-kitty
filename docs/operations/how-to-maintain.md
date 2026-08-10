@@ -148,7 +148,7 @@ Clear `triage:*` labels once the decision is executed.
 
 Beyond priority and type-flavour labels, the area/component taxonomy (confirmed from `gh label list`):
 
-- **Subsystem / area:** `dashboard`, `doctrine`, `agent-profiles`, `schema-versioning`, `git`,
+- **Subsystem / area:** `dashboard`, `doctrine`, `agent_profiles`, `schema-versioning`, `git`,
   `workflow`, `windows`, `oauth-ddd-refactor`.
 - **Release / coordination:** `release` (tracking & coordination), `launch-blocker`
   (must resolve before broad launch), `mvp` (current Private Teamspace MVP), `design-spike`.
