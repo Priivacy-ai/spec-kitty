@@ -8,6 +8,8 @@
   href: internal-hosted-readiness.md
 - name: Logged-Out Teamspace Recovery
   href: logged-out-teamspace.md
+- name: Manual Test Plan
+  href: manual-test-plan.md
 - name: P0 Baseline Refresh
   href: p0-baseline-refresh.md
 - name: Recovery Index

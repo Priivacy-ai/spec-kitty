@@ -52,6 +52,7 @@ Durable records of profile-loaded pre-spec research squads, captured so a parked
 resume without re-running the squad:
 
 - [DRG completeness (#2843 / #2847) — pre-spec research squad findings](drg-completeness-2843-research.md) — convergent 4-lens findings on the #2833 residue: relation-description parity, the activation-gate latent bug, and the anti-pattern corpus promotion split.
+- [CSF #2670 landing-pass campsite follow-ups — pre-spec research](research-notes-csf-2670.md) — root-cause findings for the shard-map gap, xdist flake, sync remediation-guard, and mypy debt tickets under epic #1928.
 ## Docs governance
 
 Docs-wide structural baselines and concern audits — the durable record of where each doc kind
