@@ -1,0 +1,126 @@
+{
+  "event_count": 58,
+  "last_event_id": "01KZNBBCKVATCXTHH8MKKZH0FY",
+  "materialized_at": "2026-08-10T08:06:44.091183+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-synthesize-reconciliation-01KZJQN6",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZNBB65MYXSM2RZ24YFYEV92",
+      "last_transition_at": "2026-08-10T08:06:37.492324+00:00",
+      "review_result": {
+        "reference": "Independent WP01 review (reviewer-renata) APPROVE: all 9 binding requirements met. Gates: 412 passed/3 skipped (tests/charter/synthesizer + validator_structured_detection); ruff + mypy clean on src/charter + src/doctrine/drg; complexity <=15. C-002 merge primitives moved to reconcile.py (single impl, resynthesize re-imports); FR-009 post-condition driven from merged graph (persisted unconditionally); FR-007 fail-closed at seam pre-staging (no write); conflicts in-memory on delta.conflicts (no sidecar); ReconciliationConflict distinct kinds + remediation gate; merge.py + validation_gate.py untouched; validator SSOT extracted with byte-identical output pins.",
+        "reviewer": "claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 1239477,
+      "shell_pid_created_at": "1786327768.88"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KZNBB7AFBV35AEAJ7AVD0JAK",
+      "last_transition_at": "2026-08-10T08:06:38.671534+00:00",
+      "review_result": {
+        "reference": "APPROVE: FR-006/NFR-003 core correct — preserved duplicate-triple keeps first occurrence (cycle detection intact), preserved dangling dropped entirely; suppression key (_edge_conflict_key) is byte-identical to reconcile._edge_label and provenance keys on edge.source, so a preserved key can never collide with a new-emit key. Integration seam wired end-to-end: orchestrator.py:297 threads outcome.delta.conflicts into the real _validation_callback, so NFR-003 is genuinely closed on the real synthesize() path (proven by TestFullPipeline* driving synthesize() and TestFullPipelineNewEmitCollisionStillRaises raising a real Duplicate-edge error). SSOT reused (reconcile.py/validator.py/merge.py untouched). Stub kwarg fix legitimate. Gates green: pytest 413 passed/3 skipped, ruff clean, mypy clean, complexity <=15. Adjudicated MINOR: orchestrator.py one-liner edited despite amendment #1's may-not-edit note — WP01 left the seam inert; this is documented rationale-backed ownership leeway and the only way NFR-003 holds end-to-end.",
+        "reviewer": "claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 1342849,
+      "shell_pid_created_at": "1786331925.87"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZNBBAGFDYFWZWNCG5FMQTMB",
+      "last_transition_at": "2026-08-10T08:06:41.935553+00:00",
+      "review_result": {
+        "reference": "APPROVE. Orphan write-then-refuse adjudicated acceptable: preserve mode (merge_project_overlay) deletes nothing (a), refusal exits 1 with accurate per-orphan remediation, no false loss claim (b), dry-run + unparseable paths verified strictly write-free by code trace and passing e2e byte-equality tests (c). FR-003/007/010/014 pass; _coerce_cli_bool sentinel guard tested; campsite _get_synthesizer_version fix is behavior-preserving; tests real e2e via FixtureAdapter; scope clean (only synthesize.py/_synthesis.py+test). Gates: ruff clean, WP03 mypy adds zero new errors (untyped-decorator pre-existing/app-wide; no-any-return in untouched activate/deactivate), pytest 2203 passed with only the known test_config_stem_parity reds. Minor non-blocking: human-console orphan header 'would drop' is loosely worded vs preserve write-back (JSON warnings are precise).",
+        "reviewer": "claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 1444534,
+      "shell_pid_created_at": "1786334697.27"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZNBBBJ05BP23Z4M463FNE8F",
+      "last_transition_at": "2026-08-10T08:06:43.008736+00:00",
+      "review_result": {
+        "reference": "FR-008: flagless preserve-mode heal (runner.py:453), non-destructive, post-refresh recompute (runner.py:485-487); not-re-blocked proven by test (test_boundary_heal.py:252-275, real freshness recompute + no re-shell). Amendment #2: computer.py UNCHANGED (last touched #2773), self-clear via REAL synthesize re-stamp (test:207-212,249). Boundary-refuse honesty: orphan+unparseable still refuse with blocked_reason (test:294,329). T019 stub true no-op (runner.py:358-381) invoked after heal (test:368,391). Gates: 30 passed, ruff clean, mypy 3 errs all pre-existing in untouched computer.py. Scope: runner.py+hook.py+test only.",
+        "reviewer": "claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 1602491,
+      "shell_pid_created_at": "1786338935.69"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZNBB8C8QB2XAASJC67QPW7P",
+      "last_transition_at": "2026-08-10T08:06:39.752516+00:00",
+      "review_result": {
+        "reference": "APPROVE: sentinel silent-prune P0 fixed at both in-process call sites (activate.py:379 prune=False, deactivate via shared run_full_synthesize). Call-site pin (test_activate_preserve.py:422-460, :463-499) is genuinely red-first: it fully replaces charter_synthesize so _coerce_cli_bool never masks; dropping prune=False -> KeyError on kwargs['prune']. FR-005 preserve tests drive real activate/deactivate --resynthesize seam; FR-007 corrupt-overlay fails closed (exit 1, manifest unchanged). FR-013 rename complete+mechanical (no stale .py code refs). mypy no-any-return fixed via honest cast(str,...) given charter.* follow_imports=skip, no suppressions. Scope clean. Gates: 129 passed, ruff/mypy clean, terminology 10 passed.",
+        "reviewer": "claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 1616476,
+      "shell_pid_created_at": "1786339175.7"
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KZNBBCKVATCXTHH8MKKZH0FY",
+      "last_transition_at": "2026-08-10T08:06:44.091183+00:00",
+      "review_result": {
+        "reference": "APPROVE (cycle 2). MAJOR-1 resolved: runner._attempt_auto_refresh (runner.py:492-517) now re-runs flagless synthesize after generate fires (references_refreshed==True) to re-stamp bundle_content_hash before freshness recompute; refresh_references_if_needed returns bool (references_refresh.py:158). MAJOR-3 resolved: test_boundary_heal.py::test_references_parity_heal_recompiles_with_real_generate_and_stays_manifest_coherent drives run_charter_preflight(auto_refresh=True) with REAL in-process generate (_invoke_generate_in_process, not stubbed), asserts passed=True/synthesized_drg=fresh/non-empty catalog/charter.md 0-byte/second run not re-blocked. MAJOR-2 (#3292) genuinely fixed in 5083f548e: compile_charter routes through single authority infer_repo_languages(repo_root, interview=...) (compiler.py:384); empty->None not [] (schemas.py CharterCatalog.languages nullable; language_scope.py tier-2 returns declared only if non-empty) breaks the admit-none feedback loop; tier-1 test_language_scope pinned test unchanged+passing; doctrine_service_builder change docstring-only (no DoctrineService internals reach, FR-010 intact); idempotency proven by 2-run+3-run RED-first tests. Gates: 95 passed scoped pytest, ruff clean, mypy clean (no new issues), terminology 10 passed.",
+        "reviewer": "claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 1788797,
+      "shell_pid_created_at": "1786343804.91"
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZNBB9DP0XW8ATCTYQMXVW03",
+      "last_transition_at": "2026-08-10T08:06:40.822254+00:00",
+      "review_result": {
+        "reference": "FR-012/NFR-007/SC-004 verified: mission_type evidence emits a REQUIRES edge (positive tests green, merged overlay validates cleanly); 6 free-text sections emit no edge (explicit negative tests); redesign sound - interview_mapping stays DRG-blind (R-9), evidence-gate lives in targets.build_targets on the run's own drg_snapshot, resolving the naive approach's collateral (withheld-without-corroboration regression guard). Fixture inputs-hash-legit (hash-gated run_all test green). Scope clean; ruff/mypy/terminology/complexity clean; synthesizer suite 423 passed.",
+        "reviewer": "claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 1362481,
+      "shell_pid_created_at": "1786332309.32"
+    }
+  }
+}
