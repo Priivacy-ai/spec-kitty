@@ -53,6 +53,8 @@ owned_files:
 - src/specify_cli/sync/queue.py
 - src/specify_cli/sync/body_queue.py
 - src/specify_cli/sync/__init__.py
+- tests/architectural/test_project_store_boundary.py
+- tests/architectural/test_egress_consent_boundary.py
 - tests/event_journal/test_project_store_journal.py
 - tests/delivery/test_project_store_ledger.py
 - tests/sync/test_project_store_outboxes.py
