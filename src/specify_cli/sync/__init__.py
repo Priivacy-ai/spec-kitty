@@ -23,6 +23,7 @@ deletion).
 """
 
 import os
+from pathlib import Path
 
 from specify_cli.core.env import is_truthy
 
@@ -322,10 +323,10 @@ def register_default_handlers() -> None:
         register_lifecycle_saas_fanout_handler(_lifecycle_saas_fanout_handler)
 
     with _contextlib.suppress(ImportError):
-        from specify_cli.invocation.adapters import register_egress_consent_resolver
+        from specify_cli.invocation.adapters import EgressConsent, register_egress_consent_resolver
 
-        def _egress_consent_resolver(path):  # type: ignore[no-untyped-def]
-            """Does the PROJECT that owns *path* consent to hosted sync? (#3030 FR-025)
+        def _egress_consent_resolver(path: Path) -> EgressConsent:
+            """Does the PROJECT that owns *path* consent to hosted sync, and why not? (#3030 FR-025)
 
             This slot used to answer ``routing.effective_sync_enabled`` — "is sync
             configured for this checkout" — and returned ``None`` for a path that is
@@ -337,38 +338,56 @@ def register_default_handlers() -> None:
             derivation of checkout → project, and it already carries the FR-022 /
             FR-023 hardening: an unreadable or non-mapping ``.kittify/config.yaml``
             yields ``project_uuid=None`` instead of raising, and an unidentifiable
-            project is never consentable (NFR-001), so it denies here.
+            project is never consentable (NFR-001), so it answers
+            :attr:`~specify_cli.invocation.adapters.EgressConsent.NOT_CONSENTABLE`
+            here.
 
-            **Whether that project consents** comes from
-            ``consent.consented_project_uuids`` — the same funnel the drain
-            (``delivery/selection.py``) and the emitter use, walking the one declared
-            precedence chain (project-local → machine index → env). Deliberately NOT
-            ``effective_sync_enabled``: that chain also honours the repo-slug-keyed
-            ``[sync.repo_defaults]`` record, which FR-019 condemns precisely because
-            it is keyed on a mutable git remote and cannot speak for a project. One
-            representation of one invariant (C-003).
+            **Whether that project consents, and the split mapping** come from one
+            call to ``consent.resolve_project_consent`` — the single consent
+            authority, keyed on the project's own uuid — the same authority the
+            drain (``delivery/selection.py``) and the emitter reach through
+            ``consent.consented_project_uuids`` (whose ``granted`` field is this
+            call's own ``.granted``; egress-single-authority mission Decision 2).
+            Deliberately NOT ``effective_sync_enabled``: that chain also honours the
+            repo-slug-keyed ``[sync.repo_defaults]`` record, which FR-019 condemns
+            precisely because it is keyed on a mutable git remote and cannot speak
+            for a project. One consent authority, one split-mapping, both live here
+            and nowhere else (C-003) — ``egress.py``'s ``_egress_decision`` obtains
+            the member this function returns through the registry seam rather than
+            re-deriving any of this (C-004).
 
-            Membership is checked for *this* uuid rather than for the returned set
-            being non-empty — the resolver returns the consenting subset, and the two
-            are equivalent only while exactly one candidate is passed.
+            Asked for *this* uuid specifically, rather than for a returned set being
+            non-empty — the same discipline ``consented_project_uuids`` already
+            requires of its callers, now enforced by construction: a single-uuid
+            call cannot be satisfied by a bystander project's grant.
 
-            Returns a bool, never ``None``. The seam maps a raise to
-            ``UNANSWERABLE`` (a refusal), but answering the ordinary non-project case
-            with a plain ``False`` keeps that path off the fault log.
+            Returns an :class:`~specify_cli.invocation.adapters.EgressConsent`
+            member, never a bare bool. The seam maps a raise to ``UNANSWERABLE`` (a
+            refusal); this function itself never raises.
 
             Imports at call time (not closure) so that test patches on
-            ``specify_cli.sync.routing`` / ``specify_cli.sync.consent`` are respected.
+            ``specify_cli.sync.routing`` / ``specify_cli.sync.consent`` are
+            respected.
             """
-            from specify_cli.sync.consent import consented_project_uuids
+            from specify_cli.sync.consent import ConsentLevel, resolve_project_consent
             from specify_cli.sync.routing import resolve_checkout_sync_routing_readonly
 
             routing = resolve_checkout_sync_routing_readonly(path)
             if routing is None or not routing.project_uuid:
-                return False
+                return EgressConsent.NOT_CONSENTABLE
+
             uuid = str(routing.project_uuid)
-            return uuid in consented_project_uuids(
-                [uuid], checkout_roots=[routing.repo_root]
-            )
+            decision = resolve_project_consent(uuid, checkout_roots=[routing.repo_root])
+            if decision.granted:
+                return EgressConsent.GRANTED
+            if decision.level is ConsentLevel.ABSENT:
+                return EgressConsent.NO_RECORD
+            # PROJECT_LOCAL / MACHINE_INDEX / ENV (an actual recorded refusal) or
+            # UNDETERMINED (the record could not be read, FR-020) — both are
+            # reported as a recorded refusal, consciously, matching today's
+            # behaviour (data-model Decision 2 / post-plan m2), not a silent
+            # catch-all.
+            return EgressConsent.RECORDED_REFUSAL
 
         register_egress_consent_resolver(_egress_consent_resolver)
 

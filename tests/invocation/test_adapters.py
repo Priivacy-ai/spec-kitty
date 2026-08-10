@@ -30,6 +30,7 @@ from specify_cli.invocation.adapters import (
     reset_adapters,
     resolve_egress_consent,
 )
+from specify_cli.sync.consent import ConsentDecision, ConsentLevel
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -81,8 +82,8 @@ def test_get_saas_client_returns_none_when_unregistered() -> None:
 
 
 def test_resolve_egress_consent_grants_from_registered_resolver() -> None:
-    """A resolver answering True is the ONE verdict that permits egress."""
-    mock_resolver = MagicMock(return_value=True)
+    """A resolver answering ``EgressConsent.GRANTED`` is the ONE verdict that permits egress."""
+    mock_resolver = MagicMock(return_value=EgressConsent.GRANTED)
     register_egress_consent_resolver(mock_resolver)
 
     result = resolve_egress_consent(_DUMMY_PATH)
@@ -93,12 +94,17 @@ def test_resolve_egress_consent_grants_from_registered_resolver() -> None:
 
 
 def test_resolve_egress_consent_denies_from_registered_resolver() -> None:
-    """A resolver answering False is an explicit refusal."""
-    register_egress_consent_resolver(lambda _path: False)
+    """A resolver answering a recognized refusal member is passed through unchanged.
+
+    ``NO_RECORD`` stands in for all three refusal members split from the former
+    ``DENIED`` — the port does not re-derive *why* the resolver refused, it only
+    validates the returned value is a recognized :class:`EgressConsent` member.
+    """
+    register_egress_consent_resolver(lambda _path: EgressConsent.NO_RECORD)
 
     result = resolve_egress_consent(_DUMMY_PATH)
 
-    assert result is EgressConsent.DENIED
+    assert result is EgressConsent.NO_RECORD
     assert result.permits_egress is False
 
 
@@ -111,6 +117,23 @@ def test_resolve_egress_consent_refuses_a_none_answer() -> None:
     consent.
     """
     register_egress_consent_resolver(lambda _path: None)  # type: ignore[arg-type,return-value]
+
+    result = resolve_egress_consent(_DUMMY_PATH)
+
+    assert result is EgressConsent.UNANSWERABLE
+    assert result.permits_egress is False
+
+
+def test_resolve_egress_consent_refuses_a_bare_bool_answer() -> None:
+    """A resolver written against the RETIRED ``bool``-returning contract refuses.
+
+    The registered resolver's contract changed from ``Callable[[Path], bool]`` to
+    ``Callable[[Path], EgressConsent]`` (egress-single-authority mission, T008): a
+    bare ``True``/``False`` is no longer recognized as a member, so it must refuse
+    exactly like ``None`` does — never a permit, never a raise, and the raw value
+    must never reach a ``permits_egress`` call.
+    """
+    register_egress_consent_resolver(lambda _path: True)  # type: ignore[arg-type,return-value]
 
     result = resolve_egress_consent(_DUMMY_PATH)
 
@@ -380,10 +403,10 @@ def test_sync_registers_no_saas_client_factory(
 def test_registered_consent_resolver_denies_non_project_path(
     _registered_sync_handlers: None,
 ) -> None:
-    """A path that is no project denies cleanly — as DENIED, not as a fault.
+    """A path that is no project denies cleanly — as NOT_CONSENTABLE, not as a fault.
 
-    Answered with a plain ``False`` rather than by raising or returning ``None``:
-    the ordinary non-project traversal is not a fault and must not land on the
+    Answered with a recognized refusal member rather than by raising: the
+    ordinary non-project traversal is not a fault and must not land on the
     fault log, while still refusing. This is the case the leak was measured on —
     it needs no bad configuration anywhere, only a ``repo_root`` that is not a
     project root.
@@ -394,7 +417,7 @@ def test_registered_consent_resolver_denies_non_project_path(
     ):
         result = resolve_egress_consent(_DUMMY_PATH)
 
-    assert result is EgressConsent.DENIED
+    assert result is EgressConsent.NOT_CONSENTABLE
     assert result.permits_egress is False
 
 
@@ -405,8 +428,8 @@ def test_registered_consent_resolver_denies_unidentifiable_project(
 
     This is the shape an unreadable or non-mapping ``.kittify/config.yaml`` takes
     after FR-022 / FR-023: routing answers with ``project_uuid=None`` instead of
-    raising. There is no uuid to ask about, so the consent funnel is not consulted
-    at all.
+    raising. There is no uuid to ask about, so the consent authority is not
+    consulted at all.
     """
     mock_routing = MagicMock()
     mock_routing.project_uuid = None
@@ -416,26 +439,36 @@ def test_registered_consent_resolver_denies_unidentifiable_project(
             "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
             return_value=mock_routing,
         ),
-        patch("specify_cli.sync.consent.consented_project_uuids") as mock_consent,
+        patch("specify_cli.sync.consent.resolve_project_consent") as mock_consent,
     ):
         result = resolve_egress_consent(_DUMMY_PATH)
 
-    assert result is EgressConsent.DENIED
+    assert result is EgressConsent.NOT_CONSENTABLE
     mock_consent.assert_not_called()
 
 
 def test_registered_consent_resolver_asks_the_funnel_for_the_projects_uuid(
     _registered_sync_handlers: None,
 ) -> None:
-    """GRANTED comes from the consent funnel, keyed on the project's own uuid.
+    """GRANTED comes from the consent authority, keyed on the project's own uuid.
 
     Pins the two arguments as well as the verdict: the uuid is the project's, and
     the checkout is offered as a level-1 root, without which a committed in-repo
-    refusal would be unreachable at decision time.
+    refusal would be unreachable at decision time. Also pins that the resolver is
+    asked exactly once (egress-single-authority mission Decision 2 — one
+    ``resolve_project_consent`` call, not a separate lookup plus a set-membership
+    check).
     """
     mock_routing = MagicMock()
     mock_routing.project_uuid = "11111111-1111-4111-8111-111111111111"
     mock_routing.repo_root = _DUMMY_PATH
+
+    granted_decision = ConsentDecision(
+        granted=True,
+        level=ConsentLevel.PROJECT_LOCAL,
+        project_uuid="11111111-1111-4111-8111-111111111111",
+        reason="recorded in the project's own config",
+    )
 
     with (
         patch(
@@ -443,32 +476,44 @@ def test_registered_consent_resolver_asks_the_funnel_for_the_projects_uuid(
             return_value=mock_routing,
         ),
         patch(
-            "specify_cli.sync.consent.consented_project_uuids",
-            return_value=frozenset({"11111111-1111-4111-8111-111111111111"}),
+            "specify_cli.sync.consent.resolve_project_consent",
+            return_value=granted_decision,
         ) as mock_consent,
     ):
         result = resolve_egress_consent(_DUMMY_PATH)
 
     assert result is EgressConsent.GRANTED
     mock_consent.assert_called_once_with(
-        ["11111111-1111-4111-8111-111111111111"],
+        "11111111-1111-4111-8111-111111111111",
         checkout_roots=[_DUMMY_PATH],
     )
 
 
-def test_registered_consent_resolver_denies_when_another_project_consents(
+def test_registered_consent_resolver_denies_when_project_consent_is_recorded_refused(
     _registered_sync_handlers: None,
 ) -> None:
-    """A non-empty answer that does not contain THIS uuid is still a refusal.
+    """A recorded refusal for THIS uuid denies, regardless of any other project's state.
 
-    The funnel returns the consenting *subset* of its candidates. Testing it for
-    emptiness instead of membership is the bug this mission is about — one
-    consenting project authorising a batch it does not belong to — and it is
-    indistinguishable from correct code while exactly one candidate is passed.
+    Before this mission, the resolver tested membership of this uuid in a *set*
+    returned by ``consented_project_uuids`` — testing for non-emptiness instead of
+    membership was exactly the bug class this mission is about (one consenting
+    project authorising a batch it does not belong to). Calling
+    ``resolve_project_consent`` for one uuid at a time closes that class **by
+    construction** (Decision 2): there is no set to mis-test membership against
+    any more. This pins the by-construction claim for the shape that would have
+    been the old bug's actual symptom — a refusing decision for the uuid asked
+    about, mapped to the recorded-refusal member.
     """
     mock_routing = MagicMock()
     mock_routing.project_uuid = "11111111-1111-4111-8111-111111111111"
     mock_routing.repo_root = _DUMMY_PATH
+
+    refusing_decision = ConsentDecision(
+        granted=False,
+        level=ConsentLevel.MACHINE_INDEX,
+        project_uuid="11111111-1111-4111-8111-111111111111",
+        reason="recorded refusal at the machine index",
+    )
 
     with (
         patch(
@@ -476,11 +521,51 @@ def test_registered_consent_resolver_denies_when_another_project_consents(
             return_value=mock_routing,
         ),
         patch(
-            "specify_cli.sync.consent.consented_project_uuids",
-            return_value=frozenset({"22222222-2222-4222-8222-222222222222"}),
+            "specify_cli.sync.consent.resolve_project_consent",
+            return_value=refusing_decision,
+        ) as mock_consent,
+    ):
+        result = resolve_egress_consent(_DUMMY_PATH)
+
+    assert result is EgressConsent.RECORDED_REFUSAL
+    assert result.permits_egress is False
+    mock_consent.assert_called_once_with(
+        "11111111-1111-4111-8111-111111111111",
+        checkout_roots=[_DUMMY_PATH],
+    )
+
+
+def test_registered_consent_resolver_denies_with_no_consent_record(
+    _registered_sync_handlers: None,
+) -> None:
+    """An absent consent record maps to NO_RECORD, distinct from a recorded refusal.
+
+    ``ConsentLevel.ABSENT`` is the terminal default ``resolve_project_consent``
+    returns when nothing was ever recorded for the project — the split-mapping's
+    other refusal branch (data-model, egress-single-authority mission).
+    """
+    mock_routing = MagicMock()
+    mock_routing.project_uuid = "11111111-1111-4111-8111-111111111111"
+    mock_routing.repo_root = _DUMMY_PATH
+
+    absent_decision = ConsentDecision(
+        granted=False,
+        level=ConsentLevel.ABSENT,
+        project_uuid="11111111-1111-4111-8111-111111111111",
+        reason="no consent record for this project",
+    )
+
+    with (
+        patch(
+            "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
+            return_value=mock_routing,
+        ),
+        patch(
+            "specify_cli.sync.consent.resolve_project_consent",
+            return_value=absent_decision,
         ),
     ):
         result = resolve_egress_consent(_DUMMY_PATH)
 
-    assert result is EgressConsent.DENIED
+    assert result is EgressConsent.NO_RECORD
     assert result.permits_egress is False

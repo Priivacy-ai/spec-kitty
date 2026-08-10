@@ -387,6 +387,16 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   bundled doctrine"` placeholder on the next run. `active_languages` now has a
   single authority and an empty result means "no signal → admit all" (round-tripped
   as an absent field, not a persisted `[]`), so repeated generates are byte-stable.
+- **The reason `spec-kitty sync doctor` gives for a refused tracker egress can
+  no longer disagree with what the gate actually enforced (`#3287`, `#3291`).**
+  The gate decided whether to refuse from one source but re-derived the _why_ —
+  and the remedy shown to you — from a second, independent consent lookup that
+  could drift from the enforced answer, and it repeated a full git-identity
+  resolution on every gated sync. The reason now comes from the same evaluation
+  that enforces the decision: a refusal's explanation always matches the
+  refusal, a consent record that cannot be read is reported as its own state
+  instead of masquerading as "no consent recorded", and a gated
+  `tracker sync` resolves your project's consent once instead of twice.
 - **A spec commit that genuinely FAILS is no longer silently reported as
   "unchanged" (`#3269`).** When a `git commit` failed for a real reason — a
   rejecting pre-commit hook, a lock error — `safe_commit` collapsed every

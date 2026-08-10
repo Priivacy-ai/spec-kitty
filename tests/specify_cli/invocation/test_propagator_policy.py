@@ -93,7 +93,7 @@ def test_sync_disabled_never_calls_send(tmp_path: Path, mode: str, event_name: s
 
     with patch(
         "specify_cli.invocation.propagator.resolve_egress_consent",
-        return_value=EgressConsent.DENIED,  # the project has not consented
+        return_value=EgressConsent.NO_RECORD,  # the project has not consented
     ):
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -278,7 +278,7 @@ def test_no_propagation_errors_under_sync_disabled(tmp_path: Path, mode: str) ->
 
     with patch(
         "specify_cli.invocation.propagator.resolve_egress_consent",
-        return_value=EgressConsent.DENIED,  # the project has not consented
+        return_value=EgressConsent.NO_RECORD,  # the project has not consented
     ):
         # _get_saas_client must never be called; but even if it were, no errors should result.
         with patch(
