@@ -363,6 +363,20 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **Timestamps that Spec Kitty writes into your project no longer record local
+  time while labelling it UTC (mission `kernel-clock-single-door`; `#3305`,
+  closes `#3289`, owns the closed `#3288`).** Roughly twenty places across the
+  tool — charter backup filenames, status-event stamps, auth-doctor report times,
+  and other persisted "now" values — read the machine's _local_ clock and then
+  tagged the result as UTC. On any machine not set to UTC the stored time was
+  simply wrong: a backup taken at 09:00 CET was filed as `…T09-00-00` and read
+  back as 09:00 UTC, an hour or two off. Every such value now comes from one
+  canonical aware-UTC producer, so stamps are correct and consistent regardless
+  of the host timezone. Under the hood all wall-clock reads now go through a
+  single `kernel.clock` "door" that every package can import, and a repo-wide CI
+  gate blocks any new raw `datetime.now()` / `time.time()` read from
+  reintroducing the drift — but the change you can observe is simply: the
+  timestamps are right now.
 - **Activating a slug-named hub directive (e.g. `use-c4-model-techniques`) in a
   charter now resolves to the real doctrine node instead of a dangling
   identifier (`#3009`, `#3298`).** The directive-id normalizer folded numbered
