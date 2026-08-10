@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "rows": {
-    "Priivacy-ai/spec-kitty#3262": {
+    "#3262": {
       "repo": "Priivacy-ai/spec-kitty",
       "title": "Explicit per-project opt-in and per-project ledger",
       "scope": "primary",
@@ -13,7 +13,7 @@
       "evidence_ref": "Mission per-project-sync-consent-ledgers-01KZKMQZ; implementation evidence pending.",
       "verdict": "in-mission"
     },
-    "Priivacy-ai/spec-kitty-saas#585": {
+    "#585": {
       "repo": "Priivacy-ai/spec-kitty-saas",
       "title": "Consent incident and historical hosted contamination",
       "scope": "companion-dependency",
@@ -25,7 +25,7 @@
       "evidence_ref": "Companion SaaS mission project-sync-admission-boundary-01KZKMQ7. Historical 1,322-event disposition remains a Human-in-Charge gate.",
       "verdict": "in-mission"
     },
-    "Priivacy-ai/spec-kitty#3030": {
+    "#3030": {
       "repo": "Priivacy-ai/spec-kitty",
       "title": "Predecessor project consent and filtered shared journal containment",
       "scope": "predecessor-partially-superseded",
@@ -37,7 +37,7 @@
       "evidence_ref": "Shared-store and capture-coupling decisions are superseded; default denial, consent-bearing batches, final recheck, SQL project predicates, purge, and terminal parking remain defense in depth.",
       "verdict": "in-mission"
     },
-    "Priivacy-ai/spec-kitty#3108": {
+    "#3108": {
       "repo": "Priivacy-ai/spec-kitty",
       "title": "Tracker Channel 2 destination consent",
       "scope": "related-not-absorbed",
@@ -46,10 +46,10 @@
       "sc": null,
       "wp": "WP05,WP07",
       "source_file": "spec.md",
-      "evidence_ref": "Channel 2 may narrow tracker egress but never grants hosted sync; rebase against final consent API.",
+      "evidence_ref": "Channel 2 may narrow tracker egress but never grants hosted sync; rebase against final consent API. Follow-up: Priivacy-ai/spec-kitty#3108.",
       "verdict": "deferred-with-followup"
     },
-    "Priivacy-ai/spec-kitty#3135": {
+    "#3135": {
       "repo": "Priivacy-ai/spec-kitty",
       "title": "Open PR implementing tracker egress verdict",
       "scope": "pull-request-dependency",
@@ -61,7 +61,43 @@
       "evidence_ref": "PR #3135 must consume the final canonical consent seam if it lands after this mission; it is not shipped authority during planning.",
       "verdict": "deferred-with-followup"
     },
-    "Priivacy-ai/spec-kitty#1065": {
+    "#3130": {
+      "repo": "Priivacy-ai/spec-kitty",
+      "title": "Accepted lifecycle-readiness baseline pin",
+      "scope": "pre-existing-baseline",
+      "fr": null,
+      "nfr": "NFR-006",
+      "sc": null,
+      "wp": "WP01,WP02",
+      "source_file": "tasks/WP02-project-sync-store-aggregate/review-cycle-1.md",
+      "evidence_ref": "The exact final-HEAD rerun passed; remaining async-loop leak work is tracked by Follow-up: Priivacy-ai/spec-kitty#3237.",
+      "verdict": "deferred-with-followup"
+    },
+    "#3237": {
+      "repo": "Priivacy-ai/spec-kitty",
+      "title": "Remaining lifecycle async-loop leak",
+      "scope": "pre-existing-follow-up",
+      "fr": null,
+      "nfr": "NFR-006",
+      "sc": null,
+      "wp": "WP01,WP02",
+      "source_file": "tasks/WP02-project-sync-store-aggregate/review-cycle-1.md",
+      "evidence_ref": "Follow-up: Priivacy-ai/spec-kitty#3237 owns the remaining accepted lifecycle async-loop leak; WP02 final gates do not reproduce a regression.",
+      "verdict": "deferred-with-followup"
+    },
+    "#3280": {
+      "repo": "Priivacy-ai/spec-kitty",
+      "title": "Deferred architecture-census analyzer limits",
+      "scope": "documented-follow-up",
+      "fr": null,
+      "nfr": "NFR-006",
+      "sc": null,
+      "wp": "WP01",
+      "source_file": "tasks/WP01-baseline-architecture-census/review-cycle-6.md",
+      "evidence_ref": "Follow-up: Priivacy-ai/spec-kitty#3280 owns the documented branch/path and deeper flow-analysis limits; all 13 searchable TODO markers remain unchanged.",
+      "verdict": "deferred-with-followup"
+    },
+    "#1065": {
       "repo": "Priivacy-ai/spec-kitty",
       "title": "Rejected default-on sync direction",
       "scope": "rejected-direction-guard",
@@ -73,7 +109,7 @@
       "evidence_ref": "Default-on remains rejected; env/login/URL/target/store presence cannot grant.",
       "verdict": "verified-already-fixed"
     },
-    "Priivacy-ai/spec-kitty-saas#584": {
+    "#584": {
       "repo": "Priivacy-ai/spec-kitty-saas",
       "title": "Project anti-rematerialization precedence",
       "scope": "cross-repository-adjacent",
@@ -85,7 +121,7 @@
       "evidence_ref": "Reviewed SaaS WP02 recorded-UUID anti-rematerialization authority outranks admission; full purge remains separately owned by #584/#609.",
       "verdict": "deferred-with-followup"
     },
-    "Priivacy-ai/spec-kitty-saas#609": {
+    "#609": {
       "repo": "Priivacy-ai/spec-kitty-saas",
       "title": "Separate residue-safe destructive purge implementation",
       "scope": "related-not-absorbed",
