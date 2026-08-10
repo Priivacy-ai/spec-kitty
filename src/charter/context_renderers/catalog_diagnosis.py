@@ -69,27 +69,46 @@ def _available_catalog_ids(repository: object | None) -> list[str]:
     if repository is None:
         return []
     for attr in ("list_all", "all"):
-        lister = getattr(repository, attr, None)
-        if callable(lister):
-            try:
-                items = lister()
-            except Exception as exc:  # noqa: BLE001 — best-effort introspection
-                _LOGGER.debug(
-                    "Catalog listing via %s() raised %r; falling back.",
-                    attr,
-                    exc,
-                )
-                continue
-            ids: list[str] = []
-            for item in items or []:
-                ident = getattr(item, "id", None)
-                if isinstance(ident, str) and ident:
-                    ids.append(ident)
-            if ids:
-                return ids
+        ids = _ids_via_listing_attr(repository, attr)
+        if ids:
+            return ids
     # Fall back to introspecting the stub's internal ``_items`` dict
     # (used by the test doubles in ``tests/charter/`` so we can suggest
     # close matches without forcing every stub to grow a ``list_all``).
+    return _ids_from_items_dict(repository)
+
+
+def _ids_via_listing_attr(repository: object, attr: str) -> list[str] | None:
+    """Return IDs from calling *repository*'s *attr* lister, or ``None``.
+
+    ``None`` means "this lister is absent or unusable" (caller falls
+    through to the next attempt); an empty list is a genuine "listed zero
+    ids" result and is distinguished by the caller only in that both are
+    falsy — matching the original inline ``continue``-on-failure /
+    fall-through-on-empty behaviour.
+    """
+    lister = getattr(repository, attr, None)
+    if not callable(lister):
+        return None
+    try:
+        items = lister()
+    except Exception as exc:  # noqa: BLE001 — best-effort introspection
+        _LOGGER.debug(
+            "Catalog listing via %s() raised %r; falling back.",
+            attr,
+            exc,
+        )
+        return None
+    ids: list[str] = []
+    for item in items or []:
+        ident = getattr(item, "id", None)
+        if isinstance(ident, str) and ident:
+            ids.append(ident)
+    return ids
+
+
+def _ids_from_items_dict(repository: object) -> list[str]:
+    """Return string keys of the stub repository's internal ``_items`` dict."""
     items = getattr(repository, "_items", None)
     if isinstance(items, dict):
         return [k for k in items if isinstance(k, str)]

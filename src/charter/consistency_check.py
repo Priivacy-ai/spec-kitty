@@ -296,7 +296,7 @@ def _load_raw_activation_source(repo_root: Path) -> dict[str, Any]:
         )
     try:
         loaded = load_charter_yaml(charter_path)
-    except Exception as exc:  # noqa: BLE001 - re-raised as a typed, fail-closed signal.
+    except Exception as exc:  # noqa: BLE001  # re-raised as a typed, fail-closed signal.
         raise CharterPackConfigError(f"Invalid YAML in {charter_path}: {exc}") from exc
     if not isinstance(loaded, dict):
         raise CharterPackConfigError(f"{charter_path} root must be a mapping.")
@@ -495,19 +495,49 @@ def _check_kind_violations(
             continue
         own_ids = all_doctrine_ids.get(kind, frozenset())
         for artifact_id in sorted(activated):
-            if f"{kind}/{artifact_id}" in unknown_references:
-                continue  # Already flagged; avoid double-reporting.
-            if artifact_id in own_ids:
-                continue  # Correct kind.
-            for other_kind, other_ids in all_doctrine_ids.items():
-                if other_kind == kind:
-                    continue
-                if artifact_id in other_ids:
-                    kind_violations.append(
-                        f"{kind}/{artifact_id}: ID belongs to kind "
-                        f"'{other_kind}', not '{kind}'."
-                    )
-                    break  # Report once per misplaced ID.
+            _check_kind_violation_for_artifact(
+                kind,
+                artifact_id,
+                own_ids,
+                all_doctrine_ids,
+                unknown_references,
+                kind_violations,
+            )
+
+
+def _check_kind_violation_for_artifact(
+    kind: str,
+    artifact_id: str,
+    own_ids: frozenset[str],
+    all_doctrine_ids: dict[str, frozenset[str]],
+    unknown_references: list[str],
+    kind_violations: list[str],
+) -> None:
+    """Record a kind-mismatch violation for one activated *artifact_id*, if any."""
+    if f"{kind}/{artifact_id}" in unknown_references:
+        return  # Already flagged; avoid double-reporting.
+    if artifact_id in own_ids:
+        return  # Correct kind.
+    other_kind = _find_owning_kind(artifact_id, kind, all_doctrine_ids)
+    if other_kind is not None:
+        kind_violations.append(
+            f"{kind}/{artifact_id}: ID belongs to kind "
+            f"'{other_kind}', not '{kind}'."
+        )
+
+
+def _find_owning_kind(
+    artifact_id: str,
+    exclude_kind: str,
+    all_doctrine_ids: dict[str, frozenset[str]],
+) -> str | None:
+    """Return the first kind (other than *exclude_kind*) whose id set contains *artifact_id*."""
+    for other_kind, other_ids in all_doctrine_ids.items():
+        if other_kind == exclude_kind:
+            continue
+        if artifact_id in other_ids:
+            return other_kind  # Report once per misplaced ID.
+    return None
 
 
 def _resolve_charter_yaml_path(repo_root: Path) -> Path:
@@ -559,7 +589,7 @@ def _load_reference_ids_by_kind(ctx: ProjectContext) -> dict[str, frozenset[str]
 
     try:
         data = load_charter_yaml(charter_yaml_path)
-    except Exception as exc:  # noqa: BLE001 -- re-raised as a typed, fail-closed signal below.
+    except Exception as exc:  # noqa: BLE001  # re-raised as a typed, fail-closed signal below.
         raise CharterYamlCorruptError(
             f"{charter_yaml_path} could not be parsed: {exc}"
         ) from exc
@@ -862,7 +892,7 @@ def _check_graph_kind_parity(
         pack_context = ctx.require_pack_context()
         full_drg = load_validated_graph(repo_root)
         activated_drg = filter_graph_by_activation(full_drg, pack_context)
-    except Exception as exc:  # noqa: BLE001 -- fail-closed signal below, not a silent pass.
+    except Exception as exc:  # noqa: BLE001  # fail-closed signal below, not a silent pass.
         verification_errors.append(
             f"drg: Could not verify config<->graph kind parity "
             f"({type(exc).__name__}: {exc})."
@@ -1030,7 +1060,7 @@ def _check_unreconciled_tensions(
     """
     try:
         unreconciled_tensions.extend(scan_unreconciled_tensions(ctx))
-    except Exception as exc:  # noqa: BLE001 -- fail-closed signal below, not a silent pass.
+    except Exception as exc:  # noqa: BLE001  # fail-closed signal below, not a silent pass.
         verification_errors.append(
             f"drg: Could not verify tension reconciliation "
             f"({type(exc).__name__}: {exc})."

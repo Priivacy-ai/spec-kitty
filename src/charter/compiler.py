@@ -1253,55 +1253,83 @@ def _build_local_support_references(
     diagnostics: list[str],
 ) -> list[CharterReference]:
     """Build CharterReference entries for local support file declarations."""
-    refs: list[CharterReference] = []
-    for decl in declarations:
-        warning: str | None = None
-        if decl.target_kind and decl.target_id:
-            overlap_key = f"{decl.target_kind.upper()}:{decl.target_id.upper()}"
-            if overlap_key in {k.upper() for k in built_in_ids}:
-                warning = (
-                    f"Local support file overlaps built-in {decl.target_kind} "
-                    f"{decl.target_id}; built-in content remains primary."
-                )
-                diagnostics.append(
-                    f"local_supporting_files '{decl.path}': {warning}"
-                )
-
-        ref_id = f"LOCAL:{decl.path}"
-        title = Path(decl.path).name
-        summary_parts = ["Local support file"]
-        if decl.target_kind and decl.target_id:
-            summary_parts.append(f"supplements {decl.target_kind} {decl.target_id}")
-        if decl.action:
-            summary_parts.append(f"(action: {decl.action})")
-        summary = "; ".join(summary_parts) + "."
-
-        # Build a lightweight content block (no schema validation for free-form markdown)
-        lines: list[str] = [f"# Local Support File: {title}", ""]
-        lines.append(f"- Path: `{decl.path}`")
-        if decl.action:
-            lines.append(f"- Action scope: `{decl.action}`")
-        if decl.target_kind:
-            lines.append(f"- Target kind: `{decl.target_kind}`")
-        if decl.target_id:
-            lines.append(f"- Target ID: `{decl.target_id}`")
-        lines.append("- Relationship: additive")
-        if warning:
-            lines.append(f"- Warning: {warning}")
-        lines.append("")
-
-        refs.append(
-            CharterReference(
-                id=ref_id,
-                kind="local_support",
-                title=title,
-                summary=summary,
-                source_path=decl.path,
-                local_path=f"_LIBRARY/local-{_slugify(decl.path)}.md",
-                content="\n".join(lines),
-            )
+    return [
+        _build_local_support_reference(
+            decl, built_in_ids=built_in_ids, diagnostics=diagnostics
         )
-    return refs
+        for decl in declarations
+    ]
+
+
+def _build_local_support_reference(
+    decl: LocalSupportDeclaration,
+    *,
+    built_in_ids: frozenset[str],
+    diagnostics: list[str],
+) -> CharterReference:
+    """Build one ``CharterReference`` for a single local-support declaration."""
+    warning = _detect_local_support_overlap(decl, built_in_ids, diagnostics)
+    title = Path(decl.path).name
+    content = "\n".join(_local_support_content_lines(decl, title, warning))
+    return CharterReference(
+        id=f"LOCAL:{decl.path}",
+        kind="local_support",
+        title=title,
+        summary=_local_support_summary(decl),
+        source_path=decl.path,
+        local_path=f"_LIBRARY/local-{_slugify(decl.path)}.md",
+        content=content,
+    )
+
+
+def _detect_local_support_overlap(
+    decl: LocalSupportDeclaration,
+    built_in_ids: frozenset[str],
+    diagnostics: list[str],
+) -> str | None:
+    """Return a warning (and record it in *diagnostics*) when *decl* shadows a built-in artifact."""
+    if not (decl.target_kind and decl.target_id):
+        return None
+    overlap_key = f"{decl.target_kind.upper()}:{decl.target_id.upper()}"
+    if overlap_key not in {k.upper() for k in built_in_ids}:
+        return None
+    warning = (
+        f"Local support file overlaps built-in {decl.target_kind} "
+        f"{decl.target_id}; built-in content remains primary."
+    )
+    diagnostics.append(f"local_supporting_files '{decl.path}': {warning}")
+    return warning
+
+
+def _local_support_summary(decl: LocalSupportDeclaration) -> str:
+    """Return the one-line human summary for a local-support reference."""
+    summary_parts = ["Local support file"]
+    if decl.target_kind and decl.target_id:
+        summary_parts.append(f"supplements {decl.target_kind} {decl.target_id}")
+    if decl.action:
+        summary_parts.append(f"(action: {decl.action})")
+    return "; ".join(summary_parts) + "."
+
+
+def _local_support_content_lines(
+    decl: LocalSupportDeclaration,
+    title: str,
+    warning: str | None,
+) -> list[str]:
+    """Build the free-form markdown content block for a local-support reference."""
+    lines: list[str] = [f"# Local Support File: {title}", ""]
+    lines.append(f"- Path: `{decl.path}`")
+    if decl.action:
+        lines.append(f"- Action scope: `{decl.action}`")
+    if decl.target_kind:
+        lines.append(f"- Target kind: `{decl.target_kind}`")
+    if decl.target_id:
+        lines.append(f"- Target ID: `{decl.target_id}`")
+    lines.append("- Relationship: additive")
+    if warning:
+        lines.append(f"- Warning: {warning}")
+    lines.append("")
+    return lines
 
 
 def _index_yaml_assets(directory: Path, pattern: str) -> dict[str, dict[str, object]]:
