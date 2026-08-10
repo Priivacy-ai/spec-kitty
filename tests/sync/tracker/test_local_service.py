@@ -641,6 +641,35 @@ class TestLoadRuntime:
             svc._load_runtime()
 
 
+class TestLocalSyncPublishUnsupported:
+    """#3168: local providers (beads/fp) have no snapshot-publish transport.
+
+    ``TrackerService.sync_publish`` delegates unconditionally to the backend, so
+    a local binding used to hit ``AttributeError: 'LocalTrackerService' object has
+    no attribute 'sync_publish'`` -- which the CLI's ``_run_or_exit`` does NOT catch
+    (it catches ``RuntimeError``/``ValueError``), so the operator saw a raw traceback.
+    It must surface a clean ``LocalTrackerServiceError`` (a ``RuntimeError`` subclass).
+    """
+
+    def test_local_sync_publish_raises_local_tracker_service_error(self, repo: Path) -> None:
+        svc = _make_service(repo)
+        with pytest.raises(LocalTrackerServiceError, match="not supported for local providers"):
+            svc.sync_publish()
+
+    def test_facade_sync_publish_on_local_binding_raises_cleanly_not_attributeerror(
+        self, repo: Path
+    ) -> None:
+        # The real regression path: the CLI calls TrackerService.sync_publish, which
+        # delegates to the resolved (local) backend. Before #3168 this raised
+        # AttributeError; it must be a RuntimeError-family error the CLI can render.
+        svc = _make_service(repo)
+        with patch.object(TrackerService, "_resolve_backend", return_value=svc):
+            with pytest.raises(LocalTrackerServiceError):
+                TrackerService(repo).sync_publish()
+        # RuntimeError subclass == caught by the CLI's _run_or_exit (exit 1, clean message).
+        assert issubclass(LocalTrackerServiceError, RuntimeError)
+
+
 # ---------------------------------------------------------------------------
 # No SaaS imports
 # ---------------------------------------------------------------------------

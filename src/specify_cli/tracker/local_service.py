@@ -86,7 +86,7 @@ def _render_refusal(verdict: TrackerEgressVerdict) -> str:
     them; it is not a path-local message string (FR-012).
     """
     if not verdict.remedies:
-        return verdict.message
+        return cast("str", verdict.message)
     remedy_lines = "\n".join(f"  - {remedy}" for remedy in verdict.remedies)
     return f"{verdict.message}\nRemedies:\n{remedy_lines}"
 
@@ -271,6 +271,19 @@ class LocalTrackerService:
             return self._sync_result(result, connector.name)
 
         return cast(dict[str, Any], self._run_async(_run()))
+
+    def sync_publish(self, **_kwargs: Any) -> dict[str, Any]:
+        # #3168: local providers (beads/fp) have no snapshot-publish transport.
+        # TrackerService.sync_publish delegates unconditionally to the backend,
+        # so without this method a local binding hits AttributeError, which the
+        # CLI's _run_or_exit does not catch (it catches RuntimeError/ValueError)
+        # -- the operator saw a raw traceback. Raise LocalTrackerServiceError (a
+        # RuntimeError subclass) instead, so the CLI renders a clean message and
+        # exit 1, matching the command's documented contract for local providers.
+        raise LocalTrackerServiceError(
+            "Snapshot publish is not supported for local providers (beads/fp). "
+            "Use 'spec-kitty tracker sync push' instead."
+        )
 
     # ------------------------------------------------------------------
     # mapping operations
