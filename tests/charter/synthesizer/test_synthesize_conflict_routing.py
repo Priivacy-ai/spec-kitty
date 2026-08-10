@@ -13,25 +13,33 @@ suppress-vs-raise routing decision:
 - ``provenance="new_emit"`` (the current run's own output colliding with
   itself or the built-in layer) remains a hard error, unchanged.
 
-These tests call ``validation_gate.validate`` directly — the same pattern
-``test_validation_gate.py`` already uses — rather than the full
-``orchestrator.synthesize()`` entry point. This is a deliberate scope
-boundary, not a shortcut: WP02 owns only ``validation_gate.py`` (routing),
-not ``orchestrator.py`` (WP01's owned call site). Direct calls exercise
-exactly the routing logic this WP delivers, with hand-built
-``ReconciliationConflict`` objects standing in for WP01's classification —
-matching the widened ``validate(staging_dir, built_in_drg, conflicts=...)``
-contract precisely, independent of how any particular caller wires it.
+Two layers of coverage:
+
+1. ``TestPreserved*``/``TestNewEmit*``/``TestUnrelatedErrors*`` call
+   ``validation_gate.validate`` directly — the same pattern
+   ``test_validation_gate.py`` already uses — with hand-built
+   ``ReconciliationConflict`` objects standing in for WP01's classification.
+   These pin the routing decision in isolation, independent of any one
+   caller's wiring.
+2. ``TestFullPipeline*`` drives the REAL ``orchestrator.synthesize()`` entry
+   point end-to-end (``orchestrator.py``'s ``_validation_callback`` now
+   threads ``outcome.delta.conflicts`` into ``validate()`` — the WP01<->WP02
+   integration seam wired under documented ownership leeway, since a widened
+   ``validate()`` nothing calls with conflicts does not satisfy NFR-003 in
+   practice). These prove the suppression is not just correct in isolation
+   but actually reachable from a real synthesize() run.
 """
 
 from __future__ import annotations
 
 import io
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 from ruamel.yaml import YAML
 
+from charter.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
 from charter.synthesizer.errors import ProjectDRGValidationError
 from charter.synthesizer.reconcile import _RECONCILE_REMEDIATIONS, ReconciliationConflict
 from charter.synthesizer.validation_gate import validate
@@ -281,3 +289,255 @@ class TestUnrelatedErrorsStillRaiseAlongsideSuppressedConflicts:
         assert not any("retired-legacy-tactic" in e for e in exc_info.value.errors), (
             "suppressed preserved-dangling conflict leaked into the surfaced errors"
         )
+
+
+# ---------------------------------------------------------------------------
+# Full-pipeline coverage (orchestrator.synthesize() end-to-end)
+#
+# These prove the WP01<->WP02 integration seam wired into
+# orchestrator.py's _validation_callback (outcome.delta.conflicts threaded
+# into validate()) actually suppresses a preserved conflict reached through
+# a real synthesize() run, and that a new-emit conflict reached the same way
+# still raises.
+# ---------------------------------------------------------------------------
+
+_LEGACY_URN = "tactic:legacy-preference-order-3270"
+
+
+def _graph_yaml() -> YAML:
+    yaml = YAML(typ="safe")
+    yaml.default_flow_style = False
+    return yaml
+
+
+def _load_graph(path: Path) -> dict[str, Any]:
+    return cast("dict[str, Any]", _graph_yaml().load(path.read_text()))
+
+
+def _dump_graph(path: Path, data: dict[str, Any]) -> None:
+    buffer = io.StringIO()
+    _graph_yaml().dump(data, buffer)
+    path.write_text(buffer.getvalue())
+
+
+def _request(
+    run_id: str,
+    interview: dict[str, Any],
+    doctrine: dict[str, Any],
+    drg: dict[str, Any],
+) -> SynthesisRequest:
+    target = SynthesisTarget(
+        kind="directive",
+        slug="mission-type-scope-directive",
+        title="Mission Type Scope Directive",
+        artifact_id="PROJECT_001",
+        source_section="mission_type",
+    )
+    return SynthesisRequest(
+        target=target,
+        interview_snapshot=interview,
+        doctrine_snapshot=doctrine,
+        drg_snapshot=drg,
+        run_id=run_id,
+        adapter_hints={"language": "python"},
+    )
+
+
+def _inject_legacy_node_with_duplicate_edge(tmp_path: Path) -> None:
+    """Preserved node whose own on-disk edge repeats itself (duplicate triple).
+
+    Both copies of the ``(legacy_urn, DIRECTIVE_003, applies)`` triple belong
+    to a node the current run's target set does not re-emit, so both are
+    ``provenance="preserved"`` once reconciled — this is the leftover-content
+    shape amendment #3 describes, not a collision the current run created.
+    """
+    doctrine_dir = tmp_path / ".kittify" / "doctrine"
+    graph_path = doctrine_dir / "graph.yaml"
+    graph = _load_graph(graph_path)
+    graph["nodes"].append(
+        {"urn": _LEGACY_URN, "kind": "tactic", "label": "Legacy Preference Order Tactic (3270)"}
+    )
+    duplicate_edge = {
+        "source": _LEGACY_URN,
+        "target": "directive:DIRECTIVE_003",
+        "relation": "applies",
+        "reason": "Derived from synthesis target 'legacy-preference-order-3270'",
+    }
+    graph.setdefault("edges", []).append(duplicate_edge)
+    graph["edges"].append(dict(duplicate_edge))  # exact repeat -> duplicate_triple
+    _dump_graph(graph_path, graph)
+
+    existing_artifact = doctrine_dir / "tactic" / "how-we-apply-directive-003.tactic.yaml"
+    legacy_artifact = doctrine_dir / "tactic" / "legacy-preference-order-3270.tactic.yaml"
+    legacy_artifact.write_bytes(existing_artifact.read_bytes())
+
+
+def _inject_legacy_node_with_dangling_edge(tmp_path: Path) -> None:
+    """Preserved node whose on-disk edge targets a URN nothing emits anymore."""
+    doctrine_dir = tmp_path / ".kittify" / "doctrine"
+    graph_path = doctrine_dir / "graph.yaml"
+    graph = _load_graph(graph_path)
+    graph["nodes"].append(
+        {"urn": _LEGACY_URN, "kind": "tactic", "label": "Legacy Preference Order Tactic (3270)"}
+    )
+    graph.setdefault("edges", []).append(
+        {
+            "source": _LEGACY_URN,
+            "target": "tactic:retired-nothing-emits-this",
+            "relation": "applies",
+            "reason": "Derived from synthesis target 'legacy-preference-order-3270'",
+        }
+    )
+    _dump_graph(graph_path, graph)
+
+    existing_artifact = doctrine_dir / "tactic" / "how-we-apply-directive-003.tactic.yaml"
+    legacy_artifact = doctrine_dir / "tactic" / "legacy-preference-order-3270.tactic.yaml"
+    legacy_artifact.write_bytes(existing_artifact.read_bytes())
+
+
+class TestFullPipelinePreservedConflictIsSuppressed:
+    """Preserved-content conflicts reached through a real synthesize() run."""
+
+    def test_preserved_duplicate_triple_does_not_raise_and_is_reported(
+        self,
+        minimal_interview_snapshot: dict[str, Any],
+        minimal_doctrine_snapshot: dict[str, Any],
+        minimal_drg_snapshot: dict[str, Any],
+        fixture_adapter: FixtureAdapter,
+        tmp_path: Path,
+    ) -> None:
+        req_a = _request(
+            "01AAAAAAAAAAAAAAAAAAAAAAAAA",
+            minimal_interview_snapshot,
+            minimal_doctrine_snapshot,
+            minimal_drg_snapshot,
+        )
+        synthesize(req_a, adapter=fixture_adapter, repo_root=tmp_path)
+
+        _inject_legacy_node_with_duplicate_edge(tmp_path)
+
+        req_b = _request(
+            "01BBBBBBBBBBBBBBBBBBBBBBBBB",
+            minimal_interview_snapshot,
+            minimal_doctrine_snapshot,
+            minimal_drg_snapshot,
+        )
+        # Must not raise -- pre-integration-wiring, this crashed via
+        # validate_graph's duplicate-edge hard-fail (the exact P0 this seam
+        # closes).
+        result = synthesize(req_b, adapter=fixture_adapter, repo_root=tmp_path)
+
+        assert result.reconciliation is not None
+        reported = [c for c in result.reconciliation.conflicts if c.kind == "duplicate_triple"]
+        assert reported, "expected the preserved duplicate triple on delta.conflicts"
+        assert all(c.provenance == "preserved" for c in reported)
+        assert all(c.remediation for c in reported)
+
+    def test_preserved_dangling_endpoint_does_not_raise_and_is_reported(
+        self,
+        minimal_interview_snapshot: dict[str, Any],
+        minimal_doctrine_snapshot: dict[str, Any],
+        minimal_drg_snapshot: dict[str, Any],
+        fixture_adapter: FixtureAdapter,
+        tmp_path: Path,
+    ) -> None:
+        req_a = _request(
+            "01AAAAAAAAAAAAAAAAAAAAAAAAA",
+            minimal_interview_snapshot,
+            minimal_doctrine_snapshot,
+            minimal_drg_snapshot,
+        )
+        synthesize(req_a, adapter=fixture_adapter, repo_root=tmp_path)
+
+        _inject_legacy_node_with_dangling_edge(tmp_path)
+
+        req_b = _request(
+            "01BBBBBBBBBBBBBBBBBBBBBBBBB",
+            minimal_interview_snapshot,
+            minimal_doctrine_snapshot,
+            minimal_drg_snapshot,
+        )
+        result = synthesize(req_b, adapter=fixture_adapter, repo_root=tmp_path)
+
+        assert result.reconciliation is not None
+        reported = [c for c in result.reconciliation.conflicts if c.kind == "preserved_dangling_endpoint"]
+        assert reported, "expected the preserved dangling endpoint on delta.conflicts"
+        assert all(c.provenance == "preserved" for c in reported)
+        assert all(c.remediation for c in reported)
+
+        # NFR-003: graph not silently truncated -- the preserved node survives.
+        graph_path = tmp_path / ".kittify" / "doctrine" / "graph.yaml"
+        surviving_urns = {n["urn"] for n in _load_graph(graph_path)["nodes"]}
+        assert _LEGACY_URN in surviving_urns
+
+
+class TestFullPipelineNewEmitCollisionStillRaises:
+    """A new-emit conflict reached through a real synthesize() run still hard-fails.
+
+    ``build_targets()`` runs an EC-2 early gate (``_validate_source_urns``)
+    that rejects any *explicit* interview-mapped ``source_urns`` not already
+    present in ``drg_snapshot`` before a target is even built -- so a
+    "current run references a URN nothing defines" scenario can never reach
+    reconciliation/``validate()`` through the real mapped-target path (only
+    through the ``request.target`` fallback, which -- per
+    ``test_synthesize_reconcile.py``'s BLOCKER #1 test docstring -- is
+    itself unreachable through ``synthesize()`` for any real interview
+    snapshot: ``mission_type`` has ``requires_nonempty=False`` and always
+    yields >=1 mapped target). The reachable "current target collides"
+    shape is exactly what the WP text names: a target's OWN freshly emitted
+    edge duplicating one already in the BUILT-IN layer -- caught by
+    ``emit_project_layer``'s FR-020 additive-only guard, unchanged by this
+    WP. Pre-seeding ``drg_snapshot`` with the tactic's own about-to-be-
+    emitted triple exercises exactly that guard end-to-end.
+    """
+
+    def test_new_emit_edge_colliding_with_built_in_still_raises(
+        self,
+        fixture_adapter: FixtureAdapter,
+        tmp_path: Path,
+    ) -> None:
+        interview = {"selected_directives": ["DIRECTIVE_003"]}
+        doctrine = {
+            "directives": {
+                "DIRECTIVE_003": {
+                    "id": "DIRECTIVE_003",
+                    "title": "Decision Documentation",
+                    "body": "Document significant architectural decisions via ADRs.",
+                }
+            },
+            "tactics": {},
+            "styleguides": {},
+        }
+        # The built-in layer already carries the EXACT triple the
+        # "how-we-apply-directive-003" tactic target is about to emit
+        # (tactic:how-we-apply-directive-003 --applies--> directive:DIRECTIVE_003).
+        drg = {
+            "nodes": [{"urn": "directive:DIRECTIVE_003", "kind": "directive"}],
+            "edges": [
+                {
+                    "source": "tactic:how-we-apply-directive-003",
+                    "target": "directive:DIRECTIVE_003",
+                    "relation": "applies",
+                }
+            ],
+            "schema_version": "1",
+        }
+        target = SynthesisTarget(
+            kind="directive",
+            slug="mission-type-scope-directive",
+            title="Mission Type Directive",
+            artifact_id="PROJECT_001",
+            source_section="mission_type",
+        )
+        request = SynthesisRequest(
+            target=target,
+            interview_snapshot=interview,
+            doctrine_snapshot=doctrine,
+            drg_snapshot=drg,
+            run_id="01NEWEMITCOLLISIONTEST0001",
+            adapter_hints={"language": "python"},
+        )
+
+        with pytest.raises(ProjectDRGValidationError) as exc_info:
+            synthesize(request, adapter=fixture_adapter, repo_root=tmp_path)
+        assert any("Duplicate edge" in e for e in exc_info.value.errors)

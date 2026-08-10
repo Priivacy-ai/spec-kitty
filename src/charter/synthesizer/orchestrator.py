@@ -288,7 +288,13 @@ def synthesize(
         # re-unlink the preserved graph.yaml.
         if merged_overlay.nodes:
             _persist_project_graph(merged_overlay, staged_dir.root, staged_dir.guard)
-        _validate_project_graph(staged_dir.root, built_in_drg)
+        # WP01<->WP02 integration seam (ownership leeway): the widened
+        # validate() signature (WP02) is inert unless THIS call site (WP01's
+        # file) threads WP01's classified conflicts through it, so a
+        # preserved-content conflict is suppressed end-to-end instead of
+        # still hard-failing here. lane-b is where both halves land, so WP02
+        # wires this one line rather than leaving NFR-003 unmet in practice.
+        _validate_project_graph(staged_dir.root, built_in_drg, conflicts=outcome.delta.conflicts)
 
     # --- Stage and promote to disk (WP03, T018) ---
     with _StagingDir.create(_repo_root, request.run_id) as staging_dir:

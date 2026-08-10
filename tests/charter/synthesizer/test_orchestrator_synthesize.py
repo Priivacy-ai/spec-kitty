@@ -723,7 +723,12 @@ class TestSynthesizeWritesToDisk:
         from charter.synthesizer.errors import ProjectDRGValidationError
         from charter.synthesizer.manifest import MANIFEST_PATH
 
-        def fail_validate(_staging_dir: Path, _shipped_drg: object) -> None:
+        def fail_validate(_staging_dir: Path, _shipped_drg: object, conflicts: object = ()) -> None:
+            # WP02: validate() now takes an optional `conflicts` kwarg
+            # (orchestrator._validation_callback passes
+            # outcome.delta.conflicts) -- accept and ignore it here so this
+            # forced-failure stub still matches the real call signature.
+            del conflicts
             raise ProjectDRGValidationError(
                 errors=("synthetic validation failure",),
                 merged_graph_summary="forced by test",
