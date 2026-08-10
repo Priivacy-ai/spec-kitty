@@ -49,6 +49,7 @@ create_intent:
 - tests/delivery/test_status_report.py
 - tests/delivery/test_per_project_report_3030.py
 - tests/delivery/test_project_purge_3030.py
+- tests/delivery/test_body_queue_purge_differential_3030.py
 - tests/sync/test_project_store_outboxes.py
 - tests/sync/test_offline_queue.py
 - tests/sync/test_body_queue.py
@@ -167,6 +168,11 @@ shared-path/default-resolver expectations with equivalent ProjectSyncStore/UoW
 assertions; do not add a production compatibility constructor. Legacy source
 schema/file migration remains WP10. Dispatcher liveness/refusal and body-drain
 caller convergence remain WP07/WP09.
+The per-project body-queue purge differential is also WP04-owned: explicit purge
+must physically delete confidential body references from the target UUID store,
+report exact before/after counts, and reject a queue/store owned by another UUID.
+Whole legacy shared-store purge and blank/whitespace identity disposition remain
+WP10 migration/quarantine work.
 
 ## Definition of Done
 
@@ -186,3 +192,4 @@ Reviewers should search for default constructors, private layout checks, and pat
 
 - 2026-08-10T01:18:46Z – codex – shell_pid=1091 – Before source work, recovered the allocator-omitted approved WP03 dependency without conflict at lane merge 36e9cb818 and verified approved WP01 2ee80fbe0, WP02 10dccf3bf, WP03 7f9366cea, and current coordination ancestry. The arbiter authorized ownership of the two T020 architecture ratchets only; recorded as root 867643c73, coordination 4cc32490b, and lane a89d4903e while preserving every TODO(#3280), non-vacuity floor, and mutation guard. Reproductions are attached to #3281; the synthetic baseline JUnit failure is the existing #2929 defect.
 - 2026-08-10T02:25:00Z – codex – The expanded pre-WP04 suites exposed stale shared-store constructors and path assertions on the exact repository surfaces T016-T019 replace. Sequential ownership is expanded only to the affected repository tests so valid #3030 behavior is re-pinned to ProjectSyncStore/UoW without restoring a forbidden compatibility path. Legacy migration and dispatcher/body-drain caller tests remain explicitly assigned to WP10 and WP07/WP09.
+- 2026-08-10T02:45:00Z – codex – WP04 cycle-1 review assigned the per-project body purge differential here after proving the candidate reported removal while retaining the confidential body row and accepted a mismatched project queue. The legacy whole-shared-store purge suite is assigned to WP10 instead of restoring a global compatibility API.
