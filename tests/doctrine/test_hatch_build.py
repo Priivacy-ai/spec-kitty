@@ -14,6 +14,16 @@ from pathlib import Path
 
 import pytest
 
+# The pre-review regression gate captures its baseline in an ephemeral ``uv run``
+# worktree whose venv installs neither ``[build-system].requires`` nor the
+# ``test`` extra's build-only members, so ``hatchling`` is absent there (it
+# resolves only under ``extra == 'test'`` in uv.lock). Guard the transitive
+# ``doctrine.hatch_build`` -> ``hatchling`` import below so that degenerate venv
+# SKIPS this module cleanly at collection instead of raising ModuleNotFoundError
+# and being miscounted as a "new failure" (issue #3224). The normal test job
+# installs the ``test`` extra, so ``hatchling`` is present and every test runs.
+pytest.importorskip("hatchling")
+
 from doctrine.hatch_build import DoctrinePacksSiblingBuildHook
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
