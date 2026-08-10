@@ -46,6 +46,7 @@ owned_files:
 - src/specify_cli/sync/runtime.py
 - src/specify_cli/sync/background.py
 - src/specify_cli/sync/daemon.py
+- src/specify_cli/sync/owner.py
 - tests/sync/test_daemon_project_isolation.py
 - tests/sync/test_background_authority_convergence.py
 role: implementer
@@ -69,6 +70,11 @@ Migration quiesce belongs to WP10; this package owns live daemon/background path
 Converge daemon, runtime, and background discovery on project-owned authority,
 deny-only hints, layout permits, and the durable transport protocol. A daemon
 outside any checkout must keep project B live when A opts out.
+
+The live daemon owner-record startup path is in scope. WP04 intentionally
+removed legacy queue target helpers while retiring shared payload stores, so
+WP08 must make `owner.py` consume canonical target identity without restoring a
+legacy queue selector or treating an owner record as egress authority.
 
 ## Subtask T036 — Red-first daemon/background ATDD
 

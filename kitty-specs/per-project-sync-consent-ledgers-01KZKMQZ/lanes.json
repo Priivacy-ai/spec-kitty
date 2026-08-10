@@ -208,6 +208,7 @@
       "write_scope": [
         "src/specify_cli/sync/background.py",
         "src/specify_cli/sync/daemon.py",
+        "src/specify_cli/sync/owner.py",
         "src/specify_cli/sync/runtime.py",
         "tests/sync/test_background_authority_convergence.py",
         "tests/sync/test_daemon_project_isolation.py"
