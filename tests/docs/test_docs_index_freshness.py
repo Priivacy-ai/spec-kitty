@@ -19,7 +19,8 @@ from pathlib import Path
 
 import pytest
 
-os.environ.setdefault("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+# SPEC_KITTY_ENABLE_SAAS_SYNC is set collection-wide in tests/conftest.py
+# pytest_configure (#3213), not per-module.
 os.environ.setdefault("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]

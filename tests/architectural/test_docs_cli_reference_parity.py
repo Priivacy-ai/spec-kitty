@@ -44,7 +44,9 @@ import typer
 
 # CRITICAL: env flags MUST be set before importing specify_cli so that
 # the tracker / issue-search subtree is registered.
-os.environ.setdefault("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+# SPEC_KITTY_ENABLE_SAAS_SYNC is now set collection-wide in tests/conftest.py
+# pytest_configure (#3213), before any module import, so the gate decision is
+# selection-invariant; only the non-gate NO_UPGRADE flag remains per-module.
 os.environ.setdefault("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
 
 # Ensure scripts/docs is importable (matches tests/docs/conftest.py).
