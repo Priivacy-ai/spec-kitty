@@ -659,6 +659,98 @@ class TestChannel1Classifier:
 
 
 # ---------------------------------------------------------------------------
+# Landing-pass regression -- two-authority reporting split cannot flip the
+# enforced answer (PR #3135 adversarial squad, HIGH-2)
+# ---------------------------------------------------------------------------
+
+
+class TestReportingSplitNeverFlipsEnforcement:
+    """Defense-in-depth pin, not a red-first bugfix.
+
+    PR #3135's adversarial squad (robertDouglass) flagged HIGH-2: Channel 1 is *enforced*
+    through the single canonical authority (``_resolve_channel1`` -> ``project_egress_refusal``),
+    but its diagnostic *state* is independently re-resolved by ``_classify_channel1`` through a
+    second, separate read of ``specify_cli.sync.consent`` / ``specify_cli.sync.routing``. Under
+    concurrent consent mutation between the two reads -- or if the two resolution paths ever
+    diverge for any other reason -- the reported *reason* for a refusal can be wrong.
+
+    This module's own docstring already records that split as accepted debt (see
+    ``_classify_channel1``'s "Retirement condition"): it retires only when sibling Bundle B's
+    open Q3 gives the ``_egress_consent_resolver: Callable[[Path], bool] | None`` registry
+    contract (``invocation/adapters.py:81``) a decision-carrying return value, so the diagnostic
+    detail this classifier re-derives no longer needs a second read to exist at all. That
+    contract is owned outside this module and outside this landing pass.
+
+    What matters for THIS landing pass is severity: can the split ever change the *security*
+    outcome -- flip a refusal to a permit, or vice versa -- rather than only the human-readable
+    label? Traced in ``tracker_egress_verdict``: every ``refused=`` and every
+    ``_refusing_channels(...)`` call site is built from ``channel1_permits`` (the single value
+    ``_resolve_channel1`` -- i.e. ``project_egress_refusal`` -- produced) and ``channel2_state``
+    alone. ``channel1_label`` / ``channel1_generic`` (``_classify_channel1``'s output, via
+    ``_channel1_report``) feed **only** ``TrackerEgressVerdict.channel1_state`` and the
+    message/remedy text composed by ``_channel1_decided_message`` -- never the boolean decision.
+    The two tests below force the classifier to disagree with the enforcing read and prove the
+    enforced answer does not move.
+    """
+
+    def test_classifier_disagreement_does_not_change_refused_or_refusing_channels(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Channel 1 genuinely refuses (``channel1_permits=False``). Force the independently
+        re-resolved classifier to report a *different* closed-set label than the one that
+        actually applies here (``CHANNEL1_RECORDED_REFUSAL``) -- simulating exactly the
+        divergence HIGH-2 describes, e.g. a concurrent mutation landing between the two reads.
+        The enforced fields must be identical to the undisturbed run; only the diagnostic label
+        and its derived remedy text may differ.
+        """
+        root = _recorded_refusal_root(tmp_path)  # Channel 1 genuinely refuses
+        baseline = tracker_egress_verdict(
+            root,
+            destination=EgressDestination.LOCAL_SUBPROCESS,
+            identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS],
+        )
+        assert baseline.channel1_state == CHANNEL1_RECORDED_REFUSAL  # sanity: the true label
+
+        # Force the second, independent authority to disagree with the first.
+        monkeypatch.setattr(
+            "specify_cli.tracker.egress_verdict._classify_channel1",
+            lambda _root: CHANNEL1_NOT_CONSENTABLE,
+        )
+        disagreeing = tracker_egress_verdict(
+            root,
+            destination=EgressDestination.LOCAL_SUBPROCESS,
+            identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS],
+        )
+
+        # The enforced answer is untouched by the disagreement.
+        assert disagreeing.refused == baseline.refused is True
+        assert disagreeing.refusing_channels == baseline.refusing_channels == frozenset({CHANNEL_1})
+        # Only the diagnostic label (and the remedy text it selects) actually moved.
+        assert disagreeing.channel1_state == CHANNEL1_NOT_CONSENTABLE
+        assert disagreeing.channel1_state != baseline.channel1_state
+
+    def test_classifier_disagreement_at_hosted_service_does_not_change_refused(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Same proof at ``HOSTED_SERVICE``, where FR-016 additionally requires the message to
+        stay byte-identical to the shipped `#3030` text -- confirming the classifier's forced
+        disagreement cannot even reach the message on this path, let alone the enforced answer.
+        """
+        root = _recorded_refusal_root(tmp_path)
+        monkeypatch.setattr(
+            "specify_cli.tracker.egress_verdict._classify_channel1",
+            lambda _root: CHANNEL1_NOT_CONSENTABLE,
+        )
+        verdict = tracker_egress_verdict(
+            root,
+            destination=EgressDestination.HOSTED_SERVICE,
+            identifiers=_IDENTIFIERS_FOR[EgressDestination.HOSTED_SERVICE],
+        )
+        assert verdict.refused is True
+        assert verdict.refusing_channels == frozenset({CHANNEL_1})
+
+
+# ---------------------------------------------------------------------------
 # T019 -- message composition
 # ---------------------------------------------------------------------------
 
