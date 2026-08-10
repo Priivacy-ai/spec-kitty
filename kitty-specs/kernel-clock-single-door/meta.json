@@ -1,0 +1,15 @@
+{
+  "mission_id": "01KZMYEBMQNRJJWBFBPXJARHFB",
+  "mission_number": null,
+  "slug": "kernel-clock-single-door",
+  "mission_slug": "kernel-clock-single-door",
+  "friendly_name": "kernel.clock: the single door to time",
+  "purpose_tldr": "Make one kernel module the sole, enforced source of wall-clock time for the whole codebase, so time is impossible to get wrong.",
+  "purpose_context": "Today every package re-implements its own now-stamp, lower layers cannot reach the canonical helper, and enforcement is a single-package test. This mission relocates the clock into the kernel as the one door all packages import, unifies the timestamp families behind it, adds an injectable clock for deterministic tests, and bans the raw alternative repo-wide so the wrong way can no longer be written.",
+  "mission_type": "software-dev",
+  "target_branch": "main",
+  "vcs": "git",
+  "created_at": "2026-08-10T04:21:09.911624+00:00",
+  "source_description": "Follow-on to PR #3288 (clock consolidation inside specify_cli). Stacks on branch pr/2611-clock-now-utc-iso; rebase onto main after #3288 merges. Grounded by a 3-lens research squad (researcher-robbie, architect-alphonso, paula-patterns) 2026-08-10.",
+  "stacked_on": "pr/2611-clock-now-utc-iso (PR #3288)"
+}
