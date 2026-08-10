@@ -57,3 +57,34 @@ keyed by the row/task project, not by the current checkout.
 - A two-project fixture selects only the opted-in project's rows.
 - Acknowledgement and purge cannot affect rows from a non-consenting project.
 - Status internals can report per-project counts.
+
+## Implementation evidence — 2026-08-10
+
+Current origin HEAD already implements the WP02 selector/ledger invariant across
+the #3030 surfaces:
+
+- `src/specify_cli/event_journal/journal.py::read_identity_projection()` requires
+  a non-empty `project_uuids` filter and returns no rows for an empty filter.
+- `src/specify_cli/delivery/selection.py::select_consented()` resolves consent
+  over distinct project UUIDs, then reads the identity projection filtered to the
+  consented UUIDs before selecting event IDs.
+- `src/specify_cli/delivery/consent_gate.py` requires `ConsentedBatch` /
+  `ConsentAnswer` before ordinary delivery.
+- `src/specify_cli/delivery/status_report.py` exposes `per_project_store` status
+  and unresolved identity counts.
+
+Focused validation:
+
+```bash
+SPEC_KITTY_NO_UPGRADE_CHECK=1 env -u SPEC_KITTY_ENABLE_SAAS_SYNC \
+  uv run --group dev --extra test pytest \
+  tests/delivery/test_incident_reproduction_3030.py \
+  tests/delivery/test_consented_batch_3030.py \
+  tests/delivery/test_dispatch_project_consent_3030.py \
+  tests/delivery/test_nfr003_predicate_cost_3030.py \
+  tests/delivery/test_purge_all_events_3030.py \
+  tests/event_journal/test_identity_migration_3030.py \
+  tests/architectural/test_unfiltered_journal_read_boundary.py -q
+```
+
+Result: `56 passed in 72.86s`.
