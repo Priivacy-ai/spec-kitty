@@ -43,6 +43,12 @@ env:
   # (FR-011); no hard-coded default. Point both the lint and touched-set gates
   # at the same SSOT block.
   SPEC_KITTY_STYLEGUIDE: packs/built-in/styleguides/common-docs.styleguide.yaml
+  # The docs scripts import the shared guard as `scripts.docs._guards`
+  # (e.g. audience_resolver.py). Running `python3 scripts/docs/<x>.py` puts the
+  # script's own dir on sys.path[0], not the repo root, so the `scripts` package
+  # is only importable with the repo root on PYTHONPATH. See the pr-landing
+  # runbook gotcha: "`scripts/` invocations need `PYTHONPATH=.`".
+  PYTHONPATH: .
 
 jobs:
   build:
