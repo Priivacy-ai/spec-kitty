@@ -73,7 +73,9 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from scripts.docs._guards import (  # noqa: E402  (sys.path bootstrap above)
+    GitDiffError,
     assert_examined_floor,
+    resolve_changed_files,
 )
 from scripts.docs.bulk_ref_rewrite import (  # noqa: E402  (sys.path bootstrap above)
     DEFAULT_OCCURRENCE_MAP,
@@ -263,14 +265,10 @@ class Resolver:
         candidates = self._era_narrowed(rel_path, self.premove_candidates(rel_path))
         targets: dict[str, str] = {}
         for premove in candidates:
-            old_target = posixpath.normpath(
-                posixpath.join(posixpath.dirname(premove), link_path)
-            )
+            old_target = posixpath.normpath(posixpath.join(posixpath.dirname(premove), link_path))
             new_target = self.map_forward(old_target)
             if self._exists(new_target):
-                targets.setdefault(
-                    str((self.repo_root / new_target).resolve()), new_target
-                )
+                targets.setdefault(str((self.repo_root / new_target).resolve()), new_target)
         if len(targets) == 1:
             return next(iter(targets.values()))
         return None
@@ -287,9 +285,7 @@ class Resolver:
         if era_match is None:
             return candidates
         era = era_match.group(1)
-        narrowed = [
-            cand for cand in candidates if era in _ERA.findall(posixpath.dirname(cand))
-        ]
+        narrowed = [cand for cand in candidates if era in _ERA.findall(posixpath.dirname(cand))]
         return narrowed or candidates
 
     # -- unique-on-disk landing (fallback) --------------------------------- #
@@ -393,9 +389,7 @@ def iter_doc_files(
             yield path
 
 
-def rewrite_body(
-    body: str, rel_path: str, resolver: Resolver
-) -> tuple[str, list[LinkRewrite], list[Unresolvable]]:
+def rewrite_body(body: str, rel_path: str, resolver: Resolver) -> tuple[str, list[LinkRewrite], list[Unresolvable]]:
     """Rewrite broken bare-relative links in *body*; collect outcomes.
 
     Already-resolving links are left untouched (idempotency); unresolvable ones
@@ -424,11 +418,7 @@ def rewrite_body(
             # line=0 sentinel: fix path, frontmatter offset unavailable here.
             unresolved.append(Unresolvable(file=rel_path, link=parsed.path, line=0))
             return match.group(0)
-        rewrites.append(
-            LinkRewrite(
-                file=rel_path, old_link=parsed.path, new_link=new_link, tier=tier
-            )
-        )
+        rewrites.append(LinkRewrite(file=rel_path, old_link=parsed.path, new_link=new_link, tier=tier))
         return "](" + parsed.render(new_link) + ")"
 
     return _LINK.sub(_sub, body), rewrites, unresolved
@@ -445,9 +435,7 @@ class FixReport:
         return len(self.rewrites)
 
 
-def run(
-    repo_root: Path, occurrence_map_path: Path, *, dry_run: bool = False
-) -> FixReport:
+def run(repo_root: Path, occurrence_map_path: Path, *, dry_run: bool = False) -> FixReport:
     """Fix (or, when *dry_run*, plan) broken bare-relative body links in ``docs/``."""
 
     resolver = Resolver.build(repo_root, occurrence_map_path)
@@ -465,6 +453,43 @@ def run(
         if not dry_run:
             path.write_text(frontmatter + new_body, encoding="utf-8")
     return report
+
+
+def _dead_links_in_file(path: Path, rel: str, repo_root: Path) -> tuple[int, list[Unresolvable]]:
+    """Whole-file dead-bare-relative-link check for one ``docs/**/*.md`` file.
+
+    Shared by the whole-tree gate (:func:`check_dead_body_links`) and the
+    diff-scope gate (:func:`check_dead_body_links_diff_scoped`) so both scan the
+    SAME whole file (B-WP02 T008 step 2: scope by *file*, never by hunk/line —
+    a line/hunk filter would miss a break on an unmodified line of a modified
+    file).
+
+    Returns ``(links_examined, dead_records)``; line numbers in *dead_records*
+    are file-absolute (1-based), accounting for the frontmatter offset.
+    """
+
+    dead: list[Unresolvable] = []
+    links_examined = 0
+    frontmatter, body = split_frontmatter(path.read_text(encoding="utf-8"))
+    # Frontmatter line offset: number of newlines in the frontmatter block
+    # (including its closing ``---`` delimiter) so that line_num below is
+    # the absolute editor line (1-based from the top of the file).
+    fm_lines = frontmatter.count("\n")
+    file_dir = posixpath.dirname(rel)
+    for match in _LINK.finditer(body):
+        parsed = parse_link_payload(match.group(1))
+        if parsed is None or not is_bare_relative(parsed.path):
+            continue
+        links_examined += 1
+        line_num = fm_lines + body.count("\n", 0, match.start()) + 1
+        current = posixpath.normpath(posixpath.join(file_dir, parsed.path))
+        # D-1: report links that escape the repo root (normalised path
+        # starts with "..") OR do not resolve on disk.  In-repo cross-tree
+        # refs (docs/ → src/, tests/, kitty-specs/, etc.) that stay within
+        # the repo root and resolve on disk are intentional and accepted.
+        if _escapes_repo_root(current) or not (repo_root / current).exists():
+            dead.append(Unresolvable(file=rel, link=parsed.path, line=line_num))
+    return links_examined, dead
 
 
 def check_dead_body_links(
@@ -494,6 +519,11 @@ def check_dead_body_links(
     a regex change that stops matching links — goes **red** immediately rather
     than passing vacuously with an empty dead list.
 
+    This whole-tree floor is intentionally NOT applied to the diff-scope gate
+    (:func:`check_dead_body_links_diff_scoped`) — a resolved diff that touches
+    zero docs files is a legitimate PASS there, not a scope-narrowing bug
+    (B-WP02).
+
     Line numbers in returned :class:`Unresolvable` records are **file-absolute**
     (1-based), accounting for the frontmatter offset so the number matches what
     an editor displays.
@@ -508,25 +538,9 @@ def check_dead_body_links(
     for path in iter_doc_files(repo_root, exclude_prefixes):
         files_visited += 1
         rel = path.relative_to(repo_root).as_posix()
-        frontmatter, body = split_frontmatter(path.read_text(encoding="utf-8"))
-        # Frontmatter line offset: number of newlines in the frontmatter block
-        # (including its closing ``---`` delimiter) so that line_num below is
-        # the absolute editor line (1-based from the top of the file).
-        fm_lines = frontmatter.count("\n")
-        file_dir = posixpath.dirname(rel)
-        for match in _LINK.finditer(body):
-            parsed = parse_link_payload(match.group(1))
-            if parsed is None or not is_bare_relative(parsed.path):
-                continue
-            links_examined += 1
-            line_num = fm_lines + body.count("\n", 0, match.start()) + 1
-            current = posixpath.normpath(posixpath.join(file_dir, parsed.path))
-            # D-1: report links that escape the repo root (normalised path
-            # starts with "..") OR do not resolve on disk.  In-repo cross-tree
-            # refs (docs/ → src/, tests/, kitty-specs/, etc.) that stay within
-            # the repo root and resolve on disk are intentional and accepted.
-            if _escapes_repo_root(current) or not (repo_root / current).exists():
-                dead.append(Unresolvable(file=rel, link=parsed.path, line=line_num))
+        file_links, file_dead = _dead_links_in_file(path, rel, repo_root)
+        links_examined += file_links
+        dead.extend(file_dead)
     assert_examined_floor(
         files_visited,
         min_files,
@@ -545,6 +559,51 @@ def check_dead_body_links(
     return sorted(dead, key=lambda u: (u.file, u.line, u.link))
 
 
+def check_dead_body_links_diff_scoped(
+    repo_root: Path,
+    changed_files: list[str],
+    *,
+    exclude_prefixes: tuple[str, ...] | None = None,
+) -> list[Unresolvable]:
+    """Diff-scoped counterpart to :func:`check_dead_body_links` (#3147, B-WP02).
+
+    Restricts the whole-file dead-link check to *changed_files* intersected
+    with the ``docs/**/*.md`` scan set, instead of the whole-docs
+    :func:`iter_doc_files` walk. Each in-scope changed file is checked
+    **whole-file** (via the shared :func:`_dead_links_in_file`), exactly like
+    the whole-tree gate — never by hunk/line, so a break on an unmodified line
+    of a modified file is still caught.
+
+    *changed_files* are the repo-relative POSIX paths from
+    :func:`scripts.docs._guards.resolve_changed_files` (or an equivalent
+    changed-set). A changed path that has been deleted (no longer exists on
+    disk) is skipped — there is nothing left to check.
+
+    **No non-vacuity floor is applied here (B-WP02, deliberate).** A
+    successfully-resolved diff that intersects zero ``docs/**/*.md`` files —
+    the common case for a non-docs-md PR, since ``docs-freshness.yml`` also
+    triggers on ``src/specify_cli/**``, ``pyproject.toml``, etc. — returns an
+    empty list (clean PASS), not a :exc:`RuntimeError`. Reusing
+    :func:`~scripts.docs._guards.assert_examined_floor` here would red every
+    such PR; that floor stays reserved for the whole-tree/``push`` mode where
+    zero examined genuinely signals a broken scan.
+    """
+
+    effective = EXCLUDE_PREFIXES if exclude_prefixes is None else exclude_prefixes
+    dead: list[Unresolvable] = []
+    for rel in sorted(changed_files):
+        if not (rel.startswith(f"{DOCS_ROOT}/") and rel.endswith(".md")):
+            continue
+        if rel.startswith(effective):
+            continue
+        path = repo_root / rel
+        if not path.is_file():
+            continue  # deleted (or otherwise absent) changed path — nothing to check
+        _, file_dead = _dead_links_in_file(path, rel, repo_root)
+        dead.extend(file_dead)
+    return sorted(dead, key=lambda u: (u.file, u.line, u.link))
+
+
 # --------------------------------------------------------------------------- #
 # CLI                                                                          #
 # --------------------------------------------------------------------------- #
@@ -554,9 +613,7 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, default=Path.cwd())
     parser.add_argument("--occurrence-map", type=Path, default=None)
-    parser.add_argument(
-        "--dry-run", action="store_true", help="Print planned rewrites; write nothing."
-    )
+    parser.add_argument("--dry-run", action="store_true", help="Print planned rewrites; write nothing.")
     parser.add_argument(
         "--check",
         action="store_true",
@@ -565,22 +622,29 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument(
         "--no-exclude",
         action="store_true",
+        help=("Run with EXCLUDE_PREFIXES=() — covers the full docs/ tree. Use for the C-007 gate-unmask dry-run (D-3)."),
+    )
+    parser.add_argument(
+        "--changed-from",
+        metavar="BASE_REF",
+        default=None,
         help=(
-            "Run with EXCLUDE_PREFIXES=() — covers the full docs/ tree. "
-            "Use for the C-007 gate-unmask dry-run (D-3)."
+            "Diff-scope --check to docs/**/*.md files changed since BASE_REF "
+            "(#3147). Fails closed (non-zero exit) only when BASE_REF cannot be "
+            "resolved via git; a resolved diff with zero in-scope docs files is "
+            "a clean pass — see B-WP02 in the mission findings. Ignored outside "
+            "--check mode."
         ),
     )
     return parser.parse_args(argv)
 
 
 def _print_report(report: FixReport, mode: str) -> None:
-    print(f"[relative_link_fixer] {mode}: {report.total_rewrites} rewrites "
-          f"across {report.changed_files} files")
+    print(f"[relative_link_fixer] {mode}: {report.total_rewrites} rewrites across {report.changed_files} files")
     for rw in report.rewrites:
         print(f"  [{rw.tier:7s}] {rw.file}: {rw.old_link}  ->  {rw.new_link}")
     if report.unresolvable:
-        print(f"[relative_link_fixer] UNRESOLVABLE ({len(report.unresolvable)}) "
-              "— reported, never guessed:")
+        print(f"[relative_link_fixer] UNRESOLVABLE ({len(report.unresolvable)}) — reported, never guessed:")
         for un in report.unresolvable:
             print(f"  {un.file}:{un.line} -> {un.link}")
 
@@ -592,8 +656,19 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.check:
         exclude = () if args.no_exclude else None
-        dead = check_dead_body_links(repo_root, exclude_prefixes=exclude)
-        print(f"[relative_link_fixer] CHECK: {len(dead)} dead bare-relative body links")
+        if args.changed_from is not None:
+            # Diff-scope mode (#3147, B-WP02): fail-closed ONLY on an
+            # unresolvable git base — never on a resolved-but-empty changed set.
+            try:
+                changed = resolve_changed_files(repo_root, args.changed_from)
+            except GitDiffError as exc:
+                print(f"[relative_link_fixer] ERROR: {exc}", file=sys.stderr)
+                return 2
+            dead = check_dead_body_links_diff_scoped(repo_root, changed, exclude_prefixes=exclude)
+            print(f"[relative_link_fixer] CHECK (diff-scope from {args.changed_from}): {len(dead)} dead bare-relative body links")
+        else:
+            dead = check_dead_body_links(repo_root, exclude_prefixes=exclude)
+            print(f"[relative_link_fixer] CHECK: {len(dead)} dead bare-relative body links")
         for un in dead:
             print(f"  {un.file}:{un.line} -> {un.link}")
         # Mission B / WP14 flips this body-link-resolution gate to blocking: any
