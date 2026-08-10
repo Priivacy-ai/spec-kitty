@@ -540,15 +540,24 @@ def build_project_store_status(
     migration_phase: str | None = None,
     quarantine_count: int = 0,
 ) -> dict[str, Any]:
-    """Report one explicit store's authority and payload-free diagnostics."""
+    """Report adapters bound to the context's exact verified store/UoW open."""
     owner = str(context.project_uuid)
+    if body_upload_queue is not None and not isinstance(
+        body_upload_queue,
+        OfflineBodyUploadQueue,
+    ):
+        raise TypeError("project-store status requires a project-store body queue")
+    expected_store = context.store_identity
+    repository_stores = [journal.store_identity, ledger.store_identity]
+    if body_upload_queue is not None:
+        repository_stores.append(body_upload_queue.store_identity)
+    if any(identity is not expected_store for identity in repository_stores):
+        raise ValueError("status inputs do not belong to the context's project store; verified project store capability mismatch")
     if journal.project_uuid != owner or ledger.project_uuid != owner:
         raise ValueError("status inputs do not belong to the context's project store")
     if journal.unit_of_work_identity != ledger.unit_of_work_identity:
         raise ValueError("status inputs do not share the same project unit of work")
     if body_upload_queue is not None:
-        if not isinstance(body_upload_queue, OfflineBodyUploadQueue):
-            raise TypeError("project-store status requires a project-store body queue")
         if body_upload_queue.project_uuid != owner:
             raise ValueError("status inputs do not belong to the context's project store")
         if body_upload_queue.unit_of_work_identity != journal.unit_of_work_identity:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -47,7 +48,7 @@ def _row_count(unit: ProjectUnitOfWork) -> int:
         (unit.project_uuid.storage_token,),
     ).fetchone()
     assert row is not None
-    return int(row[0])
+    return int(cast("str | int | float | bytes", row[0]))
 
 
 class _ReadCountingQueue(OfflineBodyUploadQueue):

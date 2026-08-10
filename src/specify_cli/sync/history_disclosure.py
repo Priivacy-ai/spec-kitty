@@ -6,6 +6,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import cast
 
 from .project_context import AdmissionState, ConsentState, ProjectSyncContext
 from .project_store import ProjectSyncStore, ProjectUnitOfWork
@@ -91,7 +92,15 @@ def _cohort_rows(
         (unit.project_uuid.storage_token,),
     ).fetchall()
     selected_epochs = frozenset(source_epoch_ids) if source_epoch_ids is not None else None
-    return [(str(row[0]), int(row[1]), str(row[2])) for row in rows if selected_epochs is None or int(row[1]) in selected_epochs]
+    return [
+        (
+            str(row[0]),
+            int(cast("str | int | float | bytes", row[1])),
+            str(row[2]),
+        )
+        for row in rows
+        if selected_epochs is None or int(cast("str | int | float | bytes", row[1])) in selected_epochs
+    ]
 
 
 def _preview_from_rows(
@@ -297,11 +306,16 @@ def consume_history_disclosure(
             project_uuid=store.project_uuid.storage_token,
             row_ids=row_ids,
             source_epoch_ids=source_epochs,
-            preview_count=int(row[2]),
+            preview_count=int(cast("str | int | float | bytes", row[2])),
             preview_hash=str(row[3]),
         )
         _assert_preview_unchanged(unit, preview)
-        persisted_authority = (int(row[4]), int(row[5]), str(row[6]), str(row[7]))
+        persisted_authority = (
+            int(cast("str | int | float | bytes", row[4])),
+            int(cast("str | int | float | bytes", row[5])),
+            str(row[6]),
+            str(row[7]),
+        )
         if persisted_authority != current_authority:
             raise HistoryDisclosureError("history action authority is stale; preview and confirm again")
     return _new_capability(
@@ -339,10 +353,10 @@ def revalidate_history_disclosure(
     try:
         source_epochs = tuple(int(value) for value in json.loads(str(row[0])))
         row_ids = tuple(str(value) for value in json.loads(str(row[1])))
-        preview_count = int(row[2])
+        preview_count = int(cast("str | int | float | bytes", row[2]))
         persisted_authority = (
-            int(row[4]),
-            int(row[5]),
+            int(cast("str | int | float | bytes", row[4])),
+            int(cast("str | int | float | bytes", row[5])),
             str(row[6]),
             str(row[7]),
         )

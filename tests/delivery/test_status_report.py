@@ -53,7 +53,8 @@ from specify_cli.delivery.status_report import (
     evaluate_gc_suggestion,
 )
 from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
-from specify_cli.event_journal import Event, EventJournal
+from specify_cli.event_journal import Event
+from specify_cli.event_journal.journal import EventJournal
 from specify_cli.sync.body_queue import OfflineBodyUploadQueue
 from specify_cli.sync.consent import record_project_opt_in
 from specify_cli.sync.migrate_journal import MigrationAudit, MigrationConflict
@@ -297,6 +298,8 @@ def test_project_store_status_rejects_fabricated_store_identity_before_read(
         "layout_version",
     ):
         object.__setattr__(fabricated, name, getattr(genuine, name))
+    with pytest.raises(TypeError, match="ProjectSyncStore"):
+        ProjectUnitOfWork(object(), store.project_uuid, fabricated)
     fabricated_context = _clone_context_with_identity(context, fabricated)
     journal = _ReadCountingJournal(unit, store.layout_generation())
     ledger = _ReadCountingLedger(unit, store.layout_generation())

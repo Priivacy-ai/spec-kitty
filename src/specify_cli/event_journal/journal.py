@@ -14,7 +14,7 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.paths import get_runtime_root
@@ -24,6 +24,7 @@ from specify_cli.sync.layout_generation import (
     LayoutTestHooks,
     LayoutWritePermit,
 )
+from specify_cli.sync.project_context import VerifiedProjectStoreIdentity
 from specify_cli.sync.project_store import ProjectUnitOfWork
 
 from .models import (
@@ -139,6 +140,11 @@ class EventJournal:
     def unit_of_work_identity(self) -> int:
         return int(self._unit.connection_identity)
 
+    @property
+    def store_identity(self) -> VerifiedProjectStoreIdentity:
+        """Return the opaque identity minted for this repository's active UoW."""
+        return self._unit.store_identity
+
     def _existing_assignment(self, event_id: str) -> JournalWriteReceipt | None:
         row = self._unit.execute(
             "SELECT capture_sequence, epoch_id FROM journal_entries WHERE project_uuid = ? AND entry_id = ?",
@@ -149,8 +155,8 @@ class EventJournal:
         return JournalWriteReceipt(
             event_id=event_id,
             project_uuid=self.project_uuid,
-            capture_sequence=int(row[0]),
-            epoch_id=int(row[1]),
+            capture_sequence=int(cast("str | int | float | bytes", row[0])),
+            epoch_id=int(cast("str | int | float | bytes", row[1])),
             inserted=False,
         )
 
@@ -305,7 +311,7 @@ class EventJournal:
             "SELECT COUNT(*) FROM journal_entries WHERE project_uuid = ?",
             (self.project_uuid,),
         ).fetchone()
-        return int(row[0]) if row is not None else 0
+        return int(cast("str | int | float | bytes", row[0])) if row is not None else 0
 
     def owner_consent_projection(self) -> tuple[str | None, int | None]:
         """Return this store owner's payload-free decision on the active UoW."""
@@ -315,7 +321,7 @@ class EventJournal:
         ).fetchone()
         if row is None:
             return None, None
-        return str(row[0]), int(row[1])
+        return str(row[0]), int(cast("str | int | float | bytes", row[1]))
 
     def oldest_created_at(self) -> str | None:
         candidates = [event.created_at for event in self.read_all() if event.archived_at is None]
@@ -434,7 +440,14 @@ class EventJournal:
                 "(task_id, project_uuid, epoch_id, journal_entry_id, task_kind, state, "
                 "idempotency_identity, created_at) VALUES (?, ?, ?, ?, 'coalesce_supersede', "
                 "'recorded', ?, ?)",
-                (task_id, self.project_uuid, int(prior[0]), superseded_event_id, identity, at),
+                (
+                    task_id,
+                    self.project_uuid,
+                    int(cast("str | int | float | bytes", prior[0])),
+                    superseded_event_id,
+                    identity,
+                    at,
+                ),
             )
 
         self._authority.execute_write(self._authority.issue_write_permit(), write)

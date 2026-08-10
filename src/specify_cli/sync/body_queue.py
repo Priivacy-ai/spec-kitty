@@ -18,6 +18,7 @@ from specify_cli.sync.layout_generation import (
     LayoutTestHooks,
     LayoutWritePermit,
 )
+from specify_cli.sync.project_context import VerifiedProjectStoreIdentity
 from specify_cli.sync.project_store import ProjectUnitOfWork
 
 from .queue import DEFAULT_MAX_QUEUE_SIZE, get_max_queue_size
@@ -152,6 +153,11 @@ class OfflineBodyUploadQueue:
     @property
     def unit_of_work_identity(self) -> int:
         return int(self._unit.connection_identity)
+
+    @property
+    def store_identity(self) -> VerifiedProjectStoreIdentity:
+        """Return the opaque identity minted for this repository's active UoW."""
+        return self._unit.store_identity
 
     @property
     def max_queue_size(self) -> int:

@@ -7,7 +7,7 @@ import json
 from collections.abc import Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.sync.layout_generation import (
@@ -16,6 +16,7 @@ from specify_cli.sync.layout_generation import (
     LayoutTestHooks,
     LayoutWritePermit,
 )
+from specify_cli.sync.project_context import VerifiedProjectStoreIdentity
 from specify_cli.sync.project_store import ProjectUnitOfWork
 from specify_cli.sync.history_disclosure import (
     HistoryDisclosureCapability,
@@ -125,6 +126,11 @@ class SqliteDeliveryLedger:
     def unit_of_work_identity(self) -> int:
         return int(self._unit.connection_identity)
 
+    @property
+    def store_identity(self) -> VerifiedProjectStoreIdentity:
+        """Return the opaque identity minted for this repository's active UoW."""
+        return self._unit.store_identity
+
     @contextmanager
     def transaction(self) -> Iterator[SqliteDeliveryLedger]:
         """Group inside the already-active store-owned outer transaction."""
@@ -146,7 +152,7 @@ class SqliteDeliveryLedger:
         ).fetchone()
         if row is None:
             raise ValueError("delivery result requires an event owned by this project store")
-        return int(row[0])
+        return int(cast("str | int | float | bytes", row[0]))
 
     def _attempt_rows(self) -> list[tuple[Any, ...]]:
         return [

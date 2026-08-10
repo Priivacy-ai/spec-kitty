@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
+from typing import cast
+
 from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.delivery.ledger import SqliteDeliveryLedger
 from specify_cli.event_journal.journal import EventJournal
@@ -226,9 +228,9 @@ def _counts(unit: ProjectUnitOfWork) -> tuple[int, int, int]:
     body = unit.execute("SELECT COUNT(*) FROM body_upload_tasks WHERE project_uuid = ?", (owner,)).fetchone()
     results = unit.execute("SELECT COUNT(*) FROM delivery_results WHERE project_uuid = ?", (owner,)).fetchone()
     return (
-        int(journal[0]) if journal is not None else 0,
-        int(body[0]) if body is not None else 0,
-        int(results[0]) if results is not None else 0,
+        int(cast("str | int | float | bytes", journal[0])) if journal is not None else 0,
+        int(cast("str | int | float | bytes", body[0])) if body is not None else 0,
+        int(cast("str | int | float | bytes", results[0])) if results is not None else 0,
     )
 
 

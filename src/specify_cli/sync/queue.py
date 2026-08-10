@@ -8,7 +8,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 import toml
 
@@ -473,7 +473,7 @@ class OfflineQueue:
             "SELECT COUNT(*) FROM outbox_tasks WHERE project_uuid = ? AND task_kind = 'event' AND state NOT IN ('synced', 'terminal_failed')",
             (self.project_uuid,),
         ).fetchone()
-        return int(row[0]) if row is not None else 0
+        return int(cast("str | int | float | bytes", row[0])) if row is not None else 0
 
     def clear(self) -> None:
         self.mark_synced([task.event_id for task in self.drain_queue(limit=self.size())])
