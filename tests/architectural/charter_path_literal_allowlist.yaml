@@ -82,12 +82,12 @@ charter_path_literals:
   token: "charter_yaml_path = charter_dir /"
   rationale: "PERMANENT (layering): versioning.py's own module docstring states 'This module must NOT import from charter.*'; the doctrine wheel cannot depend on charter.bundle."
 - file: src/doctrine/versioning.py
-  qualname: migrate_v1_to_v2
-  line: 451
+  qualname: _stamp_charter_bundle_version
+  line: 530
   literal: "charter.yaml"
   clause: "a"
   token: "charter_yaml_path = bundle_root /"
-  rationale: "PERMANENT (layering): same doctrine->charter import prohibition as :190; migrate_v1_to_v2 resolves charter.yaml inside a caller-supplied bundle_root."
+  rationale: "PERMANENT (layering): same doctrine->charter import prohibition as :190; _stamp_charter_bundle_version (a phase-helper extracted from migrate_v1_to_v2 for S3776) resolves charter.yaml inside a caller-supplied bundle_root."
 - file: src/specify_cli/charter_runtime/freshness/computer.py
   qualname: <module>
   line: 179
