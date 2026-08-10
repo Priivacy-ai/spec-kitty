@@ -53,7 +53,7 @@ from .result import CharterPreflightCheck, CharterPreflightResult
 if TYPE_CHECKING:  # pragma: no cover — used only for type hints.
     from specify_cli.charter_runtime.freshness import CharterFreshness
 
-__all__ = ["run_charter_preflight"]
+__all__ = ["SYNTHESIZED_DRG_LAYER", "run_charter_preflight"]
 
 
 # ---------------------------------------------------------------------------
@@ -61,12 +61,21 @@ __all__ = ["run_charter_preflight"]
 # ---------------------------------------------------------------------------
 
 
+#: Canonical freshness-check name for the synthesized-DRG layer. This is the
+#: single source of truth for the string ``"synthesized_drg"`` — both
+#: ``_LAYER_ORDER`` below and ``references_refresh``'s references-parity
+#: cause matching (:func:`references_refresh.is_references_parity_cause`)
+#: consume this constant rather than re-declaring the literal, so a rename
+#: here cannot silently desync the references-parity heal from the runner's
+#: actual layer set.
+SYNTHESIZED_DRG_LAYER = "synthesized_drg"
+
 # Layer ordering is part of the contract — consumers MAY index by name but
 # humans scanning ``--json`` output rely on this order.
 _LAYER_ORDER: tuple[tuple[str, str], ...] = (
     ("charter_source", "charter source"),
     ("synced_bundle", "synced bundle"),
-    ("synthesized_drg", "synthesized DRG"),
+    (SYNTHESIZED_DRG_LAYER, "synthesized DRG"),
 )
 
 # Passing states — see contracts/charter-preflight-json.md "State semantics".

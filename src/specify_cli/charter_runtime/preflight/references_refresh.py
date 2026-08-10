@@ -62,6 +62,8 @@ from ruamel.yaml import YAML
 
 from charter.bundle import CHARTER_YAML
 
+from .runner import SYNTHESIZED_DRG_LAYER
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
@@ -70,8 +72,13 @@ __all__ = ["refresh_references_if_needed"]
 _logger = logging.getLogger(__name__)
 
 #: The freshness-check name that stands in for "references-parity drift" —
-#: see the module docstring's mapping note.
-_REFERENCES_PARITY_CAUSE_NAME = "synthesized_drg"
+#: see the module docstring's mapping note. Sourced from
+#: ``preflight.runner.SYNTHESIZED_DRG_LAYER`` (the runner's own
+#: ``_LAYER_ORDER`` authority) rather than re-declared here, so a rename of
+#: the layer name cannot silently desync this cause-matching from the
+#: runner's actual layer set — see this module's binding test,
+#: ``test_references_parity_cause_name_is_a_runner_layer``.
+_REFERENCES_PARITY_CAUSE_NAME = SYNTHESIZED_DRG_LAYER
 
 #: Targeted-generate timeout — mirrors ``preflight.runner``'s refresh-step
 #: default (the whole boundary sequence budgets 30s/step; this hook fires

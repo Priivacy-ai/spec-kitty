@@ -284,3 +284,22 @@ def test_non_references_parity_cause_is_a_true_noop(
 )
 def test_is_references_parity_cause(cause: str, expected: bool) -> None:
     assert references_refresh.is_references_parity_cause(cause) is expected
+
+
+def test_references_parity_cause_name_is_a_runner_layer() -> None:
+    """The references-parity cause name must be a real runner layer name.
+
+    ``references_refresh._REFERENCES_PARITY_CAUSE_NAME`` is sourced from
+    ``preflight.runner.SYNTHESIZED_DRG_LAYER`` rather than re-declared as its
+    own literal (see the module docstring's mapping note and this fold's
+    single-source refactor). This is the binding test that makes a future
+    rename of the layer name fail loudly instead of silently no-op'ing the
+    references-parity heal: assert the cause name is a member of the
+    runner's own ``_LAYER_ORDER`` layer-key set, not just equal to a
+    hardcoded string.
+    """
+    from specify_cli.charter_runtime.preflight import runner as runner_module
+
+    layer_keys = {key for key, _label in runner_module._LAYER_ORDER}
+    assert references_refresh._REFERENCES_PARITY_CAUSE_NAME in layer_keys
+    assert references_refresh._REFERENCES_PARITY_CAUSE_NAME == runner_module.SYNTHESIZED_DRG_LAYER
