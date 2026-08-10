@@ -10,8 +10,7 @@ upgrade-specific logic and remain implemented here.
 from __future__ import annotations
 
 from kernel._safe_re import re
-from datetime import datetime, timezone, UTC
-from kernel.clock import Clock, DEFAULT_CLOCK
+from kernel.clock import datetime, from_epoch, Clock, DEFAULT_CLOCK
 from pathlib import Path
 from typing import Any
 
@@ -119,7 +118,7 @@ def infer_created_at(
         timestamps.append(feature_dir.stat().st_mtime)
 
     if timestamps:
-        created_at = datetime.fromtimestamp(min(timestamps), tz=UTC)
+        created_at = from_epoch(min(timestamps))
     else:
         created_at = now if now is not None else clock.now()
     return created_at.isoformat()

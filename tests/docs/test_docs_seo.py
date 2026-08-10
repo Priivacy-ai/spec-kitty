@@ -116,3 +116,45 @@ def test_seo_postprocess_injects_static_metadata(tmp_path: Path) -> None:
 
     robots = (site / "robots.txt").read_text(encoding="utf-8")
     assert "Sitemap: https://docs.spec-kitty.ai/sitemap.xml" in robots
+
+
+def test_sitemap_lastmod_uses_utc_date_not_local(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-011 (kernel-clock-single-door, WP14): ``write_sitemap``'s
+    ``lastmod`` date is the door's aware-UTC ``now_utc().date()``, not a
+    naive local ``date.today()``.
+
+    Byte-changing: the pre-migration site called stdlib ``date.today()``
+    (the host's local calendar date); it now reads
+    ``now_utc().date().isoformat()``. Pinned under a frozen clock straddling
+    a UTC day boundary that is NOT the local day boundary (23:30 UTC on
+    2026-03-04): a host in a timezone west of UTC would still be on
+    2026-03-04 locally at this instant, but any host at UTC+1 or later has
+    already rolled to 2026-03-05 locally -- proving the date comes from the
+    frozen UTC clock, not ``date.today()``.
+
+    C-009 mutation verified: reverting the site to ``date.today().isoformat()``
+    would read the real host-local date instead of the frozen
+    ``2026-03-04`` and this assertion would fail.
+    """
+    import kernel.clock as clock_module
+    from kernel.clock import UTC, FrozenClock, datetime
+
+    frozen_instant = datetime(2026, 3, 4, 23, 30, 0, tzinfo=UTC)
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=frozen_instant))
+
+    site = tmp_path / "_site"
+    site.mkdir()
+    page = seo_postprocess.Page(
+        path=site / "index.html",
+        relative_path="index.html",
+        title="Home",
+        description="Home page",
+        url="https://docs.spec-kitty.ai/",
+    )
+
+    seo_postprocess.write_sitemap(site, [page])
+
+    sitemap = (site / "sitemap.xml").read_text(encoding="utf-8")
+    assert "<lastmod>2026-03-04</lastmod>" in sitemap

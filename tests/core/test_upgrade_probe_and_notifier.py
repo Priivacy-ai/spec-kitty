@@ -16,7 +16,7 @@ Per the WP09 contract (`contracts/upgrade-probe-and-notifier.md`) and the
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta, UTC
+from kernel.clock import datetime, timedelta, UTC
 from io import StringIO
 from pathlib import Path
 

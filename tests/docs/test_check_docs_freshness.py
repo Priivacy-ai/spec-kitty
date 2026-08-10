@@ -694,10 +694,10 @@ def test_cli_version_returns_string() -> None:
 
 
 def test_now_iso_is_iso8601() -> None:
-    from datetime import datetime
+    from kernel.clock import parse_iso
 
     s = orchestrator._now_iso()
-    parsed = datetime.fromisoformat(s)
+    parsed = parse_iso(s)
     assert parsed.tzinfo is not None
 
 

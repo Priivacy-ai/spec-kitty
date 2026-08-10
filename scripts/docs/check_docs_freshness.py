@@ -44,7 +44,7 @@ import urllib.error  # noqa: E402
 import urllib.request  # noqa: E402
 from collections.abc import Iterable, Sequence  # noqa: E402
 from dataclasses import asdict, dataclass, field  # noqa: E402
-from datetime import UTC, datetime  # noqa: E402
+from kernel.clock import now_utc_iso  # noqa: E402
 from pathlib import Path  # noqa: E402
 from typing import Final, Literal  # noqa: E402
 
@@ -933,7 +933,7 @@ def _tempfile_path() -> Path:
 
 
 def _now_iso() -> str:
-    return datetime.now(tz=UTC).isoformat()
+    return now_utc_iso()
 
 
 def _cli_version() -> str:

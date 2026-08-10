@@ -20,7 +20,7 @@ Test Strategy:
 import json
 import pytest
 import tempfile
-from datetime import UTC, datetime
+from kernel.clock import now_utc
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -56,7 +56,7 @@ class TestDossierHTTPRuntime:
                 size_bytes=1024,
                 required_status="required",
                 is_present=True,
-                indexed_at=datetime.now(UTC),
+                indexed_at=now_utc(),
             ),
             ArtifactRef(
                 artifact_key="output.plan.main",
@@ -66,7 +66,7 @@ class TestDossierHTTPRuntime:
                 size_bytes=2048,
                 required_status="required",
                 is_present=True,
-                indexed_at=datetime.now(UTC),
+                indexed_at=now_utc(),
             ),
             ArtifactRef(
                 artifact_key="evidence.research",
@@ -77,7 +77,7 @@ class TestDossierHTTPRuntime:
                 required_status="optional",
                 is_present=False,
                 error_reason="not_found",
-                indexed_at=datetime.now(UTC),
+                indexed_at=now_utc(),
             ),
         ]
 

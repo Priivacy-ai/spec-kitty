@@ -439,6 +439,115 @@ REGISTRY: dict[str, RegisteredSite] = {
         producer=lambda: now_utc().isoformat(),
         prior_signature=lambda instant: instant.isoformat(),
     ),
+    # --- WP13c (specify_misc: retrospective, invocation, review, acceptance,
+    # orchestrator_api, missions, upgrade, readiness, policy, session_presence,
+    # skills, doc_analysis, top-level specify_cli/*.py modules) -------------
+    # acceptance/__init__.py's accept-commit message timestamp (persisted git
+    # commit message, "Accepted at <timestamp>"-style note). Prior:
+    # `datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")` -> now_utc_stamp().
+    "specify_cli.acceptance.accept_summary#timestamp": RegisteredSite(
+        producer=now_utc_stamp,
+        prior_signature=lambda instant: instant.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    ),
+    # doctrine/snapshot.py + doctrine/sources/api_source.py's identically-shaped
+    # retired `_iso_now()` helpers (persisted cache/freshness "fetched_at" /
+    # cache "Date" fallback). Prior: `datetime.now(UTC).strftime(
+    # "%Y-%m-%dT%H:%M:%SZ")` -> now_utc_stamp() (one representative entry;
+    # both modules shared the identical prior expression).
+    "specify_cli.doctrine.snapshot._iso_now#fetched_at": RegisteredSite(
+        producer=now_utc_stamp,
+        prior_signature=lambda instant: instant.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    ),
+    # orchestrator_api/commands.py's persisted Activity Log note timestamp
+    # prefix (`- [<timestamp>] <actor>: <note>`, byte-identical per the
+    # module's own FR-007 no-content-loss comment). Prior:
+    # `datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")` -> now_utc_stamp().
+    "specify_cli.orchestrator_api.commands#note_timestamp": RegisteredSite(
+        producer=now_utc_stamp,
+        prior_signature=lambda instant: instant.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    ),
+    # paths/windows_migrate.py's `_utc_timestamp()` (persisted Windows-migration
+    # backup directory name suffix). Prior: `datetime.now(UTC).strftime(
+    # "%Y%m%dT%H%M%SZ")` -> now_utc_compact_stamp().
+    "specify_cli.paths.windows_migrate._utc_timestamp#backup_dir": RegisteredSite(
+        producer=now_utc_compact_stamp,
+        prior_signature=lambda instant: instant.strftime("%Y%m%dT%H%M%SZ"),
+    ),
+    # policy/hook_installer.py's rendered pre-commit hook `installed_at`
+    # (persisted `.git/hooks/pre-commit` header comment). Prior:
+    # `datetime.now(UTC).isoformat(timespec="seconds")` -> now_utc_seconds().
+    "specify_cli.policy.hook_installer.install_hook#installed_at": RegisteredSite(
+        producer=now_utc_seconds,
+        prior_signature=lambda instant: instant.isoformat(timespec="seconds"),
+    ),
+    # review/baseline.py's persisted `BaselineTestResult.captured_at` (3
+    # identical call sites -- success, sentinel-on-parse-failure, and the
+    # bare sentinel builder -- one representative entry). Prior:
+    # `datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")` -> now_utc_stamp().
+    "specify_cli.review.baseline.capture_baseline_test_result#captured_at": RegisteredSite(
+        producer=now_utc_stamp,
+        prior_signature=lambda instant: instant.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    ),
+    # review/cycle.py's persisted `ReviewCycleArtifact.reviewed_at`
+    # (`review-cycle-<n>.md`). Prior: `datetime.now(UTC).strftime(
+    # UTC_SECOND_TIMESTAMP_FORMAT)` -- the door's own collapsed constant
+    # (WP03) -- byte-identical to `now_utc_stamp()`.
+    "specify_cli.review.cycle.append_review_cycle#reviewed_at": RegisteredSite(
+        producer=now_utc_stamp,
+        prior_signature=lambda instant: instant.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    ),
+    # skills/installer.py's `_ensure_backup_root()` (persisted agent-skills
+    # migration-backup directory name suffix). Prior: `datetime.now(UTC)
+    # .strftime("%Y%m%dT%H%M%SZ")` -> now_utc_compact_stamp().
+    "specify_cli.skills.installer._ensure_backup_root#timestamp": RegisteredSite(
+        producer=now_utc_compact_stamp,
+        prior_signature=lambda instant: instant.strftime("%Y%m%dT%H%M%SZ"),
+    ),
+    # task_metadata_validation.py's persisted `tasks/WP##.md` Activity Log
+    # history-entry timestamp. Prior: `datetime.now(UTC).strftime(
+    # "%Y-%m-%dT%H:%M:%SZ")` -> now_utc_stamp().
+    "specify_cli.task_metadata_validation#history_timestamp": RegisteredSite(
+        producer=now_utc_stamp,
+        prior_signature=lambda instant: instant.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    ),
+    # upgrade/migrations/m_2_0_6_consistency_sweep.py's orphan-snapshot /
+    # unreadable-events backup filename suffixes (2 identical call sites,
+    # one representative entry). Prior: `datetime.now(UTC).strftime(
+    # "%Y%m%dT%H%M%SZ")` -> now_utc_compact_stamp().
+    "specify_cli.upgrade.migrations.m_2_0_6_consistency_sweep#backup_ts": RegisteredSite(
+        producer=now_utc_compact_stamp,
+        prior_signature=lambda instant: instant.strftime("%Y%m%dT%H%M%SZ"),
+    ),
+    # upgrade/migrations/m_unify_charter_activation_finalize.py's persisted
+    # `charter.yaml` bundle `metadata.generated_at`. Prior: `datetime.now(UTC)
+    # .strftime("%Y-%m-%dT%H:%M:%SZ")` -> now_utc_stamp().
+    "specify_cli.upgrade.migrations.m_unify_charter_activation_finalize#generated_at": RegisteredSite(
+        producer=now_utc_stamp,
+        prior_signature=lambda instant: instant.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    ),
+    # retrospective/tracer_writer.py's coord-file entry date stamp (persisted
+    # `.kittify/coordination/<category>.md`, date-only -- no time component).
+    # Prior: `datetime.now(UTC).date()` -> `now_utc().date()`.
+    "specify_cli.retrospective.tracer_writer.append_entry#resolved_date": RegisteredSite(
+        producer=lambda: now_utc().date().isoformat(),
+        prior_signature=lambda instant: instant.date().isoformat(),
+    ),
+    # --- WP14 (shared: scripts/, tests/architectural/, tests/_support/,
+    # tests/conftest.py, pyproject.toml) --------------------------------
+    # scripts/docs/check_docs_freshness.py's `_now_iso()` (persisted
+    # freshness-check report timestamp). Prior: `datetime.now(tz=UTC)
+    # .isoformat()` -> now_utc_iso().
+    "scripts.docs.check_docs_freshness._now_iso#report_timestamp": RegisteredSite(
+        producer=now_utc_iso,
+        prior_signature=lambda instant: instant.isoformat(),
+    ),
+    # scripts/docs/version_leakage_check.py's persisted JSON report
+    # `started_at` field. Prior: `datetime.now(tz=UTC).isoformat()` ->
+    # now_utc_iso().
+    "scripts.docs.version_leakage_check#started_at": RegisteredSite(
+        producer=now_utc_iso,
+        prior_signature=lambda instant: instant.isoformat(),
+    ),
 }
 
 

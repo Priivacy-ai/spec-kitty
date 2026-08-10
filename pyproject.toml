@@ -266,6 +266,19 @@ ignore = [
 # ignores also disarm the Gap-5 click.exceptions ban for those files. Keep
 # production raw-SHA exceptions inline at each call site so click.exceptions.*
 # remains enforced across all src files.
+#
+# kernel.clock single-door (C-008): this ignore is scoped ONLY to the two
+# `flake8-tidy-imports.banned-api` entries below (hashlib.sha256 /
+# click.exceptions.*) -- it does NOT and must NOT become the enforcement
+# surface for the wall-clock door. `scripts/` is in-scope for the door and is
+# enforced exclusively via the AST-based
+# `tests/architectural/test_clock_import_ban.py` / `test_clock_call_ban.py`
+# gate + the per-owner `tests/architectural/_exemptions/*.txt` allow-lists
+# (see `research/census.yaml`'s ownership_map and `tasks.md` WP14): the ratchet
+# runs through that gate + the exemption files ONLY, never through a
+# per-path/per-directory TID251 ignore. Confirmed live: `scripts/docs/*.py`'s
+# prior `datetime`/`date` sites were caught and remediated by the AST gate
+# despite this blanket TID251 ignore being present the whole time.
 "scripts/**" = ["TID251"]
 
 [tool.ruff.lint.flake8-tidy-imports]

@@ -257,9 +257,9 @@ class TestPerformance:
             content = ("User\u2019s test " * 100) * 10  # ~10KB
             test_file.write_text(content)
 
-            start = time.time()
+            start = time.monotonic()
             sanitize_file(test_file, backup=False, dry_run=True)
-            elapsed = (time.time() - start) * 1000  # Convert to ms
+            elapsed = (time.monotonic() - start) * 1000  # Convert to ms
 
             assert elapsed < 50, f"Single file validation took {elapsed:.1f}ms, should be < 50ms"
 
@@ -277,9 +277,9 @@ class TestPerformance:
                 file = subdir / f"file{i}.md"
                 file.write_text(f"File {i} with User\u2019s test")
 
-            start = time.time()
+            start = time.monotonic()
             results = sanitize_directory(base, pattern="**/*.md", backup=False, dry_run=True)
-            elapsed = time.time() - start
+            elapsed = time.monotonic() - start
 
             assert len(results) == 100, f"Should find 100 files, got {len(results)}"
             assert elapsed < 2.0, f"Directory scan took {elapsed:.2f}s, should be < 2s"

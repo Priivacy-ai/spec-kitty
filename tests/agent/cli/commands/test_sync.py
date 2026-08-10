@@ -97,7 +97,7 @@ class TestDisplayFunctions:
 
     def test_display_changes_integrated_truncates(self, capsys):
         """Test display truncates long lists."""
-        from datetime import datetime
+        from kernel.clock import now_utc
 
 
         changes = [
@@ -108,7 +108,7 @@ class TestDisplayFunctions:
                 message_full=f"Change {i}",
                 author="Test",
                 author_email="test@example.com",
-                timestamp=datetime.now(),
+                timestamp=now_utc(),
                 parents=[],
                 is_merge=False,
                 is_conflicted=False,

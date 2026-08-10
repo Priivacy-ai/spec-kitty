@@ -34,7 +34,7 @@ See ``tests/integration/coord_topology_fixture.py`` for fixture details.
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 
 import pytest
@@ -202,7 +202,7 @@ def _make_workspace_context_json(
         "base_branch": "main",
         "base_commit": None,
         "dependencies": [],
-        "created_at": datetime.now(UTC).isoformat(),
+        "created_at": now_utc_iso(),
         "created_by": "wp05-test",
         "vcs_backend": "git",
         "lane_id": "lane-a",

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import re
 import shutil
-from datetime import UTC, datetime
+from kernel.clock import now_utc_stamp
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -231,7 +231,7 @@ def _infer_source_type(source: OrgDoctrineSource) -> str:
 
 
 def _iso_now() -> str:
-    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return now_utc_stamp()
 
 
 # ----------------------------------------------------------------------

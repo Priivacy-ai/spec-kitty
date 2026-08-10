@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime
+from kernel.clock import datetime
 from typing import Any, ClassVar, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator

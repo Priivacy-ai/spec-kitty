@@ -7,7 +7,7 @@ and their frontmatter metadata.
 from __future__ import annotations
 
 import re
-from datetime import datetime, UTC
+from kernel.clock import now_utc_stamp
 from pathlib import Path
 
 import yaml
@@ -133,7 +133,7 @@ def repair_lane_mismatch(  # MIGRATION-ONLY
 
     # Add activity log entry if requested
     if add_history:
-        timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        timestamp = now_utc_stamp()
         # WP04/T015 (NFR-003/SC-004): the runtime ``shell_pid`` slot is no longer
         # emitted as a parseable frontmatter field — no repair/template path may
         # re-introduce a runtime slot into ``tasks/WP##.md``. The claiming pid is

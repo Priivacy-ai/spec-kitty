@@ -12,7 +12,7 @@ Tests cover:
 
 import json
 import pytest
-from datetime import UTC, datetime
+from kernel.clock import datetime, now_utc
 from pathlib import Path
 from uuid import UUID
 from unittest.mock import MagicMock, patch
@@ -544,7 +544,7 @@ class TestDriftDetection:
             baseline_key=key,
             baseline_key_hash=key.compute_hash(),
             parity_hash_sha256="a" * 64,
-            captured_at=datetime.now(UTC),
+            captured_at=now_utc(),
             captured_by="abcdef123456",
         )
         save_baseline("042-local-mission-dossier", baseline, tmp_path)
@@ -584,7 +584,7 @@ class TestDriftDetection:
             baseline_key=key,
             baseline_key_hash=key.compute_hash(),
             parity_hash_sha256="a" * 64,  # Baseline hash
-            captured_at=datetime.now(UTC),
+            captured_at=now_utc(),
             captured_by="abcdef123456",
         )
         save_baseline("042-local-mission-dossier", baseline, tmp_path)
@@ -650,7 +650,7 @@ class TestDriftDetection:
             baseline_key=old_key,
             baseline_key_hash=old_key.compute_hash(),
             parity_hash_sha256="a" * 64,
-            captured_at=datetime.now(UTC),
+            captured_at=now_utc(),
             captured_by="abcdef123456",
         )
         save_baseline("042-local-mission-dossier", baseline, tmp_path)
@@ -764,7 +764,7 @@ class TestCaptureBaseline:
             mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
         )
-        before = datetime.now(UTC)
+        before = now_utc()
         baseline = capture_baseline(
             mission_slug="042-local-mission-dossier",
             current_snapshot=snapshot,
@@ -774,7 +774,7 @@ class TestCaptureBaseline:
             mission_type="software-dev",
             manifest_version="1",
         )
-        after = datetime.now(UTC)
+        after = now_utc()
         assert before <= baseline.captured_at <= after
 
 

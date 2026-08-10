@@ -13,10 +13,11 @@ from __future__ import annotations
 
 import json
 import textwrap
-from datetime import UTC, datetime, timedelta, timezone
+from kernel.clock import UTC, FrozenClock, datetime, timedelta
 from io import StringIO
 from pathlib import Path
 
+import kernel.clock as clock_module
 import pytest
 from rich.console import Console
 
@@ -483,9 +484,9 @@ def test_stall_detected_above_threshold(monkeypatch: pytest.MonkeyPatch, tmp_pat
     monkeypatch.chdir(project)
     monkeypatch.setattr("specify_cli.agent_utils.status.locate_project_root", lambda cwd: project)
     monkeypatch.setattr("specify_cli.agent_utils.status.get_main_repo_root", lambda r: project)
-    # Freeze datetime.now() in the status module
-    import specify_cli.agent_utils.status as status_mod
-    monkeypatch.setattr(status_mod, "datetime", _FakeDatetime(fake_now))
+    # Freeze the door's DEFAULT_CLOCK so the status module's now_utc() call
+    # (age comparison) resolves to a deterministic instant.
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=fake_now))
 
     result = show_kanban_status(mission_slug)
 
@@ -508,8 +509,7 @@ def test_stall_not_detected_below_threshold(monkeypatch: pytest.MonkeyPatch, tmp
     monkeypatch.chdir(project)
     monkeypatch.setattr("specify_cli.agent_utils.status.locate_project_root", lambda cwd: project)
     monkeypatch.setattr("specify_cli.agent_utils.status.get_main_repo_root", lambda r: project)
-    import specify_cli.agent_utils.status as status_mod
-    monkeypatch.setattr(status_mod, "datetime", _FakeDatetime(fake_now))
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=fake_now))
 
     result = show_kanban_status(mission_slug)
 
@@ -628,22 +628,3 @@ def test_stale_verdict_clean_no_warning(
 
     assert "error" not in result, f"Unexpected error: {result.get('error')}"
     assert result.get("stale_verdicts", []) == []
-
-
-# ---------------------------------------------------------------------------
-# Helper: fake datetime class for monkeypatching datetime.now()
-# ---------------------------------------------------------------------------
-
-class _FakeDatetime:
-    """Fake datetime replacement that returns a fixed ``now``."""
-
-    def __init__(self, fixed_now: datetime) -> None:
-        self._now = fixed_now
-
-    def now(self, tz: timezone | None = None) -> datetime:
-        if tz is not None:
-            return self._now.astimezone(tz)
-        return self._now
-
-    def fromisoformat(self, s: str) -> datetime:
-        return datetime.fromisoformat(s)

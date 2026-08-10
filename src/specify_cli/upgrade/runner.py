@@ -7,7 +7,7 @@ import logging
 import platform
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime
+from kernel.clock import now_utc
 from pathlib import Path
 from typing import Any
 
@@ -123,7 +123,7 @@ class MigrationRunner:
             metadata = ProjectMetadata.load(self.kittify_dir)
             if metadata and not dry_run and metadata.version != target_version:
                 metadata.version = target_version
-                metadata.last_upgraded_at = datetime.now()
+                metadata.last_upgraded_at = now_utc()
                 metadata.save(self.kittify_dir)
             # Why: even when no schema-changing migrations are needed (e.g. an
             # idempotent 3.2.0a4 -> 3.2.0a4 re-run on a legacy project), the
@@ -180,7 +180,7 @@ class MigrationRunner:
         # Update and save metadata for main project
         if not dry_run and result.success:
             metadata.version = target_version
-            metadata.last_upgraded_at = datetime.now()
+            metadata.last_upgraded_at = now_utc()
             metadata.save(self.kittify_dir)
             # Why: MUST run after metadata.save(). ProjectMetadata.save() reconstructs
             # the YAML from a fixed three-key dict and does not preserve unknown keys,
@@ -425,7 +425,7 @@ class MigrationRunner:
                     worktree_metadata_dirty = True
 
                 if worktree_metadata_dirty:
-                    wt_metadata.last_upgraded_at = datetime.now()
+                    wt_metadata.last_upgraded_at = now_utc()
                     wt_metadata.save(wt_kittify)
                 # ProjectMetadata.save() rewrites metadata.yaml from its fixed
                 # model, so stamp after save just like the main project path.
@@ -463,7 +463,7 @@ class MigrationRunner:
         """
         return ProjectMetadata(
             version=detected_version,
-            initialized_at=datetime.now(),
+            initialized_at=now_utc(),
             python_version=platform.python_version(),
             platform=sys.platform,
             platform_version=platform.platform(),

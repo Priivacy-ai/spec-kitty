@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 
 import pytest
@@ -122,7 +122,7 @@ def _create_lane_feature(repo_root: Path, *, with_negative_invariant: bool) -> P
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.DONE,
-            at=datetime.now(UTC).isoformat(),
+            at=now_utc_iso(),
             actor="test-agent",
             force=True,
             execution_mode="direct_repo",
@@ -135,7 +135,7 @@ def _create_lane_feature(repo_root: Path, *, with_negative_invariant: bool) -> P
             InnerStateChanged(
                 event_id="01JZZZZZZZZZZZZZZZZZZZZZZY",
                 wp_id="WP01",
-                at=datetime.now(UTC).isoformat(),
+                at=now_utc_iso(),
                 actor="test-agent",
                 delta=WPInnerStateDelta(agent="test-agent"),
             )

@@ -51,7 +51,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 
 import pytest
@@ -103,7 +103,7 @@ def _event(*, wp_id: str, from_lane: str, to_lane: str, event_id: str) -> dict[s
     """One status event matching the append-only log schema the reducer reads."""
     return {
         "actor": "merge",
-        "at": datetime.now(UTC).isoformat(),
+        "at": now_utc_iso(),
         "event_id": event_id,
         "evidence": None,
         "execution_mode": "worktree",

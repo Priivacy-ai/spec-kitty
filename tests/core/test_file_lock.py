@@ -12,7 +12,7 @@ import asyncio
 import json
 import os
 import sys
-from datetime import UTC, datetime, timedelta
+from kernel.clock import timedelta, now_utc_iso, now_utc
 from pathlib import Path
 from typing import Any
 
@@ -37,7 +37,7 @@ def lock_path(tmp_path: Path) -> Path:
 
 def _write_record(path: Path, *, age_s: float = 0.0, pid: int | None = None) -> None:
     """Write a synthetic lock record to ``path`` with ``age_s`` seconds in the past."""
-    started = datetime.now(UTC) - timedelta(seconds=age_s)
+    started = now_utc() - timedelta(seconds=age_s)
     payload: dict[str, Any] = {
         "schema_version": 1,
         "pid": pid if pid is not None else os.getpid(),
@@ -276,7 +276,7 @@ def test_lock_record_age_and_is_stuck() -> None:
     fresh = LockRecord(
         schema_version=1,
         pid=1,
-        started_at=datetime.now(UTC),
+        started_at=now_utc(),
         host="h",
         version="v",
     )
@@ -286,7 +286,7 @@ def test_lock_record_age_and_is_stuck() -> None:
     stale = LockRecord(
         schema_version=1,
         pid=1,
-        started_at=datetime.now(UTC) - timedelta(seconds=120),
+        started_at=now_utc() - timedelta(seconds=120),
         host="h",
         version="v",
     )
@@ -307,7 +307,7 @@ def test_read_lock_record_non_string_fields_returns_none(lock_path: Path) -> Non
             {
                 "schema_version": 1,
                 "pid": 1,
-                "started_at": datetime.now(UTC).isoformat(),
+                "started_at": now_utc_iso(),
                 "host": 12345,  # wrong type
                 "version": "v",
             }
@@ -386,7 +386,7 @@ def test_read_lock_record_handles_oserror(
 
 def test_read_lock_record_accepts_naive_timestamp(lock_path: Path) -> None:
     lock_path.parent.mkdir(parents=True, exist_ok=True)
-    naive = datetime.now(UTC).replace(tzinfo=None)
+    naive = now_utc().replace(tzinfo=None)
     lock_path.write_text(
         json.dumps(
             {

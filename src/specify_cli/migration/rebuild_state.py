@@ -39,7 +39,7 @@ import logging
 import os
 import warnings
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from kernel.clock import UTC, parse_iso
 from pathlib import Path
 from typing import Any, cast
 
@@ -163,11 +163,11 @@ def _make_migration_timestamp(base_ts: str, offset_seconds: int = 0) -> str:
     rebuild path stays deterministic for any caller.
     """
     try:
-        dt = datetime.fromisoformat(base_ts.replace("Z", "+00:00"))
+        dt = parse_iso(base_ts.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
-        dt = datetime.fromisoformat(_MIGRATION_EPOCH)
+        dt = parse_iso(_MIGRATION_EPOCH)
     if offset_seconds:
-        from datetime import timedelta
+        from kernel.clock import timedelta
         dt = dt - timedelta(seconds=offset_seconds)
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=UTC)
@@ -511,7 +511,7 @@ def _derive_migration_timestamp(feature_dir: Path) -> str:
     Delegates to :data:`_TIMESTAMP_SOURCE_RULES` via :func:`apply_rules`
     (Transformer-flavor rule pipeline, ``chain-of-responsibility-rule-pipeline``).
     """
-    from datetime import timedelta
+    from kernel.clock import timedelta
 
     ctx = MigrationContext(mission_slug="", mission_id="", line_number=0)
     result = apply_rules(_TIMESTAMP_SOURCE_RULES, (feature_dir, []), ctx)
@@ -523,7 +523,7 @@ def _derive_migration_timestamp(feature_dir: Path) -> str:
     # Bump by one second so synthetic corrective events are strictly later
     # than any real event we observed.
     try:
-        dt = datetime.fromisoformat(latest.replace("Z", "+00:00"))
+        dt = parse_iso(latest.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
         return _MIGRATION_EPOCH
     if dt.tzinfo is None:

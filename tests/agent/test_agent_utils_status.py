@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 import textwrap
-from datetime import UTC, datetime, timedelta, timezone
+from kernel.clock import UTC, FrozenClock, datetime, timedelta
 from pathlib import Path
 
+import kernel.clock as clock_module
 import pytest
 
 from specify_cli.agent_utils.status import show_kanban_status
@@ -185,9 +186,7 @@ def test_show_kanban_status_reports_stalled_in_review_wp(
     )
     _patch_project(monkeypatch, tmp_path)
 
-    import specify_cli.agent_utils.status as status_mod
-
-    monkeypatch.setattr(status_mod, "datetime", _FakeDatetime(fake_now))
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=fake_now))
 
     result = show_kanban_status(mission_slug)
 
@@ -259,18 +258,3 @@ def test_show_kanban_status_excludes_every_non_display_lane_wp(
         result["planned_count"] + result["in_progress_count"] + result["done_count"]
         == 1
     )
-
-
-class _FakeDatetime:
-    """Fake datetime replacement that returns a fixed now."""
-
-    def __init__(self, fixed_now: datetime) -> None:
-        self._now = fixed_now
-
-    def now(self, tz: timezone | None = None) -> datetime:
-        if tz is not None:
-            return self._now.astimezone(tz)
-        return self._now
-
-    def fromisoformat(self, value: str) -> datetime:
-        return datetime.fromisoformat(value)

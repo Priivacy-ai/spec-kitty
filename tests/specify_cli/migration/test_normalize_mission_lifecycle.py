@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 from unittest.mock import patch
 
@@ -28,7 +28,7 @@ def _write_meta(
 ) -> None:
     feature_dir.mkdir(parents=True, exist_ok=True)
     payload = {
-        "created_at": created_at or datetime.now(UTC).isoformat(),
+        "created_at": created_at or now_utc_iso(),
         "friendly_name": feature_dir.name,
         "mission_number": mission_number,
         "mission_slug": feature_dir.name,
@@ -59,7 +59,7 @@ def _write_task(feature_dir: Path, *, lane: str = "in_progress") -> None:
 
 
 def _append_event(feature_dir: Path, *, lane: str = "claimed") -> None:
-    at = datetime.now(UTC).isoformat()
+    at = now_utc_iso()
     append_event(
         feature_dir,
         StatusEvent(

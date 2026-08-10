@@ -40,7 +40,7 @@ does not interfere.
 from __future__ import annotations
 
 import shutil
-from datetime import datetime
+from kernel.clock import format_stamp, now_utc
 from pathlib import Path
 
 from rich.console import Console
@@ -162,7 +162,7 @@ class DefaultCharterPackMigration(BaseMigration):
         if charter_md_path.exists() and not dry_run:
             backup_dir = project_path / ".kittify" / "charter" / "backups"
             backup_dir.mkdir(parents=True, exist_ok=True)
-            timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+            timestamp = format_stamp(now_utc(), "%Y-%m-%dT%H-%M-%S")
             backup_path = backup_dir / f"charter-{timestamp}.md"
             shutil.copy2(charter_md_path, backup_path)
             console = Console()

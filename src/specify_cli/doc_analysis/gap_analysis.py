@@ -14,7 +14,7 @@ The multi-strategy approach:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from kernel.clock import datetime, now_utc
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -803,7 +803,7 @@ def analyze_documentation_gaps(docs_dir: Path, project_root: Path | None = None)
 
     return GapAnalysis(
         project_name=project_name,
-        analysis_date=datetime.now(),
+        analysis_date=now_utc(),
         framework=framework,
         coverage_matrix=coverage_matrix,
         gaps=prioritized_gaps,

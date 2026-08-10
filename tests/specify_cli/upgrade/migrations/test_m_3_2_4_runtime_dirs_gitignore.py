@@ -9,7 +9,7 @@ untracked and fail ``spec-kitty accept``'s ``git_dirty`` check.
 from __future__ import annotations
 
 import subprocess
-from datetime import datetime
+from kernel.clock import now_utc
 from pathlib import Path
 
 import pytest
@@ -38,7 +38,7 @@ def _write_gitignore(project_root: Path, *entries: str) -> None:
 
 
 def _write_metadata(project_root: Path, version: str) -> None:
-    ProjectMetadata(version=version, initialized_at=datetime.now()).save(
+    ProjectMetadata(version=version, initialized_at=now_utc()).save(
         project_root / ".kittify"
     )
 

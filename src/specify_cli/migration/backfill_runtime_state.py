@@ -77,7 +77,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from kernel.clock import UTC, datetime, timedelta, parse_iso, from_epoch
 from pathlib import Path
 from typing import Any, Literal
 
@@ -326,7 +326,7 @@ def _is_migration_actor(actor: object) -> bool:
 def _parse_ordering_timestamp(raw: str, *, wp_id: str) -> datetime:
     """Parse an event timestamp used to derive a strict ordering neighbour."""
     try:
-        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        parsed = parse_iso(raw.replace("Z", "+00:00"))
     except ValueError as exc:
         raise MigrationOrderingError(
             f"{wp_id}: cannot represent a strict seed history floor below "
@@ -685,7 +685,7 @@ def _instant_before(at: str) -> str | None:
     posture as :func:`_parse_epoch_or_iso`).
     """
     try:
-        parsed = datetime.fromisoformat(at.replace("Z", "+00:00"))
+        parsed = parse_iso(at.replace("Z", "+00:00"))
     except ValueError:
         return None
     return (parsed - timedelta(microseconds=1)).isoformat()
@@ -793,11 +793,11 @@ def _parse_epoch_or_iso(raw: str | None) -> str | None:
     if not text:
         return None
     try:
-        return datetime.fromtimestamp(float(text), tz=UTC).isoformat()
+        return from_epoch(float(text)).isoformat()
     except ValueError:
         pass
     try:
-        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        parsed = parse_iso(text.replace("Z", "+00:00"))
     except ValueError:
         return None
     if parsed.tzinfo is None:

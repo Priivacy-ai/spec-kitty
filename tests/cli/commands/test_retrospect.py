@@ -17,7 +17,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
-from datetime import UTC, datetime, timedelta
+from kernel.clock import timedelta, now_utc_iso, now_utc
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -136,7 +136,7 @@ def _make_minimal_gen_record(
         GenProvenance,
         GenRetrospectiveRecord,
     )
-    now = datetime.now(UTC).isoformat()
+    now = now_utc_iso()
     return GenRetrospectiveRecord(
         schema_version=1,
         mission_id=mission_id,
@@ -473,7 +473,7 @@ class TestBackfillCommand:
         repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
         # Set up a completed mission in the window
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(
@@ -504,7 +504,7 @@ class TestBackfillCommand:
         """Missions with existing records are skipped with reason='already_exists'."""
         repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(
@@ -555,7 +555,7 @@ class TestBackfillCommand:
         """--mission flag restricts backfill to a single mission."""
         repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
 
         # Two missions
@@ -842,7 +842,7 @@ class TestSynthesizeFabricateEmpty:
         from specify_cli.doctrine_synthesizer import SynthesisResult
 
         # Build a real Pydantic RetrospectiveRecord for the read_record mock
-        now_str = datetime.now(UTC).isoformat()
+        now_str = now_utc_iso()
         pydantic_record = RetrospectiveRecord(
             schema_version="1",
             mission=MissionIdentity(
@@ -1394,7 +1394,7 @@ class TestBackfillDiscovery:
         """Returns empty list when .kittify/missions/ doesn't exist."""
         from specify_cli.cli.commands.retrospect import _discover_missions_for_backfill
 
-        now = datetime.now(UTC)
+        now = now_utc()
         result = _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
         assert result == []
 
@@ -1407,7 +1407,7 @@ class TestBackfillDiscovery:
         # Create a file (not a directory)
         (missions_root / "not-a-dir.txt").write_text("file", encoding="utf-8")
 
-        now = datetime.now(UTC)
+        now = now_utc()
         result = _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
         # Should not crash; file is silently skipped
         assert isinstance(result, list)
@@ -1444,7 +1444,7 @@ class TestBackfillDiscovery:
                     "a 0o000 directory (running as root, or a filesystem that "
                     "ignores mode bits), so the branch cannot be constructed here."
                 )
-            now = datetime.now(UTC)
+            now = now_utc()
             with pytest.raises(OSError):
                 _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
         finally:
@@ -1459,7 +1459,7 @@ class TestBackfillDiscovery:
         # Directory without meta.json
         (missions_root / "01SOMEMISSIONID0000001").mkdir()
 
-        now = datetime.now(UTC)
+        now = now_utc()
         result = _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
         assert result == []
 
@@ -1473,7 +1473,7 @@ class TestBackfillDiscovery:
         dir_entry.mkdir()
         (dir_entry / "meta.json").write_text("NOT JSON", encoding="utf-8")
 
-        now = datetime.now(UTC)
+        now = now_utc()
         result = _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
         assert result == []
 
@@ -1489,7 +1489,7 @@ class TestBackfillDiscovery:
             json.dumps({"some_other_field": "value"}), encoding="utf-8"
         )
 
-        now = datetime.now(UTC)
+        now = now_utc()
         result = _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
         assert result == []
 
@@ -1509,7 +1509,7 @@ class TestBackfillDiscovery:
             encoding="utf-8",
         )
 
-        now = datetime.now(UTC)
+        now = now_utc()
         result = _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
         assert any(c.get("skip_reason") == "not_completed" for c in result)
 
@@ -1530,7 +1530,7 @@ class TestBackfillDiscovery:
             encoding="utf-8",
         )
 
-        now = datetime.now(UTC)
+        now = now_utc()
         result = _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
         assert any(c.get("skip_reason") == "not_completed" for c in result)
 
@@ -1545,7 +1545,7 @@ class TestBackfillDiscovery:
         """Dry-run backfill marks candidates as created without writing."""
         repo_root, missions_dir, _ = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(mission_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, completed_at=completed_at)
@@ -1568,7 +1568,7 @@ class TestBackfillDiscovery:
         """Real backfill run invokes generator and writes record."""
         repo_root, missions_dir, _ = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(mission_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, completed_at=completed_at)
@@ -1598,7 +1598,7 @@ class TestBackfillDiscovery:
         """FileNotFoundError in _process_candidate is added to failed list."""
         repo_root, missions_dir, _ = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(mission_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, completed_at=completed_at)
@@ -1625,7 +1625,7 @@ class TestBackfillDiscovery:
         """Generic exception in _process_candidate is added to failed list."""
         repo_root, missions_dir, _ = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(mission_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, completed_at=completed_at)
@@ -1652,7 +1652,7 @@ class TestBackfillDiscovery:
         """--emit-failures causes emit_capture_failed to be called on failure."""
         repo_root, missions_dir, _ = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(mission_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, completed_at=completed_at)
@@ -1679,7 +1679,7 @@ class TestBackfillDiscovery:
         """Non-JSON backfill uses progress bar path (Rich output)."""
         repo_root, missions_dir, _ = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(mission_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, completed_at=completed_at)
@@ -1708,7 +1708,7 @@ class TestBackfillDiscovery:
         """Non-JSON backfill with failures prints failure details."""
         repo_root, missions_dir, _ = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(mission_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, completed_at=completed_at)
@@ -2051,7 +2051,7 @@ class TestSummaryCmdExtended:
             encoding="utf-8",
         )
 
-        now = datetime.now(UTC)
+        now = now_utc()
         result = _discover_missions_for_backfill(tmp_path, now - timedelta(days=365), now, None)
         # Should be included (within window), naive tz should be normalized
         assert len(result) == 1
@@ -2064,7 +2064,7 @@ class TestSummaryCmdExtended:
         # Directly test the backfill with a mocked _discover_missions_for_backfill
         # that returns an already_exists skip (normally comes from _process_candidate,
         # but the code also handles it in the pre-screening loop).
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
 
         # Set up a mock candidate that has skip_reason=already_exists
@@ -2102,7 +2102,7 @@ class TestSummaryCmdExtended:
         """RecordExistsError from write_gen_record in backfill adds to skipped."""
         repo_root, missions_dir, _ = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(mission_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, completed_at=completed_at)
@@ -2134,7 +2134,7 @@ class TestSummaryCmdExtended:
         """Generic exception + --emit-failures calls emit_capture_failed for generic category."""
         repo_root, missions_dir, _ = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(mission_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, completed_at=completed_at)
@@ -2404,7 +2404,6 @@ class TestSynthesizeFabricateProvenance:
         """
         import pathlib
         import tempfile
-        from datetime import UTC, datetime
         from specify_cli.retrospective.schema import (
             GenActor,
             GenFinding,
@@ -2414,7 +2413,7 @@ class TestSynthesizeFabricateProvenance:
         )
         from specify_cli.retrospective.writer import write_gen_record
 
-        now = datetime.now(UTC).isoformat()
+        now = now_utc_iso()
         actor = GenActor(kind="runtime", id="test")
 
         # Build a record with synthesize_fabricate provenance AND has_findings — must be rejected
@@ -2463,7 +2462,7 @@ class TestBackfillEmitSkipped:
         repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
         # Mission with an existing record — will be skipped with reason="already_exists"
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(
@@ -2517,7 +2516,7 @@ class TestBackfillEmitSkipped:
         """Without --emit-skipped, no RetrospectiveSkipped events are written."""
         repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(
@@ -2558,7 +2557,7 @@ class TestBackfillEmitSkipped:
         """--emit-skipped combined with --dry-run must NOT write any events."""
         repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(
