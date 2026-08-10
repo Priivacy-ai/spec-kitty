@@ -68,7 +68,7 @@ pytestmark = [pytest.mark.git_repo]
 # the package-attribute level: ``import specify_cli...generate as X`` (or
 # ``from specify_cli...charter import generate``) resolves via attribute
 # traversal and would silently bind ``X`` to the FUNCTION, not the module --
-# patching that would never be seen by ``run_resynthesize_pipeline``'s lazy
+# patching that would never be seen by ``run_full_synthesize``'s lazy
 # ``from ...generate import generate as _generate`` (which reads the
 # submodule's OWN namespace via ``sys.modules``, not package-attribute
 # traversal). ``importlib.import_module`` returns the real submodule
@@ -247,7 +247,7 @@ def _invoke(subcommand: str, project_root: Path, *args: str) -> Any:
 def _patch_synthesis_spies(monkeypatch: pytest.MonkeyPatch) -> tuple[Mock, Mock]:
     """Replace the real ``generate``/``charter_synthesize`` entry points with spies.
 
-    Patched on the SOURCE modules -- ``run_resynthesize_pipeline`` imports
+    Patched on the SOURCE modules -- ``run_full_synthesize`` imports
     them lazily (``from ...generate import generate as _generate``) inside
     its own body, so the patched object is what the lazy import resolves at
     call time.

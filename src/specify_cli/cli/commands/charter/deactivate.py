@@ -24,6 +24,7 @@ safe cascade engine on the removal side:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 import typer
 from specify_cli.cli.console import console
@@ -44,7 +45,7 @@ from charter.kind_vocabulary import ArtifactKind, MissionTypeNotAnArtifactKind
 from specify_cli.cli.commands.charter.activate import (
     RESYNTHESIZE_HELP,
     render_pack_config_error,
-    run_resynthesize_pipeline,
+    run_full_synthesize,
     validate_pack_config,
 )
 from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
@@ -64,11 +65,20 @@ def _source_urn(
     except MissionTypeNotAnArtifactKind:
         return None
     try:
-        return resolve_artifact_urn(
-            kind_enum,
-            artifact_id,
-            doctrine_root=resolve_doctrine_root(),
-            layer_roots=layer_roots,
+        # ``resolve_artifact_urn`` is declared ``-> str`` in charter/kind_vocabulary.py,
+        # but the project's mypy config sets ``follow_imports = "skip"`` for the
+        # ``charter.*`` module pattern (pyproject.toml), so mypy treats the imported
+        # symbol's return as ``Any`` here rather than reading its real signature.
+        # The cast is an honest re-statement of the already-declared type, not a
+        # suppression of a real type error.
+        return cast(
+            str,
+            resolve_artifact_urn(
+                kind_enum,
+                artifact_id,
+                doctrine_root=resolve_doctrine_root(),
+                layer_roots=layer_roots,
+            ),
         )
     except UnknownArtifactIdError:
         return None
@@ -246,4 +256,4 @@ def deactivate_cmd(
     # FR-007: opt-in eager refresh, symmetric with activate_cmd -- run AFTER
     # cascade so it reconciles the complete post-deactivation config state.
     if resynthesize:
-        run_resynthesize_pipeline(repo_root)
+        run_full_synthesize(repo_root)
