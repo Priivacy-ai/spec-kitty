@@ -1453,7 +1453,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `.kittify/config.yaml`. At this destination Channel 2 is two-way: a
   recorded `permitted` grants local sync independently of Channel 1, because
   the subprocess involved is the operator's own machine, never spec-kitty's
-  hosted service; a recorded `refused`, or absence at *both* channels,
+  hosted service; a recorded `refused`, or absence at _both_ channels,
   denies. **This is the breaking change:** an existing `beads`/`fp` binding
   that has never recorded hosted-sync consent and has no `tracker.egress` key
   stops syncing on upgrade until one of the two is recorded — record
@@ -1465,8 +1465,14 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   lose your local tracker" would be the only way to keep a `beads`/`fp`
   binding working, and recording `tracker.egress: permitted` is never a
   de facto opt-in to hosted sync — it grants the local subprocess path only.
-  See [the upgrade note](../migrations/tracker-egress-refusal.md) for the
-  full remediation paths.
+  Only `sync pull`/`push`/`run` are gated: `tracker bind`, `status`, `unbind`,
+  and `map add` stay available on a refusing project, and a local `beads`/`fp`
+  `bind` no longer needs hosted authentication to run — an unauthenticated
+  project can still bind and use a local tracker. The refusal is also raised
+  before any network probe, so a refused hosted sync makes no HTTP request to
+  the tracker host at all. See
+  [the upgrade note](../migrations/tracker-egress-refusal.md) for the full
+  remediation paths.
 
   <!-- WP04 review, HIGH-1 (named, both-ends window — same pattern as the
        WP02→WP04 A1 window): the link above is deliberately forward. It
