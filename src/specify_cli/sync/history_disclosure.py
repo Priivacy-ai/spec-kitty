@@ -6,6 +6,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import cast
 
 from .project_context import AdmissionState, ConsentState, ProjectSyncContext
 from .project_store import ProjectSyncStore, ProjectUnitOfWork
@@ -91,7 +92,15 @@ def _cohort_rows(
         (unit.project_uuid.storage_token,),
     ).fetchall()
     selected_epochs = frozenset(source_epoch_ids) if source_epoch_ids is not None else None
-    return [(str(row[0]), int(row[1]), str(row[2])) for row in rows if selected_epochs is None or int(row[1]) in selected_epochs]
+    return [
+        (
+            str(row[0]),
+            int(cast("str | int | float | bytes", row[1])),
+            str(row[2]),
+        )
+        for row in rows
+        if selected_epochs is None or int(cast("str | int | float | bytes", row[1])) in selected_epochs
+    ]
 
 
 def _preview_from_rows(
@@ -297,11 +306,16 @@ def consume_history_disclosure(
             project_uuid=store.project_uuid.storage_token,
             row_ids=row_ids,
             source_epoch_ids=source_epochs,
-            preview_count=int(row[2]),
+            preview_count=int(cast("str | int | float | bytes", row[2])),
             preview_hash=str(row[3]),
         )
         _assert_preview_unchanged(unit, preview)
-        persisted_authority = (int(row[4]), int(row[5]), str(row[6]), str(row[7]))
+        persisted_authority = (
+            int(cast("str | int | float | bytes", row[4])),
+            int(cast("str | int | float | bytes", row[5])),
+            str(row[6]),
+            str(row[7]),
+        )
         if persisted_authority != current_authority:
             raise HistoryDisclosureError("history action authority is stale; preview and confirm again")
     return _new_capability(
@@ -317,6 +331,80 @@ def consume_history_disclosure(
     )
 
 
+def revalidate_history_disclosure(
+    unit: ProjectUnitOfWork,
+    capability: HistoryDisclosureCapability,
+) -> HistoryDisclosureCapability:
+    """Revalidate a persisted capability inside the caller's active store UoW."""
+    if not isinstance(capability, HistoryDisclosureCapability):
+        raise TypeError("history disclosure capability must come from explicit confirmation")
+    project_uuid = unit.project_uuid.storage_token
+    if capability.project_uuid != project_uuid:
+        raise HistoryDisclosureError("history disclosure capability belongs to another project")
+    row = unit.execute(
+        "SELECT source_epoch_ids_json, row_ids_json, preview_count, preview_hash, "
+        "consent_generation, target_generation, admission_generation, "
+        "binding_audience, state FROM history_disclosure_actions "
+        "WHERE project_uuid = ? AND action_id = ?",
+        (project_uuid, capability.action_id),
+    ).fetchone()
+    if row is None or str(row[8]) != "confirmed":
+        raise HistoryDisclosureError("history action is absent or no longer confirmed; preview again")
+    try:
+        source_epochs = tuple(int(value) for value in json.loads(str(row[0])))
+        row_ids = tuple(str(value) for value in json.loads(str(row[1])))
+        preview_count = int(cast("str | int | float | bytes", row[2]))
+        persisted_authority = (
+            int(cast("str | int | float | bytes", row[4])),
+            int(cast("str | int | float | bytes", row[5])),
+            str(row[6]),
+            str(row[7]),
+        )
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise HistoryDisclosureError("history action cohort is incompatible") from exc
+    expected_capability = (
+        row_ids,
+        source_epochs,
+        str(row[3]),
+        *persisted_authority,
+    )
+    actual_capability = (
+        capability.row_ids,
+        capability.source_epoch_ids,
+        capability.preview_hash,
+        capability.consent_generation,
+        capability.target_generation,
+        capability.admission_generation,
+        capability.binding_audience,
+    )
+    if actual_capability != expected_capability:
+        raise HistoryDisclosureError("history disclosure capability does not match its persisted action")
+    consent_row = unit.execute(
+        "SELECT state, generation FROM project_consent_decisions WHERE project_uuid = ?",
+        (project_uuid,),
+    ).fetchone()
+    target_row = unit.execute(
+        "SELECT configuration_generation, admission_state, admission_generation, binding_audience FROM project_target_admissions WHERE project_uuid = ?",
+        (project_uuid,),
+    ).fetchone()
+    if consent_row != (ConsentState.GRANTED.value, capability.consent_generation) or target_row != (
+        capability.target_generation,
+        AdmissionState.ADMITTED.value,
+        capability.admission_generation,
+        capability.binding_audience,
+    ):
+        raise HistoryDisclosureError("history disclosure authority is stale; preview and confirm again")
+    preview = HistoryDisclosurePreview(
+        project_uuid=project_uuid,
+        row_ids=row_ids,
+        source_epoch_ids=source_epochs,
+        preview_count=preview_count,
+        preview_hash=str(row[3]),
+    )
+    _assert_preview_unchanged(unit, preview)
+    return capability
+
+
 __all__ = [
     "HistoryDisclosureCapability",
     "HistoryDisclosureError",
@@ -324,4 +412,5 @@ __all__ = [
     "confirm_history_disclosure",
     "consume_history_disclosure",
     "preview_sealed_history",
+    "revalidate_history_disclosure",
 ]

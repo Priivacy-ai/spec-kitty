@@ -630,6 +630,19 @@ def classify_store_site(
     return SiteDisposition(SiteCategory.TEST_OR_UNRELATED, "excluded", reachability)
 
 
+# WP04 removed every direct connection/commit occurrence from these adapters.
+# Keeping the old evidence text below makes the shrink reviewable while this
+# prefix filter makes the effective ratchet the current post-WP04 boundary.
+_RETIRED_BY_WP04_PREFIXES = (
+    "specify_cli/delivery/ledger.py::",
+    "specify_cli/delivery/retention.py::",
+    "specify_cli/event_journal/coalesce.py::",
+    "specify_cli/event_journal/journal.py::",
+    "specify_cli/sync/body_queue.py::",
+    "specify_cli/sync/queue.py::",
+)
+
+
 # Measured planning-base baseline by qualified symbol.  Counter comparison makes
 # a second call inside an already-known symbol growth rather than collapsing it.
 _KNOWN_SITE_COUNTS: Counter[str] = Counter(
@@ -735,30 +748,18 @@ specify_cli/sync/queue.py::_migrate_legacy_queue_to_scope::sqlite_connect
 specify_cli/sync/queue.py::_queue_db_has_content::sqlite_connect
 specify_cli/sync/queue.py::detect_legacy_rows_for_scope::sqlite_connect
 """.splitlines()
-    if line.strip()
+    if line.strip() and not line.strip().startswith(_RETIRED_BY_WP04_PREFIXES)
 )
 
 _KNOWN_LIVE_FLOOR = frozenset(
     {
-        "specify_cli/event_journal/journal.py::EventJournal._connect::sqlite_connect",
-        "specify_cli/event_journal/journal.py::EventJournal.append::commit",
-        "specify_cli/delivery/ledger.py::SqliteDeliveryLedger.__init__::sqlite_connect",
-        "specify_cli/delivery/ledger.py::SqliteDeliveryLedger._record::commit",
-        "specify_cli/delivery/ledger.py::SqliteDeliveryLedger.transaction::commit",
         "specify_cli/delivery/targets.py::SqliteDeliveryTargetRegistry.__init__::sqlite_connect",
         "specify_cli/delivery/targets.py::SqliteDeliveryTargetRegistry._insert::commit",
-        "specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.__init__::sqlite_connect",
-        "specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.enqueue::commit",
-        "specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.mark_uploaded::commit",
-        "specify_cli/sync/queue.py::OfflineQueue._init_db::sqlite_connect",
-        "specify_cli/sync/queue.py::OfflineQueue.append::commit",
-        "specify_cli/sync/queue.py::OfflineQueue.queue_event::sqlite_connect",
-        "specify_cli/sync/queue.py::detect_legacy_rows_for_scope::sqlite_connect",
         "specify_cli/delivery/dispatcher.py::_record::transaction_context",
     }
 )
 
-_KNOWN_DEAD_FLOOR = frozenset({"specify_cli/sync/queue.py::_queue_db_has_content::sqlite_connect"})
+_KNOWN_DEAD_FLOOR: frozenset[str] = frozenset()
 
 _CANONICAL_STORE_SITE_COUNTS: Counter[str] = Counter(
     {
@@ -800,8 +801,6 @@ def test_current_store_census_cannot_grow_and_every_site_has_evidence() -> None:
         _KNOWN_LIVE_FLOOR,
         SiteCategory.LIVE_PAYLOAD_CONTROL,
     )
-    detect_symbol = "specify_cli/sync/queue.py::detect_legacy_rows_for_scope"
-    assert _qualified_call_counts()[detect_symbol] == 3
     dead_evidence = {
         site.key: disposition.reachability for site, disposition in zip(sites, dispositions, strict=True) if disposition.category is SiteCategory.DEAD_CODE
     }
@@ -813,6 +812,48 @@ def test_current_store_census_cannot_grow_and_every_site_has_evidence() -> None:
             "project-store census shrank; keep the ratchet baseline unchanged: " + ", ".join(f"{key} (-{count})" for key, count in sorted(shrink.items())),
             stacklevel=1,
         )
+
+
+def test_wp04_components_open_and_commit_no_sqlite_connection() -> None:
+    """WP04 adapters are views over ProjectSyncStore, never connection owners."""
+    wp04_paths = {
+        "specify_cli/event_journal/journal.py",
+        "specify_cli/event_journal/coalesce.py",
+        "specify_cli/delivery/ledger.py",
+        "specify_cli/delivery/selection.py",
+        "specify_cli/delivery/retention.py",
+        "specify_cli/delivery/status_report.py",
+        "specify_cli/sync/queue.py",
+        "specify_cli/sync/body_queue.py",
+    }
+    violations = [site for site in scan_store_sites() if site.relpath in wp04_paths]
+    assert violations == []
+
+
+def _journal_uses_explicit_store_factory(path: Path) -> bool:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    for statement in tree.body:
+        if isinstance(statement, (ast.Assign, ast.AnnAssign)):
+            targets = statement.targets if isinstance(statement, ast.Assign) else [statement.target]
+            if any(isinstance(target, ast.Name) and "JOURNAL_CACHE" in target.id for target in targets):
+                return False
+        if isinstance(statement, ast.FunctionDef) and statement.name == "get_journal":
+            arguments = {argument.arg for argument in (*statement.args.args, *statement.args.kwonlyargs)}
+            return {"unit", "authority"}.issubset(arguments)
+    return False
+
+
+def test_live_journal_factory_has_no_global_resolver_cache() -> None:
+    assert _journal_uses_explicit_store_factory(_SRC / "specify_cli" / "event_journal" / "journal.py")
+
+
+def test_global_journal_resolver_mutant_is_rejected(tmp_path: Path) -> None:
+    mutant = tmp_path / "journal.py"
+    mutant.write_text(
+        "_JOURNAL_CACHE = {}\ndef get_journal(user_id=None, team_slug=None):\n    return _JOURNAL_CACHE.setdefault((user_id, team_slug), object())\n",
+        encoding="utf-8",
+    )
+    assert not _journal_uses_explicit_store_factory(mutant)
 
 
 def test_alias_and_duplicate_mutations_flow_through_real_collector(tmp_path: Path) -> None:
