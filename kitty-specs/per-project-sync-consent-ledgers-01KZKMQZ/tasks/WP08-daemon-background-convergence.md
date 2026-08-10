@@ -47,6 +47,7 @@ owned_files:
 - src/specify_cli/sync/background.py
 - src/specify_cli/sync/daemon.py
 - src/specify_cli/sync/owner.py
+- tests/sync/test_target_authority_wiring.py
 - tests/sync/test_daemon_project_isolation.py
 - tests/sync/test_background_authority_convergence.py
 role: implementer
@@ -75,6 +76,9 @@ The live daemon owner-record startup path is in scope. WP04 intentionally
 removed legacy queue target helpers while retiring shared payload stores, so
 WP08 must make `owner.py` consume canonical target identity without restoring a
 legacy queue selector or treating an owner record as egress authority.
+The target-coherence regression fixture is sequentially owned here because its
+legacy reversible queue-scope setup cannot prove the post-WP04 opaque-scope
+owner identity contract.
 
 ## Subtask T036 — Red-first daemon/background ATDD
 

@@ -213,7 +213,8 @@
         "src/specify_cli/sync/owner.py",
         "src/specify_cli/sync/runtime.py",
         "tests/sync/test_background_authority_convergence.py",
-        "tests/sync/test_daemon_project_isolation.py"
+        "tests/sync/test_daemon_project_isolation.py",
+        "tests/sync/test_target_authority_wiring.py"
       ],
       "predicted_surfaces": [
         "api",
