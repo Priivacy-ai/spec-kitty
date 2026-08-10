@@ -1313,11 +1313,12 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   byte-identical `datetime.now(UTC).isoformat()` "now"-stamp call sites in `specify_cli`
   onto the single canonical `now_utc_iso()` helper, so that helper is the sole permitted
   producer of the form. Behaviour-preserving: the `UTC` / `timezone.utc` spellings
-  serialize byte-identically under `requires-python >=3.11`. Replaces the previous
-  owned-file inventory with an **AST negative gate** over the whole `src/specify_cli`
-  tree (`tests/specify_cli/test_clock_consolidation.py`), so a module added later is
-  covered the moment it lands rather than silently regressing while the suite stays
-  green; the gate ships a self-mutant non-vacuity test and a stale-exemption check.
+  serialize byte-identically under `requires-python >=3.11`. Adds an **AST negative
+  gate** over the whole `src/specify_cli` tree
+  (`tests/specify_cli/test_clock_consolidation.py`), alongside the pre-existing
+  owned-file inventory, so a module added later is covered the moment it lands rather
+  than silently regressing while the suite stays green; the gate ships a self-mutant
+  non-vacuity test and a stale-exemption check.
   Distinct contracts are deliberately out of scope and are not flagged: the
   second-precision `%Y-%m-%dT%H:%M:%SZ` stamp family, `isoformat(timespec=...)`,
   naive `now()`, and the datetime-returning family.
