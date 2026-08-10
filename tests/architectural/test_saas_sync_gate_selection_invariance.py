@@ -32,8 +32,11 @@ pytestmark = [pytest.mark.architectural, pytest.mark.unit]
 
 _FLAG = "SPEC_KITTY_ENABLE_SAAS_SYNC"
 _TESTS_ROOT = Path(__file__).resolve().parents[1]
-#: The single sanctioned authority that sets the flag collection-wide.
-_ALLOWED = {"conftest.py"}
+#: The single sanctioned authority that sets the flag collection-wide: the ROOT
+#: tests/conftest.py only. A NESTED conftest.py writing the flag would apply to
+#: its subtree alone -- reintroducing the exact selection-dependence this guards
+#: against -- so it is NOT exempt.
+_ALLOWED_RELPATHS = {Path("conftest.py")}
 
 
 def test_flag_is_set_at_collection_time() -> None:
@@ -55,7 +58,7 @@ def _module_level_flag_writers() -> list[str]:
     """
     offenders: list[str] = []
     for path in _TESTS_ROOT.rglob("*.py"):
-        if path.name in _ALLOWED:
+        if path.relative_to(_TESTS_ROOT) in _ALLOWED_RELPATHS:
             continue
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"))

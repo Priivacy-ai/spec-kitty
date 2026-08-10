@@ -957,9 +957,14 @@ class TestProfileRescuesHaveLedgerCoverage:
 
 @pytest.mark.doctrine
 class TestC009NormalizationSwingExcluded:
-    """The 25-slug store->node reconciliation is declared, and never banked."""
+    """The store->node slug reconciliation is declared, and never banked.
 
-    def test_normalization_delta_is_the_declared_25_swing(self, graph: DRGGraph) -> None:
+    The swing size is pinned by ``_NORMALIZATION_DELTA`` (31 as of the
+    writing-comms/diagramming activation) rather than baked into names here, so a
+    later count change touches only the constant.
+    """
+
+    def test_normalization_delta_is_the_declared_swing(self, graph: DRGGraph) -> None:
         node_urns = graph.node_urns()
         reachable = action_channel_reachable(graph, action_seed_urns(graph), _ACTION_D1_DEPTH)
         partition = partition_activated_unreachable(_raw_activated_map(), node_urns, reachable)
