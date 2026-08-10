@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 780" role="img" aria-labelledby="sdf-title sdf-desc" font-family="Inter, 'Segoe UI', Arial, sans-serif">
   <title id="sdf-title">Spec Kitty workflow: planning, implementation, and review phases</title>
-  <desc id="sdf-desc">Three-phase workflow. Lane 1, planning, runs in the repository root checkout: spec-kitty.specify creates spec.md, spec-kitty.plan creates plan.md, spec-kitty.tasks creates the tasks folder. Lane 2, implementation, runs in separate worktrees: spec-kitty next dispatches parallel agents A, B, and C, each implementing one work package. Lane 3, review, runs spec-kitty.review to check the implementation against the spec, spec-kitty.accept to validate readiness, and spec-kitty.merge to land the accepted mission.</desc>
+  <desc id="sdf-desc">Three-phase workflow. Lane 1, planning, runs in the repository root checkout: spec-kitty.specify creates spec.md, spec-kitty.plan creates plan.md, spec-kitty.tasks creates the tasks folder. Lane 2, implementation, is an iterative runtime loop: spec-kitty next returns one decision per call, you run spec-kitty agent action implement for that work package in its lane worktree, then report the result with spec-kitty next --result success and call next again. The loop repeats one work package at a time; independent lanes can run in parallel, each in its own worktree. Lane 3, review, runs spec-kitty.review to check the implementation against the spec, spec-kitty.accept to validate readiness, and spec-kitty.merge to land the accepted mission.</desc>
 
   <style>
     .bg { fill: #ffffff; }
@@ -12,18 +12,12 @@
     .lane-bg { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 1; }
     .lane-label { fill: #64748b; }
     .node-plan { fill: #ccfbf1; stroke: #0d9488; stroke-width: 1.5; }
-    .node-trigger { fill: #e0e7ff; stroke: #6366f1; stroke-width: 1.5; }
-    .node-agent-a { fill: #ccfbf1; stroke: #0d9488; stroke-width: 1.5; }
-    .node-agent-b { fill: #e0e7ff; stroke: #6366f1; stroke-width: 1.5; }
-    .node-agent-c { fill: #fce7f3; stroke: #db2777; stroke-width: 1.5; }
+    .node-loop { fill: #e0e7ff; stroke: #6366f1; stroke-width: 1.5; }
     .node-review { fill: #fef3c7; stroke: #d97706; stroke-width: 1.5; }
-    .badge-a { fill: #0d9488; }
-    .badge-b { fill: #6366f1; }
-    .badge-c { fill: #db2777; }
     .line { stroke: #475569; stroke-width: 1.5; fill: none; }
-    .line-fan { stroke: #6366f1; stroke-width: 1.5; fill: none; }
+    .line-loop { stroke: #6366f1; stroke-width: 1.5; fill: none; stroke-dasharray: 6 4; }
     .arrow { fill: #475569; }
-    .arrow-fan { fill: #6366f1; }
+    .arrow-loop { fill: #6366f1; }
 
     .kicker { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
     .h1 { font-size: 24px; font-weight: 800; }
@@ -40,24 +34,18 @@
       .lane-bg { fill: #111827; stroke: #1f2937; }
       .lane-label { fill: #94a3b8; }
       .node-plan { fill: #134e4a; stroke: #2dd4bf; }
-      .node-trigger { fill: #1e1b4b; stroke: #a5b4fc; }
-      .node-agent-a { fill: #134e4a; stroke: #2dd4bf; }
-      .node-agent-b { fill: #1e1b4b; stroke: #a5b4fc; }
-      .node-agent-c { fill: #831843; stroke: #f472b6; }
+      .node-loop { fill: #1e1b4b; stroke: #a5b4fc; }
       .node-review { fill: #78350f; stroke: #fbbf24; }
-      .badge-a { fill: #2dd4bf; }
-      .badge-b { fill: #a5b4fc; }
-      .badge-c { fill: #f472b6; }
       .line { stroke: #94a3b8; }
-      .line-fan { stroke: #a5b4fc; }
+      .line-loop { stroke: #a5b4fc; }
       .arrow { fill: #94a3b8; }
-      .arrow-fan { fill: #a5b4fc; }
+      .arrow-loop { fill: #a5b4fc; }
     }
   </style>
 
   <defs>
     <marker id="sdf-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrow"/></marker>
-    <marker id="sdf-arr-fan" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrow-fan"/></marker>
+    <marker id="sdf-arr-loop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrow-loop"/></marker>
   </defs>
 
   <rect width="1200" height="780" class="bg"/>
@@ -66,7 +54,7 @@
   <g transform="translate(60 50)">
     <text class="kicker text-muted">SPEC KITTY &#8226; WORKFLOW</text>
     <text y="28" class="h1 text-primary">Planning &#8594; Implementation &#8594; Review</text>
-    <text y="50" class="body text-secondary">Plan once in the root checkout, fan work out to parallel agent worktrees, then review and land the mission.</text>
+    <text y="50" class="body text-secondary">Plan once in the root checkout, drive the runtime loop one work package at a time in lane worktrees, then review and land the mission.</text>
   </g>
 
   <!-- Lane backgrounds -->
@@ -76,7 +64,7 @@
   <text x="78" y="132" class="lane-title lane-label">LANE 1 &#8212; PLANNING PHASE</text>
   <text x="78" y="150" class="body text-muted">in the repository root checkout</text>
   <text x="78" y="312" class="lane-title lane-label">LANE 2 &#8212; IMPLEMENTATION PHASE</text>
-  <text x="78" y="330" class="body text-muted">in separate worktrees, one per agent</text>
+  <text x="78" y="330" class="body text-muted">an iterative runtime loop; one worktree per execution lane</text>
   <text x="78" y="572" class="lane-title lane-label">LANE 3 &#8212; REVIEW PHASE</text>
 
   <!-- LANE 1: planning steps -->
@@ -103,40 +91,39 @@
   <!-- Lane 1 -> Lane 2 -->
   <line x1="600" y1="270" x2="600" y2="290" class="line" stroke-width="2" marker-end="url(#sdf-arr)"/>
 
-  <!-- LANE 2: implementation -->
+  <!-- LANE 2: implementation as an iterative loop -->
   <g>
-    <g transform="translate(90 350)">
-      <rect width="1020" height="54" rx="10" class="node-trigger"/>
-      <text x="16" y="22" class="body text-muted">TRIGGER &#8226; run once in the repo root</text>
-      <text x="16" y="42" class="node-title text-primary mono">spec-kitty next --agent &lt;agent&gt; --mission &lt;slug&gt;</text>
+    <!-- Step 1: ask the runtime for the next decision -->
+    <g transform="translate(80 366)">
+      <rect width="320" height="70" rx="10" class="node-loop"/>
+      <text x="16" y="24" class="mono text-primary" font-size="11">spec-kitty next --agent claude</text>
+      <text x="16" y="42" class="mono text-primary" font-size="11">  --mission &lt;slug&gt;</text>
+      <text x="16" y="60" class="body text-secondary">&#8594; Returns one decision per call</text>
     </g>
 
-    <!-- Fan-out from trigger to 3 parallel agents -->
-    <path d="M 250 404 L 250 415 L 250 415 L 250 430" class="line-fan" marker-end="url(#sdf-arr-fan)"/>
-    <path d="M 600 404 L 600 430" class="line-fan" marker-end="url(#sdf-arr-fan)"/>
-    <path d="M 950 404 L 950 415 L 950 415 L 950 430" class="line-fan" marker-end="url(#sdf-arr-fan)"/>
+    <!-- Step 2: implement the returned work package in its lane worktree -->
+    <g transform="translate(440 366)">
+      <rect width="320" height="70" rx="10" class="node-loop"/>
+      <text x="16" y="24" class="mono text-primary" font-size="11">spec-kitty agent action</text>
+      <text x="16" y="42" class="mono text-primary" font-size="11">  implement WP## --agent claude</text>
+      <text x="16" y="60" class="body text-secondary">&#8594; One work package, in its lane worktree</text>
+    </g>
 
-    <g transform="translate(90 430)">
-      <rect width="320" height="64" rx="10" class="node-agent-a"/>
-      <circle cx="26" cy="20" r="12" class="badge-a"/>
-      <text x="26" y="24" text-anchor="middle" class="text-invert node-title">A</text>
-      <text x="48" y="24" class="node-title text-primary">Agent A</text>
-      <text x="16" y="48" class="mono text-secondary" font-size="11">agent action implement WP01 --agent A</text>
+    <!-- Step 3: report the result and ask again -->
+    <g transform="translate(800 366)">
+      <rect width="320" height="70" rx="10" class="node-loop"/>
+      <text x="16" y="24" class="mono text-primary" font-size="11">spec-kitty next</text>
+      <text x="16" y="42" class="mono text-primary" font-size="11">  --result success</text>
+      <text x="16" y="60" class="body text-secondary">&#8594; Report, then loop again</text>
     </g>
-    <g transform="translate(440 430)">
-      <rect width="320" height="64" rx="10" class="node-agent-b"/>
-      <circle cx="26" cy="20" r="12" class="badge-b"/>
-      <text x="26" y="24" text-anchor="middle" class="text-invert node-title">B</text>
-      <text x="48" y="24" class="node-title text-primary">Agent B</text>
-      <text x="16" y="48" class="mono text-secondary" font-size="11">agent action implement WP02 --agent B</text>
-    </g>
-    <g transform="translate(790 430)">
-      <rect width="320" height="64" rx="10" class="node-agent-c"/>
-      <circle cx="26" cy="20" r="12" class="badge-c"/>
-      <text x="26" y="24" text-anchor="middle" class="text-invert node-title">C</text>
-      <text x="48" y="24" class="node-title text-primary">Agent C</text>
-      <text x="16" y="48" class="mono text-secondary" font-size="11">agent action implement WP03 --agent C</text>
-    </g>
+
+    <path d="M 400 401 L 440 401" class="line" marker-end="url(#sdf-arr)"/>
+    <path d="M 760 401 L 800 401" class="line" marker-end="url(#sdf-arr)"/>
+
+    <!-- Loop-back: repeat per work package -->
+    <path d="M 960 436 L 960 470 L 240 470 L 240 436" class="line-loop" marker-end="url(#sdf-arr-loop)"/>
+    <text x="600" y="464" text-anchor="middle" class="body arrow-loop" fill="#6366f1">repeat per work package until every WP is ready for review</text>
+    <text x="78" y="512" class="body text-muted">Independent lanes can run in parallel &#8212; each drives its own next loop in its own worktree.</text>
   </g>
 
   <!-- Lane 2 -> Lane 3 -->
@@ -170,20 +157,16 @@
       <text x="18" y="10" class="text-secondary">planning step</text>
     </g>
     <g transform="translate(150 -4)">
-      <rect width="12" height="12" rx="3" class="node-trigger"/>
-      <text x="18" y="10" class="text-secondary">trigger command</text>
+      <rect width="12" height="12" rx="3" class="node-loop"/>
+      <text x="18" y="10" class="text-secondary">runtime loop (next)</text>
     </g>
-    <g transform="translate(320 -4)">
-      <rect width="12" height="12" rx="3" class="node-agent-a"/>
-      <text x="18" y="10" class="text-secondary">parallel agent worktree</text>
-    </g>
-    <g transform="translate(540 -4)">
+    <g transform="translate(330 -4)">
       <rect width="12" height="12" rx="3" class="node-review"/>
       <text x="18" y="10" class="text-secondary">review step</text>
     </g>
-    <g transform="translate(680 -4)">
-      <line x1="0" y1="6" x2="24" y2="6" class="line-fan"/>
-      <text x="30" y="10" class="text-secondary">fan-out to agents</text>
+    <g transform="translate(470 -4)">
+      <line x1="0" y1="6" x2="24" y2="6" class="line-loop"/>
+      <text x="30" y="10" class="text-secondary">repeat per work package</text>
     </g>
   </g>
 </svg>
