@@ -191,6 +191,7 @@ class TestAuthLoginConfigErrors:
 
         assert result.exit_code != 0
         assert "SPEC_KITTY_SAAS_URL" in result.stdout
+        assert "https://app.spec-kitty.ai" in result.stdout
 
 
 # ---------------------------------------------------------------------------
