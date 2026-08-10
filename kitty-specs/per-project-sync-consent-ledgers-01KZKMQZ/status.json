@@ -1,7 +1,7 @@
 {
-  "event_count": 58,
-  "last_event_id": "01KZMK8BWHGHCFY63C7AT3DQCE",
-  "materialized_at": "2026-08-10T01:05:39.178798+00:00",
+  "event_count": 60,
+  "last_event_id": "01KZMKM0K03F3ENS6X1Q79Q703",
+  "materialized_at": "2026-08-10T01:12:00.823556+00:00",
   "mission_number": "",
   "mission_slug": "per-project-sync-consent-ledgers-01KZKMQZ",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 2,
     "in_review": 0,
-    "planned": 7
+    "planned": 6
   },
   "work_packages": {
     "WP01": {
@@ -133,11 +133,19 @@
       "shell_pid_created_at": "1786272735.189561"
     },
     "WP05": {
-      "actor": "finalize-tasks",
+      "actor": "codex",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01KZKV22YEQ6PAD5FCBXFDGSH1",
-      "last_transition_at": "2026-08-09T18:02:47.630229+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KZMKM0K03F3ENS6X1Q79Q703",
+      "last_transition_at": "2026-08-10T01:12:00.823556+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 1091,
+      "shell_pid_created_at": "1786272735.189561"
     },
     "WP06": {
       "actor": "finalize-tasks",
