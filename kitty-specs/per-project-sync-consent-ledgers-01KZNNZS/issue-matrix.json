@@ -25,7 +25,7 @@
       "wp": null
     },
     "#3262": {
-      "evidence_ref": "Mission owns structural closure across WP01-WP06.",
+      "evidence_ref": "Prevention closure complete across WP01-WP06; PR #3300 carries mission artifacts, status evidence, runbook, and focused validation results.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,7 +33,7 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
+      "verdict": "prevention-complete-pending-pr-review",
       "wp": "WP01-WP06"
     },
     "#3262/WP01": {
@@ -49,7 +49,7 @@
       "wp": "WP01"
     },
     "#585": {
-      "evidence_ref": "Prevention in mission; historical 1,322-event remediation remains explicit closure boundary.",
+      "evidence_ref": "Prevention complete in this mission; historical 1,322-event remediation remains an explicit closure boundary and must be dispositioned before #585 closes.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,7 +57,7 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
+      "verdict": "prevention-complete-historical-remediation-open",
       "wp": "WP06"
     },
     "#727": {
