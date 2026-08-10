@@ -91,13 +91,15 @@ Durable client control-operation outbox written before remote admit/revoke/readm
 |---|---|
 | `operation_key` | Stable random idempotency key reused after uncertainty. |
 | `action` | `admit` or `revoke`. |
-| `expected_generation` | Server generation asserted by the operation. |
+| `expected_generation` | Prior server admission generation asserted by compare-and-set. |
 | `target_identity` / `account_identity` / `private_teamspace_id` / `project_uuid` | Exact immutable audience tuple. |
-| `state` | `pending`, `in_flight`, `succeeded`, `conflict`, or `unknown`. |
-| `result_state` / `result_generation` / `binding_audience` | Original immutable server result. |
+| `request_payload_hash` / `request_payload_version` | Immutable identity and schema version of the exact request prepared before I/O. |
+| `created_at` | Immutable creation timestamp recorded before I/O. |
+| `state` | `prepared`, `sent`, `acknowledged`, `refused`, or `unknown`. |
+| `result_state` / `result_generation` / `binding_audience` / `original_error_category` | Original immutable server result or typed refusal evidence. |
 | `attempts` / timestamps | Bounded operational evidence. |
 
-The operation record commits before network I/O. A crash or timeout retries the identical key and expected generation. A new readmission creates a new key only after the prior outcome is reconciled.
+T024 is the executable contract for this row and supersedes the older operation-state vocabulary. The operation record commits before network I/O. A crash or timeout retries the identical key, payload, and expected generation. A readmission is `action=admit` with a new key and expected-generation compare-and-set, only after the prior outcome is reconciled.
 
 ## HistoryDisclosureAction
 
