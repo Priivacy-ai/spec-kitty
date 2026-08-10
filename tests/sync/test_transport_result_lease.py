@@ -36,9 +36,7 @@ def _seed_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncS
             (PROJECT_UUID,),
         )
         unit.execute(
-            "INSERT INTO consent_epochs "
-            "(epoch_id, project_uuid, opened_at_tail, state, consent_generation, reason) "
-            "VALUES (7, ?, 0, 'eligible', 3, 'opt_in')",
+            "INSERT INTO consent_epochs (epoch_id, project_uuid, opened_at_tail, state, consent_generation, reason) VALUES (7, ?, 0, 'eligible', 3, 'opt_in')",
             (PROJECT_UUID,),
         )
         unit.execute(
@@ -117,7 +115,11 @@ def test_transport_lease_excludes_a_second_process(
         result = subprocess.run(
             [sys.executable, "-c", script],
             check=False,
-            env={**os.environ, "SPEC_KITTY_HOME": str(tmp_path / "runtime")},
+            env={
+                **os.environ,
+                "PYTHONPATH": str(Path.cwd() / "src"),
+                "SPEC_KITTY_HOME": str(tmp_path / "runtime"),
+            },
             text=True,
             capture_output=True,
             timeout=5,
@@ -137,8 +139,7 @@ def test_lease_bound_context_rechecks_opt_out_before_transport_start(
 
     with store.unit_of_work() as unit:
         unit.execute(
-            "UPDATE project_consent_decisions SET state = 'refused', generation = 4, "
-            "action = 'explicit_opt_out' WHERE project_uuid = ?",
+            "UPDATE project_consent_decisions SET state = 'refused', generation = 4, action = 'explicit_opt_out' WHERE project_uuid = ?",
             (PROJECT_UUID,),
         )
 

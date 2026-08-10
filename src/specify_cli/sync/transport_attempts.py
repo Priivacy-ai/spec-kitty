@@ -32,6 +32,15 @@ class DeliveryOutcome(StrEnum):
     TERMINAL_UNKNOWN = "terminal_unknown"
 
 
+class RecoveryAction(StrEnum):
+    """Adapter-neutral recovery action for one durable attempt."""
+
+    QUERY_NATIVE_IDENTITY = "query_native_identity"
+    RETRY_NATIVE_IDENTITY = "retry_native_identity"
+    TERMINALIZED_NOOP = "terminalized_noop"
+    OPERATOR_REVIEW = "operator_review"
+
+
 @dataclass(frozen=True, slots=True)
 class DeliveryAttemptSpec:
     """Adapter-neutral immutable identity for a possible remote disclosure."""
@@ -63,6 +72,18 @@ class OptOutSettlement:
 
     canceled_before_transport: int
     terminalized_orphans: int
+
+
+@dataclass(frozen=True, slots=True)
+class DeliveryRecoveryDecision:
+    """Recovery decision that never invents a fresh disclosure identity."""
+
+    attempt_id: str
+    state: DeliveryAttemptState
+    action: RecoveryAction
+    native_identity: str | None
+    may_resend: bool
+    diagnostic: str
 
 
 def prepare_delivery_attempt(
@@ -129,8 +150,7 @@ def mark_transport_started(
     """Move a prepared attempt to in-flight immediately before I/O."""
     _validate_context_for_unit(unit, context, require_lease=True)
     row = unit.execute(
-        "SELECT 1 FROM delivery_attempts "
-        "WHERE project_uuid = ? AND attempt_id = ? AND state = ?",
+        "SELECT 1 FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ? AND state = ?",
         (
             unit.project_uuid.storage_token,
             attempt_id,
@@ -140,13 +160,53 @@ def mark_transport_started(
     if row is None:
         raise ProjectStoreError("delivery attempt was not prepared for transport start")
     unit.execute(
-        "UPDATE delivery_attempts SET state = ? "
-        "WHERE project_uuid = ? AND attempt_id = ? AND state = ?",
+        "UPDATE delivery_attempts SET state = ? WHERE project_uuid = ? AND attempt_id = ? AND state = ?",
         (
             DeliveryAttemptState.IN_FLIGHT.value,
             unit.project_uuid.storage_token,
             attempt_id,
             DeliveryAttemptState.PREPARED.value,
+        ),
+    )
+
+
+def mark_delivery_result_unknown(
+    unit: ProjectUnitOfWork,
+    context: ProjectSyncContext,
+    *,
+    attempt_id: str,
+    reason: str,
+) -> None:
+    """Park response/result uncertainty without recording a false success.
+
+    This represents the T030 ``response_received_before_result`` window: a
+    worker observed enough to know the attempt is no longer safely unstarted,
+    but crashed or lost authority before a genuine final result could be
+    committed.  Recovery may inspect the same native identity later; opt-out may
+    terminalize it first.
+    """
+    _validate_context_for_unit(unit, context, require_lease=True)
+    _require_non_empty(attempt_id=attempt_id, reason=reason)
+    row = unit.execute(
+        "SELECT 1 FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ? AND state IN (?, ?)",
+        (
+            unit.project_uuid.storage_token,
+            attempt_id,
+            DeliveryAttemptState.IN_FLIGHT.value,
+            DeliveryAttemptState.UNKNOWN.value,
+        ),
+    ).fetchone()
+    if row is None:
+        raise ProjectStoreError("unknown result requires a started attempt")
+    unit.execute(
+        "UPDATE delivery_attempts SET state = ?, reconciliation_policy = ? WHERE project_uuid = ? AND attempt_id = ? AND state IN (?, ?)",
+        (
+            DeliveryAttemptState.UNKNOWN.value,
+            f"unknown:{reason}",
+            unit.project_uuid.storage_token,
+            attempt_id,
+            DeliveryAttemptState.IN_FLIGHT.value,
+            DeliveryAttemptState.UNKNOWN.value,
         ),
     )
 
@@ -169,8 +229,7 @@ def record_delivery_result(
     else:
         terminal_state = DeliveryAttemptState.UNKNOWN
     row = unit.execute(
-        "SELECT epoch_id FROM delivery_attempts "
-        "WHERE project_uuid = ? AND attempt_id = ? AND state IN (?, ?)",
+        "SELECT epoch_id FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ? AND state IN (?, ?)",
         (
             unit.project_uuid.storage_token,
             attempt_id,
@@ -203,6 +262,66 @@ def record_delivery_result(
     )
 
 
+def plan_delivery_attempt_recovery(
+    unit: ProjectUnitOfWork,
+    *,
+    attempt_id: str,
+) -> DeliveryRecoveryDecision:
+    """Return the only safe adapter-neutral recovery action for an attempt.
+
+    The decision deliberately carries the original native identity and a
+    ``may_resend`` boolean instead of invoking transport adapters.  WP07/WP08
+    can map this to their native protocols, but a terminalized orphan is always
+    a no-op here: recovery may attach diagnostics later, never promote success
+    and never mint/resend a fresh identity.
+    """
+    _require_non_empty(attempt_id=attempt_id)
+    row = unit.execute(
+        "SELECT state, payload_reference, reconciliation_policy FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ?",
+        (unit.project_uuid.storage_token, attempt_id),
+    ).fetchone()
+    if row is None:
+        raise ProjectStoreError("delivery attempt does not exist")
+    state = DeliveryAttemptState(str(row[0]))
+    metadata = _metadata_from_payload_reference(row[1])
+    native_identity = metadata.get("native_identity")
+    if state is DeliveryAttemptState.TERMINAL_UNKNOWN:
+        return DeliveryRecoveryDecision(
+            attempt_id=attempt_id,
+            state=state,
+            action=RecoveryAction.TERMINALIZED_NOOP,
+            native_identity=native_identity,
+            may_resend=False,
+            diagnostic="attempt was terminalized during opt-out; preserve diagnostics only",
+        )
+    if state is DeliveryAttemptState.PREPARED:
+        return DeliveryRecoveryDecision(
+            attempt_id=attempt_id,
+            state=state,
+            action=RecoveryAction.RETRY_NATIVE_IDENTITY,
+            native_identity=native_identity,
+            may_resend=True,
+            diagnostic="attempt was durable before transport; retry only with the original native identity",
+        )
+    if state in {DeliveryAttemptState.IN_FLIGHT, DeliveryAttemptState.UNKNOWN}:
+        return DeliveryRecoveryDecision(
+            attempt_id=attempt_id,
+            state=state,
+            action=RecoveryAction.QUERY_NATIVE_IDENTITY,
+            native_identity=native_identity,
+            may_resend=False,
+            diagnostic="transport may have disclosed payload; query/reconcile original native identity only",
+        )
+    return DeliveryRecoveryDecision(
+        attempt_id=attempt_id,
+        state=state,
+        action=RecoveryAction.OPERATOR_REVIEW,
+        native_identity=native_identity,
+        may_resend=False,
+        diagnostic="terminal result already exists; automatic recovery is not allowed",
+    )
+
+
 def terminalize_orphaned_attempt(
     unit: ProjectUnitOfWork,
     *,
@@ -212,8 +331,7 @@ def terminalize_orphaned_attempt(
     """Irreversibly settle an uncertain attempt when opt-out wins the race."""
     _require_non_empty(attempt_id=attempt_id, reason=reason)
     row = unit.execute(
-        "SELECT epoch_id FROM delivery_attempts "
-        "WHERE project_uuid = ? AND attempt_id = ? AND state IN (?, ?, ?)",
+        "SELECT epoch_id FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ? AND state IN (?, ?, ?)",
         (
             unit.project_uuid.storage_token,
             attempt_id,
@@ -225,8 +343,7 @@ def terminalize_orphaned_attempt(
     if row is None:
         return
     unit.execute(
-        "UPDATE delivery_attempts SET state = ?, reconciliation_policy = ? "
-        "WHERE project_uuid = ? AND attempt_id = ?",
+        "UPDATE delivery_attempts SET state = ?, reconciliation_policy = ? WHERE project_uuid = ? AND attempt_id = ?",
         (
             DeliveryAttemptState.TERMINAL_UNKNOWN.value,
             f"terminalized:{reason}",
@@ -264,16 +381,14 @@ def settle_attempts_for_opt_out(
     """
     _require_non_empty(reason=reason)
     prepared_rows = unit.execute(
-        "SELECT attempt_id FROM delivery_attempts "
-        "WHERE project_uuid = ? AND state = ?",
+        "SELECT attempt_id FROM delivery_attempts WHERE project_uuid = ? AND state = ?",
         (
             unit.project_uuid.storage_token,
             DeliveryAttemptState.PREPARED.value,
         ),
     ).fetchall()
     unit.execute(
-        "UPDATE delivery_attempts SET state = ?, reconciliation_policy = ? "
-        "WHERE project_uuid = ? AND state = ?",
+        "UPDATE delivery_attempts SET state = ?, reconciliation_policy = ? WHERE project_uuid = ? AND state = ?",
         (
             DeliveryAttemptState.CANCELED.value,
             f"canceled:{reason}",
@@ -282,8 +397,7 @@ def settle_attempts_for_opt_out(
         ),
     )
     orphan_rows = unit.execute(
-        "SELECT attempt_id FROM delivery_attempts "
-        "WHERE project_uuid = ? AND state IN (?, ?)",
+        "SELECT attempt_id FROM delivery_attempts WHERE project_uuid = ? AND state IN (?, ?)",
         (
             unit.project_uuid.storage_token,
             DeliveryAttemptState.IN_FLIGHT.value,
@@ -302,8 +416,7 @@ def recover_delivery_attempts(unit: ProjectUnitOfWork) -> list[DeliveryAttemptRe
     """Return recoverable attempts without inventing a new native identity."""
     records: list[DeliveryAttemptRecord] = []
     for row in unit.execute(
-        "SELECT attempt_id, state, payload_reference, payload_hash, reconciliation_policy "
-        "FROM delivery_attempts WHERE project_uuid = ? AND state IN (?, ?, ?, ?)",
+        "SELECT attempt_id, state, payload_reference, payload_hash, reconciliation_policy FROM delivery_attempts WHERE project_uuid = ? AND state IN (?, ?, ?, ?)",
         (
             unit.project_uuid.storage_token,
             DeliveryAttemptState.PREPARED.value,
@@ -370,11 +483,15 @@ def _now() -> str:
 
 __all__ = [
     "DeliveryAttemptRecord",
+    "DeliveryRecoveryDecision",
     "DeliveryAttemptSpec",
     "DeliveryAttemptState",
     "DeliveryOutcome",
     "OptOutSettlement",
+    "RecoveryAction",
     "mark_transport_started",
+    "mark_delivery_result_unknown",
+    "plan_delivery_attempt_recovery",
     "prepare_delivery_attempt",
     "record_delivery_result",
     "recover_delivery_attempts",
