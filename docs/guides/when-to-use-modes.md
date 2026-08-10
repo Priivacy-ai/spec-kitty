@@ -56,6 +56,8 @@ Expect bookkeeping commits as the mission advances work packages. See [Understan
 
 ![When to use Spec Kitty modes - Mission Kitty illustrated style](../assets/images/when-to-use-modes-mission-kitty.png)
 
+_Alternate stylized splash — the "Observe / Verify / Improve / Next" labels are decorative. The four actual paths are No Spec Kitty, Ad-hoc specialist, Adversarial squad, and Full mission, compared above._
+
 ## Related guides
 
 - [Start an ad-hoc specialist session](how-to/collaboration/adhoc-specialist-session.md)
