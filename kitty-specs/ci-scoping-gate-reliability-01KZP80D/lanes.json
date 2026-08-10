@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "mission_slug": "ci-scoping-gate-reliability-01KZP80D",
+  "mission_id": "01KZP80DVZ9JF77DG23CJ6YNR1",
+  "mission_branch": "kitty/mission-ci-scoping-gate-reliability-01KZP80D",
+  "target_branch": "fix/ci-scoping-gate-reliability",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        "pytest.ini",
+        "tests/architectural/test_ci_collection_completeness.py",
+        "tests/architectural/test_ci_corpus_trigger_completeness.py",
+        "tests/architectural/test_ci_quality_path_filters.py",
+        "tests/architectural/test_events_tracker_public_imports.py",
+        "tests/architectural/test_no_tracked_test_feature_missions.py",
+        "tests/architectural/test_verdict_seam_census.py",
+        "tests/architectural/test_wp_owned_files_no_kitty_specs.py",
+        "tests/charter/synthesizer/test_manifest.py",
+        "tests/contract/test_example_round_trip.py",
+        "tests/doctrine/**",
+        "tests/glossary/**",
+        "tests/integration/test_mission_review_contract_gate.py",
+        "tests/missions/**",
+        "tests/specify_cli/missions/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/docs-freshness.yml",
+        "scripts/docs/related_validator.py",
+        "scripts/docs/relative_link_fixer.py",
+        "tests/docs/test_docs_freshness_invariant.py",
+        "tests/docs/test_rulers_blocking.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-10T17:00:57.743201+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "539e9062134bed5726f8da6ad0299afe1216832d"
+}
