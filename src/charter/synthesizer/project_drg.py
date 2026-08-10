@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import io
 from collections.abc import Sequence
-from datetime import UTC, datetime
 from pathlib import Path
 
 from ruamel.yaml import YAML
@@ -32,6 +31,7 @@ from doctrine.drg.migration.extractor import graph_document_to_dict, model_to_gr
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 from charter.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
+from kernel.clock import now_utc_seconds
 
 from .errors import ProjectDRGValidationError
 from .path_guard import PathGuard
@@ -153,7 +153,7 @@ def emit_project_layer(
     Raises:
         ProjectDRGValidationError: If any additive-only invariant is violated.
     """
-    now_iso = datetime.now(UTC).isoformat(timespec="seconds")
+    now_iso = now_utc_seconds()
     generated_by = f"spec-kitty charter synthesize {spec_kitty_version}"
 
     # Build indexes for additive-only checks.

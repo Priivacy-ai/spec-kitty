@@ -13,13 +13,13 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 from collections.abc import Callable
-from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 
 from ruamel.yaml import YAML
 
 from doctrine.yaml_utils import canonical_yaml
+from kernel.clock import from_epoch
 
 # --- Constants ---
 
@@ -372,9 +372,7 @@ def migrate_v1_to_v2(bundle_root: Path, dry_run: bool = False) -> MigrationResul
             if "produced_at" not in data:
                 try:
                     mtime = sidecar_path.stat().st_mtime
-                    data["produced_at"] = datetime.fromtimestamp(
-                        mtime, tz=UTC
-                    ).isoformat()
+                    data["produced_at"] = from_epoch(mtime).isoformat()
                 except OSError:
                     data["produced_at"] = PRE_PHASE7_MIGRATION_SENTINEL
 

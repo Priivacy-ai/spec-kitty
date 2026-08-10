@@ -15,9 +15,10 @@ test_adapter_contract.py::test_contract_structural_equivalence verifies this.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 from collections.abc import Mapping, Sequence
+
+from kernel.clock import datetime
 
 from .request import SynthesisRequest
 

@@ -22,7 +22,16 @@ internal ``plan_next`` (DAG engine, used by ``engine.py`` and
 Layer rule (C-001 / NFR-003): this module lives inside the runtime package
 (``runtime.next._internal_runtime``).  The imports from
 ``workflow_registry`` and ``workflow_schema`` stay within the same package;
-no ``charter``, ``doctrine`` (Python modules), or ``kernel`` imports.
+no ``charter`` or ``doctrine`` (Python modules) imports.
+
+``kernel.clock`` is the one sanctioned exception (mission
+``kernel-clock-single-door``, D-1): this invariant is about runtime
+re-extractability -- not depending on the doctrine-family internals that
+would break if ``runtime`` were ever split back into its own package -- not
+about general purity. ``kernel`` is the stdlib-only layer floor every
+package may import (it is not part of the doctrine family and carries no
+doctrine-family coupling), so a ``kernel.clock`` import does not violate the
+re-extractability rationale this rule protects.
 """
 
 from __future__ import annotations

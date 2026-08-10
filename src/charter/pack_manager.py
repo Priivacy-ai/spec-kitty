@@ -865,7 +865,7 @@ class CharterPackManager:
         MergeResult
             Contains kinds written, backup path (if any), and warnings.
         """
-        from datetime import UTC, datetime
+        from kernel.clock import now_utc_compact_stamp
 
         repo_root = ctx.require_repo_root()
         charter_md_path = repo_root / _KITTIFY_DIRNAME / "charter" / _CHARTER_FILENAME
@@ -874,7 +874,7 @@ class CharterPackManager:
 
         # Backup charter.md if it exists before any write
         if charter_md_path.exists():
-            ts = datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%SZ")
+            ts = now_utc_compact_stamp()
             backup_dir = repo_root / _KITTIFY_DIRNAME / "charter" / "backups"
             backup_dir.mkdir(parents=True, exist_ok=True)
             backup_path = backup_dir / f"charter-{ts}.md"

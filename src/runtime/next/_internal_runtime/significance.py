@@ -20,11 +20,11 @@ All registries are fixed in V1 (no custom dimensions or triggers).
 # public-API inventory.
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from kernel.clock import datetime
 from runtime.next._internal_runtime.schema import RACIRoleBinding, ResolvedRACIBinding
 
 if TYPE_CHECKING:

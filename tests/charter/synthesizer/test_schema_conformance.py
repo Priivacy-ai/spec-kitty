@@ -22,7 +22,7 @@ this, exception-capture tests use explicit try/except rather than
 
 from __future__ import annotations
 
-from datetime import datetime, UTC
+from kernel.clock import datetime, UTC
 from typing import Any
 from collections.abc import Mapping
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from enum import Enum
 from io import StringIO
 from pathlib import Path
@@ -10,6 +9,8 @@ from typing import Any
 
 from ruamel.yaml import YAML
 from ruamel.yaml.scalarstring import DoubleQuotedScalarString, PreservedScalarString
+
+from kernel.clock import now_utc
 
 from .models import Provenance, SenseStatus, TermSense, TermSurface
 
@@ -153,8 +154,14 @@ def load_seed_file(scope: GlossaryScope, repo_root: Path) -> list[TermSense]:
             scope=scope.value,
             definition=term_data["definition"],
             provenance=Provenance(
+                # kernel-clock-single-door FR-011: was naive `datetime.now()`
+                # (local time, mislabeled) -- converted to aware-UTC via the
+                # door. Byte-changing: `TermSense.timestamp.isoformat()`
+                # (glossary/models.py) now emits a `+00:00` offset for
+                # seed-loaded senses where it previously had none. See
+                # research/migration-notes.md.
                 actor_id="system:seed_file",
-                timestamp=datetime.now(),
+                timestamp=now_utc(),
                 source="seed_file",
             ),
             confidence=term_data.get("confidence", 1.0),

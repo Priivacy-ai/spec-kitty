@@ -18,12 +18,13 @@ artifact identity before handing it to the schema gate.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from collections.abc import Mapping
 
 from ruamel.yaml import YAML
+
+from kernel.clock import from_epoch
 
 from .adapter import AdapterOutput
 from .errors import GeneratedArtifactLoadError, GeneratedArtifactMissingError
@@ -110,7 +111,7 @@ class GeneratedArtifactAdapter:
         body = self._load_body(path)
         self._assert_target_identity(request, body, path)
 
-        generated_at = datetime.fromtimestamp(path.stat().st_mtime, tz=UTC)
+        generated_at = from_epoch(path.stat().st_mtime)
         try:
             rel_path = path.relative_to(self._repo_root)
             note_path = rel_path.as_posix()

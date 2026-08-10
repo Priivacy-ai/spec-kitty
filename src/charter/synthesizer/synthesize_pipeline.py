@@ -37,11 +37,11 @@ import hashlib
 import io
 import json
 from collections.abc import Mapping
-from datetime import datetime, timezone
 from typing import Any, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 from ruamel.yaml import YAML
+from kernel.clock import now_utc_iso
 
 from .adapter import AdapterOutput, SynthesisAdapter
 from .errors import SynthesisSchemaError
@@ -452,7 +452,7 @@ def run(
             source_urns=list(target.source_urns),
             source_input_ids=list(target.source_urns),
             generated_at=generated_at_str,
-            produced_at=datetime.now(timezone.utc).isoformat(),
+            produced_at=now_utc_iso(),
             corpus_snapshot_id=corpus_id or "(none)",
             synthesis_run_id=request.run_id,
             evidence_bundle_hash=evidence_hash,
@@ -587,7 +587,7 @@ def run_all(
             source_urns=list(target.source_urns),
             source_input_ids=list(target.source_urns),
             generated_at=generated_at_str,
-            produced_at=datetime.now(timezone.utc).isoformat(),
+            produced_at=now_utc_iso(),
             corpus_snapshot_id=corpus_id or "(none)",
             synthesis_run_id=request.run_id,
             evidence_bundle_hash=evidence_hash,

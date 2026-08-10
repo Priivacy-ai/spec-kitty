@@ -22,12 +22,12 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
 from glossary.scope import GlossaryScope
 from glossary.strictness import Strictness
+from kernel.clock import datetime, now_utc, parse_iso
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +125,7 @@ def create_checkpoint(
         input_hash=compute_input_hash(inputs),
         cursor=cursor,
         retry_token=str(uuid.uuid4()),
-        timestamp=datetime.now(UTC),
+        timestamp=now_utc(),
     )
 
 
@@ -231,7 +231,7 @@ def parse_checkpoint_event(
             input_hash=event_payload["input_hash"],
             cursor=event_payload["cursor"],
             retry_token=event_payload["retry_token"],
-            timestamp=datetime.fromisoformat(event_payload["timestamp"]),
+            timestamp=parse_iso(event_payload["timestamp"]),
         )
     except (KeyError, ValueError) as e:
         raise ValueError(f"Invalid checkpoint event payload: {e}") from e

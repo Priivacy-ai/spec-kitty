@@ -32,11 +32,11 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any, cast
 
 from kernel.atomic import substantively_equal as _substantively_equal_core
+from kernel.clock import now_utc_iso
 
 from charter.bundle import compute_bundle_content_hash
 from charter.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
@@ -671,7 +671,7 @@ def promote(
         # bundle_content_hash) can be silently omitted (closes BLOCKER-2).
         manifest = SynthesisManifest(
             mission_id=mission_id,
-            created_at=datetime.now(tz=UTC).isoformat(),
+            created_at=now_utc_iso(),
             run_id=run_id,
             adapter_id=primary_adapter_id,
             adapter_version=primary_adapter_version,
