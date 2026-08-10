@@ -36,14 +36,17 @@ agent_profile: python-pedro
 authoritative_surface: src/specify_cli/sync/admission_operations.py
 create_intent:
 - src/specify_cli/sync/admission_operations.py
+- src/specify_cli/sync/project_store.py
 - src/specify_cli/saas_client/admission.py
 - tests/sync/test_admission_operations.py
+- tests/sync/test_project_store.py
 - tests/sync/test_saas_admission_compatibility.py
 - tests/sync/test_target_admission_audience.py
 - tests/contract/test_project_sync_admission_contract.py
 execution_mode: code_change
 owned_files:
 - src/specify_cli/sync/admission_operations.py
+- src/specify_cli/sync/project_store.py
 - src/specify_cli/sync/target_authority.py
 - src/specify_cli/delivery/interfaces.py
 - src/specify_cli/delivery/targets.py
@@ -52,6 +55,7 @@ owned_files:
 - src/specify_cli/saas_client/endpoints.py
 - src/specify_cli/saas_client/errors.py
 - tests/sync/test_admission_operations.py
+- tests/sync/test_project_store.py
 - tests/sync/test_saas_admission_compatibility.py
 - tests/sync/test_target_admission_audience.py
 - tests/contract/test_project_sync_admission_contract.py
