@@ -2173,10 +2173,19 @@ class WallClockCallViolation:
     function is a pure AST-in, violations-out engine; filesystem walking and
     path bookkeeping are the caller's concern, same division of labour as
     ``test_kernel_no_doctrine_import.py``'s own ``_scan_file``).
+
+    ``suggestion`` is the SC-001 message-mapping guidance (WP15): the
+    ``kernel.clock`` producer this call site should migrate to. Computed by
+    :func:`_suggested_producer` from the banned call's canonical family
+    (``.now``/``.utcnow`` vs ``date.today`` vs ``time.time()``) plus, for the
+    ``.now``/``.utcnow`` family, the immediately-chained
+    ``.isoformat()``/``.strftime(<literal>)`` call the flagged call feeds
+    into, when one is present at the call site.
     """
 
     line: int
     call: str
+    suggestion: str
 
 
 def find_wall_clock_call_violations(tree: ast.AST, module_name: str) -> list[WallClockCallViolation]:
@@ -2203,16 +2212,114 @@ def find_wall_clock_call_violations(tree: ast.AST, module_name: str) -> list[Wal
     return sorted(visitor.violations)
 
 
+#: SC-001 message-mapping (WP15): canonical banned-call family -> suggested
+#: kernel.clock producer. Keyed on the CANONICAL (alias-resolved) path, not
+#: the as-written receiver text, so ``dt.time()``/``time.time()`` and
+#: ``d.now()``/``datetime.now()`` map identically regardless of aliasing.
+_EPOCH_CALL: tuple[str, ...] = ("time", "time")
+_DATE_TODAY_CALLS: frozenset[tuple[str, ...]] = frozenset({("date", "today"), ("datetime", "date", "today")})
+_NOW_FAMILY_CALLS: frozenset[tuple[str, ...]] = frozenset(
+    {
+        ("datetime", "now"),
+        ("datetime", "datetime", "now"),
+        ("datetime", "utcnow"),
+        ("datetime", "datetime", "utcnow"),
+    }
+)
+_EPOCH_SUGGESTION = "kernel.clock.now_epoch()"
+_DATE_TODAY_SUGGESTION = "kernel.clock.now_utc().date() (or an adjudicated naive-local fix per FR-011)"
+_GENERIC_NOW_SUGGESTION = (
+    "kernel.clock.now_utc() (or now_utc_iso()/now_utc_stamp()/"
+    "now_utc_compact_stamp()/now_utc_seconds() for a specific serialization contract)"
+)
+_UNKNOWN_CALL_SUGGESTION = "the matching kernel.clock producer"
+
+#: The two on-disk stamp contracts the door's producers own (C-003); a
+#: ``.strftime(<literal>)`` chained directly onto the flagged call is only
+#: mapped when the literal matches one of these EXACTLY -- any other format
+#: string falls back to :data:`_GENERIC_NOW_SUGGESTION` rather than guessing.
+_STRFTIME_PRODUCER_SUGGESTIONS: dict[str, str] = {
+    "%Y-%m-%dT%H:%M:%SZ": "kernel.clock.now_utc_stamp()",
+    "%Y%m%dT%H%M%SZ": "kernel.clock.now_utc_compact_stamp()",
+}
+
+
+def _isoformat_producer_suggestion(outer_call: ast.Call) -> str:
+    """``.now(...).isoformat(timespec="seconds")`` -> ``now_utc_seconds()``; else ``now_utc_iso()``."""
+    for keyword in outer_call.keywords:
+        if keyword.arg == "timespec" and isinstance(keyword.value, ast.Constant) and keyword.value.value == "seconds":
+            return "kernel.clock.now_utc_seconds()"
+    return "kernel.clock.now_utc_iso()"
+
+
+def _strftime_producer_suggestion(outer_call: ast.Call) -> str | None:
+    """``.now(...).strftime(<literal format>)`` -> the matching stamp producer, if the format is recognized."""
+    if not outer_call.args:
+        return None
+    fmt_arg = outer_call.args[0]
+    if isinstance(fmt_arg, ast.Constant) and isinstance(fmt_arg.value, str):
+        return _STRFTIME_PRODUCER_SUGGESTIONS.get(fmt_arg.value)
+    return None
+
+
 class _WholeModuleClockVisitor(ast.NodeVisitor):
     """Whole-module banned-call scanner. See the module-level engine docstring above."""
 
     def __init__(self) -> None:
         self.scopes: list[_AliasMap] = [{}]
         self.violations: list[WallClockCallViolation] = []
+        #: Ancestor stack (root-to-current), maintained by the overridden
+        #: :meth:`visit` below -- exists ONLY so :meth:`_chained_attribute_call`
+        #: can look one/two levels up from a flagged call to detect an
+        #: immediately-chained ``.isoformat()``/``.strftime(...)`` for the
+        #: SC-001 message-mapping suggestion. Nothing else in this visitor
+        #: reads it.
+        self._parent_stack: list[ast.AST] = []
 
     @property
     def scope(self) -> _AliasMap:
         return self.scopes[-1]
+
+    def visit(self, node: ast.AST) -> None:
+        self._parent_stack.append(node)
+        try:
+            super().visit(node)
+        finally:
+            self._parent_stack.pop()
+
+    def _chained_attribute_call(self, call_node: ast.Call) -> tuple[str, ast.Call] | None:
+        """If ``call_node`` is immediately followed by ``.<attr>(...)``, return ``(attr, outer_call)``."""
+        stack = self._parent_stack
+        if len(stack) < 3 or stack[-1] is not call_node:
+            return None
+        parent, grandparent = stack[-2], stack[-3]
+        if (
+            isinstance(parent, ast.Attribute)
+            and parent.value is call_node
+            and isinstance(grandparent, ast.Call)
+            and grandparent.func is parent
+        ):
+            return parent.attr, grandparent
+        return None
+
+    def _suggested_producer(self, call_node: ast.Call, canonical: tuple[str, ...]) -> str:
+        """SC-001 message mapping: the kernel.clock producer this violation should migrate to."""
+        if canonical == _EPOCH_CALL:
+            return _EPOCH_SUGGESTION
+        if canonical in _DATE_TODAY_CALLS:
+            return _DATE_TODAY_SUGGESTION
+        if canonical in _NOW_FAMILY_CALLS:
+            chained = self._chained_attribute_call(call_node)
+            if chained is not None:
+                attr_name, outer_call = chained
+                if attr_name == "isoformat":
+                    return _isoformat_producer_suggestion(outer_call)
+                if attr_name == "strftime":
+                    stamp_suggestion = _strftime_producer_suggestion(outer_call)
+                    if stamp_suggestion is not None:
+                        return stamp_suggestion
+            return _GENERIC_NOW_SUGGESTION
+        return _UNKNOWN_CALL_SUGGESTION
 
     def visit_Import(self, node: ast.Import) -> None:
         for alias in node.names:
@@ -2280,15 +2387,24 @@ class _WholeModuleClockVisitor(ast.NodeVisitor):
 
     def visit_Call(self, node: ast.Call) -> None:
         raw_path = _attribute_path(node.func)
-        if raw_path and _normalize_alias(raw_path, self.scopes) in _BANNED_CALLS:
+        canonical = _normalize_alias(raw_path, self.scopes) if raw_path else ()
+        if raw_path and canonical in _BANNED_CALLS:
             # Mirrors `_AssertCallVisitor.visit_Call` above: `_BANNED_CALLS`
             # membership (via the normalized/alias-resolved path) is the
             # ban CHECK, but the reported `call` text is the literal,
             # as-written receiver -- e.g. `d.now()` for the variable-split
             # form, not the canonical `datetime.now()` it resolves to. This
             # is what makes the violation message greppable against the
-            # actual source line.
-            self.violations.append(WallClockCallViolation(line=node.lineno, call=f"{'.'.join(raw_path)}()"))
+            # actual source line. `suggestion` (SC-001) is keyed on the
+            # CANONICAL path instead, so an aliased/variable-split call still
+            # gets the correct producer recommendation.
+            self.violations.append(
+                WallClockCallViolation(
+                    line=node.lineno,
+                    call=f"{'.'.join(raw_path)}()",
+                    suggestion=self._suggested_producer(node, canonical),
+                )
+            )
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:

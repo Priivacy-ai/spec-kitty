@@ -33,7 +33,7 @@ from pathlib import Path
 import pytest
 
 from tests.architectural import _clock_gate_scan as scan
-from tests.architectural._exemptions import load_import_exemptions
+from tests.architectural._exemptions import load_call_exemptions, load_import_exemptions
 
 pytestmark = [pytest.mark.architectural]
 
@@ -119,19 +119,34 @@ def test_every_import_exemption_entry_is_a_real_violation() -> None:
 def test_stale_exemption_removal_reds_the_gate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """C-009 non-vacuity: removing a live exemption line makes the gate red, naming the path.
 
-    Builds an ISOLATED one-owner exemption directory (never mutates the real
-    committed ``_exemptions/*.txt`` files) containing exactly one entry for a
-    real violation this WP's own generated allow-list carries, then asserts
-    that WITHOUT that entry the same collection-and-filter logic
-    ``test_no_raw_datetime_import_outside_the_door`` runs is non-empty and
-    names the now-unexempted path -- proving the exemption mechanism is
-    load-bearing, not a vacuous pass-through.
+    TREE-INDEPENDENT (WP15 terminal remediation): the real tree's exemption
+    union is now empty (SC-003) -- WP05-WP14 shrank every ``_exemptions/*.txt``
+    to nothing, so there is no live in-tree violation left to harvest via
+    ``collect_import_ban_violations(scan.iter_python_files())`` the way the
+    pre-terminal version of this test did. Instead plants a SYNTHETIC
+    ``import datetime`` in an unexempted ``tmp_path`` file, runs it through
+    the REAL detector (``collect_import_ban_violations``), then proves the
+    exemption mechanism is load-bearing via the exact same
+    collection-and-filter logic ``test_no_raw_datetime_import_outside_the_door``
+    runs -- an ISOLATED one-owner exemption directory (never the real
+    committed ``_exemptions/*.txt`` files) containing exactly one entry for
+    the planted violation, then WITHOUT that entry the same filter is
+    non-empty and names the now-unexempted path. ``scan.REPO_ROOT`` is
+    monkeypatched to ``tmp_path`` for the duration of the ``scan.relpath``
+    call below, so the planted file -- which must physically live under
+    ``tmp_path``, never the real scanned tree -- still resolves through the
+    SAME ``relpath`` function the real gate uses. No write ever touches the
+    real repo tree or a committed ``_exemptions/*.txt`` file.
     """
-    scanned = scan.iter_python_files()
-    all_violations = collect_import_ban_violations(scanned)
-    assert all_violations, "no real import-ban violation exists to prove non-vacuity against"
+    module = tmp_path / "offender.py"
+    module.write_text("import datetime\n\ndatetime.timedelta(seconds=1)\n", encoding="utf-8")
+    monkeypatch.setattr(scan, "REPO_ROOT", tmp_path.resolve())
+
+    all_violations = collect_import_ban_violations([module])
+    assert all_violations == [(module, 1)], "the planted import-ban violation must be detected by the real detector"
     sample_path, sample_lineno = all_violations[0]
     sample_relpath = scan.relpath(sample_path)
+    assert sample_relpath == "offender.py"
 
     isolated_dir = tmp_path / "_exemptions"
     isolated_dir.mkdir()
@@ -207,3 +222,29 @@ def test_import_time_alone_is_not_banned_here(tmp_path: Path) -> None:
     violations = collect_import_ban_violations([module])
 
     assert violations == []
+
+
+def test_exemption_union_is_empty() -> None:
+    """SC-003 terminal proof (WP15): the union of every owner's IMPORT+CALL entries is zero.
+
+    Every per-package remediation WP (WP05-WP14) shrank its own
+    ``tests/architectural/_exemptions/<owner>.txt`` to empty; this is the
+    ratchet's terminal floor -- the whole tree (``src/`` + ``tests/`` +
+    ``scripts/``) is now on the door. Non-vacuity (C-009): this is a live
+    read of real repository state, not a scaffold -- reintroducing a single
+    ``IMPORT:``/``CALL:`` line into any committed ``_exemptions/<owner>.txt``
+    (verified manually during review; never committed) reds this assertion
+    immediately, and it would equally have been red at any point before
+    WP14 finished (when the union was still non-empty).
+    """
+    import_exemptions = load_import_exemptions()
+    call_exemptions = load_call_exemptions()
+
+    assert import_exemptions == frozenset(), (
+        "SC-003 not met: the IMPORT exemption union is not empty. Remaining "
+        f"entries: {sorted(import_exemptions)}"
+    )
+    assert call_exemptions == frozenset(), (
+        "SC-003 not met: the CALL exemption union is not empty. Remaining "
+        f"entries: {sorted(call_exemptions)}"
+    )
