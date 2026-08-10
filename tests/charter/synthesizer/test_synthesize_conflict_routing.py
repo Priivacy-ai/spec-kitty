@@ -41,8 +41,8 @@ from ruamel.yaml import YAML
 
 from charter.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
 from charter.synthesizer.errors import ProjectDRGValidationError
-from charter.synthesizer.reconcile import _RECONCILE_REMEDIATIONS, ReconciliationConflict
-from charter.synthesizer.validation_gate import validate
+from charter.synthesizer.reconcile import _RECONCILE_REMEDIATIONS, ReconciliationConflict, _edge_label
+from charter.synthesizer.validation_gate import _edge_conflict_key, validate
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.unit]
@@ -541,3 +541,25 @@ class TestFullPipelineNewEmitCollisionStillRaises:
         with pytest.raises(ProjectDRGValidationError) as exc_info:
             synthesize(request, adapter=fixture_adapter, repo_root=tmp_path)
         assert any("Duplicate edge" in e for e in exc_info.value.errors)
+
+
+# ---------------------------------------------------------------------------
+# Edge-label format parity (reconcile._edge_label <-> validation_gate._edge_conflict_key)
+# ---------------------------------------------------------------------------
+
+
+def test_edge_conflict_key_matches_reconcile_edge_label() -> None:
+    """The two independently-declared edge-label formats must stay identical.
+
+    ``validation_gate._edge_conflict_key`` intentionally hand-reconstructs
+    ``reconcile._edge_label``'s ``f"{source}--{relation.value}-->{target}"``
+    format rather than importing the private helper — see
+    ``validation_gate._edge_conflict_key``'s docstring for the documented
+    ownership-boundary rationale (this module's only dependency on the
+    reconciliation seam stays at the public ``ReconciliationConflict``
+    shape). That means the two formats can drift silently if either one is
+    edited without the other; this test is the binding parity check that
+    fails loudly on drift instead.
+    """
+    edge = DRGEdge(source="tactic:x", target="directive:DIRECTIVE_003", relation=Relation.APPLIES)
+    assert _edge_conflict_key(edge) == _edge_label(edge)
