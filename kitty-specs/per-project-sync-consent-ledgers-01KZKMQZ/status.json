@@ -97,7 +97,8 @@
       "last_transition_at": "2026-08-10T01:02:18.825564+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "WP03 ready: owned 27 passed; #3030 consent 57 passed; architecture/dependencies 114 passed, 2 expected xfails; Ruff and mypy --strict clean; commits 8b463beea and 7f9366cea."
+        "WP03 ready: owned 27 passed; #3030 consent 57 passed; architecture/dependencies 114 passed, 2 expected xfails; Ruff and mypy --strict clean; commits 8b463beea and 7f9366cea.",
+        "APPROVED cycle 1: sole project-store grant authority, transactional consent epochs/history capability revalidation, deny-only atomic hints, retired legacy writers, and #3030 denial defenses match the locked contract. Verified RED at 8b463beea; GREEN 27 owned + 57 incident + 114 architecture (2 expected xfails); Ruff, mypy --strict, diff-check, and adversarial stale-authority probes pass."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
