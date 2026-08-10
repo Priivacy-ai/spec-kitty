@@ -1,7 +1,6 @@
 """Pytest fixtures for glossary tests."""
 
 import pytest
-from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -15,6 +14,7 @@ from glossary.models import (
     Severity,
     SenseRef,
 )
+from kernel.clock import datetime
 
 _THIS_DIR = Path(__file__).parent
 

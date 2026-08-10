@@ -1,7 +1,7 @@
 """Tests for glossary extraction middleware (WP03) and semantic check middleware (WP04)."""
 
 import pytest
-from datetime import datetime
+from kernel.clock import datetime
 from pathlib import Path
 
 from glossary.middleware import (

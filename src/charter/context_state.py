@@ -15,10 +15,10 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 
 from kernel.atomic import atomic_write
+from kernel.clock import now_utc_stamp
 
 # ``_load_state`` / ``_write_state`` / ``_ContextStateBundle`` are intentionally
 # *not* exported: after the context.py re-export shim retirement
@@ -82,7 +82,7 @@ def _mark_action_loaded(state: dict[str, object], state_path: Path, action: str)
     if not isinstance(actions_obj, dict):
         actions_obj = {}
         state["actions"] = actions_obj
-    actions_obj[action] = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    actions_obj[action] = now_utc_stamp()
     _write_state(state_path, state)
 
 

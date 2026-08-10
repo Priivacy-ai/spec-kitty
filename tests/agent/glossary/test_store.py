@@ -1,7 +1,7 @@
 """Scope: store unit tests — no real git or subprocesses."""
 
 import pytest
-from datetime import datetime
+from kernel.clock import now_utc
 from glossary.store import GlossaryStore
 from glossary.models import (
     TermSurface, TermSense, Provenance,
@@ -27,7 +27,7 @@ def test_glossary_store_scope_order(tmp_path):
         surface=TermSurface("workspace"),
         scope="team_domain",
         definition="Team domain definition",
-        provenance=Provenance("user:alice", datetime.now(), "user"),
+        provenance=Provenance("user:alice", now_utc(), "user"),
         confidence=0.9,
     )
     store.add_sense(sense1)
@@ -37,7 +37,7 @@ def test_glossary_store_scope_order(tmp_path):
         surface=TermSurface("workspace"),
         scope="spec_kitty_core",
         definition="Spec Kitty core definition",
-        provenance=Provenance("system", datetime.now(), "system"),
+        provenance=Provenance("system", now_utc(), "system"),
         confidence=1.0,
     )
     store.add_sense(sense2)
@@ -62,7 +62,7 @@ def test_scope_resolution_hierarchy(tmp_path):
         surface=TermSurface("workspace"),
         scope="spec_kitty_core",
         definition="Spec Kitty core definition",
-        provenance=Provenance("system", datetime.now(), "system"),
+        provenance=Provenance("system", now_utc(), "system"),
         confidence=1.0,
     ))
 
@@ -78,7 +78,7 @@ def test_scope_resolution_hierarchy(tmp_path):
         surface=TermSurface("workspace"),
         scope="team_domain",
         definition="Team domain definition",
-        provenance=Provenance("user:alice", datetime.now(), "user"),
+        provenance=Provenance("user:alice", now_utc(), "user"),
         confidence=0.9,
     ))
 
@@ -99,7 +99,7 @@ def test_scope_resolution_skip_missing(tmp_path):
         surface=TermSurface("workspace"),
         scope="spec_kitty_core",
         definition="Definition",
-        provenance=Provenance("system", datetime.now(), "system"),
+        provenance=Provenance("system", now_utc(), "system"),
         confidence=1.0,
     ))
 
@@ -117,7 +117,7 @@ def test_lookup_cache_hit_and_invalidation(tmp_path):
         surface=TermSurface("workspace"),
         scope="team_domain",
         definition="Initial definition",
-        provenance=Provenance("user:alice", datetime.now(), "user"),
+        provenance=Provenance("user:alice", now_utc(), "user"),
         confidence=0.9,
     )
     store.add_sense(sense1)
@@ -142,7 +142,7 @@ def test_lookup_cache_hit_and_invalidation(tmp_path):
         surface=TermSurface("workspace"),
         scope="team_domain",
         definition="Updated definition",
-        provenance=Provenance("user:bob", datetime.now(), "user"),
+        provenance=Provenance("user:bob", now_utc(), "user"),
         confidence=0.95,
     )
     store.add_sense(sense2)

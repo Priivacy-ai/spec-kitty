@@ -2,7 +2,7 @@
 
 import pytest
 import yaml
-from datetime import datetime
+from kernel.clock import datetime
 from unittest.mock import patch
 from glossary.scope import (
     GlossaryScope,

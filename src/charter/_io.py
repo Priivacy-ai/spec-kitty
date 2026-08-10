@@ -17,11 +17,11 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 
 import ulid as _ulid_mod
 from charset_normalizer import from_bytes
+from kernel.clock import now_utc_iso
 from kernel.errors import KittyInternalConsistencyError
 
 from ._diagnostics import CharterEncodingDiagnostic
@@ -319,7 +319,7 @@ def _build_provenance_record(
     mission_id = _resolve_mission_id(content.source_path)
     return {
         "event_id": _generate_ulid(),
-        "at": datetime.now(tz=UTC).isoformat(),
+        "at": now_utc_iso(),
         "file_path": file_path_str,
         "source_encoding": content.source_encoding,
         "confidence": content.confidence,

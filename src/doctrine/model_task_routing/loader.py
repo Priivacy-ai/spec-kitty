@@ -32,7 +32,6 @@ caching that could hide staleness from a caller re-checking freshness.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from importlib.resources import files
 from pathlib import Path
 
@@ -40,6 +39,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from doctrine.model_task_routing.models import ModelToTaskType
+from kernel.clock import UTC, now_utc, parse_iso
 
 _CATALOG_PACKAGE = "doctrine.model_task_routing"
 _CATALOG_SUBPATH = ("catalog", "model-to-task_type.yaml")
@@ -97,12 +97,12 @@ def _is_stale(catalog: ModelToTaskType) -> bool:
     if freshness is None or freshness.max_catalog_age_hours is None:
         return False
     try:
-        generated_at = datetime.fromisoformat(catalog.generated_at.replace("Z", "+00:00"))
+        generated_at = parse_iso(catalog.generated_at.replace("Z", "+00:00"))
     except ValueError:
         return False
     if generated_at.tzinfo is None:
         generated_at = generated_at.replace(tzinfo=UTC)
-    age_hours = (datetime.now(UTC) - generated_at).total_seconds() / 3600
+    age_hours = (now_utc() - generated_at).total_seconds() / 3600
     return age_hours > freshness.max_catalog_age_hours
 
 

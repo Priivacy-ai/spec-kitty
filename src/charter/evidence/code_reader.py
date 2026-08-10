@@ -10,10 +10,10 @@ No external runtime dependencies — stdlib ``pathlib`` and ``os.walk`` only.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 from charter.synthesizer.evidence import CodeSignals
+from kernel.clock import now_utc_iso
 from kernel.paths import to_posix
 
 __all__ = [
@@ -103,10 +103,6 @@ class CodeReadingError(Exception):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def _utcnow_iso() -> str:
-    return datetime.now(tz=UTC).isoformat()
 
 
 def _is_test_file(rel_path: str, filename: str) -> bool:
@@ -266,7 +262,7 @@ class CodeReadingCollector:
             test_frameworks=tuple(test_fws),
             scope_tag=language,
             representative_files=tuple(representative),
-            detected_at=_utcnow_iso(),
+            detected_at=now_utc_iso(),
         )
 
     def _detect_language(
@@ -304,5 +300,5 @@ class CodeReadingCollector:
             test_frameworks=(),
             scope_tag="unknown",
             representative_files=(),
-            detected_at=_utcnow_iso(),
+            detected_at=now_utc_iso(),
         )

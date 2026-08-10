@@ -1,7 +1,6 @@
 """Corpus loader for charter synthesis evidence."""
 from __future__ import annotations
 
-import datetime
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +8,7 @@ import ruamel.yaml
 
 from charter.corpus import CORPUS_ROOT
 from charter.synthesizer.evidence import CorpusEntry, CorpusSnapshot
+from kernel.clock import now_utc_iso
 
 __all__ = [
     "CorpusLoader",
@@ -61,5 +61,5 @@ def _parse_snapshot(data: dict[str, Any]) -> CorpusSnapshot:
         snapshot_id=str(data["snapshot_id"]),
         profile_key=str(data["profile_key"]),
         entries=entries,
-        loaded_at=datetime.datetime.now(datetime.UTC).isoformat(),
+        loaded_at=now_utc_iso(),
     )

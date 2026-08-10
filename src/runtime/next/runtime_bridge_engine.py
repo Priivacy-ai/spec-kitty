@@ -50,10 +50,10 @@ would be circular) so the WP02 compat guard's per-symbol sentinel patches on
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from kernel.clock import now_utc
 from runtime.next._internal_runtime import engine as _engine
 from runtime.next._internal_runtime import planner as _planner
 from runtime.next._internal_runtime.events import (
@@ -208,7 +208,7 @@ def _emit_decision_required(
         question=decision.question or "",
         options=decision.options or [],
         requested_by=actor,
-        requested_at=datetime.now(UTC),
+        requested_at=now_utc(),
     )
     pending_decisions = dict(pending_decisions)
     pending_decisions[decision_id] = request.model_dump(mode="json")

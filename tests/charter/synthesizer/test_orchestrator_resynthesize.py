@@ -13,11 +13,12 @@ from __future__ import annotations
 
 import hashlib
 import subprocess
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
+
+from kernel.clock import UTC, datetime
 
 from doctrine.drg.loader import load_graph
 
@@ -312,12 +313,14 @@ class TestUs3KindSlug:
 
         from charter.synthesizer import project_drg
 
-        class _LaterDatetime:
-            @classmethod
-            def now(cls, tz: object = None) -> datetime:
-                return datetime(2026, 6, 15, 12, 0, 0, tzinfo=UTC)
-
-        monkeypatch.setattr(project_drg, "datetime", _LaterDatetime)
+        # kernel-clock-single-door (WP07): project_drg now stamps
+        # `generated_at` via the door's `now_utc_seconds()` producer rather
+        # than a raw `datetime.now(UTC)` call, so the "time has advanced"
+        # freeze point is `project_drg.now_utc_seconds` itself.
+        later = datetime(2026, 6, 15, 12, 0, 0, tzinfo=UTC)
+        monkeypatch.setattr(
+            project_drg, "now_utc_seconds", lambda: later.isoformat(timespec="seconds")
+        )
 
         result = resynthesize_run(
             request=base_request,

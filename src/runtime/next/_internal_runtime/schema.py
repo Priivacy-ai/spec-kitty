@@ -7,13 +7,14 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
 import yaml
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 from spec_kitty_events.mission_next import RuntimeActorIdentity
+
+from kernel.clock import datetime
 
 # ``specify_cli`` sits above ``runtime`` in the layer stack (runtime <-
 # specify_cli), so importing ``specify_cli.core.*`` here is allowed and

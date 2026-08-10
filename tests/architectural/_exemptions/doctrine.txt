@@ -8,7 +8,3 @@
 # Delete a line once your WP fixes that site -- a stale entry left
 # here after the site is clean fails
 # test_every_{import,call}_exemption_entry_is_a_real_violation.
-IMPORT:src/doctrine/model_task_routing/loader.py
-IMPORT:src/doctrine/versioning.py
-IMPORT:tests/doctrine/test_model_task_routing_loader.py
-CALL:src/doctrine/model_task_routing/loader.py:105

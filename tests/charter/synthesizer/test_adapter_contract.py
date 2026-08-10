@@ -17,7 +17,7 @@ import pytest
 from charter.synthesizer.adapter import AdapterOutput, SynthesisAdapter
 from charter.synthesizer.fixture_adapter import FixtureAdapter
 from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
-from datetime import UTC
+from kernel.clock import now_utc
 
 
 # ---------------------------------------------------------------------------
@@ -167,11 +167,9 @@ class TestAdapterOutputOverrides:
 
     def test_override_first_resolution(self) -> None:
         """Effective adapter identity uses override-first, fallback to adapter.id/version."""
-        from datetime import datetime, timezone
-
         output = AdapterOutput(
             body={"id": "TEST", "title": "t"},
-            generated_at=datetime.now(tz=UTC),
+            generated_at=now_utc(),
             adapter_id_override="custom-model-v2",
             adapter_version_override="20260101",
         )
@@ -186,11 +184,9 @@ class TestAdapterOutputOverrides:
 
     def test_no_override_falls_back_to_adapter_identity(self) -> None:
         """Without overrides, effective identity falls back to adapter.id/version."""
-        from datetime import datetime, timezone
-
         output = AdapterOutput(
             body={"id": "TEST", "title": "t"},
-            generated_at=datetime.now(tz=UTC),
+            generated_at=now_utc(),
         )
         adapter = FixtureAdapter()
 
