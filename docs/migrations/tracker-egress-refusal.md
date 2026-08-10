@@ -202,6 +202,14 @@ Channel-1/Channel-2 join described above. `tracker status`, `tracker bind`,
 subprocess, and reach no transport at all — they are **not** gated, so a
 refusing project keeps its local-only commands fully working.
 
+`tracker bind --provider beads` / `--provider fp` also does not require
+**hosted readiness** (auth, `SPEC_KITTY_SAAS_URL`, reachability) — a distinct
+pre-flight from the Channel-1/Channel-2 gate above, but one that a local bind
+must equally not be blocked by for this section's promise to hold. An
+unauthenticated project can `tracker bind` a local provider and keep working;
+only a SaaS-provider bind (`--provider jira`/`linear`/`github`/`gitlab`) still
+requires it.
+
 ## A Recorded Decision Outlives Its Binding
 
 `tracker bind`, `rebind`, and `unbind` all preserve a committed

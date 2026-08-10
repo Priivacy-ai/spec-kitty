@@ -2126,3 +2126,76 @@ class TestHigh1RefusalPrecedesReadinessNetworkProbe:
         # 2-line interactive message.
         assert result.exit_code != 0, result.output
         assert "readiness=host_unreachable" in result.output, result.output
+
+
+# ===========================================================================
+# Landing pass (PR #3135, 2026-08-10) -- HIGH-3: local `tracker bind` was
+# over-gated against the documented promise (#3174).
+# ===========================================================================
+
+
+class TestHigh3LocalBindSkipsHostedReadiness:
+    """HIGH-3 (#3174): ``docs/migrations/tracker-egress-refusal.md``'s "Which Commands Are
+    Gated" table promises ``tracker bind`` keeps a refusing/local project working. Before this
+    fix, ``bind_command`` called ``_check_readiness(require_mission_binding=False,
+    probe_reachability=False)`` *unconditionally*, ahead of the local-provider branch -- so an
+    unauthenticated project's ``tracker bind --provider beads ...`` failed at ``missing_auth``
+    before ever reaching the local-bind code path, contradicting the documented promise. `#3172`'s
+    own class of defect (a hosted auth pre-flight aborting a *local* invocation), applied here to
+    `bind` specifically. This Mission's own harness (``TestUS7NoOverGatingUngatedCommandsSurviveRefusal``
+    above) explicitly recorded `bind` as **excluded** from its over-gating coverage for exactly
+    this measured reason -- this class is the fix for that recorded exclusion, not a duplicate of
+    it.
+
+    Fixed by gating the readiness call on ``normalize_provider(provider) in LOCAL_PROVIDERS``
+    (``bind`` creates the binding, so there is no existing config for ``_is_local_binding()`` to
+    read). SaaS providers keep the existing readiness check unchanged.
+    """
+
+    def test_local_bind_succeeds_without_hosted_auth(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Red on the pre-fix ``bind_command`` (exits 1, ``readiness=missing_auth``); green
+        after (the binding is created, exit 0)."""
+        root = _project(tmp_path, "high3-local-bind")
+
+        result = _invoke(
+            monkeypatch,
+            root,
+            [
+                "tracker",
+                "bind",
+                "--provider",
+                "beads",
+                "--workspace",
+                "acme-ws",
+                "--credential",
+                "command=/bin/true",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "missing_auth" not in result.output, result.output
+        assert "Tracker binding saved" in result.output, result.output
+
+        config = load_tracker_config(root)
+        assert config.provider == "beads", config
+        assert config.workspace == "acme-ws", config
+
+    def test_hosted_bind_still_requires_hosted_readiness(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Companion positive control: a SaaS-provider ``bind`` must still hit the hosted
+        readiness pre-flight (unauthenticated -> ``missing_auth``), unchanged by this fix."""
+        root = _project(tmp_path, "high3-hosted-bind")
+
+        result = _invoke(
+            monkeypatch,
+            root,
+            ["tracker", "bind", "--provider", "jira"],
+        )
+
+        assert result.exit_code != 0, result.output
+        assert "missing_auth" in result.output or "No SaaS authentication token" in result.output, (
+            result.output
+        )
