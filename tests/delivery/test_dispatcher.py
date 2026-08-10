@@ -21,16 +21,28 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections.abc import Sequence
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from typer.testing import CliRunner
 
 from specify_cli.cli.commands import sync as sync_module
+from specify_cli.delivery.consent_gate import (
+    ProjectTransportDisclosure,
+    ProjectTransportRefusal,
+    _attempt_spec,
+    execute_project_transport_batch,
+    stable_transport_id,
+)
 from specify_cli.delivery.dispatcher import (
     DispatchSummary,
     _decode_payload,
+    _dispatcher_payload_reference,
+    _disclosure_for_event,
     _install_coalescing,
+    _outbound_event,
     _post,
     _record,
     _record_one,
@@ -48,9 +60,9 @@ from specify_cli.delivery.ledger import (
 from specify_cli.delivery.interfaces import DeliveryTarget, TargetIdentity
 from specify_cli.delivery.targets import compute_target_id
 from specify_cli.delivery.receivers import (
+    DeliveryEffectCertainty,
     DeliveryOutcome,
     DeliveryResult,
-    OutboundEvent,
     StubReceiver,
     map_batch_response,
 )
@@ -59,6 +71,11 @@ from specify_cli.event_journal.models import Event
 from specify_cli.sync.project_context import AdmissionState, ProjectSyncContext
 from specify_cli.sync.project_identity import CanonicalProjectUUID
 from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork
+from specify_cli.sync.transport_attempts import (
+    get_delivery_attempt_record,
+    prepare_delivery_attempt,
+    recover_delivery_attempts,
+)
 from tests._support.consented_batches import granting
 
 pytestmark = pytest.mark.fast
@@ -156,7 +173,7 @@ def ledger(store: ProjectSyncStore, unit: ProjectUnitOfWork) -> SqliteDeliveryLe
 
 def _journal_count(store: ProjectSyncStore) -> int:
     with store.unit_of_work() as unit:
-        return EventJournal(unit, store.layout_generation()).count()
+        return int(EventJournal(unit, store.layout_generation()).count())
 
 
 def _journal_read_by_id(store: ProjectSyncStore, event_id: str) -> Event | None:
@@ -167,6 +184,45 @@ def _journal_read_by_id(store: ProjectSyncStore, event_id: str) -> Event | None:
 def _ledger_get(store: ProjectSyncStore, event_id: str, target_id: str) -> Any:
     with store.unit_of_work() as unit:
         return SqliteDeliveryLedger(unit, store.layout_generation()).get(event_id, target_id)
+
+
+def _recoverable_attempts_for_event(
+    store: ProjectSyncStore,
+    *,
+    event_id: str,
+    target_id: str,
+) -> list[tuple[str, str, str]]:
+    with store.unit_of_work() as unit:
+        return [
+            (record.attempt_id, record.native_identity or "", record.state.value)
+            for record in recover_delivery_attempts(unit)
+            if record.native_identity == f"dispatcher-http:{target_id}:{event_id}"
+        ]
+
+
+def _attempt_record(store: ProjectSyncStore, attempt_id: str) -> tuple[str, str, str]:
+    with store.unit_of_work() as unit:
+        record = get_delivery_attempt_record(unit, attempt_id=attempt_id)
+    assert record is not None
+    return record.attempt_id, record.native_identity or "", record.state.value
+
+
+def _dispatcher_disclosure_for(
+    event: Event,
+    *,
+    target: DeliveryTarget,
+    context: ProjectSyncContext,
+) -> ProjectTransportDisclosure:
+    target_id = target.target_id
+    native_identity = f"dispatcher-http:{target_id}:{event.event_id}"
+    return _disclosure_for_event(
+        event,
+        target=target,
+        context=context,
+        target_id=target_id,
+        native_identity=native_identity,
+        outbound=_outbound_event(event, native_identity=native_identity),
+    )
 
 
 def _select_with_store(
@@ -292,7 +348,7 @@ class _TerminalFailStub:
     def gates(self) -> tuple[Any, ...]:
         return ()
 
-    def deliver(self, batch: Sequence[OutboundEvent]) -> list[DeliveryResult]:
+    def deliver(self, batch: Any) -> list[DeliveryResult]:
         results: list[DeliveryResult] = []
         for event in batch:
             if event.event_id == self._fail_id:
@@ -302,6 +358,7 @@ class _TerminalFailStub:
                         outcome=DeliveryOutcome.TERMINAL_FAILED,
                         http_status=413,
                         error="payload too large (oversized, permanent)",
+                        effect_certainty=DeliveryEffectCertainty.TERMINAL,
                     )
                 )
             else:
@@ -335,13 +392,14 @@ class _PendingHeadStub:
     def gates(self) -> tuple[Any, ...]:
         return ()
 
-    def deliver(self, batch: Sequence[OutboundEvent]) -> list[DeliveryResult]:
+    def deliver(self, batch: Any) -> list[DeliveryResult]:
         self.calls.append(tuple(event.event_id for event in batch))
         return [
             DeliveryResult(
                 event_id=event.event_id,
                 outcome=(DeliveryOutcome.PENDING if event.event_id in {"evt-0", "evt-1"} else DeliveryOutcome.SUCCESS),
                 http_status=200,
+                effect_certainty=(DeliveryEffectCertainty.ACCEPTED_PENDING if event.event_id in {"evt-0", "evt-1"} else DeliveryEffectCertainty.POSSIBLY_EFFECTIVE),
             )
             for event in batch
         ]
@@ -360,7 +418,7 @@ class _DuplicateStub:
     def gates(self) -> tuple[Any, ...]:
         return ()
 
-    def deliver(self, batch: Sequence[OutboundEvent]) -> list[DeliveryResult]:
+    def deliver(self, batch: Any) -> list[DeliveryResult]:
         return [DeliveryResult(event_id=event.event_id, outcome=DeliveryOutcome.DUPLICATE) for event in batch]
 
 
@@ -378,7 +436,7 @@ class _RaisingStub:
     def gates(self) -> tuple[Any, ...]:
         return ()
 
-    def deliver(self, batch: Sequence[OutboundEvent]) -> list[DeliveryResult]:
+    def deliver(self, batch: Any) -> list[DeliveryResult]:
         self.calls += 1
         raise RuntimeError("network died after start")
 
@@ -399,7 +457,7 @@ class _AdaptiveOversizedStub:
     def gates(self) -> tuple[Any, ...]:
         return ()
 
-    def deliver(self, batch: Sequence[OutboundEvent]) -> list[DeliveryResult]:
+    def deliver(self, batch: Any) -> list[DeliveryResult]:
         events = list(batch)
         self.calls.append(tuple(event.event_id for event in events))
         if events and events[0].event_id == "evt-0":
@@ -409,6 +467,80 @@ class _AdaptiveOversizedStub:
             http_status=200,
             body={"results": [{"event_id": event.event_id, "status": "success"} for event in events]},
         )
+
+
+class _KnownNoEffectOnceStub:
+    """First call proves no remote effect for evt-0; later calls succeed."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, ...]] = []
+
+    @property
+    def endpoint_url(self) -> str:
+        return "http://localhost/__known-no-effect-once__/api/v1/events/batch/"
+
+    def auth_headers(self) -> dict[str, str]:
+        return {}
+
+    def gates(self) -> tuple[Any, ...]:
+        return ()
+
+    def deliver(self, batch: Any) -> list[DeliveryResult]:
+        self.calls.append(tuple(event.event_id for event in batch))
+        if len(self.calls) == 1:
+            return [
+                DeliveryResult(
+                    event_id=event.event_id,
+                    outcome=(DeliveryOutcome.REJECTED if event.event_id == "evt-0" else DeliveryOutcome.SUCCESS),
+                    http_status=400 if event.event_id == "evt-0" else 200,
+                    error="known no effect" if event.event_id == "evt-0" else None,
+                    effect_certainty=(DeliveryEffectCertainty.KNOWN_NO_EFFECT if event.event_id == "evt-0" else DeliveryEffectCertainty.POSSIBLY_EFFECTIVE),
+                )
+                for event in batch
+            ]
+        return [DeliveryResult(event_id=event.event_id, outcome=DeliveryOutcome.SUCCESS, http_status=200) for event in batch]
+
+
+class _ProjectNotAdmittedMixedStub:
+    """Return one terminal project refusal beside one successful item."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, ...]] = []
+
+    @property
+    def endpoint_url(self) -> str:
+        return "http://localhost/__project-not-admitted-mixed__/api/v1/events/batch/"
+
+    def auth_headers(self) -> dict[str, str]:
+        return {}
+
+    def gates(self) -> tuple[Any, ...]:
+        return ()
+
+    def deliver(self, batch: Any) -> list[DeliveryResult]:
+        self.calls.append(tuple(event.event_id for event in batch))
+        results: list[DeliveryResult] = []
+        for event in batch:
+            if event.event_id == "evt-0":
+                results.append(
+                    DeliveryResult(
+                        event_id=event.event_id,
+                        outcome=DeliveryOutcome.TERMINAL_FAILED,
+                        http_status=200,
+                        error="not admitted for project",
+                        error_category="project_not_admitted",
+                        effect_certainty=DeliveryEffectCertainty.TERMINAL,
+                    )
+                )
+            else:
+                results.append(
+                    DeliveryResult(
+                        event_id=event.event_id,
+                        outcome=DeliveryOutcome.SUCCESS,
+                        http_status=200,
+                    )
+                )
+        return results
 
 
 class _FakeCoalesce:
@@ -476,6 +608,54 @@ def test_resync_to_same_target_skips_delivered(
     assert second.delivered == 0
     # The stub was not asked to deliver anything new on the second drain.
     assert len(stub.received_event_ids()) == 3
+
+
+def test_sync_now_public_command_reports_empty_admitted_project_store(
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
+    target_a: DeliveryTarget,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The public command reports an admitted empty selection as a zero drain."""
+    delivered = StubReceiver()
+    first = dispatch(store=store, receiver=delivered, target=target_a, context=context)
+    assert first.delivered == 3
+
+    receiver = StubReceiver()
+    runtime = sync_module._ProjectDispatchRuntime(
+        target=SimpleNamespace(resolved_server_url="https://app.spec-kitty.ai"),
+        store=store,
+        context=context,
+        delivery_target=target_a,
+    )
+    service = SimpleNamespace(
+        queue=SimpleNamespace(size=lambda: 0),
+        drain_body_uploads_only=lambda: None,
+    )
+    preflight = SimpleNamespace(ok=True, render=lambda _console: None)
+    gate = SimpleNamespace(blocked=False, unsatisfied=())
+    config = SimpleNamespace(mode=SimpleNamespace(name="TEAMSPACE"))
+
+    monkeypatch.setattr("specify_cli.sync.preflight.run_preflight", lambda **_: preflight)
+    monkeypatch.setattr("specify_cli.sync.background.get_sync_service", lambda: service)
+    monkeypatch.setattr(sync_module, "enforce_teamspace_mission_state_ready", lambda **_: None)
+    monkeypatch.setattr(sync_module, "_event_sync_retained_work_present", lambda: False)
+    monkeypatch.setattr(sync_module, "_open_project_dispatch_runtime", lambda: runtime)
+    monkeypatch.setattr(sync_module, "_load_event_sync_config", lambda: config)
+    monkeypatch.setattr(sync_module, "_event_sync_access_token", lambda: "token")
+    monkeypatch.setattr(
+        sync_module,
+        "_resolve_gated_receiver",
+        lambda *_args, **_kwargs: (receiver, gate),
+    )
+
+    result = CliRunner().invoke(sync_module.app, ["now"])
+
+    assert result.exit_code == 0, result.output
+    assert "delivered 0" in result.output
+    assert "selected 0" in result.output
+    assert sync_module._NOTHING_TO_DELIVER in result.output
+    assert receiver.received_event_ids() == ()
 
 
 # --------------------------------------------------------------------------- #
@@ -900,6 +1080,212 @@ def test_multi_batch_drain_skips_pending_head_through_live_dispatcher(
     assert _ledger_get(store, "evt-1", target_a.target_id).status == STATUS_PENDING
 
 
+def test_pending_remote_dispatcher_row_is_status_visible_and_not_resent(
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
+    target_a: DeliveryTarget,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    receiver = _PendingHeadStub()
+    runtime = SimpleNamespace(store=store, context=context)
+    monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 1)
+
+    first = sync_module._run_dispatch_batches(runtime, receiver, target_a)
+    second = sync_module._run_dispatch_batches(runtime, receiver, target_a)
+
+    assert first.pending == 2
+    assert second.selected == 0
+    assert receiver.calls == [("evt-0",), ("evt-1",), ("evt-2",)]
+    row = _ledger_get(store, "evt-0", target_a.target_id)
+    assert row.status == STATUS_PENDING
+    assert row.server_drain_state == "pending_remote"
+
+
+def test_retryable_no_effect_reselects_same_attempt_and_native_identity(
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
+    target_a: DeliveryTarget,
+) -> None:
+    receiver = _KnownNoEffectOnceStub()
+
+    first = dispatch(store=store, receiver=receiver, target=target_a, context=context, limit=1)
+    before = _recoverable_attempts_for_event(store, event_id="evt-0", target_id=target_a.target_id)
+    second = dispatch(store=store, receiver=receiver, target=target_a, context=context, limit=1)
+    after = _attempt_record(store, before[0][0])
+
+    assert first.rejected == 1
+    assert second.delivered == 1
+    assert len(before) == 1
+    assert after == (before[0][0], before[0][1], "succeeded")
+    assert receiver.calls == [("evt-0",), ("evt-0",)]
+
+
+def test_project_transport_refusal_reports_only_correlated_item(
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
+    target_a: DeliveryTarget,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events = [_make_event(0), _make_event(1)]
+    captured: list[ProjectTransportDisclosure] = []
+
+    def _refuse_one(
+        disclosures: Sequence[ProjectTransportDisclosure],
+        **_: Any,
+    ) -> ProjectTransportRefusal:
+        captured.extend(disclosures)
+        return ProjectTransportRefusal(
+            project_uuid=_TEST_PROJECT_UUID,
+            attempt_id=disclosures[0].attempt_id,
+            category="project_not_admitted",
+            diagnostic="revoked before send",
+        )
+
+    monkeypatch.setattr("specify_cli.delivery.dispatcher.execute_project_transport_batch", _refuse_one)
+
+    results = _post(StubReceiver(), events, granting(), target=target_a, context=context)
+
+    assert len(captured) == 2
+    assert [result.event_id for result in results] == ["evt-0"]
+    assert results[0].outcome is DeliveryOutcome.TERMINAL_FAILED
+    assert "project_not_admitted" in (results[0].error or "")
+
+
+def test_existing_prepared_attempt_requires_retry_policy_before_start(
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
+    target_a: DeliveryTarget,
+) -> None:
+    disclosure = _dispatcher_disclosure_for(_make_event(0), target=target_a, context=context)
+    from specify_cli.sync.transport_lease import acquire_project_transport_lease
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, lease_context):
+        spec = replace(_attempt_spec(disclosure), reconciliation_policy="operator_review")
+        prepare_delivery_attempt(unit, lease_context, spec)
+
+    send_calls = 0
+
+    def _send() -> object:
+        nonlocal send_calls
+        send_calls += 1
+        return {}
+
+    refusal = execute_project_transport_batch(
+        [disclosure],
+        send=_send,
+        classify=lambda _value: {disclosure.attempt_id: ("delivered", None)},
+    )
+
+    assert isinstance(refusal, ProjectTransportRefusal)
+    assert refusal.category == "delivery_attempt_recovery_required"
+    assert send_calls == 0
+    assert _attempt_record(store, disclosure.attempt_id)[2] == "prepared"
+
+
+def test_batch_start_failure_rolls_back_prior_in_flight_transition(
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
+    target_a: DeliveryTarget,
+) -> None:
+    first = _dispatcher_disclosure_for(_make_event(0), target=target_a, context=context)
+    second = replace(
+        _dispatcher_disclosure_for(_make_event(1), target=target_a, context=context),
+        deadline_at="2026-08-10T00:00:00+00:00",
+    )
+    send_calls = 0
+
+    def _send() -> object:
+        nonlocal send_calls
+        send_calls += 1
+        return {}
+
+    refusal = execute_project_transport_batch(
+        [first, second],
+        send=_send,
+        classify=lambda _value: {
+            first.attempt_id: ("delivered", None),
+            second.attempt_id: ("delivered", None),
+        },
+    )
+
+    assert isinstance(refusal, ProjectTransportRefusal)
+    assert refusal.attempt_id == second.attempt_id
+    assert "deadline expired" in refusal.diagnostic
+    assert send_calls == 0
+    assert _attempt_record(store, first.attempt_id)[2] == "prepared"
+    assert _attempt_record(store, second.attempt_id)[2] == "prepared"
+
+
+def test_server_project_not_admitted_parks_only_correlated_item_durably(
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
+    target_a: DeliveryTarget,
+) -> None:
+    receiver = _ProjectNotAdmittedMixedStub()
+
+    first = dispatch(store=store, receiver=receiver, target=target_a, context=context, limit=2)
+
+    refused_row = _ledger_get(store, "evt-0", target_a.target_id)
+    succeeded_row = _ledger_get(store, "evt-1", target_a.target_id)
+    assert first.selected == 2
+    assert first.terminal_failed == 1
+    assert first.delivered == 1
+    assert refused_row is not None
+    assert refused_row.status == STATUS_TERMINAL_FAILED
+    assert refused_row.last_error == "project_not_admitted"
+    assert succeeded_row is not None
+    assert succeeded_row.status == STATUS_SUCCESS
+
+    with store.unit_of_work() as unit:
+        refused_attempt = get_delivery_attempt_record(
+            unit,
+            attempt_id="dispatcher-http:" + stable_transport_id("attempt", _TEST_PROJECT_UUID, target_a.target_id, "evt-0"),
+        )
+        succeeded_attempt = get_delivery_attempt_record(
+            unit,
+            attempt_id="dispatcher-http:" + stable_transport_id("attempt", _TEST_PROJECT_UUID, target_a.target_id, "evt-1"),
+        )
+    assert refused_attempt is not None
+    assert refused_attempt.state.value == "refused"
+    assert succeeded_attempt is not None
+    assert succeeded_attempt.state.value == "succeeded"
+
+    second = dispatch(store=store, receiver=receiver, target=target_a, context=context, limit=2)
+
+    assert second.delivered == 1
+    assert receiver.calls == [("evt-0", "evt-1"), ("evt-2",)]
+
+
+def test_cli_loop_skips_expired_prepared_head_for_current_pass_and_continues(
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
+    target_a: DeliveryTarget,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expired = replace(
+        _dispatcher_disclosure_for(_make_event(0), target=target_a, context=context),
+        deadline_at="2026-08-10T00:00:00+00:00",
+    )
+    first_refusal = execute_project_transport_batch(
+        [expired],
+        send=lambda: pytest.fail("expired preparation must not send"),
+        classify=lambda _value: {expired.attempt_id: ("delivered", None)},
+    )
+    assert isinstance(first_refusal, ProjectTransportRefusal)
+    assert _attempt_record(store, expired.attempt_id)[2] == "prepared"
+
+    receiver = StubReceiver()
+    runtime = SimpleNamespace(store=store, context=context)
+    monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 1)
+
+    summary = sync_module._run_dispatch_batches(runtime, receiver, target_a)
+
+    assert summary.terminal_failed == 1
+    assert summary.delivered == 2
+    assert receiver.received_event_ids() == ("evt-1", "evt-2")
+    assert _ledger_get(store, "evt-0", target_a.target_id).status == "failed_transient"
+
+
 def test_multi_batch_drain_continues_after_singleton_terminal_failure(
     store: ProjectSyncStore,
     context: ProjectSyncContext,
@@ -929,6 +1315,42 @@ def test_multi_batch_drain_continues_after_singleton_terminal_failure(
     assert summary.terminal_failed == 1
     assert summary.delivered == 2
     assert _select_with_store(store, target_a.target_id).events == []
+
+
+def test_expired_attempt_refusal_is_recovery_required_not_project_not_admitted(
+    context: ProjectSyncContext,
+    target_a: DeliveryTarget,
+) -> None:
+    """Deadline/recovery failures are not mislabeled as admission refusals."""
+    disclosure = ProjectTransportDisclosure(
+        project_uuid=_TEST_PROJECT_UUID,
+        epoch_id=context.epoch_id or 0,
+        consent_generation=context.consent_generation or 0,
+        target_identity=target_a.target_identity,
+        account_identity=target_a.account_identity,
+        private_teamspace_id=target_a.private_teamspace_id,
+        target_project_uuid=target_a.project_uuid.storage_token,
+        target_generation=target_a.configuration_generation,
+        admission_generation=str(target_a.admission_generation),
+        binding_audience=str(target_a.binding_audience),
+        write_kind="dispatcher_http_event",
+        native_identity=f"dispatcher-http:{target_a.target_id}:expired",
+        payload_hash="sha256:expired",
+        payload_reference=_dispatcher_payload_reference("expired", target_a.target_id),
+        attempt_id="dispatcher-http:expired",
+        deadline_at="2026-08-10T00:00:00Z",
+        reconciliation_policy="native_identity_retry",
+    )
+
+    result = execute_project_transport_batch(
+        [disclosure],
+        send=lambda: pytest.fail("expired attempt must not send"),
+        classify=lambda _value: {},
+    )
+
+    assert isinstance(result, ProjectTransportRefusal)
+    assert result.category == "delivery_attempt_recovery_required"
+    assert "deadline expired" in result.diagnostic
 
 
 # --------------------------------------------------------------------------- #

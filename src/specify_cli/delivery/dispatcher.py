@@ -48,6 +48,7 @@ from specify_cli.delivery.consent_gate import (
     ConsentAnswer,
     ProjectTransportDisclosure,
     ProjectTransportRefusal,
+    ProjectTransportResultError,
     consented_batch,
     default_transport_deadline,
     execute_project_transport_batch,
@@ -55,6 +56,7 @@ from specify_cli.delivery.consent_gate import (
 )
 from specify_cli.delivery.ledger import SqliteDeliveryLedger
 from specify_cli.delivery.receivers import (
+    DeliveryEffectCertainty,
     DeliveryOutcome,
     DeliveryResult,
     OutboundEvent,
@@ -210,6 +212,7 @@ class _Selected:
 
     events: list[Event]
     answer: ConsentAnswer
+    recovery_event_ids: frozenset[str] = frozenset()
 
 
 def _select_undelivered(
@@ -220,6 +223,7 @@ def _select_undelivered(
     context: ProjectSyncContext,
     limit: int | None = None,
     exclude: frozenset[str] = frozenset(),
+    recovery_event_ids: frozenset[str] = frozenset(),
 ) -> _Selected:
     """Return journal events still needing delivery to *target_id* (FR-004 / FR-015).
 
@@ -254,6 +258,7 @@ def _select_undelivered(
         target_id=target_id,
         event_universe=universe_ids,
         limit=limit,
+        recovery_event_ids=recovery_event_ids,
     )
 
     # Payloads are hydrated only for the batch the ledger actually selected, so an
@@ -261,7 +266,15 @@ def _select_undelivered(
     # batched read over one connection: the per-event ``read_by_id`` this replaces
     # opened a fresh SQLite connection per event, so a 1,000-event batch cost 1,000
     # connection open/closes.
-    return _Selected(events=journal.read_by_ids(selected_ids), answer=selection.answer)
+    durable_recovery_ids = ledger.retryable_recovery_event_ids(
+        target_id=target_id,
+        event_universe=selected_ids,
+    )
+    return _Selected(
+        events=journal.read_by_ids(selected_ids),
+        answer=selection.answer,
+        recovery_event_ids=durable_recovery_ids | recovery_event_ids,
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -297,17 +310,23 @@ def _transport_outcome_for_delivery_result(
     if result.outcome is DeliveryOutcome.DUPLICATE:
         return TransportOutcome.DUPLICATE.value, None
     if result.outcome is DeliveryOutcome.PENDING:
-        return TransportOutcome.PENDING.value, None
+        if result.effect_certainty is DeliveryEffectCertainty.ACCEPTED_PENDING:
+            return TransportOutcome.PENDING.value, None
+        return TransportOutcome.UNKNOWN.value, None
     if result.outcome is DeliveryOutcome.REJECTED:
-        return TransportOutcome.REJECTED.value, None
+        if result.effect_certainty is DeliveryEffectCertainty.KNOWN_NO_EFFECT:
+            return TransportOutcome.RETRYABLE_NO_EFFECT.value, None
+        return TransportOutcome.UNKNOWN.value, None
     if result.outcome is DeliveryOutcome.TRANSIENT:
-        return TransportOutcome.TRANSIENT.value, None
+        if result.effect_certainty is DeliveryEffectCertainty.KNOWN_NO_EFFECT:
+            return TransportOutcome.RETRYABLE_NO_EFFECT.value, None
+        return TransportOutcome.UNKNOWN.value, None
     if result.outcome is DeliveryOutcome.TERMINAL_FAILED:
         return (
             TransportOutcome.REFUSED.value,
-            (result.error or result.outcome.value).strip() or result.outcome.value,
+            (result.error_category or result.error or result.outcome.value).strip() or result.outcome.value,
         )
-    return TransportOutcome.TRANSIENT.value, None
+    return TransportOutcome.UNKNOWN.value, None
 
 
 def _dispatcher_payload_reference(event_id: str, target_id: str) -> str:
@@ -339,7 +358,7 @@ def _target_id_for_event(
     project_uuid = event.project_uuid
     if project_uuid is None:
         raise ValueError("event has no project_uuid")
-    if target.project_uuid.storage_token != project_uuid:
+    if str(target.project_uuid.storage_token) != project_uuid:
         raise ValueError("target project_uuid does not match event project_uuid")
     target_id = compute_target_id(
         target_identity=target.target_identity,
@@ -352,7 +371,7 @@ def _target_id_for_event(
         raise ValueError("target_id does not match the admitted audience tuple")
     if context.epoch_id is None or context.consent_generation is None:
         raise ValueError("dispatch requires a consenting project context")
-    return target_id
+    return str(target_id)
 
 
 def _disclosure_for_event(
@@ -422,6 +441,7 @@ def _post(
     target: DeliveryTarget | None = None,
     context: ProjectSyncContext | None = None,
     target_id: str | None = None,
+    recovery_event_ids: frozenset[str] = frozenset(),
 ) -> list[DeliveryResult]:
     """Deliver *events* through the active *receiver* (one path; contract §4).
 
@@ -487,16 +507,26 @@ def _post(
         correlated_results, outcomes = _correlate_batch_results(value, disclosures_by_event=disclosures_by_event)
         return outcomes
 
-    gated = execute_project_transport_batch(disclosures, send=_send, classify=_classify)
+    recovery_attempt_ids = frozenset(disclosure.attempt_id for event_id, disclosure in disclosures_by_event.items() if event_id in recovery_event_ids)
+    gated = execute_project_transport_batch(
+        disclosures,
+        send=_send,
+        classify=_classify,
+        restart_attempt_ids=recovery_attempt_ids,
+    )
     if isinstance(gated, ProjectTransportRefusal):
-        return immediate + [
-            DeliveryResult(
-                event_id=event_id,
-                outcome=DeliveryOutcome.TERMINAL_FAILED,
-                error=f"{gated.category}: {gated.diagnostic}",
-            )
-            for event_id in disclosures_by_event
-        ]
+        for event_id, disclosure in disclosures_by_event.items():
+            if disclosure.attempt_id == gated.attempt_id:
+                return immediate + [
+                    DeliveryResult(
+                        event_id=event_id,
+                        outcome=DeliveryOutcome.TERMINAL_FAILED,
+                        error=f"{gated.category}: {gated.diagnostic}",
+                        error_category=gated.category,
+                        effect_certainty=DeliveryEffectCertainty.TERMINAL,
+                    )
+                ]
+        raise ProjectTransportResultError(f"transport gate refused uncorrelated attempt {gated.attempt_id}")
     return immediate + correlated_results
 
 
@@ -646,6 +676,7 @@ def dispatch(
     context: ProjectSyncContext | None = None,
     limit: int | None = None,
     exclude: frozenset[str] = frozenset(),
+    recovery_event_ids: frozenset[str] = frozenset(),
 ) -> DispatchSummary:
     """Drain undelivered journal events to one active *target* (contract §3/§4).
 
@@ -682,14 +713,37 @@ def dispatch(
                 context=context,
                 limit=limit,
                 exclude=exclude,
+                recovery_event_ids=recovery_event_ids,
             )
-        results = _post(receiver, selected.events, selected.answer, target=target, context=context)
+        results = _post(
+            receiver,
+            selected.events,
+            selected.answer,
+            target=target,
+            context=context,
+            recovery_event_ids=selected.recovery_event_ids,
+        )
         return _summarize_results(target.target_id, results, selected=len(selected.events))
     if journal is None or ledger is None or context is None:
         raise TypeError("dispatch requires either ProjectSyncStore or journal, ledger, and ProjectSyncContext")
     _install_coalescing(ledger)
-    selected = _select_undelivered(journal, ledger, target.target_id, context=context, limit=limit, exclude=exclude)
-    results = _post(receiver, selected.events, selected.answer, target=target, context=context)
+    selected = _select_undelivered(
+        journal,
+        ledger,
+        target.target_id,
+        context=context,
+        limit=limit,
+        exclude=exclude,
+        recovery_event_ids=recovery_event_ids,
+    )
+    results = _post(
+        receiver,
+        selected.events,
+        selected.answer,
+        target=target,
+        context=context,
+        recovery_event_ids=selected.recovery_event_ids,
+    )
     return _record(ledger, target.target_id, results, selected=len(selected.events))
 
 

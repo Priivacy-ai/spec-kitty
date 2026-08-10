@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -12,12 +13,16 @@ from specify_cli.sync.project_store import ProjectStoreError, ProjectSyncStore
 from specify_cli.sync.transport_attempts import (
     DeliveryAttemptSpec,
     DeliveryAttemptState,
+    DeliveryOutcome,
     RecoveryAction,
     mark_delivery_result_unknown,
     mark_transport_started,
+    list_delivery_attempt_projections,
     plan_delivery_attempt_recovery,
     prepare_delivery_attempt,
+    record_delivery_result,
     recover_delivery_attempts,
+    restart_delivery_attempt,
 )
 from specify_cli.sync.transport_lease import acquire_project_transport_lease
 
@@ -60,6 +65,26 @@ def _spec(attempt_id: str = "attempt-1") -> DeliveryAttemptSpec:
         payload_reference="local-commit:commit-abc",
         deadline_at="2999-01-01T00:00:00Z",
         reconciliation_policy="native_identity_query",
+    )
+
+
+def _insert_projection_attempt(
+    unit: Any,
+    *,
+    attempt_id: str,
+    payload_reference: object,
+    state: str = "prepared",
+    created_at: str = "2026-08-10T00:00:00Z",
+) -> None:
+    unit.execute(
+        "INSERT INTO delivery_attempts "
+        "(attempt_id, project_uuid, epoch_id, consent_generation, target_generation, "
+        "admission_generation, binding_audience, payload_hash, payload_reference, "
+        "state, deadline_at, reconciliation_policy, created_at) "
+        "VALUES (?, ?, 7, 3, 4, 'server-generation-1', "
+        "'private-teamspace:teamspace-1', 'sha256:payload', ?, ?, "
+        "'2999-01-01T00:00:00Z', 'native_identity_retry', ?)",
+        (attempt_id, PROJECT_UUID, payload_reference, state, created_at),
     )
 
 
@@ -146,6 +171,234 @@ def test_prepared_recovery_only_resends_when_policy_allows_retry(
     assert retry.may_resend is True
     assert review.action is RecoveryAction.OPERATOR_REVIEW
     assert review.may_resend is False
+
+
+def test_public_attempt_projection_exposes_typed_identity_without_sql_tuples(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(unit, context, _spec("attempt-projection"))
+
+    with store.unit_of_work() as unit:
+        [projection] = list_delivery_attempt_projections(unit)
+
+    assert projection.attempt_id == "attempt-projection"
+    assert projection.state is DeliveryAttemptState.PREPARED
+    assert projection.write_kind == "local_commit"
+    assert projection.event_id is None
+    assert projection.target_id is None
+    assert projection.created_at is not None
+
+
+def test_public_attempt_projection_parses_dispatcher_correlation_and_fails_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+    dispatcher_reference = json.dumps(
+        {
+            "schema": "spec-kitty.dispatcher.v1",
+            "event_id": "evt-typed",
+            "target_id": "target-typed",
+        },
+        sort_keys=True,
+    )
+    dispatcher_metadata = {
+        "write_kind": "dispatcher_http_event",
+        "payload_reference": dispatcher_reference,
+    }
+    other_metadata = {
+        "write_kind": "body_upload",
+        "payload_reference": "body:one",
+    }
+
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO delivery_attempts "
+            "(attempt_id, project_uuid, epoch_id, consent_generation, target_generation, "
+            "admission_generation, binding_audience, payload_hash, payload_reference, "
+            "state, deadline_at, reconciliation_policy, created_at) "
+            "VALUES ('dispatcher-typed', ?, 7, 3, 4, 'server-generation-1', "
+            "'private-teamspace:teamspace-1', 'sha256:payload', ?, 'prepared', "
+            "'2999-01-01T00:00:00Z', 'native_identity_retry', '2026-08-10T00:00:00Z')",
+            (PROJECT_UUID, json.dumps(dispatcher_metadata, sort_keys=True)),
+        )
+        unit.execute(
+            "INSERT INTO delivery_attempts "
+            "(attempt_id, project_uuid, epoch_id, consent_generation, target_generation, "
+            "admission_generation, binding_audience, payload_hash, payload_reference, "
+            "state, deadline_at, reconciliation_policy, created_at) "
+            "VALUES ('body-typed', ?, 7, 3, 4, 'server-generation-1', "
+            "'private-teamspace:teamspace-1', 'sha256:body', ?, 'prepared', "
+            "'2999-01-01T00:00:00Z', 'operator_review', '2026-08-10T00:00:01Z')",
+            (PROJECT_UUID, json.dumps(other_metadata, sort_keys=True)),
+        )
+        projections = list_delivery_attempt_projections(unit)
+
+    by_id = {projection.attempt_id: projection for projection in projections}
+    assert by_id["dispatcher-typed"].event_id == "evt-typed"
+    assert by_id["dispatcher-typed"].target_id == "target-typed"
+    assert by_id["body-typed"].event_id is None
+    assert by_id["body-typed"].target_id is None
+
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "UPDATE delivery_attempts SET payload_reference = ? WHERE project_uuid = ? AND attempt_id = 'dispatcher-typed'",
+            (
+                json.dumps({"write_kind": "dispatcher_http_event", "payload_reference": "{}"}),
+                PROJECT_UUID,
+            ),
+        )
+        with pytest.raises(ProjectStoreError, match="dispatcher delivery attempt"):
+            list_delivery_attempt_projections(unit)
+
+
+@pytest.mark.parametrize(
+    ("metadata", "message"),
+    (
+        (None, "metadata is missing"),
+        ("{not-json", "metadata is not JSON"),
+        (json.dumps(["array-root"]), "metadata must be a JSON object"),
+        (json.dumps(7), "metadata must be a JSON object"),
+        (json.dumps({}), "requires write_kind or complete legacy event_id/target_id"),
+        (json.dumps({"payload_reference": "body:one"}), "requires write_kind or complete legacy event_id/target_id"),
+        (json.dumps({"write_kind": 7}), "write_kind must be a non-empty string"),
+        (json.dumps({"write_kind": ""}), "write_kind must be a non-empty string"),
+        (json.dumps({"event_id": "evt-legacy"}), "target_id must be a non-empty string"),
+        (json.dumps({"target_id": "target-legacy"}), "event_id must be a non-empty string"),
+        (json.dumps({"event_id": 7, "target_id": "target-legacy"}), "event_id must be a non-empty string"),
+        (json.dumps({"event_id": "evt-legacy", "target_id": {"bad": "target"}}), "target_id must be a non-empty string"),
+    ),
+)
+def test_public_attempt_projection_fails_closed_on_corrupt_outer_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    metadata: str,
+    message: str,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+
+    with store.unit_of_work() as unit:
+        _insert_projection_attempt(
+            unit,
+            attempt_id="attempt-corrupt-projection",
+            payload_reference=metadata,
+        )
+        with pytest.raises(ProjectStoreError, match=message):
+            list_delivery_attempt_projections(unit)
+
+
+@pytest.mark.parametrize(
+    "metadata",
+    (
+        json.dumps(
+            {
+                "payload_reference": json.dumps(
+                    {
+                        "schema": "spec-kitty.dispatcher.v1",
+                        "event_id": "evt-dispatcher",
+                        "target_id": "target-dispatcher",
+                    }
+                )
+            },
+            sort_keys=True,
+        ),
+        json.dumps(
+            {
+                "write_kind": "body_upload",
+                "payload_reference": "body:wrong-kind",
+            },
+            sort_keys=True,
+        ),
+    ),
+)
+def test_public_attempt_projection_requires_dispatcher_kind_for_dispatcher_attempt_id(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    metadata: str,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+
+    with store.unit_of_work() as unit:
+        _insert_projection_attempt(
+            unit,
+            attempt_id="dispatcher-http:attempt-corrupt-kind",
+            payload_reference=metadata,
+        )
+        with pytest.raises(ProjectStoreError, match="dispatcher_http_event write_kind"):
+            list_delivery_attempt_projections(unit)
+
+
+def test_public_attempt_projection_keeps_valid_controls_typed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+    dispatcher_reference = json.dumps(
+        {
+            "schema": "spec-kitty.dispatcher.v1",
+            "event_id": "evt-dispatcher",
+            "target_id": "target-dispatcher",
+        },
+        sort_keys=True,
+    )
+
+    with store.unit_of_work() as unit:
+        _insert_projection_attempt(
+            unit,
+            attempt_id="attempt-dispatcher",
+            payload_reference=json.dumps(
+                {
+                    "write_kind": "dispatcher_http_event",
+                    "payload_reference": dispatcher_reference,
+                },
+                sort_keys=True,
+            ),
+            created_at="2026-08-10T00:00:00Z",
+        )
+        _insert_projection_attempt(
+            unit,
+            attempt_id="attempt-body",
+            payload_reference=json.dumps(
+                {
+                    "write_kind": "body_upload",
+                    "payload_reference": "body:valid",
+                },
+                sort_keys=True,
+            ),
+            created_at="2026-08-10T00:00:01Z",
+        )
+        _insert_projection_attempt(
+            unit,
+            attempt_id="attempt-legacy",
+            payload_reference=json.dumps(
+                {
+                    "event_id": "evt-legacy",
+                    "target_id": "target-legacy",
+                },
+                sort_keys=True,
+            ),
+            created_at="2026-08-10T00:00:02Z",
+        )
+        projections = list_delivery_attempt_projections(unit)
+
+    by_id = {projection.attempt_id: projection for projection in projections}
+    assert by_id["attempt-dispatcher"].write_kind == "dispatcher_http_event"
+    assert by_id["attempt-dispatcher"].event_id == "evt-dispatcher"
+    assert by_id["attempt-dispatcher"].target_id == "target-dispatcher"
+    assert by_id["attempt-body"].write_kind == "body_upload"
+    assert by_id["attempt-body"].event_id is None
+    assert by_id["attempt-body"].target_id is None
+    assert by_id["attempt-legacy"].write_kind is None
+    assert by_id["attempt-legacy"].event_id == "evt-legacy"
+    assert by_id["attempt-legacy"].target_id == "target-legacy"
+    assert by_id["attempt-legacy"].legacy_metadata == {
+        "event_id": "evt-legacy",
+        "target_id": "target-legacy",
+    }
 
 
 def test_transport_start_deadline_boundary_is_enforced(
@@ -272,6 +525,160 @@ def test_expired_deadline_blocks_automatic_retry_and_query_recovery(
     assert prepared.may_resend is False
     assert query.action is RecoveryAction.OPERATOR_REVIEW
     assert query.may_resend is False
+
+
+def test_pending_remote_requires_query_and_no_resend(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(unit, context, _spec("attempt-pending"))
+        mark_transport_started(unit, context, "attempt-pending")
+        record_delivery_result(
+            unit,
+            context,
+            result_id="attempt-pending:result",
+            attempt_id="attempt-pending",
+            outcome=DeliveryOutcome.PENDING,
+        )
+
+    with store.unit_of_work() as unit:
+        record = recover_delivery_attempts(unit)[0]
+        decision = plan_delivery_attempt_recovery(unit, attempt_id="attempt-pending")
+
+    assert record.state is DeliveryAttemptState.PENDING_REMOTE
+    assert decision.action is RecoveryAction.QUERY_NATIVE_IDENTITY
+    assert decision.native_identity == "idempotency:commit-abc"
+    assert decision.may_resend is False
+
+
+def test_pending_remote_without_query_policy_parks_for_operator_review(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id="attempt-dispatcher-pending",
+                write_kind="dispatcher_http_event",
+                native_identity="dispatcher-http:target:evt-pending",
+                payload_hash="sha256:payload",
+                payload_reference="dispatcher:evt-pending",
+                deadline_at="2999-01-01T00:00:00Z",
+                reconciliation_policy="native_identity_retry",
+            ),
+        )
+        mark_transport_started(unit, context, "attempt-dispatcher-pending")
+        record_delivery_result(
+            unit,
+            context,
+            result_id="attempt-dispatcher-pending:result",
+            attempt_id="attempt-dispatcher-pending",
+            outcome=DeliveryOutcome.PENDING,
+        )
+
+    with store.unit_of_work() as unit:
+        decision = plan_delivery_attempt_recovery(unit, attempt_id="attempt-dispatcher-pending")
+
+    assert decision.state is DeliveryAttemptState.PENDING_REMOTE
+    assert decision.action is RecoveryAction.OPERATOR_REVIEW
+    assert decision.may_resend is False
+
+
+def test_retryable_no_effect_restarts_same_attempt_under_live_lease(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id="attempt-no-effect",
+                write_kind="local_commit",
+                native_identity="idempotency:no-effect",
+                payload_hash="sha256:payload",
+                payload_reference="local-commit:no-effect",
+                deadline_at="2999-01-01T00:00:00Z",
+                reconciliation_policy="native_identity_retry",
+            ),
+        )
+        mark_transport_started(unit, context, "attempt-no-effect")
+        record_delivery_result(
+            unit,
+            context,
+            result_id="attempt-no-effect:result",
+            attempt_id="attempt-no-effect",
+            outcome=DeliveryOutcome.RETRYABLE_NO_EFFECT,
+        )
+
+    with store.unit_of_work() as unit:
+        decision = plan_delivery_attempt_recovery(unit, attempt_id="attempt-no-effect")
+
+    assert decision.state is DeliveryAttemptState.RETRYABLE_NO_EFFECT
+    assert decision.action is RecoveryAction.RETRY_NATIVE_IDENTITY
+    assert decision.native_identity == "idempotency:no-effect"
+    assert decision.may_resend is True
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        restart_delivery_attempt(unit, context, "attempt-no-effect")
+
+    with store.unit_of_work() as unit:
+        [record] = recover_delivery_attempts(unit)
+
+    assert record.attempt_id == "attempt-no-effect"
+    assert record.state is DeliveryAttemptState.IN_FLIGHT
+
+
+def test_retryable_no_effect_cannot_record_success_without_restart(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id="attempt-direct-promotion",
+                write_kind="local_commit",
+                native_identity="idempotency:direct-promotion",
+                payload_hash="sha256:payload",
+                payload_reference="local-commit:direct-promotion",
+                deadline_at="2999-01-01T00:00:00Z",
+                reconciliation_policy="native_identity_retry",
+            ),
+        )
+        mark_transport_started(unit, context, "attempt-direct-promotion")
+        record_delivery_result(
+            unit,
+            context,
+            result_id="attempt-direct-promotion:result",
+            attempt_id="attempt-direct-promotion",
+            outcome=DeliveryOutcome.RETRYABLE_NO_EFFECT,
+        )
+        with pytest.raises(ProjectStoreError, match="live or recoverable attempt"):
+            record_delivery_result(
+                unit,
+                context,
+                result_id="attempt-direct-promotion:result",
+                attempt_id="attempt-direct-promotion",
+                outcome=DeliveryOutcome.DELIVERED,
+            )
+
+    with store.unit_of_work() as unit:
+        [record] = recover_delivery_attempts(unit)
+
+    assert record.state is DeliveryAttemptState.RETRYABLE_NO_EFFECT
 
 
 @pytest.mark.parametrize(

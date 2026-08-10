@@ -104,6 +104,15 @@ class DeliveryOutcome(StrEnum):
     TRANSIENT = "transient"
 
 
+class DeliveryEffectCertainty(StrEnum):
+    """Receiver's typed statement about whether the remote side may have effect."""
+
+    ACCEPTED_PENDING = "accepted_pending"
+    KNOWN_NO_EFFECT = "known_no_effect"
+    POSSIBLY_EFFECTIVE = "possibly_effective"
+    TERMINAL = "terminal"
+
+
 @dataclass(frozen=True)
 class OutboundEvent:
     """One event handed to a receiver for delivery (the batch input unit).
@@ -132,7 +141,9 @@ class DeliveryResult:
     outcome: DeliveryOutcome
     http_status: int | None = None
     error: str | None = None
+    error_category: str | None = None
     raw: Mapping[str, Any] | None = None
+    effect_certainty: DeliveryEffectCertainty = DeliveryEffectCertainty.POSSIBLY_EFFECTIVE
 
 
 # -- §4 gates: per-receiver declarative data, evaluated by a shared helper ------
@@ -342,7 +353,7 @@ def default_http_poster(url: str, *, data: bytes, headers: Mapping[str, str], ti
 #: single event), so *every* server refusal became ``REJECTED`` and was retried
 #: forever with no ceiling — the "4,141 rejected / 0 terminal failures" signal in
 #: the 2026-07-27 incident (folds spec-kitty#3005).
-TERMINAL_REJECTION_CATEGORIES: frozenset[str] = frozenset({"project_not_consented", "project_refused"})
+TERMINAL_REJECTION_CATEGORIES: frozenset[str] = frozenset({"project_not_admitted", "project_not_consented", "project_refused"})
 
 _CROSS_PROJECT_ERROR = "refused before send: batch spans more than one project ({projects}); authorization and delivery must be scoped to the same project"
 
@@ -444,6 +455,7 @@ def _all_outcome(
     http_status: int | None,
     error: str | None,
     body: Mapping[str, Any] | None,
+    effect_certainty: DeliveryEffectCertainty = DeliveryEffectCertainty.POSSIBLY_EFFECTIVE,
 ) -> list[DeliveryResult]:
     """Map every event in a batch to the same outcome (batch-level classification)."""
     return [
@@ -452,35 +464,59 @@ def _all_outcome(
             outcome=outcome,
             http_status=http_status,
             error=error,
+            error_category=None,
             raw=body,
+            effect_certainty=effect_certainty,
         )
         for event in events
     ]
 
 
 def _map_single_ok(event: OutboundEvent, entry: Mapping[str, Any] | None) -> DeliveryResult:
-    """Map one per-event 200 result. Absent entry → ``pending`` (not silent success)."""
+    """Map one per-event 200 result. Absent entry is uncertain, not pending."""
     if entry is None:
-        return DeliveryResult(event_id=event.event_id, outcome=DeliveryOutcome.PENDING, http_status=200)
+        return DeliveryResult(
+            event_id=event.event_id,
+            outcome=DeliveryOutcome.TRANSIENT,
+            http_status=200,
+            error="missing per-event result",
+            effect_certainty=DeliveryEffectCertainty.POSSIBLY_EFFECTIVE,
+        )
     status = str(entry.get("status", "")).strip().lower()
     outcome = _PER_EVENT_OUTCOME.get(status)
     if outcome is None:
         return DeliveryResult(
             event_id=event.event_id,
-            outcome=DeliveryOutcome.REJECTED,
+            outcome=DeliveryOutcome.TRANSIENT,
             http_status=200,
             error=_error_text(entry) or f"unknown per-event status: {status!r}",
             raw=entry,
+            effect_certainty=DeliveryEffectCertainty.POSSIBLY_EFFECTIVE,
         )
     error = _error_text(entry) if outcome is DeliveryOutcome.REJECTED else None
-    if outcome is DeliveryOutcome.REJECTED:
-        category = str(entry.get("error_category", "")).strip().lower()
-        if category in TERMINAL_REJECTION_CATEGORIES:
-            # FR-014: a refusal the server will never accept is terminal, not
-            # retryable. Without this the event re-POSTs on every drain forever
-            # and is reported as a non-failure.
-            outcome = DeliveryOutcome.TERMINAL_FAILED
-    return DeliveryResult(event_id=event.event_id, outcome=outcome, http_status=200, error=error, raw=entry)
+    error_category = str(entry.get("error_category", "")).strip().lower() or None
+    effect_certainty = DeliveryEffectCertainty.POSSIBLY_EFFECTIVE
+    if outcome is DeliveryOutcome.PENDING:
+        effect_certainty = DeliveryEffectCertainty.ACCEPTED_PENDING
+    elif outcome is DeliveryOutcome.REJECTED:
+        effect_certainty = DeliveryEffectCertainty.KNOWN_NO_EFFECT
+    elif outcome is DeliveryOutcome.TERMINAL_FAILED:
+        effect_certainty = DeliveryEffectCertainty.TERMINAL
+    if outcome is DeliveryOutcome.REJECTED and error_category in TERMINAL_REJECTION_CATEGORIES:
+        # FR-014: a refusal the server will never accept is terminal, not
+        # retryable. Without this the event re-POSTs on every drain forever
+        # and is reported as a non-failure.
+        outcome = DeliveryOutcome.TERMINAL_FAILED
+        effect_certainty = DeliveryEffectCertainty.TERMINAL
+    return DeliveryResult(
+        event_id=event.event_id,
+        outcome=outcome,
+        http_status=200,
+        error=error,
+        error_category=error_category,
+        raw=entry,
+        effect_certainty=effect_certainty,
+    )
 
 
 def _map_ok_results(events: Sequence[OutboundEvent], body: Mapping[str, Any] | None) -> list[DeliveryResult]:
@@ -519,13 +555,21 @@ def _map_400(events: Sequence[OutboundEvent], body: Mapping[str, Any] | None) ->
     for event in events:
         detail = by_id.get(event.event_id)
         reason = _detail_reason(detail, top_error) if detail is not None else top_error
+        error_category = str(detail.get("error_category", "")).strip().lower() if detail is not None and detail.get("error_category") else None
+        outcome = DeliveryOutcome.REJECTED
+        effect_certainty = DeliveryEffectCertainty.KNOWN_NO_EFFECT
+        if error_category in TERMINAL_REJECTION_CATEGORIES:
+            outcome = DeliveryOutcome.TERMINAL_FAILED
+            effect_certainty = DeliveryEffectCertainty.TERMINAL
         out.append(
             DeliveryResult(
                 event_id=event.event_id,
-                outcome=DeliveryOutcome.REJECTED,
+                outcome=outcome,
                 http_status=400,
                 error=reason,
+                error_category=error_category,
                 raw=body,
+                effect_certainty=effect_certainty,
             )
         )
     return out
@@ -553,7 +597,14 @@ def _map_batch_failure(events: Sequence[OutboundEvent], *, http_status: int, bod
     transient failure").
     """
     if _is_oversized(http_status, body) and len(events) == 1:
-        return _all_outcome(events, DeliveryOutcome.TERMINAL_FAILED, http_status=http_status, error=_OVERSIZED_ERROR, body=body)
+        return _all_outcome(
+            events,
+            DeliveryOutcome.TERMINAL_FAILED,
+            http_status=http_status,
+            error=_OVERSIZED_ERROR,
+            body=body,
+            effect_certainty=DeliveryEffectCertainty.TERMINAL,
+        )
     if _is_oversized(http_status, body):
         return _all_outcome(
             events,
@@ -561,6 +612,7 @@ def _map_batch_failure(events: Sequence[OutboundEvent], *, http_status: int, bod
             http_status=http_status,
             error=_BATCH_OVERSIZED_ERROR,
             body=body,
+            effect_certainty=DeliveryEffectCertainty.KNOWN_NO_EFFECT,
         )
     if http_status == 400:
         return _map_400(events, body)
@@ -876,6 +928,7 @@ __all__ = [
     "STUB_ENDPOINT_URL",
     "default_http_poster",
     "DeliveryOutcome",
+    "DeliveryEffectCertainty",
     "OutboundEvent",
     "DeliveryResult",
     "GateKind",

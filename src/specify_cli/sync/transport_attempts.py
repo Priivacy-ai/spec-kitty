@@ -6,6 +6,7 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Any
 
 from specify_cli.sync.project_context import ProjectSyncContext, validate_project_sync_context_authority
 from specify_cli.sync.project_store import ProjectStoreError, ProjectStoreLockedError, ProjectSyncStore, ProjectUnitOfWork
@@ -17,6 +18,8 @@ class DeliveryAttemptState(StrEnum):
 
     PREPARED = "prepared"
     IN_FLIGHT = "in_flight"
+    PENDING_REMOTE = "pending_remote"
+    RETRYABLE_NO_EFFECT = "retryable_no_effect"
     UNKNOWN = "unknown"
     TERMINAL_UNKNOWN = "terminal_unknown"
     SUCCEEDED = "succeeded"
@@ -30,8 +33,7 @@ class DeliveryOutcome(StrEnum):
     DELIVERED = "delivered"
     DUPLICATE = "duplicate"
     PENDING = "pending"
-    REJECTED = "rejected"
-    TRANSIENT = "transient"
+    RETRYABLE_NO_EFFECT = "retryable_no_effect"
     REFUSED = "refused"
     UNKNOWN = "unknown"
     TERMINAL_UNKNOWN = "terminal_unknown"
@@ -98,6 +100,19 @@ class DeliveryAttemptRecord:
     native_identity: str | None
     payload_hash: str | None
     reconciliation_policy: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class DeliveryAttemptProjection:
+    """Typed read projection for consumers that do not own attempt SQL."""
+
+    attempt_id: str
+    state: DeliveryAttemptState | None
+    write_kind: str | None
+    event_id: str | None
+    target_id: str | None
+    legacy_metadata: dict[str, Any] | None
+    created_at: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -212,6 +227,97 @@ def get_delivery_attempt_record(
     )
 
 
+def list_delivery_attempt_projections(unit: ProjectUnitOfWork) -> list[DeliveryAttemptProjection]:
+    """Return typed delivery-attempt rows without exposing table tuple shape."""
+    rows = unit.execute(
+        "SELECT attempt_id, state, payload_reference, created_at FROM delivery_attempts WHERE project_uuid = ? ORDER BY created_at, attempt_id",
+        (unit.project_uuid.storage_token,),
+    ).fetchall()
+    return [_delivery_attempt_projection_from_row(row) for row in rows]
+
+
+def _delivery_attempt_projection_from_row(row: Any) -> DeliveryAttemptProjection:
+    attempt_id = str(row[0])
+    state_value = str(row[1])
+    metadata = _read_projection_metadata(row[2])
+    write_kind = _optional_projection_string(metadata, "write_kind")
+    if attempt_id.startswith("dispatcher-http:") and write_kind != "dispatcher_http_event":
+        raise ProjectStoreError("dispatcher delivery attempt metadata is missing dispatcher_http_event write_kind")
+    try:
+        state: DeliveryAttemptState | None = DeliveryAttemptState(state_value)
+    except ValueError as exc:
+        if write_kind == "dispatcher_http_event":
+            raise ProjectStoreError("dispatcher delivery attempt has an invalid state") from exc
+        state = None
+    event_id: str | None = None
+    target_id: str | None = None
+    legacy_metadata: dict[str, Any] | None = None
+    if write_kind == "dispatcher_http_event":
+        event_id, target_id = _dispatcher_correlation_from_metadata(metadata)
+    elif "event_id" in metadata or "target_id" in metadata:
+        event_id = _required_projection_string(metadata, "event_id", "legacy delivery attempt metadata")
+        target_id = _required_projection_string(metadata, "target_id", "legacy delivery attempt metadata")
+        legacy_metadata = metadata
+    elif write_kind is None:
+        raise ProjectStoreError("delivery attempt metadata requires write_kind or complete legacy event_id/target_id correlation")
+    return DeliveryAttemptProjection(
+        attempt_id=attempt_id,
+        state=state,
+        write_kind=write_kind,
+        event_id=event_id,
+        target_id=target_id,
+        legacy_metadata=legacy_metadata,
+        created_at=str(row[3]) if row[3] is not None else None,
+    )
+
+
+def _read_projection_metadata(raw_value: object) -> dict[str, Any]:
+    if raw_value is None:
+        raise ProjectStoreError("delivery attempt metadata is missing")
+    try:
+        value = json.loads(str(raw_value))
+    except json.JSONDecodeError as exc:
+        raise ProjectStoreError("delivery attempt metadata is not JSON") from exc
+    if not isinstance(value, dict):
+        raise ProjectStoreError("delivery attempt metadata must be a JSON object")
+    return value
+
+
+def _optional_projection_string(metadata: dict[str, Any], key: str) -> str | None:
+    if key not in metadata:
+        return None
+    value = metadata[key]
+    if not isinstance(value, str) or not value.strip():
+        raise ProjectStoreError(f"delivery attempt metadata field {key} must be a non-empty string")
+    return value
+
+
+def _required_projection_string(metadata: dict[str, Any], key: str, context: str) -> str:
+    value = metadata.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ProjectStoreError(f"{context} field {key} must be a non-empty string")
+    return value
+
+
+def _dispatcher_correlation_from_metadata(metadata: dict[str, Any]) -> tuple[str, str]:
+    raw_reference = metadata.get("payload_reference")
+    if not isinstance(raw_reference, str):
+        raise ProjectStoreError("dispatcher delivery attempt metadata is missing structured payload_reference")
+    try:
+        reference: Any = json.loads(raw_reference)
+    except json.JSONDecodeError as exc:
+        raise ProjectStoreError("dispatcher delivery attempt payload_reference is not JSON") from exc
+    if not isinstance(reference, dict) or reference.get("schema") != "spec-kitty.dispatcher.v1":
+        raise ProjectStoreError("dispatcher delivery attempt payload_reference has an unsupported schema")
+    event_id = reference.get("event_id")
+    target_id = reference.get("target_id")
+    if not isinstance(event_id, str) or not event_id.strip():
+        raise ProjectStoreError("dispatcher delivery attempt payload_reference missing event_id")
+    if not isinstance(target_id, str) or not target_id.strip():
+        raise ProjectStoreError("dispatcher delivery attempt payload_reference missing target_id")
+    return event_id, target_id
+
+
 def mark_transport_started(
     unit: ProjectUnitOfWork,
     context: ProjectSyncContext,
@@ -307,43 +413,113 @@ def record_delivery_result(
         terminal_state = DeliveryAttemptState.REFUSED
     elif outcome is DeliveryOutcome.TERMINAL_UNKNOWN:
         terminal_state = DeliveryAttemptState.TERMINAL_UNKNOWN
-    elif outcome in {DeliveryOutcome.REJECTED, DeliveryOutcome.TRANSIENT}:
-        terminal_state = DeliveryAttemptState.PREPARED
+    elif outcome is DeliveryOutcome.PENDING:
+        terminal_state = DeliveryAttemptState.PENDING_REMOTE
+    elif outcome is DeliveryOutcome.RETRYABLE_NO_EFFECT:
+        terminal_state = DeliveryAttemptState.RETRYABLE_NO_EFFECT
     else:
         terminal_state = DeliveryAttemptState.UNKNOWN
     row = unit.execute(
         "SELECT epoch_id, consent_generation, target_generation, admission_generation, binding_audience, payload_reference "
-        "FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ? AND state IN (?, ?)",
+        "FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ? AND state IN (?, ?, ?)",
         (
             unit.project_uuid.storage_token,
             attempt_id,
             DeliveryAttemptState.IN_FLIGHT.value,
             DeliveryAttemptState.UNKNOWN.value,
+            DeliveryAttemptState.PENDING_REMOTE.value,
         ),
     ).fetchone()
     if row is None:
         raise ProjectStoreError("delivery result requires a live or recoverable attempt")
     _assert_attempt_authority_matches_context(row=row, unit=unit, context=context)
-    unit.execute(
-        "INSERT INTO delivery_results "
-        "(result_id, project_uuid, epoch_id, attempt_id, target_generation, "
-        "admission_generation, outcome, terminal_refusal_category, recorded_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (
-            result_id,
-            unit.project_uuid.storage_token,
-            int(row[0]),
-            attempt_id,
-            int(row[2]) if row[2] is not None else None,
-            str(row[3]) if row[3] is not None else None,
-            outcome.value,
-            terminal_refusal_category,
-            _now(),
-        ),
-    )
+    recorded_at = _now()
+    existing_result = unit.execute(
+        "SELECT attempt_id, epoch_id, target_generation, admission_generation, outcome, terminal_refusal_category "
+        "FROM delivery_results WHERE project_uuid = ? AND result_id = ?",
+        (unit.project_uuid.storage_token, result_id),
+    ).fetchone()
+    if existing_result is None:
+        unit.execute(
+            "INSERT INTO delivery_results "
+            "(result_id, project_uuid, epoch_id, attempt_id, target_generation, "
+            "admission_generation, outcome, terminal_refusal_category, recorded_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                result_id,
+                unit.project_uuid.storage_token,
+                int(row[0]),
+                attempt_id,
+                int(row[2]) if row[2] is not None else None,
+                str(row[3]) if row[3] is not None else None,
+                outcome.value,
+                terminal_refusal_category,
+                recorded_at,
+            ),
+        )
+    else:
+        _assert_result_upsert_allowed(
+            existing_result=existing_result,
+            row=row,
+            attempt_id=attempt_id,
+            outcome=outcome,
+            terminal_refusal_category=terminal_refusal_category,
+        )
+        unit.execute(
+            "UPDATE delivery_results SET outcome = ?, terminal_refusal_category = ?, recorded_at = ? WHERE project_uuid = ? AND result_id = ?",
+            (
+                outcome.value,
+                terminal_refusal_category,
+                recorded_at,
+                unit.project_uuid.storage_token,
+                result_id,
+            ),
+        )
     unit.execute(
         "UPDATE delivery_attempts SET state = ? WHERE project_uuid = ? AND attempt_id = ?",
         (terminal_state.value, unit.project_uuid.storage_token, attempt_id),
+    )
+
+
+def restart_delivery_attempt(
+    unit: ProjectUnitOfWork,
+    context: ProjectSyncContext,
+    attempt_id: str,
+    *,
+    now: datetime | None = None,
+) -> None:
+    """Restart a proved-no-effect attempt with the same native identity row.
+
+    This is the only automatic resend seam for attempts that reached a receiver
+    but were classified as having no remote effect. It never mints a fresh row or
+    native identity; callers must send the original attempt after this returns.
+    """
+    _validate_context_for_unit(unit, context, require_lease=True)
+    row = unit.execute(
+        "SELECT epoch_id, consent_generation, target_generation, admission_generation, binding_audience, payload_reference, deadline_at, reconciliation_policy "
+        "FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ? AND state = ?",
+        (
+            unit.project_uuid.storage_token,
+            attempt_id,
+            DeliveryAttemptState.RETRYABLE_NO_EFFECT.value,
+        ),
+    ).fetchone()
+    if row is None:
+        raise ProjectStoreError("delivery attempt is not retryable without effect")
+    _assert_attempt_authority_matches_context(row=row, unit=unit, context=context)
+    if _parse_reconciliation_policy(str(row[7]) if row[7] is not None else "") is not ReconciliationPolicy.NATIVE_IDENTITY_RETRY:
+        raise ProjectStoreError("delivery attempt retry is not authorized by reconciliation policy")
+    deadline = _parse_deadline(str(row[6]) if row[6] is not None else "")
+    if deadline <= (now or datetime.now(UTC)):
+        raise ProjectStoreError("delivery attempt deadline expired before transport restart")
+    unit.execute(
+        "UPDATE delivery_attempts SET state = ? WHERE project_uuid = ? AND attempt_id = ? AND state = ?",
+        (
+            DeliveryAttemptState.IN_FLIGHT.value,
+            unit.project_uuid.storage_token,
+            attempt_id,
+            DeliveryAttemptState.RETRYABLE_NO_EFFECT.value,
+        ),
     )
 
 
@@ -385,7 +561,13 @@ def plan_delivery_attempt_recovery(
             may_resend=False,
             diagnostic=metadata_diagnostic,
         )
-    if state in {DeliveryAttemptState.PREPARED, DeliveryAttemptState.IN_FLIGHT, DeliveryAttemptState.UNKNOWN} and deadline <= (now or datetime.now(UTC)):
+    if state in {
+        DeliveryAttemptState.PREPARED,
+        DeliveryAttemptState.IN_FLIGHT,
+        DeliveryAttemptState.PENDING_REMOTE,
+        DeliveryAttemptState.RETRYABLE_NO_EFFECT,
+        DeliveryAttemptState.UNKNOWN,
+    } and deadline <= (now or datetime.now(UTC)):
         return DeliveryRecoveryDecision(
             attempt_id=attempt_id,
             state=state,
@@ -421,7 +603,25 @@ def plan_delivery_attempt_recovery(
             may_resend=True,
             diagnostic="attempt was durable before transport; retry only with the original native identity",
         )
-    if state in {DeliveryAttemptState.IN_FLIGHT, DeliveryAttemptState.UNKNOWN}:
+    if state is DeliveryAttemptState.RETRYABLE_NO_EFFECT:
+        if policy is not ReconciliationPolicy.NATIVE_IDENTITY_RETRY:
+            return DeliveryRecoveryDecision(
+                attempt_id=attempt_id,
+                state=state,
+                action=RecoveryAction.OPERATOR_REVIEW,
+                native_identity=native_identity,
+                may_resend=False,
+                diagnostic="attempt is proved no-effect but native retry is not authorized by reconciliation policy",
+            )
+        return DeliveryRecoveryDecision(
+            attempt_id=attempt_id,
+            state=state,
+            action=RecoveryAction.RETRY_NATIVE_IDENTITY,
+            native_identity=native_identity,
+            may_resend=True,
+            diagnostic="attempt has no remote effect; retry only by restarting the original native identity",
+        )
+    if state in {DeliveryAttemptState.IN_FLIGHT, DeliveryAttemptState.PENDING_REMOTE, DeliveryAttemptState.UNKNOWN}:
         if policy is not ReconciliationPolicy.NATIVE_IDENTITY_QUERY:
             return DeliveryRecoveryDecision(
                 attempt_id=attempt_id,
@@ -429,7 +629,7 @@ def plan_delivery_attempt_recovery(
                 action=RecoveryAction.OPERATOR_REVIEW,
                 native_identity=native_identity,
                 may_resend=False,
-                diagnostic="attempt may have disclosed payload; policy requires operator review",
+                diagnostic="attempt may have a remote effect; policy requires operator review",
             )
         return DeliveryRecoveryDecision(
             attempt_id=attempt_id,
@@ -437,7 +637,7 @@ def plan_delivery_attempt_recovery(
             action=RecoveryAction.QUERY_NATIVE_IDENTITY,
             native_identity=native_identity,
             may_resend=False,
-            diagnostic="transport may have disclosed payload; query/reconcile original native identity only",
+            diagnostic="transport may have a remote effect; query/reconcile original native identity only",
         )
     return DeliveryRecoveryDecision(
         attempt_id=attempt_id,
@@ -458,12 +658,13 @@ def _terminalize_orphaned_attempt(
     """Irreversibly settle an uncertain attempt when opt-out wins the race."""
     _require_non_empty(attempt_id=attempt_id, reason=reason)
     row = unit.execute(
-        "SELECT epoch_id FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ? AND state IN (?, ?, ?)",
+        "SELECT epoch_id FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ? AND state IN (?, ?, ?, ?)",
         (
             unit.project_uuid.storage_token,
             attempt_id,
             DeliveryAttemptState.PREPARED.value,
             DeliveryAttemptState.IN_FLIGHT.value,
+            DeliveryAttemptState.PENDING_REMOTE.value,
             DeliveryAttemptState.UNKNOWN.value,
         ),
     ).fetchone()
@@ -530,27 +731,30 @@ def _settle_open_unit(
     *,
     reason: str,
 ) -> OptOutSettlement:
-    prepared_rows = unit.execute(
-        "SELECT attempt_id FROM delivery_attempts WHERE project_uuid = ? AND state = ?",
+    cancelable_rows = unit.execute(
+        "SELECT attempt_id FROM delivery_attempts WHERE project_uuid = ? AND state IN (?, ?)",
         (
             unit.project_uuid.storage_token,
             DeliveryAttemptState.PREPARED.value,
+            DeliveryAttemptState.RETRYABLE_NO_EFFECT.value,
         ),
     ).fetchall()
     unit.execute(
-        "UPDATE delivery_attempts SET state = ?, reconciliation_policy = ? WHERE project_uuid = ? AND state = ?",
+        "UPDATE delivery_attempts SET state = ?, reconciliation_policy = ? WHERE project_uuid = ? AND state IN (?, ?)",
         (
             DeliveryAttemptState.CANCELED.value,
             f"canceled:{reason}",
             unit.project_uuid.storage_token,
             DeliveryAttemptState.PREPARED.value,
+            DeliveryAttemptState.RETRYABLE_NO_EFFECT.value,
         ),
     )
     orphan_rows = unit.execute(
-        "SELECT attempt_id, deadline_at FROM delivery_attempts WHERE project_uuid = ? AND state IN (?, ?)",
+        "SELECT attempt_id, deadline_at FROM delivery_attempts WHERE project_uuid = ? AND state IN (?, ?, ?)",
         (
             unit.project_uuid.storage_token,
             DeliveryAttemptState.IN_FLIGHT.value,
+            DeliveryAttemptState.PENDING_REMOTE.value,
             DeliveryAttemptState.UNKNOWN.value,
         ),
     ).fetchall()
@@ -564,12 +768,12 @@ def _settle_open_unit(
         if refreshed is None:
             continue
         refreshed_state = DeliveryAttemptState(str(refreshed[0]))
-        if refreshed_state not in {DeliveryAttemptState.IN_FLIGHT, DeliveryAttemptState.UNKNOWN}:
+        if refreshed_state not in {DeliveryAttemptState.IN_FLIGHT, DeliveryAttemptState.PENDING_REMOTE, DeliveryAttemptState.UNKNOWN}:
             continue
         _terminalize_orphaned_attempt(unit, attempt_id=str(row[0]), reason=reason)
         terminalized += 1
     return OptOutSettlement(
-        canceled_before_transport=len(prepared_rows),
+        canceled_before_transport=len(cancelable_rows),
         terminalized_orphans=terminalized,
         waiting_live_attempts=0,
     )
@@ -579,11 +783,14 @@ def recover_delivery_attempts(unit: ProjectUnitOfWork) -> list[DeliveryAttemptRe
     """Return recoverable attempts without inventing a new native identity."""
     records: list[DeliveryAttemptRecord] = []
     for row in unit.execute(
-        "SELECT attempt_id, state, payload_reference, payload_hash, reconciliation_policy FROM delivery_attempts WHERE project_uuid = ? AND state IN (?, ?, ?, ?)",
+        "SELECT attempt_id, state, payload_reference, payload_hash, reconciliation_policy "
+        "FROM delivery_attempts WHERE project_uuid = ? AND state IN (?, ?, ?, ?, ?, ?)",
         (
             unit.project_uuid.storage_token,
             DeliveryAttemptState.PREPARED.value,
             DeliveryAttemptState.IN_FLIGHT.value,
+            DeliveryAttemptState.PENDING_REMOTE.value,
+            DeliveryAttemptState.RETRYABLE_NO_EFFECT.value,
             DeliveryAttemptState.UNKNOWN.value,
             DeliveryAttemptState.TERMINAL_UNKNOWN.value,
         ),
@@ -790,6 +997,49 @@ def _validate_result_category(
         raise ProjectStoreError("successful delivery result cannot include a terminal refusal category")
 
 
+def _assert_result_upsert_allowed(
+    *,
+    existing_result: object,
+    row: object,
+    attempt_id: str,
+    outcome: DeliveryOutcome,
+    terminal_refusal_category: str | None,
+) -> None:
+    """Allow only idempotent stable-result writes or nonterminal convergence."""
+    if str(existing_result[0]) != attempt_id:  # type: ignore[index]
+        raise ProjectStoreError("delivery result id already belongs to another attempt")
+    expected = {
+        "epoch_id": str(row[0]),  # type: ignore[index]
+        "target_generation": str(row[2]),  # type: ignore[index]
+        "admission_generation": str(row[3]),  # type: ignore[index]
+    }
+    actual = {
+        "epoch_id": str(existing_result[1]),  # type: ignore[index]
+        "target_generation": str(existing_result[2]),  # type: ignore[index]
+        "admission_generation": str(existing_result[3]),  # type: ignore[index]
+    }
+    if actual != expected:
+        raise ProjectStoreError("delivery result id already belongs to another authority tuple")
+    existing_outcome = DeliveryOutcome(str(existing_result[4]))  # type: ignore[index]
+    existing_category = str(existing_result[5]) if existing_result[5] is not None else None  # type: ignore[index]
+    if existing_outcome is outcome and existing_category == terminal_refusal_category:
+        return
+    terminal = {
+        DeliveryOutcome.DELIVERED,
+        DeliveryOutcome.DUPLICATE,
+        DeliveryOutcome.REFUSED,
+        DeliveryOutcome.TERMINAL_UNKNOWN,
+    }
+    recoverable = {
+        DeliveryOutcome.PENDING,
+        DeliveryOutcome.RETRYABLE_NO_EFFECT,
+        DeliveryOutcome.UNKNOWN,
+    }
+    if existing_outcome in recoverable and outcome in (recoverable | terminal):
+        return
+    raise ProjectStoreError("delivery result id already records a conflicting outcome")
+
+
 def _require_non_empty(**values: str) -> None:
     for name, value in values.items():
         if not value.strip():
@@ -871,6 +1121,7 @@ def _now() -> str:
 
 __all__ = [
     "DeliveryAttemptRecord",
+    "DeliveryAttemptProjection",
     "DeliveryRecoveryDecision",
     "DeliveryAttemptSpec",
     "DeliveryAttemptState",
@@ -881,9 +1132,11 @@ __all__ = [
     "mark_transport_started",
     "mark_delivery_result_unknown",
     "get_delivery_attempt_record",
+    "list_delivery_attempt_projections",
     "plan_delivery_attempt_recovery",
     "prepare_delivery_attempt",
     "record_delivery_result",
     "recover_delivery_attempts",
+    "restart_delivery_attempt",
     "settle_attempts_for_opt_out",
 ]

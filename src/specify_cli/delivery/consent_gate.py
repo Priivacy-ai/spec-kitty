@@ -133,6 +133,14 @@ class ProjectTransportResultError(RuntimeError):
     """Raised after I/O when the durable result fence cannot be recorded."""
 
 
+class _ProjectTransportPhaseRefusal(RuntimeError):
+    """Rollback sentinel for an atomic no-I/O transport phase."""
+
+    def __init__(self, refusal: ProjectTransportRefusal) -> None:
+        super().__init__(refusal.diagnostic)
+        self.refusal = refusal
+
+
 def default_transport_deadline(*, now: datetime | None = None) -> str:
     """Return the bounded disclosure deadline used by interactive senders."""
     base = now or datetime.now(UTC)
@@ -175,11 +183,12 @@ def execute_project_transport_disclosure(
     return result
 
 
-def execute_project_transport_batch(
+def execute_project_transport_batch(  # noqa: C901 - four explicit transport phases share one lease
     disclosures: Sequence[ProjectTransportDisclosure],
     *,
     send: Callable[[], object],
     classify: Callable[[object], Mapping[str, tuple[str, str | None]]],
+    restart_attempt_ids: frozenset[str] = frozenset(),
 ) -> object | ProjectTransportRefusal:
     """Run a same-project batch through per-item WP06 durable attempts.
 
@@ -191,73 +200,86 @@ def execute_project_transport_batch(
     """
     if not disclosures:
         return send()
-    project_uuids = {disclosure.project_uuid for disclosure in disclosures}
-    if len(project_uuids) != 1:
-        first = disclosures[0]
-        return ProjectTransportRefusal(
-            project_uuid=first.project_uuid,
-            attempt_id=first.attempt_id,
-            category="project_not_admitted",
-            diagnostic="transport batch spans more than one project",
-        )
+    refusal = _same_project_batch_refusal(disclosures)
+    if refusal is not None:
+        return refusal
     from specify_cli.sync.project_store import ProjectStoreError, ProjectSyncStore
     from specify_cli.sync.transport_attempts import (
-        DeliveryAttemptState,
         DeliveryOutcome,
-        get_delivery_attempt_record,
         mark_transport_started,
-        prepare_delivery_attempt,
         record_delivery_result,
+        restart_delivery_attempt,
     )
     from specify_cli.sync.transport_lease import acquire_project_transport_lease
 
     store = ProjectSyncStore(disclosures[0].project_uuid)
     specs = {disclosure.attempt_id: _attempt_spec(disclosure) for disclosure in disclosures}
     start_required: set[str] = set()
+    restart_required: set[str] = set()
     with acquire_project_transport_lease(store) as lease:
         with lease.unit_of_work() as (unit, context):
             for disclosure in disclosures:
                 try:
                     _assert_expected_transport_authority(disclosure, context)
-                    existing = get_delivery_attempt_record(unit, attempt_id=disclosure.attempt_id)
-                    if existing is None:
-                        prepare_delivery_attempt(unit, context, specs[disclosure.attempt_id])
-                        start_required.add(disclosure.attempt_id)
-                    elif (
-                        existing.state is not DeliveryAttemptState.PREPARED
-                        or existing.native_identity != disclosure.native_identity
-                        or existing.payload_hash != disclosure.payload_hash
-                    ):
-                        return ProjectTransportRefusal(
-                            project_uuid=disclosure.project_uuid,
-                            attempt_id=disclosure.attempt_id,
-                            category="delivery_attempt_recovery_required",
-                            diagnostic="existing delivery attempt is not a prepared retry of the same native identity",
-                        )
-                    else:
-                        start_required.add(disclosure.attempt_id)
                 except ProjectStoreError as exc:
                     return ProjectTransportRefusal(
                         project_uuid=disclosure.project_uuid,
                         attempt_id=disclosure.attempt_id,
                         category="project_not_admitted",
+                        diagnostic=str(exc),
+                    )
+                try:
+                    action, refusal = _prepare_or_recover_disclosure(
+                        unit=unit,
+                        context=context,
+                        disclosure=disclosure,
+                        spec=specs[disclosure.attempt_id],
+                        restart_attempt_ids=restart_attempt_ids,
+                    )
+                    if refusal is not None:
+                        return refusal
+                    if action == "start":
+                        start_required.add(disclosure.attempt_id)
+                    elif action == "restart":
+                        restart_required.add(disclosure.attempt_id)
+                except ProjectStoreError as exc:
+                    return ProjectTransportRefusal(
+                        project_uuid=disclosure.project_uuid,
+                        attempt_id=disclosure.attempt_id,
+                        category="delivery_attempt_recovery_required",
                         diagnostic=str(exc),
                     )
 
-        with lease.unit_of_work() as (unit, context):
-            for disclosure in disclosures:
-                if disclosure.attempt_id not in start_required:
-                    continue
-                try:
-                    _assert_expected_transport_authority(disclosure, context)
-                    mark_transport_started(unit, context, disclosure.attempt_id)
-                except ProjectStoreError as exc:
-                    return ProjectTransportRefusal(
-                        project_uuid=disclosure.project_uuid,
-                        attempt_id=disclosure.attempt_id,
-                        category="project_not_admitted",
-                        diagnostic=str(exc),
-                    )
+        try:
+            with lease.unit_of_work() as (unit, context):
+                for disclosure in disclosures:
+                    try:
+                        _assert_expected_transport_authority(disclosure, context)
+                    except ProjectStoreError as exc:
+                        raise _ProjectTransportPhaseRefusal(
+                            ProjectTransportRefusal(
+                                project_uuid=disclosure.project_uuid,
+                                attempt_id=disclosure.attempt_id,
+                                category="project_not_admitted",
+                                diagnostic=str(exc),
+                            )
+                        ) from exc
+                    try:
+                        if disclosure.attempt_id in start_required:
+                            mark_transport_started(unit, context, disclosure.attempt_id)
+                        elif disclosure.attempt_id in restart_required:
+                            restart_delivery_attempt(unit, context, disclosure.attempt_id)
+                    except ProjectStoreError as exc:
+                        raise _ProjectTransportPhaseRefusal(
+                            ProjectTransportRefusal(
+                                project_uuid=disclosure.project_uuid,
+                                attempt_id=disclosure.attempt_id,
+                                category="delivery_attempt_recovery_required",
+                                diagnostic=str(exc),
+                            )
+                        ) from exc
+        except _ProjectTransportPhaseRefusal as exc:
+            return exc.refusal
 
         try:
             value = send()
@@ -294,6 +316,69 @@ def execute_project_transport_batch(
         return value
 
 
+def _same_project_batch_refusal(
+    disclosures: Sequence[ProjectTransportDisclosure],
+) -> ProjectTransportRefusal | None:
+    project_uuids = {disclosure.project_uuid for disclosure in disclosures}
+    if len(project_uuids) == 1:
+        return None
+    first = disclosures[0]
+    return ProjectTransportRefusal(
+        project_uuid=first.project_uuid,
+        attempt_id=first.attempt_id,
+        category="project_not_admitted",
+        diagnostic="transport batch spans more than one project",
+    )
+
+
+def _prepare_or_recover_disclosure(
+    *,
+    unit: Any,
+    context: Any,
+    disclosure: ProjectTransportDisclosure,
+    spec: Any,
+    restart_attempt_ids: frozenset[str],
+) -> tuple[str, ProjectTransportRefusal | None]:
+    from specify_cli.sync.transport_attempts import (
+        DeliveryAttemptState,
+        RecoveryAction,
+        get_delivery_attempt_record,
+        plan_delivery_attempt_recovery,
+        prepare_delivery_attempt,
+    )
+
+    existing = get_delivery_attempt_record(unit, attempt_id=disclosure.attempt_id)
+    if existing is None:
+        prepare_delivery_attempt(unit, context, spec)
+        return "start", None
+    if (
+        existing.state not in {DeliveryAttemptState.PREPARED, DeliveryAttemptState.RETRYABLE_NO_EFFECT}
+        or existing.native_identity != disclosure.native_identity
+        or existing.payload_hash != disclosure.payload_hash
+    ):
+        return "", ProjectTransportRefusal(
+            project_uuid=disclosure.project_uuid,
+            attempt_id=disclosure.attempt_id,
+            category="delivery_attempt_recovery_required",
+            diagnostic="existing delivery attempt is not a prepared retry of the same native identity",
+        )
+    if existing.state in {DeliveryAttemptState.PREPARED, DeliveryAttemptState.RETRYABLE_NO_EFFECT}:
+        decision = plan_delivery_attempt_recovery(unit, attempt_id=disclosure.attempt_id)
+        if (
+            (existing.state is DeliveryAttemptState.RETRYABLE_NO_EFFECT and disclosure.attempt_id not in restart_attempt_ids)
+            or decision.action is not RecoveryAction.RETRY_NATIVE_IDENTITY
+            or not decision.may_resend
+        ):
+            return "", ProjectTransportRefusal(
+                project_uuid=disclosure.project_uuid,
+                attempt_id=disclosure.attempt_id,
+                category="delivery_attempt_recovery_required",
+                diagnostic=decision.diagnostic,
+            )
+        return "restart" if existing.state is DeliveryAttemptState.RETRYABLE_NO_EFFECT else "start", None
+    return "start", None
+
+
 def _attempt_spec(disclosure: ProjectTransportDisclosure) -> Any:
     from specify_cli.sync.transport_attempts import DeliveryAttemptSpec
 
@@ -326,7 +411,7 @@ def _mark_unknown(disclosures: Sequence[ProjectTransportDisclosure], *, lease: A
 
 
 def _transport_result_id(attempt_id: str, kind: str) -> str:
-    return f"{attempt_id}:{kind}:{datetime.now(UTC).isoformat()}"
+    return f"{attempt_id}:{kind}"
 
 
 def _assert_expected_transport_authority(

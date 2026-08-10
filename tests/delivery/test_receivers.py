@@ -27,6 +27,7 @@ import requests
 
 from specify_cli.delivery.receivers import (
     BATCH_ENDPOINT_PATH,
+    DeliveryEffectCertainty,
     DeliveryOutcome,
     DeliveryReceiver,
     DeliveryResult,
@@ -334,12 +335,13 @@ def test_rejected_maps_with_error_message_or_error() -> None:
     assert results[1].error == "alt field name accepted"
 
 
-def test_event_absent_from_results_maps_pending_not_success() -> None:
+def test_event_absent_from_results_maps_transient_not_pending_or_success() -> None:
     batch = [_event("01JMBY0000000000000000000I"), _event("01JMBY0000000000000000000J")]
     body = _ok_body(("01JMBY0000000000000000000I", "success"))  # second event missing
     results = map_batch_response(batch, http_status=200, body=body)
     assert results[0].outcome is DeliveryOutcome.SUCCESS
-    assert results[1].outcome is DeliveryOutcome.PENDING
+    assert results[1].outcome is DeliveryOutcome.TRANSIENT
+    assert results[1].effect_certainty is DeliveryEffectCertainty.POSSIBLY_EFFECTIVE
 
 
 def test_explicit_pending_status_maps_pending() -> None:
@@ -347,6 +349,23 @@ def test_explicit_pending_status_maps_pending() -> None:
     body = _ok_body(("01JMBY0000000000000000000K", "pending"))
     results = map_batch_response(batch, http_status=200, body=body)
     assert results[0].outcome is DeliveryOutcome.PENDING
+
+
+def test_project_not_admitted_rejection_maps_terminal_refusal() -> None:
+    batch = [_event("01JMBY00000000000000000PNA")]
+    body = {
+        "results": [
+            {
+                "event_id": "01JMBY00000000000000000PNA",
+                "status": "rejected",
+                "error_category": "project_not_admitted",
+                "error": "admission revoked",
+            }
+        ]
+    }
+    results = map_batch_response(batch, http_status=200, body=body)
+    assert results[0].outcome is DeliveryOutcome.TERMINAL_FAILED
+    assert results[0].effect_certainty is DeliveryEffectCertainty.TERMINAL
 
 
 @pytest.mark.parametrize("status_code", [401, 403, 500, 503])
@@ -456,7 +475,8 @@ def test_unknown_per_event_status_maps_rejected() -> None:
     batch = [_event("01JMBY0000000000000000000R")]
     body = {"results": [{"event_id": "01JMBY0000000000000000000R", "status": "weird"}]}
     results = map_batch_response(batch, http_status=200, body=body)
-    assert results[0].outcome is DeliveryOutcome.REJECTED
+    assert results[0].outcome is DeliveryOutcome.TRANSIENT
+    assert results[0].effect_certainty is DeliveryEffectCertainty.POSSIBLY_EFFECTIVE
     assert "weird" in (results[0].error or "")
 
 
@@ -556,9 +576,7 @@ def test_single_project_batch_still_delivers() -> None:
     receiver = TeamspaceReceiver(resolved_server_url=SERVER_URL, auth_token=_TOKEN, poster=_ok)
     results = receiver.deliver(deliverable([_evt("e1", "aaaaaaaa-0000-0000-0000-000000000001")]))
 
-    assert seen == [SERVER_URL + BATCH_ENDPOINT_PATH], (
-        "a single-project batch must POST exactly once, to the batch endpoint"
-    )
+    assert seen == [SERVER_URL + BATCH_ENDPOINT_PATH], "a single-project batch must POST exactly once, to the batch endpoint"
     assert [r.outcome for r in results] == [DeliveryOutcome.SUCCESS]
 
 
@@ -600,10 +618,7 @@ def test_identity_less_events_do_not_count_as_a_project_at_this_seam() -> None:
         )
     )
 
-    assert seen == [SERVER_URL + BATCH_ENDPOINT_PATH], (
-        "a single-project batch with a legacy row still delivers, once, to the "
-        "batch endpoint"
-    )
+    assert seen == [SERVER_URL + BATCH_ENDPOINT_PATH], "a single-project batch with a legacy row still delivers, once, to the batch endpoint"
     assert {r.outcome for r in results} == {DeliveryOutcome.SUCCESS}
 
 
@@ -641,3 +656,25 @@ def test_ordinary_rejection_stays_retryable() -> None:
     results = receiver.deliver(deliverable([_evt("e1", "aaaaaaaa-0000-0000-0000-000000000001")]))
 
     assert [r.outcome for r in results] == [DeliveryOutcome.REJECTED]
+
+
+def test_structured_400_project_not_admitted_maps_terminal_refusal() -> None:
+    batch = [_event("01JMBY00000000000000000400")]
+    results = map_batch_response(
+        batch,
+        http_status=400,
+        body={
+            "error": "batch validation failed",
+            "details": [
+                {
+                    "event_id": "01JMBY00000000000000000400",
+                    "reason": "project is not admitted",
+                    "error_category": "project_not_admitted",
+                }
+            ],
+        },
+    )
+
+    assert results[0].outcome is DeliveryOutcome.TERMINAL_FAILED
+    assert results[0].error_category == "project_not_admitted"
+    assert results[0].effect_certainty is DeliveryEffectCertainty.TERMINAL

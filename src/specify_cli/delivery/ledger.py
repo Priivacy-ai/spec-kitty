@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from collections.abc import Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -18,6 +19,7 @@ from specify_cli.sync.layout_generation import (
 )
 from specify_cli.sync.project_context import VerifiedProjectStoreIdentity
 from specify_cli.sync.project_store import ProjectUnitOfWork
+from specify_cli.sync.transport_attempts import DeliveryAttemptProjection, list_delivery_attempt_projections
 from specify_cli.sync.history_disclosure import (
     HistoryDisclosureCapability,
     revalidate_history_disclosure,
@@ -25,6 +27,7 @@ from specify_cli.sync.history_disclosure import (
 
 LEDGER_TABLE = "delivery_results"
 LEDGER_INDEX_NAME = "project_store_delivery_results"
+_LOG = logging.getLogger(__name__)
 
 STATUS_SUCCESS = "success"
 STATUS_DUPLICATE = "duplicate"
@@ -40,8 +43,7 @@ _WP06_OUTCOME_STATUS = {
     "delivered": STATUS_SUCCESS,
     "duplicate": STATUS_DUPLICATE,
     "pending": STATUS_PENDING,
-    "rejected": STATUS_REJECTED,
-    "transient": STATUS_FAILED_TRANSIENT,
+    "retryable_no_effect": STATUS_FAILED_TRANSIENT,
     "refused": STATUS_TERMINAL_FAILED,
     "terminal_unknown": STATUS_TERMINAL_FAILED,
     "unknown": STATUS_FAILED_TRANSIENT,
@@ -168,16 +170,8 @@ class SqliteDeliveryLedger:
             raise ValueError("delivery result requires an event owned by this project store")
         return int(cast("str | int | float | bytes", row[0]))
 
-    def _attempt_rows(self) -> list[tuple[Any, ...]]:
-        return [
-            tuple(row)
-            for row in self._unit.execute(
-                "SELECT attempt_id, epoch_id, target_generation, payload_reference, "
-                "state, created_at FROM delivery_attempts WHERE project_uuid = ? "
-                "ORDER BY created_at, attempt_id",
-                (self.project_uuid,),
-            ).fetchall()
-        ]
+    def _attempt_rows(self) -> list[DeliveryAttemptProjection]:
+        return list_delivery_attempt_projections(self._unit)
 
     def _result_for_attempt(self, attempt_id: str) -> tuple[str | None, str | None, str | None]:
         rows = self._unit.execute(
@@ -208,56 +202,33 @@ class SqliteDeliveryLedger:
             str(row[2]) if row[2] is not None else None,
         )
 
-    @staticmethod
-    def _dispatcher_reference(metadata: dict[str, Any]) -> dict[str, Any]:
-        raw_reference = metadata.get("payload_reference")
-        if not isinstance(raw_reference, str):
-            raise ValueError("dispatcher delivery attempt metadata is missing structured payload_reference")
-        try:
-            reference: Any = json.loads(raw_reference)
-        except json.JSONDecodeError as exc:
-            raise ValueError("dispatcher delivery attempt payload_reference is not JSON") from exc
-        if not isinstance(reference, dict):
-            raise ValueError("dispatcher delivery attempt payload_reference is not an object")
-        if reference.get("schema") != _DISPATCHER_REFERENCE_SCHEMA:
-            raise ValueError("dispatcher delivery attempt payload_reference has an unsupported schema")
-        for key in ("event_id", "target_id"):
-            if not isinstance(reference.get(key), str) or not reference[key].strip():
-                raise ValueError(f"dispatcher delivery attempt payload_reference missing {key}")
-        return reference
-
-    def _row_from_dispatcher_attempt(
-        self,
-        row: tuple[Any, ...],
-        metadata: dict[str, Any],
-    ) -> LedgerRow:
-        reference = self._dispatcher_reference(metadata)
-        outcome, refusal, recorded_at = self._result_for_attempt(str(row[0]))
+    def _row_from_dispatcher_attempt(self, attempt: DeliveryAttemptProjection) -> LedgerRow:
+        if attempt.event_id is None or attempt.target_id is None or attempt.state is None:
+            raise ValueError("dispatcher delivery attempt projection is missing event/target correlation")
+        outcome, refusal, recorded_at = self._result_for_attempt(attempt.attempt_id)
         status = _WP06_OUTCOME_STATUS.get(str(outcome), STATUS_FAILED_TRANSIENT) if outcome is not None else STATUS_FAILED_TRANSIENT
-        created_at = str(row[5]) if row[5] is not None else None
+        created_at = attempt.created_at
         completed_at = recorded_at if status in TERMINAL_STATUSES else None
         return LedgerRow(
-            event_id=str(reference["event_id"]),
-            target_id=str(reference["target_id"]),
+            event_id=attempt.event_id,
+            target_id=attempt.target_id,
             status=status,
             attempt_count=1,
             first_attempted_at=created_at,
             last_attempted_at=recorded_at or created_at,
             accepted_at=None,
             completed_at=completed_at,
-            server_drain_state=None if status in TERMINAL_STATUSES else str(row[4]),
+            server_drain_state=None if status in TERMINAL_STATUSES else attempt.state.value,
             last_http_status=None,
             last_error=refusal,
             last_response_json=None,
         )
 
-    def _row_from_attempt(self, row: tuple[Any, ...]) -> LedgerRow | None:
-        metadata: Any = json.loads(str(row[3] or "{}"))
-        if not isinstance(metadata, dict):
-            raise ValueError("delivery attempt metadata is not an object")
-        if metadata.get("write_kind") == _DISPATCHER_WRITE_KIND:
-            return self._row_from_dispatcher_attempt(row, metadata)
-        if "event_id" not in metadata:
+    def _row_from_attempt(self, attempt: DeliveryAttemptProjection) -> LedgerRow | None:
+        if attempt.write_kind == _DISPATCHER_WRITE_KIND:
+            return self._row_from_dispatcher_attempt(attempt)
+        metadata = attempt.legacy_metadata
+        if metadata is None:
             return None
         return LedgerRow(
             event_id=str(metadata["event_id"]),
@@ -275,11 +246,15 @@ class SqliteDeliveryLedger:
         )
 
     def get(self, event_id: str, target_id: str) -> LedgerRow | None:
+        matches: list[LedgerRow] = []
         for attempt in self._attempt_rows():
             row = self._row_from_attempt(attempt)
             if row is not None and row.event_id == event_id and row.target_id == target_id:
+                matches.append(row)
+        for row in matches:
+            if row.status in TERMINAL_STATUSES:
                 return row
-        return None
+        return matches[0] if matches else None
 
     def _record(
         self,
@@ -473,20 +448,65 @@ class SqliteDeliveryLedger:
         event_universe: Iterable[str],
         limit: int | None = None,
         history_action: HistoryDisclosureCapability | None = None,
+        recovery_event_ids: frozenset[str] = frozenset(),
     ) -> list[str]:
+        del recovery_event_ids
         if history_action is None:
             universe = self._ordinary_eligible_ids(event_universe)
         else:
             capability = revalidate_history_disclosure(self._unit, history_action)
             authorized = set(capability.row_ids)
             universe = [event_id for event_id in event_universe if event_id in authorized]
-        terminal_for_target = {
-            row.event_id
-            for row in (self._row_from_attempt(attempt) for attempt in self._attempt_rows())
-            if row is not None and row.target_id == target_id and (row.status in TERMINAL_STATUSES or row.server_drain_state in {"in_flight", "unknown"})
-        }
+        terminal_for_target: set[str] = set()
+        for attempt in self._attempt_rows():
+            row = self._row_from_attempt(attempt)
+            if row is None or row.target_id != target_id:
+                continue
+            if row.status in TERMINAL_STATUSES:
+                terminal_for_target.add(row.event_id)
+                continue
+            if row.server_drain_state == "retryable_no_effect":
+                from specify_cli.sync.transport_attempts import RecoveryAction, plan_delivery_attempt_recovery
+
+                try:
+                    decision = plan_delivery_attempt_recovery(self._unit, attempt_id=attempt.attempt_id)
+                except Exception:
+                    terminal_for_target.add(row.event_id)
+                    continue
+                if decision.action is RecoveryAction.RETRY_NATIVE_IDENTITY and decision.may_resend:
+                    continue
+                terminal_for_target.add(row.event_id)
+                continue
+            if row.server_drain_state in {"in_flight", "pending_remote", "retryable_no_effect", "unknown"}:
+                terminal_for_target.add(row.event_id)
         selected = [event_id for event_id in universe if event_id not in terminal_for_target]
         return selected if limit is None else selected[:limit]
+
+    def retryable_recovery_event_ids(
+        self,
+        *,
+        target_id: str,
+        event_universe: Iterable[str],
+    ) -> frozenset[str]:
+        """Return selected dispatcher events whose durable plan authorizes retry."""
+        wanted = set(event_universe)
+        recovery: set[str] = set()
+        for attempt in self._attempt_rows():
+            row = self._row_from_attempt(attempt)
+            if row is None or row.target_id != target_id or row.event_id not in wanted:
+                continue
+            if row.server_drain_state != "retryable_no_effect":
+                continue
+            from specify_cli.sync.transport_attempts import RecoveryAction, plan_delivery_attempt_recovery
+
+            try:
+                decision = plan_delivery_attempt_recovery(self._unit, attempt_id=attempt.attempt_id)
+            except Exception as exc:
+                _LOG.debug("dispatcher retryable recovery planning failed for %s", row.event_id, exc_info=exc)
+                continue
+            if decision.action is RecoveryAction.RETRY_NATIVE_IDENTITY and decision.may_resend:
+                recovery.add(row.event_id)
+        return frozenset(recovery)
 
     def delivered_anywhere(self, event_id: str) -> bool:
         return any(

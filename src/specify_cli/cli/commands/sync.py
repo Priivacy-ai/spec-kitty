@@ -516,6 +516,19 @@ class _EventSyncRuntime:
 
 
 @dataclass(frozen=True)
+class _ProjectDispatchRuntime:
+    """ProjectSyncStore-backed handles for canonical live dispatcher sends only."""
+
+    target: ResolvedSyncTarget
+    store: Any
+    context: Any
+    delivery_target: Any | None
+
+    def close(self) -> None:
+        return None
+
+
+@dataclass(frozen=True)
 class _EventSyncScope:
     user_id: str | None = None
     team_slug: str | None = None
@@ -567,6 +580,44 @@ def _open_event_sync_runtime(*, create: bool = True) -> _EventSyncRuntime:
     return _EventSyncRuntime(target=target, journal=journal, ledger=ledger, registry=registry, context=None)
 
 
+def _open_project_dispatch_runtime(*, create: bool = True) -> _ProjectDispatchRuntime:
+    """Resolve ProjectSyncStore-backed authority for canonical live dispatch only."""
+    from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
+    from specify_cli.sync.project_store import ProjectSyncStore
+    from specify_cli.sync.routing import resolve_checkout_sync_routing, resolve_checkout_sync_routing_readonly
+    from specify_cli.sync.target_authority import resolve_sync_target
+
+    scope = _current_event_sync_scope()
+    target = resolve_sync_target(user_id=scope.user_id, team_slug=scope.team_slug)
+    routing = resolve_checkout_sync_routing() if create else resolve_checkout_sync_routing_readonly()
+    if routing is None or routing.project_uuid is None:
+        raise FileNotFoundError("event-sync project store unavailable: active checkout has no project_uuid")
+    store = ProjectSyncStore(routing.project_uuid)
+    if not create and not store.database_path.exists():
+        raise FileNotFoundError(f"event-sync project store DB absent: {store.database_path}")
+    context = store.create_context()
+    delivery_target = None
+    with store.unit_of_work() as unit:
+        registry = ProjectDeliveryTargetRegistry(store)
+        delivery_target = registry.get_current(unit)
+    if delivery_target is not None:
+        _assert_event_sync_runtime_authority(
+            target=target,
+            delivery_target=delivery_target,
+            routing_project_uuid=str(routing.project_uuid),
+        )
+        _assert_delivery_target_matches_context(
+            delivery_target=delivery_target,
+            context=context,
+        )
+    return _ProjectDispatchRuntime(
+        target=target,
+        context=context,
+        store=store,
+        delivery_target=delivery_target,
+    )
+
+
 def _open_event_sync_runtime_readonly() -> _EventSyncRuntime:
     """Open runtime handles only when DBs already exist."""
     try:
@@ -574,6 +625,61 @@ def _open_event_sync_runtime_readonly() -> _EventSyncRuntime:
     except TypeError:
         # Compatibility for tests that monkeypatch the opener with a no-arg callable.
         return _open_event_sync_runtime()
+
+
+def _assert_event_sync_runtime_authority(
+    *,
+    target: Any,
+    delivery_target: Any,
+    routing_project_uuid: str,
+) -> None:
+    """Fail closed when receiver/auth authority diverges from stored admission."""
+    from specify_cli.auth import get_token_manager
+    from specify_cli.auth.session import require_private_team_id
+    from specify_cli.sync.target_authority import build_admission_audience
+
+    audience = build_admission_audience(
+        target,
+        account_identity=str(delivery_target.account_identity),
+        private_teamspace_id=str(delivery_target.private_teamspace_id),
+        project_uuid=delivery_target.project_uuid,
+        configuration_generation=int(delivery_target.configuration_generation),
+    )
+    if audience.normalized_server_origin != str(delivery_target.target_identity):
+        raise RuntimeError("event-sync receiver URL does not match admitted delivery target")
+    if routing_project_uuid != str(delivery_target.project_uuid.storage_token):
+        raise RuntimeError("event-sync routing project does not match admitted delivery target")
+    session = get_token_manager().get_current_session()
+    if session is None:
+        raise RuntimeError("event-sync admitted delivery target requires a local authenticated session")
+    private_teamspace_id = require_private_team_id(session)
+    account_candidates = {str(session.email), str(session.user_id)}
+    if str(delivery_target.account_identity) not in account_candidates:
+        raise RuntimeError("event-sync local authenticated account does not match admitted delivery target")
+    if private_teamspace_id != str(delivery_target.private_teamspace_id):
+        raise RuntimeError("event-sync local Private Teamspace does not match admitted delivery target")
+
+
+def _assert_delivery_target_matches_context(
+    *,
+    delivery_target: Any,
+    context: Any,
+) -> None:
+    """Bind the selected delivery target to the immutable context tuple."""
+    target_audience = getattr(context, "target_audience", None)
+    if target_audience is None:
+        raise RuntimeError("event-sync selected context has no admitted target audience")
+    checks = (
+        str(delivery_target.target_identity) == str(target_audience.target_identity),
+        str(delivery_target.account_identity) == str(target_audience.account_identity),
+        str(delivery_target.private_teamspace_id) == str(target_audience.private_teamspace_id),
+        str(delivery_target.project_uuid.storage_token) == str(target_audience.project_uuid.storage_token),
+        int(delivery_target.configuration_generation) == int(target_audience.configuration_generation),
+        str(delivery_target.admission_generation) == str(context.admission_generation),
+        str(delivery_target.binding_audience) == str(context.binding_audience),
+    )
+    if not all(checks):
+        raise RuntimeError("event-sync delivery target does not match immutable project context")
 
 
 def _event_sync_config_path() -> Path:
@@ -735,6 +841,15 @@ def _count_retained_events(runtime: _EventSyncRuntime) -> int:
     return 0
 
 
+def _count_project_retained_events(runtime: _ProjectDispatchRuntime) -> int:
+    with contextlib.suppress(Exception):
+        from specify_cli.event_journal.journal import EventJournal
+
+        with runtime.store.unit_of_work() as unit:
+            return int(EventJournal(unit, runtime.store.layout_generation()).count())
+    return 0
+
+
 def _event_sync_retained_work_present() -> bool:
     """Best-effort retained-work probe for strict infrastructure failures."""
     runtime: _EventSyncRuntime | None = None
@@ -823,7 +938,7 @@ def _transient_block_message(summary: DispatchSummary) -> str:
 
 
 def _run_dispatch_batches(
-    runtime: _EventSyncRuntime,
+    runtime: _ProjectDispatchRuntime,
     receiver: DeliveryReceiver,
     delivery_target: Any,
 ) -> DispatchSummary:
@@ -832,16 +947,18 @@ def _run_dispatch_batches(
     combined = DispatchSummary.empty()
     limit = _EVENT_SYNC_DISPATCH_BATCH_LIMIT
     skip: set[str] = set()
+    retry_no_effect: set[str] = set()
     while True:
         batch = dispatch(
-            store=getattr(runtime, "store", None),
-            journal=runtime.journal,
-            ledger=runtime.ledger,
+            store=runtime.store,
+            journal=None,
+            ledger=None,
             receiver=receiver,
             target=delivery_target,
             context=runtime.context,
             limit=limit,
             exclude=frozenset(skip),
+            recovery_event_ids=frozenset(retry_no_effect),
         )
         # Honor the documented "retry with a smaller batch" contract: a
         # byte-oversized batch (HTTP 413, nothing delivered) is halved and
@@ -850,9 +967,13 @@ def _run_dispatch_batches(
         # up. A single oversized event is terminal-failed by the receiver (not
         # transient), so limit==1 can never loop forever.
         if limit > 1 and batch.delivered == 0 and _batch_is_oversized(batch):
+            retry_no_effect.update(failure.event_id for failure in batch.failures)
             limit = max(1, limit // 2)
             continue
         combined = _combine_dispatch_summaries(combined, batch)
+        retry_no_effect.difference_update(
+            failure.event_id for failure in batch.failures if failure.outcome != "transient" or failure.http_status != _HTTP_PAYLOAD_TOO_LARGE
+        )
         # Advance past retryable events that made no terminal-success this pass
         # (pending, content rejection, persistent transient). Skipping them for
         # the REST OF THIS PASS lets deliverable events behind them drain
@@ -860,9 +981,8 @@ def _run_dispatch_batches(
         # selectable for the next `sync now`, so retryability is preserved.
         before = len(skip)
         skip.update(batch.retryable_event_ids)
-        terminal_progress = (
-            batch.delivered + batch.duplicate + batch.terminal_failed
-        ) > 0
+        skip.update(failure.event_id for failure in batch.failures if failure.outcome == "terminal_failed")
+        terminal_progress = (batch.delivered + batch.duplicate + batch.terminal_failed) > 0
         # Grow a shrunk limit back after terminal progress. A single event over
         # the server byte cap forces `limit` down to 1 and is parked
         # (terminal_failed); without recovery the entire *healthy* tail would
@@ -877,7 +997,6 @@ def _run_dispatch_batches(
         if batch.selected == 0 or not advanced:
             break
     return combined
-
 
 def _open_active_body_queue() -> Any:
     """Open the body-upload queue for the WP11 ``body_upload_compatibility``
@@ -1126,19 +1245,14 @@ def _run_event_sync_dispatch() -> DispatchSummary | None:
         return DispatchSummary.empty()
     from specify_cli.delivery.dispatcher import DispatchSummary
 
-    runtime: _EventSyncRuntime | None = None
+    runtime: _ProjectDispatchRuntime | None = None
     try:
-        runtime = _open_event_sync_runtime()
+        runtime = _open_project_dispatch_runtime()
         config = _load_event_sync_config()
         auth_token = _event_sync_access_token()
-        receiver, gate_decision = _resolve_gated_receiver(
-            runtime.target, config, auth_token=auth_token
-        )
+        receiver, gate_decision = _resolve_gated_receiver(runtime.target, config, auth_token=auth_token)
         if receiver is None:
-            console.print(
-                f"[dim]Event sync mode {config.mode.name}: retention only; "
-                f"no delivery attempted.[/dim]"
-            )
+            console.print(f"[dim]Event sync mode {config.mode.name}: retention only; no delivery attempted.[/dim]")
             return DispatchSummary.empty()
         assert gate_decision is not None  # a resolved receiver always carries a decision
         if gate_decision.blocked:
@@ -1146,7 +1260,7 @@ def _run_event_sync_dispatch() -> DispatchSummary | None:
             console.print(f"[dim]Event sync gated: {names}[/dim]")
             return DispatchSummary(
                 target_id=None,
-                selected=_count_retained_events(runtime),
+                selected=_count_project_retained_events(runtime),
                 delivered=0,
                 duplicate=0,
                 pending=0,
@@ -1154,14 +1268,28 @@ def _run_event_sync_dispatch() -> DispatchSummary | None:
                 transient=0,
                 terminal_failed=0,
             )
-        delivery_target = runtime.registry.register_from_resolved(runtime.target)
+        delivery_target = runtime.delivery_target
+        if delivery_target is None:
+            console.print("[dim]Event sync gated: admission_not_current[/dim]")
+            return DispatchSummary(
+                target_id=None,
+                selected=_count_project_retained_events(runtime),
+                delivered=0,
+                duplicate=0,
+                pending=0,
+                rejected=0,
+                transient=0,
+                terminal_failed=0,
+            )
         summary = _run_dispatch_batches(runtime, receiver, delivery_target)
         _print_dispatch_summary(summary, config.mode.name)
-        # FR-005/T005: an all-zero summary is four different situations with four
-        # different remedies. Reported from HERE, while `runtime` is still open, so
-        # the diagnosis reads the exact journal the drain just selected from rather
-        # than re-resolving a scope and possibly describing a different store.
-        _report_empty_selection(summary, runtime.journal)
+        with runtime.store.unit_of_work() as unit:
+            from specify_cli.event_journal.journal import EventJournal
+
+            _report_empty_selection(
+                summary,
+                EventJournal(unit, runtime.store.layout_generation()),
+            )
         return summary
     except Exception as exc:  # additive drain must never break the command
         _LOG.debug("event-sync dispatch skipped: %s", exc)
@@ -5290,7 +5418,6 @@ def _emit_status_check_json() -> None:
     if not ok:
         raise typer.Exit(2)
 
-
 @app.command()
 def status(  # noqa: C901
     check_connection: bool = typer.Option(
@@ -5831,7 +5958,6 @@ def status(  # noqa: C901
         if outcome is RecoveryOutcome.EXIT_4:
             raise typer.Exit(EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE)
 
-
 @app.command()
 def diagnose(
     json_output: bool = typer.Option(
@@ -5915,7 +6041,6 @@ def diagnose(
                 console.print(f"    - {err}")
 
     console.print()
-
 
 @app.command()
 def doctor() -> None:  # noqa: C901
