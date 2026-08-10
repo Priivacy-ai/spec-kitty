@@ -120,6 +120,18 @@
       "verdict": "deferred-with-followup",
       "wp": "WP04"
     },
+    "#3309": {
+      "evidence_ref": "Pre-existing admission_operations.configuration_generation savepoint fixture drift reproduced at pre-WP06 head 14ac8b31 and current head; tracked in Priivacy-ai/spec-kitty#3309. WP06 product diff does not touch the fixture/schema and the adjacent sweep isolates this as its only failure.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP06"
+    },
     "#584": {
       "evidence_ref": "Reviewed SaaS WP02 recorded-UUID anti-rematerialization authority outranks admission; full purge remains separately owned by #584/#609.",
       "fr": "FR-009,FR-016",
