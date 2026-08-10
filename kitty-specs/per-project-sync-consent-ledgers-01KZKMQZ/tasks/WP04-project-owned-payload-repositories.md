@@ -67,6 +67,7 @@ owned_files:
 - src/specify_cli/sync/queue.py
 - src/specify_cli/sync/body_queue.py
 - src/specify_cli/sync/__init__.py
+- src/specify_cli/sync/project_store.py
 - tests/architectural/test_project_store_boundary.py
 - tests/architectural/test_egress_consent_boundary.py
 - tests/event_journal/test_project_store_journal.py
@@ -178,6 +179,12 @@ The existing project-consent incident spy/counter control is sequentially owned
 by WP04 only to re-pin its retired `EventJournal(path)` setup to the live
 ProjectSyncStore/UoW boundary. Preserve every production-write-path assertion;
 do not restore a path constructor or rewrite the incident semantics.
+`src/specify_cli/sync/project_store.py` is sequentially owned WP02 → WP04 → WP05
+for one bounded identity seam: the verified active UoW mints and retains one
+non-constructible store capability, and repository adapters expose that exact
+object so status rejects independently supplied same-UUID/different-store or
+fabricated-equal inputs before reads. Do not change schema/layout authority or
+absorb WP05 admission behavior.
 
 ## Definition of Done
 
@@ -199,3 +206,4 @@ Reviewers should search for default constructors, private layout checks, and pat
 - 2026-08-10T02:25:00Z – codex – The expanded pre-WP04 suites exposed stale shared-store constructors and path assertions on the exact repository surfaces T016-T019 replace. Sequential ownership is expanded only to the affected repository tests so valid #3030 behavior is re-pinned to ProjectSyncStore/UoW without restoring a forbidden compatibility path. Legacy migration and dispatcher/body-drain caller tests remain explicitly assigned to WP10 and WP07/WP09.
 - 2026-08-10T02:45:00Z – codex – WP04 cycle-1 review assigned the per-project body purge differential here after proving the candidate reported removal while retaining the confidential body row and accepted a mismatched project queue. The legacy whole-shared-store purge suite is assigned to WP10 instead of restoring a global compatibility API.
 - 2026-08-10T03:20:00Z – codex – WP04 cycle-2 review assigned the mandatory project-consent incident spy/counter file here after its retired EventJournal(path) setup stopped executing against the live repository boundary. Ownership is limited to a ProjectSyncStore/UoW fixture re-pin with assertions preserved.
+- 2026-08-10T03:35:00Z – codex – WP04 cycle-2 review proved status could combine home-a consent with same-UUID home-b repositories. Sequential ownership of project_store.py is expanded only to mint/thread the verified active-UoW store capability; WP05 must consume the reviewed seam afterward.
