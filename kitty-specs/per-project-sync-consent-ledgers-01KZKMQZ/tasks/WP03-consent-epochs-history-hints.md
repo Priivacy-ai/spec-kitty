@@ -43,6 +43,7 @@ create_intent:
 - tests/sync/test_history_disclosure.py
 - tests/sync/test_daemon_deny_hints.py
 - tests/sync/test_legacy_grant_writers.py
+- tests/architectural/test_sync_writer_census.py
 execution_mode: code_change
 owned_files:
 - src/specify_cli/sync/consent.py
@@ -57,6 +58,8 @@ owned_files:
 - tests/sync/test_legacy_grant_writers.py
 - tests/sync/test_consent_resolver_3030.py
 - tests/sync/test_consent_write_refusal_3030.py
+- tests/architectural/test_egress_consent_boundary.py
+- tests/architectural/test_sync_writer_census.py
 role: implementer
 tags: []
 tracker_refs:
