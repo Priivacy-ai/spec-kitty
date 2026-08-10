@@ -1239,6 +1239,18 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ♻️ Changed
 
+- **The beginner guides now open with illustrated Mission Kitty splashes, and the
+  Spec-Driven Development page carries a real diagram instead of ASCII art
+  (`#3276`).** Getting Started, Understanding Missions, Your First Mission, and
+  When to use Spec Kitty modes each gain a hero illustration; When to use modes
+  adds a four-path comparison board; and the SDD workflow — previously a plain
+  ASCII box diagram — is now a styled SVG flowchart that renders cleanly in light
+  and dark mode. The guide prose also switches to native DocFX alerts
+  (`> [!NOTE]` / `> [!TIP]`) so callouts stand out on the published site. Where a
+  stylized splash shows a workflow-like board, a one-line caption points to the
+  authoritative steps, modes, or mission types on the same page, so the artwork
+  reads as illustration and the page text stays the source of truth. The written
+  content and structure are unchanged; the pages are just easier to scan.
 - **Spec Kitty's documentation now lives under one predictable `docs/` root with
   canonical sections, so you can find a page by where it logically belongs
   (mission `common-docs-convergence`; `#2215`, `#2887`, `#3273`).** The scattered
