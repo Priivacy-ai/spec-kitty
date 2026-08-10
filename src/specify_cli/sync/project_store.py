@@ -319,19 +319,27 @@ _SCHEMA_STATEMENTS: Final[tuple[str, ...]] = (
         operation_key TEXT PRIMARY KEY,
         project_uuid TEXT NOT NULL,
         action TEXT NOT NULL CHECK (action IN ('admit', 'revoke')),
-        expected_generation TEXT,
+        expected_generation INTEGER CHECK (
+            expected_generation IS NULL OR expected_generation > 0
+        ),
         target_identity TEXT NOT NULL,
         account_identity TEXT NOT NULL,
         private_teamspace_id TEXT NOT NULL,
+        configuration_generation INTEGER NOT NULL CHECK (configuration_generation > 0),
+        request_payload_hash TEXT NOT NULL CHECK (length(request_payload_hash) = 64),
+        request_payload_version INTEGER NOT NULL CHECK (request_payload_version > 0),
         state TEXT NOT NULL CHECK (
-            state IN ('pending', 'in_flight', 'succeeded', 'conflict', 'unknown')
+            state IN ('prepared', 'sent', 'acknowledged', 'refused', 'unknown')
         ),
         result_state TEXT,
-        result_generation TEXT,
+        result_generation INTEGER CHECK (
+            result_generation IS NULL OR result_generation > 0
+        ),
         binding_audience TEXT,
+        original_error_category TEXT,
         attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
-        created_at TEXT,
-        updated_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
         UNIQUE (project_uuid, operation_key),
         FOREIGN KEY (project_uuid) REFERENCES project_store_metadata(project_uuid)
     )

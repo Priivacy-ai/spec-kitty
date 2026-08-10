@@ -568,6 +568,8 @@ def _owner_for(site: StoreSite) -> str:
         return "WP07"
     if site.relpath.startswith("specify_cli/delivery/targets.py"):
         return "WP05"
+    if site.relpath.startswith("specify_cli/sync/admission_operations.py"):
+        return "WP05"
     if site.relpath.startswith("specify_cli/cli/") or site.relpath.endswith("migrate_journal.py"):
         return "WP10"
     return "WP04"
@@ -577,7 +579,7 @@ _LIVE_CLASS_CONTROLS: dict[tuple[str, str], str] = {
     ("specify_cli/event_journal/journal.py", "EventJournal"): ("EventJournal constructor/append public entry; exercised by WP01 live control"),
     ("specify_cli/event_journal/journal.py", "JournalTransaction"): ("EventJournal.transaction public entry"),
     ("specify_cli/delivery/ledger.py", "SqliteDeliveryLedger"): ("record_success/transaction public entries; exercised by WP01 live control"),
-    ("specify_cli/delivery/targets.py", "SqliteDeliveryTargetRegistry"): ("delivery target registry constructor/register public entries"),
+    ("specify_cli/delivery/targets.py", "ProjectDeliveryTargetRegistry"): ("delivery target registry ProjectSyncStore repository public entries"),
     ("specify_cli/sync/queue.py", "OfflineQueue"): ("offline event queue constructor/queue_event public entries"),
     ("specify_cli/sync/body_queue.py", "OfflineBodyUploadQueue"): ("offline body queue constructor/enqueue/result public entries"),
 }
@@ -666,10 +668,6 @@ specify_cli/delivery/retention.py::_purge_all_body_rows::sqlite_connect
 specify_cli/delivery/retention.py::_purge_journal_rows::commit
 specify_cli/delivery/retention.py::_purge_journal_rows::sqlite_connect
 specify_cli/delivery/retention.py::_purge_ledger_rows::transaction_context
-specify_cli/delivery/targets.py::SqliteDeliveryTargetRegistry.__init__::commit
-specify_cli/delivery/targets.py::SqliteDeliveryTargetRegistry.__init__::sqlite_connect
-specify_cli/delivery/targets.py::SqliteDeliveryTargetRegistry._insert::commit
-specify_cli/delivery/targets.py::SqliteDeliveryTargetRegistry._update_provenance::commit
 specify_cli/event_journal/coalesce.py::_collapse_into::commit
 specify_cli/event_journal/coalesce.py::_connect::commit
 specify_cli/event_journal/coalesce.py::_connect::sqlite_connect
@@ -753,8 +751,6 @@ specify_cli/sync/queue.py::detect_legacy_rows_for_scope::sqlite_connect
 
 _KNOWN_LIVE_FLOOR = frozenset(
     {
-        "specify_cli/delivery/targets.py::SqliteDeliveryTargetRegistry.__init__::sqlite_connect",
-        "specify_cli/delivery/targets.py::SqliteDeliveryTargetRegistry._insert::commit",
         "specify_cli/delivery/dispatcher.py::_record::transaction_context",
     }
 )
