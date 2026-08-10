@@ -15,9 +15,9 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 
 import json
 from collections.abc import Iterable, Mapping
-from datetime import datetime, UTC
 from pathlib import Path
 
+from kernel.clock import now_utc
 from specify_cli.core.paths import assert_safe_path_segment
 from .hasher import compute_dossier_snapshot_hash
 from .models import MissionDossier, MissionDossierSnapshot
@@ -147,7 +147,7 @@ def compute_snapshot(dossier: MissionDossier) -> MissionDossierSnapshot:
             }
             for a in sorted_artifacts
         ],
-        computed_at=datetime.now(UTC),
+        computed_at=now_utc(),
     )
 
 

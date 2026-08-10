@@ -5,12 +5,12 @@ from __future__ import annotations
 import json
 import sys
 from types import SimpleNamespace
-from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
+from kernel.clock import now_utc, timedelta
 from specify_cli.runtime.doctor import DoctorCheck
 from specify_cli.status.doctor import (
     Category,
@@ -397,7 +397,7 @@ class TestCheckStaleClaims:
 
     def test_stale_claimed_detected(self, tmp_path: Path):
         """WP in claimed for 10 days with threshold 7 -> finding."""
-        ten_days_ago = (datetime.now(UTC) - timedelta(days=10)).isoformat()
+        ten_days_ago = (now_utc() - timedelta(days=10)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -417,7 +417,7 @@ class TestCheckStaleClaims:
 
     def test_stale_in_progress_detected(self, tmp_path: Path):
         """WP in in_progress for 20 days with threshold 14 -> finding."""
-        twenty_days_ago = (datetime.now(UTC) - timedelta(days=20)).isoformat()
+        twenty_days_ago = (now_utc() - timedelta(days=20)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP02": {
@@ -435,7 +435,7 @@ class TestCheckStaleClaims:
 
     def test_no_stale_within_threshold(self, tmp_path: Path):
         """WP in claimed for 3 days with threshold 7 -> no finding."""
-        three_days_ago = (datetime.now(UTC) - timedelta(days=3)).isoformat()
+        three_days_ago = (now_utc() - timedelta(days=3)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -450,7 +450,7 @@ class TestCheckStaleClaims:
 
     def test_done_not_stale(self, tmp_path: Path):
         """WP in done for 100 days -> no finding (terminal state)."""
-        hundred_days_ago = (datetime.now(UTC) - timedelta(days=100)).isoformat()
+        hundred_days_ago = (now_utc() - timedelta(days=100)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -465,7 +465,7 @@ class TestCheckStaleClaims:
 
     def test_canceled_not_stale(self, tmp_path: Path):
         """WP in canceled for 100 days -> no finding (terminal state)."""
-        hundred_days_ago = (datetime.now(UTC) - timedelta(days=100)).isoformat()
+        hundred_days_ago = (now_utc() - timedelta(days=100)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -480,7 +480,7 @@ class TestCheckStaleClaims:
 
     def test_blocked_not_stale(self, tmp_path: Path):
         """WP in blocked for 30 days -> no finding (blocking is intentional)."""
-        thirty_days_ago = (datetime.now(UTC) - timedelta(days=30)).isoformat()
+        thirty_days_ago = (now_utc() - timedelta(days=30)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -495,7 +495,7 @@ class TestCheckStaleClaims:
 
     def test_for_review_not_stale(self, tmp_path: Path):
         """WP in for_review for 30 days -> no finding."""
-        thirty_days_ago = (datetime.now(UTC) - timedelta(days=30)).isoformat()
+        thirty_days_ago = (now_utc() - timedelta(days=30)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -510,7 +510,7 @@ class TestCheckStaleClaims:
 
     def test_custom_thresholds(self, tmp_path: Path):
         """Custom thresholds are respected."""
-        two_days_ago = (datetime.now(UTC) - timedelta(days=2)).isoformat()
+        two_days_ago = (now_utc() - timedelta(days=2)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -563,7 +563,7 @@ class TestCheckStaleClaims:
 
     def test_multiple_stale_wps(self, tmp_path: Path):
         """Multiple stale WPs produce multiple findings."""
-        old = (datetime.now(UTC) - timedelta(days=15)).isoformat()
+        old = (now_utc() - timedelta(days=15)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -595,7 +595,7 @@ class TestCheckStaleClaims:
 
     def test_actor_unknown_when_missing(self, tmp_path: Path):
         """Actor defaults to 'unknown' in message when not in snapshot."""
-        old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
+        old = (now_utc() - timedelta(days=10)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -847,7 +847,7 @@ class TestRunDoctor:
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
-        recent = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
+        recent = (now_utc() - timedelta(hours=1)).isoformat()
         status_data = {
             "mission_slug": "034-test",
             "materialized_at": recent,
@@ -908,7 +908,7 @@ class TestRunDoctor:
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
-        old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
+        old = (now_utc() - timedelta(days=10)).isoformat()
         status_data = {
             "mission_slug": "034-test",
             "materialized_at": old,
@@ -1000,7 +1000,7 @@ class TestRunDoctor:
         worktrees_dir.mkdir()
         (worktrees_dir / "034-other-lane-a").mkdir()
 
-        old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
+        old = (now_utc() - timedelta(days=10)).isoformat()
         status_data = {
             "mission_slug": "034-test",
             "materialized_at": old,
@@ -1058,7 +1058,7 @@ class TestRunDoctor:
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
-        old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
+        old = (now_utc() - timedelta(days=10)).isoformat()
         event = {
             "event_id": "01HXYZ0123456789ABCDEFGHJK",
             "mission_slug": "034-test",
@@ -1105,7 +1105,7 @@ class TestDoctorCLI:
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
-        recent = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
+        recent = (now_utc() - timedelta(hours=1)).isoformat()
         status_data = {
             "mission_slug": "034-test",
             "materialized_at": recent,
@@ -1183,7 +1183,7 @@ class TestDoctorCLI:
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
-        old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
+        old = (now_utc() - timedelta(days=10)).isoformat()
         status_data = {
             "mission_slug": "034-test",
             "materialized_at": old,
@@ -1229,7 +1229,7 @@ class TestDoctorCLI:
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
-        old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
+        old = (now_utc() - timedelta(days=10)).isoformat()
         status_data = {
             "mission_slug": "034-test",
             "materialized_at": old,
@@ -1336,7 +1336,7 @@ class TestDoctorCLI:
         feature_dir.mkdir(parents=True)
 
         # 2 days ago - below default 7-day threshold but above custom 1-day
-        two_days_ago = (datetime.now(UTC) - timedelta(days=2)).isoformat()
+        two_days_ago = (now_utc() - timedelta(days=2)).isoformat()
         status_data = {
             "mission_slug": "034-test",
             "materialized_at": two_days_ago,

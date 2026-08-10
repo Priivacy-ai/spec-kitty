@@ -25,13 +25,12 @@ import sqlite3
 import sys
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 import toml
 
-from kernel.clock import now_utc_iso
+from kernel.clock import from_epoch, now_epoch, now_utc, now_utc_iso, timedelta
 from specify_cli.paths import get_runtime_root
 
 if TYPE_CHECKING:  # pragma: no cover - typing-only; avoids the queue<->authority cycle
@@ -1316,7 +1315,7 @@ class OfflineQueue:
                         str(event["event_id"]),
                         str(event["event_type"]),
                         json.dumps(event),
-                        int(datetime.now().timestamp()),
+                        int(now_epoch()),
                         c_key,
                     ),
                 )
@@ -1328,7 +1327,7 @@ class OfflineQueue:
                         (
                             str(event["event_type"]),
                             json.dumps(event),
-                            int(datetime.now().timestamp()),
+                            int(now_epoch()),
                             c_key,
                             str(event["event_id"]),
                         ),
@@ -1490,7 +1489,7 @@ class OfflineQueue:
                         str(event["event_id"]),
                         str(event["event_type"]),
                         json.dumps(event),
-                        int(datetime.now().timestamp()),
+                        int(now_epoch()),
                         c_key,
                     ),
                 )
@@ -1502,7 +1501,7 @@ class OfflineQueue:
                         (
                             str(event["event_type"]),
                             json.dumps(event),
-                            int(datetime.now().timestamp()),
+                            int(now_epoch()),
                             c_key,
                             str(event["event_id"]),
                         ),
@@ -1556,7 +1555,7 @@ class OfflineQueue:
                 (
                     str(event["event_id"]),
                     json.dumps(event),
-                    int(datetime.now().timestamp()),
+                    int(now_epoch()),
                     existing_id,
                 ),
             )
@@ -1874,8 +1873,8 @@ class OfflineQueue:
             oldest_ts = oldest_ts_row[0] if oldest_ts_row is not None else None
             oldest_event_age: timedelta | None = None
             if oldest_ts is not None:
-                oldest_dt = datetime.fromtimestamp(int(oldest_ts), tz=UTC)
-                now_dt = datetime.now(tz=UTC)
+                oldest_dt = from_epoch(int(oldest_ts))
+                now_dt = now_utc()
                 oldest_event_age = now_dt - oldest_dt
 
             # Retry distribution buckets

@@ -259,7 +259,7 @@ class TestLifecycleMetaLoadContract:
         No ``created_at`` key in the empty dict, so the function falls through to
         ``feature_dir.stat().st_mtime`` and returns a datetime.
         """
-        from datetime import datetime
+        from kernel.clock import datetime
 
         feature_dir = tmp_path / "kitty-specs" / "099-wp09-lifecycle-contract"
         feature_dir.mkdir(parents=True)

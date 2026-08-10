@@ -36,6 +36,8 @@ from typing import Any
 
 import pytest
 
+from kernel.clock import now_epoch, now_utc
+
 pytestmark = [pytest.mark.integration]
 
 from rich.console import Console
@@ -252,7 +254,6 @@ def test_run_preflight_is_read_only_on_default_path(
       ``legacy_rows_for_scope``.
     """
     import sqlite3
-    import time
 
     # Cross-platform home isolation per C-008. Set HOME early so all
     # ``Path.home()``-relative helpers (credentials, legacy DB, scoped
@@ -295,7 +296,7 @@ def test_run_preflight_is_read_only_on_default_path(
         )
         conn.execute(
             "INSERT INTO queue (event_id, event_type, data, timestamp) VALUES (?,?,?,?)",
-            ("evt-legacy-1", "test_event", "{}", int(time.time())),
+            ("evt-legacy-1", "test_event", "{}", int(now_epoch())),
         )
         conn.commit()
     finally:
@@ -731,7 +732,6 @@ def test_run_preflight_never_calls_rehydrate_membership(
     from specify_cli.auth import session as session_mod
     from specify_cli.auth.session import StoredSession, Team
     from specify_cli.auth.token_manager import TokenManager
-    from datetime import datetime, UTC
 
     # Build a session whose teams list has NO Private Teamspace. The legacy
     # ``read_queue_scope_from_session`` path would call
@@ -743,7 +743,7 @@ def test_run_preflight_never_calls_rehydrate_membership(
         role="member",
         is_private_teamspace=False,
     )
-    now = datetime.now(UTC)
+    now = now_utc()
     session = StoredSession(
         user_id="u-1",
         email="tester@example.com",

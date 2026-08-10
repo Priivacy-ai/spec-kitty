@@ -8,12 +8,13 @@ same SQLite DB file.
 from __future__ import annotations
 
 import sqlite3
-import time
 from collections.abc import Collection
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+from kernel.clock import now_epoch
 
 from .queue import (
     DEFAULT_MAX_QUEUE_SIZE,
@@ -163,7 +164,7 @@ class OfflineBodyUploadQueue:
                     hash_algorithm,
                     content_body,
                     size_bytes,
-                    time.time(),
+                    now_epoch(),
                 ),
             )
             conn.commit()
@@ -198,7 +199,7 @@ class OfflineBodyUploadQueue:
         the empty string is the only unattributable form a row can take.)
         """
         where = ["next_attempt_at <= ?"]
-        params: list[Any] = [time.time()]
+        params: list[Any] = [now_epoch()]
 
         denied_uuids = sorted({str(u).strip() for u in (exclude_project_uuids or ())})
         if denied_uuids:
@@ -281,7 +282,7 @@ class OfflineBodyUploadQueue:
                 return
             retry_count = int(row[0])
             backoff_seconds = min(_BACKOFF_BASE * (2 ** retry_count), _BACKOFF_CAP)
-            next_attempt = time.time() + backoff_seconds
+            next_attempt = now_epoch() + backoff_seconds
             conn.execute(
                 """UPDATE body_upload_queue
                    SET retry_count = retry_count + 1,
@@ -307,7 +308,7 @@ class OfflineBodyUploadQueue:
         """Persist a non-retryable failure record for later diagnosis."""
         conn = sqlite3.connect(self.db_path)
         try:
-            now = time.time()
+            now = now_epoch()
             conn.execute(
                 """
                 INSERT INTO body_upload_failure_log (
@@ -460,7 +461,7 @@ class OfflineBodyUploadQueue:
         """Compute diagnostic statistics about the queue."""
         conn = sqlite3.connect(self.db_path)
         try:
-            now = time.time()
+            now = now_epoch()
 
             row = conn.execute("SELECT COUNT(*) FROM body_upload_queue").fetchone()
             total_count = int(row[0]) if row else 0

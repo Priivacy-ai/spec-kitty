@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import logging
 import sqlite3
-import time
 from unittest.mock import patch
 
 import pytest
 
+from kernel.clock import now_epoch
 from specify_cli.sync.body_queue import (
     BodyEnqueueResult,
     BodyQueueStats,
@@ -172,12 +172,12 @@ class TestDrain:
 
         db = Path(str(tmp_path)) / "test.db"
         q = OfflineBodyUploadQueue(db_path=db)
-        with patch("specify_cli.sync.body_queue.time") as mock_time:
-            mock_time.time.return_value = 100.0
+        with patch("specify_cli.sync.body_queue.now_epoch") as mock_now_epoch:
+            mock_now_epoch.return_value = 100.0
             q.enqueue(_ns(), "a.md", "h1", "body-a", 6)
-            mock_time.time.return_value = 200.0
+            mock_now_epoch.return_value = 200.0
             q.enqueue(_ns(), "b.md", "h2", "body-b", 6)
-            mock_time.time.return_value = 300.0
+            mock_now_epoch.return_value = 300.0
             tasks = q.drain()
         assert len(tasks) == 2
         assert tasks[0].artifact_path == "a.md"
@@ -188,8 +188,8 @@ class TestDrain:
 
         db = Path(str(tmp_path)) / "test.db"
         q = OfflineBodyUploadQueue(db_path=db)
-        with patch("specify_cli.sync.body_queue.time") as mock_time:
-            mock_time.time.return_value = 100.0
+        with patch("specify_cli.sync.body_queue.now_epoch") as mock_now_epoch:
+            mock_now_epoch.return_value = 100.0
             q.enqueue(_ns(), "a.md", "h1", "body-a", 6)
             q.enqueue(_ns(), "b.md", "h2", "body-b", 6)
             tasks = q.drain()
@@ -206,7 +206,7 @@ class TestDrain:
         q.enqueue(_ns(), "a.md", "h1", "body", 4)
         # Set next_attempt_at far in the future
         conn = sqlite3.connect(db)
-        conn.execute("UPDATE body_upload_queue SET next_attempt_at = ?", (time.time() + 9999,))
+        conn.execute("UPDATE body_upload_queue SET next_attempt_at = ?", (now_epoch() + 9999,))
         conn.commit()
         conn.close()
         tasks = q.drain()
@@ -298,7 +298,7 @@ class TestMarkFailedRetryable:
         q = OfflineBodyUploadQueue(db_path=db)
         q.enqueue(_ns(), "spec.md", "h1", "body", 4)
         tasks = q.drain()
-        now = time.time()
+        now = now_epoch()
         q.mark_failed_retryable(tasks[0].row_id, "err")
         conn = sqlite3.connect(db)
         row = conn.execute("SELECT next_attempt_at FROM body_upload_queue WHERE id = ?", (tasks[0].row_id,)).fetchone()
@@ -340,7 +340,7 @@ class TestBackoffProgression:
 
         expected_delays = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 300.0]
         for i, expected in enumerate(expected_delays):
-            now = time.time()
+            now = now_epoch()
             # Make task eligible by setting next_attempt_at to past
             conn = sqlite3.connect(db)
             conn.execute("UPDATE body_upload_queue SET next_attempt_at = 0.0")
@@ -349,8 +349,8 @@ class TestBackoffProgression:
 
             tasks = q.drain()
             assert len(tasks) == 1, f"Iteration {i}: expected 1 task, got {len(tasks)}"
-            with patch("specify_cli.sync.body_queue.time") as mock_time:
-                mock_time.time.return_value = now
+            with patch("specify_cli.sync.body_queue.now_epoch") as mock_now_epoch:
+                mock_now_epoch.return_value = now
                 q.mark_failed_retryable(tasks[0].row_id, f"error {i}")
 
             conn = sqlite3.connect(db)
@@ -448,7 +448,7 @@ class TestStats:
         conn = sqlite3.connect(db)
         conn.execute(
             "UPDATE body_upload_queue SET next_attempt_at = ? WHERE artifact_path = 'b.md'",
-            (time.time() + 9999,),
+            (now_epoch() + 9999,),
         )
         conn.commit()
         conn.close()

@@ -17,10 +17,10 @@ Spec source: FR-019, FR-020, FR-021, FR-026, FR-033, C-013, C-016.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from kernel.clock import datetime
 from specify_cli.core.commit_guard import GuardCapability
 
 

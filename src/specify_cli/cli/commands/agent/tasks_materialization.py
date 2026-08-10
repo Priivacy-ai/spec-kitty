@@ -12,9 +12,8 @@ re-exports these names back for existing call sites).
 
 from __future__ import annotations
 
-from datetime import datetime, UTC
 from kernel._safe_re import re
-from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT
+from kernel.clock import now_utc_stamp
 from mission_runtime import MissionArtifactKind, placement_seam
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -78,7 +77,7 @@ def _persist_review_artifact_override(
     # kitty-specs feature_dir and its directory name is the mission slug.
     feature_dir = artifact_path.parents[2]
     mission_slug = feature_dir.name
-    timestamp = datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT)
+    timestamp = now_utc_stamp()
     override = ReviewOverride(at=timestamp, actor=actor, wp_id=wp_id, reason=reason)
     emit_inner_state_changed(
         feature_dir,

@@ -22,9 +22,9 @@ import hashlib
 import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime, UTC
 from pathlib import Path
 
+from kernel.clock import datetime, now_utc, parse_iso
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.dossier.events import emit_parity_drift_detected
 from specify_cli.dossier.models import MissionDossierSnapshot
@@ -162,7 +162,7 @@ class BaselineSnapshot:
             baseline_key=BaselineKey(**data["baseline_key"]),
             baseline_key_hash=data["baseline_key_hash"],
             parity_hash_sha256=data["parity_hash_sha256"],
-            captured_at=datetime.fromisoformat(data["captured_at"]),
+            captured_at=parse_iso(data["captured_at"]),
             captured_by=data["captured_by"],
         )
 
@@ -467,7 +467,7 @@ def capture_baseline(
         baseline_key=current_key,
         baseline_key_hash=current_key.compute_hash(),
         parity_hash_sha256=current_snapshot.parity_hash_sha256,
-        captured_at=datetime.now(UTC),
+        captured_at=now_utc(),
         captured_by=project_identity.node_id or "unknown",
     )
 

@@ -79,7 +79,7 @@ import re
 import subprocess
 import sys
 from collections.abc import Mapping
-from datetime import UTC, datetime, timedelta
+from kernel.clock import now_utc, timedelta
 
 import pytest
 
@@ -273,7 +273,7 @@ def _seed_shared_only_session(auth_dir: pathlib.Path) -> None:
 
     auth_dir.mkdir(parents=True, exist_ok=True)
 
-    now = datetime.now(UTC)
+    now = now_utc()
     session = StoredSession(
         user_id="test-user",
         email="test@example.com",

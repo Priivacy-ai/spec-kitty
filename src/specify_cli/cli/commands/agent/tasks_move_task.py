@@ -64,7 +64,7 @@ import traceback
 import warnings
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
-from datetime import UTC, datetime
+from kernel.clock import format_stamp, now_utc
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -744,7 +744,7 @@ def _mt_approval_facts(st: _MoveTaskState) -> tuple[str | None, str | None]:
     effective_approval_ref = (
         st.approval_ref
         or (user_note if user_note else None)
-        or f"auto-approval:{st.task_id}:{datetime.now(UTC).strftime('%Y%m%d')}"
+        or f"auto-approval:{st.task_id}:{format_stamp(now_utc(), '%Y%m%d')}"
     )
     return effective_reviewer, effective_approval_ref
 

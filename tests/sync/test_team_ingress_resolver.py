@@ -15,13 +15,13 @@ See:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, UTC
 from unittest.mock import MagicMock
 
 import httpx
 import pytest
 import respx
 
+from kernel.clock import now_utc, timedelta
 from specify_cli.auth.secure_storage import SecureStorage
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.auth.token_manager import TokenManager
@@ -60,7 +60,7 @@ class _IngressFakeStorage(SecureStorage):  # type: ignore[misc]
 
 def _build_ingress_session(*, teams: list[Team]) -> StoredSession:
     """Build a ``StoredSession`` with the supplied teams."""
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="user-1",
         email="u@example.com",

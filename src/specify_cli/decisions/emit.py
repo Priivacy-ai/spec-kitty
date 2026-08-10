@@ -26,12 +26,12 @@ from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind, placement_seam
 import json
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
 import ulid as _ulid_mod
 
+from kernel.clock import now_utc
 from specify_cli.decisions.models import IndexEntry
 from specify_cli.events import sanitize_event_for_log
 from spec_kitty_events.decisionpoint import (
@@ -59,11 +59,6 @@ _ACTOR_TYPE: Literal["human", "llm", "service"] = "human"  # default; override f
 def _generate_ulid() -> str:
     """Generate a new ULID string."""
     return str(_ulid_mod.ULID())
-
-
-def _now_utc() -> datetime:
-    """Return the current UTC datetime (timezone-aware)."""
-    return datetime.now(UTC)
 
 
 def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
@@ -139,7 +134,7 @@ def emit_decision_opened(
         - mission_type → ``"software-dev"``
         - step_id (wire) → ``entry.step_id or entry.slot_key``
     """
-    now = _now_utc()
+    now = now_utc()
     wire_step_id = entry.step_id if entry.step_id is not None else (entry.slot_key or "")
 
     payload = DecisionPointOpenedInterviewPayload(
@@ -204,7 +199,7 @@ def emit_decision_resolved(
         - closed_locally_while_widened → ``False``
         - closure_message → ``None``
     """
-    now = _now_utc()
+    now = now_utc()
     outcome = TerminalOutcome(entry.status.value)
     resolved_by = entry.resolved_by or actor
 

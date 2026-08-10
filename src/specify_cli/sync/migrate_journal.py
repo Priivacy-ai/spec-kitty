@@ -53,11 +53,10 @@ import logging
 import re
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from kernel.clock import now_utc_iso
+from kernel.clock import from_epoch, now_utc_iso
 from specify_cli.event_journal import Event, EventJournal, JournalTransaction
 
 if TYPE_CHECKING:  # pragma: no cover - typing-only (avoid the queue<->authority cycle)
@@ -464,7 +463,7 @@ def _row_to_queued(row: tuple[Any, ...], has_coalesce: bool) -> _QueuedRow:
 def _build_event(row: _QueuedRow, payload: bytes) -> Event:
     """Build a journal :class:`Event`, carrying ``event_id`` verbatim (C-005)."""
     when = (
-        datetime.fromtimestamp(row.timestamp, tz=UTC).isoformat()
+        from_epoch(row.timestamp).isoformat()
         if row.timestamp is not None
         else now_utc_iso()
     )

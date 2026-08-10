@@ -6,7 +6,7 @@ the full cross-check pipeline from file I/O through to structured findings.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from kernel.clock import UTC, datetime, timedelta
 from pathlib import Path
 
 from specify_cli.decisions.models import (

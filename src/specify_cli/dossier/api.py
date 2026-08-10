@@ -14,11 +14,11 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/tasks/WP06-ap
 from __future__ import annotations
 
 from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 from pydantic import BaseModel, Field
 
+from kernel.clock import datetime, parse_iso
 from .models import ArtifactRef, MissionDossier
 from .snapshot import load_snapshot
 
@@ -444,9 +444,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
             # Parse indexed_at if it's a string (from JSON)
             indexed_at = summary.get("indexed_at")
             if isinstance(indexed_at, str):
-                from datetime import datetime
-
-                indexed_at = datetime.fromisoformat(indexed_at)
+                indexed_at = parse_iso(indexed_at)
 
             artifact = ArtifactRef(
                 artifact_key=summary.get("artifact_key", ""),

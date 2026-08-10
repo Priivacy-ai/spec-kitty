@@ -20,10 +20,10 @@ frontmatter values are used unchanged.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any
 
+from kernel.clock import UTC, datetime, now_utc, parse_iso
 from specify_cli.core.process_liveness import is_claiming_process_alive, is_process_alive
 from specify_cli.frontmatter import SHELL_PID_BASELINE_FIELD
 from specify_cli.status import wp_snapshot_state as _wp_snapshot_state
@@ -219,7 +219,7 @@ def get_last_meaningful_commit_time(worktree_path: Path) -> tuple[datetime | Non
 
         # Parse ISO format timestamp
         timestamp_str = result.stdout.strip()
-        return datetime.fromisoformat(timestamp_str), True
+        return parse_iso(timestamp_str), True
 
     except subprocess.TimeoutExpired:
         return None, False
@@ -398,7 +398,7 @@ def check_wp_staleness(
                 error=None if not has_own_commits else "Could not determine last commit time",
             )
 
-        now = datetime.now(UTC)
+        now = now_utc()
         # Ensure last_commit is timezone-aware
         if last_commit.tzinfo is None:
             last_commit = last_commit.replace(tzinfo=UTC)

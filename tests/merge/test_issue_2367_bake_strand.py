@@ -83,7 +83,7 @@ from __future__ import annotations
 import contextlib
 import json
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 from typing import cast
 from unittest.mock import patch
@@ -178,7 +178,7 @@ def _write_manifest(feature_dir: Path) -> None:
                 parallel_group=0,
             )
         ],
-        computed_at=datetime.now(UTC).isoformat(),
+        computed_at=now_utc_iso(),
         computed_from="test-fixture",
     )
     write_lanes_json(feature_dir, manifest)
@@ -203,7 +203,7 @@ def _write_wp_file(feature_dir: Path, wp_id: str) -> None:
 def _approved_event(wp_id: str, event_id: str) -> dict[str, object]:
     return {
         "actor": "reviewer-renata",
-        "at": datetime.now(UTC).isoformat(),
+        "at": now_utc_iso(),
         "event_id": event_id,
         "evidence": None,
         "execution_mode": "worktree",

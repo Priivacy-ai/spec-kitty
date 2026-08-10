@@ -59,7 +59,7 @@ import contextlib
 import json
 import subprocess
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 from typing import cast
 from unittest.mock import MagicMock, patch
@@ -184,7 +184,7 @@ def _write_manifest(feature_dir: Path) -> LanesManifest:
                 parallel_group=0,
             )
         ],
-        computed_at=datetime.now(UTC).isoformat(),
+        computed_at=now_utc_iso(),
         computed_from="test-fixture",
     )
     write_lanes_json(feature_dir, manifest)
@@ -210,7 +210,7 @@ def _write_wp_file(feature_dir: Path) -> None:
 def _approved_event() -> dict[str, object]:
     return {
         "actor": "reviewer-renata",
-        "at": datetime.now(UTC).isoformat(),
+        "at": now_utc_iso(),
         "event_id": "01HXYZAPPR000000000000002711",
         "evidence": None,
         "execution_mode": "worktree",

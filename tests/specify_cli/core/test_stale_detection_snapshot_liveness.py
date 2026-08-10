@@ -32,11 +32,11 @@ from __future__ import annotations
 
 import os
 import subprocess
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
+from kernel.clock import now_utc, timedelta
 from specify_cli.core.stale_detection import LIVE_CLAIM_PROCESS_REASON, check_wp_staleness
 from specify_cli.status.emit import (
     build_claim_policy_metadata,
@@ -75,7 +75,7 @@ def _make_old_commit(repo: Path, branch: str = "kitty/mission-feature-lane-a") -
     (repo / "feature.txt").write_text("Old work")
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
 
-    old_timestamp = str(int((datetime.now(UTC) - timedelta(hours=12)).timestamp()))
+    old_timestamp = str(int((now_utc() - timedelta(hours=12)).timestamp()))
     env = os.environ.copy()
     env["GIT_AUTHOR_DATE"] = f"@{old_timestamp}"
     env["GIT_COMMITTER_DATE"] = f"@{old_timestamp}"

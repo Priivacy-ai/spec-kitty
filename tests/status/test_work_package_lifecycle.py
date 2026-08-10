@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
+from kernel.clock import now_utc_iso
 from specify_cli.dashboard.scanner import _KANBAN_COLUMN_FOR_LANE
 from specify_cli.status.models import Lane, StatusEvent, WPInnerStateDelta
 from specify_cli.status.reducer import materialize_snapshot, reduce
@@ -281,7 +281,7 @@ def test_real_implement_and_review_claims_persist_structured_latest_binding(
             # ``start_review_status`` call. Anchoring to real "now" removes
             # the wall-clock time bomb while preserving the test's intent
             # (a later, real transition into for_review).
-            at=datetime.now(UTC).isoformat(),
+            at=now_utc_iso(),
         ),
     )
     review_actor = {
