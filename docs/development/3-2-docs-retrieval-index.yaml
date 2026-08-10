@@ -2628,6 +2628,33 @@ pages:
     - {slug: "references", text: "References", level: 2}
     - {slug: "addendum-2026-08-05-3210-resolver-shape-sharpened-after-the-post-plan-review", text: "Addendum (2026-08-05) — #3210 resolver shape sharpened after the post-plan review", level: 2}
     - {slug: "addendum-2026-08-07-dr-1-silent-parity-behaviour-superseded-misconfigured-spec-kitty-packs-root-now-warns-loudly", text: "Addendum (2026-08-07) — DR-1 silent-parity behaviour superseded: misconfigured `SPEC_KITTY_PACKS_ROOT` now warns loudly", level: 2}
+  - path: "docs/adr/3.x/2026-08-09-1-project-sync-store-boundary.md"
+    title: "ADR: One Project UUID Owns One Sync Store and One Consent Decision"
+    divio_type: "none"
+    abstract: "Hosted-sync state is isolated by project UUID behind one ProjectSyncStore unit of work; ambient checkout, identity, target, or environment cannot select another project."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "1-one-uuid-owns-one-sync-db", text: "1. One UUID owns one `sync.db`", level: 3}
+    - {slug: "2-projectsyncstore-is-the-unit-of-work-boundary", text: "2. `ProjectSyncStore` is the unit-of-work boundary", level: 3}
+    - {slug: "3-consent-is-a-project-store-decision-not-ambient-state", text: "3. Consent is a project-store decision, not ambient state", level: 3}
+    - {slug: "4-the-3030-egress-boundary-is-preserved-and-strengthened", text: "4. The #3030 egress boundary is preserved and strengthened", level: 3}
+    - {slug: "5-shared-live-stores-are-retired-by-copy-verify-and-cutover", text: "5. Shared live stores are retired by copy, verify, and cutover", level: 3}
+    - {slug: "6-historical-inspection-is-an-explicit-capability", text: "6. Historical inspection is an explicit capability", level: 3}
+    - {slug: "supersession-and-relationship-to-3030", text: "Supersession and Relationship to #3030", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative-and-operational-cost", text: "Negative and operational cost", level: 3}
+    - {slug: "risks-retained-deliberately", text: "Risks retained deliberately", level: 3}
+    - {slug: "rejected-alternatives", text: "Rejected Alternatives", level: 2}
+    - {slug: "keep-shared-databases-and-add-more-uuid-predicates", text: "Keep shared databases and add more UUID predicates", level: 3}
+    - {slug: "partition-by-slug-repository-path-checkout-path-login-team-or-target", text: "Partition by slug, repository path, checkout path, login, team, or target", level: 3}
+    - {slug: "make-the-machine-global-environment-flag-a-grant", text: "Make the machine-global environment flag a grant", level: 3}
+    - {slug: "use-a-shared-database-with-one-connection-manager", text: "Use a shared database with one connection manager", level: 3}
+    - {slug: "dual-read-old-and-new-stores-during-a-compatibility-window", text: "Dual-read old and new stores during a compatibility window", level: 3}
+    - {slug: "scope-exclusions", text: "Scope Exclusions", level: 2}
+    - {slug: "verification-and-enforcement", text: "Verification and Enforcement", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x Architectural Decision Records"
     divio_type: "none"
