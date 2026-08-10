@@ -255,9 +255,35 @@ class TestModuleShape:
             text=True,
             timeout=60,
         )
-        assert "IMPORTED_OK" in result.stdout, (
-            f"module import failed without specify_cli.sync -- stdout={result.stdout!r} "
-            f"stderr={result.stderr!r}"
+        if "IMPORTED_OK" in result.stdout:
+            return
+
+        # The probe failed -- but distinguish a real ``specify_cli.sync`` import-edge
+        # regression from an interpreter that simply has no editable install on its path
+        # (#3291). Under ``uv run``, ``sys.executable`` can resolve to a bare pyenv
+        # interpreter that lacks the package entirely, so the probe dies on
+        # ``ModuleNotFoundError: specify_cli`` (the whole package) without ever reaching
+        # the ``specify_cli.sync`` edge under test. Positive control: the SAME interpreter
+        # importing the module with NO blocker. If even that cannot import the package,
+        # the probe was never meaningful here -- skip rather than report a false red.
+        control = subprocess.run(
+            [sys.executable, "-c", "import specify_cli.tracker.egress_verdict; print('CONTROL_OK')"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if "CONTROL_OK" not in control.stdout:
+            pytest.skip(
+                f"interpreter {sys.executable!r} cannot import specify_cli even without the "
+                f"sync blocker (no editable install on its path) -- the import-isolation probe "
+                f"is not meaningful here; control stderr={control.stderr!r}"
+            )
+        # The package imports fine WITHOUT the blocker but fails WITH it: a genuine
+        # import-time dependency on ``specify_cli.sync`` (the exact regression this guards).
+        pytest.fail(
+            f"module import failed with specify_cli.sync blocked yet imports fine without it "
+            f"-- a real import-time dependency on specify_cli.sync. "
+            f"stdout={result.stdout!r} stderr={result.stderr!r}"
         )
 
     def test_no_module_level_import_of_specify_cli_sync_by_source_inspection(self) -> None:
