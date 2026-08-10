@@ -4,7 +4,7 @@ description: 'Executive/stakeholder synthesis of 3.2.x goals and progress since 
 doc_status: active
 updated: '2026-07-30'
 related:
-- docs/release-goals/3.2.x.md
+- docs/changelog/3.2.x.md
 - docs/plans/3-2-x-milestone-roadmap.md
 - docs/plans/3-2-x-open-core-delivery-plan.md
 - docs/changelog/index.md

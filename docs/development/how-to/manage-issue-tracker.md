@@ -7,7 +7,7 @@ audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
 - docs/development/contributing.md
-- docs/guides/keep-main-clean.md
+- docs/guides/how-to/missions/keep-main-clean.md
 - docs/development/how-to/pr-landing.md
 - docs/development/reference/red-main-and-release-readiness.md
 - docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md

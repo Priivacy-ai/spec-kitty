@@ -7,9 +7,9 @@ type: explanation
 related:
 - docs/guides/tutorials/index.md
 - docs/guides/how-to/index.md
-- docs/core-concepts/index.md
+- docs/context/index.md
 - docs/development/index.md
-- docs/reference/index.md
+- docs/api/index.md
 ---
 
 # Guides

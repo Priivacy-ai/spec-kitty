@@ -5,7 +5,7 @@ doc_status: proposal
 updated: '2026-07-16'
 related:
 - docs/adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md
-- docs/status-model.md
+- docs/architecture/status-model.md
 - docs/architecture/execution-lanes.md
 - docs/architecture/runtime-loop.md
 ---

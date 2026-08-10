@@ -6,10 +6,10 @@ updated: '2026-08-10'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
-- docs/doctrine/doctrine-kinds.md
-- docs/doctrine/index.md
-- docs/guides/synthesize-doctrine.md
-- docs/guides/setup-governance.md
+- docs/architecture/doctrine-kinds.md
+- docs/context/doctrine.md
+- docs/guides/how-to/governance/synthesize-doctrine.md
+- docs/guides/how-to/governance/setup-governance.md
 - docs/development/how-to/review-gates.md
 ---
 # Create a doctrine artifact

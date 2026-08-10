@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-07-21'
 related:
   - docs/api/agent_profiles/index.md
-  - docs/doctrine/index.md
+  - docs/context/doctrine.md
 ---
 
 # Implementer Ivan — Agent Profile

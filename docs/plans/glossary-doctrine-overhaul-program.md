@@ -6,7 +6,7 @@ updated: '2026-07-21'
 related:
 - docs/plans/index.md
 - docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
-- docs/doctrine/doctrine-kinds.md
+- docs/architecture/doctrine-kinds.md
 ---
 
 # Glossary Doctrine Overhaul — Program Plan

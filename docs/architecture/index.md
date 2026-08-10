@@ -4,8 +4,8 @@ description: 'Page index for docs/architecture/: living C4 model and vision, per
 doc_status: active
 updated: '2026-07-22'
 related:
-- docs/adr/3.x/adr-connector-auth-binding-separation.md
-- docs/adr/3.x/adr-github-app-installation-authority.md
+- docs/adr/3.x/2026-04-06-2-connector-auth-binding-separation.md
+- docs/adr/3.x/2026-04-06-3-github-app-installation-authority.md
 - docs/architecture/README.md
 - docs/architecture/feature-detection.md
 - docs/architecture/gap-analysis-connector-installation-model.md

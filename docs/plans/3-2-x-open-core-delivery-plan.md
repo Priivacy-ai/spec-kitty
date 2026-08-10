@@ -6,8 +6,8 @@ updated: '2026-08-04'
 related:
 - docs/plans/3-2-x-approach.md
 - docs/plans/3-2-x-milestone-roadmap.md
-- docs/release-goals/3.2.x.md
-- docs/development/manage-issue-tracker.md
+- docs/changelog/3.2.x.md
+- docs/development/how-to/manage-issue-tracker.md
 - docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
 ---
 

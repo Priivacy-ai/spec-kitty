@@ -6,10 +6,10 @@ updated: '2026-07-20'
 type: explanation
 audience: docs/context/audience/internal/lead-developer.md
 related:
-- docs/development/create-a-doctrine-artifact.md
+- docs/development/how-to/create-a-doctrine-artifact.md
 - docs/context/doctrine.md
 - docs/architecture/org-doctrine-layer.md
-- docs/guides/setup-governance.md
+- docs/guides/how-to/governance/setup-governance.md
 ---
 # Doctrine artifact kinds
 

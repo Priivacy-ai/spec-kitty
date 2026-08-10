@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-07-22'
 type: how-to
 related:
-- docs/guides/upgrade-cli.md
+- docs/guides/how-to/installation/upgrade-cli.md
 audience: internal / pre-launch operators
 ---
 # Internal Hosted-Readiness Mode (Pre-Launch)

@@ -6,9 +6,9 @@ updated: '2026-08-02'
 related:
 - docs/context/charter-overview.md
 - docs/context/governance-files.md
-- docs/guides/setup-governance.md
+- docs/guides/how-to/governance/setup-governance.md
 - docs/api/charter-commands.md
-- docs/reference/agent_profiles/generic-agent.md
+- docs/api/agent_profiles/generic-agent.md
 ---
 # Charter Pack Usage Journey: Apply, Generate, and the Dispatch Safety Net
 

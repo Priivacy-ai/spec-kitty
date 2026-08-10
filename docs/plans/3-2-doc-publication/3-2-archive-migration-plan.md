@@ -4,7 +4,7 @@ description: 'Archive and migration plan for the Spec Kitty 3.2 docs mission (WP
 doc_status: draft
 updated: '2026-06-27'
 related:
-- docs/archive/2x/index.md
+- docs/changelog/2x/index.md
 - docs/migrations/from-charter-2x.md
 ---
 # Spec Kitty 3.2 — Archive & Migration Plan

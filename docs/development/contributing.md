@@ -10,7 +10,7 @@ related:
 - docs/development/how-to/review-gates.md
 - docs/development/how-to/pr-landing.md
 - docs/development/testing/testing-parallel.md
-- docs/guides/diagnose-installation.md
+- docs/guides/how-to/installation/diagnose-installation.md
 ---
 
 # Contributing to Spec Kitty

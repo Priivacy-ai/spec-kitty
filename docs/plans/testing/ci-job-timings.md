@@ -4,7 +4,7 @@ description: Committed E4 timings artifact for the CI test-topology performance 
 doc_status: active
 updated: '2026-07-12'
 related:
-- docs/development/testing-parallel.md
+- docs/development/testing/testing-parallel.md
 - docs/plans/testing/test-suite-acceleration-plan.md
 - kitty-specs/ci-test-topology-performance-01KXBJRT/data-model.md
 - kitty-specs/ci-test-topology-performance-01KXBJRT/spec.md

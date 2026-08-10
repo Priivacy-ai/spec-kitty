@@ -8,7 +8,7 @@ related:
 - docs/plans/index.md
 - docs/plans/testing/qa-tidy-first-sequencing.md
 - docs/plans/doctrine/manifesto-program-delivery-sequence.md
-- docs/release-goals/index.md
+- docs/changelog/release-goals.md
 ---
 # 3.2.x Milestone — Roadmap
 
