@@ -377,6 +377,12 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   gate blocks any new raw `datetime.now()` / `time.time()` read from
   reintroducing the drift — but the change you can observe is simply: the
   timestamps are right now.
+- **`spec-kitty doctor auth --fix` now surfaces a genuine filesystem error while
+  force-releasing a stale lock instead of silently reporting "nothing removed"
+  (mission `sonar-bug-blocker-remediation`).** `force_release` swallowed a real
+  I/O error (e.g. a full or failing disk) as an ordinary "could not release",
+  masking the actual problem; it now lets genuine errors propagate while true
+  lock contention still returns cleanly, matching the rest of the locking layer.
 - **Activating a slug-named hub directive (e.g. `use-c4-model-techniques`) in a
   charter now resolves to the real doctrine node instead of a dangling
   identifier (`#3009`, `#3298`).** The directive-id normalizer folded numbered
