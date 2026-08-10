@@ -16,7 +16,7 @@ from __future__ import annotations
 from itertools import combinations
 
 from specify_cli.core.dependency_graph import topological_sort
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.lanes.branch_naming import mission_branch_name
 from specify_cli.lanes.models import CollapseEvent, CollapseReport, ExecutionLane, LanesManifest
 from specify_cli.ownership.models import ExecutionMode, OwnershipManifest

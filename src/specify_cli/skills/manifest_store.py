@@ -43,7 +43,7 @@ from typing import Any
 
 import jsonschema
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 from .manifest_errors import ManifestError
 

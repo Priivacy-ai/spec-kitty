@@ -30,7 +30,7 @@ from typing import Any
 from spec_kitty_events.lifecycle import MissionCreatedPayload
 
 from specify_cli.core.payload_shaping import apply_keep_none_fields
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 # ``mission_number`` is wire-required (FR-024) yet logically nullable for
 # pre-merge missions; its explicit ``null`` must survive to the wire.

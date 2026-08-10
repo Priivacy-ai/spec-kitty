@@ -39,7 +39,7 @@ from .diagnostics import (
     classify_sync_error,
     emit_sync_diagnostic,
 )
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 
 # ---------------------------------------------------------------------------

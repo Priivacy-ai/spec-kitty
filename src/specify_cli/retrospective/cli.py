@@ -13,7 +13,7 @@ Source-of-truth:
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 import json
 import sys
 from datetime import date

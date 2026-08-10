@@ -20,7 +20,7 @@ from __future__ import annotations
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.git_ops import resolve_primary_branch
 from specify_cli.core.paths import read_target_branch_from_meta
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.lanes.branch_naming import resolve_mid8
 import contextlib
 import json

@@ -52,7 +52,7 @@ from specify_cli.coordination.surface_resolver import (
     resolve_status_surface,
 )
 from specify_cli.core.git_ops import has_remote, run_command
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.core.paths import get_main_repo_root
 from specify_cli.git.bookkeeping_commit import (
     commit_coord_seed_bookkeeping,

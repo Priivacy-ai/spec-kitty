@@ -69,7 +69,7 @@ def _frozen_mint(monkeypatch: pytest.MonkeyPatch) -> None:
     pins those fields).
 
     The ``created_at`` stamp routes through the canonical
-    :func:`specify_cli.core.time_utils.now_utc_iso` helper (#2496), imported
+    :func:`kernel.clock.now_utc_iso` helper (#2496), imported
     into ``mission_creation`` as a module-level name. Freezing that name is the
     supported seam; there is deliberately no module-local ``datetime`` copy
     left to patch.

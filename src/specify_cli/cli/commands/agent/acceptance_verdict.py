@@ -56,7 +56,7 @@ from specify_cli.acceptance.matrix import (
 from specify_cli.agent_tasks_ports import RealRender
 from specify_cli.cli.console import console
 from specify_cli.cli.selector_resolution import resolve_mission_handle
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.task_utils import TaskCliError, find_repo_root
 
 if TYPE_CHECKING:

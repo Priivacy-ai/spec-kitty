@@ -44,7 +44,7 @@ from pathlib import Path
 from typing import Any
 from collections.abc import Iterable, Mapping
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.workspace.root_resolver import WorkspaceRootNotFound, resolve_canonical_root
 
 from .models import Lane as _Lane

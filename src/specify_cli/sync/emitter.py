@@ -39,7 +39,7 @@ from rich.console import Console
 
 from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.core.payload_shaping import apply_keep_none_fields
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.event_journal import (
     CaptureGateState,
     capture_teamspace_bound,

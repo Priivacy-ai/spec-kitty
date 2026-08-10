@@ -50,7 +50,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 from .journal import CoalesceDecision, register_coalesce_strategy
 from .models import (

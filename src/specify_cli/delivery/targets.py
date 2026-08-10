@@ -44,7 +44,7 @@ from dataclasses import replace
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit, urlunsplit
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.delivery.interfaces import (
     DeliveryTarget,
     DeploymentMetadata,

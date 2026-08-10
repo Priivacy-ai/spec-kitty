@@ -22,7 +22,7 @@ from specify_cli.core import (
     AI_CHOICES,
 )
 from specify_cli.core.env import is_interactive
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.core.utils import safe_is_dir
 from specify_cli.core.vcs import (
     is_git_available,

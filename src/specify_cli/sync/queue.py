@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 import toml
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.paths import get_runtime_root
 
 if TYPE_CHECKING:  # pragma: no cover - typing-only; avoids the queue<->authority cycle

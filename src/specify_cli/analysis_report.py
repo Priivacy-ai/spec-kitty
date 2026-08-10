@@ -22,7 +22,7 @@ from charter.resolution import (
 # the charter-lint pipeline; the structured findings carrier validates against it.
 from specify_cli.charter_runtime.lint.findings import SEVERITY_ORDER
 from specify_cli.core.atomic import atomic_write
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.frontmatter import FrontmatterError, FrontmatterManager
 from specify_cli.mission_metadata import resolve_mission_identity
 

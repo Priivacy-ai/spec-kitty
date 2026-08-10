@@ -26,7 +26,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.review.artifacts import ReviewCycleArtifact, _review_cycle_filename
 from specify_cli.review.cycle import _review_cycle_wp_dir
 

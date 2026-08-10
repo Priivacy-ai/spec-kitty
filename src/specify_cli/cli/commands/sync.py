@@ -65,7 +65,7 @@ from specify_cli.core.vcs import (
 
 from specify_cli.sync.queue import QueueStats
 from specify_cli.core.saas_sync_config import saas_sync_opt_in_recorded_message
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.sync.feature_flags import (
     SAAS_SYNC_ENV_VAR,
     is_saas_sync_enabled,

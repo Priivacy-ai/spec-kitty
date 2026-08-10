@@ -19,7 +19,7 @@ from typing import Literal, cast
 import ulid as _ulid_mod
 from pydantic import BaseModel, ConfigDict
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.retrospective.schema import ActorRef, Mode
 
 logger = logging.getLogger(__name__)

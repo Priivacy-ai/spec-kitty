@@ -90,7 +90,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from pathlib import Path
 from typing import Any
 

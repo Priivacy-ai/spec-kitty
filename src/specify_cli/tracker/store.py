@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 from collections.abc import Sequence
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 
 def _spec_kitty_dir() -> Path:

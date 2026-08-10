@@ -39,7 +39,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.dossier.emitter_adapter import fire_dossier_event
 
 logger = logging.getLogger(__name__)

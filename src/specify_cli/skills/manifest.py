@@ -9,7 +9,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from specify_cli.core.atomic import atomic_write
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 logger = logging.getLogger(__name__)
 

@@ -57,7 +57,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.event_journal import Event, EventJournal, JournalTransaction
 
 if TYPE_CHECKING:  # pragma: no cover - typing-only (avoid the queue<->authority cycle)

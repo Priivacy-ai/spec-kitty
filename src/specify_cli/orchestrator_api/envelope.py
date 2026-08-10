@@ -14,7 +14,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 # 1.1.0: start-implementation now allocates the real lane worktree and its
 # response carries lane_id / lane_branch / lane_base_ref; workspace_path now

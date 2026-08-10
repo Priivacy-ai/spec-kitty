@@ -14,7 +14,7 @@ from typing import Literal
 from rich.console import Console
 
 from specify_cli.cli.commands.review._ble001_audit import _BLE001_REMEDIATION
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 _HARD_FAILURE_FINDING_TYPES = frozenset(
     {
