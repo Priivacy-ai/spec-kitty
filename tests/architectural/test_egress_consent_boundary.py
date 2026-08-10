@@ -1957,6 +1957,8 @@ def _writer_owner(relpath: str) -> str:
         return "WP03"
     if relpath.startswith("specify_cli/delivery/targets.py"):
         return "WP05"
+    if relpath.startswith("specify_cli/sync/admission_operations.py"):
+        return "WP05"
     if relpath.startswith("specify_cli/delivery/dispatcher.py"):
         return "WP07"
     return "WP04"
@@ -2088,9 +2090,7 @@ specify_cli/delivery/ledger.py::init_ledger::CREATE::executescript
 specify_cli/delivery/retention.py::_purge_all_body_rows::DELETE::execute
 specify_cli/delivery/retention.py::_purge_journal_rows::DELETE::executemany
 specify_cli/delivery/retention.py::_purge_ledger_rows::DELETE::execute
-specify_cli/delivery/targets.py::SqliteDeliveryTargetRegistry.__init__::CREATE::executescript
-specify_cli/delivery/targets.py::SqliteDeliveryTargetRegistry._insert::INSERT::execute
-specify_cli/delivery/targets.py::SqliteDeliveryTargetRegistry._update_provenance::UPDATE::execute
+specify_cli/delivery/targets.py::ProjectDeliveryTargetRegistry.register::INSERT::execute
 specify_cli/event_journal/coalesce.py::_collapse_into::UPDATE::execute
 specify_cli/event_journal/coalesce.py::_connect::CREATE::execute
 specify_cli/event_journal/coalesce.py::_record_supersede::INSERT::execute
@@ -2113,6 +2113,15 @@ specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.remove_project_tasks::DEL
 specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.remove_stale::DELETE::execute
 specify_cli/sync/consent.py::_seal_active_epochs::UPDATE::execute
 specify_cli/sync/consent.py::_write_decision::INSERT::execute
+specify_cli/sync/admission_operations.py::AdmissionOperationService._mark_sent::UPDATE::execute
+specify_cli/sync/admission_operations.py::AdmissionOperationService._mark_unknown::UPDATE::execute
+specify_cli/sync/admission_operations.py::AdmissionOperationService._mark_unknown::UPDATE::execute
+specify_cli/sync/admission_operations.py::AdmissionOperationService._prepare::INSERT::execute
+specify_cli/sync/admission_operations.py::AdmissionOperationService._record_response::UPDATE::execute
+specify_cli/sync/admission_operations.py::AdmissionOperationService._record_response::UPDATE::execute
+specify_cli/sync/admission_operations.py::AdmissionOperationService._record_response::UPDATE::execute
+specify_cli/sync/admission_operations.py::AdmissionOperationService._record_response::UPDATE::execute
+specify_cli/sync/admission_operations.py::AdmissionOperationService.perform::UNRESOLVED::execute
 specify_cli/sync/consent.py::_write_decision::INSERT::execute
 specify_cli/sync/consent.py::allocate_capture_sequence::INSERT::execute
 specify_cli/sync/consent.py::allocate_capture_sequence::INSERT::execute
