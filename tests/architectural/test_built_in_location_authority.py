@@ -138,10 +138,13 @@ _AUTHORITY_FILE = Path("src/doctrine/pack_paths.py")
 #: built-in-tier reconstruction.
 _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
     {
-        # src/charter/kind_vocabulary.py::_scan_roots -- org-tier legacy
+        # src/charter/kind_vocabulary.py::_org_scan_dirs -- org-tier legacy
         # nested-pack join (`root / kind.plural / "built-in"`), NOT a
         # built-in-tier reconstruction. See module docstring.
-        (Path("src/charter/kind_vocabulary.py"), 183),
+        # FRESHENED 2026-08-11 (#3317 landing): the join was extracted out of
+        # _scan_roots into _org_scan_dirs (S3776 complexity reduction), moving
+        # it from line 183 to 206; behaviour-preserving, same org-tier join.
+        (Path("src/charter/kind_vocabulary.py"), 206),
         # src/kernel/paths.py::_MISSION_ASSETS_SIBLING_PATTERN -- a relative
         # SHAPE constant (input to kernel.sibling_paths.resolve_installed_sibling),
         # not a filesystem join against a concrete root. kernel cannot import
