@@ -587,7 +587,11 @@ def _live_keys() -> set[CharterPathKey]:
 # WP11 AFTER the WP01/WP02/WP03/WP06 repoints landed, so the frozen set is the
 # minimal residual and not a stale pre-drain snapshot.
 # --------------------------------------------------------------------------- #
-CHARTER_PATH_LITERAL_FLOOR = 49
+# 2026-08-11 (#3317 landing): lowered 49 -> 48 alongside the allow-list DRAIN of
+# the FR-005 graceful-degrade charter.md read (extracted into
+# context_result_builders.py, where charter_path is a parameter, not a keyed
+# `<root> / CHARTER_MD` literal — the census slot is genuinely gone).
+CHARTER_PATH_LITERAL_FLOOR = 48
 FLOOR_MARGIN = 2
 
 
