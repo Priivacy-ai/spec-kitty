@@ -16,7 +16,10 @@ if TYPE_CHECKING:
     from specify_cli.identity.project import ProjectIdentity
 
     from .body_queue import OfflineBodyUploadQueue
+    from .layout_generation import LayoutGenerationAuthority
     from .namespace import NamespaceRef, UploadOutcome
+    from .project_context import ProjectSyncContext
+    from .project_store import ProjectUnitOfWork
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +47,9 @@ def sync_feature_dossier(
     *,
     repo_root: Path | None = None,
     project_identity: ProjectIdentity | None = None,
+    project_context: ProjectSyncContext | None = None,
+    project_unit: ProjectUnitOfWork | None = None,
+    project_layout: LayoutGenerationAuthority | None = None,
 ) -> DossierSyncResult:
     """Run full dossier sync: index → emit events → prepare body uploads.
 
@@ -64,6 +70,32 @@ def sync_feature_dossier(
     from .lint_report_staging import stage_charter_lint_report
     from .namespace import UploadStatus
 
+    try:
+        if project_context is None or project_unit is None or project_layout is None:
+            raise ValueError("no explicit same-UoW project authority; hosted event emission will be withheld")
+        from .project_context import validate_project_sync_context_authority
+
+        validate_project_sync_context_authority(project_context)
+        if project_unit.store_identity is not project_context.store_identity:
+            raise ValueError("dossier project unit does not match the explicit project context")
+        project_uuid = project_context.project_uuid.storage_token
+        if namespace_ref.project_uuid != project_uuid:
+            raise ValueError("dossier namespace belongs to another project")
+        if body_queue.project_uuid != project_uuid:
+            raise ValueError("dossier body queue belongs to another project")
+        if project_identity is not None and project_identity.project_uuid is not None and str(project_identity.project_uuid) != project_uuid:
+            raise ValueError("dossier identity belongs to another project")
+    except (TypeError, ValueError) as exc:
+        if project_context is None or project_unit is None or project_layout is None:
+            logger.debug("Dossier event egress disabled: %s", exc)
+        else:
+            return DossierSyncResult(
+                dossier=None,
+                events_emitted=0,
+                body_outcomes=[],
+                errors=[f"dossier_project_context_invalid: {exc}"],
+            )
+
     errors: list[str] = []
 
     # Step 0: Stage the repo-global charter-lint decay report into this
@@ -82,7 +114,10 @@ def sync_feature_dossier(
     except Exception as e:
         logger.error("Indexer failed for %s: %s", feature_dir, e)
         return DossierSyncResult(
-            dossier=None, events_emitted=0, body_outcomes=[], errors=[str(e)],
+            dossier=None,
+            events_emitted=0,
+            body_outcomes=[],
+            errors=[str(e)],
         )
 
     # Step 2: Emit dossier events for present and missing artifacts
@@ -101,12 +136,17 @@ def sync_feature_dossier(
                     step_id=step_id,
                     required_status=artifact.required_status,
                     namespace=ns_dict,
+                    project_context=project_context,
+                    project_unit=project_unit,
+                    project_layout=project_layout,
                 )
                 if result is not None:
                     events_emitted += 1
             except Exception as e:
                 logger.warning(
-                    "Event emission failed for %s: %s", artifact.relative_path, e,
+                    "Event emission failed for %s: %s",
+                    artifact.relative_path,
+                    e,
                 )
         else:
             # Emit missing event for non-present required artifacts
@@ -121,13 +161,17 @@ def sync_feature_dossier(
                     reason_code=artifact.error_reason or "not_found",
                     blocking=artifact.required_status == "required",
                     namespace=ns_dict,
+                    project_context=project_context,
+                    project_unit=project_unit,
+                    project_layout=project_layout,
                 )
                 if result is not None:
                     events_emitted += 1
             except Exception as e:
                 logger.warning(
                     "Missing event emission failed for %s: %s",
-                    artifact.relative_path, e,
+                    artifact.relative_path,
+                    e,
                 )
 
     # Step 3: Compute + emit snapshot (always) and drift (if baseline exists)
@@ -149,6 +193,9 @@ def sync_feature_dossier(
             completeness_status=snapshot.completeness_status,
             snapshot_id=snapshot.snapshot_id,
             namespace=ns_dict,
+            project_context=project_context,
+            project_unit=project_unit,
+            project_layout=project_layout,
         )
         if result is not None:
             events_emitted += 1
@@ -175,6 +222,9 @@ def sync_feature_dossier(
                     missing_in_baseline=drift_info["missing_in_baseline"],
                     severity=drift_info["severity"],
                     namespace=ns_dict,
+                    project_context=project_context,
+                    project_unit=project_unit,
+                    project_layout=project_layout,
                 )
                 if result is not None:
                     events_emitted += 1
@@ -184,15 +234,28 @@ def sync_feature_dossier(
     # Step 4: Prepare body uploads
     body_outcomes: list[UploadOutcome] = []
     try:
-        body_outcomes = prepare_body_uploads(
-            artifacts=dossier.artifacts,
-            namespace_ref=namespace_ref,
-            body_queue=body_queue,
-            feature_dir=feature_dir,
-        )
+        if project_context is not None and project_unit is not None and project_layout is not None:
+            body_outcomes = prepare_body_uploads(
+                artifacts=dossier.artifacts,
+                namespace_ref=namespace_ref,
+                body_queue=body_queue,
+                feature_dir=feature_dir,
+                project_context=project_context,
+                project_unit=project_unit,
+                project_layout=project_layout,
+            )
+        else:
+            body_outcomes = prepare_body_uploads(
+                artifacts=dossier.artifacts,
+                namespace_ref=namespace_ref,
+                body_queue=body_queue,
+                feature_dir=feature_dir,
+            )
     except Exception as e:
         logger.error(
-            "Body upload preparation failed for %s: %s", feature_dir, e,
+            "Body upload preparation failed for %s: %s",
+            feature_dir,
+            e,
         )
         errors.append(f"body_upload_preparation_failed: {e}")
 
@@ -205,7 +268,10 @@ def sync_feature_dossier(
     skipped = sum(1 for o in body_outcomes if o.status == UploadStatus.SKIPPED)
     logger.info(
         "Dossier sync for %s: %d events emitted, %d bodies queued, %d skipped",
-        namespace_ref.mission_slug, events_emitted, queued, skipped,
+        namespace_ref.mission_slug,
+        events_emitted,
+        queued,
+        skipped,
     )
 
     return DossierSyncResult(
@@ -225,47 +291,24 @@ def trigger_feature_dossier_sync_if_enabled(
 ) -> DossierSyncResult | None:
     """Fire-and-forget dossier sync triggered after feature artifact mutations.
 
-    Never raises. Logs failures. Returns None if sync is disabled or fails.
+    Never raises. Logs failures. The historical function name is retained for
+    callers, but this path performs project-isolated local capture only: the
+    machine SaaS flag and project egress decision are enforced later by the
+    canonical dispatcher and therefore cannot suppress local dossier capture.
     """
     try:
-        from .feature_flags import is_saas_sync_enabled
-
-        if not is_saas_sync_enabled():
-            return None
-
         from specify_cli.core.paths import get_feature_target_branch
         from specify_cli.mission import get_mission_type
         from specify_cli.sync.namespace import NamespaceRef, resolve_manifest_version
         from specify_cli.identity.project import resolve_identity
         from specify_cli.sync.body_queue import OfflineBodyUploadQueue
+        from specify_cli.sync.project_store import ProjectSyncStore
 
         # Background dossier sync: resolve identity WITHOUT persisting (#2263,
         # FR-001/FR-003) — a fire-and-forget read path must not dirty config.yaml.
         identity = resolve_identity(repo_root)
         if identity.project_uuid is None:
             logger.warning("No project UUID; skipping dossier sync")
-            return None
-
-        # #3030 FR-031 (E5): ``is_saas_sync_enabled()`` above is machine-global
-        # *arming*, and arming is never a grant — it is the 2026-07-27 incident's own
-        # mechanism, exported once and ridden by five projects that had never opted in.
-        # Until now nothing between it and ``prepare_body_uploads`` asked the project.
-        # Asked here as well as at the enqueue because this gate stands in front of
-        # more than the bodies: everything below it emits dossier events carrying the
-        # mission slug, computes and saves a snapshot, and runs drift detection. Both
-        # gates now read the one consent chain, so this is defence in depth rather than
-        # the two-chains divergence C-003 forbids (the same shape as
-        # ``emit_local_commit`` + ``flush_pending_local_commits``).
-        from .body_upload import project_consents_to_hosted_sync
-
-        if not project_consents_to_hosted_sync(
-            str(identity.project_uuid), repo_root=repo_root
-        ):
-            logger.debug(
-                "Dossier sync skipped for %s: project %s has not consented to hosted sync",
-                mission_slug,
-                identity.project_uuid,
-            )
             return None
 
         target_branch = get_feature_target_branch(repo_root, mission_slug)
@@ -280,20 +323,26 @@ def trigger_feature_dossier_sync_if_enabled(
             manifest_version=manifest_version,
         )
 
-        # Create body queue directly — writes to the same scoped SQLite DB
-        # the daemon drains.  Avoids starting a full SyncRuntime (threads,
-        # WebSocket, atexit handlers) inside a short-lived CLI process.
-        body_queue = OfflineBodyUploadQueue()
-
-        return sync_feature_dossier(
-            feature_dir=feature_dir,
-            namespace_ref=namespace_ref,
-            body_queue=body_queue,
-            mission_type=resolved_mission,
-            step_id=step_id,
-            repo_root=repo_root,
-            project_identity=identity,
-        )
+        # Use one verified project store and one short-lived UoW for local body
+        # capture.  No transport happens here; WP08 drains the resulting task
+        # later through the canonical body gate after revalidating context.
+        store = ProjectSyncStore(str(identity.project_uuid))
+        layout = store.layout_generation()
+        with store.unit_of_work() as unit:
+            context = store.create_context_from_unit(unit)
+            body_queue = OfflineBodyUploadQueue(unit, layout)
+            return sync_feature_dossier(
+                feature_dir=feature_dir,
+                namespace_ref=namespace_ref,
+                body_queue=body_queue,
+                mission_type=resolved_mission,
+                step_id=step_id,
+                repo_root=repo_root,
+                project_identity=identity,
+                project_context=context,
+                project_unit=unit,
+                project_layout=layout,
+            )
     except Exception as e:
         logger.warning("Dossier sync failed for %s: %s", mission_slug, e)
         return None

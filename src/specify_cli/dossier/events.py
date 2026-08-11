@@ -35,12 +35,17 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field, field_validator
 
 from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.dossier.emitter_adapter import fire_dossier_event
+
+if TYPE_CHECKING:
+    from specify_cli.sync.layout_generation import LayoutGenerationAuthority
+    from specify_cli.sync.project_context import ProjectSyncContext
+    from specify_cli.sync.project_store import ProjectUnitOfWork
 
 logger = logging.getLogger(__name__)
 
@@ -96,9 +101,7 @@ class ArtifactIdentity(BaseModel):
     @classmethod
     def _validate_class(cls, v: str) -> str:
         if v not in ARTIFACT_CLASS_ENUM:
-            raise ValueError(
-                f"artifact_class must be one of {sorted(ARTIFACT_CLASS_ENUM)}; got {v!r}"
-            )
+            raise ValueError(f"artifact_class must be one of {sorted(ARTIFACT_CLASS_ENUM)}; got {v!r}")
         return v
 
 
@@ -294,7 +297,7 @@ def _consume_legacy_values(
     values = dict(defaults)
     for name, value in zip(names, args, strict=False):
         values[name] = value
-    for name in names[len(args):]:
+    for name in names[len(args) :]:
         if name in kwargs:
             values[name] = kwargs.pop(name)
     if kwargs:
@@ -347,6 +350,9 @@ def emit_artifact_indexed(
     indexed_at: str | None = None,
     context_diagnostics: dict[str, str] | None = None,
     provenance: dict[str, Any] | None = None,
+    project_context: ProjectSyncContext | None = None,
+    project_unit: ProjectUnitOfWork | None = None,
+    project_layout: LayoutGenerationAuthority | None = None,
     **kwargs: Any,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierArtifactIndexed`` in the namespaced envelope.
@@ -409,6 +415,9 @@ def emit_artifact_indexed(
         aggregate_id=f"{ns.mission_slug}:{relative_path}",
         aggregate_type="MissionDossier",
         payload=payload.model_dump(exclude_none=True),
+        project_context=project_context,
+        project_unit=project_unit,
+        project_layout=project_layout,
     )
 
 
@@ -426,6 +435,9 @@ def emit_artifact_missing(
     last_known_content_hash_sha256: str | None = None,
     last_known_size_bytes: int | None = None,
     context_diagnostics: dict[str, str] | None = None,
+    project_context: ProjectSyncContext | None = None,
+    project_unit: ProjectUnitOfWork | None = None,
+    project_layout: LayoutGenerationAuthority | None = None,
     **kwargs: Any,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierArtifactMissing`` in the namespaced envelope.
@@ -485,6 +497,9 @@ def emit_artifact_missing(
         aggregate_id=f"{ns.mission_slug}:{expected_path_pattern}",
         aggregate_type="MissionDossier",
         payload=payload.model_dump(exclude_none=True),
+        project_context=project_context,
+        project_unit=project_unit,
+        project_layout=project_layout,
     )
 
 
@@ -505,6 +520,9 @@ def emit_snapshot_computed(
     computed_at: str | None = None,
     anomaly_count: int | None = None,
     context_diagnostics: dict[str, str] | None = None,
+    project_context: ProjectSyncContext | None = None,
+    project_unit: ProjectUnitOfWork | None = None,
+    project_layout: LayoutGenerationAuthority | None = None,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierSnapshotComputed`` in the namespaced envelope.
 
@@ -550,6 +568,9 @@ def emit_snapshot_computed(
         aggregate_id=f"{ns.mission_slug}:{snapshot_id}",
         aggregate_type="MissionDossier",
         payload=payload.model_dump(exclude_none=True),
+        project_context=project_context,
+        project_unit=project_unit,
+        project_layout=project_layout,
     )
 
 
@@ -567,6 +588,9 @@ def emit_parity_drift_detected(
     detected_at: str | None = None,
     rebuild_hint: str | None = None,
     context_diagnostics: dict[str, str] | None = None,
+    project_context: ProjectSyncContext | None = None,
+    project_unit: ProjectUnitOfWork | None = None,
+    project_layout: LayoutGenerationAuthority | None = None,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierParityDriftDetected`` in the namespaced envelope.
 
@@ -623,4 +647,7 @@ def emit_parity_drift_detected(
         aggregate_id=f"{ns.mission_slug}:drift",
         aggregate_type="MissionDossier",
         payload=payload.model_dump(exclude_none=True),
+        project_context=project_context,
+        project_unit=project_unit,
+        project_layout=project_layout,
     )

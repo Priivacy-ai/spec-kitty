@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -15,6 +16,7 @@ from specify_cli.sync.clock import LamportClock
 from specify_cli.sync.config import SyncConfig
 from specify_cli.sync.git_metadata import GitMetadata, GitMetadataResolver
 from specify_cli.sync.project_identity import ProjectIdentity
+from specify_cli.sync.project_store import ProjectSyncStore
 
 # FR-007 leak-guard detection layer (#3115) -- moved to its own module
 # (landing-fold cohesion refactor, PR #3144) because it is pure and
@@ -46,10 +48,23 @@ from tests.sync._leak_guard import _content_fingerprint as _content_fingerprint
 
 
 @pytest.fixture
-def temp_queue(tmp_path: Path) -> OfflineQueue:
-    """Temporary SQLite queue for testing."""
-    db_path = tmp_path / "test_queue.db"
-    return OfflineQueue(db_path=db_path)
+def temp_queue(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_identity: ProjectIdentity,
+) -> Iterator[OfflineQueue]:
+    """Active project-store queue matching the emitter fixture's owner."""
+    assert mock_identity.project_uuid is not None
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(str(mock_identity.project_uuid))
+    authority = store.layout_generation()
+    authority.begin_cutover("sync-shared-test-fixture")
+    authority.publish_project_only(
+        "sync-shared-test-fixture",
+        verify_exact=lambda: True,
+    )
+    with store.unit_of_work() as unit:
+        yield OfflineQueue(unit, authority)
 
 
 @pytest.fixture
@@ -450,9 +465,7 @@ def pytest_runtest_teardown(item: pytest.Item, nextitem: pytest.Item | None):
         failure_lines = _evaluate_pin(pin, dirty, before, item.nodeid)
     elif dirty:
         failure_lines = [
-            f"[FR-007 leak guard] {item.nodeid} left inventoried "
-            "process-global state dirty "
-            "(docs/development/process-global-inventory-3115.md):",
+            f"[FR-007 leak guard] {item.nodeid} left inventoried process-global state dirty (docs/development/process-global-inventory-3115.md):",
             *dirty,
         ]
     else:
@@ -461,10 +474,7 @@ def pytest_runtest_teardown(item: pytest.Item, nextitem: pytest.Item | None):
     if failure_lines is not None:
         message = "\n".join(failure_lines)
         if teardown_exc is not None:
-            message += (
-                f"\n\n[FR-007 leak guard] this test's own teardown ALSO raised "
-                f"{teardown_exc!r} -- see the chained exception for its traceback."
-            )
+            message += f"\n\n[FR-007 leak guard] this test's own teardown ALSO raised {teardown_exc!r} -- see the chained exception for its traceback."
         try:
             pytest.fail(message, pytrace=False)
         except BaseException as leak_exc:  # noqa: BLE001 - re-raised immediately, chained onto the teardown exception if there was one
@@ -521,10 +531,7 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config) -> None:  # no
         f"({len(_WATCHED_GLOBALS)} module attributes + {len(_WATCHED_ENV_KEYS)} "
         "os.environ key(s) + CWD), plus the live-thread set."
     )
-    terminalreporter.write_line(
-        f"[FR-007 leak guard] {len(_UNWATCHED_ENTRIES)} inventory row-group(s) "
-        "were NOT watched:"
-    )
+    terminalreporter.write_line(f"[FR-007 leak guard] {len(_UNWATCHED_ENTRIES)} inventory row-group(s) were NOT watched:")
     for entry_ids, reason in _UNWATCHED_ENTRIES:
         terminalreporter.write_line(f"  - {entry_ids}: {reason}")
 
@@ -580,10 +587,7 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config) -> None:  # no
             terminalreporter.write_line(f"  - ACCEPTED ({pin.issue}): {node_id} -- {pin.note}")
             excused = marker_level_unobserved_by_node.get(node_id)
             if excused:
-                terminalreporter.write_line(
-                    f"    (markers excused as unobservable this run, per-marker baseline "
-                    f"state: {excused!r})"
-                )
+                terminalreporter.write_line(f"    (markers excused as unobservable this run, per-marker baseline state: {excused!r})")
             for line in accounted_lines:
                 terminalreporter.write_line(f"    {line.strip()}")
     if _SUPPRESSED_INHERITED_DIRTY:
@@ -598,12 +602,5 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config) -> None:  # no
                 f"its own before-snapshot for {pin.baseline_watch!r} was already dirty, so an empty "
                 "diff here is not evidence of a fix"
             )
-    if (
-        not _ACCEPTED_PINNED_LEAKS
-        and not _SUPPRESSED_INHERITED_DIRTY
-        and not _MARKER_LEVEL_UNOBSERVED
-        and not running_under_xdist_controller
-    ):
-        terminalreporter.write_line(
-            f"  (none of the {len(_PINNED_LEAKS)} pinned node-ids ran in this process this session)"
-        )
+    if not _ACCEPTED_PINNED_LEAKS and not _SUPPRESSED_INHERITED_DIRTY and not _MARKER_LEVEL_UNOBSERVED and not running_under_xdist_controller:
+        terminalreporter.write_line(f"  (none of the {len(_PINNED_LEAKS)} pinned node-ids ran in this process this session)")

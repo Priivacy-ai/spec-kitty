@@ -1,7 +1,9 @@
 {
-  "_comment": "Machine-readable contract shape derived from spec-kitty-events @ 5b8e6dc and spec-kitty-saas @ 3a0e4af. The compatibility gate MUST load and enforce this artifact, not hand-maintained constants.",
+  "_comment": "Machine-readable contract shape derived from spec-kitty-events @ 5b8e6dc and spec-kitty-saas @ 3a0e4af, with the target-scoped admission proof pinned from SaaS WP04 @ 29cc20c6ca5d61784af6f8b973a36131e69103af (cli-saas-current-api.yaml sha256 fe3a9f8d2563e3a9df386cd911ea858fd6a48913eb14c5b39d579b26bf3a4b35). The compatibility gate MUST load and enforce this artifact, not hand-maintained constants.",
   "_source_events_commit": "5b8e6dc",
   "_source_saas_commit": "3a0e4af",
+  "_source_saas_admission_commit": "29cc20c6ca5d61784af6f8b973a36131e69103af",
+  "_source_saas_admission_contract_sha256": "fe3a9f8d2563e3a9df386cd911ea858fd6a48913eb14c5b39d579b26bf3a4b35",
   "_schema_version": "3.0.0",
   "envelope": {
     "required_fields": [
@@ -57,7 +59,9 @@
       "mission_slug",
       "target_branch",
       "mission_type",
-      "manifest_version"
+      "manifest_version",
+      "admission_generation",
+      "binding_audience"
     ],
     "forbidden_fields": [
       "feature_slug",

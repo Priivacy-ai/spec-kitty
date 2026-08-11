@@ -607,6 +607,21 @@ class ProjectSyncStore:
 
     def create_context(self) -> ProjectSyncContext:
         """Load a coherent immutable authority snapshot from the verified store."""
+        with self.unit_of_work() as unit:
+            return self.create_context_from_unit(unit)
+
+    def create_context_from_unit(
+        self,
+        unit: ProjectUnitOfWork,
+    ) -> ProjectSyncContext:
+        """Mint the normal context from this store's supplied active unit.
+
+        Callers that already own an aggregate transaction use this seam to keep
+        context construction and subsequent local capture on one connection. A
+        foreign or retained inactive unit is rejected before any authority rows
+        are read.
+        """
+        store_identity = self._verified_identity(unit)
         consent_state: ConsentState | None = None
         consent_generation: int | None = None
         epoch_id: int | None = None
@@ -615,43 +630,40 @@ class ProjectSyncStore:
         admission_generation: str | None = None
         binding_audience: str | None = None
 
-        with self.unit_of_work() as unit:
-            consent_row = unit.execute(
-                "SELECT state, generation FROM project_consent_decisions WHERE project_uuid = ?",
-                (self.project_uuid.storage_token,),
+        consent_row = unit.execute(
+            "SELECT state, generation FROM project_consent_decisions WHERE project_uuid = ?",
+            (self.project_uuid.storage_token,),
+        ).fetchone()
+        if consent_row is not None:
+            consent_state = ConsentState(str(consent_row[0]))
+            consent_generation = _stored_positive_int(consent_row[1], "consent generation")
+
+        if consent_state is ConsentState.GRANTED:
+            epoch_row = unit.execute(
+                "SELECT epoch_id FROM consent_epochs WHERE project_uuid = ? AND state = 'eligible' AND consent_generation = ? ORDER BY epoch_id DESC LIMIT 1",
+                (self.project_uuid.storage_token, consent_generation),
             ).fetchone()
-            if consent_row is not None:
-                consent_state = ConsentState(str(consent_row[0]))
-                consent_generation = _stored_positive_int(consent_row[1], "consent generation")
+            if epoch_row is not None:
+                epoch_id = _stored_positive_int(epoch_row[0], "epoch identity")
 
-            if consent_state is ConsentState.GRANTED:
-                epoch_row = unit.execute(
-                    "SELECT epoch_id FROM consent_epochs WHERE project_uuid = ? AND state = 'eligible' AND consent_generation = ? ORDER BY epoch_id DESC LIMIT 1",
-                    (self.project_uuid.storage_token, consent_generation),
-                ).fetchone()
-                if epoch_row is not None:
-                    epoch_id = _stored_positive_int(epoch_row[0], "epoch identity")
-
-            admission_row = unit.execute(
-                "SELECT target_identity, account_identity, private_teamspace_id, "
-                "configuration_generation, admission_state, admission_generation, "
-                "binding_audience FROM project_target_admissions "
-                "WHERE project_uuid = ?",
-                (self.project_uuid.storage_token,),
-            ).fetchone()
-            if admission_row is not None:
-                target_audience = TargetAudience(
-                    project_uuid=self.project_uuid,
-                    target_identity=str(admission_row[0]),
-                    account_identity=str(admission_row[1]),
-                    private_teamspace_id=str(admission_row[2]),
-                    configuration_generation=_stored_positive_int(admission_row[3], "target configuration generation"),
-                )
-                admission_state = AdmissionState(str(admission_row[4]))
-                admission_generation = str(admission_row[5]) if admission_row[5] is not None else None
-                binding_audience = str(admission_row[6]) if admission_row[6] is not None else None
-
-            store_identity = self._verified_identity(unit)
+        admission_row = unit.execute(
+            "SELECT target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, "
+            "binding_audience FROM project_target_admissions "
+            "WHERE project_uuid = ?",
+            (self.project_uuid.storage_token,),
+        ).fetchone()
+        if admission_row is not None:
+            target_audience = TargetAudience(
+                project_uuid=self.project_uuid,
+                target_identity=str(admission_row[0]),
+                account_identity=str(admission_row[1]),
+                private_teamspace_id=str(admission_row[2]),
+                configuration_generation=_stored_positive_int(admission_row[3], "target configuration generation"),
+            )
+            admission_state = AdmissionState(str(admission_row[4]))
+            admission_generation = str(admission_row[5]) if admission_row[5] is not None else None
+            binding_audience = str(admission_row[6]) if admission_row[6] is not None else None
 
         return _new_project_sync_context(
             store_identity=store_identity,

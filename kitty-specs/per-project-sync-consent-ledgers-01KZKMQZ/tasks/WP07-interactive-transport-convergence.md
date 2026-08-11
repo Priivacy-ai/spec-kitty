@@ -69,6 +69,10 @@ owned_files:
 - src/specify_cli/sync/local_commit.py
 - src/specify_cli/sync/history_import/pipeline.py
 - src/specify_cli/sync/history_import/upload.py
+- src/specify_cli/sync/history_disclosure.py
+- src/specify_cli/sync/project_store.py
+- src/specify_cli/core/upstream_contract.json
+- kitty-specs/064-complete-mission-identity-cutover/contracts/upstream-3.0.0-shape.json
 - src/specify_cli/saas_client/client.py
 - src/specify_cli/tracker/saas_client.py
 - tests/delivery/test_cross_project_refusal_state_3030.py
@@ -77,11 +81,18 @@ owned_files:
 - tests/delivery/test_receivers.py
 - tests/delivery/test_targets.py
 - tests/delivery/test_liveness_predicate_before_limit_3030.py
+- tests/cli/commands/test_sync_import_history.py
+- tests/contract/test_body_sync.py
+- tests/specify_cli/core/test_contract_gate.py
+- tests/sync/conftest.py
 - tests/sync/test_body_drain_consent_3030.py
+- tests/sync/test_body_transport.py
 - tests/sync/test_interactive_transport_convergence.py
 - tests/sync/test_history_import_consent_3030.py
 - tests/sync/test_history_import_pipeline.py
 - tests/sync/test_history_import_upload.py
+- tests/sync/test_history_disclosure.py
+- tests/sync/test_project_sync_context.py
 - tests/dossier/test_emitter_adapter.py
 - tests/dossier/test_events.py
 - tests/status/test_emit_fanout_after_adapter.py
@@ -208,6 +219,19 @@ consent, request-wide generations, query-token WebSocket auth, generic retry of
 typed refusal, or a tracker permission used as a hosted-sync grant.
 
 ## Activity Log
+
+- 2026-08-11T14:05:00Z – codex – Recovered the independently approved T033 product slice onto authoritative aggregate `a22b22640b80bc76baf9552d541c1a92626ba75a` in an isolated integration worktree. The transfer applied the three T033 product checkpoints without committing, then applied the reviewed dirty correction patch; aggregate dispatcher/attempt APIs and mission metadata were retained. Verified that `upload.py` contains one receiver-target assertion in each distinct public upload entry point and no consecutive duplicate assertion. Formally recorded the already-granted same-UoW context factory and focused test (`project_store.py` / `test_project_sync_context.py`) in `owned_files`. Removed the unowned `test_events.py` delta entirely and moved its sole load-bearing raw-WebSocket retirement spy, assertion-for-assertion, into the already-owned sender convergence suite; the six legacy Event fixture nodes remain untouched and outside this slice. Ruff formatting remains intentionally green across every changed Python file; the large `sync.py` normalization is separately labeled by temporary preserved patches `/private/tmp/t033-cli-formatter-only.patch` (SHA-1 content digest `87f01aa2dab6d591dea60e81bf074ccb62d75dfb`, 1,499 lines) and `/private/tmp/t033-cli-semantic-on-formatted-base.patch` (SHA-1 content digest `c2c8d268ed58037217ea05990ec7c02122b3d457`, 215 lines), so reviewers can distinguish mechanical formatter movement from public confirmation-flow semantics without implying the temporary patches are durable Git objects. No lifecycle state, aggregate branch, or remote changed.
+
+- 2026-08-11T12:10:00Z – codex – Recorded the narrow T033 contract-provenance amendment for the vendored `body_sync` shape and its original planning mirror/gate test: the already pinned SaaS WP04 commit/digest now makes `admission_generation` and `binding_audience` required rather than optional metadata. This does not reopen SaaS ownership or alter the attested canonical contract; it makes the Core compatibility gate enforce the proof already carried by the exact body wire bytes. The six remaining T032 Event fixture failures are not assigned here because their test files are absent from WP07 ownership; the ten background integration nodes remain WP08-owned. No lifecycle state changed.
+
+- 2026-08-11T08:15:41Z – codex – Recorded the narrow sequential T033 remediation ownership for the real `sync import-history --apply` ATDD, the exact admission-proof-bearing body request/result compatibility suites, and the shared `temp_queue` fixture used by the complete `TestRouteEvent`/`TestOfflineQueue` boundary. These tests were previously unassigned; WP07 may migrate them only to the already-owned project-store/context/target/capability and body transport seams, without restoring path-selected live queues or changing WP10's later migration command scope. No lifecycle state changed.
+- 2026-08-11T08:55:39Z – codex – Recorded the arbiter-granted WP03→WP07 sequential seam for a public filtered sealed-history preview and its focused test. T033 may stage only the exact synthesized import envelopes into a dedicated sealed epoch, leaving the current eligible epoch open, creating no outbox task or egress, and may confirm only that ordered epoch cohort; the existing all-history preview remains unchanged and unrelated sealed rows stay excluded. No lifecycle state changed.
+
+- 2026-08-11T01:40:00Z – codex – Corrected the T032/T033 live interactive census: `EventEmitter._route_event()` still contained a SyncRuntime-injected raw `ws_client.send_event()` path with no project context, durable attempt, lease, exact admission audience, or acknowledgement. WP07 retires that opportunistic branch fail-closed while preserving local durability; WP08 owns the admitted WebSocket positive path through `SyncRuntime.publish_event` and the WP06 gate. No lifecycle state changed.
+
+- 2026-08-11T01:25:00Z – codex – Recorded the narrow sequential WP04→WP07 active-unit context-factory amendment. T033 may add one public `ProjectSyncStore` method that mints the normal coherent context from the caller's already-active, exact store unit; `create_context()` must delegate to the same implementation. The seam rejects foreign or inactive units before reads and exists only to prove dossier event/body capture shares one connection without reopening the aggregate. No lifecycle state changed.
+
+- 2026-08-11T00:40:00Z – codex – Recorded the sequential T032→T033 dossier-capture seam: T033 owns the minimal `sync/emitter.py` explicit `ProjectSyncContext` local-capture path and focused emitter/fanout proofs after the reviewed T032 dispatcher protocol checkpoint. The seam forbids cwd/cached identity authority and direct remote routing; later egress remains exclusively dispatcher-gated. No lifecycle state changed.
 
 - 2026-08-10T02:25:00Z – codex – Sequentially assigned the existing body-drain consent, dispatcher liveness-before-limit, and cross-project refusal-state suites to WP07 because making those callers green requires the WP06 attempt/lease and WP07 correlated final-gate/parking wiring; WP04 owns only the repository boundary and must not restore a shared-store caller compatibility path.
 - 2026-08-10T18:47:24Z – codex – Corrected pre-allocation ownership metadata: T032's live event relay (`src/specify_cli/sync/events.py`) and the three already-assigned regression suites are now explicit WP07-owned files, and lane-e now retains those paths plus the already-owned dispatcher suite. This is a governance-only correction with no production scope expansion. The normal finalizer was not rerun because its live-mission topology rewrite is tracked in #3311; existing lane identities, status history, and planning provenance are preserved. Documentary `later_owner` drift in the architecture census remains for an explicitly owned later correction.

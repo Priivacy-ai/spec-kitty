@@ -228,6 +228,7 @@ def test_teamspace_posts_to_resolved_endpoint_with_bearer_header() -> None:
     assert call["url"] == EXPECTED_BATCH_ENDPOINT
     assert call["headers"]["Authorization"] == f"Bearer {_TOKEN}"
     assert call["headers"]["Content-Encoding"] == "gzip"
+    assert call["headers"]["X-Spec-Kitty-Sync-Protocol"] == "2.0"
 
 
 # -- ExternalReceiver: FR-007, no Teamspace gating -----------------------------
@@ -351,14 +352,15 @@ def test_explicit_pending_status_maps_pending() -> None:
     assert results[0].outcome is DeliveryOutcome.PENDING
 
 
-def test_project_not_admitted_rejection_maps_terminal_refusal() -> None:
+@pytest.mark.parametrize("category_field", ["error_category", "category", "code"])
+def test_project_not_admitted_rejection_maps_terminal_refusal(category_field: str) -> None:
     batch = [_event("01JMBY00000000000000000PNA")]
     body = {
         "results": [
             {
                 "event_id": "01JMBY00000000000000000PNA",
                 "status": "rejected",
-                "error_category": "project_not_admitted",
+                category_field: "project_not_admitted",
                 "error": "admission revoked",
             }
         ]
@@ -658,7 +660,8 @@ def test_ordinary_rejection_stays_retryable() -> None:
     assert [r.outcome for r in results] == [DeliveryOutcome.REJECTED]
 
 
-def test_structured_400_project_not_admitted_maps_terminal_refusal() -> None:
+@pytest.mark.parametrize("category_field", ["error_category", "category", "code"])
+def test_structured_400_project_not_admitted_maps_terminal_refusal(category_field: str) -> None:
     batch = [_event("01JMBY00000000000000000400")]
     results = map_batch_response(
         batch,
@@ -669,7 +672,7 @@ def test_structured_400_project_not_admitted_maps_terminal_refusal() -> None:
                 {
                     "event_id": "01JMBY00000000000000000400",
                     "reason": "project is not admitted",
-                    "error_category": "project_not_admitted",
+                    category_field: "project_not_admitted",
                 }
             ],
         },

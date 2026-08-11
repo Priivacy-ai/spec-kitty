@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import cast
+from typing import Any, cast
 
+from specify_cli.core.time_utils import now_utc_iso
 from .project_context import AdmissionState, ConsentState, ProjectSyncContext
+from .project_context import validate_project_sync_context_authority
 from .project_store import ProjectSyncStore, ProjectUnitOfWork
 
 
@@ -138,6 +141,162 @@ def preview_sealed_history(store: ProjectSyncStore) -> HistoryDisclosurePreview:
     with store.unit_of_work() as unit:
         rows = _cohort_rows(unit)
     return _preview_from_rows(store.project_uuid.storage_token, rows)
+
+
+def preview_sealed_history_cohort(
+    store: ProjectSyncStore,
+    row_ids: tuple[str, ...],
+) -> HistoryDisclosurePreview:
+    """Preview one exact ordered cohort isolated in its own sealed epoch.
+
+    This is the staging boundary for ``sync import-history --confirm-history``.
+    It deliberately does not widen the ordinary all-history preview: every
+    requested row must already be sealed, appear in capture order, and occupy
+    epoch(s) containing no other unresolved rows.  The later confirmation
+    revalidates those whole source epochs, so unrelated sealed history can never
+    be smuggled into the capability after this filtered preview.
+    """
+    normalized = tuple(str(row_id).strip() for row_id in row_ids)
+    if not normalized or any(not row_id for row_id in normalized):
+        raise HistoryDisclosureError("history cohort row identities must be non-empty")
+    if len(normalized) != len(set(normalized)):
+        raise HistoryDisclosureError("history cohort row identities must be unique")
+    requested = frozenset(normalized)
+    with store.unit_of_work() as unit:
+        all_rows = _cohort_rows(unit)
+        selected = [row for row in all_rows if row[0] in requested]
+        if tuple(row[0] for row in selected) != normalized:
+            raise HistoryDisclosureError("history cohort is absent, unsealed, or no longer in the staged order")
+        source_epochs = tuple(sorted({row[1] for row in selected}))
+        if _cohort_rows(unit, source_epoch_ids=source_epochs) != selected:
+            raise HistoryDisclosureError("history cohort shares a sealed epoch with unrelated rows")
+    return _preview_from_rows(store.project_uuid.storage_token, selected)
+
+
+def _context_authority(context: ProjectSyncContext) -> tuple[object, ...]:
+    return (
+        context.project_uuid,
+        context.consent_state,
+        context.consent_generation,
+        context.epoch_id,
+        context.target_audience,
+        context.admission_state,
+        context.admission_generation,
+        context.binding_audience,
+    )
+
+
+def stage_sealed_history_cohort(
+    store: ProjectSyncStore,
+    envelopes: Sequence[Mapping[str, Any]],
+    *,
+    context: ProjectSyncContext,
+) -> tuple[str, ...]:
+    """Atomically stage exact envelopes in a dedicated sealed, outbox-free epoch."""
+    validate_project_sync_context_authority(context)
+    project_uuid = store.project_uuid.storage_token
+    if context.project_uuid.storage_token != project_uuid:
+        raise HistoryDisclosureError("history import context belongs to another project")
+    if context.store_identity.database_path != store.database_path:
+        raise HistoryDisclosureError("history import context belongs to another runtime store")
+    if any(str(envelope.get("project_uuid") or "") != project_uuid for envelope in envelopes):
+        raise HistoryDisclosureError("history import cohort contains another project")
+    row_ids = tuple(str(envelope.get("event_id") or "").strip() for envelope in envelopes)
+    if not row_ids or any(not row_id for row_id in row_ids):
+        raise HistoryDisclosureError("history import cohort has an empty event identity")
+    if len(row_ids) != len(set(row_ids)):
+        raise HistoryDisclosureError("history import cohort event identities are not unique")
+    payloads = tuple(json.dumps(envelope, sort_keys=True, separators=(",", ":")) for envelope in envelopes)
+    placeholders = ", ".join("?" for _ in row_ids)
+    timestamp = now_utc_iso()
+
+    with store.unit_of_work() as unit:
+        current = store.create_context_from_unit(unit)
+        if _context_authority(current) != _context_authority(context):
+            raise HistoryDisclosureError("history import authority changed; rebuild the preview")
+        existing_query = (
+            "SELECT entry_id, epoch_id, capture_sequence, payload_json "  # noqa: S608 - validated placeholder count only
+            f"FROM journal_entries WHERE project_uuid = ? AND entry_id IN ({placeholders}) "
+            "ORDER BY capture_sequence, entry_id"
+        )
+        existing = unit.execute(
+            existing_query,
+            (project_uuid, *row_ids),
+        ).fetchall()
+        if existing:
+            if len(existing) != len(row_ids):
+                raise HistoryDisclosureError("history import cohort is partially staged; inspect conflicting event IDs")
+            staged_ids = tuple(str(row[0]) for row in existing)
+            staged_payloads = tuple(str(row[3]) for row in existing)
+            epoch_ids = {int(cast("str | int | float | bytes", row[1])) for row in existing}
+            if staged_ids != row_ids or staged_payloads != payloads or len(epoch_ids) != 1:
+                raise HistoryDisclosureError("history import event IDs already name a different cohort")
+            epoch_id = next(iter(epoch_ids))
+            epoch = unit.execute(
+                "SELECT state, reason FROM consent_epochs WHERE project_uuid = ? AND epoch_id = ?",
+                (project_uuid, epoch_id),
+            ).fetchone()
+            cohort_count = unit.execute(
+                "SELECT COUNT(*) FROM journal_entries WHERE project_uuid = ? AND epoch_id = ?",
+                (project_uuid, epoch_id),
+            ).fetchone()
+            outbox_count = unit.execute(
+                "SELECT COUNT(*) FROM outbox_tasks WHERE project_uuid = ? AND epoch_id = ?",
+                (project_uuid, epoch_id),
+            ).fetchone()
+            if epoch != ("sealed", "history_import_confirmation") or cohort_count != (len(row_ids),) or outbox_count != (0,):
+                raise HistoryDisclosureError("history import event IDs are not isolated in the dedicated sealed epoch")
+            return row_ids
+
+        tail_row = unit.execute(
+            "SELECT next_sequence FROM capture_sequences WHERE project_uuid = ?",
+            (project_uuid,),
+        ).fetchone()
+        tail_value = 0 if tail_row is None else tail_row[0]
+        if not isinstance(tail_value, int) or isinstance(tail_value, bool) or tail_value < 0:
+            raise HistoryDisclosureError("history import capture tail is incompatible")
+        epoch_row = unit.execute("SELECT COALESCE(MAX(epoch_id), 0) FROM consent_epochs").fetchone()
+        if epoch_row is None or not isinstance(epoch_row[0], int):
+            raise HistoryDisclosureError("history import epoch identity is incompatible")
+        epoch_id = epoch_row[0] + 1
+        sealed_tail = tail_value + len(row_ids)
+        unit.execute(
+            "INSERT INTO consent_epochs "
+            "(epoch_id, project_uuid, opened_at_tail, state, consent_generation, "
+            "sealed_at_tail, sealed_at, reason) "
+            "VALUES (?, ?, ?, 'sealed', ?, ?, ?, 'history_import_confirmation')",
+            (
+                epoch_id,
+                project_uuid,
+                tail_value,
+                context.consent_generation,
+                sealed_tail,
+                timestamp,
+            ),
+        )
+        unit.executemany(
+            "INSERT INTO journal_entries (entry_id, project_uuid, epoch_id, capture_sequence, payload_json, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                (
+                    row_id,
+                    project_uuid,
+                    epoch_id,
+                    tail_value + index,
+                    payload,
+                    timestamp,
+                )
+                for index, (row_id, payload) in enumerate(
+                    zip(row_ids, payloads, strict=True),
+                    start=1,
+                )
+            ),
+        )
+        unit.execute(
+            "INSERT INTO capture_sequences (project_uuid, next_sequence) VALUES (?, ?) "
+            "ON CONFLICT(project_uuid) DO UPDATE SET next_sequence = excluded.next_sequence",
+            (project_uuid, sealed_tail),
+        )
+    return row_ids
 
 
 def _require_current_authority(
@@ -412,5 +571,7 @@ __all__ = [
     "confirm_history_disclosure",
     "consume_history_disclosure",
     "preview_sealed_history",
+    "preview_sealed_history_cohort",
     "revalidate_history_disclosure",
+    "stage_sealed_history_cohort",
 ]

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
-from typing import Any
+from typing import Any, cast
+from uuid import UUID, uuid4
 
 from specify_cli.sync.project_context import ProjectSyncContext, validate_project_sync_context_authority
 from specify_cli.sync.project_store import ProjectStoreError, ProjectStoreLockedError, ProjectSyncStore, ProjectUnitOfWork
@@ -53,7 +56,34 @@ class ReconciliationPolicy(StrEnum):
 
     NATIVE_IDENTITY_QUERY = "native_identity_query"
     NATIVE_IDENTITY_RETRY = "native_identity_retry"
+    NATIVE_IDENTITY_RETRY_THEN_QUERY = "native_identity_retry_then_query"
     OPERATOR_REVIEW = "operator_review"
+
+
+class LogicalOperationRepeatability(StrEnum):
+    """Whether terminal history completes or precedes a logical invocation."""
+
+    REPEATABLE_READ = "repeatable_read"
+    IDEMPOTENT_WRITE = "idempotent_write"
+
+
+class LogicalOperationDisposition(StrEnum):
+    """Typed action selected atomically for one logical hosted operation."""
+
+    NEW_PREPARED = "new_prepared"
+    PREPARED_RETRY = "prepared_retry"
+    RETRYABLE_RESTART = "retryable_restart"
+    QUERY_NATIVE = "query_native"
+    OPERATOR_REVIEW = "operator_review"
+    TERMINAL_PRIOR = "terminal_prior"
+
+
+class DeliveryTerminalResultStatus(StrEnum):
+    """Typed presence/state classification for exact terminal history."""
+
+    ABSENT = "absent"
+    NONTERMINAL = "nonterminal"
+    TERMINAL = "terminal"
 
 
 _REQUIRED_METADATA_FIELDS = (
@@ -76,6 +106,18 @@ _REQUIRED_METADATA_FIELDS = (
     "reconciliation_policy",
 )
 
+_LOGICAL_OPERATION_PREFIX = "logical-operation:"
+_LOGICAL_OPERATION_SCHEMA = "spec-kitty.logical-operation.v1"
+_LOGICAL_OPERATION_MAX_LIFETIME = timedelta(hours=1)
+_LOGICAL_OPERATION_TERMINAL_STATES = frozenset(
+    {
+        DeliveryAttemptState.SUCCEEDED,
+        DeliveryAttemptState.REFUSED,
+        DeliveryAttemptState.CANCELED,
+        DeliveryAttemptState.TERMINAL_UNKNOWN,
+    }
+)
+
 
 @dataclass(frozen=True, slots=True)
 class DeliveryAttemptSpec:
@@ -89,6 +131,8 @@ class DeliveryAttemptSpec:
     outbox_task_id: str | None = None
     deadline_at: str = ""
     reconciliation_policy: str = ReconciliationPolicy.OPERATOR_REVIEW.value
+    logical_operation_semantic_key: str | None = None
+    logical_operation_repeatability: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,6 +180,64 @@ class DeliveryRecoveryDecision:
     diagnostic: str
 
 
+@dataclass(frozen=True, slots=True)
+class LogicalOperationRequest:
+    """Immutable semantic identity and policy for one hosted invocation."""
+
+    write_kind: str
+    semantic_key: str
+    payload_hash: str
+    payload_reference: str
+    repeatability: LogicalOperationRepeatability
+    reconciliation_policy: str
+    deadline_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class LogicalOperationDecision:
+    """Durable allocator result; it authorizes no I/O by itself."""
+
+    disposition: LogicalOperationDisposition
+    attempt_id: str
+    native_identity: str | None
+    state: DeliveryAttemptState | None
+    outcome: DeliveryOutcome | None
+    terminal_refusal_category: str | None
+    repeatability: LogicalOperationRepeatability
+    may_resend: bool
+    may_query: bool
+    requires_operator_review: bool
+    remote_operation_id: str | None
+    deadline_at: str | None
+    diagnostic: str
+
+
+@dataclass(frozen=True, slots=True)
+class DeliveryTerminalResultProjection:
+    """Validated terminal history without exposing delivery-store rows."""
+
+    status: DeliveryTerminalResultStatus
+    attempt_id: str
+    state: DeliveryAttemptState | None
+    outcome: DeliveryOutcome | None
+    terminal_refusal_category: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class _LogicalOperationCandidate:
+    attempt_id: str
+    state: DeliveryAttemptState
+    payload_hash: str | None
+    deadline_at: str | None
+    reconciliation_policy: str | None
+    metadata: dict[str, Any]
+    epoch_id: int | None
+    consent_generation: int | None
+    target_generation: int | None
+    admission_generation: str | None
+    binding_audience: str | None
+
+
 def prepare_delivery_attempt(
     unit: ProjectUnitOfWork,
     context: ProjectSyncContext,
@@ -155,6 +257,7 @@ def prepare_delivery_attempt(
         deadline_at=spec.deadline_at,
         reconciliation_policy=spec.reconciliation_policy,
     )
+    _validate_logical_operation_namespace(unit=unit, spec=spec)
     _parse_deadline(spec.deadline_at)
     policy = _parse_reconciliation_policy(spec.reconciliation_policy)
     metadata = _attempt_metadata(spec, context=context, unit=unit, reconciliation_policy=policy)
@@ -225,6 +328,140 @@ def get_delivery_attempt_record(
         payload_hash=str(row[2]) if row[2] is not None else None,
         reconciliation_policy=str(row[3]) if row[3] is not None else None,
     )
+
+
+def get_delivery_terminal_result_projection(
+    unit: ProjectUnitOfWork,
+    context: ProjectSyncContext,
+    spec: DeliveryAttemptSpec,
+) -> DeliveryTerminalResultProjection:
+    """Return validated exact terminal history under the active transport lease.
+
+    Absence and nonterminal history are explicit typed results. Existing history
+    is never accepted by attempt ID alone: its complete authority tuple,
+    transport identity, write kind, payload hash, and payload reference must
+    match the caller's immutable specification before any result is projected.
+    """
+    _validate_context_for_unit(unit, context, require_lease=True)
+    _require_non_empty(
+        attempt_id=spec.attempt_id,
+        write_kind=spec.write_kind,
+        native_identity=spec.native_identity,
+        payload_hash=spec.payload_hash,
+        payload_reference=spec.payload_reference,
+    )
+    row = unit.execute(
+        "SELECT epoch_id, consent_generation, target_generation, admission_generation, binding_audience, "
+        "payload_reference, state, payload_hash FROM delivery_attempts "
+        "WHERE project_uuid = ? AND attempt_id = ?",
+        (unit.project_uuid.storage_token, spec.attempt_id),
+    ).fetchone()
+    if row is None:
+        return DeliveryTerminalResultProjection(
+            status=DeliveryTerminalResultStatus.ABSENT,
+            attempt_id=spec.attempt_id,
+            state=None,
+            outcome=None,
+            terminal_refusal_category=None,
+        )
+    try:
+        _assert_attempt_authority_matches_context(row=row, unit=unit, context=context)
+    except (TypeError, ValueError, IndexError) as exc:
+        raise ProjectStoreError("delivery terminal projection attempt authority is corrupt") from exc
+    target = context.target_audience
+    if target is None:
+        raise ProjectStoreError("delivery terminal projection requires an admitted target audience")
+    metadata = _metadata_from_payload_reference(row[5])
+    diagnostic = _metadata_required_identity_diagnostic(
+        metadata,
+        payload_hash=str(row[7]) if row[7] is not None else None,
+    )
+    if diagnostic is not None:
+        raise ProjectStoreError(diagnostic)
+    expected = {
+        "write_kind": spec.write_kind,
+        "native_identity": spec.native_identity,
+        "payload_reference": spec.payload_reference,
+    }
+    for key, expected_value in expected.items():
+        if metadata.get(key) != expected_value:
+            raise ProjectStoreError(f"delivery terminal projection {key} does not match exact attempt history")
+    if str(row[7]) != spec.payload_hash:
+        raise ProjectStoreError("delivery terminal projection payload hash does not match exact attempt history")
+    try:
+        state = DeliveryAttemptState(str(row[6]))
+    except ValueError as exc:
+        raise ProjectStoreError("delivery terminal projection attempt state is invalid") from exc
+    terminal_results = _validated_terminal_projection_results(
+        unit,
+        attempt_id=spec.attempt_id,
+        epoch_id=context.epoch_id,
+        target_generation=target.configuration_generation,
+        admission_generation=context.admission_generation,
+    )
+    if state not in _LOGICAL_OPERATION_TERMINAL_STATES:
+        if terminal_results:
+            raise ProjectStoreError("nonterminal delivery attempt has contradictory terminal result history")
+        return DeliveryTerminalResultProjection(
+            status=DeliveryTerminalResultStatus.NONTERMINAL,
+            attempt_id=spec.attempt_id,
+            state=state,
+            outcome=None,
+            terminal_refusal_category=None,
+        )
+    if len(terminal_results) != 1:
+        raise ProjectStoreError("terminal delivery attempt requires exactly one durable terminal result")
+    outcome, category = terminal_results[0]
+    expected_state = {
+        DeliveryOutcome.DELIVERED: DeliveryAttemptState.SUCCEEDED,
+        DeliveryOutcome.DUPLICATE: DeliveryAttemptState.SUCCEEDED,
+        DeliveryOutcome.REFUSED: DeliveryAttemptState.REFUSED,
+        DeliveryOutcome.TERMINAL_UNKNOWN: DeliveryAttemptState.TERMINAL_UNKNOWN,
+    }[outcome]
+    if state is not expected_state:
+        raise ProjectStoreError("terminal delivery result outcome does not match attempt state")
+    return DeliveryTerminalResultProjection(
+        status=DeliveryTerminalResultStatus.TERMINAL,
+        attempt_id=spec.attempt_id,
+        state=state,
+        outcome=outcome,
+        terminal_refusal_category=category,
+    )
+
+
+def _validated_terminal_projection_results(
+    unit: ProjectUnitOfWork,
+    *,
+    attempt_id: str,
+    epoch_id: int | None,
+    target_generation: int,
+    admission_generation: str | None,
+) -> list[tuple[DeliveryOutcome, str | None]]:
+    result_rows = unit.execute(
+        "SELECT epoch_id, target_generation, admission_generation, outcome, terminal_refusal_category "
+        "FROM delivery_results WHERE project_uuid = ? AND attempt_id = ? ORDER BY recorded_at, result_id",
+        (unit.project_uuid.storage_token, attempt_id),
+    ).fetchall()
+    terminal_results: list[tuple[DeliveryOutcome, str | None]] = []
+    for result_row in result_rows:
+        try:
+            outcome = DeliveryOutcome(str(result_row[3]))
+            result_epoch_id = int(cast("str | int | float | bytes", result_row[0]))
+            result_target_generation = int(cast("str | int | float | bytes", result_row[1]))
+        except (TypeError, ValueError, IndexError) as exc:
+            raise ProjectStoreError("delivery terminal projection result row is corrupt") from exc
+        category = str(result_row[4]) if result_row[4] is not None else None
+        _validate_result_category(outcome=outcome, terminal_refusal_category=category)
+        if result_epoch_id != epoch_id or result_target_generation != target_generation or str(result_row[2]) != admission_generation:
+            raise ProjectStoreError("delivery terminal result authority no longer matches the live transport lease")
+        if outcome in {
+            DeliveryOutcome.DELIVERED,
+            DeliveryOutcome.DUPLICATE,
+            DeliveryOutcome.REFUSED,
+            DeliveryOutcome.TERMINAL_UNKNOWN,
+        }:
+            terminal_results.append((outcome, category))
+    return terminal_results
 
 
 def list_delivery_attempt_projections(unit: ProjectUnitOfWork) -> list[DeliveryAttemptProjection]:
@@ -405,6 +642,27 @@ def record_delivery_result(
     terminal_refusal_category: str | None = None,
 ) -> None:
     """Record a genuine transport result only while holding the project lease."""
+    _record_delivery_result(
+        unit,
+        context,
+        result_id=result_id,
+        attempt_id=attempt_id,
+        outcome=outcome,
+        terminal_refusal_category=terminal_refusal_category,
+        allow_queried_recovery=False,
+    )
+
+
+def _record_delivery_result(
+    unit: ProjectUnitOfWork,
+    context: ProjectSyncContext,
+    *,
+    result_id: str,
+    attempt_id: str,
+    outcome: DeliveryOutcome,
+    terminal_refusal_category: str | None,
+    allow_queried_recovery: bool,
+) -> None:
     _validate_context_for_unit(unit, context, require_lease=True)
     _validate_result_category(outcome=outcome, terminal_refusal_category=terminal_refusal_category)
     if outcome in {DeliveryOutcome.DELIVERED, DeliveryOutcome.DUPLICATE}:
@@ -420,7 +678,7 @@ def record_delivery_result(
     else:
         terminal_state = DeliveryAttemptState.UNKNOWN
     row = unit.execute(
-        "SELECT epoch_id, consent_generation, target_generation, admission_generation, binding_audience, payload_reference "
+        "SELECT epoch_id, consent_generation, target_generation, admission_generation, binding_audience, payload_reference, state "
         "FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ? AND state IN (?, ?, ?)",
         (
             unit.project_uuid.storage_token,
@@ -433,6 +691,10 @@ def record_delivery_result(
     if row is None:
         raise ProjectStoreError("delivery result requires a live or recoverable attempt")
     _assert_attempt_authority_matches_context(row=row, unit=unit, context=context)
+    persisted_state = DeliveryAttemptState(str(row[6]))
+    direct_recovery_noop = outcome is DeliveryOutcome.UNKNOWN or (persisted_state is DeliveryAttemptState.PENDING_REMOTE and outcome is DeliveryOutcome.PENDING)
+    if not allow_queried_recovery and persisted_state in {DeliveryAttemptState.PENDING_REMOTE, DeliveryAttemptState.UNKNOWN} and not direct_recovery_noop:
+        raise ProjectStoreError("recoverable delivery result promotion requires the remote operation query execution seam")
     recorded_at = _now()
     existing_result = unit.execute(
         "SELECT attempt_id, epoch_id, target_generation, admission_generation, outcome, terminal_refusal_category "
@@ -448,7 +710,7 @@ def record_delivery_result(
             (
                 result_id,
                 unit.project_uuid.storage_token,
-                int(row[0]),
+                int(cast("str | int | float | bytes", row[0])),
                 attempt_id,
                 int(row[2]) if row[2] is not None else None,
                 str(row[3]) if row[3] is not None else None,
@@ -507,7 +769,10 @@ def restart_delivery_attempt(
     if row is None:
         raise ProjectStoreError("delivery attempt is not retryable without effect")
     _assert_attempt_authority_matches_context(row=row, unit=unit, context=context)
-    if _parse_reconciliation_policy(str(row[7]) if row[7] is not None else "") is not ReconciliationPolicy.NATIVE_IDENTITY_RETRY:
+    if _parse_reconciliation_policy(str(row[7]) if row[7] is not None else "") not in {
+        ReconciliationPolicy.NATIVE_IDENTITY_RETRY,
+        ReconciliationPolicy.NATIVE_IDENTITY_RETRY_THEN_QUERY,
+    }:
         raise ProjectStoreError("delivery attempt retry is not authorized by reconciliation policy")
     deadline = _parse_deadline(str(row[6]) if row[6] is not None else "")
     if deadline <= (now or datetime.now(UTC)):
@@ -586,7 +851,10 @@ def plan_delivery_attempt_recovery(
             diagnostic="attempt was terminalized during opt-out; preserve diagnostics only",
         )
     if state is DeliveryAttemptState.PREPARED:
-        if policy is not ReconciliationPolicy.NATIVE_IDENTITY_RETRY:
+        if policy not in {
+            ReconciliationPolicy.NATIVE_IDENTITY_RETRY,
+            ReconciliationPolicy.NATIVE_IDENTITY_RETRY_THEN_QUERY,
+        }:
             return DeliveryRecoveryDecision(
                 attempt_id=attempt_id,
                 state=state,
@@ -604,7 +872,10 @@ def plan_delivery_attempt_recovery(
             diagnostic="attempt was durable before transport; retry only with the original native identity",
         )
     if state is DeliveryAttemptState.RETRYABLE_NO_EFFECT:
-        if policy is not ReconciliationPolicy.NATIVE_IDENTITY_RETRY:
+        if policy not in {
+            ReconciliationPolicy.NATIVE_IDENTITY_RETRY,
+            ReconciliationPolicy.NATIVE_IDENTITY_RETRY_THEN_QUERY,
+        }:
             return DeliveryRecoveryDecision(
                 attempt_id=attempt_id,
                 state=state,
@@ -622,7 +893,10 @@ def plan_delivery_attempt_recovery(
             diagnostic="attempt has no remote effect; retry only by restarting the original native identity",
         )
     if state in {DeliveryAttemptState.IN_FLIGHT, DeliveryAttemptState.PENDING_REMOTE, DeliveryAttemptState.UNKNOWN}:
-        if policy is not ReconciliationPolicy.NATIVE_IDENTITY_QUERY:
+        if policy not in {
+            ReconciliationPolicy.NATIVE_IDENTITY_QUERY,
+            ReconciliationPolicy.NATIVE_IDENTITY_RETRY_THEN_QUERY,
+        }:
             return DeliveryRecoveryDecision(
                 attempt_id=attempt_id,
                 state=state,
@@ -646,6 +920,663 @@ def plan_delivery_attempt_recovery(
         native_identity=native_identity,
         may_resend=False,
         diagnostic="terminal result already exists; automatic recovery is not allowed",
+    )
+
+
+def allocate_logical_delivery_operation(
+    store: ProjectSyncStore,
+    request: LogicalOperationRequest,
+    *,
+    lock_timeout_seconds: float = 5.0,
+    now: datetime | None = None,
+) -> LogicalOperationDecision:
+    """Atomically recover or persist one logical hosted operation before I/O.
+
+    The project transport lease serializes competing allocators. The returned
+    decision carries durable identity and recovery truth but does not start the
+    attempt or authorize a network call; callers must leave this transaction and
+    use the normal WP06 start/restart/query surfaces.
+    """
+    current_time = (now or datetime.now(UTC)).astimezone(UTC)
+    policy = _validate_logical_operation_request(request)
+    with (
+        acquire_project_transport_lease(
+            store,
+            lock_timeout_seconds=lock_timeout_seconds,
+            lease_identity="logical-operation-allocation",
+        ) as lease,
+        lease.unit_of_work() as (unit, context),
+    ):
+        _validate_context_for_unit(unit, context, require_lease=True)
+        matches: list[_LogicalOperationCandidate] = []
+        for row in _logical_operation_rows(unit):
+            attempt_id = str(row[0])
+            if not _logical_attempt_id_may_match_request(
+                project_uuid=unit.project_uuid.storage_token,
+                request=request,
+                attempt_id=attempt_id,
+            ):
+                continue
+            try:
+                candidate = _logical_operation_candidate(unit, row)
+            except (ProjectStoreError, ValueError) as exc:
+                return _logical_operator_review(
+                    request,
+                    attempt_id=attempt_id,
+                    native_identity=None,
+                    state=None,
+                    deadline_at=None,
+                    diagnostic=f"logical operation metadata requires operator review: {exc}",
+                )
+            if (
+                candidate.metadata["logical_operation_semantic_key"] != request.semantic_key
+                or candidate.metadata["write_kind"] != request.write_kind
+                or candidate.metadata["logical_operation_repeatability"] != request.repeatability.value
+            ):
+                continue
+            authority_diagnostic = _logical_operation_authority_diagnostic(
+                candidate=candidate,
+                unit=unit,
+                context=context,
+            )
+            if authority_diagnostic is not None:
+                return _logical_operator_review_for_candidate(
+                    unit,
+                    request,
+                    candidate,
+                    diagnostic=authority_diagnostic,
+                )
+            if candidate.payload_hash != request.payload_hash:
+                return _logical_operator_review_for_candidate(
+                    unit,
+                    request,
+                    candidate,
+                    diagnostic="logical operation payload hash drift requires operator review",
+                )
+            if candidate.metadata["payload_reference"] != request.payload_reference:
+                return _logical_operator_review_for_candidate(
+                    unit,
+                    request,
+                    candidate,
+                    diagnostic="logical operation payload reference drift requires operator review",
+                )
+            if candidate.reconciliation_policy != request.reconciliation_policy:
+                return _logical_operator_review_for_candidate(
+                    unit,
+                    request,
+                    candidate,
+                    diagnostic="logical operation reconciliation policy drift requires operator review",
+                )
+            if candidate.deadline_at != request.deadline_at:
+                return _logical_operator_review_for_candidate(
+                    unit,
+                    request,
+                    candidate,
+                    diagnostic="logical operation deadline drift requires operator review",
+                )
+            matches.append(candidate)
+
+        nonterminal = [candidate for candidate in matches if candidate.state not in _LOGICAL_OPERATION_TERMINAL_STATES]
+        if len(nonterminal) > 1:
+            return _logical_operator_review_for_candidate(
+                unit,
+                request,
+                nonterminal[0],
+                diagnostic="multiple nonterminal logical operations require operator review",
+            )
+        if nonterminal:
+            return _logical_recovery_decision(
+                unit,
+                request,
+                nonterminal[0],
+                now=current_time,
+            )
+        if request.repeatability is LogicalOperationRepeatability.IDEMPOTENT_WRITE and matches:
+            return _logical_terminal_prior_decision(unit, request, matches[0])
+
+        _validate_new_logical_operation_deadline(request.deadline_at, now=current_time)
+        attempt_id, native_identity = _new_logical_operation_identity(
+            project_uuid=unit.project_uuid.storage_token,
+            request=request,
+        )
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id=attempt_id,
+                write_kind=request.write_kind,
+                native_identity=native_identity,
+                payload_hash=request.payload_hash,
+                payload_reference=request.payload_reference,
+                deadline_at=request.deadline_at,
+                reconciliation_policy=policy.value,
+                logical_operation_semantic_key=request.semantic_key,
+                logical_operation_repeatability=request.repeatability.value,
+            ),
+        )
+        return LogicalOperationDecision(
+            disposition=LogicalOperationDisposition.NEW_PREPARED,
+            attempt_id=attempt_id,
+            native_identity=native_identity,
+            state=DeliveryAttemptState.PREPARED,
+            outcome=None,
+            terminal_refusal_category=None,
+            repeatability=request.repeatability,
+            may_resend=True,
+            may_query=False,
+            requires_operator_review=False,
+            remote_operation_id=None,
+            deadline_at=request.deadline_at,
+            diagnostic="logical operation was durably prepared before transport",
+        )
+
+
+def attach_remote_operation_id(
+    unit: ProjectUnitOfWork,
+    context: ProjectSyncContext,
+    *,
+    attempt_id: str,
+    remote_operation_id: str,
+) -> None:
+    """Durably attach a server operation ID before recording pending state."""
+    _validate_context_for_unit(unit, context, require_lease=True)
+    _require_non_empty(attempt_id=attempt_id, remote_operation_id=remote_operation_id)
+    row = unit.execute(
+        "SELECT attempt_id, state, payload_hash, payload_reference, deadline_at, reconciliation_policy, "
+        "epoch_id, consent_generation, target_generation, admission_generation, binding_audience "
+        "FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ?",
+        (unit.project_uuid.storage_token, attempt_id),
+    ).fetchone()
+    if row is None:
+        raise ProjectStoreError("remote operation correlation requires a durable attempt")
+    candidate = _logical_operation_candidate(unit, row)
+    if candidate.state not in {
+        DeliveryAttemptState.IN_FLIGHT,
+        DeliveryAttemptState.PENDING_REMOTE,
+        DeliveryAttemptState.UNKNOWN,
+    }:
+        raise ProjectStoreError("remote operation correlation requires a started or pending attempt")
+    diagnostic = _logical_operation_authority_diagnostic(candidate=candidate, unit=unit, context=context)
+    if diagnostic is not None:
+        raise ProjectStoreError(diagnostic)
+    existing = candidate.metadata.get("remote_operation_id")
+    if existing is not None and existing != remote_operation_id:
+        raise ProjectStoreError("delivery attempt already has a different remote operation id")
+    candidate.metadata["remote_operation_id"] = remote_operation_id
+    unit.execute(
+        "UPDATE delivery_attempts SET payload_reference = ? WHERE project_uuid = ? AND attempt_id = ?",
+        (json.dumps(candidate.metadata, sort_keys=True), unit.project_uuid.storage_token, attempt_id),
+    )
+
+
+def read_remote_operation_id(
+    unit: ProjectUnitOfWork,
+    *,
+    attempt_id: str,
+) -> str | None:
+    """Read the durable remote-operation correlation for one logical attempt."""
+    _require_non_empty(attempt_id=attempt_id)
+    row = unit.execute(
+        "SELECT payload_reference FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ?",
+        (unit.project_uuid.storage_token, attempt_id),
+    ).fetchone()
+    if row is None:
+        raise ProjectStoreError("delivery attempt does not exist")
+    metadata = _logical_operation_metadata(attempt_id, row[0])
+    return _optional_non_empty_metadata_string(metadata, "remote_operation_id")
+
+
+def execute_remote_operation_query(
+    store: ProjectSyncStore,
+    *,
+    attempt_id: str,
+    result_id: str,
+    query: Callable[[str], object],
+    classify: Callable[[object], tuple[DeliveryOutcome, str | None]],
+    lock_timeout_seconds: float = 5.0,
+) -> object:
+    """Query one attached operation without a UoW across I/O and persist truth."""
+    _require_non_empty(attempt_id=attempt_id, result_id=result_id)
+    with acquire_project_transport_lease(
+        store,
+        lock_timeout_seconds=lock_timeout_seconds,
+        lease_identity="remote-operation-query",
+    ) as lease:
+        with lease.unit_of_work() as (unit, context):
+            candidate = _logical_operation_candidate_by_id(unit, attempt_id=attempt_id)
+            _require_query_recovery_decision(unit, candidate)
+            diagnostic = _logical_operation_authority_diagnostic(candidate=candidate, unit=unit, context=context)
+            if diagnostic is not None:
+                raise ProjectStoreError(diagnostic)
+            remote_operation_id = _logical_remote_operation_id(candidate)
+            if remote_operation_id is None:
+                raise ProjectStoreError("remote operation query requires durable correlation")
+
+        value = query(remote_operation_id)
+        outcome, refusal_category = classify(value)
+        if not isinstance(outcome, DeliveryOutcome):
+            raise TypeError("remote operation query classifier must return a DeliveryOutcome")
+
+        with lease.unit_of_work() as (unit, context):
+            candidate = _logical_operation_candidate_by_id(unit, attempt_id=attempt_id)
+            _require_query_recovery_decision(unit, candidate)
+            diagnostic = _logical_operation_authority_diagnostic(candidate=candidate, unit=unit, context=context)
+            if diagnostic is not None:
+                raise ProjectStoreError(diagnostic)
+            if _logical_remote_operation_id(candidate) != remote_operation_id:
+                raise ProjectStoreError("remote operation correlation changed during query")
+            _record_delivery_result(
+                unit,
+                context,
+                result_id=result_id,
+                attempt_id=attempt_id,
+                outcome=outcome,
+                terminal_refusal_category=refusal_category,
+                allow_queried_recovery=True,
+            )
+        return value
+
+
+def _logical_operation_rows(unit: ProjectUnitOfWork) -> list[Any]:
+    return list(
+        unit.execute(
+            "SELECT attempt_id, state, payload_hash, payload_reference, deadline_at, reconciliation_policy, "
+            "epoch_id, consent_generation, target_generation, admission_generation, binding_audience "
+            "FROM delivery_attempts WHERE project_uuid = ? AND attempt_id LIKE ? "
+            "ORDER BY created_at DESC, attempt_id DESC",
+            (unit.project_uuid.storage_token, f"{_LOGICAL_OPERATION_PREFIX}%"),
+        ).fetchall()
+    )
+
+
+def _logical_operation_candidate_by_id(
+    unit: ProjectUnitOfWork,
+    *,
+    attempt_id: str,
+) -> _LogicalOperationCandidate:
+    row = unit.execute(
+        "SELECT attempt_id, state, payload_hash, payload_reference, deadline_at, reconciliation_policy, "
+        "epoch_id, consent_generation, target_generation, admission_generation, binding_audience "
+        "FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ?",
+        (unit.project_uuid.storage_token, attempt_id),
+    ).fetchone()
+    if row is None:
+        raise ProjectStoreError("logical operation does not exist")
+    return _logical_operation_candidate(unit, row)
+
+
+def _require_query_recovery_decision(
+    unit: ProjectUnitOfWork,
+    candidate: _LogicalOperationCandidate,
+) -> None:
+    recovery = plan_delivery_attempt_recovery(unit, attempt_id=candidate.attempt_id)
+    if recovery.action is not RecoveryAction.QUERY_NATIVE_IDENTITY:
+        raise ProjectStoreError(f"remote operation query is not authorized: {recovery.diagnostic}")
+    if recovery.native_identity != candidate.attempt_id:
+        raise ProjectStoreError("remote operation query recovery identity does not match the durable attempt")
+
+
+def _logical_operation_candidate(
+    unit: ProjectUnitOfWork,
+    row: Any,
+) -> _LogicalOperationCandidate:
+    attempt_id = str(row[0])
+    metadata = _logical_operation_metadata(attempt_id, row[3])
+    state = DeliveryAttemptState(str(row[1]))
+    repeatability = LogicalOperationRepeatability(_required_non_empty_metadata_string(metadata, "logical_operation_repeatability"))
+    write_kind = _required_non_empty_metadata_string(metadata, "write_kind")
+    semantic_key = _required_non_empty_metadata_string(metadata, "logical_operation_semantic_key")
+    native_identity = _required_non_empty_metadata_string(metadata, "native_identity")
+    expected_attempt_id = _expected_logical_operation_attempt_id(
+        project_uuid=unit.project_uuid.storage_token,
+        write_kind=write_kind,
+        semantic_key=semantic_key,
+        repeatability=repeatability,
+        attempt_id=attempt_id,
+    )
+    if expected_attempt_id != attempt_id or native_identity != attempt_id:
+        raise ProjectStoreError("logical operation semantic identity does not match durable attempt identity")
+    _required_non_empty_metadata_string(metadata, "payload_reference")
+    return _LogicalOperationCandidate(
+        attempt_id=attempt_id,
+        state=state,
+        payload_hash=str(row[2]) if row[2] is not None else None,
+        deadline_at=str(row[4]) if row[4] is not None else None,
+        reconciliation_policy=str(row[5]) if row[5] is not None else None,
+        metadata=metadata,
+        epoch_id=int(row[6]) if row[6] is not None else None,
+        consent_generation=int(row[7]) if row[7] is not None else None,
+        target_generation=int(row[8]) if row[8] is not None else None,
+        admission_generation=str(row[9]) if row[9] is not None else None,
+        binding_audience=str(row[10]) if row[10] is not None else None,
+    )
+
+
+def _logical_operation_metadata(attempt_id: str, raw_value: object) -> dict[str, Any]:
+    if not attempt_id.startswith(_LOGICAL_OPERATION_PREFIX):
+        raise ProjectStoreError("attempt is not a logical operation")
+    metadata = _read_projection_metadata(raw_value)
+    if metadata.get("logical_operation_schema") != _LOGICAL_OPERATION_SCHEMA:
+        raise ProjectStoreError("logical operation metadata has an unsupported schema")
+    return metadata
+
+
+def _required_non_empty_metadata_string(metadata: dict[str, Any], key: str) -> str:
+    value = metadata.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ProjectStoreError(f"logical operation metadata field {key} must be a non-empty string")
+    return value
+
+
+def _optional_non_empty_metadata_string(metadata: dict[str, Any], key: str) -> str | None:
+    if key not in metadata:
+        return None
+    return _required_non_empty_metadata_string(metadata, key)
+
+
+def _validate_logical_operation_request(
+    request: LogicalOperationRequest,
+) -> ReconciliationPolicy:
+    if not isinstance(request.repeatability, LogicalOperationRepeatability):
+        raise TypeError("repeatability must be a LogicalOperationRepeatability")
+    _require_non_empty(
+        write_kind=request.write_kind,
+        semantic_key=request.semantic_key,
+        payload_hash=request.payload_hash,
+        payload_reference=request.payload_reference,
+        reconciliation_policy=request.reconciliation_policy,
+        deadline_at=request.deadline_at,
+    )
+    try:
+        policy = ReconciliationPolicy(request.reconciliation_policy)
+    except ValueError as exc:
+        raise ValueError("reconciliation_policy must name a supported policy") from exc
+    _parse_deadline(request.deadline_at)
+    return policy
+
+
+def _validate_new_logical_operation_deadline(deadline_at: str, *, now: datetime) -> None:
+    deadline = _parse_deadline(deadline_at)
+    if deadline <= now or deadline > now + _LOGICAL_OPERATION_MAX_LIFETIME:
+        raise ValueError("logical operation deadline must be future and bounded to one hour")
+
+
+def _logical_operation_digest(
+    *,
+    project_uuid: str,
+    write_kind: str,
+    semantic_key: str,
+    repeatability: LogicalOperationRepeatability,
+) -> str:
+    raw = "\x1f".join((project_uuid, write_kind, semantic_key, repeatability.value))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()  # noqa: TID251 - native idempotency identity, not charter content
+
+
+def _new_logical_operation_identity(
+    *,
+    project_uuid: str,
+    request: LogicalOperationRequest,
+) -> tuple[str, str]:
+    digest = _logical_operation_digest(
+        project_uuid=project_uuid,
+        write_kind=request.write_kind,
+        semantic_key=request.semantic_key,
+        repeatability=request.repeatability,
+    )
+    if request.repeatability is LogicalOperationRepeatability.IDEMPOTENT_WRITE:
+        attempt_id = f"{_LOGICAL_OPERATION_PREFIX}write:{digest}"
+    else:
+        attempt_id = f"{_LOGICAL_OPERATION_PREFIX}read:{digest}:{uuid4()}"
+    return attempt_id, attempt_id
+
+
+def _logical_attempt_id_may_match_request(
+    *,
+    project_uuid: str,
+    request: LogicalOperationRequest,
+    attempt_id: str,
+) -> bool:
+    digest = _logical_operation_digest(
+        project_uuid=project_uuid,
+        write_kind=request.write_kind,
+        semantic_key=request.semantic_key,
+        repeatability=request.repeatability,
+    )
+    if request.repeatability is LogicalOperationRepeatability.IDEMPOTENT_WRITE:
+        return attempt_id == f"{_LOGICAL_OPERATION_PREFIX}write:{digest}"
+    return attempt_id.startswith(f"{_LOGICAL_OPERATION_PREFIX}read:{digest}:")
+
+
+def _expected_logical_operation_attempt_id(
+    *,
+    project_uuid: str,
+    write_kind: str,
+    semantic_key: str,
+    repeatability: LogicalOperationRepeatability,
+    attempt_id: str,
+) -> str:
+    digest = _logical_operation_digest(
+        project_uuid=project_uuid,
+        write_kind=write_kind,
+        semantic_key=semantic_key,
+        repeatability=repeatability,
+    )
+    if repeatability is LogicalOperationRepeatability.IDEMPOTENT_WRITE:
+        return f"{_LOGICAL_OPERATION_PREFIX}write:{digest}"
+    prefix = f"{_LOGICAL_OPERATION_PREFIX}read:{digest}:"
+    if not attempt_id.startswith(prefix):
+        return ""
+    identifier = attempt_id.removeprefix(prefix)
+    try:
+        parsed = UUID(identifier)
+    except (ValueError, AttributeError):
+        return ""
+    if parsed.version != 4:
+        return ""
+    return attempt_id
+
+
+def _logical_operation_authority_diagnostic(
+    *,
+    candidate: _LogicalOperationCandidate,
+    unit: ProjectUnitOfWork,
+    context: ProjectSyncContext,
+) -> str | None:
+    target = context.target_audience
+    if target is None:
+        return "logical operation live authority has no admitted target; operator review required"
+    expected = {
+        "project_uuid": unit.project_uuid.storage_token,
+        "store_database_path": str(context.store_identity.database_path),
+        "store_schema_version": str(context.store_identity.schema_version),
+        "store_layout_version": str(context.store_identity.layout_version),
+        "epoch_id": str(context.epoch_id),
+        "consent_generation": str(context.consent_generation),
+        "target_identity": target.target_identity,
+        "account_identity": target.account_identity,
+        "private_teamspace_id": target.private_teamspace_id,
+        "target_generation": str(target.configuration_generation),
+        "admission_generation": str(context.admission_generation),
+        "binding_audience": str(context.binding_audience),
+    }
+    persisted_columns = {
+        "epoch_id": str(candidate.epoch_id),
+        "consent_generation": str(candidate.consent_generation),
+        "target_generation": str(candidate.target_generation),
+        "admission_generation": str(candidate.admission_generation),
+        "binding_audience": str(candidate.binding_audience),
+    }
+    for key, expected_value in expected.items():
+        if candidate.metadata.get(key) != expected_value:
+            return f"logical operation authority drift for {key}; operator review required"
+    for key, persisted_value in persisted_columns.items():
+        if persisted_value != expected[key]:
+            return f"logical operation persisted authority drift for {key}; operator review required"
+    return None
+
+
+def _logical_result(
+    unit: ProjectUnitOfWork,
+    *,
+    attempt_id: str,
+) -> tuple[DeliveryOutcome | None, str | None]:
+    row = unit.execute(
+        "SELECT outcome, terminal_refusal_category FROM delivery_results "
+        "WHERE project_uuid = ? AND attempt_id = ? ORDER BY recorded_at DESC, result_id DESC LIMIT 1",
+        (unit.project_uuid.storage_token, attempt_id),
+    ).fetchone()
+    if row is None:
+        return None, None
+    try:
+        outcome = DeliveryOutcome(str(row[0]))
+    except ValueError as exc:
+        raise ProjectStoreError("logical operation result has an unsupported outcome") from exc
+    category = str(row[1]) if row[1] is not None else None
+    if category is not None and not category.strip():
+        raise ProjectStoreError("logical operation result has an empty refusal category")
+    return outcome, category
+
+
+def _logical_remote_operation_id(candidate: _LogicalOperationCandidate) -> str | None:
+    return _optional_non_empty_metadata_string(candidate.metadata, "remote_operation_id")
+
+
+def _logical_recovery_decision(
+    unit: ProjectUnitOfWork,
+    request: LogicalOperationRequest,
+    candidate: _LogicalOperationCandidate,
+    *,
+    now: datetime,
+) -> LogicalOperationDecision:
+    recovery = plan_delivery_attempt_recovery(unit, attempt_id=candidate.attempt_id, now=now)
+    outcome, category = _logical_result(unit, attempt_id=candidate.attempt_id)
+    disposition = LogicalOperationDisposition.OPERATOR_REVIEW
+    may_resend = False
+    may_query = False
+    requires_review = True
+    if candidate.state is DeliveryAttemptState.PREPARED and recovery.action is RecoveryAction.RETRY_NATIVE_IDENTITY and recovery.may_resend:
+        disposition = LogicalOperationDisposition.PREPARED_RETRY
+        may_resend = True
+        requires_review = False
+    elif candidate.state is DeliveryAttemptState.RETRYABLE_NO_EFFECT and recovery.action is RecoveryAction.RETRY_NATIVE_IDENTITY and recovery.may_resend:
+        disposition = LogicalOperationDisposition.RETRYABLE_RESTART
+        may_resend = True
+        requires_review = False
+    elif recovery.action is RecoveryAction.QUERY_NATIVE_IDENTITY:
+        disposition = LogicalOperationDisposition.QUERY_NATIVE
+        may_query = True
+        requires_review = False
+    return LogicalOperationDecision(
+        disposition=disposition,
+        attempt_id=candidate.attempt_id,
+        native_identity=recovery.native_identity,
+        state=candidate.state,
+        outcome=outcome,
+        terminal_refusal_category=category,
+        repeatability=request.repeatability,
+        may_resend=may_resend,
+        may_query=may_query,
+        requires_operator_review=requires_review,
+        remote_operation_id=_logical_remote_operation_id(candidate),
+        deadline_at=candidate.deadline_at,
+        diagnostic=recovery.diagnostic,
+    )
+
+
+def _logical_terminal_prior_decision(
+    unit: ProjectUnitOfWork,
+    request: LogicalOperationRequest,
+    candidate: _LogicalOperationCandidate,
+) -> LogicalOperationDecision:
+    try:
+        outcome, category = _logical_result(unit, attempt_id=candidate.attempt_id)
+        remote_operation_id = _logical_remote_operation_id(candidate)
+    except ProjectStoreError as exc:
+        return _logical_operator_review(
+            request,
+            attempt_id=candidate.attempt_id,
+            native_identity=candidate.metadata.get("native_identity") if isinstance(candidate.metadata.get("native_identity"), str) else None,
+            state=candidate.state,
+            deadline_at=candidate.deadline_at,
+            diagnostic=str(exc),
+        )
+    if candidate.state in {DeliveryAttemptState.SUCCEEDED, DeliveryAttemptState.REFUSED, DeliveryAttemptState.TERMINAL_UNKNOWN} and outcome is None:
+        return _logical_operator_review_for_candidate(
+            unit,
+            request,
+            candidate,
+            diagnostic="terminal logical operation is missing its durable result",
+        )
+    return LogicalOperationDecision(
+        disposition=LogicalOperationDisposition.TERMINAL_PRIOR,
+        attempt_id=candidate.attempt_id,
+        native_identity=_required_non_empty_metadata_string(candidate.metadata, "native_identity"),
+        state=candidate.state,
+        outcome=outcome,
+        terminal_refusal_category=category,
+        repeatability=request.repeatability,
+        may_resend=False,
+        may_query=False,
+        requires_operator_review=False,
+        remote_operation_id=remote_operation_id,
+        deadline_at=candidate.deadline_at,
+        diagnostic="idempotent logical operation already has terminal durable history",
+    )
+
+
+def _logical_operator_review_for_candidate(
+    unit: ProjectUnitOfWork,
+    request: LogicalOperationRequest,
+    candidate: _LogicalOperationCandidate,
+    *,
+    diagnostic: str,
+) -> LogicalOperationDecision:
+    try:
+        outcome, category = _logical_result(unit, attempt_id=candidate.attempt_id)
+        remote_operation_id = _logical_remote_operation_id(candidate)
+    except ProjectStoreError:
+        outcome, category, remote_operation_id = None, None, None
+    native = candidate.metadata.get("native_identity")
+    return LogicalOperationDecision(
+        disposition=LogicalOperationDisposition.OPERATOR_REVIEW,
+        attempt_id=candidate.attempt_id,
+        native_identity=native if isinstance(native, str) and native.strip() else None,
+        state=candidate.state,
+        outcome=outcome,
+        terminal_refusal_category=category,
+        repeatability=request.repeatability,
+        may_resend=False,
+        may_query=False,
+        requires_operator_review=True,
+        remote_operation_id=remote_operation_id,
+        deadline_at=candidate.deadline_at,
+        diagnostic=diagnostic,
+    )
+
+
+def _logical_operator_review(
+    request: LogicalOperationRequest,
+    *,
+    attempt_id: str,
+    native_identity: str | None,
+    state: DeliveryAttemptState | None,
+    deadline_at: str | None,
+    diagnostic: str,
+) -> LogicalOperationDecision:
+    return LogicalOperationDecision(
+        disposition=LogicalOperationDisposition.OPERATOR_REVIEW,
+        attempt_id=attempt_id,
+        native_identity=native_identity,
+        state=state,
+        outcome=None,
+        terminal_refusal_category=None,
+        repeatability=request.repeatability,
+        may_resend=False,
+        may_query=False,
+        requires_operator_review=True,
+        remote_operation_id=None,
+        deadline_at=deadline_at,
+        diagnostic=diagnostic,
     )
 
 
@@ -686,7 +1617,7 @@ def _terminalize_orphaned_attempt(
         (
             f"{attempt_id}:terminal-unknown",
             unit.project_uuid.storage_token,
-            int(row[0]),
+            int(cast("str | int | float | bytes", row[0])),
             attempt_id,
             DeliveryOutcome.TERMINAL_UNKNOWN.value,
             reason,
@@ -833,7 +1764,7 @@ def _attempt_metadata(
     target = context.target_audience
     if target is None:
         raise ProjectStoreError("delivery attempt requires an admitted target audience")
-    return {
+    metadata = {
         "payload_reference": spec.payload_reference,
         "write_kind": spec.write_kind,
         "native_identity": spec.native_identity,
@@ -852,6 +1783,47 @@ def _attempt_metadata(
         "deadline_at": spec.deadline_at,
         "reconciliation_policy": reconciliation_policy.value,
     }
+    if spec.logical_operation_semantic_key is not None:
+        metadata["logical_operation_schema"] = _LOGICAL_OPERATION_SCHEMA
+        metadata["logical_operation_semantic_key"] = spec.logical_operation_semantic_key
+    if spec.logical_operation_repeatability is not None:
+        metadata["logical_operation_repeatability"] = spec.logical_operation_repeatability
+    return metadata
+
+
+def _validate_logical_operation_namespace(
+    *,
+    unit: ProjectUnitOfWork,
+    spec: DeliveryAttemptSpec,
+) -> None:
+    reserved_identity = spec.attempt_id.startswith(_LOGICAL_OPERATION_PREFIX)
+    has_semantic_key = spec.logical_operation_semantic_key is not None
+    has_repeatability = spec.logical_operation_repeatability is not None
+    if has_semantic_key != has_repeatability:
+        raise ProjectStoreError("logical operation metadata requires both semantic key and repeatability")
+    if not reserved_identity:
+        if has_semantic_key:
+            raise ProjectStoreError("logical operation metadata requires a reserved logical-operation identity")
+        return
+    if not has_semantic_key:
+        raise ProjectStoreError("reserved logical-operation identity requires logical operation metadata")
+    semantic_key = spec.logical_operation_semantic_key
+    repeatability_value = spec.logical_operation_repeatability
+    if semantic_key is None or not semantic_key.strip():
+        raise ProjectStoreError("logical operation semantic key must be a non-empty string")
+    try:
+        repeatability = LogicalOperationRepeatability(str(repeatability_value))
+    except ValueError as exc:
+        raise ProjectStoreError("logical operation repeatability is invalid") from exc
+    expected_attempt_id = _expected_logical_operation_attempt_id(
+        project_uuid=unit.project_uuid.storage_token,
+        write_kind=spec.write_kind,
+        semantic_key=semantic_key,
+        repeatability=repeatability,
+        attempt_id=spec.attempt_id,
+    )
+    if expected_attempt_id != spec.attempt_id or spec.native_identity != spec.attempt_id:
+        raise ProjectStoreError("logical operation identity is not derived from its semantic metadata")
 
 
 def _assert_native_identity_available_for_prepare(
@@ -1126,15 +2098,26 @@ __all__ = [
     "DeliveryAttemptSpec",
     "DeliveryAttemptState",
     "DeliveryOutcome",
+    "DeliveryTerminalResultProjection",
+    "DeliveryTerminalResultStatus",
+    "LogicalOperationDecision",
+    "LogicalOperationDisposition",
+    "LogicalOperationRepeatability",
+    "LogicalOperationRequest",
     "OptOutSettlement",
     "ReconciliationPolicy",
     "RecoveryAction",
+    "allocate_logical_delivery_operation",
+    "attach_remote_operation_id",
+    "execute_remote_operation_query",
     "mark_transport_started",
     "mark_delivery_result_unknown",
     "get_delivery_attempt_record",
+    "get_delivery_terminal_result_projection",
     "list_delivery_attempt_projections",
     "plan_delivery_attempt_recovery",
     "prepare_delivery_attempt",
+    "read_remote_operation_id",
     "record_delivery_result",
     "recover_delivery_attempts",
     "restart_delivery_attempt",

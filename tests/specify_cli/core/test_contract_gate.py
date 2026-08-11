@@ -30,6 +30,8 @@ def _valid_body_sync() -> dict[str, object]:
         "target_branch": "main",
         "mission_type": "software-dev",
         "manifest_version": "3.0.0",
+        "admission_generation": 7,
+        "binding_audience": "private-teamspace:teamspace-1",
     }
 
 
@@ -56,7 +58,10 @@ def test_vendored_contract_matches_planning_artifact() -> None:
     planning_artifact = Path(__file__).resolve().parents[3] / "kitty-specs" / "064-complete-mission-identity-cutover" / "contracts" / "upstream-3.0.0-shape.json"
     vendored_artifact = files("specify_cli.core").joinpath("upstream_contract.json")
 
-    assert json.loads(vendored_artifact.read_text(encoding="utf-8")) == json.loads(planning_artifact.read_text(encoding="utf-8"))
+    vendored = json.loads(vendored_artifact.read_text(encoding="utf-8"))
+    assert vendored == json.loads(planning_artifact.read_text(encoding="utf-8"))
+    assert vendored["_source_saas_admission_commit"] == "29cc20c6ca5d61784af6f8b973a36131e69103af"
+    assert vendored["_source_saas_admission_contract_sha256"] == "fe3a9f8d2563e3a9df386cd911ea858fd6a48913eb14c5b39d579b26bf3a4b35"
 
 
 @pytest.mark.parametrize(
@@ -83,9 +88,26 @@ def test_envelope_rejects_invalid_payloads(payload: dict[str, object], field: st
         ({**_valid_body_sync(), "feature_slug": "064-complete-mission-identity-cutover"}, "feature_slug", "forbidden field 'feature_slug' present"),
         ({**_valid_body_sync(), "mission_key": "legacy-key"}, "mission_key", "forbidden field 'mission_key' present"),
         (
-            {"project_uuid": "proj-123", "target_branch": "main", "mission_type": "software-dev", "manifest_version": "3.0.0"},
+            {
+                "project_uuid": "proj-123",
+                "target_branch": "main",
+                "mission_type": "software-dev",
+                "manifest_version": "3.0.0",
+                "admission_generation": 7,
+                "binding_audience": "private-teamspace:teamspace-1",
+            },
             "mission_slug",
             "required field 'mission_slug' missing",
+        ),
+        (
+            {key: value for key, value in _valid_body_sync().items() if key != "admission_generation"},
+            "admission_generation",
+            "required field 'admission_generation' missing",
+        ),
+        (
+            {key: value for key, value in _valid_body_sync().items() if key != "binding_audience"},
+            "binding_audience",
+            "required field 'binding_audience' missing",
         ),
     ],
 )

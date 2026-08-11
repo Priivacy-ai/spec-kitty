@@ -13,6 +13,7 @@ from specify_cli.sync.history_disclosure import (
     confirm_history_disclosure,
     consume_history_disclosure,
     preview_sealed_history,
+    preview_sealed_history_cohort,
 )
 from specify_cli.sync.project_store import ProjectSyncStore
 
@@ -111,6 +112,44 @@ def test_confirmation_is_idempotent_and_consumption_revalidates_authority() -> N
     assert first == retry == consumed
     with pytest.raises(TypeError, match="explicit confirmation"):
         HistoryDisclosureCapability()
+
+
+def test_filtered_preview_excludes_unrelated_sealed_epochs() -> None:
+    store = _store_with_sealed_history()
+    with store.unit_of_work() as unit:
+        tail = unit.execute(
+            "SELECT next_sequence FROM capture_sequences WHERE project_uuid = ?",
+            (PROJECT_UUID,),
+        ).fetchone()
+        assert tail is not None
+        next_sequence = int(tail[0]) + 1
+        epoch = unit.execute("SELECT COALESCE(MAX(epoch_id), 0) FROM consent_epochs").fetchone()
+        assert epoch is not None
+        epoch_id = int(epoch[0]) + 1
+        unit.execute(
+            "INSERT INTO consent_epochs "
+            "(epoch_id, project_uuid, opened_at_tail, state, consent_generation, "
+            "sealed_at_tail, sealed_at, reason) "
+            "VALUES (?, ?, ?, 'sealed', 1, ?, '2026-08-11T00:00:00Z', "
+            "'history_import_confirmation')",
+            (epoch_id, PROJECT_UUID, next_sequence - 1, next_sequence),
+        )
+        unit.execute(
+            "INSERT INTO journal_entries "
+            "(entry_id, project_uuid, epoch_id, capture_sequence, payload_json) "
+            "VALUES ('import-1', ?, ?, ?, '{\"event_id\":\"import-1\"}')",
+            (PROJECT_UUID, epoch_id, next_sequence),
+        )
+        unit.execute(
+            "UPDATE capture_sequences SET next_sequence = ? WHERE project_uuid = ?",
+            (next_sequence, PROJECT_UUID),
+        )
+
+    preview = preview_sealed_history_cohort(store, ("import-1",))
+
+    assert preview.row_ids == ("import-1",)
+    assert preview.source_epoch_ids == (epoch_id,)
+    assert preview_sealed_history(store).row_ids == ("old-1", "old-2", "import-1")
 
 
 def test_changed_or_terminal_cohort_cannot_be_resurrected() -> None:

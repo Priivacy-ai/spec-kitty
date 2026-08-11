@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -18,6 +21,8 @@ from specify_cli.delivery.targets import compute_target_id
 from specify_cli.sync.body_queue import BodyUploadTask
 from specify_cli.sync.body_transport import push_content_with_transport_gate
 from specify_cli.sync.consent import record_project_opt_in
+from specify_cli.sync.emitter import EventEmitter
+from specify_cli.sync.namespace import UploadStatus
 from specify_cli.sync.project_context import AdmissionState
 from specify_cli.sync.project_identity import CanonicalProjectUUID
 from specify_cli.sync.project_store import ProjectSyncStore
@@ -195,6 +200,36 @@ def test_cross_project_target_context_refuses_even_when_audience_strings_match(t
     assert sent is False
 
 
+def test_connected_websocket_cannot_bypass_canonical_transport_gate() -> None:
+    """Local capture succeeds while the retired raw WebSocket path stays unreachable."""
+    queue = MagicMock()
+    queue.queue_event.return_value = True
+    ws_client = MagicMock()
+    ws_client.connected = True
+    emitter = EventEmitter(queue=queue)  # type: ignore[arg-type]
+    emitter.ws_client = ws_client
+    event = {
+        "event_id": "01JWP07DIRECTWSBYPASS00000",
+        "event_type": "WPStatusChanged",
+        "aggregate_id": "WP01",
+        "aggregate_type": "WorkPackage",
+        "payload": {
+            "wp_id": "WP01",
+            "from_lane": "planned",
+            "to_lane": "in_progress",
+        },
+        "node_id": "test-node-id",
+        "lamport_clock": 1,
+        "causation_id": None,
+        "timestamp": "2026-02-04T12:00:00+00:00",
+        "team_slug": "test-team",
+    }
+
+    assert emitter._route_event(event) is True
+    queue.queue_event.assert_called_once_with(event)
+    ws_client.send_event.assert_not_called()
+
+
 def test_send_exception_leaves_original_attempt_unknown_without_fresh_identity(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     store = _seed_admitted_project(tmp_path, monkeypatch)
 
@@ -238,12 +273,20 @@ def _body_task(project_uuid: str = PROJECT) -> BodyUploadTask:
 
 
 def test_body_transport_gate_uses_stable_project_attempt_and_no_http_on_denial(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    _seed_admitted_project(tmp_path, monkeypatch)
+    store = _seed_admitted_project(tmp_path, monkeypatch)
     posts: list[dict[str, Any]] = []
 
-    def _post(url: str, *, json: dict[str, Any], headers: dict[str, str], timeout: float) -> Any:
-        posts.append({"url": url, "json": json, "headers": headers, "timeout": timeout})
-        return SimpleNamespace(status_code=201, json=lambda: {})
+    def _post(url: str, *, data: bytes, headers: dict[str, str], timeout: float) -> Any:
+        body = json.loads(data)
+        posts.append({"url": url, "body": body, "raw": data, "headers": headers, "timeout": timeout})
+        return SimpleNamespace(
+            status_code=201,
+            json=lambda: {
+                "artifact_path": body["artifact_path"],
+                "content_hash": body["content_hash"],
+                "status": "stored",
+            },
+        )
 
     monkeypatch.setattr(
         "specify_cli.sync.body_transport.requests",
@@ -258,7 +301,16 @@ def test_body_transport_gate_uses_stable_project_attempt_and_no_http_on_denial(t
     )
 
     assert outcome.status.value == "uploaded"
-    assert posts[0]["json"]["project_uuid"] == PROJECT
+    assert posts[0]["body"]["project_uuid"] == PROJECT
+    assert posts[0]["body"]["admission_generation"] == 9
+    assert posts[0]["body"]["binding_audience"] == "private-teamspace:teamspace-1"
+    assert posts[0]["headers"]["X-Spec-Kitty-Sync-Protocol"] == "2.0"
+    with store.unit_of_work() as unit:
+        rows = unit.execute(
+            "SELECT state, admission_generation, binding_audience FROM delivery_attempts WHERE project_uuid = ?",
+            (PROJECT,),
+        ).fetchall()
+    assert rows == [("succeeded", "9", "private-teamspace:teamspace-1")]
 
     denied = push_content_with_transport_gate(
         _body_task(OTHER),
@@ -269,3 +321,201 @@ def test_body_transport_gate_uses_stable_project_attempt_and_no_http_on_denial(t
     assert denied.retryable is False
     assert "project_not_admitted" in denied.reason
     assert len(posts) == 1
+
+
+def test_body_transport_gate_rejects_stale_admission_generation_before_http(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _seed_admitted_project(tmp_path, monkeypatch)
+    current = _target()
+    stale = DeliveryTarget(
+        target_id=current.target_id,
+        identity=current.identity,
+        admission_state=current.admission_state,
+        admission_generation=current.admission_generation + 1,
+        binding_audience=current.binding_audience,
+        last_error_category=None,
+    )
+    calls = 0
+
+    def _post(*args: object, **kwargs: object) -> object:
+        del args, kwargs
+        nonlocal calls
+        calls += 1
+        raise AssertionError("stale admission authority must fail before HTTP")
+
+    monkeypatch.setattr(
+        "specify_cli.sync.body_transport.requests",
+        SimpleNamespace(post=_post, ConnectionError=ConnectionError, Timeout=TimeoutError),
+    )
+
+    outcome = push_content_with_transport_gate(
+        _body_task(),
+        "token",
+        stale,
+        "https://app.spec-kitty.ai",
+        context=store.create_context(),
+    )
+
+    assert outcome.status is UploadStatus.FAILED
+    assert outcome.retryable is False
+    assert "project_not_admitted" in outcome.reason
+    assert calls == 0
+
+
+def test_body_transport_gate_rejects_cross_target_server_before_attempt_or_http(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _seed_admitted_project(tmp_path, monkeypatch)
+    calls = 0
+
+    def _post(*args: object, **kwargs: object) -> object:
+        del args, kwargs
+        nonlocal calls
+        calls += 1
+        raise AssertionError("cross-target URL must fail before HTTP")
+
+    monkeypatch.setattr(
+        "specify_cli.sync.body_transport.requests",
+        SimpleNamespace(post=_post, ConnectionError=ConnectionError, Timeout=TimeoutError),
+    )
+
+    outcome = push_content_with_transport_gate(
+        _body_task(),
+        "token",
+        _target(),
+        "https://other.example.test",
+        context=store.create_context(),
+    )
+
+    assert outcome.status is UploadStatus.FAILED
+    assert outcome.retryable is False
+    assert "server URL does not match" in outcome.reason
+    assert calls == 0
+    with store.unit_of_work() as unit:
+        attempts = unit.execute(
+            "SELECT attempt_id FROM delivery_attempts WHERE project_uuid = ?",
+            (PROJECT,),
+        ).fetchall()
+    assert attempts == []
+
+
+@pytest.mark.parametrize(
+    ("status_code", "response_status", "category_field", "expected_status"),
+    [
+        (201, "stored", None, UploadStatus.UPLOADED),
+        (200, "already_exists", None, UploadStatus.ALREADY_EXISTS),
+        (403, "rejected", "category", UploadStatus.FAILED),
+    ],
+)
+def test_body_terminal_rerun_projects_exact_result_without_http(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    status_code: int,
+    response_status: str,
+    category_field: str | None,
+    expected_status: UploadStatus,
+) -> None:
+    store = _seed_admitted_project(tmp_path, monkeypatch)
+    posts = 0
+
+    def _post(url: str, *, data: bytes, headers: dict[str, str], timeout: float) -> object:
+        del url, headers, timeout
+        nonlocal posts
+        posts += 1
+        body = json.loads(data)
+        payload: dict[str, object] = {
+            "artifact_path": body["artifact_path"],
+            "content_hash": body["content_hash"],
+            "status": response_status,
+        }
+        if category_field is not None:
+            payload[category_field] = "project_not_admitted"
+        return SimpleNamespace(status_code=status_code, json=lambda: payload)
+
+    monkeypatch.setattr(
+        "specify_cli.sync.body_transport.requests",
+        SimpleNamespace(post=_post, ConnectionError=ConnectionError, Timeout=TimeoutError),
+    )
+
+    first = push_content_with_transport_gate(_body_task(), "token", _target(), "https://app.spec-kitty.ai")
+    second = push_content_with_transport_gate(_body_task(), "token", _target(), "https://APP.spec-kitty.ai/")
+
+    assert first.status is expected_status
+    assert second.status is expected_status
+    if expected_status is UploadStatus.FAILED:
+        assert first.reason == second.reason == "project_not_admitted"
+        assert second.retryable is False
+    assert posts == 1
+    with store.unit_of_work() as unit:
+        attempt_count = unit.execute(
+            "SELECT COUNT(*) FROM delivery_attempts WHERE project_uuid = ?",
+            (PROJECT,),
+        ).fetchone()
+    assert attempt_count is not None and int(attempt_count[0]) == 1
+
+
+def test_body_retryable_no_effect_restarts_same_attempt_but_unknown_does_not(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _seed_admitted_project(tmp_path, monkeypatch)
+    responses = [
+        SimpleNamespace(status_code=429, json=lambda: {"error": "rate_limited"}),
+        SimpleNamespace(
+            status_code=201,
+            json=lambda: {
+                "artifact_path": "spec.md",
+                "content_hash": "abc123",
+                "status": "stored",
+            },
+        ),
+    ]
+    posts = 0
+
+    def _post(*args: object, **kwargs: object) -> object:
+        del args, kwargs
+        nonlocal posts
+        posts += 1
+        return responses.pop(0)
+
+    monkeypatch.setattr(
+        "specify_cli.sync.body_transport.requests",
+        SimpleNamespace(post=_post, ConnectionError=ConnectionError, Timeout=TimeoutError),
+    )
+
+    first = push_content_with_transport_gate(_body_task(), "token", _target(), "https://app.spec-kitty.ai")
+    with store.unit_of_work() as unit:
+        first_row = unit.execute(
+            "SELECT attempt_id, state FROM delivery_attempts WHERE project_uuid = ?",
+            (PROJECT,),
+        ).fetchone()
+    assert first.status is UploadStatus.FAILED and first.reason == "rate_limited"
+    assert first_row is not None and first_row[1] == DeliveryAttemptState.RETRYABLE_NO_EFFECT.value
+
+    second = push_content_with_transport_gate(_body_task(), "token", _target(), "https://app.spec-kitty.ai")
+    with store.unit_of_work() as unit:
+        second_row = unit.execute(
+            "SELECT attempt_id, state FROM delivery_attempts WHERE project_uuid = ?",
+            (PROJECT,),
+        ).fetchone()
+    assert second.status is UploadStatus.UPLOADED
+    assert second_row is not None and second_row[0] == first_row[0]
+    assert second_row[1] == DeliveryAttemptState.SUCCEEDED.value
+    assert posts == 2
+
+    unknown_task = replace(
+        _body_task(),
+        row_id="body-row-unknown",
+        artifact_path="plan.md",
+        content_hash="def456",
+    )
+    responses.append(SimpleNamespace(status_code=500, json=lambda: {}))
+    ambiguous = push_content_with_transport_gate(unknown_task, "token", _target(), "https://app.spec-kitty.ai")
+    no_replay = push_content_with_transport_gate(unknown_task, "token", _target(), "https://app.spec-kitty.ai")
+    assert ambiguous.status is UploadStatus.FAILED and ambiguous.retryable is True
+    assert no_replay.status is UploadStatus.FAILED and no_replay.retryable is False
+    assert "delivery_attempt_recovery_required" in no_replay.reason
+    assert posts == 3

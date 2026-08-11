@@ -89,7 +89,10 @@ _DISPLAY_LANE_VALUES: frozenset[str] = frozenset(CANONICAL_LANES)
 if TYPE_CHECKING:
     from .client import WebSocketClient
     from .git_metadata import GitMetadata, GitMetadataResolver
+    from .layout_generation import LayoutGenerationAuthority
+    from .project_context import ProjectSyncContext
     from .project_identity import ProjectIdentity
+    from .project_store import ProjectUnitOfWork
 
 _console = Console(stderr=True)
 
@@ -168,9 +171,7 @@ def _build_payload_via_model(
     try:
         instance = model_cls(**fields)
     except ValidationError as exc:
-        _console.print(
-            f"[yellow]Warning: {model_cls.__name__} payload validation failed: {exc}[/yellow]"
-        )
+        _console.print(f"[yellow]Warning: {model_cls.__name__} payload validation failed: {exc}[/yellow]")
         return None
     return apply_keep_none_fields(instance, keep_none_fields=keep_none_fields)
 
@@ -365,9 +366,7 @@ _BASE_PROOF_VALIDATORS: dict[str, Any] = {
 #: re-inlining the ``rejected``/``changes_requested`` equivalence -- plus the
 #: two proof-event-only extra states (``commented``/``unknown``) this schema
 #: also accepts (outside the artifact<->event bridge's scope).
-_REVIEW_PROOF_VERDICTS: frozenset[str] = (
-    event_verdicts() | emission_artifact_verdicts() | {"commented", "unknown"}
-)
+_REVIEW_PROOF_VERDICTS: frozenset[str] = event_verdicts() | emission_artifact_verdicts() | {"commented", "unknown"}
 
 #: Per-event-type extra validators merged on top of :data:`_BASE_PROOF_VALIDATORS`.
 _PROOF_EVENT_VALIDATORS: dict[str, dict[str, Any]] = {
@@ -1007,12 +1006,15 @@ class EventEmitter:
         # fields the Phase-1 contract owns. Done strictly via the
         # pydantic model so any future tightening on these fields is
         # an emit-time error.
-        if _build_payload_via_model(
-            BuildRegisteredPayload,
-            repo_slug=base.get("repo_slug"),
-            git_branch=base.get("branch"),
-            head_commit_sha=base.get("head_commit"),
-        ) is None:
+        if (
+            _build_payload_via_model(
+                BuildRegisteredPayload,
+                repo_slug=base.get("repo_slug"),
+                git_branch=base.get("branch"),
+                head_commit_sha=base.get("head_commit"),
+            )
+            is None
+        ):
             return None
         aggregate_id = identity.build_id or identity.node_id or "build"
         return self._emit(
@@ -1054,16 +1056,19 @@ class EventEmitter:
             base["recent_commits"] = recent_commits
 
         # Canonical-payload validation on the seven fields Phase 1 owns.
-        if _build_payload_via_model(
-            BuildHeartbeatPayload,
-            repo_slug=base.get("repo_slug"),
-            git_branch=base.get("branch"),
-            head_commit_sha=base.get("head_commit"),
-            remote_head=remote_head,
-            ahead_of_remote=ahead_of_remote,
-            behind_remote=behind_remote,
-            recent_commits=recent_commits,
-        ) is None:
+        if (
+            _build_payload_via_model(
+                BuildHeartbeatPayload,
+                repo_slug=base.get("repo_slug"),
+                git_branch=base.get("branch"),
+                head_commit_sha=base.get("head_commit"),
+                remote_head=remote_head,
+                ahead_of_remote=ahead_of_remote,
+                behind_remote=behind_remote,
+                recent_commits=recent_commits,
+            )
+            is None
+        ):
             return None
         aggregate_id = identity.build_id or identity.node_id or "build"
         return self._emit(
@@ -1097,14 +1102,10 @@ class EventEmitter:
         envelope's ``timestamp`` will equal this value; otherwise the emitter
         mints a fresh ``datetime.now(UTC).isoformat()``.
         """
-        unexpected_kwargs = sorted(
-            set(legacy_kwargs) - {"mission_id", "policy_metadata"}
-        )
+        unexpected_kwargs = sorted(set(legacy_kwargs) - {"mission_id", "policy_metadata"})
         if unexpected_kwargs:
             unexpected = ", ".join(unexpected_kwargs)
-            raise TypeError(
-                f"emit_wp_status_changed() got unexpected keyword argument(s): {unexpected}"
-            )
+            raise TypeError(f"emit_wp_status_changed() got unexpected keyword argument(s): {unexpected}")
         evidence_payload = evidence
         if evidence_payload is not None and not evidence_payload.get("repos"):
             git_meta = self._get_git_metadata()
@@ -1280,9 +1281,7 @@ class EventEmitter:
                 created_at=created_at,
             )
         except ValidationError as exc:
-            _console.print(
-                f"[yellow]Warning: MissionCreatedPayload validation failed: {exc}[/yellow]"
-            )
+            _console.print(f"[yellow]Warning: MissionCreatedPayload validation failed: {exc}[/yellow]")
             return None
         effective_aggregate_id = mission_slug
         if mission_id is not None:
@@ -1718,11 +1717,7 @@ class EventEmitter:
         if git_meta.head_commit_sha:
             enriched.setdefault("head_commit_sha", git_meta.head_commit_sha)
 
-        team_slug = (
-            self._get_team_slug()
-            if is_saas_sync_enabled()
-            else self._get_cached_private_team_slug()
-        )
+        team_slug = self._get_team_slug() if is_saas_sync_enabled() else self._get_cached_private_team_slug()
         if team_slug:
             enriched.setdefault("team_slug", team_slug)
 
@@ -1898,9 +1893,7 @@ class EventEmitter:
     # None.
     DRAIN_BLOCKED_REASONS = frozenset({"sync_disabled", "no_auth", "no_team"})
 
-    def _classify_drain_blocked_reason(
-        self, team_slug: str | None, *, project_uuid: str | None = None
-    ) -> str | None:
+    def _classify_drain_blocked_reason(self, team_slug: str | None, *, project_uuid: str | None = None) -> str | None:
         """Return a drain-blocked reason for the current emission context.
 
         Order matters: the most coarse-grained gate (sync feature flag)
@@ -2018,11 +2011,7 @@ class EventEmitter:
         try:
             from .consent import consented_project_uuids
 
-            return bool(
-                consented_project_uuids(
-                    [project_uuid], checkout_roots=self._offered_consent_roots()
-                )
-            )
+            return bool(consented_project_uuids([project_uuid], checkout_roots=self._offered_consent_roots()))
         except Exception as exc:  # noqa: BLE001 - inability to determine is not consent
             logger.debug(
                 "Could not resolve hosted-sync consent for project %s; refusing capture: %s",
@@ -2031,9 +2020,7 @@ class EventEmitter:
             )
             return False
 
-    def _capture_gate_state(
-        self, team_slug: str | None, *, project_uuid: str | None = None
-    ) -> CaptureGateState:
+    def _capture_gate_state(self, team_slug: str | None, *, project_uuid: str | None = None) -> CaptureGateState:
         """Snapshot the drain gates for the journal's blocked-reason audit (T017).
 
         ``checkout_enabled`` is resolved from *project_uuid* — the event's own
@@ -2120,8 +2107,7 @@ class EventEmitter:
                 # failing emission — the local command still succeeds, exactly
                 # as it does when a delivery gate blocks.
                 logger.debug(
-                    "Journal capture refused for event %s (%s): project %s has not "
-                    "consented to sync (#3030 NFR-005)",
+                    "Journal capture refused for event %s (%s): project %s has not consented to sync (#3030 NFR-005)",
                     event_id,
                     event_type,
                     project_uuid or "<unidentified>",
@@ -2151,6 +2137,9 @@ class EventEmitter:
         causation_id: str | None = None,
         envelope_fields: dict[str, Any] | None = None,
         occurred_at: str | None = None,
+        project_context: ProjectSyncContext | None = None,
+        project_unit: ProjectUnitOfWork | None = None,
+        project_layout: LayoutGenerationAuthority | None = None,
     ) -> dict[str, Any] | None:
         """Build, validate, and route an event. Non-blocking: never raises.
 
@@ -2169,6 +2158,22 @@ class EventEmitter:
         on the envelope; the drain loop re-evaluates each tick and only ships
         events whose blockers have cleared.
         """
+        if project_context is not None or project_unit is not None or project_layout is not None:
+            if project_context is None or project_unit is None or project_layout is None:
+                _console.print("[yellow]Warning: Explicit-context event capture requires context, unit, and layout authority[/yellow]")
+                return None
+            return self._emit_for_project_context(
+                event_type=event_type,
+                aggregate_id=aggregate_id,
+                aggregate_type=aggregate_type,
+                payload=payload,
+                causation_id=causation_id,
+                envelope_fields=envelope_fields,
+                occurred_at=occurred_at,
+                project_context=project_context,
+                project_unit=project_unit,
+                project_layout=project_layout,
+            )
         try:
             # Tick clock for causal ordering — local fact, always recorded.
             clock_value = self.clock.tick()
@@ -2280,6 +2285,79 @@ class EventEmitter:
 
         except Exception as e:
             _console.print(f"[yellow]Warning: Event emission failed: {e}[/yellow]")
+            return None
+
+    def _emit_for_project_context(
+        self,
+        *,
+        event_type: str,
+        aggregate_id: str,
+        aggregate_type: str,
+        payload: dict[str, Any],
+        causation_id: str | None,
+        envelope_fields: dict[str, Any] | None,
+        occurred_at: str | None,
+        project_context: ProjectSyncContext,
+        project_unit: ProjectUnitOfWork,
+        project_layout: LayoutGenerationAuthority,
+    ) -> dict[str, Any] | None:
+        """Capture one event locally under exact store-minted authority.
+
+        This explicit-context seam never consults cwd, cached emitter identity,
+        auth, team, git, or request defaults and never invokes WebSocket or HTTP
+        routing. It writes only to the canonical project journal/outbox; the
+        dispatcher independently revalidates authority before any later egress.
+        """
+        from .project_context import validate_project_sync_context_authority
+        from .queue import OfflineQueue
+
+        try:
+            validate_project_sync_context_authority(project_context)
+            if project_unit.store_identity is not project_context.store_identity:
+                raise ValueError("project unit does not match the explicit project context")
+            event_id = _generate_ulid()
+            timestamp = occurred_at if occurred_at is not None else now_utc_iso()
+            # canonical-producer-exempt: #1248 -- explicit-context local envelope assembly.
+            event: dict[str, Any] = {
+                "event_id": event_id,
+                "event_type": event_type,
+                "aggregate_id": aggregate_id,
+                "aggregate_type": aggregate_type,
+                "schema_version": "3.0.0",
+                "build_id": "",
+                "payload": payload,
+                "node_id": self.clock.node_id,
+                "lamport_clock": self.clock.tick(),
+                "causation_id": causation_id,
+                "correlation_id": causation_id or event_id,
+                "timestamp": timestamp,
+                "team_slug": None,
+                "project_uuid": project_context.project_uuid.storage_token,
+                "project_slug": None,
+                "git_branch": None,
+                "head_commit_sha": None,
+                "repo_slug": None,
+                "drain_blocked_reason": None,
+            }
+            if envelope_fields:
+                protected = {
+                    "project_uuid",
+                    "event_id",
+                    "correlation_id",
+                }
+                if protected.intersection(envelope_fields):
+                    raise ValueError("explicit-context emission cannot override project or event identity")
+                event.update(envelope_fields)
+            if not self._validate_event(event):
+                return None
+            validate_outbound_payload(event, "envelope")
+
+            queued = OfflineQueue(project_unit, project_layout).queue_event(event)
+            if not queued:
+                raise RuntimeError("canonical project outbox refused dossier event capture")
+            return event
+        except Exception as exc:
+            _console.print(f"[yellow]Warning: Explicit-context event capture failed: {exc}[/yellow]")
             return None
 
     def _get_team_slug(self) -> str | None:
@@ -2455,76 +2533,18 @@ class EventEmitter:
     # becomes egress and must be gated on consent *first*. That is a precondition on
     # restoring the drain, not a follow-up ticket.
     def _route_event(self, event: dict[str, Any]) -> bool:
-        """Route event to WebSocket or offline queue.
+        """Capture to the local outbox without performing direct transport.
 
-        Local queue is the durable outbox and is always appended first
-        (issue #1072). WebSocket publish is opportunistic and only
-        attempted when the event is drain-eligible:
-
-        - **the event's own project consents to hosted sync** (#3030 M1-1), AND
-        - ``drain_blocked_reason`` is None (ready to ship), AND
-        - WebSocket client is connected, AND
-        - session is authenticated.
-
-        The consent condition is checked here, from ``event["project_uuid"]``, and
-        **not** inherited from ``drain_blocked_reason``. This method is the egress
-        point, so it owns its own refusal: M1-1 was precisely the failure of resting a
-        confidentiality boundary on a field documented as a diagnostic, and the
-        rejected rationale for leaving that field cwd-derived was "nothing reads it to
-        decide whether anything ships" — this line is the reader. Keeping both means a
-        future change to the diagnostic's meaning cannot silently re-open the network.
-
-        Returns True if event was sent/queued successfully.
+        The former opportunistic ``ws_client.send_event`` branch had no exact
+        project context, durable delivery attempt, lease, admission audience, or
+        acknowledgement. A connected client therefore never authorizes egress here.
+        WP08's runtime publisher owns the admitted WebSocket path through the WP06
+        transport gate; this legacy method preserves local durability only.
         """
         try:
             # Unconditional local durability, deliberately (issue #1072) and
             # deliberately not consent-gated — see the recorded judgement above.
-            queued = self.queue.queue_event(event)
-
-            # Drain-blocked events stay in the durable outbox; the drain
-            # loop re-evaluates conditions on each tick. Skipping the WS
-            # publish here preserves ingress safety (no_team events are
-            # never shipped opportunistically over WebSocket).
-            if event.get("drain_blocked_reason") is not None:
-                return queued
-
-            # The event's own project must consent before anything leaves the
-            # process. Resolved from the envelope's ``project_uuid``, never from cwd:
-            # under ``SyncRuntime`` the emitter is long-lived, ``_get_identity``
-            # caches, and an agent session that ``cd``s into a consenting sibling
-            # checkout would otherwise authorize this project's publish.
-            if not self._project_consents_to_capture(event.get("project_uuid")):
-                logger.debug(
-                    "WebSocket publish withheld: project %s has not consented to hosted sync",
-                    event.get("project_uuid") or "<unidentified>",
-                )
-                return queued
-
-            # Check if authenticated (via TokenManager)
-            try:
-                authenticated = self._is_authenticated()
-            except Exception:
-                authenticated = False
-
-            # WebSocket publish is opportunistic: the local queue is the
-            # durable outbox, because the WS path has no per-event server ack.
-            if authenticated and self.ws_client is not None and self.ws_client.connected:
-                try:
-                    import asyncio
-
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        task = asyncio.ensure_future(self.ws_client.send_event(event))
-                        self._pending_tasks.add(task)
-                        task.add_done_callback(self._pending_tasks.discard)
-                        task.add_done_callback(lambda completed: self._queue_if_async_send_failed(completed, event))
-                    else:
-                        loop.run_until_complete(self.ws_client.send_event(event))
-                    return True
-                except Exception as e:
-                    _console.print(f"[yellow]Warning: WebSocket send failed; event remains queued: {e}[/yellow]")
-
-            return queued
+            return self.queue.queue_event(event)
 
         except Exception as e:
             _console.print(f"[yellow]Warning: Event routing failed: {e}[/yellow]")

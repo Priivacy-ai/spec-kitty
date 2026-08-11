@@ -452,14 +452,38 @@ if not is_truthy(os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT")):
             aggregate_id: str,
             aggregate_type: str,
             payload: dict[str, object],
+            project_context: object,
+            project_unit: object,
+            project_layout: object,
         ) -> dict[str, object]:
+            from specify_cli.sync.layout_generation import LayoutGenerationAuthority
+            from specify_cli.sync.project_context import (
+                ProjectSyncContext,
+                validate_project_sync_context_authority,
+            )
+            from specify_cli.sync.project_store import ProjectUnitOfWork
             from specify_cli.sync.events import get_emitter
 
+            if not isinstance(project_context, ProjectSyncContext):
+                raise TypeError("dossier emission requires a store-minted ProjectSyncContext")
+            if not isinstance(project_unit, ProjectUnitOfWork):
+                raise TypeError("dossier emission requires the active project unit of work")
+            if not isinstance(project_layout, LayoutGenerationAuthority):
+                raise TypeError("dossier emission requires the project layout authority")
+            validate_project_sync_context_authority(project_context)
+            if project_unit.store_identity is not project_context.store_identity:
+                raise ValueError("dossier project unit does not match the explicit project context")
+            # Forward the sealed authority object to the explicit local-capture
+            # seam. That seam never falls back to cwd/cached identity or direct
+            # remote routing.
             result = get_emitter()._emit(
                 event_type=event_type,
                 aggregate_id=aggregate_id,
                 aggregate_type=aggregate_type,
                 payload=payload,
+                project_context=project_context,
+                project_unit=project_unit,
+                project_layout=project_layout,
             )
             return result if result is not None else {}
 

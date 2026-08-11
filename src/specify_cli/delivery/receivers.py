@@ -76,8 +76,10 @@ STUB_ENDPOINT_URL = "http://localhost/__spec-kitty-delivery-stub__" + BATCH_ENDP
 _H_AUTHORIZATION = "Authorization"
 _H_CONTENT_ENCODING = "Content-Encoding"
 _H_CONTENT_TYPE = "Content-Type"
+_H_SYNC_PROTOCOL = "X-Spec-Kitty-Sync-Protocol"
 _GZIP = "gzip"
 _JSON = "application/json"
+_SYNC_PROTOCOL_VERSION = "2.0"
 
 _NON_BATCH_BODY_ERROR = "non-batch response shape (no 'results' list)"
 _OVERSIZED_ERROR = "payload too large (oversized, permanent)"
@@ -372,7 +374,8 @@ def _event_project(event: OutboundEvent) -> str | None:
     containing a legacy identity-less row. Denying unresolvable identity is the
     mint's and the selection seam's job, where the stored column is the authority.
     """
-    return resolve_envelope_project(event.payload)
+    value = resolve_envelope_project(event.payload)
+    return str(value) if value is not None else None
 
 
 def _cross_project_refusal(
@@ -444,6 +447,16 @@ def _error_text(entry: Mapping[str, Any]) -> str | None:
     return None if reason is None else str(reason)
 
 
+def _error_category(entry: Mapping[str, Any] | None) -> str | None:
+    if entry is None:
+        return None
+    for field in ("error_category", "category", "code"):
+        value = entry.get(field)
+        if isinstance(value, str) and value.strip():
+            return value.strip().lower()
+    return None
+
+
 def _looks_like_batch_response(body: Mapping[str, Any] | None) -> bool:
     return isinstance(body, Mapping) and isinstance(body.get("results"), list)
 
@@ -494,7 +507,7 @@ def _map_single_ok(event: OutboundEvent, entry: Mapping[str, Any] | None) -> Del
             effect_certainty=DeliveryEffectCertainty.POSSIBLY_EFFECTIVE,
         )
     error = _error_text(entry) if outcome is DeliveryOutcome.REJECTED else None
-    error_category = str(entry.get("error_category", "")).strip().lower() or None
+    error_category = _error_category(entry)
     effect_certainty = DeliveryEffectCertainty.POSSIBLY_EFFECTIVE
     if outcome is DeliveryOutcome.PENDING:
         effect_certainty = DeliveryEffectCertainty.ACCEPTED_PENDING
@@ -555,7 +568,7 @@ def _map_400(events: Sequence[OutboundEvent], body: Mapping[str, Any] | None) ->
     for event in events:
         detail = by_id.get(event.event_id)
         reason = _detail_reason(detail, top_error) if detail is not None else top_error
-        error_category = str(detail.get("error_category", "")).strip().lower() if detail is not None and detail.get("error_category") else None
+        error_category = _error_category(detail)
         outcome = DeliveryOutcome.REJECTED
         effect_certainty = DeliveryEffectCertainty.KNOWN_NO_EFFECT
         if error_category in TERMINAL_REJECTION_CATEGORIES:
@@ -732,7 +745,12 @@ class _HttpReceiver:
         the mapped result so it is not lost behind the bare ``transport failure``
         constant.
         """
-        headers = {**self.auth_headers(), _H_CONTENT_ENCODING: _GZIP, _H_CONTENT_TYPE: _JSON}
+        headers = {
+            **self.auth_headers(),
+            _H_CONTENT_ENCODING: _GZIP,
+            _H_CONTENT_TYPE: _JSON,
+            _H_SYNC_PROTOCOL: _SYNC_PROTOCOL_VERSION,
+        }
         payload = gzip.compress(_build_payload(events))
         try:
             response = self._poster(self.endpoint_url, data=payload, headers=headers, timeout=BATCH_TIMEOUT_SECONDS)

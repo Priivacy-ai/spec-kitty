@@ -89,17 +89,9 @@ _LOG = logging.getLogger(__name__)
 _STATUS_ACCESS_TOKEN_LABEL = "Access token"  # noqa: S105
 _STATUS_REFRESH_TOKEN_LABEL = "Refresh token"  # noqa: S105
 _STATUS_LAST_SYNC_LABEL = "Last Sync"
-_UNAUTHENTICATED_SYNC_NOW_MESSAGE = (
-    "not authenticated: no valid access token. Run `spec-kitty auth login`."
-)
-_OVERSIZED_SYNC_NOW_MESSAGE = (
-    "sync batch exceeded the server size limit; the CLI retried with smaller "
-    "batches. Re-run `spec-kitty sync now` if events remain."
-)
-_TRANSIENT_SYNC_NOW_MESSAGE = (
-    "sync delivery failed transiently; no events were lost. Re-run "
-    "`spec-kitty sync now` (see `--report` for per-event detail)."
-)
+_UNAUTHENTICATED_SYNC_NOW_MESSAGE = "not authenticated: no valid access token. Run `spec-kitty auth login`."
+_OVERSIZED_SYNC_NOW_MESSAGE = "sync batch exceeded the server size limit; the CLI retried with smaller batches. Re-run `spec-kitty sync now` if events remain."
+_TRANSIENT_SYNC_NOW_MESSAGE = "sync delivery failed transiently; no events were lost. Re-run `spec-kitty sync now` (see `--report` for per-event detail)."
 # HTTP 413 is how the SaaS sync ingress (Fly proxy + edge) rejects an
 # over-cap batch; see apps/sync/limits.py (512 KiB decompressed ceiling).
 _HTTP_PAYLOAD_TOO_LARGE = 413
@@ -187,10 +179,7 @@ def _build_queue_summary_lines(stats: QueueStats) -> list[str]:
     summary_lines: list[str] = []
     pct = (stats.total_queued / stats.max_queue_size * 100) if stats.max_queue_size > 0 else 0
     depth_color = "red" if pct >= 100 else ("yellow" if pct >= 80 else "green")
-    summary_lines.append(
-        f"[bold]Queue Depth:[/bold] [{depth_color}]{stats.total_queued:,} / {stats.max_queue_size:,}[/{depth_color}] "
-        f"({pct:.0f}%)"
-    )
+    summary_lines.append(f"[bold]Queue Depth:[/bold] [{depth_color}]{stats.total_queued:,} / {stats.max_queue_size:,}[/{depth_color}] ({pct:.0f}%)")
     summary_lines.append(f"[bold]Retried:[/bold]    {stats.total_retried:,}")
     if stats.oldest_event_age is not None:
         age_str = humanize_timedelta(stats.oldest_event_age)
@@ -200,10 +189,7 @@ def _build_queue_summary_lines(stats: QueueStats) -> list[str]:
         ready = stats.drain_blocked_counts.get("ready", 0)
         blocked = stats.total_queued - ready
         ready_color = "green" if blocked == 0 else "yellow"
-        summary_lines.append(
-            f"[bold]Drain Ready:[/bold] [{ready_color}]{ready:,} ready[/{ready_color}]"
-            f" / [yellow]{blocked:,} blocked[/yellow]"
-        )
+        summary_lines.append(f"[bold]Drain Ready:[/bold] [{ready_color}]{ready:,} ready[/{ready_color}] / [yellow]{blocked:,} blocked[/yellow]")
     return summary_lines
 
 
@@ -291,10 +277,7 @@ def _handle_sync_now_unauthenticated(strict: bool) -> None:
     if outcome is RecoveryOutcome.EXIT_4:
         raise typer.Exit(EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE)
     if outcome is RecoveryOutcome.LOGGED_IN:
-        console.print(
-            "[green]Logged in.[/green] Re-run "
-            "[bold]spec-kitty sync now[/bold] to continue."
-        )
+        console.print("[green]Logged in.[/green] Re-run [bold]spec-kitty sync now[/bold] to continue.")
         return
     console.print(f"[yellow]{_UNAUTHENTICATED_SYNC_NOW_MESSAGE}[/yellow]")
     if strict:
@@ -340,9 +323,7 @@ def _enforce_sync_now_exit_from_dispatch(
         return
 
     selected = summary.selected if summary is not None else 0
-    progressed = (
-        summary.delivered + summary.duplicate + summary.pending if summary is not None else 0
-    )
+    progressed = summary.delivered + summary.duplicate + summary.pending if summary is not None else 0
 
     # Selected work made no durable progress. A pure gate/auth block records no
     # rows, so route it through teamspace-aware recovery; transport/content
@@ -560,9 +541,7 @@ def _open_event_sync_runtime(*, create: bool = True) -> _EventSyncRuntime:
 
     scope = _current_event_sync_scope()
     target = resolve_sync_target(user_id=scope.user_id, team_slug=scope.team_slug)
-    journal_path = resolve_journal_path(
-        user_id=scope.user_id, team_slug=scope.team_slug
-    )
+    journal_path = resolve_journal_path(user_id=scope.user_id, team_slug=scope.team_slug)
     ledger_path = _ledger_db_path()
     registry_path = _registry_db_path()
     if create:
@@ -571,12 +550,8 @@ def _open_event_sync_runtime(*, create: bool = True) -> _EventSyncRuntime:
         if not journal_path.exists():
             raise FileNotFoundError(f"event-sync journal DB absent: {journal_path}")
     journal = EventJournal(journal_path)
-    ledger = SqliteDeliveryLedger(
-        str(ledger_path) if create or ledger_path.exists() else ":memory:"
-    )
-    registry = SqliteDeliveryTargetRegistry(
-        str(registry_path) if create or registry_path.exists() else ":memory:"
-    )
+    ledger = SqliteDeliveryLedger(str(ledger_path) if create or ledger_path.exists() else ":memory:")
+    registry = SqliteDeliveryTargetRegistry(str(registry_path) if create or registry_path.exists() else ":memory:")
     return _EventSyncRuntime(target=target, journal=journal, ledger=ledger, registry=registry, context=None)
 
 
@@ -780,9 +755,7 @@ def _event_sync_access_token() -> str:
         return ""
 
 
-def _resolve_active_receiver(
-    target: ResolvedSyncTarget, config: EventSyncConfig, *, auth_token: str | None = None
-) -> DeliveryReceiver | None:
+def _resolve_active_receiver(target: ResolvedSyncTarget, config: EventSyncConfig, *, auth_token: str | None = None) -> DeliveryReceiver | None:
     """Resolve the WP06 receiver for the active mode via WP09 (or ``None``).
 
     Mode→receiver resolution is owned by ``EventSyncConfig.resolve``; the CLI
@@ -796,9 +769,7 @@ def _resolve_active_receiver(
     return policy.receiver
 
 
-def _event_sync_gate_context(
-    receiver: DeliveryReceiver, target: ResolvedSyncTarget, *, auth_token: str
-) -> Any:
+def _event_sync_gate_context(receiver: DeliveryReceiver, target: ResolvedSyncTarget, *, auth_token: str) -> Any:
     """Build the explicit receiver-gate context for the active target."""
     from specify_cli.delivery.receivers import GateContext
 
@@ -810,9 +781,7 @@ def _event_sync_gate_context(
     )
 
 
-def _resolve_gated_receiver(
-    target: ResolvedSyncTarget, config: EventSyncConfig, *, auth_token: str
-) -> tuple[DeliveryReceiver | None, GateDecision | None]:
+def _resolve_gated_receiver(target: ResolvedSyncTarget, config: EventSyncConfig, *, auth_token: str) -> tuple[DeliveryReceiver | None, GateDecision | None]:
     """Resolve the active receiver and evaluate its gates — data only, no policy.
 
     Shared by ``sync now`` (:func:`_run_event_sync_dispatch`) and
@@ -829,9 +798,7 @@ def _resolve_gated_receiver(
     receiver = _resolve_active_receiver(target, config, auth_token=auth_token)
     if receiver is None:
         return None, None
-    gate_decision = evaluate_gates(
-        receiver, _event_sync_gate_context(receiver, target, auth_token=auth_token)
-    )
+    gate_decision = evaluate_gates(receiver, _event_sync_gate_context(receiver, target, auth_token=auth_token))
     return receiver, gate_decision
 
 
@@ -870,9 +837,7 @@ def _event_sync_retained_work_present() -> bool:
             runtime.close()
 
 
-def _combine_dispatch_summaries(
-    left: DispatchSummary, right: DispatchSummary
-) -> DispatchSummary:
+def _combine_dispatch_summaries(left: DispatchSummary, right: DispatchSummary) -> DispatchSummary:
     from specify_cli.delivery.dispatcher import DispatchSummary
 
     return DispatchSummary(
@@ -903,20 +868,10 @@ def _batch_is_oversized(summary: DispatchSummary) -> bool:
     the signal that we should honor that documented contract and shrink.
     """
     failures = summary.failures
-    is_wholesale_transient = (
-        summary.selected > 0
-        and summary.transient == summary.selected
-        and len(failures) == summary.selected
-    )
+    is_wholesale_transient = summary.selected > 0 and summary.transient == summary.selected and len(failures) == summary.selected
     return is_wholesale_transient and all(
         failure.outcome == "transient"
-        and (
-            failure.http_status == _HTTP_PAYLOAD_TOO_LARGE
-            or (
-                failure.error is not None
-                and _OVERSIZED_ERROR_MARKER in failure.error.lower()
-            )
-        )
+        and (failure.http_status == _HTTP_PAYLOAD_TOO_LARGE or (failure.error is not None and _OVERSIZED_ERROR_MARKER in failure.error.lower()))
         for failure in failures
     )
 
@@ -997,6 +952,7 @@ def _run_dispatch_batches(
         if batch.selected == 0 or not advanced:
             break
     return combined
+
 
 def _open_active_body_queue() -> Any:
     """Open the body-upload queue for the WP11 ``body_upload_compatibility``
@@ -1088,10 +1044,7 @@ def _empty_selection_cause(report: PerProjectStoreReport) -> str:
     about who is in the store (C-003). No second classifier.
     """
     if not report.rows:
-        return (
-            "The event journal is empty — no events have been captured for this "
-            "producer scope yet, so there is nothing to send."
-        )
+        return "The event journal is empty — no events have been captured for this producer scope yet, so there is nothing to send."
 
     total = report.counted_event_total
     if report.unresolved_identity_count >= total > 0:
@@ -1102,10 +1055,7 @@ def _empty_selection_cause(report: PerProjectStoreReport) -> str:
         )
 
     if not any(row.consent_granted for row in report.rows):
-        named = ", ".join(
-            (row.repo_slug or row.project_slug or row.project_uuid or "<unnamed>")
-            for row in report.named_non_consenting_rows
-        )
+        named = ", ".join((row.repo_slug or row.project_slug or row.project_uuid or "<unnamed>") for row in report.named_non_consenting_rows)
         detail = f": {named}" if named else ""
         return (
             f"No project in the event journal has consented to hosted sync{detail}. "
@@ -1185,14 +1135,11 @@ def _print_migration_result(result: MigrationResult) -> None:
     )
     if result.cleanup_blocked:
         console.print(
-            "[yellow]Cleanup blocked[/yellow]: unresolved migration conflicts or "
-            "source read/import errors remain — resolve them before deleting source queues."
+            "[yellow]Cleanup blocked[/yellow]: unresolved migration conflicts or source read/import errors remain — resolve them before deleting source queues."
         )
     for source in result.sources:
         if source.error:
-            console.print(
-                f"[red]Source {source.digest} failed[/red]: {source.error}"
-            )
+            console.print(f"[red]Source {source.digest} failed[/red]: {source.error}")
     console.print(f"[dim]{result.note}[/dim]")
 
 
@@ -1208,9 +1155,7 @@ def _print_cleanup_result(cleanup: CleanupResult) -> None:
     )
     for outcome in cleanup.outcomes:
         if outcome.error:
-            console.print(
-                f"[red]Cleanup error on source {outcome.digest}[/red]: {outcome.error}"
-            )
+            console.print(f"[red]Cleanup error on source {outcome.digest}[/red]: {outcome.error}")
 
 
 def _print_resolution_result(resolution: ConflictResolution) -> None:
@@ -1222,10 +1167,7 @@ def _print_resolution_result(resolution: ConflictResolution) -> None:
         f"already-absent {len(resolution.already_absent)}"
     )
     if resolution.skipped:
-        console.print(
-            "[yellow]Skipped conflicts are not yet canonical in the journal or their "
-            "source is gone — left intact.[/yellow]"
-        )
+        console.print("[yellow]Skipped conflicts are not yet canonical in the journal or their source is gone — left intact.[/yellow]")
 
 
 def _run_event_sync_dispatch() -> DispatchSummary | None:
@@ -1321,21 +1263,11 @@ def _render_event_sync_status(target_console: Console) -> None:
     journal_section = report["event_journal"]
     ledger_section = report["delivery_ledger"]
     failures_section = report["terminal_failures"]
-    target_console.print(
-        f"  Retained events           {journal_section['retained_event_count']}"
-    )
-    target_console.print(
-        "  Delivered (cur/prev)      "
-        f"{ledger_section['delivered_current_target']}/"
-        f"{ledger_section['delivered_previous_target']}"
-    )
-    target_console.print(
-        f"  Terminal failures         {failures_section['count']}"
-    )
+    target_console.print(f"  Retained events           {journal_section['retained_event_count']}")
+    target_console.print(f"  Delivered (cur/prev)      {ledger_section['delivered_current_target']}/{ledger_section['delivered_previous_target']}")
+    target_console.print(f"  Terminal failures         {failures_section['count']}")
     if journal_section.get("gc_suggested"):
-        target_console.print(
-            "  [yellow]GC suggested[/yellow]: run `spec-kitty sync gc`"
-        )
+        target_console.print("  [yellow]GC suggested[/yellow]: run `spec-kitty sync gc`")
 
 
 # Create a Typer app for sync subcommands
@@ -1515,8 +1447,7 @@ def _per_project_store_issues(report: PerProjectStoreReport) -> list[str]:
             "project identity, so they cannot be selected for delivery. Run "
             "`spec-kitty sync migrate` to recover the identity of any whose stored "
             "payload still carries it; whatever remains is retained locally and "
-            "removable only with `spec-kitty sync purge`."
-            + _unresolved_origin_clause(report)
+            "removable only with `spec-kitty sync purge`." + _unresolved_origin_clause(report)
         )
     # NAMED refusals only. The unresolved-identity bucket is also
     # `consent_granted=False`, but its consent could not be resolved at all — see
@@ -1525,10 +1456,7 @@ def _per_project_store_issues(report: PerProjectStoreReport) -> list[str]:
     # bucket's other repos on disk while the report reads clean.
     non_consenting = report.named_non_consenting_rows
     if non_consenting:
-        named = ", ".join(
-            (r.repo_slug or r.project_slug or r.project_uuid or "<unnamed>")
-            for r in non_consenting
-        )
+        named = ", ".join((r.repo_slug or r.project_slug or r.project_uuid or "<unnamed>") for r in non_consenting)
         issues.append(
             f"{len(non_consenting)} project(s) in the journal have not consented to "
             f"hosted sync: {named}. Their events are retained locally and never "
@@ -1547,20 +1475,13 @@ def _unresolved_origin_clause(report: PerProjectStoreReport) -> str:
     statement about what any of those projects decided.
     """
     candidates: tuple[UnresolvedIdentityCandidate, ...] = tuple(
-        candidate
-        for row in report.rows
-        if row.is_unresolved_identity
-        for candidate in row.unresolved_candidates
+        candidate for row in report.rows if row.is_unresolved_identity for candidate in row.unresolved_candidates
     )
     if not candidates:
         return ""
     from specify_cli.delivery.status_report import unresolved_candidate_name
 
-    named = ", ".join(
-        f"{unresolved_candidate_name(candidate) or _NO_RECORDED_NAME} "
-        f"({candidate.event_count})"
-        for candidate in candidates
-    )
+    named = ", ".join(f"{unresolved_candidate_name(candidate) or _NO_RECORDED_NAME} ({candidate.event_count})" for candidate in candidates)
     return (
         f" They appear to come from: {named}. Consent for these rows cannot be "
         "resolved without a project identity, so this is where they were captured, "
@@ -1584,11 +1505,7 @@ def _per_project_store_table(report: PerProjectStoreReport) -> Table:
     table.add_column("Oldest", overflow="fold")
     table.add_column("Consent", overflow="fold")
     for row in report.rows:
-        state = (
-            "[green]consented[/green]"
-            if row.consent_granted
-            else f"[red]denied[/red] [dim]({row.consent_level})[/dim]"
-        )
+        state = "[green]consented[/green]" if row.consent_granted else f"[red]denied[/red] [dim]({row.consent_level})[/dim]"
         table.add_row(
             _project_store_label(row),
             f"{row.event_count:,}",
@@ -1689,10 +1606,7 @@ def _render_per_project_store(console_out: Any, issues: list[str]) -> None:
     else:
         # Asserted-empty, not silently-empty: this line is the difference between
         # a journal that holds nothing and a report that never ran.
-        console_out.print(
-            f"  [green]no events retained[/green] "
-            f"[dim](journal count {report.retained_event_count})[/dim]"
-        )
+        console_out.print(f"  [green]no events retained[/green] [dim](journal count {report.retained_event_count})[/dim]")
     # Unconditionally, including on the empty branch. A journal that cannot answer
     # count() reports -1, which does not reconcile against zero rows — so returning
     # early on `not report.rows` would have rendered an unreadable journal as "no
@@ -1711,6 +1625,7 @@ def _render_per_project_store(console_out: Any, issues: list[str]) -> None:
 # `project_local_consent_fault()` keep that distinction alive — and until now   #
 # nothing rendered either of them, which SC-004's own note records as owed.     #
 # --------------------------------------------------------------------------- #
+
 
 @contextlib.contextmanager
 def _reporting_a_refused_config_write(what: str):
@@ -1740,10 +1655,7 @@ def _reporting_a_refused_config_write(what: str):
         yield
     except ConfigNotReadableError as exc:
         console.print(f"[red]Error:[/red] {what} was not recorded. {exc}")
-        console.print(
-            "[dim]Nothing was changed and no records were lost. "
-            "Run 'spec-kitty sync doctor' for the full consent-readability report.[/dim]"
-        )
+        console.print("[dim]Nothing was changed and no records were lost. Run 'spec-kitty sync doctor' for the full consent-readability report.[/dim]")
         raise typer.Exit(1) from exc
 
 
@@ -1778,14 +1690,12 @@ _CONSENT_FAULT_ACTIONS: dict[str, tuple[str, str, str]] = {
     "unreadable": (
         "UNREADABLE",
         "MAKE THE FILE READABLE",
-        "It could not be opened at all — a permission or ownership problem. Fix the "
-        "file's mode or its owner; the error in brackets says which applies.",
+        "It could not be opened at all — a permission or ownership problem. Fix the file's mode or its owner; the error in brackets says which applies.",
     ),
     "unparseable": (
         "UNPARSEABLE",
         "REPAIR THE FILE'S SYNTAX",
-        "The file was opened and its syntax does not parse. Repair the error quoted in "
-        "the detail — it names the line the parser stopped on.",
+        "The file was opened and its syntax does not parse. Repair the error quoted in the detail — it names the line the parser stopped on.",
     ),
     "wrong_shape": (
         "WRONG SHAPE",
@@ -1798,9 +1708,9 @@ _CONSENT_FAULT_ACTIONS: dict[str, tuple[str, str, str]] = {
         "UNUSABLE VALUE",
         "CORRECT THE FIELD VALUE NAMED IN THE DETAIL",
         "The file parsed and its shape is fine, but a field holds a value that cannot "
-        'be understood as that field. Only a real boolean records a consent decision, so '
+        "be understood as that field. Only a real boolean records a consent decision, so "
         '`sync.enabled: "false"` is a quoted string that records nothing, and `enabled: no` '
-        "is the string \"no\" (ruamel is YAML 1.2). A `project.uuid` that is not a uuid "
+        'is the string "no" (ruamel is YAML 1.2). A `project.uuid` that is not a uuid '
         "names no project.",
     ),
 }
@@ -1812,8 +1722,7 @@ _CONSENT_FAULT_ACTIONS: dict[str, tuple[str, str, str]] = {
 _CONSENT_FAULT_UNKNOWN_ACTION = (
     "UNREADABLE",
     "REPAIR THE FILE NAMED IN THE DETAIL",
-    "This build has no specific advice for that fault kind; the detail below is the "
-    "whole of what is known about it.",
+    "This build has no specific advice for that fault kind; the detail below is the whole of what is known about it.",
 )
 
 #: Printed for every fault, on both surfaces. The second half is measured, not
@@ -1898,10 +1807,7 @@ def _render_consent_readability(console_out: Any, issues: list[str]) -> None:
 
         health = consent_index_health()
     except Exception as exc:  # noqa: BLE001 — a section that vanishes is the defect
-        console_out.print(
-            f"  [yellow]![/yellow] the machine-global consent index could not be "
-            f"inspected: {exc}"
-        )
+        console_out.print(f"  [yellow]![/yellow] the machine-global consent index could not be inspected: {exc}")
         issues.append(
             f"Whether the machine-global consent index is readable could not be "
             f"determined: {exc}. Until it is, treat every consent state reported above "
@@ -1916,10 +1822,7 @@ def _render_consent_readability(console_out: Any, issues: list[str]) -> None:
                 issues,
                 scope="machine-global consent index",
                 fault=health.fault,
-                consequence=(
-                    "Every project on this machine resolves as UNDETERMINED while this "
-                    "stands, so nothing is delivered."
-                ),
+                consequence=("Every project on this machine resolves as UNDETERMINED while this stands, so nothing is delivered."),
             )
 
     try:
@@ -1928,20 +1831,11 @@ def _render_consent_readability(console_out: Any, issues: list[str]) -> None:
         repo_root = locate_project_root(Path.cwd())
         local_fault = None if repo_root is None else project_local_consent_fault(repo_root)
     except Exception as exc:  # noqa: BLE001 — reported, never silently skipped
-        console_out.print(
-            f"  [yellow]![/yellow] this checkout's project config could not be "
-            f"inspected: {exc}"
-        )
-        issues.append(
-            f"Whether this checkout's own consent record is readable could not be "
-            f"determined: {exc}."
-        )
+        console_out.print(f"  [yellow]![/yellow] this checkout's project config could not be inspected: {exc}")
+        issues.append(f"Whether this checkout's own consent record is readable could not be determined: {exc}.")
     else:
         if repo_root is None:
-            console_out.print(
-                "  this checkout  [dim]not inspected — no Spec Kitty checkout resolved "
-                "from the current directory[/dim]"
-            )
+            console_out.print("  this checkout  [dim]not inspected — no Spec Kitty checkout resolved from the current directory[/dim]")
         elif local_fault is None:
             console_out.print("  this checkout  [green]readable[/green]")
         else:
@@ -1953,10 +1847,7 @@ def _render_consent_readability(console_out: Any, issues: list[str]) -> None:
                 consequence=_CONSENT_FAULT_REACH,
             )
 
-    console_out.print(
-        "  [dim]A missing record is not a fault: it means no consent was recorded, "
-        "which denies.[/dim]"
-    )
+    console_out.print("  [dim]A missing record is not a fault: it means no consent was recorded, which denies.[/dim]")
 
 
 _TRACKER_EGRESS_SECTION_TITLE = "Tracker egress"
@@ -2036,10 +1927,7 @@ def _render_tracker_egress_row(
     for remedy in verdict.remedies:
         console_out.print(f"    remedy: {remedy}")
     if verdict.refused and binding_present:
-        issues.append(
-            f"tracker egress to {verdict.destination.value} is refused "
-            f"(Channel 1: {state_wording}): {safe_message}"
-        )
+        issues.append(f"tracker egress to {verdict.destination.value} is refused (Channel 1: {state_wording}): {safe_message}")
 
 
 def _render_tracker_egress(console_out: Any, issues: list[str]) -> None:
@@ -2144,10 +2032,7 @@ def _print_identity_backfill_result(result: IdentityBackfillResult | None) -> No
             "reports how many rows are affected."
         )
         return
-    console.print(
-        f"Journal identity: recovered {result.updated}  "
-        f"[dim]unresolvable {result.unresolved}[/dim]"
-    )
+    console.print(f"Journal identity: recovered {result.updated}  [dim]unresolvable {result.unresolved}[/dim]")
     if result.unresolved:
         # Not an error, and deliberately not phrased as one: these rows are
         # fail-closed by design (FR-011). What matters is that they are visible.
@@ -2180,18 +2065,12 @@ def _run_consent_index_backfill() -> None:
     try:
         result = backfill_uuid_consent_index()
     except Exception as exc:  # noqa: BLE001 - reported, never fatal to the migration
-        console.print(
-            f"  [yellow]![/yellow] could not be completed: {exc}. Path-keyed "
-            "records remain in place and the drain still cannot see them."
-        )
+        console.print(f"  [yellow]![/yellow] could not be completed: {exc}. Path-keyed records remain in place and the drain still cannot see them.")
         return
 
     console.print(f"  mapped {result.mapped}  unresolved {result.unresolved}")
     if result.mapped:
-        console.print(
-            "  [dim]Consent for these projects is now visible to the drain's "
-            "uuid-keyed lookup:[/dim]"
-        )
+        console.print("  [dim]Consent for these projects is now visible to the drain's uuid-keyed lookup:[/dim]")
         from specify_cli.sync.config import SyncConfig
 
         for uuid, granted in sorted(SyncConfig().get_all_project_consent().items()):
@@ -2208,9 +2087,7 @@ def _run_consent_index_backfill() -> None:
         )
 
 
-def _render_migrated_composition(
-    journal: EventJournal, imported_event_ids: list[str]
-) -> None:
+def _render_migrated_composition(journal: EventJournal, imported_event_ids: list[str]) -> None:
     """Report the per-project composition of what ``sync migrate`` just MOVED (FR-015).
 
     `sync migrate` is the command that produced the incident's false-green: it
@@ -2236,10 +2113,7 @@ def _render_migrated_composition(
     except Exception as exc:
         # Named, not swallowed: a migration whose composition cannot be read is a
         # migration whose confidentiality impact is unknown.
-        console.print(
-            f"  [yellow]![/yellow] imported {len(imported_event_ids)} event(s) but "
-            f"their per-project composition could not be read: {exc}"
-        )
+        console.print(f"  [yellow]![/yellow] imported {len(imported_event_ids)} event(s) but their per-project composition could not be read: {exc}")
         return
     console.print(_per_project_store_table(report))
     for issue in _per_project_store_issues(report):
@@ -2276,18 +2150,10 @@ def routes() -> None:
         "[green]Enabled[/green]" if routing.effective_sync_enabled else "[yellow]Disabled[/yellow]",
     )
 
-    local_value = (
-        "[dim]Not set[/dim]"
-        if routing.local_sync_enabled is None
-        else ("enabled" if routing.local_sync_enabled else "disabled")
-    )
+    local_value = "[dim]Not set[/dim]" if routing.local_sync_enabled is None else ("enabled" if routing.local_sync_enabled else "disabled")
     table.add_row("Local Override", local_value)
 
-    repo_default = (
-        "[dim]Not set[/dim]"
-        if routing.repo_default_sync_enabled is None
-        else ("enabled" if routing.repo_default_sync_enabled else "disabled")
-    )
+    repo_default = "[dim]Not set[/dim]" if routing.repo_default_sync_enabled is None else ("enabled" if routing.repo_default_sync_enabled else "disabled")
     table.add_row("Future Repo Default", repo_default)
 
     try:
@@ -2377,10 +2243,7 @@ def share(
     _require_authenticated_session(command_name="sync share")
 
     if routing.project_uuid is None:
-        console.print(
-            "[red]Error:[/red] Current checkout has no project UUID. "
-            "Run `spec-kitty init` first."
-        )
+        console.print("[red]Error:[/red] Current checkout has no project UUID. Run `spec-kitty init` first.")
         raise typer.Exit(1)
 
     try:
@@ -2391,18 +2254,12 @@ def share(
     except RepositorySharingClientError as exc:
         if exc.status_code == 404:
             if not routing.effective_sync_enabled:
-                console.print(
-                    "[red]Error:[/red] This checkout is opted out of SaaS sync. "
-                    "Run `spec-kitty sync opt-in` first."
-                )
+                console.print("[red]Error:[/red] This checkout is opted out of SaaS sync. Run `spec-kitty sync opt-in` first.")
                 raise typer.Exit(1) from None
             try:
                 _materialize_private_source_project()
             except Exception as materialize_error:
-                console.print(
-                    "[red]Error:[/red] Could not materialize this checkout in Private Teamspace: "
-                    f"{materialize_error}"
-                )
+                console.print(f"[red]Error:[/red] Could not materialize this checkout in Private Teamspace: {materialize_error}")
                 raise typer.Exit(1) from materialize_error
             response = request_repository_share_sync(
                 source_project_uuid=routing.project_uuid,
@@ -2415,14 +2272,9 @@ def share(
     share_data = response.get("share") or {}
     share_state = share_data.get("state", "unknown")
     if share_state == "shared":
-        console.print(
-            f"[green]✓[/green] Shared [cyan]{routing.repo_slug or routing.project_slug or routing.project_uuid}[/cyan] "
-            f"to [cyan]{team_slug}[/cyan]."
-        )
+        console.print(f"[green]✓[/green] Shared [cyan]{routing.repo_slug or routing.project_slug or routing.project_uuid}[/cyan] to [cyan]{team_slug}[/cyan].")
     else:
-        console.print(
-            f"[yellow]✓[/yellow] Share request recorded for [cyan]{team_slug}[/cyan]."
-        )
+        console.print(f"[yellow]✓[/yellow] Share request recorded for [cyan]{team_slug}[/cyan].")
 
     if response.get("auto_approved"):
         console.print("[dim]Team policy auto-approved the repository share.[/dim]")
@@ -2509,14 +2361,8 @@ def opt_out(
             remember_repo_default=not checkout_only,
         )
 
-    console.print(
-        f"[green]✓[/green] Disabled SaaS sync for this checkout "
-        f"([cyan]{routing.repo_slug or routing.project_slug or routing.project_uuid}[/cyan])."
-    )
-    console.print(
-        f"[dim]Removed {result.removed_events} queued event(s) and "
-        f"{result.removed_body_uploads} queued body upload(s) for this checkout.[/dim]"
-    )
+    console.print(f"[green]✓[/green] Disabled SaaS sync for this checkout ([cyan]{routing.repo_slug or routing.project_slug or routing.project_uuid}[/cyan]).")
+    console.print(f"[dim]Removed {result.removed_events} queued event(s) and {result.removed_body_uploads} queued body upload(s) for this checkout.[/dim]")
     if result.remembered_for_repo:
         console.print("[dim]Future checkouts of this repository will also default to sync disabled.[/dim]")
 
@@ -2524,9 +2370,7 @@ def opt_out(
         return
 
     if not is_saas_sync_enabled():
-        console.print(
-            "[yellow]Skipping private-data deletion because SaaS sync is disabled in this shell.[/yellow]"
-        )
+        console.print("[yellow]Skipping private-data deletion because SaaS sync is disabled in this shell.[/yellow]")
         return
 
     try:
@@ -2537,9 +2381,7 @@ def opt_out(
         return
 
     if shares:
-        console.print(
-            "[yellow]Private data was not deleted because this repository has team share history.[/yellow]"
-        )
+        console.print("[yellow]Private data was not deleted because this repository has team share history.[/yellow]")
         return
 
     confirmed = yes or typer.confirm(
@@ -2608,9 +2450,7 @@ def _auto_converge_legacy_on_enable() -> None:
 
     deleted = converge.cleanup.total_deleted if converge.cleanup is not None else 0
     if deleted:
-        console.print(
-            f"[green]✓[/green] Converged {deleted} legacy queue row(s) into the event journal."
-        )
+        console.print(f"[green]✓[/green] Converged {deleted} legacy queue row(s) into the event journal.")
     if converge.blocked_conflicts:
         console.print(
             f"[yellow]{converge.blocked_conflicts} divergent-duplicate conflict(s) remain. "
@@ -2664,9 +2504,7 @@ def opt_in(
     scope_label = refreshed.repo_slug or refreshed.project_slug or refreshed.project_uuid
     console.print(f"[green]✓[/green] {saas_sync_opt_in_recorded_message(scope_label)}")
     if not checkout_only and refreshed.repo_slug:
-        console.print(
-            "[dim]Future checkouts of this repository will also default to this local preference.[/dim]"
-        )
+        console.print("[dim]Future checkouts of this repository will also default to this local preference.[/dim]")
 
 
 def _detect_workspace_context() -> tuple[Path, str | None]:
@@ -2756,11 +2594,7 @@ def _display_conflicts(conflicts: list[ConflictInfo]) -> None:
 
     for conflict in conflicts:
         # Format line ranges
-        lines = (
-            ", ".join(f"{start}-{end}" for start, end in conflict.line_ranges)
-            if conflict.line_ranges
-            else "entire file"
-        )
+        lines = ", ".join(f"{start}-{end}" for start, end in conflict.line_ranges) if conflict.line_ranges else "entire file"
 
         table.add_row(
             str(conflict.file_path),
@@ -2826,17 +2660,27 @@ def import_history(
     apply: bool = typer.Option(
         False,
         "--apply",
-        help="Materialize the selected missions into the SaaS projection (default is a dry-run plan).",
+        help="Step 3: upload the exact Step-2 cohort; requires --history-action-id from --confirm-history.",
     ),
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
-        help="Preview what would be imported without emitting anything (this is the default).",
+        help="Step 1: preview the synthesized cohort without staging or uploading (the default).",
     ),
     mission: str | None = typer.Option(
         None,
         "--mission",
         help="Import only this mission (slug / mid8 / ULID); default imports all eligible missions.",
+    ),
+    history_action_id: str | None = typer.Option(
+        None,
+        "--history-action-id",
+        help="Step-2 action ID consumed by --apply; reuse the same --mission selector.",
+    ),
+    confirm_history: bool = typer.Option(
+        False,
+        "--confirm-history",
+        help="Step 2: stage and confirm the exact Step-1 cohort locally; performs zero upload.",
     ),
 ) -> None:
     """Materialize existing local mission/WP history into the SaaS projection (#2262).
@@ -2847,11 +2691,12 @@ def import_history(
     command emits the missing ``MissionCreated → WPCreated[] → WPStatusChanged[]``
     stream (INV-3) so historical work populates the projection.
 
-    Dry-run (default) runs the full read-only pipeline — SELECT → AUDIT
-    (fail-closed) → SCAN → IDENTITY → SYNTHESIZE — and previews the envelope
-    stream that would be materialized. ``--apply`` additionally attaches
-    provenance, server-preflights the whole stream (fail-closed), and uploads it
-    in chunks to the SaaS projection under the real persisted project UUID.
+    This is an explicit three-step flow using the same ``--mission`` selector:
+    (1) ``--dry-run`` previews the synthesized cohort with zero staging/egress;
+    (2) ``--confirm-history`` stages and confirms those exact local bytes, prints
+    a history action ID, and performs zero egress; (3) ``--apply
+    --history-action-id <ID>`` preflights and uploads only that confirmed cohort.
+    Skipping Step 2 or changing the cohort/authority fails closed.
 
     Import is once-and-frozen: each event carries a deterministic id, so
     re-running after the on-disk facts change (e.g. after fixing a malformed WP
@@ -2867,12 +2712,19 @@ def import_history(
         describe_plan,
     )
 
-    if apply and dry_run:
-        console.print("[red]Error:[/red] --apply and --dry-run are mutually exclusive.")
+    selected_actions = sum((bool(apply), bool(dry_run), bool(confirm_history)))
+    if selected_actions > 1:
+        console.print("[red]Error:[/red] --apply, --dry-run, and --confirm-history are mutually exclusive.")
+        raise typer.Exit(2)
+    if history_action_id is not None and not apply:
+        console.print("[red]Error:[/red] --history-action-id is valid only with --apply.")
         raise typer.Exit(2)
 
     if apply:
-        _run_import_apply(mission)
+        _run_import_apply(mission, history_action_id=history_action_id)
+        return
+    if confirm_history:
+        _run_import_confirm(mission)
         return
 
     repo_root = _require_active_checkout().repo_root
@@ -2894,12 +2746,67 @@ def import_history(
 
     for line in describe_plan(plan):
         console.print(line)
-    console.print("\n[dim]Dry-run: nothing uploaded. Re-run with --apply to materialize.[/dim]")
+    console.print("\n[dim]Dry-run: nothing uploaded or staged. Re-run with --confirm-history to record the exact local cohort before --apply.[/dim]")
 
 
-def _resolve_history_import_receiver(
-    runtime: _EventSyncRuntime, *, token: str
-) -> tuple[DeliveryReceiver, str]:
+def _run_import_confirm(mission: str | None) -> None:
+    """Stage and confirm one exact synthesized cohort without remote I/O."""
+    from specify_cli.core.contract_gate import ContractViolationError
+    from specify_cli.migration.mission_state import MissionStateRepairError
+    from specify_cli.sync.history_disclosure import HistoryDisclosureError
+    from specify_cli.sync.history_import import (
+        ImportAuditBlocked,
+        ImportIdentityError,
+        MissionScanError,
+        describe_plan,
+    )
+    from specify_cli.sync.history_import.pipeline import confirm_import_history
+
+    runtime = _open_project_dispatch_runtime()
+    try:
+        if runtime.delivery_target is None:
+            console.print("[red]History confirmation target is not admitted.[/red] No current project DeliveryTarget is available.")
+            raise typer.Exit(1)
+        repo_root = _require_active_checkout().repo_root
+        try:
+            result = confirm_import_history(
+                repo_root,
+                mission=mission,
+                store=runtime.store,
+                context=runtime.context,
+                account_identity=str(runtime.delivery_target.account_identity),
+            )
+        except (MissionStateRepairError, MissionScanError) as exc:
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1) from exc
+        except ImportIdentityError as exc:
+            console.print(f"[red]Identity error:[/red] {exc}")
+            raise typer.Exit(1) from exc
+        except HistoryDisclosureError as exc:
+            console.print(f"[red]History confirmation invalid:[/red] {exc}")
+            raise typer.Exit(1) from exc
+        except ImportAuditBlocked as exc:
+            console.print(f"[red]Import blocked:[/red] {len(exc.blockers)} audit finding(s) must be resolved first:")
+            for blocker in exc.blockers[:20]:
+                console.print(f"  [yellow]•[/yellow] {blocker['mission_slug']}: {blocker['message']}")
+            raise typer.Exit(1) from exc
+        except ContractViolationError as exc:
+            console.print(f"[red]Envelope contract violation:[/red] {exc}")
+            raise typer.Exit(1) from exc
+
+        for line in describe_plan(result.plan):
+            console.print(line)
+        console.print("\n[green]History confirmation recorded locally; nothing uploaded.[/green]")
+        console.print(f"History action ID: {result.capability.action_id}")
+        from shlex import quote
+
+        mission_option = f" --mission {quote(mission)}" if mission is not None else ""
+        console.print(f"Apply with: spec-kitty sync import-history --apply{mission_option} --history-action-id {result.capability.action_id}")
+    finally:
+        runtime.close()
+
+
+def _resolve_history_import_receiver(runtime: _EventSyncRuntime | _ProjectDispatchRuntime, *, token: str) -> tuple[DeliveryReceiver, str]:
     """Resolve one gated Teamspace authority for preflight and delivery.
 
     Fails closed on the operator's *persisted* event-sync mode (#2884 P1):
@@ -2970,7 +2877,11 @@ def _render_upload_report(report: UploadReport) -> bool:
     return True
 
 
-def _run_import_apply(mission: str | None) -> None:
+def _run_import_apply(
+    mission: str | None,
+    *,
+    history_action_id: str | None,
+) -> None:
     """The ``import-history --apply`` path: preflight + upload under the real UUID.
 
     Resolves the authed Teamspace receiver (fail-closed when unauthenticated /
@@ -2988,26 +2899,44 @@ def _run_import_apply(mission: str | None) -> None:
         apply_import,
         describe_plan,
     )
+    from specify_cli.sync.history_disclosure import (
+        HistoryDisclosureError,
+        consume_history_disclosure,
+    )
 
     token = _event_sync_access_token()
     if not token:
-        console.print(
-            "[red]Not authenticated.[/red] Run `spec-kitty auth login` before importing with --apply."
-        )
+        console.print("[red]Not authenticated.[/red] Run `spec-kitty auth login` before importing with --apply.")
         raise typer.Exit(1)
 
-    runtime = _open_event_sync_runtime()
+    action_id = str(history_action_id or "").strip()
+    if not action_id:
+        console.print("[red]History confirmation required.[/red] Pass --history-action-id for a previously previewed and explicitly confirmed sealed cohort.")
+        raise typer.Exit(1)
+
+    runtime = _open_project_dispatch_runtime()
     try:
+        if runtime.delivery_target is None:
+            console.print("[red]History import target is not admitted.[/red] No current project DeliveryTarget is available.")
+            raise typer.Exit(1)
         receiver, server_url = _resolve_history_import_receiver(runtime, token=token)
         repo_root = _require_active_checkout().repo_root
 
         try:
+            capability = consume_history_disclosure(
+                runtime.store,
+                action_id=action_id,
+                context=runtime.context,
+            )
             result = apply_import(
                 repo_root,
                 mission=mission,
                 receiver=receiver,
                 server_url=server_url,
                 auth_token=token,
+                project_context=runtime.context,
+                target=runtime.delivery_target,
+                history_capability=capability,
             )
         except (MissionStateRepairError, MissionScanError) as exc:
             console.print(f"[red]Error:[/red] {exc}")
@@ -3015,10 +2944,11 @@ def _run_import_apply(mission: str | None) -> None:
         except ImportIdentityError as exc:
             console.print(f"[red]Identity error:[/red] {exc}")
             raise typer.Exit(1) from exc
+        except HistoryDisclosureError as exc:
+            console.print(f"[red]History confirmation invalid:[/red] {exc}")
+            raise typer.Exit(1) from exc
         except ImportAuditBlocked as exc:
-            console.print(
-                f"[red]Import blocked:[/red] {len(exc.blockers)} audit finding(s) must be resolved first:"
-            )
+            console.print(f"[red]Import blocked:[/red] {len(exc.blockers)} audit finding(s) must be resolved first:")
             for blocker in exc.blockers[:20]:
                 console.print(f"  [yellow]•[/yellow] {blocker['mission_slug']}: {blocker['message']}")
             raise typer.Exit(1) from exc
@@ -3037,10 +2967,7 @@ def _run_import_apply(mission: str | None) -> None:
 
         for line in describe_plan(result.plan):
             console.print(line)
-        console.print(
-            f"[dim]Provenance: {len(result.manifest)} envelope(s) hashed into the sha256 import "
-            "audit manifest.[/dim]"
-        )
+        console.print(f"[dim]Provenance: {len(result.manifest)} envelope(s) hashed into the sha256 import audit manifest.[/dim]")
         report = result.report
         console.print(
             f"\n[green]Imported:[/green] {report.success} created, {report.duplicate} duplicate, "
@@ -3346,10 +3273,7 @@ def sync_server(
     with _reporting_a_refused_config_write("The sync server URL"):
         config.set_server_url(normalized_url)
     console.print(f"[green]✓[/green] Sync server set to [cyan]{normalized_url}[/cyan]")
-    console.print(
-        "[dim]If you switched environments, run "
-        "'spec-kitty auth login --force' to refresh credentials.[/dim]"
-    )
+    console.print("[dim]If you switched environments, run 'spec-kitty auth login --force' to refresh credentials.[/dim]")
 
 
 @app.command()
@@ -3453,9 +3377,7 @@ def gc() -> None:
     runtime = _open_event_sync_runtime()
     try:
         known_target_ids = [target.target_id for target in runtime.registry.list_targets()]
-        result = gc_payloads(
-            runtime.journal, runtime.ledger, known_target_ids=known_target_ids
-        )
+        result = gc_payloads(runtime.journal, runtime.ledger, known_target_ids=known_target_ids)
     finally:
         runtime.close()
     _print_retention_result(result)
@@ -3971,9 +3893,7 @@ def _purge_resolve_project(value: str, journal_path: Path, repo_root: Path | Non
             "to purge a project whose rows carry no name."
         )
     if len(matches) > 1:
-        _purge_usage_error(
-            f'"{raw}" maps to {len(matches)} project uuids ({", ".join(matches)}); pass the uuid you mean — a purge must not span two projects.'
-        )
+        _purge_usage_error(f'"{raw}" maps to {len(matches)} project uuids ({", ".join(matches)}); pass the uuid you mean — a purge must not span two projects.')
     return matches[0], raw
 
 
@@ -4023,9 +3943,7 @@ def _purge_validate_invocation(
         _purge_usage_error("--apply and --dry-run are mutually exclusive.")
     selectors = [project is not None, identity_less, all_events]
     if not any(selectors):
-        _purge_usage_error(
-            "Choose exactly one of --project <slug-or-uuid>, --identity-less or --all."
-        )
+        _purge_usage_error("Choose exactly one of --project <slug-or-uuid>, --identity-less or --all.")
     if sum(1 for chosen in selectors if chosen) > 1:
         _purge_usage_error("--project, --identity-less and --all are mutually exclusive.")
 
@@ -4053,16 +3971,10 @@ def _purge_journal_selection(
 ) -> tuple[frozenset[str], list[str]]:
     """``(census keys in scope, journal ids in scope)`` for this selector."""
     if all_events:
-        return frozenset(census.by_key), _purge_journal_ids(
-            journal_path, project_uuid=None, every_row=True
-        )
+        return frozenset(census.by_key), _purge_journal_ids(journal_path, project_uuid=None, every_row=True)
     if identity_less:
-        return frozenset({_PURGE_NULL_KEY}), _purge_journal_ids(
-            journal_path, project_uuid=None, every_row=False
-        )
-    return frozenset({selector_uuid}), _purge_journal_ids(
-        journal_path, project_uuid=selector_uuid, every_row=False
-    )
+        return frozenset({_PURGE_NULL_KEY}), _purge_journal_ids(journal_path, project_uuid=None, every_row=False)
+    return frozenset({selector_uuid}), _purge_journal_ids(journal_path, project_uuid=selector_uuid, every_row=False)
 
 
 def _purge_ledger_view(census: _RawCensus, *, all_events: bool) -> _RawCensus:
@@ -4112,16 +4024,10 @@ def _purge_run_journal_ledger(
     ledger = SqliteDeliveryLedger(str(ledger_path) if ledger_path.exists() else ":memory:")
     try:
         if all_events:
-            return purge_all_events(
-                journal=journal, ledger=ledger, dry_run=dry_run, confirmation=confirm
-            )
+            return purge_all_events(journal=journal, ledger=ledger, dry_run=dry_run, confirmation=confirm)
         if identity_less:
-            return purge_identity_less_events(
-                journal=journal, ledger=ledger, dry_run=dry_run
-            )
-        return purge_project_events(
-            selector_uuid, journal=journal, ledger=ledger, dry_run=dry_run
-        )
+            return purge_identity_less_events(journal=journal, ledger=ledger, dry_run=dry_run)
+        return purge_project_events(selector_uuid, journal=journal, ledger=ledger, dry_run=dry_run)
     except PurgeNotConfirmedError as exc:
         console.print(f"[red]Refused:[/red] {exc}")
         raise typer.Exit(1) from exc
@@ -4129,9 +4035,7 @@ def _purge_run_journal_ledger(
         ledger.close()
 
 
-def _purge_frames_scope(
-    census: _RawCensus, frames_result: Any | None, *, all_events: bool, selector_uuid: str
-) -> frozenset[str]:
+def _purge_frames_scope(census: _RawCensus, frames_result: Any | None, *, all_events: bool, selector_uuid: str) -> frozenset[str]:
     """The frame-census keys this run claims, as the primitive itself scoped them."""
     if all_events:
         return frozenset(census.by_key)
@@ -4145,9 +4049,7 @@ def _purge_frames_scope(
     return frozenset({selector_uuid})
 
 
-def _purge_selector_line(
-    *, project: str | None, identity_less: bool, selector_uuid: str, matched_slug: str | None
-) -> str:
+def _purge_selector_line(*, project: str | None, identity_less: bool, selector_uuid: str, matched_slug: str | None) -> str:
     if project is not None:
         matched = f' (matched slug "{matched_slug}")' if matched_slug else ""
         return f"Selector: project [bold]{selector_uuid}[/bold]{matched}"
@@ -4184,15 +4086,11 @@ def _purge_run_body_queue(
     )
 
     if not all_events:
-        result = purge_project_body_uploads(
-            selector_uuid, body_queue=body_queue, dry_run=dry_run
-        )
+        result = purge_project_body_uploads(selector_uuid, body_queue=body_queue, dry_run=dry_run)
         return frozenset({selector_uuid}), result.removed
 
     try:
-        total = purge_all_body_uploads(
-            body_queue=body_queue, dry_run=dry_run, confirmation=confirm
-        )
+        total = purge_all_body_uploads(body_queue=body_queue, dry_run=dry_run, confirmation=confirm)
     except PurgeNotConfirmedError as exc:
         console.print(f"[red]Refused:[/red] {exc}")
         raise typer.Exit(1) from exc
@@ -4239,23 +4137,15 @@ def _purge_outcomes(
     ledger = outcomes[_PURGE_LEDGER]
     ledger.left_behind = {"without_journal_row": ghosts_before} if ghosts_before else {}
     if result is not None:
-        ledger.states = {
-            str(name): int(count) for name, count in result.ledger_status_before.items()
-        }
+        ledger.states = {str(name): int(count) for name, count in result.ledger_status_before.items()}
         ledger.never_attempted = result.never_attempted
 
     if identity_less:
-        note = (
-            "not spanned by --identity-less: unattributable rows here cannot be "
-            "attributed to any project, and only --all reaches them"
-        )
+        note = "not spanned by --identity-less: unattributable rows here cannot be attributed to any project, and only --all reaches them"
         outcomes[_PURGE_BODY].note = note
         outcomes[_PURGE_FRAMES].note = note
     if not in_checkout:
-        outcomes[_PURGE_FRAMES].note = (
-            "no checkout resolved from the current directory, so no local-commit queue "
-            "was inspected — re-run from inside the checkout"
-        )
+        outcomes[_PURGE_FRAMES].note = "no checkout resolved from the current directory, so no local-commit queue was inspected — re-run from inside the checkout"
     elif before[_PURGE_FRAMES].unreadable:
         outcomes[_PURGE_FRAMES].note = (
             f"the purge's own census reads {frames_census_reported} queued frame(s) from "
@@ -4289,9 +4179,7 @@ def _purge_not_reached(
     """
     rows: list[dict[str, Any]] = []
 
-    def add(
-        population: str, description: str, count: int | None, reachable_by: str, text: str
-    ) -> None:
+    def add(population: str, description: str, count: int | None, reachable_by: str, text: str) -> None:
         rows.append(
             {
                 "population": population,
@@ -4310,14 +4198,9 @@ def _purge_not_reached(
             "journal rows with a NULL project identity",
             null_left,
             "--identity-less",
-            "permanently undeliverable and matchable by no project; run "
-            "`sync purge --identity-less`",
+            "permanently undeliverable and matchable by no project; run `sync purge --identity-less`",
         )
-    blank_left = sum(
-        count
-        for key, count in journal.by_key.items()
-        if key != _PURGE_NULL_KEY and not key.strip() and key not in journal_scope
-    )
+    blank_left = sum(count for key, count in journal.by_key.items() if key != _PURGE_NULL_KEY and not key.strip() and key not in journal_scope)
     if blank_left:
         add(
             "journal_identity_blank",
@@ -4334,14 +4217,9 @@ def _purge_not_reached(
             "delivery-ledger rows whose journal row is already gone",
             ghosts_before,
             "--all",
-            "every targeted selection collects its ids from the journal, and `sync gc` "
-            "removes journal rows while preserving ledger history by design",
+            "every targeted selection collects its ids from the journal, and `sync gc` removes journal rows while preserving ledger history by design",
         )
-    body_blank = sum(
-        count
-        for key, count in after[_PURGE_BODY].by_key.items()
-        if (not key or key != key.strip()) and key not in body_scope
-    )
+    body_blank = sum(count for key, count in after[_PURGE_BODY].by_key.items() if (not key or key != key.strip()) and key not in body_scope)
     if body_blank:
         add(
             "body_uploads_identity_blank",
@@ -4353,9 +4231,7 @@ def _purge_not_reached(
             "the store outright and is the only selector that does",
         )
     frames_unattributed = sum(
-        count
-        for key, count in after[_PURGE_FRAMES].by_key.items()
-        if (key == _PURGE_NULL_KEY or not key.strip()) and key not in frames_scope
+        count for key, count in after[_PURGE_FRAMES].by_key.items() if (key == _PURGE_NULL_KEY or not key.strip()) and key not in frames_scope
     )
     if frames_unattributed:
         add(
@@ -4363,9 +4239,7 @@ def _purge_not_reached(
             "queued local-commit frames carrying no project_uuid",
             frames_unattributed,
             "--all",
-            "this checkout does not declare the purged project as its own, so it "
-            "vouches for nothing; `sync purge --all` run from the owning checkout "
-            "reaches them",
+            "this checkout does not declare the purged project as its own, so it vouches for nothing; `sync purge --all` run from the owning checkout reaches them",
         )
     if all_events:
         add(
@@ -4406,8 +4280,7 @@ def _purge_faults(
         )
     if apply:
         faults.extend(
-            f"{_PURGE_STORE_LABELS[store]}: unreadable, so a destructive run cannot "
-            "claim to have cleared it."
+            f"{_PURGE_STORE_LABELS[store]}: unreadable, so a destructive run cannot claim to have cleared it."
             for store, outcome in outcomes.items()
             if outcome.unreadable
         )
@@ -4421,30 +4294,17 @@ def _purge_faults(
     for store, outcome in outcomes.items():
         expected = outcome.in_scope if apply else 0
         if outcome.removed_observed != expected:
-            faults.append(
-                f"{_PURGE_STORE_LABELS[store]}: expected {expected} row(s) to go, "
-                f"measured {outcome.removed_observed}."
-            )
+            faults.append(f"{_PURGE_STORE_LABELS[store]}: expected {expected} row(s) to go, measured {outcome.removed_observed}.")
         # The journal's reported count is not comparable under `--all`: that selection
         # deliberately includes ledger-only ids that were never journal rows.
-        if (
-            apply
-            and store != _PURGE_JOURNAL
-            and outcome.removed_reported is not None
-            and outcome.removed_reported != outcome.removed_observed
-        ):
-            faults.append(
-                f"{_PURGE_STORE_LABELS[store]}: the purge reported "
-                f"{outcome.removed_reported} removed, the store shows "
-                f"{outcome.removed_observed}."
-            )
+        if apply and store != _PURGE_JOURNAL and outcome.removed_reported is not None and outcome.removed_reported != outcome.removed_observed:
+            faults.append(f"{_PURGE_STORE_LABELS[store]}: the purge reported {outcome.removed_reported} removed, the store shows {outcome.removed_observed}.")
         # The ledger census is deliberately partial — one synthetic bucket for the
         # selection, because the store has no project column to group by — so its
         # totality is enforced by `_purge_ledger_differential`'s derivation instead.
         if store != _PURGE_LEDGER and (before[store].unbucketed or after[store].unbucketed):
             faults.append(
-                f"{_PURGE_STORE_LABELS[store]}: rows exist that the per-project census "
-                "cannot account for, so this store's differential is not trustworthy."
+                f"{_PURGE_STORE_LABELS[store]}: rows exist that the per-project census cannot account for, so this store's differential is not trustworthy."
             )
     return faults
 
@@ -4458,14 +4318,9 @@ def _purge_print_verdict(faults: list[str], *, apply: bool, all_events: bool) ->
         for fault in faults:
             console.print(f"  [red]•[/red] {fault}")
         return
-    scope_claim = (
-        "nothing outside the scope named above changed"
-        if all_events
-        else "0 rows belonging to any other project changed"
-    )
+    scope_claim = "nothing outside the scope named above changed" if all_events else "0 rows belonging to any other project changed"
     console.print(
-        "\n[green]Differential verified against the stores[/green] (measured by "
-        f"re-reading them, not by summing what the purge reported): {scope_claim}."
+        f"\n[green]Differential verified against the stores[/green] (measured by re-reading them, not by summing what the purge reported): {scope_claim}."
     )
 
 
@@ -4478,11 +4333,7 @@ def _purge_render(
     scope_note: str | None,
 ) -> None:
     """Print the operator's report: the plan, the residue, and the scope."""
-    header = (
-        "[bold yellow]DRY RUN[/bold yellow] — no rows have been deleted"
-        if dry_run
-        else "[bold red]APPLIED[/bold red] — rows have been deleted"
-    )
+    header = "[bold yellow]DRY RUN[/bold yellow] — no rows have been deleted" if dry_run else "[bold red]APPLIED[/bold red] — rows have been deleted"
     console.print(f"\n[bold]Purge[/bold] {header}")
     console.print(selector_line)
 
@@ -4504,11 +4355,7 @@ def _purge_render(
 
     ledger = outcomes[_PURGE_LEDGER]
     states = "  ".join(f"{name}={count}" for name, count in sorted(ledger.states.items()))
-    console.print(
-        "Delivery state of the events in scope: "
-        f"{states or 'no delivery attempt recorded'}"
-        f"  never-attempted={ledger.never_attempted}"
-    )
+    console.print(f"Delivery state of the events in scope: {states or 'no delivery attempt recorded'}  never-attempted={ledger.never_attempted}")
     console.print(
         "[dim]The ledger rows are deleted, so this breakdown is the only surviving "
         "record of what happened to those events. Keep it (--report writes it as "
@@ -4558,10 +4405,7 @@ def purge(
     identity_less: bool = typer.Option(
         False,
         "--identity-less",
-        help=(
-            "Purge journal/ledger rows whose project identity is NULL — permanently "
-            "undeliverable rows that no project selector can match."
-        ),
+        help=("Purge journal/ledger rows whose project identity is NULL — permanently undeliverable rows that no project selector can match."),
     ),
     all_events: bool = typer.Option(
         False,
@@ -4572,27 +4416,17 @@ def purge(
             "Requires --confirm with the confirmation phrase."
         ),
     ),
-    apply: bool = typer.Option(
-        False, "--apply", help="Actually delete. Without it this command only reports."
-    ),
-    dry_run: bool = typer.Option(
-        False, "--dry-run", help="Report only, deleting nothing (this is the default)."
-    ),
+    apply: bool = typer.Option(False, "--apply", help="Actually delete. Without it this command only reports."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Report only, deleting nothing (this is the default)."),
     confirm: str = typer.Option(
         "",
         "--confirm",
-        help=(
-            "Confirmation phrase authorising a destructive --all run. Run without it "
-            "once; the refusal names the exact phrase and deletes nothing."
-        ),
+        help=("Confirmation phrase authorising a destructive --all run. Run without it once; the refusal names the exact phrase and deletes nothing."),
     ),
     report: Path = typer.Option(
         None,
         "--report",
-        help=(
-            "Write the purge report as JSON. Worth doing: the ledger rows this purge "
-            "deletes are the only durable record of what happened to those events."
-        ),
+        help=("Write the purge report as JSON. Worth doing: the ledger rows this purge deletes are the only durable record of what happened to those events."),
     ),
 ) -> None:
     """Remove a project's retained event data from every store that holds it (FR-016/FR-017).
@@ -4687,9 +4521,7 @@ def purge(
         identity_less=identity_less,
         selector_uuid=selector_uuid,
     )
-    before[_PURGE_LEDGER] = _purge_ledger_view(
-        _purge_ledger_census(ledger_path, journal_ids), all_events=all_events
-    )
+    before[_PURGE_LEDGER] = _purge_ledger_view(_purge_ledger_census(ledger_path, journal_ids), all_events=all_events)
     ledger_scope = frozenset({_PURGE_LEDGER})
     ghosts_before = 0 if all_events else _purge_ledger_ghost_count(journal_path, ledger_path)
 
@@ -4732,9 +4564,7 @@ def purge(
     # ---- measure again, independently ------------------------------------- #
     after = {
         _PURGE_JOURNAL: _purge_journal_census(journal_path),
-        _PURGE_LEDGER: _purge_ledger_view(
-            _purge_ledger_census(ledger_path, journal_ids), all_events=all_events
-        ),
+        _PURGE_LEDGER: _purge_ledger_view(_purge_ledger_census(ledger_path, journal_ids), all_events=all_events),
         _PURGE_BODY: _purge_body_census(body_queue),
         _PURGE_FRAMES: _purge_frames_census(repo_root),
     }
@@ -4912,10 +4742,7 @@ def migrate(
     )
 
     if resolve_conflicts is not None and resolve_conflicts != "keep-journal":
-        console.print(
-            f"[red]Unknown --resolve-conflicts strategy '{resolve_conflicts}'. "
-            "Only 'keep-journal' is supported.[/red]"
-        )
+        console.print(f"[red]Unknown --resolve-conflicts strategy '{resolve_conflicts}'. Only 'keep-journal' is supported.[/red]")
         raise typer.Exit(2)
 
     spec_kitty_dir = get_runtime_root().base
@@ -4990,14 +4817,10 @@ def mode(
         raise typer.Exit(1) from exc
 
     _write_event_sync_config(config.mode, config.external_endpoint)
-    console.print(
-        f"[green]✓[/green] Event sync mode set to [cyan]{config.mode.name}[/cyan]"
-    )
+    console.print(f"[green]✓[/green] Event sync mode set to [cyan]{config.mode.name}[/cyan]")
     if config.mode is Mode.OPT_OUT:
         console.print(
-            "[yellow]Note:[/yellow] OPT_OUT never silently drops Teamspace-bound "
-            "events (C-008 fail-closed); such families are refused or audited at "
-            "capture time."
+            "[yellow]Note:[/yellow] OPT_OUT never silently drops Teamspace-bound events (C-008 fail-closed); such families are refused or audited at capture time."
         )
 
 
@@ -5026,9 +4849,7 @@ def _count_legacy_body_uploads_for_mission(mission_slug: str | None) -> int:
     except _sqlite3.Error:
         return 0
     try:
-        cur = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='body_upload_queue'"
-        )
+        cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='body_upload_queue'")
         if cur.fetchone() is None:
             return 0
         row = conn.execute(
@@ -5078,26 +4899,17 @@ def _build_boundary_check_failures(
     # Legacy path: compose lines from the previously-passed pieces.
     failures: list[str] = []
     if daemon_mismatched_fields:
-        failures.append(
-            "foreground/daemon disagree on D-3 field(s): "
-            + ", ".join(daemon_mismatched_fields)
-        )
+        failures.append("foreground/daemon disagree on D-3 field(s): " + ", ".join(daemon_mismatched_fields))
     if legacy_counts:
         total = sum(legacy_counts.values())
         tables = ", ".join(f"{t}={c}" for t, c in sorted(legacy_counts.items()))
-        line = (
-            f"legacy queue DB {legacy_db_path} has {total} row(s) pending "
-            f"migration ({tables})"
-        )
+        line = f"legacy queue DB {legacy_db_path} has {total} row(s) pending migration ({tables})"
         if stranded_mission_slug:
             # FR-013: tag stranded setup-plan body uploads for the active mission.
             line += f" — setup-plan stranded mission slug {stranded_mission_slug}"
         failures.append(line)
     if orphan_count is not None and orphan_count > 0:
-        failures.append(
-            f"{orphan_count} orphan daemon record(s) detected; retire via "
-            "`spec-kitty sync doctor`"
-        )
+        failures.append(f"{orphan_count} orphan daemon record(s) detected; retire via `spec-kitty sync doctor`")
     return failures
 
 
@@ -5121,10 +4933,7 @@ def _failure_lines_from_set(
         # ``daemon_`` prefix to keep the on-screen tokens compact and to
         # preserve backwards-compatible substring matching.
         bare_fields = [f.removeprefix("daemon_") for f in mismatch_fields]
-        failures.append(
-            "foreground/daemon disagree on D-3 field(s): "
-            + ", ".join(bare_fields)
-        )
+        failures.append("foreground/daemon disagree on D-3 field(s): " + ", ".join(bare_fields))
 
     if failure_set.legacy_rows_for_scope > 0:
         total = failure_set.legacy_rows_for_scope
@@ -5134,22 +4943,14 @@ def _failure_lines_from_set(
         if failure_set.legacy_body_upload_rows > 0:
             parts.append(f"body_upload_queue={failure_set.legacy_body_upload_rows}")
         legacy_path = _legacy_queue_db_path()
-        line = (
-            f"legacy queue DB {legacy_path} has {total} row(s) pending "
-            f"migration ({', '.join(parts)})"
-        )
+        line = f"legacy queue DB {legacy_path} has {total} row(s) pending migration ({', '.join(parts)})"
         if stranded_mission_slug:
-            line += (
-                f" — setup-plan stranded mission slug {stranded_mission_slug}"
-            )
+            line += f" — setup-plan stranded mission slug {stranded_mission_slug}"
         failures.append(line)
 
     n_orphans = len(failure_set.orphan_records)
     if n_orphans > 0:
-        failures.append(
-            f"{n_orphans} orphan daemon record(s) detected; retire via "
-            "`spec-kitty sync doctor`"
-        )
+        failures.append(f"{n_orphans} orphan daemon record(s) detected; retire via `spec-kitty sync doctor`")
 
     return failures
 
@@ -5269,9 +5070,7 @@ def _emit_status_check_json() -> None:
         live_orphan_report = scan_sync_daemons()
     except Exception:
         live_orphan_report = None
-    live_orphan_count = (
-        int(live_orphan_report.orphan_count) if live_orphan_report is not None else 0
-    )
+    live_orphan_count = int(live_orphan_report.orphan_count) if live_orphan_report is not None else 0
 
     # FR-004 / contracts/sync-status-output.md: when
     # ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` is set but no authenticated
@@ -5296,21 +5095,13 @@ def _emit_status_check_json() -> None:
         active_body_queue = OfflineBodyUploadQueue(db_path=queue.db_path)
         _conn = _sqlite3.connect(active_body_queue.db_path)
         try:
-            active_body_count = int(
-                _conn.execute(
-                    "SELECT COUNT(*) FROM body_upload_queue"
-                ).fetchone()[0]
-            )
+            active_body_count = int(_conn.execute("SELECT COUNT(*) FROM body_upload_queue").fetchone()[0])
         finally:
             _conn.close()
     except Exception:
         active_body_count = 0
 
-    ok = (
-        failure_set.ok
-        and (auth_present or not auth_required)
-        and live_orphan_count == 0
-    )
+    ok = failure_set.ok and (auth_present or not auth_required) and live_orphan_count == 0
     payload: dict[str, Any] = {
         "ok": ok,
         "exit_code": 0 if ok else 2,
@@ -5343,13 +5134,9 @@ def _emit_status_check_json() -> None:
             "port": record.port if record is not None else None,
             "package_version": record.package_version if record is not None else None,
             "executable_path": record.executable_path if record is not None else None,
-            "source_path": (
-                record.source_checkout_path if record is not None else None
-            ),
+            "source_path": (record.source_checkout_path if record is not None else None),
             "server_url": record.server_url if record is not None else None,
-            "team_or_user": (
-                _render_daemon_team_or_user(record) if record is not None else None
-            ),
+            "team_or_user": (_render_daemon_team_or_user(record) if record is not None else None),
             "queue_db_path": record.queue_db_path if record is not None else None,
         },
         "active_queue": {
@@ -5417,6 +5204,7 @@ def _emit_status_check_json() -> None:
 
     if not ok:
         raise typer.Exit(2)
+
 
 @app.command()
 def status(  # noqa: C901
@@ -5558,11 +5346,7 @@ def status(  # noqa: C901
         # If the connection probe surfaced an auth-missing / expired state,
         # remember to offer teamspace-aware recovery once the table is rendered
         # (issue #829, Mission 7).
-        auth_recovery_pending = (
-            "Not authenticated" in connection_status
-            or "Session expired" in connection_status
-            or "Authentication failed" in connection_status
-        )
+        auth_recovery_pending = "Not authenticated" in connection_status or "Session expired" in connection_status or "Authentication failed" in connection_status
 
         # Surface daemon-singleton honesty: scan for stale `run_sync_daemon`
         # processes that are not the one recorded in DAEMON_STATE_FILE.
@@ -5590,16 +5374,10 @@ def status(  # noqa: C901
     console.print()
 
     if orphan_report is not None and orphan_report.orphan_count > 0:
-        console.print(
-            "[yellow]Other live ``run_sync_daemon`` processes detected outside the "
-            "registered singleton (#1071):[/yellow]"
-        )
+        console.print("[yellow]Other live ``run_sync_daemon`` processes detected outside the registered singleton (#1071):[/yellow]")
         for orphan in orphan_report.orphan_processes:
             console.print(f"  PID {orphan.pid}: {' '.join(orphan.cmdline)}")
-        console.print(
-            "[dim]Run `spec-kitty sync doctor` for a guided cleanup, or kill the "
-            "rogue processes manually.[/dim]"
-        )
+        console.print("[dim]Run `spec-kitty sync doctor` for a guided cleanup, or kill the rogue processes manually.[/dim]")
         console.print()
 
     # --- Queue health section (T022/T023) ---
@@ -5663,9 +5441,7 @@ def status(  # noqa: C901
     # ``sum(legacy_counts.values())`` / ``sorted(legacy_counts.items())``
     # sites keep working) while exposing named subtotals to callers that
     # want them (preflight uses those).
-    legacy_counts = detect_legacy_rows_for_scope(
-        active_scope if isinstance(active_scope, str) else ""
-    )
+    legacy_counts = detect_legacy_rows_for_scope(active_scope if isinstance(active_scope, str) else "")
     legacy_db_path = _legacy_queue_db_path()
 
     # FR-013: detect setup-plan body uploads stranded in the legacy DB
@@ -5686,9 +5462,7 @@ def status(  # noqa: C901
 
         _conn = _sqlite3.connect(active_body_queue.db_path)
         try:
-            body_queue_count = int(
-                _conn.execute("SELECT COUNT(*) FROM body_upload_queue").fetchone()[0]
-            )
+            body_queue_count = int(_conn.execute("SELECT COUNT(*) FROM body_upload_queue").fetchone()[0])
         finally:
             _conn.close()
     # Read-only diagnostic: never let status rendering fail on queue inspection.
@@ -5807,19 +5581,11 @@ def status(  # noqa: C901
     # treats them as terminators of the preceding section. The parser
     # picks them up from the top-level row stream by exact key match.
     n_mismatches = len(failure_set.mismatches)
-    mismatches_value = (
-        f"[red]{n_mismatches}[/red]" if n_mismatches else _ZERO_STATUS
-    )
-    orphan_value = (
-        f"[yellow]{orphan_record_count}[/yellow]"
-        if orphan_record_count
-        else _ZERO_STATUS
-    )
+    mismatches_value = f"[red]{n_mismatches}[/red]" if n_mismatches else _ZERO_STATUS
+    orphan_value = f"[yellow]{orphan_record_count}[/yellow]" if orphan_record_count else _ZERO_STATUS
     if failure_set.mismatches:
         mismatch_field_names = [m.field for m in failure_set.mismatches]
-        mismatched_fields_value = (
-            f"[red]{', '.join(mismatch_field_names)}[/red]"
-        )
+        mismatched_fields_value = f"[red]{', '.join(mismatch_field_names)}[/red]"
     elif daemon_mismatched:
         mismatched_fields_value = f"[red]{', '.join(daemon_mismatched)}[/red]"
     else:
@@ -5827,9 +5593,7 @@ def status(  # noqa: C901
 
     # Preserve backward-compatible legacy-event/body summary line so
     # operator workflows that grep for ``body_upload_queue`` keep matching.
-    legacy_line = (
-        f"{legacy_event_count} event(s), {legacy_body_count} body upload(s)"
-    )
+    legacy_line = f"{legacy_event_count} event(s), {legacy_body_count} body upload(s)"
     if stranded_tag:
         legacy_line += f" — setup-plan stranded mission slug {stranded_tag}"
 
@@ -5919,15 +5683,10 @@ def status(  # noqa: C901
             stranded_mission_slug=stranded_tag,
         )
         fg_id = failure_set.foreground
-        auth_present_check = (
-            fg_id.server_url is not None and fg_id.team_or_user is not None
-        )
+        auth_present_check = fg_id.server_url is not None and fg_id.team_or_user is not None
         auth_required_check = is_saas_sync_enabled()
         if auth_required_check and not auth_present_check:
-            failures.append(
-                "Hosted SaaS sync is enabled but no authenticated identity "
-                "is available — run `spec-kitty auth login`."
-            )
+            failures.append("Hosted SaaS sync is enabled but no authenticated identity is available — run `spec-kitty auth login`.")
         # Live orphan daemon scan (#1071 failure mode): when ``scan_sync_daemons``
         # finds ``run_sync_daemon`` processes outside the registered singleton,
         # the boundary is incoherent regardless of whether auth and queue state
@@ -5957,6 +5716,7 @@ def status(  # noqa: C901
         )
         if outcome is RecoveryOutcome.EXIT_4:
             raise typer.Exit(EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE)
+
 
 @app.command()
 def diagnose(
@@ -6019,11 +5779,7 @@ def diagnose(
 
     # Rich output
     console.print()
-    console.print(
-        f"Validated [cyan]{len(results)}[/cyan] event(s): "
-        f"[green]{valid_count} valid[/green], "
-        f"[red]{invalid_count} invalid[/red]"
-    )
+    console.print(f"Validated [cyan]{len(results)}[/cyan] event(s): [green]{valid_count} valid[/green], [red]{invalid_count} invalid[/red]")
 
     # Show valid events (brief)
     for r in results:
@@ -6034,13 +5790,12 @@ def diagnose(
     for r in results:
         if not r.valid:
             category_label = f" [{r.error_category}]" if r.error_category else ""
-            console.print(
-                f"\n  [red]INVALID[/red] {r.event_id} ({r.event_type}){category_label}"
-            )
+            console.print(f"\n  [red]INVALID[/red] {r.event_id} ({r.event_type}){category_label}")
             for err in r.errors:
                 console.print(f"    - {err}")
 
     console.print()
+
 
 @app.command()
 def doctor() -> None:  # noqa: C901
@@ -6092,24 +5847,15 @@ def doctor() -> None:  # noqa: C901
     table.add_row("Queue DB", str(queue.db_path))
     table.add_row(
         "Body uploads",
-        f"{body_diagnostics['total_tasks']} queued, "
-        f"{body_diagnostics['recorded_failure_count']} recorded failure(s)",
+        f"{body_diagnostics['total_tasks']} queued, {body_diagnostics['recorded_failure_count']} recorded failure(s)",
     )
 
     if pct >= 100:
-        issues.append(
-            "Queue is FULL -- oldest events are being evicted to make room for new ones. "
-            "Run `spec-kitty sync now` after fixing auth/connectivity."
-        )
+        issues.append("Queue is FULL -- oldest events are being evicted to make room for new ones. Run `spec-kitty sync now` after fixing auth/connectivity.")
     elif pct >= 80:
-        issues.append(
-            f"Queue is {pct:.0f}% full. Consider syncing soon with `spec-kitty sync now`."
-        )
+        issues.append(f"Queue is {pct:.0f}% full. Consider syncing soon with `spec-kitty sync now`.")
     if body_diagnostics["recorded_failure_count"] > 0:
-        issues.append(
-            "Body upload failures were recorded. Review the recent body upload failures below "
-            "and fix the underlying artifact or contract mismatch."
-        )
+        issues.append("Body upload failures were recorded. Review the recent body upload failures below and fix the underlying artifact or contract mismatch.")
 
     # --- 2. Auth status ---
     config = SyncConfig()
@@ -6179,15 +5925,9 @@ def doctor() -> None:  # noqa: C901
             table.add_row("Team", team_slug)
 
         if not access_ok and not refresh_ok:
-            issues.append(
-                "Both access and refresh tokens are expired. "
-                "Run `spec-kitty auth login` to re-authenticate."
-            )
+            issues.append("Both access and refresh tokens are expired. Run `spec-kitty auth login` to re-authenticate.")
         elif not access_ok and refresh_ok:
-            issues.append(
-                "Access token expired but refresh token is still valid. "
-                "Token will auto-refresh on next sync attempt."
-            )
+            issues.append("Access token expired but refresh token is still valid. Token will auto-refresh on next sync attempt.")
 
     # --- 3. Server reachability ---
     connection_status, connection_note = _check_server_connection(server_url)
@@ -6196,10 +5936,7 @@ def doctor() -> None:  # noqa: C901
         table.add_row("", f"[dim]{connection_note}[/dim]")
 
     if "Unreachable" in connection_status or "Error" in connection_status:
-        issues.append(
-            f"Cannot reach server at {server_url}. "
-            "Events will continue to queue locally."
-        )
+        issues.append(f"Cannot reach server at {server_url}. Events will continue to queue locally.")
 
     # --- 3b. Daemon singleton invariant (spec-kitty#1071) ---
     # Inspect for live `run_sync_daemon` processes that are not the registered
@@ -6323,10 +6060,7 @@ def doctor() -> None:  # noqa: C901
 
     orphan_records = list_orphan_records()
     if orphan_records:
-        issues.append(
-            f"{len(orphan_records)} orphan daemon owner record(s) on disk; "
-            f"retire via `rm {owner_record_path()}`."
-        )
+        issues.append(f"{len(orphan_records)} orphan daemon owner record(s) on disk; retire via `rm {owner_record_path()}`.")
         orphan_table = Table(
             title="Orphan Daemons",
             show_header=True,
@@ -6348,9 +6082,7 @@ def doctor() -> None:  # noqa: C901
                 record.started_at,
             )
         console.print(orphan_table)
-        console.print(
-            f"[dim]Retire orphan record(s): rm {owner_record_path()}[/dim]"
-        )
+        console.print(f"[dim]Retire orphan record(s): rm {owner_record_path()}[/dim]")
         console.print()
 
     # --- 5. Summary ---
@@ -6368,10 +6100,7 @@ def doctor() -> None:  # noqa: C901
     # previously connected to a teamspace, offer interactive recovery (TTY) or
     # emit a structured stderr line + exit 4 (CI). When no teamspace is
     # detected, behavior is byte-identical to the existing doctor output.
-    auth_missing = (
-        session is None
-        or any("auth login" in issue or "expired" in issue for issue in issues)
-    )
+    auth_missing = session is None or any("auth login" in issue or "expired" in issue for issue in issues)
     if auth_missing:
         outcome = handle_unauthenticated_with_teamspace(
             command_name="sync doctor",

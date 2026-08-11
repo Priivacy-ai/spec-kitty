@@ -16,7 +16,7 @@ from specify_cli.sync.project_context import (
     ProjectSyncContext,
     VerifiedProjectStoreIdentity,
 )
-from specify_cli.sync.project_store import ProjectSyncStore
+from specify_cli.sync.project_store import ProjectStoreError, ProjectSyncStore
 
 
 PROJECT_A = "aaaaaaaa-0000-0000-0000-000000000001"
@@ -71,6 +71,42 @@ def test_context_can_only_be_constructed_from_a_verified_store(
     assert context.store_identity.database_path == store.database_path
     assert context.consent_state is None
     assert context.egress_eligible is False
+
+
+def test_context_from_active_unit_reuses_exact_verified_store_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+    _seed_persisted_authority(store)
+
+    with store.unit_of_work() as unit:
+        context = store.create_context_from_unit(unit)
+        assert context.store_identity is unit.store_identity
+        assert context.consent_state is ConsentState.GRANTED
+        assert context.epoch_id == 7
+        assert context.target_audience is not None
+        assert context.target_audience.target_identity == "https://app.spec-kitty.ai"
+        assert context.kill_switch_allows is False
+        assert context.transport_lease_identity is None
+
+
+def test_context_from_unit_rejects_foreign_and_inactive_units(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store_a = ProjectSyncStore(PROJECT_A)
+    store_b = ProjectSyncStore(PROJECT_B)
+
+    with (
+        store_b.unit_of_work() as foreign_unit,
+        pytest.raises(ProjectStoreError, match="active store unit"),
+    ):
+        store_a.create_context_from_unit(foreign_unit)
+
+    with pytest.raises(ProjectStoreError, match="active store unit"):
+        store_b.create_context_from_unit(foreign_unit)
 
 
 def test_context_authority_is_loaded_from_persisted_rows_not_caller_arguments(

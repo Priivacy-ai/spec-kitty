@@ -16,9 +16,17 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from specify_cli.delivery.receivers import DeliveryReceiver, HttpPoster, default_http_poster
+from specify_cli.sync.history_disclosure import (
+    HistoryDisclosureCapability,
+    HistoryDisclosureError,
+    HistoryDisclosurePreview,
+    confirm_history_disclosure,
+    preview_sealed_history_cohort,
+    stage_sealed_history_cohort,
+)
 from specify_cli.sync.history_import.identity import ImportIdentity, resolve_import_identity
 from specify_cli.sync.history_import.scan import MissionScan, scan_missions
 from specify_cli.sync.history_import.synthesize import synthesize_streams
@@ -29,6 +37,16 @@ from specify_cli.sync.history_import.upload import (
     run_import_upload,
     validate_import_envelopes,
 )
+from specify_cli.sync.project_context import (
+    AdmissionState,
+    ConsentState,
+    ProjectSyncContext,
+    validate_project_sync_context_authority,
+)
+from specify_cli.sync.project_store import ProjectSyncStore
+
+if TYPE_CHECKING:
+    from specify_cli.delivery.interfaces import DeliveryTarget
 
 
 class ImportAuditBlocked(RuntimeError):
@@ -156,6 +174,63 @@ class ApplyResult:
     report: UploadReport
 
 
+@dataclass(frozen=True)
+class ImportConfirmationResult:
+    """Exact local staging and confirmation produced without remote I/O."""
+
+    plan: ImportPlan
+    preview: HistoryDisclosurePreview
+    capability: HistoryDisclosureCapability
+
+
+def confirm_import_history(
+    repo_root: Path,
+    *,
+    mission: str | None,
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
+    account_identity: str,
+) -> ImportConfirmationResult:
+    """Stage and explicitly confirm the exact synthesized cohort, with zero egress."""
+    validate_project_sync_context_authority(context)
+    audience = context.target_audience
+    principal = account_identity.strip()
+    if (
+        context.consent_state is not ConsentState.GRANTED
+        or context.consent_generation is None
+        or context.epoch_id is None
+        or audience is None
+        or context.admission_state is not AdmissionState.ADMITTED
+        or context.admission_generation is None
+        or context.binding_audience is None
+    ):
+        raise HistoryDisclosureError("history confirmation requires current consent, target, and admission")
+    if not principal or principal != audience.account_identity:
+        raise HistoryDisclosureError("history confirmation principal does not match the admitted account")
+    plan = build_import_plan(repo_root, mission=mission, apply=True)
+    if plan.is_empty:
+        raise HistoryDisclosureError("no missions are eligible for history confirmation")
+    validate_import_envelopes(plan.envelopes)
+    row_ids = stage_sealed_history_cohort(
+        store,
+        plan.envelopes,
+        context=context,
+    )
+    preview = preview_sealed_history_cohort(store, row_ids)
+    capability = confirm_history_disclosure(
+        store,
+        preview,
+        actor=f"account:{principal}",
+        idempotency_key=f"import-history:{preview.preview_hash}",
+        context=context,
+    )
+    return ImportConfirmationResult(
+        plan=plan,
+        preview=preview,
+        capability=capability,
+    )
+
+
 def apply_import(
     repo_root: Path,
     *,
@@ -165,6 +240,9 @@ def apply_import(
     auth_token: str,
     poster: HttpPoster = default_http_poster,
     chunk_size: int | None = None,
+    project_context: ProjectSyncContext | None = None,
+    target: DeliveryTarget | None = None,
+    history_capability: HistoryDisclosureCapability | None = None,
 ) -> ApplyResult:
     """Materialize: build the plan (real identity), then preflight + upload.
 
@@ -193,6 +271,9 @@ def apply_import(
         "auth_token": auth_token,
         "poster": poster,
         "checkout_root": repo_root,
+        "project_context": project_context,
+        "target": target,
+        "history_capability": history_capability,
     }
     if chunk_size is not None:
         upload_kwargs["chunk_size"] = chunk_size
@@ -211,9 +292,7 @@ def describe_plan(plan: ImportPlan) -> list[str]:
     skipped_note = f" · {plan.skipped_wp_total} WP file(s) SKIPPED" if plan.skipped_wp_total else ""
     # Same fail-loud contract for the on-disk lifecycle-prefix path (finding A):
     # a dropped WPCreated/MissionCreated row must mark the summary line too.
-    skipped_event_note = (
-        f" · {plan.skipped_event_rows_total} lifecycle row(s) SKIPPED" if plan.skipped_event_rows_total else ""
-    )
+    skipped_event_note = f" · {plan.skipped_event_rows_total} lifecycle row(s) SKIPPED" if plan.skipped_event_rows_total else ""
     lines = [
         f"Import plan for project {plan.identity.project_slug} [{plan.identity.project_uuid}]{identity_note}",
         f"{plan.mission_count} mission(s) → {plan.total_events} event(s){skipped_note}{skipped_event_note}:",

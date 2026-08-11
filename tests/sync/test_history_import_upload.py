@@ -7,15 +7,22 @@ zero network: a fake ``HttpPoster`` stands in for the preflight endpoint and a
 
 from __future__ import annotations
 
-import gzip
 import json
+from pathlib import Path
 from typing import Any
 
 import pytest
 import requests
 
 from specify_cli.core.contract_gate import ContractViolationError
+from specify_cli.delivery.interfaces import DeliveryTarget, TargetIdentity
 from specify_cli.delivery.receivers import DeliveryOutcome, DeliveryResult, StubReceiver
+from specify_cli.delivery.targets import compute_target_id
+from specify_cli.sync.consent import allocate_capture_sequence, record_project_opt_in
+from specify_cli.sync.history_disclosure import (
+    confirm_history_disclosure,
+    preview_sealed_history,
+)
 from specify_cli.sync.history_import.upload import (
     _IMPORT_CHUNK_SIZE,
     _SERVER_MAX_BATCH_SIZE,
@@ -28,6 +35,8 @@ from specify_cli.sync.history_import.upload import (
     upload_envelopes,
     validate_import_envelopes,
 )
+from specify_cli.sync.project_context import AdmissionState
+from specify_cli.sync.project_store import ProjectSyncStore
 
 pytestmark = pytest.mark.fast
 
@@ -50,6 +59,7 @@ def _env(
 #: stage now refuses an envelope whose project cannot be identified (#3030
 #: FR-028, NFR-001): unresolvable identity can never be shown to consent.
 _FIXTURE_PROJECT_UUID = "00000000-0000-4000-8000-0000000021ce"
+_SERVER = "https://app.spec-kitty.ai"
 
 
 @pytest.fixture(autouse=True)
@@ -69,6 +79,76 @@ def _fixture_project_consents(monkeypatch: pytest.MonkeyPatch) -> None:
         return frozenset(c for c in candidates if c == _FIXTURE_PROJECT_UUID)
 
     monkeypatch.setattr(consent_module, "consented_project_uuids", _grant_the_fixture_project)
+
+
+@pytest.fixture
+def authority(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Mint the exact persisted preview/confirmation authority for one cohort."""
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+
+    def _make(envelopes: list[dict[str, Any]]) -> dict[str, object]:
+        store = ProjectSyncStore(_FIXTURE_PROJECT_UUID)
+        with store.unit_of_work() as unit:
+            for envelope in envelopes:
+                assignment = allocate_capture_sequence(unit)
+                unit.execute(
+                    "INSERT INTO journal_entries (entry_id, project_uuid, epoch_id, capture_sequence, payload_json) VALUES (?, ?, ?, ?, ?)",
+                    (
+                        envelope["event_id"],
+                        _FIXTURE_PROJECT_UUID,
+                        assignment.epoch_id,
+                        assignment.capture_sequence,
+                        json.dumps(envelope, sort_keys=True, separators=(",", ":")),
+                    ),
+                )
+        record_project_opt_in(_FIXTURE_PROJECT_UUID, actor="test:history-upload")
+        with store.unit_of_work() as unit:
+            unit.execute(
+                "INSERT INTO project_target_admissions "
+                "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+                "configuration_generation, admission_state, admission_generation, binding_audience) "
+                "VALUES (?, ?, 'account-1', 'teamspace-1', 1, 'admitted', '1', "
+                "'private-teamspace:teamspace-1')",
+                (_FIXTURE_PROJECT_UUID, _SERVER),
+            )
+        context = store.create_context()
+        capability = confirm_history_disclosure(
+            store,
+            preview_sealed_history(store),
+            actor="test:history-upload",
+            idempotency_key="legacy-suite-cohort",
+            context=context,
+        )
+        audience = context.target_audience
+        assert audience is not None
+        identity = TargetIdentity(
+            target_identity=audience.target_identity,
+            account_identity=audience.account_identity,
+            private_teamspace_id=audience.private_teamspace_id,
+            project_uuid=audience.project_uuid,
+            configuration_generation=audience.configuration_generation,
+        )
+        target = DeliveryTarget(
+            target_id=compute_target_id(
+                target_identity=identity.target_identity,
+                account_identity=identity.account_identity,
+                private_teamspace_id=identity.private_teamspace_id,
+                project_uuid=identity.project_uuid,
+                configuration_generation=identity.configuration_generation,
+            ),
+            identity=identity,
+            admission_state=AdmissionState.ADMITTED,
+            admission_generation=1,
+            binding_audience="private-teamspace:teamspace-1",
+            last_error_category=None,
+        )
+        return {
+            "project_context": context,
+            "target": target,
+            "history_capability": capability,
+        }
+
+    return _make
 
 
 # ── fake poster (preflight transport) ─────────────────────────────────────────
@@ -97,6 +177,21 @@ def _fake_poster(payload: Any, *, status: int = 200, json_raises: bool = False):
     return _poster
 
 
+def _accepting_preflight_poster(
+    url: str,
+    *,
+    data: bytes,
+    headers: dict[str, str],
+    timeout: float,
+) -> _FakeResponse:
+    del url, headers, timeout
+    events = json.loads(data)["events"]
+    return _FakeResponse(
+        200,
+        {"results": [{"event_id": event["event_id"], "status": "success"} for event in events]},
+    )
+
+
 # ── provenance (stage 6) ──────────────────────────────────────────────────────
 
 
@@ -118,30 +213,64 @@ def test_build_provenance_manifest():
 # ── preflight (stage 7) ───────────────────────────────────────────────────────
 
 
-def test_preflight_posts_gzipped_events_to_the_endpoint():
-    poster = _fake_poster({"accepted": True, "event_count": 1, "reconciliation": {}})
-    run_server_preflight([_env("e0")], server_url="http://host/", auth_token="tok", poster=poster)
+def test_preflight_posts_exact_admission_bound_contract_request(authority):
+    envelopes = [_env("e0")]
+    transport_authority = authority(envelopes)
+    capability = transport_authority["history_capability"]
+    poster = _fake_poster({"results": [{"event_id": "e0", "status": "success"}]})
+    run_server_preflight(
+        envelopes,
+        server_url=_SERVER,
+        auth_token="tok",
+        poster=poster,
+        **transport_authority,
+    )
 
     captured = poster.captured  # type: ignore[attr-defined]
-    assert captured["url"] == "http://host/api/v1/events/preflight/"
-    assert captured["headers"]["Content-Encoding"] == "gzip"
+    assert captured["url"] == f"{_SERVER}/api/v1/events/preflight/"
+    assert "Content-Encoding" not in captured["headers"]
     assert captured["headers"]["Authorization"] == "Bearer tok"
-    assert json.loads(gzip.decompress(captured["data"])) == {"events": [_env("e0")]}
+    assert captured["headers"]["X-Spec-Kitty-Sync-Protocol"] == "2.0"
+    assert json.loads(captured["data"]) == {
+        "history_action_id": capability.action_id,
+        "preview_hash": capability.preview_hash,
+        "events": [
+            {
+                **_env("e0"),
+                "admission_generation": 1,
+                "binding_audience": "private-teamspace:teamspace-1",
+            }
+        ],
+    }
 
 
-def test_preflight_rejection_raises():
-    poster = _fake_poster({"accepted": False, "reconciliation": {"reason": "bad shape"}}, status=400)
+def test_preflight_rejection_raises(authority):
+    poster = _fake_poster({"error": "bad shape", "results": []}, status=400)
+    envelopes = [_env("e0")]
     with pytest.raises(PreflightRejected, match="bad shape"):
-        run_server_preflight([_env("e0")], server_url="http://x", auth_token="t", poster=poster)
+        run_server_preflight(
+            envelopes,
+            server_url=_SERVER,
+            auth_token="t",
+            poster=poster,
+            **authority(envelopes),
+        )
 
 
-def test_preflight_non_json_response_fails_closed():
+def test_preflight_non_json_response_fails_closed(authority):
     poster = _fake_poster(None, status=502, json_raises=True)
+    envelopes = [_env("e0")]
     with pytest.raises(PreflightRejected, match="not JSON"):
-        run_server_preflight([_env("e0")], server_url="http://x", auth_token="t", poster=poster)
+        run_server_preflight(
+            envelopes,
+            server_url=_SERVER,
+            auth_token="t",
+            poster=poster,
+            **authority(envelopes),
+        )
 
 
-def test_preflight_transport_error_fails_closed_not_traceback():
+def test_preflight_transport_error_fails_closed_not_traceback(authority):
     """A transport failure (unreachable host / timeout / TLS reset) during
     preflight maps to a graceful PreflightRejected, not an escaping traceback
     (#2884). The delivery path already catches this; preflight now matches."""
@@ -149,49 +278,72 @@ def test_preflight_transport_error_fails_closed_not_traceback():
     def _raising_poster(url: str, *, data: bytes, headers: dict[str, str], timeout: float):
         raise requests.ConnectionError("host unreachable")
 
+    envelopes = [_env("e0")]
     with pytest.raises(PreflightRejected, match="transport failed"):
-        run_server_preflight([_env("e0")], server_url="http://x", auth_token="t", poster=_raising_poster)
+        run_server_preflight(
+            envelopes,
+            server_url=_SERVER,
+            auth_token="t",
+            poster=_raising_poster,
+            **authority(envelopes),
+        )
 
 
 # ── upload (stage 8) ──────────────────────────────────────────────────────────
 
 
-def test_upload_delivers_all_then_dedups_on_rerun():
-    stub = StubReceiver()
+def test_upload_delivers_all_then_projects_terminal_attempt_rerun(authority):
+    stub = StubReceiver(endpoint_url=_SERVER)
     envelopes = [_env(f"e{i}") for i in range(3)]
+    transport_authority = authority(envelopes)
 
-    first = upload_envelopes(envelopes, receiver=stub)
+    first = upload_envelopes(envelopes, receiver=stub, **transport_authority)
     assert first.success == 3
     assert first.rejected == 0 and first.ok
     assert set(stub.received_event_ids()) == {"e0", "e1", "e2"}
 
-    # Re-delivering the same event_ids to the same stub maps them to duplicate.
-    second = upload_envelopes(envelopes, receiver=stub)
-    assert second.duplicate == 3
+    # The canonical typed terminal projection returns the exact prior outcome
+    # without manufacturing a fresh request, nonce, or server call.
+    second = upload_envelopes(envelopes, receiver=stub, **transport_authority)
+    assert second.success == 3
     assert second.ok
+    assert set(stub.received_event_ids()) == {"e0", "e1", "e2"}
 
 
-def test_upload_chunks_by_chunk_size():
+def test_upload_chunks_by_chunk_size(authority):
     class _SpyStub(StubReceiver):
-        def __init__(self) -> None:
-            super().__init__()
+        def __init__(self, *, endpoint_url: str) -> None:
+            super().__init__(endpoint_url=endpoint_url)
             self.sizes: list[int] = []
 
         def deliver(self, batch):
             self.sizes.append(len(list(batch)))
             return super().deliver(batch)
 
-    stub = _SpyStub()
-    upload_envelopes([_env(f"e{i}") for i in range(5)], receiver=stub, chunk_size=2)
+    envelopes = [_env(f"e{i}") for i in range(5)]
+    stub = _SpyStub(endpoint_url=_SERVER)
+    upload_envelopes(
+        envelopes,
+        receiver=stub,
+        chunk_size=2,
+        **authority(envelopes),
+    )
     assert stub.sizes == [2, 2, 1]
 
 
-def test_rejected_outcomes_are_tallied():
+def test_rejected_outcomes_are_tallied(authority):
     class _RejectingReceiver:
+        endpoint_url = _SERVER
+
         def deliver(self, batch):
             return [DeliveryResult(event_id=e.event_id, outcome=DeliveryOutcome.REJECTED, error="nope") for e in batch]
 
-    report = upload_envelopes([_env("e0")], receiver=_RejectingReceiver())
+    envelopes = [_env("e0")]
+    report = upload_envelopes(
+        envelopes,
+        receiver=_RejectingReceiver(),
+        **authority(envelopes),
+    )
     assert report.rejected == 1
     assert not report.ok
     assert report.rejected_samples == ["e0: nope"]
@@ -203,9 +355,24 @@ def test_rejected_outcomes_are_tallied():
 def _mission_stream(mission: str, size: int) -> list[dict[str, Any]]:
     """A contiguous mission unit: MissionCreated + (size-1) trailing events."""
     # canonical-event-exempt(exception-flow): minimal wire envelopes fed into the chunker under test
-    envs: list[dict[str, Any]] = [{"event_id": f"{mission}-mc", "event_type": "MissionCreated", "payload": {}}]
+    envs: list[dict[str, Any]] = [
+        {
+            "event_id": f"{mission}-mc",
+            "event_type": "MissionCreated",
+            "project_uuid": _FIXTURE_PROJECT_UUID,
+            "payload": {},
+        }
+    ]
     # canonical-event-exempt(exception-flow): minimal wire envelopes fed into the chunker under test
-    envs += [{"event_id": f"{mission}-e{i}", "event_type": "WPStatusChanged", "payload": {}} for i in range(size - 1)]
+    envs += [
+        {
+            "event_id": f"{mission}-e{i}",
+            "event_type": "WPStatusChanged",
+            "project_uuid": _FIXTURE_PROJECT_UUID,
+            "payload": {},
+        }
+        for i in range(size - 1)
+    ]
     return envs
 
 
@@ -234,14 +401,14 @@ def test_single_mission_over_the_budget_is_one_oversized_chunk():
     assert [len(chunk) for chunk in chunks] == [_IMPORT_CHUNK_SIZE + 1]
 
 
-def test_single_mission_over_the_server_cap_fails_closed_before_delivery():
+def test_single_mission_over_the_server_cap_fails_closed_before_delivery(authority):
     """A mission bigger than the server's per-batch cap can't be split
     (mission-atomic) and would be rejected server-side. Catch it locally,
     before any delivery, with an actionable message (#2884, Paula n1)."""
-    stub = StubReceiver()
+    stub = StubReceiver(endpoint_url=_SERVER)
     stream = _mission_stream("huge", _SERVER_MAX_BATCH_SIZE + 1)
     with pytest.raises(PreflightRejected, match=f"{_SERVER_MAX_BATCH_SIZE}-event batch cap"):
-        upload_envelopes(stream, receiver=stub)
+        upload_envelopes(stream, receiver=stub, **authority(stream))
     assert not stub.received_event_ids()  # nothing delivered — fail-closed
 
 
@@ -256,6 +423,8 @@ class _TransientReceiver:
         self.bad = bad
         self.seen: list[str] = []
 
+    endpoint_url = _SERVER
+
     def deliver(self, batch):
         results = []
         for event in batch:
@@ -266,12 +435,18 @@ class _TransientReceiver:
         return results
 
 
-def test_transport_transient_mid_stream_stops_and_reports_partial():
+def test_transport_transient_mid_stream_stops_and_reports_partial(authority):
     """A transport TRANSIENT (network error, not a server rejection) on chunk 2
     of 3 halts delivery and reports partial — the same stop-on-failure contract
     as REJECTED, pinned for the transient path the transport actually raises."""
     receiver = _TransientReceiver(bad={"e1"})
-    report = upload_envelopes([_env(f"e{i}") for i in range(3)], receiver=receiver, chunk_size=1)
+    envelopes = [_env(f"e{i}") for i in range(3)]
+    report = upload_envelopes(
+        envelopes,
+        receiver=receiver,
+        chunk_size=1,
+        **authority(envelopes),
+    )
 
     assert receiver.seen == ["e0", "e1"]  # e2's chunk never attempted
     assert report.success == 1 and report.rejected == 1
@@ -320,6 +495,8 @@ class _SelectiveReceiver:
         self.bad = bad
         self.seen: list[str] = []
 
+    endpoint_url = _SERVER
+
     def deliver(self, batch):
         results = []
         for event in batch:
@@ -331,9 +508,15 @@ class _SelectiveReceiver:
         return results
 
 
-def test_upload_stops_at_the_first_failed_chunk_and_reports_partial():
+def test_upload_stops_at_the_first_failed_chunk_and_reports_partial(authority):
     receiver = _SelectiveReceiver(bad={"e1"})
-    report = upload_envelopes([_env(f"e{i}") for i in range(3)], receiver=receiver, chunk_size=1)
+    envelopes = [_env(f"e{i}") for i in range(3)]
+    report = upload_envelopes(
+        envelopes,
+        receiver=receiver,
+        chunk_size=1,
+        **authority(envelopes),
+    )
 
     # e2's chunk was never attempted after e1's chunk failed.
     assert receiver.seen == ["e0", "e1"]
@@ -344,23 +527,38 @@ def test_upload_stops_at_the_first_failed_chunk_and_reports_partial():
     assert not report.ok
 
 
-def test_run_import_upload_stops_delivering_after_a_failed_chunk():
+def test_run_import_upload_stops_delivering_after_a_failed_chunk(authority):
     """The --apply path (preflight passes, delivery fails mid-run) stops at the
     failed chunk: the remaining chunks are never handed to the receiver."""
     receiver = _SelectiveReceiver(bad={"e1"})
-    poster = _fake_poster({"accepted": True, "event_count": 1, "reconciliation": {}})
-    report = run_import_upload([_env(f"e{i}") for i in range(4)], receiver=receiver, server_url="http://x", auth_token="t", poster=poster, chunk_size=1)
+    poster = _accepting_preflight_poster
+    envelopes = [_env(f"e{i}") for i in range(4)]
+    report = run_import_upload(
+        envelopes,
+        receiver=receiver,
+        server_url=_SERVER,
+        auth_token="t",
+        poster=poster,
+        chunk_size=1,
+        **authority(envelopes),
+    )
 
     assert receiver.seen == ["e0", "e1"]
     assert report.partial and report.undelivered_event_count == 2  # e2, e3 not attempted
     assert report.success == 1 and report.rejected == 1
 
 
-def test_a_failure_in_the_final_chunk_is_not_partial():
+def test_a_failure_in_the_final_chunk_is_not_partial(authority):
     """Total-attempt-with-failures is a distinct state from partial: nothing
     was left unattempted, so partial stays False (rejected still counts)."""
     receiver = _SelectiveReceiver(bad={"e2"})
-    report = upload_envelopes([_env(f"e{i}") for i in range(3)], receiver=receiver, chunk_size=1)
+    envelopes = [_env(f"e{i}") for i in range(3)]
+    report = upload_envelopes(
+        envelopes,
+        receiver=receiver,
+        chunk_size=1,
+        **authority(envelopes),
+    )
 
     assert receiver.seen == ["e0", "e1", "e2"]
     assert report.rejected == 1 and not report.partial
@@ -371,35 +569,78 @@ def test_a_failure_in_the_final_chunk_is_not_partial():
 # ── run_import_upload: preflight-all-then-upload (fail-closed) ─────────────────
 
 
-def test_run_import_upload_preflights_then_uploads():
-    stub = StubReceiver()
-    poster = _fake_poster({"accepted": True, "event_count": 3, "reconciliation": {}})
-    report = run_import_upload([_env(f"e{i}") for i in range(3)], receiver=stub, server_url="http://x", auth_token="t", poster=poster)
+def test_run_import_upload_preflights_then_uploads(authority):
+    stub = StubReceiver(endpoint_url=_SERVER)
+    poster = _accepting_preflight_poster
+    envelopes = [_env(f"e{i}") for i in range(3)]
+    report = run_import_upload(
+        envelopes,
+        receiver=stub,
+        server_url=_SERVER,
+        auth_token="t",
+        poster=poster,
+        **authority(envelopes),
+    )
     assert report.success == 3
     assert set(stub.received_event_ids()) == {"e0", "e1", "e2"}
 
 
-def test_run_import_upload_uploads_nothing_when_preflight_rejects():
-    stub = StubReceiver()
-    poster = _fake_poster({"accepted": False, "reconciliation": {}}, status=400)
+def test_run_import_upload_uploads_nothing_when_preflight_rejects(authority):
+    stub = StubReceiver(endpoint_url=_SERVER)
+    poster = _fake_poster({"error": "batch validation failed", "results": []}, status=400)
+    envelopes = [_env("e0")]
     with pytest.raises(PreflightRejected):
-        run_import_upload([_env("e0")], receiver=stub, server_url="http://x", auth_token="t", poster=poster)
+        run_import_upload(
+            envelopes,
+            receiver=stub,
+            server_url=_SERVER,
+            auth_token="t",
+            poster=poster,
+            **authority(envelopes),
+        )
     # Fail-closed: preflight ran before any delivery, so nothing was uploaded.
     assert not stub.received_event_ids()
 
 
-def test_run_import_upload_rejects_on_a_later_chunk_uploads_nothing():
+def test_run_import_upload_rejects_on_a_later_chunk_uploads_nothing(authority):
     """A rejection on the SECOND chunk still uploads nothing — every chunk is
     preflighted before any chunk is delivered (not interleaved)."""
-    stub = StubReceiver()
+    stub = StubReceiver(endpoint_url=_SERVER)
     calls = {"n": 0}
 
     def _poster(url, *, data, headers, timeout):
+        del url, headers, timeout
         calls["n"] += 1
         accepted = calls["n"] == 1  # chunk 1 accepts, chunk 2 rejects
-        return _FakeResponse(200 if accepted else 400, {"accepted": accepted, "reconciliation": {}})
+        event_id = json.loads(data)["events"][0]["event_id"]
+        if accepted:
+            return _FakeResponse(
+                200,
+                {"results": [{"event_id": event_id, "status": "success"}]},
+            )
+        return _FakeResponse(
+            400,
+            {
+                "error": "rejected",
+                "details": [
+                    {
+                        "event_id": event_id,
+                        "error_category": "preflight_rejected",
+                    }
+                ],
+            },
+        )
 
+    envelopes = [_env("e0"), _env("e1")]
     with pytest.raises(PreflightRejected):
-        run_import_upload([_env("e0"), _env("e1")], receiver=stub, server_url="http://x", auth_token="t", poster=_poster, chunk_size=1)
+        run_import_upload(
+            envelopes,
+            receiver=stub,
+            server_url=_SERVER,
+            auth_token="t",
+            poster=_poster,
+            chunk_size=1,
+            **authority(envelopes),
+        )
     assert calls["n"] == 2  # both chunks preflighted...
     assert not stub.received_event_ids()  # ...before any was delivered
