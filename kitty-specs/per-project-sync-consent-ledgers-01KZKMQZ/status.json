@@ -290,7 +290,8 @@
       "last_transition_at": "2026-08-10T18:50:26.783765+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "WP08 current-head evidence complete on 2be07dae: 536-pass combined gate with only filed #3318 deselected, strict mypy/Ruff/diff clean, and T036-T039 authority/isolation behavior independently pre-reviewed."
+        "WP08 current-head evidence complete on 2be07dae: 536-pass combined gate with only filed #3318 deselected, strict mypy/Ruff/diff clean, and T036-T039 authority/isolation behavior independently pre-reviewed.",
+        "Independent WP08 whole-package review PASS on 7e97cfa84: owned/architecture 194 passed with #3318 deselected and 2 expected xfails, non-overlapping WP06/WP07 delegation 354 passed/1 skip, strict mypy/Ruff/diff clean, and all authority/isolation anti-pattern checks pass."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
