@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-08-10'
+updated: '2026-08-11'
 ---
 # Changelog
 
@@ -368,6 +368,21 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   sources.
 
 ### 🐛 Fixed
+
+- **A corrupt, truncated, or wrong-authority `meta.json` is now rejected loudly by
+  every mission read path instead of being silently accepted (mission
+  `meta-json-fail-closed-routing`; closes epic `#3259` — `#3228` / `#3229` /
+  `#3230` / `#3240`).** A mission's `meta.json` is its canonical identity and
+  VCS-lock record. Several internal read paths — git ref-advance, `implement`, and
+  the acceptance-matrix merge-driver — still decoded it through hand-rolled parsers
+  that would quietly accept a malformed or wrong-authority file, exactly the
+  split-brain / wrong-authority failure the metadata-authority work exists to close.
+  Before, a bad `meta.json` could let a mission proceed on corrupt identity state
+  and surface later as a confusing, hard-to-trace failure; now every remaining read
+  routes through one fail-closed decode seam and fails immediately with a clear,
+  path-named error. The duplicated VCS-lock comparison — two copies that could
+  return contradictory verdicts on the same file — is also unified into a single
+  authority.
 
 - **Two blocking CI gates now reflect what a PR actually changed (mission
   `ci-scoping-gate-reliability`; `#3008`, `#3147`).** _Corpus data no longer ships
