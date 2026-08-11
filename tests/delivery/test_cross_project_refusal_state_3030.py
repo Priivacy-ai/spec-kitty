@@ -11,10 +11,15 @@ routes that to ``record_terminal_failed`` -> ``STATUS_TERMINAL_FAILED``, and
 window permanently parked the **consented** project's events too. The net
 destroyed more than the leak it was catching.
 
-These tests pin the round-trip that the unit-level "no POST happened" assertion
-in ``test_receivers.py`` could not see: after a refusal, the events are still
-selectable, and they really do deliver on the next drain.
+The project-owned dispatcher can no longer construct a mixed-project batch: its
+store, context, and admitted target all carry the same UUID.  These tests drive
+the receiver's last-resort mixed-batch refusal directly, then use a real
+project-owned journal and ledger to pin the durable round-trip that the unit-level
+"no POST happened" assertion in ``test_receivers.py`` could not see: after a
+refusal, the corresponding local events are still selectable, and they really do
+deliver on the next drain.
 """
+
 from __future__ import annotations
 
 import gzip
@@ -25,10 +30,17 @@ import pytest
 
 from specify_cli.delivery.dispatcher import dispatch
 from specify_cli.delivery.ledger import SqliteDeliveryLedger
-from specify_cli.delivery.receivers import TeamspaceReceiver
-from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
+from specify_cli.delivery.receivers import (
+    DeliveryOutcome,
+    OutboundEvent,
+    TeamspaceReceiver,
+)
+from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
+from specify_cli.sync.consent import record_project_opt_in
+from specify_cli.sync.project_store import ProjectSyncStore
+from tests._support.consented_batches import deliverable
 
 pytestmark = pytest.mark.fast
 
@@ -39,20 +51,25 @@ _TOKEN = "test-token"
 
 
 @pytest.fixture(autouse=True)
-def _consent_to_both_projects(tmp_path: Any, monkeypatch: Any) -> None:
-    """Both projects consent, so selection hands the receiver a cross-project batch.
-
-    This is the H1 failure scenario: consent is not what regressed — the selection
-    *window* spanned two projects (e.g. after a backfill), and the pre-POST net
-    fired on a batch whose events were all legitimately deliverable.
-    """
+def _project_owned_authority(tmp_path: Any, monkeypatch: Any) -> None:
+    """Create the real opted-in, project-only, admitted dispatcher authority."""
     home = tmp_path / "consent-home"
     home.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
-    from specify_cli.sync.consent import set_project_consent
-
-    set_project_consent(_CONSENTED, True)
-    set_project_consent(_OTHER, True)
+    store = ProjectSyncStore(_CONSENTED)
+    authority = store.layout_generation()
+    authority.begin_cutover("wp07-cross-project-fixture")
+    authority.publish_project_only("wp07-cross-project-fixture", verify_exact=lambda: True)
+    record_project_opt_in(_CONSENTED, actor="wp07-cross-project-test")
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO project_target_admissions "
+            "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, binding_audience) "
+            "VALUES (?, ?, 'u@example.com', 'team', 1, 'admitted', '1', "
+            "'private-teamspace:team')",
+            (_CONSENTED, _SERVER_URL),
+        )
 
 
 def _event(event_id: str, project_uuid: str, index: int) -> Event:
@@ -84,28 +101,45 @@ class _FakeResponse:
 
 
 @pytest.fixture
-def journal(tmp_path: Any) -> EventJournal:
-    jrnl = EventJournal(tmp_path / "journal.db")
-    jrnl.append(_event("evt-consented", _CONSENTED, 1))
-    jrnl.append(_event("evt-other", _OTHER, 2))
-    return jrnl
+def store() -> ProjectSyncStore:
+    value = ProjectSyncStore(_CONSENTED)
+    with value.unit_of_work() as unit:
+        journal = EventJournal(unit, value.layout_generation())
+        journal.append(_event("evt-consented", _CONSENTED, 1))
+        journal.append(_event("evt-other", _CONSENTED, 2))
+    return value
 
 
-@pytest.fixture
-def ledger() -> SqliteDeliveryLedger:
-    return SqliteDeliveryLedger(":memory:")
+def _target(store: ProjectSyncStore) -> Any:
+    with store.unit_of_work() as unit:
+        target = ProjectDeliveryTargetRegistry(store).get_current(unit)
+    assert target is not None
+    return target
 
 
-@pytest.fixture
-def target(tmp_path: Any) -> Any:
-    registry = SqliteDeliveryTargetRegistry(":memory:")
-    return registry.register(
-        url=_SERVER_URL, team_slug="team", user_email="u@example.com"
-    )
+def _mixed_batch() -> list[OutboundEvent]:
+    return [
+        OutboundEvent(
+            event_id="evt-consented",
+            payload={"event_id": "evt-consented", "project_uuid": _CONSENTED},
+        ),
+        OutboundEvent(
+            event_id="evt-other",
+            payload={"event_id": "evt-other", "project_uuid": _OTHER},
+        ),
+    ]
+
+
+def _selectable(store: ProjectSyncStore, target_id: str) -> list[str]:
+    with store.unit_of_work() as unit:
+        return SqliteDeliveryLedger(unit, store.layout_generation()).select_undelivered(
+            target_id=target_id,
+            event_universe=["evt-consented", "evt-other"],
+        )
 
 
 def test_refused_cross_project_batch_leaves_both_events_selectable(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, target: Any
+    store: ProjectSyncStore,
 ) -> None:
     """The refusal must not park anything: state stays as if nothing was attempted."""
     posts: list[str] = []
@@ -114,37 +148,28 @@ def test_refused_cross_project_batch_leaves_both_events_selectable(
         posts.append(url)
         raise AssertionError("a cross-project batch must never be POSTed")
 
-    receiver = TeamspaceReceiver(
-        resolved_server_url=_SERVER_URL, auth_token=_TOKEN, poster=_never
-    )
+    receiver = TeamspaceReceiver(resolved_server_url=_SERVER_URL, auth_token=_TOKEN, poster=_never)
 
-    summary = dispatch(
-        journal=journal, ledger=ledger, receiver=receiver, target=target
-    )
+    results = list(receiver.deliver(deliverable(_mixed_batch())))
+    target = _target(store)
 
     assert posts == [], "no HTTP request may be made for a cross-project batch"
-    assert summary.selected == 2
-    assert summary.delivered == 0
+    assert len(results) == 2
+    assert not any(result.outcome is DeliveryOutcome.SUCCESS for result in results)
     # The whole point of H1: nothing may be parked permanently.
-    assert summary.terminal_failed == 0, (
-        "a pre-POST refusal is not a permanent delivery failure; parking the batch "
-        "destroys the consented project's events (spec US1a AS-1)"
+    assert not any(result.outcome is DeliveryOutcome.TERMINAL_FAILED for result in results), (
+        "a pre-POST refusal is not a permanent delivery failure; parking the batch destroys the consented project's events (spec US1a AS-1)"
     )
-    still_selectable = ledger.select_undelivered(
-        target_id=target.target_id,
-        event_universe=["evt-consented", "evt-other"],
-    )
-    assert still_selectable == ["evt-consented", "evt-other"], (
-        "both events must survive the refusal as selectable work"
-    )
+    still_selectable = _selectable(store, target.target_id)
+    assert still_selectable == ["evt-consented", "evt-other"], "both events must survive the refusal as selectable work"
     # The refusal must still be observable and still name the projects.
-    assert {f.event_id for f in summary.failures} == {"evt-consented", "evt-other"}
-    assert all("more than one project" in (f.error or "") for f in summary.failures)
-    assert any(_CONSENTED in (f.error or "") for f in summary.failures)
+    assert {result.event_id for result in results} == {"evt-consented", "evt-other"}
+    assert all("more than one project" in (result.error or "") for result in results)
+    assert any(_CONSENTED in (result.error or "") for result in results)
 
 
 def test_consented_events_deliver_on_the_next_drain_after_a_refusal(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, target: Any
+    store: ProjectSyncStore,
 ) -> None:
     """Round-trip proof: the refusal cost the consented project nothing.
 
@@ -157,46 +182,36 @@ def test_consented_events_deliver_on_the_next_drain_after_a_refusal(
     def _never(url: str, *, data: Any, headers: Any, timeout: Any) -> Any:
         raise AssertionError("a cross-project batch must never be POSTed")
 
-    refused = TeamspaceReceiver(
-        resolved_server_url=_SERVER_URL, auth_token=_TOKEN, poster=_never
-    )
-    dispatch(journal=journal, ledger=ledger, receiver=refused, target=target)
+    refused = TeamspaceReceiver(resolved_server_url=_SERVER_URL, auth_token=_TOKEN, poster=_never)
+    list(refused.deliver(deliverable(_mixed_batch())))
+    target = _target(store)
 
     delivered: list[bytes] = []
 
     def _ok(url: str, *, data: Any, headers: Any, timeout: Any) -> Any:
         delivered.append(data)
-        return _FakeResponse(
-            200, {"results": [{"event_id": "evt-consented", "status": "success"}]}
-        )
+        return _FakeResponse(200, {"results": [{"event_id": "evt-consented", "status": "success"}]})
 
-    second = TeamspaceReceiver(
-        resolved_server_url=_SERVER_URL, auth_token=_TOKEN, poster=_ok
-    )
+    second = TeamspaceReceiver(resolved_server_url=_SERVER_URL, auth_token=_TOKEN, poster=_ok)
     summary = dispatch(
-        journal=journal,
-        ledger=ledger,
+        store=store,
         receiver=second,
         target=target,
+        context=store.create_context(),
         exclude=frozenset({"evt-other"}),
     )
 
-    assert summary.selected == 1, (
-        "the consented event must still be selectable after the refusal"
-    )
+    assert summary.selected == 1, "the consented event must still be selectable after the refusal"
     assert summary.delivered == 1
     # One POST, and its body carries only the consented project's event. Asserted
     # by identity rather than by counting the POSTs: a count cannot tell "the
     # consented event was delivered" from "some event was delivered". The body is
     # gzipped on the wire, hence the decompress.
-    assert [
-        json.loads(gzip.decompress(body))["events"][0]["event_id"]
-        for body in delivered
-    ] == ["evt-consented"]
+    assert [json.loads(gzip.decompress(body))["events"][0]["event_id"] for body in delivered] == ["evt-consented"]
 
 
 def test_a_refused_batch_does_not_wedge_the_multi_batch_drain(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, target: Any
+    store: ProjectSyncStore,
 ) -> None:
     """Non-terminal must not mean "re-select the same refusal forever".
 
@@ -210,32 +225,24 @@ def test_a_refused_batch_does_not_wedge_the_multi_batch_drain(
     def _never(url: str, *, data: Any, headers: Any, timeout: Any) -> Any:
         raise AssertionError("a cross-project batch must never be POSTed")
 
-    receiver = TeamspaceReceiver(
-        resolved_server_url=_SERVER_URL, auth_token=_TOKEN, poster=_never
-    )
+    receiver = TeamspaceReceiver(resolved_server_url=_SERVER_URL, auth_token=_TOKEN, poster=_never)
 
     skip: set[str] = set()
     iterations = 0
     while iterations < 10:
         iterations += 1
-        batch = dispatch(
-            journal=journal,
-            ledger=ledger,
-            receiver=receiver,
-            target=target,
-            exclude=frozenset(skip),
-        )
+        batch = [event for event in _mixed_batch() if event.event_id not in skip]
+        if not batch:
+            break
+        results = list(receiver.deliver(deliverable(batch)))
         before = len(skip)
-        skip.update(batch.retryable_event_ids)
-        progressed = (batch.delivered + batch.duplicate + batch.terminal_failed) > 0
-        if batch.selected == 0 or not (progressed or len(skip) > before):
+        skip.update(result.event_id for result in results if result.outcome is DeliveryOutcome.TRANSIENT)
+        if len(skip) == before:
             break
 
-    assert iterations <= 3, (
-        f"the drain loop must advance past a refused batch, took {iterations} passes"
-    )
+    assert iterations <= 3, f"the drain loop must advance past a refused batch, took {iterations} passes"
     # And the events are still there for the next command.
-    assert ledger.select_undelivered(
-        target_id=target.target_id,
-        event_universe=["evt-consented", "evt-other"],
-    ) == ["evt-consented", "evt-other"]
+    assert _selectable(store, _target(store).target_id) == [
+        "evt-consented",
+        "evt-other",
+    ]

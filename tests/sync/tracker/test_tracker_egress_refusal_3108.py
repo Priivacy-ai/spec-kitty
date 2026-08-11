@@ -114,6 +114,7 @@ import sys
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import MagicMock
 
@@ -1621,18 +1622,41 @@ class _DrainEgress:
 
     status: int = 201
     posts: list[dict[str, Any]] = field(default_factory=list)
+    store: ProjectSyncStore | None = None
 
-    def post(self, url: str, json: dict[str, Any] | None = None, headers: dict[str, str] | None = None, timeout: float | None = None) -> Any:
-        from types import SimpleNamespace
+    def _record(self, url: str, payload: object) -> Any:
+        if self.store is not None:
+            # Transport must run outside every project transaction.  A fresh
+            # immediate UoW here is the behavioural proof: the former fixture
+            # held one across the callback and this exact probe locked.
+            with self.store.unit_of_work(lock_timeout_seconds=0):
+                pass
+        decoded = json.loads(payload) if isinstance(payload, bytes) else payload
+        assert isinstance(decoded, dict)
+        self.posts.append({"url": url, "json": decoded})
+        return SimpleNamespace(
+            status_code=self.status,
+            json=lambda: {
+                "artifact_path": decoded["artifact_path"],
+                "content_hash": decoded["content_hash"],
+                "status": "stored",
+            },
+        )
 
-        self.posts.append({"url": url, "json": json or {}})
-        return SimpleNamespace(status_code=self.status, json=lambda: {})
+    def post(
+        self,
+        url: str,
+        *,
+        data: bytes,
+        headers: dict[str, str] | None = None,
+        timeout: float | None = None,
+    ) -> Any:
+        del headers, timeout
+        return self._record(url, data)
 
     def fallback(self, method: str, url: str, **kwargs: Any) -> Any:
-        from types import SimpleNamespace
-
-        self.posts.append({"url": url, "json": kwargs.get("json") or {}})
-        return SimpleNamespace(status_code=self.status, json=lambda: {})
+        assert method == "POST"
+        return self._record(url, kwargs.get("content"))
 
     @property
     def bodies(self) -> list[str]:
@@ -1643,22 +1667,52 @@ class _DrainEgress:
         return [str(p["json"].get("project_uuid", "")) for p in self.posts]
 
 
+@dataclass(frozen=True)
+class _BodyQueueFacade:
+    """Connection-free test handle over the canonical project-owned queue."""
+
+    store: ProjectSyncStore
+
+    def enqueue(self, **kwargs: Any) -> Any:
+        from specify_cli.sync.body_queue import OfflineBodyUploadQueue
+
+        with self.store.unit_of_work() as unit:
+            return OfflineBodyUploadQueue(unit, self.store.layout_generation()).enqueue(**kwargs)
+
+    def size(self) -> int:
+        from specify_cli.sync.body_queue import OfflineBodyUploadQueue
+
+        with self.store.unit_of_work() as unit:
+            return OfflineBodyUploadQueue(unit, self.store.layout_generation()).size()
+
+    def remove_project_tasks(self, project_uuid: str) -> int:
+        from specify_cli.sync.body_queue import OfflineBodyUploadQueue
+
+        with self.store.unit_of_work() as unit:
+            return OfflineBodyUploadQueue(unit, self.store.layout_generation()).remove_project_tasks(project_uuid)
+
+
 @contextlib.contextmanager
 def _drain_service(
     monkeypatch: pytest.MonkeyPatch,
     project_uuid: str,
-) -> Iterator[Any]:
+) -> Iterator[tuple[Any, _BodyQueueFacade]]:
     from specify_cli.sync.background import BackgroundSyncService
-    from specify_cli.sync.body_queue import OfflineBodyUploadQueue
+    from specify_cli.sync.consent import record_project_opt_in
     from specify_cli.sync.layout_generation import LayoutMode
-    from specify_cli.sync.queue import OfflineQueue
     from unittest.mock import MagicMock as _MM
 
     monkeypatch.setattr("specify_cli.sync.background._fetch_access_token_sync", lambda: "test-token")
     monkeypatch.setattr("specify_cli.sync.background.is_saas_sync_enabled", lambda: True)
+    manager = _MM()
+    manager.get_current_session.return_value = SimpleNamespace(
+        email="account-1",
+        teams=[SimpleNamespace(id="teamspace-1", is_private_teamspace=True)],
+    )
+    monkeypatch.setattr("specify_cli.sync.background.get_token_manager", lambda: manager)
 
     config = _MM()
-    config.resolve_runtime_target.return_value.resolved_server_url = "https://saas.example.test"
+    config.resolve_runtime_target.return_value = SimpleNamespace(resolved_server_url="https://saas.example.test")
     store = ProjectSyncStore(project_uuid)
     authority = store.layout_generation()
     if authority.read_state().mode is LayoutMode.LEGACY:
@@ -1667,25 +1721,58 @@ def _drain_service(
             "tracker-egress-hosted-drain-fixture",
             verify_exact=lambda: True,
         )
-
-    def _active_project_store(candidate: str) -> ProjectSyncStore:
-        assert candidate == project_uuid
-        return store
-
-    monkeypatch.setattr(
-        "specify_cli.sync.consent.ProjectSyncStore",
-        _active_project_store,
-    )
+    record_project_opt_in(project_uuid, actor="tracker-egress-hosted-drain-fixture")
     with store.unit_of_work() as unit:
-        service = BackgroundSyncService(
-            queue=OfflineQueue(unit, authority),
-            config=config,
+        unit.execute(
+            "INSERT INTO project_target_admissions "
+            "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, binding_audience) "
+            "VALUES (?, 'https://saas.example.test', 'account-1', 'teamspace-1', 1, "
+            "'admitted', '1', 'private-teamspace:teamspace-1') "
+            "ON CONFLICT(project_uuid) DO UPDATE SET "
+            "target_identity = excluded.target_identity, "
+            "account_identity = excluded.account_identity, "
+            "private_teamspace_id = excluded.private_teamspace_id, "
+            "configuration_generation = excluded.configuration_generation, "
+            "admission_state = excluded.admission_state, "
+            "admission_generation = excluded.admission_generation, "
+            "binding_audience = excluded.binding_audience",
+            (project_uuid,),
         )
-        service._body_queue = OfflineBodyUploadQueue(unit, authority)
-        yield service
+    monkeypatch.setattr(
+        "specify_cli.sync.background._enumerate_project_store_candidates",
+        lambda: (store.project_uuid,),
+    )
+    service = BackgroundSyncService(queue=_MM(), config=config)
+    assert service._body_queue is None
+    from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
+    from specify_cli.sync.project_context import AdmissionState, ConsentState
+
+    context = store.create_context()
+    assert context.consent_state is ConsentState.GRANTED
+    assert context.admission_state is AdmissionState.ADMITTED
+    authenticated = service._authenticated_runtime_target()
+    assert authenticated is not None
+    resolved, account_identity, private_teamspace_id = authenticated
+    with store.unit_of_work() as unit:
+        target = ProjectDeliveryTargetRegistry(store).get_current(unit)
+    assert target is not None
+    assert service._target_matches_current_auth(
+        target,
+        resolved,
+        account_identity,
+        private_teamspace_id,
+        store.project_uuid,
+    )
+    yield service, _BodyQueueFacade(store)
 
 
-def _enqueue_two_bodies(queue: Any, project_uuid: str) -> None:
+def _enqueue_two_bodies(
+    queue: Any,
+    project_uuid: str,
+    *,
+    identity_namespace: str,
+) -> None:
     from specify_cli.sync.namespace import NamespaceRef
 
     for i in range(2):
@@ -1699,14 +1786,19 @@ def _enqueue_two_bodies(queue: Any, project_uuid: str) -> None:
                 mission_type="software-dev",
                 manifest_version="1",
             ),
-            artifact_path=f"spec-{i}.md",
+            artifact_path=f"{identity_namespace}/spec-{i}.md",
             content_hash=digest,
             content_body=content,
             size_bytes=len(content.encode()),
         )
 
 
-def test_us1_sc4_hosted_drain_unaffected_by_tracker_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, http_tripwire: _HttpTripwire) -> None:
+def test_us1_sc4_hosted_drain_unaffected_by_tracker_key(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    http_tripwire: _HttpTripwire,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """US1 sc4: hosted sync (the queue drain) is unaffected by the tracker key. This is a
     *different* transport (the body/event drain) with its own, unrelated consent chain; this
     Mission changes nothing about it, so it is a positive control -- green on the base and after.
@@ -1744,41 +1836,55 @@ def test_us1_sc4_hosted_drain_unaffected_by_tracker_key(tmp_path: Path, monkeypa
         tracker_block={"provider": "beads", "workspace": "acme-ws"},
     )
 
-    egress_with_key = _DrainEgress()
+    store = ProjectSyncStore(CONSENTING_PROJECT_UUID)
+    egress_with_key = _DrainEgress(store=store)
     monkeypatch.setattr(
         "specify_cli.sync.body_transport.requests",
         __import__("types").SimpleNamespace(post=egress_with_key.post, ConnectionError=ConnectionError, Timeout=TimeoutError),
     )
     monkeypatch.setattr("specify_cli.sync.body_transport.request_with_stdlib_fallback_sync", egress_with_key.fallback)
     monkeypatch.chdir(root_with_key)
-    with _drain_service(monkeypatch, CONSENTING_PROJECT_UUID) as svc_with_key:
-        _enqueue_two_bodies(svc_with_key._body_queue, CONSENTING_PROJECT_UUID)
-        assert svc_with_key._body_queue.size() == 2, "non-vacuity: queue must be non-empty before drain"
+    with _drain_service(monkeypatch, CONSENTING_PROJECT_UUID) as (svc_with_key, queue_with_key):
+        _enqueue_two_bodies(
+            queue_with_key,
+            CONSENTING_PROJECT_UUID,
+            identity_namespace="with-key",
+        )
+        assert queue_with_key.size() == 2, "non-vacuity: queue must be non-empty before drain"
+        with store.unit_of_work(lock_timeout_seconds=0):
+            pass
         svc_with_key.drain_body_uploads_only()
-        assert svc_with_key._body_queue.size() == 0, "non-vacuity: queue must be empty after drain"
+        assert queue_with_key.size() == 0, "non-vacuity: queue must be empty after drain"
         # The two historical arms used separate legacy sqlite files. The
         # canonical project store is UUID-scoped, so remove completed fixture
-        # rows before recreating the same two identities for the second arm.
-        svc_with_key._body_queue.remove_project_tasks(CONSENTING_PROJECT_UUID)
+        # rows before enqueueing the second arm's distinct transport identities.
+        queue_with_key.remove_project_tasks(CONSENTING_PROJECT_UUID)
 
-    egress_no_key = _DrainEgress()
+    egress_no_key = _DrainEgress(store=store)
     monkeypatch.setattr(
         "specify_cli.sync.body_transport.requests",
         __import__("types").SimpleNamespace(post=egress_no_key.post, ConnectionError=ConnectionError, Timeout=TimeoutError),
     )
     monkeypatch.setattr("specify_cli.sync.body_transport.request_with_stdlib_fallback_sync", egress_no_key.fallback)
     monkeypatch.chdir(root_no_key)
-    with _drain_service(monkeypatch, CONSENTING_PROJECT_UUID) as svc_no_key:
-        _enqueue_two_bodies(svc_no_key._body_queue, CONSENTING_PROJECT_UUID)
-        assert svc_no_key._body_queue.size() == 2
+    with _drain_service(monkeypatch, CONSENTING_PROJECT_UUID) as (svc_no_key, queue_no_key):
+        _enqueue_two_bodies(
+            queue_no_key,
+            CONSENTING_PROJECT_UUID,
+            identity_namespace="no-key",
+        )
+        assert queue_no_key.size() == 2
+        with store.unit_of_work(lock_timeout_seconds=0):
+            pass
         svc_no_key.drain_body_uploads_only()
-        assert svc_no_key._body_queue.size() == 0
+        assert queue_no_key.size() == 0
 
     assert egress_with_key.project_uuids == egress_no_key.project_uuids
     assert egress_with_key.bodies == egress_no_key.bodies
     assert len(egress_with_key.posts) == len(egress_no_key.posts) == 2
     assert [post["url"] for post in egress_with_key.posts] == [post["url"] for post in egress_no_key.posts]
     assert all(str(post["url"]).endswith("/api/dossier/push-content/") for post in (*egress_with_key.posts, *egress_no_key.posts))
+    assert "project sync store is locked" not in caplog.text
     # This file's own httpx trip-wire stays armed throughout and must still record 0 -- the
     # drain path is instrumented above it (a `requests`-based transport), which is precisely why
     # the two coexist.

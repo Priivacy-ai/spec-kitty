@@ -63,6 +63,7 @@ from specify_cli.delivery.receivers import (
     DeliveryOutcome,
     DeliveryResult,
     StubReceiver,
+    TeamspaceReceiver,
     map_batch_response,
 )
 from specify_cli.event_journal.journal import EventJournal
@@ -1226,6 +1227,7 @@ def test_server_project_not_admitted_parks_only_correlated_item_durably(
     store: ProjectSyncStore,
     context: ProjectSyncContext,
     target_a: DeliveryTarget,
+    target_b: DeliveryTarget,
 ) -> None:
     receiver = _ProjectNotAdmittedMixedStub()
 
@@ -1260,6 +1262,93 @@ def test_server_project_not_admitted_parks_only_correlated_item_durably(
 
     assert second.delivered == 1
     assert receiver.calls == [("evt-0", "evt-1"), ("evt-2",)]
+
+    with store.unit_of_work() as unit:
+        attempts_before_reselection = unit.execute(
+            "SELECT COUNT(*) FROM delivery_attempts WHERE project_uuid = ?",
+            (_TEST_PROJECT_UUID,),
+        ).fetchone()[0]
+    _admit_target(store, target_b)
+    assert [event.event_id for event in _select_with_store(store, target_b.target_id).events] == ["evt-1", "evt-2"]
+    with store.unit_of_work() as unit:
+        assert (
+            unit.execute(
+                "SELECT COUNT(*) FROM delivery_attempts WHERE project_uuid = ?",
+                (_TEST_PROJECT_UUID,),
+            ).fetchone()[0]
+            == attempts_before_reselection
+        ), "canonical refusal projection must park without writing a legacy attempt"
+
+
+def test_live_project_refused_response_stays_parked_after_target_switch(
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
+    target_a: DeliveryTarget,
+    target_b: DeliveryTarget,
+) -> None:
+    """The receiver's complete terminal-policy vocabulary drives ledger parking."""
+    posts: list[str] = []
+
+    def _project_refused(
+        url: str,
+        *,
+        data: bytes,
+        headers: dict[str, str],
+        timeout: float,
+    ) -> Any:
+        del data, headers, timeout
+        posts.append(url)
+        return SimpleNamespace(
+            status_code=200,
+            json=lambda: {
+                "results": [
+                    {
+                        "event_id": "evt-0",
+                        "status": "rejected",
+                        "error": "project policy refused this event",
+                        "error_category": "project_refused",
+                    }
+                ]
+            },
+        )
+
+    receiver = TeamspaceReceiver(
+        resolved_server_url=target_a.target_identity,
+        auth_token="test-token",
+        poster=_project_refused,
+    )
+    first = dispatch(
+        store=store,
+        receiver=receiver,
+        target=target_a,
+        context=context,
+        limit=1,
+    )
+    assert first.terminal_failed == 1
+    assert len(posts) == 1
+    assert _ledger_get(store, "evt-0", target_a.target_id).last_error == "project_refused"
+
+    with store.unit_of_work() as unit:
+        attempts_before_reselection = unit.execute(
+            "SELECT COUNT(*) FROM delivery_attempts WHERE project_uuid = ?",
+            (_TEST_PROJECT_UUID,),
+        ).fetchone()[0]
+    _admit_target(store, target_b)
+    with store.unit_of_work() as unit:
+        assert (
+            SqliteDeliveryLedger(unit, store.layout_generation()).select_undelivered(
+                target_id=target_b.target_id,
+                event_universe=("evt-0",),
+            )
+            == []
+        )
+        assert (
+            unit.execute(
+                "SELECT COUNT(*) FROM delivery_attempts WHERE project_uuid = ?",
+                (_TEST_PROJECT_UUID,),
+            ).fetchone()[0]
+            == attempts_before_reselection
+        ), "target-switch projection must not create a legacy attempt"
 
 
 def test_cli_loop_skips_expired_prepared_head_for_current_pass_and_continues(

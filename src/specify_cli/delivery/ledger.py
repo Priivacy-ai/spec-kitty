@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from specify_cli.core.time_utils import now_utc_iso
+from specify_cli.delivery.receivers import TERMINAL_REJECTION_CATEGORIES
 from specify_cli.sync.layout_generation import (
     LayoutDestination,
     LayoutGenerationAuthority,
@@ -40,6 +41,11 @@ TERMINAL_STATUSES = TERMINAL_SUCCESS_STATUSES | {STATUS_TERMINAL_FAILED}
 _DISPATCHER_WRITE_KIND = "dispatcher_http_event"
 _EVENT_WRITE_KIND = "event"
 _DISPATCHER_REFERENCE_SCHEMA = "spec-kitty.dispatcher.v1"
+# ``refused`` is the compatibility repository's pre-typed historical token.
+# Every live server category comes from the receiver mapper's one vocabulary so
+# selection cannot drift when the wire contract gains another terminal policy
+# refusal (as happened with ``project_refused``).
+_GLOBAL_TERMINAL_REFUSAL_CATEGORIES = frozenset({"refused", *TERMINAL_REJECTION_CATEGORIES})
 _WP06_OUTCOME_STATUS = {
     "delivered": STATUS_SUCCESS,
     "duplicate": STATUS_DUPLICATE,
@@ -172,7 +178,10 @@ class SqliteDeliveryLedger:
         return int(cast("str | int | float | bytes", row[0]))
 
     def _attempt_rows(self) -> list[DeliveryAttemptProjection]:
-        return list_delivery_attempt_projections(self._unit)
+        return cast(
+            "list[DeliveryAttemptProjection]",
+            list_delivery_attempt_projections(self._unit),
+        )
 
     def _result_for_attempt(self, attempt_id: str) -> tuple[str | None, str | None, str | None]:
         rows = self._unit.execute(
@@ -459,9 +468,22 @@ class SqliteDeliveryLedger:
             authorized = set(capability.row_ids)
             universe = [event_id for event_id in event_universe if event_id in authorized]
         terminal_for_target: set[str] = set()
+        globally_parked: set[str] = set()
         for attempt in self._attempt_rows():
             row = self._row_from_attempt(attempt)
-            if row is None or row.target_id != target_id:
+            if row is None:
+                continue
+            # A project-policy refusal is an event-level safety decision, not
+            # evidence that one particular destination received the event. Keep
+            # it parked when a later configuration resolves another target.
+            # Other permanent delivery failures (notably a target-specific 413),
+            # success, and duplicate remain target-scoped so retained history may
+            # be deliberately re-delivered to another compatible destination.
+            refusal_category = (row.last_error or "").strip().lower()
+            if row.status == STATUS_TERMINAL_FAILED and refusal_category in _GLOBAL_TERMINAL_REFUSAL_CATEGORIES:
+                globally_parked.add(row.event_id)
+                continue
+            if row.target_id != target_id:
                 continue
             if row.status in TERMINAL_STATUSES:
                 terminal_for_target.add(row.event_id)
@@ -480,7 +502,7 @@ class SqliteDeliveryLedger:
                 continue
             if row.server_drain_state in {"in_flight", "pending_remote", "retryable_no_effect", "unknown"}:
                 terminal_for_target.add(row.event_id)
-        selected = [event_id for event_id in universe if event_id not in terminal_for_target]
+        selected = [event_id for event_id in universe if event_id not in globally_parked and event_id not in terminal_for_target]
         return selected if limit is None else selected[:limit]
 
     def retryable_recovery_event_ids(

@@ -95,6 +95,10 @@ def test_terminal_refusal_is_parked_and_selection_keeps_fifo_order(
             event_universe=("event-1", "event-2", "event-3"),
         ) == ["event-3"]
         parked = ledger.get("event-1", "target-1")
+        attempts_before_reselection = unit.execute(
+            "SELECT COUNT(*) FROM delivery_attempts WHERE project_uuid = ?",
+            (PROJECT,),
+        ).fetchone()[0]
 
     assert parked is not None and parked.status == STATUS_TERMINAL_FAILED
     with store.unit_of_work() as unit:
@@ -103,6 +107,13 @@ def test_terminal_refusal_is_parked_and_selection_keeps_fifo_order(
             target_id="target-2",
             event_universe=("event-1", "event-2", "event-3"),
         ) == ["event-2", "event-3"]
+        assert (
+            unit.execute(
+                "SELECT COUNT(*) FROM delivery_attempts WHERE project_uuid = ?",
+                (PROJECT,),
+            ).fetchone()[0]
+            == attempts_before_reselection
+        ), "the compatibility projection must not write a duplicate attempt"
 
 
 def test_fault_after_journal_and_result_rolls_back_one_outer_transaction(
