@@ -33,6 +33,7 @@ related mission scope notes.
 - [WP-Prompt Governance Contract — ATDD Findings](wp-prompt-governance-atdd-findings.md)
 - [Test Quality — test slicing & mocking-boundary discipline](test_quality/index.md)
 - [Next doctrine slice (preliminary research) — wheel cutover, mission-type relocation, public API surface](next-slice-wheel-mission-types-public-api-research.md) — RECORD; pre-spec research, gap-flags a missing tracker issue for the public-API thread
+- [#3179 doctrine public API surface — scoping brief](3179-public-api-surface-scoping.md) — EVIDENCE; reach-through inventory, facade gap map, lazy-import ratchet design, SonarCloud read, and the OpenAPI-does-not-apply decision
 
 ## Programme realization (2026-07-26 operator ruling)
 

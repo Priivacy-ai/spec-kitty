@@ -1,0 +1,171 @@
+{
+  "event_count": 70,
+  "last_event_id": "01KZPTQAW90KS9SDKXESNBPVW8",
+  "materialized_at": "2026-08-10T21:54:38.601423+00:00",
+  "mission_number": "",
+  "mission_slug": "doctrine-public-api-surface-01KZPDSR",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 10,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KZPTQ17Z15KCQGBKR7YXVAVQ",
+      "last_transition_at": "2026-08-10T21:54:28.735615+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata): census+golden gates verified, 10 tests pass, gate efficacy proven, ruff clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 3296465,
+      "shell_pid_created_at": "1786389002.05"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZPTQ2ABSTHB004Z53SDERNW",
+      "last_transition_at": "2026-08-10T21:54:29.835288+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata): api.py declares explicit __all__ of the 10 PUBLIC symbols, all re-exported by object identity (verified); mypy --strict clean; module docstrings cover C-001 layering (charter/wheel door not runtime) + C-003 (not OpenAPI). __init__.py unchanged (no new runtime door). Wheel-closure pins the REAL __all__ with self-mutation proof (FR-008). Negative guard (FR-007) discovers facades dynamically via src/charter/*.py glob with a non-empty false-green guard; mutation-proven real (leaked no-door symbol reds it). Dead-symbol bridge _CATEGORY_C_DOCTRINE_API_SURFACE_BRIDGE_3179 scoped to ONLY the 6 caller-less api symbols (4 model-routing excluded as auto-exempt), documented #3179 temporary bridge WP03 shrinks; disjointness + stale-ratchet green. ruff clean. Tests: surface+closure 13 passed/1 tolerant-skip; main dead-symbol gate + disjointness + stale-ratchet green.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 3373385,
+      "shell_pid_created_at": "1786391346.34"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZPTQ7N8QC17XJTBNJVKV08V",
+      "last_transition_at": "2026-08-10T21:54:35.304313+00:00",
+      "review_result": {
+        "reference": "Review passed: 9 charter facade doors verified symbol-level object-identity (charter.X is doctrine.api.X for PUBLIC ArtifactKind/5 asset/4 model-routing callables; FACADE-ONLY from origin submodule). model_routing exports callables not submodules; template_catalog widened with resolve_template_by_id; DoctrineLayerCollisionWarning door present; no import cycle. Facade-identity + strict-T007 public-surface + layer-rules + dead-symbol gates all green. WP02 coordination correct: BRIDGE_3179 emptied (6 doctrine.api keys now have live charter facade callers), T007 flipped strict. Forward-API allowlist _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR (16 symbols) is LEGITIMATE not green-washing: each is a real re-export with a named WP05-07 consumer, keyed at charter.* module_path per FR-005 live-collision escalation, shrink-only per _compute_stale ratchet (bite-d tested) + _compute_dangling. mypy --strict clean, ruff clean, no suppressions. Cross-WP note: justified edits to WP02-owned test_no_dead_symbols.py + test_doctrine_public_surface.py.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 3454581,
+      "shell_pid_created_at": "1786393592.77"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZPTQ3BVTP0BD3S6NBAAW9H0",
+      "last_transition_at": "2026-08-10T21:54:30.907284+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata): parent-tracking recursive-descent lazy ratchet (NodeVisitor, not ast.walk) tracks depth+TYPE_CHECKING; 29-file only-shrink baseline seeded from WP01 census, both directions asserted; module-level empty baseline intact; source-side laundering guard scans doctrine/* __all__ generically (not a blocklist), config.py 5-symbol baseline with conduit sanity-pin; fixtures prove real detection (TYPE_CHECKING incl. in-function not flagged, nested-fn depth-2 flagged); ratchet ~1.2s (NFR-006); ruff clean, no suppressions. 8/8 pass.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 3369831,
+      "shell_pid_created_at": "1786391252.9"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZPTQ8QKRZHWX2AW3A37ASP8",
+      "last_transition_at": "2026-08-10T21:54:36.403519+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata): Conduit CLOSED — config.__all__ carries only assert_pack_local_paths_exist; §1a grep for doctrine-symbol imports from specify_cli.doctrine.config outside the exempt doctrine pkg is EMPTY; retained non-__all__ import-as-X bindings consumed only by org_charter.py/snapshot.py/__init__ inside exempt src/specify_cli/doctrine/. test_config_conduit_is_closed non-vacuous (AST-reads __all__ + asserts _LAUNDERING_BASELINE=={}), green. All 7 non-exempt consumers repointed to charter.drg/assets/profiles/glossary_packs/pack_paths/missions. Owned-file direct doctrine.* imports limited to 5 sole-door doctrine.service raw sites + 2 TICKETED-BASELINE override_policy/hand_authored_overlay. Sole-door (T026): 5 RawDoctrineService sites UNCHANGED (no pack_context/DoctrineService +/- in commit), no raw_repository reshaping; sole-door test frozen+green. Baselines: lazy shrank org_profiles+executor only; forward-API removed exactly WP05's 6 wired symbols (WP06/07's 13 kept); laundering baseline emptied. Gates green (55 passed): boundary+sole-door+no_dead_symbols. ruff clean; mypy clean except pre-existing Typer context.py:19 untyped-decorator (base-inherited, WP05 only repointed line 77 import). Touched unit modules 71 passed. Anti-pattern checklist all PASS/N-A.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 3497369,
+      "shell_pid_created_at": "1786395560.74"
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZPTQ9T0GTYAM87GXA4YRWQM",
+      "last_transition_at": "2026-08-10T21:54:37.504426+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata): FR-004 met. Zero real doctrine.* imports in all 8 owned files (2 grep hits are comment text). charter.model_routing.load/evaluate symbol-identity == doctrine loader/evaluator (True). executor.py whole-module->symbol converted. _drg.py try/except graceful degradation intact (degrades to None when charter.drg unimportable). Baseline shrinks correct: lazy-baseline removed exactly the 5 owned files with runtime lazy imports; forward-API allowlist removed exactly the 5 now-wired symbols, retained still-unwired CatalogLoadResult + DRGValidationError -- no over-removal. mypy fixes real (str() concretize + TypeAlias, no type:ignore). ruff+mypy clean on 8 files. Tests green: test_no_dead_symbols(24), test_runtime_charter_doctrine_boundary(8), test_dispatch_recommendation(11).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 3501827,
+      "shell_pid_created_at": "1786395642.1"
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZPTQAW90KS9SDKXESNBPVW8",
+      "last_transition_at": "2026-08-10T21:54:38.601423+00:00",
+      "review_result": {
+        "reference": "Review passed: 17 owned files + interview.py migrated doctrine.* -> charter.* (missions/drg/spdd_reasons/pack_paths/profiles/mission_steps/template_catalog); codex.py bare 'import doctrine' (doctrine.__file__ metadata) correctly retained as sole _LAZY_BASELINE_ALLOWLIST entry per WP04. org_charter.apply_org_charter_to_interview confirmed first-party (src/specify_cli/doctrine/), not laundered. ORPHAN_REACHED_EXCEPTIONS emptied; census catch-all green. resolve_template_by_urn hash refresh matches live body_hash (gate recompute passes); no type:ignore added, typed pins resolve to real PosixPath; diff-scoped mypy neutral (16=16). Baseline shrinks removed only WP07's migrated files/wired symbols. 3 architectural gates (40) + 155 unit tests pass; ruff clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 3506707,
+      "shell_pid_created_at": "1786395723.59"
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZPTQ4DFTFTVWCFNKV5BND12",
+      "last_transition_at": "2026-08-10T21:54:31.983952+00:00",
+      "review_result": {
+        "reference": "Review passed: regenerate-graph --check exit 0 (byte-identical golden); 36 S1192 URN literals hoisted to named constants each equal to exact original string (no over-DRY collapse, 0 dup constant values, no residual >=3x literals); artifact_kinds.py:118 S7632 fixed by code (clean # noqa: S105 + hoisted rationale, no behavior change); no new blanket suppressions (NFR-005); DRG tests 564 passed; ruff clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 3376631,
+      "shell_pid_created_at": "1786391429.21"
+    },
+    "WP09": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZPTQ5GBBYG5SZ968XNQPCW0",
+      "last_transition_at": "2026-08-10T21:54:33.099514+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata): extractor.py cc reduced max 183->14 (generate_graph 14, extract_action_edges 12, _extract_agent_profile_edges 11; all functions <=15 via complexipy + ruff C901 clean). noqa:C901 removed from extract_artifact_edges; zero suppressions (NFR-005). Decomposition is genuine single-responsibility (per-kind walkers + shared emitters _emit_id_ref_edges/_emit_structured_ref_edges/_emit_path_ref_edges/_emit_curated_artifact_edges), not shuffling. 21 helper tests exercise real production helpers (real assertions). Charter re-exports FIELDS_WITHHELD_FROM_GRAPH_OUTPUT/model_to_graph_dict/graph_document_to_dict preserved & unrenamed. Golden regenerate-graph --check EXIT:0 (byte-identical). 124 migration tests pass.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 3379874,
+      "shell_pid_created_at": "1786391509.92"
+    },
+    "WP10": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZPTQ6JZV1SFBB914N0VNNJS",
+      "last_transition_at": "2026-08-10T21:54:34.207896+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata). cc(S3776, complexipy 6.2.0) all 6 files <=15: versioning migrate_v1_to_v2 65->0 (top fn now 12); base _apply_overlay_layer 28->5; repository _load_layer 36->7, _apply_excluding 19->4 (validate_hierarchy 15); validator 24->13 (top); merge 16->15 (_asset_template_candidates), merge_three_layers 14 preserved; org_pack_loader 20->9. Golden-first confirmed: characterization 6614e73d1 precedes refactor f92cf5787, exercises real prod paths on versioning/base/repository. Helper+characterization tests assert real behavior (no synthetic fixtures). Charter re-exports OrgDRGConflict/OrgDRGConflictError/merge_three_layers/_bridge_org_edge_to_drg_edge unrenamed/uninlined, still consumed by charter+specify_cli. No NET-NEW suppressions (BLE001 net-zero: relocations only). ruff+mypy clean; 171 wp10/validator/org_pack/overlay tests + 33 census/roundtrip/characterization green; DRG regenerate-graph --check EXIT:0 fresh.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 3382956,
+      "shell_pid_created_at": "1786391593.27"
+    }
+  }
+}
