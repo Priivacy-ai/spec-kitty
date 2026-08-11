@@ -24,6 +24,7 @@ from typing import Any, Literal, TypedDict
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import safe_mission_slug
 from kernel.clock import now_utc_iso
+from kernel.meta_decode import MetaDecodeError, decode_meta
 
 # Hoisted S1192 literals (campsite #1970) -- the meta.json filename and the two
 # decode encodings appear across this module and the legacy contracts it absorbs.
@@ -336,27 +337,98 @@ def _parse_meta_text(
 ) -> dict[str, Any] | None:
     """Decode and parse an existing ``meta.json`` per *on_malformed*.
 
-    A read/decode error (``OSError`` or ``UnicodeDecodeError`` -- non-UTF-8
-    bytes in ``meta.json`` raise the latter, which is a :class:`ValueError`
-    subclass, NOT an :class:`OSError` subclass, so it must be listed
-    explicitly (#3163)) or a JSON syntax error or a non-object top level is
-    "malformed".  Under ``"raise"`` it surfaces as :class:`ValueError`; under
-    ``"empty"``/``"none"`` it is absorbed to ``{}``/``None``.
+    L2 reads the file, then delegates the *malformed definition* to the L1
+    kernel primitive :func:`kernel.meta_decode.decode_meta` (str/bytes → dict),
+    while retaining L2's own responsibilities:
+
+    - **File I/O**: an :class:`OSError` reading the file is "malformed" here (a
+      read failure) and, under ``"raise"``, surfaces as the legacy path-named
+      :class:`ValueError`.
+    - **Legacy path-named message** (load-bearing regression pins:
+      ``test_mission_metadata.py:95,101`` / ``test_feature_metadata.py:85,92``):
+      L1 raises a path-less :class:`MetaDecodeError`; L2 re-raises a
+      :class:`ValueError` carrying the exact historical text
+      (``"Malformed JSON in {path}"`` / ``"Expected JSON object in {path}, got
+      {type}"``). L1 owns the malformed *definition*; L2 owns the path-named
+      *message*.
+
+    A non-UTF-8 ``meta.json`` (``UnicodeDecodeError`` -- a :class:`ValueError`
+    subclass, NOT an :class:`OSError`, #3163) is handled inside L1's explicit
+    utf-8 decode and re-surfaced through the ``MetaDecodeError`` path below.
+    Under ``"empty"``/``"none"`` any malformed input is absorbed to ``{}``/``None``.
     """
     try:
-        text = meta_path.read_text(encoding=encoding)
-        data = json.loads(text)
-    except (json.JSONDecodeError, OSError, UnicodeDecodeError) as exc:
+        raw = meta_path.read_bytes()
+    except OSError as exc:
         if on_malformed == "raise":
             raise ValueError(f"Malformed JSON in {meta_path}: {exc}") from exc
         return {} if on_malformed == "empty" else None
-    if not isinstance(data, dict):
+    try:
+        text = raw.decode(encoding)
+    except UnicodeDecodeError as exc:
         if on_malformed == "raise":
-            raise ValueError(
-                f"Expected JSON object in {meta_path}, got {type(data).__name__}"
-            )
+            raise ValueError(f"Malformed JSON in {meta_path}: {exc}") from exc
         return {} if on_malformed == "empty" else None
+    try:
+        data = decode_meta(text, on_malformed="raise")
+    except MetaDecodeError as exc:
+        if on_malformed == "raise":
+            raise _legacy_parse_error(meta_path, exc) from exc
+        return {} if on_malformed == "empty" else None
+    # decode_meta("raise") returns a dict on success (never None here).
     return data
+
+
+# L1's non-object error message; L2 rewrites it to the path-named legacy form.
+_L1_NON_OBJECT_PREFIX = "Expected JSON object, got "
+
+
+def _legacy_parse_error(meta_path: Path, exc: MetaDecodeError) -> ValueError:
+    """Restore L2's historical path-named message from L1's path-less error.
+
+    L1 (``kernel.meta_decode``) owns the malformed *definition* and raises a
+    path-less :class:`MetaDecodeError`; L2 owns the path-named *message* that the
+    message-pinned regressions assert (``test_mission_metadata.py:95,101`` /
+    ``test_feature_metadata.py:85,92``). Two arms, byte-identical to the legacy
+    text: a non-object top level → ``"Expected JSON object in {path}, got
+    {type}"``; any other decode failure → ``"Malformed JSON in {path}: {exc}"``.
+    """
+    message = str(exc)
+    if message.startswith(_L1_NON_OBJECT_PREFIX):
+        type_name = message[len(_L1_NON_OBJECT_PREFIX) :]
+        return ValueError(f"Expected JSON object in {meta_path}, got {type_name}")
+    return ValueError(f"Malformed JSON in {meta_path}: {message}")
+
+
+def parse_meta_file(
+    path: Path,
+    *,
+    on_malformed: OnMalformed = "raise",
+    encoding: str = _UTF8,
+) -> dict[str, Any] | None:
+    """Public path-holding L2 reader over :func:`_parse_meta_text` (FR-002).
+
+    Path-holding callers (e.g. the merge-driver blob reader, WP04) that already
+    hold a concrete ``meta.json`` :class:`~pathlib.Path` — rather than a mission
+    *directory* — route here instead of reaching into the private
+    ``_parse_meta_text``. Semantics are identical to :func:`load_meta`'s parse
+    stage: reads *path*, delegates the malformed definition to L1, and preserves
+    L2's legacy path-named messages under ``on_malformed="raise"``.
+
+    Args:
+        path: The concrete ``meta.json`` file path to read and parse.
+        on_malformed: ``"raise"`` (default) → path-named :class:`ValueError`;
+            ``"empty"`` → ``{}``; ``"none"`` → ``None`` on malformed content.
+        encoding: Decode encoding (``"utf-8"`` by default; ``"utf-8-sig"`` for a
+            BOM-tolerant decode).
+
+    Returns:
+        The parsed mapping, or the absorbed sentinel per *on_malformed*.
+
+    Raises:
+        ValueError: When *path* is malformed and ``on_malformed="raise"``.
+    """
+    return _parse_meta_text(path, on_malformed=on_malformed, encoding=encoding)
 
 
 def load_meta_strict(feature_dir: Path, *, bom_tolerant: bool = True) -> dict[str, Any]:

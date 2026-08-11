@@ -21,13 +21,14 @@ contract (T019 / FR-009).
 
 from __future__ import annotations
 
-import json
 import re
 import subprocess
 from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 from typing import Any, NamedTuple, Protocol, runtime_checkable
 
+from kernel.meta_decode import MetaDecodeError, decode_meta
+from kernel.vcs_lock import is_vcs_lock_only_change
 from mission_runtime import (
     ActionContextError,
     CommitTarget,
@@ -43,11 +44,6 @@ from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.frontmatter import WP_RUNTIME_FIELDS
 from specify_cli.task_utils.support import split_frontmatter
 
-# vcs-lock fields written by ``mission_metadata.set_vcs_lock`` (the canonical
-# writer). #2222 / C-003: this lock is one-time VCS-TYPE state, NOT the
-# concurrency mutex, so a dependency-free back-to-back claim must not be
-# blocked by the prior claim's own uncommitted lock self-write.
-_VCS_LOCK_META_FIELDS: frozenset[str] = frozenset({"vcs", "vcs_locked_at"})
 _META_JSON_FILENAME = "meta.json"
 _MISSING_META_VALUE = object()
 
@@ -238,32 +234,23 @@ def _status_paths_for_commit(entries: list[_PorcelainEntry], coord_branch_for_fi
     return _drop_if(paths, is_status_state_path)
 
 
-def _is_vcs_lock_only_meta_diff(committed: Mapping[str, Any] | None, working: Mapping[str, Any]) -> bool:
-    """Pure decision: is the meta.json change ONLY the one-time vcs-lock fields?
+def _decode_meta_fail_closed(raw: bytes, *, source_id: str) -> dict[str, Any]:
+    """Decode *raw* ``meta.json`` bytes via the kernel L1 authority, fail-closed.
 
-    Returns ``True`` iff every key whose value differs between the *committed*
-    baseline and the *working*-tree meta.json is a member of
-    :data:`_VCS_LOCK_META_FIELDS` (#2222 / C-003). The comparison is on parsed
-    JSON, so it is robust to byte-level reformatting by ``write_meta``.
-
-    An empty diff returns ``False`` (nothing to exclude); any non-lock key in
-    the diff returns ``False`` so a genuinely dirty meta.json still blocks the
-    claim (the required negative guard -- the exclusion is lock-field-only,
-    never a blanket meta.json bypass).
+    Routes onto :func:`kernel.meta_decode.decode_meta` (the single malformed
+    definition, WP01) with ``on_malformed="raise"``: a present-but-corrupt
+    ``meta.json`` now surfaces the shared :class:`MetaDecodeError` instead of the
+    former silent ``None`` (FR-003/FR-007). The kernel message names only the
+    JSON fault, so this thin wrapper re-raises with a message that also names
+    ``meta.json`` + *source_id* (the filesystem path for the worktree read, the
+    ``ref:path`` blob spec for the committed read) -- the diagnosable identifier
+    FR-007 requires. Empty/whitespace-only content is a benign short-circuit the
+    caller owns (C-010) and never reaches here.
     """
-    base: Mapping[str, Any] = committed or {}
-    changed_keys = {key for key in set(base) | set(working) if base.get(key, _MISSING_META_VALUE) != working.get(key, _MISSING_META_VALUE)}
-    return bool(changed_keys) and changed_keys <= _VCS_LOCK_META_FIELDS
-
-
-def _parse_meta_mapping(raw: bytes) -> dict[str, Any] | None:
-    """Parse meta.json *raw* bytes to a dict, or ``None`` when it is not a JSON
-    object (defensive: a non-object/corrupt meta is never treated as lock-only)."""
     try:
-        parsed = json.loads(raw.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError):
-        return None
-    return parsed if isinstance(parsed, dict) else None
+        return decode_meta(raw, on_malformed="raise") or {}
+    except MetaDecodeError as exc:
+        raise MetaDecodeError(f"malformed meta.json ({source_id}): {exc}") from exc
 
 
 def _commit_target_ref_for(planning_branch: str | None) -> str:
@@ -330,12 +317,18 @@ def resolve_precondition_ref(repo_rel_path: str, coord_branch_for_filter: str | 
 def _committed_meta_mapping(repo_root: Path, repo_rel: str, ref: str | None, *, git: GitPort = DEFAULT_GIT_PORT) -> dict[str, Any] | None:
     """The committed meta.json mapping at the path-resolved precondition ref
     (:func:`resolve_precondition_ref` -- ``HEAD`` for meta.json, which is
-    always a PRIMARY kind), or ``None`` when the path is absent there or
-    unparseable."""
-    blob = git.show_blob(repo_root, resolve_precondition_ref(repo_rel, ref), repo_rel)
-    if blob is None:
+    always a PRIMARY kind), or ``None`` when the blob is absent/empty there.
+
+    Site D (data-model): the ``show_blob`` bytes route onto the kernel L1
+    decode fail-closed -- a present-but-corrupt committed blob now raises
+    :class:`MetaDecodeError` (naming the ``ref:path`` blob spec) rather than the
+    former silent ``None`` (FR-007). An absent blob (``None``) or an
+    empty/whitespace-only blob stays benign (``None``; C-010 / FR-005)."""
+    resolved_ref = resolve_precondition_ref(repo_rel, ref)
+    blob = git.show_blob(repo_root, resolved_ref, repo_rel)
+    if blob is None or not blob.strip():
         return None
-    return _parse_meta_mapping(blob)
+    return _decode_meta_fail_closed(blob, source_id=f"{resolved_ref}:{repo_rel}")
 
 
 def _parse_wp_frontmatter(text: str) -> tuple[Mapping[str, Any] | None, str, str]:
@@ -364,8 +357,8 @@ def _is_runtime_frontmatter_only_wp_diff(
     """Pure decision: is the WP##.md change ONLY runtime claim/workspace
     frontmatter (T001's :data:`~specify_cli.frontmatter.WP_RUNTIME_FIELDS`)?
 
-    Structural analogue of :func:`_is_vcs_lock_only_meta_diff` for WP markdown
-    files. Returns ``True`` iff (1) both the committed and working frontmatter
+    Structural analogue of :func:`kernel.vcs_lock.is_vcs_lock_only_change` for WP
+    markdown files. Returns ``True`` iff (1) both the committed and working frontmatter
     parsed to a mapping, (2) the markdown body -- everything after the
     frontmatter block, byte-compared as ``padding + body`` -- is unchanged,
     AND (3) every frontmatter key whose value differs is a member of
@@ -424,11 +417,19 @@ def _is_self_write_only_diff(
     if not source.exists():
         return False
     if name == _META_JSON_FILENAME:
-        working = _parse_meta_mapping(source.read_bytes())
-        if working is None:
+        # Site C (data-model): the working-tree read stays INLINE here (the trio
+        # gate pins the ``source.read_bytes()`` token to this exact site); the
+        # bytes route onto the kernel L1 decode fail-closed. Empty/whitespace-only
+        # meta.json is a benign short-circuit the caller owns (C-010 / FR-005) --
+        # not self-write, so keep the file (block the claim); a present-but-corrupt
+        # meta.json now raises :class:`MetaDecodeError` instead of the former
+        # silent ``None``->``return False`` (FR-007).
+        raw = source.read_bytes()
+        if not raw.strip():
             return False
+        working = _decode_meta_fail_closed(raw, source_id=str(source))
         committed = _committed_meta_mapping(repo_root, repo_rel, ref, git=git)
-        return _is_vcs_lock_only_meta_diff(committed, working)
+        return is_vcs_lock_only_change(committed, working)
     if not _WP_SELF_WRITE_FILENAME_RE.match(name):
         return False
     committed_blob = git.show_blob(repo_root, resolve_precondition_ref(repo_rel, ref), repo_rel)

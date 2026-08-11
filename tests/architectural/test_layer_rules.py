@@ -354,6 +354,42 @@ class TestRuntimeBoundary:
         assert not offenders
 
 
+class TestRefAdvancePlumbingBoundary:
+    """NFR-004 ratchet (mission meta-json-fail-closed-routing-01KZPJ1F, WP02).
+
+    ``git/ref_advance.py`` is git plumbing that must import **zero**
+    ``specify_cli`` modules (C-003): it is called from the merge pipeline and
+    may only depend downward into the kernel. A ``pytestarch`` ``LayerRule``
+    cannot express this — ``ref_advance`` lives *inside* the ``specify_cli``
+    layer, so a layer rule for that layer cannot forbid a same-layer edge. A
+    bespoke AST scan (mirroring :class:`TestRuntimeBoundary`) is the only way to
+    ratchet the single-file boundary so the fail-closed routing cannot silently
+    regress by re-introducing a ``specify_cli`` import.
+    """
+
+    def test_ref_advance_imports_zero_specify_cli(self) -> None:
+        ref_advance = _SRC / "specify_cli" / "git" / "ref_advance.py"
+        tree = ast.parse(ref_advance.read_text(encoding="utf-8"))
+        offenders: list[str] = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                offenders.extend(
+                    alias.name for alias in node.names if _is_specify_cli_module(alias.name)
+                )
+            elif (
+                isinstance(node, ast.ImportFrom)
+                and node.module
+                and _is_specify_cli_module(node.module)
+            ):
+                offenders.append(node.module)
+        assert not offenders, (
+            "git/ref_advance.py must import zero specify_cli modules (C-003 / "
+            f"NFR-004); found: {sorted(offenders)!r}. It is git plumbing — route "
+            "meta.json decoding through kernel.meta_decode / kernel.vcs_lock, not "
+            "back through specify_cli."
+        )
+
+
 # --- Invariant 4: WP01 — unified MissionStep model location ---
 
 

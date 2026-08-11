@@ -1,0 +1,16 @@
+{
+  "baseline_merge_commit": "35ed36377ccadaa5f4661e9b7ab5ea02fbc13be6",
+  "created_at": "2026-08-10T19:22:54.119734+00:00",
+  "flattened": true,
+  "friendly_name": "Meta.json Fail-Closed Read Routing",
+  "mission_id": "01KZPJ1FS7TTVARVA4T0ZQBR59",
+  "mission_number": 193,
+  "mission_slug": "meta-json-fail-closed-routing-01KZPJ1F",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "meta.json is a mission's canonical identity and VCS-lock record. Several git ref-advance, implement, and merge-driver code paths still read it through ad-hoc parsers that silently accept a corrupt or truncated file, risking split-brain or wrong-authority mission state. This mission routes every remaining read through the one fail-closed seam (adding the missing pure-decode tier those blob-fed reads need), unifies a duplicated VCS-lock comparison that can currently return contradictory verdicts on the same file, and records the governance decision on the read allow-list — so a bad meta.json is caught, not absorbed.",
+  "purpose_tldr": "Make every mission meta.json read fail loud on corruption instead of silently accepting a bad file.",
+  "slug": "meta-json-fail-closed-routing-01KZPJ1F",
+  "status_phase": "1",
+  "target_branch": "feat/meta-json-l1-seam-routing-3259"
+}
