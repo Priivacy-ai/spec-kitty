@@ -1273,6 +1273,16 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ♻️ Changed
 
+- **The `doctrine` module now has a curated, enforced public API surface, so
+  runtime code imports it through stable doors instead of reaching into its
+  internals (mission `doctrine-public-api-surface`; `#3179`, closes the
+  runtime→doctrine half of `#2986`).** A new `doctrine.api` manifest names the
+  symbols the future `spec-kitty-doctrine` wheel will export, the `charter.*`
+  facades re-export them by object identity, and ~34 `specify_cli` modules move
+  off direct `doctrine.*` imports onto those facades. A lazy-import ratchet plus a
+  source-side laundering guard keep new reach-through from creeping back in. This
+  is an internal architecture boundary only — no CLI command, output, or runtime
+  behavior changes — and it unblocks the `#3101` doctrine wheel cutover.
 - **The beginner guides now open with illustrated Mission Kitty splashes, and the
   Spec-Driven Development page carries a real diagram instead of ASCII art
   (`#3276`).** Getting Started, Understanding Missions, Your First Mission, and
