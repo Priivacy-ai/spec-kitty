@@ -20,14 +20,23 @@ from threading import Lock
 from specify_cli.sync.feature_flags import is_saas_sync_enabled
 from specify_cli.sync.project_context import (
     AdmissionState,
+    CanonicalProjectUUID,
     ConsentState,
     ProjectSyncContext,
     TargetAudience,
     _new_project_sync_context,
 )
-from specify_cli.sync.project_store import ProjectStoreLockedError, ProjectSyncStore, ProjectUnitOfWork
+from specify_cli.sync.project_store import ProjectStoreError, ProjectStoreLockedError, ProjectSyncStore, ProjectUnitOfWork
 
-_LIVE_LEASES: dict[str, int] = {}
+
+@dataclass(frozen=True, slots=True)
+class _LiveLeaseRegistration:
+    owner_pid: int
+    project_uuid: str
+    lock_path: Path
+
+
+_LIVE_LEASES: dict[str, _LiveLeaseRegistration] = {}
 _LIVE_LEASES_LOCK = Lock()
 
 
@@ -42,6 +51,8 @@ class TransportLeaseContext:
     @contextmanager
     def unit_of_work(self) -> Iterator[tuple[ProjectUnitOfWork, ProjectSyncContext]]:
         """Yield one active store unit plus a lease-bound eligibility context."""
+        if not transport_lease_context_is_live(self):
+            raise ProjectStoreError("project transport lease context does not match the live lease")
         with self.store.unit_of_work() as unit:
             yield unit, _lease_bound_context(unit, self.lease_identity)
 
@@ -79,7 +90,11 @@ def acquire_project_transport_lease(
                     raise ProjectStoreLockedError("project transport lease is locked") from exc
                 time.sleep(min(0.01, max(0.0, deadline - time.monotonic())))
         try:
-            _register_live_lease(identity)
+            _register_live_lease(
+                identity,
+                project_uuid=store.project_uuid,
+                lock_path=path,
+            )
             yield TransportLeaseContext(store=store, lease_identity=identity, lock_path=path)
         finally:
             _unregister_live_lease(identity)
@@ -97,12 +112,48 @@ def transport_lease_is_live(lease_identity: str | None) -> bool:
     if lease_identity is None:
         return False
     with _LIVE_LEASES_LOCK:
-        return _LIVE_LEASES.get(lease_identity) == os.getpid()
+        registration = _LIVE_LEASES.get(lease_identity)
+    return registration is not None and registration.owner_pid == os.getpid()
 
 
-def _register_live_lease(lease_identity: str) -> None:
+def transport_lease_identity_is_live_for_project(
+    lease_identity: str | None,
+    project_uuid: CanonicalProjectUUID,
+) -> bool:
+    """Return whether an identity is live and bound to this exact project."""
+    if lease_identity is None:
+        return False
     with _LIVE_LEASES_LOCK:
-        _LIVE_LEASES[lease_identity] = os.getpid()
+        registration = _LIVE_LEASES.get(lease_identity)
+    return bool(registration is not None and registration.owner_pid == os.getpid() and registration.project_uuid == project_uuid.storage_token)
+
+
+def transport_lease_context_is_live(lease: TransportLeaseContext) -> bool:
+    """Return whether a context matches its registered project and lock path."""
+    with _LIVE_LEASES_LOCK:
+        registration = _LIVE_LEASES.get(lease.lease_identity)
+    if registration is None or registration.owner_pid != os.getpid():
+        return False
+    registered_path = registration.lock_path.resolve(strict=False)
+    return bool(
+        registration.project_uuid == lease.store.project_uuid.storage_token
+        and registered_path == lease.lock_path.resolve(strict=False)
+        and registered_path == lease.store.egress_lock_path.resolve(strict=False)
+    )
+
+
+def _register_live_lease(
+    lease_identity: str,
+    *,
+    project_uuid: CanonicalProjectUUID,
+    lock_path: Path,
+) -> None:
+    with _LIVE_LEASES_LOCK:
+        _LIVE_LEASES[lease_identity] = _LiveLeaseRegistration(
+            owner_pid=os.getpid(),
+            project_uuid=project_uuid.storage_token,
+            lock_path=lock_path.resolve(strict=False),
+        )
 
 
 def _unregister_live_lease(lease_identity: str) -> None:
@@ -175,5 +226,7 @@ def _lease_bound_context(unit: ProjectUnitOfWork, lease_identity: str) -> Projec
 __all__ = [
     "TransportLeaseContext",
     "acquire_project_transport_lease",
+    "transport_lease_context_is_live",
+    "transport_lease_identity_is_live_for_project",
     "transport_lease_is_live",
 ]

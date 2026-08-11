@@ -154,7 +154,7 @@ def test_opt_out_settlement_cancels_prepared_and_terminalizes_started_attempts(
             )
         }
         terminal_result = unit.execute(
-            "SELECT outcome, terminal_refusal_category FROM delivery_results WHERE project_uuid = ? AND attempt_id = ?",
+            "SELECT outcome, terminal_refusal_category, target_generation, admission_generation FROM delivery_results WHERE project_uuid = ? AND attempt_id = ?",
             (PROJECT_UUID, "attempt-after-send"),
         ).fetchone()
 
@@ -162,7 +162,12 @@ def test_opt_out_settlement_cancels_prepared_and_terminalizes_started_attempts(
         "attempt-before-send": DeliveryAttemptState.CANCELED.value,
         "attempt-after-send": DeliveryAttemptState.TERMINAL_UNKNOWN.value,
     }
-    assert terminal_result == ("terminal_unknown", "explicit_opt_out")
+    assert terminal_result == (
+        "terminal_unknown",
+        "explicit_opt_out",
+        4,
+        "server-generation-1",
+    )
 
 
 def test_process_death_after_transport_start_terminalizes_and_blocks_late_success(

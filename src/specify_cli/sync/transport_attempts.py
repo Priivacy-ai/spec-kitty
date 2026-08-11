@@ -16,7 +16,8 @@ from specify_cli.sync.project_store import ProjectStoreError, ProjectStoreLocked
 from specify_cli.sync.transport_lease import (
     TransportLeaseContext,
     acquire_project_transport_lease,
-    transport_lease_is_live,
+    transport_lease_context_is_live,
+    transport_lease_identity_is_live_for_project,
 )
 
 
@@ -1311,7 +1312,7 @@ def execute_remote_operation_query_under_lease(
     result persistence.
     """
     _require_non_empty(attempt_id=attempt_id, result_id=result_id)
-    if not transport_lease_is_live(lease.lease_identity):
+    if not transport_lease_context_is_live(lease):
         raise ProjectStoreError("remote operation query requires a live project transport lease")
     with lease.unit_of_work() as (unit, context):
         candidate = _logical_operation_candidate_by_id(unit, attempt_id=attempt_id)
@@ -1842,7 +1843,7 @@ def _terminalize_orphaned_attempt(
     """Irreversibly settle an uncertain attempt when opt-out wins the race."""
     _require_non_empty(attempt_id=attempt_id, reason=reason)
     row = unit.execute(
-        "SELECT epoch_id FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ? AND state IN (?, ?, ?, ?)",
+        "SELECT epoch_id, target_generation, admission_generation FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ? AND state IN (?, ?, ?, ?)",
         (
             unit.project_uuid.storage_token,
             attempt_id,
@@ -1865,13 +1866,16 @@ def _terminalize_orphaned_attempt(
     )
     unit.execute(
         "INSERT INTO delivery_results "
-        "(result_id, project_uuid, epoch_id, attempt_id, outcome, terminal_refusal_category, recorded_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "(result_id, project_uuid, epoch_id, attempt_id, target_generation, "
+        "admission_generation, outcome, terminal_refusal_category, recorded_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             f"{attempt_id}:terminal-unknown",
             unit.project_uuid.storage_token,
             int(cast("str | int | float | bytes", row[0])),
             attempt_id,
+            int(row[1]) if row[1] is not None else None,
+            str(row[2]) if row[2] is not None else None,
             DeliveryOutcome.TERMINAL_UNKNOWN.value,
             reason,
             _now(),
@@ -1900,14 +1904,33 @@ def settle_attempts_for_opt_out(
     if lock_timeout_seconds < 0:
         raise ValueError("lock_timeout_seconds cannot be negative")
     try:
-        with acquire_project_transport_lease(store, lock_timeout_seconds=lock_timeout_seconds) as lease, lease.unit_of_work() as (unit, context):
-            _validate_context_for_unit(unit, context, require_lease=False)
-            if not transport_lease_is_live(lease.lease_identity):
-                raise ProjectStoreError("opt-out settlement requires a live project transport lease")
-            return _settle_open_unit(unit, reason=reason)
+        with acquire_project_transport_lease(
+            store,
+            lock_timeout_seconds=lock_timeout_seconds,
+        ) as lease:
+            return settle_attempts_for_opt_out_under_lease(lease, reason=reason)
     except ProjectStoreLockedError:
         with store.unit_of_work() as unit:
             return _settle_open_unit(unit, reason=reason)
+
+
+def settle_attempts_for_opt_out_under_lease(
+    lease: TransportLeaseContext,
+    *,
+    reason: str,
+) -> OptOutSettlement:
+    """Settle attempts while the caller continuously owns the project lease.
+
+    Revocation uses this seam after persisting refusal under the same lease.  It
+    deliberately does not rebuild an egress-eligible context: refusal has already
+    made new disclosure ineligible, while the still-live lease proves that no new
+    transport start can cross the decision/settlement boundary.
+    """
+    _require_non_empty(reason=reason)
+    if not transport_lease_context_is_live(lease):
+        raise ProjectStoreError("opt-out settlement requires a live project transport lease")
+    with lease.store.unit_of_work() as unit:
+        return _settle_open_unit(unit, reason=reason)
 
 
 def _settle_open_unit(
@@ -2003,7 +2026,10 @@ def _validate_context_for_unit(
         raise ProjectStoreError("delivery attempt context does not match the active project unit")
     if require_lease and not context.egress_eligible:
         raise ProjectStoreError("transport/result operation requires the project transport lease")
-    if require_lease and not transport_lease_is_live(context.transport_lease_identity):
+    if require_lease and not transport_lease_identity_is_live_for_project(
+        context.transport_lease_identity,
+        unit.project_uuid,
+    ):
         raise ProjectStoreError("transport/result operation requires a live project transport lease")
 
 
@@ -2393,4 +2419,5 @@ __all__ = [
     "recover_delivery_attempts",
     "restart_delivery_attempt",
     "settle_attempts_for_opt_out",
+    "settle_attempts_for_opt_out_under_lease",
 ]

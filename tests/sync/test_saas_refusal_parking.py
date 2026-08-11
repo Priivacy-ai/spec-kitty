@@ -40,8 +40,9 @@ from specify_cli.sync.transport_attempts import (
     read_remote_operation_id,
     record_delivery_result,
     settle_attempts_for_opt_out,
+    settle_attempts_for_opt_out_under_lease,
 )
-from specify_cli.sync.transport_lease import acquire_project_transport_lease
+from specify_cli.sync.transport_lease import TransportLeaseContext, acquire_project_transport_lease
 from specify_cli.tracker import saas_client as tracker_module
 from specify_cli.tracker.saas_client import SaaSTrackerClient, SaaSTrackerClientError
 
@@ -232,6 +233,65 @@ def _result_rows(store: ProjectSyncStore) -> list[tuple[Any, ...]]:
                 (store.project_uuid.storage_token,),
             ).fetchall()
         ]
+
+
+def test_opt_out_under_lease_rejects_cross_project_wrong_path_and_stale_context(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "project-a").mkdir()
+    (tmp_path / "project-b").mkdir()
+    _, store_a = _seed_project(
+        tmp_path / "project-a",
+        monkeypatch,
+        "12121212-1212-4212-8212-121212121212",
+    )
+    _, store_b = _seed_project(
+        tmp_path / "project-b",
+        monkeypatch,
+        "13131313-1313-4313-8313-131313131313",
+    )
+    spec = DeliveryAttemptSpec(
+        attempt_id="attempt-project-b",
+        write_kind="event",
+        native_identity="event-project-b",
+        payload_hash="sha256:project-b",
+        payload_reference="event:project-b",
+        deadline_at="2999-01-01T00:00:00Z",
+        reconciliation_policy="native_identity_query",
+    )
+    with acquire_project_transport_lease(store_b) as lease_b, lease_b.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(unit, context, spec)
+
+    with acquire_project_transport_lease(store_a) as lease_a:
+        cross_project = TransportLeaseContext(
+            store=store_b,
+            lease_identity=lease_a.lease_identity,
+            lock_path=lease_a.lock_path,
+        )
+        with pytest.raises(ProjectStoreError, match="live project transport lease"):
+            settle_attempts_for_opt_out_under_lease(
+                cross_project,
+                reason="forged-cross-project",
+            )
+
+        wrong_path = TransportLeaseContext(
+            store=store_a,
+            lease_identity=lease_a.lease_identity,
+            lock_path=store_b.egress_lock_path,
+        )
+        with pytest.raises(ProjectStoreError, match="live project transport lease"):
+            settle_attempts_for_opt_out_under_lease(
+                wrong_path,
+                reason="forged-wrong-path",
+            )
+
+    with pytest.raises(ProjectStoreError, match="live project transport lease"):
+        settle_attempts_for_opt_out_under_lease(
+            lease_a,
+            reason="stale-context",
+        )
+    assert _attempt_rows(store_b)[0][1] == DeliveryAttemptState.PREPARED.value
 
 
 def _deadline(*, minutes: int = 5) -> str:

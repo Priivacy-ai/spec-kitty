@@ -11,6 +11,7 @@ from __future__ import annotations
 import enum
 import logging
 from collections.abc import Callable
+from contextlib import ExitStack
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -20,6 +21,7 @@ from .config import ConfigReadFault
 from .project_context import ConsentState
 from .project_store import (
     ProjectStoreError,
+    ProjectStoreLockedError,
     ProjectStoreVersionError,
     ProjectSyncStore,
     ProjectUnitOfWork,
@@ -772,12 +774,46 @@ def record_project_opt_out(
     actor: str,
 ) -> ProjectConsentRecord:
     """Persist refusal and seal eligibility without deleting captured rows."""
-    record = _write_decision(
-        project_uuid,
-        state=ConsentState.REFUSED,
-        action=ConsentAction.EXPLICIT_OPT_OUT,
-        actor=actor,
+    from .transport_attempts import (
+        settle_attempts_for_opt_out,
+        settle_attempts_for_opt_out_under_lease,
     )
+    from .transport_lease import acquire_project_transport_lease
+
+    store = ProjectSyncStore(project_uuid)
+    lease_stack = ExitStack()
+    try:
+        lease = lease_stack.enter_context(acquire_project_transport_lease(store))
+    except ProjectStoreLockedError:
+        # A worker that outlives the bounded lease wait must not keep revocation
+        # open indefinitely.  Persist refusal first, then atomically fence every
+        # residual attempt without granting a new disclosure opportunity.
+        record = _write_decision(
+            project_uuid,
+            state=ConsentState.REFUSED,
+            action=ConsentAction.EXPLICIT_OPT_OUT,
+            actor=actor,
+        )
+        settle_attempts_for_opt_out(
+            store,
+            reason="explicit_opt_out",
+            lock_timeout_seconds=0,
+        )
+    else:
+        with lease_stack:
+            # The continuous project lease makes the ordering explicit: a sender
+            # that started first records its genuine result before we get here;
+            # once held, no new sender can start between refusal and settlement.
+            record = _write_decision(
+                project_uuid,
+                state=ConsentState.REFUSED,
+                action=ConsentAction.EXPLICIT_OPT_OUT,
+                actor=actor,
+            )
+            settle_attempts_for_opt_out_under_lease(
+                lease,
+                reason="explicit_opt_out",
+            )
     from .deny_hints import DenyHintAction, publish_deny_hint
 
     publish_deny_hint(
