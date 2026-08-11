@@ -328,6 +328,52 @@ def is_worktree_context(path: Path) -> bool:
     return False
 
 
+def _nearest_checkout_root(path: Path) -> Path | None:
+    """Return the nearest Git checkout root without following worktree pointers."""
+    resolved = path.resolve()
+    for candidate in [resolved, *resolved.parents]:
+        git_path = candidate / ".git"
+        if git_path.is_file() or git_path.is_dir():
+            return candidate
+    return None
+
+
+def resolve_mission_creation_root(
+    project_root: Path | None,
+    start: Path | None = None,
+) -> Path | None:
+    """Resolve the checkout that should receive a new mission scaffold.
+
+    ``locate_project_root`` deliberately follows a linked-worktree ``.git``
+    pointer to the repository root checkout because most lifecycle reads need
+    that canonical anchor.  Mission creation is different: a caller that has
+    already selected an isolated external worktree must write and commit the
+    scaffold in that checkout, leaving the repository root checkout untouched.
+
+    The current checkout is selected only when it belongs to the same Git
+    repository as ``project_root`` and carries the project's ``.kittify``
+    marker.  An explicit unrelated root therefore remains authoritative for
+    programmatic callers and test factories.
+    """
+    if project_root is None:
+        return None
+
+    resolved_project_root = project_root.resolve()
+    if not (resolved_project_root / KITTIFY_DIR).is_dir():
+        return resolved_project_root
+    current_checkout = _nearest_checkout_root(start or Path.cwd())
+    if current_checkout is None or not is_worktree_context(current_checkout):
+        return resolved_project_root
+    if not (current_checkout / KITTIFY_DIR).is_dir():
+        return resolved_project_root
+
+    project_main_root = get_main_repo_root(resolved_project_root).resolve()
+    checkout_main_root = get_main_repo_root(current_checkout).resolve()
+    if checkout_main_root != project_main_root:
+        return resolved_project_root
+    return current_checkout
+
+
 def resolve_with_context(start: Path | None = None) -> tuple[Path | None, bool]:
     """
     Resolve project root and detect worktree context in one call.
@@ -918,6 +964,7 @@ __all__ = [
     "locate_project_root",
     "lint_report_path",
     "is_worktree_context",
+    "resolve_mission_creation_root",
     "resolve_with_context",
     "check_broken_symlink",
     "get_main_repo_root",
