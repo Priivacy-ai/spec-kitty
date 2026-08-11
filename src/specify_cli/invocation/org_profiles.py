@@ -43,7 +43,7 @@ from typing import TYPE_CHECKING
 from specify_cli.doctrine_service_factory import build_activation_aware_doctrine_service
 
 if TYPE_CHECKING:
-    from doctrine.agent_profiles.profile import AgentProfile
+    from charter.profiles import AgentProfile
 
 # ``ResolvedOrgProfile`` is the return-record type — consumed by-value by the
 # routing/projection callers, not imported by name — so it stays a module-level
@@ -60,7 +60,7 @@ def _existing_org_roots(repo_root: Path) -> list[Path]:
     takes the no-org-packs fast path. Mirrors
     :func:`charter.context._existing_org_roots`.
     """
-    from doctrine.drg.org_pack_config import resolve_org_roots
+    from charter.drg import resolve_org_roots
 
     try:
         return [root for root in resolve_org_roots(repo_root) if root.exists()]

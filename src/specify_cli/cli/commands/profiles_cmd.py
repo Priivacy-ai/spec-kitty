@@ -13,8 +13,7 @@ from rich.table import Table
 from specify_cli.task_utils import find_repo_root
 
 if TYPE_CHECKING:
-    from doctrine.agent_profiles.profile import AgentProfile
-    from doctrine.agent_profiles.repository import AgentProfileRepository
+    from charter.profiles import AgentProfile, AgentProfileRepository
 
 app = typer.Typer(name="profiles", help="Manage and list agent profiles.")
 _KITTIFY_DIR = ".kittify"
@@ -40,8 +39,7 @@ def _activated_agent_profiles(repo_root: Path) -> frozenset[str] | None:
 
 def _build_descriptor(p: AgentProfile, *, source_layer: str | None = None) -> dict[str, Any]:
     """Build the legacy descriptor row for a profile (schema preserved — NFR-001)."""
-    from doctrine.agent_profiles.capabilities import DEFAULT_ROLE_CAPABILITIES
-    from doctrine.agent_profiles.profile import Role
+    from charter.profiles import DEFAULT_ROLE_CAPABILITIES, Role
 
     caps = DEFAULT_ROLE_CAPABILITIES.get(p.role) if isinstance(p.role, Role) else None
     canonical_verbs = list(caps.canonical_verbs) if caps else []
@@ -105,7 +103,7 @@ def _profile_catalog(
     # registry cannot see. The doctrine inner repository is read UNGATED so the
     # catalog view shows every layer; activation state is annotated separately.
     project_doctrine_profiles = repo_root / _KITTIFY_DIR / "doctrine" / "agent_profiles"
-    from doctrine.drg.org_pack_config import resolve_org_roots
+    from charter.drg import resolve_org_roots
 
     org_roots = [root for root in resolve_org_roots(repo_root) if root.exists()]
     if project_doctrine_profiles.exists() or org_roots:

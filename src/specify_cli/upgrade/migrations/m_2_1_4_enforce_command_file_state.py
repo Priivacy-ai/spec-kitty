@@ -123,12 +123,14 @@ def _get_runtime_command_templates_dir() -> Path | None:
        ``ensure_runtime()`` calls.
     """
     try:
-        from doctrine.missions.repository import (  # noqa: PLC0415
+        from charter.missions import (  # noqa: PLC0415
             MissionsRootNotFound,
             MissionTemplateRepository,
         )
 
-        doctrine_steps = (
+        # Typed pin: ``charter.*`` is ``follow_imports = "skip"`` in pyproject, so the
+        # facade re-export is ``Any`` to mypy; the runtime type is ``Path``.
+        doctrine_steps: Path = (
             MissionTemplateRepository.default_missions_root()
             / "mission-steps"
             / _MISSION_NAME

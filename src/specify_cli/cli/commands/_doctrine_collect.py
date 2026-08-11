@@ -29,9 +29,8 @@ from ._profile_health_render import _SELECTION_KIND_PLURALS
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from doctrine.drg.merge import OrgDRGConflictError
-    from doctrine.drg.models import DRGGraph
-    from doctrine.glossary_packs import GlossaryPack
+    from charter.drg import DRGGraph, OrgDRGConflictError
+    from charter.glossary_packs import GlossaryPack
 
     from ._doctrine_health import (
         DoctrineHealthReport,
@@ -193,7 +192,7 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
     """
     from ._doctrine_health import DoctrineHealthReport, build_pack_health_by_layer
 
-    from doctrine.agent_profiles.diagnostics import SkippedProfile
+    from charter.profiles import SkippedProfile
 
     provenance_by_layer: dict[str, int] = {}
     skipped: list[SkippedProfile] = []
@@ -201,7 +200,7 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
     try:
         from doctrine.service import DoctrineService as RawDoctrineService
         from charter.resolver import DoctrineService as ActivationAwareDoctrineService
-        from specify_cli.doctrine.config import resolve_org_roots
+        from charter.drg import resolve_org_roots
 
         org_roots = resolve_org_roots(repo_root)
         project_doctrine = repo_root / ".kittify" / "doctrine"
@@ -301,7 +300,7 @@ def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
     """
     from doctrine.service import DoctrineService as RawDoctrineService
     from charter.resolver import DoctrineService as ActivationAwareDoctrineService
-    from specify_cli.doctrine.config import resolve_org_roots
+    from charter.drg import resolve_org_roots
 
     from ._doctrine_health import GlossaryPackHealth, SkippedGlossaryPack
 
@@ -456,10 +455,10 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
     import re
     import warnings as _warnings
 
-    from doctrine.base import DoctrineLayerCollisionWarning
+    from charter.drg import DoctrineLayerCollisionWarning
     from doctrine.service import DoctrineService as RawDoctrineService
     from charter.resolver import DoctrineService as ActivationAwareDoctrineService
-    from specify_cli.doctrine.config import resolve_org_roots
+    from charter.drg import resolve_org_roots
 
     org_roots = resolve_org_roots(repo_root)
     project_doctrine = repo_root / ".kittify" / "doctrine"
@@ -844,7 +843,7 @@ def _read_org_required(repo_root: Path) -> dict[str, list[str]]:
     Missing or invalid org config degrades to empty lists; diagnostics must
     never crash.
     """
-    from doctrine.drg.org_pack_config import (
+    from charter.drg import (
         OrgPackEnvVarUnsetError,
         OrgPackSubdirEscapeError,
     )
@@ -908,7 +907,7 @@ def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
     """
     from doctrine.service import DoctrineService as RawDoctrineService
     from charter.resolver import DoctrineService as ActivationAwareDoctrineService
-    from specify_cli.doctrine.config import resolve_org_roots
+    from charter.drg import resolve_org_roots
 
     project_selections = _read_project_selections(repo_root)
     org_required = _read_org_required(repo_root)

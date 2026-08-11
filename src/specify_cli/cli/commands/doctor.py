@@ -1111,7 +1111,7 @@ def doctrine_check(
         spec-kitty doctor doctrine
         spec-kitty doctor doctrine --json
     """
-    from specify_cli.doctrine.config import load_pack_registry
+    from charter.drg import load_pack_registry
 
     try:
         repo_root = locate_project_root()

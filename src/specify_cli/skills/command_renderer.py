@@ -438,7 +438,7 @@ def render(
     # Apply the SPDD/REASONS conditional prompt fragment renderer before any
     # downstream processing so block visibility is consistent across the
     # slash-command and skills pipelines (FR-013, FR-014, FR-015).
-    from doctrine.spdd_reasons import apply_spdd_blocks_for_project  # noqa: PLC0415
+    from charter.spdd_reasons import apply_spdd_blocks_for_project  # noqa: PLC0415
 
     raw_text = apply_spdd_blocks_for_project(raw_text, repo_root)
 

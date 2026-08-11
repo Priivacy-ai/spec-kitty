@@ -56,7 +56,7 @@ def _template_tier_roots(repo_root: Path, layer_roots: dict[str, Path]) -> list[
     Roots are returned override → package so :func:`discover_templates`
     deduplicates same ``<mission>/<name>`` IDs to the highest-precedence tier.
     """
-    from doctrine.missions.repository import MissionTemplateRepository  # noqa: PLC0415  # boundary: lazy import intentionally not facaded (PLC0415; boundary-invisible)
+    from charter.missions import MissionTemplateRepository  # noqa: PLC0415
 
     tier_roots: list[TierRoot] = []
 

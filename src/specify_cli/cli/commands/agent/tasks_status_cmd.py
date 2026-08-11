@@ -40,7 +40,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import typer
 
@@ -57,7 +57,7 @@ from specify_cli.cli.commands.agent.tasks_status_view import (
 from specify_cli.lanes.persistence import MissingLanesError
 
 if TYPE_CHECKING:
-    from doctrine.agent_profiles.repository import AgentProfileRepository
+    from charter.profiles import AgentProfileRepository
 
     from specify_cli.core.stale_detection import StaleCheckResult
 
@@ -79,7 +79,11 @@ if TYPE_CHECKING:
     # ``.agent_profile_repository`` (never ``.agent_profiles``), so the type
     # is narrowed to the single shape that is actually correct -- a reader
     # can no longer mistake this for "either shape is fine."
-    ProfileLookup = AgentProfileRepository
+    # Explicit TypeAlias: charter.profiles is mypy-quarantined
+    # (follow_imports=skip), so AgentProfileRepository resolves to ``Any``; the
+    # annotation makes ProfileLookup a valid type alias rather than an Any-valued
+    # variable.
+    ProfileLookup: TypeAlias = AgentProfileRepository
 from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
 )

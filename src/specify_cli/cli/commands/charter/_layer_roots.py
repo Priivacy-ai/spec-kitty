@@ -13,7 +13,7 @@ def resolve_layer_roots(repo_root: Path) -> dict[str, Path]:
     Root resolution lives in ``specify_cli`` and the resolved paths are handed
     to lower charter/doctrine layers as data (C-008).
     """
-    from specify_cli.doctrine.config import resolve_org_roots
+    from charter.drg import resolve_org_roots
 
     roots: dict[str, Path] = {}
 

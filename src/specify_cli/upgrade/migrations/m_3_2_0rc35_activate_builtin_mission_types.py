@@ -125,7 +125,7 @@ class ActivateBuiltinMissionTypesMigration(BaseMigration):
         Returns:
             MigrationResult describing the outcome.
         """
-        from doctrine.missions.mission_type_repository import (  # noqa: PLC0415 — lazy; call-time live-read (C-004), avoids import-time filesystem I/O in the migration registry
+        from charter.missions import (  # noqa: PLC0415 — lazy; call-time live-read (C-004), avoids import-time filesystem I/O in the migration registry
             builtin_mission_type_ids,
         )
 

@@ -68,7 +68,7 @@ class OrgOverridesBuiltinChecker:
             return []
 
         try:
-            from specify_cli.doctrine.config import load_pack_registry
+            from charter.drg import load_pack_registry
         except ImportError:
             return []
 

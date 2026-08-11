@@ -1072,9 +1072,9 @@ def _resolved_model_provider(model_id: str | None) -> str | None:
     if model_id is None:
         return None
     try:
-        from doctrine.model_task_routing import loader as routing_loader
+        from charter.model_routing import load as routing_load
 
-        loaded = routing_loader.load()
+        loaded = routing_load()
         if loaded is None:
             raise ValueError("the canonical routing catalog is unavailable")
         model = next(

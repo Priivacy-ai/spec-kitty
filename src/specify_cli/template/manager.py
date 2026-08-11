@@ -121,7 +121,7 @@ def copy_specify_base_from_package(project_path: Path) -> Path:
     # into the existing candidate-list shape unchanged.
     missions_resource_candidates: list[Traversable] = []
     try:
-        from doctrine.missions.repository import (  # noqa: PLC0415
+        from charter.missions import (  # noqa: PLC0415
             MissionsRootNotFound,
             MissionTemplateRepository,
         )
