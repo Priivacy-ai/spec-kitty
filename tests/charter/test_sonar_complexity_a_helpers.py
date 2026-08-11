@@ -283,12 +283,12 @@ class TestOrgLayerHelpers:
 
 
 class TestContextResultBuilders:
-    def test_build_missing_charter_context_result(self) -> None:
+    def test_build_missing_charter_context_result(self, tmp_path: Path) -> None:
         from charter.context_result_builders import build_missing_charter_context_result
         from charter.context_state import _ContextStateBundle
 
         state_bundle = _ContextStateBundle(
-            state_path=Path("/tmp/context-state.json"),
+            state_path=tmp_path / "context-state.json",
             state={"schema_version": "1.0.0", "actions": {}},
             first_load=True,
             effective_depth=2,
@@ -304,12 +304,12 @@ class TestContextResultBuilders:
         assert result.depth == 2
         assert "Charter file not found" in result.text
 
-    def test_build_missing_charter_context_result_applies_augment(self) -> None:
+    def test_build_missing_charter_context_result_applies_augment(self, tmp_path: Path) -> None:
         from charter.context_result_builders import build_missing_charter_context_result
         from charter.context_state import _ContextStateBundle
 
         state_bundle = _ContextStateBundle(
-            state_path=Path("/tmp/context-state.json"),
+            state_path=tmp_path / "context-state.json",
             state={"schema_version": "1.0.0", "actions": {}},
             first_load=False,
             effective_depth=1,
@@ -428,7 +428,7 @@ class TestLocalSupportHelpers:
 
         assert warning is not None
         assert "overlaps built-in" in warning
-        assert len(diagnostics) == 1
+        assert len(diagnostics) == 1  # golden-count: cardinality-is-contract (records exactly one)
 
     def test_detect_local_support_overlap_no_target_returns_none(self) -> None:
         from charter.compiler import _detect_local_support_overlap
