@@ -42,5 +42,5 @@ def test_reexport_facade_imports_and_all_symbols_resolve(module_name: str) -> No
     module = importlib.import_module(module_name)
     exported = getattr(module, "__all__", None)
     assert exported, f"{module_name} must declare a non-empty __all__"
-    unresolved = [name for name in exported if not hasattr(module, name)]
-    assert not unresolved, f"{module_name} advertises unresolved __all__ names: {unresolved}"
+    unresolved = [name for name in exported if getattr(module, name, None) is None]
+    assert not unresolved, f"{module_name} advertises unresolved/None __all__ names: {unresolved}"
