@@ -594,10 +594,10 @@ def test_single_branch_mission_survives_implement_and_merge_end_to_end(
         )
         # ...and that residue is a lock-FIELD-ONLY diff — the exact case WP02
         # governs (asserted via the production decision helper).
-        from specify_cli.cli.commands.implement import _is_vcs_lock_only_meta_diff
+        from kernel.vcs_lock import is_vcs_lock_only_change
 
         committed_meta = json.loads(_git(repo, "show", f"HEAD:{meta_rel}").stdout)
-        assert _is_vcs_lock_only_meta_diff(committed_meta, _read_meta(feature_dir)), (
+        assert is_vcs_lock_only_change(committed_meta, _read_meta(feature_dir)), (
             "the sole residue must be a vcs-lock-only meta.json diff (WP02 scope)"
         )
         # The SECOND claim's REAL dirty-tree guard must drop the lock-only meta and

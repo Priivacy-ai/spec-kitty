@@ -66,8 +66,6 @@ from specify_cli.cli.commands.implement_cores import (  # noqa: F401 -- shim re-
     _files_changed_vs_ref,
     _is_runtime_frontmatter_only_wp_diff,
     _is_self_write_only_diff,
-    _is_vcs_lock_only_meta_diff,
-    _parse_meta_mapping,
     _parse_wp_frontmatter,
     _placement_coord_filter,
     _PorcelainEntry,

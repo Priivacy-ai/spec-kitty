@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "mission_slug": "meta-json-fail-closed-routing-01KZPJ1F",
+  "mission_id": "01KZPJ1FS7TTVARVA4T0ZQBR59",
+  "mission_branch": "kitty/mission-meta-json-fail-closed-routing-01KZPJ1F",
+  "target_branch": "feat/meta-json-l1-seam-routing-3259",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/kernel/meta_decode.py",
+        "src/kernel/vcs_lock.py",
+        "src/specify_cli/core/paths.py",
+        "src/specify_cli/mission_metadata.py",
+        "tests/architectural/test_meta_decode_l1.py",
+        "tests/specify_cli/test_meta_fail_closed_full_census_contract.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/git/ref_advance.py",
+        "tests/architectural/test_layer_rules.py",
+        "tests/specify_cli/cli/commands/test_issue_2795_claim_blocker.py",
+        "tests/specify_cli/git/test_ref_advance_meta_diagnosability.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/cli/commands/implement_cores.py",
+        "tests/architectural/test_exemption_registry_ratchet.py",
+        "tests/architectural/test_trio_seam_only.py",
+        "tests/specify_cli/cli/commands/test_implement_cores.py",
+        "tests/specify_cli/cli/commands/test_implement_vcs_lock_claim.py",
+        "tests/specify_cli/cli/commands/test_meta_bypass_diagnosability.py",
+        "tests/specify_cli/test_specify_topology_flag.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/merge_driver.py",
+        "tests/merge/test_merge_driver_meta_diagnosability.py",
+        "tests/merge/test_merge_driver_wrappers_2709.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/development/inline-meta-read-allowlist-baseline-deviation.md",
+        "tests/architectural/test_inline_meta_read_gate.py",
+        "tests/architectural/test_meta_decoder_comparator_singletons.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-08-10T20:16:37.114365+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "5e5de2b719cfb903d4e0778bdcc78825ff95de2c"
+}

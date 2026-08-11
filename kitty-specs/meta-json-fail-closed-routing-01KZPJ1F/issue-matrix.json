@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#3228": {
+      "evidence_ref": "WP01-approval-time status: mission active (WP01 of 5); these are mission-wide issues (spec.md), not owned by WP01 (tracker_refs empty). Final verdict to be recorded at WP05 census-governance-closeout / mission done.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#3229": {
+      "evidence_ref": "WP01-approval-time status: mission active (WP01 of 5); these are mission-wide issues (spec.md), not owned by WP01 (tracker_refs empty). Final verdict to be recorded at WP05 census-governance-closeout / mission done.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#3230": {
+      "evidence_ref": "WP01-approval-time status: mission active (WP01 of 5); these are mission-wide issues (spec.md), not owned by WP01 (tracker_refs empty). Final verdict to be recorded at WP05 census-governance-closeout / mission done.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#3240": {
+      "evidence_ref": "WP01-approval-time status: mission active (WP01 of 5); these are mission-wide issues (spec.md), not owned by WP01 (tracker_refs empty). Final verdict to be recorded at WP05 census-governance-closeout / mission done.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#3241": {
+      "evidence_ref": "WP01-approval-time status: mission active (WP01 of 5); these are mission-wide issues (spec.md), not owned by WP01 (tracker_refs empty). Final verdict to be recorded at WP05 census-governance-closeout / mission done.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#3247": {
+      "evidence_ref": "WP01-approval-time status: mission active (WP01 of 5); these are mission-wide issues (spec.md), not owned by WP01 (tracker_refs empty). Final verdict to be recorded at WP05 census-governance-closeout / mission done.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#3259": {
+      "evidence_ref": "WP01-approval-time status: mission active (WP01 of 5); these are mission-wide issues (spec.md), not owned by WP01 (tracker_refs empty). Final verdict to be recorded at WP05 census-governance-closeout / mission done.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

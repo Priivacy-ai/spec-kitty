@@ -225,7 +225,14 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/context/resolver.py", "_read_meta_json"): (1, "pending-batch-a"),
     ("src/specify_cli/coordination/commit_router.py", "_resolve_mid8"): (1, "silent-by-contract"),
     ("src/specify_cli/coordination/legacy_resolution.py", "_load_mission_meta"): (1, "silent-by-contract"),
-    ("src/specify_cli/core/paths.py", "load_meta_fail_closed"): (1, "authority"),
+    # NOTE (mission meta-json-fail-closed-routing-01KZPJ1F, WP01/T004): the
+    # former row ("src/specify_cli/core/paths.py", "load_meta_fail_closed") was
+    # deleted here because that function no longer calls ``load_meta`` -- it now
+    # decodes via the kernel L1 primitive ``kernel.meta_decode.decode_meta``
+    # directly (removing the ``core.paths -> mission_metadata`` back-edge). The
+    # live scan no longer finds a routed ``load_meta`` call there, so the row is
+    # correctly gone rather than stale (the ledger's own stale-arm prescription:
+    # "if you just routed the site, delete its row").
     ("src/specify_cli/core/vcs/detection.py", "_get_locked_vcs_from_feature"): (2, "silent-by-contract"),
     ("src/specify_cli/dashboard/scanner.py", "_read_dashboard_feature_meta"): (1, "silent-by-contract"),
     ("src/specify_cli/dashboard/scanner.py", "_read_mission_identity"): (1, "silent-by-contract"),

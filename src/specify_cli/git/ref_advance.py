@@ -26,20 +26,19 @@ pipeline must hold an equivalent serialization guarantee.
 
 from __future__ import annotations
 
-import json
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# Keys written by ``specify_cli.mission_metadata.set_vcs_lock`` -- the canonical
-# claim-time VCS-lock writer, which mutates *only* these two ``meta.json`` keys.
-# Inlined (not imported) on purpose: this module is git plumbing and must not
-# depend on ``specify_cli``. A ``meta.json`` whose only diff against HEAD is a
-# subset of these fields is a regenerable claim stamp, not operator data -- the
-# resync ``git reset --hard`` legitimately discards it and the next claim
-# regenerates it (behaviour-preserving), so it must not block a ref advance.
-_VCS_LOCK_META_FIELDS: frozenset[str] = frozenset({"vcs", "vcs_locked_at"})
+# Downward-only imports into the zero-dependency kernel root. ``ref_advance`` is
+# git plumbing and must NOT import ``specify_cli`` (C-003, enforced by the
+# NFR-004 ratchet in ``tests/architectural/test_layer_rules.py``); the kernel is
+# the one layer reachable from both plumbing and application, so the malformed
+# *definition* (``decode_meta``/``MetaDecodeError``) and the VCS-lock comparator
+# (absent != present-but-null, C-005) live there and are consumed here.
+from kernel.meta_decode import MetaDecodeError, decode_meta
+from kernel.vcs_lock import is_vcs_lock_only_change
 
 # Basename of the mission metadata file whose VCS-lock-only changes are tolerated.
 _META_FILENAME: str = "meta.json"
@@ -178,15 +177,23 @@ def _path_obstructs_target_tree(path: str, target_paths: set[str]) -> bool:
     return any(target == path or target.startswith(prefix) for target in target_paths)
 
 
-def _parse_meta_object(text: str) -> dict[str, object] | None:
-    """Parse ``text`` as a JSON object; ``None`` when malformed or non-object."""
+def _decode_meta_named(raw: str, *, source: str) -> dict[str, object]:
+    """Decode ``meta.json`` *raw* content via the kernel L1, naming *source* on failure.
+
+    :func:`kernel.meta_decode.decode_meta` owns the single malformed *definition*;
+    its bare message does not name which file was unparseable. This plumbing
+    caller owns the source-named message (mirroring L2's path-named contract) so
+    a corrupt read fails loud identifying the ``meta.json`` blob (``HEAD:<path>``
+    for a committed read, the filesystem path for a worktree read) instead of
+    being silently absorbed (FR-003..FR-007).
+    """
     try:
-        parsed = json.loads(text)
-    except (json.JSONDecodeError, ValueError):
-        return None
-    if not isinstance(parsed, dict):
-        return None
-    return parsed
+        parsed = decode_meta(raw, on_malformed="raise")
+    except MetaDecodeError as exc:
+        raise MetaDecodeError(f"Malformed meta.json at {source}: {exc}") from exc
+    # ``on_malformed="raise"`` returns a mapping or raises; the ``None`` arm is
+    # unreachable but keeps the return type total for mypy.
+    return parsed if parsed is not None else {}
 
 
 def _committed_meta_object(
@@ -196,36 +203,16 @@ def _committed_meta_object(
 ) -> dict[str, object]:
     """Return the ``meta.json`` object committed at ``HEAD:<path>``.
 
-    An empty dict is returned when the file is absent at HEAD (a newly added
-    ``meta.json``) or the committed blob is not a JSON object -- so every
-    working-copy key is treated as changed and a real file exceeds the lock set.
+    Absent at HEAD (``git show`` returncode != 0, e.g. a newly added
+    ``meta.json``) returns an empty dict -- so every working-copy key is treated
+    as changed and a real file exceeds the lock set. A **present-but-unparseable**
+    committed blob raises :class:`MetaDecodeError` naming ``HEAD:<path>`` (fail
+    loud, FR-004/FR-006) instead of being silently absorbed.
     """
     result = _run_git(worktree, ["show", f"HEAD:{path}"], env=env)
     if result.returncode != 0:
         return {}
-    parsed = _parse_meta_object(result.stdout)
-    return parsed if parsed is not None else {}
-
-
-def _is_vcs_lock_only_meta_change(
-    worktree_meta: dict[str, object],
-    committed_meta: dict[str, object],
-) -> bool:
-    """True IFF the changed keys are a non-empty subset of the VCS-lock fields.
-
-    Empty diff -> ``False`` (nothing to tolerate). Any changed key outside
-    :data:`_VCS_LOCK_META_FIELDS` -> ``False`` (a genuine meta edit still blocks;
-    no false-open). A newly added ``meta.json`` (``committed_meta == {}``)
-    compares every key, so a real file exceeds the lock set and still blocks.
-    """
-    changed = {
-        key
-        for key in worktree_meta.keys() | committed_meta.keys()
-        if worktree_meta.get(key) != committed_meta.get(key)
-    }
-    if not changed:
-        return False
-    return changed <= _VCS_LOCK_META_FIELDS
+    return _decode_meta_named(result.stdout, source=f"HEAD:{path}")
 
 
 def _meta_change_is_vcs_lock_only(
@@ -235,20 +222,21 @@ def _meta_change_is_vcs_lock_only(
 ) -> bool:
     """Whether the tracked-modified ``meta.json`` at ``path`` is a lock stamp.
 
-    Reads the working-copy object and the committed object and compares them.
-    A malformed working copy (or a deletion) is treated as genuine dirt
-    (``False``) so it still blocks the advance.
+    Decodes the working-copy object and the committed object through the kernel
+    L1 and compares them with :func:`kernel.vcs_lock.is_vcs_lock_only_change`
+    (sentinel comparator: absent != present-but-null, C-005). A missing working
+    copy (or a deletion, ``OSError``) is genuine dirt (``False``) so it still
+    blocks the advance; a **present-but-unparseable** working copy raises
+    :class:`MetaDecodeError` naming the file (fail loud, FR-003/FR-005).
     """
     meta_path = worktree / path
     try:
         worktree_text = meta_path.read_text(encoding="utf-8")
     except OSError:
         return False
-    worktree_meta = _parse_meta_object(worktree_text)
-    if worktree_meta is None:
-        return False
+    worktree_meta = _decode_meta_named(worktree_text, source=str(meta_path))
     committed_meta = _committed_meta_object(worktree, path, env)
-    return _is_vcs_lock_only_meta_change(worktree_meta, committed_meta)
+    return is_vcs_lock_only_change(committed_meta, worktree_meta)
 
 
 def _dirty_entries(

@@ -56,11 +56,12 @@ from pathlib import Path
 import pytest
 from mission_runtime import MissionArtifactKind, placement_seam
 
+from kernel.meta_decode import MetaDecodeError, decode_meta
+from kernel.vcs_lock import is_vcs_lock_only_change
+
 from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from specify_cli.git.ref_advance import (
     RefAdvanceDirtyWorktreeError,
-    _is_vcs_lock_only_meta_change,
-    _parse_meta_object,
     advance_branch_ref,
 )
 from specify_cli.mission_metadata import load_meta, set_vcs_lock
@@ -265,38 +266,58 @@ def test_genuine_meta_edit_no_longer_blocks_when_residue_routed(tmp_path: Path) 
     )
 
 
-# --- Pure-helper unit coverage (each classifier branch, no git needed) --------
+# --- Pure-helper unit coverage (retargeted onto the kernel comparator, WP02) ---
+#
+# ``ref_advance._is_vcs_lock_only_meta_change`` / ``_parse_meta_object`` were
+# deleted; ref_advance now rides ``kernel.vcs_lock.is_vcs_lock_only_change``
+# (sentinel: absent != present-but-null, C-005) and ``kernel.meta_decode``. The
+# kernel comparator's argument order is ``(before=committed, after=worktree)`` --
+# the OPPOSITE of the retired helper's ``(worktree, committed)`` -- so the calls
+# below pass ``(committed, worktree)``.
 
 
 def test_lock_only_change_is_recognised() -> None:
     committed = {"slug": "m", "vcs": "git"}
     worktree = {"slug": "m", "vcs": "git", "vcs_locked_at": "2026-07-24T00:00:00+00:00"}
-    assert _is_vcs_lock_only_meta_change(worktree, committed) is True
+    assert is_vcs_lock_only_change(committed, worktree) is True
 
 
-def test_empty_diff_is_not_a_lock_change() -> None:
+def test_empty_diff_is_lock_only_under_kernel_comparator() -> None:
+    # C-005 flip: the retired ref_advance helper returned False on an empty diff
+    # ("nothing to tolerate"); the canonical kernel comparator treats two
+    # identical mappings as lock-only (the empty set of differences is trivially
+    # a subset of the lock fields) -> True.
     meta = {"slug": "m", "vcs": "git"}
-    assert _is_vcs_lock_only_meta_change(dict(meta), dict(meta)) is False
+    assert is_vcs_lock_only_change(dict(meta), dict(meta)) is True
 
 
 def test_non_lock_key_change_blocks() -> None:
     committed = {"slug": "m", "friendly_name": "old"}
     worktree = {"slug": "m", "friendly_name": "new", "vcs_locked_at": "x"}
-    assert _is_vcs_lock_only_meta_change(worktree, committed) is False
+    assert is_vcs_lock_only_change(committed, worktree) is False
 
 
 def test_added_meta_file_exceeds_lock_set() -> None:
     # committed == {} models a newly added meta.json; every key is "changed".
     worktree = {"slug": "m", "mission_type": "software-dev", "vcs": "git"}
-    assert _is_vcs_lock_only_meta_change(worktree, {}) is False
+    assert is_vcs_lock_only_change({}, worktree) is False
 
 
 def test_added_meta_file_with_only_lock_keys_is_lock_only() -> None:
     # A degenerate meta.json carrying nothing but lock keys is still a stamp.
-    assert _is_vcs_lock_only_meta_change({"vcs": "git"}, {}) is True
+    assert is_vcs_lock_only_change({}, {"vcs": "git"}) is True
 
 
-def test_parse_meta_object_handles_malformed_and_non_object() -> None:
-    assert _parse_meta_object("{not json") is None
-    assert _parse_meta_object("[1, 2, 3]") is None
-    assert _parse_meta_object('{"vcs": "git"}') == {"vcs": "git"}
+def test_decode_meta_none_mode_absorbs_malformed_and_non_object() -> None:
+    # The silent-mode contract that replaces the retired ``_parse_meta_object``.
+    assert decode_meta("{not json", on_malformed="none") is None
+    assert decode_meta("[1, 2, 3]", on_malformed="none") is None
+    assert decode_meta('{"vcs": "git"}') == {"vcs": "git"}
+
+
+def test_decode_meta_raise_mode_fails_loud_on_malformed() -> None:
+    # The fail-closed contract ref_advance now routes onto (FR-003..FR-007).
+    with pytest.raises(MetaDecodeError):
+        decode_meta("{not json", on_malformed="raise")
+    with pytest.raises(MetaDecodeError):
+        decode_meta("[1, 2, 3]", on_malformed="raise")

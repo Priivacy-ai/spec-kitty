@@ -34,9 +34,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 
+from kernel.vcs_lock import is_vcs_lock_only_change
 from specify_cli.cli.commands.implement import (
     _is_self_write_only_diff,
-    _is_vcs_lock_only_meta_diff,
     implement,
     resolve_planning_artifact_staging,
 )
@@ -384,8 +384,10 @@ def test_drop_helper_keeps_non_lock_dirty_meta_under_auto_commit_false(
             {"slug": "m2", "vcs": "git", "vcs_locked_at": _LOCKED_AT},
             False,
         ),
-        # No diff at all -> nothing to exclude.
-        ({"vcs": "git"}, {"vcs": "git"}, False),
+        # No diff at all -> the kernel comparator treats the empty difference
+        # set as trivially lock-only (True), unlike the retired predicate's
+        # ``bool(changed_keys)`` guard (WP03 / T016 -- FR-006 semantics shift).
+        ({"vcs": "git"}, {"vcs": "git"}, True),
         # Only a non-lock change -> NOT lock-only.
         ({"slug": "m"}, {"slug": "m", "purpose_tldr": "x"}, False),
         # Removing a non-lock null-valued key is still a dirty meta change.
@@ -402,11 +404,15 @@ def test_drop_helper_keeps_non_lock_dirty_meta_under_auto_commit_false(
         ),
     ],
 )
-def test_is_vcs_lock_only_meta_diff_truth_table(
+def test_is_vcs_lock_only_change_truth_table(
     committed: dict[str, Any] | None,
     working: dict[str, Any],
     expected: bool,
 ) -> None:
-    """The pure decision distinguishes a lock-field-only diff from every diff
-    that touches a non-lock key (and from an empty diff)."""
-    assert _is_vcs_lock_only_meta_diff(committed, working) is expected
+    """WP03 / T016: the retired ``_is_vcs_lock_only_meta_diff`` comparator is
+    routed onto the single canonical
+    :func:`kernel.vcs_lock.is_vcs_lock_only_change` (FR-006). It distinguishes a
+    lock-field-only diff from every diff that touches a non-lock key
+    (absent != present-but-null, C-005); an EMPTY diff is trivially lock-only
+    (``True``) under the kernel comparator."""
+    assert is_vcs_lock_only_change(committed, working) is expected
