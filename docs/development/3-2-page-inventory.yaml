@@ -938,6 +938,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/api/agent-subcommands.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/api/agent_profiles/architect-alphonso.md
   tag: current
   divio_type: none
@@ -1047,12 +1053,6 @@
   current_target: true
   notes: null
 - path: docs/api/agent_profiles/reviewer-renata.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/api/agent-subcommands.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -2949,6 +2949,12 @@
   current_target: true
   notes: null
 - path: docs/plans/charter-sole-door-deferred-issues.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/3179-public-api-surface-scoping.md
   tag: current
   divio_type: none
   owning_workstream: none
