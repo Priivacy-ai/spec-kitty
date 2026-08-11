@@ -17,6 +17,7 @@ and (b) ``facade.SYMBOL is doctrine.SYMBOL`` (object identity).
 from __future__ import annotations
 
 import importlib
+import pathlib
 
 import pytest
 
@@ -166,6 +167,15 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # advertised in ``__all__`` but previously identity-unchecked.
         ("repair_v2_synthesis_manifest_defaults", "doctrine.versioning"),
     ],
+    # Not a pure "facade" (it carries local ``from_operator_token`` /
+    # ``resolve_artifact_urn`` logic), but it DOES re-export two doctrine symbols
+    # in ``__all__``. Tabled during the #3321 post-fold squad: the self-discovery
+    # inverse gate below found these public but identity-unchecked (they escaped
+    # the earlier key-scoped gate because this module was absent from the table).
+    "charter.kind_vocabulary": [
+        ("ArtifactKind", "doctrine.artifact_kinds"),
+        ("MissionTypeNotAnArtifactKind", "doctrine.artifact_kinds"),
+    ],
 }
 
 #: Intentional private→public aliased re-exports. A facade advertises a *public*
@@ -181,6 +191,32 @@ _ALIASED_REEXPORTS: dict[tuple[str, str], tuple[str, str]] = {
         "_bridge_org_edge_to_drg_edge",
     ),
 }
+
+#: Top-level packages whose re-exports through a charter ``__all__`` MUST carry an
+#: identity contract: ``doctrine`` (the migrated surface) plus the external
+#: shared-contract packages (per the Shared Package Boundary). A charter-local
+#: definition (``__module__`` under ``charter``) is not a re-export; a stdlib
+#: value instance such as a ``pathlib.Path`` constant is not one either — both are
+#: correctly excluded by keying on these origins rather than on "not charter".
+_IDENTITY_REQUIRED_ORIGINS = frozenset(
+    {"doctrine", "spec_kitty_events", "spec_kitty_tracker"}
+)
+
+_CHARTER_SRC = pathlib.Path(__file__).resolve().parents[2] / "src" / "charter"
+
+
+def _charter_modules() -> list[str]:
+    """Self-discover every top-level ``charter.*`` module from ``src/charter/``.
+
+    The inverse-containment gate iterates THIS, not ``_FACADE_TABLE.keys()``, so a
+    re-export module simply never added to the table (e.g. ``charter.kind_vocabulary``,
+    caught by the #3321 post-fold squad) cannot hide from the check.
+    """
+    return [
+        f"charter.{path.stem}"
+        for path in sorted(_CHARTER_SRC.glob("*.py"))
+        if path.stem != "__init__"
+    ]
 
 
 def _flat_cases() -> list[tuple[str, str, str]]:
@@ -237,31 +273,38 @@ def test_facade_all_lists_every_reexport(facade_module: str) -> None:
     )
 
 
-@pytest.mark.parametrize("facade_module", sorted(_FACADE_TABLE.keys()))
+@pytest.mark.parametrize("facade_module", _charter_modules())
 def test_facade_all_reexports_are_tabled(facade_module: str) -> None:
-    """Reverse of :func:`test_facade_all_lists_every_reexport`: every
-    doctrine-origin symbol a facade advertises in ``__all__`` MUST carry an
-    identity contract — an entry in ``_FACADE_TABLE`` or a documented
-    ``_ALIASED_REEXPORTS`` alias.
+    """Reverse of :func:`test_facade_all_lists_every_reexport`, enforced repo-wide:
+    every symbol a charter module advertises in ``__all__`` whose object ORIGINATES
+    from doctrine (or an external shared-contract package) MUST carry an identity
+    contract — an entry in ``_FACADE_TABLE`` or a documented ``_ALIASED_REEXPORTS``
+    alias.
 
     Without this the identity gate is one-directional: a re-export placed in
     ``__all__`` but omitted from the table is public yet identity-UNCHECKED, so a
     later PR could replace it with a wrapper/shim and every gate stays green.
-    The ``obj.__module__`` origin check naturally excludes facade-local
-    definitions (charter-owned orchestration), which are not re-exports and need
-    no identity contract. (#3321 landing squad — inverse-containment hardening.)
+
+    Two scoping choices make the guard complete rather than manually curated:
+    it is parametrized over **every** ``charter.*`` module self-discovered from
+    ``src/charter/`` (not just ``_FACADE_TABLE.keys()``), so a re-export module
+    absent from the table cannot hide (the ``charter.kind_vocabulary`` escape the
+    #3321 post-fold squad found); and it keys on
+    :data:`_IDENTITY_REQUIRED_ORIGINS`, which includes doctrine-origin re-exports
+    while excluding both charter-local definitions and stdlib value instances
+    (e.g. a ``pathlib.Path`` module-level constant).
     """
     facade = importlib.import_module(facade_module)
-    tabled = {symbol for symbol, _ in _FACADE_TABLE[facade_module]}
+    tabled = {symbol for symbol, _ in _FACADE_TABLE.get(facade_module, [])}
     aliased = {name for (fac, name) in _ALIASED_REEXPORTS if fac == facade_module}
     covered = tabled | aliased
     untabled: list[tuple[str, str]] = []
-    for name in getattr(facade, "__all__", []):
+    for name in getattr(facade, "__all__", None) or []:
         origin = getattr(getattr(facade, name, None), "__module__", None)
-        if origin and origin.split(".")[0] == "doctrine" and name not in covered:
+        if origin and origin.split(".")[0] in _IDENTITY_REQUIRED_ORIGINS and name not in covered:
             untabled.append((name, origin))
     assert not untabled, (
-        f"{facade_module}.__all__ advertises doctrine-origin symbols with no "
+        f"{facade_module}.__all__ advertises re-exported symbols with no "
         f"identity contract (public but UNCHECKED): {sorted(untabled)}. Add each "
         f"to _FACADE_TABLE, or to _ALIASED_REEXPORTS if it is a private→public alias."
     )
