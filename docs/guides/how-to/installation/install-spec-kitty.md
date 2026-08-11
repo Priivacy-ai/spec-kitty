@@ -9,6 +9,9 @@ related:
 - docs/api/slash-commands.md
 - docs/guides/how-to/installation/install-and-upgrade.md
 - docs/guides/how-to/collaboration/manage-agents.md
+- docs/guides/how-to/installation/install-linux.md
+- docs/guides/how-to/installation/install-macos.md
+- docs/guides/how-to/installation/install-windows.md
 - docs/guides/how-to/installation/non-interactive-init.md
 - docs/guides/how-to/monitoring/use-dashboard.md
 ---
@@ -18,7 +21,9 @@ related:
 
 > **📖 Looking for the complete workflow?** See the [README: Getting Started guide](https://github.com/Priivacy-ai/spec-kitty#-getting-started-complete-workflow) for the full lifecycle from CLI installation through feature development and merging.
 
-![Install Spec Kitty - Mission Kitty splash](../../../assets/images/install-spec-kitty-mission-kitty.png)
+![](../../../assets/images/install-spec-kitty-mission-kitty.png)
+
+_Stylized splash — decorative only. Platform install paths and CLI steps are in the text below._
 
 > [!TIP]
 > Platform-specific notes: [Linux](install-linux.md) · [macOS](install-macos.md) · [Windows](install-windows.md)
