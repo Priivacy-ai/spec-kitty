@@ -8880,6 +8880,19 @@ pages:
     anchors:
     - {slug: "the-six-deferred-issues", text: "The six deferred issues", level: 2}
     - {slug: "verification", text: "Verification", level: 2}
+  - path: "docs/plans/doctrine/3179-public-api-surface-scoping.md"
+    title: "2026-08-10 — #3179 doctrine public API surface — scoping brief"
+    divio_type: "none"
+    abstract: "Pre-spec scope for the doctrine public-API mission (#3179): reach-through inventory, charter-facade gap map, lazy-import ratchet, and the #3101 wheel-cutover precondition."
+    anchors:
+    - {slug: "why-this-mission-why-now", text: "Why this mission, why now", level: 2}
+    - {slug: "the-measured-reach-through", text: "The measured reach-through", level: 2}
+    - {slug: "the-6-true-public-api-gaps-charter-itself-has-no-door", text: "The 6 true public-API gaps (charter itself has no door)", level: 3}
+    - {slug: "cluster-map-charter-facade-coverage", text: "Cluster map (charter-facade coverage)", level: 3}
+    - {slug: "proposed-mission-shape", text: "Proposed mission shape", level: 2}
+    - {slug: "design-note-openapi-does-not-apply-to-doctrine-api-py", text: "Design note — OpenAPI does **not** apply to `doctrine/api.py`", level: 2}
+    - {slug: "sonarcloud-read-public-project-priivacy-ai-spec-kitty-analyzed-2026-08-10", text: "SonarCloud read (public project `Priivacy-ai_spec-kitty`, analyzed 2026-08-10)", level: 2}
+    - {slug: "enforcement-files-a-future-spec-should-cite", text: "Enforcement files a future spec should cite", level: 2}
   - path: "docs/plans/doctrine/391-doctrine-usage-test.md"
     title: "#391 Doctrine Usage Test (WP11 dogfood)"
     divio_type: "none"
