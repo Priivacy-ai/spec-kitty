@@ -31,6 +31,8 @@ reports.
 - [WP & Op Schema Model — Related Open Tracker Tickets](wp-op-schema-related-tickets.md)
 - [WP Prompt & Ops Debrief — Model / Schema Proposal](wp-op-schema-proposal.md)
 - [WP Runtime-State Eviction — Prerequisite Mission Scope](wp-runtime-state-eviction-scope.md)
+- [RFC #2497 — External Observability Endpoints: Squad Assessment](2497-external-observability-endpoints-assessment.md)
+- [Fast-Follow Spec: Implement-Loop Friction Quick-Wins](loop-friction-fastfollow-spec.md)
 
 ## See also
 

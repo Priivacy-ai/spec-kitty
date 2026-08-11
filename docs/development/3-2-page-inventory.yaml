@@ -2864,12 +2864,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/2497-external-observability-endpoints-assessment.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/plans/3-2-doc-publication/3-2-archive-migration-plan.md
   tag: current
   divio_type: none
@@ -2954,7 +2948,7 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/charter-sole-door-deferred-issues.md
+- path: docs/plans/doctrine-charter-domain-plan.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -2985,6 +2979,12 @@
   current_target: true
   notes: null
 - path: docs/plans/doctrine/charter-path-resolution-gaps.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/charter-sole-door-deferred-issues.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -3926,13 +3926,7 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/initiatives/README.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/initiatives/next-mission-mappings/README.md
+- path: docs/plans/initiatives/index.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -3974,6 +3968,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/investigations/2497-external-observability-endpoints-assessment.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/investigations/2684-task-move-cluster-scoping.md
   tag: current
   divio_type: none
@@ -3999,6 +3999,12 @@
   current_target: true
   notes: null
 - path: docs/plans/investigations/issue-1111-analysis.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/loop-friction-fastfollow-spec.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -4082,13 +4088,7 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/loop-friction-fastfollow-spec.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/next-mission-mappings/README.md
+- path: docs/plans/next-mission-mappings/index.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -4172,6 +4172,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/research/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/research/session-presence-harness-gaps.md
   tag: current
   divio_type: none
@@ -4208,7 +4214,7 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/test-change-coupling-caacs.md
+- path: docs/plans/saas-hosted-sync-domain-plan.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -4256,6 +4262,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/testing/test-change-coupling-caacs.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/testing/test-suite-acceleration-plan.md
   tag: current
   divio_type: none
@@ -4298,13 +4310,13 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/user_journey/README.md
+- path: docs/plans/user_journey/evaluation.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/user_journey/evaluation.md
+- path: docs/plans/user_journey/index.md
   tag: current
   divio_type: none
   owning_workstream: none

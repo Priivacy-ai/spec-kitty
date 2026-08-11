@@ -6444,15 +6444,6 @@ pages:
     - {slug: "start-here", text: "Start here", level: 2}
     - {slug: "non-page-artifacts", text: "Non-page artifacts", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/development/inline-meta-read-allowlist-baseline-deviation.md"
-    title: "Deviation: inline-meta-read allow-list governed without a count baseline"
-    divio_type: "explanation"
-    abstract: "Why the inline-meta-read allow-list is governed by equality + shrink-only controls rather than a _baselines.yaml count baseline (C-006 deviation; #3240)."
-    anchors:
-    - {slug: "summary", text: "Summary", level: 2}
-    - {slug: "what-a-baselines-yaml-a-baseline-gives-you", text: "What a `_baselines.yaml` §(a) baseline gives you", level: 2}
-    - {slug: "why-the-existing-controls-are-strictly-stronger", text: "Why the existing controls are strictly stronger", level: 2}
-    - {slug: "consequence-re-evaluation-trigger", text: "Consequence / re-evaluation trigger", level: 2}
   - path: "docs/development/reference/coverage-signals.md"
     title: "Coverage signals — reconciling the three \"coverage\" numbers"
     divio_type: "explanation"
@@ -8621,20 +8612,6 @@ pages:
     - {slug: "hosted-auth-sync-test-environment-gate", text: "Hosted auth / sync test environment gate", level: 2}
     - {slug: "developer-test-quickstart", text: "Developer / test quickstart", level: 2}
     - {slug: "1071-regression-coverage", text: "#1071 regression coverage", level: 2}
-  - path: "docs/plans/2497-external-observability-endpoints-assessment.md"
-    title: "RFC #2497 — External Observability Endpoints: Squad Assessment"
-    divio_type: "none"
-    abstract: "Squad assessment of RFC #2497's five proposed external-observability CLI endpoints across architecture, duplication, and doctrine lenses, with retain/create/decline calls."
-    anchors:
-    - {slug: "context", text: "Context", level: 2}
-    - {slug: "headline-findings", text: "Headline findings", level: 2}
-    - {slug: "per-endpoint-assessment", text: "Per-endpoint assessment", level: 2}
-    - {slug: "e1-charter-context-action-json-already-ships-formalize-the-contract", text: "E1 — `charter context --action <a> --json` → **ALREADY SHIPS; formalize the contract**", level: 3}
-    - {slug: "e2-lanes-write-scope-wp-json-adopt-highest-leverage-new-work", text: "E2 — `lanes write-scope --wp <id> --json` → **ADOPT (highest-leverage new work)**", level: 3}
-    - {slug: "e3-event-journal-subscribe-decline-the-daemon-use-645-s-planned-async-transport-instead", text: "E3 — `event_journal subscribe` → **DECLINE the daemon; use #645's planned async transport instead**", level: 3}
-    - {slug: "e4-proof-emit-from-file-do-not-add-a-new-verb-fence-an-external-evidence-ingress-with-signing-under-a-dedicated-attestation-epic-not-645", text: "E4 — `proof emit --from-file <f>` → **DO NOT add a new verb; fence an external-evidence ingress (with signing) — under a dedicated attestation epic, not #645**", level: 3}
-    - {slug: "e5-session-hooks-register-decline-as-framed-commands-only-via-the-existing-registrar", text: "E5 — `session hooks register` → **DECLINE as framed (commands-only, via the existing registrar)**", level: 3}
-    - {slug: "summary-recommended-tracker-actions", text: "Summary & recommended tracker actions", level: 2}
   - path: "docs/plans/3-2-doc-publication/3-2-archive-migration-plan.md"
     title: "Spec Kitty 3.2 — Archive & Migration Plan"
     divio_type: "none"
@@ -8816,6 +8793,7 @@ pages:
     abstract: "The operator's 3.2.x sequencing (doctrine-swap first, cleanup next, hold non-critical PRs), stress-tested by a two-round dialectic squad into a fact-checked plan."
     anchors:
     - {slug: "status-method", text: "Status & method", level: 2}
+    - {slug: "related-domain-plans-durable-throughlines", text: "Related domain plans (durable throughlines)", level: 2}
     - {slug: "1-the-operator-s-plan-as-stated", text: "1. The operator's plan, as stated", level: 2}
     - {slug: "2-verdict-in-one-line", text: "2. Verdict in one line", level: 2}
     - {slug: "3-what-the-dialectic-confirmed-survives-both-rounds", text: "3. What the dialectic *confirmed* (survives both rounds)", level: 2}
@@ -8882,26 +8860,24 @@ pages:
     - {slug: "3-remaining-work-sequenced", text: "3. Remaining work, sequenced", level: 2}
     - {slug: "4-consumer-communication-plan", text: "4. Consumer communication plan", level: 2}
     - {slug: "5-open-decisions-for-the-po", text: "5. Open decisions for the PO", level: 2}
-  - path: "docs/plans/charter-sole-door-deferred-issues.md"
-    title: "Charter as Sole Door: Deferred Issues Record"
+  - path: "docs/plans/doctrine-charter-domain-plan.md"
+    title: "Doctrine & Charter — Domain Plan"
     divio_type: "none"
-    abstract: "Citable record of the six GitHub issues confirmed adjacent-but-separate from the charter-sole-door-bypass-closure mission, deferred as their own follow-ons."
+    abstract: "Durable, version-spanning plan for the doctrine/charter surface: charter lifecycle, sole-door access, extensibility, activation, fail-closed reads, public API, and glossary."
     anchors:
-    - {slug: "the-six-deferred-issues", text: "The six deferred issues", level: 2}
-    - {slug: "verification", text: "Verification", level: 2}
-  - path: "docs/plans/doctrine/3179-public-api-surface-scoping.md"
-    title: "2026-08-10 — #3179 doctrine public API surface — scoping brief"
-    divio_type: "none"
-    abstract: "Pre-spec scope for the doctrine public-API mission (#3179): reach-through inventory, charter-facade gap map, lazy-import ratchet, and the #3101 wheel-cutover precondition."
-    anchors:
-    - {slug: "why-this-mission-why-now", text: "Why this mission, why now", level: 2}
-    - {slug: "the-measured-reach-through", text: "The measured reach-through", level: 2}
-    - {slug: "the-6-true-public-api-gaps-charter-itself-has-no-door", text: "The 6 true public-API gaps (charter itself has no door)", level: 3}
-    - {slug: "cluster-map-charter-facade-coverage", text: "Cluster map (charter-facade coverage)", level: 3}
-    - {slug: "proposed-mission-shape", text: "Proposed mission shape", level: 2}
-    - {slug: "design-note-openapi-does-not-apply-to-doctrine-api-py", text: "Design note — OpenAPI does **not** apply to `doctrine/api.py`", level: 2}
-    - {slug: "sonarcloud-read-public-project-priivacy-ai-spec-kitty-analyzed-2026-08-10", text: "SonarCloud read (public project `Priivacy-ai_spec-kitty`, analyzed 2026-08-10)", level: 2}
-    - {slug: "enforcement-files-a-future-spec-should-cite", text: "Enforcement files a future spec should cite", level: 2}
+    - {slug: "1-purpose-scope", text: "1. Purpose & scope", level: 2}
+    - {slug: "2-where-doctrine-charter-planning-lives-today-honest-inventory", text: "2. Where doctrine/charter planning lives today (honest inventory)", level: 2}
+    - {slug: "3-standing-concerns-the-durable-spine", text: "3. Standing concerns — the durable spine", level: 2}
+    - {slug: "3-1-charter-authoring-activation-lifecycle", text: "3.1 Charter authoring, activation & lifecycle", level: 3}
+    - {slug: "3-2-doctrine-charter-extensibility-the-pack-ecosystem", text: "3.2 Doctrine/charter extensibility & the pack ecosystem", level: 3}
+    - {slug: "3-3-activation-driven-availability-the-single-canonical-mission-type-source", text: "3.3 Activation-driven availability & the single canonical mission-type source", level: 3}
+    - {slug: "3-4-doctrine-content-quality", text: "3.4 Doctrine content quality", level: 3}
+    - {slug: "3-5-meta-json-fail-closed-read-routing", text: "3.5 meta.json fail-closed read routing", level: 3}
+    - {slug: "3-6-stable-public-api-surface-for-doctrine-charter", text: "3.6 Stable public API surface for doctrine & charter", level: 3}
+    - {slug: "3-7-glossary-as-doctrine", text: "3.7 Glossary-as-doctrine", level: 3}
+    - {slug: "4-known-gaps", text: "4. Known gaps", level: 2}
+    - {slug: "5-release-scoped-view-the-what-ships-when", text: "5. Release-scoped view (the \"what ships when\")", level: 2}
+    - {slug: "6-cross-references", text: "6. Cross-references", level: 2}
   - path: "docs/plans/doctrine/391-doctrine-usage-test.md"
     title: "#391 Doctrine Usage Test (WP11 dogfood)"
     divio_type: "none"
@@ -8963,6 +8939,13 @@ pages:
     - {slug: "5-remaining-hardcoded-kittify-missions-sites", text: "5. Remaining hardcoded `.kittify/missions/` sites", level: 3}
     - {slug: "6-config-driven-path-overrides", text: "6. Config-driven path overrides", level: 3}
     - {slug: "design-principles-from-hic", text: "Design Principles (from HiC)", level: 2}
+  - path: "docs/plans/doctrine/charter-sole-door-deferred-issues.md"
+    title: "Charter as Sole Door: Deferred Issues Record"
+    divio_type: "none"
+    abstract: "Citable record of the six GitHub issues confirmed adjacent-but-separate from the charter-sole-door-bypass-closure mission, deferred as their own follow-ons."
+    anchors:
+    - {slug: "the-six-deferred-issues", text: "The six deferred issues", level: 2}
+    - {slug: "verification", text: "Verification", level: 2}
   - path: "docs/plans/doctrine/creed-and-values-design-as-proposed.md"
     title: "Creed and FoundationalValues — design as proposed (operator input record)"
     divio_type: "none"
@@ -11167,12 +11150,11 @@ pages:
   - path: "docs/plans/index.md"
     title: "Plans"
     divio_type: "none"
-    abstract: "Plans landing page: the distil-then-retire working surface for investigations, research, initiatives, user journeys, and design notes (Mission B, FR-009)."
+    abstract: "Plans landing page: durable domain throughlines plus the distil-then-retire working surface of investigations, research, initiatives, and release-scoped plans."
     anchors:
-    - {slug: "portfolio-level-planning", text: "Portfolio-level planning", level: 2}
-    - {slug: "current-milestone-roadmap", text: "Current milestone roadmap", level: 2}
-    - {slug: "themed-clusters", text: "Themed clusters", level: 2}
-    - {slug: "standing-collections", text: "Standing collections", level: 2}
+    - {slug: "domain-throughlines-version-spanning", text: "Domain throughlines (version-spanning)", level: 2}
+    - {slug: "portfolio-milestone-planning", text: "Portfolio & milestone planning", level: 2}
+    - {slug: "working-collections-by-area", text: "Working collections (by area)", level: 2}
   - path: "docs/plans/initiatives/2026-02-architecture-discovery-and-restructure/README.md"
     title: "Initiative: 2026-02 Brainstorm Capture"
     divio_type: "none"
@@ -11441,17 +11423,12 @@ pages:
     abstract: "Ready-to-run /spec-kitty.specify input prompt for the spec-kitty-tracker team's slice of the tracker-binding-context-discovery work."
     anchors:
     - {slug: "prompt", text: "Prompt", level: 2}
-  - path: "docs/plans/initiatives/README.md"
+  - path: "docs/plans/initiatives/index.md"
     title: "Architecture 2.x Initiatives"
     divio_type: "none"
     abstract: "Landing page for the 2.x architecture initiatives: active or exploratory, intentionally non-canonical work that feeds future architecture decisions."
     anchors:
     - {slug: "current-initiatives", text: "Current Initiatives", level: 2}
-  - path: "docs/plans/initiatives/next-mission-mappings/README.md"
-    title: "Initiative: `next` Mission Mapping Tracker"
-    divio_type: "none"
-    abstract: "Tracker for mission-specific spec-kitty next mapping/template gaps accepted temporarily; initiative artifacts rather than ADRs, with their status rules."
-    anchors: []
   - path: "docs/plans/initiatives/test_improvement/IMPLEMENTATION_COMPLETE.md"
     title: "🎉 Encoding & Plan Validation Test Suite - COMPLETE"
     divio_type: "none"
@@ -11641,6 +11618,20 @@ pages:
     - {slug: "open-items-non-blocking-first-pass-findings-retained", text: "Open items (non-blocking, first-pass findings retained)", level: 3}
     - {slug: "open-items-non-blocking-post-restoration", text: "Open items (non-blocking, post-restoration)", level: 3}
     - {slug: "mission-level-assessment", text: "Mission-level assessment", level: 3}
+  - path: "docs/plans/investigations/2497-external-observability-endpoints-assessment.md"
+    title: "RFC #2497 — External Observability Endpoints: Squad Assessment"
+    divio_type: "none"
+    abstract: "Squad assessment of RFC #2497's five proposed external-observability CLI endpoints across architecture, duplication, and doctrine lenses, with retain/create/decline calls."
+    anchors:
+    - {slug: "context", text: "Context", level: 2}
+    - {slug: "headline-findings", text: "Headline findings", level: 2}
+    - {slug: "per-endpoint-assessment", text: "Per-endpoint assessment", level: 2}
+    - {slug: "e1-charter-context-action-json-already-ships-formalize-the-contract", text: "E1 — `charter context --action <a> --json` → **ALREADY SHIPS; formalize the contract**", level: 3}
+    - {slug: "e2-lanes-write-scope-wp-json-adopt-highest-leverage-new-work", text: "E2 — `lanes write-scope --wp <id> --json` → **ADOPT (highest-leverage new work)**", level: 3}
+    - {slug: "e3-event-journal-subscribe-decline-the-daemon-use-645-s-planned-async-transport-instead", text: "E3 — `event_journal subscribe` → **DECLINE the daemon; use #645's planned async transport instead**", level: 3}
+    - {slug: "e4-proof-emit-from-file-do-not-add-a-new-verb-fence-an-external-evidence-ingress-with-signing-under-a-dedicated-attestation-epic-not-645", text: "E4 — `proof emit --from-file <f>` → **DO NOT add a new verb; fence an external-evidence ingress (with signing) — under a dedicated attestation epic, not #645**", level: 3}
+    - {slug: "e5-session-hooks-register-decline-as-framed-commands-only-via-the-existing-registrar", text: "E5 — `session hooks register` → **DECLINE as framed (commands-only, via the existing registrar)**", level: 3}
+    - {slug: "summary-recommended-tracker-actions", text: "Summary & recommended tracker actions", level: 2}
   - path: "docs/plans/investigations/2684-task-move-cluster-scoping.md"
     title: "Scoping brief: evict runtime-mutable WP state into the event log (#2684 cluster)"
     divio_type: "none"
@@ -11730,6 +11721,27 @@ pages:
     - {slug: "4-mapping-to-epic-acceptance-criteria", text: "4. Mapping to epic acceptance criteria", level: 2}
     - {slug: "5-recommended-next-steps-architecture-view", text: "5. Recommended next steps (architecture view)", level: 2}
     - {slug: "6-verdict", text: "6. Verdict", level: 2}
+  - path: "docs/plans/investigations/loop-friction-fastfollow-spec.md"
+    title: "Fast-Follow Spec: Implement-Loop Friction Quick-Wins"
+    divio_type: "none"
+    abstract: "Fast-follow spec for the implement-loop friction quick-wins: topology default, pre-review-gate escape hatch, finalize per-branch hashes, and charter first-run parity."
+    anchors:
+    - {slug: "context", text: "Context", level: 2}
+    - {slug: "tracked-issues-issue-matrix", text: "Tracked Issues (Issue Matrix)", level: 2}
+    - {slug: "user-scenarios-testing-mandatory", text: "User Scenarios & Testing *(mandatory)*", level: 2}
+    - {slug: "user-story-1-a-feature-branch-mission-doesn-t-force-a-coord-husk-priority-p1", text: "User Story 1 — A feature-branch mission doesn't force a coord husk (Priority: P1)", level: 3}
+    - {slug: "user-story-2-the-pre-review-gate-is-skippable-and-legible-priority-p1", text: "User Story 2 — The pre-review gate is skippable and legible (Priority: P1)", level: 3}
+    - {slug: "user-story-3-finalize-tasks-reports-the-full-commit-set-priority-p2", text: "User Story 3 — finalize-tasks reports the full commit set (Priority: P2)", level: 3}
+    - {slug: "user-story-4-charter-synthesize-works-on-an-empty-first-run-config-priority-p2", text: "User Story 4 — charter synthesize works on an empty/first-run config (Priority: P2)", level: 3}
+    - {slug: "edge-cases", text: "Edge Cases", level: 3}
+    - {slug: "requirements", text: "Requirements", level: 2}
+    - {slug: "functional-requirements", text: "Functional Requirements", level: 3}
+    - {slug: "non-functional-requirements", text: "Non-Functional Requirements", level: 3}
+    - {slug: "constraints", text: "Constraints", level: 3}
+    - {slug: "success-criteria", text: "Success Criteria", level: 2}
+    - {slug: "proposed-work-package-outline-for-tasks-materialization", text: "Proposed work package outline (for /tasks materialization)", level: 2}
+    - {slug: "post-mission-ops-operator-directed-not-wps", text: "Post-mission ops (operator-directed, NOT WPs)", level: 2}
+    - {slug: "assumptions", text: "Assumptions", level: 2}
   - path: "docs/plans/investigations/mission-next-compatibility.md"
     title: "Mission-Next Compatibility Matrix"
     divio_type: "none"
@@ -11925,28 +11937,7 @@ pages:
     - {slug: "5-open-questions-for-the-operator", text: "5. Open questions for the operator", level: 2}
     - {slug: "6-tracker-actions-already-taken", text: "6. Tracker actions already taken", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/plans/loop-friction-fastfollow-spec.md"
-    title: "Fast-Follow Spec: Implement-Loop Friction Quick-Wins"
-    divio_type: "none"
-    abstract: "Fast-follow spec for the implement-loop friction quick-wins: topology default, pre-review-gate escape hatch, finalize per-branch hashes, and charter first-run parity."
-    anchors:
-    - {slug: "context", text: "Context", level: 2}
-    - {slug: "tracked-issues-issue-matrix", text: "Tracked Issues (Issue Matrix)", level: 2}
-    - {slug: "user-scenarios-testing-mandatory", text: "User Scenarios & Testing *(mandatory)*", level: 2}
-    - {slug: "user-story-1-a-feature-branch-mission-doesn-t-force-a-coord-husk-priority-p1", text: "User Story 1 — A feature-branch mission doesn't force a coord husk (Priority: P1)", level: 3}
-    - {slug: "user-story-2-the-pre-review-gate-is-skippable-and-legible-priority-p1", text: "User Story 2 — The pre-review gate is skippable and legible (Priority: P1)", level: 3}
-    - {slug: "user-story-3-finalize-tasks-reports-the-full-commit-set-priority-p2", text: "User Story 3 — finalize-tasks reports the full commit set (Priority: P2)", level: 3}
-    - {slug: "user-story-4-charter-synthesize-works-on-an-empty-first-run-config-priority-p2", text: "User Story 4 — charter synthesize works on an empty/first-run config (Priority: P2)", level: 3}
-    - {slug: "edge-cases", text: "Edge Cases", level: 3}
-    - {slug: "requirements", text: "Requirements", level: 2}
-    - {slug: "functional-requirements", text: "Functional Requirements", level: 3}
-    - {slug: "non-functional-requirements", text: "Non-Functional Requirements", level: 3}
-    - {slug: "constraints", text: "Constraints", level: 3}
-    - {slug: "success-criteria", text: "Success Criteria", level: 2}
-    - {slug: "proposed-work-package-outline-for-tasks-materialization", text: "Proposed work package outline (for /tasks materialization)", level: 2}
-    - {slug: "post-mission-ops-operator-directed-not-wps", text: "Post-mission ops (operator-directed, NOT WPs)", level: 2}
-    - {slug: "assumptions", text: "Assumptions", level: 2}
-  - path: "docs/plans/next-mission-mappings/README.md"
+  - path: "docs/plans/next-mission-mappings/index.md"
     title: "next` Mission Mapping Tracker"
     divio_type: "none"
     abstract: "Tracker for mission-specific spec-kitty next mapping/template gaps accepted temporarily, with the status rules governing each tracked gap."
@@ -12138,6 +12129,14 @@ pages:
     divio_type: "none"
     abstract: "Per-era research (spike/exploration) record for the 2.x architecture track, part of the versioned history beneath the living architecture."
     anchors: []
+  - path: "docs/plans/research/index.md"
+    title: "Research"
+    divio_type: "none"
+    abstract: "Landing page for the plans research artifacts — per-era research history slots and standalone research syntheses."
+    anchors:
+    - {slug: "per-era-history-slots", text: "Per-era history slots", level: 2}
+    - {slug: "standalone-research", text: "Standalone research", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/plans/research/session-presence-harness-gaps.md"
     title: "Research Notes: Session Presence — Harness Capability Gaps"
     divio_type: "none"
@@ -12305,19 +12304,21 @@ pages:
     - {slug: "10-mission-type-hard-error-regression-guard", text: "10. `--mission-type` hard error regression guard", level: 2}
     - {slug: "11-ruff-lint-gate", text: "11. Ruff / lint gate", level: 2}
     - {slug: "summary-checklist", text: "Summary checklist", level: 2}
-  - path: "docs/plans/test-change-coupling-caacs.md"
-    title: "CaaCS: test↔production change-coupling analysis"
+  - path: "docs/plans/saas-hosted-sync-domain-plan.md"
+    title: "SaaS & Hosted Sync — Domain Plan"
     divio_type: "none"
-    abstract: "Change-coupling-as-a-code-smell mining of the architectural + core test suites to rank refactor-fragile tests for revision/rewrite/deletion."
+    abstract: "Durable, version-spanning domain plan for the SaaS / hosted-sync surface: sync & event-envelope integrity, consent & identity, auth & token lifecycle, and hosted rollout readiness."
     anchors:
-    - {slug: "method", text: "Method", level: 2}
-    - {slug: "architectural-tests-the-hit-list", text: "Architectural tests — the hit-list", level: 2}
-    - {slug: "verdicts", text: "Verdicts", level: 2}
-    - {slug: "rewrite-replace-highest-tax-inherently-shape-coupled", text: "🔴 Rewrite / replace — highest tax, inherently shape-coupled", level: 3}
-    - {slug: "harden-the-drift-proof-key-the-fix-already-exists-propagate-it", text: "🟠 Harden the drift-proof key — the fix already exists, propagate it", level: 3}
-    - {slug: "audit-the-ratio-1-00-cluster-keep-if-behavioural-else-convert", text: "🟡 Audit the `ratio = 1.00` cluster — keep-if-behavioural, else convert", level: 3}
-    - {slug: "leave-expected-coupling", text: "🟢 Leave — expected coupling", level: 3}
-    - {slug: "recommended-sequence", text: "Recommended sequence", level: 2}
+    - {slug: "1-purpose-scope", text: "1. Purpose & scope", level: 2}
+    - {slug: "2-where-saas-planning-lives-today-honest-inventory", text: "2. Where SaaS planning lives today (honest inventory)", level: 2}
+    - {slug: "3-standing-concerns-the-durable-spine", text: "3. Standing concerns — the durable spine", level: 2}
+    - {slug: "3-1-sync-event-envelope-integrity", text: "3.1 Sync & event-envelope integrity", level: 3}
+    - {slug: "3-2-consent-identity-boundary", text: "3.2 Consent & identity boundary", level: 3}
+    - {slug: "3-3-auth-token-lifecycle", text: "3.3 Auth & token lifecycle", level: 3}
+    - {slug: "3-4-hosted-rollout-readiness-gating", text: "3.4 Hosted rollout & readiness gating", level: 3}
+    - {slug: "4-known-gaps", text: "4. Known gaps", level: 2}
+    - {slug: "5-release-scoped-view-the-what-ships-when", text: "5. Release-scoped view (the \"what ships when\")", level: 2}
+    - {slug: "6-cross-references", text: "6. Cross-references", level: 2}
   - path: "docs/plans/testing/ci-coverage-gate-tuning.md"
     title: "CI Coverage Gate — Tuning Notes"
     divio_type: "none"
@@ -12417,6 +12418,19 @@ pages:
     - {slug: "related-documentation", text: "Related Documentation", level: 2}
     - {slug: "coverage-collection-strategy", text: "Coverage Collection Strategy", level: 2}
     - {slug: "key-benefits", text: "Key Benefits", level: 2}
+  - path: "docs/plans/testing/test-change-coupling-caacs.md"
+    title: "CaaCS: test↔production change-coupling analysis"
+    divio_type: "none"
+    abstract: "Change-coupling-as-a-code-smell mining of the architectural + core test suites to rank refactor-fragile tests for revision/rewrite/deletion."
+    anchors:
+    - {slug: "method", text: "Method", level: 2}
+    - {slug: "architectural-tests-the-hit-list", text: "Architectural tests — the hit-list", level: 2}
+    - {slug: "verdicts", text: "Verdicts", level: 2}
+    - {slug: "rewrite-replace-highest-tax-inherently-shape-coupled", text: "🔴 Rewrite / replace — highest tax, inherently shape-coupled", level: 3}
+    - {slug: "harden-the-drift-proof-key-the-fix-already-exists-propagate-it", text: "🟠 Harden the drift-proof key — the fix already exists, propagate it", level: 3}
+    - {slug: "audit-the-ratio-1-00-cluster-keep-if-behavioural-else-convert", text: "🟡 Audit the `ratio = 1.00` cluster — keep-if-behavioural, else convert", level: 3}
+    - {slug: "leave-expected-coupling", text: "🟢 Leave — expected coupling", level: 3}
+    - {slug: "recommended-sequence", text: "Recommended sequence", level: 2}
   - path: "docs/plans/testing/test-suite-acceleration-plan.md"
     title: "Test Suite Acceleration — Final Remediation Plan"
     divio_type: "none"
@@ -12574,7 +12588,15 @@ pages:
     - {slug: "acceptance-scenarios", text: "Acceptance Scenarios", level: 2}
     - {slug: "design-decisions", text: "Design Decisions", level: 2}
     - {slug: "product-alignment", text: "Product Alignment", level: 2}
-  - path: "docs/plans/user_journey/README.md"
+  - path: "docs/plans/user_journey/evaluation.md"
+    title: "2.x User Journey Evaluation"
+    divio_type: "none"
+    abstract: "Evaluation (2026-02-28) of the 2.x user journeys: how well they cover the intended scenarios and where the coverage gaps are."
+    anchors:
+    - {slug: "scope", text: "Scope", level: 2}
+    - {slug: "assessment", text: "Assessment", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+  - path: "docs/plans/user_journey/index.md"
     title: "Spec Kitty Architecture: User Journeys"
     divio_type: "none"
     abstract: "Landing page for the Spec Kitty architecture user journeys: end-to-end narratives that drive the evolution and refinement of the system."
@@ -12586,14 +12608,6 @@ pages:
     - {slug: "index", text: "Index", level: 2}
     - {slug: "relationship-to-other-architecture-artifacts", text: "Relationship to Other Architecture Artifacts", level: 2}
     - {slug: "evaluation", text: "Evaluation", level: 2}
-  - path: "docs/plans/user_journey/evaluation.md"
-    title: "2.x User Journey Evaluation"
-    divio_type: "none"
-    abstract: "Evaluation (2026-02-28) of the 2.x user journeys: how well they cover the intended scenarios and where the coverage gaps are."
-    anchors:
-    - {slug: "scope", text: "Scope", level: 2}
-    - {slug: "assessment", text: "Assessment", level: 2}
-    - {slug: "decision", text: "Decision", level: 2}
   - path: "docs/plans/user_journey/init-doctrine-flow.md"
     title: "Init and Project Charter — User Journey"
     divio_type: "none"

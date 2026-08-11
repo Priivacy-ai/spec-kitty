@@ -554,14 +554,18 @@ def test_live_plans_research_and_investigations_pass_clean() -> None:
 
 
 def test_live_nav_basenames_do_not_trip_shadow_tree() -> None:
-    """The 38 index.md / 38 README.md nav basenames never trip shadow_tree."""
+    """The index.md / README.md nav basenames never trip shadow_tree."""
     config = load_config(STYLEGUIDE_PATH)
     docs_root = _REPO_ROOT / "docs"
     md_files = sorted(docs_root.rglob("*.md"))
     index_count = sum(1 for p in md_files if p.name == "index.md")
     readme_count = sum(1 for p in md_files if p.name == "README.md")
     assert index_count >= 30  # 38 per research.md D2
-    assert readme_count >= 30  # 38 per research.md D2
+    # Floor lowered 2026-08-11: the docs/plans landing-file standardization
+    # (README.md -> index.md, plus one redirect-stub removal) intentionally shrank
+    # the README nav cohort by 4. The substantive guard below (no shadow_tree
+    # violations) is unaffected; this floor only guards against wholesale loss.
+    assert readme_count >= 25
 
     violations = check_shadow_tree_basename(md_files, docs_root, _REPO_ROOT, config)
 
