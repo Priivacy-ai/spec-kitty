@@ -384,6 +384,11 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   return contradictory verdicts on the same file — is also unified into a single
   authority.
 
+- **`agent mission create --start-branch` now works from a caller-owned linked
+  worktree without touching the primary checkout (`#2739`).** Mission creation
+  keeps its scaffold and first metadata commit on the already-selected planning
+  branch, while Spec Kitty coordination and lane worktrees remain blocked from
+  spawning nested missions.
 - **Two blocking CI gates now reflect what a PR actually changed (mission
   `ci-scoping-gate-reliability`; `#3008`, `#3147`).** _Corpus data no longer ships
   unguarded (`#3008`):_ a PR that changed only non-source corpus data — shipped

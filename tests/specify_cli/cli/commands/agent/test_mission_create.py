@@ -486,6 +486,40 @@ def test_create_from_external_worktree_keeps_primary_checkout_untouched(
     assert _git(repo, "show", f"{task_branch}:{mission_rel}/meta.json").stdout
 
 
+def test_create_from_managed_lane_worktree_remains_forbidden(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The external-worktree allowance must not admit Spec Kitty lane worktrees."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    _commit_project_scaffold(repo)
+
+    lane_worktree = repo / ".worktrees" / "existing-lane"
+    lane_worktree.parent.mkdir()
+    lane_branch = "kitty/mission-existing-01KZRABC-lane-a"
+    _git(repo, "worktree", "add", "-b", lane_branch, str(lane_worktree), "main")
+
+    monkeypatch.chdir(lane_worktree)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(lane_worktree))
+    runner = CliRunner()
+    result = runner.invoke(
+        mission_app,
+        [
+            "create",
+            "nested-mission",
+            "--json",
+            *_mission_summary_args("Nested Mission"),
+        ],
+    )
+
+    assert result.exit_code != 0
+    payload = _json_payload_from_output(result.output)
+    assert "Cannot create missions from inside a worktree" in str(payload["error"])
+    assert not list((lane_worktree / "kitty-specs").glob("nested-mission-*"))
+
+
 def test_create_on_primary_branch_still_defaults_to_coord(tmp_path: Path) -> None:
     """Non-regression: a primary-branch create with no ``--topology`` still gets ``coord``."""
     _init_repo(tmp_path)

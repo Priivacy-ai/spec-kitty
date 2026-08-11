@@ -7,7 +7,7 @@ command ``create()`` is a thin wrapper around this function.
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
 import contextlib
 import logging
 import re
@@ -18,17 +18,31 @@ from typing import Any
 
 from ulid import ULID
 
-from mission_runtime import MissionArtifactKind, MissionTopology, placement_seam
+from mission_runtime import (
+    MissionArtifactKind,
+    MissionTopology,
+    resolve_write_target_or_degrade,
+)
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.git_ops import get_current_branch, is_git_repo
 from specify_cli.core.mission_payload import (
     default_mission_display_name,
     default_mission_purpose_context,
 )
-from specify_cli.core.paths import is_worktree_context, locate_project_root
+from specify_cli.core.paths import (
+    get_main_repo_root,
+    is_worktree_context,
+    locate_project_root,
+    resolve_mission_creation_root,
+)
 from kernel.clock import now_utc_iso
 from specify_cli.git import safe_commit
-from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8
+from specify_cli.lanes.branch_naming import (
+    is_lane_branch,
+    is_mission_branch,
+    mission_dir_name,
+    resolve_mid8,
+)
 from specify_cli.mission_metadata import load_meta_or_empty, validate_purpose_summary
 
 logger = logging.getLogger(__name__)
@@ -157,6 +171,7 @@ def _commit_feature_file(
     mission_slug: str,
     artifact_type: str,
     repo_root: Path,
+    planning_branch: str,
 ) -> None:
     """Commit a single planning artifact to its seam-resolved primary home.
 
@@ -165,7 +180,7 @@ def _commit_feature_file(
     when there is nothing to commit.
 
     coord-primary-partition-lock WP02 (T007 / C-001 / C-006): the commit
-    destination is derived from ``placement_seam(...).write_target(SPEC)``,
+    destination is derived from the shared placement/degrade authority,
     NOT from the operator's current checkout. Pre-fix this constructed
     ``CommitTarget(ref=current_branch)`` directly, which is the create-time
     split-brain root (research.md D5) -- under a coord-routing mission whose
@@ -187,7 +202,18 @@ def _commit_feature_file(
     # plans on a protected branch, WP05's placement projection routes the
     # commit; this caller does not duplicate that decision (T010).
     commit_msg = f"Add {artifact_type} for feature {mission_slug}"
-    seam_target = placement_seam(repo_root, mission_slug).write_target(MissionArtifactKind.SPEC)
+    # A mission created in a caller-owned linked worktree is not visible from
+    # the canonical primary checkout until its first commit.  Resolve against
+    # that primary surface so the shared bootstrap-window helper degrades to
+    # the explicit planning branch instead of silently falling back to the
+    # repository's default branch.  Once metadata is visible on the primary
+    # surface, the same helper delegates to the normal placement authority.
+    seam_target = resolve_write_target_or_degrade(
+        get_main_repo_root(repo_root),
+        mission_slug,
+        MissionArtifactKind.SPEC,
+        degrade_ref=planning_branch,
+    )
     safe_commit(
         repo_root=repo_root,
         worktree_root=repo_root,
@@ -201,6 +227,26 @@ def _commit_feature_file(
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
+
+def _is_safe_external_creation_worktree(
+    cwd: Path,
+    resolved_root: Path,
+    current_branch: str,
+) -> bool:
+    """Return whether ``cwd`` is a caller-owned, non-mission worktree.
+
+    Spec Kitty coordination and lane worktrees remain invalid creation
+    contexts: their branch and directory conventions prove that they already
+    belong to another mission.  A linked worktree on an ordinary branch is a
+    safe planning checkout when the resolved write root is that same checkout.
+    """
+    checkout_root = resolved_root.resolve()
+    if cwd != checkout_root and checkout_root not in cwd.parents:
+        return False
+    if WORKTREES_DIR in checkout_root.parts:
+        return False
+    return not (is_lane_branch(current_branch) or is_mission_branch(current_branch))
 
 
 def create_mission_core(
@@ -310,14 +356,22 @@ def create_mission_core(
     # 2. Context guards
     # ------------------------------------------------------------------
     cwd = Path.cwd().resolve()
-    if not allow_worktree_context and is_worktree_context(cwd):
-        raise MissionCreationError("Cannot create missions from inside a worktree. Run from the project root checkout.")
-
-    resolved_root = repo_root
-    if resolved_root is None:
-        resolved_root = locate_project_root()
+    project_root = repo_root if repo_root is not None else locate_project_root()
+    resolved_root = resolve_mission_creation_root(project_root, cwd)
     if resolved_root is None:
         raise MissionCreationError("Could not locate project root. Run from within spec-kitty repository.")
+
+    in_worktree = is_worktree_context(cwd)
+    checkout_root = resolved_root.resolve()
+    if (
+        not allow_worktree_context
+        and in_worktree
+        and cwd != checkout_root
+        and checkout_root not in cwd.parents
+    ):
+        raise MissionCreationError(
+            "Cannot create missions from inside a worktree. Run from the project root checkout."
+        )
 
     if not is_git_repo(resolved_root):
         raise MissionCreationError("Not in a git repository. Mission creation requires git.")
@@ -325,6 +379,14 @@ def create_mission_core(
     current_branch = get_current_branch(resolved_root)
     if not current_branch or current_branch == "HEAD":
         raise MissionCreationError("Must be on a branch to create missions (detached HEAD detected).")
+    if (
+        not allow_worktree_context
+        and in_worktree
+        and not _is_safe_external_creation_worktree(cwd, resolved_root, current_branch)
+    ):
+        raise MissionCreationError(
+            "Cannot create missions from inside a worktree. Run from the project root checkout."
+        )
 
     # ------------------------------------------------------------------
     # 3. Resolve planning branch
@@ -518,7 +580,13 @@ def create_mission_core(
 
     write_meta(feature_dir, meta)
     with contextlib.suppress(Exception):
-        _commit_feature_file(meta_file, mission_slug_formatted, "meta", resolved_root)
+        _commit_feature_file(
+            meta_file,
+            mission_slug_formatted,
+            "meta",
+            resolved_root,
+            planning_branch,
+        )
 
     # ------------------------------------------------------------------
     # 7. Documentation state (if applicable)
@@ -536,7 +604,13 @@ def create_mission_core(
             }
             set_documentation_state(feature_dir, doc_state)
         with contextlib.suppress(Exception):
-            _commit_feature_file(meta_file, mission_slug_formatted, "meta", resolved_root)
+            _commit_feature_file(
+                meta_file,
+                mission_slug_formatted,
+                "meta",
+                resolved_root,
+                planning_branch,
+            )
 
     # ------------------------------------------------------------------
     # 8. Event emission

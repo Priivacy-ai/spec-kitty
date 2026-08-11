@@ -11,6 +11,7 @@ from specify_cli.core.paths import (
     get_main_repo_root,
     locate_project_root,
     is_worktree_context,
+    resolve_mission_creation_root,
     resolve_with_context,
     check_broken_symlink,
     require_explicit_feature,
@@ -143,6 +144,53 @@ def test_locate_project_root_from_external_worktree_pointer(tmp_path: Path) -> N
     )
 
     assert locate_project_root(external_wt) == main_repo
+
+
+def test_resolve_mission_creation_root_selects_related_external_worktree(
+    tmp_path: Path,
+) -> None:
+    """Mission creation writes to the caller's related linked checkout."""
+    main_repo = tmp_path / "main-repo"
+    gitdir = main_repo / ".git" / "worktrees" / "external-wt"
+    gitdir.mkdir(parents=True)
+    (main_repo / ".kittify").mkdir()
+
+    external_wt = tmp_path / "external-wt"
+    nested = external_wt / "src" / "nested"
+    nested.mkdir(parents=True)
+    (external_wt / ".kittify").mkdir()
+    (external_wt / ".git").write_text(f"gitdir: {gitdir}\n", encoding="utf-8")
+
+    assert resolve_mission_creation_root(main_repo, nested) == external_wt
+
+
+def test_resolve_mission_creation_root_keeps_unrelated_explicit_root(
+    tmp_path: Path,
+) -> None:
+    """A programmatic root is not replaced by an unrelated process checkout."""
+    explicit_root = tmp_path / "explicit-repo"
+    (explicit_root / ".git").mkdir(parents=True)
+    (explicit_root / ".kittify").mkdir()
+
+    other_main = tmp_path / "other-repo"
+    other_gitdir = other_main / ".git" / "worktrees" / "other-wt"
+    other_gitdir.mkdir(parents=True)
+    (other_main / ".kittify").mkdir()
+    other_wt = tmp_path / "other-wt"
+    other_wt.mkdir()
+    (other_wt / ".kittify").mkdir()
+    (other_wt / ".git").write_text(f"gitdir: {other_gitdir}\n", encoding="utf-8")
+
+    assert resolve_mission_creation_root(explicit_root, other_wt) == explicit_root
+
+
+def test_resolve_mission_creation_root_keeps_unprovisioned_explicit_root(
+    tmp_path: Path,
+) -> None:
+    """A missing project marker must not trigger ambient checkout discovery."""
+    explicit_root = tmp_path / "unprovisioned-repo"
+
+    assert resolve_mission_creation_root(explicit_root, Path.cwd()) == explicit_root.resolve()
 
 
 def test_get_main_repo_root_ignores_non_worktree_git_file(tmp_path: Path) -> None:
