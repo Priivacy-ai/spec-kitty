@@ -9040,6 +9040,7 @@ pages:
     - {slug: "deferred-set-neither-channel-48-20", text: "Deferred set (neither channel) — 48 → 20", level: 3}
     - {slug: "reconciliation-note-the-50-vs-60-39-39-stale-prose-wp03-d19", text: "Reconciliation note — the \"50 vs 60\" / \"39→39\" stale prose (WP03, D19)", level: 3}
     - {slug: "writing-comms-diagramming-activation-commit-9a99801f1-3009-profile-channel-rescues-6", text: "Writing-comms/diagramming activation (commit `9a99801f1`, #3009) — profile-channel rescues +6", level: 3}
+    - {slug: "mission-drg-reachability-metric-wiring-01kzs5vr-wp01-3009-point-3-profile-channel-rescue-1-10", text: "Mission `drg-reachability-metric-wiring-01KZS5VR` (WP01, #3009 point 3) — profile-channel rescue +1 / -10", level: 3}
     - {slug: "composition-ledger-nfr-004-counts-this-wp-moves", text: "Composition ledger (NFR-004) — counts this WP moves", level: 2}
     - {slug: "composition-ledger-nfr-004-family-a-3063-ddd-family", text: "Composition ledger (NFR-004) — Family A (#3063 DDD family)", level: 2}
     - {slug: "family-b-3063-refactoring-family-operator-interview-outcome-inert-composition-only", text: "Family B (#3063 REFACTORING family) — operator interview outcome, INERT (composition-only)", level: 2}
@@ -9069,6 +9070,11 @@ pages:
     - {slug: "composition-ledger-nfr-004-family-e-3063-analysis-terminology-reasons-canvas-family", text: "Composition ledger (NFR-004) — Family E (#3063 ANALYSIS / TERMINOLOGY / REASONS-CANVAS family)", level: 2}
     - {slug: "family-f-3063-orphan-governance-directives-operator-interview-outcome-accept-no-edges-authored", text: "Family F (#3063 ORPHAN GOVERNANCE DIRECTIVES) — operator interview outcome, ACCEPT (no edges authored)", level: 2}
     - {slug: "composition-ledger-nfr-004-mission-rehome-writing-comms-doctrine-01kz9v0s-wp04", text: "Composition ledger (NFR-004) — mission `rehome-writing-comms-doctrine-01KZ9V0S` (WP04)", level: 2}
+    - {slug: "composition-ledger-nfr-002-nfr-004-reachability-companion-metric-mission-drg-reachability-metric-wiring-01kzs5vr-wp01-3009-point-3", text: "Composition ledger (NFR-002/NFR-004) — reachability companion metric (mission `drg-reachability-metric-wiring-01KZS5VR`, WP01, #3009 point 3)", level: 2}
+    - {slug: "the-six-curated-edges-curated-artifact-edges-src-doctrine-drg-migration-extractor-py", text: "The six curated edges (`_CURATED_ARTIFACT_EDGES`, `src/doctrine/drg/migration/extractor.py`)", level: 3}
+    - {slug: "the-companion-metric-moves-action-unreachable-shipped-88-75", text: "The companion metric moves: `_ACTION_UNREACHABLE_SHIPPED` 88 → 75", level: 3}
+    - {slug: "c-003-verification-no-new-residual-defect-member", text: "C-003 verification — no new residual/defect member", level: 3}
+    - {slug: "activated-only-action-pins-action-unreachable-d1-d2-action-d1-d2-spread", text: "Activated-only action pins (`_ACTION_UNREACHABLE_D1`/`_D2`, `_ACTION_D1_D2_SPREAD`)", level: 3}
   - path: "docs/plans/doctrine/doctrine-artifact-selection-preflight.md"
     title: "Pre-flight investigation — user-authored doctrine artifact selection"
     divio_type: "none"
