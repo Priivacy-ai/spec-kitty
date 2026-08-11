@@ -640,18 +640,12 @@ def load_meta_fail_closed(feature_dir: Path) -> dict[str, Any] | None:
 
     This is the single place that owns the field-absent vs read-failure
     decision.  Every fail-closed ``meta.json`` reader delegates here; there is
-    deliberately **no** second authority (FR-007 / #3140).  The malformed
-    *definition* is owned by the L1 kernel primitive
-    :func:`kernel.meta_decode.decode_meta`; this function adds only the typed
+    deliberately **no** second authority (FR-007 / #3140).  The canonical
+    *parser* remains :func:`specify_cli.mission_metadata.load_meta` -- which
+    itself delegates the malformed *definition* to the L1 kernel primitive
+    :func:`kernel.meta_decode.decode_meta` -- this function adds only the typed
     fail-closed **contract** on top of it, so a corrupt ``meta.json`` never
     surfaces a raw :class:`ValueError` to a caller.
-
-    L3 decodes via kernel L1 **directly** (not via
-    :func:`specify_cli.mission_metadata.load_meta`), which removes the former
-    ``core.paths -> mission_metadata`` back-edge and relieves the deferred-import
-    cycle. L3 treats an empty file as corrupt (``decode_meta`` on ``b""`` raises,
-    which the wrap below converts to :class:`MissionMetaReadError`) -- it does
-    not want L2's ``empty -> benign`` short-circuit.
 
     Callers that must stay deliberately silent about corruption (placement
     probes, best-effort displays) keep using
@@ -670,22 +664,23 @@ def load_meta_fail_closed(feature_dir: Path) -> dict[str, Any] | None:
         MissionMetaReadError: When meta.json exists but is corrupt, non-object,
             or unreadable.  Never raised for a missing file.
     """
-    # Kernel L1 (``kernel.meta_decode``) is import-safe at module level -- it is
-    # the zero-dependency root and does not import back into ``core.paths``, so
-    # (unlike the former ``mission_metadata.load_meta`` back-edge) it forms no
-    # cycle. Imported in-function only to keep the decode local to this reader.
-    from kernel.meta_decode import decode_meta  # noqa: PLC0415
+    # Deferred import (LOAD-BEARING -- do NOT hoist to module level): core.paths
+    # is loaded very early; mission_metadata imports back from core (e.g.
+    # safe_mission_slug), so a module-level import re-forms the
+    # ``core.paths <-> mission_metadata`` circular import (research.md D4).
+    # Publishing this function (FR-007) does not change that -- the import
+    # stays in-function. ``mission_metadata.load_meta`` itself routes the
+    # malformed decode through the kernel L1 seam
+    # (:func:`kernel.meta_decode.decode_meta`), so this delegation introduces
+    # no new ``json.loads`` call site (FR-010).
+    from specify_cli.mission_metadata import load_meta  # noqa: PLC0415
 
     meta_path = feature_dir / "meta.json"
-    if not meta_path.exists():
-        return None  # field-absent case -- never a read failure
     try:
-        # read_bytes -> kernel L1's explicit utf-8 decode. A read failure
-        # (OSError) or a malformed decode (MetaDecodeError, a ValueError) both
-        # land in the fail-closed wrap below.
-        raw = meta_path.read_bytes()
-        return decode_meta(raw, on_malformed="raise")
-    except (ValueError, OSError) as exc:
+        # allow_missing=True  -> None when file is absent (field-absent case)
+        # on_malformed="raise" -> ValueError when file exists but is corrupt
+        return load_meta(feature_dir, allow_missing=True, on_malformed="raise")
+    except ValueError as exc:
         raise MissionMetaReadError(meta_path, exc) from exc
 
 
