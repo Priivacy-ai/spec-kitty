@@ -2,15 +2,23 @@
 title: Claude Code + Spec Kitty Integration Guide
 description: 'Tutorial for Claude Code + Spec Kitty Integration Guide in Spec Kitty 3.2: Claude Code + Spec Kitty Integration Guide.'
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-08-11'
 type: tutorial
 audience: docs/context/audience/external/project-owner.md
 related:
 - docs/guides/tutorials/getting-started.md
+- docs/guides/tutorials/claude-code-workflow.md
 ---
 # Claude Code + Spec Kitty Integration Guide
 
 **Complete workflow for using Spec Kitty with Claude Code CLI**
+
+![Claude Code integration - Mission Kitty splash](../../assets/images/claude-code-integration-mission-kitty.png)
+
+_Stylized splash — the slash-command board is decorative. The opinionated workflow phases are in the sections below._
+
+> [!TIP]
+> For CLI prompt launch, worktree lanes, and dashboard lockstep, see [Claude Code Workflow](claude-code-workflow.md).
 
 ## Why Claude Code + Spec Kitty?
 
