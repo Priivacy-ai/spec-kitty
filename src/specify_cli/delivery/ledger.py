@@ -178,10 +178,8 @@ class SqliteDeliveryLedger:
         return int(cast("str | int | float | bytes", row[0]))
 
     def _attempt_rows(self) -> list[DeliveryAttemptProjection]:
-        return cast(
-            "list[DeliveryAttemptProjection]",
-            list_delivery_attempt_projections(self._unit),
-        )
+        rows: list[DeliveryAttemptProjection] = list_delivery_attempt_projections(self._unit)
+        return rows
 
     def _result_for_attempt(self, attempt_id: str) -> tuple[str | None, str | None, str | None]:
         rows = self._unit.execute(
