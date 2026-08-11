@@ -61,7 +61,9 @@ owned_files:
 - src/specify_cli/sync/emitter.py
 - src/specify_cli/sync/events.py
 - src/specify_cli/sync/runtime_event_emitter.py
+- src/specify_cli/sync/consent.py
 - src/specify_cli/sync/transport_attempts.py
+- src/specify_cli/sync/transport_lease.py
 - src/specify_cli/sync/body_transport.py
 - src/specify_cli/sync/body_upload.py
 - src/specify_cli/sync/dossier_pipeline.py
@@ -102,6 +104,7 @@ owned_files:
 - tests/sync/test_saas_refusal_parking.py
 - tests/sync/test_sender_context_convergence.py
 - tests/sync/test_transport_attempt_recovery.py
+- tests/sync/test_transport_orphan_settlement.py
 - tests/sync/test_client_integration.py
 - tests/sync/test_events.py
 - tests/sync/test_runtime_event_emitter.py
@@ -226,6 +229,8 @@ consent, request-wide generations, query-token WebSocket auth, generic retry of
 typed refusal, or a tracker permission used as a hosted-sync grant.
 
 ## Activity Log
+
+- 2026-08-11T17:37:41Z – codex – Reopened the approved WP07/WP06 boundary after WP09's public ten-family revocation matrix proved that neither explicit opt-out entry point called the existing durable settlement seam. The first correction persisted refusal before waiting and therefore prevented a sender that already owned the transport lease from recording its genuine result. The independently reviewed correction at `2f159fcc2cee9f609d7904fee4e80f3ea233c1e9` now owns one continuous project lease across refusal and settlement; a sender that started first records delivered/duplicate/refused/timeout before revocation, a pause-before-start is canceled with zero I/O, and a bounded hung holder is fenced terminal-unknown. The live-lease registry now binds identity to exact project and canonical lock path, with durable cross-project/wrong-path/stale-context rejection, and synthetic terminal-unknown results preserve the attempt's target/admission generations. Sequential ownership is narrowly extended from WP03/WP06 to `sync/consent.py`, `sync/transport_lease.py`, and the canonical orphan-settlement regression; prior authorities and schemas are unchanged. Independent evidence: 84 revocation, 104 refusal/adapter, and 34 orphan/result-lease tests passed; Ruff check/format, strict mypy, and diff-check passed. No merge, deployment, historical cohort access, or lifecycle approval occurred.
 
 - 2026-08-11T16:00:00Z – codex – Corrected the final RFC3339 parity edge identified by narrow re-review: the pinned `jsonschema` `FormatChecker` accepts lowercase `t` and `z`. The one shared validator now admits `[Tt]` and `[Zz]`, normalizes only a private parsing copy, and returns the original timestamp unchanged. A live parity table and full LocalCommit delivery controls cover normal `T`/`Z`, numeric offset, lowercase `t`, lowercase `z`, and lowercase `tz`; each valid wire is transmitted unchanged, receives an accepted Ack, records terminal success, and removes only the exact pending row. Naive, space-separated, and impossible calendar forms remain rejected; invalid writes create zero attempt/zero I/O, and invalid Acks remain UNKNOWN with their queue row intact. Pinned SaaS `e8bc840f` schema parity passed the same table. Final evidence: focused gate 75 passed with 48 unrelated nodes deselected; broad gate 360 passed and one intentional live-server skip; strict mypy passed seven changed source modules; Ruff check/format passed all 15 changed Python files; diff check passed; ownership is 16/16. No commit, lifecycle, merge, or remote state changed.
 
