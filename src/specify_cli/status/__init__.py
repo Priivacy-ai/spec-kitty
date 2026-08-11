@@ -138,6 +138,9 @@ from .wp_metadata import (
     read_authored_wp_frontmatter,
     read_wp_frontmatter,
 )
+from .wp_status_metadata import (
+    WPStatusChangeMetadata,
+)
 from .wp_review import (
     resolve_event_stream_review,
     resolve_snapshot_review,
@@ -475,6 +478,7 @@ __all__ = [
     "fire_dossier_sync",
     "fire_resolved_binding_fanout",
     "fire_saas_fanout",
+    "WPStatusChangeMetadata",
     "read_events",
     "read_events_from_text",
     "read_events_raw",

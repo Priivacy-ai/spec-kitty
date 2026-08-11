@@ -104,7 +104,7 @@ def _send_to_saas(
     structured ``StatusEvent`` need only pass it through.
     """
     from specify_cli.status import fire_saas_fanout  # noqa: PLC0415
-    from specify_cli.sync.events import WPStatusChangeMetadata  # noqa: PLC0415
+    from specify_cli.status import WPStatusChangeMetadata  # noqa: PLC0415
 
     _ = repo_root
     fire_saas_fanout(
