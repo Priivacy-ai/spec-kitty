@@ -407,6 +407,9 @@ edges:
   target: directive:DIRECTIVE_048
   relation: requires
 - source: agent_profile:lexical-larry
+  target: procedure:glossary-maintenance-workflow
+  relation: suggests
+- source: agent_profile:lexical-larry
   target: tactic:context-boundary-inference
   relation: requires
   reason: Exposes vocabulary ownership conflicts between bounded contexts as a diagnostic input
@@ -429,6 +432,9 @@ edges:
   relation: requires
 - source: agent_profile:minutes-maker-mahad
   target: directive:DIRECTIVE_050
+  relation: requires
+- source: agent_profile:minutes-maker-mahad
+  target: procedure:meeting-minutes-pipeline
   relation: requires
 - source: agent_profile:node-norris
   target: agent_profile:implementer-ivan
@@ -676,6 +682,9 @@ edges:
   reason: Heavy test setup signals duplicated, IO-coupled code paths and a missing seam — extract one pure boundary and collapse the variants.
 - source: agent_profile:researcher-robbie
   target: directive:DIRECTIVE_003
+  relation: requires
+- source: agent_profile:researcher-robbie
+  target: procedure:spike-timebox-policy
   relation: requires
 - source: agent_profile:retrospective-facilitator
   target: directive:DIRECTIVE_003

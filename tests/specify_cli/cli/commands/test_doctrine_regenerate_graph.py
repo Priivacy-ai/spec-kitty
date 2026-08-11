@@ -110,6 +110,17 @@ def _graph_files(doctrine_dir: Path) -> list[Path]:
 #: applied via ``spec-kitty charter pack apply minimal``) — it is structurally a
 #: charter pack, not a generic doctrine asset. The asset node is gone from the DRG,
 #: reverting the ceiling **22 -> 21**. Full narrative in ``drg-orphan-residual.md``.
+#:
+#: Mission drg-reachability-metric-wiring-01KZS5VR (WP01, #3009 point 3): the six
+#: curated edges de-orphan three pure-extractor nodes (``directive:RECONCILE_
+#: CHANGE_SCOPE_TENSIONS``, ``directive:DISCIPLINED_REFACTORING``,
+#: ``directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY`` — see
+#: ``tests/doctrine/drg/migration/test_extractor_projection.py`` ledger entry
+#: 19), but all three were ALREADY resolved by the hand-authored overlay in the
+#: *shipped* graph, so ``_orphan_urns(load_built_in_graph())`` measures
+#: UNCHANGED at 21 — verified empirically, not assumed. The ceiling is already
+#: tight (no leftover slack) both before and after this wiring; it is NOT
+#: ratcheted, because there is nothing to ratchet down to.
 DOCUMENTED_ORPHAN_RESIDUAL = 21
 
 
