@@ -53,6 +53,7 @@ class StoreSite:
     lineno: int
     callee: str
     read_only: bool = False
+    migration_scratch: bool = False
 
     @property
     def key(self) -> str:
@@ -82,6 +83,11 @@ def _connection_is_read_only(node: ast.Call) -> bool:
     target = ast.unparse(node.args[0]).lower()
     uri_true = any(keyword.arg == "uri" and _literal_true(keyword.value) for keyword in node.keywords)
     return uri_true and ("mode=ro" in target or "immutable=1" in target)
+
+
+def _connection_is_migration_scratch(node: ast.Call) -> bool:
+    """Recognize only WP10's named disposable physical-copy destinations."""
+    return bool(node.args) and isinstance(node.args[0], ast.Name) and node.args[0].id in {"physical_copy", "snapshot"}
 
 
 def _target_names(targets: list[ast.expr]) -> set[str]:
@@ -252,6 +258,7 @@ class _StoreVisitor(ast.NodeVisitor):
         *,
         callee: str,
         read_only: bool = False,
+        migration_scratch: bool = False,
     ) -> None:
         self.sites.append(
             StoreSite(
@@ -261,6 +268,7 @@ class _StoreVisitor(ast.NodeVisitor):
                 getattr(node, "lineno", 0),
                 callee,
                 read_only,
+                migration_scratch,
             )
         )
 
@@ -316,6 +324,7 @@ class _StoreVisitor(ast.NodeVisitor):
                 SiteKind.SQLITE_CONNECT,
                 callee=_callee_text(func),
                 read_only=_connection_is_read_only(node),
+                migration_scratch=_connection_is_migration_scratch(node),
             )
         if isinstance(func, ast.Attribute) and func.attr == "commit":
             self._record(node, SiteKind.COMMIT, callee=_callee_text(func))
@@ -606,6 +615,8 @@ def classify_store_site(
     reachability = "Typer command entry point" if decorated_command else f"{references} qualified source call(s) to {symbol}"
     if site.kind is SiteKind.SQLITE_CONNECT and site.read_only:
         return SiteDisposition(SiteCategory.LEGACY_READ_ONLY, "WP10", reachability)
+    if site.kind is SiteKind.SQLITE_CONNECT and site.migration_scratch:
+        return SiteDisposition(SiteCategory.LEGACY_MIGRATION, "WP10", reachability)
     if site.relpath == "specify_cli/sync/migrate_journal.py" or (site.relpath == "specify_cli/sync/queue.py" and "_migrate_" in site.qualname):
         return SiteDisposition(SiteCategory.LEGACY_MIGRATION, "WP10", reachability)
     if _is_canonical_project_store_site(site):
@@ -764,9 +775,24 @@ _CANONICAL_STORE_SITE_COUNTS: Counter[str] = Counter(
     }
 )
 
+_WP10_READ_ONLY_MIGRATION_SITE_COUNTS: Counter[str] = Counter(
+    {
+        "specify_cli/sync/project_store_migration.py::_snapshot_source::sqlite_connect": 2,
+        "specify_cli/sync/project_store_migration.py::_read_logical_snapshot::sqlite_connect": 1,
+    }
+)
+
 
 def _is_canonical_project_store_site(site: StoreSite) -> bool:
     return site.relpath == "specify_cli/sync/project_store.py" and site.qualname == "ProjectSyncStore.unit_of_work"
+
+
+def _is_wp10_read_only_migration_site(site: StoreSite) -> bool:
+    return (
+        site.relpath == "specify_cli/sync/project_store_migration.py"
+        and site.kind is SiteKind.SQLITE_CONNECT
+        and (site.qualname == "_snapshot_source" and (site.read_only or site.migration_scratch) or site.qualname == "_read_logical_snapshot" and site.read_only)
+    )
 
 
 def final_project_store_violations(
@@ -777,7 +803,8 @@ def final_project_store_violations(
     for site in sites:
         exact_uow = _is_canonical_project_store_site(site)
         exact_read_only_migration = site.relpath == "specify_cli/sync/project_store_migration.py" and site.kind is SiteKind.SQLITE_CONNECT and site.read_only
-        if not (exact_uow or exact_read_only_migration):
+        exact_migration_scratch = _is_wp10_read_only_migration_site(site) and site.migration_scratch
+        if not (exact_uow or exact_read_only_migration or exact_migration_scratch):
             violations.append(site)
     return tuple(violations)
 
@@ -786,7 +813,14 @@ def test_current_store_census_cannot_grow_and_every_site_has_evidence() -> None:
     sites = scan_store_sites()
     canonical = Counter(site.key for site in sites if _is_canonical_project_store_site(site))
     assert canonical == _CANONICAL_STORE_SITE_COUNTS, "the canonical store must own one connection, one bootstrap commit, and one outer commit"
-    observed = Counter(site.key for site in sites if not _is_canonical_project_store_site(site))
+    migration = Counter(site.key for site in sites if _is_wp10_read_only_migration_site(site))
+    assert migration == _WP10_READ_ONLY_MIGRATION_SITE_COUNTS, (
+        "WP10 must retain one read-only logical-snapshot connection and two named disposable physical-copy/backup connections"
+    )
+    migration_sites = [site for site in sites if _is_wp10_read_only_migration_site(site)]
+    assert sum(site.read_only for site in migration_sites) == 1
+    assert sum(site.migration_scratch for site in migration_sites) == 2
+    observed = Counter(site.key for site in sites if not _is_canonical_project_store_site(site) and not _is_wp10_read_only_migration_site(site))
     growth = observed - _KNOWN_SITE_COUNTS
     assert not growth, "new direct store ownership sites:\n" + "\n".join(f"{key} (+{count})" for key, count in sorted(growth.items()))
     assert set(observed) >= _KNOWN_LIVE_FLOOR

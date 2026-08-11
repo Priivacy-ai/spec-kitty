@@ -110,12 +110,8 @@ def _enable_now_machinery(monkeypatch: pytest.MonkeyPatch) -> None:
     exercise the additive event-sync dispatch path in isolation."""
     monkeypatch.setenv(SAAS_SYNC_ENV_VAR, "1")
     monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: True)
-    monkeypatch.setattr(
-        sync_command, "enforce_teamspace_mission_state_ready", lambda **_: None
-    )
-    monkeypatch.setattr(
-        "specify_cli.sync.preflight.run_preflight", lambda **_: _OkPreflight()
-    )
+    monkeypatch.setattr(sync_command, "enforce_teamspace_mission_state_ready", lambda **_: None)
+    monkeypatch.setattr("specify_cli.sync.preflight.run_preflight", lambda **_: _OkPreflight())
 
     class _EmptyQueue:
         def size(self) -> int:
@@ -129,9 +125,7 @@ def _enable_now_machinery(monkeypatch: pytest.MonkeyPatch) -> None:
             # entry point and never runs the destructive legacy event drain.
             return None
 
-    monkeypatch.setattr(
-        "specify_cli.sync.background.get_sync_service", lambda: _Service()
-    )
+    monkeypatch.setattr("specify_cli.sync.background.get_sync_service", lambda: _Service())
 
 
 def _patch_stub_receiver(monkeypatch: pytest.MonkeyPatch) -> list[StubReceiver]:
@@ -283,12 +277,8 @@ def test_sync_now_success_path_runs_dispatch_and_body_drain(monkeypatch: pytest.
     body uploads via the body-ONLY entry point."""
     monkeypatch.setenv(SAAS_SYNC_ENV_VAR, "1")
     monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: True)
-    monkeypatch.setattr(
-        sync_command, "enforce_teamspace_mission_state_ready", lambda **_: None
-    )
-    monkeypatch.setattr(
-        "specify_cli.sync.preflight.run_preflight", lambda **_: _OkPreflight()
-    )
+    monkeypatch.setattr(sync_command, "enforce_teamspace_mission_state_ready", lambda **_: None)
+    monkeypatch.setattr("specify_cli.sync.preflight.run_preflight", lambda **_: _OkPreflight())
 
     drained = {"body": False}
 
@@ -305,9 +295,7 @@ def test_sync_now_success_path_runs_dispatch_and_body_drain(monkeypatch: pytest.
         def drain_body_uploads_only(self) -> None:
             drained["body"] = True
 
-    monkeypatch.setattr(
-        "specify_cli.sync.background.get_sync_service", lambda: _Service()
-    )
+    monkeypatch.setattr("specify_cli.sync.background.get_sync_service", lambda: _Service())
     stubs = _patch_stub_receiver(monkeypatch)
     journal = _populate_journal(2)
 
@@ -422,9 +410,7 @@ def test_sync_gc_purges_only_delivered(monkeypatch: pytest.MonkeyPatch) -> None:
     journal = _populate_journal(3)
     # Register the single known target so gc has a non-empty target universe.
     registry = _open_registry()
-    target = registry.register(
-        url="https://gc-target.example", team_slug=None, user_email=None
-    )
+    target = registry.register(url="https://gc-target.example", team_slug=None, user_email=None)
     registry.close()
     # Mark evt-0 and evt-1 delivered to that known target; evt-2 stays undelivered.
     ledger = _open_ledger()
@@ -550,9 +536,7 @@ def test_resolve_active_receiver_per_mode() -> None:
     class _Target:
         resolved_server_url = "https://t.example"
 
-    teamspace = sync_command._resolve_active_receiver(
-        _Target(), EventSyncConfig.from_mode(Mode.TEAMSPACE)
-    )
+    teamspace = sync_command._resolve_active_receiver(_Target(), EventSyncConfig.from_mode(Mode.TEAMSPACE))
     assert isinstance(teamspace, TeamspaceReceiver)
 
     external = sync_command._resolve_active_receiver(
@@ -561,9 +545,7 @@ def test_resolve_active_receiver_per_mode() -> None:
     )
     assert isinstance(external, ExternalReceiver)
 
-    local = sync_command._resolve_active_receiver(
-        _Target(), EventSyncConfig.from_mode(Mode.LOCAL_RETENTION)
-    )
+    local = sync_command._resolve_active_receiver(_Target(), EventSyncConfig.from_mode(Mode.LOCAL_RETENTION))
     assert local is None
 
 
@@ -626,9 +608,7 @@ def test_mode_external_persists_endpoint_over_existing_config() -> None:
     from specify_cli.delivery.config import Mode
 
     _set_server_url("https://present.example")  # ensure config.toml already exists
-    result = runner.invoke(
-        app, ["mode", "external_receiver", "--endpoint", "https://recv.example/e"]
-    )
+    result = runner.invoke(app, ["mode", "external_receiver", "--endpoint", "https://recv.example/e"])
     assert result.exit_code == 0, result.output
     loaded = sync_command._load_event_sync_config()
     assert loaded.mode is Mode.EXTERNAL_RECEIVER
@@ -806,12 +786,8 @@ def test_sync_now_posts_exactly_once_and_drains_body(
 
     monkeypatch.setenv(SAAS_SYNC_ENV_VAR, "1")
     monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: True)
-    monkeypatch.setattr(
-        sync_command, "enforce_teamspace_mission_state_ready", lambda **_: None
-    )
-    monkeypatch.setattr(
-        "specify_cli.sync.preflight.run_preflight", lambda **_: _OkPreflight()
-    )
+    monkeypatch.setattr(sync_command, "enforce_teamspace_mission_state_ready", lambda **_: None)
+    monkeypatch.setattr("specify_cli.sync.preflight.run_preflight", lambda **_: _OkPreflight())
 
     posts: list[str] = []
 
@@ -829,9 +805,7 @@ def test_sync_now_posts_exactly_once_and_drains_body(
         body = json.loads(_gzip.decompress(data).decode("utf-8"))
         return _Resp([event["event_id"] for event in body["events"]])
 
-    receiver = TeamspaceReceiver(
-        resolved_server_url="https://t.example", auth_token="tok", poster=_poster
-    )
+    receiver = TeamspaceReceiver(resolved_server_url="https://t.example", auth_token="tok", poster=_poster)
     monkeypatch.setattr(sync_command, "_event_sync_access_token", lambda: "tok")
     monkeypatch.setattr(
         sync_command,
@@ -852,9 +826,7 @@ def test_sync_now_posts_exactly_once_and_drains_body(
         def drain_body_uploads_only(self) -> None:
             drained["body"] = True
 
-    monkeypatch.setattr(
-        "specify_cli.sync.background.get_sync_service", lambda: _Service()
-    )
+    monkeypatch.setattr("specify_cli.sync.background.get_sync_service", lambda: _Service())
 
     # The wire envelope is the event's own JSON payload (``event_id`` is carried
     # on the OutboundEvent, not the body), so embed it in the payload here so the
@@ -888,39 +860,20 @@ def test_sync_now_posts_exactly_once_and_drains_body(
 # ---------------------------------------------------------------------------
 
 
-def test_sync_migrate_imports_queue_db_into_journal() -> None:
-    """``sync migrate`` lifts currently-queued legacy ``queue.db`` rows into the
-    event journal and renders the migration result (the otherwise-dead WP10
-    migration now has a production CLI caller)."""
-    import sqlite3
-
-    from specify_cli.paths import get_runtime_root
-
-    base = get_runtime_root().base
-    base.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(base / "queue.db"))
-    conn.execute(
-        "CREATE TABLE queue (id INTEGER PRIMARY KEY, event_id TEXT, "
-        "event_type TEXT, data TEXT, timestamp INTEGER)"
+def test_sync_migrate_imports_queue_db_into_journal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The retired alias refuses before opening the old shared runtime."""
+    monkeypatch.setattr(
+        sync_command,
+        "_open_event_sync_runtime",
+        lambda: pytest.fail("retired migrate opened the shared runtime"),
     )
-    conn.executemany(
-        "INSERT INTO queue (event_id, event_type, data, timestamp) VALUES (?, ?, ?, ?)",
-        [
-            ("evt-m0", "mission.updated", json.dumps({"a": 1}), 1700000000),
-            ("evt-m1", "mission.updated", json.dumps({"a": 2}), 1700000001),
-        ],
-    )
-    conn.commit()
-    conn.close()
-
     result = runner.invoke(app, ["migrate"])
-    assert result.exit_code == 0, result.output
-    assert "imported 2" in result.output
 
-    # Rows actually landed in the CLI-resolved journal.
-    journal = EventJournal(resolve_journal_path())
-    assert journal.read_by_id("evt-m0") is not None
-    assert journal.read_by_id("evt-m1") is not None
+    assert result.exit_code == 1
+    assert "shared-store `sync migrate` path is retired" in result.output
+    assert "project-store-preview" in result.output
 
 
 # ---------------------------------------------------------------------------
@@ -937,61 +890,45 @@ def _seed_legacy_queue(rows: Sequence[tuple[str, str]]) -> None:
     base = get_runtime_root().base
     base.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(base / "queue.db"))
-    conn.execute(
-        "CREATE TABLE queue (id INTEGER PRIMARY KEY, event_id TEXT, "
-        "event_type TEXT, data TEXT, timestamp INTEGER)"
-    )
+    conn.execute("CREATE TABLE queue (id INTEGER PRIMARY KEY, event_id TEXT, event_type TEXT, data TEXT, timestamp INTEGER)")
     conn.executemany(
         "INSERT INTO queue (event_id, event_type, data, timestamp) VALUES (?, ?, ?, ?)",
-        [
-            (event_id, "mission.updated", payload, 1700000000 + index)
-            for index, (event_id, payload) in enumerate(rows)
-        ],
+        [(event_id, "mission.updated", payload, 1700000000 + index) for index, (event_id, payload) in enumerate(rows)],
     )
     conn.commit()
     conn.close()
 
 
-def test_sync_migrate_reports_the_per_project_composition_of_what_it_moved() -> None:
-    """FR-015's third surface. `sync migrate` produced the incident's false-green.
-
-    It emptied the legacy queue `doctor` reads while pooling every local project's
-    payloads into one machine-global journal, and printed nothing but aggregate
-    import/dedupe counts — so the operator was never told *whose* events had just
-    been lifted. Red before the fix: `sync migrate` had a zero diff for this WP and
-    printed no composition at all.
-
-    The composition of legacy rows is also a substantive finding rather than a
-    formality: `migrate_journal._build_event` sets no identity columns, so every
-    migrated row lands with a NULL ``project_uuid`` and is therefore unselectable
-    until an identity backfill runs. FR-011 exists so that is visible instead of
-    silent.
-    """
-    _seed_legacy_queue(
-        [
-            ("evt-m0", json.dumps({"event_id": "evt-m0"})),
-            ("evt-m1", json.dumps({"event_id": "evt-m1"})),
-        ]
+def test_sync_migrate_reports_the_per_project_composition_of_what_it_moved(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The old conflict-resolution variant is also retired without source I/O."""
+    monkeypatch.setattr(
+        sync_command,
+        "_open_event_sync_runtime",
+        lambda: pytest.fail("retired conflict resolution opened a source"),
     )
 
-    result = runner.invoke(app, ["migrate"])
+    result = runner.invoke(
+        app,
+        ["migrate", "--resolve-conflicts", "keep-journal"],
+    )
 
-    assert result.exit_code == 0, result.output
-    assert "imported 2" in result.output
-    assert "Migrated events by project" in result.output
-    # Two identity-less rows, grouped and counted rather than dropped (FR-011).
-    assert "identity unresolved" in result.output
-    assert "no stored project identity" in result.output
+    assert result.exit_code == 1
+    assert "source evidence" in result.output
+    assert "project-store-migrate" in result.output
 
 
-def test_sync_migrate_says_so_when_it_moved_nothing() -> None:
-    """A re-run must state that explicitly, not omit the section.
+def test_sync_migrate_says_so_when_it_moved_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The retired grant-backfill flag cannot manufacture consent."""
+    monkeypatch.setattr(
+        sync_command,
+        "_run_consent_index_backfill",
+        lambda: pytest.fail("retired migrate wrote legacy consent"),
+    )
+    result = runner.invoke(app, ["migrate", "--backfill-consent-index"])
 
-    An absent section is how the first cut of this WP's `doctor` renderer failed:
-    "nothing to move" and "the composition could not be read" looked identical.
-    """
-    result = runner.invoke(app, ["migrate"])
-
-    assert result.exit_code == 0, result.output
-    assert "Migrated events by project" in result.output
-    assert "nothing imported on this run" in result.output
+    assert result.exit_code == 1
+    assert "promote legacy consent" in result.output

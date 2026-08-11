@@ -402,8 +402,15 @@ test_egress_consent_boundary:
   # so leaving it at 28 would have silently held the ceiling one free
   # unconsented-egress file too high. That is the drift #3167 exists to close,
   # which is why the count is corrected here even though nothing reds on it.
+  # 27 -> 28 (per-project-sync-consent-ledgers WP10/T047):
+  # sync/daemon_protocol.py owns one authenticated, versioned quiesce/restart
+  # call to the exact current daemon. Its constructor parses and requires an
+  # exact http://127.0.0.1:<port> or http://localhost:<port> authority; remote,
+  # userinfo-confused, path-bearing, and portless URLs are rejected before I/O.
+  # This is loopback control, not project-data egress, and its exact sink count
+  # is independently pinned in test_egress_consent_boundary.py.
   # Growth here means a new file transmits: argue it in the diff.
-  egress_allowlist_files: 27
+  egress_allowlist_files: 28
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the

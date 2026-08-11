@@ -651,6 +651,15 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
         inventory_id="E18",
         note="Localhost health probe and daemon control endpoint.",
     ),
+    "specify_cli/sync/daemon_protocol.py": Allowance(
+        kind=AllowanceKind.LOOPBACK_CONTROL,
+        inventory_id="WP10-T047",
+        note=(
+            "Authenticated migration quiesce/restart handshake. The constructor "
+            "parses and requires an exact http://127.0.0.1:<port> or "
+            "http://localhost:<port> authority before urllib can be reached."
+        ),
+    ),
     "specify_cli/sync/orphan_sweep.py": Allowance(
         kind=AllowanceKind.LOOPBACK_CONTROL,
         inventory_id="E18",
@@ -1604,6 +1613,11 @@ _WP09_SINK_CLASSIFICATIONS = (
     _wp09_sink("specify_cli/sync/client.py", "WebSocketClient._handle_ping", rationale="WebSocket pong carries no project payload"),
     _wp09_sink("specify_cli/sync/daemon.py", "_fetch_health_payload", rationale="loopback daemon health control"),
     _wp09_sink("specify_cli/sync/daemon.py", "_stop_daemon_by_http", rationale="loopback daemon shutdown control"),
+    _wp09_sink(
+        "specify_cli/sync/daemon_protocol.py",
+        "_fetch_json",
+        rationale="WP10 loopback migration-daemon control",
+    ),
     _wp09_sink("specify_cli/sync/events.py", "_publish_event_via_sync_daemon", "event_relay"),
     _wp09_sink("specify_cli/sync/events.py", "_request_dashboard_sync", rationale="loopback daemon trigger control"),
     _wp09_sink("specify_cli/sync/history_import/upload.py", "_deliver_chunks", "history_import"),
@@ -1974,6 +1988,12 @@ specify_cli/tracker/saas_client.py::SaaSTrackerClient.run::transport-call::self.
     if line.strip()
 )
 
+_WP10_LOOPBACK_CONTROL_SINK_COUNTS: Counter[str] = Counter(
+    {
+        "specify_cli/sync/daemon_protocol.py::_fetch_json::urlopen::urllib.request.urlopen": 1,
+    }
+)
+
 
 def _new_sender_violations(
     sites: tuple[_ProjectSinkSite, ...],
@@ -2106,7 +2126,7 @@ def _layout_operation(text: str | None) -> str | None:
 
 
 def _writer_owner(relpath: str) -> str:
-    if "migrate" in relpath or relpath.startswith("specify_cli/cli/"):
+    if "migrate" in relpath or "migration" in relpath or relpath.startswith("specify_cli/cli/"):
         return "WP10"
     if relpath in {
         "specify_cli/sync/consent.py",
@@ -2350,6 +2370,12 @@ _KNOWN_LAYOUT_WRITE_COUNTS.update(
         "specify_cli/sync/transport_attempts.py::mark_transport_started::UPDATE::execute": 1,
         "specify_cli/sync/transport_attempts.py::prepare_delivery_attempt::INSERT::execute": 1,
         "specify_cli/sync/transport_attempts.py::restart_delivery_attempt::UPDATE::execute": 1,
+    }
+)
+
+_WP10_MIGRATION_WRITE_COUNTS: Counter[str] = Counter(
+    {
+        "specify_cli/sync/project_store_migration.py::_copy_project_rows::INSERT::execute": 9,
     }
 )
 
@@ -2617,7 +2643,10 @@ def test_wp09_producer_discovery_and_control_rows_delegate_by_symbol() -> None:
 
 def test_source_discovered_sender_census_is_counted_and_shrink_only() -> None:
     sites = _scan_project_sinks()
-    observed = Counter(site.key for site in sites)
+    loopback = Counter(site.key for site in sites if site.key in _WP10_LOOPBACK_CONTROL_SINK_COUNTS)
+    assert loopback == _WP10_LOOPBACK_CONTROL_SINK_COUNTS
+    assert _EGRESS_ALLOWLIST["specify_cli/sync/daemon_protocol.py"].kind is AllowanceKind.LOOPBACK_CONTROL
+    observed = Counter(site.key for site in sites if site.key not in _WP10_LOOPBACK_CONTROL_SINK_COUNTS)
     growth = observed - _KNOWN_PROJECT_SINK_COUNTS
     assert not growth, "new project sender sites:\n" + "\n".join(f"{key} (+{count})" for key, count in sorted(growth.items()))
     shrink = _KNOWN_PROJECT_SINK_COUNTS - observed
@@ -2629,7 +2658,7 @@ def test_source_discovered_sender_census_is_counted_and_shrink_only() -> None:
 
 
 def test_wp09_sender_census_is_exact_per_symbol_not_per_file() -> None:
-    observed = Counter(site.key for site in _scan_project_sinks())
+    observed = Counter(site.key for site in _scan_project_sinks() if site.key not in _WP10_LOOPBACK_CONTROL_SINK_COUNTS)
     assert observed == _KNOWN_PROJECT_SINK_COUNTS
 
 
@@ -2688,7 +2717,10 @@ def test_source_discovered_layout_writer_census_is_counted_and_shrink_only() -> 
     sites = _scan_layout_writers()
     canonical = Counter(site.key for site in sites if _is_canonical_project_store_layout_write(site))
     assert canonical == _CANONICAL_PROJECT_STORE_LAYOUT_COUNTS, "the exact ProjectSyncStore unit of work is the sole new schema/layout writer"
-    observed = Counter(site.key for site in sites if not _is_canonical_project_store_layout_write(site))
+    migration = Counter(site.key for site in sites if site.key in _WP10_MIGRATION_WRITE_COUNTS)
+    assert migration == _WP10_MIGRATION_WRITE_COUNTS
+    assert all(site.owner_wp == "WP10" for site in sites if site.key in _WP10_MIGRATION_WRITE_COUNTS)
+    observed = Counter(site.key for site in sites if not _is_canonical_project_store_layout_write(site) and site.key not in _WP10_MIGRATION_WRITE_COUNTS)
     growth = observed - _KNOWN_LAYOUT_WRITE_COUNTS
     assert not growth, "new current layout writers:\n" + "\n".join(f"{key} (+{count})" for key, count in sorted(growth.items()))
     assert all(site.owner_wp.startswith("WP") for site in sites)
@@ -2754,6 +2786,11 @@ def test_layout_permit_guard_rejects_a_writer_bypass_mutant(tmp_path: Path) -> N
     sites = _scan_layout_writers((source,), source_root=tmp_path)
     assert [site.operation for site in sites] == ["INSERT"]
     assert not _uses_layout_write_permit(source, "OfflineQueue.queue_event")
+
+
+def test_wp10_migration_owner_classification_is_narrow() -> None:
+    assert _writer_owner("specify_cli/sync/project_store_migration.py") == "WP10"
+    assert _writer_owner("specify_cli/sync/project_store.py") == "WP04"
 
 
 def test_new_sender_and_layout_writer_mutants_flow_through_real_collectors(

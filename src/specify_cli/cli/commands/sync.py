@@ -38,10 +38,10 @@ if TYPE_CHECKING:
     from specify_cli.event_journal.journal import EventJournal
     from specify_cli.sync.history_import import UploadReport
     from specify_cli.sync.project_identity import IdentityBackfillResult
+    from specify_cli.sync.project_store import ProjectSyncStore
     from specify_cli.sync.migrate_journal import (
         CleanupResult,
         ConflictResolution,
-        ConvergeResult,
         MigrationAudit,
         MigrationResult,
     )
@@ -2406,57 +2406,12 @@ def opt_out(
 
 
 def _auto_converge_legacy_on_enable() -> None:
-    """Converge any legacy queue residue into the journal when enabling sync (#2665).
-
-    Turning sync on for a checkout should make it coherent, not refuse. Runs the
-    clean-path convergence (import + cleanup) so the legacy-row boundary clears.
-    Divergent-duplicate conflicts are deliberately NOT auto-resolved here (that
-    would discard superseded source data, even if quarantined) — they are
-    surfaced with the explicit ``sync migrate --resolve-conflicts keep-journal``
-    recovery, and the coherence gate that follows still refuses until they are
-    resolved. Idempotent and lossless: a no-op on an already-converged runtime.
-    Any failure opening the runtime OR converging is swallowed so the coherence
-    gate that follows handles it, rather than aborting opt-in with a traceback.
-    """
-    from specify_cli.paths import get_runtime_root
-    from specify_cli.sync.migrate_journal import (
-        AUDIT_DB_NAME,
-        MigrationAudit,
-        converge_legacy_runtime,
+    """Retired compatibility seam; opt-in must never mutate legacy evidence."""
+    console.print(
+        "[yellow]Automatic legacy convergence is retired.[/yellow] "
+        "Use `spec-kitty sync project-store-preview` followed by the explicit "
+        "`project-store-migrate` command."
     )
-
-    spec_kitty_dir = get_runtime_root().base
-    try:
-        runtime = _open_event_sync_runtime()
-    except Exception:  # runtime unavailable — let the coherence gate report it
-        return
-    audit = MigrationAudit(spec_kitty_dir / AUDIT_DB_NAME)
-    try:
-        converge = converge_legacy_runtime(
-            spec_kitty_dir,
-            journal=runtime.journal,
-            audit=audit,
-            resolved_target=runtime.target,
-            resolve_conflicts=False,
-            cleanup=True,
-        )
-    except Exception:  # converge failed — let the coherence gate report it
-        return
-    finally:
-        with contextlib.suppress(Exception):
-            audit.close()
-        with contextlib.suppress(Exception):
-            runtime.close()
-
-    deleted = converge.cleanup.total_deleted if converge.cleanup is not None else 0
-    if deleted:
-        console.print(f"[green]✓[/green] Converged {deleted} legacy queue row(s) into the event journal.")
-    if converge.blocked_conflicts:
-        console.print(
-            f"[yellow]{converge.blocked_conflicts} divergent-duplicate conflict(s) remain. "
-            "Run `spec-kitty sync migrate --resolve-conflicts keep-journal` to resolve them, "
-            "then re-run opt-in.[/yellow]"
-        )
 
 
 @app.command(name="opt-in")
@@ -2476,12 +2431,6 @@ def opt_in(
         # Surface the disabled state clearly and exit non-zero.
         console.print(f"[yellow]{saas_sync_disabled_message()}[/yellow]")
         raise typer.Exit(1)
-
-    # Turning sync on converges any legacy queue residue into the journal so the
-    # boundary is coherent instead of refusing (#2665). Conservative: clean-path
-    # only; divergent-duplicate conflicts are surfaced for an explicit
-    # `sync migrate --resolve-conflicts keep-journal` before opt-in can proceed.
-    _auto_converge_legacy_on_enable()
 
     _require_daemon_owner_coherence("spec-kitty sync opt-in")
 
@@ -4664,6 +4613,296 @@ def purge(
         raise typer.Exit(1)
 
 
+def _emit_project_store_migration_json(payload: object) -> None:
+    """Emit one unstyled machine-readable migration value."""
+    import json
+    import sys
+
+    sys.stdout.write(json.dumps(payload, sort_keys=True, separators=(",", ":")))
+    sys.stdout.write("\n")
+
+
+@app.command()
+def project_store_preview(
+    source: list[Path] = typer.Option(
+        ...,
+        "--source",
+        help="Explicit legacy SQLite source. Repeat for every shared store.",
+    ),
+    migration_id: str = typer.Option(..., "--migration-id"),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Inventory immutable legacy sources, including committed WAL content."""
+    from specify_cli.paths import get_runtime_root
+    from specify_cli.sync.project_store_migration import LegacyProjectStoreMigration
+
+    manifest = LegacyProjectStoreMigration(get_runtime_root().base, tuple(source)).preview(migration_id)
+    if json_output:
+        _emit_project_store_migration_json(manifest.to_dict())
+        return
+    console.print(
+        f"[cyan]Migration {manifest.migration_id}[/cyan]: {manifest.phase.value}; "
+        f"{manifest.total_rows} row(s), {len(manifest.partitions)} project(s), "
+        f"{len(manifest.quarantine)} quarantined"
+    )
+
+
+@app.command()
+def project_store_migrate(
+    source: list[Path] = typer.Option(
+        ...,
+        "--source",
+        help="Explicit legacy SQLite source. Repeat for every shared store.",
+    ),
+    migration_id: str = typer.Option(..., "--migration-id"),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Copy, verify, atomically cut over, and resume one migration."""
+    from specify_cli.paths import get_runtime_root
+    from specify_cli.sync.daemon_protocol import discover_daemon_cutover_protocol
+    from specify_cli.sync.project_store_migration import LegacyProjectStoreMigration
+
+    manifest = LegacyProjectStoreMigration(
+        get_runtime_root().base,
+        tuple(source),
+        daemon_protocol=discover_daemon_cutover_protocol(),
+    ).migrate(migration_id)
+    if json_output:
+        _emit_project_store_migration_json(manifest.to_dict())
+        return
+    console.print(f"[green]Migration {manifest.migration_id}: {manifest.phase.value}[/green]")
+
+
+@app.command()
+def project_store_status(
+    migration_id: str = typer.Option(..., "--migration-id"),
+    diagnose_residue: bool = typer.Option(
+        False,
+        "--diagnose-residue",
+        help="Compare immutable inventory with current legacy logical rows after cutover.",
+    ),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Show durable migration phase without opening legacy sources."""
+    from specify_cli.paths import get_runtime_root
+    from specify_cli.sync.project_store_migration import (
+        LegacyProjectStoreMigration,
+        migration_artifact_path,
+    )
+
+    # Status is manifest-only; the constructor still requires the explicit source
+    # tuple, so recover it from the governed manifest after resolving its path.
+    root = get_runtime_root().base
+    try:
+        import json
+
+        manifest_path = migration_artifact_path(root, migration_id, "manifest.json")
+        raw = json.loads(manifest_path.read_text(encoding="utf-8"))
+        sources = tuple(Path(item["path"]) for item in raw["sources"])
+    except (OSError, TypeError, ValueError, KeyError) as exc:
+        console.print(f"[red]Migration status unavailable:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    migration = LegacyProjectStoreMigration(root, sources)
+    if diagnose_residue:
+        migration.diagnose_residue(migration_id)
+    manifest = migration.status(migration_id)
+    if json_output:
+        _emit_project_store_migration_json(manifest.to_dict())
+        return
+    console.print(f"Migration {manifest.migration_id}: {manifest.phase.value}")
+
+
+@app.command()
+def project_store_quarantine(
+    migration_id: str = typer.Option(..., "--migration-id"),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Inspect permanently non-deliverable migration quarantine records."""
+    from specify_cli.paths import get_runtime_root
+    from specify_cli.sync.project_store_migration import migration_artifact_path
+
+    root = get_runtime_root().base
+    try:
+        import json
+
+        path = migration_artifact_path(root, migration_id, "quarantine.json")
+        raw: object = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        console.print(f"[red]Migration quarantine unavailable:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    if json_output:
+        _emit_project_store_migration_json(raw)
+        return
+    records = raw if isinstance(raw, list) else []
+    console.print(f"Migration {migration_id}: {len(records)} quarantined row(s)")
+    for item in records:
+        if isinstance(item, dict):
+            console.print(f"  {item.get('table')}:{item.get('row_id')} — {item.get('reason')}")
+
+
+def _migrated_history_envelopes(
+    store: ProjectSyncStore,
+    row_ids: tuple[str, ...],
+) -> list[dict[str, object]]:
+    """Load the exact capability cohort from its sealed project-store rows."""
+    import json
+
+    if not row_ids:
+        return []
+    with store.unit_of_work() as unit:
+        placeholders = ", ".join("?" for _ in row_ids)
+        rows = unit.execute(
+            f"SELECT entry_id, payload_json FROM journal_entries WHERE project_uuid = ? AND entry_id IN ({placeholders})",  # noqa: S608 -- placeholders only; row ids remain bound values
+            (store.project_uuid.storage_token, *row_ids),
+        ).fetchall()
+    payloads = {str(row[0]): str(row[1]) for row in rows}
+    if tuple(row_id for row_id in row_ids if row_id in payloads) != row_ids:
+        raise RuntimeError("confirmed migrated history cohort is incomplete")
+    envelopes: list[dict[str, object]] = []
+    for row_id in row_ids:
+        raw = json.loads(payloads[row_id])
+        if not isinstance(raw, dict) or str(raw.get("event_id") or "") != row_id:
+            raise RuntimeError(f"migrated history row {row_id!r} is not an exact event envelope")
+        envelopes.append({str(key): value for key, value in raw.items()})
+    return envelopes
+
+
+@app.command()
+def project_store_history(
+    confirm_by: str | None = typer.Option(
+        None,
+        "--confirm-by",
+        help="Explicit operator identity that confirms the displayed sealed cohort.",
+    ),
+    idempotency_key: str | None = typer.Option(
+        None,
+        "--idempotency-key",
+        help="Stable identity for an explicit confirmation.",
+    ),
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Consume a confirmed capability and invoke WP07 preflight/upload.",
+    ),
+    history_action_id: str | None = typer.Option(
+        None,
+        "--history-action-id",
+        help="Persisted action ID required by --apply.",
+    ),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Preview, explicitly confirm, or disclose migrated sealed history."""
+    from specify_cli.sync.history_disclosure import (
+        HistoryDisclosureError,
+        confirm_history_disclosure,
+        consume_history_disclosure,
+        preview_sealed_history,
+    )
+
+    confirming = confirm_by is not None or idempotency_key is not None
+    if apply and confirming:
+        console.print("[red]--apply and confirmation options are mutually exclusive.[/red]")
+        raise typer.Exit(2)
+    if confirming and (not str(confirm_by or "").strip() or not str(idempotency_key or "").strip()):
+        console.print("[red]Confirmation requires both --confirm-by and --idempotency-key.[/red]")
+        raise typer.Exit(2)
+    if history_action_id is not None and not apply:
+        console.print("[red]--history-action-id is valid only with --apply.[/red]")
+        raise typer.Exit(2)
+
+    runtime = _open_project_dispatch_runtime()
+    try:
+        if apply:
+            action_id = str(history_action_id or "").strip()
+            if not action_id:
+                console.print("[red]--apply requires --history-action-id.[/red]")
+                raise typer.Exit(2)
+            token = _event_sync_access_token()
+            if not token:
+                console.print("[red]Not authenticated.[/red] Run `spec-kitty auth login` first.")
+                raise typer.Exit(1)
+            if runtime.delivery_target is None:
+                console.print("[red]No admitted current project delivery target.[/red]")
+                raise typer.Exit(1)
+            receiver, server_url = _resolve_history_import_receiver(runtime, token=token)
+            capability = consume_history_disclosure(
+                runtime.store,
+                action_id=action_id,
+                context=runtime.context,
+            )
+            envelopes = _migrated_history_envelopes(
+                runtime.store,
+                capability.row_ids,
+            )
+            from specify_cli.sync.history_import.upload import run_import_upload
+
+            report = run_import_upload(
+                envelopes,
+                receiver=receiver,
+                server_url=server_url,
+                auth_token=token,
+                project_context=runtime.context,
+                target=runtime.delivery_target,
+                history_capability=capability,
+            )
+            payload = {
+                "action_id": capability.action_id,
+                "cohort_count": len(envelopes),
+                "success": report.success,
+                "duplicate": report.duplicate,
+                "pending": report.pending,
+                "rejected": report.rejected,
+                "ok": report.ok,
+            }
+            if json_output:
+                _emit_project_store_migration_json(payload)
+            else:
+                console.print(f"History action {capability.action_id}: {report.success} delivered, {report.duplicate} duplicate")
+            if not report.ok:
+                raise typer.Exit(1)
+            return
+
+        preview = preview_sealed_history(runtime.store)
+        if confirming:
+            capability = confirm_history_disclosure(
+                runtime.store,
+                preview,
+                actor=str(confirm_by),
+                idempotency_key=str(idempotency_key),
+                context=runtime.context,
+            )
+            payload = {
+                "action_id": capability.action_id,
+                "project_uuid": capability.project_uuid,
+                "row_ids": capability.row_ids,
+                "source_epoch_ids": capability.source_epoch_ids,
+                "preview_hash": capability.preview_hash,
+                "state": "confirmed",
+            }
+        else:
+            payload = {
+                "project_uuid": preview.project_uuid,
+                "row_ids": preview.row_ids,
+                "source_epoch_ids": preview.source_epoch_ids,
+                "preview_count": preview.preview_count,
+                "preview_hash": preview.preview_hash,
+                "state": "preview",
+            }
+        if json_output:
+            _emit_project_store_migration_json(payload)
+        else:
+            console.print(f"Migrated sealed history: {len(preview.row_ids)} row(s), sha256:{preview.preview_hash}")
+            if confirming:
+                console.print(f"History action ID: {payload['action_id']}")
+            else:
+                console.print("Preview only; no confirmation or egress occurred.")
+    except (HistoryDisclosureError, RuntimeError, ValueError) as exc:
+        console.print(f"[red]Migrated history disclosure refused:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    finally:
+        runtime.close()
+
+
 @app.command()
 def migrate(
     no_cleanup: bool = typer.Option(
@@ -4696,87 +4935,15 @@ def migrate(
         ),
     ),
 ) -> None:
-    """Migrate legacy hash-scoped queue DBs into the append-only event journal.
-
-    Lifts every currently-queued payload from the legacy ``queue.db`` and each
-    scoped ``queues/queue-<digest>.db`` into the WP03 event journal, recording
-    per-source provenance and quarantining divergent-duplicate collisions into
-    the migration-audit store. Import opens source DBs read-only.
-
-    On a clean migration (no conflicts, no source errors) the migrated rows are
-    then deleted from their source queues so the legacy-row boundary converges
-    and ``sync now`` / ``sync opt-in`` stop refusing (#2665). Pass
-    ``--no-cleanup`` to skip that step and inspect first.
-
-    Divergent-duplicate conflicts (same ``event_id``, different payload than the
-    journal) block cleanup by default. Pass ``--resolve-conflicts keep-journal``
-    to resolve them journal-wins: each conflicting source payload is archived to
-    the audit quarantine and the source row removed, so the boundary can
-    converge. The journal is never overwritten. Exits non-zero when unresolved
-    conflicts still block cleanup (SC-011).
-
-    Convergence also projects each row's stored identity into the journal's
-    ``project_uuid``/``project_slug``/``repo_slug`` columns (#3030 H4). A row with a
-    NULL ``project_uuid`` is permanently unselectable, so before this ran every
-    pre-mission row — including the operator's own consenting project's history —
-    was undeliverable forever. Identity is only recovered from the row's own stored
-    envelope, never invented, so a row that carries none stays NULL and stays
-    unselectable.
-
-    ``--backfill-consent-index`` additionally maps path-keyed consent records onto
-    the uuid index. That one is opt-in because it writes machine-global consent
-    state and the uuid index outranks a repo default, so it can flip a project from
-    denied to delivering; every mapped project and every unresolvable record is
-    listed.
-
-    Examples:
-        spec-kitty sync migrate
-        spec-kitty sync migrate --no-cleanup
-        spec-kitty sync migrate --resolve-conflicts keep-journal
-    """
-    from specify_cli.paths import get_runtime_root
-    from specify_cli.sync.migrate_journal import (
-        AUDIT_DB_NAME,
-        MigrationAudit,
-        converge_legacy_runtime,
+    """Refuse the retired shared-store migration and point to copy-only cutover."""
+    del no_cleanup, resolve_conflicts, backfill_consent_index
+    console.print(
+        "[red]The shared-store `sync migrate` path is retired.[/red] It could "
+        "delete source evidence or promote legacy consent. Use "
+        "`spec-kitty sync project-store-preview --source <db> --migration-id <id>` "
+        "and then the explicit copy-only `project-store-migrate` command."
     )
-
-    if resolve_conflicts is not None and resolve_conflicts != "keep-journal":
-        console.print(f"[red]Unknown --resolve-conflicts strategy '{resolve_conflicts}'. Only 'keep-journal' is supported.[/red]")
-        raise typer.Exit(2)
-
-    spec_kitty_dir = get_runtime_root().base
-    runtime = _open_event_sync_runtime()
-    audit = MigrationAudit(spec_kitty_dir / AUDIT_DB_NAME)
-    try:
-        converge: ConvergeResult = converge_legacy_runtime(
-            spec_kitty_dir,
-            journal=runtime.journal,
-            audit=audit,
-            resolved_target=runtime.target,
-            resolve_conflicts=(resolve_conflicts == "keep-journal"),
-            cleanup=not no_cleanup,
-        )
-        # FR-015: captured inside the try so the journal handle and the imported-id
-        # list are taken from the same runtime that performed the migration, then
-        # rendered below as a breakdown of the aggregate counts.
-        moved_event_ids = converge.migration.imported_event_ids
-        moved_journal = runtime.journal
-    finally:
-        with contextlib.suppress(Exception):
-            audit.close()
-        runtime.close()
-    _print_migration_result(converge.migration)
-    _print_identity_backfill_result(converge.identity_backfill)
-    if backfill_consent_index:
-        _run_consent_index_backfill()
-    _render_migrated_composition(moved_journal, moved_event_ids)
-    if converge.resolution is not None:
-        _print_resolution_result(converge.resolution)
-    if converge.cleanup is not None:
-        _print_cleanup_result(converge.cleanup)
-    if converge.migration.exit_code != 0:
-        raise typer.Exit(converge.migration.exit_code)
+    raise typer.Exit(1)
 
 
 @app.command()
