@@ -1318,21 +1318,11 @@ def _saas_fan_out(
         )
         return
 
-    # Local import: status/adapters.py is the intentional decoupling boundary
-    # between status/emit.py and the sync package (see module docstring), so
-    # the sync.events dataclass is imported lazily here rather than at
-    # module scope. Mirrors the pre-existing "non-raising, no-op when sync is
-    # unavailable" contract documented above: a stripped test environment (or
-    # 0.1x branch) without specify_cli.sync.events importable must not raise
-    # here, it must behave like the zero-handler no-op.
-    try:
-        from specify_cli.sync.events import WPStatusChangeMetadata
-    except ImportError:
-        logger.debug(
-            "Skipping SaaS fan-out (wp_id=%s); specify_cli.sync.events is not importable.",
-            event.wp_id,
-        )
-        return
+    # WPStatusChangeMetadata lives in the CORE status layer (not sync/INTEGRATION),
+    # so importing it here does not cross the CORE→INTEGRATION boundary that
+    # test_integration_boundary.py enforces; the actual SaaS wiring still routes
+    # only through the status/adapters observer registry (fire_saas_fanout).
+    from specify_cli.status.wp_status_metadata import WPStatusChangeMetadata
 
     fire_saas_fanout(
         wp_id=event.wp_id,
