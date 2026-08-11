@@ -22,7 +22,7 @@ from pathlib import Path
 from doctrine.drg.org_pack_config import (
     OrgPackConfig as OrgPackConfig,
     PackRegistry as PackRegistry,
-    load_pack_registry,
+    load_pack_registry as load_pack_registry,
     resolve_org_roots as resolve_org_roots,
     save_pack_registry as save_pack_registry,
 )

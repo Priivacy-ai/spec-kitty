@@ -93,7 +93,7 @@ from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.org_pack_config import (
     OrgPackEnvVarUnsetError,
     OrgPackSubdirEscapeError,
-    load_pack_registry,
+    load_pack_registry as load_pack_registry,
     resolve_org_roots,
 )
 from doctrine.drg.org_pack_loader import (
