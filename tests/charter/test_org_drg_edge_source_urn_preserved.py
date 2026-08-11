@@ -106,7 +106,7 @@ class TestOrgBridgeEdgeSourceUrnPreserved:
     """Org-bridged edges must keep the resolved URN as edge.source."""
 
     def test_org_bridge_edge_source_urn_is_a_urn(self) -> None:
-        """An org edge resolved through _bridge_org_edge_to_drg_edge must
+        """An org edge resolved through bridge_org_edge_to_drg_edge must
         carry a URN (not a pack name) in edge.source."""
         built_in = _empty_built_in()
         fragment = OrgDRGFragment.model_validate(

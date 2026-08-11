@@ -82,7 +82,7 @@ from doctrine.drg.merge import (
     merge_three_layers,
 )
 from doctrine.drg.merge import (
-    _bridge_org_edge_to_drg_edge as bridge_org_edge_to_drg_edge,
+    bridge_org_edge_to_drg_edge,
 )
 from doctrine.drg.migration.extractor import (
     FIELDS_WITHHELD_FROM_GRAPH_OUTPUT,
