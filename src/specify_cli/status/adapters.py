@@ -239,6 +239,20 @@ def fire_dossier_sync(
             )
 
 
+def _fanout_force(kwargs: dict[str, Any]) -> Any:
+    """Resolve the force flag for the #1141 breadcrumb.
+
+    Duck-typed and best-effort: lifecycle / other-event callers pass ``force``
+    as a top-level kwarg, while WPStatusChanged producers bundle the optional
+    tail (including ``force``) into a ``metadata`` params object. Read whichever
+    is present so the diagnostic breadcrumb keeps surfacing the flag; never
+    raise.
+    """
+    if "force" in kwargs:
+        return kwargs["force"]
+    return getattr(kwargs.get("metadata"), "force", None)
+
+
 def fire_saas_fanout(**kwargs: Any) -> None:
     """Call all registered SaaS fan-out handlers with **kwargs.
 
@@ -263,7 +277,7 @@ def fire_saas_fanout(**kwargs: Any) -> None:
         kwargs.get("wp_id"),
         kwargs.get("from_lane"),
         kwargs.get("to_lane"),
-        kwargs.get("force"),
+        _fanout_force(kwargs),
         len(_saas_handlers),
     )
     for handler in _saas_handlers:
@@ -284,7 +298,7 @@ def fire_saas_fanout(**kwargs: Any) -> None:
                 kwargs.get("wp_id"),
                 kwargs.get("from_lane"),
                 kwargs.get("to_lane"),
-                kwargs.get("force"),
+                _fanout_force(kwargs),
             )
         except Exception:
             logger.warning(
@@ -293,7 +307,7 @@ def fire_saas_fanout(**kwargs: Any) -> None:
                 kwargs.get("wp_id"),
                 kwargs.get("from_lane"),
                 kwargs.get("to_lane"),
-                kwargs.get("force"),
+                _fanout_force(kwargs),
                 exc_info=True,
             )
 

@@ -603,6 +603,7 @@ class TestPolicyMetadataPassthrough:
 
         policy = {"orchestrator_id": "orch-1", "orchestrator_version": "0.1.0"}
         with patch("specify_cli.sync.events.get_emitter", return_value=emitter):
+            from specify_cli.sync.events import WPStatusChangeMetadata
             from specify_cli.sync.events import emit_wp_status_changed as wrapper_emit
 
             event = wrapper_emit(
@@ -610,7 +611,7 @@ class TestPolicyMetadataPassthrough:
                 from_lane="planned",
                 to_lane="claimed",
                 actor="claude",
-                policy_metadata=policy,
+                metadata=WPStatusChangeMetadata(policy_metadata=policy),
             )
 
         assert event is not None

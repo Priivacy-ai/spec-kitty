@@ -18,7 +18,7 @@ import threading
 import json
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -314,8 +314,26 @@ class WPStatusChangeMetadata:
     evidence: dict[str, Any] | None = None
     occurred_at: str | None = None
 
+    @classmethod
+    def from_status_event(
+        cls, event: Any, *, policy_metadata: dict[str, Any] | None = None
+    ) -> WPStatusChangeMetadata:
+        """Build from a StatusEvent (the two production fan-out callers).
 
-_WP_STATUS_METADATA_FIELDS = frozenset(f.name for f in fields(WPStatusChangeMetadata))
+        ``policy_metadata`` is passed explicitly because callers resolve it
+        separately from the event (status/emit.py resolves its own; the
+        coordination outbound path uses ``event.policy_metadata``).
+        """
+        return cls(
+            causation_id=event.event_id,
+            policy_metadata=policy_metadata,
+            force=event.force,
+            reason=event.reason,
+            review_ref=event.review_ref,
+            execution_mode=event.execution_mode,
+            evidence=event.evidence.to_dict() if event.evidence else None,
+            occurred_at=event.at,
+        )
 
 
 def emit_wp_status_changed(
@@ -325,45 +343,23 @@ def emit_wp_status_changed(
     actor: str = "user",
     mission_slug: str | None = None,
     mission_id: str | None = None,
-    metadata: WPStatusChangeMetadata | None = None,
     *,
+    metadata: WPStatusChangeMetadata | None = None,
     ensure_daemon: bool = True,
-    **legacy_metadata_kwargs: Any,
 ) -> dict[str, Any] | None:
     """Emit WPStatusChanged event via singleton.
 
     ``metadata`` bundles the optional tail — ``causation_id``,
     ``policy_metadata``, ``force``, ``reason``, ``review_ref``,
-    ``execution_mode``, ``evidence``, ``occurred_at`` — into one params
-    object (S107: this dropped the declared-parameter count from 15 to 8).
-    The ~100 existing call sites, including the production SaaS fan-out
-    chain (``status/emit.py`` → ``status/adapters.fire_saas_fanout`` →
-    ``sync/__init__._saas_fanout_handler``, all of which forward
-    ``**kwargs`` blindly) still pass these fields as individual keyword
-    arguments, so that calling convention is preserved via
-    ``**legacy_metadata_kwargs``: any of the fields above may still be
-    passed by name, and are folded into a :class:`WPStatusChangeMetadata`
-    internally. Passing both ``metadata=`` and one of the individual
-    fields is a ``TypeError``.
+    ``execution_mode``, ``evidence``, ``occurred_at`` — into one keyword-only
+    params object, mirroring ``emit_token_usage_recorded``'s ``metadata:
+    TokenUsageMetadata | None`` parameter.
 
     ``occurred_at`` is the producer occurrence time (e.g. ``StatusEvent.at``)
     and is threaded into the wire envelope's ``timestamp`` field so SaaS
     persists the local lane-transition moment rather than the sync-emission
     clock (Rule R-T-01 in spec-kitty-events).
     """
-    if legacy_metadata_kwargs:
-        unexpected = sorted(set(legacy_metadata_kwargs) - _WP_STATUS_METADATA_FIELDS)
-        if unexpected:
-            raise TypeError(
-                "emit_wp_status_changed() got unexpected keyword argument(s): "
-                + ", ".join(unexpected)
-            )
-        if metadata is not None:
-            raise TypeError(
-                "emit_wp_status_changed() got both `metadata=` and individual "
-                "metadata keyword arguments; pass one or the other"
-            )
-        metadata = WPStatusChangeMetadata(**legacy_metadata_kwargs)
     metadata = metadata or WPStatusChangeMetadata()
 
     repo_root = _ensure_dashboard_sync_daemon_for_active_project(ensure_daemon=ensure_daemon)

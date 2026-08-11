@@ -124,7 +124,7 @@ class TestSaasFanOutThreadsAt:
 
         _saas_fan_out(event, mission_slug="test-mission", _repo_root=None)
 
-        assert captured.get("occurred_at") == PRODUCER_TIME_ISO
+        assert captured["metadata"].occurred_at == PRODUCER_TIME_ISO
         assert captured.get("wp_id") == "WP01"
         assert captured.get("from_lane") == "planned"
         assert captured.get("to_lane") == "in_progress"

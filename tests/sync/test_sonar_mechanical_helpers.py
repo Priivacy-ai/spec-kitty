@@ -9,11 +9,11 @@ rather than being folded into an existing suite:
   in ``sync/events.py``), proving the bundled ``TokenUsageMetadata`` object
   produces the exact same event payload as the pre-refactor flat-kwargs call.
 - S107 params-object for ``emit_wp_status_changed`` (``sync/events.py``),
-  proving both the new ``metadata=`` object call style AND the legacy
-  flat-keyword call style (still used by ~100 existing call sites,
-  including the production SaaS fan-out chain that forwards ``**kwargs``
-  blindly) resolve to the same emitted event, plus the guard rails
-  (unexpected kwarg, and passing both ``metadata=`` and a flat kwarg).
+  proving the keyword-only ``metadata=`` object call style threads through
+  to the emitted event, including via the production SaaS fan-out chain
+  that forwards ``**kwargs`` blindly (the ``metadata=`` object rides that
+  passthrough as a single flat keyword), plus the guard rail that a former
+  flat tail-field keyword (e.g. ``force=``) is now rejected.
 - S5779 characterization for ``_ensure_dashboard_sync_daemon``'s
   ``intent_local_only`` branch: replacing ``raise AssertionError(...)``
   (caught by the surrounding ``except Exception``) with a direct
@@ -163,13 +163,14 @@ class TestTokenUsageMetadataParamsObject:
 
 
 class TestWPStatusChangeMetadataParamsObject:
-    """``WPStatusChangeMetadata`` bundles the optional tail without breaking
-    the ~100 existing flat-keyword call sites."""
+    """``WPStatusChangeMetadata`` bundles the optional tail behind a single
+    keyword-only ``metadata=`` parameter (mirrors ``emit_token_usage_recorded``'s
+    ``TokenUsageMetadata`` shape)."""
 
-    def test_metadata_object_call_style_matches_legacy_flat_kwargs(
+    def test_metadata_object_call_style_produces_expected_payload(
         self, emitter: EventEmitter, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """New ``metadata=`` object style and legacy flat kwargs emit the same event."""
+        """The ``metadata=`` object threads its fields through to the emitted payload."""
         from specify_cli.sync import events as events_mod
 
         monkeypatch.setattr(events_mod, "get_emitter", lambda: emitter)
@@ -180,7 +181,7 @@ class TestWPStatusChangeMetadataParamsObject:
         monkeypatch.setattr(events_mod, "_request_dashboard_sync", lambda *a, **k: None)
 
         cid = emitter.generate_causation_id()
-        event_via_metadata = events_mod.emit_wp_status_changed(
+        event = events_mod.emit_wp_status_changed(
             "WP01",
             "planned",
             "in_progress",
@@ -188,33 +189,21 @@ class TestWPStatusChangeMetadataParamsObject:
                 force=True, reason="operator override", causation_id=cid
             ),
         )
-        event_via_flat_kwargs = events_mod.emit_wp_status_changed(
-            "WP02",
-            "planned",
-            "in_progress",
-            force=True,
-            reason="operator override",
-            causation_id=cid,
-        )
 
-        assert event_via_metadata is not None
-        assert event_via_flat_kwargs is not None
-        for key in ("event_type", "aggregate_type"):
-            assert event_via_metadata[key] == event_via_flat_kwargs[key]
-        assert event_via_metadata["payload"]["force"] is True
-        assert event_via_flat_kwargs["payload"]["force"] is True
-        assert event_via_metadata["payload"]["reason"] == "operator override"
-        assert event_via_flat_kwargs["payload"]["reason"] == "operator override"
+        assert event is not None
+        assert event["payload"]["force"] is True
+        assert event["payload"]["reason"] == "operator override"
+        assert event["causation_id"] == cid
 
-    def test_legacy_kwargs_forwarding_chain_still_works(
+    def test_kwargs_forwarding_chain_threads_metadata_object(
         self, emitter: EventEmitter, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """The production ``**kwargs``-forwarding fan-out chain is unaffected.
 
         Mirrors how ``status/emit.py`` -> ``status/adapters.fire_saas_fanout``
-        -> ``sync/__init__._saas_fanout_handler`` calls this function: every
-        argument (including the optional tail) arrives as a flat keyword via
-        a ``**kwargs`` passthrough, never as a ``metadata=`` object.
+        -> ``sync/__init__._saas_fanout_handler`` calls this function: the
+        ``metadata=`` object arrives as a single flat keyword via a
+        ``**kwargs`` passthrough, alongside the other flat keywords.
         """
         from specify_cli.sync import events as events_mod
 
@@ -233,17 +222,19 @@ class TestWPStatusChangeMetadataParamsObject:
             from_lane="planned",
             to_lane="in_progress",
             actor="user",
-            causation_id=emitter.generate_causation_id(),
-            policy_metadata={"k": "v"},
-            force=False,
-            reason=None,
-            review_ref=None,
-            execution_mode=None,
-            evidence=None,
-            occurred_at="2026-08-10T20:00:00Z",
+            metadata=WPStatusChangeMetadata(
+                causation_id=emitter.generate_causation_id(),
+                policy_metadata={"k": "v"},
+                force=False,
+                reason=None,
+                review_ref=None,
+                execution_mode=None,
+                evidence=None,
+                occurred_at="2026-08-10T20:00:00Z",
+            ),
         )
         # Reaching here without a TypeError is the assertion: the forwarding
-        # chain's flat-kwargs calling convention is preserved.
+        # chain's kwargs calling convention is preserved.
 
     def test_unexpected_keyword_argument_raises(self, emitter: EventEmitter) -> None:
         from specify_cli.sync import events as events_mod
@@ -253,15 +244,17 @@ class TestWPStatusChangeMetadataParamsObject:
                 "WP01", "planned", "in_progress", not_a_real_field="oops"
             )
 
-    def test_metadata_and_flat_kwarg_together_raises(self, emitter: EventEmitter) -> None:
+    def test_individual_tail_field_keyword_now_rejected(self, emitter: EventEmitter) -> None:
+        """A former flat tail-field keyword (e.g. ``force=``) is no longer
+        accepted now that the ``**legacy_metadata_kwargs`` bag is removed;
+        callers must bundle it into ``metadata=`` instead."""
         from specify_cli.sync import events as events_mod
 
-        with pytest.raises(TypeError, match="both `metadata=`"):
+        with pytest.raises(TypeError, match="unexpected keyword argument"):
             events_mod.emit_wp_status_changed(
                 "WP01",
                 "planned",
                 "in_progress",
-                metadata=WPStatusChangeMetadata(force=True),
                 force=True,
             )
 
