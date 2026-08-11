@@ -353,19 +353,20 @@ def _parse_meta_text(
       *message*.
 
     A non-UTF-8 ``meta.json`` (``UnicodeDecodeError`` -- a :class:`ValueError`
-    subclass, NOT an :class:`OSError`, #3163) is handled inside L1's explicit
-    utf-8 decode and re-surfaced through the ``MetaDecodeError`` path below.
+    subclass, NOT an :class:`OSError`, #3163) is raised by ``Path.read_text``'s
+    own decode, alongside a plain read failure (:class:`OSError`), in a single
+    read step -- deliberately :meth:`Path.read_text`, not ``read_bytes`` +
+    manual ``.decode()``: callers (audit classifiers, #4 regression) invoke
+    ``meta_path.read_text`` as the read primitive to simulate an unreadable
+    file, and the single-step read keeps the exception chain a single hop
+    (the legacy ``ValueError`` raised below chains directly ``from`` the raw
+    :class:`OSError`/:class:`UnicodeDecodeError`) so ``exc.cause.__cause__``
+    at the ``MissionMetaReadError`` boundary is the real underlying error.
     Under ``"empty"``/``"none"`` any malformed input is absorbed to ``{}``/``None``.
     """
     try:
-        raw = meta_path.read_bytes()
-    except OSError as exc:
-        if on_malformed == "raise":
-            raise ValueError(f"Malformed JSON in {meta_path}: {exc}") from exc
-        return {} if on_malformed == "empty" else None
-    try:
-        text = raw.decode(encoding)
-    except UnicodeDecodeError as exc:
+        text = meta_path.read_text(encoding=encoding)
+    except (OSError, UnicodeDecodeError) as exc:
         if on_malformed == "raise":
             raise ValueError(f"Malformed JSON in {meta_path}: {exc}") from exc
         return {} if on_malformed == "empty" else None
