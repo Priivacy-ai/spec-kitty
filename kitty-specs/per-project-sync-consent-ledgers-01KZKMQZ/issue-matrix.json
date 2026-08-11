@@ -132,6 +132,30 @@
       "verdict": "deferred-with-followup",
       "wp": "WP06"
     },
+    "#3311": {
+      "evidence_ref": "Follow-up Priivacy-ai/spec-kitty#3311 owns live-mission finalizer/topology rewrite drift; this mission explicitly reconciled and validated the current lane dependencies and ownership without rerunning the destructive finalizer.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP07"
+    },
+    "#3318": {
+      "evidence_ref": "Exact auto-start node reproduced unchanged at the WP08 base and current aggregate; Priivacy-ai/spec-kitty#3318 tracks the pre-existing baseline while WP08 gates exclude only that filed node.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP08"
+    },
     "#584": {
       "evidence_ref": "Reviewed SaaS WP02 recorded-UUID anti-rematerialization authority outranks admission; full purge remains separately owned by #584/#609.",
       "fr": "FR-009,FR-016",
