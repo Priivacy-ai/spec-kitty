@@ -33,6 +33,21 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   Replaces caption-mitigated board labels with abstract art; each PNG compressed
   to ≤500 KB. Memphis, four-paths, and corporate-comics assets on when-to-use-modes
   are unchanged.
+- **The DRG now pins a whole-graph, action-only reachability companion guard, and six genuine residual
+  orphans are wired into the graph (mission `drg-reachability-metric-wiring-01KZS5VR`; `#3009` point 3,
+  `#1923`).** `_ACTION_UNREACHABLE_SHIPPED` in `tests/doctrine/drg/test_reachability.py` is a set-equality
+  guard over every activatable-kind node reachable from **neither** the action channel nor the profile
+  channel's `{requires, specializes_from, suggests}` web — the literal "reachable from actions" measure
+  `#3009` asked for, so a node with outbound edges but no inbound path can no longer pass silently. Six traced
+  inbound edges (`procedure:refactoring → DISCIPLINED_REFACTORING`, `DIRECTIVE_024`/`DIRECTIVE_025` →
+  `RECONCILE_CHANGE_SCOPE_TENSIONS`, `DIRECTIVE_030` → `USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY`,
+  `researcher-robbie → spike-timebox-policy`, `lexical-larry → glossary-maintenance-workflow`,
+  `minutes-maker-mahad → meeting-minutes-pipeline`) move the action-only whole-graph residual **88 → 75** and
+  the both-channel-dead subset **38 → 34**. The `#1923` DRG orphan-residual record
+  (`kitty-specs/mission-lifecycle-dispatch-drg-closeout-01KV0S99/drg-orphan-residual.md`) is truth-upped
+  against the wired graph: every one of the 75 residual members now carries an individual or group
+  disposition, `toolguide:rtk-search-tooling` is retired (already removed from disk), and only the genuinely
+  action-reachable members of the prior "6 promoted" claim are recorded as promoted.
 - **Documentation pages can now declare who they are for: a canonical `audience:`
   frontmatter field, plus a Common Docs styleguide and gates, ship in the built-in
   doctrine pack (mission `common-docs-convergence`).** Each page states its
