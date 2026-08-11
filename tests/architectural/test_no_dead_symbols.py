@@ -923,7 +923,7 @@ _CATEGORY_C_URN_RESOLUTION_LANE: frozenset[SymbolKey] = frozenset(
     {
         # specify_cli.runtime.resolver::resolve_template_by_urn -- compatibility-contract
         # URN lane (C-004/FR-010); consumer wired in #2761
-        SymbolKey("resolve_template_by_urn", "9bb6376d69e172430d4dbebb61800f0be7b11cd48522bb0201e6a4b2e8ad9b3d"),
+        SymbolKey("resolve_template_by_urn", "bcffd1b95ca9d308f731df2e86a84131223f4f79cf7ebc2d498afbe6c9d3c8a6"),
         # specify_cli.runtime.resolver::TemplateURNError -- compatibility-contract
         # URN lane (C-004/FR-010); consumer wired in #2761
         SymbolKey("TemplateURNError", "226a29599f205cd275a02a6ccd97545c8af1bc82ace37003d4ab2017c5b3b813"),
@@ -1172,6 +1172,83 @@ _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
 )
 
 
+# doctrine-public-api-surface-01KZPDSR WP02 (FR-001, C1). ``doctrine/api.py``
+# is the curated public wheel surface (PUBLIC-tagged symbols from the WP01
+# census disposition). It re-exports each PUBLIC symbol by object identity.
+#
+# TEMPORARY BRIDGE (#3179): the charter facades that give these api symbols a
+# live in-repo caller — by re-exporting them *from ``doctrine.api``* — are built
+# in WP03, which is not yet landed. Until WP03 lands, ``doctrine.api``'s
+# re-exports have no non-shim caller, so the symbol-level dead-code gate flags
+# them. These six are *escalated* to the module_path tier (their bare names also
+# live in ``doctrine.__init__`` / ``charter.drg`` / ``doctrine.assets`` __all__
+# with the same body), so the T013 re-export-shim auto-exempt (content-tier only)
+# does NOT cover them — they require this hand entry. The other four api symbols
+# (``RoutingRecommendation``, ``CatalogLoadResult``, ``evaluate``, ``load``) are
+# single-location content-tier keys whose origins already have live callers, so
+# they ARE auto-exempt and are deliberately NOT listed here (adding them would
+# trip ``test_auto_exempt_disjoint_from_hand_allowlist``).
+#
+# WP03 SHRINKS THIS: once ``charter.drg`` / ``charter.assets`` re-export these
+# symbols *from ``doctrine.api``*, each gains a genuine facade caller and MUST be
+# removed here (the stale-ratchet check reds if it lingers). Do NOT extend this
+# entry beyond the ``doctrine.api`` public surface.
+#
+# WP03 LANDED (mission ``doctrine-public-api-surface-01KZPDSR``): the charter
+# facades now re-export every one of these six from ``doctrine.api`` —
+# ``charter.drg`` imports ``ArtifactKind`` from ``doctrine.api`` (T010) and
+# ``charter.assets`` imports the five asset symbols from ``doctrine.api`` (T014).
+# Each escalated ``doctrine.api::X`` key therefore has a genuine live facade
+# caller, so the bridge is emptied (leaving any entry would red the stale-ratchet
+# / dangling-entry check). The other four api symbols (``RoutingRecommendation``,
+# ``CatalogLoadResult``, ``evaluate``, ``load``) are also now re-exported from
+# ``doctrine.api`` by ``charter.model_routing`` (T013); they were never listed
+# here (single-location content-tier keys, auto-exempt).
+_CATEGORY_C_DOCTRINE_API_SURFACE_BRIDGE_3179: frozenset[SymbolKey] = frozenset()
+
+
+# ---------- C. WP-in-flight charter facade forward API (01KZPDSR WP03) ----------
+# Mission ``doctrine-public-api-surface-01KZPDSR`` WP03 built the sanctioned
+# ``charter.*`` doors (``charter.assets`` / ``charter.model_routing`` /
+# ``charter.missions`` / ``charter.glossary_packs`` / ``charter.spdd_reasons``
+# plus the widened ``charter.drg`` cluster) that let WP05–WP07 migrate runtime
+# off direct ``doctrine.*`` imports (FR-003, NFR-002, contract C2). Those
+# consumer WPs depend on WP03 and have NOT landed in this lane, so each new
+# facade re-export currently has no cross-file ``src/`` caller.
+#
+# Every symbol below is a contract-required facade re-export
+# (``test_charter_facades_reexport_doctrine`` independently enforces the
+# object-identity + ``__all__`` membership these entries would otherwise let a
+# refactor drop). Each is a LIVE-COLLISION bare_name (the same name lives in the
+# doctrine origin ``__all__`` and, for the PUBLIC ones, in ``doctrine.api`` too),
+# so the FR-005 classifier escalates it to the module_path tier and it is
+# deliberately NOT covered by the content-tier ``_is_reexport_shim_symbol``
+# auto-exempt — escalated keys are hand-curated by design (DoD i). Same status
+# as ``_CATEGORY_C_MISSION_TYPE_DRG_EDGES_FACADE_REEXPORT`` above.
+#
+# THIS RATCHET SHRINKS as WP05–WP07 wire runtime onto each door: when a facade
+# symbol gains a real ``src/`` caller, its entry MUST be removed here (the
+# stale-ratchet check reds if it lingers). Tracker: mission
+# ``doctrine-public-api-surface-01KZPDSR`` WP05/WP06/WP07 (FR-303).
+_CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR: frozenset[SymbolKey] = frozenset(
+    {
+        # Post-merge reconciliation (01KZPDSR): the WP05/06/07-wired facade symbols
+        # (Asset{Repository,NotFoundError,PathEscapeError}, DRG{Load,Validation}Error,
+        # resolve_org_roots, GlossaryPack, Mission{Step,Template}Repository,
+        # model_routing::{RoutingRecommendation,evaluate,load}, apply_spdd_blocks_for_project)
+        # now have live runtime callers and were evicted per the shrink-only ratchet.
+        # The three below remain genuine forward/wheel-only public API with no in-repo
+        # caller yet (re-exported from doctrine.api via the charter facades).
+        # charter.assets::AssetManifest (PUBLIC; re-exported from doctrine.api)
+        SymbolKey("AssetManifest", "456a44a16d8907143ec72c52a3db086e9a20fab655f777f1e6be99969ea69842", module_path="charter.assets"),
+        # charter.assets::AssetResolutionError (PUBLIC; re-exported from doctrine.api)
+        SymbolKey("AssetResolutionError", "fa48b11b82424e7d3303c757e25ee1dd5652c60b03702e5e3a3f5cf4c16c8d8c", module_path="charter.assets"),
+        # charter.model_routing::CatalogLoadResult (PUBLIC; re-exported from doctrine.api)
+        SymbolKey("CatalogLoadResult", "d1058ae76b9cd3bd5e1755a50eccbb6e8873adc8eb1d8a538d651251334fbc76", module_path="charter.model_routing"),
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``). Entries are
@@ -1203,6 +1280,8 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED
     | _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841
     | _CATEGORY_C_DELIVERY_RAIL_FORWARD_API
+    | _CATEGORY_C_DOCTRINE_API_SURFACE_BRIDGE_3179
+    | _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR
 )
 
 
