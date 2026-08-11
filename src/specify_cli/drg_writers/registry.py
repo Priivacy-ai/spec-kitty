@@ -133,7 +133,7 @@ class _FunctionDocumentWriter:
 
 @dataclass(frozen=True)
 class _OrgEdgeModelBridge:
-    """Adapts ``doctrine.drg.merge._bridge_org_edge_to_drg_edge`` to ``ModelBridge``.
+    """Adapts ``doctrine.drg.merge.bridge_org_edge_to_drg_edge`` to ``ModelBridge``.
 
     The wrapped function returns ``(edge, conflict)``; the bridge surface exposes
     only the minted edge (``None`` on refusal). The endpoint-resolution context
@@ -199,7 +199,7 @@ DOCUMENT_WRITERS: Final[tuple[DocumentWriter, ...]] = (
 )
 
 MODEL_BRIDGES: Final[tuple[ModelBridge, ...]] = (
-    _OrgEdgeModelBridge(name="doctrine.drg.merge._bridge_org_edge_to_drg_edge"),
+    _OrgEdgeModelBridge(name="doctrine.drg.merge.bridge_org_edge_to_drg_edge"),
 )
 
 

@@ -99,6 +99,12 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("load_built_in_graph", "doctrine.drg.loader"),
         ("merge_three_layers", "doctrine.drg.merge"),
         ("model_to_graph_dict", "doctrine.drg.migration.extractor"),
+        # Promoted from a private doctrine helper during the #3321 landing (the
+        # post-fold squad flagged charter surfacing ``doctrine.drg.merge``'s
+        # private ``_bridge_org_edge_to_drg_edge``). It is now a public symbol in
+        # ``doctrine.drg.merge.__all__`` with a live runtime consumer
+        # (``specify_cli.drg_writers.registry``), so it is a plain re-export.
+        ("bridge_org_edge_to_drg_edge", "doctrine.drg.merge"),
     ],
     # New door (WP03/T012): mission-template / mission-type / mission-step
     # repository surfaces. All FACADE-ONLY per the WP01 census.
@@ -176,20 +182,6 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("ArtifactKind", "doctrine.artifact_kinds"),
         ("MissionTypeNotAnArtifactKind", "doctrine.artifact_kinds"),
     ],
-}
-
-#: Intentional private→public aliased re-exports. A facade advertises a *public*
-#: name in ``__all__`` for a doctrine symbol that is *private* in its source
-#: module, so the ``(name, source)`` identity table above — which resolves the
-#: SAME name on both sides — cannot express it. Each entry pins the public facade
-#: name to its private source object, so the alias stays identity-guarded (just
-#: not via ``_FACADE_TABLE``). Keyed ``(facade_module, public_name)`` →
-#: ``(source_module, private_name)``. Added by the #3321 landing squad.
-_ALIASED_REEXPORTS: dict[tuple[str, str], tuple[str, str]] = {
-    ("charter.drg", "bridge_org_edge_to_drg_edge"): (
-        "doctrine.drg.merge",
-        "_bridge_org_edge_to_drg_edge",
-    ),
 }
 
 #: Top-level packages whose re-exports through a charter ``__all__`` MUST carry an
@@ -278,8 +270,7 @@ def test_facade_all_reexports_are_tabled(facade_module: str) -> None:
     """Reverse of :func:`test_facade_all_lists_every_reexport`, enforced repo-wide:
     every symbol a charter module advertises in ``__all__`` whose object ORIGINATES
     from doctrine (or an external shared-contract package) MUST carry an identity
-    contract — an entry in ``_FACADE_TABLE`` or a documented ``_ALIASED_REEXPORTS``
-    alias.
+    contract — an entry in ``_FACADE_TABLE``.
 
     Without this the identity gate is one-directional: a re-export placed in
     ``__all__`` but omitted from the table is public yet identity-UNCHECKED, so a
@@ -295,9 +286,7 @@ def test_facade_all_reexports_are_tabled(facade_module: str) -> None:
     (e.g. a ``pathlib.Path`` module-level constant).
     """
     facade = importlib.import_module(facade_module)
-    tabled = {symbol for symbol, _ in _FACADE_TABLE.get(facade_module, [])}
-    aliased = {name for (fac, name) in _ALIASED_REEXPORTS if fac == facade_module}
-    covered = tabled | aliased
+    covered = {symbol for symbol, _ in _FACADE_TABLE.get(facade_module, [])}
     untabled: list[tuple[str, str]] = []
     for name in getattr(facade, "__all__", None) or []:
         origin = getattr(getattr(facade, name, None), "__module__", None)
@@ -306,31 +295,6 @@ def test_facade_all_reexports_are_tabled(facade_module: str) -> None:
     assert not untabled, (
         f"{facade_module}.__all__ advertises re-exported symbols with no "
         f"identity contract (public but UNCHECKED): {sorted(untabled)}. Add each "
-        f"to _FACADE_TABLE, or to _ALIASED_REEXPORTS if it is a private→public alias."
-    )
-
-
-@pytest.mark.parametrize(
-    ("facade_module", "public_name", "source_module", "source_name"),
-    [
-        (fac, name, src, src_name)
-        for (fac, name), (src, src_name) in _ALIASED_REEXPORTS.items()
-    ],
-    ids=[f"{fac}.{name}" for (fac, name) in _ALIASED_REEXPORTS],
-)
-def test_aliased_reexport_holds_private_identity(
-    facade_module: str, public_name: str, source_module: str, source_name: str
-) -> None:
-    """A ``_ALIASED_REEXPORTS`` entry MUST be the same object as its (private)
-    doctrine source — the alias stays identity-guarded even though the
-    ``(name, source)`` table format cannot express the name change.
-    """
-    facade = importlib.import_module(facade_module)
-    source = importlib.import_module(source_module)
-    facade_obj = getattr(facade, public_name)
-    source_obj = getattr(source, source_name)
-    assert facade_obj is source_obj, (
-        f"{facade_module}.{public_name} must be the same object as "
-        f"{source_module}.{source_name} (private→public alias). "
-        f"Got facade={facade_obj!r}, source={source_obj!r}."
+        f"to _FACADE_TABLE (promote a private doctrine symbol to a public name "
+        f"before re-exporting it, rather than aliasing a private symbol)."
     )

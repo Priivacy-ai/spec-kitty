@@ -168,7 +168,7 @@ class TestUnresolvableEndpointIsNeverSilent:
     ) -> None:
         """A source the fragment does not declare must not vanish.
 
-        Before WP08 :func:`_bridge_org_edge_to_drg_edge` returned ``None`` for
+        Before WP08 :func:`bridge_org_edge_to_drg_edge` returned ``None`` for
         any source missing from the fragment-local index and
         :func:`_merge_org_fragment` dropped it — no warning, no conflict
         record, no trace. This is the exact shape ADR 2026-07-26-3 names.
@@ -1362,7 +1362,7 @@ class TestResolutionPrecedence:
     ) -> None:
         """Re-anchored by the WP08 fold — this was the weakest of the 20 reds.
 
-        It used to call ``_bridge_org_edge_to_drg_edge`` positionally and went
+        It used to call ``bridge_org_edge_to_drg_edge`` positionally and went
         red with ``TypeError: takes 3 positional arguments but 4 were given``.
         That is an ARITY red, not a behaviour red: it pinned a private helper's
         signature, so it would have false-flagged any refactor of that seam

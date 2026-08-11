@@ -3,7 +3,7 @@
 WP02 (mission ``doctrine-delivery-reachability``), contract ``writer-registry.md``
 obligation **W-3**.
 
-``_bridge_org_edge_to_drg_edge`` mints a :class:`DRGEdge` from an org-fragment
+``bridge_org_edge_to_drg_edge`` mints a :class:`DRGEdge` from an org-fragment
 edge (``_OrgDRGEdge``). WP01 registered it as the sole ``ModelBridge`` but left
 its field coverage un-asserted: the bridge restated three of the edge's fields
 (``source`` / ``target`` / ``relation``) and dropped the author's ``reason``
@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.drg.merge import _bridge_org_edge_to_drg_edge
+from doctrine.drg.merge import bridge_org_edge_to_drg_edge
 from doctrine.drg.models import DRGEdge, Relation
 from doctrine.drg.org_pack_loader import _OrgDRGEdge, _ProjectedOrgDRGEdge
 
@@ -57,7 +57,7 @@ def _authored_fragment_edge(reason: str | None) -> _OrgDRGEdge:
 
 
 def _bridge(edge: _OrgDRGEdge) -> DRGEdge:
-    minted, conflict = _bridge_org_edge_to_drg_edge(
+    minted, conflict = bridge_org_edge_to_drg_edge(
         edge, {}, set(), _SOURCE_MARKER
     )
     assert conflict is None, f"unexpected endpoint conflict: {conflict}"

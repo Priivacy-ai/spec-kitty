@@ -61,6 +61,7 @@ __all__ = [
     "OrgDRGConflict",
     "OrgDRGConflictError",
     "UnknownRelationError",
+    "bridge_org_edge_to_drg_edge",
     "merge_three_layers",
 ]
 
@@ -519,7 +520,7 @@ class _EndpointResolutionError(Exception):
     success type stays a plain ``str`` — returning ``(str | None, kind | None)``
     would force every caller to re-assert a correlation the type system cannot
     see, and an unreachable "impossible" branch is exactly the inert code this
-    mission removes. :func:`_bridge_org_edge_to_drg_edge` converts it into the
+    mission removes. :func:`bridge_org_edge_to_drg_edge` converts it into the
     caller-visible :class:`OrgDRGConflict`; it never escapes the module.
     """
 
@@ -845,7 +846,7 @@ def _warn_dangling_org_endpoints(
         )
 
 
-def _bridge_org_edge_to_drg_edge(
+def bridge_org_edge_to_drg_edge(
     edge: Any,
     node_id_to_urn: Mapping[str, str],
     built_in_urns: Collection[str],
@@ -1013,7 +1014,7 @@ def _merge_org_fragment(
     # built-in URN set, so the result does not depend on where this pack sits
     # in the operator's declaration order.
     for edge in fragment.edges:
-        drg_edge, conflict = _bridge_org_edge_to_drg_edge(
+        drg_edge, conflict = bridge_org_edge_to_drg_edge(
             edge, node_id_to_urn, invariant_urns, source_marker
         )
         if conflict is not None:
