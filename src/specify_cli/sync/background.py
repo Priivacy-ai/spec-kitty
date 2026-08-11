@@ -20,14 +20,16 @@ import logging
 import sqlite3
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.errors import AuthenticationError
 from specify_cli.auth.refresh_transaction import RefreshLockTimeoutError
+from specify_cli.auth.session import require_private_team_id
 from specify_cli.diagnostics import report_once
+from specify_cli.paths import get_runtime_root
 
 from .batch import (
     BatchEventResult,
@@ -37,11 +39,15 @@ from .batch import (
 from .config import SyncConfig
 from .diagnostics import SyncDiagnosticCode, emit_sync_diagnostic
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
+from .project_identity import CanonicalProjectUUID
 from .queue import OfflineQueue
+from .project_store import ProjectStoreError, ProjectSyncStore
 
 if TYPE_CHECKING:
     from .body_queue import BodyUploadTask, OfflineBodyUploadQueue
+    from specify_cli.delivery.interfaces import DeliveryTarget
     from .namespace import UploadOutcome
+    from .target_authority import ResolvedSyncTarget
 
 logger = logging.getLogger(__name__)
 
@@ -52,12 +58,8 @@ _STOP_SYNC_TIMEOUT_SECONDS = 5
 # actually exit.  Bounded so shutdown can never hang; the thread is a
 # daemon and the process will not be blocked by it regardless.
 _TIMER_JOIN_TIMEOUT_SECONDS = 5.0
-_UNAUTHENTICATED_SYNC_ERROR = (
-    "Not authenticated: no valid access token. Run `spec-kitty auth login`."
-)
-_DIRECT_INGRESS_SKIPPED_ERROR = (
-    "direct_ingress_missing_private_team: direct ingress skipped before final sync auth"
-)
+_UNAUTHENTICATED_SYNC_ERROR = "Not authenticated: no valid access token. Run `spec-kitty auth login`."
+_DIRECT_INGRESS_SKIPPED_ERROR = "direct_ingress_missing_private_team: direct ingress skipped before final sync auth"
 
 #: Body uploads delivered per drain. Unchanged in effect from the historical
 #: ``drain(limit=50)``: it is a *delivery* budget, not a read budget.
@@ -69,6 +71,25 @@ _BODY_DRAIN_BATCH_LIMIT = 50
 #: so a queue that is entirely non-consenting costs a fixed number of queries per
 #: tick rather than a full scan; the rows are not going anywhere.
 _BODY_DRAIN_MAX_WINDOWS = 20
+
+
+def _enumerate_project_store_candidates() -> tuple[CanonicalProjectUUID, ...]:
+    """Return canonical project directory/hint names without opening a store."""
+    from .deny_hints import enumerate_deny_hint_project_uuids
+
+    candidates = set(enumerate_deny_hint_project_uuids())
+    projects_dir = Path(get_runtime_root().base) / "projects"
+    if projects_dir.is_dir():
+        for path in projects_dir.iterdir():
+            if not path.is_dir():
+                continue
+            try:
+                project_uuid = CanonicalProjectUUID.parse(path.name)
+            except (TypeError, ValueError):
+                continue
+            if path.name == project_uuid.storage_token:
+                candidates.add(project_uuid)
+    return tuple(sorted(candidates))
 
 
 class LegacyQueueNotConvergedError(RuntimeError):
@@ -190,7 +211,10 @@ def _unauthenticated_sync_result(
     result.error_messages.append(_UNAUTHENTICATED_SYNC_ERROR)
     result.error_messages.append(_DIRECT_INGRESS_SKIPPED_ERROR)
 
-    for event in events:
+    for queued in events:
+        event = queued.event if hasattr(queued, "event") else queued
+        if not isinstance(event, dict):
+            continue
         event_id = str(event.get("event_id") or "unknown")
         result.failed_ids.append(event_id)
         result.event_results.append(
@@ -303,8 +327,7 @@ def _consenting_body_project_uuids(tasks: list[BodyUploadTask]) -> frozenset[str
         )
     except Exception:  # noqa: BLE001 - unanswerable is not granted
         logger.warning(
-            "Could not resolve hosted-sync consent for queued artifact bodies; "
-            "withholding all of them",
+            "Could not resolve hosted-sync consent for queued artifact bodies; withholding all of them",
             exc_info=True,
         )
         return frozenset()
@@ -323,7 +346,12 @@ class BackgroundSyncService:
     _last_sync: datetime | None = field(default=None, init=False, repr=False)
     _consecutive_failures: int = field(default=0, init=False, repr=False)
     _body_queue: OfflineBodyUploadQueue | None = field(default=None, init=False, repr=False)
+    _observed_consent_generations: dict[str, int] = field(default_factory=dict, init=False, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
+
+    def _has_discovered_project_candidates(self) -> bool:
+        """Return whether a daemon scan has any non-authoritative candidates."""
+        return bool(_enumerate_project_store_candidates())
 
     def _assert_legacy_queue_converged(self) -> None:
         """Refuse to run while unmigrated legacy queue rows remain (#3030 T007).
@@ -445,34 +473,32 @@ class BackgroundSyncService:
             # rather than blocking shutdown.
             _emit_nonfatal_final_sync_diagnostic(
                 SyncDiagnosticCode.LOCK_UNAVAILABLE,
-                "Could not acquire sync lock within 5 s; skipping final sync. "
-                "Queued events will be drained by the daemon.",
+                "Could not acquire sync lock within 5 s; skipping final sync. Queued events will be drained by the daemon.",
             )
             return
 
         # Best-effort final sync with a bounded timeout so atexit never
         # hangs the process.  Events stay in the durable queue and will
         # be drained on the next daemon tick.
-        body_queue_has_work = _safe_optional_queue_size(self._body_queue) > 0
+        body_queue_has_work = _safe_optional_queue_size(self._body_queue) > 0 or self._has_discovered_project_candidates()
         if self.queue.size() > 0 or body_queue_has_work:
             sync_thread = threading.Thread(
-                target=self._guarded_final_sync, daemon=True,
+                target=self._guarded_final_sync,
+                daemon=True,
             )
             try:
                 sync_thread.start()
             except RuntimeError as exc:
                 _emit_nonfatal_final_sync_diagnostic(
                     SyncDiagnosticCode.EVENT_LOOP_UNAVAILABLE,
-                    "Could not start final sync during interpreter shutdown. "
-                    f"Queued events will be drained by the daemon. Detail: {exc}",
+                    f"Could not start final sync during interpreter shutdown. Queued events will be drained by the daemon. Detail: {exc}",
                 )
                 return
             sync_thread.join(timeout=_STOP_SYNC_TIMEOUT_SECONDS)
             if sync_thread.is_alive():
                 _emit_nonfatal_final_sync_diagnostic(
                     SyncDiagnosticCode.EVENT_LOOP_UNAVAILABLE,
-                    f"Final sync did not complete within {_STOP_SYNC_TIMEOUT_SECONDS}s. "
-                    "Queued events will be drained by the daemon.",
+                    f"Final sync did not complete within {_STOP_SYNC_TIMEOUT_SECONDS}s. Queued events will be drained by the daemon.",
                 )
         logger.debug("Background sync service stopped")
 
@@ -521,9 +547,7 @@ class BackgroundSyncService:
             return
 
         with self._lock:
-            if self._body_queue is None:
-                return
-            self._drain_body_queue()
+            self._drain_body_queues()
 
     # ── Internal ──────────────────────────────────────────────────
 
@@ -547,7 +571,7 @@ class BackgroundSyncService:
         """Timer callback: sync if queue is non-empty, then reschedule."""
         if not self._running:
             return
-        body_queue_has_work = _safe_optional_queue_size(self._body_queue) > 0
+        body_queue_has_work = _safe_optional_queue_size(self._body_queue) > 0 or self._has_discovered_project_candidates()
         if self.queue.size() > 0 or body_queue_has_work:
             self._perform_sync()
         self._schedule_next_sync()
@@ -584,9 +608,7 @@ class BackgroundSyncService:
             except RefreshLockTimeoutError as exc:
                 return self._record_transient_token_fetch_failure(exc)
             if access_token is None:
-                return self._record_unauthenticated_tick(
-                    _unauthenticated_sync_result(self.queue)
-                )
+                return self._record_unauthenticated_tick(_unauthenticated_sync_result(self.queue))
 
             try:
                 # FR-012 (spec-kitty#3030): the queue-backed event drain is GONE.
@@ -602,7 +624,8 @@ class BackgroundSyncService:
                 # Body uploads still drain here; they are a separate store and are
                 # gated separately (WP11).
                 result = BatchSyncResult()
-                if self._body_queue is not None and not self._drain_body_queue():
+                body_queue_has_work = _safe_optional_queue_size(self._body_queue) > 0 or self._has_discovered_project_candidates()
+                if body_queue_has_work and not self._drain_body_queues():
                     return self._record_unauthenticated_tick(result)
                 self._consecutive_failures = 0
                 self._backoff_seconds = 0.5
@@ -642,9 +665,7 @@ class BackgroundSyncService:
         except RefreshLockTimeoutError as exc:
             return self._record_transient_token_fetch_failure(exc)
         if access_token is None:
-            return self._record_unauthenticated_tick(
-                _unauthenticated_sync_result(self.queue, limit=1000)
-            )
+            return self._record_unauthenticated_tick(_unauthenticated_sync_result(self.queue, limit=1000))
 
         try:
             # FR-012 (spec-kitty#3030): the queue-backed event drain is GONE.
@@ -652,7 +673,8 @@ class BackgroundSyncService:
             # journal dispatcher is the sole event drain; body uploads are a
             # separate store, gated separately (WP11).
             result = BatchSyncResult()
-            if self._body_queue is not None and not self._drain_body_queue():
+            body_queue_has_work = _safe_optional_queue_size(self._body_queue) > 0 or self._has_discovered_project_candidates()
+            if body_queue_has_work and not self._drain_body_queues():
                 # The drain has its own token fetch. When *that* one comes back
                 # empty nothing was delivered, so the tick must not fall through
                 # to the success bookkeeping below (#3030 H7 / #3004).
@@ -723,6 +745,193 @@ class BackgroundSyncService:
         result.error_messages.append(str(exc))
         return result
 
+    def _drain_body_queues(self) -> bool:
+        """Drain an injected legacy fixture or the production project stores."""
+        if self._body_queue is not None:
+            return self._drain_body_queue()
+        return self._drain_discovered_body_queues()
+
+    def _authenticated_runtime_target(self) -> tuple[ResolvedSyncTarget, str, str] | None:
+        """Resolve the current local account/team/target tuple without network I/O."""
+        session = get_token_manager().get_current_session()
+        if session is None:
+            logger.debug("Body upload discovery has no current authenticated session")
+            return None
+        private_teamspace_id = require_private_team_id(session)
+        if private_teamspace_id is None:
+            logger.warning("Body upload discovery withheld: current session has no canonical Private Teamspace")
+            return None
+        target = self.config.resolve_runtime_target(
+            user_id=session.email,
+            team_slug=private_teamspace_id,
+        )
+        return target, session.email, private_teamspace_id
+
+    def _hint_skips_project_store(self, project_uuid: CanonicalProjectUUID) -> bool:
+        """Use a deny hint only after this process observed its authority generation."""
+        from .deny_hints import read_deny_hint
+
+        key = project_uuid.storage_token
+        expected_generation = self._observed_consent_generations.get(key)
+        if expected_generation is None:
+            return False
+        return not read_deny_hint(
+            project_uuid,
+            expected_generation=expected_generation,
+        ).requires_authority
+
+    @staticmethod
+    def _target_matches_current_auth(
+        target: DeliveryTarget,
+        resolved_target: ResolvedSyncTarget,
+        account_identity: str,
+        private_teamspace_id: str,
+        project_uuid: CanonicalProjectUUID,
+    ) -> bool:
+        """Require the stored target to match the exact current authenticated tuple."""
+        from .target_authority import build_admission_audience
+
+        audience = build_admission_audience(
+            resolved_target,
+            account_identity=account_identity,
+            private_teamspace_id=private_teamspace_id,
+            project_uuid=project_uuid,
+            configuration_generation=target.configuration_generation,
+        )
+        return (
+            target.target_identity == audience.target_identity
+            and target.account_identity == audience.account_identity
+            and target.private_teamspace_id == audience.private_teamspace_id
+            and target.project_uuid == audience.project_uuid
+        )
+
+    def _load_project_body_work(
+        self,
+        store: ProjectSyncStore,
+        *,
+        resolved_target: ResolvedSyncTarget,
+        account_identity: str,
+        private_teamspace_id: str,
+        limit: int,
+    ) -> tuple[DeliveryTarget, object, list[BodyUploadTask]] | None:
+        """Select one project's admitted work and close SQLite before transport."""
+        from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
+        from .body_queue import OfflineBodyUploadQueue
+        from .project_context import AdmissionState, ConsentState
+
+        context = store.create_context()
+        if context.consent_generation is not None:
+            self._observed_consent_generations[store.project_uuid.storage_token] = context.consent_generation
+        if context.consent_state is not ConsentState.GRANTED or context.admission_state is not AdmissionState.ADMITTED or context.target_audience is None:
+            return None
+
+        with store.unit_of_work() as unit:
+            target = ProjectDeliveryTargetRegistry(store).get_current(unit)
+        if target is None or not self._target_matches_current_auth(
+            target,
+            resolved_target,
+            account_identity,
+            private_teamspace_id,
+            store.project_uuid,
+        ):
+            logger.warning(
+                "Withholding body uploads for project %s: stored target does not match current authenticated audience",
+                store.project_uuid.storage_token,
+            )
+            return None
+
+        with store.unit_of_work() as unit:
+            queue = OfflineBodyUploadQueue(unit, store.layout_generation())
+            removed = queue.remove_stale(max_retry_count=20)
+            tasks = queue.drain(limit=limit)
+        if removed > 0:
+            logger.info(
+                "Removed %d stale body upload tasks for project %s",
+                removed,
+                store.project_uuid.storage_token,
+            )
+        return target, context, tasks
+
+    @staticmethod
+    def _record_project_body_outcome(
+        store: ProjectSyncStore,
+        task: BodyUploadTask,
+        outcome: UploadOutcome,
+    ) -> None:
+        """Record an outcome only through the task's already-known owning store."""
+        from .body_queue import OfflineBodyUploadQueue
+        from .namespace import UploadStatus
+
+        if task.project_uuid != store.project_uuid.storage_token:
+            raise ValueError("body task project UUID does not match its selected store")
+        with store.unit_of_work() as unit:
+            queue = OfflineBodyUploadQueue(unit, store.layout_generation())
+            if outcome.status is UploadStatus.UPLOADED:
+                queue.mark_uploaded(task.row_id)
+            elif outcome.status is UploadStatus.ALREADY_EXISTS:
+                queue.mark_already_exists(task.row_id)
+            elif outcome.status is UploadStatus.FAILED and outcome.retryable:
+                queue.mark_failed_retryable(task.row_id, outcome.reason)
+            elif outcome.status is UploadStatus.FAILED:
+                queue.record_permanent_failure(task, outcome.reason)
+            else:
+                logger.warning("Unexpected body outcome for project %s: %s", task.project_uuid, outcome)
+
+    def _drain_discovered_body_queues(self) -> bool:
+        """Drain existing UUID-owned stores independently under one auth audience."""
+        from .body_transport import push_content_with_transport_gate
+
+        access_token = _fetch_access_token_sync()
+        if access_token is None:
+            logger.debug("No auth token available, skipping discovered body queues")
+            return False
+        authenticated_target = self._authenticated_runtime_target()
+        if authenticated_target is None:
+            return False
+        resolved_target, account_identity, private_teamspace_id = authenticated_target
+
+        remaining = _BODY_DRAIN_BATCH_LIMIT
+        for project_uuid in _enumerate_project_store_candidates():
+            if remaining <= 0:
+                break
+            if self._hint_skips_project_store(project_uuid):
+                continue
+            store = ProjectSyncStore(project_uuid)
+            if not store.database_path.is_file():
+                logger.debug(
+                    "Skipping discovered project %s: project sync store is absent",
+                    project_uuid.storage_token,
+                )
+                continue
+            try:
+                selected = self._load_project_body_work(
+                    store,
+                    resolved_target=resolved_target,
+                    account_identity=account_identity,
+                    private_teamspace_id=private_teamspace_id,
+                    limit=remaining,
+                )
+                if selected is None:
+                    continue
+                target, context, tasks = selected
+                for task in tasks:
+                    outcome = push_content_with_transport_gate(
+                        task,
+                        access_token,
+                        target,
+                        resolved_target.resolved_server_url,
+                        context=context,
+                    )
+                    self._record_project_body_outcome(store, task, outcome)
+                    remaining -= 1
+            except Exception as exc:  # noqa: BLE001 - one project fault must not stop another project
+                logger.warning(
+                    "Withholding project %s body work after a project-scoped failure: %s",
+                    project_uuid.storage_token,
+                    exc,
+                )
+        return True
+
     def _drain_body_queue(self) -> bool:
         """Drain body upload queue, processing consenting tasks one at a time.
 
@@ -749,7 +958,7 @@ class BackgroundSyncService:
             reset backoff and stamped ``last_sync`` for a tick that delivered
             nothing (#3030 H7).
         """
-        from .body_transport import push_content
+        from .body_transport import push_content_with_transport_gate
 
         assert self._body_queue is not None
 
@@ -769,9 +978,63 @@ class BackgroundSyncService:
 
         server_url = self.config.resolve_runtime_target().resolved_server_url
         for task in tasks:
-            outcome = push_content(task, access_token, server_url)
+            target = self._resolve_body_delivery_target(task, server_url)
+            if target is None:
+                continue
+            outcome = push_content_with_transport_gate(task, access_token, target, server_url)
             self._handle_body_outcome(task, outcome)
         return True
+
+    def _resolve_body_delivery_target(
+        self,
+        task: BodyUploadTask,
+        server_url: str,
+    ) -> DeliveryTarget | None:
+        """Resolve the task's current project-owned target before body egress.
+
+        Consent filtering is only an early selector. The transport adapter still
+        owns WP06's final lease/attempt/result gate; this caller supplies the
+        exact current target so it cannot pair one project's queued body with a
+        different runtime URL or a stale daemon scope.
+        """
+        try:
+            store = ProjectSyncStore(task.project_uuid)
+        except ValueError:
+            logger.warning(
+                "Withholding body upload %s: malformed project UUID %r requires migration/quarantine",
+                task.row_id,
+                task.project_uuid,
+            )
+            return None
+
+        try:
+            from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
+            from specify_cli.sync.project_context import AdmissionState
+
+            with store.unit_of_work() as unit:
+                target = ProjectDeliveryTargetRegistry(store).get_current(unit)
+            if target is None or target.admission_state is not AdmissionState.ADMITTED:
+                logger.debug(
+                    "Withholding body upload %s: project %s is not currently admitted for egress",
+                    task.row_id,
+                    task.project_uuid,
+                )
+                return None
+            if target.target_identity != server_url:
+                logger.warning(
+                    "Withholding body upload %s: runtime target %s does not match admitted target",
+                    task.row_id,
+                    server_url,
+                )
+                return None
+            return target
+        except ProjectStoreError as exc:
+            logger.warning(
+                "Withholding body upload %s: project target authority rejected transport (%s)",
+                task.row_id,
+                exc,
+            )
+            return None
 
     def _collect_consenting_body_tasks(self, budget: int) -> list[BodyUploadTask]:
         """Read up to *budget* queued bodies whose **own** project consents (T025).
@@ -853,7 +1116,9 @@ class BackgroundSyncService:
         return collected
 
     def _handle_body_outcome(
-        self, task: BodyUploadTask, outcome: UploadOutcome,
+        self,
+        task: BodyUploadTask,
+        outcome: UploadOutcome,
     ) -> None:
         """Update queue based on upload outcome."""
         from .namespace import UploadStatus

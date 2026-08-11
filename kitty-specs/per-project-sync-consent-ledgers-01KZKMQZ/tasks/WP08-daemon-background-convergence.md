@@ -3,6 +3,7 @@ work_package_id: WP08
 title: Daemon and background convergence
 dependencies:
 - WP06
+- WP07
 requirement_refs:
 - FR-001
 - FR-003
@@ -36,6 +37,33 @@ history:
 - at: '2026-08-09T17:05:36Z'
   actor: planner
   action: Created by /spec-kitty.tasks
+- at: '2026-08-11T15:10:00Z'
+  actor: codex
+  action: Rerolled WP08 from approved WP07 commit e46feceb. Runtime publication
+    delegates to WebSocketClient.send_event so WP07 remains the sole WP06
+    attempt/lease/final gate and exact EventAck authority; accepted and duplicate
+    are the only positive outcomes, while refusal, mismatch, and timeout fail
+    closed. Project-store discovery and body drain delegate to WP07/WP06 and the
+    current T034 push_content_with_transport_gate API without holding a unit of
+    work over I/O. Sequential ownership of the runtime assertions and egress
+    architecture census records the removal of raw injection and the integrated
+    T032/T033/T034 sender topology. Filed baseline #3318 remains out of scope.
+- at: '2026-08-11T15:35:00Z'
+  actor: codex
+  action: Sequentially migrated four existing background/target test modules from
+    retired shared OfflineQueue construction, non-authoritative consent grants,
+    and readable queue-scope assumptions to ProjectSyncStore units, layout
+    authority, durable opt-in, production discovery, and opaque target scopes.
+    Node intent is preserved; no product surface was broadened beyond unwrapping
+    the current ProjectOutboxTask in unauthenticated classification while leaving
+    the durable task queued.
+- at: '2026-08-11T16:05:00Z'
+  actor: codex
+  action: Sequentially migrated the ten-node body-drain consent integration suite
+    from the retired shared queue and machine-index grant to project-owned stores,
+    layout authority, durable opt-in/out, exact admission, and the public gated
+    discovery drain. All ten refusal, retention, positive delivery, cwd isolation,
+    unresolved identity, and anti-starvation intents remain executable.
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/sync/daemon.py
 create_intent:
@@ -50,6 +78,13 @@ owned_files:
 - tests/sync/test_target_authority_wiring.py
 - tests/sync/test_daemon_project_isolation.py
 - tests/sync/test_background_authority_convergence.py
+- tests/sync/test_background.py
+- tests/sync/test_background_body.py
+- tests/sync/test_background_auth_backoff_3030.py
+- tests/sync/test_body_drain_consent_3030.py
+- tests/sync/test_runtime.py
+- tests/sync/test_target_authority.py
+- tests/architectural/test_egress_consent_boundary.py
 role: implementer
 tags: []
 tracker_refs:
@@ -111,9 +146,12 @@ permits must fail.
 
 ## Branch Strategy
 
-Run `spec-kitty agent action implement WP08 --agent <name>` after WP06 approval.
-It may progress alongside WP07 because owned files do not overlap. Use the
-computed lane and governed merge only; do not publish or mutate hosted state.
+Run `spec-kitty agent action implement WP08 --agent <name>` only after the
+sequential WP06 → WP07 dependency chain is approved: lane-e must contain the
+approved WP07 `e46feceb` ancestry before lane-f begins. WP08 integrates WP07's
+runtime EventAck transport and the shared architecture census, so it cannot
+truthfully progress alongside WP07. Use the computed lane and governed merge
+only; do not publish or mutate hosted state.
 
 ## Test strategy
 

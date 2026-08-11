@@ -42,7 +42,7 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field as dataclass_field
 from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import psutil
 
@@ -175,7 +175,7 @@ def _owner_dir() -> Path:
     rest of the daemon-owned state (logs, locks, sockets) instead of under
     the user-shared ``~/.spec-kitty`` root.
     """
-    return _sync_root() / "daemon"
+    return cast(Path, _sync_root() / "daemon")
 
 
 def owner_record_path() -> Path:
@@ -448,50 +448,41 @@ def compute_foreground_identity(*, allow_network: bool = True) -> dict[str, Any]
     Returns a dict shaped like the subset of :class:`DaemonOwnerRecord`
     that participates in :func:`mismatched_fields`.
 
-    When ``allow_network`` is false, auth scope resolution must use only
-    local session/credential state. This keeps daemon control-plane startup
-    responsive; any SaaS membership rehydrate can run after health is live.
+    When ``allow_network`` is false, auth identity resolution must use only the
+    local stored-session state. This keeps daemon control-plane startup
+    responsive; Private Teamspace membership rehydrate may run after health is
+    live when ``allow_network`` is true.
 
     Target authority (WP02, contract §1): when an authenticated identity is
     available, the canonical
     :func:`~specify_cli.sync.target_authority.resolve_sync_target` resolver
-    supplies the one ``resolved_server_url`` *and* the queue scope **derived**
-    from it (folding in ``SPEC_KITTY_SAAS_URL`` precedence). The owner record's
-    ``server_url``/``auth_scope``/``queue_db_path`` therefore always describe a
-    single coherent target — the daemon can never scope its queue to one target
-    while sync posts to another (SC-008, C-002). Unauthenticated identity keeps
-    the legacy ``queue.db`` path and the raw configured URL.
+    supplies the one ``resolved_server_url`` *and* the descriptive queue scope
+    **derived** from it (folding in ``SPEC_KITTY_SAAS_URL`` precedence). The
+    owner record's ``server_url``/``auth_scope``/``queue_db_path`` therefore
+    always describe a single coherent target — the daemon can never describe
+    one target while sync posts to another (SC-008, C-002). The owner record is
+    reporting metadata only: it does not select a live payload queue and it is
+    never egress authority.
     """
-    from specify_cli.sync.queue import (  # local import: cycle-safe
-        _legacy_queue_db_path,
-        _read_server_url_for_scope,
-        read_queue_scope_from_credentials,
-        read_queue_scope_from_session,
-    )
+    from specify_cli.auth import get_token_manager
+    from specify_cli.auth.session import require_private_team_id
     from specify_cli.sync.target_authority import resolve_sync_target
-
-    scope = read_queue_scope_from_session(allow_rehydrate=allow_network)
-    if scope is None:
-        scope = read_queue_scope_from_credentials()
 
     auth_principal: str | None = None
     auth_team: str | None = None
-    if scope is not None:
-        # Canonical scope is ``server|user|team`` (see build_queue_scope).
-        parts = scope.split("|")
-        if len(parts) == 3:
-            auth_principal = parts[1] or None
-            auth_team = parts[2] or None
+    token_manager = get_token_manager()
+    session = token_manager.get_current_session()
+    if session is not None and allow_network:
+        token_manager.rehydrate_membership_if_needed()
+        session = token_manager.get_current_session()
+    if session is not None:
+        auth_principal = session.email
+        auth_team = require_private_team_id(session)
 
-    if auth_principal is not None:
-        target = resolve_sync_target(user_id=auth_principal, team_slug=auth_team)
-        server_url = target.resolved_server_url
-        auth_scope: str | None = target.derived_queue_scope
-        queue_db_path = str(target.queue_db_path)
-    else:
-        server_url = _read_server_url_for_scope()
-        auth_scope = None
-        queue_db_path = str(_legacy_queue_db_path())
+    target = resolve_sync_target(user_id=auth_principal, team_slug=auth_team)
+    server_url = target.resolved_server_url
+    auth_scope: str | None = target.derived_queue_scope if session is not None else None
+    queue_db_path = str(target.queue_db_path)
 
     return {
         "package_version": _get_package_version(),
@@ -717,9 +708,7 @@ def _process_executable_scopes(
         for part in cmdline:
             text = str(part)
             if text.startswith(DAEMON_EXEC_ARG_PREFIX):
-                scopes.add(
-                    _canonical_executable_path(text[len(DAEMON_EXEC_ARG_PREFIX):])
-                )
+                scopes.add(_canonical_executable_path(text[len(DAEMON_EXEC_ARG_PREFIX) :]))
     return scopes
 
 
@@ -733,7 +722,7 @@ def _cmdline_daemon_root_marker(cmdline: Sequence[str]) -> str | None:
     for part in cmdline:
         text = str(part)
         if text.startswith(DAEMON_SCOPE_ARG_PREFIX):
-            return text[len(DAEMON_SCOPE_ARG_PREFIX):]
+            return text[len(DAEMON_SCOPE_ARG_PREFIX) :]
     return None
 
 
@@ -748,10 +737,7 @@ def _cmdline_has_daemon_spawn_signature(cmdline: Sequence[str]) -> bool:
     ``…run_sync_daemon….py`` script path) out of the kill set.
     """
     parts = [str(part) for part in cmdline]
-    return any(
-        part == "-c" and "run_sync_daemon" in parts[index + 1]
-        for index, part in enumerate(parts[:-1])
-    )
+    return any(part == "-c" and "run_sync_daemon" in parts[index + 1] for index, part in enumerate(parts[:-1]))
 
 
 def _sweep_daemon_process(

@@ -37,6 +37,8 @@ from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from .routing import is_sync_enabled_for_checkout
 
 if TYPE_CHECKING:
+    from specify_cli.delivery.interfaces import DeliveryTarget
+
     from .background import BackgroundSyncService
     from .body_queue import OfflineBodyUploadQueue
     from .client import WebSocketClient
@@ -44,6 +46,8 @@ if TYPE_CHECKING:
     from .target_authority import ResolvedSyncTarget
 
 logger = logging.getLogger(__name__)
+
+_WEBSOCKET_PUBLISH_TIMEOUT_SECONDS = 5.0
 
 
 def _safe_queue_size(queue_obj: object) -> int:
@@ -223,10 +227,10 @@ def event_project_consents_to_publish(event: object) -> bool:
     The one predicate behind both daemon publish seams: :meth:`SyncRuntime.publish_event`
     (which the daemon's ``POST /api/sync/publish`` endpoint calls) and
     ``events._publish_event_via_sync_daemon`` (which the eleven ``emit_*`` wrappers and
-    the ``MissionCreated`` lifecycle fan-out call). Both reach ``sync/consent.py``'s
-    single chain through ``consented_project_uuids`` — the same seam the capture gate,
-    the drain, the body upload and the LocalCommit flush use, so no second
-    representation of consent is created (C-003).
+    the ``MissionCreated`` lifecycle fan-out call). It reads only the envelope's
+    canonical project-owned sync store and current admission context. Legacy consent,
+    cwd, active queue scope and daemon owner identity can narrow or diagnose, but cannot
+    grant this egress.
 
     Resolved from **the event's own identity** via ``resolve_event_project_uuid``
     (T011's single chain, the same resolution the journal's stored column uses), and
@@ -252,24 +256,37 @@ def event_project_consents_to_publish(event: object) -> bool:
     """
     project_uuid: str | None = None
     try:
-        from .consent import consented_project_uuids
+        from .project_context import AdmissionState, ConsentState
         from .project_identity import resolve_event_project_uuid
+        from .project_store import ProjectSyncStore
 
         project_uuid = resolve_event_project_uuid(event if isinstance(event, dict) else None)
         if not project_uuid:
             _report_publish_refusal(
                 None,
-                "the event carries no resolvable project_uuid, so it cannot be shown "
-                "to belong to a consenting project",
+                "the event carries no resolvable project_uuid, so it cannot be shown to belong to a consenting project",
             )
             return False
-        granted = project_uuid in consented_project_uuids(
-            [project_uuid], checkout_roots=_offered_consent_roots()
+        store = ProjectSyncStore(project_uuid)
+        if not store.database_path.exists():
+            _report_publish_refusal(
+                project_uuid,
+                "the project has no project-owned sync store yet; daemon publish will not create one during discovery",
+            )
+            return False
+        context = store.create_context()
+        granted = (
+            is_saas_sync_enabled()
+            and context.consent_state is ConsentState.GRANTED
+            and context.consent_generation is not None
+            and context.epoch_id is not None
+            and context.target_audience is not None
+            and context.admission_state is AdmissionState.ADMITTED
+            and context.admission_generation is not None
+            and context.binding_audience is not None
         )
     except Exception as exc:  # noqa: BLE001 - inability to determine is not consent
-        _report_publish_refusal(
-            project_uuid, f"hosted-sync consent could not be resolved: {exc}"
-        )
+        _report_publish_refusal(project_uuid, f"hosted-sync consent could not be resolved: {exc}")
         return False
 
     if not granted:
@@ -289,7 +306,7 @@ class SyncRuntime:
     The runtime coordinates:
     - BackgroundSyncService: Periodic queue flush
     - WebSocketClient: Real-time event streaming (if authenticated)
-    - EventEmitter wiring: Connects WS client to emitter when available
+    - EventEmitter attachment: identity/build registration without raw transport injection
 
     Thread-safe and idempotent: start() can be called multiple times.
     """
@@ -331,15 +348,17 @@ class SyncRuntime:
 
         # Start background service (use existing singleton)
         from .background import get_sync_service
+
         self.background_service = get_sync_service()
 
-        # Create body queue sharing same DB as event queue (C-001)
-        from .body_queue import OfflineBodyUploadQueue
-        self.body_queue = OfflineBodyUploadQueue(
-            db_path=self.background_service.queue.db_path,
-        )
+        # Body queues are now project-store scoped and require a WP04 layout
+        # authority. The runtime singleton has no canonical project unit at
+        # startup, so it must not recreate the retired shared db_path queue.
+        # Foreground/background body drains install a project-owned facade when
+        # they have exact task/store authority.
+        self.body_queue = None
         self.background_service._body_queue = self.body_queue
-        if _safe_queue_size(self.background_service.queue) > 0 or _safe_queue_size(self.body_queue) > 0:
+        if _safe_queue_size(self.background_service.queue) > 0:
             self.background_service.wake()
 
         self._ensure_async_loop()
@@ -381,11 +400,9 @@ class SyncRuntime:
                 future = asyncio.run_coroutine_threadsafe(self.ws_client.connect(), self._async_loop)
                 future.add_done_callback(self._log_async_future_error)
 
-                # Wire WebSocket to emitter if already attached
-                if self.emitter is not None:
-                    self.emitter.ws_client = self.ws_client
-                    if project_identity is not None:
-                        self.ws_client._project_identity = project_identity
+                # The raw transport stays runtime-owned. EventEmitter's historical
+                # direct injection bypasses WP06 attempts and the final lease; WP07
+                # supplies interactive senders, while daemon relay calls publish_event.
                 logger.debug("WebSocket connect scheduled")
             except Exception as e:
                 logger.warning(f"WebSocket connection failed: {e}")
@@ -427,6 +444,80 @@ class SyncRuntime:
         except Exception as exc:
             logger.debug("Could not resolve canonical sync target: %s", exc)
             return None
+
+    def _current_event_delivery_target(self, project_uuid: str) -> DeliveryTarget | None:
+        """Load an admitted target matching the current local account/team audience."""
+        from specify_cli.auth import get_token_manager
+        from specify_cli.auth.session import require_private_team_id
+        from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
+        from specify_cli.sync.project_identity import CanonicalProjectUUID
+        from specify_cli.sync.project_store import ProjectSyncStore
+        from specify_cli.sync.target_authority import build_admission_audience
+
+        session = get_token_manager().get_current_session()
+        if session is None:
+            return None
+        private_teamspace_id = require_private_team_id(session)
+        if private_teamspace_id is None:
+            return None
+        resolved_target = self._resolve_runtime_target_for_audience(
+            account_identity=session.email,
+            private_teamspace_id=private_teamspace_id,
+        )
+        if resolved_target is None:
+            return None
+
+        canonical = CanonicalProjectUUID.parse(project_uuid)
+        store = ProjectSyncStore(canonical)
+        if not store.database_path.is_file():
+            return None
+        with store.unit_of_work() as unit:
+            target = ProjectDeliveryTargetRegistry(store).get_current(unit)
+        if target is None:
+            return None
+        audience = build_admission_audience(
+            resolved_target,
+            account_identity=session.email,
+            private_teamspace_id=private_teamspace_id,
+            project_uuid=canonical,
+            configuration_generation=target.configuration_generation,
+        )
+        if (
+            target.target_identity != audience.target_identity
+            or target.account_identity != audience.account_identity
+            or target.private_teamspace_id != audience.private_teamspace_id
+            or target.project_uuid != audience.project_uuid
+        ):
+            return None
+        return target
+
+    @staticmethod
+    def _resolve_runtime_target_for_audience(
+        *,
+        account_identity: str,
+        private_teamspace_id: str,
+    ) -> ResolvedSyncTarget | None:
+        """Resolve target identity with current auth fields included in its scope."""
+        try:
+            from .config import SyncConfig
+
+            return SyncConfig().resolve_runtime_target(
+                user_id=account_identity,
+                team_slug=private_teamspace_id,
+            )
+        except Exception as exc:
+            logger.debug("Could not resolve authenticated runtime target: %s", exc)
+            return None
+
+    def _send_websocket_event(self, event: dict[str, object]) -> bool:
+        """Await T032's exact EventAck terminalization outside every SQLite UoW."""
+        if self.ws_client is None or not self.ws_client.connected or self._async_loop is None:
+            raise ConnectionError("daemon WebSocket transport is unavailable")
+        future = asyncio.run_coroutine_threadsafe(
+            self.ws_client.send_event(event),
+            self._async_loop,
+        )
+        return bool(future.result(timeout=_WEBSOCKET_PUBLISH_TIMEOUT_SECONDS))
 
     def _attached_repo_slug(self) -> str | None:
         """Return the repo slug from the attached emitter, if available."""
@@ -497,30 +588,32 @@ class SyncRuntime:
         if not event_project_consents_to_publish(event):
             return False
 
-        if not self.started:
-            self.start()
+        from specify_cli.sync.project_identity import resolve_event_project_uuid
 
-        if self.ws_client is None or self._async_loop is None:
-            self._connect_websocket_if_authenticated()
+        project_uuid = resolve_event_project_uuid(event)
+        event_id = event.get("event_id")
+        if project_uuid is None or not isinstance(event_id, str) or not event_id.strip():
             return False
-
-        if not self.ws_client.connected:
-            self._connect_websocket_if_authenticated()
+        target = self._current_event_delivery_target(project_uuid)
+        if target is None or self.ws_client is None or not self.ws_client.connected or self._async_loop is None:
             return False
-
         try:
-            future = asyncio.run_coroutine_threadsafe(self.ws_client.send_event(event), self._async_loop)
-            future.result(timeout=2.0)
-            return True
+            # T032's WebSocketClient owns the one WP06 attempt/lease/final gate and
+            # returns only after an exact EventAck classifies accepted/duplicate.
+            # Wrapping it in another disclosure would create a second attempt and
+            # could falsely promote a bare socket write to delivery.
+            return self._send_websocket_event(event)
         except Exception as exc:
-            logger.debug("WebSocket publish failed: %s", exc)
+            logger.warning("WebSocket publish did not reach an exact terminal success: %s", exc)
             return False
 
     def attach_emitter(self, emitter: EventEmitter) -> None:
-        """Attach emitter so WS client can be injected.
+        """Attach an emitter for identity and build-registration coordination.
 
         Called by get_emitter() after creating the EventEmitter instance.
-        If WebSocket is already connected, wires it to the emitter.
+        The emitter is retained for identity/build registration only. Its raw
+        WebSocket injection path is intentionally disabled; daemon publishing
+        must enter through :meth:`publish_event` and WP06's durable gate.
 
         Auto-emits ``BuildRegistered`` for the active checkout when the
         project identity is complete. ``repo_slug`` is intentionally not
@@ -531,16 +624,8 @@ class SyncRuntime:
         """
         self.emitter = emitter
         identity = self._attached_project_identity()
-        if self.ws_client is not None:
-            self.emitter.ws_client = self.ws_client
-            if identity is not None:
-                self.ws_client._project_identity = identity
 
-        if (
-            not self._build_registered
-            and identity is not None
-            and getattr(identity, "is_complete", False) is True
-        ):
+        if not self._build_registered and identity is not None and getattr(identity, "is_complete", False) is True:
             event = emitter.emit_build_registered()
             if event is not None:
                 self._build_registered = True

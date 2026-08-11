@@ -445,17 +445,18 @@ class TestSyncRuntime:
                 # its authenticated-websocket siblings below); stop() joins it.
                 runtime.stop()
 
-    def test_attach_emitter_wires_ws_client(self):
-        """attach_emitter wires existing ws_client to emitter."""
+    def test_attach_emitter_does_not_inject_raw_ws_client(self):
+        """attach_emitter cannot expose the runtime transport around WP06."""
         runtime = SyncRuntime()
         mock_ws = MagicMock()
         runtime.ws_client = mock_ws
 
         mock_emitter = MagicMock()
+        mock_emitter.ws_client = None
         runtime.attach_emitter(mock_emitter)
 
         assert runtime.emitter is mock_emitter
-        assert mock_emitter.ws_client is mock_ws
+        assert mock_emitter.ws_client is None
 
     def test_attach_emitter_without_ws_client(self):
         """attach_emitter stores emitter even without ws_client."""
@@ -466,10 +467,11 @@ class TestSyncRuntime:
         assert runtime.emitter is mock_emitter
         # ws_client not set since it was None
 
-    def test_attach_emitter_sets_project_identity_on_existing_ws_client(self):
-        """attach_emitter injects the emitter identity into the websocket client."""
+    def test_attach_emitter_does_not_mutate_raw_websocket_identity(self):
+        """Emitter identity cannot turn a runtime socket into a direct sender."""
         runtime = SyncRuntime()
         mock_ws = MagicMock()
+        mock_ws._project_identity = None
         runtime.ws_client = mock_ws
 
         identity = MagicMock()
@@ -489,7 +491,7 @@ class TestSyncRuntime:
 
         runtime.attach_emitter(mock_emitter)
 
-        assert mock_ws._project_identity is identity
+        assert mock_ws._project_identity is None
 
     def test_attach_emitter_emits_build_registered_once_and_wakes_background(self):
         """attach_emitter emits one BuildRegistered and wakes background sync."""

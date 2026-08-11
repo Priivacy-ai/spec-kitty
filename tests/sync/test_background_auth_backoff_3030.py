@@ -30,6 +30,9 @@ pytestmark = pytest.mark.fast
 
 from specify_cli.sync.background import BackgroundSyncService
 from specify_cli.sync.queue import OfflineQueue
+from specify_cli.sync.project_store import ProjectSyncStore
+
+PROJECT_UUID = "aaaaaaaa-0000-0000-0000-000000000001"
 
 
 @pytest.fixture(autouse=True)
@@ -41,12 +44,20 @@ def _saas_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
-def service(tmp_path) -> BackgroundSyncService:
-    return BackgroundSyncService(
-        queue=OfflineQueue(db_path=tmp_path / "bg_queue.db"),
-        config=MagicMock(),
-        sync_interval_seconds=0.1,
-    )
+def service(tmp_path, monkeypatch) -> BackgroundSyncService:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(PROJECT_UUID)
+    authority = store.layout_generation()
+    authority.begin_cutover("background-auth-test")
+    authority.publish_project_only("background-auth-test", verify_exact=lambda: True)
+    with store.unit_of_work() as unit:
+        background = BackgroundSyncService(
+            queue=OfflineQueue(unit, authority),
+            config=MagicMock(),
+            sync_interval_seconds=0.1,
+        )
+        monkeypatch.setattr(background, "_has_discovered_project_candidates", lambda: False)
+        yield background
 
 
 def _no_token() -> None:

@@ -32,9 +32,10 @@ from unittest.mock import MagicMock
 import pytest
 
 from specify_cli.sync.body_queue import OfflineBodyUploadQueue
-from specify_cli.sync.consent import set_project_consent
+from specify_cli.sync.consent import record_project_opt_in, record_project_opt_out
+from specify_cli.sync.layout_generation import LayoutAuthorityError
 from specify_cli.sync.namespace import NamespaceRef
-from specify_cli.sync.queue import OfflineQueue
+from specify_cli.sync.project_store import ProjectSyncStore
 
 pytestmark = [pytest.mark.fast]
 
@@ -64,12 +65,23 @@ class _Egress:
     def post(
         self,
         url: str,
-        json: dict[str, Any] | None = None,
+        data: bytes | None = None,
         headers: dict[str, str] | None = None,
         timeout: float | None = None,
     ) -> SimpleNamespace:
-        self.posts.append({"url": url, "json": json or {}, "headers": headers or {}})
-        return SimpleNamespace(status_code=self.status, json=lambda: {})
+        import json
+
+        del timeout
+        payload = json.loads(data.decode("utf-8")) if data is not None else {}
+        self.posts.append({"url": url, "json": payload, "headers": headers or {}})
+        return SimpleNamespace(
+            status_code=self.status,
+            json=lambda: {
+                "status": "stored",
+                "artifact_path": payload.get("artifact_path"),
+                "content_hash": payload.get("content_hash"),
+            },
+        )
 
     def fallback(self, method: str, url: str, **kwargs: Any) -> SimpleNamespace:
         """``body_transport``'s stdlib escape hatch — a second way bytes can leave."""
@@ -115,7 +127,7 @@ def _checkout(tmp_path: Path, name: str, *, uuid: str, hosted: bool | None) -> P
 
 
 def _enqueue_body(
-    queue: OfflineBodyUploadQueue,
+    queue: Any,
     project_uuid: str,
     *,
     artifact_path: str = "spec.md",
@@ -141,6 +153,75 @@ def _enqueue_body(
     )
 
 
+def _store(project_uuid: str) -> ProjectSyncStore:
+    store = ProjectSyncStore(project_uuid)
+    authority = store.layout_generation()
+    try:
+        authority.begin_cutover("body-consent-test")
+    except LayoutAuthorityError as exc:
+        if "already project-only" not in str(exc):
+            raise
+    else:
+        authority.publish_project_only("body-consent-test", verify_exact=lambda: True)
+    return store
+
+
+def _admit(project_uuid: str) -> ProjectSyncStore:
+    record_project_opt_in(project_uuid, actor="body-consent-test")
+    store = _store(project_uuid)
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO project_target_admissions "
+            "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, binding_audience) "
+            "VALUES (?, 'https://saas.example.test', 'account-1', 'teamspace-1', 1, "
+            "'admitted', '1', 'private-teamspace:teamspace-1') "
+            "ON CONFLICT(project_uuid) DO UPDATE SET admission_state='admitted'",
+            (project_uuid,),
+        )
+    return store
+
+
+class _ProjectBodyQueues:
+    """Test facade that keeps every body operation in its owning project store."""
+
+    def __init__(self) -> None:
+        self._projects: set[str] = set()
+
+    def enqueue(self, *, namespace: NamespaceRef, **kwargs: Any) -> object:
+        project_uuid = namespace.project_uuid
+        self._projects.add(project_uuid)
+        store = _store(project_uuid)
+        with store.unit_of_work() as unit:
+            return OfflineBodyUploadQueue(unit, store.layout_generation()).enqueue(
+                namespace=namespace,
+                **kwargs,
+            )
+
+    def size(self) -> int:
+        total = 0
+        for project_uuid in self._projects:
+            store = _store(project_uuid)
+            with store.unit_of_work() as unit:
+                total += OfflineBodyUploadQueue(unit, store.layout_generation()).size()
+        return total
+
+    def get_stats(self) -> SimpleNamespace:
+        retry_counts: list[int] = []
+        for project_uuid in self._projects:
+            store = _store(project_uuid)
+            with store.unit_of_work() as unit:
+                stats = OfflineBodyUploadQueue(unit, store.layout_generation()).get_stats()
+            retry_counts.append(stats.max_retry_count)
+        return SimpleNamespace(max_retry_count=max(retry_counts, default=0))
+
+
+class _ProjectEventQueue:
+    @staticmethod
+    def size() -> int:
+        return 0
+
+
 def _service(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     """A ``BackgroundSyncService`` with a real body queue and a valid token."""
     from specify_cli.sync.background import BackgroundSyncService
@@ -152,11 +233,20 @@ def _service(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         "specify_cli.sync.background.is_saas_sync_enabled", lambda: True
     )
 
-    db_path = tmp_path / "queue.db"
+    del tmp_path
     config = MagicMock()
-    config.resolve_runtime_target.return_value.resolved_server_url = "https://saas.example.test"
-    service = BackgroundSyncService(queue=OfflineQueue(db_path=db_path), config=config)
-    service._body_queue = OfflineBodyUploadQueue(db_path=db_path)
+    config.resolve_runtime_target.return_value = SimpleNamespace(
+        resolved_server_url="https://saas.example.test"
+    )
+    manager = MagicMock()
+    manager.get_current_session.return_value = SimpleNamespace(
+        email="account-1",
+        teams=[SimpleNamespace(id="teamspace-1", is_private_teamspace=True)],
+    )
+    monkeypatch.setattr("specify_cli.sync.background.get_token_manager", lambda: manager)
+    service = BackgroundSyncService(queue=_ProjectEventQueue(), config=config)
+    service._body_queue = _ProjectBodyQueues()
+    service._drain_body_queue = service._drain_discovered_body_queues
     return service
 
 
@@ -219,7 +309,7 @@ def test_a_withheld_body_becomes_sendable_once_the_project_consents(
     service.drain_body_uploads_only()
     assert egress.posts == []
 
-    set_project_consent(UUID_A, True)
+    _admit(UUID_A)
     service.drain_body_uploads_only()
 
     assert egress.project_uuids == [UUID_A]
@@ -234,7 +324,7 @@ def test_body_for_a_consenting_project_still_drains(
 ) -> None:
     """The gate must not be a body-upload kill switch."""
     service = _service(tmp_path, monkeypatch)
-    set_project_consent(UUID_A, True)
+    _admit(UUID_A)
     _enqueue_body(service._body_queue, UUID_A)
 
     service.drain_body_uploads_only()
@@ -255,7 +345,7 @@ def test_consenting_and_non_consenting_bodies_are_separated_within_one_drain(
 ) -> None:
     """One drain, two projects, one decision each — not one decision for the batch."""
     service = _service(tmp_path, monkeypatch)
-    set_project_consent(UUID_B, True)
+    _admit(UUID_B)
     _enqueue_body(service._body_queue, UUID_A, artifact_path="spec.md")
     _enqueue_body(service._body_queue, UUID_B, artifact_path="plan.md")
 
@@ -307,7 +397,7 @@ def test_standing_in_an_opted_out_checkout_does_not_block_a_consenting_project(
     consenting projects" failing in the quiet direction.
     """
     service = _service(tmp_path, monkeypatch)
-    set_project_consent(UUID_A, True)
+    _admit(UUID_A)
     opted_out_b = _checkout(tmp_path, "project-b", uuid=UUID_B, hosted=False)
     _enqueue_body(service._body_queue, UUID_A)
     monkeypatch.chdir(opted_out_b)
@@ -322,14 +412,14 @@ def test_the_projects_own_committed_refusal_is_honoured_from_its_checkout(
 ) -> None:
     """Level 1 of the chain is reachable from the drain (FR-019).
 
-    A stale machine-index grant must not survive a committed, reviewable refusal in
-    the project's own ``.kittify/config.yaml`` when that checkout is the one the
-    drain is standing in.
+    A prior grant must not survive the project's current durable refusal. The
+    checkout remains a narrowing input, never the replacement authority.
     """
     service = _service(tmp_path, monkeypatch)
-    set_project_consent(UUID_A, True)
+    _admit(UUID_A)
     refusing_a = _checkout(tmp_path, "project-a", uuid=UUID_A, hosted=False)
     _enqueue_body(service._body_queue, UUID_A)
+    record_project_opt_out(UUID_A, actor="body-consent-test")
     monkeypatch.chdir(refusing_a)
 
     service.drain_body_uploads_only()
@@ -342,34 +432,19 @@ def test_a_body_with_no_resolvable_project_identity_is_never_posted(
 ) -> None:
     """NFR-001's second half: ``None`` ∉ delivered.
 
-    Legacy rows can carry a blank ``project_uuid``. Such a body can never be shown
-    to belong to a consenting project, so it is permanently unsendable — and the
-    drain must still terminate rather than re-reading it forever.
+    The project-owned queue refuses a blank ``project_uuid`` before persistence,
+    so no unresolved row can become a production discovery candidate.
     """
     service = _service(tmp_path, monkeypatch)
-    set_project_consent(UUID_A, True)
+    _admit(UUID_A)
     _enqueue_body(service._body_queue, UUID_A, artifact_path="plan.md")
-    import sqlite3
-
-    conn = sqlite3.connect(service._body_queue.db_path)
-    try:
-        conn.execute(
-            "INSERT INTO body_upload_queue (project_uuid, mission_slug, target_branch,"
-            " mission_type, manifest_version, artifact_path, content_hash,"
-            " hash_algorithm, content_body, size_bytes, retry_count, next_attempt_at,"
-            " created_at, last_error)"
-            " VALUES ('', '047-payroll', 'main', 'software-dev', '1', 'spec.md',"
-            " 'deadbeef', 'sha256', ?, 12, 0, 0.0, 1.0, NULL)",
-            (CONFIDENTIAL_BODY,),
-        )
-        conn.commit()
-    finally:
-        conn.close()
+    with pytest.raises(ValueError):
+        _enqueue_body(service._body_queue, "", artifact_path="spec.md")
 
     service.drain_body_uploads_only()
 
     assert egress.project_uuids == [UUID_A], "only the identified, consenting body ships"
-    assert service._body_queue.size() == 1
+    assert service._body_queue.size() == 0
 
 
 # --- NFR-002: the predicate precedes the row limit ------------------------
@@ -386,7 +461,7 @@ def test_a_wall_of_withheld_bodies_does_not_starve_a_consenting_project(
     be reached — not "later", never. This is NFR-002's starvation on the body store.
     """
     service = _service(tmp_path, monkeypatch)
-    set_project_consent(UUID_B, True)
+    _admit(UUID_B)
     for index in range(60):
         _enqueue_body(service._body_queue, UUID_A, artifact_path=f"tasks/WP{index:02d}-x.md")
     _enqueue_body(service._body_queue, UUID_B, artifact_path="spec.md")

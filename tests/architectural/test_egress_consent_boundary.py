@@ -482,20 +482,6 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
         seam_symbol="_consenting_body_project_uuids",
         seam_module="specify_cli/sync/background.py",
     ),
-    "specify_cli/sync/emitter.py": Allowance(
-        kind=AllowanceKind.SEAM,
-        inventory_id="E11",
-        note="The live WebSocket sender; own uuid per envelope (M1-1).",
-        seam_symbol="_project_consents_to_capture",
-        seam_module="specify_cli/sync/emitter.py",
-    ),
-    "specify_cli/sync/local_commit.py": Allowance(
-        kind=AllowanceKind.SEAM,
-        inventory_id="E12",
-        note="Own uuid per frame, on the connect-time flush that is the live half.",
-        seam_symbol="_frame_project_consents",
-        seam_module="specify_cli/sync/local_commit.py",
-    ),
     "specify_cli/sync/runtime.py": Allowance(
         kind=AllowanceKind.SEAM,
         inventory_id="E7",
@@ -1383,24 +1369,24 @@ class _ProjectSyncSender:
 _PROJECT_SYNC_SENDER_MATRIX = (
     _ProjectSyncSender(
         "direct dispatcher",
-        _SymbolRef("specify_cli/delivery/dispatcher.py", "_post"),
-        _SymbolRef("specify_cli/delivery/ledger.py", "SqliteDeliveryLedger._record"),
+        _SymbolRef("specify_cli/delivery/receivers.py", "_HttpReceiver._attempt_batch_send"),
+        _SymbolRef("specify_cli/sync/transport_attempts.py", "_record_delivery_result"),
         _ResultState.DURABLE,
         "WP07",
     ),
     _ProjectSyncSender(
         "emitter websocket",
-        _SymbolRef("specify_cli/sync/emitter.py", "EventEmitter._route_event"),
+        _SymbolRef("specify_cli/sync/client.py", "WebSocketClient._flush_pending_project_events"),
         _SymbolRef("specify_cli/sync/queue.py", "OfflineQueue.queue_event"),
         _ResultState.DURABLE_FALLBACK,
         "WP04",
     ),
     _ProjectSyncSender(
         "daemon publish",
-        _SymbolRef("specify_cli/sync/runtime.py", "SyncRuntime.publish_event"),
-        None,
-        _ResultState.MISSING,
-        "WP07",
+        _SymbolRef("specify_cli/sync/runtime.py", "SyncRuntime._send_websocket_event"),
+        _SymbolRef("specify_cli/sync/transport_attempts.py", "_record_delivery_result"),
+        _ResultState.DURABLE,
+        "WP08",
     ),
     _ProjectSyncSender(
         "event relay",
@@ -1411,22 +1397,22 @@ _PROJECT_SYNC_SENDER_MATRIX = (
     ),
     _ProjectSyncSender(
         "body drain",
-        _SymbolRef("specify_cli/sync/body_transport.py", "push_content"),
+        _SymbolRef("specify_cli/sync/body_transport.py", "_send_content_request"),
         _SymbolRef("specify_cli/sync/body_queue.py", "OfflineBodyUploadQueue._update"),
         _ResultState.DURABLE,
         "WP04",
     ),
     _ProjectSyncSender(
         "final and exit sync",
-        _SymbolRef("specify_cli/delivery/dispatcher.py", "_post"),
-        _SymbolRef("specify_cli/delivery/ledger.py", "SqliteDeliveryLedger._record"),
+        _SymbolRef("specify_cli/delivery/receivers.py", "_HttpReceiver._attempt_batch_send"),
+        _SymbolRef("specify_cli/sync/transport_attempts.py", "_record_delivery_result"),
         _ResultState.DURABLE,
         "WP07",
     ),
     _ProjectSyncSender(
         "reconnect local commit",
-        _SymbolRef("specify_cli/sync/local_commit.py", "_send_event"),
-        _SymbolRef("specify_cli/sync/local_commit.py", "record_local_commit_ack"),
+        _SymbolRef("specify_cli/sync/client.py", "WebSocketClient._send_wire"),
+        _SymbolRef("specify_cli/sync/local_commit.py", "reconcile_local_commit_result"),
         _ResultState.DURABLE_FILE,
         "WP07",
     ),
@@ -1439,18 +1425,18 @@ _PROJECT_SYNC_SENDER_MATRIX = (
     ),
     _ProjectSyncSender(
         "tracker hosted channel",
-        _SymbolRef("specify_cli/tracker/saas_client.py", "SaaSTrackerClient._request_with_retry"),
-        None,
-        _ResultState.MISSING,
-        "WP08",
+        _SymbolRef("specify_cli/tracker/saas_client.py", "SaaSTrackerClient._physical_request_with_retry"),
+        _SymbolRef("specify_cli/sync/transport_attempts.py", "_record_delivery_result"),
+        _ResultState.DURABLE,
+        "WP07",
         channel_2_narrowing_only=True,
     ),
     _ProjectSyncSender(
         "generic SaaS client",
-        _SymbolRef("specify_cli/saas_client/client.py", "SaasClient._post"),
-        None,
-        _ResultState.MISSING,
-        "WP08",
+        _SymbolRef("specify_cli/saas_client/client.py", "SaasClient._send_generic_operation"),
+        _SymbolRef("specify_cli/sync/transport_attempts.py", "_record_delivery_result"),
+        _ResultState.DURABLE,
+        "WP07",
     ),
 )
 
@@ -1787,29 +1773,23 @@ def _scan_project_sinks(
 _KNOWN_PROJECT_SINK_COUNTS: Counter[str] = Counter(
     line.strip()
     for line in """
-specify_cli/delivery/dispatcher.py::_post::receiver-deliver::receiver.deliver
 specify_cli/delivery/receivers.py::_HttpReceiver._attempt_batch_send::transport-call::self._poster
 specify_cli/delivery/receivers.py::default_http_poster::http-verb::requests.post
-specify_cli/saas_client/client.py::SaasClient._post::http-verb::self._http.post
 specify_cli/saas_client/client.py::SaasClient._send_generic_operation::http-verb::self._http.post
-specify_cli/sync/body_transport.py::push_content::http-verb::requests.post
-specify_cli/sync/body_transport.py::push_content::transport-call::request_with_stdlib_fallback_sync
+specify_cli/sync/body_transport.py::_send_content_request::http-verb::requests.post
+specify_cli/sync/body_transport.py::_send_content_request::transport-call::request_with_stdlib_fallback_sync
+specify_cli/sync/body_transport.py::_send_content_request::transport-call::request_with_stdlib_fallback_sync
+specify_cli/sync/client.py::WebSocketClient._flush_pending_project_events::send-event::self.send_event
 specify_cli/sync/client.py::WebSocketClient._handle_ping::websocket-send::self.ws.send
-specify_cli/sync/client.py::WebSocketClient.send_event::websocket-send::self.ws.send
+specify_cli/sync/client.py::WebSocketClient._send_wire::websocket-send::self.ws.send
 specify_cli/sync/daemon.py::_fetch_health_payload::urlopen::urllib.request.urlopen
 specify_cli/sync/daemon.py::_stop_daemon_by_http::urlopen::urllib.request.urlopen
-specify_cli/sync/body_transport.py::push_content::transport-call::request_with_stdlib_fallback_sync
-specify_cli/sync/emitter.py::EventEmitter._route_event::send-event::self.ws_client.send_event
-specify_cli/sync/emitter.py::EventEmitter._route_event::send-event::self.ws_client.send_event
 specify_cli/sync/events.py::_publish_event_via_sync_daemon::urlopen::urllib.request.urlopen
 specify_cli/sync/events.py::_request_dashboard_sync::urlopen::urllib.request.urlopen
 specify_cli/sync/history_import/upload.py::_deliver_chunks::receiver-deliver::receiver.deliver
-specify_cli/sync/history_import/upload.py::run_server_preflight::transport-call::poster
-specify_cli/sync/local_commit.py::_send_event::send-event::client.send_event
-specify_cli/sync/local_commit.py::_send_event::send-event::client.send_event
-specify_cli/sync/local_commit.py::_send_event::send-event::client.send_event
+specify_cli/sync/history_import/upload.py::_post_server_preflight::transport-call::poster
 specify_cli/sync/orphan_sweep.py::_http_shutdown_no_token::urlopen::urllib.request.urlopen
-specify_cli/sync/runtime.py::SyncRuntime.publish_event::send-event::self.ws_client.send_event
+specify_cli/sync/runtime.py::SyncRuntime._send_websocket_event::send-event::self.ws_client.send_event
 specify_cli/sync/sharing_client.py::delete_private_project::http-verb::client.post
 specify_cli/sync/sharing_client.py::leave_repository_share::http-verb::client.post
 specify_cli/sync/sharing_client.py::request_repository_share::http-verb::client.post
@@ -1818,9 +1798,6 @@ specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_ret
 specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._request
 specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._request
 specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._physical_request_with_retry
-specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._request
-specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._request
-specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._request
 specify_cli/tracker/saas_client.py::SaaSTrackerClient.bind_confirm::transport-call::self._request_with_retry
 specify_cli/tracker/saas_client.py::SaaSTrackerClient.bind_mission_origin::transport-call::self._request_with_retry
 specify_cli/tracker/saas_client.py::SaaSTrackerClient.push::transport-call::self._request_with_retry
@@ -1972,6 +1949,8 @@ def _writer_owner(relpath: str) -> str:
         return "WP05"
     if relpath.startswith("specify_cli/sync/admission_operations.py"):
         return "WP05"
+    if relpath.startswith("specify_cli/sync/transport_attempts.py"):
+        return "WP06"
     if relpath.startswith("specify_cli/delivery/dispatcher.py"):
         return "WP07"
     return "WP04"
@@ -2189,6 +2168,20 @@ _KNOWN_LAYOUT_WRITE_COUNTS.update(
         "specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.remove_project_tasks.write::DELETE::execute": 1,
         "specify_cli/sync/queue.py::OfflineQueue._update_tasks.write::UPDATE::execute": 1,
         "specify_cli/sync/queue.py::OfflineQueue.queue_event.write::INSERT::execute": 1,
+        "specify_cli/sync/history_disclosure.py::stage_sealed_history_cohort::INSERT::execute": 2,
+        "specify_cli/sync/history_disclosure.py::stage_sealed_history_cohort::INSERT::executemany": 1,
+        "specify_cli/sync/transport_attempts.py::_persist_logical_terminal_reference::UPDATE::execute": 1,
+        "specify_cli/sync/transport_attempts.py::_record_delivery_result::INSERT::execute": 1,
+        "specify_cli/sync/transport_attempts.py::_record_delivery_result::UPDATE::execute": 2,
+        "specify_cli/sync/transport_attempts.py::_settle_open_unit::UPDATE::execute": 1,
+        "specify_cli/sync/transport_attempts.py::_terminalize_orphaned_attempt::INSERT::execute": 1,
+        "specify_cli/sync/transport_attempts.py::_terminalize_orphaned_attempt::UPDATE::execute": 1,
+        "specify_cli/sync/transport_attempts.py::attach_remote_operation_id::UPDATE::execute": 1,
+        "specify_cli/sync/transport_attempts.py::execute_remote_operation_query_under_lease::UPDATE::execute": 2,
+        "specify_cli/sync/transport_attempts.py::mark_delivery_result_unknown::UPDATE::execute": 1,
+        "specify_cli/sync/transport_attempts.py::mark_transport_started::UPDATE::execute": 1,
+        "specify_cli/sync/transport_attempts.py::prepare_delivery_attempt::INSERT::execute": 1,
+        "specify_cli/sync/transport_attempts.py::restart_delivery_attempt::UPDATE::execute": 1,
     }
 )
 
@@ -2279,6 +2272,10 @@ _DURABLE_RESULT_AUTHORITIES: dict[_SymbolRef, tuple[str, str]] = {
         "specify_cli/sync/queue.py",
         "OfflineQueue.queue_event",
     ): ("outbox_tasks", "event_id"),
+    _SymbolRef(
+        "specify_cli/sync/transport_attempts.py",
+        "_record_delivery_result",
+    ): ("delivery_results", "attempt_id"),
 }
 
 

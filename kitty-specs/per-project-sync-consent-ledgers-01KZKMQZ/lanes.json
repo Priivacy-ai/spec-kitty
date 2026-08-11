@@ -245,8 +245,15 @@
         "src/specify_cli/sync/daemon.py",
         "src/specify_cli/sync/owner.py",
         "src/specify_cli/sync/runtime.py",
+        "tests/architectural/test_egress_consent_boundary.py",
+        "tests/sync/test_background.py",
+        "tests/sync/test_background_auth_backoff_3030.py",
         "tests/sync/test_background_authority_convergence.py",
+        "tests/sync/test_background_body.py",
+        "tests/sync/test_body_drain_consent_3030.py",
         "tests/sync/test_daemon_project_isolation.py",
+        "tests/sync/test_runtime.py",
+        "tests/sync/test_target_authority.py",
         "tests/sync/test_target_authority_wiring.py"
       ],
       "predicted_surfaces": [
@@ -256,9 +263,10 @@
         "tracker-integration"
       ],
       "depends_on_lanes": [
-        "lane-d"
+        "lane-d",
+        "lane-e"
       ],
-      "parallel_group": 3
+      "parallel_group": 4
     },
     {
       "lane_id": "lane-g",
@@ -281,7 +289,7 @@
         "lane-e",
         "lane-f"
       ],
-      "parallel_group": 4
+      "parallel_group": 5
     },
     {
       "lane_id": "lane-i",
@@ -311,7 +319,7 @@
         "lane-g",
         "lane-h"
       ],
-      "parallel_group": 5
+      "parallel_group": 6
     }
   ],
   "computed_at": "2026-08-10T00:37:54.496560+00:00",
