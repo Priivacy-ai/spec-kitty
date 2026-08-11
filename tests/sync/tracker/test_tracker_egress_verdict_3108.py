@@ -36,6 +36,7 @@ import pytest
 from specify_cli.tracker import config as tracker_config
 from specify_cli.tracker.config import _EGRESS_LEGAL_VALUES, EGRESS_ABSENT, TrackerConfigError
 from specify_cli.egress import UNDETERMINED_PROJECT_REFUSAL, project_egress_refusal
+from specify_cli.sync.consent import record_project_opt_in, record_project_opt_out
 from specify_cli.tracker.local_service import LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS
 from specify_cli.tracker.saas_client import TRACKER_EGRESS_IDENTIFIER_KINDS
 from specify_cli.tracker.egress_verdict import (
@@ -118,14 +119,7 @@ def _project_block(project_uuid: str | None = None) -> str:
     # "no record" fixture as a stale machine-index hit -- exactly the cross-test contamination
     # this suite's own FR-007 leak guard warns about for `set_project_consent`.
     project_uuid = project_uuid or str(uuid_module.uuid4())
-    return (
-        "project:\n"
-        f"  uuid: {project_uuid}\n"
-        "  slug: wp03-suite\n"
-        "  node_id: node00000001\n"
-        "  repo_slug: spec-kitty-tests/wp03-suite\n"
-        f"  build_id: {project_uuid}\n"
-    )
+    return f"project:\n  uuid: {project_uuid}\n  slug: wp03-suite\n  node_id: node00000001\n  repo_slug: spec-kitty-tests/wp03-suite\n  build_id: {project_uuid}\n"
 
 
 def _no_record_root(tmp_path: Path, name: str = "no-record") -> Path:
@@ -136,16 +130,20 @@ def _no_record_root(tmp_path: Path, name: str = "no-record") -> Path:
 
 
 def _recorded_refusal_root(tmp_path: Path, name: str = "recorded-refusal") -> Path:
-    """A checkout with an identity and an explicit ``sync.enabled: false``."""
+    """A checkout with an identity and an explicit durable opt-out."""
     root = tmp_path / name
-    _write_config(root, "sync:\n  enabled: false\n", project_block=_project_block())
+    project_uuid = str(uuid_module.uuid4())
+    _write_config(root, "sync:\n  enabled: false\n", project_block=_project_block(project_uuid))
+    record_project_opt_out(project_uuid, actor="tracker-egress-verdict-test")
     return root
 
 
 def _recorded_grant_root(tmp_path: Path, name: str = "recorded-grant") -> Path:
-    """A checkout with an identity and an explicit ``sync.enabled: true`` (Channel 1 permits)."""
+    """A checkout with an identity and an explicit durable opt-in."""
     root = tmp_path / name
-    _write_config(root, "sync:\n  enabled: true\n", project_block=_project_block())
+    project_uuid = str(uuid_module.uuid4())
+    _write_config(root, "sync:\n  enabled: true\n", project_block=_project_block(project_uuid))
+    record_project_opt_in(project_uuid, actor="tracker-egress-verdict-test")
     return root
 
 
@@ -314,9 +312,7 @@ class TestChannel2Decode:
         ],
         ids=["mapping", "list"],
     )
-    def test_unhashable_raw_would_red_the_naive_implementation(
-        self, tmp_path: Path, yaml_body: str, expected_raw: object
-    ) -> None:
+    def test_unhashable_raw_would_red_the_naive_implementation(self, tmp_path: Path, yaml_body: str, expected_raw: object) -> None:
         """Hazard A, observed: a bare ``raw in _LEGAL`` raises TypeError for an unhashable raw.
 
         Review round 2, LOW-2: this previously built its own ``frozenset`` and its own dict
@@ -402,9 +398,7 @@ class TestChannel2Decode:
             calls.append(root)
             return real(root)
 
-        monkeypatch.setattr(
-            "specify_cli.tracker.egress_verdict.load_tracker_config", _counting
-        )
+        monkeypatch.setattr("specify_cli.tracker.egress_verdict.load_tracker_config", _counting)
         _resolve_channel2(tmp_path)
         assert len(calls) == 1  # golden-count: cardinality-is-contract
 
@@ -454,10 +448,7 @@ class TestJoinTable:
         here instead of passing.
         """
         print(f"8-cell join: ran {len(_CELLS_EXERCISED)} cells")
-        assert set(_JOIN) == _CELLS_EXERCISED, (
-            f"parametrised cells executed {sorted(map(str, _CELLS_EXERCISED))} "
-            f"but _JOIN declares {sorted(map(str, _JOIN))}"
-        )
+        assert set(_JOIN) == _CELLS_EXERCISED, f"parametrised cells executed {sorted(map(str, _CELLS_EXERCISED))} but _JOIN declares {sorted(map(str, _JOIN))}"
         assert len(_CELLS_EXERCISED) == 8  # golden-count: cardinality-is-contract
 
     def test_join_is_data_not_branches(self) -> None:
@@ -476,9 +467,7 @@ class TestJoinTable:
         assert verdict.refused is False
         assert verdict.refusing_channels == frozenset()
 
-    def test_permit_at_hosted_service_is_a_reported_noop_channel1_absent_refuses(
-        self, tmp_path: Path
-    ) -> None:
+    def test_permit_at_hosted_service_is_a_reported_noop_channel1_absent_refuses(self, tmp_path: Path) -> None:
         """FR-005: the same recorded grant is a no-op at HOSTED_SERVICE -- Channel 1 decides,
         and here Channel 1 has no record, so it refuses."""
         root = _not_consentable_root(tmp_path)
@@ -544,9 +533,7 @@ class TestJoinTable:
             # to demonstrate `channel1_state == 'recorded_refusal'` while the verdict permitted.
             assert verdict.channel1_state == CHANNEL1_GRANTED
 
-    def test_both_channels_always_evaluated_no_channel1_first_shortcircuit(
-        self, tmp_path: Path
-    ) -> None:
+    def test_both_channels_always_evaluated_no_channel1_first_shortcircuit(self, tmp_path: Path) -> None:
         """A Channel-1-first short circuit would refuse a project Channel 2 permits."""
         root = _recorded_refusal_root(tmp_path)  # Channel 1 refuses
         _with_tracker_egress(root, "  egress: permitted\n")  # Channel 2 grants (local only)
@@ -578,9 +565,7 @@ class TestChannel1Classifier:
             root = builder(tmp_path, name=f"closed-{builder.__name__}")
             assert _classify_channel1(root) in closed_set
 
-    def test_guarded_import_failure_degrades_instead_of_raising(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_guarded_import_failure_degrades_instead_of_raising(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """T018 step 3: a failing guarded import degrades to a closed-set label rather than
         propagating. ``sys.modules[name] = None`` is the standard mechanism to force
         ``ImportError`` on the next ``import``/``from ... import`` of that exact name."""
@@ -610,9 +595,7 @@ class TestChannel1Classifier:
         # proving the classifier did not silently resolve a different root.
         assert _classify_channel1(root) == label
 
-    def test_non_authoritative_forced_labels_while_channel1_permits(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_non_authoritative_forced_labels_while_channel1_permits(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Non-authoritativeness pin 1, corrected after review round 1 (HIGH-2).
 
         The fix makes ``_classify_channel1`` **unreachable** whenever Channel 1 permits --
@@ -637,9 +620,7 @@ class TestChannel1Classifier:
             assert verdict.refused is False
             assert verdict.channel1_state == CHANNEL1_GRANTED
 
-    def test_channel1_report_never_calls_classifier_when_permitting(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_channel1_report_never_calls_classifier_when_permitting(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """The same claim, proven directly against ``_channel1_report`` without going through
         the full verdict composition, and without needing to construct any fixture at all --
         the branch is unconditional on ``channel1_permits``."""
@@ -652,9 +633,7 @@ class TestChannel1Classifier:
         assert label == CHANNEL1_GRANTED
         assert generic is False
 
-    def test_non_authoritative_classifier_raises_generic_wording(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_non_authoritative_classifier_raises_generic_wording(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Non-authoritativeness pin 2: a raising classifier must not propagate, and the
         refusal must print generic wording, never a specific (and possibly wrong) label's
         wording."""
@@ -667,15 +646,13 @@ class TestChannel1Classifier:
 
         verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS, identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS])
         assert verdict.refused is True
-        no_record_specific = (
-            _channel1_decided_message(
-                destination=EgressDestination.LOCAL_SUBPROCESS,
-                channel1_permits=False,
-                channel1_label=CHANNEL1_NO_RECORD,
-                channel1_generic=False,
-                noop=False,
-            )[0]
-        )
+        no_record_specific = _channel1_decided_message(
+            destination=EgressDestination.LOCAL_SUBPROCESS,
+            channel1_permits=False,
+            channel1_label=CHANNEL1_NO_RECORD,
+            channel1_generic=False,
+            noop=False,
+        )[0]
         assert verdict.message != no_record_specific, "must not silently reuse a specific label's wording"
         assert "could not be determined in detail" in verdict.message
         # LOW-4 regression (review round 1): the reported state must be the distinct
@@ -719,9 +696,7 @@ class TestReportingSplitNeverFlipsEnforcement:
     enforced answer does not move.
     """
 
-    def test_classifier_disagreement_does_not_change_refused_or_refusing_channels(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_classifier_disagreement_does_not_change_refused_or_refusing_channels(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Channel 1 genuinely refuses (``channel1_permits=False``). Force the independently
         re-resolved classifier to report a *different* closed-set label than the one that
         actually applies here (``CHANNEL1_RECORDED_REFUSAL``) -- simulating exactly the
@@ -755,9 +730,7 @@ class TestReportingSplitNeverFlipsEnforcement:
         assert disagreeing.channel1_state == CHANNEL1_NOT_CONSENTABLE
         assert disagreeing.channel1_state != baseline.channel1_state
 
-    def test_classifier_disagreement_at_hosted_service_does_not_change_refused(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_classifier_disagreement_at_hosted_service_does_not_change_refused(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Same proof at ``HOSTED_SERVICE``, where FR-016 additionally requires the message to
         stay byte-identical to the shipped `#3030` text -- confirming the classifier's forced
         disagreement cannot even reach the message on this path, let alone the enforced answer.
@@ -904,9 +877,7 @@ class TestMessageComposition:
         NEAR_MISS_FAULTS,
         ids=[c[0] for c in NEAR_MISS_FAULTS],
     )
-    def test_fault_message_names_offending_value_and_both_legal_values(
-        self, tmp_path: Path, label: str, egress_line: str, _expected_raw: object
-    ) -> None:
+    def test_fault_message_names_offending_value_and_both_legal_values(self, tmp_path: Path, label: str, egress_line: str, _expected_raw: object) -> None:
         root = tmp_path / f"fault-{label.replace(' ', '_')}"
         _write_config(root, "tracker:\n" + egress_line)
         for destination in DESTINATIONS:
@@ -930,9 +901,7 @@ class TestMessageComposition:
         _write_config(root, "tracker:\n  egress: refused\n")
         for destination in DESTINATIONS:
             verdict = tracker_egress_verdict(root, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
-            channel1_permits, channel1_refusal_text = _resolve_channel1(
-                root, _IDENTIFIERS_FOR[destination]
-            )
+            channel1_permits, channel1_refusal_text = _resolve_channel1(root, _IDENTIFIERS_FOR[destination])
             expected = _channel2_decided_message(
                 destination=destination,
                 channel2_state="refused",
@@ -1299,9 +1268,7 @@ class TestUnreadableSentinelRepr:
 
 
 class TestExhaustivenessOverLegalValues:
-    def test_a_third_value_added_upstream_without_updating_this_module_still_refuses(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_a_third_value_added_upstream_without_updating_this_module_still_refuses(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Simulates the two-site-change hazard: a hypothetical third legal value is added to
         ``tracker/config.py``'s ``_EGRESS_LEGAL_VALUES`` (so ``egress_fault`` there reports
         "not a fault"), but this module's own ``_LEGAL_CHANNEL2_VALUES``/``_JOIN`` are not
@@ -1359,10 +1326,7 @@ class TestZeroBlastRadius:
             1
             for node in ast.walk(tree)
             if isinstance(node, ast.Call)
-            and (
-                getattr(node.func, "id", None) == "tracker_egress_verdict"
-                or getattr(node.func, "attr", None) == "tracker_egress_verdict"
-            )
+            and (getattr(node.func, "id", None) == "tracker_egress_verdict" or getattr(node.func, "attr", None) == "tracker_egress_verdict")
         )
 
     def test_production_call_sites_are_exactly_the_expected_inventory(self) -> None:

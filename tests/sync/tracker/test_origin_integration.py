@@ -19,6 +19,7 @@ import json
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
+from uuid import UUID
 
 import httpx
 import pytest
@@ -42,6 +43,8 @@ from specify_cli.tracker.saas_client import SaaSTrackerClient
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
 def _make_response(
     status_code: int = 200,
     json_body: dict[str, Any] | None = None,
@@ -692,17 +695,63 @@ class TestOfflineEventQueuing:
 
         candidate = _make_candidate()
 
-        # Create an EventEmitter with a real OfflineQueue (temp DB)
-        # but no WebSocket (offline mode)
+        # Create an EventEmitter with the canonical project-owned outbox but no
+        # WebSocket (offline mode). The retired path-backed queue constructor no
+        # longer represents a real runtime storage authority.
+        from specify_cli.sync.consent import (
+            record_project_opt_in,
+            resolve_project_consent,
+        )
         from specify_cli.sync.emitter import EventEmitter
+        from specify_cli.sync.layout_generation import LayoutMode
+        from specify_cli.sync.project_identity import ProjectIdentity
+        from specify_cli.sync.project_store import ProjectSyncStore
         from specify_cli.sync.queue import OfflineQueue
 
-        db_path = tmp_path / "test_queue.db"
-        queue = OfflineQueue(db_path=db_path)
+        project_uuid = "6f1c2f2e-59a1-4a1f-9a2e-0f1c2f2e59a1"
+        store = ProjectSyncStore(project_uuid)
+        authority = store.layout_generation()
+        if authority.read_state().mode is LayoutMode.LEGACY:
+            authority.begin_cutover("origin-integration-offline-queue")
+            authority.publish_project_only(
+                "origin-integration-offline-queue",
+                verify_exact=lambda: True,
+            )
+        record_project_opt_in(
+            project_uuid,
+            actor="origin-integration-offline-queue",
+        )
+        consent = resolve_project_consent(
+            project_uuid,
+            checkout_roots=[mock_client._project_root],
+        )
+        assert consent.granted
 
+        # The canonical queue is UoW-bound, so the fixture opens its unit only
+        # for each local queue operation. In particular, the unit is not held
+        # while bind_mission_origin performs its hosted HTTP request.
+        queue = MagicMock(spec=OfflineQueue)
+
+        def queue_event(event: dict[str, Any]) -> bool:
+            with store.unit_of_work() as unit:
+                return OfflineQueue(unit, authority).queue_event(event)
+
+        def drain_queue(*, limit: int) -> list[Any]:
+            with store.unit_of_work() as unit:
+                return OfflineQueue(unit, authority).drain_queue(limit=limit)
+
+        queue.queue_event.side_effect = queue_event
+        queue.drain_queue.side_effect = drain_queue
         emitter = EventEmitter(
             queue=queue,
             ws_client=None,  # No WebSocket = offline mode
+            _identity=ProjectIdentity(
+                project_uuid=UUID(project_uuid),
+                project_slug="legacy-tracker-suite",
+                node_id="node00000001",
+                repo_slug="spec-kitty-tests/legacy-tracker-suite",
+                build_id=project_uuid,
+            ),
         )
 
         with patch("specify_cli.sync.events.get_emitter", return_value=emitter):
@@ -715,8 +764,10 @@ class TestOfflineEventQueuing:
                 client=mock_client,
             )
 
-        # Drain the queue and check the event
-        events = queue.drain_queue(limit=100)
+        # Drain the project-owned queue and preserve the public event-dict
+        # assertions below; ProjectOutboxTask is the canonical read model.
+        events = [task.event for task in queue.drain_queue(limit=100)]
+
         origin_events = [e for e in events if e.get("event_type") == "MissionOriginBound"]
         assert len(origin_events) >= 1, f"Expected MissionOriginBound event in queue, got: {[e.get('event_type') for e in events]}"
 

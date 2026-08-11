@@ -13,7 +13,11 @@ from uuid import UUID, uuid4
 
 from specify_cli.sync.project_context import ProjectSyncContext, validate_project_sync_context_authority
 from specify_cli.sync.project_store import ProjectStoreError, ProjectStoreLockedError, ProjectSyncStore, ProjectUnitOfWork
-from specify_cli.sync.transport_lease import acquire_project_transport_lease, transport_lease_is_live
+from specify_cli.sync.transport_lease import (
+    TransportLeaseContext,
+    acquire_project_transport_lease,
+    transport_lease_is_live,
+)
 
 
 class DeliveryAttemptState(StrEnum):
@@ -133,6 +137,7 @@ class DeliveryAttemptSpec:
     reconciliation_policy: str = ReconciliationPolicy.OPERATOR_REVIEW.value
     logical_operation_semantic_key: str | None = None
     logical_operation_repeatability: str | None = None
+    logical_operation_collaborative_teamspace_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -191,6 +196,9 @@ class LogicalOperationRequest:
     repeatability: LogicalOperationRepeatability
     reconciliation_policy: str
     deadline_at: str
+    recover_with_persisted_deadline: bool = False
+    requested_native_identity: str | None = None
+    collaborative_teamspace_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -210,6 +218,8 @@ class LogicalOperationDecision:
     remote_operation_id: str | None
     deadline_at: str | None
     diagnostic: str
+    terminal_response_reference: str | None = None
+    terminal_refusal_reference: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -1007,7 +1017,24 @@ def allocate_logical_delivery_operation(
                     candidate,
                     diagnostic="logical operation reconciliation policy drift requires operator review",
                 )
-            if candidate.deadline_at != request.deadline_at:
+            if candidate.metadata.get("collaborative_teamspace_id") != request.collaborative_teamspace_id:
+                return _logical_operator_review_for_candidate(
+                    unit,
+                    request,
+                    candidate,
+                    diagnostic="logical operation Collaborative Teamspace authority drift requires operator review",
+                )
+            expected_native_identity = request.requested_native_identity or candidate.attempt_id
+            if candidate.metadata.get("native_identity") != expected_native_identity:
+                return _logical_operator_review_for_candidate(
+                    unit,
+                    request,
+                    candidate,
+                    diagnostic="logical operation native identity drift requires operator review",
+                )
+            deadline_may_be_recovered = request.recover_with_persisted_deadline and candidate.state not in _LOGICAL_OPERATION_TERMINAL_STATES
+            terminal_prior_never_resends = candidate.state in _LOGICAL_OPERATION_TERMINAL_STATES
+            if candidate.deadline_at != request.deadline_at and not deadline_may_be_recovered and not terminal_prior_never_resends:
                 return _logical_operator_review_for_candidate(
                     unit,
                     request,
@@ -1052,6 +1079,7 @@ def allocate_logical_delivery_operation(
                 reconciliation_policy=policy.value,
                 logical_operation_semantic_key=request.semantic_key,
                 logical_operation_repeatability=request.repeatability.value,
+                logical_operation_collaborative_teamspace_id=request.collaborative_teamspace_id,
             ),
         )
         return LogicalOperationDecision(
@@ -1126,6 +1154,115 @@ def read_remote_operation_id(
     return _optional_non_empty_metadata_string(metadata, "remote_operation_id")
 
 
+def record_logical_operation_result(
+    unit: ProjectUnitOfWork,
+    context: ProjectSyncContext,
+    *,
+    result_id: str,
+    attempt_id: str,
+    outcome: DeliveryOutcome,
+    terminal_refusal_category: str | None = None,
+    response_reference: str | None = None,
+    refusal_reference: str | None = None,
+) -> None:
+    """Persist one logical-operation result and its exact public terminal value.
+
+    Successful or duplicate idempotent writes need their original response on a
+    later zero-I/O invocation.  The response reference is stored atomically with
+    the result under the same active transport lease; callers receive only the
+    typed projection carried by :class:`LogicalOperationDecision`.
+    """
+    _validate_context_for_unit(unit, context, require_lease=True)
+    candidate = _logical_operation_candidate_by_id(unit, attempt_id=attempt_id)
+    diagnostic = _logical_operation_authority_diagnostic(
+        candidate=candidate,
+        unit=unit,
+        context=context,
+    )
+    if diagnostic is not None:
+        raise ProjectStoreError(diagnostic)
+    _persist_logical_terminal_reference(
+        unit,
+        candidate,
+        outcome=outcome,
+        terminal_refusal_category=terminal_refusal_category,
+        response_reference=response_reference,
+        refusal_reference=refusal_reference,
+    )
+    _record_delivery_result(
+        unit,
+        context,
+        result_id=result_id,
+        attempt_id=attempt_id,
+        outcome=outcome,
+        terminal_refusal_category=terminal_refusal_category,
+        allow_queried_recovery=False,
+    )
+
+
+def _persist_logical_terminal_reference(
+    unit: ProjectUnitOfWork,
+    candidate: _LogicalOperationCandidate,
+    *,
+    outcome: DeliveryOutcome,
+    terminal_refusal_category: str | None,
+    response_reference: str | None,
+    refusal_reference: str | None,
+) -> None:
+    """Validate and persist the exact sanitized terminal public value."""
+    _validate_logical_terminal_reference(
+        outcome=outcome,
+        terminal_refusal_category=terminal_refusal_category,
+        response_reference=response_reference,
+        refusal_reference=refusal_reference,
+    )
+    existing = candidate.metadata.get("terminal_response_reference")
+    if existing is not None and existing != response_reference:
+        raise ProjectStoreError("logical operation response reference changed")
+    if response_reference is not None:
+        candidate.metadata["terminal_response_reference"] = response_reference
+    existing_refusal = candidate.metadata.get("terminal_refusal_reference")
+    if existing_refusal is not None and existing_refusal != refusal_reference:
+        raise ProjectStoreError("logical operation refusal reference changed")
+    if refusal_reference is not None:
+        candidate.metadata["terminal_refusal_reference"] = refusal_reference
+    if response_reference is not None or refusal_reference is not None:
+        unit.execute(
+            "UPDATE delivery_attempts SET payload_reference = ? WHERE project_uuid = ? AND attempt_id = ?",
+            (
+                json.dumps(candidate.metadata, sort_keys=True),
+                unit.project_uuid.storage_token,
+                candidate.attempt_id,
+            ),
+        )
+
+
+def _validate_logical_terminal_reference(
+    *,
+    outcome: DeliveryOutcome,
+    terminal_refusal_category: str | None,
+    response_reference: str | None,
+    refusal_reference: str | None,
+) -> None:
+    if outcome in {DeliveryOutcome.DELIVERED, DeliveryOutcome.DUPLICATE}:
+        if not isinstance(response_reference, str) or not response_reference:
+            raise ProjectStoreError("successful logical operation requires an exact response reference")
+        if refusal_reference is not None:
+            raise ProjectStoreError("successful logical operation cannot persist a refusal reference")
+    elif outcome is DeliveryOutcome.REFUSED:
+        if terminal_refusal_category == "project_not_admitted":
+            if not isinstance(refusal_reference, str) or not refusal_reference:
+                raise ProjectStoreError("project_not_admitted requires an exact refusal reference")
+        elif refusal_reference is not None:
+            raise ProjectStoreError("only project_not_admitted may persist a refusal reference")
+        if response_reference is not None:
+            raise ProjectStoreError("refused logical operation cannot persist a success response reference")
+    elif response_reference is not None:
+        raise ProjectStoreError("non-success logical operation cannot persist a success response reference")
+    elif refusal_reference is not None:
+        raise ProjectStoreError("non-refusal logical operation cannot persist a refusal reference")
+
+
 def execute_remote_operation_query(
     store: ProjectSyncStore,
     *,
@@ -1133,6 +1270,8 @@ def execute_remote_operation_query(
     result_id: str,
     query: Callable[[str], object],
     classify: Callable[[object], tuple[DeliveryOutcome, str | None]],
+    response_reference: Callable[[object], str | None] | None = None,
+    refusal_reference: Callable[[object], str | None] | None = None,
     lock_timeout_seconds: float = 5.0,
 ) -> object:
     """Query one attached operation without a UoW across I/O and persist truth."""
@@ -1142,39 +1281,113 @@ def execute_remote_operation_query(
         lock_timeout_seconds=lock_timeout_seconds,
         lease_identity="remote-operation-query",
     ) as lease:
-        with lease.unit_of_work() as (unit, context):
-            candidate = _logical_operation_candidate_by_id(unit, attempt_id=attempt_id)
-            _require_query_recovery_decision(unit, candidate)
-            diagnostic = _logical_operation_authority_diagnostic(candidate=candidate, unit=unit, context=context)
-            if diagnostic is not None:
-                raise ProjectStoreError(diagnostic)
-            remote_operation_id = _logical_remote_operation_id(candidate)
-            if remote_operation_id is None:
-                raise ProjectStoreError("remote operation query requires durable correlation")
+        return execute_remote_operation_query_under_lease(
+            lease,
+            attempt_id=attempt_id,
+            result_id=result_id,
+            query=query,
+            classify=classify,
+            response_reference=response_reference,
+            refusal_reference=refusal_reference,
+        )
 
-        value = query(remote_operation_id)
-        outcome, refusal_category = classify(value)
-        if not isinstance(outcome, DeliveryOutcome):
-            raise TypeError("remote operation query classifier must return a DeliveryOutcome")
 
-        with lease.unit_of_work() as (unit, context):
-            candidate = _logical_operation_candidate_by_id(unit, attempt_id=attempt_id)
-            _require_query_recovery_decision(unit, candidate)
-            diagnostic = _logical_operation_authority_diagnostic(candidate=candidate, unit=unit, context=context)
-            if diagnostic is not None:
-                raise ProjectStoreError(diagnostic)
-            if _logical_remote_operation_id(candidate) != remote_operation_id:
-                raise ProjectStoreError("remote operation correlation changed during query")
-            _record_delivery_result(
-                unit,
-                context,
-                result_id=result_id,
-                attempt_id=attempt_id,
-                outcome=outcome,
-                terminal_refusal_category=refusal_category,
-                allow_queried_recovery=True,
+def execute_remote_operation_query_under_lease(
+    lease: TransportLeaseContext,
+    *,
+    attempt_id: str,
+    result_id: str,
+    query: Callable[[str], object],
+    classify: Callable[[object], tuple[DeliveryOutcome, str | None]],
+    response_reference: Callable[[object], str | None] | None = None,
+    refusal_reference: Callable[[object], str | None] | None = None,
+) -> object:
+    """Query and persist one operation while reusing a caller-held lease.
+
+    Each SQLite unit closes before the callback, while the cross-process lease
+    remains held continuously from the caller's transport start through query
+    result persistence.
+    """
+    _require_non_empty(attempt_id=attempt_id, result_id=result_id)
+    if not transport_lease_is_live(lease.lease_identity):
+        raise ProjectStoreError("remote operation query requires a live project transport lease")
+    with lease.unit_of_work() as (unit, context):
+        candidate = _logical_operation_candidate_by_id(unit, attempt_id=attempt_id)
+        _require_query_recovery_decision(unit, candidate)
+        diagnostic = _logical_operation_authority_diagnostic(
+            candidate=candidate,
+            unit=unit,
+            context=context,
+        )
+        if diagnostic is not None:
+            raise ProjectStoreError(diagnostic)
+        remote_operation_id = _logical_remote_operation_id(candidate)
+        if remote_operation_id is None:
+            raise ProjectStoreError("remote operation query requires durable correlation")
+
+    value = query(remote_operation_id)
+    outcome, refusal_category = classify(value)
+    if not isinstance(outcome, DeliveryOutcome):
+        raise TypeError("remote operation query classifier must return a DeliveryOutcome")
+    projected_response = response_reference(value) if response_reference is not None else None
+    projected_refusal = refusal_reference(value) if refusal_reference is not None else None
+
+    with lease.unit_of_work() as (unit, context):
+        candidate = _logical_operation_candidate_by_id(unit, attempt_id=attempt_id)
+        _require_query_recovery_decision(unit, candidate)
+        diagnostic = _logical_operation_authority_diagnostic(
+            candidate=candidate,
+            unit=unit,
+            context=context,
+        )
+        if diagnostic is not None:
+            raise ProjectStoreError(diagnostic)
+        if _logical_remote_operation_id(candidate) != remote_operation_id:
+            raise ProjectStoreError("remote operation correlation changed during query")
+        if outcome in {DeliveryOutcome.DELIVERED, DeliveryOutcome.DUPLICATE} and response_reference is not None:
+            if not isinstance(projected_response, str) or not projected_response:
+                raise ProjectStoreError("successful remote query requires an exact response reference")
+            existing = candidate.metadata.get("terminal_response_reference")
+            if existing is not None and existing != projected_response:
+                raise ProjectStoreError("remote operation response reference changed")
+            candidate.metadata["terminal_response_reference"] = projected_response
+            unit.execute(
+                "UPDATE delivery_attempts SET payload_reference = ? WHERE project_uuid = ? AND attempt_id = ?",
+                (
+                    json.dumps(candidate.metadata, sort_keys=True),
+                    unit.project_uuid.storage_token,
+                    attempt_id,
+                ),
             )
-        return value
+        elif outcome not in {DeliveryOutcome.DELIVERED, DeliveryOutcome.DUPLICATE} and projected_response is not None:
+            raise ProjectStoreError("non-success remote query cannot persist a success response reference")
+        if outcome is DeliveryOutcome.REFUSED and refusal_category == "project_not_admitted":
+            if not isinstance(projected_refusal, str) or not projected_refusal:
+                raise ProjectStoreError("project_not_admitted query requires an exact refusal reference")
+            existing_refusal = candidate.metadata.get("terminal_refusal_reference")
+            if existing_refusal is not None and existing_refusal != projected_refusal:
+                raise ProjectStoreError("remote operation refusal reference changed")
+            candidate.metadata["terminal_refusal_reference"] = projected_refusal
+            unit.execute(
+                "UPDATE delivery_attempts SET payload_reference = ? WHERE project_uuid = ? AND attempt_id = ?",
+                (
+                    json.dumps(candidate.metadata, sort_keys=True),
+                    unit.project_uuid.storage_token,
+                    attempt_id,
+                ),
+            )
+        elif projected_refusal is not None:
+            raise ProjectStoreError("only project_not_admitted query may persist a refusal reference")
+        _record_delivery_result(
+            unit,
+            context,
+            result_id=result_id,
+            attempt_id=attempt_id,
+            outcome=outcome,
+            terminal_refusal_category=refusal_category,
+            allow_queried_recovery=True,
+        )
+    return value
 
 
 def _logical_operation_rows(unit: ProjectUnitOfWork) -> list[Any]:
@@ -1209,10 +1422,16 @@ def _require_query_recovery_decision(
     unit: ProjectUnitOfWork,
     candidate: _LogicalOperationCandidate,
 ) -> None:
+    try:
+        deadline = _parse_deadline(candidate.deadline_at or "")
+    except ValueError as exc:
+        raise ProjectStoreError("remote operation query deadline is corrupt") from exc
+    if deadline > datetime.now(UTC) + _LOGICAL_OPERATION_MAX_LIFETIME:
+        raise ProjectStoreError("remote operation query deadline is not bounded")
     recovery = plan_delivery_attempt_recovery(unit, attempt_id=candidate.attempt_id)
     if recovery.action is not RecoveryAction.QUERY_NATIVE_IDENTITY:
         raise ProjectStoreError(f"remote operation query is not authorized: {recovery.diagnostic}")
-    if recovery.native_identity != candidate.attempt_id:
+    if recovery.native_identity != _required_non_empty_metadata_string(candidate.metadata, "native_identity"):
         raise ProjectStoreError("remote operation query recovery identity does not match the durable attempt")
 
 
@@ -1226,7 +1445,7 @@ def _logical_operation_candidate(
     repeatability = LogicalOperationRepeatability(_required_non_empty_metadata_string(metadata, "logical_operation_repeatability"))
     write_kind = _required_non_empty_metadata_string(metadata, "write_kind")
     semantic_key = _required_non_empty_metadata_string(metadata, "logical_operation_semantic_key")
-    native_identity = _required_non_empty_metadata_string(metadata, "native_identity")
+    _required_non_empty_metadata_string(metadata, "native_identity")
     expected_attempt_id = _expected_logical_operation_attempt_id(
         project_uuid=unit.project_uuid.storage_token,
         write_kind=write_kind,
@@ -1234,7 +1453,7 @@ def _logical_operation_candidate(
         repeatability=repeatability,
         attempt_id=attempt_id,
     )
-    if expected_attempt_id != attempt_id or native_identity != attempt_id:
+    if expected_attempt_id != attempt_id:
         raise ProjectStoreError("logical operation semantic identity does not match durable attempt identity")
     _required_non_empty_metadata_string(metadata, "payload_reference")
     return _LogicalOperationCandidate(
@@ -1279,6 +1498,14 @@ def _validate_logical_operation_request(
 ) -> ReconciliationPolicy:
     if not isinstance(request.repeatability, LogicalOperationRepeatability):
         raise TypeError("repeatability must be a LogicalOperationRepeatability")
+    if not isinstance(request.recover_with_persisted_deadline, bool):
+        raise TypeError("recover_with_persisted_deadline must be a bool")
+    if request.requested_native_identity is not None and (not isinstance(request.requested_native_identity, str) or not request.requested_native_identity.strip()):
+        raise TypeError("requested_native_identity must be a non-empty string or None")
+    if request.collaborative_teamspace_id is not None and (
+        not isinstance(request.collaborative_teamspace_id, str) or not request.collaborative_teamspace_id.strip()
+    ):
+        raise TypeError("collaborative_teamspace_id must be a non-empty string or None")
     _require_non_empty(
         write_kind=request.write_kind,
         semantic_key=request.semantic_key,
@@ -1327,7 +1554,7 @@ def _new_logical_operation_identity(
         attempt_id = f"{_LOGICAL_OPERATION_PREFIX}write:{digest}"
     else:
         attempt_id = f"{_LOGICAL_OPERATION_PREFIX}read:{digest}:{uuid4()}"
-    return attempt_id, attempt_id
+    return attempt_id, request.requested_native_identity or attempt_id
 
 
 def _logical_attempt_id_may_match_request(
@@ -1448,6 +1675,22 @@ def _logical_recovery_decision(
     *,
     now: datetime,
 ) -> LogicalOperationDecision:
+    try:
+        deadline = _parse_deadline(candidate.deadline_at or "")
+    except ValueError as exc:
+        return _logical_operator_review_for_candidate(
+            unit,
+            request,
+            candidate,
+            diagnostic=f"logical operation deadline is corrupt: {exc}",
+        )
+    if deadline > now + _LOGICAL_OPERATION_MAX_LIFETIME:
+        return _logical_operator_review_for_candidate(
+            unit,
+            request,
+            candidate,
+            diagnostic="logical operation persisted deadline is not bounded",
+        )
     recovery = plan_delivery_attempt_recovery(unit, attempt_id=candidate.attempt_id, now=now)
     outcome, category = _logical_result(unit, attempt_id=candidate.attempt_id)
     disposition = LogicalOperationDisposition.OPERATOR_REVIEW
@@ -1521,6 +1764,14 @@ def _logical_terminal_prior_decision(
         remote_operation_id=remote_operation_id,
         deadline_at=candidate.deadline_at,
         diagnostic="idempotent logical operation already has terminal durable history",
+        terminal_response_reference=_optional_non_empty_metadata_string(
+            candidate.metadata,
+            "terminal_response_reference",
+        ),
+        terminal_refusal_reference=_optional_non_empty_metadata_string(
+            candidate.metadata,
+            "terminal_refusal_reference",
+        ),
     )
 
 
@@ -1788,6 +2039,8 @@ def _attempt_metadata(
         metadata["logical_operation_semantic_key"] = spec.logical_operation_semantic_key
     if spec.logical_operation_repeatability is not None:
         metadata["logical_operation_repeatability"] = spec.logical_operation_repeatability
+    if spec.logical_operation_collaborative_teamspace_id is not None:
+        metadata["collaborative_teamspace_id"] = spec.logical_operation_collaborative_teamspace_id
     return metadata
 
 
@@ -1807,6 +2060,8 @@ def _validate_logical_operation_namespace(
         return
     if not has_semantic_key:
         raise ProjectStoreError("reserved logical-operation identity requires logical operation metadata")
+    if spec.logical_operation_collaborative_teamspace_id is not None and not spec.logical_operation_collaborative_teamspace_id.strip():
+        raise ProjectStoreError("logical operation Collaborative Teamspace id must be non-empty")
     semantic_key = spec.logical_operation_semantic_key
     repeatability_value = spec.logical_operation_repeatability
     if semantic_key is None or not semantic_key.strip():
@@ -1822,7 +2077,7 @@ def _validate_logical_operation_namespace(
         repeatability=repeatability,
         attempt_id=spec.attempt_id,
     )
-    if expected_attempt_id != spec.attempt_id or spec.native_identity != spec.attempt_id:
+    if expected_attempt_id != spec.attempt_id:
         raise ProjectStoreError("logical operation identity is not derived from its semantic metadata")
 
 
@@ -2110,6 +2365,7 @@ __all__ = [
     "allocate_logical_delivery_operation",
     "attach_remote_operation_id",
     "execute_remote_operation_query",
+    "execute_remote_operation_query_under_lease",
     "mark_transport_started",
     "mark_delivery_result_unknown",
     "get_delivery_attempt_record",
@@ -2119,6 +2375,7 @@ __all__ = [
     "prepare_delivery_attempt",
     "read_remote_operation_id",
     "record_delivery_result",
+    "record_logical_operation_result",
     "recover_delivery_attempts",
     "restart_delivery_attempt",
     "settle_attempts_for_opt_out",

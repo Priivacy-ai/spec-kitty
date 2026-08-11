@@ -111,6 +111,7 @@ import os
 import stat
 import subprocess
 import sys
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
@@ -129,6 +130,8 @@ from spec_kitty_tracker import (
 )
 
 from specify_cli.tracker.config import load_tracker_config
+from specify_cli.sync.consent import record_project_opt_in, record_project_opt_out
+from specify_cli.sync.project_store import ProjectSyncStore
 from specify_cli.tracker.credentials import TrackerCredentialStore
 from specify_cli.tracker.local_service import LocalTrackerService
 from specify_cli.tracker.saas_client import SaaSTrackerClientError, TrackerEgressRefusedError
@@ -224,10 +227,7 @@ def http_tripwire(monkeypatch: pytest.MonkeyPatch) -> _HttpTripwire:
 
     def _tripped(self: httpx.Client, method: str, url: str, *args: Any, **kwargs: Any) -> Any:
         wire.attempts += 1
-        raise AssertionError(
-            f"HTTP trip-wire fired: {method} {url} attempted to reach the network. "
-            "A refused command must perform zero HTTP attempts (NFR-002)."
-        )
+        raise AssertionError(f"HTTP trip-wire fired: {method} {url} attempted to reach the network. A refused command must perform zero HTTP attempts (NFR-002).")
 
     monkeypatch.setattr(httpx.Client, "request", _tripped)
     return wire
@@ -314,6 +314,12 @@ def _write_project_config(
     config_path = root / ".kittify" / "config.yaml"
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    enabled = (sync_block or {}).get("enabled")
+    if project_uuid is not None and isinstance(enabled, bool):
+        if enabled:
+            record_project_opt_in(project_uuid, actor="tracker-egress-refusal-test")
+        else:
+            record_project_opt_out(project_uuid, actor="tracker-egress-refusal-test")
     return config_path
 
 
@@ -415,9 +421,7 @@ def test_recorder_script_hand_validation_for_each_subcommand(tmp_path: Path) -> 
         (["--json", "create", SENTINEL_TITLE, "--type", "task"], _RECORDER_ISSUE_ID),
         (["--json", "show", _RECORDER_ISSUE_ID], _RECORDER_ISSUE_ID),
     ):
-        result = subprocess.run(
-            [str(script), *args], capture_output=True, text=True, timeout=10, check=True
-        )
+        result = subprocess.run([str(script), *args], capture_output=True, text=True, timeout=10, check=True)
         payload = json.loads(result.stdout)
         if expect_id is None:
             assert payload == []
@@ -460,12 +464,7 @@ def _iter_patch_call_sites(text: str, filename: str) -> list[tuple[int, str]]:
             continue
         func = node.func
         is_dot_setattr = isinstance(func, ast.Attribute) and func.attr == "setattr"
-        is_patch_object = (
-            isinstance(func, ast.Attribute)
-            and func.attr == "object"
-            and isinstance(func.value, ast.Name)
-            and func.value.id == "patch"
-        )
+        is_patch_object = isinstance(func, ast.Attribute) and func.attr == "object" and isinstance(func.value, ast.Name) and func.value.id == "patch"
         is_bare_patch = isinstance(func, ast.Name) and func.id == "patch"
         if not (is_dot_setattr or is_patch_object or is_bare_patch):
             continue
@@ -657,9 +656,7 @@ class TestT004PositiveControls:
     un-gated base, before any refusing pin in this file means anything.
     """
 
-    def test_seeded_push_control_captures_exactly_3_argv_with_sentinel(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_seeded_push_control_captures_exactly_3_argv_with_sentinel(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
             tmp_path,
             name="t004-seeded",
@@ -685,13 +682,10 @@ class TestT004PositiveControls:
         # nothing unless a *consenting* push is shown to actually change the bytes -- otherwise
         # "unchanged" would be true of a push that never touched the file at all.
         assert digest_before != digest_after, (
-            "the consenting control must actually change the tracker db's bytes, or the "
-            "refusing members' byte-identity assertion is vacuous (NFR-002a)"
+            "the consenting control must actually change the tracker db's bytes, or the refusing members' byte-identity assertion is vacuous (NFR-002a)"
         )
 
-    def test_unseeded_push_control_captures_exactly_1_argv(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_unseeded_push_control_captures_exactly_1_argv(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
             tmp_path,
             name="t004-unseeded",
@@ -732,9 +726,7 @@ class TestT004PositiveControls:
 class TestUS1TrackerRefusesWithoutRefusingHostedSync:
     """US1: Channel 1 (hosted-sync consent) granted throughout; Channel 2 (tracker key) varies."""
 
-    def test_sc1_channel2_refused_leaks_on_base_committed_red(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_sc1_channel2_refused_leaks_on_base_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Red on the base: the recorder captures 3 argv with the confidential title inside the
         ``create`` -- the leak itself, not a return code standing in for one. Flips green at WP04.
         """
@@ -751,10 +743,7 @@ class TestUS1TrackerRefusesWithoutRefusingHostedSync:
         argvs = fx.captured()
         digest_after = _digest(fx.db_path)
 
-        print(
-            f"US1 sc1 (committed red until WP04): exit={result.exit_code} "
-            f"CAPTURED {len(argvs)} argv; sentinel_present={_sentinel_in_argvs(argvs)}"
-        )
+        print(f"US1 sc1 (committed red until WP04): exit={result.exit_code} CAPTURED {len(argvs)} argv; sentinel_present={_sentinel_in_argvs(argvs)}")
         if _sentinel_in_argvs(argvs):
             leaking = next(a for a in argvs if any(SENTINEL_TITLE in e for e in a))
             print(f"  LEAK: sentinel '{SENTINEL_TITLE}' captured in argv: {leaking}")
@@ -765,9 +754,7 @@ class TestUS1TrackerRefusesWithoutRefusingHostedSync:
         assert result.exit_code != 0
         assert "Channel 2" in result.output or "tracker.egress" in result.output
 
-    def test_sc2_channel2_absent_is_the_positive_control(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_sc2_channel2_absent_is_the_positive_control(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Must pass: this is what makes sc1's absence assertion mean anything."""
         fx = _build_local_fixture(
             tmp_path,
@@ -783,9 +770,7 @@ class TestUS1TrackerRefusesWithoutRefusingHostedSync:
         assert len(argvs) == 3, argvs  # golden-count: cardinality-is-contract
         assert _sentinel_in_argvs(argvs)
 
-    def test_sc3_negative_pin_refusal_is_not_the_arming_message(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_sc3_negative_pin_refusal_is_not_the_arming_message(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Negative pin: without it, the un-armed abort would satisfy sc1 with nothing built.
 
         Committed red on the base via the exit-code assertion (today's push succeeds, exit 0).
@@ -806,9 +791,7 @@ class TestUS1TrackerRefusesWithoutRefusingHostedSync:
 class TestUS2LocalTrackerWithoutHostedConsent:
     """US2: no hosted-sync consent record at any level; Channel 2 (tracker key) varies."""
 
-    def test_sc1_channel2_permits_independent_of_channel1(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_sc1_channel2_permits_independent_of_channel1(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Green on the base (nothing gates the local path today) and green after (Channel 2
         grants independently of Channel 1)."""
         fx = _build_local_fixture(
@@ -825,9 +808,7 @@ class TestUS2LocalTrackerWithoutHostedConsent:
         assert len(argvs) == 3, argvs  # golden-count: cardinality-is-contract
         assert _sentinel_in_argvs(argvs)
 
-    def test_sc2_channel2_absent_refuses_naming_channel1_committed_red(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_sc2_channel2_absent_refuses_naming_channel1_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """The paired negative -- differs from sc1 by removing the tracker key. Red until WP04."""
         fx = _build_local_fixture(
             tmp_path,
@@ -843,9 +824,7 @@ class TestUS2LocalTrackerWithoutHostedConsent:
         assert result.exit_code != 0
         assert "Channel 1" in result.output
 
-    def test_sc3_recorded_hosted_refusal_does_not_veto_explicit_tracker_grant(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_sc3_recorded_hosted_refusal_does_not_veto_explicit_tracker_grant(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Green on the base (nothing gates the local path today) and green after (Channel 2's
         grant is independent of a recorded hosted-sync refusal)."""
         fx = _build_local_fixture(
@@ -869,9 +848,7 @@ class TestUS2LocalTrackerWithoutHostedConsent:
 
 
 class TestUS3UngatedLocalPathRefusesWhenNeitherChannelPermits:
-    def test_sc1_no_record_no_tracker_key_refuses_committed_red(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_sc1_no_record_no_tracker_key_refuses_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """The 'no record' Channel-1 state per Hazard 8's own recipe: `project.uuid` **present**,
         no `sync:` block and no `sync.enabled` key -- distinct from 'not consentable', which omits
         `project.uuid` entirely. The spec's own wording for this scenario names the state
@@ -900,9 +877,7 @@ class TestUS3UngatedLocalPathRefusesWhenNeitherChannelPermits:
         assert "no record" in result.output.lower()
         assert "tracker.egress" in result.output or "Channel 2" in result.output
 
-    def test_sc2_recorded_hosted_refusal_distinct_wording_committed_red(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_sc2_recorded_hosted_refusal_distinct_wording_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
             tmp_path,
             name="us3-sc2",
@@ -919,9 +894,7 @@ class TestUS3UngatedLocalPathRefusesWhenNeitherChannelPermits:
         # Distinct from sc1's "no record" wording -- both refuse, but for a different reason.
         assert "no record" not in result.output.lower()
 
-    def test_sc3_positive_control_three_argv(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_sc3_positive_control_three_argv(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
             tmp_path,
             name="us3-sc3",
@@ -936,9 +909,7 @@ class TestUS3UngatedLocalPathRefusesWhenNeitherChannelPermits:
         assert len(argvs) == 3, argvs  # golden-count: cardinality-is-contract
         assert _sentinel_in_argvs(argvs)
 
-    def test_sc4_unseeded_pair_refusing_creates_no_file_committed_red(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_sc4_unseeded_pair_refusing_creates_no_file_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """NFR-002 clause (b), the file-existence clause. No sentinel assertion is made here --
         an unseeded store never reaches ``create_issue``, so no title crosses in either member;
         asserting its absence would establish nothing (only the seeded pair's digest clause (a)
@@ -962,9 +933,7 @@ class TestUS3UngatedLocalPathRefusesWhenNeitherChannelPermits:
         assert "no record" in result.output.lower()
         assert "tracker.egress" in result.output or "Channel 2" in result.output
 
-    def test_sc4_unseeded_pair_consenting_creates_file_and_one_argv(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_sc4_unseeded_pair_consenting_creates_file_and_one_argv(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
             tmp_path,
             name="us3-sc4-consenting",
@@ -992,9 +961,7 @@ class TestUS4TotalityAcrossThreeEntryPoints:
     own consenting control -- a parametrised pair run once and asserted three times would not
     satisfy NFR-004."""
 
-    def test_pull_refusing_zero_argv_committed_red(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_pull_refusing_zero_argv_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Mirrors US3 sc1's 'no record' fixture shape (`project.uuid` present, no `sync:`
         block) rather than 'not consentable' -- same mislabelling class already corrected
         elsewhere in this file, fixed here for consistency."""
@@ -1028,9 +995,7 @@ class TestUS4TotalityAcrossThreeEntryPoints:
         assert len(argvs) == 1  # golden-count: cardinality-is-contract
         assert argvs[0][1:] == ["--json", "list"]
 
-    def test_run_refusing_zero_argv_neither_half_reaches_runner_committed_red(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_run_refusing_zero_argv_neither_half_reaches_runner_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Same 'no record' fixture shape as the pull-refusing cell above, for consistency."""
         fx = _build_local_fixture(
             tmp_path,
@@ -1047,9 +1012,7 @@ class TestUS4TotalityAcrossThreeEntryPoints:
         assert "no record" in result.output.lower()
         assert "tracker.egress" in result.output or "Channel 2" in result.output
 
-    def test_run_consenting_both_halves_carry_sentinel(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_run_consenting_both_halves_carry_sentinel(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
             tmp_path,
             name="us4-run-consenting",
@@ -1095,9 +1058,7 @@ LOCAL_BIND_COUNTER_TARGET = "specify_cli.tracker.local_service.tracker_egress_ve
 HOSTED_BIND_COUNTER_TARGET = "specify_cli.tracker.saas_client.tracker_egress_verdict"
 
 
-def test_local_bind_counter_wired_against_named_target_committed_red(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_local_bind_counter_wired_against_named_target_committed_red(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """H4: a representative refusing local cell (US3 sc1) must enter the gate before refusing.
 
     Committed red until WP04 lands ``tracker_egress_verdict`` and binds it under this exact name
@@ -1118,9 +1079,7 @@ def test_local_bind_counter_wired_against_named_target_committed_red(
     assert counter[0] > 0, "a gate never entered is not a gate"
 
 
-def test_hosted_bind_counter_wired_against_named_target_committed_red(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mock_credential_store: MagicMock
-) -> None:
+def test_hosted_bind_counter_wired_against_named_target_committed_red(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mock_credential_store: MagicMock) -> None:
     """H4, hosted destination: US5 sc1 must enter the gate before refusing. Committed red until
     WP05 lands ``tracker_egress_verdict`` and swaps ``saas_client.py`` onto it."""
     counter = _install_delegating_counter(monkeypatch, HOSTED_BIND_COUNTER_TARGET)
@@ -1152,14 +1111,13 @@ def _argv_without_recorder_path(argvs: list[list[str]]) -> list[list[str]]:
     return [argv[1:] for argv in argvs]
 
 
-def test_bind_counter_wrapper_changes_no_outcome_committed_red(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_bind_counter_wrapper_changes_no_outcome_committed_red(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A counting wrapper that changed an outcome would be a stub, not a counter. Compares one
     refusing cell and one consenting cell, with and without the wrapper installed, asserting
     identical captured argv (excluding the recorder's own path -- see
     ``_argv_without_recorder_path``) and exit status. Committed red today via the same
     ``AttributeError`` T006 step 2 describes."""
+
     def _run_once(install_counter: bool) -> tuple[int, list[list[str]], int, list[list[str]]]:
         with pytest.MonkeyPatch.context() as mp:
             mp.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
@@ -1171,15 +1129,22 @@ def test_bind_counter_wrapper_changes_no_outcome_committed_red(
             # on repo_root -- so two fixtures sharing a workspace under the same SPEC_KITTY_HOME
             # would collide on one sqlite file and double-seed it.
             refusing = _build_local_fixture(
-                tmp_path, name=f"wrapper-refusing-{install_counter}",
-                project_uuid=None, sync_block=None, tracker_egress=None, seed=True,
+                tmp_path,
+                name=f"wrapper-refusing-{install_counter}",
+                project_uuid=None,
+                sync_block=None,
+                tracker_egress=None,
+                seed=True,
                 workspace=f"acme-ws-refusing-{install_counter}",
             )
             r1 = _invoke(mp, refusing.repo_root, ["tracker", "sync", "push"])
             consenting = _build_local_fixture(
-                tmp_path, name=f"wrapper-consenting-{install_counter}",
-                project_uuid=CONSENTING_PROJECT_UUID, sync_block={"enabled": True},
-                tracker_egress=None, seed=True,
+                tmp_path,
+                name=f"wrapper-consenting-{install_counter}",
+                project_uuid=CONSENTING_PROJECT_UUID,
+                sync_block={"enabled": True},
+                tracker_egress=None,
+                seed=True,
                 workspace=f"acme-ws-consenting-{install_counter}",
             )
             r2 = _invoke(mp, consenting.repo_root, ["tracker", "sync", "push"])
@@ -1205,12 +1170,14 @@ class TestUS6ExecutedRemedies:
     re-run, and assert the sentinel now reaches the recorder. All committed red on the base: the
     pre-remedy refusal assertion itself is what is red today (nothing gates the local path yet)."""
 
-    def test_no_record_remedy_sync_enabled_true_committed_red(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_no_record_remedy_sync_enabled_true_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
-            tmp_path, name="us6-no-record-a",
-            project_uuid=CONSENTING_PROJECT_UUID, sync_block=None, tracker_egress=None, seed=True,
+            tmp_path,
+            name="us6-no-record-a",
+            project_uuid=CONSENTING_PROJECT_UUID,
+            sync_block=None,
+            tracker_egress=None,
+            seed=True,
         )
         pre = _invoke(monkeypatch, fx.repo_root, ["tracker", "sync", "push"])
         pre_argvs = fx.captured()
@@ -1234,14 +1201,16 @@ class TestUS6ExecutedRemedies:
         assert post.exit_code == 0, post.output
         assert _sentinel_in_argvs(fx.captured())
 
-    def test_no_record_remedy_spec_kitty_sync_opt_in_committed_red(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_no_record_remedy_spec_kitty_sync_opt_in_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.sync.routing import enable_checkout_sync
 
         fx = _build_local_fixture(
-            tmp_path, name="us6-no-record-b",
-            project_uuid=CONSENTING_PROJECT_UUID, sync_block=None, tracker_egress=None, seed=True,
+            tmp_path,
+            name="us6-no-record-b",
+            project_uuid=CONSENTING_PROJECT_UUID,
+            sync_block=None,
+            tracker_egress=None,
+            seed=True,
         )
         pre = _invoke(monkeypatch, fx.repo_root, ["tracker", "sync", "push"])
         pre_argvs = fx.captured()
@@ -1257,12 +1226,14 @@ class TestUS6ExecutedRemedies:
         assert post.exit_code == 0, post.output
         assert _sentinel_in_argvs(fx.captured())
 
-    def test_no_record_remedy_tracker_egress_permitted_committed_red(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_no_record_remedy_tracker_egress_permitted_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
-            tmp_path, name="us6-no-record-c",
-            project_uuid=CONSENTING_PROJECT_UUID, sync_block=None, tracker_egress=None, seed=True,
+            tmp_path,
+            name="us6-no-record-c",
+            project_uuid=CONSENTING_PROJECT_UUID,
+            sync_block=None,
+            tracker_egress=None,
+            seed=True,
         )
         pre = _invoke(monkeypatch, fx.repo_root, ["tracker", "sync", "push"])
         pre_argvs = fx.captured()
@@ -1287,13 +1258,14 @@ class TestUS6ExecutedRemedies:
         assert post.exit_code == 0, post.output
         assert _sentinel_in_argvs(fx.captured())
 
-    def test_recorded_refusal_remedy_change_decision_committed_red(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_recorded_refusal_remedy_change_decision_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
-            tmp_path, name="us6-refusal-a",
-            project_uuid=CONSENTING_PROJECT_UUID, sync_block={"enabled": False},
-            tracker_egress=None, seed=True,
+            tmp_path,
+            name="us6-refusal-a",
+            project_uuid=CONSENTING_PROJECT_UUID,
+            sync_block={"enabled": False},
+            tracker_egress=None,
+            seed=True,
         )
         pre = _invoke(monkeypatch, fx.repo_root, ["tracker", "sync", "push"])
         pre_argvs = fx.captured()
@@ -1315,13 +1287,14 @@ class TestUS6ExecutedRemedies:
         assert post.exit_code == 0, post.output
         assert _sentinel_in_argvs(fx.captured())
 
-    def test_recorded_refusal_remedy_channel2_grant_committed_red(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_recorded_refusal_remedy_channel2_grant_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
-            tmp_path, name="us6-refusal-b",
-            project_uuid=CONSENTING_PROJECT_UUID, sync_block={"enabled": False},
-            tracker_egress=None, seed=True,
+            tmp_path,
+            name="us6-refusal-b",
+            project_uuid=CONSENTING_PROJECT_UUID,
+            sync_block={"enabled": False},
+            tracker_egress=None,
+            seed=True,
         )
         pre = _invoke(monkeypatch, fx.repo_root, ["tracker", "sync", "push"])
         pre_argvs = fx.captured()
@@ -1341,15 +1314,17 @@ class TestUS6ExecutedRemedies:
         assert post.exit_code == 0, post.output
         assert _sentinel_in_argvs(fx.captured())
 
-    def test_not_consentable_remedy_channel2_grant_committed_red(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_not_consentable_remedy_channel2_grant_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Not-consentable: no project.uuid at all, so `enable_checkout_sync` would raise
         `ConsentIdentityUnresolvedError` and hand-authoring `sync.enabled: true` still denies
         (Hazard 8's fourth variant). The Channel-2 grant needs no identity at all."""
         fx = _build_local_fixture(
-            tmp_path, name="us6-not-consentable-a",
-            project_uuid=None, sync_block=None, tracker_egress=None, seed=True,
+            tmp_path,
+            name="us6-not-consentable-a",
+            project_uuid=None,
+            sync_block=None,
+            tracker_egress=None,
+            seed=True,
         )
         pre = _invoke(monkeypatch, fx.repo_root, ["tracker", "sync", "push"])
         pre_argvs = fx.captured()
@@ -1370,9 +1345,7 @@ class TestUS6ExecutedRemedies:
         assert post.exit_code == 0, post.output
         assert _sentinel_in_argvs(fx.captured())
 
-    def test_not_consentable_remedy_mint_identity_then_channel1_committed_red(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_not_consentable_remedy_mint_identity_then_channel1_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """SC-007's **first** not-consentable remedy: mint an identity, *then* record Channel 1.
 
         Added by the mission owner after WP08 found the gap. SC-007 specifies two remedies for
@@ -1395,8 +1368,12 @@ class TestUS6ExecutedRemedies:
         from specify_cli.sync.routing import enable_checkout_sync  # noqa: PLC0415
 
         fx = _build_local_fixture(
-            tmp_path, name="us6-not-consentable-init",
-            project_uuid=None, sync_block=None, tracker_egress=None, seed=True,
+            tmp_path,
+            name="us6-not-consentable-init",
+            project_uuid=None,
+            sync_block=None,
+            tracker_egress=None,
+            seed=True,
         )
         pre = _invoke(monkeypatch, fx.repo_root, ["tracker", "sync", "push"])
         assert len(fx.captured()) == 0, fx.captured()  # golden-count: cardinality-is-contract
@@ -1414,9 +1391,7 @@ class TestUS6ExecutedRemedies:
         mid = _invoke(monkeypatch, fx.repo_root, ["tracker", "sync", "push"])
         assert mid.exit_code != 0, mid.output
         assert len(fx.captured()) == 0, "minting an identity must not by itself grant egress"  # golden-count: cardinality-is-contract
-        assert "no record" in mid.output.lower(), (
-            "after minting, the state must move from not-consentable to no-record"
-        )
+        assert "no record" in mid.output.lower(), "after minting, the state must move from not-consentable to no-record"
 
         # Remedy step 2: now Channel 1 can actually be recorded, which the pre-state refused.
         enable_checkout_sync(fx.repo_root)
@@ -1424,16 +1399,18 @@ class TestUS6ExecutedRemedies:
         assert post.exit_code == 0, post.output
         assert _sentinel_in_argvs(fx.captured())
 
-    def test_not_consentable_hand_authoring_sync_enabled_still_denies(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_not_consentable_hand_authoring_sync_enabled_still_denies(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Without this state the binding is permanently dead with actively wrong advice: hand-
         authoring `sync.enabled: true` with no `project.uuid` still denies at Channel 1, because
         identity never resolved. Documents the failure mode `enable_checkout_sync` guards against
         -- does not call it, since a missing uuid makes it raise `ConsentIdentityUnresolvedError`."""
         fx = _build_local_fixture(
-            tmp_path, name="us6-not-consentable-b",
-            project_uuid=None, sync_block={"enabled": True}, tracker_egress=None, seed=True,
+            tmp_path,
+            name="us6-not-consentable-b",
+            project_uuid=None,
+            sync_block={"enabled": True},
+            tracker_egress=None,
+            seed=True,
         )
         result = _invoke(monkeypatch, fx.repo_root, ["tracker", "sync", "push"])
         argvs = fx.captured()
@@ -1442,8 +1419,7 @@ class TestUS6ExecutedRemedies:
         # inside the captured argv, not a bare boolean. Flips once WP04 lands the Channel-2-aware
         # gate that also consults the (still-denying) Channel-1 state correctly.
         assert not _sentinel_in_argvs(argvs), (
-            f"hand-authoring sync.enabled: true with no project.uuid must still deny "
-            f"(identity never resolved) -- committed red until WP04; captured argv: {argvs}"
+            f"hand-authoring sync.enabled: true with no project.uuid must still deny (identity never resolved) -- committed red until WP04; captured argv: {argvs}"
         )
         assert result.exit_code != 0
 
@@ -1465,9 +1441,22 @@ def _write_jira_config(
     tracker_block: dict[str, Any] = {"provider": provider, "project_slug": project_slug}
     if tracker_egress is not None:
         tracker_block["egress"] = tracker_egress
-    _write_project_config(
-        root, project_uuid=project_uuid, sync_block=sync_block, tracker_block=tracker_block
-    )
+    _write_project_config(root, project_uuid=project_uuid, sync_block=sync_block, tracker_block=tracker_block)
+    if project_uuid is not None and (sync_block or {}).get("enabled") is True:
+        with ProjectSyncStore(project_uuid).unit_of_work() as unit:
+            unit.execute(
+                "INSERT INTO project_target_admissions "
+                "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+                "configuration_generation, admission_state, admission_generation, binding_audience) "
+                "VALUES (?, 'https://app.spec-kitty.ai', 'legacy-account', "
+                "'legacy-private-teamspace', 1, 'admitted', 'legacy-admission', 'legacy-binding') "
+                "ON CONFLICT(project_uuid) DO UPDATE SET target_identity = excluded.target_identity, "
+                "account_identity = excluded.account_identity, private_teamspace_id = excluded.private_teamspace_id, "
+                "configuration_generation = excluded.configuration_generation, "
+                "admission_state = excluded.admission_state, admission_generation = excluded.admission_generation, "
+                "binding_audience = excluded.binding_audience",
+                (project_uuid,),
+            )
 
 
 class TestUS5TrackerKeyNarrowsHostedDestinationNeverGrantsIt:
@@ -1477,7 +1466,10 @@ class TestUS5TrackerKeyNarrowsHostedDestinationNeverGrantsIt:
     gate)."""
 
     def test_sc1_hosted_refuses_channel2_committed_red(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mock_credential_store: MagicMock,
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_credential_store: MagicMock,
         http_tripwire: _HttpTripwire,
     ) -> None:
         """Committed red: the base has no Channel-2 gate on the hosted path either, so this
@@ -1485,8 +1477,7 @@ class TestUS5TrackerKeyNarrowsHostedDestinationNeverGrantsIt:
         `TrackerEgressRefusedError` naming Channel 2. The red must pin exception type + message,
         never the HTTP count (T007's own warning: 0 HTTP is already true on the base)."""
         root = _project(tmp_path, "us5-sc1")
-        _write_jira_config(root, project_uuid=CONSENTING_PROJECT_UUID,
-                            sync_block={"enabled": True}, tracker_egress="refused")
+        _write_jira_config(root, project_uuid=CONSENTING_PROJECT_UUID, sync_block={"enabled": True}, tracker_egress="refused")
         config = load_tracker_config(root)
         svc = SaaSTrackerService(root, config)
         with pytest.raises(TrackerEgressRefusedError) as excinfo:
@@ -1495,7 +1486,10 @@ class TestUS5TrackerKeyNarrowsHostedDestinationNeverGrantsIt:
         assert http_tripwire.attempts == 0
 
     def test_sc2_hosted_refuses_channel1_notes_tracker_grant_noop_committed_red(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mock_credential_store: MagicMock,
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_credential_store: MagicMock,
         http_tripwire: _HttpTripwire,
     ) -> None:
         root = _project(tmp_path, "us5-sc2")
@@ -1514,13 +1508,15 @@ class TestUS5TrackerKeyNarrowsHostedDestinationNeverGrantsIt:
         )
 
     def test_sc3_positive_control_reaches_no_valid_access_token(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mock_credential_store: MagicMock,
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_credential_store: MagicMock,
         http_tripwire: _HttpTripwire,
     ) -> None:
         """The shipped #3030 behaviour, unchanged. Must pass."""
         root = _project(tmp_path, "us5-sc3")
-        _write_jira_config(root, project_uuid=CONSENTING_PROJECT_UUID,
-                            sync_block={"enabled": True}, tracker_egress=None)
+        _write_jira_config(root, project_uuid=CONSENTING_PROJECT_UUID, sync_block={"enabled": True}, tracker_egress=None)
         config = load_tracker_config(root)
         svc = SaaSTrackerService(root, config)
         with pytest.raises(SaaSTrackerClientError) as excinfo:
@@ -1529,7 +1525,10 @@ class TestUS5TrackerKeyNarrowsHostedDestinationNeverGrantsIt:
         assert http_tripwire.attempts == 0
 
     def test_sc4_sc005a_subject_refuses_naming_channel1_green_before_and_after(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mock_credential_store: MagicMock,
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_credential_store: MagicMock,
         http_tripwire: _HttpTripwire,
     ) -> None:
         """SC-005a. GREEN BEFORE AND AFTER -- not a red-then-green pin (T007 step 4's own
@@ -1540,7 +1539,9 @@ class TestUS5TrackerKeyNarrowsHostedDestinationNeverGrantsIt:
         apply the local half, and grant -- reopening #3030's P0 boundary)."""
         root = _project(tmp_path, "us5-sc4-subject")
         _write_project_config(
-            root, project_uuid=None, sync_block=None,
+            root,
+            project_uuid=None,
+            sync_block=None,
             tracker_block={"provider": "beads", "workspace": "acme-ws", "egress": "permitted"},
         )
         svc = TrackerService(root)
@@ -1550,31 +1551,33 @@ class TestUS5TrackerKeyNarrowsHostedDestinationNeverGrantsIt:
         assert http_tripwire.attempts == 0
 
     def test_sc4_sc005a_positive_control_reaches_no_valid_access_token(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mock_credential_store: MagicMock,
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_credential_store: MagicMock,
         http_tripwire: _HttpTripwire,
     ) -> None:
         """The paired positive control: on-disk `provider: jira`, Channel 1 granted, no tracker
         key -- reaches `No valid access token`, so the zero-HTTP count in the subject is not
         vacuous."""
         root = _project(tmp_path, "us5-sc4-control")
-        _write_jira_config(root, project_uuid=CONSENTING_PROJECT_UUID,
-                            sync_block={"enabled": True}, tracker_egress=None)
+        _write_jira_config(root, project_uuid=CONSENTING_PROJECT_UUID, sync_block={"enabled": True}, tracker_egress=None)
         svc = TrackerService(root)
         with pytest.raises(SaaSTrackerClientError) as excinfo:
             svc.list_tickets(provider="jira", limit=20)
         assert "No valid access token" in str(excinfo.value)
         assert http_tripwire.attempts == 0
 
-    def test_sc4_sc005a_negative_control_beads_disk_raises_discriminator(
-        self, tmp_path: Path
-    ) -> None:
+    def test_sc4_sc005a_negative_control_beads_disk_raises_discriminator(self, tmp_path: Path) -> None:
         """The probe discriminates: asking for the on-disk local provider as a hosted read must
         raise `TrackerServiceError`, proving the override path is genuinely provider-specific."""
         from specify_cli.tracker.service import TrackerServiceError
 
         root = _project(tmp_path, "us5-sc4-negative")
         _write_project_config(
-            root, project_uuid=None, sync_block=None,
+            root,
+            project_uuid=None,
+            sync_block=None,
             tracker_block={"provider": "beads", "workspace": "acme-ws"},
         )
         svc = TrackerService(root)
@@ -1582,7 +1585,10 @@ class TestUS5TrackerKeyNarrowsHostedDestinationNeverGrantsIt:
             svc.list_tickets(provider="beads", limit=20)
 
     def test_sc5_hosted_near_miss_singular_refuse_committed_red(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mock_credential_store: MagicMock,
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_credential_store: MagicMock,
         http_tripwire: _HttpTripwire,
     ) -> None:
         """The hosted near-miss end to end (C-020): `egress: refuse` (singular) is neither legal
@@ -1590,8 +1596,7 @@ class TestUS5TrackerKeyNarrowsHostedDestinationNeverGrantsIt:
         the key, quoting `refuse` verbatim, and naming both legal values. One representative
         near-miss; the full 15-value probed set is WP03's unit-level pins."""
         root = _project(tmp_path, "us5-sc5")
-        _write_jira_config(root, project_uuid=CONSENTING_PROJECT_UUID,
-                            sync_block={"enabled": True}, tracker_egress="refuse")
+        _write_jira_config(root, project_uuid=CONSENTING_PROJECT_UUID, sync_block={"enabled": True}, tracker_egress="refuse")
         config = load_tracker_config(root)
         svc = SaaSTrackerService(root, config)
         with pytest.raises(TrackerEgressRefusedError) as excinfo:
@@ -1617,8 +1622,7 @@ class _DrainEgress:
     status: int = 201
     posts: list[dict[str, Any]] = field(default_factory=list)
 
-    def post(self, url: str, json: dict[str, Any] | None = None, headers: dict[str, str] | None = None,
-              timeout: float | None = None) -> Any:
+    def post(self, url: str, json: dict[str, Any] | None = None, headers: dict[str, str] | None = None, timeout: float | None = None) -> Any:
         from types import SimpleNamespace
 
         self.posts.append({"url": url, "json": json or {}})
@@ -1639,21 +1643,46 @@ class _DrainEgress:
         return [str(p["json"].get("project_uuid", "")) for p in self.posts]
 
 
-def _drain_service(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, db_name: str) -> Any:
+@contextlib.contextmanager
+def _drain_service(
+    monkeypatch: pytest.MonkeyPatch,
+    project_uuid: str,
+) -> Iterator[Any]:
     from specify_cli.sync.background import BackgroundSyncService
     from specify_cli.sync.body_queue import OfflineBodyUploadQueue
+    from specify_cli.sync.layout_generation import LayoutMode
     from specify_cli.sync.queue import OfflineQueue
     from unittest.mock import MagicMock as _MM
 
     monkeypatch.setattr("specify_cli.sync.background._fetch_access_token_sync", lambda: "test-token")
     monkeypatch.setattr("specify_cli.sync.background.is_saas_sync_enabled", lambda: True)
 
-    db_path = tmp_path / db_name
     config = _MM()
     config.resolve_runtime_target.return_value.resolved_server_url = "https://saas.example.test"
-    service = BackgroundSyncService(queue=OfflineQueue(db_path=db_path), config=config)
-    service._body_queue = OfflineBodyUploadQueue(db_path=db_path)
-    return service
+    store = ProjectSyncStore(project_uuid)
+    authority = store.layout_generation()
+    if authority.read_state().mode is LayoutMode.LEGACY:
+        authority.begin_cutover("tracker-egress-hosted-drain-fixture")
+        authority.publish_project_only(
+            "tracker-egress-hosted-drain-fixture",
+            verify_exact=lambda: True,
+        )
+
+    def _active_project_store(candidate: str) -> ProjectSyncStore:
+        assert candidate == project_uuid
+        return store
+
+    monkeypatch.setattr(
+        "specify_cli.sync.consent.ProjectSyncStore",
+        _active_project_store,
+    )
+    with store.unit_of_work() as unit:
+        service = BackgroundSyncService(
+            queue=OfflineQueue(unit, authority),
+            config=config,
+        )
+        service._body_queue = OfflineBodyUploadQueue(unit, authority)
+        yield service
 
 
 def _enqueue_two_bodies(queue: Any, project_uuid: str) -> None:
@@ -1677,9 +1706,7 @@ def _enqueue_two_bodies(queue: Any, project_uuid: str) -> None:
         )
 
 
-def test_us1_sc4_hosted_drain_unaffected_by_tracker_key(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, http_tripwire: _HttpTripwire
-) -> None:
+def test_us1_sc4_hosted_drain_unaffected_by_tracker_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, http_tripwire: _HttpTripwire) -> None:
     """US1 sc4: hosted sync (the queue drain) is unaffected by the tracker key. This is a
     *different* transport (the body/event drain) with its own, unrelated consent chain; this
     Mission changes nothing about it, so it is a positive control -- green on the base and after.
@@ -1702,10 +1729,6 @@ def test_us1_sc4_hosted_drain_unaffected_by_tracker_key(
     ``_drain_checkout_roots()`` than on cwd -- a shape this cell does not simulate and would not
     catch.
     """
-    from specify_cli.sync.consent import set_project_consent
-
-    set_project_consent(CONSENTING_PROJECT_UUID, True)
-
     root_with_key = _project(tmp_path, "us1-sc4-with-key")
     _write_project_config(
         root_with_key,
@@ -1724,39 +1747,38 @@ def test_us1_sc4_hosted_drain_unaffected_by_tracker_key(
     egress_with_key = _DrainEgress()
     monkeypatch.setattr(
         "specify_cli.sync.body_transport.requests",
-        __import__("types").SimpleNamespace(
-            post=egress_with_key.post, ConnectionError=ConnectionError, Timeout=TimeoutError
-        ),
+        __import__("types").SimpleNamespace(post=egress_with_key.post, ConnectionError=ConnectionError, Timeout=TimeoutError),
     )
-    monkeypatch.setattr(
-        "specify_cli.sync.body_transport.request_with_stdlib_fallback_sync", egress_with_key.fallback
-    )
+    monkeypatch.setattr("specify_cli.sync.body_transport.request_with_stdlib_fallback_sync", egress_with_key.fallback)
     monkeypatch.chdir(root_with_key)
-    svc_with_key = _drain_service(tmp_path, monkeypatch, "with-key.db")
-    _enqueue_two_bodies(svc_with_key._body_queue, CONSENTING_PROJECT_UUID)
-    assert svc_with_key._body_queue.size() == 2, "non-vacuity: queue must be non-empty before drain"
-    svc_with_key.drain_body_uploads_only()
-    assert svc_with_key._body_queue.size() == 0, "non-vacuity: queue must be empty after drain"
+    with _drain_service(monkeypatch, CONSENTING_PROJECT_UUID) as svc_with_key:
+        _enqueue_two_bodies(svc_with_key._body_queue, CONSENTING_PROJECT_UUID)
+        assert svc_with_key._body_queue.size() == 2, "non-vacuity: queue must be non-empty before drain"
+        svc_with_key.drain_body_uploads_only()
+        assert svc_with_key._body_queue.size() == 0, "non-vacuity: queue must be empty after drain"
+        # The two historical arms used separate legacy sqlite files. The
+        # canonical project store is UUID-scoped, so remove completed fixture
+        # rows before recreating the same two identities for the second arm.
+        svc_with_key._body_queue.remove_project_tasks(CONSENTING_PROJECT_UUID)
 
     egress_no_key = _DrainEgress()
     monkeypatch.setattr(
         "specify_cli.sync.body_transport.requests",
-        __import__("types").SimpleNamespace(
-            post=egress_no_key.post, ConnectionError=ConnectionError, Timeout=TimeoutError
-        ),
+        __import__("types").SimpleNamespace(post=egress_no_key.post, ConnectionError=ConnectionError, Timeout=TimeoutError),
     )
-    monkeypatch.setattr(
-        "specify_cli.sync.body_transport.request_with_stdlib_fallback_sync", egress_no_key.fallback
-    )
+    monkeypatch.setattr("specify_cli.sync.body_transport.request_with_stdlib_fallback_sync", egress_no_key.fallback)
     monkeypatch.chdir(root_no_key)
-    svc_no_key = _drain_service(tmp_path, monkeypatch, "no-key.db")
-    _enqueue_two_bodies(svc_no_key._body_queue, CONSENTING_PROJECT_UUID)
-    assert svc_no_key._body_queue.size() == 2
-    svc_no_key.drain_body_uploads_only()
-    assert svc_no_key._body_queue.size() == 0
+    with _drain_service(monkeypatch, CONSENTING_PROJECT_UUID) as svc_no_key:
+        _enqueue_two_bodies(svc_no_key._body_queue, CONSENTING_PROJECT_UUID)
+        assert svc_no_key._body_queue.size() == 2
+        svc_no_key.drain_body_uploads_only()
+        assert svc_no_key._body_queue.size() == 0
 
     assert egress_with_key.project_uuids == egress_no_key.project_uuids
     assert egress_with_key.bodies == egress_no_key.bodies
+    assert len(egress_with_key.posts) == len(egress_no_key.posts) == 2
+    assert [post["url"] for post in egress_with_key.posts] == [post["url"] for post in egress_no_key.posts]
+    assert all(str(post["url"]).endswith("/api/dossier/push-content/") for post in (*egress_with_key.posts, *egress_no_key.posts))
     # This file's own httpx trip-wire stays armed throughout and must still record 0 -- the
     # drain path is instrumented above it (a `requests`-based transport), which is precisely why
     # the two coexist.
@@ -1791,8 +1813,7 @@ def test_us1_sc4_hosted_drain_unaffected_by_tracker_key(
 #: committed ``tracker: {egress: refused}``. Quoted, not paraphrased: a cell that asserted
 #: only ``exit_code != 0`` would be satisfied by the un-armed abort (US1 sc3's negative pin).
 _CHANNEL2_REFUSAL_FRAGMENT = (
-    "Channel 2 refused: tracker.egress is recorded as 'refused' in this project's own "
-    ".kittify/config.yaml; refusing tracker egress to local_subprocess"
+    "Channel 2 refused: tracker.egress is recorded as 'refused' in this project's own .kittify/config.yaml; refusing tracker egress to local_subprocess"
 )
 
 #: Every module-level binding of ``tracker_egress_verdict`` that exists in the product today.
@@ -1881,9 +1902,7 @@ class TestUS7NoOverGatingUngatedCommandsSurviveRefusal:
     carries no verdict call in the census.
     """
 
-    def test_status_succeeds_and_returns_the_local_payload_under_refusal(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_status_succeeds_and_returns_the_local_payload_under_refusal(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """The cell `#3174` names first: `status` on a refusing project reports the real local
         store, not a refusal and not an empty stub."""
         fx = _refusing_project(tmp_path, "no-over-gating-status")
@@ -1908,9 +1927,7 @@ class TestUS7NoOverGatingUngatedCommandsSurviveRefusal:
         # across the whole cell, refused command included.
         assert len(fx.captured()) == 0, fx.captured()  # golden-count: cardinality-is-contract
 
-    def test_map_list_succeeds_and_returns_the_local_mapping_set_under_refusal(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_map_list_succeeds_and_returns_the_local_mapping_set_under_refusal(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """`map list` without ``--provider`` -- the ungated spelling. The ``--provider`` spelling
         takes the hosted branch (``_check_readiness``) and is a different command shape."""
         fx = _refusing_project(tmp_path, "no-over-gating-map-list")
@@ -1927,9 +1944,7 @@ class TestUS7NoOverGatingUngatedCommandsSurviveRefusal:
         assert _CHANNEL2_REFUSAL_FRAGMENT not in result.output, result.output
         assert len(fx.captured()) == 0, fx.captured()  # golden-count: cardinality-is-contract
 
-    def test_map_add_then_map_list_roundtrip_under_refusal(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_map_add_then_map_list_roundtrip_under_refusal(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """`map add` is a *write*, and the write must actually land: read it back through the
         separate ``map list`` command rather than trusting ``map add``'s own echo."""
         fx = _refusing_project(tmp_path, "no-over-gating-map-add")
@@ -1954,9 +1969,7 @@ class TestUS7NoOverGatingUngatedCommandsSurviveRefusal:
         assert _CHANNEL2_REFUSAL_FRAGMENT not in added.output + listed.output
         assert len(fx.captured()) == 0, fx.captured()  # golden-count: cardinality-is-contract
 
-    def test_unbind_succeeds_and_clears_the_binding_under_refusal(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_unbind_succeeds_and_clears_the_binding_under_refusal(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """`unbind` is destructive, so it runs last within its own cell and its effect is read
         back from the committed config rather than from ``status``.
 
@@ -1979,9 +1992,7 @@ class TestUS7NoOverGatingUngatedCommandsSurviveRefusal:
         assert load_tracker_config(fx.repo_root).provider is None
         assert len(fx.captured()) == 0, fx.captured()  # golden-count: cardinality-is-contract
 
-    def test_ungated_commands_consult_no_verdict_binding_while_sync_pull_consults_one(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_ungated_commands_consult_no_verdict_binding_while_sync_pull_consults_one(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """The census, executed. Delegating counters (never stubs) on all three module bindings
         of ``tracker_egress_verdict``; the ungated commands must leave every counter at zero,
         and the gated one on the same root must move exactly one of them.
@@ -1990,10 +2001,7 @@ class TestUS7NoOverGatingUngatedCommandsSurviveRefusal:
         binding, including one whose refusal a future command swallowed into an exit-0 path --
         a shape the exit-code cells above would miss.
         """
-        counters = {
-            target: _install_delegating_counter(monkeypatch, target)
-            for target in _VERDICT_BINDING_TARGETS
-        }
+        counters = {target: _install_delegating_counter(monkeypatch, target) for target in _VERDICT_BINDING_TARGETS}
         fx = _refusing_project(tmp_path, "no-over-gating-counters")
 
         for args in (
@@ -2049,9 +2057,7 @@ class TestHigh1RefusalPrecedesReadinessNetworkProbe:
     green run, proving nothing about this specific ordering defect).
     """
 
-    def test_sync_pull_refuses_before_any_reachability_probe(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_sync_pull_refuses_before_any_reachability_probe(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Red on the pre-fix ``_check_sync_readiness`` (the reachability probe fires before
         refusal); green after (refusal fires first, the probe is never reached)."""
         root = _project(tmp_path, "high1-sync-pull")
@@ -2061,9 +2067,7 @@ class TestHigh1RefusalPrecedesReadinessNetworkProbe:
         _write_jira_config(root, project_uuid=None, sync_block=None, tracker_egress=None)
 
         monkeypatch.setattr("specify_cli.saas.readiness._probe_auth", lambda *_: True)
-        monkeypatch.setattr(
-            "specify_cli.saas.readiness._probe_host_config", lambda: "https://saas.example.test"
-        )
+        monkeypatch.setattr("specify_cli.saas.readiness._probe_host_config", lambda: "https://saas.example.test")
 
         reachability_calls: list[str] = []
 
@@ -2071,24 +2075,19 @@ class TestHigh1RefusalPrecedesReadinessNetworkProbe:
             reachability_calls.append(server_url)
             return False
 
-        monkeypatch.setattr(
-            "specify_cli.saas.readiness._probe_reachability", _counting_probe_reachability
-        )
+        monkeypatch.setattr("specify_cli.saas.readiness._probe_reachability", _counting_probe_reachability)
 
         result = _invoke(monkeypatch, root, ["tracker", "sync", "pull"])
 
         # The HIGH-1 pin: on the pre-fix tree this list is non-empty (the probe fired ahead of
         # refusal); the fix must leave it empty.
         assert reachability_calls == [], (
-            f"HIGH-1: the reachability probe fired {len(reachability_calls)} time(s) "
-            f"({reachability_calls}) before the hosted-egress refusal was ever consulted."
+            f"HIGH-1: the reachability probe fired {len(reachability_calls)} time(s) ({reachability_calls}) before the hosted-egress refusal was ever consulted."
         )
         assert result.exit_code != 0, result.output
         assert "Refusing to send tracker data to Spec Kitty SaaS" in result.output, result.output
 
-    def test_sync_pull_permitting_verdict_still_reaches_the_reachability_probe(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_sync_pull_permitting_verdict_still_reaches_the_reachability_probe(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Companion positive control: a PERMITTED verdict must change nothing -- execution still
         falls through to ``_check_readiness`` and its reachability probe exactly as before. Proves
         the fix narrows (refuse-first) rather than removes (skip-always) the existing readiness
@@ -2102,9 +2101,7 @@ class TestHigh1RefusalPrecedesReadinessNetworkProbe:
         )
 
         monkeypatch.setattr("specify_cli.saas.readiness._probe_auth", lambda *_: True)
-        monkeypatch.setattr(
-            "specify_cli.saas.readiness._probe_host_config", lambda: "https://saas.example.test"
-        )
+        monkeypatch.setattr("specify_cli.saas.readiness._probe_host_config", lambda: "https://saas.example.test")
 
         reachability_calls: list[str] = []
 
@@ -2112,9 +2109,7 @@ class TestHigh1RefusalPrecedesReadinessNetworkProbe:
             reachability_calls.append(server_url)
             return False
 
-        monkeypatch.setattr(
-            "specify_cli.saas.readiness._probe_reachability", _counting_probe_reachability
-        )
+        monkeypatch.setattr("specify_cli.saas.readiness._probe_reachability", _counting_probe_reachability)
 
         result = _invoke(monkeypatch, root, ["tracker", "sync", "pull"])
 
@@ -2152,9 +2147,7 @@ class TestHigh3LocalBindSkipsHostedReadiness:
     read). SaaS providers keep the existing readiness check unchanged.
     """
 
-    def test_local_bind_succeeds_without_hosted_auth(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_local_bind_succeeds_without_hosted_auth(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Red on the pre-fix ``bind_command`` (exits 1, ``readiness=missing_auth``); green
         after (the binding is created, exit 0)."""
         root = _project(tmp_path, "high3-local-bind")
@@ -2182,9 +2175,7 @@ class TestHigh3LocalBindSkipsHostedReadiness:
         assert config.provider == "beads", config
         assert config.workspace == "acme-ws", config
 
-    def test_hosted_bind_still_requires_hosted_readiness(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_hosted_bind_still_requires_hosted_readiness(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Companion positive control: a SaaS-provider ``bind`` must still hit the hosted
         readiness pre-flight (unauthenticated -> ``missing_auth``), unchanged by this fix."""
         root = _project(tmp_path, "high3-hosted-bind")
@@ -2196,6 +2187,4 @@ class TestHigh3LocalBindSkipsHostedReadiness:
         )
 
         assert result.exit_code != 0, result.output
-        assert "missing_auth" in result.output or "No SaaS authentication token" in result.output, (
-            result.output
-        )
+        assert "missing_auth" in result.output or "No SaaS authentication token" in result.output, result.output

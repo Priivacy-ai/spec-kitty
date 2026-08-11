@@ -186,6 +186,11 @@ def harness(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Harness:
     for path in (home, a_root, b_root):
         path.mkdir()
 
+    # Durable consent/admission is machine-scoped. Establish the isolated
+    # machine before recording the two projects' genuine positive authority.
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".spec-kitty"))
+
     # Item 1 — both checkouts consenting, on disk. B consents too, so a refusal is
     # never attributable to B's consent: the only thing that differs is ownership.
     write_project_config(a_root, sync_enabled=True)
@@ -210,13 +215,11 @@ def harness(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Harness:
     # this. The other two clauses of SC-024 are unchanged and still bind (items 1
     # and 3), and the hazard the superseded clause reached for is covered by the
     # ``client._project_root == A_ROOT`` assertion, not by any kwarg.
-    monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(a_root))
     monkeypatch.setenv("SPEC_KITTY_SAAS_URL", SAAS_URL)
     monkeypatch.setenv("SPEC_KITTY_SAAS_TOKEN", TOKEN_A)
     monkeypatch.setenv("SPEC_KITTY_TEAM_SLUG", TEAM_A)
-    monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     monkeypatch.chdir(a_root)
 
     h = Harness(a_root, b_root)
@@ -253,9 +256,7 @@ def test_sc001_route_specify_repo_root_refuses_and_transmits_no_bytes(
     """
     result = harness.widen(DECISION_ID_OWNED_BY_B)
 
-    assert DECISION_ID_OWNED_BY_B not in transmitted_text(harness.sink), (
-        f"B's decision_id reached the transport from A's checkout: {harness.sink!r}"
-    )
+    assert DECISION_ID_OWNED_BY_B not in transmitted_text(harness.sink), f"B's decision_id reached the transport from A's checkout: {harness.sink!r}"
     assert harness.sink == []
     assert result.exit_code == 1
     assert str(harness.a_root) in result.output, "the refusal must name the acting root"
@@ -313,8 +314,7 @@ def test_fr003_slug_differential_within_one_checkout_flips_the_outcome(
     owning = harness.widen(DECISION_ID_OWNED_BY_A, "--mission-slug", A_MISSION)
     assert owning.exit_code == 0, owning.output
     assert len(harness.sink) == 1, (  # golden-count: cardinality-is-contract
-        "the owning slug must still transmit exactly one request; if it refuses, "
-        f"the differential below proves nothing: {harness.sink!r}"
+        f"the owning slug must still transmit exactly one request; if it refuses, the differential below proves nothing: {harness.sink!r}"
     )
     assert DECISION_ID_OWNED_BY_A in transmitted_text(harness.sink)
 
@@ -323,9 +323,7 @@ def test_fr003_slug_differential_within_one_checkout_flips_the_outcome(
     # Half 2 — a NON-OWNING slug in the SAME checkout refuses. This is the half
     # that reds if the CLI stops threading the flag: without the slug the search
     # finds the decision under A_MISSION and sends.
-    non_owning = harness.widen(
-        DECISION_ID_OWNED_BY_A, "--mission-slug", "mission-other-of-a"
-    )
+    non_owning = harness.widen(DECISION_ID_OWNED_BY_A, "--mission-slug", "mission-other-of-a")
     assert harness.sink == [], (
         "FR-003 REGRESSION: a non-owning --mission-slug in the acting checkout did "
         "not narrow the search, so the decision was found under another of A's "
@@ -348,9 +346,7 @@ def test_sc011_no_request_line_addressed_to_as_team_carries_bs_decision_id(
 
     addressed_to_a = [rec for rec in harness.sink if TEAM_A in str(rec.get("url", ""))]
     assert addressed_to_a == []
-    assert not any(
-        DECISION_ID_OWNED_BY_B in str(rec) for rec in harness.sink
-    ), f"a request line carried B's identifier: {harness.sink!r}"
+    assert not any(DECISION_ID_OWNED_BY_B in str(rec) for rec in harness.sink), f"a request line carried B's identifier: {harness.sink!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -381,10 +377,7 @@ def test_sc002_positive_control_owning_checkout_still_transmits_exactly_one_requ
 
     (request,) = harness.sink
     assert request["method"] == "POST"
-    assert request["url"] == (
-        f"{SAAS_URL}/a/{TEAM_A}/collaboration/decision-points/"
-        f"{DECISION_ID_OWNED_BY_A}/widen"
-    ), "same endpoint as before the fix"
+    assert request["url"] == (f"{SAAS_URL}/a/{TEAM_A}/collaboration/decision-points/{DECISION_ID_OWNED_BY_A}/widen"), "same endpoint as before the fix"
     assert request["json"] == {"invited_user_ids": [101]}, "same payload as before the fix"
 
     # Item 9 (mandatory). This reds the moment either side of the fabricated-consent
@@ -398,9 +391,7 @@ def test_sc002_positive_control_owning_checkout_still_transmits_exactly_one_requ
     )
 
 
-def test_sc002_clause_c_unreadable_ledger_must_not_veto_a_hit_elsewhere(
-    harness: Harness, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_sc002_clause_c_unreadable_ledger_must_not_veto_a_hit_elsewhere(harness: Harness, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """SC-002 clause (c), the MUST-NOT-VETO half. Its REFUSE half lives in
     ``tests/specify_cli/decisions/test_ownership_3111.py`` and neither discharges
     the other.
@@ -466,12 +457,9 @@ def test_sc002_clause_c_unreadable_ledger_must_not_veto_a_hit_elsewhere(
 
     assert result.exit_code == 0, result.output
     assert len(harness.sink) == 1, (  # golden-count: cardinality-is-contract
-        f"an unreadable ledger in a mission that is NOT the answer vetoed a "
-        f"positive hit elsewhere: {result.output}"
+        f"an unreadable ledger in a mission that is NOT the answer vetoed a positive hit elsewhere: {result.output}"
     )
-    assert harness.sink[0]["url"].endswith(
-        f"/decision-points/{DECISION_ID_OWNED_BY_A}/widen"
-    )
+    assert harness.sink[0]["url"].endswith(f"/decision-points/{DECISION_ID_OWNED_BY_A}/widen")
     assert harness.sink[0]["json"] == {"invited_user_ids": [101]}
 
 
@@ -546,13 +534,7 @@ def _client_constructions(source: str) -> list[ast.Call]:
             continue
         if node.name != "from_env":
             continue
-        return [
-            call
-            for call in ast.walk(node)
-            if isinstance(call, ast.Call)
-            and isinstance(call.func, ast.Name)
-            and call.func.id in _CLIENT_CTORS
-        ]
+        return [call for call in ast.walk(node) if isinstance(call, ast.Call) and isinstance(call.func, ast.Name) and call.func.id in _CLIENT_CTORS]
     return []
 
 
@@ -583,9 +565,7 @@ def _from_env_always_passes_project_root(source: str) -> bool:
     constructions = _client_constructions(source)
     if not constructions:
         return False
-    return all(
-        any(kw.arg == "project_root" for kw in call.keywords) for call in constructions
-    )
+    return all(any(kw.arg == "project_root" for kw in call.keywords) for call in constructions)
 
 
 def _guard_tests_key_absence(source: str) -> bool:
@@ -628,7 +608,7 @@ def test_fabricated_consent_falsifier_watches_both_files(harness: Harness) -> No
     for conftest in (saas_conftest, tracker_conftest):
         assert _guard_tests_key_absence(conftest.read_text(encoding="utf-8")), (
             f"{conftest}: the autouse guard no longer keys on the kwarg being "
-            f"ABSENT. If it now reads `kwargs.get(\"project_root\") is None` the "
+            f'ABSENT. If it now reads `kwargs.get("project_root") is None` the '
             f"injection fires on the real path and consent is fabricated again."
         )
 
@@ -637,19 +617,19 @@ def test_fabricated_consent_falsifier_watches_both_files(harness: Harness) -> No
 #: check. Controlling a falsifier against these is not busywork: the check reads
 #: the real ``client.py``, which is currently compliant, so on its own it is a
 #: green that cannot distinguish a working check from ``return True``.
-_GOOD_FLAT = '''
+_GOOD_FLAT = """
 class SaasClient:
     @classmethod
     def from_env(cls, repo_root=None):
         root = Path(str(repo_root)) if repo_root is not None else None
         ctx = load_auth_context(repo_root=root)
         return cls(base_url=ctx.saas_url, token=ctx.token, project_root=root)
-'''
+"""
 
 #: THE FORM THE OLD CHECK ACCEPTED. `project_root=` is passed on one branch, so
 #: "some call passes it" holds — while the `None` branch, the only one the autouse
 #: guards can fire on, omits it.
-_BAD_BRANCHED = '''
+_BAD_BRANCHED = """
 class SaasClient:
     @classmethod
     def from_env(cls, repo_root=None):
@@ -658,29 +638,29 @@ class SaasClient:
         if root is not None:
             return cls(base_url=ctx.saas_url, token=ctx.token, project_root=root)
         return cls(base_url=ctx.saas_url, token=ctx.token)
-'''
+"""
 
 #: The assign-then-return spelling of the same hole — the returned object is not
 #: syntactically the call, so a check that only inspected ``return`` statements
 #: would miss it.
-_BAD_ASSIGNED = '''
+_BAD_ASSIGNED = """
 class SaasClient:
     @classmethod
     def from_env(cls, repo_root=None):
         ctx = load_auth_context(repo_root=None)
         client = cls(base_url=ctx.saas_url, token=ctx.token)
         return client
-'''
+"""
 
 #: Anti-vacuity for the "at least one construction" clause: a ``from_env`` that
 #: builds no client must not read as compliant just because nothing violated the
 #: rule. ``all([])`` is ``True``, which is precisely how this class of check dies.
-_BAD_NO_CONSTRUCTION = '''
+_BAD_NO_CONSTRUCTION = """
 class SaasClient:
     @classmethod
     def from_env(cls, repo_root=None):
         raise NotImplementedError
-'''
+"""
 
 
 def test_the_producer_side_falsifier_rejects_the_branched_form() -> None:
@@ -718,9 +698,7 @@ def test_the_producer_side_falsifier_rejects_the_branched_form() -> None:
     assert len(sources) == 4, f"expected 4 controlled sources, got {len(sources)}"  # golden-count: cardinality-is-contract
 
 
-def test_symlinked_specs_root_does_not_launder_consent_end_to_end(
-    harness: Harness, tmp_path: Path
-) -> None:
+def test_symlinked_specs_root_does_not_launder_consent_end_to_end(harness: Harness, tmp_path: Path) -> None:
     """HIGH-2 at the transport, asserting the BYTES.
 
     The unit-level pin lives in ``test_ownership_3111.py``. This is the half that
@@ -754,9 +732,7 @@ def test_symlinked_specs_root_does_not_launder_consent_end_to_end(
     assert result.exit_code == 1, result.output
 
 
-def test_symlinked_decisions_dir_does_not_launder_consent_end_to_end(
-    harness: Harness, tmp_path: Path
-) -> None:
+def test_symlinked_decisions_dir_does_not_launder_consent_end_to_end(harness: Harness, tmp_path: Path) -> None:
     """MEDIUM-4 at the transport, asserting the BYTES.
 
     The specs-root case is pinned above; this is the same laundering two levels
@@ -766,9 +742,7 @@ def test_symlinked_decisions_dir_does_not_launder_consent_end_to_end(
     """
     mine = harness.a_root / "kitty-specs" / "mission-mine"
     mine.mkdir(parents=True, exist_ok=True)
-    (mine / "decisions").symlink_to(
-        harness.b_root / "kitty-specs" / B_MISSION / "decisions", target_is_directory=True
-    )
+    (mine / "decisions").symlink_to(harness.b_root / "kitty-specs" / B_MISSION / "decisions", target_is_directory=True)
 
     result = harness.widen(DECISION_ID_OWNED_BY_B)
 

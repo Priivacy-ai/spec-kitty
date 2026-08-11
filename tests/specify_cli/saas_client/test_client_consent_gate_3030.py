@@ -25,6 +25,8 @@ import pytest
 
 from specify_cli.saas_client import SaasClient, SaasClientError
 from specify_cli.saas_client.errors import SaasConsentError
+from specify_cli.sync.consent import record_project_opt_in
+from specify_cli.sync.project_store import ProjectSyncStore
 
 pytestmark = pytest.mark.fast
 
@@ -93,9 +95,8 @@ class RecordingHttp:
         self._sink.append({"method": "GET", "url": url, "json": None})
         return RecordingResponse()
 
-    def post(
-        self, url: str, *, json: Any = None, timeout: float | None = None
-    ) -> RecordingResponse:
+    def post(self, url: str, *, json: Any = None, headers: dict[str, str] | None = None, timeout: float | None = None) -> RecordingResponse:
+        del headers
         self._sink.append({"method": "POST", "url": url, "json": json})
         return RecordingResponse()
 
@@ -113,9 +114,10 @@ def transmitted_text(sink: list[dict[str, Any]]) -> str:
 def write_project_config(repo_root: Path, *, sync_enabled: bool | None = None) -> None:
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
+    project_uuid = str(uuid4())
     lines = [
         "project:",
-        f"  uuid: {uuid4()}",
+        f"  uuid: {project_uuid}",
         "  slug: acme-holdings",
         "  node_id: node12345678",
         "  repo_slug: acme-holdings/acme-holdings",
@@ -124,6 +126,17 @@ def write_project_config(repo_root: Path, *, sync_enabled: bool | None = None) -
     if sync_enabled is not None:
         lines += ["sync:", f"  enabled: {str(sync_enabled).lower()}"]
     (config_dir / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    if sync_enabled is True:
+        record_project_opt_in(project_uuid, actor="generic-consent-positive")
+        with ProjectSyncStore(project_uuid).unit_of_work() as unit:
+            unit.execute(
+                "INSERT INTO project_target_admissions "
+                "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+                "configuration_generation, admission_state, admission_generation, binding_audience) "
+                "VALUES (?, 'https://saas.example.invalid', 'account-test', 'private-test', 1, "
+                "'admitted', 'admission-test', 'binding-test')",
+                (project_uuid,),
+            )
 
 
 @pytest.fixture
@@ -138,15 +151,13 @@ def isolated_machine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     home.mkdir()
     repo_root.mkdir()
     monkeypatch.setenv("HOME", str(home))
-    monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".spec-kitty"))
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     monkeypatch.chdir(repo_root)
     return repo_root
 
 
-def make_client(
-    sink: list[dict[str, Any]], project_root: Path | None
-) -> SaasClient:
+def make_client(sink: list[dict[str, Any]], project_root: Path | None) -> SaasClient:
     """A fully authenticated client — so a refusal is attributable to consent."""
     return SaasClient(
         base_url="https://saas.example.invalid",
@@ -190,9 +201,7 @@ ENDPOINT_CALLS: dict[str, Any] = {
 # ---------------------------------------------------------------------------
 
 
-def test_consenting_project_transmits_the_engagement_name_in_the_url(
-    isolated_machine: Path, sink: list[dict[str, Any]]
-) -> None:
+def test_consenting_project_transmits_the_engagement_name_in_the_url(isolated_machine: Path, sink: list[dict[str, Any]]) -> None:
     """POSITIVE CONTROL, and it also *demonstrates* the leak's shape.
 
     Must pass before and after the fix. It proves the recording transport is
@@ -208,13 +217,8 @@ def test_consenting_project_transmits_the_engagement_name_in_the_url(
     # opposite shape too. One POST carrying the slug in a JSON body is the same
     # count, and it would make the URL-searching refusal assertions below blind to
     # the very egress they are supposed to catch.
-    assert [(r["method"], r["json"]) for r in sink] == [("GET", None)], (
-        f"a consenting project must transmit exactly one GET with no body; recorded {sink!r}"
-    )
-    assert MISSION_SLUG in sink[0]["url"], (
-        "the control must carry the engagement name in the URL path, or the "
-        "absence assertions in this file prove nothing"
-    )
+    assert [(r["method"], r["json"]) for r in sink] == [("GET", None)], f"a consenting project must transmit exactly one GET with no body; recorded {sink!r}"
+    assert MISSION_SLUG in sink[0]["url"], "the control must carry the engagement name in the URL path, or the absence assertions in this file prove nothing"
 
 
 # ---------------------------------------------------------------------------
@@ -222,85 +226,54 @@ def test_consenting_project_transmits_the_engagement_name_in_the_url(
 # ---------------------------------------------------------------------------
 
 
-def test_unconsented_project_puts_no_engagement_name_on_the_wire(
-    isolated_machine: Path, sink: list[dict[str, Any]]
-) -> None:
+def test_unconsented_project_puts_no_engagement_name_on_the_wire(isolated_machine: Path, sink: list[dict[str, Any]]) -> None:
     """THE LEAK: a project with no consent record must ship nothing."""
     write_project_config(isolated_machine, sync_enabled=None)
 
-    refusal = refusal_of(
-        ENDPOINT_CALLS["get_audience_default"], make_client(sink, isolated_machine)
-    )
+    refusal = refusal_of(ENDPOINT_CALLS["get_audience_default"], make_client(sink, isolated_machine))
 
-    assert MISSION_SLUG not in transmitted_text(sink), (
-        "the engagement name reached the transport, in the URL path: "
-        f"{[r['url'] for r in sink]!r}"
-    )
+    assert MISSION_SLUG not in transmitted_text(sink), f"the engagement name reached the transport, in the URL path: {[r['url'] for r in sink]!r}"
     assert ENGAGEMENT not in transmitted_text(sink)
     assert sink == [], f"nothing may reach the transport; recorded {sink!r}"
-    assert isinstance(refusal, SaasConsentError), (
-        f"the call must refuse with a consent error; got {refusal!r}"
-    )
+    assert isinstance(refusal, SaasConsentError), f"the call must refuse with a consent error; got {refusal!r}"
 
 
-def test_machine_global_arming_is_not_a_grant(
-    isolated_machine: Path, sink: list[dict[str, Any]], monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_machine_global_arming_is_not_a_grant(isolated_machine: Path, sink: list[dict[str, Any]], monkeypatch: pytest.MonkeyPatch) -> None:
     """``SPEC_KITTY_ENABLE_SAAS_SYNC`` is the incident's own mechanism, not consent."""
     write_project_config(isolated_machine, sync_enabled=None)
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
-    refusal = refusal_of(
-        ENDPOINT_CALLS["get_audience_default"], make_client(sink, isolated_machine)
-    )
+    refusal = refusal_of(ENDPOINT_CALLS["get_audience_default"], make_client(sink, isolated_machine))
 
-    assert MISSION_SLUG not in transmitted_text(sink), (
-        f"machine-global arming carried the engagement name off the machine: {sink!r}"
-    )
+    assert MISSION_SLUG not in transmitted_text(sink), f"machine-global arming carried the engagement name off the machine: {sink!r}"
     assert sink == []
     assert isinstance(refusal, SaasConsentError)
 
 
-def test_project_local_refusal_is_honoured(
-    isolated_machine: Path, sink: list[dict[str, Any]]
-) -> None:
+def test_project_local_refusal_is_honoured(isolated_machine: Path, sink: list[dict[str, Any]]) -> None:
     write_project_config(isolated_machine, sync_enabled=False)
 
-    refusal = refusal_of(
-        ENDPOINT_CALLS["get_audience_default"], make_client(sink, isolated_machine)
-    )
+    refusal = refusal_of(ENDPOINT_CALLS["get_audience_default"], make_client(sink, isolated_machine))
 
-    assert MISSION_SLUG not in transmitted_text(sink), (
-        f"a committed refusal was overridden and the engagement name shipped: {sink!r}"
-    )
+    assert MISSION_SLUG not in transmitted_text(sink), f"a committed refusal was overridden and the engagement name shipped: {sink!r}"
     assert sink == []
     assert isinstance(refusal, SaasConsentError)
 
 
-def test_undetermined_project_denies(
-    isolated_machine: Path, sink: list[dict[str, Any]]
-) -> None:
+def test_undetermined_project_denies(isolated_machine: Path, sink: list[dict[str, Any]]) -> None:
     """A client with no project attribution refuses (FR-003 / NFR-001)."""
     write_project_config(isolated_machine, sync_enabled=True)
 
     refusal = refusal_of(ENDPOINT_CALLS["get_audience_default"], make_client(sink, None))
 
-    assert MISSION_SLUG not in transmitted_text(sink), (
-        "an unattributed transport shipped the engagement name under a nearby "
-        f"project's consent: {sink!r}"
-    )
-    assert sink == [], (
-        "a transport with no project attribution must refuse even when a "
-        "consenting project happens to exist nearby"
-    )
+    assert MISSION_SLUG not in transmitted_text(sink), f"an unattributed transport shipped the engagement name under a nearby project's consent: {sink!r}"
+    assert sink == [], "a transport with no project attribution must refuse even when a consenting project happens to exist nearby"
     assert refusal is not None
     assert "could not be determined" in str(refusal)
 
 
 @pytest.mark.parametrize("endpoint", sorted(ENDPOINT_CALLS))
-def test_every_endpoint_refuses_without_consent(
-    endpoint: str, isolated_machine: Path, sink: list[dict[str, Any]]
-) -> None:
+def test_every_endpoint_refuses_without_consent(endpoint: str, isolated_machine: Path, sink: list[dict[str, Any]]) -> None:
     """No endpoint may transmit for a project that has not consented.
 
     Including ``health_probe``: it is gated at the shared ``_get`` chokepoint
@@ -320,9 +293,7 @@ def test_every_endpoint_refuses_without_consent(
     probe_result = ENDPOINT_CALLS[endpoint](client) if is_probe else None
     refusal = None if is_probe else refusal_of(ENDPOINT_CALLS[endpoint], client)
 
-    assert ENGAGEMENT not in transmitted_text(sink), (
-        f"{endpoint} put the engagement name on the wire without consent: {sink!r}"
-    )
+    assert ENGAGEMENT not in transmitted_text(sink), f"{endpoint} put the engagement name on the wire without consent: {sink!r}"
     assert sink == [], f"{endpoint} transmitted without consent: {sink!r}"
     if is_probe:
         assert probe_result is False, "health_probe must refuse by returning False"
@@ -349,10 +320,7 @@ SAAS_CONSTRUCTION_SITE_FLOOR = 4
 #: kwargs from ``node.keywords`` only and so misses all-positional calls. This
 #: predicate counts every match regardless of call form and has no positional
 #: blind spot. Do not credit any coverage claim here to ``#3113``.
-SAAS_PREDICATE_BOUND = (
-    "literal class-name match on `SaasClient`; aliases, factories and injected "
-    "transports are out of scope"
-)
+SAAS_PREDICATE_BOUND = "literal class-name match on `SaasClient`; aliases, factories and injected transports are out of scope"
 
 
 def _saas_site_attribution(node: ast.Call) -> tuple[bool, bool]:
@@ -376,12 +344,7 @@ def _saas_site_attribution(node: ast.Call) -> tuple[bool, bool]:
     func = node.func
     # ``SaasClient(...)`` or ``SaasClient.from_env(...)``
     is_direct = isinstance(func, ast.Name) and func.id == "SaasClient"
-    is_from_env = (
-        isinstance(func, ast.Attribute)
-        and func.attr == "from_env"
-        and isinstance(func.value, ast.Name)
-        and func.value.id == "SaasClient"
-    )
+    is_from_env = isinstance(func, ast.Attribute) and func.attr == "from_env" and isinstance(func.value, ast.Name) and func.value.id == "SaasClient"
     if not (is_direct or is_from_env):
         return False, False
     if is_from_env:
@@ -464,11 +427,8 @@ def test_every_production_construction_site_attributes_its_project() -> None:
     # this exercises the SAME code the failure message uses rather than a copy of
     # it. A wrong base otherwise manifests only INSIDE a red, where no green can
     # catch it.
-    assert _repo_relative(_SRC_TREE / "specify_cli" / "egress.py") == (
-        "src/specify_cli/egress.py"
-    ), (
-        "_repo_relative no longer yields repo-relative paths, so every path this "
-        "guard names in a failure would be wrong — and only on a red."
+    assert _repo_relative(_SRC_TREE / "specify_cli" / "egress.py") == ("src/specify_cli/egress.py"), (
+        "_repo_relative no longer yields repo-relative paths, so every path this guard names in a failure would be wrong — and only on a red."
     )
 
     for path in files:
@@ -492,9 +452,7 @@ def test_every_production_construction_site_attributes_its_project() -> None:
         f"What this floor does NOT prove: {SAAS_PREDICATE_BOUND}."
     )
     assert not unattributed, (
-        "SaasClient built without a project attribution at:\n  "
-        + "\n  ".join(unattributed)
-        + "\n\nPass the root of the project that OWNS the mission or decision "
+        "SaasClient built without a project attribution at:\n  " + "\n  ".join(unattributed) + "\n\nPass the root of the project that OWNS the mission or decision "
         "record the request carries (#3030 FR-030) — `from_env(repo_root=...)`, or "
         "`project_root=` on a direct construction. See "
         "specify_cli/egress.py for the precondition and what falsifies it."
@@ -527,10 +485,7 @@ def test_saas_predicate_flags_a_form_it_matches_but_does_not_accept() -> None:
     """
     matched, attributed = _saas_site_attribution(_call("SaasClient.from_env(project_root=r)"))
 
-    assert matched, (
-        "SaasClient.from_env(...) must be matched — if it is not, the guard has "
-        "stopped seeing the form every production site actually uses"
-    )
+    assert matched, "SaasClient.from_env(...) must be matched — if it is not, the guard has stopped seeing the form every production site actually uses"
     assert not attributed, (
         "SaasClient.from_env(project_root=r) must be flagged unattributed: "
         "from_env accepts a bare positional or repo_root=, not project_root=. "
@@ -563,10 +518,7 @@ def test_saas_predicate_matches_a_shape_no_src_site_uses() -> None:
         "count and the floor stays at exactly 4 — which is why it is asserted here "
         "rather than left to the corpus scan."
     )
-    assert attributed, (
-        "SaasClient(project_root=...) is the attributed spelling for direct "
-        "construction; if this reads unattributed the predicate was narrowed"
-    )
+    assert attributed, "SaasClient(project_root=...) is the attributed spelling for direct construction; if this reads unattributed the predicate was narrowed"
 
 
 def test_saas_predicate_rejects_the_from_env_root_spelling_on_a_direct_construction() -> None:
@@ -631,9 +583,7 @@ def test_no_attribution_is_a_refusal_at_the_gate_itself() -> None:
     assert "could not be determined" in refusal
 
 
-def test_sc016_denied_wording_is_pinned_for_this_transport(
-    isolated_machine: Path, sink: list[dict[str, Any]]
-) -> None:
+def test_sc016_denied_wording_is_pinned_for_this_transport(isolated_machine: Path, sink: list[dict[str, Any]]) -> None:
     """SC-016 / FR-024: the ``DENIED`` branch's merged wording, pinned here.
 
     **Added alongside the four pre-existing ``could not be determined``
@@ -652,14 +602,10 @@ def test_sc016_denied_wording_is_pinned_for_this_transport(
 
     write_project_config(isolated_machine, sync_enabled=False)
 
-    refusal = refusal_of(
-        ENDPOINT_CALLS["get_audience_default"], make_client(sink, isolated_machine)
-    )
+    refusal = refusal_of(ENDPOINT_CALLS["get_audience_default"], make_client(sink, isolated_machine))
 
     assert sink == [], f"a refused project reached the transport: {sink!r}"
-    assert isinstance(refusal, SaasConsentError), (
-        f"the DENIED path did not produce a consent refusal: {refusal!r}"
-    )
+    assert isinstance(refusal, SaasConsentError), f"the DENIED path did not produce a consent refusal: {refusal!r}"
     text = str(refusal)
 
     # SC-016 — the merged wording itself. Hard-coded on purpose: under the
@@ -676,12 +622,9 @@ def test_sc016_denied_wording_is_pinned_for_this_transport(
 
     # SC-004 clause 2 — this transport's OWN identifier set, and no foreign kind.
     assert SAAS_EGRESS_IDENTIFIER_KINDS in text, text
-    assert SAAS_EGRESS_IDENTIFIER_KINDS == "mission and decision identifiers", (
-        "the SaaS fragment changed; both DENIED strings survive Q2 verbatim"
-    )
+    assert SAAS_EGRESS_IDENTIFIER_KINDS == "mission and decision identifiers", "the SaaS fragment changed; both DENIED strings survive Q2 verbatim"
     assert "engagement identifiers" not in text, (
-        "this transport carries no engagement names, so naming them overstates "
-        f"the exposure to an operator (US2-AS2): {text!r}"
+        f"this transport carries no engagement names, so naming them overstates the exposure to an operator (US2-AS2): {text!r}"
     )
 
     # SC-004 clause 1 — the non-fragment portion came from the ONE shared
@@ -691,9 +634,7 @@ def test_sc016_denied_wording_is_pinned_for_this_transport(
     # wrapper's string with its own "Refusing to call Spec Kitty SaaS: " context.
     # The whole rendered refusal is still pinned — only the exception's prefix is
     # allowed in front of it.
-    rendered = _DENIED_TEMPLATE.format(
-        project_root=isolated_machine, identifiers=SAAS_EGRESS_IDENTIFIER_KINDS
-    )
+    rendered = _DENIED_TEMPLATE.format(project_root=isolated_machine, identifiers=SAAS_EGRESS_IDENTIFIER_KINDS)
     assert text.endswith(rendered), (
         "the rendered refusal is not this transport's fragment in the shared "
         f"template — a second presentation of the policy exists:\n"
@@ -709,24 +650,14 @@ def test_endpoint_coverage_is_exhaustive() -> None:
     public surface is a sender and must be proven gated.
     """
     not_a_sender = {"has_token", "from_env"}
-    public = {
-        name
-        for name, obj in vars(SaasClient).items()
-        if not name.startswith("_") and (callable(obj) or isinstance(obj, property))
-    } - not_a_sender
+    public = {name for name, obj in vars(SaasClient).items() if not name.startswith("_") and (callable(obj) or isinstance(obj, property))} - not_a_sender
     missing = public - set(ENDPOINT_CALLS)
     stale = set(ENDPOINT_CALLS) - public
-    assert not missing, (
-        f"public SaasClient endpoints with no consent-gate test: {sorted(missing)}"
-    )
-    assert not stale, (
-        f"ENDPOINT_CALLS names methods that no longer exist: {sorted(stale)}"
-    )
+    assert not missing, f"public SaasClient endpoints with no consent-gate test: {sorted(missing)}"
+    assert not stale, f"ENDPOINT_CALLS names methods that no longer exist: {sorted(stale)}"
 
 
-def test_health_probe_refuses_quietly_and_sends_nothing(
-    isolated_machine: Path, sink: list[dict[str, Any]]
-) -> None:
+def test_health_probe_refuses_quietly_and_sends_nothing(isolated_machine: Path, sink: list[dict[str, Any]]) -> None:
     """``health_probe`` keeps its never-raises contract, and still sends nothing.
 
     Its documented contract is "returns ``False`` on any error — this method
@@ -747,9 +678,7 @@ def test_health_probe_refuses_quietly_and_sends_nothing(
 # ---------------------------------------------------------------------------
 
 
-def test_from_env_carries_the_project_it_was_given(
-    isolated_machine: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_from_env_carries_the_project_it_was_given(isolated_machine: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``from_env(repo_root)`` must thread that root onto the client.
 
     Every production construction site goes through ``from_env``. If the root
@@ -768,9 +697,7 @@ def test_from_env_carries_the_project_it_was_given(
     assert client._project_root == isolated_machine
 
 
-def test_from_env_without_a_repo_root_produces_a_refusing_client(
-    isolated_machine: Path, sink: list[dict[str, Any]], monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_from_env_without_a_repo_root_produces_a_refusing_client(isolated_machine: Path, sink: list[dict[str, Any]], monkeypatch: pytest.MonkeyPatch) -> None:
     """No repo_root means no project whose consent could be resolved — so deny."""
     write_project_config(isolated_machine, sync_enabled=True)
     monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://saas.example.invalid")
@@ -785,16 +712,12 @@ def test_from_env_without_a_repo_root_produces_a_refusing_client(
 
     refusal = refusal_of(ENDPOINT_CALLS["get_audience_default"], client)
 
-    assert MISSION_SLUG not in transmitted_text(sink), (
-        f"a client built without a repo_root shipped the engagement name: {sink!r}"
-    )
+    assert MISSION_SLUG not in transmitted_text(sink), f"a client built without a repo_root shipped the engagement name: {sink!r}"
     assert sink == []
     assert isinstance(refusal, SaasConsentError)
 
 
-def test_consent_refusal_is_suppressible_like_any_saas_failure(
-    isolated_machine: Path, sink: list[dict[str, Any]]
-) -> None:
+def test_consent_refusal_is_suppressible_like_any_saas_failure(isolated_machine: Path, sink: list[dict[str, Any]]) -> None:
     """``SaasConsentError`` must remain a ``SaasClientError``.
 
     The widen prereq probe, the interview helpers and the audience resolver all
@@ -811,7 +734,4 @@ def test_consent_refusal_is_suppressible_like_any_saas_failure(
     refusal = refusal_of(ENDPOINT_CALLS["fetch_discussion"], client)
 
     assert sink == [], f"fetch_discussion transmitted without consent: {sink!r}"
-    assert isinstance(refusal, SaasConsentError), (
-        "the refusal must be catchable as SaasClientError by the existing "
-        f"local-first handlers; got {refusal!r}"
-    )
+    assert isinstance(refusal, SaasConsentError), f"the refusal must be catchable as SaasClientError by the existing local-first handlers; got {refusal!r}"

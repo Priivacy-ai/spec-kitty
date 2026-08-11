@@ -1791,6 +1791,7 @@ specify_cli/delivery/dispatcher.py::_post::receiver-deliver::receiver.deliver
 specify_cli/delivery/receivers.py::_HttpReceiver._attempt_batch_send::transport-call::self._poster
 specify_cli/delivery/receivers.py::default_http_poster::http-verb::requests.post
 specify_cli/saas_client/client.py::SaasClient._post::http-verb::self._http.post
+specify_cli/saas_client/client.py::SaasClient._send_generic_operation::http-verb::self._http.post
 specify_cli/sync/body_transport.py::push_content::http-verb::requests.post
 specify_cli/sync/body_transport.py::push_content::transport-call::request_with_stdlib_fallback_sync
 specify_cli/sync/client.py::WebSocketClient._handle_ping::websocket-send::self.ws.send
@@ -1813,6 +1814,10 @@ specify_cli/sync/sharing_client.py::delete_private_project::http-verb::client.po
 specify_cli/sync/sharing_client.py::leave_repository_share::http-verb::client.post
 specify_cli/sync/sharing_client.py::request_repository_share::http-verb::client.post
 specify_cli/tracker/saas_client.py::SaaSTrackerClient._request::http-verb::client.request
+specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._request
+specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._request
+specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._request
+specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._physical_request_with_retry
 specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._request
 specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._request
 specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._request
@@ -2438,6 +2443,47 @@ def test_source_discovered_sender_census_is_counted_and_shrink_only() -> None:
             "project sender census shrank: " + ", ".join(f"{key} (-{count})" for key, count in sorted(shrink.items())),
             stacklevel=1,
         )
+
+
+_T034_DURABLE_ADAPTER_SINK_COUNTS: Counter[str] = Counter(
+    {
+        "specify_cli/saas_client/client.py::SaasClient._send_generic_operation::http-verb::self._http.post": 1,
+        "specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._request": 3,
+        "specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._physical_request_with_retry": 1,
+    }
+)
+
+
+def _t034_durable_adapter_sink_counts(
+    sites: tuple[_ProjectSinkSite, ...],
+) -> Counter[str]:
+    return Counter(site.key for site in sites if site.key in _T034_DURABLE_ADAPTER_SINK_COUNTS)
+
+
+def test_t034_durable_adapter_sender_census_is_exact() -> None:
+    assert _t034_durable_adapter_sink_counts(_scan_project_sinks()) == _T034_DURABLE_ADAPTER_SINK_COUNTS
+
+
+def test_t034_durable_adapter_sender_census_rejects_extra_retry_mutant(
+    tmp_path: Path,
+) -> None:
+    tracker = tmp_path / "specify_cli" / "tracker" / "saas_client.py"
+    tracker.parent.mkdir(parents=True)
+    tracker.write_text(
+        "class SaaSTrackerClient:\n"
+        "    def _physical_request_with_retry(self, payload):\n"
+        "        self._request('POST', '/one', json=payload, headers={})\n"
+        "        self._request('POST', '/two', json=payload, headers={})\n"
+        "        self._request('POST', '/three', json=payload, headers={})\n"
+        "        self._request('POST', '/mutant', json=payload, headers={})\n",
+        encoding="utf-8",
+    )
+
+    observed = _t034_durable_adapter_sink_counts(_scan_project_sinks((tracker,), source_root=tmp_path))
+
+    assert observed - _T034_DURABLE_ADAPTER_SINK_COUNTS == Counter(
+        {"specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._request": 1}
+    )
 
 
 def test_source_discovered_layout_writer_census_is_counted_and_shrink_only() -> None:
