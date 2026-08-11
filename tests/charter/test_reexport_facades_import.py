@@ -31,7 +31,9 @@ _FACADE_MODULES = (
     "charter.glossary_packs",
     "charter.missions",
     "charter.model_routing",
+    "charter.pack_paths",
     "charter.spdd_reasons",
+    "charter.template_catalog",
 )
 
 
