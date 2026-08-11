@@ -1,3 +1,14 @@
+---
+title: 'Deviation: inline-meta-read allow-list governed without a count baseline'
+description: 'Why the inline-meta-read allow-list is governed by equality + shrink-only controls rather than a _baselines.yaml count baseline (C-006 deviation; #3240).'
+doc_status: active
+updated: '2026-08-11'
+audience: docs/context/audience/internal/maintainer.md
+type: explanation
+related:
+- docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
+---
+
 # Deviation: inline-meta-read allow-list governed without a `_baselines.yaml` count baseline
 
 **Status:** Accepted deviation (operator-confirmed).

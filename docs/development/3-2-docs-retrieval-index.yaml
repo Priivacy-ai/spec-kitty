@@ -6444,6 +6444,15 @@ pages:
     - {slug: "start-here", text: "Start here", level: 2}
     - {slug: "non-page-artifacts", text: "Non-page artifacts", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/development/inline-meta-read-allowlist-baseline-deviation.md"
+    title: "Deviation: inline-meta-read allow-list governed without a count baseline"
+    divio_type: "explanation"
+    abstract: "Why the inline-meta-read allow-list is governed by equality + shrink-only controls rather than a _baselines.yaml count baseline (C-006 deviation; #3240)."
+    anchors:
+    - {slug: "summary", text: "Summary", level: 2}
+    - {slug: "what-a-baselines-yaml-a-baseline-gives-you", text: "What a `_baselines.yaml` §(a) baseline gives you", level: 2}
+    - {slug: "why-the-existing-controls-are-strictly-stronger", text: "Why the existing controls are strictly stronger", level: 2}
+    - {slug: "consequence-re-evaluation-trigger", text: "Consequence / re-evaluation trigger", level: 2}
   - path: "docs/development/reference/coverage-signals.md"
     title: "Coverage signals — reconciling the three \"coverage\" numbers"
     divio_type: "explanation"
