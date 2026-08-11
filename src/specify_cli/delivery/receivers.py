@@ -428,7 +428,12 @@ _PER_EVENT_OUTCOME: dict[str, DeliveryOutcome] = {
 
 def _build_payload(events: Sequence[OutboundEvent]) -> bytes:
     """Serialize the batch body exactly as the wire contract expects (§3.1)."""
-    return json.dumps({"events": [dict(e.payload) for e in events]}).encode("utf-8")
+    return json.dumps(
+        {"events": [dict(e.payload) for e in events]},
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
 
 
 def disclosed_event_payload_bytes(event: OutboundEvent) -> bytes:
@@ -438,7 +443,12 @@ def disclosed_event_payload_bytes(event: OutboundEvent) -> bytes:
     per-item attempts must hash what can actually reach SaaS, not the raw journal
     bytes that may have been decoded or wrapped before disclosure.
     """
-    return json.dumps(dict(event.payload)).encode("utf-8")
+    return json.dumps(
+        dict(event.payload),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
 
 
 def _error_text(entry: Mapping[str, Any]) -> str | None:

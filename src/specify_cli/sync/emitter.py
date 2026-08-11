@@ -42,8 +42,6 @@ from specify_cli.core.payload_shaping import apply_keep_none_fields
 from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.event_journal import (
     CaptureGateState,
-    capture_teamspace_bound,
-    get_journal,
 )
 from specify_cli.mission_metadata import mission_number_from_slug
 from specify_cli.proof.events import (
@@ -839,7 +837,10 @@ class EventEmitter:
 
     clock: LamportClock = field(default_factory=LamportClock.load)
     config: SyncConfig = field(default_factory=SyncConfig)
-    queue: OfflineQueue = field(default_factory=OfflineQueue)
+    # The singleton may be constructed outside a project.  A project-owned
+    # OfflineQueue can only be minted from an active store unit + layout
+    # authority, so there is intentionally no ambient/path-backed default.
+    queue: OfflineQueue | None = None
     ws_client: WebSocketClient | None = field(default=None, repr=False)
     _pending_tasks: set = field(default_factory=set, repr=False)
     _identity: ProjectIdentity | None = field(default=None, repr=False)
@@ -2060,71 +2061,16 @@ class EventEmitter:
         occurred_at: str,
         team_slug: str | None,
     ) -> None:
-        """Capture-first durable write to the producer-scoped event journal.
+        """Capture the full envelope in its project-owned journal/outbox.
 
-        Runs before every delivery gate so a Teamspace-bound fact survives even
-        when all gates block (FR-017, contract §2; SC-009). Producer-scoped,
-        never server-scoped (FR-003). A journal I/O error is warned but never
-        propagated — capture-first must not make emission fail.
-
-        The journal payload BLOB stores the **full wire envelope** (``event``),
-        not just the inner ``payload`` field. The dispatcher decodes this BLOB
-        verbatim and the receiver POSTs it as a per-event object, so every
-        contract-required envelope field (``event_id``, ``event_type``,
-        ``aggregate_id``, ``payload``, ``timestamp``, ``node_id``,
-        ``lamport_clock``, ``schema_version``) survives the capture→drain path.
-        The ``event_id``/``event_type`` journal columns still index the envelope.
-
-        **Consent gates the write itself (#3030 T006, NFR-005 as amended
-        2026-07-29).** Capture-first durability applies only to *consenting*
-        projects. A project whose checkout has not consented never reaches the
-        journal at all — previously its event was written and merely stamped
-        with a ``drain_blocked_reason``, which left every unrelated local
-        project's payloads pooled in one machine-global store. This is a
-        deliberate reversal of the unconditional-write invariant that
-        ``event_journal/journal.py`` documents, not an oversight.
-
-        The refusal lives here, at the caller, on purpose: it is the only
-        production entry point for a capture, and gating inside
-        ``capture_teamspace_bound`` via its unused ``skip_journal`` parameter
-        would leave every real capture unconditional while looking fixed.
+        Capture is local and therefore independent of hosted consent (FR-006).
+        The event's UUID selects the physical project store; cwd, team, login,
+        and active-target defaults cannot select or widen it. The queue append
+        persists the journal entry and outbox task atomically before egress.
         """
-        from .project_identity import (
-            resolve_event_project_slug,
-            resolve_event_project_uuid,
-        )
-
+        del event_id, event_type, occurred_at, team_slug
         try:
-            # Resolved through T011's single chain so the stored column, the gate that
-            # authorizes the write, and the backfill can never disagree (NFR-001).
-            # This must precede the gate: the gate's consent question is *about* this
-            # uuid (#3030 M1). It used to be resolved afterwards, which is how the
-            # gate came to answer for the working directory instead.
-            project_uuid = resolve_event_project_uuid(event)
-            gate = self._capture_gate_state(team_slug, project_uuid=project_uuid)
-            if not gate.checkout_enabled:
-                # Refuse the write, loudly enough to be diagnosable but without
-                # failing emission — the local command still succeeds, exactly
-                # as it does when a delivery gate blocks.
-                logger.debug(
-                    "Journal capture refused for event %s (%s): project %s has not consented to sync (#3030 NFR-005)",
-                    event_id,
-                    event_type,
-                    project_uuid or "<unidentified>",
-                )
-                return
-            payload_bytes = json.dumps(event, sort_keys=True, default=str).encode("utf-8")
-            capture_teamspace_bound(
-                journal=get_journal(team_slug=team_slug),
-                event_id=event_id,
-                event_type=event_type,
-                payload=payload_bytes,
-                occurred_at=occurred_at,
-                gate=gate,
-                project_uuid=project_uuid,
-                project_slug=resolve_event_project_slug(event),
-                repo_slug=event.get("repo_slug"),
-            )
+            self._queue_event_locally(event)
         except Exception as exc:
             _console.print(f"[yellow]Warning: event journal capture failed: {exc}[/yellow]")
 
@@ -2231,21 +2177,6 @@ class EventEmitter:
             if envelope_fields:
                 event.update(envelope_fields)
 
-            # Capture-first (FR-017, contract §2; SC-009): durably record the
-            # Teamspace-bound fact in the producer-scoped event journal BEFORE
-            # any delivery gate (validation, contract gate, project routing,
-            # WebSocket, drain) can decide whether to ship it.
-            #
-            # Capture-first is scoped to CONSENTING projects only (#3030 T006,
-            # NFR-005 as amended 2026-07-29). The write is therefore NOT
-            # unconditional: `_capture_to_journal` refuses it outright when the
-            # capture gate's `checkout_enabled` is False, because writing a
-            # non-consenting project's payload and merely stamping it with a
-            # `drain_blocked_reason` is what pooled every unrelated local
-            # project's data in one machine-global store. Every *other* gate
-            # still only sets the recorded `drain_blocked_reason` and never
-            # whether the durable write happens — consent is the single
-            # exception, and it is checked at the callee.
             self._capture_to_journal(
                 event_id=event_id,
                 event_type=event_type,
@@ -2277,7 +2208,7 @@ class EventEmitter:
                 # identified can never be shown to belong to a consenting one
                 # (NFR-001). The write itself is deliberately not consent-gated — see
                 # the recorded judgement above ``_route_event``.
-                self.queue.queue_event(event)
+                self._queue_event_locally(event)
                 return event
 
             self._route_event(event)
@@ -2544,11 +2475,27 @@ class EventEmitter:
         try:
             # Unconditional local durability, deliberately (issue #1072) and
             # deliberately not consent-gated — see the recorded judgement above.
-            return self.queue.queue_event(event)
+            return self._queue_event_locally(event)
 
         except Exception as e:
             _console.print(f"[yellow]Warning: Event routing failed: {e}[/yellow]")
             return False
+
+    def _queue_event_locally(self, event: dict[str, Any]) -> bool:
+        """Capture through an attached or transient exact project outbox."""
+        if self.queue is not None:
+            return self.queue.queue_event(event)
+        from .project_identity import resolve_event_project_uuid
+        from .project_store import ProjectSyncStore
+        from .queue import OfflineQueue
+
+        project_uuid = resolve_event_project_uuid(event)
+        if project_uuid is None:
+            logger.debug("Event %s has no project-owned outbox", event.get("event_id"))
+            return False
+        store = ProjectSyncStore(project_uuid)
+        with store.unit_of_work() as unit:
+            return OfflineQueue(unit, store.layout_generation()).queue_event(event)
 
     def _queue_if_async_send_failed(self, completed: object, event: dict[str, Any]) -> None:
         """Queue an event if a fire-and-forget WebSocket send fails later."""
@@ -2560,7 +2507,7 @@ class EventEmitter:
             return
         logger.debug("Async WebSocket send failed; queueing event %s: %s", event.get("event_id"), exception)
         try:
-            self.queue.queue_event(event)
+            self._queue_event_locally(event)
         except Exception as queue_exc:
             logger.warning("Failed to queue event %s after async send failure: %s", event.get("event_id"), queue_exc)
 

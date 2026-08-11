@@ -38,6 +38,7 @@ STATUS_TERMINAL_FAILED = "terminal_failed"
 TERMINAL_SUCCESS_STATUSES = frozenset({STATUS_SUCCESS, STATUS_DUPLICATE})
 TERMINAL_STATUSES = TERMINAL_SUCCESS_STATUSES | {STATUS_TERMINAL_FAILED}
 _DISPATCHER_WRITE_KIND = "dispatcher_http_event"
+_EVENT_WRITE_KIND = "event"
 _DISPATCHER_REFERENCE_SCHEMA = "spec-kitty.dispatcher.v1"
 _WP06_OUTCOME_STATUS = {
     "delivered": STATUS_SUCCESS,
@@ -225,7 +226,7 @@ class SqliteDeliveryLedger:
         )
 
     def _row_from_attempt(self, attempt: DeliveryAttemptProjection) -> LedgerRow | None:
-        if attempt.write_kind == _DISPATCHER_WRITE_KIND:
+        if attempt.write_kind in {_DISPATCHER_WRITE_KIND, _EVENT_WRITE_KIND}:
             return self._row_from_dispatcher_attempt(attempt)
         metadata = attempt.legacy_metadata
         if metadata is None:

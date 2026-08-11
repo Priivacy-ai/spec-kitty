@@ -2,7 +2,7 @@
 
 Implements the ``LocalCommit`` WebSocket frame lifecycle:
 - ``SyncState`` dataclass: persists to ``.kittify/sync-state.json``
-- ``emit_local_commit()``: stores frame + sends if WebSocket is connected
+- ``emit_local_commit()``: captures a pending local frame without egress
 - ``flush_pending_local_commits()``: replays pending frames on connect
 - ``record_local_commit_ack()``: removes acked entry; updates confirmed hash
 - Amended-commit handling: same ``build_id`` → replace prior pending entry
@@ -17,15 +17,15 @@ Per-project consent (#3030 T027, FR-002/NFR-001)
 ------------------------------------------------
 ``changed_files`` are repo-relative paths under ``kitty-specs/``, i.e. **mission
 slugs**; for the 2026-07-27 incident's population those slugs are client engagement
-names. This module therefore has the same egress duty as the drain, and until T027
-had no consent check at all. Two gates now stand on the path, and both resolve the
-answer through ``sync/consent.py`` — the *one* resolver (C-003):
+names. This module therefore has the same egress duty as the drain. Local capture
+remains unconditional; the replay sender resolves the answer through
+``sync/consent.py`` and then revalidates store authority through WP06 (C-003):
 
-* :func:`emit_local_commit` refuses to stage or send a frame for a project that has
-  not consented, so nothing reaches ``sync-state.json`` for the flush to replay.
-* :func:`flush_pending_local_commits` re-resolves consent **per frame** before each
-  send, which is what covers residual frames staged before this gate existed and
-  projects whose consent was revoked after staging.
+* :func:`emit_local_commit` captures the local commit regardless of hosted consent;
+  local capture is not egress and remains available if the project opts in later.
+* :func:`flush_pending_local_commits` passes every identifiable frame to the
+  canonical WP06 attempt/lease/final gate, which resolves current consent under
+  the frame's project store immediately before any WebSocket I/O.
 
 The flush's gate reads identity from the **frame**, never from the working
 directory. That is not a stylistic preference: the flush is called with
@@ -57,6 +57,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 import datetime as _dt
@@ -67,6 +68,31 @@ from typing import Any
 from specify_cli.core.atomic import atomic_write
 
 logger = logging.getLogger(__name__)
+
+_RFC3339_DATE_TIME = re.compile(r"\A\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})\Z")
+
+
+def validate_rfc3339_datetime(value: object, *, field_name: str) -> str:
+    """Return an unchanged strict RFC3339/OpenAPI ``date-time`` string.
+
+    ``datetime.fromisoformat`` alone is intentionally insufficient: it accepts a
+    space in place of ``T`` and accepts naive timestamps.  The wire contract
+    requires ``T``/``t`` plus ``Z``/``z`` or a numeric offset. Parsing a private
+    normalized copy after the lexical fence rejects impossible calendar/offset values.
+    The original string is returned so validation never rewrites correlation or
+    persisted wire evidence.
+    """
+    if not isinstance(value, str) or _RFC3339_DATE_TIME.fullmatch(value) is None:
+        raise ValueError(f"{field_name} must be a strict RFC3339 date-time")
+    normalized = value[:10] + "T" + value[11:]
+    if normalized.endswith(("Z", "z")):
+        normalized = normalized[:-1] + "+00:00"
+    try:
+        datetime.fromisoformat(normalized)
+    except ValueError as exc:
+        raise ValueError(f"{field_name} must be a strict RFC3339 date-time") from exc
+    return value
+
 
 # ---------------------------------------------------------------------------
 # SyncState dataclass
@@ -167,54 +193,6 @@ def _checkout_project_uuid(repo_root: Path) -> str | None:
     return str(identity.project_uuid) if identity.project_uuid else None
 
 
-def _frame_project_consents(frame: Mapping[str, Any], *, offered_roots: list[Path]) -> bool:
-    """Does the project *this frame belongs to* consent to hosted sync?
-
-    Delegates to ``consent.consented_project_uuids`` — the advertised seam over the
-    one precedence chain — rather than re-deriving it here. A frame whose
-    ``project_uuid`` is missing or blank is dropped by that helper, so an
-    unidentifiable frame is permanently unsendable rather than unsent-for-now.
-
-    ``offered_roots`` are checkouts the caller can offer for the project-local level.
-    Offering the flush's cwd is safe by construction: ``_project_local_votes``
-    ignores a root that declares a different uuid, so an extra root can never widen
-    the answer — only supply the authoritative file when cwd *is* the frame's
-    project.
-
-    The resolver returns the consenting **subset** of its candidates, so the answer
-    is checked for *this* uuid's membership rather than for the subset being
-    non-empty. Emptiness is equivalent only while exactly one candidate is passed;
-    the day anyone batches frames through here, one consenting project would
-    authorize every other project in the batch — the "returned set not checked for
-    the right element" shape T025 names for body uploads. Membership costs nothing
-    and does not depend on a future editor reading this paragraph.
-
-    Fails **closed** on any error. Everything else in this module swallows
-    exceptions so a git hook is never interrupted; here that same instinct would
-    turn an unanswerable consent question into egress, and inability to determine
-    consent is not consent (FR-003's rule). This branch is pinned by a test rather
-    than trusted: an ``except`` that quietly starts returning ``True`` is how a
-    guard reports "clean" forever.
-    """
-    uuid = _frame_project_uuid(frame)
-    try:
-        from specify_cli.sync.consent import consented_project_uuids  # noqa: PLC0415
-
-        granted = uuid in consented_project_uuids([uuid], checkout_roots=offered_roots)
-    except Exception:  # noqa: BLE001 - unanswerable is not granted
-        logger.warning(
-            "Could not resolve hosted-sync consent for a LocalCommit frame; refusing to send it",
-            exc_info=True,
-        )
-        return False
-    if not granted:
-        logger.debug(
-            "LocalCommit frame withheld: project %s has not consented to hosted sync",
-            uuid or "<unidentified>",
-        )
-    return granted
-
-
 # ---------------------------------------------------------------------------
 # emit_local_commit
 # ---------------------------------------------------------------------------
@@ -228,15 +206,11 @@ def emit_local_commit(
     changed_files: list[str],
     committed_at: str,
 ) -> None:
-    """Build and dispatch a ``LocalCommit`` frame, if *repo_root*'s project consents.
+    """Capture a local ``LocalCommit`` frame without performing hosted egress.
 
-    Storage is **not** unconditional. A project with no consent record gets no frame
-    at all: staging it and relying on the flush to withhold it would leave the
-    mission slug on disk and make the whole guarantee rest on one gate. Refusal is
-    silent apart from a debug line — a local command must still succeed (FR-010).
-
-    When consent is granted the frame is stored in ``sync-state.json`` as a pending
-    entry. It is **not** sent from here: FR-032 removed the immediate-send path,
+    The frame is stored in ``sync-state.json`` as a pending local fact even when
+    hosted consent is absent (FR-006). It is **not** sent from here: FR-032 removed
+    the immediate-send path,
     which could never obtain a transport because nothing in ``src/`` ever assigned
     ``token_manager._ws_client``. The live egress route is the connect-time flush
     (``flush_pending_local_commits``, called from ``sync/client.py``), which applies
@@ -265,16 +239,11 @@ def emit_local_commit(
         "committed_at": committed_at,
     }
 
-    if not _frame_project_consents(frame, offered_roots=[Path(repo_root)]):
-        return
-
     # Load state, replace any prior pending entry for the same build_id (amend),
     # append the new frame, then persist.
     state = load_sync_state(repo_root)
     state.pending_local_commits = [
-        entry
-        for entry in state.pending_local_commits
-        if entry.get("build_id") != build_id
+        entry for entry in state.pending_local_commits if not (entry.get("build_id") == build_id and _frame_project_uuid(entry) == _frame_project_uuid(frame))
     ]
     state.pending_local_commits.append(frame)
     save_sync_state(repo_root, state)
@@ -295,9 +264,9 @@ def emit_local_commit(
     # parameter from ``sync/client.py``. That is why WP12's per-frame gate on the
     # flush was the load-bearing half.
     #
-    # The consent gate above is unaffected by this removal and must stay: it guards
-    # *staging* into ``sync-state.json``, which the live flush reads, not the send
-    # deleted here.
+    # Hosted consent is deliberately absent here.  The live async flush resolves
+    # the frame's project grant and then passes the exact wire through WP06's
+    # attempt/lease/final gate immediately before I/O.
 
 
 # ---------------------------------------------------------------------------
@@ -308,9 +277,9 @@ def emit_local_commit(
 def flush_pending_local_commits(repo_root: Path, client: Any) -> None:
     """Send every consenting unacknowledged pending ``LocalCommit`` frame to *client*.
 
-    Frames are sent in ascending ``committed_at`` (chronological) order.
-    Entries whose ``git_hash`` matches ``last_saas_confirmed_hash`` are
-    considered already acknowledged and skipped.
+    Frames are sent in ascending ``committed_at`` (chronological) order. The
+    legacy global hash watermark is descriptive only: only a full exact Ack may
+    remove or suppress a project/build/hash frame.
 
     This function is intended to be called once the WebSocket connection is
     established (on-connect replay), and in production *repo_root* is
@@ -328,13 +297,26 @@ def flush_pending_local_commits(repo_root: Path, client: Any) -> None:
     module (WP08 T022) — a named function rather than the promise this docstring used
     to carry, which pointed at a work package whose surface did not include this file.
     """
+    import asyncio  # noqa: PLC0415
+
+    coroutine = flush_pending_local_commits_async(repo_root, client)
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(coroutine)
+        return
+    task = loop.create_task(coroutine)
+    _PENDING_SEND_TASKS.add(task)
+    task.add_done_callback(_PENDING_SEND_TASKS.discard)
+
+
+async def flush_pending_local_commits_async(repo_root: Path, client: Any) -> None:
+    """Await the exact gated LocalCommit sender for every retained frame."""
     state = load_sync_state(repo_root)
 
-    unacked = [
-        entry
-        for entry in state.pending_local_commits
-        if entry.get("git_hash") != state.last_saas_confirmed_hash
-    ]
+    # The legacy watermark is informational only.  Filtering by git hash would
+    # silently suppress another project's distinct frame with the same commit.
+    unacked = list(state.pending_local_commits)
 
     def _sort_key(entry: dict[str, Any]) -> datetime:
         ts: str = entry.get("committed_at", "")
@@ -345,23 +327,20 @@ def flush_pending_local_commits(repo_root: Path, client: Any) -> None:
 
     unacked.sort(key=_sort_key)
 
-    offered_roots = [Path(repo_root)]
     sent = 0
-    withheld = 0
     for frame in unacked:
-        if not _frame_project_consents(frame, offered_roots=offered_roots):
-            withheld += 1
+        if _frame_project_uuid(frame) is None:
+            logger.debug("LocalCommit frame withheld: no project identity")
             continue
         try:
-            _send_event(client, frame)
+            await client.send_local_commit(frame)
             sent += 1
         except Exception:  # noqa: BLE001
             logger.debug("LocalCommit flush send failed for %s", frame.get("git_hash"), exc_info=True)
 
     logger.debug(
-        "Flushed %d pending LocalCommit frame(s); withheld %d for lack of project consent",
+        "Flushed %d pending LocalCommit frame(s)",
         sent,
-        withheld,
     )
 
 
@@ -370,20 +349,83 @@ def flush_pending_local_commits(repo_root: Path, client: Any) -> None:
 # ---------------------------------------------------------------------------
 
 
-def record_local_commit_ack(repo_root: Path, git_hash: str) -> None:
-    """Handle a ``LocalCommitAck`` from SaaS.
+def record_local_commit_ack(
+    repo_root: Path,
+    acknowledgement: Mapping[str, Any],
+    *,
+    expected_frame: Mapping[str, Any],
+) -> bool:
+    """Remove only the frame proven by one full accepted/duplicate authority Ack."""
+    if acknowledgement.get("type") != "LocalCommitAck" or acknowledgement.get("status") not in {"accepted", "duplicate"}:
+        return False
+    required_ack_fields = {
+        "type",
+        "git_hash",
+        "build_id",
+        "project_uuid",
+        "admission_generation",
+        "binding_audience",
+        "status",
+        "received_at",
+    }
+    if set(acknowledgement) != required_ack_fields:
+        return False
+    try:
+        validate_rfc3339_datetime(
+            acknowledgement.get("received_at"),
+            field_name="LocalCommit acknowledgement received_at",
+        )
+    except ValueError:
+        return False
+    fields = (
+        "git_hash",
+        "build_id",
+        "project_uuid",
+        "admission_generation",
+        "binding_audience",
+    )
+    if any(field not in acknowledgement or field not in expected_frame for field in fields):
+        return False
+    if any(str(acknowledgement[field]) != str(expected_frame[field]) for field in fields):
+        return False
 
-    Updates ``last_saas_confirmed_hash`` and removes the corresponding entry
-    from ``pending_local_commits``.
-    """
+    return reconcile_local_commit_result(
+        repo_root,
+        expected_frame=expected_frame,
+        outcome="duplicate" if acknowledgement["status"] == "duplicate" else "delivered",
+    )
+
+
+def reconcile_local_commit_result(
+    repo_root: Path,
+    *,
+    expected_frame: Mapping[str, Any],
+    outcome: str,
+) -> bool:
+    """Remove one exact terminal WP06 result from the pending replay queue."""
+    if outcome not in {"delivered", "duplicate", "refused"}:
+        return False
+    fields = ("git_hash", "build_id", "project_uuid")
+    if any(not str(expected_frame.get(field) or "").strip() for field in fields):
+        return False
+    git_hash = str(expected_frame["git_hash"])
+    build_id = str(expected_frame["build_id"])
+    project_uuid = str(expected_frame["project_uuid"])
     state = load_sync_state(repo_root)
-    state.last_saas_confirmed_hash = git_hash
-    state.pending_local_commits = [
+    retained = [
         entry
         for entry in state.pending_local_commits
-        if entry.get("git_hash") != git_hash
+        if not (
+            str(entry.get("git_hash") or "") == git_hash and str(entry.get("build_id") or "") == build_id and str(entry.get("project_uuid") or "") == project_uuid
+        )
     ]
+    if len(retained) == len(state.pending_local_commits):
+        return False
+    if outcome in {"delivered", "duplicate"}:
+        state.last_saas_confirmed_hash = git_hash
+    state.pending_local_commits = retained
     save_sync_state(repo_root, state)
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -551,11 +593,7 @@ def _purge_frames(
     removed = 0
     if not dry_run and (scope_keys is None or scope_keys):
         state = load_sync_state(root)
-        retained = [
-            frame
-            for frame in state.pending_local_commits
-            if not (scope_keys is None or _frame_census_key(frame) in scope_keys)
-        ]
+        retained = [frame for frame in state.pending_local_commits if not (scope_keys is None or _frame_census_key(frame) in scope_keys)]
         removed = len(state.pending_local_commits) - len(retained)
         if removed:
             # Write only when something is actually removed: reporting zero must not
@@ -680,32 +718,9 @@ def purge_all_pending_local_commits(
 # ---------------------------------------------------------------------------
 
 
-# ``_get_saas_client()`` used to live here and was deleted for #3030 FR-032: its only
-# client source was the phantom ``token_manager._ws_client``, which ``src/`` never
-# assigns, so it could only ever return ``None``. Its sole caller was
-# ``emit_local_commit``'s immediate send, deleted with it. ``_send_event`` below
-# stays — ``flush_pending_local_commits`` is a live sender and receives its client as
-# a parameter.
-
-
-def _send_event(client: Any, event_dict: dict[str, Any]) -> None:
-    """Send *event_dict* via *client*.
-
-    Uses ``asyncio.create_task`` when a loop is running, otherwise falls back to
-    ``asyncio.run``.
-    """
-    import asyncio  # noqa: PLC0415
-
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            task = asyncio.create_task(client.send_event(event_dict))
-            _PENDING_SEND_TASKS.add(task)
-            task.add_done_callback(_PENDING_SEND_TASKS.discard)
-            return
-        loop.run_until_complete(client.send_event(event_dict))
-    except RuntimeError:
-        asyncio.run(client.send_event(event_dict))
+# ``_get_saas_client()`` and its raw ``_send_event`` helper were deleted for #3030
+# FR-032. The async flush receives the live client explicitly and calls only its
+# exact ``send_local_commit`` public entry point.
 
 
 # Keep scheduled tasks alive until completion (prevents premature GC).
@@ -732,7 +747,9 @@ __all__ = [
     "save_sync_state",
     "emit_local_commit",
     "flush_pending_local_commits",
+    "flush_pending_local_commits_async",
     "purge_all_pending_local_commits",
     "purge_pending_local_commits",
     "record_local_commit_ack",
+    "validate_rfc3339_datetime",
 ]

@@ -490,16 +490,18 @@ def _delivery_attempt_projection_from_row(row: Any) -> DeliveryAttemptProjection
     write_kind = _optional_projection_string(metadata, "write_kind")
     if attempt_id.startswith("dispatcher-http:") and write_kind != "dispatcher_http_event":
         raise ProjectStoreError("dispatcher delivery attempt metadata is missing dispatcher_http_event write_kind")
+    if attempt_id.startswith("event:") and write_kind != "event":
+        raise ProjectStoreError("Event delivery attempt metadata is missing event write_kind")
     try:
         state: DeliveryAttemptState | None = DeliveryAttemptState(state_value)
     except ValueError as exc:
-        if write_kind == "dispatcher_http_event":
+        if write_kind in {"dispatcher_http_event", "event"}:
             raise ProjectStoreError("dispatcher delivery attempt has an invalid state") from exc
         state = None
     event_id: str | None = None
     target_id: str | None = None
     legacy_metadata: dict[str, Any] | None = None
-    if write_kind == "dispatcher_http_event":
+    if write_kind in {"dispatcher_http_event", "event"}:
         event_id, target_id = _dispatcher_correlation_from_metadata(metadata)
     elif "event_id" in metadata or "target_id" in metadata:
         event_id = _required_projection_string(metadata, "event_id", "legacy delivery attempt metadata")
@@ -2088,11 +2090,14 @@ def _assert_native_identity_available_for_prepare(
     spec: DeliveryAttemptSpec,
     metadata: dict[str, str],
 ) -> None:
-    """Reserve the per-project ``(write_kind, native_identity)`` scope.
+    """Reserve the target-authority ``(write_kind, native_identity)`` scope.
 
-    Re-delivery must recover the original attempt. A new attempt ID may not
-    reuse the same native identity, and re-preparing the same attempt ID fails
-    loudly before SQLite so callers cannot accidentally change payload truth.
+    SaaS-native correlation keys such as Event ``event_id`` are scoped by the
+    admitted target authority on the wire.  The same Event may therefore be
+    delivered to a distinct target, while a second attempt under the same exact
+    target tuple must recover the original attempt.  Attempt ID and payload
+    reference retain the logical/project/target uniqueness without inventing a
+    native identity SaaS cannot return.
     """
     for row in unit.execute(
         "SELECT attempt_id, state, payload_hash, payload_reference FROM delivery_attempts WHERE project_uuid = ?",
@@ -2119,7 +2124,16 @@ def _assert_native_identity_available_for_prepare(
             if existing_metadata.get("payload_reference") != metadata["payload_reference"]:
                 raise ProjectStoreError("delivery attempt already exists with a different payload reference")
             raise ProjectStoreError("delivery attempt already exists; recover the original attempt")
-        if existing_metadata["write_kind"] == spec.write_kind and existing_metadata["native_identity"] == spec.native_identity:
+        native_scope_fields = (
+            "target_identity",
+            "account_identity",
+            "private_teamspace_id",
+            "target_generation",
+            "admission_generation",
+            "binding_audience",
+        )
+        same_native_scope = all(existing_metadata[field] == metadata[field] for field in native_scope_fields)
+        if existing_metadata["write_kind"] == spec.write_kind and existing_metadata["native_identity"] == spec.native_identity and same_native_scope:
             raise ProjectStoreError("native transport identity already belongs to another delivery attempt")
 
 

@@ -40,14 +40,13 @@ from specify_cli.delivery.dispatcher import (
     DispatchSummary,
     _decode_payload,
     _dispatcher_payload_reference,
-    _disclosure_for_event,
     _install_coalescing,
-    _outbound_event,
     _post,
     _record,
     _record_one,
     _select_undelivered,
     dispatch,
+    prepare_event_transport,
 )
 from specify_cli.delivery.ledger import (
     STATUS_DUPLICATE,
@@ -196,7 +195,15 @@ def _recoverable_attempts_for_event(
         return [
             (record.attempt_id, record.native_identity or "", record.state.value)
             for record in recover_delivery_attempts(unit)
-            if record.native_identity == f"dispatcher-http:{target_id}:{event_id}"
+            if record.native_identity == event_id
+            and record.attempt_id
+            == "event:"
+            + stable_transport_id(
+                "attempt",
+                _TEST_PROJECT_UUID,
+                target_id,
+                event_id,
+            )
         ]
 
 
@@ -213,16 +220,15 @@ def _dispatcher_disclosure_for(
     target: DeliveryTarget,
     context: ProjectSyncContext,
 ) -> ProjectTransportDisclosure:
-    target_id = target.target_id
-    native_identity = f"dispatcher-http:{target_id}:{event.event_id}"
-    return _disclosure_for_event(
-        event,
-        target=target,
+    assert event.project_uuid is not None
+    prepared = prepare_event_transport(
+        _decode_payload(event),
+        event_id=event.event_id,
+        project_uuid=event.project_uuid,
         context=context,
-        target_id=target_id,
-        native_identity=native_identity,
-        outbound=_outbound_event(event, native_identity=native_identity),
     )
+    assert prepared.target_id == target.target_id
+    return prepared.disclosure
 
 
 def _select_with_store(
@@ -1239,11 +1245,11 @@ def test_server_project_not_admitted_parks_only_correlated_item_durably(
     with store.unit_of_work() as unit:
         refused_attempt = get_delivery_attempt_record(
             unit,
-            attempt_id="dispatcher-http:" + stable_transport_id("attempt", _TEST_PROJECT_UUID, target_a.target_id, "evt-0"),
+            attempt_id="event:" + stable_transport_id("attempt", _TEST_PROJECT_UUID, target_a.target_id, "evt-0"),
         )
         succeeded_attempt = get_delivery_attempt_record(
             unit,
-            attempt_id="dispatcher-http:" + stable_transport_id("attempt", _TEST_PROJECT_UUID, target_a.target_id, "evt-1"),
+            attempt_id="event:" + stable_transport_id("attempt", _TEST_PROJECT_UUID, target_a.target_id, "evt-1"),
         )
     assert refused_attempt is not None
     assert refused_attempt.state.value == "refused"

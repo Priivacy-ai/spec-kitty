@@ -2,8 +2,8 @@
 
 Tests three integration points:
 1. ``safe_commit()`` emits a ``LocalCommit`` frame when paths are under ``kitty-specs/``
-2. ``WebSocketClient._handle_message()`` dispatches ``LocalCommitAck`` to ``record_local_commit_ack``
-3. ``WebSocketClient.connect()`` calls ``flush_pending_local_commits`` after snapshot
+2. an unmatched ambient ``LocalCommitAck`` cannot mutate retained state
+3. ``WebSocketClient.connect()`` awaits the exact LocalCommit flush after snapshot
 
 FR-010, FR-011, FR-012, FR-013, FR-014, FR-015, FR-016, FR-017.
 """
@@ -86,8 +86,7 @@ def test_safe_commit_emits_local_commit_for_kitty_specs_path(lane_repo: Path) ->
     call_kwargs = mock_emit.call_args.kwargs
     assert "my-mission-01KT119Y" in call_kwargs["mission_id"]
     assert any(
-        "kitty-specs/my-mission-01KT119Y/status.events.jsonl" in f
-        or "kitty-specs\\my-mission-01KT119Y\\status.events.jsonl" in f
+        "kitty-specs/my-mission-01KT119Y/status.events.jsonl" in f or "kitty-specs\\my-mission-01KT119Y\\status.events.jsonl" in f
         for f in call_kwargs["changed_files"]
     )
     assert call_kwargs["git_hash"] == result.sha
@@ -166,25 +165,20 @@ def test_handle_message_dispatches_local_commit_ack() -> None:
     mock_ack.assert_called_once_with({"type": "LocalCommitAck", "git_hash": "abc123"})
 
 
-def test_handle_local_commit_ack_calls_record(tmp_path: Path) -> None:
-    """_handle_local_commit_ack calls record_local_commit_ack with the correct hash.
-
-    Patches at the source module so the lazy import inside the method gets the mock.
-    """
+def test_unmatched_local_commit_ack_cannot_mutate_pending_state(tmp_path: Path) -> None:
+    """Only the exact in-flight waiter may consume a LocalCommit acknowledgement."""
     from specify_cli.sync.client import WebSocketClient
 
     client = WebSocketClient(repo_root=tmp_path)
 
-    # Patch at the source module level — the lazy `from ... import` will resolve
-    # to this mock since sys.modules already has the module cached.
     with patch("specify_cli.sync.local_commit.record_local_commit_ack") as mock_record:
         asyncio.run(client._handle_local_commit_ack({"type": "LocalCommitAck", "git_hash": "deadbeef"}))
 
-    mock_record.assert_called_once_with(tmp_path, "deadbeef")
+    mock_record.assert_not_called()
 
 
-def test_handle_local_commit_ack_integration(tmp_path: Path) -> None:
-    """_handle_local_commit_ack writes to sync-state.json via record_local_commit_ack."""
+def test_unmatched_local_commit_ack_integration_preserves_pending(tmp_path: Path) -> None:
+    """A hash-only ambient Ack cannot remove any retained LocalCommit row."""
     from specify_cli.sync.client import WebSocketClient
     from specify_cli.sync.local_commit import SyncState, load_sync_state, save_sync_state
 
@@ -208,8 +202,8 @@ def test_handle_local_commit_ack_integration(tmp_path: Path) -> None:
     asyncio.run(client._handle_local_commit_ack({"type": "LocalCommitAck", "git_hash": "deadbeef" * 5}))
 
     updated = load_sync_state(tmp_path)
-    assert updated.last_saas_confirmed_hash == "deadbeef" * 5
-    assert updated.pending_local_commits == []
+    assert updated.last_saas_confirmed_hash is None
+    assert len(updated.pending_local_commits) == 1
 
 
 def test_handle_local_commit_ack_missing_hash_does_not_raise(tmp_path: Path) -> None:
@@ -274,12 +268,13 @@ def test_connect_calls_flush_pending_local_commits(tmp_path: Path) -> None:
         patch("specify_cli.sync.client.websockets.connect", side_effect=fake_ws_connect),
         patch.object(client, "_receive_snapshot", new_callable=AsyncMock),
         patch(
-            "specify_cli.sync.local_commit.flush_pending_local_commits"
+            "specify_cli.sync.local_commit.flush_pending_local_commits_async",
+            new_callable=AsyncMock,
         ) as mock_flush,
     ):
         asyncio.run(client.connect())
 
-    mock_flush.assert_called_once_with(tmp_path, client)
+    mock_flush.assert_awaited_once_with(tmp_path, client)
 
 
 def test_connect_flush_failure_does_not_prevent_connection(tmp_path: Path) -> None:
@@ -307,7 +302,8 @@ def test_connect_flush_failure_does_not_prevent_connection(tmp_path: Path) -> No
         patch("specify_cli.sync.client.websockets.connect", side_effect=fake_ws_connect),
         patch.object(client, "_receive_snapshot", new_callable=AsyncMock),
         patch(
-            "specify_cli.sync.local_commit.flush_pending_local_commits",
+            "specify_cli.sync.local_commit.flush_pending_local_commits_async",
+            new_callable=AsyncMock,
             side_effect=RuntimeError("flush boom"),
         ),
     ):

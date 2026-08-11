@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import gzip
 import hashlib
 import json
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 import pytest
 import requests
@@ -29,7 +31,12 @@ from specify_cli.dossier.events import emit_snapshot_computed
 from specify_cli.dossier.models import ArtifactRef
 from specify_cli.sync.body_queue import OfflineBodyUploadQueue
 from specify_cli.sync.body_upload import prepare_body_uploads
-from specify_cli.sync.consent import allocate_capture_sequence, record_project_opt_in
+from specify_cli.sync.consent import (
+    allocate_capture_sequence,
+    record_project_opt_in,
+    record_project_opt_out,
+)
+from specify_cli.sync.client import WebSocketClient
 from specify_cli.sync.emitter import EventEmitter
 from specify_cli.sync.history_disclosure import (
     HistoryDisclosureCapability,
@@ -44,8 +51,9 @@ from specify_cli.sync.history_import.upload import (
     upload_envelopes,
 )
 from specify_cli.sync.project_context import AdmissionState, ProjectSyncContext
-from specify_cli.sync.project_identity import CanonicalProjectUUID
+from specify_cli.sync.project_identity import CanonicalProjectUUID, ProjectIdentity
 from specify_cli.sync.project_store import ProjectSyncStore
+from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.namespace import NamespaceRef, UploadStatus
 
 pytestmark = pytest.mark.fast
@@ -120,6 +128,31 @@ def _target(project_uuid: str = PROJECT) -> DeliveryTarget:
         binding_audience="private-teamspace:teamspace-1",
         last_error_category=None,
     )
+
+
+def _admitted_project(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    project_uuid: str = PROJECT,
+) -> tuple[ProjectSyncStore, ProjectSyncContext]:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    store = ProjectSyncStore(project_uuid)
+    layout = store.layout_generation()
+    layout.begin_cutover("t032-interactive")
+    layout.publish_project_only("t032-interactive", verify_exact=lambda: True)
+    record_project_opt_in(project_uuid, actor="operator:alice")
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO project_target_admissions "
+            "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, binding_audience) "
+            "VALUES (?, ?, 'account-1', 'teamspace-1', 4, 'admitted', '9', "
+            "'private-teamspace:teamspace-1')",
+            (project_uuid, SERVER),
+        )
+    return store, store.create_context()
 
 
 def _admitted_history(
@@ -1213,3 +1246,537 @@ def test_explicit_body_capture_does_not_require_an_egress_grant(
             (PROJECT, row[0]),
         ).fetchone()
         assert epoch == ("capture_only",)
+
+
+class _AckingWebSocket:
+    def __init__(self, client: WebSocketClient, response: Any) -> None:
+        self.client = client
+        self.response = response
+        self.frames: list[dict[str, Any]] = []
+        self.raw_frames: list[str] = []
+
+    async def send(self, raw: str) -> None:
+        self.raw_frames.append(raw)
+        frame = json.loads(raw)
+        self.frames.append(frame)
+        response = self.response(frame) if callable(self.response) else self.response
+        if response is not None:
+            await self.client._handle_message(response)
+
+
+def _event_frame(event_id: str = "01KZT032EVENTACK0000000001") -> dict[str, Any]:
+    return {
+        "event_id": event_id,
+        "event_type": "WPStatusChanged",
+        "aggregate_id": "WP01",
+        "aggregate_type": "WorkPackage",
+        "schema_version": "3.0.0",
+        "build_id": "build-1",
+        "payload": {
+            "wp_id": "WP01",
+            "from_lane": "planned",
+            "to_lane": "in_progress",
+            "actor": "agent",
+        },
+        "node_id": "node-1",
+        "lamport_clock": 1,
+        "causation_id": None,
+        "correlation_id": event_id,
+        "timestamp": "2026-08-11T12:00:00+00:00",
+        "team_slug": "teamspace-1",
+        "project_uuid": PROJECT,
+        "project_slug": "private-engagement",
+        "git_branch": "develop",
+        "head_commit_sha": "a" * 40,
+        "repo_slug": "private/project",
+        "drain_blocked_reason": None,
+    }
+
+
+@pytest.mark.parametrize(
+    ("status", "durable_state", "durable_outcome"),
+    [
+        ("accepted", "succeeded", "delivered"),
+        ("duplicate", "succeeded", "duplicate"),
+        ("rejected", "refused", "refused"),
+    ],
+)
+def test_websocket_event_ack_is_exact_proof_bearing_and_durable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    status: str,
+    durable_state: str,
+    durable_outcome: str,
+) -> None:
+    store, _context = _admitted_project(tmp_path, monkeypatch)
+    event = _event_frame()
+    layout = store.layout_generation()
+    with store.unit_of_work() as unit:
+        OfflineQueue(unit, layout).queue_event(event)
+
+    client = WebSocketClient()
+    client.connected = True
+
+    def response(frame: dict[str, Any]) -> dict[str, Any]:
+        if status == "rejected":
+            return {
+                "type": "error",
+                "event_id": frame["event_id"],
+                "status": "rejected",
+                "error_category": "project_not_admitted",
+                "retryable": False,
+            }
+        return {"type": "ack", "event_id": frame["event_id"], "status": status}
+
+    websocket = _AckingWebSocket(client, response)
+    client.ws = websocket  # type: ignore[assignment]
+    if status == "rejected":
+        with pytest.raises(Exception, match="project_not_admitted"):
+            asyncio.run(client.send_event(event))
+    else:
+        assert asyncio.run(client.send_event(event)) is True
+
+    assert len(websocket.frames) == 1
+    wire = websocket.frames[0]
+    assert wire["project_uuid"] == PROJECT
+    assert wire["type"] == "event"
+    assert wire["admission_generation"] == 9
+    assert wire["binding_audience"] == "private-teamspace:teamspace-1"
+    assert wire["spec_kitty_delivery_identity"] == event["event_id"]
+    with store.unit_of_work() as unit:
+        attempt = unit.execute(
+            "SELECT state, payload_reference, payload_hash FROM delivery_attempts WHERE project_uuid = ?",
+            (PROJECT,),
+        ).fetchone()
+        result = unit.execute(
+            "SELECT outcome, terminal_refusal_category FROM delivery_results WHERE project_uuid = ?",
+            (PROJECT,),
+        ).fetchone()
+    assert attempt is not None and attempt[0] == durable_state
+    metadata = json.loads(str(attempt[1]))
+    assert metadata["write_kind"] == "event"
+    assert metadata["native_identity"] == wire["spec_kitty_delivery_identity"]
+    assert (
+        attempt[2]
+        == "sha256:"
+        + hashlib.sha256(  # noqa: TID251 - exact transport-byte assertion
+            websocket.raw_frames[0].encode("utf-8")
+        ).hexdigest()
+    )
+    assert result == (
+        durable_outcome,
+        "project_not_admitted" if status == "rejected" else None,
+    )
+
+
+def test_websocket_event_missing_ack_stays_unknown_and_is_not_resent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store, _context = _admitted_project(tmp_path, monkeypatch)
+    event = _event_frame()
+    client = WebSocketClient()
+    client.connected = True
+    websocket = _AckingWebSocket(client, None)
+    client.ws = websocket  # type: ignore[assignment]
+    monkeypatch.setattr(client, "ACK_TIMEOUT_SECONDS", 0.01)
+
+    with pytest.raises(Exception, match="acknowledgement"):
+        asyncio.run(client.send_event(event))
+    with pytest.raises(Exception, match="recovery"):
+        asyncio.run(client.send_event(event))
+
+    assert len(websocket.frames) == 1
+    with store.unit_of_work() as unit:
+        assert unit.execute(
+            "SELECT state FROM delivery_attempts WHERE project_uuid = ?",
+            (PROJECT,),
+        ).fetchone() == ("unknown",)
+
+
+def test_websocket_event_cross_correlated_ack_stays_unknown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store, _context = _admitted_project(tmp_path, monkeypatch)
+    event = _event_frame()
+    client = WebSocketClient()
+    client.connected = True
+    websocket = _AckingWebSocket(
+        client,
+        {"type": "ack", "event_id": "foreign-event", "status": "accepted"},
+    )
+    client.ws = websocket  # type: ignore[assignment]
+    monkeypatch.setattr(client, "ACK_TIMEOUT_SECONDS", 0.01)
+
+    with pytest.raises(Exception, match="acknowledgement"):
+        asyncio.run(client.send_event(event))
+
+    assert len(websocket.frames) == 1
+    with store.unit_of_work() as unit:
+        assert unit.execute(
+            "SELECT state FROM delivery_attempts WHERE project_uuid = ?",
+            (PROJECT,),
+        ).fetchone() == ("unknown",)
+
+
+def test_websocket_event_revocation_is_zero_io_at_final_gate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store, _context = _admitted_project(tmp_path, monkeypatch)
+    from specify_cli.delivery import consent_gate
+
+    original_execute = consent_gate.execute_project_transport_disclosure
+
+    def revoke_at_final_gate(*args: Any, **kwargs: Any) -> Any:
+        record_project_opt_out(PROJECT, actor="operator:alice")
+        return original_execute(*args, **kwargs)
+
+    monkeypatch.setattr(
+        consent_gate,
+        "execute_project_transport_disclosure",
+        revoke_at_final_gate,
+    )
+    client = WebSocketClient()
+    client.connected = True
+    websocket = _AckingWebSocket(client, None)
+    client.ws = websocket  # type: ignore[assignment]
+
+    with pytest.raises(Exception, match="project_not_admitted"):
+        asyncio.run(client.send_event(_event_frame()))
+
+    assert websocket.frames == []
+    with store.unit_of_work() as unit:
+        assert unit.execute(
+            "SELECT COUNT(*) FROM delivery_attempts WHERE project_uuid = ?",
+            (PROJECT,),
+        ).fetchone() == (0,)
+
+
+@pytest.mark.parametrize(
+    ("committed_at", "received_at"),
+    [
+        ("2026-08-11T12:00:00Z", "2026-08-11T12:00:01Z"),
+        ("2026-08-11T14:00:00+02:00", "2026-08-11T14:00:01+02:00"),
+        ("2026-08-11t12:00:00+00:00", "2026-08-11t12:00:01+00:00"),
+        ("2026-08-11T12:00:00z", "2026-08-11T12:00:01z"),
+        ("2026-08-11t12:00:00z", "2026-08-11t12:00:01z"),
+    ],
+)
+def test_local_commit_ack_requires_the_full_authority_tuple_before_removal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    committed_at: str,
+    received_at: str,
+) -> None:
+    store, _context = _admitted_project(tmp_path, monkeypatch)
+    repo_root = tmp_path / "repo"
+    (repo_root / ".kittify").mkdir(parents=True)
+    (repo_root / ".kittify" / "config.yaml").write_text(
+        f"project:\n  uuid: {PROJECT}\n  slug: private-engagement\n",
+        encoding="utf-8",
+    )
+    from specify_cli.sync.local_commit import SyncState, load_sync_state, save_sync_state
+
+    pending = {
+        "type": "LocalCommit",
+        "git_hash": "a" * 40,
+        "mission_id": "01KZT032MISSION00000000001",
+        "build_id": "build-1",
+        "project_uuid": PROJECT,
+        "changed_files": ["kitty-specs/private-engagement/spec.md"],
+        "committed_at": committed_at,
+    }
+    foreign = {**pending, "project_uuid": OTHER, "build_id": "build-2"}
+    save_sync_state(
+        repo_root,
+        SyncState(pending_local_commits=[pending, foreign]),
+    )
+
+    client = WebSocketClient(repo_root=repo_root)
+    client.connected = True
+
+    def response(frame: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "type": "LocalCommitAck",
+            "git_hash": frame["git_hash"],
+            "build_id": frame["build_id"],
+            "project_uuid": frame["project_uuid"],
+            "admission_generation": frame["admission_generation"],
+            "binding_audience": frame["binding_audience"],
+            "status": "accepted",
+            "received_at": received_at,
+        }
+
+    websocket = _AckingWebSocket(client, response)
+    client.ws = websocket  # type: ignore[assignment]
+    assert asyncio.run(client.send_local_commit(pending)) is True
+
+    state = load_sync_state(repo_root)
+    assert state.pending_local_commits == [foreign]
+    assert state.last_saas_confirmed_hash == "a" * 40
+    assert websocket.frames[0]["project_uuid"] == PROJECT
+    assert websocket.frames[0]["admission_generation"] == 9
+    assert websocket.frames[0]["binding_audience"] == "private-teamspace:teamspace-1"
+    assert websocket.frames[0]["committed_at"] == committed_at
+    with store.unit_of_work() as unit:
+        assert unit.execute(
+            "SELECT state FROM delivery_attempts WHERE project_uuid = ?",
+            (PROJECT,),
+        ).fetchone() == ("succeeded",)
+
+
+@pytest.mark.parametrize(
+    "received_at",
+    [
+        "2026-08-11T12:00:01",
+        "2026-08-11 12:00:01+00:00",
+        "2026-02-30T12:00:01Z",
+    ],
+)
+def test_invalid_local_commit_ack_time_stays_unknown_and_retains_queue(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    received_at: str,
+) -> None:
+    store, _context = _admitted_project(tmp_path, monkeypatch)
+    repo_root = tmp_path / "repo"
+    pending = {
+        "type": "LocalCommit",
+        "git_hash": "b" * 40,
+        "mission_id": "01KZT032MISSION00000000001",
+        "build_id": "build-invalid-ack-time",
+        "project_uuid": PROJECT,
+        "changed_files": ["kitty-specs/private-engagement/spec.md"],
+        "committed_at": "2026-08-11T12:00:00Z",
+    }
+    from specify_cli.sync.local_commit import SyncState, load_sync_state, save_sync_state
+
+    save_sync_state(repo_root, SyncState(pending_local_commits=[pending]))
+    client = WebSocketClient(repo_root=repo_root)
+    client.connected = True
+
+    def response(frame: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "type": "LocalCommitAck",
+            "git_hash": frame["git_hash"],
+            "build_id": frame["build_id"],
+            "project_uuid": frame["project_uuid"],
+            "admission_generation": frame["admission_generation"],
+            "binding_audience": frame["binding_audience"],
+            "status": "accepted",
+            "received_at": received_at,
+        }
+
+    websocket = _AckingWebSocket(client, response)
+    client.ws = websocket  # type: ignore[assignment]
+
+    with pytest.raises(Exception, match="result correlation failed"):
+        asyncio.run(client.send_local_commit(pending))
+
+    assert len(websocket.frames) == 1
+    assert load_sync_state(repo_root).pending_local_commits == [pending]
+    with store.unit_of_work() as unit:
+        assert unit.execute(
+            "SELECT state FROM delivery_attempts WHERE project_uuid = ?",
+            (PROJECT,),
+        ).fetchone() == ("unknown",)
+
+
+def test_local_commit_project_not_admitted_is_durable_and_terminalized(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store, _context = _admitted_project(tmp_path, monkeypatch)
+    repo_root = tmp_path / "repo"
+    pending = {
+        "type": "LocalCommit",
+        "git_hash": "c" * 40,
+        "mission_id": "01KZT032MISSION00000000001",
+        "build_id": "build-refused",
+        "project_uuid": PROJECT,
+        "changed_files": ["kitty-specs/private-engagement/spec.md"],
+        "committed_at": "2026-08-11T12:00:00+00:00",
+    }
+    from specify_cli.sync.local_commit import SyncState, load_sync_state, save_sync_state
+
+    save_sync_state(repo_root, SyncState(pending_local_commits=[pending]))
+    client = WebSocketClient(repo_root=repo_root)
+    client.connected = True
+
+    def response(frame: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "type": "LocalCommitAck",
+            "git_hash": frame["git_hash"],
+            "build_id": frame["build_id"],
+            "project_uuid": frame["project_uuid"],
+            "admission_generation": frame["admission_generation"],
+            "binding_audience": frame["binding_audience"],
+            "status": "rejected",
+            "error_category": "project_not_admitted",
+            "retryable": False,
+        }
+
+    websocket = _AckingWebSocket(client, response)
+    client.ws = websocket  # type: ignore[assignment]
+    assert asyncio.run(client.send_local_commit(pending)) is False
+
+    assert load_sync_state(repo_root).pending_local_commits == []
+    with store.unit_of_work() as unit:
+        assert unit.execute(
+            "SELECT state FROM delivery_attempts WHERE project_uuid = ?",
+            (PROJECT,),
+        ).fetchone() == ("refused",)
+        assert unit.execute(
+            "SELECT outcome, terminal_refusal_category FROM delivery_results WHERE project_uuid = ?",
+            (PROJECT,),
+        ).fetchone() == ("refused", "project_not_admitted")
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda frame: {**frame, "type": "event"},
+        lambda frame: {key: value for key, value in frame.items() if key != "mission_id"},
+        lambda frame: {**frame, "changed_files": "kitty-specs/private/spec.md"},
+        lambda frame: {**frame, "committed_at": "2026-08-11T12:00:00"},
+        lambda frame: {**frame, "committed_at": "2026-08-11 12:00:00+00:00"},
+        lambda frame: {**frame, "committed_at": "2026-02-30T12:00:00Z"},
+    ],
+)
+def test_malformed_local_commit_is_rejected_before_attempt_or_io(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutate: Any,
+) -> None:
+    store, _context = _admitted_project(tmp_path, monkeypatch)
+    frame = mutate(
+        {
+            "type": "LocalCommit",
+            "git_hash": "d" * 40,
+            "mission_id": "01KZT032MISSION00000000001",
+            "build_id": "build-malformed",
+            "project_uuid": PROJECT,
+            "changed_files": ["kitty-specs/private-engagement/spec.md"],
+            "committed_at": "2026-08-11T12:00:00+00:00",
+        }
+    )
+    client = WebSocketClient(repo_root=tmp_path)
+    client.connected = True
+    websocket = _AckingWebSocket(client, None)
+    client.ws = websocket  # type: ignore[assignment]
+
+    with pytest.raises(ValueError):
+        asyncio.run(client.send_local_commit(frame))
+
+    assert websocket.frames == []
+    with store.unit_of_work() as unit:
+        assert unit.execute(
+            "SELECT COUNT(*) FROM delivery_attempts WHERE project_uuid = ?",
+            (PROJECT,),
+        ).fetchone() == (0,)
+
+
+def test_http_event_success_reconciles_ws_outbox_without_a_frame(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store, context = _admitted_project(tmp_path, monkeypatch)
+    event = _event_frame("01KZT032HTTPTHENWS0000001")
+    with store.unit_of_work() as unit:
+        OfflineQueue(unit, store.layout_generation()).queue_event(event)
+
+    from specify_cli.delivery.consent_gate import execute_project_transport_disclosure
+    from specify_cli.delivery.dispatcher import prepare_event_transport
+
+    prepared = prepare_event_transport(
+        event,
+        event_id=event["event_id"],
+        project_uuid=PROJECT,
+        context=context,
+    )
+    execute_project_transport_disclosure(
+        prepared.disclosure,
+        send=lambda: {
+            "type": "ack",
+            "event_id": event["event_id"],
+            "status": "accepted",
+        },
+        classify=lambda _value: ("delivered", None),
+    )
+    with store.unit_of_work() as unit:
+        queued_event = OfflineQueue(unit, store.layout_generation()).drain_queue()[0].event
+    replay_prepared = prepare_event_transport(
+        queued_event,
+        event_id=event["event_id"],
+        project_uuid=PROJECT,
+        context=store.create_context(),
+    )
+    assert replay_prepared.wire_payload == prepared.wire_payload
+    assert replay_prepared.disclosure.payload_hash == prepared.disclosure.payload_hash
+
+    identity = ProjectIdentity(
+        project_uuid=UUID(PROJECT),
+        project_slug="private-engagement",
+        node_id="node-1",
+        build_id="build-1",
+    )
+    client = WebSocketClient(project_identity=identity)
+    client.connected = True
+    websocket = _AckingWebSocket(client, None)
+    client.ws = websocket  # type: ignore[assignment]
+    asyncio.run(client._flush_pending_project_events())
+
+    assert websocket.frames == []
+    with store.unit_of_work() as unit:
+        assert OfflineQueue(unit, store.layout_generation()).drain_queue() == []
+
+
+def test_local_commit_terminal_result_reconciles_after_crash_without_resend(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _store, _context = _admitted_project(tmp_path, monkeypatch)
+    repo_root = tmp_path / "repo"
+    pending = {
+        "type": "LocalCommit",
+        "git_hash": "e" * 40,
+        "mission_id": "01KZT032MISSION00000000001",
+        "build_id": "build-crash",
+        "project_uuid": PROJECT,
+        "changed_files": ["kitty-specs/private-engagement/spec.md"],
+        "committed_at": "2026-08-11T12:00:00+00:00",
+    }
+    from specify_cli.sync.local_commit import SyncState, load_sync_state, save_sync_state
+
+    save_sync_state(repo_root, SyncState(pending_local_commits=[pending]))
+    client = WebSocketClient(repo_root=repo_root)
+    client.connected = True
+
+    def response(frame: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "type": "LocalCommitAck",
+            "git_hash": frame["git_hash"],
+            "build_id": frame["build_id"],
+            "project_uuid": frame["project_uuid"],
+            "admission_generation": frame["admission_generation"],
+            "binding_audience": frame["binding_audience"],
+            "status": "accepted",
+            "received_at": "2026-08-11T12:00:01+00:00",
+        }
+
+    websocket = _AckingWebSocket(client, response)
+    client.ws = websocket  # type: ignore[assignment]
+    monkeypatch.setattr(
+        "specify_cli.sync.local_commit.record_local_commit_ack",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("crash")),
+    )
+    with pytest.raises(RuntimeError, match="crash"):
+        asyncio.run(client.send_local_commit(pending))
+    assert len(websocket.frames) == 1
+    assert load_sync_state(repo_root).pending_local_commits == [pending]
+
+    assert asyncio.run(client.send_local_commit(pending)) is True
+    assert len(websocket.frames) == 1
+    assert load_sync_state(repo_root).pending_local_commits == []

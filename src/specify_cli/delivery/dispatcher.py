@@ -67,6 +67,10 @@ from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
 from specify_cli.sync.project_context import ProjectSyncContext
 from specify_cli.sync.project_store import ProjectSyncStore
+from specify_cli.saas_client.admission import (
+    ProjectWriteAdmissionProof,
+    attach_admission_proof,
+)
 from .selection import select_consented
 
 if TYPE_CHECKING:
@@ -215,6 +219,16 @@ class _Selected:
     recovery_event_ids: frozenset[str] = frozenset()
 
 
+@dataclass(frozen=True, slots=True)
+class _EventTransportEnvelope:
+    """One exact proof-bearing Event wire item and its durable authority."""
+
+    event_id: str
+    target_id: str
+    wire_payload: Mapping[str, Any]
+    disclosure: ProjectTransportDisclosure
+
+
 def _select_undelivered(
     journal: EventJournal,
     ledger: SqliteDeliveryLedger,
@@ -342,11 +356,89 @@ def _dispatcher_payload_reference(event_id: str, target_id: str) -> str:
     )
 
 
-def _outbound_event(event: Event, *, native_identity: str) -> OutboundEvent:
-    payload = dict(_decode_payload(event))
-    payload.setdefault("event_id", event.event_id)
-    payload["spec_kitty_delivery_identity"] = native_identity
-    return OutboundEvent(event_id=event.event_id, payload=payload)
+def prepare_event_transport(
+    payload: Mapping[str, Any],
+    *,
+    event_id: str,
+    project_uuid: str,
+    context: ProjectSyncContext,
+) -> _EventTransportEnvelope:
+    """Build the canonical HTTP/WebSocket Event item from store-minted authority.
+
+    Event ID is the SaaS-native idempotency identity.  Both interactive transports
+    therefore use the same attempt ID, exact proof-bearing bytes, and result
+    correlation instead of creating one HTTP attempt and another WebSocket ledger.
+    """
+    target = context.target_audience
+    if target is None or context.epoch_id is None or context.consent_generation is None or context.admission_generation is None or context.binding_audience is None:
+        raise ValueError("Event transport requires an admitted project context")
+    canonical_project = context.project_uuid.storage_token
+    if project_uuid != canonical_project:
+        raise ValueError("Event project UUID does not match its project context")
+    wire_event_id = payload.get("event_id")
+    if wire_event_id is not None and str(wire_event_id) != event_id:
+        raise ValueError("Event wire identity does not match the journal event ID")
+    target_id = compute_target_id(
+        target_identity=target.target_identity,
+        account_identity=target.account_identity,
+        private_teamspace_id=target.private_teamspace_id,
+        project_uuid=context.project_uuid,
+        configuration_generation=target.configuration_generation,
+    )
+    # ``event_id`` is the SaaS-native result correlation key.  The attempt ID
+    # below carries the project/target uniqueness; inventing a composite native
+    # identity here would make WP06 recovery query a key SaaS never returns.
+    native_identity = event_id
+    presented_project = payload.get("project_uuid")
+    if presented_project is not None and str(presented_project) != canonical_project:
+        raise ValueError("Event payload cannot override its project authority")
+    if {"admission_generation", "binding_audience"} & payload.keys():
+        raise ValueError("Event payload cannot supply ambient admission authority")
+    # Legacy Event envelopes already carry their project identity.  Validate it
+    # above, then let the shared proof helper mint the complete authority tuple;
+    # it deliberately refuses any caller-supplied proof field.
+    base = {key: value for key, value in payload.items() if key != "project_uuid"}
+    base.setdefault("event_id", event_id)
+    base["type"] = "event"
+    base["spec_kitty_delivery_identity"] = native_identity
+    proof = ProjectWriteAdmissionProof(
+        project_uuid=canonical_project,
+        admission_generation=int(context.admission_generation),
+        binding_audience=context.binding_audience,
+    )
+    wire = attach_admission_proof(base, proof)
+    outbound = OutboundEvent(event_id=event_id, payload=wire)
+    payload_hash = (
+        "sha256:"
+        + hashlib.sha256(  # noqa: TID251 - exact transport bytes, not charter content
+            disclosed_event_payload_bytes(outbound)
+        ).hexdigest()
+    )
+    disclosure = ProjectTransportDisclosure(
+        project_uuid=canonical_project,
+        epoch_id=context.epoch_id,
+        consent_generation=context.consent_generation,
+        target_identity=target.target_identity,
+        account_identity=target.account_identity,
+        private_teamspace_id=target.private_teamspace_id,
+        target_project_uuid=target.project_uuid.storage_token,
+        target_generation=target.configuration_generation,
+        admission_generation=str(context.admission_generation),
+        binding_audience=context.binding_audience,
+        write_kind="event",
+        native_identity=native_identity,
+        payload_hash=payload_hash,
+        payload_reference=_dispatcher_payload_reference(event_id, target_id),
+        attempt_id="event:" + stable_transport_id("attempt", canonical_project, target_id, event_id),
+        deadline_at=default_transport_deadline(),
+        reconciliation_policy="native_identity_retry",
+    )
+    return _EventTransportEnvelope(
+        event_id=event_id,
+        target_id=target_id,
+        wire_payload=wire,
+        disclosure=disclosure,
+    )
 
 
 def _target_id_for_event(
@@ -372,42 +464,6 @@ def _target_id_for_event(
     if context.epoch_id is None or context.consent_generation is None:
         raise ValueError("dispatch requires a consenting project context")
     return str(target_id)
-
-
-def _disclosure_for_event(
-    event: Event,
-    *,
-    target: DeliveryTarget,
-    context: ProjectSyncContext,
-    target_id: str,
-    native_identity: str,
-    outbound: OutboundEvent,
-) -> ProjectTransportDisclosure:
-    """Build the immutable per-event WP06 identity selected by this dispatch pass."""
-    project_uuid = event.project_uuid
-    assert project_uuid is not None
-    assert context.epoch_id is not None
-    assert context.consent_generation is not None
-    payload_hash = "sha256:" + hashlib.sha256(disclosed_event_payload_bytes(outbound)).hexdigest()  # noqa: TID251 - transport payload identity, not charter content
-    return ProjectTransportDisclosure(
-        project_uuid=project_uuid,
-        epoch_id=context.epoch_id,
-        consent_generation=context.consent_generation,
-        target_identity=target.target_identity,
-        account_identity=target.account_identity,
-        private_teamspace_id=target.private_teamspace_id,
-        target_project_uuid=target.project_uuid.storage_token,
-        target_generation=target.configuration_generation,
-        admission_generation=str(target.admission_generation),
-        binding_audience=str(target.binding_audience),
-        write_kind="dispatcher_http_event",
-        native_identity=native_identity,
-        payload_hash=payload_hash,
-        payload_reference=_dispatcher_payload_reference(event.event_id, target_id),
-        attempt_id="dispatcher-http:" + stable_transport_id("attempt", project_uuid, target_id, event.event_id),
-        deadline_at=default_transport_deadline(),
-        reconciliation_policy="native_identity_retry",
-    )
 
 
 def _correlate_batch_results(
@@ -470,16 +526,20 @@ def _post(
     for event in events:
         try:
             target_id = _target_id_for_event(event, target=target, context=context)
-            native_identity = f"dispatcher-http:{target_id}:{event.event_id}"
-            outbound = _outbound_event(event, native_identity=native_identity)
-            disclosure = _disclosure_for_event(
-                event,
-                target=target,
+            assert event.project_uuid is not None
+            prepared = prepare_event_transport(
+                _decode_payload(event),
+                event_id=event.event_id,
+                project_uuid=event.project_uuid,
                 context=context,
-                target_id=target_id,
-                native_identity=native_identity,
-                outbound=outbound,
             )
+            if prepared.target_id != target_id:
+                raise ValueError("dispatcher target does not match context audience")
+            outbound = OutboundEvent(
+                event_id=prepared.event_id,
+                payload=prepared.wire_payload,
+            )
+            disclosure = prepared.disclosure
         except ValueError as exc:
             immediate.append(
                 DeliveryResult(
@@ -750,4 +810,5 @@ def dispatch(
 __all__ = [
     "DispatchSummary",
     "dispatch",
+    "prepare_event_transport",
 ]
