@@ -18,15 +18,18 @@ The census is **re-run against the live tree** on every invocation (an AST sweep
 subpackage) — the disposition table is not trusted from a stale snapshot. A newly
 reach-through-ed, undoored doctrine path therefore fails CI (FR-002 / SC-002).
 
-Census numbers measured on-branch (2026-08-10, this worktree):
+Census numbers, re-measured on this tip (post WP05–WP07 migration) via
+``reached_doctrine_paths()`` — the same live scan the gate runs on every invocation:
 
 * module-level direct ``from doctrine …`` imports (``ImportFrom.level == 0``): **0**
-* lazy (function-body) direct doctrine imports: **29 files / 54 lines**
+* lazy (function-body) direct doctrine imports: **4 files / 5 reaches**
 * ``if TYPE_CHECKING:`` doctrine imports (excluded from the reach-through set): 11 files
-* distinct doctrine module-paths reached (non-TYPE_CHECKING): **23**
+* distinct doctrine module-paths reached (non-TYPE_CHECKING): **4**
 
-(The 2026-08-10 planning snapshot estimated 34 files / 70 lines / 26 paths — expected
-magnitudes; the real, re-censused numbers above are the authority.)
+(Earlier snapshots recorded 29 files / 54 lines / 23 paths before the WP05–WP07
+migration, and 34 files / 70 lines / 26 paths at planning time — both superseded.
+The gate re-censuses the live tree every run, so it, not this prose, is the
+authority; reproduce the numbers above with ``reached_doctrine_paths()``.)
 
 See ``kitty-specs/doctrine-public-api-surface-01KZPDSR/data-model.md`` for the finalized
 per-symbol disposition table and the management-surface / C-007-mission notes.
