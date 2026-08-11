@@ -28,6 +28,11 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   and hub `related:` edges (`#3333`).** Each page adds a decorative hero and a one-line
   caption; the Charter tour points at the governance how-tos, and the two Claude
   Code tutorials link each other for slash-command vs CLI/dashboard paths.
+- **Three #3276 Mission Kitty heroes are regenerated as decorative-only splashes
+  (missions overview, your first mission, when-to-use-modes alternate art).**
+  Replaces caption-mitigated board labels with abstract art; each PNG compressed
+  to ≤500 KB. Memphis, four-paths, and corporate-comics assets on when-to-use-modes
+  are unchanged.
 - **Documentation pages can now declare who they are for: a canonical `audience:`
   frontmatter field, plus a Common Docs styleguide and gates, ship in the built-in
   doctrine pack (mission `common-docs-convergence`).** Each page states its
