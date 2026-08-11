@@ -415,6 +415,81 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         "styleguide:reasons-canvas-writing",
         Relation.SUGGESTS,
     ),
+    # Mission drg-reachability-metric-wiring-01KZS5VR, WP01 (#3009 point 3 / A2
+    # orphan-wiring, six genuine traced edges -- research.md trace table):
+    #
+    # Edge 1: the refactoring procedure's step 2 ("Select the relevant
+    # refactoring tactics") already cites 9 Fowler tactics; the disciplined-
+    # refactoring directive holds 7 disjoint ones plus the "name the smell
+    # first" discipline (refactoring.procedure.yaml:26-31;
+    # disciplined-refactoring.directive.yaml:14-17,26-27). Same doctrinal
+    # domain, artificially split -- not a metric-gamed edge (the procedure's
+    # own comment at :59-62 blesses inbound wiring here). Action-reachable via
+    # the (already action-scoped) refactoring procedure; cascades the seven
+    # ``refactoring-*`` Fowler tactics into action context.
+    (
+        "procedure:refactoring",
+        "directive:DISCIPLINED_REFACTORING",
+        Relation.SUGGESTS,
+    ),
+    # Edges 2/3: the reconciler's own scope names both 024 and 025 as its
+    # trigger (reconcile-change-scope-tensions.directive.yaml:16-20, "Applies
+    # whenever a change is evaluated against DIRECTIVE_024, DIRECTIVE_025...").
+    # Enforcement is advisory, so ``suggests``. RECONCILE is a tracked
+    # ``_ACTIVATED_BUT_ORPHANED`` member (test_extractor_projection.py) --
+    # these two edges are its de-orphaning wiring.
+    (
+        "directive:DIRECTIVE_024",
+        "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
+        Relation.SUGGESTS,
+    ),
+    (
+        "directive:DIRECTIVE_025",
+        "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
+        Relation.SUGGESTS,
+    ),
+    # Edge 4: DIRECTIVE_030 governs the coverage gate; the mutation-testing
+    # directive deepens it by critiquing coverage-as-proxy
+    # (use-mutation-testing-to-validate-test-quality.directive.yaml:4-11,24-28;
+    # 030-test-and-typecheck-quality-gate.directive.yaml:12-13). Lenient
+    # adherence, so ``suggests`` -- the same shape as remedy-4's existing
+    # ``030--suggests-->`` edges above. Action-reachable via 030; cascades the
+    # mutation-testing tactic + toolguide family into action context.
+    (
+        "directive:DIRECTIVE_030",
+        "directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        Relation.SUGGESTS,
+    ),
+    # Edge 5: researcher-robbie's structured ``operating-procedures`` field
+    # lists ``spike-timebox-policy`` (researcher-robbie.agent.yaml:58-60) --
+    # the strongest of the three profile-channel edges (the WP09 precedent:
+    # a structured field declaring the profile runs the procedure is a hard
+    # dependency). Profile-channel reachable.
+    (
+        "agent_profile:researcher-robbie",
+        "procedure:spike-timebox-policy",
+        Relation.REQUIRES,
+    ),
+    # Edge 6a: lexical-larry is the diagnostic "feeder into" the
+    # glossary-maintenance-workflow (lexical-larry.agent.yaml:53-54);
+    # curator-carla owns its acceptance (larry.yaml:39-42). ``suggests``, NOT
+    # ``requires`` -- larry feeds the workflow, does not own/depend on it; a
+    # ``requires`` relation would overstate the relationship. Profile-channel
+    # reachable (``suggests`` is in ``PROFILE_CHANNEL_RELATIONS``).
+    (
+        "agent_profile:lexical-larry",
+        "procedure:glossary-maintenance-workflow",
+        Relation.SUGGESTS,
+    ),
+    # Edge 6b: minutes-maker-mahad's own text states it is "the primary agent
+    # for the meeting-minutes-pipeline procedure" (minutes-maker-mahad.agent.
+    # yaml:39-40) -- explicit prose ownership, so ``requires``. Profile-channel
+    # reachable.
+    (
+        "agent_profile:minutes-maker-mahad",
+        "procedure:meeting-minutes-pipeline",
+        Relation.REQUIRES,
+    ),
 )
 
 
