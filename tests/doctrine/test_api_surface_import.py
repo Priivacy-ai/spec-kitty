@@ -26,5 +26,5 @@ def test_doctrine_api_all_symbols_resolve() -> None:
 
     exported = getattr(api, "__all__", None)
     assert exported, "doctrine.api must declare a non-empty __all__"
-    unresolved = [name for name in exported if not hasattr(api, name)]
-    assert not unresolved, f"doctrine.api advertises unresolved __all__ names: {unresolved}"
+    unresolved = [name for name in exported if getattr(api, name, None) is None]
+    assert not unresolved, f"doctrine.api advertises unresolved/None __all__ names: {unresolved}"
