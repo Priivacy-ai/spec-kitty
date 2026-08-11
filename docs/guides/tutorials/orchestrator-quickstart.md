@@ -2,7 +2,7 @@
 title: Orchestrator Quickstart
 description: Learn how Spec Kitty and spec-kitty-orchestrator work together to run a small mission through implementation and review.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-08-11'
 audience: docs/context/audience/external/project-owner.md
 type: tutorial
 related:
@@ -18,6 +18,10 @@ This tutorial shows the external orchestration model end to end:
 
 By the end, you will know how to check the host contract, run the reference
 orchestrator, watch mission state, and recover from a stopped run.
+
+![Orchestrator quickstart - Mission Kitty splash](../../assets/images/orchestrator-quickstart-mission-kitty.png)
+
+_Stylized splash — decorative only. Host contract, orchestrator run, and recovery steps are in the text below._
 
 ## Prerequisites
 
