@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-07-13'
 related:
 - docs/plans/testing/test-suite-friction-audit.md
-- docs/plans/test-change-coupling-caacs.md
+- docs/plans/testing/test-change-coupling-caacs.md
 - docs/plans/refactor/degod-unshim-roadmap.md
 - docs/plans/3-2-x-milestone-roadmap.md
 ---
@@ -21,7 +21,7 @@ Would running one or more degod / deshim / dead-code-removal missions **first**
 make the planned #2071 test-QA mission more efficient?
 
 **Bottom line: yes, but only for the slice of test friction that is *downstream
-of src structure* — and the [CaaCS co-change data](../test-change-coupling-caacs.md)
+of src structure* — and the [CaaCS co-change data](test-change-coupling-caacs.md)
 should pick that slice, not a blanket "degod everything first."** A broad
 degod-first sequencing would delay the QA mission for partial benefit and
 serialize it behind the whole #1797 / #2173 program. A narrow dead-code/deshim
@@ -51,7 +51,7 @@ differently to structural cleanup:
 ## The discriminator: CaaCS co-change
 
 Do not guess which friction is which. The
-[test-change-coupling (CaaCS) analysis](../test-change-coupling-caacs.md) ranks
+[test-change-coupling (CaaCS) analysis](test-change-coupling-caacs.md) ranks
 `src ↔ test` co-change; its high-co-change clusters are exactly the
 structure-induced friction where degod-first helps. Before committing the QA
 mission's scope, read that ranking:

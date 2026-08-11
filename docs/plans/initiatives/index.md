@@ -15,7 +15,7 @@ Canonical decisions must land in `docs/adr/2.x/` once accepted.
 
 1. `2026-02-architecture-discovery-and-restructure/`
    - Brainstorm lineage, exploratory user journeys, dialectics, and structure proposals
-2. `next-mission-mappings/`
+2. [`next-mission-mappings/`](../next-mission-mappings/index.md)
    - Open tracking items for `spec-kitty next` mission mapping/template parity
 3. `2026-04-mission-nomenclature-reconciliation/`
    - ADR-driven rollout plan for `Mission Type -> Mission -> Mission Run`

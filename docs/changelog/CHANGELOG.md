@@ -1326,6 +1326,15 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   source-side laundering guard keep new reach-through from creeping back in. This
   is an internal architecture boundary only — no CLI command, output, or runtime
   behavior changes — and it unblocks the `#3101` doctrine wheel cutover.
+- **The contributor planning surface (`docs/plans/`) gains durable, version-spanning
+  *domain plans* and a curated index.** Two domain throughlines — SaaS & hosted sync,
+  and doctrine & charter — now hold the standing strategy and invariants for their
+  surface across releases, distinct from the release-scoped `3.2.x` plans that retire
+  once distilled. The plans index is reorganized into domain throughlines, portfolio &
+  milestone planning, and a single working-collections list; loose top-level notes are
+  filed into their subject subdirectories; and subdirectory landing files are
+  standardized on `index.md`. This is an internal contributor-facing change — the CLI
+  and templates are unaffected.
 - **The beginner guides now open with illustrated Mission Kitty splashes, and the
   Spec-Driven Development page carries a real diagram instead of ASCII art
   (`#3276`).** Getting Started, Understanding Missions, Your First Mission, and
