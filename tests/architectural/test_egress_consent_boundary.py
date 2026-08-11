@@ -1362,7 +1362,7 @@ class _ProjectSyncSender:
     request_start: _SymbolRef
     result_write: _SymbolRef | None
     result_state: _ResultState
-    later_owner: str
+    final_owner: str
     channel_2_narrowing_only: bool = False
 
 
@@ -1379,7 +1379,7 @@ _PROJECT_SYNC_SENDER_MATRIX = (
         _SymbolRef("specify_cli/sync/client.py", "WebSocketClient._flush_pending_project_events"),
         _SymbolRef("specify_cli/sync/queue.py", "OfflineQueue.queue_event"),
         _ResultState.DURABLE_FALLBACK,
-        "WP04",
+        "WP07",
     ),
     _ProjectSyncSender(
         "daemon publish",
@@ -1400,7 +1400,7 @@ _PROJECT_SYNC_SENDER_MATRIX = (
         _SymbolRef("specify_cli/sync/body_transport.py", "_send_content_request"),
         _SymbolRef("specify_cli/sync/body_queue.py", "OfflineBodyUploadQueue._update"),
         _ResultState.DURABLE,
-        "WP04",
+        "WP07",
     ),
     _ProjectSyncSender(
         "final and exit sync",
@@ -1454,6 +1454,174 @@ _SENDER_CONTRACT = frozenset(
         "generic SaaS client",
     }
 )
+
+
+@dataclass(frozen=True)
+class _WP09IntegrationRow:
+    surface: str
+    symbol: _SymbolRef
+    required_delegate: str | None
+    final_owner: str
+    classification: str = "hosted_sender"
+
+
+# T040 closes the post-WP07/WP08 hand-off.  These are the non-physical-sink
+# producer/discovery/control rows that feed the ten physical families above;
+# omitting them would let a file-level sink allowance hide a new raw bypass.
+_WP09_INTEGRATION_ROWS = (
+    _WP09IntegrationRow(
+        "runtime mission start",
+        _SymbolRef("specify_cli/sync/runtime_event_emitter.py", "SyncRuntimeEventEmitter.emit_mission_run_started"),
+        "emit_mission_run_started",
+        "WP07",
+    ),
+    _WP09IntegrationRow(
+        "runtime next step",
+        _SymbolRef("specify_cli/sync/runtime_event_emitter.py", "SyncRuntimeEventEmitter.emit_next_step_issued"),
+        "emit_next_step_issued",
+        "WP07",
+    ),
+    _WP09IntegrationRow(
+        "runtime auto complete",
+        _SymbolRef("specify_cli/sync/runtime_event_emitter.py", "SyncRuntimeEventEmitter.emit_next_step_auto_completed"),
+        "emit_next_step_auto_completed",
+        "WP07",
+    ),
+    _WP09IntegrationRow(
+        "runtime decision request",
+        _SymbolRef("specify_cli/sync/runtime_event_emitter.py", "SyncRuntimeEventEmitter.emit_decision_input_requested"),
+        "emit_decision_input_requested",
+        "WP07",
+    ),
+    _WP09IntegrationRow(
+        "runtime decision answer",
+        _SymbolRef("specify_cli/sync/runtime_event_emitter.py", "SyncRuntimeEventEmitter.emit_decision_input_answered"),
+        "emit_decision_input_answered",
+        "WP07",
+    ),
+    _WP09IntegrationRow(
+        "runtime mission complete",
+        _SymbolRef("specify_cli/sync/runtime_event_emitter.py", "SyncRuntimeEventEmitter.emit_mission_run_completed"),
+        "emit_mission_run_completed",
+        "WP07",
+    ),
+    _WP09IntegrationRow(
+        "runtime significance local-only",
+        _SymbolRef(
+            "specify_cli/sync/runtime_event_emitter.py",
+            "SyncRuntimeEventEmitter.emit_significance_evaluated",
+        ),
+        None,
+        "WP07",
+        "local_only",
+    ),
+    _WP09IntegrationRow(
+        "runtime timeout local-only",
+        _SymbolRef(
+            "specify_cli/sync/runtime_event_emitter.py",
+            "SyncRuntimeEventEmitter.emit_decision_timeout_expired",
+        ),
+        None,
+        "WP07",
+        "local_only",
+    ),
+    _WP09IntegrationRow(
+        "runtime phase transition", _SymbolRef("specify_cli/sync/runtime_event_emitter.py", "SyncRuntimeEventEmitter._enter_phase"), "emit_phase_entered", "WP07"
+    ),
+    _WP09IntegrationRow("dossier artifact indexed", _SymbolRef("specify_cli/dossier/events.py", "emit_artifact_indexed"), "fire_dossier_event", "WP07"),
+    _WP09IntegrationRow("dossier artifact missing", _SymbolRef("specify_cli/dossier/events.py", "emit_artifact_missing"), "fire_dossier_event", "WP07"),
+    _WP09IntegrationRow("dossier snapshot", _SymbolRef("specify_cli/dossier/events.py", "emit_snapshot_computed"), "fire_dossier_event", "WP07"),
+    _WP09IntegrationRow("dossier parity drift", _SymbolRef("specify_cli/dossier/events.py", "emit_parity_drift_detected"), "fire_dossier_event", "WP07"),
+    _WP09IntegrationRow("dossier adapter", _SymbolRef("specify_cli/dossier/emitter_adapter.py", "fire_dossier_event"), "_emitter", "WP07"),
+    _WP09IntegrationRow("body enqueue", _SymbolRef("specify_cli/sync/body_upload.py", "prepare_body_uploads"), "enqueue", "WP07"),
+    _WP09IntegrationRow(
+        "background project discovery",
+        _SymbolRef("specify_cli/sync/background.py", "BackgroundSyncService._drain_discovered_body_queues"),
+        "_enumerate_project_store_candidates",
+        "WP08",
+    ),
+    _WP09IntegrationRow(
+        "background public body drain", _SymbolRef("specify_cli/sync/background.py", "BackgroundSyncService.drain_body_uploads_only"), "_drain_body_queues", "WP08"
+    ),
+    _WP09IntegrationRow(
+        "background gated body transport",
+        _SymbolRef("specify_cli/sync/background.py", "BackgroundSyncService._drain_discovered_body_queues"),
+        "push_content_with_transport_gate",
+        "WP08",
+    ),
+    _WP09IntegrationRow("daemon publish endpoint", _SymbolRef("specify_cli/sync/daemon.py", "SyncDaemonHandler.handle_sync_publish"), "publish_event", "WP08"),
+    _WP09IntegrationRow(
+        "daemon public publish", _SymbolRef("specify_cli/sync/runtime.py", "SyncRuntime.publish_event"), "event_project_consents_to_publish", "WP08"
+    ),
+    _WP09IntegrationRow("daemon websocket terminal ack", _SymbolRef("specify_cli/sync/runtime.py", "SyncRuntime._send_websocket_event"), "send_event", "WP08"),
+)
+
+
+@dataclass(frozen=True)
+class _WP09SinkClassification:
+    symbol: _SymbolRef
+    matrix_families: frozenset[str]
+    rationale: str
+
+
+def _wp09_sink(
+    relpath: str,
+    qualname: str,
+    *families: str,
+    rationale: str = "project-bearing transport",
+) -> _WP09SinkClassification:
+    return _WP09SinkClassification(
+        _SymbolRef(relpath, qualname),
+        frozenset(families),
+        rationale,
+    )
+
+
+_WP09_MATRIX_FAMILIES = frozenset(
+    {
+        "direct_dispatcher",
+        "emitter_websocket",
+        "daemon_publish",
+        "event_relay",
+        "body_drain",
+        "final_exit_sync",
+        "reconnect_local_commit",
+        "history_import",
+        "tracker_hosted",
+        "generic_saas",
+    }
+)
+
+# Every source-discovered sink symbol is classified here. Empty family sets are
+# explicit non-project loopback/control rows, never an accidental omission.
+_WP09_SINK_CLASSIFICATIONS = (
+    _wp09_sink("specify_cli/delivery/receivers.py", "_HttpReceiver._attempt_batch_send", "direct_dispatcher", "final_exit_sync", "history_import"),
+    _wp09_sink("specify_cli/delivery/receivers.py", "default_http_poster", "direct_dispatcher", "final_exit_sync", "history_import"),
+    _wp09_sink("specify_cli/saas_client/client.py", "SaasClient._send_generic_operation", "generic_saas"),
+    _wp09_sink("specify_cli/sync/body_transport.py", "_send_content_request", "body_drain"),
+    _wp09_sink("specify_cli/sync/client.py", "WebSocketClient._flush_pending_project_events", "emitter_websocket"),
+    _wp09_sink("specify_cli/sync/client.py", "WebSocketClient._send_wire", "emitter_websocket", "daemon_publish", "reconnect_local_commit"),
+    _wp09_sink("specify_cli/sync/client.py", "WebSocketClient._handle_ping", rationale="WebSocket pong carries no project payload"),
+    _wp09_sink("specify_cli/sync/daemon.py", "_fetch_health_payload", rationale="loopback daemon health control"),
+    _wp09_sink("specify_cli/sync/daemon.py", "_stop_daemon_by_http", rationale="loopback daemon shutdown control"),
+    _wp09_sink("specify_cli/sync/events.py", "_publish_event_via_sync_daemon", "event_relay"),
+    _wp09_sink("specify_cli/sync/events.py", "_request_dashboard_sync", rationale="loopback daemon trigger control"),
+    _wp09_sink("specify_cli/sync/history_import/upload.py", "_deliver_chunks", "history_import"),
+    _wp09_sink("specify_cli/sync/history_import/upload.py", "_post_server_preflight", "history_import"),
+    _wp09_sink("specify_cli/sync/orphan_sweep.py", "_http_shutdown_no_token", rationale="loopback orphan-daemon shutdown control"),
+    _wp09_sink("specify_cli/sync/runtime.py", "SyncRuntime._send_websocket_event", "daemon_publish"),
+    _wp09_sink("specify_cli/sync/sharing_client.py", "delete_private_project", "generic_saas"),
+    _wp09_sink("specify_cli/sync/sharing_client.py", "leave_repository_share", "generic_saas"),
+    _wp09_sink("specify_cli/sync/sharing_client.py", "request_repository_share", "generic_saas"),
+    _wp09_sink("specify_cli/tracker/saas_client.py", "SaaSTrackerClient._request", "tracker_hosted"),
+    _wp09_sink("specify_cli/tracker/saas_client.py", "SaaSTrackerClient._physical_request_with_retry", "tracker_hosted"),
+    _wp09_sink("specify_cli/tracker/saas_client.py", "SaaSTrackerClient._request_with_retry", "tracker_hosted"),
+    _wp09_sink("specify_cli/tracker/saas_client.py", "SaaSTrackerClient.bind_confirm", "tracker_hosted"),
+    _wp09_sink("specify_cli/tracker/saas_client.py", "SaaSTrackerClient.bind_mission_origin", "tracker_hosted"),
+    _wp09_sink("specify_cli/tracker/saas_client.py", "SaaSTrackerClient.push", "tracker_hosted"),
+    _wp09_sink("specify_cli/tracker/saas_client.py", "SaaSTrackerClient.run", "tracker_hosted"),
+)
+
 
 _PROJECT_SENDER_ROOTS = (
     _SRC / "specify_cli" / "delivery",
@@ -2414,6 +2582,7 @@ def _has_semantic_result_write(
 
 def test_project_sync_sender_matrix_maps_actual_request_and_result_sites() -> None:
     assert {row.surface for row in _PROJECT_SYNC_SENDER_MATRIX} == _SENDER_CONTRACT
+    assert {row.final_owner for row in _PROJECT_SYNC_SENDER_MATRIX} == {"WP07", "WP08"}
     sink_symbols = {_SymbolRef(site.relpath, site.qualname) for site in _scan_project_sinks()}
     for row in _PROJECT_SYNC_SENDER_MATRIX:
         assert row.request_start in sink_symbols, f"request start is not a discovered sink: {row.request_start}"
@@ -2429,6 +2598,23 @@ def test_project_sync_sender_matrix_maps_actual_request_and_result_sites() -> No
             assert not row.channel_2_narrowing_only
 
 
+def test_wp09_producer_discovery_and_control_rows_delegate_by_symbol() -> None:
+    assert len({row.surface for row in _WP09_INTEGRATION_ROWS}) == len(_WP09_INTEGRATION_ROWS)
+    for row in _WP09_INTEGRATION_ROWS:
+        node = _qualified_function_node(_SRC / row.symbol.relpath, row.symbol.qualname)
+        assert node is not None, f"missing live WP09 integration row: {row}"
+        delegates = {_attr_tail(call.func) for call in ast.walk(node) if isinstance(call, ast.Call)}
+        if row.required_delegate is None:
+            assert row.classification == "local_only"
+            assert not delegates, f"local-only row acquired a live call: {row}"
+        else:
+            assert row.classification == "hosted_sender"
+            assert row.required_delegate in delegates, (
+                f"{row.surface} no longer delegates through {row.required_delegate}: {sorted(value for value in delegates if value is not None)}"
+            )
+        assert row.final_owner in {"WP07", "WP08"}
+
+
 def test_source_discovered_sender_census_is_counted_and_shrink_only() -> None:
     sites = _scan_project_sinks()
     observed = Counter(site.key for site in sites)
@@ -2440,6 +2626,21 @@ def test_source_discovered_sender_census_is_counted_and_shrink_only() -> None:
             "project sender census shrank: " + ", ".join(f"{key} (-{count})" for key, count in sorted(shrink.items())),
             stacklevel=1,
         )
+
+
+def test_wp09_sender_census_is_exact_per_symbol_not_per_file() -> None:
+    observed = Counter(site.key for site in _scan_project_sinks())
+    assert observed == _KNOWN_PROJECT_SINK_COUNTS
+
+
+def test_wp09_every_discovered_sink_symbol_is_classified_into_the_matrix() -> None:
+    observed = {_SymbolRef(site.relpath, site.qualname) for site in _scan_project_sinks()}
+    classified = {row.symbol for row in _WP09_SINK_CLASSIFICATIONS}
+    assert observed == classified
+    covered = frozenset(family for row in _WP09_SINK_CLASSIFICATIONS for family in row.matrix_families)
+    assert covered == _WP09_MATRIX_FAMILIES
+    assert all(row.rationale.strip() for row in _WP09_SINK_CLASSIFICATIONS)
+    assert all(row.rationale != "project-bearing transport" for row in _WP09_SINK_CLASSIFICATIONS if not row.matrix_families)
 
 
 _T034_DURABLE_ADAPTER_SINK_COUNTS: Counter[str] = Counter(

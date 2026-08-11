@@ -765,12 +765,12 @@ specify_cli/sync/consent.py::consented_project_uuids::decision-return::may-grant
 specify_cli/sync/consent.py::import_legacy_refusal::persistence::refusal-only::keyword:ConsentState.state
 specify_cli/sync/consent.py::record_project_opt_in::persistence::may-grant::keyword:ConsentState.state
 specify_cli/sync/consent.py::record_project_opt_out::persistence::refusal-only::keyword:ConsentState.state
+specify_cli/sync/consent.py::record_project_opt_out::persistence::refusal-only::keyword:ConsentState.state
 specify_cli/sync/consent.py::resolve_project_consent::decision-return::may-grant::keyword:ConsentDecision.granted
 specify_cli/sync/consent.py::resolve_project_consent::decision-return::refusal-only::keyword:ConsentDecision.granted
 specify_cli/sync/consent.py::resolve_project_consent::decision-return::refusal-only::keyword:ConsentDecision.granted
 specify_cli/sync/consent.py::resolve_project_consent::decision-return::refusal-only::keyword:ConsentDecision.granted
 specify_cli/sync/consent.py::resolve_project_consent::decision-return::refusal-only::keyword:ConsentDecision.granted
-specify_cli/sync/local_commit.py::_frame_project_consents::decision-return::may-grant::return:grant-field
 specify_cli/sync/routing.py::_build_checkout_sync_routing::call-path::refusal-only::calls:_deny_routing_for_project_local_fault:decision-return
 specify_cli/sync/routing.py::_build_checkout_sync_routing::decision-return::may-grant::keyword:CheckoutSyncRouting.effective_sync_enabled
 specify_cli/sync/routing.py::_build_checkout_sync_routing::decision-return::may-grant::return:grant-field
@@ -828,6 +828,11 @@ def test_source_discovered_grant_census_cannot_grow() -> None:
             "grant census shrank; keep the ratchet baseline unchanged: " + ", ".join(f"{key} (-{count})" for key, count in sorted(shrink.items())),
             stacklevel=1,
         )
+
+
+def test_wp09_final_grant_census_is_exact_after_adapter_convergence() -> None:
+    observed = Counter(site.key for site in scan_grant_paths())
+    assert observed == _KNOWN_GRANT_SITE_COUNTS
 
 
 def test_differently_named_grant_and_persistence_mutants_use_real_collector(
