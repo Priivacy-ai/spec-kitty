@@ -26,6 +26,7 @@ type aliases.
 from doctrine.missions.mission_step_repository import MissionStepRepository
 from doctrine.missions.models import MissionStep as MissionStep  # compat re-export (test-consumed); dropped from __all__ when last src importer was retyped
 from doctrine.missions.step_contracts import (
+    GateBinding,
     MissionStepContract,
     MissionStepInput,
     MissionStepContractRepository,
@@ -33,6 +34,7 @@ from doctrine.missions.step_contracts import (
 )
 
 __all__ = [
+    "GateBinding",
     "MissionStepContract",
     "MissionStepInput",
     "MissionStepContractRepository",

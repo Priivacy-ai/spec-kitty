@@ -41,9 +41,15 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("MissionStepInput", "doctrine.missions.step_contracts"),
         ("MissionStepContractRepository", "doctrine.missions.step_contracts"),
         ("MissionStepContractStep", "doctrine.missions.step_contracts"),
+        # Widened by mission ``doctrine-public-api-surface-01KZPDSR`` WP03
+        # (T011): the gate-binding model on a mission-step contract. FACADE-ONLY.
+        ("GateBinding", "doctrine.missions.step_contracts"),
     ],
     "charter.drg": [
-        ("ArtifactKind", "doctrine.artifact_kinds"),
+        # PUBLIC: re-exported from the curated public surface ``doctrine.api``
+        # (WP03/T010) so the wheel symbol gains a live in-repo caller. Identity
+        # holds: ``doctrine.api.ArtifactKind is doctrine.artifact_kinds.ArtifactKind``.
+        ("ArtifactKind", "doctrine.api"),
         ("DRGEdge", "doctrine.drg.models"),
         ("DRGGraph", "doctrine.drg.models"),
         ("DRGNode", "doctrine.drg.models"),
@@ -59,6 +65,66 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # surface (not ``doctrine.drg.validator``) so the package's ``__all__``
         # entry has a real ``src/`` importer instead of being a dead export.
         ("validate_dangling_references", "doctrine.drg"),
+        # Widened by mission ``doctrine-public-api-surface-01KZPDSR`` WP03
+        # (T010): the DRG error hierarchy + org-root resolution + org-DRG
+        # conflict absorb the ``drg.*`` reach-through cluster. All FACADE-ONLY.
+        ("DRGLoadError", "doctrine.drg"),
+        ("DRGValidationError", "doctrine.drg"),
+        ("OrgDRGConflict", "doctrine.drg.merge"),
+        ("resolve_org_roots", "doctrine.drg.org_pack_config"),
+        # ``doctrine.base`` census-drift door (WP01 FACADE-ONLY): the
+        # layer-collision warning belongs on the layer-merge facade beside
+        # ``merge_layers`` / ``merge_three_layers``. Consumer is WP05-owned.
+        ("DoctrineLayerCollisionWarning", "doctrine.base"),
+    ],
+    # New door (WP03/T012): mission-template / mission-type / mission-step
+    # repository surfaces. All FACADE-ONLY per the WP01 census.
+    "charter.missions": [
+        ("MissionsRootNotFound", "doctrine.missions.repository"),
+        ("MissionTemplateRepository", "doctrine.missions.repository"),
+        ("MissionTypeRepository", "doctrine.missions.mission_type_repository"),
+        ("builtin_mission_type_ids", "doctrine.missions.mission_type_repository"),
+        ("project_template_set", "doctrine.missions.step_projection"),
+        ("MissionStepRepository", "doctrine.missions.mission_step_repository"),
+    ],
+    # New door (WP03/T013): symbol-level model→task routing surface. PUBLIC —
+    # re-exported from ``doctrine.api`` (leaf callables/types only, NOT the
+    # ``.loader`` / ``.evaluator`` submodules). Identity holds transitively:
+    # ``charter.model_routing.load is doctrine.api.load is
+    # doctrine.model_task_routing.loader.load``.
+    "charter.model_routing": [
+        ("CatalogLoadResult", "doctrine.api"),
+        ("RoutingRecommendation", "doctrine.api"),
+        ("evaluate", "doctrine.api"),
+        ("load", "doctrine.api"),
+    ],
+    # New door (WP03/T014): asset-resolution surface. PUBLIC — re-exported from
+    # ``doctrine.api`` so the wheel symbols gain live in-repo callers.
+    "charter.assets": [
+        ("AssetManifest", "doctrine.api"),
+        ("AssetNotFoundError", "doctrine.api"),
+        ("AssetPathEscapeError", "doctrine.api"),
+        ("AssetRepository", "doctrine.api"),
+        ("AssetResolutionError", "doctrine.api"),
+    ],
+    # New narrow doors (WP03/T015). All FACADE-ONLY per the WP01 census.
+    "charter.glossary_packs": [
+        ("GlossaryPack", "doctrine.glossary_packs"),
+    ],
+    "charter.spdd_reasons": [
+        ("apply_spdd_blocks_for_project", "doctrine.spdd_reasons"),
+    ],
+    "charter.pack_paths": [
+        ("built_in_dir", "doctrine.pack_paths"),
+        ("built_in_root", "doctrine.pack_paths"),
+    ],
+    # Widened by WP03/T015: ``resolve_template_by_id`` (WP01 found it missing;
+    # ``runtime/resolver.py`` needs it in WP07/T036). FACADE-ONLY.
+    "charter.template_catalog": [
+        ("discover_templates", "doctrine.template_catalog"),
+        ("TemplateRef", "doctrine.template_catalog"),
+        ("TierRoot", "doctrine.template_catalog"),
+        ("resolve_template_by_id", "doctrine.template_catalog"),
     ],
     "charter.primitives": [
         ("PrimitiveExecutionContext", "doctrine.missions"),

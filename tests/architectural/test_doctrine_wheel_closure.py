@@ -53,6 +53,27 @@ _DOCTRINE_HATCH_BUILD = _REPO_ROOT / "src" / "doctrine" / "hatch_build.py"
 
 _KERNEL_PACKAGE_NAME = "spec-kitty-kernel"
 
+# doctrine-public-api-surface-01KZPDSR WP02 (FR-008): the exact public surface
+# the ``spec-kitty-doctrine`` wheel is intended to export — pinned so the
+# packaged contract cannot silently drift from ``doctrine/api.py``'s ``__all__``.
+# Every entry is a PUBLIC-tagged symbol in the WP01 census disposition
+# (``tests/architectural/test_doctrine_census.py::DISPOSITION``). Changing the
+# wheel surface is a deliberate diff to BOTH ``doctrine/api.py`` and this literal.
+_EXPECTED_DOCTRINE_API_SURFACE: frozenset[str] = frozenset(
+    {
+        "ArtifactKind",
+        "AssetManifest",
+        "AssetNotFoundError",
+        "AssetPathEscapeError",
+        "AssetRepository",
+        "AssetResolutionError",
+        "CatalogLoadResult",
+        "RoutingRecommendation",
+        "evaluate",
+        "load",
+    }
+)
+
 # First-party package names that must NEVER appear in kernel's dependency
 # list -- kernel is the root of the dependency chain and must stay
 # dependency-free of every sibling package.
@@ -242,6 +263,48 @@ def test_doctrine_pyproject_wires_the_packs_build_hook() -> None:
         "hook must carry the repo-root sibling packs/ directory into "
         "the nested doctrine wheel."
     )
+
+
+# ---------------------------------------------------------------------------
+# FR-008 -- the wheel pins the REAL public surface (doctrine/api.py __all__),
+# not merely the manifest shape (doctrine-public-api-surface-01KZPDSR WP02)
+# ---------------------------------------------------------------------------
+
+
+def test_doctrine_api_pins_the_real_public_surface() -> None:
+    """FR-008: ``doctrine/api.py`` enumerates exactly the pinned wheel surface.
+
+    The pre-existing tests above pin the *packaging shape* (kernel dep, build
+    hook). This one pins the *content*: the eventual ``spec-kitty-doctrine``
+    wheel exports precisely ``_EXPECTED_DOCTRINE_API_SURFACE``. A symbol added to
+    or removed from ``doctrine/api.py``'s ``__all__`` without a matching edit to
+    the pinned literal turns this red — so the wheel contract cannot drift.
+
+    Self-mutation proof: adding or dropping a name in ``doctrine/api.py``'s
+    ``__all__`` (or in ``_EXPECTED_DOCTRINE_API_SURFACE``) without the
+    corresponding change on the other side turns this red.
+    """
+    import doctrine.api as doctrine_api
+
+    actual = frozenset(getattr(doctrine_api, "__all__", []))
+    assert actual == _EXPECTED_DOCTRINE_API_SURFACE, (
+        "doctrine/api.py __all__ drifted from the pinned wheel surface.\n"
+        f"  unexpected (in api, not pinned): {sorted(actual - _EXPECTED_DOCTRINE_API_SURFACE)}\n"
+        f"  missing (pinned, not in api):    {sorted(_EXPECTED_DOCTRINE_API_SURFACE - actual)}\n"
+        "Update BOTH doctrine/api.py and _EXPECTED_DOCTRINE_API_SURFACE deliberately."
+    )
+
+
+def test_doctrine_api_surface_symbols_are_importable() -> None:
+    """FR-001/FR-008: every pinned wheel symbol resolves to a real object.
+
+    Belt-and-braces with test_doctrine_public_surface: the wheel-closure gate
+    should not pin a name that the module cannot actually provide.
+    """
+    import doctrine.api as doctrine_api
+
+    unresolved = [name for name in _EXPECTED_DOCTRINE_API_SURFACE if getattr(doctrine_api, name, None) is None]
+    assert not unresolved, f"Pinned doctrine.api surface symbols are unresolvable/None: {sorted(unresolved)}"
 
 
 # ---------------------------------------------------------------------------
