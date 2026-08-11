@@ -302,9 +302,21 @@ review lenses in parallel — for example `architect-alphonso` for design and
 contract adherence, `paula-patterns` for SSOT and duplication — with
 read-only access to the landing worktree.
 
-- Fold their MAJOR findings ([step 5](#5-folds-remediation-commits-on-the-contributor-branch)).
-- File their MINORs and NOTEs as **one** follow-up issue, parented under the
-  relevant functional epic.
+- **Fold their findings — MAJOR, MINOR, and NOTE alike** ([step 5](#5-folds-remediation-commits-on-the-contributor-branch)).
+  The default is to fix everything the squad surfaces, in this PR, while the
+  branch is open and the context is loaded. A MINOR or NOTE is cheap to fold now
+  and expensive to rediscover later; deferring it to a "someday" issue is how
+  easy fixes rot on a backlog and how the same finding gets re-raised on the next
+  pass. Do not triage-by-severity into fold-vs-defer — fold by default.
+- **File a follow-up issue only as the exception**, when folding is genuinely the
+  wrong call for one of two reasons: (a) the finding's **scope is too large** to
+  fold cleanly into this PR (wide blast radius, many files, a refactor that would
+  swamp the review), or (b) its **impact is severe enough that the remediation
+  needs its own mission or design pass** — a spec, an ADR, or an operator
+  decision before any code moves. In those cases file the issue, parent it under
+  the relevant functional epic, and say in the remediation summary why it was not
+  folded. Severity alone never justifies deferral; only unfoldable scope or a
+  required design pass does.
 
 ### Delegate remediation to subagents
 
@@ -422,10 +434,13 @@ deliverable is:
 
 ## 12. Follow-up hygiene
 
-Everything discovered but out of scope gets a tracked home **the same day**:
-filed, labeled, and parented under a functional epic (never a meta rollup).
-New issues get processed by a triage pass immediately, so the next landing
-pass starts from a clean queue.
+Most of what a landing pass discovers should be **folded, not filed** — see the
+fold-first default in [step 8](#8-adversarial-squad-for-architectural-or-api-surface-prs).
+What genuinely cannot be folded — a finding whose scope is too large for this PR,
+or whose impact needs its own mission or design pass — gets a tracked home **the
+same day**: filed, labeled, and parented under a functional epic (never a meta
+rollup). New issues get processed by a triage pass immediately, so the next
+landing pass starts from a clean queue.
 
 ## Gotchas
 
