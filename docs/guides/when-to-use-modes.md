@@ -2,7 +2,7 @@
 title: When to use Spec Kitty modes
 description: 'Choose the lightest Spec Kitty path for your work: no Spec Kitty, ad-hoc specialist session, adversarial squad review, or full mission pipeline.'
 doc_status: active
-updated: '2026-08-09'
+updated: '2026-08-11'
 type: explanation
 audience: docs/context/audience/external/project-owner.md
 related:
@@ -56,7 +56,7 @@ Expect bookkeeping commits as the mission advances work packages. See [Understan
 
 ![When to use Spec Kitty modes - Mission Kitty illustrated style](../assets/images/when-to-use-modes-mission-kitty.png)
 
-_Alternate stylized splash — the "Observe / Verify / Improve / Next" labels are decorative. The four actual paths are No Spec Kitty, Ad-hoc specialist, Adversarial squad, and Full mission, compared above._
+_Alternate stylized splash — decorative only. The four actual paths are No Spec Kitty, Ad-hoc specialist, Adversarial squad, and Full mission, compared above._
 
 ![When to use Spec Kitty modes - corporate comics style](../assets/images/when-to-use-modes-corporate-comics.png)
 
