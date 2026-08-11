@@ -172,3 +172,7 @@ tests, then ruff and strict mypy.
 Reject cached grant decisions, path/cwd identity, enumerate-by-opening, a second
 layout marker, or global daemon shutdown on one-project revoke. Verify real
 process behavior and physical opens, not only returned values.
+
+## Activity Log
+
+- 2026-08-11T16:26:04Z – codex – shell_pid=64936 – Current-head evidence on approved WP07 aggregate 2be07dae: exact WP08 combined gate 536 passed with only the filed #3318 node deselected; Ruff check passed all 13 WP08 Python paths; strict mypy passed background.py, owner.py, and runtime.py; d908 product diff-check passed. T036-T039 remain non-vacuous: admitted EventAck delivery/refusal/UNKNOWN, project-store body discovery with no creation, deny-only hints, exact authority, per-project fault isolation, and fresh-UoW/no-I/O-lock proofs are covered. No new product change was required after WP07 approval.
