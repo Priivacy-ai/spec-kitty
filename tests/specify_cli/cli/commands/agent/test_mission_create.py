@@ -138,6 +138,12 @@ def _branch_sha(repo: Path, branch: str) -> str:
     return _git(repo, "rev-parse", branch).stdout.strip()
 
 
+def _commit_project_scaffold(repo: Path) -> None:
+    """Commit the minimal project files needed by real safe-commit tests."""
+    _git(repo, "add", ".kittify/config.yaml")
+    _git(repo, "commit", "-m", "configure project")
+
+
 def _json_payload_from_output(output: str) -> dict[str, Any]:
     """Return the first JSON object emitted by the CLI."""
     for line in output.splitlines():
@@ -422,6 +428,62 @@ def test_create_on_non_primary_branch_without_pr_bound_defaults_to_single_branch
     assert payload["topology"] == "single_branch", payload
     assert payload.get("coordination_branch") is None, payload
     assert payload.get("coordination_branch_created") is False, payload
+
+
+def test_create_from_external_worktree_keeps_primary_checkout_untouched(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A caller-owned linked worktree is a valid mission-planning checkout.
+
+    Regression for the protected-primary dead end in #2739: the operator has
+    already created an isolated branch/worktree, but ``locate_project_root``
+    follows the gitdir pointer back to the repository root checkout.  The CLI
+    then tries to switch that checkout to ``--start-branch`` even though the
+    branch is already checked out in the linked worktree, so mission creation
+    fails before writing the scaffold.
+
+    The observable contract is deliberately black-box: the command succeeds,
+    the mission exists and is committed on the external worktree branch, and
+    the protected primary branch and its checkout remain unchanged.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    _commit_project_scaffold(repo)
+    primary_head = _branch_sha(repo, "main")
+
+    worktree = tmp_path / "external-worktree"
+    task_branch = "fix/worktree-mission-create"
+    _git(repo, "worktree", "add", "-b", task_branch, str(worktree), "main")
+
+    monkeypatch.chdir(worktree)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(worktree))
+    runner = CliRunner()
+    with patch("specify_cli.status.fire_dossier_sync"):
+        result = runner.invoke(
+            mission_app,
+            [
+                "create",
+                "external-worktree-create",
+                "--json",
+                "--start-branch",
+                task_branch,
+                *_mission_summary_args("External Worktree Create"),
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    payload = _json_payload_from_output(result.output)
+    mission_dir = Path(str(payload["feature_dir"]))
+    mission_rel = mission_dir.relative_to(worktree).as_posix()
+
+    assert mission_dir.parent == worktree / "kitty-specs"
+    assert not (repo / mission_dir.relative_to(worktree)).exists()
+    assert _branch_sha(repo, "main") == primary_head
+    assert _git(repo, "branch", "--show-current").stdout.strip() == "main"
+    assert _branch_sha(repo, task_branch) != primary_head
+    assert _git(repo, "show", f"{task_branch}:{mission_rel}/meta.json").stdout
 
 
 def test_create_on_primary_branch_still_defaults_to_coord(tmp_path: Path) -> None:
