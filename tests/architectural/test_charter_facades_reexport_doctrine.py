@@ -31,6 +31,9 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("Role", "doctrine.agent_profiles.profile"),
         ("AgentProfileRepository", "doctrine.agent_profiles.repository"),
         ("DEFAULT_ROLE_CAPABILITIES", "doctrine.agent_profiles.capabilities"),
+        # Tabled during the #3321 landing squad (inverse-containment hardening,
+        # below): advertised in ``__all__`` but previously identity-unchecked.
+        ("SkippedProfile", "doctrine.agent_profiles.diagnostics"),
     ],
     "charter.mission_steps": [
         # MissionStep retired from the facade contract 2026-06-11: the last src/
@@ -44,6 +47,10 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # Widened by mission ``doctrine-public-api-surface-01KZPDSR`` WP03
         # (T011): the gate-binding model on a mission-step contract. FACADE-ONLY.
         ("GateBinding", "doctrine.missions.step_contracts"),
+        # Tabled during the #3321 landing squad (inverse-containment hardening):
+        # advertised in this facade's ``__all__`` but previously only tabled
+        # under ``charter.missions`` — so identity was unchecked HERE.
+        ("MissionStepRepository", "doctrine.missions.mission_step_repository"),
     ],
     "charter.drg": [
         # PUBLIC: re-exported from the curated public surface ``doctrine.api``
@@ -76,6 +83,21 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # layer-collision warning belongs on the layer-merge facade beside
         # ``merge_layers`` / ``merge_three_layers``. Consumer is WP05-owned.
         ("DoctrineLayerCollisionWarning", "doctrine.base"),
+        # Tabled during the #3321 landing squad (inverse-containment hardening,
+        # below). These 10 were advertised in ``charter.drg.__all__`` yet absent
+        # from this table, so they were public but identity-unchecked — a
+        # wrapper/shim could have replaced any of them with the gate staying
+        # green. All FACADE-ONLY; identity verified live at add time.
+        ("OrgDRGConflictError", "doctrine.drg.merge"),
+        ("OrgDRGFragment", "doctrine.drg.org_pack_loader"),
+        ("OrgPackEnvVarUnsetError", "doctrine.drg.org_pack_config"),
+        ("OrgPackMissingError", "doctrine.drg.org_pack_loader"),
+        ("OrgPackSubdirEscapeError", "doctrine.drg.org_pack_config"),
+        ("UnknownRelationError", "doctrine.drg.merge"),
+        ("graph_document_to_dict", "doctrine.drg.migration.extractor"),
+        ("load_built_in_graph", "doctrine.drg.loader"),
+        ("merge_three_layers", "doctrine.drg.merge"),
+        ("model_to_graph_dict", "doctrine.drg.migration.extractor"),
     ],
     # New door (WP03/T012): mission-template / mission-type / mission-step
     # repository surfaces. All FACADE-ONLY per the WP01 census.
@@ -140,7 +162,24 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("check_bundle_compatibility", "doctrine.versioning"),
         ("get_bundle_schema_version", "doctrine.versioning"),
         ("run_migration", "doctrine.versioning"),
+        # Tabled during the #3321 landing squad (inverse-containment hardening):
+        # advertised in ``__all__`` but previously identity-unchecked.
+        ("repair_v2_synthesis_manifest_defaults", "doctrine.versioning"),
     ],
+}
+
+#: Intentional private→public aliased re-exports. A facade advertises a *public*
+#: name in ``__all__`` for a doctrine symbol that is *private* in its source
+#: module, so the ``(name, source)`` identity table above — which resolves the
+#: SAME name on both sides — cannot express it. Each entry pins the public facade
+#: name to its private source object, so the alias stays identity-guarded (just
+#: not via ``_FACADE_TABLE``). Keyed ``(facade_module, public_name)`` →
+#: ``(source_module, private_name)``. Added by the #3321 landing squad.
+_ALIASED_REEXPORTS: dict[tuple[str, str], tuple[str, str]] = {
+    ("charter.drg", "bridge_org_edge_to_drg_edge"): (
+        "doctrine.drg.merge",
+        "_bridge_org_edge_to_drg_edge",
+    ),
 }
 
 
@@ -195,4 +234,60 @@ def test_facade_all_lists_every_reexport(facade_module: str) -> None:
     assert not missing, (
         f"{facade_module}.__all__ is missing contract symbols: {sorted(missing)}. "
         f"Add them to __all__ or update the contract table."
+    )
+
+
+@pytest.mark.parametrize("facade_module", sorted(_FACADE_TABLE.keys()))
+def test_facade_all_reexports_are_tabled(facade_module: str) -> None:
+    """Reverse of :func:`test_facade_all_lists_every_reexport`: every
+    doctrine-origin symbol a facade advertises in ``__all__`` MUST carry an
+    identity contract — an entry in ``_FACADE_TABLE`` or a documented
+    ``_ALIASED_REEXPORTS`` alias.
+
+    Without this the identity gate is one-directional: a re-export placed in
+    ``__all__`` but omitted from the table is public yet identity-UNCHECKED, so a
+    later PR could replace it with a wrapper/shim and every gate stays green.
+    The ``obj.__module__`` origin check naturally excludes facade-local
+    definitions (charter-owned orchestration), which are not re-exports and need
+    no identity contract. (#3321 landing squad — inverse-containment hardening.)
+    """
+    facade = importlib.import_module(facade_module)
+    tabled = {symbol for symbol, _ in _FACADE_TABLE[facade_module]}
+    aliased = {name for (fac, name) in _ALIASED_REEXPORTS if fac == facade_module}
+    covered = tabled | aliased
+    untabled: list[tuple[str, str]] = []
+    for name in getattr(facade, "__all__", []):
+        origin = getattr(getattr(facade, name, None), "__module__", None)
+        if origin and origin.split(".")[0] == "doctrine" and name not in covered:
+            untabled.append((name, origin))
+    assert not untabled, (
+        f"{facade_module}.__all__ advertises doctrine-origin symbols with no "
+        f"identity contract (public but UNCHECKED): {sorted(untabled)}. Add each "
+        f"to _FACADE_TABLE, or to _ALIASED_REEXPORTS if it is a private→public alias."
+    )
+
+
+@pytest.mark.parametrize(
+    ("facade_module", "public_name", "source_module", "source_name"),
+    [
+        (fac, name, src, src_name)
+        for (fac, name), (src, src_name) in _ALIASED_REEXPORTS.items()
+    ],
+    ids=[f"{fac}.{name}" for (fac, name) in _ALIASED_REEXPORTS],
+)
+def test_aliased_reexport_holds_private_identity(
+    facade_module: str, public_name: str, source_module: str, source_name: str
+) -> None:
+    """A ``_ALIASED_REEXPORTS`` entry MUST be the same object as its (private)
+    doctrine source — the alias stays identity-guarded even though the
+    ``(name, source)`` table format cannot express the name change.
+    """
+    facade = importlib.import_module(facade_module)
+    source = importlib.import_module(source_module)
+    facade_obj = getattr(facade, public_name)
+    source_obj = getattr(source, source_name)
+    assert facade_obj is source_obj, (
+        f"{facade_module}.{public_name} must be the same object as "
+        f"{source_module}.{source_name} (private→public alias). "
+        f"Got facade={facade_obj!r}, source={source_obj!r}."
     )
