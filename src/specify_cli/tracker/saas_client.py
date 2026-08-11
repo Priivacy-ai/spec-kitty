@@ -792,13 +792,22 @@ class SaaSTrackerClient:
                     )
 
                 response_reference = self._response_reference(response)
+                outcome = (
+                    DeliveryOutcome.DUPLICATE
+                    if is_write
+                    and self._is_exact_idempotency_replay(
+                        response,
+                        native_identity=decision.native_identity or decision.attempt_id,
+                    )
+                    else DeliveryOutcome.DELIVERED
+                )
                 with lease.unit_of_work() as (unit, context):
                     record_logical_operation_result(
                         unit,
                         context,
                         result_id=f"{decision.attempt_id}:result",
                         attempt_id=decision.attempt_id,
-                        outcome=DeliveryOutcome.DELIVERED,
+                        outcome=outcome,
                         response_reference=response_reference,
                     )
                 return response
@@ -965,6 +974,26 @@ class SaaSTrackerClient:
             separators=(",", ":"),
             sort_keys=True,
         )
+
+    @staticmethod
+    def _is_exact_idempotency_replay(
+        response: httpx.Response,
+        *,
+        native_identity: str,
+    ) -> bool:
+        """Require replay evidence correlated to the exact native request."""
+        headers = getattr(response, "headers", None)
+        if not isinstance(headers, (httpx.Headers, dict)):
+            return False
+        replayed = headers.get("Idempotency-Replayed")
+        if not isinstance(replayed, str) or replayed.strip().lower() != "true":
+            return False
+        try:
+            request = response.request
+        except (AttributeError, RuntimeError):
+            return False
+        request_headers = getattr(request, "headers", None)
+        return isinstance(request_headers, (httpx.Headers, dict)) and request_headers.get("Idempotency-Key") == native_identity
 
     @staticmethod
     def _refusal_reference(error: SaaSTrackerClientError) -> str:

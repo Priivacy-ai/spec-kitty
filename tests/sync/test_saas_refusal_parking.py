@@ -410,12 +410,22 @@ class _TrackerHttp:
         return response
 
 
-def _response(status: int, body: dict[str, Any]) -> httpx.Response:
-    return httpx.Response(
-        status,
-        json=body,
-        request=httpx.Request("GET", "https://app.spec-kitty.ai/test"),
-    )
+def _response(
+    status: int,
+    body: dict[str, Any],
+    *,
+    headers: dict[str, str] | None = None,
+    request_headers: dict[str, str] | None = None,
+    attach_request: bool = True,
+) -> httpx.Response:
+    response = httpx.Response(status, json=body, headers=headers)
+    if attach_request:
+        response.request = httpx.Request(
+            "POST" if request_headers is not None else "GET",
+            "https://app.spec-kitty.ai/test",
+            headers=request_headers,
+        )
+    return response
 
 
 def _tracker_client(
@@ -724,6 +734,73 @@ def test_every_generic_saas_method_uses_one_exact_durable_operation(
     assert _result_rows(store) == [(rows[0][0], DeliveryOutcome.DELIVERED.value, None)]
 
 
+@pytest.mark.parametrize(
+    ("replay_header", "correlated_request", "expected"),
+    (
+        ("true", True, DeliveryOutcome.DUPLICATE),
+        ("TRUE", True, DeliveryOutcome.DUPLICATE),
+        (None, True, DeliveryOutcome.DELIVERED),
+        ("true", False, DeliveryOutcome.DELIVERED),
+        ("true", None, DeliveryOutcome.DELIVERED),
+    ),
+)
+def test_generic_widen_persists_only_exact_replay_evidence_as_duplicate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    replay_header: str | None,
+    correlated_request: bool | None,
+    expected: DeliveryOutcome,
+) -> None:
+    root, store = _seed_project(tmp_path, monkeypatch, "47474747-1111-4111-8111-474747474747")
+
+    class ReplayHttp:
+        calls = 0
+
+        def post(
+            self,
+            url: str,
+            *,
+            json: object,
+            headers: dict[str, str],
+            timeout: float,
+        ) -> httpx.Response:
+            del json, timeout
+            self.calls += 1
+            response_headers = {"Idempotency-Replayed": replay_header} if replay_header is not None else None
+            response = httpx.Response(
+                200,
+                json={
+                    "decision_id": "decision-replay",
+                    "widened_at": "2026-08-11T20:00:00Z",
+                    "invited_count": 1,
+                },
+                headers=response_headers,
+            )
+            if correlated_request is not None:
+                response.request = httpx.Request(
+                    "POST",
+                    url,
+                    headers={"Idempotency-Key": (headers["Idempotency-Key"] if correlated_request else "wrong-native-identity")},
+                )
+            return response
+
+    transport = ReplayHttp()
+    client = SaasClient(
+        "https://app.spec-kitty.ai",
+        "token",
+        team_slug="team-t034",
+        project_root=root,
+        _http=transport,
+    )
+
+    first = client.post_widen("decision-replay", [1])
+    replay = client.post_widen("decision-replay", [1])
+
+    assert first == replay
+    assert transport.calls == 1
+    assert _result_rows(store) == [(_attempt_rows(store)[0][0], expected.value, None)]
+
+
 def test_generic_widen_terminal_prior_and_unknown_recovery_never_resend(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -994,6 +1071,64 @@ def test_every_tracker_method_uses_one_exact_durable_operation(
     if operation in TRACKER_WRITE_OPERATIONS:
         assert _TrackerHttp.calls[0]["headers"]["Idempotency-Key"] == metadata["native_identity"]
     assert _result_rows(store) == [(rows[0][0], DeliveryOutcome.DELIVERED.value, None)]
+
+
+@pytest.mark.parametrize(
+    ("replay_header", "correlated_request", "expected"),
+    (
+        ("true", True, DeliveryOutcome.DUPLICATE),
+        ("TRUE", True, DeliveryOutcome.DUPLICATE),
+        (None, True, DeliveryOutcome.DELIVERED),
+        ("true", False, DeliveryOutcome.DELIVERED),
+        ("true", None, DeliveryOutcome.DELIVERED),
+    ),
+)
+def test_tracker_push_persists_only_exact_replay_evidence_as_duplicate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    replay_header: str | None,
+    correlated_request: bool | None,
+    expected: DeliveryOutcome,
+) -> None:
+    root, store = _seed_project(tmp_path, monkeypatch, "57575757-1111-4111-8111-575757575757")
+    client = _tracker_client(monkeypatch, root, store)
+    response_headers = {"Idempotency-Replayed": replay_header} if replay_header is not None else None
+    _TrackerHttp.responses = [
+        _response(
+            200,
+            {"pushed": 1},
+            headers=response_headers,
+            request_headers=(
+                {"Idempotency-Key": ("tracker-replay" if correlated_request else "wrong-native-identity")} if correlated_request is not None else None
+            ),
+            attach_request=correlated_request is not None,
+        )
+    ]
+
+    expected_response = {
+        "pushed": 1,
+    }
+    assert (
+        client.push(
+            "github",
+            "project",
+            [{"id": "ticket-replay"}],
+            idempotency_key="tracker-replay",
+        )
+        == expected_response
+    )
+    assert (
+        client.push(
+            "github",
+            "project",
+            [{"id": "ticket-replay"}],
+            idempotency_key="tracker-replay",
+        )
+        == expected_response
+    )
+
+    assert len(_TrackerHttp.calls) == 1
+    assert _result_rows(store) == [(_attempt_rows(store)[0][0], expected.value, None)]
 
 
 @pytest.mark.parametrize("retry_status", (401, 429))

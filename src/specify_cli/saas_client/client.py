@@ -376,7 +376,7 @@ class SaasClient:
                 native_identity=decision.native_identity or decision.attempt_id,
                 is_write=repeatability is LogicalOperationRepeatability.IDEMPOTENT_WRITE,
             )
-            response_reference = self._response_reference(response) if outcome is DeliveryOutcome.DELIVERED else None
+            response_reference = self._response_reference(response) if outcome in {DeliveryOutcome.DELIVERED, DeliveryOutcome.DUPLICATE} else None
             refusal_reference = self._generic_refusal_reference(response) if outcome is DeliveryOutcome.REFUSED and category == "project_not_admitted" else None
             with lease.unit_of_work() as (unit, context):
                 record_logical_operation_result(
@@ -496,6 +496,11 @@ class SaasClient:
         is_write: bool,
     ) -> tuple[DeliveryOutcome, str | None]:
         if response.is_success:
+            if is_write and cls._is_exact_idempotency_replay(
+                response,
+                native_identity=native_identity,
+            ):
+                return DeliveryOutcome.DUPLICATE, None
             return DeliveryOutcome.DELIVERED, None
         body = cls._response_body(response)
         category = body.get("error_category") if body is not None else None
@@ -514,6 +519,26 @@ class SaasClient:
         if response.status_code >= 500 and correlated and body is not None and body.get("effect_certainty") == "no_effect":
             return DeliveryOutcome.RETRYABLE_NO_EFFECT, None
         return DeliveryOutcome.UNKNOWN, None
+
+    @staticmethod
+    def _is_exact_idempotency_replay(
+        response: httpx.Response,
+        *,
+        native_identity: str,
+    ) -> bool:
+        """Require replay evidence correlated to the exact native request."""
+        headers = getattr(response, "headers", None)
+        if not isinstance(headers, (httpx.Headers, dict)):
+            return False
+        replayed = headers.get("Idempotency-Replayed")
+        if not isinstance(replayed, str) or replayed.strip().lower() != "true":
+            return False
+        try:
+            request = response.request
+        except (AttributeError, RuntimeError):
+            return False
+        request_headers = getattr(request, "headers", None)
+        return isinstance(request_headers, (httpx.Headers, dict)) and request_headers.get("Idempotency-Key") == native_identity
 
     @staticmethod
     def _record_generic_transport_exception(
