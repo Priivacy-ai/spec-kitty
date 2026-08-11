@@ -185,7 +185,7 @@ class TestBackwardTransitionFanOut:
             # Sanity: forward chain produced 4 fan-out calls.
             assert len(captured) == 4, (
                 f"Forward chain should fan out 4 events; got {len(captured)}: "
-                f"{[(c['from_lane'], c['to_lane'], c['force']) for c in captured]}"
+                f"{[(c['from_lane'], c['to_lane'], c['metadata'].force) for c in captured]}"
             )
 
             # Trigger the backward rollback under test.
@@ -225,11 +225,11 @@ class TestBackwardTransitionFanOut:
                 f"Backward call to_lane is {backward_call['to_lane']!r}; "
                 "expected 'planned' (the rollback target)."
             )
-            assert backward_call["force"] is True, (
+            assert backward_call["metadata"].force is True, (
                 "Backward review-rejection emit must carry force=True per the "
                 "events-package contract."
             )
-            assert backward_call["reason"], (
+            assert backward_call["metadata"].reason, (
                 "Backward review-rejection emit must carry a non-empty reason."
             )
         finally:
@@ -279,7 +279,7 @@ class TestBackwardTransitionFanOut:
             assert len(captured) == 5
             # Build the (from, to, force) signature for each fan-out call.
             transitions = [
-                (c["from_lane"], c["to_lane"], c["force"]) for c in captured
+                (c["from_lane"], c["to_lane"], c["metadata"].force) for c in captured
             ]
             assert transitions == [
                 ("planned", "claimed", False),
@@ -293,7 +293,7 @@ class TestBackwardTransitionFanOut:
             last = captured[-1]
             assert last["from_lane"] == "in_review"
             assert last["to_lane"] == "planned"
-            assert last["force"] is True
+            assert last["metadata"].force is True
         finally:
             adapters.reset_handlers()
 

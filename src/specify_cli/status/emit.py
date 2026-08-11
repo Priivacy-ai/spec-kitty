@@ -1318,6 +1318,22 @@ def _saas_fan_out(
         )
         return
 
+    # Local import: status/adapters.py is the intentional decoupling boundary
+    # between status/emit.py and the sync package (see module docstring), so
+    # the sync.events dataclass is imported lazily here rather than at
+    # module scope. Mirrors the pre-existing "non-raising, no-op when sync is
+    # unavailable" contract documented above: a stripped test environment (or
+    # 0.1x branch) without specify_cli.sync.events importable must not raise
+    # here, it must behave like the zero-handler no-op.
+    try:
+        from specify_cli.sync.events import WPStatusChangeMetadata
+    except ImportError:
+        logger.debug(
+            "Skipping SaaS fan-out (wp_id=%s); specify_cli.sync.events is not importable.",
+            event.wp_id,
+        )
+        return
+
     fire_saas_fanout(
         wp_id=event.wp_id,
         from_lane=str(event.from_lane),
@@ -1331,16 +1347,9 @@ def _saas_fan_out(
         actor=event.actor,
         mission_slug=mission_slug,
         mission_id=event.mission_id,
-        causation_id=event.event_id,
-        policy_metadata=policy_metadata,
-        force=event.force,
-        reason=event.reason,
-        review_ref=event.review_ref,
-        execution_mode=event.execution_mode,
-        evidence=event.evidence.to_dict() if event.evidence else None,
         # Producer occurrence time: thread the canonical local lane-transition
         # time so SaaS persists Event.occurred_at = StatusEvent.at, not the
         # sync-emission clock (Rule R-T-01 in spec-kitty-events).
-        occurred_at=event.at,
+        metadata=WPStatusChangeMetadata.from_status_event(event, policy_metadata=policy_metadata),
         ensure_daemon=ensure_sync_daemon,
     )
