@@ -1,6 +1,6 @@
 ---
 title: '2026-08-10 — #3179 doctrine public API surface — scoping brief'
-description: 'Pre-spec scope for the doctrine public-API mission (#3179): the reach-through inventory, charter-facade gap map, lazy-import ratchet design, SonarCloud read, and the OpenAPI-does-not-apply decision. The unblocked precondition to the #3101 wheel cutover.'
+description: 'Pre-spec scope for the doctrine public-API mission (#3179): reach-through inventory, charter-facade gap map, lazy-import ratchet, and the #3101 wheel-cutover precondition.'
 doc_status: active
 updated: '2026-08-10'
 related:
