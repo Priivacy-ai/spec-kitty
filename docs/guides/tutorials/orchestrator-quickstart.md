@@ -19,10 +19,6 @@ This tutorial shows the external orchestration model end to end:
 By the end, you will know how to check the host contract, run the reference
 orchestrator, watch mission state, and recover from a stopped run.
 
-![Orchestrator quickstart - Mission Kitty splash](../../assets/images/orchestrator-quickstart-mission-kitty.png)
-
-_Stylized splash — decorative only. Host contract, orchestrator run, and recovery steps are in the text below._
-
 ## Prerequisites
 
 You need:
@@ -36,6 +32,10 @@ You need:
 
 If you do not have a mission yet, finish [Your First Mission](your-first-mission.md)
 first.
+
+![Orchestrator quickstart - Mission Kitty splash](../../assets/images/orchestrator-quickstart-mission-kitty.png)
+
+_Stylized splash — the conductor panel is decorative. Host contract, orchestrator run, and recovery steps are in the sections below._
 
 ## Version compatibility
 
