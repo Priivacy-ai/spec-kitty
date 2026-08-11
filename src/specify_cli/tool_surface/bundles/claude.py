@@ -312,7 +312,7 @@ class ClaudeBundleProjector:
             When no built-in profiles are found (FR-020).
         """
         import yaml
-        from doctrine.agent_profiles.profile import AgentProfile
+        from charter.profiles import AgentProfile
         from specify_cli.tool_surface.profiles.renderers import ClaudeCodeProfileRenderer
 
         agents_dst = bundle_dir / "agents"
@@ -430,10 +430,13 @@ def _built_in_profiles_dir() -> Path:
     a module-level ``doctrine`` import that would trip the runtime -> charter
     -> doctrine boundary ratchet.
     """
-    from doctrine.artifact_kinds import ArtifactKind  # noqa: PLC0415 — deferred; see docstring
-    from doctrine.pack_paths import built_in_dir  # noqa: PLC0415 — deferred; see docstring
+    from charter.drg import ArtifactKind  # noqa: PLC0415 — deferred; see docstring
+    from charter.pack_paths import built_in_dir  # noqa: PLC0415 — deferred; see docstring
 
-    return built_in_dir(ArtifactKind.AGENT_PROFILE)
+    # Typed pin: ``charter.*`` is ``follow_imports = "skip"`` in pyproject, so the
+    # facade re-export is ``Any`` to mypy; the runtime type is ``Path``.
+    profiles_dir: Path = built_in_dir(ArtifactKind.AGENT_PROFILE)
+    return profiles_dir
 
 
 def _plugin_relative_path(path: Path, bundle_dir: Path) -> str:

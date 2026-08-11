@@ -18,8 +18,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol
 
 if TYPE_CHECKING:
-    from doctrine.agent_profiles.profile import AgentProfile
-    from doctrine.model_task_routing.evaluator import RoutingRecommendation
+    from charter.profiles import AgentProfile
+    from charter.model_routing import RoutingRecommendation
     from glossary.chokepoint import (
         GlossaryChokepoint,
         GlossaryObservationBundle,
@@ -69,22 +69,22 @@ def _compute_recommendation(profile: AgentProfile, action: str) -> RoutingRecomm
     ``dispatch``/``invoke()`` always succeeds regardless of which branch
     fires -- this function only ever narrows the payload, never the outcome.
     """
-    # Function-local: runtime -> charter -> doctrine boundary forbids
-    # module-level `from doctrine.*` imports outside the charter proxy
-    # (tests/architectural/test_runtime_charter_doctrine_boundary.py).
-    from doctrine.model_task_routing import evaluator as routing_evaluator
-    from doctrine.model_task_routing import loader as routing_loader
+    # Function-local charter-door imports keep model-routing lazy (no import-time
+    # cost when routing is unused). The charter facade fronts
+    # doctrine.model_task_routing at symbol level (FR-004): import the callables
+    # directly rather than the whole module.
+    from charter.model_routing import evaluate, load
 
     task_type = task_type_for_verb(action)
     if task_type is None:
         return None
     try:
-        catalog_result = routing_loader.load()
+        catalog_result = load()
     except Exception:  # noqa: BLE001 - advisory envelope: never break dispatch (NFR-002/C-001)
         return None
     if catalog_result is None or catalog_result.is_stale:
         return None
-    recommendation = routing_evaluator.evaluate(catalog_result.catalog, task_type, profile)
+    recommendation = evaluate(catalog_result.catalog, task_type, profile)
     if not recommendation.candidates:
         return None
     return recommendation
@@ -648,10 +648,11 @@ class ProfileInvocationExecutor:
 
     def _derive_action_from_request(self, request_text: str, role: object) -> str:  # noqa: ARG002
         """Derive canonical action token from role when profile_hint is explicit."""
-        from doctrine.agent_profiles.capabilities import DEFAULT_ROLE_CAPABILITIES
-        from doctrine.agent_profiles.profile import Role
+        from charter.profiles import DEFAULT_ROLE_CAPABILITIES, Role
 
         caps = DEFAULT_ROLE_CAPABILITIES.get(role) if isinstance(role, Role) else None
         if caps and caps.canonical_verbs:
-            return caps.canonical_verbs[0]
+            # charter.profiles is mypy-quarantined (follow_imports=skip), so
+            # ``caps`` resolves to ``Any``; the verb is a str at runtime.
+            return str(caps.canonical_verbs[0])
         return "review"  # default fallback

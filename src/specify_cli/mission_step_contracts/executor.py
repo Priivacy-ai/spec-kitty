@@ -263,7 +263,7 @@ class StepContractExecutor:
         activation filter can narrow the DRG before context resolution.
         Returns ``None`` on any error so the filter is always optional.
         """
-        from doctrine.drg.org_pack_config import (
+        from charter.drg import (
             OrgPackEnvVarUnsetError,
             OrgPackSubdirEscapeError,
         )

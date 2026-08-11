@@ -67,7 +67,7 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[
     from charter.activation_engine import promote_activations
     from charter.catalog import resolve_doctrine_root
     from charter.pack_manager import resolve_activation_write_target
-    from doctrine.artifact_kinds import ArtifactKind
+    from charter.drg import ArtifactKind
 
     from specify_cli.upgrade.migrations.m_unify_charter_activation import (
         load_default_pack_ids,

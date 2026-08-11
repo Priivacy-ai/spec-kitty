@@ -210,8 +210,7 @@ def _collect_evidence_result(
 
 
 def _build_synthesis_validation_callback(request: Any) -> Any:
-    from doctrine.drg.models import DRGGraph
-
+    from charter.drg import DRGGraph
     from charter.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections
     from charter.synthesizer.orchestrator import _built_in_drg_from_snapshot
     from charter.synthesizer.project_drg import emit_project_layer, persist as persist_project_graph
@@ -617,8 +616,7 @@ def _reconciliation_preview(request: Any, repo_root: Path) -> ReconciliationDelt
     no ``new_results`` are supplied) -- WP03 never reads ``manifest_delta``
     from this preview, only ``.removable``/``.retained``/``.conflicts``.
     """
-    from doctrine.drg.models import DRGGraph  # noqa: PLC0415
-
+    from charter.drg import DRGGraph  # noqa: PLC0415
     from charter.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections  # noqa: PLC0415
     from charter.synthesizer.orchestrator import _built_in_drg_from_snapshot  # noqa: PLC0415
     from charter.synthesizer.project_drg import emit_project_layer  # noqa: PLC0415

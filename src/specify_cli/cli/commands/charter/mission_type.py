@@ -13,9 +13,9 @@ Implementation notes
 The ``charter`` API is the entry point for activation state
 (``charter.existing_mission_types``, ``charter.resolve_mission_type_context``).
 Display metadata (``display_name``) is loaded from
-:class:`doctrine.missions.mission_type_repository.MissionTypeRepository`
-via a lazy import; ``specify_cli`` modules may import ``doctrine.*``
-directly (layer direction: kernel <- doctrine <- charter <- specify_cli).
+``MissionTypeRepository`` via a lazy import through the ``charter.missions``
+facade; runtime ``specify_cli`` modules reach doctrine artifacts only through
+such charter doors (layer direction: kernel <- doctrine <- charter <- specify_cli).
 """
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ def charter_mission_type_list(
 
     Output columns (table): ID, SOURCE, DISPLAY NAME, ACTION SEQUENCE.
     """
-    from doctrine.missions.mission_type_repository import MissionTypeRepository  # noqa: PLC0415
+    from charter.missions import MissionTypeRepository  # noqa: PLC0415
 
     repo_root = Path.cwd()
     activated_ids = existing_mission_types(repo_root)

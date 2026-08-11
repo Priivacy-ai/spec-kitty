@@ -73,7 +73,7 @@ def context(
     )
     from charter.context_contract import CONTEXT_SCHEMA_VERSION
 
-    from specify_cli.doctrine.config import resolve_org_roots
+    from charter.drg import resolve_org_roots
     from specify_cli.doctrine.org_charter_loader import load_org_charter_json_block
 
     try:

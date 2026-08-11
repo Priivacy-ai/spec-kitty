@@ -49,8 +49,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from charter.pack_context import PackContext
-    from doctrine.drg.models import DRGGraph
-    from doctrine.missions.step_contracts import GateBinding
+    from charter.drg import DRGGraph
+    from charter.mission_steps import GateBinding
 
 # Only names consumed cross-module (the transition-gate hook) are exported; the
 # resolution primitives (``resolve_active_gate_bindings``, ``load_gate_bindings``,

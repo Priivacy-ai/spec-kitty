@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 import logging
 
 if TYPE_CHECKING:
-    from doctrine.missions.repository import MissionTemplateRepository
+    from charter.missions import MissionTemplateRepository
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ def _doctrine_repository() -> "MissionTemplateRepository":
     single authority for reading ``<type>/expected-artifacts.yaml`` from the
     canonical doctrine mission tree (WP10 / IC-07).
     """
-    from doctrine.missions.repository import MissionTemplateRepository  # noqa: PLC0415
+    from charter.missions import MissionTemplateRepository  # noqa: PLC0415
 
     return MissionTemplateRepository.default()
 

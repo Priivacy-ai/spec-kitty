@@ -1472,7 +1472,7 @@ def show_mission_type(
         existing_mission_types,
         resolve_mission_type_context,
     )
-    from doctrine.missions.mission_type_repository import MissionTypeRepository  # noqa: PLC0415
+    from charter.missions import MissionTypeRepository  # noqa: PLC0415
 
     repo_root = Path.cwd()
     activated_ids = existing_mission_types(repo_root)
@@ -1505,10 +1505,10 @@ def show_mission_type(
         # Mirrors the resolver's own computation (FR-002): the retired model
         # field has no fallback value to read, so this narrow branch computes
         # the mapping straight from the step authority instead.
-        from doctrine.missions.mission_step_repository import (  # noqa: PLC0415
+        from charter.missions import (  # noqa: PLC0415
             MissionStepRepository,
+            project_template_set,
         )
-        from doctrine.missions.step_projection import project_template_set  # noqa: PLC0415
 
         fallback_steps = list(
             MissionStepRepository.default()

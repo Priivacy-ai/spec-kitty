@@ -104,8 +104,8 @@ def fetch(
     ),
 ) -> None:
     """Fetch org doctrine pack(s) from their configured remote sources."""
+    from charter.drg import load_pack_registry
     from specify_cli.core.paths import locate_project_root
-    from specify_cli.doctrine.config import load_pack_registry
     from specify_cli.doctrine.snapshot import fetch_pack
 
     repo_root = locate_project_root()
@@ -138,7 +138,7 @@ def fetch(
             raise typer.Exit(1)
 
     if dry_run:
-        from doctrine.drg.org_pack_config import OrgPackEnvVarUnsetError
+        from charter.drg import OrgPackEnvVarUnsetError
 
         for pack in target_packs:
             origin = pack.url or str(pack.local_path)
@@ -202,9 +202,10 @@ def _doctrine_root() -> Path:
     normal in-checkout case (operator invoking from inside the repo whose
     ``src/doctrine`` this module loads from) resolves identically either way.
     """
-    from doctrine.pack_paths import built_in_root
+    from charter.pack_paths import built_in_root
 
-    return built_in_root()
+    root: Path = built_in_root()
+    return root
 
 
 @app.command(name="regenerate-graph")
@@ -249,7 +250,7 @@ def regenerate_graph(
     from doctrine.drg.migration.hand_authored_overlay import (
         write_reference_graph_with_overlay,
     )
-    from doctrine.drg.validator import DRGValidationError
+    from charter.drg import DRGValidationError
 
     doctrine_root = _doctrine_root()
 
@@ -1031,7 +1032,7 @@ def _collect_built_in_mission_types() -> list[_MissionTypeRow]:
     to load all built-in mission types.  The display name is taken directly
     from :attr:`~doctrine.missions.models.MissionType.display_name`.
     """
-    from doctrine.missions.mission_type_repository import MissionTypeRepository  # noqa: PLC0415
+    from charter.missions import MissionTypeRepository  # noqa: PLC0415
 
     repo = MissionTypeRepository.default()
     return [

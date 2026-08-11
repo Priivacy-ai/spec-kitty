@@ -26,7 +26,7 @@ def _load_graph_file(path: Path) -> Any | None:
     cannot be parsed, or validation against ``DRGGraph`` fails.
     """
     try:
-        from doctrine.drg.models import DRGGraph
+        from charter.drg import DRGGraph
         from ruamel.yaml import YAML
 
         text = path.read_text(encoding="utf-8")
@@ -70,9 +70,9 @@ def _load_built_in_drg() -> Any | None:
     caller maps to :class:`GraphState.MISSING`.
     """
     try:
-        from doctrine.drg.loader import DRGLoadError, load_built_in_graph
+        from charter.drg import DRGLoadError, load_built_in_graph
     except Exception:  # noqa: BLE001
-        logger.debug("charter_lint._drg: doctrine.drg.loader not importable", exc_info=True)
+        logger.debug("charter_lint._drg: charter.drg loader not importable", exc_info=True)
         return None
 
     try:

@@ -42,7 +42,7 @@ from ruamel.yaml import YAML
 from charter.doctrine_service_builder import (
     build_activation_aware_doctrine_service as charter_builder,
 )
-from specify_cli.doctrine.config import OrgPackConfig, PackRegistry, save_pack_registry
+from doctrine.drg.org_pack_config import OrgPackConfig, PackRegistry, save_pack_registry
 from specify_cli.doctrine_service_factory import (
     build_activation_aware_doctrine_service as specify_cli_builder,
 )

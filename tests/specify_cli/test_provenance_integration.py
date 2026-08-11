@@ -20,7 +20,7 @@ from ruamel.yaml import YAML
 
 from specify_cli.charter_runtime.lint import LintEngine
 from specify_cli.charter_runtime.lint.engine import _ALL_CHECKS, _CHECK_MAP
-from specify_cli.doctrine.config import OrgPackConfig, PackRegistry, save_pack_registry
+from doctrine.drg.org_pack_config import OrgPackConfig, PackRegistry, save_pack_registry
 from specify_cli.doctrine.org_charter_loader import load_org_charter_json_block
 
 pytestmark = [pytest.mark.integration]
