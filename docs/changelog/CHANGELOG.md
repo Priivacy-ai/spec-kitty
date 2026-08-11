@@ -413,11 +413,23 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   helper extraction (each helper carries a focused test); duplicate literals
   became named constants; the `token_budget` heading regex was rewritten to
   remove its `.`/`\s` ambiguity (proven match-equivalent by a characterization
-  test); and one 15-parameter status-event emitter was slimmed without touching
-  any of its ~100 call sites (its `**kwargs` forwarding chain is preserved). Two
-  findings are Sonar false-positives (a Pydantic `PrivateAttr` and an
-  already-single-return method) with no clean code fix; they remain for a
-  SonarCloud UI won't-fix. No runtime behavior changes.
+  test); and the two too-many-parameter event emitters (`emit_wp_status_changed`
+  and `emit_token_usage_recorded`) were slimmed by bundling their optional tail
+  fields into typed params objects (`WPStatusChangeMetadata` /
+  `TokenUsageMetadata`), with every call site migrated to the params object so
+  the tail stays fully type-checked rather than routed through an untyped
+  `**kwargs` bag. Two findings are Sonar false-positives (a Pydantic
+  `PrivateAttr` and an already-single-return method) with no clean code fix;
+  they remain for a SonarCloud UI won't-fix. No runtime behavior changes.
+- **Signature change for out-of-tree callers of two exported event emitters
+  (mission `charter-sync-sonar-remediation`; `#3317`).** `emit_wp_status_changed`
+  and `emit_token_usage_recorded` (re-exported from the `sync` facade) no longer
+  accept their optional tail fields (`causation_id`, `force`, `evidence`,
+  `run_id`, `provider`, `model`, …) as individual keyword arguments. Pass a
+  `WPStatusChangeMetadata` / `TokenUsageMetadata` object via the keyword-only
+  `metadata=` parameter instead. All in-tree callers are already migrated; only
+  external plugins that called these helpers with the old keyword tail are
+  affected.
 - **Restored an honest red CI gate: `main`'s two standing reds now go green for
   the right reason, and `move-task`'s pre-review gate stops crying wolf
   (test-layer only; epic `#3260` — "a red gate must mean a real regression").**
