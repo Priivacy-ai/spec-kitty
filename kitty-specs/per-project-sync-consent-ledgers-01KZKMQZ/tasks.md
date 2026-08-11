@@ -23,7 +23,7 @@ branch, release, or deploy without separate Human-in-Charge authorization.
 
 SaaS WP04 must provide an explicit candidate checkout/ref and canonical-contract
 digest before core WP05 starts. Coordinated acceptance starts only after core
-WP06-WP09 and reviewed SaaS WP02/WP08 are ready. Core owns conforming
+WP06-WP10 and reviewed SaaS WP02/WP08 are ready. Core owns conforming
 client bytes, local isolation, stale-generation parking, and the core benchmark;
 SaaS owns bypass refusal, zero server effects, tombstone proof, hosted admission
 performance, and any authorized Upsun canary.
@@ -38,16 +38,17 @@ WP01 Green census and evidence harness
             -> WP05 Pinned target/admission contract  <- SaaS WP04
                  -> WP06 Attempt + lease protocol
                       -> WP07 Interactive transports
-                      -> WP08 Daemon/background
-                           -> WP09 Aggregate revoke/crash proof
-            -> WP10 WAL-aware migration/cutover
+                           -> WP08 Daemon/background
+                                -> WP09 Aggregate revoke/crash proof
+                           -> WP10 WAL-aware migration/cutover
 WP09 + WP10 + reviewed SaaS WP02/WP08 -> WP11 coordinated core evidence
 ```
 
-WP10 may progress after WP04 while transport packages continue, but this is not a
-claim of source-level disjointness: WP04 owns every current writer and must already
-have made each one consume WP02's layout permit. WP10 owns only migration/cutover
-orchestration and proof.
+WP10 may progress after WP07 while WP08/WP09 continue, but this is not a claim of
+source-level disjointness: WP04 owns every current writer and must already have
+made each one consume WP02's layout permit, while WP07 sequentially releases the
+shared CLI surface before WP10. WP10 owns only migration/cutover orchestration and
+proof.
 
 ## Subtask index
 
@@ -195,7 +196,7 @@ T031-T035 belong to WP07.
 
 **Prompt**: `tasks/WP08-daemon-background-convergence.md`
 **Priority**: P1
-**Dependencies**: WP06
+**Dependencies**: WP06, WP07
 
 **Goal**: Converge daemon/runtime/background discovery on authoritative project
 state, denial hints, layout permits, and independent liveness for other projects.
@@ -252,4 +253,7 @@ T049-T054 belong to WP11.
 - Every behavior-changing WP commits red-first ATDD in its own lane. WP01 must be
   green and approvable.
 - A pre-existing failure must be filed before baseline classification.
+- The plan, ADR, contracts, and post-tasks adversarial review are the mission's
+  sufficient research record; a separate optional `research/` directory is not
+  required for implementation or acceptance.
 - `/spec-kitty.analyze` remains mandatory before implementation.
