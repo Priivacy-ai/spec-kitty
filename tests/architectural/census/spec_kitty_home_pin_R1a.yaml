@@ -2,7 +2,7 @@ header:
   generated_by: tests/architectural/_home_pin_scan.py
   regeneration_command: python -m tests.architectural._home_pin_scan --root tests
     --frozen-at-sha <sha> --owed-to '#3121' --exempt-module tests.architectural._home_pin_exempt
-  frozen_at_sha: fe5d492ed9210907797876066504f419e136b2ff
+  frozen_at_sha: f6b90d34ef07f959fb6f6365dde884bf9bbf2474
   owed_to: '#3121'
   fragility_note: 'Generated, never hand-edited. `frozen_at_sha` and `owed_to` are
     HEADER SCALARS, not row columns, and there is no `reason` column: rationale that
@@ -41,7 +41,7 @@ rows:
   - cli/commands/test_sync_doctor_tracker_egress_3108.py
   - doctor_environment
   - monkeypatch . setenv ( , str ( home ) )
-  lineno: 124
+  lineno: 129
   kind: fixture
   home_partition: B1
 - key:

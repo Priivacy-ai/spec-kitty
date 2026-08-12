@@ -77,11 +77,11 @@ from pathlib import Path
 import pytest
 import yaml
 
+from tests.architectural import _home_pin_anchor as anchor_artefact
 from tests.architectural import _home_pin_scan as scan
 from tests.architectural import _home_pin_synthetic as synthetic
 from tests.architectural import _home_pin_verdict as verdict
 from tests.architectural._home_pin_exempt import E, OWNER_KEY, RETAINED_PIN_PROBE_KEY
-from tests.architectural._ratchet_keys import composite_key_from_file
 
 pytestmark = pytest.mark.architectural
 
@@ -212,16 +212,15 @@ def anchor_join_keys() -> dict[scan.MemberKey, tuple[str, str]]:
     ``discover(Path("tests"))`` yields ``cli/commands/foo.py`` — see :func:`repo_rooted`, which
     prefixes the *other* side at comparison time. The cheapest wrong repair is to edit
     ``members.json``; it is the one artefact here that must never be touched to green a test.
+
+    **The resolution is frozen, not live.** ``members.json``'s ``sites`` are line numbers, and a
+    line number only means anything in the tree it was read from — see
+    ``tests/architectural/_home_pin_anchor.py`` for the upstream edit that proved it, and for why
+    ``composite_key``'s "content-addressed, not line-number-addressed" docstring holds for
+    insertions below the site and not above it. ``members.json`` still decides membership; the
+    frozen artefact supplies only the encoding.
     """
-    entries = json.loads(EVIDENCE_MEMBERS.read_text(encoding="utf-8"))
-    mapping: dict[scan.MemberKey, tuple[str, str]] = {}
-    for entry in entries:
-        relpath = str(entry["path"])
-        path = Path(relpath)
-        for site_lineno in entry["sites"]:
-            key = (path.as_posix(), *composite_key_from_file(path, int(site_lineno)))
-            mapping[key] = (relpath, str(entry["qual"]))
-    return mapping
+    return dict(anchor_artefact.load())
 
 
 def anchor() -> frozenset[scan.MemberKey]:
@@ -380,6 +379,47 @@ def test_t023_the_anchor_and_e_are_disjoint() -> None:
     ``discovered == census u E`` would stop doing work while every other test stayed green.
     """
     assert anchor() & repo_rooted(exempt_keys()) == frozenset()
+
+
+def test_t023_the_frozen_anchor_re_encodes_members_json_and_never_re_decides_it() -> None:
+    """The frozen artefact may re-encode ``members.json``; it may not re-decide membership.
+
+    Freezing the anchor's resolution (see ``_home_pin_anchor``) turned a live derivation into a
+    checked-in file — precisely the shape that can later be regenerated into agreement with a
+    census it was supposed to be independent of. This is what makes that impossible without
+    editing ``members.json`` itself: every ``(path, lineno, keyed-def qualname)`` the artefact
+    carries must be one the evidence records, and every one the evidence records must be present.
+    A row added, dropped, or re-pointed fails here, whatever the key encoding says.
+
+    Deliberately compared on the evidence's OWN fields — path, site line, ``qual`` — and not on
+    the composite key, because the composite key is the very thing the artefact is allowed to
+    supply. Checking it against itself would prove nothing.
+    """
+    entries = json.loads(EVIDENCE_MEMBERS.read_text(encoding="utf-8"))
+    evidence = {
+        (str(entry["path"]), int(site), str(entry["qual"]))
+        for entry in entries
+        for site in entry["sites"]
+    }
+    doc = yaml.safe_load(Path(anchor_artefact.ANCHOR_PATH).read_text(encoding="utf-8"))
+    frozen = {(str(row["join"][0]), int(row["lineno"]), str(row["join"][1])) for row in doc["rows"]}
+
+    assert frozen == evidence, (
+        "the frozen anchor no longer mirrors members.json — regenerate it from the evidence with "
+        "the header's own regeneration_command; never hand-edit it to match a census"
+    )
+
+
+def test_t023_the_frozen_anchor_records_the_sha_its_line_numbers_index() -> None:
+    """A resolution frozen at an unnamed SHA is not reproducible, and not evidence.
+
+    ``members.json``'s ``sites`` are line numbers; the artefact is only checkable by someone who
+    can be told which tree to read them in. The header must name it, and it must be a full SHA —
+    an abbreviation is ambiguous across the repository's lifetime.
+    """
+    header = yaml.safe_load(Path(anchor_artefact.ANCHOR_PATH).read_text(encoding="utf-8"))["header"]
+    assert re.fullmatch(r"[0-9a-f]{40}", str(header["resolved_at_sha"]))
+    assert str(header["source"]) == EVIDENCE_MEMBERS.as_posix()
 
 
 # ---------------------------------------------------------------------------
