@@ -1327,7 +1327,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   is an internal architecture boundary only — no CLI command, output, or runtime
   behavior changes — and it unblocks the `#3101` doctrine wheel cutover.
 - **The contributor planning surface (`docs/plans/`) gains durable, version-spanning
-  *domain plans* and a curated index.** Two domain throughlines — SaaS & hosted sync,
+  *domain plans* and a curated index (`#3324`).** Two domain throughlines — SaaS & hosted sync,
   and doctrine & charter — now hold the standing strategy and invariants for their
   surface across releases, distinct from the release-scoped `3.2.x` plans that retire
   once distilled. The plans index is reorganized into domain throughlines, portfolio &
