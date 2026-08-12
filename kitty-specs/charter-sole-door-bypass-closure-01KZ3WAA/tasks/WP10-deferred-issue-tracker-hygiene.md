@@ -21,13 +21,13 @@ history:
   actor: system
   action: /spec-kitty.analyze finding E1 - added T044 (CHANGELOG entry) since NFR-004 had zero task coverage across all 9 WPs
 agent_profile: planner-priti
-authoritative_surface: docs/plans/charter-sole-door-deferred-issues.md
+authoritative_surface: docs/plans/doctrine/charter-sole-door-deferred-issues.md
 create_intent:
-- docs/plans/charter-sole-door-deferred-issues.md
+- docs/plans/doctrine/charter-sole-door-deferred-issues.md
 execution_mode: planning_artifact
 model: ''
 owned_files:
-- docs/plans/charter-sole-door-deferred-issues.md
+- docs/plans/doctrine/charter-sole-door-deferred-issues.md
 - CHANGELOG.md
 role: implementer
 tags: []
