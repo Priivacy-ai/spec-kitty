@@ -36,6 +36,15 @@ concurrency:
 jobs:
   build:
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    # The docs scripts import first-party src-layout packages: seo_postprocess.py
+    # imports `kernel.clock` (src/kernel/), and glossary_linker.py / seo_verify.py
+    # import `scripts.docs.*` (seo_verify transitively pulls in seo_postprocess ->
+    # kernel.clock too). This job runs raw `python3 scripts/docs/*.py` without
+    # installing the package, so both roots must be on PYTHONPATH or the Build and
+    # Verify steps die with `ModuleNotFoundError: No module named 'kernel'`. Mirrors
+    # docs-build-pr.yml's `PYTHONPATH: .`, extended with `src` for the kernel import.
+    env:
+      PYTHONPATH: .:src
     steps:
       - name: Checkout
         uses: actions/checkout@v6
