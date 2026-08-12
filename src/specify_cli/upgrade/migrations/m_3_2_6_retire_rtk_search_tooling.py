@@ -185,7 +185,7 @@ class RetireRtkSearchToolingMigration(BaseMigration):
         ".kittify/config.yaml and the compiled .kittify/charter/ blocks so "
         "charter compilation stops failing on the deleted artefact."
     )
-    target_version = "3.2.6"
+    target_version = "3.2.6rc1"
 
     def detect(self, project_path: Path) -> bool:
         """Return True when any project surface still names the retired toolguide."""

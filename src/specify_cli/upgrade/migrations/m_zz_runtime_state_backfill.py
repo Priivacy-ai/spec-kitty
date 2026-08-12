@@ -35,16 +35,16 @@ order**, which is **alphabetical module-discovery order**
 imports them -- verified empirically). FR-010 requires this migration to run
 strictly **after** the charter-fold migrations
 (``m_unify_charter_activation.py`` / ``m_unify_charter_activation_finalize.py``,
-both ``target_version = "3.2.6"``). Two ways to get this wrong:
+both ``target_version = "3.2.6rc1"``). Two ways to get this wrong:
 
-1. **A ``target_version`` above ``"3.2.6"``** (e.g. ``"3.3.1"``, matching the
+1. **A ``target_version`` above ``"3.2.6rc1"``** (e.g. ``"3.3.1"``, matching the
    pre-flight brief's original filename): the installed/unreleased package
    version is ``3.2.6`` (see ``pyproject.toml``), and
    ``MigrationRegistry.get_applicable()`` only includes a migration when
    ``target <= to_version`` -- a higher ``target_version`` is **silently
    skipped** by real upgrades, and separately HARD-FAILs
    ``tests/architectural/test_migration_chain_integrity.py`` (chain end ahead of
-   ``pyproject.toml``). Fix: tie the version at ``"3.2.6"``, shipping within the
+   ``pyproject.toml``). Fix: tie the version at ``"3.2.6rc1"``, shipping within the
    same, still-unreleased cycle as the charter folds and
    ``m_3_2_6_meta_traces_merge_drivers.py``.
 2. **A numeric-prefix filename at the tied version** (e.g.
@@ -264,7 +264,7 @@ class RuntimeStateBackfillMigration(BaseMigration):
         "flip), aborting the whole step on the first mission whose verify "
         "fails (FR-010, NFR-005)."
     )
-    target_version = "3.2.6"
+    target_version = "3.2.6rc1"
     runs_on_worktrees = False
 
     def detect(self, project_path: Path) -> bool:

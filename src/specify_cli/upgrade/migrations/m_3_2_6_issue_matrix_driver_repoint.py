@@ -15,11 +15,12 @@ and its ``issue-matrix.md`` line is now simply inert (no file matches it since
 WP05 shipped). Mutating a historical migration in place would rewrite already-
 applied history; a fresh migration is the correct additive fix (DIRECTIVE_044).
 
-``target_version`` is ``"3.2.6"``, tied with the sibling merge-driver
+``target_version`` is ``"3.2.6rc1"``, tied with the sibling merge-driver
 migrations (``m_3_2_6_gate_artifact_merge_drivers``,
 ``m_3_2_6_meta_traces_merge_drivers``,
 ``m_3_2_6_decisions_event_log_merge_driver``), not the unreleased ``3.2.7``:
-the installed package on this branch is still ``3.2.6``
+the installed package on this branch is ``3.2.6rc1`` -- the release-candidate
+build that ships this cycle's migrations
 (``test_discovered_migration_targets_do_not_exceed_package_version``), and
 ``spec-kitty upgrade`` skips any migration whose ``target_version`` exceeds
 the installed package version -- targeting an unreleased future version means
@@ -57,6 +58,6 @@ class IssueMatrixDriverRepointMigration(MergeDriverSeedingMigration):
 
     migration_id = "3.2.6_issue_matrix_driver_repoint"
     description = "Repoint the issue-matrix merge driver to issue-matrix.json"
-    target_version = "3.2.6"
+    target_version = "3.2.6rc1"
     drivers = _DRIVERS
     dry_run_summary = "Would repoint the issue-matrix merge driver to issue-matrix.json"

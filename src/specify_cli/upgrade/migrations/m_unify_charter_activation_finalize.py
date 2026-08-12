@@ -23,7 +23,7 @@ stay import-cheap).
 
 Ordering (MG6 -- paula MAJOR-3): sequenced strictly AFTER the existing
 activation-seed migrations that write ``activated_*`` INTO ``config.yaml``:
-``m_unify_charter_activation.py`` (``target_version = "3.2.6"``, whose
+``m_unify_charter_activation.py`` (``target_version = "3.2.6rc1"``, whose
 "config is the activation authority" invariant is now REVERSED by this
 migration -- see the docstring note on that class) and the rc35 pair
 (``m_3_2_0rc35_default_charter_pack.py`` /
@@ -33,7 +33,7 @@ carries ``activated_*``) is this migration's pre-state; this migration
 relocates those keys into ``charter.yaml`` and then removes them from
 ``config.yaml``.
 
-``target_version`` is ``"3.2.6"`` -- tied with ``m_unify_charter_activation``.
+``target_version`` is ``"3.2.6rc1"`` -- tied with ``m_unify_charter_activation``.
 ``3.2.6`` is unreleased, so this fold ships within the same cycle rather than
 advancing the package version (a migration whose ``target_version`` exceeds
 the installed package is skipped by ``spec-kitty upgrade``; targeting an
@@ -65,7 +65,7 @@ from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
 MIGRATION_ID = "consolidate_charter_bundle_fold"
-TARGET_VERSION = "3.2.6"
+TARGET_VERSION = "3.2.6rc1"
 
 _KITTIFY_DIRNAME = ".kittify"
 _CHARTER_DIRNAME = "charter"

@@ -278,7 +278,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # pkgutil.iter_modules + @MigrationRegistry.register; never statically
         # imported by runtime code. Named m_zz_* (not a numeric-prefix name) so it
         # sorts alphabetically AFTER the m_unify_charter_activation* folds at the
-        # same tied target_version="3.2.6" (see the module docstring).
+        # same tied target_version="3.2.6rc1" (see the module docstring).
         "specify_cli.upgrade.migrations.m_zz_runtime_state_backfill",
         # verdict-seam-write-unification-01KZ9Q35 pre-merge remediation (#3236,
         # FR-012/SC-008): auto-discovered upgrade migration that backfills each
@@ -286,7 +286,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # status.events.jsonl. Auto-discovered via pkgutil.iter_modules +
         # @MigrationRegistry.register; never statically imported by runtime code.
         # Named m_zz_* (same ordering rationale as the runtime-state sibling
-        # above) at the tied target_version="3.2.6".
+        # above) at the tied target_version="3.2.6rc1".
         "specify_cli.upgrade.migrations.m_zz_verdict_provenance_backfill",
         # review-cycle-verdict-seam-rebuild-01KZ2W7W WP18/T079 (T017): installs
         # the review-cycle-*.md fail-closed merge driver for already-init'd
