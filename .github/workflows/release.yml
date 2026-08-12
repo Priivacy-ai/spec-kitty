@@ -211,7 +211,13 @@ jobs:
 
           # Count tracked doctrine files in source. Release tests can mutate the
           # checkout, so use the tracked tree as the source of truth here too.
-          SOURCE_DOCTRINE_COUNT=$(git ls-files src/doctrine | wc -l | tr -d ' ')
+          # Apply the SAME exclusions the wheel build applies (pyproject.toml
+          # [tool.hatch.build.targets.wheel].exclude): src/doctrine/hatch_build.py
+          # and the nested src/doctrine/pyproject.toml are dormant standalone-wheel
+          # build scaffolding (#3163, ADR 2026-08-02-1), deliberately NOT shipped in
+          # the runtime wheel -- counting them as doctrine payload falsely fails this
+          # gate (they are tracked, so appear in `git ls-files`, but never in the wheel).
+          SOURCE_DOCTRINE_COUNT=$(git ls-files src/doctrine ':!src/doctrine/hatch_build.py' ':!src/doctrine/pyproject.toml' | wc -l | tr -d ' ')
           echo "Source doctrine file count: $SOURCE_DOCTRINE_COUNT"
 
           WHEEL_DOCTRINE_COUNT=$(find /tmp/wheel_check/doctrine -type f 2>/dev/null | wc -l | tr -d ' ')
