@@ -4987,7 +4987,8 @@ pages:
     divio_type: "none"
     abstract: "Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release."
     anchors:
-    - {slug: "unreleased-3-2-6", text: "[Unreleased] - 3.2.6", level: 2}
+    - {slug: "unreleased", text: "[Unreleased]", level: 2}
+    - {slug: "3-2-6rc1-2026-08-12", text: "[3.2.6rc1] - 2026-08-12", level: 2}
     - {slug: "added", text: "✨ Added", level: 3}
     - {slug: "fixed", text: "🐛 Fixed", level: 3}
     - {slug: "changed", text: "♻️ Changed", level: 3}
@@ -5604,6 +5605,14 @@ pages:
     - {slug: "three-surfaces-one-goal-and-how-they-connect", text: "Three surfaces, one goal — and how they connect", level: 2}
     - {slug: "authoring-a-new-cycle", text: "Authoring a new cycle", level: 2}
     - {slug: "declared-cycles", text: "Declared cycles", level: 2}
+  - path: "docs/changelog/release-notes-3.2.6rc1.md"
+    title: "Release notes — 3.2.6rc1 (internal Release Candidate)"
+    divio_type: "reference"
+    abstract: "Internal Release Candidate notes for spec-kitty-cli 3.2.6rc1: an opt-in prerelease build for maintainer validation, not an official 3.2.6 release."
+    anchors:
+    - {slug: "install-for-testing", text: "Install for testing", level: 2}
+    - {slug: "highlights-since-v3-2-5", text: "Highlights since `v3.2.5`", level: 2}
+    - {slug: "full-changelog", text: "Full changelog", level: 2}
   - path: "docs/configuration/index.md"
     title: "Configuration"
     divio_type: "none"

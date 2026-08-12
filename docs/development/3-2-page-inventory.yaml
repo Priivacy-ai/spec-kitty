@@ -1706,6 +1706,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/changelog/release-notes-3.2.6rc1.md
+  tag: current
+  divio_type: reference
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/configuration/index.md
   tag: current
   divio_type: none
