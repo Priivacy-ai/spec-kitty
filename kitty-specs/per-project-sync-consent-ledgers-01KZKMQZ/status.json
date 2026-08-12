@@ -1,18 +1,18 @@
 {
-  "event_count": 121,
-  "last_event_id": "01KZVVP9FX1AB03T41216DMCPR",
-  "materialized_at": "2026-08-12T20:47:45.149881+00:00",
+  "event_count": 122,
+  "last_event_id": "01KZVVQWGQ66CEJVEQ5FY3ZGS0",
+  "materialized_at": "2026-08-12T20:48:37.399548+00:00",
   "mission_number": "",
   "mission_slug": "per-project-sync-consent-ledgers-01KZKMQZ",
   "mission_type": "software-dev",
   "summary": {
     "approved": 8,
-    "blocked": 1,
+    "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
     "planned": 2
   },
@@ -315,9 +315,9 @@
     "WP09": {
       "actor": "claude",
       "force_count": 0,
-      "lane": "blocked",
-      "last_event_id": "01KZVVP9FX1AB03T41216DMCPR",
-      "last_transition_at": "2026-08-12T20:47:45.149881+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01KZVVQWGQ66CEJVEQ5FY3ZGS0",
+      "last_transition_at": "2026-08-12T20:48:37.399548+00:00",
       "tracker_refs": [
         "Priivacy-ai/spec-kitty#3262",
         "Priivacy-ai/spec-kitty#3030"
