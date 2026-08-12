@@ -84,8 +84,9 @@ def test_ownership_only_amendment_preserves_established_lanes_and_provenance(
     _run_finalize(mission_slug, patches)
     established = read_lanes_json(feature_dir)
     baseline_topology = {lane.lane_id: sorted(lane.wp_ids) for lane in established.lanes}
-    assert len(baseline_topology) == 2, (
-        f"sanity: two disjoint WPs must materialize two lanes; got {baseline_topology}"
+    assert sorted(baseline_topology.values()) == [["WP01"], ["WP02"]], (
+        "sanity: two disjoint WPs must materialize two independent single-WP "
+        f"lanes; got {baseline_topology}"
     )
 
     # Stand in a recorded planning provenance SHA (finalize cannot capture one in a
