@@ -1,43 +1,29 @@
-# Data Model: docs/plans Closeout and Doctrine Schema Diagrams
+# Data Model: docs/plans Tier 3 Closeout (Scope A)
 
-This mission is docs + tooling; the "data" is documents, frontmatter, and the doctrine
-code models the diagrams depict. Entities and their invariants:
+Docs + a small vocabulary change. Entities and invariants:
 
-## DocStatus (enum)
+## `doc_status` vocabulary
 
-- **Represents**: the lifecycle state of a docs page (`scripts/docs/frontmatter_backfill.py:DocStatus`).
-- **Fields/values**: existing (`active`, `draft`, `deprecated`, `superseded`/`closeout` per corpus usage) + **new** `durable`.
-- **Invariant**: every validation site (styleguide contract, structural lint, freshness/tests) accepts the full set; `durable` is exempt from the retire sweep.
+- **Represents**: the documentation-lifecycle controlled vocabulary.
+- **Authority**: directive `042-common-docs` (closed set: draft/active/deprecated/superseded); the
+  `DocStatus` StrEnum (`scripts/docs/frontmatter_backfill.py`) **mirrors** it.
+- **New member**: `durable` — reserved, never-retire.
+- **Invariant**: every validation site accepts the full set; `durable ∉ point_in_time_markers`;
+  `closeout` is NOT a member (it is a point-in-time / archive-directory convention → `deprecated`).
 
 ## Domain plan (throughline)
 
 - **Represents**: a durable, version-spanning plan for one domain.
-- **Fields**: frontmatter (`title`, `description` ≤180 chars, `doc_status: durable`, `updated`, `related:`); body in the canonical section shape (§1 purpose/scope → §6 cross-refs).
-- **Location invariant**: lives under `docs/plans/domains/`; reachable in one hop from `docs/plans/index.md`.
+- **Fields**: frontmatter (`title`, `description` ≤180, `doc_status: durable`, `updated`, `related:`);
+  body in the canonical §1–§6 shape.
+- **Location invariant**: under `docs/plans/domains/`; reachable in one hop from `docs/plans/index.md`.
 - **Instances**: `saas-hosted-sync`, `doctrine-charter` (migrated), `packs-extraction`, `api-dashboard` (new).
-- **Boundary invariant**: packs-extraction non-goals doctrine-charter §3.2; api-dashboard non-goals doctrine-charter §3.6.
+- **Boundary invariant**: packs-extraction non-goals doctrine-charter §3.2; api-dashboard non-goals §3.6.
 
 ## Retire candidate
 
 - **Represents**: a `docs/plans` document/cluster proposed for retirement.
-- **Fields**: path, backing-evidence citation (shipped/distilled/superseded), retire mechanism (`marker-in-place` | `move-to-archive`), status (`retired` | `deferred` | `not-retireable`).
-- **Invariant (NFR-005)**: content is never deleted; retirement preserves it and carries evidence. The roadmap is `deferred` (C-001).
-
-## Doctrine artefact model (source of truth)
-
-- **Represents**: the frozen code model for an artefact kind.
-- **Key attributes**: `frozen=True, extra="forbid"` (closed field set); field names, types, required/optional, enum values, nesting.
-- **Instances**: `AgentProfileSchema`, `MissionType`/`MissionStep`/`MissionStepContract`, `ActionIndex`, `DRGNode`/`DRGEdge`/`NodeKind`/`Relation`, `ArtifactKind`, per-kind models.
-- **Invariant**: read-only in this mission — the diagrams follow the model, never the reverse.
-
-## Schema diagram
-
-- **Represents**: a `@startyaml` typed-placeholder rendering of an artefact model, embedded in a doctrine doc page.
-- **Fields**: the `@startyaml` source block; the model it binds to (for the drift guard); the host page + section.
-- **Invariant (NFR-001)**: the diagram's field set equals the bound model's field set (drift guard fails otherwise).
-
-## PlantUML render step
-
-- **Represents**: the build-time post-DocFX HTML post-processor (`scripts/docs/plantuml_render.py`).
-- **Behaviour**: input = `docs/_site` HTML with `@start*` fenced blocks; output = the same HTML with each block replaced by a rendered `<svg>`/`<img>`; uses a pinned local `plantuml.jar` (`SANDBOX`).
-- **Invariants**: zero network egress (NFR-002); ≤60s added build time (NFR-003); Mermaid blocks untouched (NFR-004); SVGs generated, not committed.
+- **Fields**: path; backing-evidence citation; retire mechanism (`deprecated`-in-place | move-to-archive);
+  status (`retired` | `deferred` | `not-retireable`).
+- **Invariant (NFR-002)**: content is never deleted; retirement preserves it + carries evidence. The
+  roadmap is `deferred` (C-001).
