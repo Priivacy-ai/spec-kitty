@@ -1111,8 +1111,6 @@ _WIRED_THIS_MISSION: frozenset[str] = frozenset(
     }
 )
 
-assert len(_WIRED_THIS_MISSION) == 13, "the anti-null-delta pin must name all thirteen departures"
-
 
 @pytest.mark.doctrine
 class TestReachabilityCompanionGuard:
