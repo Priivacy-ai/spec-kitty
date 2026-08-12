@@ -1,8 +1,8 @@
 {
-  "coordination_branch": "kitty/mission-docs-plans-closeout-and-doctrine-diagrams-01KZTK2J",
+  "baseline_merge_commit": "ad4189123a7e4af705eaf6b6b751aa2b991b45d4",
   "change_mode": "bulk_edit",
   "created_at": "2026-08-12T08:57:56.258350+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "docs/plans Tier 3 Closeout",
   "mission_id": "01KZTK2JS1J16X3JD67SWG9T5X",
   "mission_number": null,
@@ -12,6 +12,8 @@
   "purpose_context": "Following PR #3324's domain-throughline model, this mission completes the docs/plans working surface: it retires shipped/superseded plan clusters (evidence-gated, roadmap deferred), authors the last two domain plans (packs-extraction and api-dashboard) with explicit scope boundaries, migrates all four domain plans into a docs/plans/domains/ cluster, and adds a machine-distinguishable 'durable' doc_status marker so throughlines are never swept. Scope A of a two-mission split; the doctrine schema diagrams + PlantUML docsite rendering are a separate follow-on mission (Scope B).",
   "purpose_tldr": "Finish the docs/plans Tier 3 curation: retire stale plans, add the last two domain plans, migrate them into a domains/ cluster, and add a durable throughline marker.",
   "slug": "docs-plans-closeout-and-doctrine-diagrams-01KZTK2J",
+  "status_phase": "1",
   "target_branch": "feat/docs-plans-tier3-closeout",
-  "topology": "coord"
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-12T17:12:41.963153+00:00"
 }
