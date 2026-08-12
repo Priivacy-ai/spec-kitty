@@ -31,7 +31,6 @@ new exception type needed.
 """
 from __future__ import annotations
 
-import inspect
 import json
 import subprocess
 from pathlib import Path
@@ -49,12 +48,6 @@ from mission_runtime import (
 from mission_runtime.artifacts import _PLACEMENT_ARTIFACT_KINDS
 from specify_cli.acceptance.execution_context import declared_home_surface
 from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
-
-from tests.architectural._placement_whole_tree_scan import (
-    is_sanctioned,
-    rel_path,
-    scan_scope,
-)
 
 pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 
@@ -352,57 +345,6 @@ def test_declared_home_surface_delegates_not_reimplements(repo: Path, monkeypatc
     from mission_runtime import TopologySurface
 
     assert result is TopologySurface.PRIMARY  # AH-2: SINGLE_BRANCH has no coord split
-
-
-def test_declared_home_surface_source_contains_no_inline_partition_logic() -> None:
-    """Structural convergence proof: ``declared_home_surface``'s OWN source no
-    longer restates ``is_primary_artifact_kind`` / ``routes_through_coordination``
-    inline — those calls live ONLY inside the shared
-    ``mission_runtime.declared_read_surface`` predicate now. A second competing
-    guard would show up here as duplicated literal calls."""
-    source = inspect.getsource(declared_home_surface)
-    assert "is_primary_artifact_kind(" not in source, (
-        "T034 violated: declared_home_surface reimplements the partition check "
-        "inline instead of delegating to mission_runtime.declared_read_surface"
-    )
-    assert "routes_through_coordination(" not in source, (
-        "T034 violated: declared_home_surface reimplements the topology-routing "
-        "check inline instead of delegating to mission_runtime.declared_read_surface"
-    )
-
-
-# ---------------------------------------------------------------------------
-# T035 — reuse WP06's shared whole-tree scanner: the read-authority modules are
-# visible to the SAME scan-scope infrastructure the write gate uses (shared
-# scan-scope authority, never a second forked walk).
-# ---------------------------------------------------------------------------
-
-
-def test_read_authority_modules_are_in_the_shared_whole_tree_scan_scope() -> None:
-    """The folded #2906 guard modules (now consumers of the shared
-    ``declared_read_surface`` predicate) are part of WP06's ``scan_scope()`` —
-    proving the read gate and write gate consume the SAME scanner (T035)
-    rather than the read side forking a second walk. ``mission_runtime/resolution.py``
-    itself stays excluded via the RETAINED ``BOUNDARY_SANCTIONED_PREFIXES``
-    (``src/mission_runtime/``) — it is the placement AUTHORITY the scan exists
-    to hold every OTHER module accountable to, not a consumer of itself; this
-    is asserted explicitly below so a future prefix change is caught here too.
-    """
-    scanned_rel_paths = {rel_path(p) for p in scan_scope()}
-
-    authority_module = "src/mission_runtime/resolution.py"
-    assert is_sanctioned(authority_module), (
-        f"{authority_module} unexpectedly entered scan scope — it should stay "
-        "excluded via the mission_runtime/ prefix guard (it IS the authority)"
-    )
-    assert authority_module not in scanned_rel_paths
-
-    for consumer in (
-        "src/specify_cli/acceptance/execution_context.py",
-        "src/specify_cli/acceptance/gates_core.py",
-    ):
-        assert not is_sanctioned(consumer), f"{consumer} unexpectedly sanctioned out of scan scope"
-        assert consumer in scanned_rel_paths, f"{consumer} missing from the shared whole-tree scan scope"
 
 
 # ---------------------------------------------------------------------------

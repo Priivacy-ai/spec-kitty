@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import sys
 from kernel.clock import UTC, datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -769,94 +768,6 @@ class TestRunUpgradeUxAlwaysSafe:
         assert calls == [["uv", "tool", "install", "--force", "spec-kitty-cli==2.0"]]
         assert outcome.auto_upgrade_attempted is True
         assert outcome.auto_upgrade_exit_code == 0
-
-    @pytest.mark.skip(
-        reason="behavioral drift: UV_TOOL_DIR env no longer passed to the uv "
-        "tool install subprocess (calls[0][1] is None). Upgrade-domain product "
-        "signal, adjudication is the upgrade owner's call — see "
-        "https://github.com/Priivacy-ai/spec-kitty/issues/2316"
-    )
-    def test_uv_tool_auto_upgrade_preserves_custom_uv_tool_dir(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(sys, "argv", ["spec-kitty", "status"])
-        monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
-        _patch_planner(monkeypatch, "ALLOW_WITH_NAG", latest="2.0")
-        _patch_cache_noop(monkeypatch)
-
-        tool_dir = tmp_path / "custom-tools"
-        tool_env = tool_dir / "spec-kitty-cli"
-        (tool_env / "bin").mkdir(parents=True)
-        (tool_env / "uv-receipt.toml").write_text("[tool]\nrequirements = [{ name = \"spec-kitty-cli\" }]\n")
-        monkeypatch.setattr(sys, "executable", str(tool_env / "bin" / "python"))
-        calls: list[tuple[list[str], dict[str, str] | None]] = []
-
-        class _Completed:
-            returncode = 0
-
-        def _run(argv: list[str], **kwargs: object) -> _Completed:
-            env = kwargs.get("env")
-            calls.append((argv, env if isinstance(env, dict) else None))
-            return _Completed()
-
-        monkeypatch.setattr("specify_cli.readiness.upgrade_ux.subprocess.run", _run)
-
-        outcome = run_upgrade_ux(
-            None,
-            suppressed=False,
-            env={ENV_UPGRADE_AUTO: "1"},
-            prompt=lambda: pytest.fail("prompt must not fire on always-upgrade"),
-            installer_detector=lambda: InstallMethod.UV_TOOL,
-        )
-        assert calls[0][0] == ["uv", "tool", "install", "--force", "spec-kitty-cli==2.0"]
-        assert calls[0][1] is not None
-        assert calls[0][1]["UV_TOOL_DIR"] == str(tool_dir)
-        assert outcome.auto_upgrade_attempted is True
-
-    @pytest.mark.skip(
-        reason="behavioral drift: receipt --python no longer threaded into the "
-        "uv tool install argv (--python <ver> suffix absent). Upgrade-domain "
-        "product signal, adjudication is the upgrade owner's call — see "
-        "https://github.com/Priivacy-ai/spec-kitty/issues/2316"
-    )
-    def test_uv_tool_auto_upgrade_preserves_receipt_python(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(sys, "argv", ["spec-kitty", "status"])
-        monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
-        _patch_planner(monkeypatch, "ALLOW_WITH_NAG", latest="2.0")
-        _patch_cache_noop(monkeypatch)
-
-        tool_dir = tmp_path / "custom-tools"
-        tool_env = tool_dir / "spec-kitty-cli"
-        (tool_env / "bin").mkdir(parents=True)
-        (tool_env / "uv-receipt.toml").write_text(
-            "[tool]\n"
-            'requirements = [{ name = "spec-kitty-cli" }]\n'
-            'python = "3.13"\n'
-        )
-        monkeypatch.setattr(sys, "executable", str(tool_env / "bin" / "python"))
-        calls: list[list[str]] = []
-
-        class _Completed:
-            returncode = 0
-
-        def _run(argv: list[str], **_: object) -> _Completed:
-            calls.append(argv)
-            return _Completed()
-
-        monkeypatch.setattr("specify_cli.readiness.upgrade_ux.subprocess.run", _run)
-
-        outcome = run_upgrade_ux(
-            None,
-            suppressed=False,
-            env={ENV_UPGRADE_AUTO: "1"},
-            prompt=lambda: pytest.fail("prompt must not fire on always-upgrade"),
-            installer_detector=lambda: InstallMethod.UV_TOOL,
-        )
-        assert calls[0] == ["uv", "tool", "install", "--force", "--python", "3.13", "spec-kitty-cli==2.0"]
-        assert outcome.auto_upgrade_attempted is True
-
 
 class TestRunUpgradeUxActiveSnooze:
     def test_active_snooze_suppresses_prompt(

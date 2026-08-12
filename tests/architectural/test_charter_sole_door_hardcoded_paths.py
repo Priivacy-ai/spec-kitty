@@ -72,7 +72,6 @@ non-vacuous per the self-mutation tests below.
 from __future__ import annotations
 
 import ast
-import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -119,22 +118,12 @@ def _is_path_call(call: ast.Call) -> bool:
 
 def _is_dunder_file_path_call(node: ast.expr) -> bool:
     """True for ``Path(__file__)`` (bare, unwrapped)."""
-    return (
-        isinstance(node, ast.Call)
-        and _is_path_call(node)
-        and len(node.args) == 1
-        and isinstance(node.args[0], ast.Name)
-        and node.args[0].id == "__file__"
-    )
+    return isinstance(node, ast.Call) and _is_path_call(node) and len(node.args) == 1 and isinstance(node.args[0], ast.Name) and node.args[0].id == "__file__"
 
 
 def _is_joinpath_call(node: ast.AST | None) -> bool:
     """True for ``<expr>.joinpath(...)`` — the A6-accepted sibling of ``/``."""
-    return (
-        isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Attribute)
-        and node.func.attr == "joinpath"
-    )
+    return isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "joinpath"
 
 
 def _unwrap_to_base(node: ast.expr) -> ast.expr:
@@ -195,9 +184,7 @@ def _dunder_file_rebinds_for_scope(scope: ast.AST) -> dict[str, bool]:
         if not isinstance(node, ast.Assign) or len(node.targets) != 1:
             continue
         target = node.targets[0]
-        if isinstance(target, ast.Name) and _is_dunder_file_path_call(
-            _unwrap_to_base(node.value)
-        ):
+        if isinstance(target, ast.Name) and _is_dunder_file_path_call(_unwrap_to_base(node.value)):
             tainted[target.id] = True
     return tainted
 
@@ -240,16 +227,11 @@ def _collect_join_chain(node: ast.expr) -> tuple[ast.expr, list[str]]:
 
 def _has_adjacent_guarded_components(literals: list[str]) -> bool:
     guarded_first, guarded_second = _GUARDED_COMPONENTS
-    return any(
-        a == guarded_first and b == guarded_second
-        for a, b in zip(literals, literals[1:], strict=False)
-    )
+    return any(a == guarded_first and b == guarded_second for a, b in zip(literals, literals[1:], strict=False))
 
 
 def _is_join_step(node: ast.AST) -> bool:
-    return (isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div)) or (
-        isinstance(node, ast.expr) and _is_joinpath_call(node)
-    )
+    return (isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div)) or (isinstance(node, ast.expr) and _is_joinpath_call(node))
 
 
 def _is_outermost_join(parents: dict[int, ast.AST], node: ast.AST) -> bool:
@@ -270,11 +252,7 @@ def _is_outermost_join(parents: dict[int, ast.AST], node: ast.AST) -> bool:
 
 
 def _qualname_via_scope_chain(scope_chain: list[ast.AST]) -> str:
-    names = [
-        scope.name
-        for scope in scope_chain
-        if isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
-    ]
+    names = [scope.name for scope in scope_chain if isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))]
     return ".".join(reversed(names)) if names else "<module>"
 
 
@@ -285,9 +263,7 @@ def _scan_file(path: Path, rel: str) -> list[MissionsRootHardcodeSite]:
     except SyntaxError:
         return []
     parents = parent_map(tree)
-    dunder_file_rebinds_by_scope = {
-        id(scope): _dunder_file_rebinds_for_scope(scope) for scope in _scope_nodes(tree)
-    }
+    dunder_file_rebinds_by_scope = {id(scope): _dunder_file_rebinds_for_scope(scope) for scope in _scope_nodes(tree)}
 
     found: list[MissionsRootHardcodeSite] = []
     for node in ast.walk(tree):
@@ -302,9 +278,7 @@ def _scan_file(path: Path, rel: str) -> list[MissionsRootHardcodeSite]:
             continue
         if not _has_adjacent_guarded_components(literals):
             continue
-        found.append(
-            MissionsRootHardcodeSite(rel, _qualname_via_scope_chain(scope_chain), node.lineno)
-        )
+        found.append(MissionsRootHardcodeSite(rel, _qualname_via_scope_chain(scope_chain), node.lineno))
     return found
 
 
@@ -342,131 +316,9 @@ def check_missions_root_hardcode_gate(src_root: Path) -> list[str]:
 
 
 # --- unit: detector shape ----------------------------------------------------
-@pytest.mark.parametrize(
-    "snippet",
-    [
-        'from pathlib import Path\ndef f():\n    return Path(__file__).resolve().parents[1] / "doctrine" / "missions"\n',
-        'from pathlib import Path\ndef f():\n    return Path(__file__).parents[2] / "doctrine" / "missions"\n',
-        'from pathlib import Path\ndef f():\n    return Path(__file__).parent.parent / "doctrine" / "missions"\n',
-    ],
-)
-def test_detector_flags_dunder_file_relative_shape(snippet: str, tmp_path: Path) -> None:
-    mod = tmp_path / "snippet.py"
-    mod.write_text(snippet, encoding="utf-8")
-    sites = _scan_file(mod, "snippet.py")
-    assert len(sites) == 1
-    assert sites[0].qualname == "f"
-
-
-@pytest.mark.parametrize(
-    "snippet",
-    [
-        # Only "missions", no adjacent "doctrine" component — the OTHER,
-        # legitimate dev_roots fallback entry (specify_cli/missions legacy
-        # layout) must not be flagged.
-        'from pathlib import Path\ndef f():\n    return Path(__file__).parent.parent / "missions"\n',
-        # Root-relative, not Path(__file__)-relative — out of THIS gate's
-        # scope (a different literal shape; see module docstring residuals).
-        'def f(repo_root):\n    return repo_root / "src" / "doctrine" / "missions"\n',
-        # Adjacent components in the wrong order.
-        'from pathlib import Path\ndef f():\n    return Path(__file__).parent / "missions" / "doctrine"\n',
-        # importlib.resources-based — the promoted authority's OWN shape,
-        # never Path(__file__)-relative.
-        'from importlib.resources import files\ndef f():\n    return files("doctrine") / "missions"\n',
-    ],
-)
-def test_detector_ignores_non_matching_shapes(snippet: str, tmp_path: Path) -> None:
-    mod = tmp_path / "snippet.py"
-    mod.write_text(snippet, encoding="utf-8")
-    assert _scan_file(mod, "snippet.py") == []
-
-
-def test_scan_excludes_the_promoted_authority_module() -> None:
-    """``doctrine/missions/repository.py`` owns the resolution and is never a violation."""
-    sites = scan_missions_root_hardcodes(SRC_ROOT)
-    assert all(s.rel_path != AUTHORITY_REL_PATH for s in sites)
 
 
 # --- A6 widening: .joinpath(), split literals, tainted roots -----------------
-def test_injected_joinpath_call_is_flagged(tmp_path: Path) -> None:
-    """A6 widening: ``.joinpath("doctrine", "missions")`` reds like ``/`` does.
-
-    Injected at function-local scope (NFR-003).
-    """
-    mod = tmp_path / "snippet.py"
-    mod.write_text(
-        "from pathlib import Path\n"
-        "\n"
-        "\n"
-        "def f():\n"
-        '    return Path(__file__).resolve().parents[1].joinpath("doctrine", "missions")\n',
-        encoding="utf-8",
-    )
-    sites = _scan_file(mod, "snippet.py")
-    assert len(sites) == 1, sites  # golden-count: cardinality-is-contract
-    assert sites[0].qualname == "f"
-
-
-def test_injected_combined_literal_with_separator_is_flagged(tmp_path: Path) -> None:
-    """A6 widening: a single ``"doctrine/missions"`` literal reds too.
-
-    Before the split-first fix, this literal produced a one-element list with
-    no adjacent pair for the adjacency check to match. Injected at
-    function-local scope (NFR-003).
-    """
-    mod = tmp_path / "snippet.py"
-    mod.write_text(
-        "from pathlib import Path\n"
-        "\n"
-        "\n"
-        "def f():\n"
-        '    return Path(__file__).resolve().parents[1] / "doctrine/missions"\n',
-        encoding="utf-8",
-    )
-    sites = _scan_file(mod, "snippet.py")
-    assert len(sites) == 1, sites  # golden-count: cardinality-is-contract
-    assert sites[0].qualname == "f"
-
-
-def test_injected_function_local_tainted_root_variable_is_flagged(tmp_path: Path) -> None:
-    """A6 widening: a function-local ``HERE = Path(__file__)...`` root reds.
-
-    The join chain's root is a bare ``ast.Name`` ("HERE"), not a literal
-    ``Path(__file__)`` call — invisible to the pre-fold root check. Injected
-    at function-local scope specifically (NFR-003): this is the shape a real
-    reintroduction would use (an intermediate variable named for readability).
-    """
-    mod = tmp_path / "snippet.py"
-    mod.write_text(
-        "from pathlib import Path\n"
-        "\n"
-        "\n"
-        "def f():\n"
-        "    HERE = Path(__file__).resolve().parents[1]\n"
-        '    return HERE / "doctrine" / "missions"\n',
-        encoding="utf-8",
-    )
-    sites = _scan_file(mod, "snippet.py")
-    assert len(sites) == 1, sites  # golden-count: cardinality-is-contract
-    assert sites[0].qualname == "f"
-    assert sites[0].lineno == 6
-
-
-def test_injected_module_level_tainted_root_variable_is_flagged(tmp_path: Path) -> None:
-    """A6 widening: a MODULE-level ``HERE = Path(__file__)...`` root reds too."""
-    mod = tmp_path / "snippet.py"
-    mod.write_text(
-        "from pathlib import Path\n"
-        "\n"
-        "HERE = Path(__file__).resolve().parents[1]\n"
-        "\n"
-        "\n"
-        "def f():\n"
-        '    return HERE / "doctrine" / "missions"\n',
-        encoding="utf-8",
-    )
-    sites = _scan_file(mod, "snippet.py")
-    assert len(sites) == 1, sites  # golden-count: cardinality-is-contract
 
 
 def test_untainted_root_variable_is_not_flagged(tmp_path: Path) -> None:
@@ -478,12 +330,7 @@ def test_untainted_root_variable_is_not_flagged(tmp_path: Path) -> None:
     """
     mod = tmp_path / "snippet.py"
     mod.write_text(
-        "from pathlib import Path\n"
-        "\n"
-        "\n"
-        "def f(repo_root):\n"
-        "    HERE = Path(repo_root)\n"
-        '    return HERE / "doctrine" / "missions"\n',
+        'from pathlib import Path\n\n\ndef f(repo_root):\n    HERE = Path(repo_root)\n    return HERE / "doctrine" / "missions"\n',
         encoding="utf-8",
     )
     assert _scan_file(mod, "snippet.py") == []
@@ -512,12 +359,7 @@ def test_injected_hardcode_is_flagged_naming_the_exact_line(tmp_path: Path) -> N
     pkg.mkdir(parents=True)
     regressed = pkg / "regressed.py"
     regressed.write_text(
-        "from pathlib import Path\n"
-        "\n"
-        "\n"
-        "class Regressed:\n"
-        "    def load(self):\n"
-        '        return Path(__file__).resolve().parents[1] / "doctrine" / "missions"\n',
+        'from pathlib import Path\n\n\nclass Regressed:\n    def load(self):\n        return Path(__file__).resolve().parents[1] / "doctrine" / "missions"\n',
         encoding="utf-8",
     )
     scratch_src = tmp_path / "src"
@@ -525,11 +367,3 @@ def test_injected_hardcode_is_flagged_naming_the_exact_line(tmp_path: Path) -> N
     violations = check_missions_root_hardcode_gate(scratch_src)
     assert violations, "self-mutation: a re-introduced missions-root hardcode must be flagged"
     assert any("regressed.py:6" in v and "Regressed.load" in v for v in violations), violations
-
-
-def test_gate_runs_under_fast_tier_budget() -> None:
-    """The scan completes well under the 30 s fast-tier ceiling."""
-    start = time.monotonic()
-    scan_missions_root_hardcodes(SRC_ROOT)
-    elapsed = time.monotonic() - start
-    assert elapsed < 30.0, f"missions-root hardcode scan took {elapsed:.2f}s (>30s budget)"

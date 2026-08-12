@@ -99,9 +99,6 @@ class TestAllCliDrivenCommands:
         "tasks-finalize": "spec-kitty agent mission finalize-tasks",
     }
 
-    def test_all_seven_commands_mapped(self) -> None:
-        assert len(CLI_DRIVEN_COMMANDS) == 7
-
     @pytest.mark.parametrize("command", sorted(CLI_DRIVEN_COMMANDS))
     def test_command_uses_canonical_prefix(self, command: str) -> None:
         content = generate_shim_content(command, "claude", "$ARGUMENTS")

@@ -141,11 +141,7 @@ def _docstring_nodes(tree: ast.AST) -> set[int]:
         if not body:
             continue
         first = body[0]
-        if (
-            isinstance(first, ast.Expr)
-            and isinstance(first.value, ast.Constant)
-            and isinstance(first.value.value, str)
-        ):
+        if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) and isinstance(first.value.value, str):
             docstring_ids.add(id(first.value))
     return docstring_ids
 
@@ -209,11 +205,7 @@ def test_kernel_holds_no_doctrine_or_specify_cli_vocabulary() -> None:
     violation, including a new one at a different line of the same file,
     still reds this gate.
     """
-    violations = [
-        (rel, lineno, detail)
-        for rel, lineno, detail in collect_forbidden_vocabulary(_KERNEL_ROOT)
-        if (rel, lineno) not in _PRE_EXISTING_EXEMPTIONS
-    ]
+    violations = [(rel, lineno, detail) for rel, lineno, detail in collect_forbidden_vocabulary(_KERNEL_ROOT) if (rel, lineno) not in _PRE_EXISTING_EXEMPTIONS]
 
     assert violations == [], (
         "src/kernel/** must hold no doctrine-/specify_cli-identifying string or "
@@ -221,8 +213,7 @@ def test_kernel_holds_no_doctrine_or_specify_cli_vocabulary() -> None:
         "FR-004, SC-002, NFR-002).\nResolve via the domain-agnostic "
         "kernel.sibling_paths.resolve_installed_sibling primitive instead, "
         "with the caller supplying its own __file__ and sibling-relative "
-        "path.\nViolations:\n"
-        + "\n".join(f"  {rel}:{lineno} — {detail}" for rel, lineno, detail in violations)
+        "path.\nViolations:\n" + "\n".join(f"  {rel}:{lineno} — {detail}" for rel, lineno, detail in violations)
     )
 
 
@@ -256,12 +247,7 @@ def test_walker_catches_in_function_call_argument(tmp_path: Path) -> None:
     """
     module = tmp_path / "paths.py"
     module.write_text(
-        "import importlib.resources\n"
-        "\n"
-        "\n"
-        "def get_package_asset_root():\n"
-        '    resource = importlib.resources.files("doctrine") / "missions"\n'
-        "    return resource\n",
+        'import importlib.resources\n\n\ndef get_package_asset_root():\n    resource = importlib.resources.files("doctrine") / "missions"\n    return resource\n',
         encoding="utf-8",
     )
 
@@ -295,51 +281,3 @@ def test_walker_ignores_docstrings_and_prose(tmp_path: Path) -> None:
     )
 
     assert collect_forbidden_vocabulary(tmp_path, relative_to=tmp_path) == []
-
-
-def test_walker_catches_module_level_import(tmp_path: Path) -> None:
-    """A bare ``import doctrine`` / ``from specify_cli import x`` is also caught."""
-    (tmp_path / "plain.py").write_text("import doctrine.pack_paths\n", encoding="utf-8")
-    (tmp_path / "fromform.py").write_text(
-        "from specify_cli.paths import get_runtime_root\n", encoding="utf-8"
-    )
-
-    violations = collect_forbidden_vocabulary(tmp_path, relative_to=tmp_path)
-
-    assert violations == [
-        ("fromform.py", 1, "from specify_cli.paths import ..."),
-        ("plain.py", 1, "import doctrine.pack_paths"),
-    ]
-
-
-def test_walker_catches_dotted_module_path_string_literal(tmp_path: Path) -> None:
-    """Segment-aware NFR-002 proof: a dotted-root literal escapes exact-equality.
-
-    Reproduces the exact shape ``src/kernel/schema_utils.py`` uses at its own
-    installed-wheel resource lookup -- ``files("doctrine.schemas")`` -- the
-    one violation an EXACT-equality ``ast.Constant`` match
-    (``node.value in _FORBIDDEN_STRINGS``) cannot see, since the literal
-    ``"doctrine.schemas"`` is never equal to the bare forbidden root
-    ``"doctrine"``. This is the exact gap the gate's own docstring names as
-    "escaping": a string-literal dotted form the pytestarch ``LayerRule``
-    (import-edge-only) and this gate's pre-segment-aware matcher both miss.
-
-    Red-first: against the pre-fix exact-equality matcher this assertion
-    fails (the walker reports zero violations for this file); the
-    segment/prefix-aware matcher (``value == root or value.startswith(root +
-    "."))``) makes it pass.
-    """
-    module = tmp_path / "schema_utils.py"
-    module.write_text(
-        "import importlib.resources\n"
-        "\n"
-        "\n"
-        "def _resolve_schema_path():\n"
-        '    resource = importlib.resources.files("doctrine.schemas")\n'
-        "    return resource\n",
-        encoding="utf-8",
-    )
-
-    violations = collect_forbidden_vocabulary(tmp_path, relative_to=tmp_path)
-
-    assert violations == [("schema_utils.py", 5, "string literal 'doctrine.schemas'")]

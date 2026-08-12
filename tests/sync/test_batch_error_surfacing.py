@@ -78,35 +78,26 @@ def small_queue(temp_queue):
 class TestCategorizeError:
     """Test the categorize_error function (T006)."""
 
-    def test_schema_mismatch_keywords(self):
-        """Each schema_mismatch keyword is detected."""
-        for kw in ERROR_CATEGORIES["schema_mismatch"]:
-            assert categorize_error(f"Event has {kw} problem") == "schema_mismatch"
-
-    def test_auth_expired_keywords(self):
-        """Each auth_expired keyword is detected."""
-        for kw in ERROR_CATEGORIES["auth_expired"]:
-            assert categorize_error(f"Request {kw} error") == "auth_expired"
-
-    def test_server_error_keywords(self):
-        """Each server_error keyword is detected."""
-        for kw in ERROR_CATEGORIES["server_error"]:
-            assert categorize_error(f"Server {kw} issue") == "server_error"
-
-    def test_retryable_transport_keywords(self):
-        """Temporary transport failures stay distinct from true server failures."""
-        for kw in ERROR_CATEGORIES["retryable_transport"]:
-            assert categorize_error(f"Network {kw} issue") == "retryable_transport"
+    def test_known_keywords_map_to_their_category(self):
+        """Every live diagnostic keyword maps to its owning category."""
+        mismatches = {
+            (category, keyword): categorize_error(f"Sync failed: {keyword}")
+            for category in (
+                "schema_mismatch",
+                "auth_expired",
+                "server_error",
+                "retryable_transport",
+            )
+            for keyword in ERROR_CATEGORIES[category]
+            if categorize_error(f"Sync failed: {keyword}") != category
+        }
+        assert mismatches == {}
 
     def test_unknown_for_unrecognised(self):
         """Strings with no matching keywords yield 'unknown'."""
         assert categorize_error("Something completely different happened") == "unknown"
 
     def test_empty_string_returns_unknown(self):
-        assert categorize_error("") == "unknown"
-
-    def test_none_like_returns_unknown(self):
-        """None-ish empty string."""
         assert categorize_error("") == "unknown"
 
     def test_case_insensitive(self):

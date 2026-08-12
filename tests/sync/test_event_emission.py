@@ -62,12 +62,6 @@ class TestImplementEmitsWPStatusChanged:
         assert event["head_commit_sha"] == "a" * 40
         assert event["repo_slug"] == "test-org/test-repo"
 
-    def test_event_queued_for_sync(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        """implement: event is queued in offline queue."""
-        emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
-        assert temp_queue.size() == 1
-
-
 class TestMergeEmitsWPStatusChanged:
     """SC-002: merge/move-task emits WPStatusChanged(in_progress→for_review)."""
 

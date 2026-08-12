@@ -698,12 +698,47 @@ class TestT030Isolation:
 
     @pytest.mark.skipif(sys.platform == "win32", reason="win32 uses different socket semantics")
     def test_find_free_port_in_range_returns_unbound_port(self) -> None:
-        """``find_free_port_in_range`` returns a port we can immediately bind."""
+        """The probe returns a port the reusable daemon server can bind."""
         port = find_free_port_in_range(_PORT_START, _PORT_END)
         assert _PORT_START <= port < _PORT_END
-        # Verify we can bind it.
+        # Match HTTPServer's SO_REUSEADDR contract when verifying the result.
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind(("127.0.0.1", port))  # must not raise
+
+    def test_free_port_probe_uses_daemon_reuse_semantics(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The availability probe must accept ports the daemon can rebind."""
+        class ReuseRequiredSocket:
+            reuse_enabled = False
+
+            def __enter__(self) -> ReuseRequiredSocket:
+                return self
+
+            def __exit__(self, *args: object) -> None:
+                return None
+
+            def setsockopt(self, level: int, option: int, value: int) -> None:
+                if (
+                    level == socket.SOL_SOCKET
+                    and option == socket.SO_REUSEADDR
+                    and value == 1
+                ):
+                    self.reuse_enabled = True
+
+            def bind(self, address: tuple[str, int]) -> None:
+                if not self.reuse_enabled:
+                    raise OSError("TIME_WAIT port requires SO_REUSEADDR")
+
+        monkeypatch.setattr(
+            socket,
+            "socket",
+            lambda *args, **kwargs: ReuseRequiredSocket(),
+        )
+
+        assert find_free_port_in_range(9401, 9402) == 9401
 
     @pytest.mark.skipif(sys.platform == "win32", reason="win32 uses different socket semantics")
     def test_wait_until_listening_returns_true_when_bound(self) -> None:

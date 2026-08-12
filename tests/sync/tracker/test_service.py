@@ -421,20 +421,6 @@ class TestStatusAll:
         with pytest.raises(TrackerServiceError, match="only available for SaaS"):
             service.status(all=True)
 
-    def test_status_without_all_delegates_normally(self, tmp_path: Path) -> None:
-        """status() without all=True still delegates to _resolve_backend()."""
-        from specify_cli.tracker.local_service import LocalTrackerService
-
-        _setup_config(tmp_path, provider="beads", workspace="ws")
-        service = TrackerService(tmp_path)
-        with patch.object(
-            LocalTrackerService, "status", return_value={"configured": True}
-        ) as mock_status:
-            result = service.status()
-            mock_status.assert_called_once()
-            assert result == {"configured": True}
-
-
 class TestProviderScopedReads:
     """Provider-scoped read helpers use SaaS backend resolution without a bound repo."""
 

@@ -50,10 +50,21 @@ def _consent_gate(answer: bool) -> Iterator[None]:
 
 @pytest.fixture(autouse=True)
 def reset_singleton():
-    """Reset runtime singleton before and after each test."""
-    reset_runtime()
-    yield
-    reset_runtime()
+    """Isolate runtime tests without destroying prior worker state."""
+    from specify_cli.sync import runtime as runtime_module
+
+    prior_runtime = runtime_module._runtime
+    runtime_module._runtime = None
+    try:
+        yield
+    finally:
+        current_runtime = runtime_module._runtime
+        runtime_module._runtime = None
+        try:
+            if current_runtime is not None and current_runtime is not prior_runtime:
+                current_runtime.stop()
+        finally:
+            runtime_module._runtime = prior_runtime
 
 
 @pytest.fixture(autouse=True)

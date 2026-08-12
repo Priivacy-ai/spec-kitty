@@ -702,8 +702,7 @@ def merge_driver_acceptance_matrix(
 # a two-verdict collision is embedded, best-effort, and NEVER aborts the squash
 # ---------------------------------------------------------------------------
 #
-# T017's discharge (see WP04's ruling, tests/architectural/census/
-# verdict_seam_IC04.yaml, and tests/architectural/test_merge_reconciliation_
+# T017's discharge (see WP04's ruling and tests/architectural/test_merge_reconciliation_
 # class_guard.py::test_review_cycle_tasks_hazard_is_ruled_and_tracked): the
 # create-window split (ADR 2026-08-03-1) means a coord mission's review
 # cycles land on TWO different physical surfaces during the migration window

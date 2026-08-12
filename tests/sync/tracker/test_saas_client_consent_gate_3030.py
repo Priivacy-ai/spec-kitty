@@ -30,7 +30,7 @@ from __future__ import annotations
 import ast
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
 
 import pytest
@@ -235,15 +235,18 @@ def refusal_of(call: Any, client: SaaSTrackerClient) -> SaaSTrackerClientError |
 
 def bind_call(client: SaaSTrackerClient) -> dict[str, Any]:
     """The POST that fires non-interactively during mission creation."""
-    return client.bind_mission_origin(
-        "linear",
-        PROJECT_SLUG,
-        mission_id=MISSION_ID,
-        mission_slug=MISSION_SLUG,
-        external_issue_id="issue-456",
-        external_issue_key="ENG-99",
-        external_issue_url="https://linear.app/acme/ENG-99",
-        title=ISSUE_TITLE,
+    return cast(
+        dict[str, Any],
+        client.bind_mission_origin(
+            "linear",
+            PROJECT_SLUG,
+            mission_id=MISSION_ID,
+            mission_slug=MISSION_SLUG,
+            external_issue_id="issue-456",
+            external_issue_key="ENG-99",
+            external_issue_url="https://linear.app/acme/ENG-99",
+            title=ISSUE_TITLE,
+        ),
     )
 
 
@@ -875,9 +878,10 @@ def test_mission_creation_bind_transmits_for_a_consenting_project(
     ``tracker/origin.bind_mission_origin`` → the transport — with no client
     injected, so the production construction site is the one under test.
     """
-    from specify_cli.sync.runtime import reset_runtime
+    import specify_cli.sync.runtime as runtime_mod
     from specify_cli.tracker.origin_consumer import consume_pending_origin_impl
 
+    runtime_before = runtime_mod._runtime
     write_project_config(isolated_machine, sync_enabled=True)
     write_pending_origin(isolated_machine)
     feature_dir = write_feature_dir(isolated_machine)
@@ -901,11 +905,13 @@ def test_mission_creation_bind_transmits_for_a_consenting_project(
             "to mean anything"
         )
     finally:
-        # #3130 fold: consume_pending_origin_impl's production call chain sets
-        # the sync.runtime._runtime singleton (E26) with no restoring finally
-        # of its own; reset it so this test does not leave it set for the
-        # rest of the worker process.
-        reset_runtime()
+        # Preserve the incoming process-global state.  Unconditionally resetting
+        # here made this test order-dependent: when an earlier test had already
+        # created the runtime, teardown changed that live singleton to ``None``.
+        if runtime_before is None:
+            runtime_mod.reset_runtime()
+        else:
+            assert runtime_mod._runtime is runtime_before
 
 
 def test_mission_creation_bind_leaks_nothing_without_consent(

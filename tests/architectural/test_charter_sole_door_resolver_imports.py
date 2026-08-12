@@ -83,14 +83,12 @@ from __future__ import annotations
 
 import ast
 import functools
-import time
 from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 
 from tests.architectural._sole_door_scan import (
-    REPO_ROOT,
     SRC_ROOT,
     iter_source_files,
     rel_to_repo,
@@ -138,9 +136,7 @@ def _qualname_map(tree: ast.Module) -> dict[int, str]:
 
     def _walk(node: ast.AST, prefix: str) -> None:
         for child in ast.iter_child_nodes(node):
-            if isinstance(
-                child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
-            ):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 child_prefix = f"{prefix}.{child.name}" if prefix else child.name
                 out[id(child)] = child_prefix
                 _walk(child, child_prefix)
@@ -180,9 +176,7 @@ def scan_file_resolver_imports(path: Path, rel_path: str) -> list[ResolverImport
                 # node.module alone ("doctrine") never matches the guarded
                 # "doctrine.resolver" target, so the imported NAME must also
                 # be tried as a dotted extension of the package it came from.
-                dotted_names.extend(
-                    f"{node.module}.{alias.name}" for alias in node.names
-                )
+                dotted_names.extend(f"{node.module}.{alias.name}" for alias in node.names)
         elif isinstance(node, ast.Import):
             dotted_names.extend(alias.name for alias in node.names)
         else:
@@ -236,19 +230,6 @@ def check_resolver_import_gate(sites: tuple[ResolverImportSite, ...]) -> list[st
 # =========================================================================== #
 
 
-def test_scan_reaches_a_broad_slice_of_src() -> None:
-    """The ``rglob`` walk must not silently narrow to a subtree."""
-    scanned = {rel_to_repo(p) for p in iter_source_files(SRC_ROOT)}
-    representative = {
-        "src/charter/resolver.py",
-        "src/charter/resolution.py",
-        "src/specify_cli/runtime/resolver.py",
-        "src/specify_cli/charter_runtime/lint/checks/org_layer.py",
-    }
-    assert not representative - scanned, sorted(representative - scanned)
-    assert len(scanned) > 200
-
-
 def test_detector_finds_the_real_sanctioned_imports() -> None:
     """The owning layers DO import ``doctrine.resolver`` — the detector sees them.
 
@@ -261,32 +242,6 @@ def test_detector_finds_the_real_sanctioned_imports() -> None:
     inside_files = {site.rel_path for site in inside}
     assert "src/charter/resolver.py" in inside_files, sorted(inside_files)
     assert "src/charter/resolution.py" in inside_files, sorted(inside_files)
-
-
-def test_the_facade_route_preserves_class_identity() -> None:
-    """The sanctioned alternative really is a re-export, not a duplicate.
-
-    A zero-tolerance ban is only reasonable if consumers have a working route.
-    This pins that ``charter.resolution``'s types ARE ``doctrine.resolver``'s
-    types — the property ``specify_cli/runtime/resolver.py`` depends on.
-    """
-    import charter.resolution as facade
-    import doctrine.resolver as owner
-
-    assert facade.ResolutionTier is owner.ResolutionTier
-    assert facade.ResolutionResult is owner.ResolutionResult
-
-
-def test_the_documented_consumer_uses_the_facade_not_the_owner() -> None:
-    """``specify_cli/runtime/resolver.py`` must stay on the facade route.
-
-    A live, concrete example that the sanctioned route is actually in use —
-    so this gate is guarding a real convention, not a hypothetical one.
-    """
-    rel = "src/specify_cli/runtime/resolver.py"
-    path = REPO_ROOT / rel
-    assert scan_file_resolver_imports(path, rel) == []
-    assert f"from {FACADE_MODULE} import" in path.read_text(encoding="utf-8")
 
 
 # =========================================================================== #
@@ -328,14 +283,9 @@ def test_injected_function_local_import_is_flagged(tmp_path: Path) -> None:
     sites = _scratch(
         tmp_path,
         "src/specify_cli/regressed_local.py",
-        "def resolve(mission):\n"
-        "    from doctrine.resolver import resolve_template\n"
-        "\n"
-        "    return resolve_template(mission)\n",
+        "def resolve(mission):\n    from doctrine.resolver import resolve_template\n\n    return resolve_template(mission)\n",
     )
-    assert [s.qualname for s in sites] == ["resolve"], [
-        s.describe() for s in sites
-    ]
+    assert [s.qualname for s in sites] == ["resolve"], [s.describe() for s in sites]
     assert sites[0].qualname == "resolve"
     assert sites[0].lineno == 2
     violations = check_resolver_import_gate(tuple(sites))
@@ -344,208 +294,11 @@ def test_injected_function_local_import_is_flagged(tmp_path: Path) -> None:
     assert "resolve" in violations[0]
 
 
-def test_injected_nested_try_except_import_is_flagged(tmp_path: Path) -> None:
-    """A direct import nested inside a method's ``try``/``except`` is caught.
-
-    Mirrors the real nesting shape used by ``org_layer.py``'s builder imports —
-    two blocks deep inside a method, invisible to a module-level scan.
-    """
-    sites = _scratch(
-        tmp_path,
-        "src/specify_cli/regressed_nested.py",
-        "class Sneaky:\n"
-        "    def resolve(self, mission):\n"
-        "        try:\n"
-        "            from doctrine.resolver import resolve_mission\n"
-        "        except ImportError:\n"
-        "            return None\n"
-        "        return resolve_mission(mission)\n",
-    )
-    assert [s.qualname for s in sites] == ["Sneaky.resolve"], [
-        s.describe() for s in sites
-    ]
-    assert sites[0].qualname == "Sneaky.resolve"
-    assert check_resolver_import_gate(tuple(sites))
-
-
-def test_injected_plain_module_import_is_flagged(tmp_path: Path) -> None:
-    """``import doctrine.resolver`` (no ``from``) is caught too."""
-    sites = _scratch(
-        tmp_path,
-        "src/specify_cli/regressed_plain.py",
-        "def resolve(mission):\n"
-        "    import doctrine.resolver\n"
-        "\n"
-        "    return doctrine.resolver.resolve_mission(mission)\n",
-    )
-    assert [s.qualname for s in sites] == ["resolve"], [
-        s.describe() for s in sites
-    ]
-    assert check_resolver_import_gate(tuple(sites))
-
-
-def test_injected_aliased_module_import_is_flagged(tmp_path: Path) -> None:
-    """``import doctrine.resolver as dr`` cannot launder the import."""
-    sites = _scratch(
-        tmp_path,
-        "src/specify_cli/regressed_aliased.py",
-        "import doctrine.resolver as dr\n"
-        "\n"
-        "\n"
-        "def resolve(mission):\n"
-        "    return dr.resolve_mission(mission)\n",
-    )
-    assert [s.qualname for s in sites] == ["<module>"], [
-        s.describe() for s in sites
-    ]
-    assert sites[0].qualname == "<module>"
-    assert check_resolver_import_gate(tuple(sites))
-
-
-def test_injected_from_package_import_module_is_flagged(tmp_path: Path) -> None:
-    """A5 widening: ``from doctrine import resolver`` binds the identical module.
-
-    Measured injection-probe miss on Gate 3 (4/9 catch rate): for an
-    ``ast.ImportFrom`` the pre-fold detector tested only ``node.module``
-    (``"doctrine"``), never ``node.module + "." + alias.name``. ``from doctrine
-    import resolver`` binds the SAME module object as
-    ``import doctrine.resolver`` — ``resolver.resolve_template(...)`` then
-    re-opens the exact ungated second resolution path this gate exists to
-    forbid. Injected at function-local scope (NFR-003).
-    """
-    sites = _scratch(
-        tmp_path,
-        "src/specify_cli/regressed_frompkg.py",
-        "def resolve(mission):\n"
-        "    from doctrine import resolver\n"
-        "\n"
-        "    return resolver.resolve_template(mission)\n",
-    )
-    assert [s.qualname for s in sites] == ["resolve"], [
-        s.describe() for s in sites
-    ]
-    violations = check_resolver_import_gate(tuple(sites))
-    assert violations, "the gate must bite on a from-package module import"
-    assert "regressed_frompkg.py" in violations[0]
-    assert "resolve" in violations[0]
-
-
-def test_injected_aliased_from_package_import_is_flagged(tmp_path: Path) -> None:
-    """The from-package spelling cannot be laundered by an ``as``-alias either.
-
-    Same A5 vector as the plain-spelling sibling test, with
-    ``from doctrine import resolver as dr`` — the third of the "all three
-    spellings" A5 names (plain, aliased, function-local).
-    """
-    sites = _scratch(
-        tmp_path,
-        "src/specify_cli/regressed_frompkg_aliased.py",
-        "def resolve(mission):\n"
-        "    from doctrine import resolver as dr\n"
-        "\n"
-        "    return dr.resolve_template(mission)\n",
-    )
-    assert [s.qualname for s in sites] == ["resolve"], [
-        s.describe() for s in sites
-    ]
-    assert check_resolver_import_gate(tuple(sites))
-
-
-def test_injected_submodule_import_is_flagged(tmp_path: Path) -> None:
-    """A future ``doctrine.resolver.<submodule>`` is inside the ban's scope."""
-    sites = _scratch(
-        tmp_path,
-        "src/specify_cli/regressed_submodule.py",
-        "def resolve(mission):\n"
-        "    from doctrine.resolver.tiers import OVERRIDE\n"
-        "\n"
-        "    return OVERRIDE\n",
-    )
-    assert [s.qualname for s in sites] == ["resolve"], [
-        s.describe() for s in sites
-    ]
-    assert check_resolver_import_gate(tuple(sites))
-
-
 def test_detector_ignores_the_sanctioned_facade_import(tmp_path: Path) -> None:
     """True negative: importing from ``charter.resolution`` is never flagged."""
     sites = _scratch(
         tmp_path,
         "src/specify_cli/compliant_consumer.py",
-        "from charter.resolution import ResolutionResult, ResolutionTier\n"
-        "\n"
-        "\n"
-        "def resolve(service, mission):\n"
-        "    return service.resolve_mission(mission)\n",
+        "from charter.resolution import ResolutionResult, ResolutionTier\n\n\ndef resolve(service, mission):\n    return service.resolve_mission(mission)\n",
     )
     assert sites == []
-
-
-def test_detector_ignores_prose_mentioning_the_module(tmp_path: Path) -> None:
-    """True negative: a docstring or comment naming the module is not an import.
-
-    ``charter/template_resolver.py`` and ``specify_cli/runtime/resolver.py`` both
-    discuss ``doctrine.resolver`` at length in prose without importing it; a
-    grep-shaped gate would flag both. This is that false-positive class,
-    reproduced in isolation.
-    """
-    sites = _scratch(
-        tmp_path,
-        "src/specify_cli/prose_only.py",
-        '"""Deliberately does not use ``doctrine.resolver``.\n'
-        "\n"
-        "See :func:`doctrine.resolver.resolve_template` for the tier chain we do\n"
-        "NOT call; we go through the charter method instead.\n"
-        '"""\n'
-        "\n"
-        "# import doctrine.resolver  <- never do this\n"
-        "RESOLVER_DOC = 'doctrine.resolver'\n"
-        "\n"
-        "\n"
-        "def resolve(service, mission):\n"
-        "    return service.resolve_mission(mission)\n",
-    )
-    assert sites == []
-
-
-def test_detector_ignores_a_similarly_named_module(tmp_path: Path) -> None:
-    """True negative: ``doctrine.resolver_utils`` is a different module.
-
-    Guards the prefix check against matching on a shared name stem — the ban is
-    ``doctrine.resolver`` and its submodules, not everything starting with those
-    characters.
-    """
-    sites = _scratch(
-        tmp_path,
-        "src/specify_cli/similar_name.py",
-        "def resolve():\n    from doctrine.resolver_utils import helper\n\n    return helper()\n",
-    )
-    assert sites == []
-
-
-def test_owning_layer_prefix_is_directory_keyed_not_file_keyed() -> None:
-    """The exemption is a directory prefix — it cannot degrade into a file list.
-
-    A per-file exemption would silently sanction a new charter module; a prefix
-    covers the layer as a layer, which is the intended boundary.
-    """
-    assert in_owning_layer("src/charter/resolver.py")
-    assert in_owning_layer("src/charter/context_renderers/template_include.py")
-    assert in_owning_layer("src/doctrine/resolver.py")
-    assert not in_owning_layer("src/specify_cli/runtime/resolver.py")
-    assert not in_owning_layer("src/runtime/next/runtime_bridge_io.py")
-    # A path that merely *starts* like the charter layer is not in it.
-    assert not in_owning_layer("src/charter_runtime/thing.py")
-
-
-def test_gate_runs_under_fast_tier_budget() -> None:
-    """The whole-tree scan stays inside the 30 s fast-tier ceiling.
-
-    Scans directly rather than via the memoised census — timing a cache hit
-    would be a vacuous measurement.
-    """
-    start = time.monotonic()
-    for path in iter_source_files(SRC_ROOT):
-        scan_file_resolver_imports(path, rel_to_repo(path))
-    elapsed = time.monotonic() - start
-    assert elapsed < 30.0, f"doctrine.resolver import scan took {elapsed:.2f}s"

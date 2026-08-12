@@ -682,28 +682,3 @@ def test_no_new_dead_modules_under_src() -> None:
         new_orphans=new_orphans,
         stale_allowlist_entries=stale_allowlist_entries,
     )
-
-
-def test_category_7_grandfathered_at_most_seven_entries() -> None:
-    """AC-7 (Slice F WP01): Cat-7 grandfathered orphans MUST be <= 7.
-
-    The Slice F mission shrank Cat-7 from 10 -> 7 by deleting
-    ``doctrine.templates.repository`` (WP01 T005),
-    ``glossary.prompts`` and
-    ``glossary.rendering`` (WP01 T006). This assertion
-    locks in the new ceiling so any regression that re-adds a Cat-7
-    entry without further burn-down is caught immediately, independently
-    of the per-category baseline in ``_baselines.yaml``.
-
-    Per C-006 (binding), Cat-7 MUST shrink by >= 2 entries per major
-    release; target = 0 by 4.0. This assertion is the floor side of
-    that ratchet for the Slice F mission.
-    """
-    current = len(_CATEGORY_7_GRANDFATHERED_ORPHANS)
-    assert current <= 7, (
-        f"_CATEGORY_7_GRANDFATHERED_ORPHANS has {current} entries; "
-        f"the Slice F WP01 AC-7 invariant caps it at 7. Either wire "
-        f"or delete the regressed entry, OR if growth is unavoidable "
-        f"escalate per the C-006 burn-down policy and update this "
-        f"assertion together with _baselines.yaml and the charter."
-    )

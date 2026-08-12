@@ -1,8 +1,8 @@
-"""Timing regression gate for ``spec-kitty doctor restart-daemon``.
+"""Functional regression gate for ``spec-kitty doctor restart-daemon``.
 
-Issue #1153 tracks NFR-002 from mission
-``unblock-sync-identity-boundary-canary-01KRZJ07``: stop + respawn + first
-health response must complete in <= 10 seconds on developer machines.
+The command must stop the prior daemon, spawn a distinct process, and expose a
+healthy control plane. Subprocess timeouts bound hangs; this module does not
+claim a portable wall-clock performance budget for shared CI runners.
 """
 
 from __future__ import annotations
@@ -21,13 +21,12 @@ import pytest
 
 
 pytestmark = [
-    pytest.mark.timing,
     pytest.mark.non_sandbox,
 ]
 
-_NFR_002_SECONDS = 10.0
 _RESTART_TIMEOUT_SECONDS = 15.0
 _SETUP_TIMEOUT_SECONDS = 90.0
+_CONTROL_PLANE_READY_TIMEOUT_SECONDS = 10.0
 
 
 def _repo_root() -> Path:
@@ -133,15 +132,10 @@ def _terminate_known_daemon_pids(pids: list[int]) -> None:
             continue
 
 
-def test_doctor_restart_daemon_completes_under_nfr_002_threshold(
+def test_doctor_restart_daemon_restarts_and_becomes_healthy(
     tmp_path: Path,
 ) -> None:
-    """NFR-002: real stop + respawn + control-plane health finishes under 10s."""
-    if sys.platform == "darwin" and os.environ.get("GITHUB_ACTIONS") == "true":
-        pytest.skip(
-            "GitHub-hosted macOS runners do not provide stable daemon startup timing; "
-            "Ubuntu CI still enforces NFR-002."
-        )
+    """A real stop + respawn publishes a distinct, healthy daemon."""
 
     home = tmp_path / "home"
     home.mkdir()
@@ -166,7 +160,6 @@ def test_doctor_restart_daemon_completes_under_nfr_002_threshold(
         assert setup.returncode == 0, setup.stderr or setup.stdout
         created_pids.append(int(setup.stdout.strip()))
 
-        start = time.perf_counter()
         result = subprocess.run(
             _restart_command(),
             cwd=repo_root,
@@ -176,8 +169,6 @@ def test_doctor_restart_daemon_completes_under_nfr_002_threshold(
             timeout=_RESTART_TIMEOUT_SECONDS,
             check=False,
         )
-        elapsed = time.perf_counter() - start
-
         assert result.returncode == 0, result.stderr or result.stdout
         payload = json.loads(result.stdout)
         assert payload["status"] == "restarted"
@@ -186,23 +177,22 @@ def test_doctor_restart_daemon_completes_under_nfr_002_threshold(
         health_payload = _wait_for_control_plane_ready(
             home,
             int(payload["new_pid"]),
-            deadline=start + _NFR_002_SECONDS,
-        )
-        elapsed = time.perf_counter() - start
-        assert elapsed < _NFR_002_SECONDS, (
-            f"restart-daemon took {elapsed:.2f}s; "
-            f"NFR-002 threshold is {_NFR_002_SECONDS:.1f}s"
+            deadline=time.perf_counter() + _CONTROL_PLANE_READY_TIMEOUT_SECONDS,
         )
         assert health_payload["status"] == "ok"
     finally:
-        _run_python(
-            """
-            from specify_cli.sync.daemon import stop_sync_daemon
+        try:
+            _run_python(
+                """
+                from specify_cli.sync.daemon import stop_sync_daemon
 
-            stop_sync_daemon(timeout=1.0)
-            """,
-            cwd=repo_root,
-            env=env,
-            timeout=5.0,
-        )
-        _terminate_known_daemon_pids(created_pids)
+                stop_sync_daemon(timeout=1.0)
+                """,
+                cwd=repo_root,
+                env=env,
+                timeout=5.0,
+            )
+        except subprocess.TimeoutExpired:
+            pass
+        finally:
+            _terminate_known_daemon_pids(created_pids)

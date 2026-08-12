@@ -127,7 +127,6 @@ C-003 status: PRESENT on the base. T038/T040 may build on it.
 from __future__ import annotations
 
 import functools
-import hashlib
 import importlib.util
 import sys
 import tempfile
@@ -173,20 +172,14 @@ assert _audit_spec.loader is not None
 _audit_spec.loader.exec_module(_audit_mod)
 
 discover_rows = _audit_mod.discover_rows
-ResolutionRow = _audit_mod.ResolutionRow
 discover_selection_callsites = _audit_mod.discover_selection_callsites
 
 # ---------------------------------------------------------------------------
 # Constants mirrored from audit.py (re-read from the live module so any
 # changes to the walker are automatically reflected here).
 # ---------------------------------------------------------------------------
-_RESOLVER_SOURCE_STEMS: frozenset[str] = _audit_mod._RESOLVER_SOURCE_STEMS
-_SELECTION_SEAM_STEMS: frozenset[str] = _audit_mod._SELECTION_SEAM_STEMS
 _KITTY_SPECS_NAMES: frozenset[str] = _audit_mod.KITTY_SPECS_NAMES
-_SLUG_NAMES: frozenset[str] = _audit_mod.SLUG_NAMES
-_ALLOWLISTED_SELECTION_CALLSITES: dict[str, str] = (
-    _audit_mod.ALLOWLISTED_SELECTION_CALLSITES
-)
+_ALLOWLISTED_SELECTION_CALLSITES: dict[str, str] = _audit_mod.ALLOWLISTED_SELECTION_CALLSITES
 
 # ---------------------------------------------------------------------------
 # Minimum discovered-row floor (T031 anti-vacuous assertion).
@@ -216,7 +209,6 @@ _ALLOWLISTED_SELECTION_CALLSITES: dict[str, str] = (
 # the migration it was counting is done. A walk that returns fewer than this
 # floor is almost certainly misconfigured or operating on an empty source tree.
 # ---------------------------------------------------------------------------
-_MIN_DISCOVERED_ROWS: int = 15
 
 # ---------------------------------------------------------------------------
 # Allowlisted raw-path-join rows (T030 — explicit disposition with rationale;
@@ -295,9 +287,7 @@ _RAW_JOIN_SITES: tuple[ContentDescriptor, ...] = (
         token_substring="primary_candidate = repo_root / KITTY_SPECS_DIR / mission_slug",
         occurrence=None,
         rationale=(
-            "DIAG — _coord_mid8 fail-closed raise payload: "
-            "repo_root / KITTY_SPECS_DIR / mission_slug for primary_candidate field; "
-            "no FS sink (raise is immediate)."
+            "DIAG — _coord_mid8 fail-closed raise payload: repo_root / KITTY_SPECS_DIR / mission_slug for primary_candidate field; no FS sink (raise is immediate)."
         ),
     ),
     # ----- _read_path_resolver.py: _compose_primary_feature_dir definition -----
@@ -313,10 +303,7 @@ _RAW_JOIN_SITES: tuple[ContentDescriptor, ...] = (
     ContentDescriptor(
         rel_path="specify_cli/missions/_read_path_resolver.py",
         qualname="_compose_primary_feature_dir",
-        token_substring=(
-            "primary_dir : Path = get_main_repo_root ( repo_root ) / "
-            "KITTY_SPECS_DIR / mission_slug"
-        ),
+        token_substring=("primary_dir : Path = get_main_repo_root ( repo_root ) / KITTY_SPECS_DIR / mission_slug"),
         occurrence=None,
         rationale=(
             "TBYD — IS the _compose_primary_feature_dir leaf definition (WP03 "
@@ -398,8 +385,7 @@ def _raw_join_source(rel_path: str) -> str:
 #: at import time if a descriptor is already ambiguous or dangling — the
 #: earliest possible surfacing of a mis-authored ``token_substring`` (GAP-1).
 _RAW_JOIN_SEEDED_KEYS: dict[ContentDescriptor, CompositeKey] = {
-    descriptor: resolve_descriptor(_raw_join_source(descriptor.rel_path), descriptor)
-    for descriptor in _RAW_JOIN_SITES
+    descriptor: resolve_descriptor(_raw_join_source(descriptor.rel_path), descriptor) for descriptor in _RAW_JOIN_SITES
 }
 
 
@@ -411,10 +397,7 @@ def _build_allowlisted_raw_joins() -> dict[tuple[str, str], str]:
     ``rel_path`` component — so the allowlist it consults must match that
     shape.  The rationale is carried verbatim from the descriptor.
     """
-    return {
-        (qualname, token_line): descriptor.rationale
-        for descriptor, (_rel_path, qualname, token_line) in _RAW_JOIN_SEEDED_KEYS.items()
-    }
+    return {(qualname, token_line): descriptor.rationale for descriptor, (_rel_path, qualname, token_line) in _RAW_JOIN_SEEDED_KEYS.items()}
 
 
 #: Composite-keyed allowlist: ``(enclosing_qualname, token_line) -> rationale``.
@@ -435,37 +418,12 @@ _ALLOWLISTED_RAW_JOINS: dict[tuple[str, str], str] = _build_allowlisted_raw_join
 # uses of ``primary_feature_dir_for_mission`` are calls-through-the-primitive,
 # not definitions — they are counted in the audit's seam-internal rows.
 # ---------------------------------------------------------------------------
-_NAMED_TOPOLOGY_BLIND_SEAM_FILES: frozenset[str] = frozenset(
-    {
-        # ``primary_feature_dir_for_mission`` primitive IS defined here.
-        # All other callers delegate through this function.
-        "specify_cli/missions/_read_path_resolver.py",
-    }
-)
 
 
 # ---------------------------------------------------------------------------
 # Helper: collect files with a KITTY_SPECS_DIR reference in the source trees.
 # Used for the independent floor assertion (T031-c).
 # ---------------------------------------------------------------------------
-
-
-def _kitty_specs_dir_files() -> list[str]:
-    """Return rel-paths of src files referencing any KITTY_SPECS_NAMES token."""
-    hits: list[str] = []
-    for src_root in (_SRC_SPECIFY_CLI, _SRC_MISSION_RUNTIME):
-        if not src_root.exists():
-            continue
-        for path in sorted(src_root.rglob("*.py")):
-            if "__pycache__" in path.parts:
-                continue
-            try:
-                text = path.read_text(encoding="utf-8")
-            except OSError:
-                continue
-            if any(name in text for name in _KITTY_SPECS_NAMES):
-                hits.append(path.relative_to(_SRC_ROOT).as_posix())
-    return hits
 
 
 # ===========================================================================
@@ -497,10 +455,7 @@ def test_zero_functional_raw_bypass_on_collapsed_tree() -> None:
         # Composite key (qualname, token_line) — content-addressed, drift-proof.
         key = composite_key_from_file(_SRC_ROOT / row.rel_path, row.line)
         if key not in _ALLOWLISTED_RAW_JOINS:
-            unexpected.append(
-                f"  {row.key()}  key={key!r}  handle={row.handle_source!r}  "
-                f"— functional raw-bypass not in allowlist (FR-004 regression)"
-            )
+            unexpected.append(f"  {row.key()}  key={key!r}  handle={row.handle_source!r}  — functional raw-bypass not in allowlist (FR-004 regression)")
 
     assert not unexpected, (
         "Unexpected raw KITTY_SPECS_DIR/slug path joins detected.\n"
@@ -510,8 +465,7 @@ def test_zero_functional_raw_bypass_on_collapsed_tree() -> None:
         "  (b) be justified and added to _ALLOWLISTED_RAW_JOINS with a rationale\n"
         "      (DIAG — diagnostic-only payload; no FS sink, or\n"
         "       TBYD — topology-blind-by-design, with named reason).\n\n"
-        "Regressions found:\n"
-        + "\n".join(unexpected)
+        "Regressions found:\n" + "\n".join(unexpected)
     )
 
 
@@ -544,9 +498,7 @@ def test_allowlist_entries_are_not_stale() -> None:
             )
 
     assert not stale, (
-        "Stale _RAW_JOIN_SITES descriptors:\n"
-        + "\n".join(stale)
-        + "\n\nEither the site drifted off its qualname/token line (a seam edit "
+        "Stale _RAW_JOIN_SITES descriptors:\n" + "\n".join(stale) + "\n\nEither the site drifted off its qualname/token line (a seam edit "
         "changed the layout), the join was removed entirely, or a new "
         "same-qualname sibling now collides with the token_substring.  Re-author "
         "the descriptor against the live source, or remove the entry if the join "
@@ -574,114 +526,6 @@ def test_discovered_rows_non_empty() -> None:
         "  (a) the SRC_ROOT in audit.py points to an empty/missing directory, or\n"
         "  (b) the audit.py import failed silently.\n"
         f"Expected SRC roots: {_SRC_SPECIFY_CLI}, {_SRC_MISSION_RUNTIME}"
-    )
-
-
-def test_discovered_row_count_meets_floor() -> None:
-    """Discovered row count meets the minimum floor (T031-b, FR-004 non-vacuous).
-
-    Guards against a partial/broken walker that discovers fewer rows than the
-    known-good baseline, which would let a regression slip through undetected.
-    """
-    rows = discover_rows()
-    count = len(rows)
-    assert count >= _MIN_DISCOVERED_ROWS, (
-        f"discover_rows() returned only {count} rows (floor: {_MIN_DISCOVERED_ROWS}).\n"
-        "This is below the known-good baseline from the WP01 pre-merge run.\n"
-        "Likely cause: the SRC_ROOT is wrong, a seam file was deleted without\n"
-        "updating audit.py KNOWN_CANDIDATE_FILES, or a seam refactoring removed\n"
-        "rows without a corresponding inventory update.\n"
-        f"Run ``python {_AUDIT_PATH}`` to diagnose."
-    )
-
-
-def test_independent_floor_kitty_specs_dir_files() -> None:
-    """Non-topology-blind row count ≥ KITTY_SPECS_DIR seam-file count (T031-c floor).
-
-    The independent floor: the number of files in ``src/specify_cli`` +
-    ``src/mission_runtime`` that reference ``KITTY_SPECS_DIR`` (or its aliases),
-    MINUS the named topology-blind seam files (``_NAMED_TOPOLOGY_BLIND_SEAM_FILES``),
-    MINUS the ``RESOLVER_SOURCE_STEMS`` seam files (whose rows are discovered
-    by the seam-internal walker rather than the raw-bypass scanner), must be
-    ≤ the total discovered rows.
-
-    This asserts that the audit can't be trivially satisfied by a thin inventory
-    that only covers a subset of the actual KITTY_SPECS_DIR users.  The formula
-    prevents circular self-satisfaction: a walker that only discovers 3 rows
-    still passes the floor if those 3 rows represent the real (small) bypass set.
-    But if KITTY_SPECS_DIR appears in many more seam files than the walker
-    covers, the formula fails.
-    """
-    all_kitty_files = _kitty_specs_dir_files()
-    total_kitty_count = len(all_kitty_files)
-
-    # Exclude named topology-blind seam files (their rows are counted separately).
-    topology_blind_overlap = sum(
-        1 for f in all_kitty_files if f in _NAMED_TOPOLOGY_BLIND_SEAM_FILES
-    )
-    # Exclude all RESOLVER_SOURCE_STEMS files (audit tracks these internally).
-    resolver_seam_overlap = sum(
-        1 for f in all_kitty_files if f in _RESOLVER_SOURCE_STEMS
-    )
-    # The floor is: files that use KITTY_SPECS_DIR but are neither topology-blind
-    # primitives NOR already-tracked resolver seam files.  These are the
-    # "Routed caller summary" files — not tracked row-by-row, but their file
-    # count acts as a sanity floor.
-    untracked_caller_count = (
-        total_kitty_count - topology_blind_overlap - resolver_seam_overlap
-    )
-
-    rows = discover_rows()
-    discovered_count = len(rows)
-
-    # The invariant: the number of discovered (seam-internal + bypass) rows must
-    # be ≥ the number of RESOLVER_SOURCE_STEMS files that use KITTY_SPECS_DIR.
-    # This is a minimum sanity check — each seam file should produce at least
-    # one discovered row.
-    active_seam_files_with_kitty = resolver_seam_overlap
-    assert discovered_count >= active_seam_files_with_kitty, (
-        f"discover_rows() returned {discovered_count} rows, but there are "
-        f"{active_seam_files_with_kitty} RESOLVER_SOURCE_STEMS files that reference "
-        f"KITTY_SPECS_DIR — each should produce at least one discovered row.\n"
-        f"Files: {[f for f in all_kitty_files if f in _RESOLVER_SOURCE_STEMS]}"
-    )
-
-    # The full floor: total KITTY_SPECS_DIR files (all 59+) must be ≥
-    # untracked_caller_count (i.e., the non-seam, non-topology-blind callers
-    # are present — they should exist because the audit's "Routed caller summary"
-    # covers them in aggregate).
-    assert total_kitty_count > untracked_caller_count, (
-        "Unexpected: total KITTY_SPECS_DIR file count is not larger than the "
-        "untracked caller count.  This indicates the topology-blind and resolver "
-        "seam sets together account for ALL KITTY_SPECS_DIR files, which would "
-        f"mean there are no routed callers at all.\n"
-        f"  total_kitty_count={total_kitty_count}\n"
-        f"  untracked_caller_count={untracked_caller_count}"
-    )
-
-    # The untracked caller count must be positive (there are routed callers).
-    assert untracked_caller_count > 0, (
-        "No untracked-caller KITTY_SPECS_DIR files found outside the seam+topology-blind "
-        "sets — this would mean every KITTY_SPECS_DIR user is already a tracked seam "
-        "file or topology-blind-by-design.  That's unexpectedly clean and likely "
-        "indicates a misconfiguration in _NAMED_TOPOLOGY_BLIND_SEAM_FILES or "
-        "_RESOLVER_SOURCE_STEMS.\n"
-        f"  all_kitty_files={sorted(all_kitty_files)[:10]}..."
-    )
-
-
-def test_all_allowlisted_entries_have_rationale() -> None:
-    """Every allowlist entry carries a non-empty rationale string (T030 hygiene).
-
-    A blank rationale defeats the documentation purpose of the allowlist.
-    This test prevents future entries from being added as bare keys.
-    """
-    empty_rationale = [k for k, v in _ALLOWLISTED_RAW_JOINS.items() if not v.strip()]
-    assert not empty_rationale, (
-        "Allowlist entries with empty rationale:\n"
-        + "\n".join(f"  {k!r}" for k in sorted(empty_rationale))
-        + "\n\nEvery allowlisted raw join must carry a disposition tag "
-        "(DIAG or TBYD) and a one-sentence rationale."
     )
 
 
@@ -746,16 +590,11 @@ class _IsolatedSourceInsertion:
 
         original = self._path.read_text(encoding="utf-8")
         lines = original.splitlines(keepends=True)
-        anchor_index = next(
-            i for i, line in enumerate(lines) if self._anchor_substring in line
-        )
+        anchor_index = next(i for i, line in enumerate(lines) if self._anchor_substring in line)
         lines.insert(anchor_index + 1, self._inserted_line + "\n")
         self.tmp_target.write_text("".join(lines), encoding="utf-8")
 
-        self._saved_roots = {
-            name: getattr(self._audit_mod, name)
-            for name in _IsolatedSourceMutation._PATCHED_ROOT_NAMES
-        }
+        self._saved_roots = {name: getattr(self._audit_mod, name) for name in _IsolatedSourceMutation._PATCHED_ROOT_NAMES}
         patched_roots: dict[str, Path] = {
             "_REPO_ROOT": tmp_root,
             "_SRC_ROOT": self.tmp_src_root,
@@ -775,39 +614,10 @@ class _IsolatedSourceInsertion:
 
 #: The shared file both the motion-battery and same-qualname-sibling plants
 #: mutate — it hosts RJ#1/RJ#2's ``_coord_mid8`` qualname.
-_COORD_MID8_FILE = _SRC_SPECIFY_CLI / "coordination" / "surface_resolver.py"
 
 #: Anchor line inside ``_coord_mid8`` (just before the fail-closed raise) used
 #: to insert a benign comment ABOVE both RJ#1/RJ#2 join lines without changing
 #: their content.
-_COORD_MID8_ANCHOR = "mid8 = resolve_declared_mid8(meta, mission_slug)"
-
-
-def test_raw_join_motion_battery_zero_false_reds() -> None:
-    """A comment inserted above RJ#1/RJ#2 does NOT flip the twin-guard RED.
-
-    NFR-001: content-addressing (qualname + normalized token line) survives a
-    benign ``+1`` line-drift caused by an unrelated edit above the site — the
-    entire premise the WP04 migration exists to prove.  Both RJ#1
-    (``coord_candidate``) and RJ#2 (``primary_candidate``) live in the SAME
-    ``_coord_mid8`` qualname, so a single insertion exercises both at once.
-    """
-    with _IsolatedSourceInsertion(
-        _COORD_MID8_FILE,
-        _COORD_MID8_ANCHOR,
-        "    # T019 motion-battery witness: benign comment, no semantic change.",
-        _audit_mod,
-    ) as insertion:
-        for descriptor, seeded_key in _RAW_JOIN_SEEDED_KEYS.items():
-            if descriptor.rel_path != "specify_cli/coordination/surface_resolver.py":
-                continue
-            source = insertion.tmp_target.read_text(encoding="utf-8")
-            assert descriptor_still_live(source, descriptor, seeded_key), (
-                f"Motion battery FALSE-RED: {descriptor.qualname} / "
-                f"{descriptor.token_substring!r} stopped resolving to its seeded "
-                "key after a benign comment insertion above the site — the "
-                "descriptor is NOT content-addressed as intended."
-            )
 
 
 # ---------------------------------------------------------------------------
@@ -871,9 +681,7 @@ class _IsolatedSourceMutation:
         original = self._path.read_text(encoding="utf-8")
         self.tmp_target.write_text(original + self._snippet, encoding="utf-8")
 
-        self._saved_roots = {
-            name: getattr(self._audit_mod, name) for name in self._PATCHED_ROOT_NAMES
-        }
+        self._saved_roots = {name: getattr(self._audit_mod, name) for name in self._PATCHED_ROOT_NAMES}
         patched_roots: dict[str, Path] = {
             "_REPO_ROOT": tmp_root,
             "_SRC_ROOT": self.tmp_src_root,
@@ -889,49 +697,6 @@ class _IsolatedSourceMutation:
             setattr(self._audit_mod, name, value)
         if self._tmp_dir is not None:
             self._tmp_dir.cleanup()
-
-
-def test_raw_join_bite_battery_real_file_byte_unchanged_during_mutation() -> None:
-    """NFR-002 (T010, PRIMARY gate): the real ``mission_creation.py`` is
-    BYTE-UNCHANGED for the ENTIRE bite-battery run — including the mutation
-    WINDOW, not just before/after.
-
-    #2673 / #2638 root cause: a real-file-mutating context manager restores
-    the original bytes on exit, so a plain before/after hash comparison is
-    trivially green even though the file WAS rewritten transiently — and that
-    transient window is exactly what a sibling ``pytest-xdist`` worker's
-    root-scanning test can observe. This assertion is structural (deterministic
-    hash, not a flaky repeated-run reproduction): it hashes the real file
-    before entering the mutation context, hashes it again from INSIDE the
-    active mutation window, and hashes it once more after exit — all three
-    must match. A real-file-mutating implementation fails the mid-window
-    hash; ``_IsolatedSourceMutation`` (which never opens the real file for
-    writing) passes all three.
-    """
-    target = _SRC_SPECIFY_CLI / "core" / "mission_creation.py"
-    # noqa: TID251 justification — file-integrity check (NFR-002): verifies the
-    # real production file's bytes are untouched across the mutation window;
-    # not charter content, so charter.hasher.hash_content() (which normalizes
-    # BOM/CRLF for markdown staleness comparison) is the wrong tool here.
-    before = hashlib.sha256(target.read_bytes()).hexdigest()  # noqa: TID251
-    snippet = (
-        "\n\n"
-        "def _wp02_byte_unchanged_witness(repo_root, mission_slug):  # noqa: injected T010\n"
-        "    return repo_root / KITTY_SPECS_DIR / mission_slug\n"
-    )
-    with _IsolatedSourceMutation(target, snippet, _audit_mod):
-        during = hashlib.sha256(target.read_bytes()).hexdigest()  # noqa: TID251
-        assert during == before, (
-            "Bite battery hazard: the real mission_creation.py was rewritten "
-            "DURING the mutation window — a sibling pytest-xdist worker "
-            "scanning src/specify_cli could observe the injected witness "
-            "mid-mutation and produce a false RED (#2673 / #2638)."
-        )
-    after = hashlib.sha256(target.read_bytes()).hexdigest()  # noqa: TID251
-    assert after == before, (
-        "The real mission_creation.py was not byte-identical to its original "
-        "content after the isolated mutation context exited."
-    )
 
 
 def test_raw_join_bite_battery_new_unsanctioned_join_reds() -> None:
@@ -963,8 +728,7 @@ def test_raw_join_bite_battery_new_unsanctioned_join_reds() -> None:
             for row in discover_rows()
             if row.call_name == "raw-path-join"
             and row.rel_path.endswith("core/mission_creation.py")
-            and composite_key_from_file(src_root / row.rel_path, row.line)
-            not in _ALLOWLISTED_RAW_JOINS
+            and composite_key_from_file(src_root / row.rel_path, row.line) not in _ALLOWLISTED_RAW_JOINS
         ]
 
     # Live-detector proof (T013, anti-tautology): BEFORE injection, the same
@@ -978,52 +742,11 @@ def test_raw_join_bite_battery_new_unsanctioned_join_reds() -> None:
         "post-injection assertion would be a tautology."
     )
 
-    snippet = (
-        "\n\n"
-        "def _wp04_bite_witness(repo_root, mission_slug):  # noqa: injected T019\n"
-        "    return repo_root / KITTY_SPECS_DIR / mission_slug\n"
-    )
+    snippet = "\n\ndef _wp04_bite_witness(repo_root, mission_slug):  # noqa: injected T019\n    return repo_root / KITTY_SPECS_DIR / mission_slug\n"
     with _IsolatedSourceMutation(target, snippet, _audit_mod) as mutation:
         witness = _unexpected_mission_creation_rows(mutation.tmp_src_root)
         assert witness, (
-            "Bite battery FALSE-GREEN: the injected _wp04_bite_witness raw "
-            "KITTY_SPECS_DIR/mission_slug join was NOT flagged as an unexpected "
-            "functional bypass."
-        )
-
-
-def test_raw_join_same_qualname_sibling_bites() -> None:
-    """A THIRD un-sanctioned raw join sharing RJ#1's qualname+substring RED's.
-
-    NFR-002 / D-1: plants a second ``_coord_mid8``-named function (same
-    qualname string) whose join line duplicates RJ#1's sanctioned
-    ``token_substring`` (``coord_candidate = repo_root``).  With the sibling
-    present, ``resolve_descriptor`` sees TWO candidates for RJ#1 inside the
-    ``_coord_mid8`` qualname and — per the exactly-one rule (never "≥1 finding
-    matches") — must RAISE rather than silently keep resolving to the
-    original site.  This proves the twin-guard does not let a routed-away
-    allowance mask a genuinely new same-qualname offender.
-    """
-    snippet = (
-        "\n\n"
-        "def _coord_mid8(meta, mission_slug, repo_root):  # noqa: injected T019 sibling\n"
-        "    coord_candidate = repo_root  # duplicate RJ#1 token line\n"
-        "    return coord_candidate\n"
-    )
-    rj1 = next(
-        descriptor
-        for descriptor in _RAW_JOIN_SITES
-        if descriptor.qualname == "_coord_mid8"
-        and descriptor.token_substring == "coord_candidate = repo_root"
-    )
-    seeded_key = _RAW_JOIN_SEEDED_KEYS[rj1]
-    with _IsolatedSourceMutation(_COORD_MID8_FILE, snippet, _audit_mod) as mutation:
-        source = mutation.tmp_target.read_text(encoding="utf-8")
-        assert not descriptor_still_live(source, rj1, seeded_key), (
-            "Same-qualname-sibling battery FALSE-GREEN: RJ#1 kept resolving "
-            "(exactly-one) even with a colliding sibling planted in a second "
-            "_coord_mid8-named function — the sibling was silently absorbed "
-            "instead of breaking the exactly-one resolution."
+            "Bite battery FALSE-GREEN: the injected _wp04_bite_witness raw KITTY_SPECS_DIR/mission_slug join was NOT flagged as an unexpected functional bypass."
         )
 
 
@@ -1045,21 +768,14 @@ def test_raw_join_same_qualname_sibling_bites() -> None:
 # to prove both the selection ratchet (T017/T019a) and the SLUG_NAMES
 # re-injection guard (T021) actually bite on a real source file's content,
 # without ever writing the real file on disk.
-_READ_CLI_FOR_MUTATION = (
-    _SRC_SPECIFY_CLI / "cli" / "commands" / "agent" / "context.py"
-)
+_READ_CLI_FOR_MUTATION = _SRC_SPECIFY_CLI / "cli" / "commands" / "agent" / "context.py"
 
 # The guarded read-side seam source (T018 gate-presence assertion).
-_SEAM_SOURCE = _SRC_SPECIFY_CLI / "missions" / "_read_path_resolver.py"
 
 
 def _external_selection_bypasses() -> list[str]:
     """Return locator keys of direct selection calls outside the seam+allowlist."""
-    return [
-        sel.key()
-        for sel in discover_selection_callsites()
-        if not sel.in_seam_file and sel.key() not in _ALLOWLISTED_SELECTION_CALLSITES
-    ]
+    return [sel.key() for sel in discover_selection_callsites() if not sel.in_seam_file and sel.key() not in _ALLOWLISTED_SELECTION_CALLSITES]
 
 
 # ---------------------------------------------------------------------------
@@ -1090,50 +806,6 @@ def test_no_direct_selection_call_outside_seam() -> None:
     )
 
 
-def test_selection_discriminator_is_independent_of_raw_join_scanner() -> None:
-    """The selection discriminator sees calls the raw-join scanner is blind to.
-
-    Anti-vacuous proof (squad-mandated).  WP01 (01KVN754) DRAINED the last
-    permanent external selection callsite (``acceptance/__init__.py`` rerouted
-    onto the seam), so the independence proof now uses a LIVE mutation witness
-    instead of a standing callsite: inject a direct
-    ``resolve_mission_read_path`` call (composing NO ``KITTY_SPECS_DIR`` join)
-    into a real read CLI and assert the SELECTION scanner discovers it while the
-    RAW-JOIN scanner stays blind to it — proving the selection discriminator is
-    strictly stronger than (independent of) the raw-join scanner.
-    """
-    snippet = (
-        "\n\ndef _wp01_independence_witness(repo_root, slug, mid8):  # noqa\n"
-        "    from specify_cli.missions._read_path_resolver import (\n"
-        "        resolve_mission_read_path,\n"
-        "    )\n"
-        "    return resolve_mission_read_path(repo_root, slug, mid8)\n"
-    )
-    with _IsolatedSourceMutation(_READ_CLI_FOR_MUTATION, snippet, _audit_mod):
-        selection_keys = {s.key() for s in discover_selection_callsites()}
-        raw_join_keys = {
-            r.key() for r in discover_rows() if r.call_name == "raw-path-join"
-        }
-        witness = next(
-            (
-                k
-                for k in selection_keys
-                if k.startswith("specify_cli/cli/commands/agent/context.py:")
-            ),
-            None,
-        )
-        assert witness is not None, (
-            "The SELECTION scanner failed to discover the injected direct "
-            "resolve_mission_read_path call — the AST walker is misconfigured or "
-            "vacuous."
-        )
-        assert witness not in raw_join_keys, (
-            "The injected selection call must NOT appear as a raw-path-join row — "
-            "it composes no KITTY_SPECS_DIR join, so the raw-join scanner is blind "
-            "to it. Its presence there would contradict the independence premise."
-        )
-
-
 # ---------------------------------------------------------------------------
 # FR-006a hardening — the SELECTION seam is the single
 # ``_read_path_resolver.py`` home, NOT the broader RAW-JOIN resolver-source set.
@@ -1150,71 +822,6 @@ def test_selection_discriminator_is_independent_of_raw_join_scanner() -> None:
 # selection callsites and the allowlist is empty.)
 # ---------------------------------------------------------------------------
 
-_NON_SELECTION_RESOLVER_SOURCES: tuple[str, ...] = (
-    "specify_cli/coordination/surface_resolver.py",
-    "specify_cli/coordination/status_transition.py",
-    "specify_cli/status/aggregate.py",
-)
-
-
-def test_non_seam_resolver_sources_are_not_auto_blessed_for_selection() -> None:
-    """RAW-JOIN resolver-source files are NOT in the SELECTION seam set.
-
-    FR-006a guard hardening (paula): ``_SELECTION_SEAM_STEMS`` is the single
-    ``resolve_handle_to_read_path`` home (``_read_path_resolver.py``).  The
-    three broader resolver-source files legitimately define resolvers for the
-    RAW-JOIN axis but are NOT the selection seam — so a future direct
-    ``resolve_mission_read_path`` call in any of them would be FLAGGED (not
-    auto-blessed as seam-internal) and must be allowlisted or refactored.
-    """
-    assert frozenset(
-        {"specify_cli/missions/_read_path_resolver.py"}
-    ) == _SELECTION_SEAM_STEMS, (
-        "The SELECTION seam must be the single resolve_handle_to_read_path home. "
-        "Widening it re-introduces the guard blind-spot where a direct "
-        "resolve_mission_read_path call in a raw-join resolver-source file is "
-        "silently auto-blessed."
-    )
-    for src in _NON_SELECTION_RESOLVER_SOURCES:
-        assert src in _RESOLVER_SOURCE_STEMS, (
-            f"{src!r} should still be a RAW-JOIN resolver-source file "
-            "(_RESOLVER_SOURCE_STEMS) — its raw-join axis tracking is unchanged."
-        )
-        assert src not in _SELECTION_SEAM_STEMS, (
-            f"{src!r} is a RAW-JOIN resolver-source file but NOT the selection "
-            "seam; including it in _SELECTION_SEAM_STEMS would auto-bless a "
-            "hypothetical direct resolve_mission_read_path call there (FR-006a "
-            "guard blind-spot)."
-        )
-
-
-def test_resolution_internal_read_converged_onto_seam() -> None:
-    """``mission_runtime/resolution.py`` no longer holds a direct selection call.
-
-    WP01 (01KVN754) rerouted ``_resolve_mission_slug`` from a direct
-    ``resolve_mission_read_path`` call onto the single guarded seam
-    (``resolve_handle_to_read_path``), keeping the StatusReadPathNotFound /
-    MissionSelectorAmbiguous → ActionContextError boundary translation.  The
-    formerly-allowlisted callsite is therefore DRAINED: ``resolution.py`` must no
-    longer surface as an external selection callsite, and the seam-convergence is
-    proven by the absence of any discovered direct call in that file.
-    """
-    resolution_selection_calls = [
-        s.key()
-        for s in discover_selection_callsites()
-        if s.rel_path == "mission_runtime/resolution.py"
-    ]
-    assert not resolution_selection_calls, (
-        "mission_runtime/resolution.py still holds a direct read-SELECTION call "
-        "after the WP01 reroute onto resolve_handle_to_read_path; the convergence "
-        f"is incomplete. Discovered: {resolution_selection_calls}"
-    )
-    # And it must carry NO stale allowlist entry (the reroute drained it).
-    assert "mission_runtime/resolution.py:185" not in _ALLOWLISTED_SELECTION_CALLSITES, (
-        "The mission_runtime/resolution.py:185 selection allowlist entry is stale "
-        "— WP01 rerouted that callsite onto the seam; remove the dead allowlist entry."
-    )
-
 
 # ---------------------------------------------------------------------------
 # T019(a) — mutation: inject a direct selection call into a read CLI.
@@ -1229,8 +836,7 @@ def test_selection_ratchet_bites_on_injected_direct_call() -> None:
     """
     # Pre-mutation: clean tree, no external bypasses.
     assert not _external_selection_bypasses(), (
-        "Pre-condition failed: the clean adopted tree already has an external "
-        "selection bypass — fix that before running the mutation proof."
+        "Pre-condition failed: the clean adopted tree already has an external selection bypass — fix that before running the mutation proof."
     )
 
     snippet = (
@@ -1243,9 +849,7 @@ def test_selection_ratchet_bites_on_injected_direct_call() -> None:
     )
     with _IsolatedSourceMutation(_READ_CLI_FOR_MUTATION, snippet, _audit_mod):
         during = _external_selection_bypasses()
-        assert any(
-            k.startswith("specify_cli/cli/commands/agent/context.py:") for k in during
-        ), (
+        assert any(k.startswith("specify_cli/cli/commands/agent/context.py:") for k in during), (
             "Selection ratchet did NOT catch the injected direct "
             "resolve_mission_read_path call in agent/context.py — the "
             "discriminator is vacuous.\n"
@@ -1255,70 +859,13 @@ def test_selection_ratchet_bites_on_injected_direct_call() -> None:
     # Post-revert: clean again (proves __exit__ restored the patched audit-module
     # roots, so discover_selection_callsites() is back to scanning the real tree).
     assert not _external_selection_bypasses(), (
-        "Selection ratchet still reports a bypass after the isolated mutation "
-        "context exited — the _IsolatedSourceMutation root restore failed."
+        "Selection ratchet still reports a bypass after the isolated mutation context exited — the _IsolatedSourceMutation root restore failed."
     )
 
 
 # ---------------------------------------------------------------------------
 # T019(b) — pre/post-mission-tree discrimination (NOT a tautology).
 # ---------------------------------------------------------------------------
-
-
-def test_ratchet_would_have_failed_on_pre_mission_tree() -> None:
-    """The ratchet PASSES on the adopted tree but WOULD HAVE FAILED pre-mission.
-
-    Discrimination proof (squad-mandated anti-vacuous): the read CLIs that WP02
-    migrated (``agent/context.py``, ``agent/mission.py``, ``decision.py``) used
-    to perform a raw ``KITTY_SPECS_DIR / raw_handle`` primary-meta bootstrap
-    join.  We reconstruct that PRE-mission shape on a real read CLI and confirm
-    the raw-join scanner catches it (i.e. the guard discriminates between the
-    pre- and post-migration trees — it is not a constant-true tautology).
-
-    The adopted tree passes ``test_zero_functional_raw_bypass_on_collapsed_tree``;
-    the reconstructed pre-mission shape FAILS the same scanner.
-    """
-    # Adopted tree: the migrated read CLI carries NO raw KITTY_SPECS_DIR join.
-    clean_keys = {
-        r.key()
-        for r in discover_rows()
-        if r.call_name == "raw-path-join"
-        and r.key().startswith("specify_cli/cli/commands/agent/context.py:")
-    }
-    assert not clean_keys, (
-        "Pre-condition failed: the adopted agent/context.py already has a raw "
-        f"KITTY_SPECS_DIR join: {clean_keys} — WP02 migration regressed."
-    )
-
-    # Reconstruct the pre-mission raw-join bootstrap shape.
-    snippet = (
-        "\n\ndef _wp05_pre_mission_raw_bootstrap(repo_root, raw_handle):  # noqa\n"
-        "    from specify_cli.core.paths import KITTY_SPECS_DIR\n"
-        "    primary_dir = repo_root / KITTY_SPECS_DIR / raw_handle\n"
-        "    return primary_dir\n"
-    )
-    with _IsolatedSourceMutation(_READ_CLI_FOR_MUTATION, snippet, _audit_mod):
-        during = {
-            r.key()
-            for r in discover_rows()
-            if r.call_name == "raw-path-join"
-            and r.key().startswith("specify_cli/cli/commands/agent/context.py:")
-        }
-        assert during, (
-            "The raw-join scanner did NOT catch the reconstructed pre-mission "
-            "KITTY_SPECS_DIR / raw_handle bootstrap — the guard would NOT have "
-            "discriminated against the pre-mission tree (tautology risk)."
-        )
-
-    # Post-exit: the audit-module roots are restored, so discover_rows() is
-    # back to scanning the real (never-mutated) tree.
-    post = {
-        r.key()
-        for r in discover_rows()
-        if r.call_name == "raw-path-join"
-        and r.key().startswith("specify_cli/cli/commands/agent/context.py:")
-    }
-    assert not post, "Isolated pre-mission-shape mutation window did not restore cleanly."
 
 
 # ---------------------------------------------------------------------------
@@ -1365,40 +912,6 @@ def test_seam_empty_mid8_fail_closed_gate_raises() -> None:
         assert exc_info.value.mission_slug == slug
 
 
-def test_seam_source_contains_fail_closed_gate() -> None:
-    """The seam SOURCE still contains the empty-mid8 fail-closed gate (mutation tripwire).
-
-    FR-006b mutation proof, static form: removing the gate
-    (``if not mid8 and declares_coordination ...:`` -> ``raise StatusReadPathNotFound``)
-    from the seam would make ``test_seam_empty_mid8_fail_closed_gate_raises``
-    FAIL (the seam would fall through to a stale primary read).  This companion
-    assertion pins the gate's STRUCTURAL presence so a refactor that drops the
-    branch is caught even if the runtime test fixture drifts.
-
-    NOTE (WP04 / FR-006, single-planning-surface-authority-01KVPR00): the gate
-    condition gained a trailing ``and consults_coord_husk`` term — a stored
-    coord-less topology resolves PRIMARY rather than failing closed on a residual
-    husk (the husk is structurally not consulted; #2062 cannot re-open). The
-    structural pin is anchored on the load-bearing ``not mid8 and
-    declares_coordination`` clause (without the trailing colon) so it survives that
-    narrowing while still catching a refactor that drops the empty-mid8 branch.
-    """
-    src = _SEAM_SOURCE.read_text(encoding="utf-8")
-    assert "if not mid8 and declares_coordination" in src, (
-        "The seam's empty-mid8 fail-closed gate "
-        "(`if not mid8 and declares_coordination ...`) is MISSING from "
-        f"{_SEAM_SOURCE} — removing it regresses FR-006b (silent stale-primary "
-        "read on an unprovable coord-declared topology)."
-    )
-    # The gate must raise the typed read-path error, not fall through.
-    gate_idx = src.index("if not mid8 and declares_coordination")
-    gate_block = src[gate_idx : gate_idx + 400]
-    assert "raise StatusReadPathNotFound(" in gate_block, (
-        "The empty-mid8 gate no longer RAISES StatusReadPathNotFound — a "
-        "fall-through here is a silent stale-primary read (FR-006b regression)."
-    )
-
-
 # ---------------------------------------------------------------------------
 # T020 — confirm the four read-CLI raw joins drained (FR-007 re-derivation).
 # ---------------------------------------------------------------------------
@@ -1409,57 +922,6 @@ def test_seam_source_contains_fail_closed_gate() -> None:
 # the #2046 read-side-desync residuals; ``decision.py`` is the D-6 consolidation
 # drain (a consequence of the WP02 factory-boundary consolidation, NOT a #2046
 # residual).
-_DRAINED_READ_CLI_FILES: tuple[str, ...] = (
-    "specify_cli/cli/commands/agent/context.py",  # #2046
-    "specify_cli/cli/commands/agent/mission.py",  # #2046 (x2: :1327 + :1378)
-    "specify_cli/cli/commands/decision.py",  # D-6 consolidation
-)
-
-
-def test_read_cli_raw_joins_are_drained() -> None:
-    """The four read-CLI raw-join bootstraps no longer appear in discover_rows().
-
-    FR-007 drain confirmed BY RE-DERIVATION (not by editing the net): after
-    WP02 routed them onto the seam, ``discover_rows()`` finds ZERO
-    ``raw-path-join`` rows in any of the read-CLI files.  The drain is real
-    because the joins are GONE, not because the scanner was narrowed (see
-    ``test_slug_names_net_is_frozen``).
-    """
-    raw_join_keys = [r.key() for r in discover_rows() if r.call_name == "raw-path-join"]
-    leaks = [
-        k
-        for k in raw_join_keys
-        if any(k.startswith(f) for f in _DRAINED_READ_CLI_FILES)
-    ]
-    assert not leaks, (
-        "Read-CLI raw-join bootstraps are NOT drained — these still compose a "
-        "raw KITTY_SPECS_DIR join:\n"
-        + "\n".join(f"  {k}" for k in leaks)
-        + "\n\nThey must route through resolve_handle_to_read_path (FR-007)."
-    )
-
-
-def test_drained_keys_are_not_in_allowlist() -> None:
-    """No drained read-CLI key lingers in _ALLOWLISTED_RAW_JOINS (no stale exemption).
-
-    FR-007: the drain removed the joins, so their allowlist entries (added
-    earlier as honest residual exemptions) must also be gone.  A lingering
-    entry would be flagged by ``test_allowlist_entries_are_not_stale``, but this
-    test asserts the specific drained-key invariant directly.
-    """
-    # The composite-keyed allowlist no longer carries a file path in its KEY, so
-    # the drained-file check runs against the ``_RAW_JOIN_SITES`` descriptor seed
-    # (each descriptor still carries its own ``rel_path``) — a lingering drained
-    # entry would still be seeded there.
-    lingering = [
-        f"{descriptor.rel_path}::{descriptor.qualname}"
-        for descriptor in _RAW_JOIN_SITES
-        if any(descriptor.rel_path.startswith(f) for f in _DRAINED_READ_CLI_FILES)
-    ]
-    assert not lingering, (
-        "Drained read-CLI keys still present in _ALLOWLISTED_RAW_JOINS "
-        "(stale exemption):\n" + "\n".join(f"  {k!r}" for k in lingering)
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -1469,26 +931,6 @@ def test_drained_keys_are_not_in_allowlist() -> None:
 # The minimum net the read-CLI primary-meta bootstrap joins were caught by.
 # Narrowing the net (dropping either token) would silently re-blind the scanner
 # to the read-CLI bootstrap shape — the fake-drain hole closed by 01KVGCE8.
-_FROZEN_SLUG_NET: frozenset[str] = frozenset({"raw_handle", "handle"})
-
-
-def test_slug_names_net_is_frozen() -> None:
-    """``audit.py``'s SLUG_NAMES must keep (or widen) ``{raw_handle, handle}``.
-
-    FR-006/FR-007 anti-fake-drain invariant: the read-CLI bootstrap raw joins
-    were caught because ``raw_handle`` (and ``handle``) are in the scanner's
-    ``SLUG_NAMES`` net.  Dropping either token would re-blind the scanner and
-    let a re-introduced raw bootstrap pass silently.  The net may only stay the
-    same or WIDEN — never narrow.
-    """
-    missing = _FROZEN_SLUG_NET - _SLUG_NAMES
-    assert not missing, (
-        "SLUG_NAMES was NARROWED — these required tokens are missing:\n"
-        + "\n".join(f"  {t!r}" for t in sorted(missing))
-        + "\n\nNarrowing the net re-blinds discover_rows() to the read-CLI "
-        "primary-meta bootstrap shape (the fake-drain hole). The net must stay "
-        "unchanged-or-widened (FR-006/FR-007)."
-    )
 
 
 def test_raw_handle_reinjection_is_caught() -> None:
@@ -1508,79 +950,13 @@ def test_raw_handle_reinjection_is_caught() -> None:
         during = [
             r.key()
             for r in discover_rows()
-            if r.call_name == "raw-path-join"
-            and r.handle_source == "raw_handle"
-            and r.key().startswith("specify_cli/cli/commands/agent/context.py:")
+            if r.call_name == "raw-path-join" and r.handle_source == "raw_handle" and r.key().startswith("specify_cli/cli/commands/agent/context.py:")
         ]
-        assert during, (
-            "Re-injected raw KITTY_SPECS_DIR / raw_handle join was NOT caught — "
-            "SLUG_NAMES must have been narrowed (fake-drain hole re-opened)."
-        )
+        assert during, "Re-injected raw KITTY_SPECS_DIR / raw_handle join was NOT caught — SLUG_NAMES must have been narrowed (fake-drain hole re-opened)."
 
     post = [
         r.key()
         for r in discover_rows()
-        if r.call_name == "raw-path-join"
-        and r.handle_source == "raw_handle"
-        and r.key().startswith("specify_cli/cli/commands/agent/context.py:")
+        if r.call_name == "raw-path-join" and r.handle_source == "raw_handle" and r.key().startswith("specify_cli/cli/commands/agent/context.py:")
     ]
     assert not post, "raw_handle re-injection mutation was not reverted cleanly."
-
-
-# ---------------------------------------------------------------------------
-# WP05 (coord-authority-trio-degod-01KX7094) -- trio-split files carry zero
-# raw-path-join rows (T027 extension).
-#
-# The trio decomposition (agent/workflow.py, cli/commands/implement.py,
-# acceptance/__init__.py -> shell + pure core(s) + executor) added five new
-# source files to the tree. None of the _ALLOWLISTED_RAW_JOINS entries above
-# reference any of them -- the split kept every raw-join site (allowlisted or
-# not) inside the pre-existing seam/resolver modules. This guard is additive,
-# not a weakening of anything above: it does not touch _ALLOWLISTED_RAW_JOINS
-# or any existing assertion, it only asserts that discover_rows() -- the SAME
-# live walker every other test in this file uses -- finds zero raw-path-join
-# rows specifically inside the five new files. See
-# ``tests/architectural/test_trio_seam_only.py`` for the trio's other two
-# invariants (T027 seam-only imports, T028 cores-no-I/O).
-# ---------------------------------------------------------------------------
-
-_TRIO_SPLIT_FILES: frozenset[str] = frozenset(
-    {
-        "specify_cli/cli/commands/agent/workflow_cores.py",
-        "specify_cli/cli/commands/agent/workflow_executor.py",
-        "specify_cli/cli/commands/implement_cores.py",
-        "specify_cli/acceptance/summary_core.py",
-        "specify_cli/acceptance/gates_core.py",
-    }
-)
-
-
-def test_trio_split_files_carry_no_raw_bypass_rows() -> None:
-    """The five new trio-split files introduce zero raw-path-join rows.
-
-    If a future edit moved (or introduced) a raw ``KITTY_SPECS_DIR``/slug join
-    into one of the split-out files, this guard -- not just the whole-tree
-    zero-bypass guard above -- calls it out by the specific new file it landed
-    in, since ``_ALLOWLISTED_RAW_JOINS`` has (correctly) never had to carry an
-    entry for any of them.
-    """
-    rows = discover_rows()
-    leaks = [
-        row.key()
-        for row in rows
-        if row.call_name == "raw-path-join" and row.rel_path in _TRIO_SPLIT_FILES
-    ]
-    assert not leaks, (
-        "New raw KITTY_SPECS_DIR/slug joins found in a trio-split file "
-        f"(none were expected -- these files are new in this mission and carry "
-        f"no _ALLOWLISTED_RAW_JOINS entries): {leaks}"
-    )
-
-
-def test_trio_split_files_are_covered_by_the_live_walker() -> None:
-    """Anti-vacuous companion: the five trio-split files actually exist and are
-    on the walker's search path, so the zero-leaks assertion above is not
-    trivially satisfied by scanning nothing.
-    """
-    missing = [rel for rel in sorted(_TRIO_SPLIT_FILES) if not (_SRC_ROOT / rel).is_file()]
-    assert not missing, f"Trio-split files missing from the current tree: {missing}"

@@ -1,0 +1,125 @@
+{
+  "rows": {
+    "#1931": {
+      "evidence_ref": "WP01, WP04, WP05, WP08-WP15 (this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": null,
+      "scope": "test-suite sanitation epic",
+      "source_file": "spec.md",
+      "title": "EPIC: Test suite friction — test quality, suite hygiene & anti-pattern remediation",
+      "verdict": "fixed",
+      "wp": "WP01,WP04,WP05,WP08-WP15"
+    },
+    "#2309": {
+      "evidence_ref": "WP03/T014; WP08 closure (this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": null,
+      "scope": "permanently skipped daemon-reaper tests",
+      "source_file": "spec.md",
+      "title": "Daemon-reaper kill gate contradicts its documented contract; the 10 quarantined reaper tests are hermetic, not environmental",
+      "verdict": "fixed",
+      "wp": "WP03,WP08"
+    },
+    "#2316": {
+      "evidence_ref": "WP03/T014; WP08 closure (this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": null,
+      "scope": "permanently skipped upgrade-UX tests",
+      "source_file": "spec.md",
+      "title": "upgrade UX: uv-tool auto-upgrade drops UV_TOOL_DIR env and receipt --python from the install argv",
+      "verdict": "fixed",
+      "wp": "WP03,WP08"
+    },
+    "#2342": {
+      "evidence_ref": "WP03/T016; WP07 timing; WP08 closure (this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": null,
+      "scope": "quarantined retrospective timing threshold",
+      "source_file": "spec.md",
+      "title": "potential performance issue: retrospective 200-mission summary breaches its 5s NFR budget on CI (test_200_missions_under_5s) — investigate real regression vs CI flake",
+      "verdict": "deferred-with-followup",
+      "wp": "WP03,WP07,WP08"
+    },
+    "#2645": {
+      "evidence_ref": "WP02/T050; WP07 attribution; WP08 closure (this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": null,
+      "scope": "pytest collection scanner cost",
+      "source_file": "spec.md",
+      "title": "pytest collection wall-clock AST scanner can expand aliases pathologically",
+      "verdict": "fixed",
+      "wp": "WP02,WP07,WP08"
+    },
+    "#2782": {
+      "evidence_ref": "WP03/T017; WP06 adjudication; WP07 routing; WP08 closure (this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": null,
+      "scope": "one honest blocking regression reproduction",
+      "source_file": "spec.md",
+      "title": "test_mission_create_json_strict_when_sync_skips_ingress consistently red — auth-failure/connection-refused instead of the private-team skip path",
+      "verdict": "verified-already-fixed",
+      "wp": "WP03,WP06,WP07,WP08"
+    },
+    "#2972": {
+      "evidence_ref": "Follow-up: #2972 remains the census authority; spec.md:172 explicitly excludes it from this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": null,
+      "scope": "unrelated Sonar pytest-rule census",
+      "source_file": "spec.md",
+      "title": "Census (do not mission): ~385 pytest-rule hygiene findings surfaced by 07-19/07-23 rule activation — consume as per-WP campsite, no children",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3184": {
+      "evidence_ref": "WP03/T018; WP08 closure (this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": null,
+      "scope": "stale regression-directory contents",
+      "source_file": "spec.md",
+      "title": "tests/regression/ still holds ~15 unmarked files that were never relocated when their defects were fixed",
+      "verdict": "fixed",
+      "wp": "WP03,WP08"
+    },
+    "#3283": {
+      "evidence_ref": "WP02/T007-T012; WP07 replay; WP08 closure (this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": null,
+      "scope": "shared test-venv bootstrap reliability",
+      "source_file": "spec.md",
+      "title": "pytest shared test-venv lock times out before editable install completes",
+      "verdict": "fixed",
+      "wp": "WP02,WP07,WP08"
+    },
+    "#3284": {
+      "evidence_ref": "WP01 exact base capture; WP06 adjudication; WP07 attribution; WP08 closure (this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": null,
+      "scope": "planning-base failure attribution",
+      "source_file": "spec.md",
+      "title": "main full suite has 23 untracked failures and 2 errors after bootstrap prewarm",
+      "verdict": "fixed",
+      "wp": "WP01,WP06,WP07,WP08"
+    }
+  },
+  "schema_version": 1
+}

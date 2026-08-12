@@ -35,7 +35,7 @@ import pytest
 # it installed. Without this guard, `from playwright.sync_api import ...` raises
 # `ModuleNotFoundError` at COLLECTION time, which fails the full-suite
 # `pytest --collect-only` the architectural gate tests
-# (tests/architectural/test_gate_coverage.py et al.) run to build their test
+# (tests/architectural/test_ci_collection_completeness.py et al.) run to build their test
 # universe — turning a missing optional dep into a hard RuntimeError across a
 # dozen unrelated gate tests. `importorskip` degrades that to a clean SKIP of
 # just this module; it is a no-op when playwright IS installed (CI's

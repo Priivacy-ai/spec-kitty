@@ -111,27 +111,6 @@ async def test_heartbeat_pong_omits_build_id_when_no_identity():
 
 
 @pytest.mark.asyncio
-async def test_connect_to_server():
-    """Placeholder for a live-server integration test.
-
-    Kept here as documentation of how WebSocketClient should behave
-    end-to-end once a running SaaS server is available to the test
-    harness. Always skipped; the client now fetches its ws bundle
-    from ``provision_ws_token`` internally.
-    """
-    pytest.skip("Integration test requires running server - use for manual testing")
-
-    client = WebSocketClient()
-    await client.connect()
-    assert client.connected
-    assert client.get_status() == ConnectionStatus.CONNECTED
-
-    await client.disconnect()
-    assert not client.connected
-    assert client.get_status() == ConnectionStatus.OFFLINE
-
-
-@pytest.mark.asyncio
 async def test_client_initialization():
     """WebSocket client can be constructed with no arguments."""
     client = WebSocketClient()

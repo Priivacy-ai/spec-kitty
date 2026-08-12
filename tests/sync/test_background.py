@@ -24,6 +24,14 @@ from specify_cli.sync.background import (
 from specify_cli.sync.queue import OfflineQueue
 
 
+@pytest.fixture(autouse=True)
+def _isolate_legacy_queue(
+    tmp_path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep lifecycle tests independent of a worker's earlier queue rows."""
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime-home"))
+
+
 @pytest.fixture
 def mock_queue(tmp_path) -> OfflineQueue:
     """Real queue with tmp_path database."""

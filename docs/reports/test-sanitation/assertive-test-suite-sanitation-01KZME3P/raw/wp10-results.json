@@ -1,0 +1,238 @@
+{
+  "schema_version": "test-sanitation-wp-results/v1",
+  "mission": "assertive-test-suite-sanitation-01KZME3P",
+  "work_package": "WP10",
+  "profile": "architect-alphonso",
+  "generated_at": "2026-08-10T15:24:52Z",
+  "planning_base": "28ae75ea998c898aba57364db7a06d2088bd2af2",
+  "implementation_head_before_commit": "bba822fc9cff352dcebf6aa46b7815b39e1dfa7c",
+  "environment": {
+    "platform": "Darwin 24.6.0 arm64",
+    "python": "3.11.15",
+    "pytest": "9.0.3",
+    "ruff": "0.15.12",
+    "mypy": "1.20.2",
+    "cache_provider": false
+  },
+  "census": {
+    "path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/base-census.json",
+    "source_worktree": "lane-a",
+    "sha256": "c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b",
+    "assigned_test_paths": 54,
+    "reconciled_test_paths": 54,
+    "unowned": [],
+    "planning_base_nodes": 841
+  },
+  "baseline": {
+    "command": ".venv/bin/pytest -q -p no:cacheprovider <54 owned test paths>",
+    "collection_command": ".venv/bin/pytest --collect-only -q -p no:cacheprovider <54 owned test paths>",
+    "collected_nodes": 841,
+    "collection_seconds": 44.54,
+    "wall_seconds": 410.57,
+    "pytest_summary": {
+      "passed_calls": 836,
+      "skipped": 3,
+      "xfailed": 2,
+      "teardown_errors": 1,
+      "exit_code": 1
+    },
+    "ordering_defect": {
+      "nodeid": "tests/sync/tracker/test_saas_client_consent_gate_3030.py::test_mission_creation_bind_transmits_for_a_consenting_project",
+      "fault": "test unconditionally reset a pre-existing process-global sync runtime during teardown",
+      "repair": "snapshot and preserve a pre-existing runtime; reset only when the test created it"
+    }
+  },
+  "head": {
+    "command": ".venv/bin/pytest -q -p no:cacheprovider <42 surviving owned test paths>",
+    "collection_command": ".venv/bin/pytest --collect-only -q -p no:cacheprovider <42 surviving owned test paths>",
+    "collected_nodes": 537,
+    "collection_seconds": 44.53,
+    "wall_seconds": 235.89,
+    "pytest_summary": {
+      "passed": 535,
+      "xfailed": 2,
+      "exit_code": 0
+    },
+    "live_test_files": 42,
+    "live_source_lines": 19101
+  },
+  "delta": {
+    "whole_files_deleted": 12,
+    "deleted_base_source_units": 70,
+    "deleted_base_nodes": 195,
+    "net_nodes_removed": 304,
+    "node_reduction_percent": 36.15,
+    "base_source_lines": 25531,
+    "source_lines_removed": 6430,
+    "source_line_reduction_percent": 25.19,
+    "diff_insertions": 199,
+    "diff_deletions": 6629,
+    "wall_time_reduction_seconds": 174.68,
+    "wall_time_reduction_percent": 42.55
+  },
+  "deleted_paths": [
+    "tests/architectural/test_all_declarations_required.py",
+    "tests/architectural/test_batch_split_single_authority.py",
+    "tests/architectural/test_compat_shims.py",
+    "tests/architectural/test_no_prompt_filtering_added.py",
+    "tests/architectural/test_patch_seam_census_control.py",
+    "tests/architectural/test_shared_module_object_patches.py",
+    "tests/architectural/test_wp_owned_files_no_kitty_specs.py",
+    "tests/architectural/test_wp_prompt_build_latency.py",
+    "tests/integration/test_cross_seam_consumers.py",
+    "tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py",
+    "tests/specify_cli/test_egress_consolidation_3110.py",
+    "tests/specify_cli/test_meta_reader_sweep.py"
+  ],
+  "controlled_fault_proofs": [
+    {
+      "family": "auth transport import boundary",
+      "control": "direct httpx constructor absent from non-authority subsystem",
+      "fault": "plant httpx.Client construction in walked source",
+      "act_reached": true,
+      "intended_oracle_failed": true
+    },
+    {
+      "family": "dossier-to-sync import boundary",
+      "control": "identity import remains green",
+      "fault": "plant from specify_cli.sync import consent",
+      "act_reached": true,
+      "intended_oracle_failed": true
+    },
+    {
+      "family": "doctrine applies-edge ban",
+      "control": "fragment and graph without applies remain green",
+      "fault": "plant an applies edge in a live-shaped fragment and loaded graph",
+      "act_reached": true,
+      "intended_oracle_failed": true
+    },
+    {
+      "family": "inert schema slot",
+      "control": "declared slot with a live producer remains green",
+      "fault": "declare a slot without a producer",
+      "act_reached": true,
+      "intended_oracle_failed": true
+    },
+    {
+      "family": "temporary path containment",
+      "control": "per-test tmp_path remains green",
+      "fault": "plant shared /tmp and common evasion-root literals",
+      "act_reached": true,
+      "intended_oracle_failed": true
+    },
+    {
+      "family": "GuardCapability flow boundary",
+      "control": "STANDARD capability produces no violation through the exact protected-flow enforcement callable",
+      "fault": "plant GuardCapability.TEST_MODE at a non-authority site",
+      "act_reached": true,
+      "intended_oracle_failed": true
+    },
+    {
+      "family": "read/write placement boundaries",
+      "control": "stored topology and declared artifact partitions resolve green",
+      "fault": "plant checkout-derived target, read-side leaf primitive, and pre-fix partition",
+      "act_reached": true,
+      "intended_oracle_failed": true
+    },
+    {
+      "family": "consent and untrusted-path boundaries",
+      "control": "consenting project transmits through an instrumented sink",
+      "fault": "deny or omit project consent and plant an undocumented untrusted sink",
+      "act_reached": true,
+      "intended_oracle_failed": true
+    }
+  ],
+  "validation": [
+    {
+      "command": ".venv/bin/pytest -q -p no:cacheprovider <42 surviving owned test paths>",
+      "outcome": "535 passed, 2 xfailed",
+      "exit_code": 0,
+      "wall_seconds": 235.89
+    },
+    {
+      "command": ".venv/bin/pytest --collect-only -q -p no:cacheprovider <42 surviving owned test paths>",
+      "outcome": "537 tests collected",
+      "exit_code": 0,
+      "wall_seconds": 44.53
+    },
+    {
+      "command": ".venv/bin/ruff check $(git diff --name-only --diff-filter=AM -- '*.py')",
+      "outcome": "All checks passed",
+      "exit_code": 0
+    },
+    {
+      "command": ".venv/bin/mypy --disable-error-code no-untyped-def $(git diff --name-only --diff-filter=AM -- '*.py')",
+      "outcome": "Success: no issues found in 12 source files",
+      "exit_code": 0,
+      "note": "Only imported architectural conftest fixtures trigger the repository's existing no-untyped-def diagnostics under the unsuppressed command."
+    },
+    {
+      "command": "git diff --check",
+      "outcome": "clean",
+      "exit_code": 0
+    }
+  ],
+  "cycle2_review_remediation": {
+    "probe_artifact": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp10-probes-cycle2.json",
+    "probe_artifact_sha256": "de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb",
+    "deep_keep_rows": 42,
+    "deleted_family_mappings": 12,
+    "selected_probe_execution": {
+      "command": ".venv/bin/pytest -q -p no:cacheprovider <42 exact selected probe nodes>",
+      "outcome": "55 passed in 50.36s",
+      "exit_code": 0
+    },
+    "live_oracle_execution": {
+      "command": ".venv/bin/pytest -q -p no:cacheprovider tests/architectural/test_guard_capability_call_sites.py tests/architectural/test_dossier_sync_boundary.py",
+      "outcome": "8 passed in 64.50s",
+      "exit_code": 0
+    },
+    "restored_green_execution": {
+      "command": ".venv/bin/pytest -q -p no:cacheprovider <42 exact surviving WP10 paths>",
+      "outcome": "535 passed, 2 xfailed in 261.21s",
+      "exit_code": 0
+    }
+  },
+  "cycle3_final_review_remediation": {
+    "scope": "evidence-only causal-family split; deletion patch unchanged",
+    "probe_artifact": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp10-probes-cycle2.json",
+    "probe_artifact_sha256": "de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb",
+    "heterogeneous_files_split": 3,
+    "deleted_family_mappings": 35,
+    "cross_seam_families": 10,
+    "wp03_bypass_families": 7,
+    "egress_families": 9,
+    "exact_node_delta_preserved": -304,
+    "production_files_changed": 0,
+    "deletion_expansion": 0,
+    "bounded_successor_execution": {
+      "command": ".venv/bin/pytest -q -p no:cacheprovider <24 exact current successor nodes/files>",
+      "outcome": "41 passed in 61.35s",
+      "exit_code": 0
+    },
+    "supplemental_successor_execution": {
+      "command": ".venv/bin/pytest -q -p no:cacheprovider tests/specify_cli/lanes/test_branch_naming_ssot_entrypoint.py::test_resolve_transaction_mid8_cascade_preserved tests/architectural/test_execution_context_parity.py::test_full_sequence_direct_to_target",
+      "outcome": "2 passed in 61.94s",
+      "exit_code": 0
+    },
+    "proof_contract": "Each amended DELETE row is one causal family with a single production path/authority/corpus/oracle/fault tuple, or records concrete docs/caller-search evidence for no current authority."
+  },
+  "integration_handoff": {
+    "central_map_edited": false,
+    "expected_arch_shard_map_removals": [
+      "tests/architectural/test_all_declarations_required.py",
+      "tests/architectural/test_compat_shims.py",
+      "tests/architectural/test_no_prompt_filtering_added.py",
+      "tests/architectural/test_patch_seam_census_control.py",
+      "tests/architectural/test_shared_module_object_patches.py",
+      "tests/architectural/test_wp_owned_files_no_kitty_specs.py",
+      "tests/architectural/test_wp_prompt_build_latency.py"
+    ],
+    "deleted_architectural_path_not_in_map": [
+      "tests/architectural/test_batch_split_single_authority.py"
+    ],
+    "downstream_owner": "WP07"
+  },
+  "production_files_changed": [],
+  "diff_sha256_before_artifacts": "eff68515e7a5ea2a10eb4599ac7f5e7dcdde8a402fa80d68b8d470015586deab"
+}

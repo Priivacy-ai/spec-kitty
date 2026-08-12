@@ -48,6 +48,10 @@ def find_free_port_in_range(start: int, end: int) -> int:
     """
     for port in range(start, end):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            # Match HTTPServer and the daemon-shaped test listeners. Without
+            # this, a recently released TIME_WAIT port is rejected by the
+            # probe even though the server can immediately and safely rebind it.
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
                 sock.bind(("127.0.0.1", port))
                 return port
@@ -67,6 +71,29 @@ def wait_until_listening(port: int, timeout_s: float = 10.0) -> bool:
             sock.settimeout(0.1)
             if sock.connect_ex(("127.0.0.1", port)) == 0:
                 return True
+        time.sleep(0.05)
+    return False
+
+
+def wait_until_healthy(
+    port: int, token: str, timeout_s: float = 10.0,
+) -> bool:
+    """Wait for a listener to publish its complete Spec Kitty identity."""
+    from specify_cli.sync.daemon import _fetch_health_payload
+
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        payload = _fetch_health_payload(
+            f"http://127.0.0.1:{port}/api/health",
+            timeout=0.5,
+        )
+        if (
+            isinstance(payload, dict)
+            and payload.get("token") == token
+            and payload.get("protocol_version") is not None
+            and payload.get("package_version") is not None
+        ):
+            return True
         time.sleep(0.05)
     return False
 
@@ -285,6 +312,13 @@ class DaemonHarness:
                 proc.wait(timeout=2.0)
             raise RuntimeError(
                 f"daemon on port {port} (version={version!r}) never started listening"
+            )
+        if not wait_until_healthy(port, token, timeout_s=10.0):
+            proc.terminate()
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                proc.wait(timeout=2.0)
+            raise RuntimeError(
+                f"daemon on port {port} (version={version!r}) never published health identity"
             )
 
         self._procs.append(proc)

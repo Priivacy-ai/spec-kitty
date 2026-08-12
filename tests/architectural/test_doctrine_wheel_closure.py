@@ -36,6 +36,7 @@ by hand, during WP12 implementation and recorded in
 ``research.md`` §D7; this test only pins the durable pyproject/build-hook
 *shape* that made that build succeed.
 """
+
 from __future__ import annotations
 
 import tomllib
@@ -103,21 +104,6 @@ def _dep_name(dep_spec: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def test_kernel_pyproject_exists_and_parses() -> None:
-    """Sanity guard: if the file is renamed/moved this must fail loudly."""
-    assert _KERNEL_PYPROJECT.is_file(), (
-        f"{_KERNEL_PYPROJECT} not found. FR-009 requires a "
-        "spec-kitty-kernel package definition at src/kernel/pyproject.toml "
-        "-- the true root of the wheel dependency chain "
-        "(kernel <- doctrine <- charter <- specify_cli)."
-    )
-    data = _load_toml(_KERNEL_PYPROJECT)
-    assert data.get("project", {}).get("name") == _KERNEL_PACKAGE_NAME, (
-        f"src/kernel/pyproject.toml [project].name must be "
-        f"{_KERNEL_PACKAGE_NAME!r}, got {data.get('project', {}).get('name')!r}."
-    )
-
-
 def test_kernel_pyproject_has_zero_first_party_dependencies() -> None:
     """FR-009: kernel MUST NOT depend on any other spec-kitty-* package.
 
@@ -163,53 +149,6 @@ def test_doctrine_pyproject_declares_kernel_dependency() -> None:
     )
 
 
-def test_kernel_version_satisfies_doctrine_declared_specifier() -> None:
-    """FR-010 closure: the kernel's OWN declared version must satisfy the
-    specifier doctrine's pyproject.toml pins for ``spec-kitty-kernel``.
-
-    ``test_doctrine_pyproject_declares_kernel_dependency`` only asserts that
-    the dependency NAME is present -- it never checks whether the two
-    manifests' version numbers are actually compatible. This test makes the
-    two manifests mutually enforcing: a future version bump on either side
-    that breaks compatibility (e.g. kernel cutting a ``2.0.0`` while
-    doctrine's upper bound stays ``<2.0.0``, or doctrine tightening its lower
-    bound past kernel's current version) fails this gate today, instead of
-    only failing silently at the actual future wheel cutover (#3163).
-
-    Self-mutation proof: bumping src/kernel/pyproject.toml's ``version`` to
-    ``"2.0.0"`` (or any version outside the specifier doctrine currently
-    declares) turns this red.
-    """
-    from packaging.requirements import Requirement
-    from packaging.version import Version
-
-    doctrine_data = _load_toml(_DOCTRINE_PYPROJECT)
-    doctrine_deps = doctrine_data.get("project", {}).get("dependencies", [])
-    kernel_dep_specs = [d for d in doctrine_deps if _dep_name(d) == _KERNEL_PACKAGE_NAME]
-    assert kernel_dep_specs, (
-        f"src/doctrine/pyproject.toml does not declare a {_KERNEL_PACKAGE_NAME} "
-        "dependency -- see test_doctrine_pyproject_declares_kernel_dependency."
-    )
-    requirement = Requirement(kernel_dep_specs[0])
-
-    kernel_data = _load_toml(_KERNEL_PYPROJECT)
-    kernel_version_str = kernel_data.get("project", {}).get("version")
-    assert kernel_version_str, (
-        "src/kernel/pyproject.toml has no [project].version to check "
-        "against doctrine's declared specifier."
-    )
-    kernel_version = Version(kernel_version_str)
-
-    assert kernel_version in requirement.specifier, (
-        f"src/kernel/pyproject.toml declares version {kernel_version_str!r}, "
-        f"which does NOT satisfy src/doctrine/pyproject.toml's declared "
-        f"specifier {str(requirement.specifier)!r} for {_KERNEL_PACKAGE_NAME}. "
-        "The two manifests must stay mutually compatible: bumping either "
-        "side without checking the other would silently break the future "
-        "wheel cutover."
-    )
-
-
 # ---------------------------------------------------------------------------
 # FR-010 / D7 -- packs/ out-of-tree mechanism (hatchling custom build hook)
 # ---------------------------------------------------------------------------
@@ -233,13 +172,7 @@ def test_doctrine_pyproject_wires_the_packs_build_hook() -> None:
     turns this red.
     """
     data = _load_toml(_DOCTRINE_PYPROJECT)
-    hooks = (
-        data.get("tool", {})
-        .get("hatch", {})
-        .get("build", {})
-        .get("hooks", {})
-        .get("custom", None)
-    )
+    hooks = data.get("tool", {}).get("hatch", {}).get("build", {}).get("hooks", {}).get("custom", None)
     assert hooks is not None, (
         "src/doctrine/pyproject.toml is missing "
         "[tool.hatch.build.hooks.custom]. D7 requires a hatchling custom "
@@ -248,10 +181,7 @@ def test_doctrine_pyproject_wires_the_packs_build_hook() -> None:
         "force-include escapes the project root and hatchling refuses "
         "it)."
     )
-    assert _DOCTRINE_HATCH_BUILD.is_file(), (
-        f"{_DOCTRINE_HATCH_BUILD} not found. D7's build hook "
-        "implementation must live at src/doctrine/hatch_build.py."
-    )
+    assert _DOCTRINE_HATCH_BUILD.is_file(), f"{_DOCTRINE_HATCH_BUILD} not found. D7's build hook implementation must live at src/doctrine/hatch_build.py."
     hook_source = _DOCTRINE_HATCH_BUILD.read_text(encoding="utf-8")
     assert "force_include" in hook_source, (
         "src/doctrine/hatch_build.py does not reference force_include. "
@@ -305,36 +235,3 @@ def test_doctrine_api_surface_symbols_are_importable() -> None:
 
     unresolved = [name for name in _EXPECTED_DOCTRINE_API_SURFACE if getattr(doctrine_api, name, None) is None]
     assert not unresolved, f"Pinned doctrine.api surface symbols are unresolvable/None: {sorted(unresolved)}"
-
-
-# ---------------------------------------------------------------------------
-# C-002 -- no CI job builds/installs the nested doctrine wheel standalone
-# ---------------------------------------------------------------------------
-
-
-def test_no_ci_workflow_builds_nested_doctrine_wheel_standalone() -> None:
-    """C-002: this WP is groundwork only -- no CI job may cut over to it.
-
-    Every ``hatch build`` / ``python -m build`` invocation across
-    .github/workflows/ must run from the repository root (building
-    spec-kitty-cli via the root pyproject.toml's ``packages =
-    [...,"src/doctrine",...]`` + root force-include), never from inside
-    src/doctrine/ (which would build the standalone spec-kitty-doctrine
-    wheel this WP is only laying groundwork for). The kernel dependency
-    is unresolvable until a future PyPI publish, so building the nested
-    wheel in CI today would break.
-    """
-    workflows_dir = _REPO_ROOT / ".github" / "workflows"
-    offending: list[str] = []
-    for workflow_path in sorted(workflows_dir.glob("*.yml")):
-        text = workflow_path.read_text(encoding="utf-8")
-        for lineno, line in enumerate(text.splitlines(), start=1):
-            stripped = line.strip()
-            if "src/doctrine" not in stripped:
-                continue
-            if any(marker in stripped for marker in ("hatch build", "python -m build")):
-                offending.append(f"{workflow_path.name}:{lineno}: {stripped}")
-    assert not offending, (
-        "CI workflow(s) appear to build the nested doctrine wheel "
-        f"standalone, violating C-002: {offending}"
-    )

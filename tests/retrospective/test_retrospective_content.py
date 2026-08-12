@@ -195,23 +195,6 @@ class TestWorkflowFailuresIngestor:
 class TestAnalysisAndReviewIngestors:
     """T037: analysis-report.md and mission-review-report.md produce findings."""
 
-    def test_analysis_report_absent_is_noop(self) -> None:
-        """None analysis text → no finding."""
-        counters: dict = {}
-        ev_reg = _EvidenceRegistry()
-        helped, not_helpful, _gaps = _build_ingestor_findings(
-            workflow_failures_text=None,
-            analysis_report_text=None,
-            review_report_text=None,
-            workflow_failures_rel="kitty-specs/test/workflow-failures-log.md",
-            analysis_report_rel="kitty-specs/test/analysis-report.md",
-            review_report_rel="kitty-specs/test/mission-review-report.md",
-            finding_id_counters=counters,
-            ev_reg=ev_reg,
-        )
-        assert helped == []
-        assert not_helpful == []
-
     def test_analysis_report_present_produces_not_helpful_finding(self) -> None:
         """Non-None analysis text → not_helpful finding with category 'doc'."""
         counters: dict = {}

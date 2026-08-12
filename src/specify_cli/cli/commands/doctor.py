@@ -1369,8 +1369,7 @@ def review_cycle_reconcile(
     """Find review-cycle / arbiter-override records stranded under a retired
     resolver path, ahead of WP13's consumer-unification (FR-008).
 
-    Every retired resolver comes from this mission's own verdict-seam census
-    fragment (``tests/architectural/census/verdict_seam_IC08.yaml``), not a
+    Every retired resolver comes from WP08's reviewed retirement set, not a
     guessed set. Reports two DISTINCT stranded classes per finding: a
     deleted-coordination-branch mission (absorbed to PRIMARY, the measured
     45-mission corpus) and a live-coordination-branch mission still carrying a

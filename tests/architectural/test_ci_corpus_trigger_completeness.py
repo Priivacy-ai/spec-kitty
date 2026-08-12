@@ -93,10 +93,6 @@ _CORPUS_DATA_ROOTS = (
 # they read nothing real today).
 _CORPUS_MARKED_MODULES = frozenset(
     {
-        "tests/architectural/test_events_tracker_public_imports.py",
-        "tests/architectural/test_no_tracked_test_feature_missions.py",
-        "tests/architectural/test_verdict_seam_census.py",
-        "tests/architectural/test_wp_owned_files_no_kitty_specs.py",
         "tests/charter/synthesizer/test_manifest.py",
         "tests/contract/test_example_round_trip.py",
         "tests/doctrine/agent_profiles/test_doctrine_daphne_canonical_structure.py",

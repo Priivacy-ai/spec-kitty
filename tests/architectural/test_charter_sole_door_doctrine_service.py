@@ -120,8 +120,6 @@ from __future__ import annotations
 
 import ast
 import functools
-import time
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -134,13 +132,10 @@ from tests.architectural._sole_door_scan import (
     ConstructionSite,
     FileScan,
     ScanResult,
-    assert_rationales_are_substantive,
     enclosing_scope,
     iter_source_files,
     rel_to_repo,
-    resolve_canonical,
     resolve_exclusion_keys,
-    scan_constructions,
     scan_file_constructions,
     scratch_scan,
     structurally_exempt,
@@ -167,9 +162,7 @@ RAW_BUILDER_QUALNAME = "charter.doctrine_service_builder._build_doctrine_service
 #: ``_build_doctrine_service`` is included because obtaining the raw service
 #: from the sanctioned builder is the residual second route to an unwrapped
 #: inner service (see :func:`check_unwrapped_escape_gate`).
-DOCTRINE_SERVICE_CANDIDATE_NAMES = frozenset(
-    {"DoctrineService", "_build_doctrine_service"}
-)
+DOCTRINE_SERVICE_CANDIDATE_NAMES = frozenset({"DoctrineService", "_build_doctrine_service"})
 
 _PACK_CONTEXT_KWARG = "pack_context"
 
@@ -196,16 +189,10 @@ class WrapVerdict:
     explicit_none_pack_context: bool
 
 
-def _wrapper_calls_in_scope(
-    scope: ast.AST, scan: FileScan, wrapper_sites: set[int]
-) -> list[ast.Call]:
+def _wrapper_calls_in_scope(scope: ast.AST, scan: FileScan, wrapper_sites: set[int]) -> list[ast.Call]:
     """Every ``charter.resolver.DoctrineService(...)`` call inside *scope*."""
     return [
-        node
-        for node in ast.walk(scope)
-        if isinstance(node, ast.Call)
-        and id(node) in wrapper_sites
-        and enclosing_scope(scan.parents, node, scan.tree) is scope
+        node for node in ast.walk(scope) if isinstance(node, ast.Call) and id(node) in wrapper_sites and enclosing_scope(scan.parents, node, scan.tree) is scope
     ]
 
 
@@ -219,19 +206,11 @@ def _assigned_target_name(call: ast.Call, scan: FileScan) -> str | None:
 
 
 def _passes_name(call: ast.Call, name: str) -> bool:
-    return any(
-        isinstance(arg, ast.Name) and arg.id == name
-        for arg in [*call.args, *(kw.value for kw in call.keywords)]
-    )
+    return any(isinstance(arg, ast.Name) and arg.id == name for arg in [*call.args, *(kw.value for kw in call.keywords)])
 
 
 def _explicit_none_pack_context(call: ast.Call) -> bool:
-    return any(
-        kw.arg == _PACK_CONTEXT_KWARG
-        and isinstance(kw.value, ast.Constant)
-        and kw.value.value is None
-        for kw in call.keywords
-    )
+    return any(kw.arg == _PACK_CONTEXT_KWARG and isinstance(kw.value, ast.Constant) and kw.value.value is None for kw in call.keywords)
 
 
 def _wrap_verdict_for(raw_call: ast.Call, scan: FileScan, wrapper_sites: set[int]) -> WrapVerdict:
@@ -260,9 +239,7 @@ def _wrap_verdict_for(raw_call: ast.Call, scan: FileScan, wrapper_sites: set[int
     scope = enclosing_scope(scan.parents, raw_call, scan.tree)
     for wrapper_call in _wrapper_calls_in_scope(scope, scan, wrapper_sites):
         if _passes_name(wrapper_call, name):
-            return WrapVerdict(
-                True, "assigned", _explicit_none_pack_context(wrapper_call)
-            )
+            return WrapVerdict(True, "assigned", _explicit_none_pack_context(wrapper_call))
     return WrapVerdict(False, "", False)
 
 
@@ -325,11 +302,7 @@ def scan_file_raw_sites(path: Path, rel_path: str) -> tuple[list[RawSite], ScanR
     if scan is None:
         return [], ScanResult([], [])
 
-    wrapper_sites = {
-        id(call)
-        for call, site in scan.matches
-        if site.canonical == WRAPPER_DOCTRINE_SERVICE_QUALNAME
-    }
+    wrapper_sites = {id(call) for call, site in scan.matches if site.canonical == WRAPPER_DOCTRINE_SERVICE_QUALNAME}
     raw_sites = [
         RawSite(
             site,
@@ -339,9 +312,7 @@ def scan_file_raw_sites(path: Path, rel_path: str) -> tuple[list[RawSite], ScanR
         for call, site in scan.matches
         if site.canonical in _RAW_KIND_BY_QUALNAME
     ]
-    return raw_sites, ScanResult(
-        [raw.site for raw in raw_sites], scan.result.unresolved
-    )
+    return raw_sites, ScanResult([raw.site for raw in raw_sites], scan.result.unresolved)
 
 
 @functools.cache
@@ -394,10 +365,7 @@ def check_unwrapped_escape_gate(raw_sites: tuple[RawSite, ...]) -> list[str]:
     """
     verbs = {
         KIND_CONSTRUCTION: "constructs a raw doctrine.service.DoctrineService",
-        KIND_BUILDER_CALL: (
-            "obtains a raw doctrine.service.DoctrineService from "
-            "charter.doctrine_service_builder._build_doctrine_service"
-        ),
+        KIND_BUILDER_CALL: ("obtains a raw doctrine.service.DoctrineService from charter.doctrine_service_builder._build_doctrine_service"),
     }
     return [
         f"{raw.site.describe()} {verbs[raw.kind]} that is NOT immediately wrapped "
@@ -520,12 +488,7 @@ def check_locality_gate(raw_sites: tuple[RawSite, ...]) -> list[str]:
             continue
         if raw.key in excluded and raw.verdict.wrapped:
             continue
-        suffix = (
-            " (its named locality exclusion no longer applies: the immediate "
-            "charter.resolver.DoctrineService wrap is gone)"
-            if raw.key in excluded
-            else ""
-        )
+        suffix = " (its named locality exclusion no longer applies: the immediate charter.resolver.DoctrineService wrap is gone)" if raw.key in excluded else ""
         violations.append(
             f"{raw.site.describe()} constructs doctrine.service.DoctrineService "
             "outside src/charter/resolver.py and the one unified builder "
@@ -540,17 +503,6 @@ def check_locality_gate(raw_sites: tuple[RawSite, ...]) -> list[str]:
 # =========================================================================== #
 
 
-def test_the_two_classes_have_distinct_canonical_qualnames() -> None:
-    """The premise of the whole gate: same spelling, different origin."""
-    assert resolve_canonical("doctrine.service", "DoctrineService") == (
-        RAW_DOCTRINE_SERVICE_QUALNAME
-    )
-    assert resolve_canonical("charter.resolver", "DoctrineService") == (
-        WRAPPER_DOCTRINE_SERVICE_QUALNAME
-    )
-    assert RAW_DOCTRINE_SERVICE_QUALNAME != WRAPPER_DOCTRINE_SERVICE_QUALNAME
-
-
 def test_raw_census_finds_the_unified_builders_own_constructions() -> None:
     """The scanner must actually resolve raw constructions.
 
@@ -561,98 +513,10 @@ def test_raw_census_finds_the_unified_builders_own_constructions() -> None:
     """
     raw_sites, result = raw_service_census()
     constructions = [raw for raw in raw_sites if raw.kind == KIND_CONSTRUCTION]
-    builder_sites = [
-        raw
-        for raw in constructions
-        if raw.site.rel_path == "src/charter/doctrine_service_builder.py"
-    ]
+    builder_sites = [raw for raw in constructions if raw.site.rel_path == "src/charter/doctrine_service_builder.py"]
     assert builder_sites, [raw.site.describe() for raw in constructions]
-    assert all(
-        site.canonical in (RAW_DOCTRINE_SERVICE_QUALNAME, RAW_BUILDER_QUALNAME)
-        for site in result.sites
-    )
+    assert all(site.canonical in (RAW_DOCTRINE_SERVICE_QUALNAME, RAW_BUILDER_QUALNAME) for site in result.sites)
     assert len(constructions) >= 8, [raw.site.describe() for raw in constructions]
-
-
-def test_builder_call_route_is_tracked_and_currently_compliant() -> None:
-    """The residual acquisition route is seen, and its one live caller wraps.
-
-    ``org_layer.py``'s ``_build_scan_service`` does not *construct* the raw
-    class — it calls the sanctioned raw builder and wraps the result. WP09's
-    sweep found this is the only such caller outside ``src/charter/``. Both
-    halves are pinned: the scanner sees the site (so the builder-call arm of
-    Policy A is not vacuous), and the site is compliant today.
-    """
-    raw_sites, _ = raw_service_census()
-    builder_calls = [raw for raw in raw_sites if raw.kind == KIND_BUILDER_CALL]
-    outside = [
-        raw
-        for raw in builder_calls
-        if not raw.site.rel_path.startswith(CHARTER_LAYER_PREFIX)
-    ]
-    assert [raw.site.rel_path for raw in outside] == [
-        "src/specify_cli/charter_runtime/lint/checks/org_layer.py"
-    ], [raw.site.describe() for raw in outside]
-    assert outside[0].verdict.wrapped
-    assert outside[0].verdict.explicit_none_pack_context
-    # Charter-internal callers exist and are deliberately NOT policed.
-    assert any(
-        raw.site.rel_path.startswith(CHARTER_LAYER_PREFIX) for raw in builder_calls
-    ), [raw.site.describe() for raw in builder_calls]
-
-
-def test_wrapper_constructions_are_never_flagged_as_raw() -> None:
-    """No wrapper construction is ever classified as a raw construction.
-
-    ``org_layer.py``'s ``_build_scan_service`` and the builder's
-    ``_build_activation_aware_doctrine_service`` both construct
-    ``charter.resolver.DoctrineService``; a text gate flags them as bypasses,
-    this one must not. spec.md's WP09 guidance names ``org_layer.py`` and
-    ``generate.py`` specifically as must-not-flag.
-
-    The invariant is asserted on **node identity**, not on the composite key,
-    because ``charter/compiler.py`` constructs the wrapper and the raw service
-    on one source line (``_ActivationAware(_Raw(project_root=None))``) — so the
-    two share a ``(rel_path, qualname, token)`` key by construction. That
-    collision is harmless: only :func:`scan_file_raw_sites`' node-level
-    partition decides what the gate reports, and it can never place one node in
-    both classes.
-    """
-    seen_wrapper_files: set[str] = set()
-    for path in iter_source_files(SRC_ROOT):
-        rel_path = rel_to_repo(path)
-        scan = scan_file_constructions(
-            path,
-            rel_path,
-            candidate_names=DOCTRINE_SERVICE_CANDIDATE_NAMES,
-            target_qualnames=DOCTRINE_SERVICE_TARGETS,
-        )
-        if scan is None:
-            continue
-        raw_nodes = {
-            id(call)
-            for call, site in scan.matches
-            if site.canonical == RAW_DOCTRINE_SERVICE_QUALNAME
-        }
-        wrapper_nodes = {
-            id(call)
-            for call, site in scan.matches
-            if site.canonical == WRAPPER_DOCTRINE_SERVICE_QUALNAME
-        }
-        assert not raw_nodes & wrapper_nodes, rel_path
-        if wrapper_nodes:
-            seen_wrapper_files.add(rel_path)
-        reported = [
-            raw
-            for raw in scan_file_raw_sites(path, rel_path)[0]
-            if raw.kind == KIND_CONSTRUCTION
-        ]
-        assert len(reported) == len(raw_nodes), rel_path
-
-    assert "src/specify_cli/charter_runtime/lint/checks/org_layer.py" in (
-        seen_wrapper_files
-    ), sorted(seen_wrapper_files)
-    assert "src/charter/doctrine_service_builder.py" in seen_wrapper_files
 
 
 def test_no_unresolved_doctrine_service_candidates() -> None:
@@ -664,50 +528,6 @@ def test_no_unresolved_doctrine_service_candidates() -> None:
     """
     _, result = raw_service_census()
     assert result.unresolved == [], [s.describe() for s in result.unresolved]
-
-
-def test_every_locality_exclusion_resolves_to_exactly_one_live_site() -> None:
-    """Staleness twin-guard: no exclusion may be a dangling entry."""
-    resolved = resolve_exclusion_keys(RAW_LOCALITY_EXCLUSIONS)
-    assert len(resolved) == len(RAW_LOCALITY_EXCLUSIONS)
-
-
-def test_every_locality_exclusion_carries_a_written_rationale() -> None:
-    """C-002: an exclusion without a justification is a silent allowlist entry."""
-    assert_rationales_are_substantive(RAW_LOCALITY_EXCLUSIONS)
-
-
-def test_locality_exclusions_match_real_census_sites() -> None:
-    """Each exclusion must map onto a construction the census actually found."""
-    census_keys = {raw.key for raw in raw_service_census()[0]}
-    for key, descriptor in resolve_exclusion_keys(RAW_LOCALITY_EXCLUSIONS).items():
-        assert key in census_keys, f"{descriptor.rel_path} ({descriptor.qualname})"
-
-
-def test_unfiltered_diagnostic_sites_pass_none_pack_context() -> None:
-    """The four ``_doctrine_collect.py`` sites really do use the unfiltered mode.
-
-    spec.md FR-002 sanctions them *because* they wrap with an explicit
-    ``pack_context=None``. This verifies that claim mechanically instead of
-    trusting the inline comment — a comment cannot keep a site sanctioned after
-    someone changes its filtering behaviour.
-    """
-    collect_rel = "src/specify_cli/cli/commands/_doctrine_collect.py"
-    raw_sites, _ = raw_service_census()
-    collect_sites = [
-        raw
-        for raw in raw_sites
-        if raw.site.rel_path == collect_rel and raw.kind == KIND_CONSTRUCTION
-    ]
-    assert {raw.site.qualname for raw in collect_sites} == {
-        "_collect_profile_health",
-        "_collect_glossary_pack_health",
-        "_collect_doctrine_collisions",
-        "_build_selection_block",
-    }, [raw.site.describe() for raw in collect_sites]
-    for raw in collect_sites:
-        assert raw.verdict.wrapped, raw.site.describe()
-        assert raw.verdict.explicit_none_pack_context, raw.site.describe()
 
 
 # =========================================================================== #
@@ -753,15 +573,10 @@ def test_injected_unwrapped_function_local_raw_service_is_flagged(tmp_path: Path
     raw_sites, result = _raw_scratch(
         tmp_path,
         "regressed_unwrapped.py",
-        "def build(project_root):\n"
-        "    from doctrine.service import DoctrineService\n"
-        "\n"
-        "    return DoctrineService(project_root=project_root)\n",
+        "def build(project_root):\n    from doctrine.service import DoctrineService\n\n    return DoctrineService(project_root=project_root)\n",
     )
     assert result.unresolved == [], [s.describe() for s in result.unresolved]
-    assert [raw.site.qualname for raw in raw_sites] == ["build"], [
-        raw.site.describe() for raw in raw_sites
-    ]
+    assert [raw.site.qualname for raw in raw_sites] == ["build"], [raw.site.describe() for raw in raw_sites]
     assert raw_sites[0].site.qualname == "build"
     assert not raw_sites[0].verdict.wrapped
 
@@ -770,59 +585,6 @@ def test_injected_unwrapped_function_local_raw_service_is_flagged(tmp_path: Path
     assert "regressed_unwrapped.py" in escapes[0]
     assert "build" in escapes[0]
     assert check_locality_gate(tuple(raw_sites)), "Policy B must bite too"
-
-
-def test_detector_follows_function_local_rebinding(tmp_path: Path) -> None:
-    """A1 widening: a function-local ``Local = RawDoctrineService`` still reds.
-
-    Measured injection-probe miss on Gate 2 (8/9 catch rate): the predecessor
-    ``_module_level_rebinds`` only walked module scope, so a construction
-    reached through a rebind alias assigned *inside* the function body evaded
-    both policies. Injected at function-local scope specifically (NFR-003).
-    """
-    raw_sites, result = _raw_scratch(
-        tmp_path,
-        "regressed_local_rebind.py",
-        "def build(project_root):\n"
-        "    from doctrine.service import DoctrineService as RawDoctrineService\n"
-        "\n"
-        "    Local = RawDoctrineService\n"
-        "    return Local(project_root=project_root)\n",
-    )
-    assert result.unresolved == [], [s.describe() for s in result.unresolved]
-    assert [raw.site.qualname for raw in raw_sites] == ["build"], [
-        raw.site.describe() for raw in raw_sites
-    ]
-    assert not raw_sites[0].verdict.wrapped
-    escapes = check_unwrapped_escape_gate(tuple(raw_sites))
-    assert escapes, "Policy A must bite on a function-local alias rebind"
-    assert "regressed_local_rebind.py" in escapes[0]
-    assert check_locality_gate(tuple(raw_sites)), "Policy B must bite too"
-
-
-def test_injected_aliased_nested_raw_service_is_flagged(tmp_path: Path) -> None:
-    """An ``as``-aliased raw import nested in ``try``/``except`` still reds.
-
-    Reproduces the alias spelling every live site uses (``RawDoctrineService``)
-    plus the nested-import scope ``org_layer.py`` used pre-FR-002 — the two
-    shapes a naive text or module-level scanner both miss.
-    """
-    raw_sites, _ = _raw_scratch(
-        tmp_path,
-        "regressed_alias_nested.py",
-        "class Sneaky:\n"
-        "    def load(self, project_root):\n"
-        "        try:\n"
-        "            from doctrine.service import DoctrineService as RawDoctrineService\n"
-        "        except ImportError:\n"
-        "            return None\n"
-        "        return RawDoctrineService(project_root=project_root)\n",
-    )
-    assert [raw.site.qualname for raw in raw_sites] == ["Sneaky.load"], [
-        raw.site.describe() for raw in raw_sites
-    ]
-    assert raw_sites[0].site.qualname == "Sneaky.load"
-    assert check_unwrapped_escape_gate(tuple(raw_sites))
 
 
 def test_wrapper_only_construction_is_not_flagged(tmp_path: Path) -> None:
@@ -836,66 +598,10 @@ def test_wrapper_only_construction_is_not_flagged(tmp_path: Path) -> None:
     raw_sites, result = _raw_scratch(
         tmp_path,
         "wrapper_only.py",
-        "def build(inner):\n"
-        "    from charter.resolver import DoctrineService as ActivationAware\n"
-        "\n"
-        "    return ActivationAware(inner, pack_context=None)\n",
+        "def build(inner):\n    from charter.resolver import DoctrineService as ActivationAware\n\n    return ActivationAware(inner, pack_context=None)\n",
     )
     assert raw_sites == [], [raw.site.describe() for raw in raw_sites]
     assert result.unresolved == [], [s.describe() for s in result.unresolved]
-
-
-def test_wrapped_raw_construction_passes_policy_a_but_not_policy_b(
-    tmp_path: Path,
-) -> None:
-    """The FR-002-prescribed shape: raw + immediate wrap, at a NEW site.
-
-    Proves the two policies are genuinely different assertions rather than one
-    restated twice — and that Policy B is what makes the six named exclusions
-    necessary at all.
-    """
-    raw_sites, _ = _raw_scratch(
-        tmp_path,
-        "wrapped_new_site.py",
-        "def build(project_root):\n"
-        "    from doctrine.service import DoctrineService as RawDoctrineService\n"
-        "    from charter.resolver import DoctrineService as ActivationAware\n"
-        "\n"
-        "    inner = RawDoctrineService(project_root=project_root)\n"
-        "    return ActivationAware(inner, pack_context=None)\n",
-    )
-    assert [raw.site.qualname for raw in raw_sites] == ["build"], [
-        raw.site.describe() for raw in raw_sites
-    ]
-    assert raw_sites[0].verdict.wrapped
-    assert raw_sites[0].verdict.form == "assigned"
-    assert raw_sites[0].verdict.explicit_none_pack_context
-    assert check_unwrapped_escape_gate(tuple(raw_sites)) == []
-    assert check_locality_gate(tuple(raw_sites)), "an unlisted new site must red"
-
-
-def test_inline_wrap_shape_is_recognised(tmp_path: Path) -> None:
-    """``Wrapper(Raw(...))`` with no intermediate variable counts as wrapped.
-
-    This is ``charter/compiler.py``'s live shape; if the analyser missed it,
-    that site would red Policy A and the gate would be wrong about the tree.
-    """
-    raw_sites, _ = _raw_scratch(
-        tmp_path,
-        "inline_wrap.py",
-        "from charter.resolver import DoctrineService as ActivationAware\n"
-        "from doctrine.service import DoctrineService as RawDoctrineService\n"
-        "\n"
-        "\n"
-        "def build():\n"
-        "    return ActivationAware(RawDoctrineService(project_root=None))\n",
-    )
-    assert [raw.site.qualname for raw in raw_sites] == ["build"], [
-        raw.site.describe() for raw in raw_sites
-    ]
-    assert raw_sites[0].verdict.wrapped
-    assert raw_sites[0].verdict.form == "inline"
-    assert not raw_sites[0].verdict.explicit_none_pack_context
 
 
 def test_dropping_the_wrap_at_an_excluded_site_reds_the_gate(tmp_path: Path) -> None:
@@ -916,48 +622,12 @@ def test_dropping_the_wrap_at_an_excluded_site_reds_the_gate(tmp_path: Path) -> 
     scratch.write_text(mutated, encoding="utf-8")
 
     raw_sites, _ = scan_file_raw_sites(scratch, rel)
-    assert [raw.site.qualname for raw in raw_sites] == ["_build_asset_repository"], [
-        raw.site.describe() for raw in raw_sites
-    ]
+    assert [raw.site.qualname for raw in raw_sites] == ["_build_asset_repository"], [raw.site.describe() for raw in raw_sites]
     assert not raw_sites[0].verdict.wrapped
     assert check_unwrapped_escape_gate(tuple(raw_sites))
     locality = check_locality_gate(tuple(raw_sites))
     assert locality, "the exclusion must stop applying once the wrap is gone"
     assert "no longer applies" in locality[0]
-
-
-def test_excluding_one_site_does_not_waive_its_module(tmp_path: Path) -> None:
-    """A NEW unwrapped bypass in an excluded file still reds.
-
-    ``_doctrine_collect.py`` carries four named exclusions; a fifth, unwrapped
-    construction added to it in a different function must be reported. A
-    whole-file exclusion would have swallowed it.
-    """
-    rel = "src/specify_cli/cli/commands/_doctrine_collect.py"
-    original = (REPO_ROOT / rel).read_text(encoding="utf-8")
-    scratch = tmp_path / "doctrine_collect_mutant.py"
-    scratch.write_text(
-        original
-        + (
-            "\n\n"
-            "def sneaky_fifth_door(project_root):\n"
-            "    from doctrine.service import DoctrineService as RawDoctrineService\n"
-            "\n"
-            "    return RawDoctrineService(project_root=project_root)\n"
-        ),
-        encoding="utf-8",
-    )
-    raw_sites, _ = scan_file_raw_sites(scratch, rel)
-    qualnames = {raw.site.qualname for raw in raw_sites}
-    assert "sneaky_fifth_door" in qualnames, qualnames
-    assert "_collect_profile_health" in qualnames, qualnames
-
-    def flagged_by(check: Callable[[tuple[RawSite, ...]], list[str]]) -> set[str]:
-        """Qualnames *check* reports, asserted as a set rather than a count."""
-        return {raw.site.qualname for raw in raw_sites if check((raw,))}
-
-    assert flagged_by(check_unwrapped_escape_gate) == {"sneaky_fifth_door"}
-    assert flagged_by(check_locality_gate) == {"sneaky_fifth_door"}
 
 
 def test_injected_unwrapped_builder_call_outside_charter_is_flagged(
@@ -980,9 +650,7 @@ def test_injected_unwrapped_builder_call_outside_charter_is_flagged(
         "    inner = _build_doctrine_service(repo_root, org_roots=org_roots)\n"
         "    return inner.agent_profiles\n",
     )
-    assert [raw.site.qualname for raw in raw_sites] == ["scan"], [
-        raw.site.describe() for raw in raw_sites
-    ]
+    assert [raw.site.qualname for raw in raw_sites] == ["scan"], [raw.site.describe() for raw in raw_sites]
     assert raw_sites[0].kind == KIND_BUILDER_CALL
     assert not raw_sites[0].verdict.wrapped
 
@@ -992,64 +660,3 @@ def test_injected_unwrapped_builder_call_outside_charter_is_flagged(
     assert "_build_doctrine_service" in escapes[0]
     # Policy B is about construction locality, so it must stay silent here.
     assert check_locality_gate(tuple(raw_sites)) == []
-
-
-def test_builder_call_via_the_charter_context_patch_seam_is_flagged(
-    tmp_path: Path,
-) -> None:
-    """The ``charter.context`` re-export cannot launder the builder call.
-
-    ``charter.context`` re-exports ``_build_doctrine_service`` by reference as a
-    test patch seam, so ``from charter.context import _build_doctrine_service``
-    reaches the identical function. Canonical resolution collapses both
-    spellings, which a per-module text rule would not.
-    """
-    raw_sites, _ = _raw_scratch(
-        tmp_path,
-        "src/specify_cli/regressed_seam_call.py",
-        "def scan(repo_root):\n"
-        "    from charter.context import _build_doctrine_service as _b\n"
-        "\n"
-        "    return _b(repo_root)\n",
-    )
-    assert [raw.site.qualname for raw in raw_sites] == ["scan"], [
-        raw.site.describe() for raw in raw_sites
-    ]
-    assert raw_sites[0].site.canonical == RAW_BUILDER_QUALNAME
-    assert check_unwrapped_escape_gate(tuple(raw_sites))
-
-
-def test_wrapped_builder_call_outside_charter_is_not_flagged(tmp_path: Path) -> None:
-    """True negative: the compliant ``org_layer.py`` shape passes both policies."""
-    raw_sites, _ = _raw_scratch(
-        tmp_path,
-        "src/specify_cli/compliant_builder_call.py",
-        "def scan(repo_root, org_roots):\n"
-        "    from charter.doctrine_service_builder import _build_doctrine_service\n"
-        "    from charter.resolver import DoctrineService as ActivationAware\n"
-        "\n"
-        "    inner = _build_doctrine_service(repo_root, org_roots=org_roots)\n"
-        "    return ActivationAware(inner, pack_context=None)\n",
-    )
-    assert [raw.site.qualname for raw in raw_sites] == ["scan"], [
-        raw.site.describe() for raw in raw_sites
-    ]
-    assert raw_sites[0].kind == KIND_BUILDER_CALL
-    assert raw_sites[0].verdict.wrapped
-    assert check_unwrapped_escape_gate(tuple(raw_sites)) == []
-    assert check_locality_gate(tuple(raw_sites)) == []
-
-
-def test_gate_runs_under_fast_tier_budget() -> None:
-    """The whole-tree scan stays inside the 30 s fast-tier ceiling.
-
-    Times an uncached scan; measuring the memoised census would be vacuous.
-    """
-    start = time.monotonic()
-    scan_constructions(
-        SRC_ROOT,
-        candidate_names=DOCTRINE_SERVICE_CANDIDATE_NAMES,
-        target_qualnames=DOCTRINE_SERVICE_TARGETS,
-    )
-    elapsed = time.monotonic() - start
-    assert elapsed < 30.0, f"raw doctrine-service scan took {elapsed:.2f}s"

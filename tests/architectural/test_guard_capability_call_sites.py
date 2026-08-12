@@ -81,12 +81,14 @@ _PROTECTED_FLOW_ALLOWLISTS: dict[str, frozenset[str]] = {
 }
 
 
-def _iter_src_python_files() -> list[Path]:
-    return sorted(p for p in _SRC_ROOT.rglob("*.py") if "__pycache__" not in p.parts)
+def _iter_src_python_files(repo_root: Path = _REPO_ROOT) -> list[Path]:
+    return sorted(
+        p for p in (repo_root / "src").rglob("*.py") if "__pycache__" not in p.parts
+    )
 
 
-def _rel(path: Path) -> str:
-    return path.relative_to(_REPO_ROOT).as_posix()
+def _rel(path: Path, repo_root: Path = _REPO_ROOT) -> str:
+    return path.relative_to(repo_root).as_posix()
 
 
 def _guard_capability_members_referenced(path: Path) -> set[str]:
@@ -103,6 +105,32 @@ def _guard_capability_members_referenced(path: Path) -> set[str]:
     return members
 
 
+def _unexpected_protected_flow_sites(
+    repo_root: Path, member: str, allowlist: frozenset[str]
+) -> set[str]:
+    """Run the live protected-flow enforcement oracle for one capability."""
+    actual = {
+        _rel(path, repo_root)
+        for path in _iter_src_python_files(repo_root)
+        if member in _guard_capability_members_referenced(path)
+    }
+    return actual - allowlist
+
+
+def test_guard_capability_enforcement_has_two_sided_fault_bite(tmp_path: Path) -> None:
+    probe = tmp_path / "src" / "probe.py"
+    probe.parent.mkdir()
+    probe.write_text("capability = GuardCapability.STANDARD\n", encoding="utf-8")
+    assert _unexpected_protected_flow_sites(
+        tmp_path, "TEST_MODE", frozenset()
+    ) == set()
+
+    probe.write_text("capability = GuardCapability.TEST_MODE\n", encoding="utf-8")
+    assert _unexpected_protected_flow_sites(
+        tmp_path, "TEST_MODE", frozenset()
+    ) == {"src/probe.py"}
+
+
 @pytest.mark.parametrize("member", sorted(_PROTECTED_FLOW_ALLOWLISTS))
 def test_protected_flow_capability_call_sites_are_allowlisted(member: str) -> None:
     """Each protected-flow GuardCapability member binds to its ONE flow.
@@ -114,13 +142,7 @@ def test_protected_flow_capability_call_sites_are_allowlisted(member: str) -> No
     rationale comment naming the ONE flow it authorizes.
     """
     allowlist = _PROTECTED_FLOW_ALLOWLISTS[member]
-    actual = {
-        _rel(path)
-        for path in _iter_src_python_files()
-        if member in _guard_capability_members_referenced(path)
-    }
-
-    unexpected = actual - allowlist
+    unexpected = _unexpected_protected_flow_sites(_REPO_ROOT, member, allowlist)
     assert not unexpected, (
         f"GuardCapability.{member} is asserted outside its flow: "
         f"{sorted(unexpected)}. Each non-standard capability authorizes "
@@ -131,7 +153,13 @@ def test_protected_flow_capability_call_sites_are_allowlisted(member: str) -> No
 
     stale = {
         entry
-        for entry in allowlist - actual
+        for entry in allowlist
+        if entry
+        not in {
+            _rel(path)
+            for path in _iter_src_python_files()
+            if member in _guard_capability_members_referenced(path)
+        }
         if entry != _ENUM_HOME  # the enum home may reference members only via the policy set
     }
     if member in {"MERGE_BOOKKEEPING", "UPGRADE_BOOKKEEPING"}:

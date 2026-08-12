@@ -59,7 +59,6 @@ import pytest
 from mission_runtime import MissionArtifactKind
 from mission_runtime.resolution import resolve_placement_only
 from specify_cli.coordination.status_transition import (
-    _current_branch,
     _resolve_write_target,
 )
 from specify_cli.coordination.surface_resolver import (
@@ -213,7 +212,6 @@ def test_flat_save_writes_target_branch_via_full_save_path(
     primary = _build_flat_save_mission(tmp_path)
     # The flat invariant: the single working branch IS the base; HEAD == base ==
     # target_branch (no separate lane/coord branch — the flat collapse).
-    assert _current_branch(primary.repo_root) == primary.target_branch
     _stage_flat_status_event(primary)
     # Drive WITHOUT cd-ing anywhere off-target and WITHOUT an explicit repo_root
     # threading (paula's trap): the operator stands in the flat checkout on base.
@@ -391,7 +389,6 @@ def test_flat_write_target_is_cwd_invariant_base_not_head(
     off_target = "kitty/mission-write-side-primary-01kv9w0x-lane-z"
     _run_git(primary.repo_root, "checkout", "-q", "-b", off_target)
     # HEAD now diverges from base, but the adopted resolver stays on base.
-    assert _current_branch(primary.repo_root) == off_target
     off = _resolve_write_target(primary.repo_root, primary.mission_slug, None)
     assert off == primary.target_branch
     assert off != off_target

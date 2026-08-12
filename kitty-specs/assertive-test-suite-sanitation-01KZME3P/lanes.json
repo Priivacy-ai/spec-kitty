@@ -1,0 +1,741 @@
+{
+  "version": 1,
+  "mission_slug": "assertive-test-suite-sanitation-01KZME3P",
+  "mission_id": "01KZME3PVS904M4RA3V5RH7CQ6",
+  "mission_branch": "kitty/mission-assertive-test-suite-sanitation-01KZME3P",
+  "target_branch": "pr/assertive-test-suite-sanitation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/foundation-summary.yaml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/base-census.json",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/base-full-suite-summary.txt",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/base-workloads.yaml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/bootstrap-failure.txt"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-windows.yml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP02.yaml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp02-bootstrap-replay.patch",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp02-results.json",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp02-scanner-replay.patch",
+        "tests/_support/test_wall_clock_assertions.py",
+        "tests/_support/wall_clock_assertions.py",
+        "tests/conftest.py",
+        "tests/test_test_venv_bootstrap.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP04.yaml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-results.json",
+        "tests/agent/cli/commands/test_tasks_helpers.py",
+        "tests/agent/cli/commands/test_tracker.py",
+        "tests/agent/glossary/test_integration_workflows.py",
+        "tests/agent/glossary/test_pipeline.py",
+        "tests/agent/glossary/test_primitives.py",
+        "tests/agent/glossary/test_strictness.py",
+        "tests/agent/test_context_validation_unit.py",
+        "tests/architectural/test_shim_registry_schema.py",
+        "tests/auth/integration/test_transport_rewired.py",
+        "tests/auth/test_token_manager.py",
+        "tests/charter/synthesizer/test_charter_compile_project_root.py",
+        "tests/charter/test_action_grain.py",
+        "tests/charter/test_action_sequence_dispatch.py",
+        "tests/charter/test_bundle_manifest_model.py",
+        "tests/charter/test_mission_steps_facade.py",
+        "tests/charter/test_mission_type_profiles.py",
+        "tests/charter/test_pack_manager.py",
+        "tests/charter/test_pack_manager_catalog.py",
+        "tests/charter/test_references_missing_failclosed.py",
+        "tests/cli/commands/test_merge_strategy.py",
+        "tests/cli_gate/test_ci_determinism.py",
+        "tests/cli_gate/test_dashboard_modes.py",
+        "tests/cli_gate/test_doctor_modes.py",
+        "tests/contract/test_mission_number_type_coercion.py",
+        "tests/core/test_adapters.py",
+        "tests/docs/test_related_validator.py",
+        "tests/doctrine/directives/test_repository.py",
+        "tests/doctrine/drg/test_cross_grain_integrity.py",
+        "tests/doctrine/drg/test_validator.py",
+        "tests/doctrine/missions/test_action_index.py",
+        "tests/doctrine/missions/test_primitives.py",
+        "tests/doctrine/missions/test_step_projection.py",
+        "tests/doctrine/shared/test_scoping.py",
+        "tests/doctrine/shared/test_scoping_any_all.py",
+        "tests/doctrine/styleguides/test_repository.py",
+        "tests/doctrine/tactics/test_repository.py",
+        "tests/doctrine/test_org_pack_subdir.py",
+        "tests/doctrine/test_scoping.py",
+        "tests/git_ops/test_detection.py",
+        "tests/git_ops/test_git_ops.py",
+        "tests/git_ops/test_git_ops_unit.py",
+        "tests/git_ops/test_mark_status_pipe_table.py",
+        "tests/git_ops/test_stale_detection_unit.py",
+        "tests/init/test_init_minimal_integration.py",
+        "tests/kernel/test_paths.py",
+        "tests/kernel/test_paths_unified_windows_root.py",
+        "tests/lanes/test_auto_rebase_managed_artifact_recognition.py",
+        "tests/missions/test_mission_loading_integration.py",
+        "tests/missions/test_mission_v1_events_unit.py",
+        "tests/research/test_research_plan_missions_integration.py",
+        "tests/retrospective/test_retrospective_content.py",
+        "tests/review/test_artifacts.py",
+        "tests/review/test_baseline.py",
+        "tests/review/test_gate_registry.py",
+        "tests/review/test_pre_review_gate_engine.py",
+        "tests/review/test_scope_source.py",
+        "tests/runtime/test_home_unit.py",
+        "tests/runtime/test_resolver_unit.py",
+        "tests/runtime/test_runtime_seam.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP05.yaml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp05-results.json",
+        "src/specify_cli/coordination/status_transition.py",
+        "tests/acceptance/test_post_consolidation.py",
+        "tests/architectural/test_batch_drain_retired_3167.py",
+        "tests/architectural/test_contract_registry_parity.py",
+        "tests/architectural/test_coord_read_residuals_closeout.py",
+        "tests/architectural/test_dead_builtin_doc_paths.py",
+        "tests/architectural/test_docs_cli_reference_parity.py",
+        "tests/architectural/test_execution_context_parity.py",
+        "tests/architectural/test_glossary_pack_parity.py",
+        "tests/architectural/test_golden_count_ban.py",
+        "tests/architectural/test_issue_matrix_json_migration_completeness.py",
+        "tests/architectural/test_merge_pipeline_ratchets.py",
+        "tests/architectural/test_migration_chain_integrity.py",
+        "tests/architectural/test_mission_exit_baseline.py",
+        "tests/architectural/test_no_dead_cli_paths.py",
+        "tests/architectural/test_no_dead_doctrine_paths.py",
+        "tests/architectural/test_no_dead_modules.py",
+        "tests/architectural/test_no_dead_symbols.py",
+        "tests/architectural/test_no_legacy_status_emit_callers.py",
+        "tests/architectural/test_no_legacy_terminology.py",
+        "tests/architectural/test_no_parity_scaffold.py",
+        "tests/architectural/test_reference_enum_ratchet.py",
+        "tests/architectural/test_retired_contracts_absent.py",
+        "tests/architectural/test_topology_inference_retired.py",
+        "tests/architectural/test_wp05_write_target_drain.py",
+        "tests/audit/test_audit_architecture.py",
+        "tests/core/test_retrospective_filename_constant.py",
+        "tests/migration/test_backfill_provenance.py",
+        "tests/missions/test_wp02_coord_routing_consolidation.py",
+        "tests/missions/test_wp17_husk_arm_collapse.py",
+        "tests/specify_cli/coordination/test_simple_case_flat_topology.py",
+        "tests/specify_cli/write_side/test_characterization_write_target.py",
+        "tests/sync/test_no_queue_drain_constructed_3030.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP09.yaml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp09-results.json",
+        "tests/architectural/test_arch_pole_deserialized.py",
+        "tests/architectural/test_arch_shard_marker_completeness.py",
+        "tests/architectural/test_arch_unblind_matrix.py",
+        "tests/architectural/test_ci_architectural_gate_coverage.py",
+        "tests/architectural/test_ci_collection_completeness.py",
+        "tests/architectural/test_ci_fast_jobs_have_timeout.py",
+        "tests/architectural/test_ci_topology_worklist.py",
+        "tests/architectural/test_coverage_consumer_needs.py",
+        "tests/architectural/test_coverage_root_collisions.py",
+        "tests/architectural/test_cross_gate_churn_agreement.py",
+        "tests/architectural/test_cross_grain_builtin_gate.py",
+        "tests/architectural/test_docs_scoped_arch_coverage.py",
+        "tests/architectural/test_gate_coverage.py",
+        "tests/architectural/test_gate_coverage_parse_model.py",
+        "tests/architectural/test_gate_read_literal_ban.py",
+        "tests/architectural/test_inline_meta_read_gate.py",
+        "tests/architectural/test_job_count_ceiling.py",
+        "tests/architectural/test_marker_baseline.py",
+        "tests/architectural/test_marker_registry_single_source.py",
+        "tests/architectural/test_mission_resolver_walker_gate.py",
+        "tests/architectural/test_next_shard_marker_completeness.py",
+        "tests/architectural/test_no_primary_anchored_gates.py",
+        "tests/architectural/test_plugin_validate_workflow.py",
+        "tests/architectural/test_pytest_marker_convention.py",
+        "tests/architectural/test_pytest_marker_correctness.py",
+        "tests/architectural/test_resolution_authority_gates.py",
+        "tests/architectural/test_shard_universe_bounded.py",
+        "tests/architectural/test_src_filter_coverage.py",
+        "tests/architectural/test_tasks_domain_gate_visibility.py",
+        "tests/architectural/test_trigger_registry_coverage.py",
+        "tests/architectural/test_ui_e2e_coverage_discovered.py",
+        "tests/architectural/test_unit_contract_residual_gate.py",
+        "tests/architectural/test_workflow_coherence.py",
+        "tests/architectural/test_workflow_dist_lint.py",
+        "tests/merge/test_push_preflight.py",
+        "tests/review/test_pre_review_gate_sole_caller_audit.py",
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-j",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP10.yaml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp10-results.json",
+        "tests/architectural/test_2093_authority_invariant.py",
+        "tests/architectural/test_all_declarations_required.py",
+        "tests/architectural/test_auth_transport_singleton.py",
+        "tests/architectural/test_batch_split_single_authority.py",
+        "tests/architectural/test_compat_shims.py",
+        "tests/architectural/test_dossier_sync_boundary.py",
+        "tests/architectural/test_drg_writer_discovery.py",
+        "tests/architectural/test_egress_consent_boundary.py",
+        "tests/architectural/test_git_matrix_paths_resolve.py",
+        "tests/architectural/test_guard_capability_call_sites.py",
+        "tests/architectural/test_innerstatechanged_invariants.py",
+        "tests/architectural/test_integration_boundary.py",
+        "tests/architectural/test_layer_rules.py",
+        "tests/architectural/test_merge_reconciliation_class_guard.py",
+        "tests/architectural/test_no_authored_applies_edge.py",
+        "tests/architectural/test_no_inert_schema_slots.py",
+        "tests/architectural/test_no_invalid_windows_filenames.py",
+        "tests/architectural/test_no_op_stable_writes.py",
+        "tests/architectural/test_no_prompt_filtering_added.py",
+        "tests/architectural/test_no_read_side_bypass.py",
+        "tests/architectural/test_no_runtime_pypi_dep.py",
+        "tests/architectural/test_no_shipped_layer_label.py",
+        "tests/architectural/test_no_tmp_paths_in_tests.py",
+        "tests/architectural/test_no_write_side_rederivation.py",
+        "tests/architectural/test_patch_seam_census_control.py",
+        "tests/architectural/test_read_surface_placement_guard.py",
+        "tests/architectural/test_real_home_isolation_guard.py",
+        "tests/architectural/test_safety_registry_completeness.py",
+        "tests/architectural/test_same_tier_uniqueness.py",
+        "tests/architectural/test_serial_port_preservation.py",
+        "tests/architectural/test_shared_module_object_patches.py",
+        "tests/architectural/test_tid251_enforcement.py",
+        "tests/architectural/test_trio_seam_only.py",
+        "tests/architectural/test_unfiltered_journal_read_boundary.py",
+        "tests/architectural/test_unregistered_shim_scanner.py",
+        "tests/architectural/test_untrusted_path_containment.py",
+        "tests/architectural/test_wp_owned_files_no_kitty_specs.py",
+        "tests/architectural/test_wp_prompt_build_latency.py",
+        "tests/architectural/test_write_surface_placement_guard.py",
+        "tests/git/test_guard_capability_regression.py",
+        "tests/integration/test_cross_seam_consumers.py",
+        "tests/specify_cli/cli/commands/test_identity_audit.py",
+        "tests/specify_cli/cli/commands/test_sparse_checkout_doctor.py",
+        "tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py",
+        "tests/specify_cli/core/test_load_meta_fail_closed_authority.py",
+        "tests/specify_cli/decisions/test_ownership_3111.py",
+        "tests/specify_cli/saas_client/test_client_consent_gate_3030.py",
+        "tests/specify_cli/test_egress_consolidation_3110.py",
+        "tests/specify_cli/test_meta_fail_closed_full_census_contract.py",
+        "tests/specify_cli/test_meta_reader_sweep.py",
+        "tests/sync/test_consent_resolver_3030.py",
+        "tests/sync/test_project_identity_resolver_3030.py",
+        "tests/sync/test_sync_action_gate.py",
+        "tests/sync/tracker/test_saas_client_consent_gate_3030.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-k",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP11.yaml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp11-results.json",
+        "tests/specify_cli/acceptance/test_trio_read_seam_migration.py",
+        "tests/specify_cli/bulk_edit/test_moves.py",
+        "tests/specify_cli/bulk_edit/test_occurrence_map.py",
+        "tests/specify_cli/bulk_edit/test_structural_targets.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_outline.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py",
+        "tests/specify_cli/cli/commands/agent/test_wp05_mission_coordination_routing.py",
+        "tests/specify_cli/cli/commands/review/test_existing_matrix_remediation.py",
+        "tests/specify_cli/cli/commands/test_charter_generate_autotrack.py",
+        "tests/specify_cli/cli/commands/test_charter_widen.py",
+        "tests/specify_cli/cli/commands/test_charter_widen_integration.py",
+        "tests/specify_cli/cli/commands/test_implement_cores.py",
+        "tests/specify_cli/cli/commands/test_implement_vcs_lock_claim.py",
+        "tests/specify_cli/cli/commands/test_merge.py",
+        "tests/specify_cli/compat/test_cache.py",
+        "tests/specify_cli/compat/test_install_events.py",
+        "tests/specify_cli/compat/test_planner.py",
+        "tests/specify_cli/compat/test_registry.py",
+        "tests/specify_cli/compat/test_remediation_index_url.py",
+        "tests/specify_cli/compat/test_runtime.py",
+        "tests/specify_cli/compat/test_upgrade_hint_chk028.py",
+        "tests/specify_cli/context/test_resolver.py",
+        "tests/specify_cli/contracts/test_registry.py",
+        "tests/specify_cli/coordination/test_worktree_topology.py",
+        "tests/specify_cli/core/test_config_registry.py",
+        "tests/specify_cli/dashboard/test_glossary_handler.py",
+        "tests/specify_cli/dashboard/test_lint_tile_handler.py",
+        "tests/specify_cli/invocation/cli/test_invocations.py",
+        "tests/specify_cli/migration/test_runtime_state_cutover.py",
+        "tests/specify_cli/migration/test_runtime_state_cutover_placement.py",
+        "tests/specify_cli/mission_step_contracts/test_executor.py",
+        "tests/specify_cli/ownership/test_audit_scope.py",
+        "tests/specify_cli/ownership/test_validation.py",
+        "tests/specify_cli/regression/test_twelve_agent_parity.py",
+        "tests/specify_cli/session_presence/test_agents_md_writer.py",
+        "tests/specify_cli/session_presence/test_claude_code_hook.py",
+        "tests/specify_cli/session_presence/test_content.py",
+        "tests/specify_cli/session_presence/test_skills_preamble_writer.py",
+        "tests/specify_cli/shims/test_direct_commands.py",
+        "tests/specify_cli/shims/test_registry.py",
+        "tests/specify_cli/test_feature_metadata.py",
+        "tests/specify_cli/test_lane_regression_guard.py",
+        "tests/specify_cli/test_mid8_caller_routing.py",
+        "tests/specify_cli/test_mid8_contract_sensitive_routing.py",
+        "tests/specify_cli/test_template_lane_guard.py",
+        "tests/specify_cli/test_wp18_meta_reader_contracts.py",
+        "tests/specify_cli/tool_surface/test_plugin_build_claude.py",
+        "tests/specify_cli/tool_surface/test_plugin_build_codex.py",
+        "tests/test_dashboard/test_glossary_handler.py",
+        "tests/test_dashboard/test_lint_tile_handler.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-l",
+      "wp_ids": [
+        "WP12"
+      ],
+      "write_scope": [
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP12.yaml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp12-results.json",
+        "tests/status/test_doctor.py",
+        "tests/status/test_store.py",
+        "tests/sync/test_auth.py",
+        "tests/sync/test_batch_error_surfacing.py",
+        "tests/sync/test_dossier_trigger.py",
+        "tests/sync/test_event_emission.py",
+        "tests/sync/test_events.py",
+        "tests/sync/test_git_metadata.py",
+        "tests/sync/tracker/test_config.py",
+        "tests/sync/tracker/test_service.py",
+        "tests/upgrade/test_activate_builtin_types_migration.py",
+        "tests/upgrade/test_charter_rename_migration.py",
+        "tests/upgrade/test_charter_template_migration.py",
+        "tests/upgrade/test_m_0_12_0_documentation_mission_unit.py",
+        "tests/upgrade/test_migration_charter_cleanup_unit.py",
+        "tests/upgrade/test_migration_python_only_unit.py",
+        "tests/upgrade/test_op_record_schema_v2_migration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-m",
+      "wp_ids": [
+        "WP13"
+      ],
+      "write_scope": [
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP13.yaml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp13-results.json",
+        "tests/architectural/test_activation_registry_schema.py",
+        "tests/architectural/test_built_in_location_authority.py",
+        "tests/architectural/test_builtin_override_policy.py",
+        "tests/architectural/test_charter_facades_reexport_doctrine.py",
+        "tests/architectural/test_charter_no_specify_cli_import.py",
+        "tests/architectural/test_charter_path_literal_authority.py",
+        "tests/architectural/test_charter_references_resolve.py",
+        "tests/architectural/test_charter_runtime_canonical_paths.py",
+        "tests/architectural/test_charter_sole_door_agent_profile_repository.py",
+        "tests/architectural/test_charter_sole_door_doctrine_service.py",
+        "tests/architectural/test_charter_sole_door_hardcoded_paths.py",
+        "tests/architectural/test_charter_sole_door_inner_reacharound.py",
+        "tests/architectural/test_charter_sole_door_resolver_imports.py",
+        "tests/architectural/test_doctrine_artefact_layout.py",
+        "tests/architectural/test_doctrine_wheel_closure.py",
+        "tests/architectural/test_glossary_canonical_terms.py",
+        "tests/architectural/test_glossary_pack_boundary.py",
+        "tests/architectural/test_glossary_pack_no_regression.py",
+        "tests/architectural/test_glossary_pack_urn.py",
+        "tests/architectural/test_kernel_no_doctrine_import.py",
+        "tests/architectural/test_org_activation_seam.py",
+        "tests/architectural/test_profile_load_resolver_guidance.py",
+        "tests/architectural/test_protection_resolver_call_sites.py",
+        "tests/architectural/test_resolution_activation_foundation.py",
+        "tests/architectural/test_runtime_charter_doctrine_boundary.py",
+        "tests/architectural/test_single_mission_surface_resolver.py",
+        "tests/architectural/test_surface_resolution_audit.py",
+        "tests/architectural/test_topology_resolution_boundary.py",
+        "tests/architectural/test_urn_resolver_scalar_fence.py",
+        "tests/charter/test_append_promotion_primitive.py",
+        "tests/charter/test_charter_ownership_invariant.py",
+        "tests/charter/test_chokepoint_coverage.py",
+        "tests/charter/test_context_decomposition_completion.py",
+        "tests/charter/test_mission_type_key.py",
+        "tests/charter/test_operational_context.py",
+        "tests/charter/test_surface_calibration.py",
+        "tests/cli/test_charter_mission_type_commands.py",
+        "tests/doctrine/drg/test_kind_mapping_totality.py",
+        "tests/doctrine/test_activation_parity_guard.py",
+        "tests/doctrine/test_pack_root_resolver.py",
+        "tests/specify_cli/cli/commands/test_doctrine_collect.py",
+        "tests/specify_cli/test_doctrine_service_factory.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-n",
+      "wp_ids": [
+        "WP14"
+      ],
+      "write_scope": [
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP14.yaml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp14-results.json",
+        "tests/architectural/test_commit_target_kind_guard.py",
+        "tests/architectural/test_coord_rollback_coherence_guard.py",
+        "tests/architectural/test_events_tracker_public_imports.py",
+        "tests/architectural/test_mission_runtime_surface.py",
+        "tests/architectural/test_no_absolute_event_timestamp_mixture.py",
+        "tests/architectural/test_no_phantom_worktree_repair.py",
+        "tests/architectural/test_no_production_worktree_guard_bypass.py",
+        "tests/architectural/test_no_raw_mission_spec_paths.py",
+        "tests/architectural/test_no_tracked_test_feature_missions.py",
+        "tests/architectural/test_no_worktree_name_guess.py",
+        "tests/architectural/test_pre_review_scope_singlesource.py",
+        "tests/architectural/test_resume_non_reemission_guard.py",
+        "tests/architectural/test_safe_commit_import_boundary.py",
+        "tests/architectural/test_session_reaper.py",
+        "tests/architectural/test_status_command_guidance.py",
+        "tests/architectural/test_status_module_boundary.py",
+        "tests/architectural/test_status_sync_boundary.py",
+        "tests/architectural/test_tasks_command_surface.py",
+        "tests/architectural/test_verdict_seam_census.py",
+        "tests/architectural/test_verdict_vocab_single_source.py",
+        "tests/architectural/test_worktrees_index_clean.py",
+        "tests/coordination/test_verdict_dir_co_resolution.py",
+        "tests/mission_runtime/test_write_target_degrade.py",
+        "tests/next/test_retrospective_terminus_wiring.py",
+        "tests/runtime/test_bridge_compat_surface.py",
+        "tests/runtime/test_bridge_decide_next.py",
+        "tests/runtime/test_bridge_engine.py",
+        "tests/runtime/test_bridge_retrospective.py",
+        "tests/runtime/test_runtime_bridge_family_arch.py",
+        "tests/runtime/test_setup_plan_sync_evidence.py",
+        "tests/specify_cli/cli/commands/agent/test_record_analysis_double_resolution.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_coreless_orchestration.py",
+        "tests/specify_cli/cli/commands/agent/test_workflow_placement_routing.py",
+        "tests/specify_cli/cli/commands/test_coordination_doctor.py",
+        "tests/specify_cli/cli/commands/test_daemon_doctor.py",
+        "tests/specify_cli/cli/commands/test_mission_state_doctor.py",
+        "tests/specify_cli/cli/commands/test_workspace_husk_doctor.py",
+        "tests/specify_cli/coordination/test_commit_router_planning_residue.py",
+        "tests/specify_cli/coordination/test_partition_authority_characterization.py",
+        "tests/specify_cli/coordination/test_wp05_status_read_contract.py",
+        "tests/specify_cli/status/test_inert_field_reduction.py",
+        "tests/specify_cli/status/test_wp_state.py",
+        "tests/specify_cli/test_clock_consolidation.py",
+        "tests/specify_cli/workspace/test_context_worktree_routing.py",
+        "tests/status/test_aggregate_surface_resolution.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-o",
+      "wp_ids": [
+        "WP15"
+      ],
+      "write_scope": [
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP15.yaml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp15-results.json",
+        "tests/architectural/test_artifact_selection_completeness.py",
+        "tests/architectural/test_cli_console_render_width.py",
+        "tests/architectural/test_cli_console_single_seam.py",
+        "tests/architectural/test_pyproject_shape.py",
+        "tests/architectural/test_shared_package_boundary.py",
+        "tests/architectural/test_template_governance_payload_contract.py",
+        "tests/architectural/test_typer_compat_ci.py",
+        "tests/architectural/test_uv_lock_pin_drift.py",
+        "tests/architectural/tool_artifact_enrolment/test_enrolment_inventory.py",
+        "tests/specify_cli/cli/commands/test_command_surface_doctor.py",
+        "tests/specify_cli/cli/commands/test_doctor_shared.py",
+        "tests/specify_cli/tool_surface/providers/test_plugin_bundle.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP03.yaml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp03-results.json",
+        "tests/agent/test_create_feature_branch.py",
+        "tests/architectural/test_verdict_name_truthfulness.py",
+        "tests/readiness/test_upgrade_ux.py",
+        "tests/regression/test_issue_2782_sync_strict_json_ingress_skip.py",
+        "tests/release/test_diff_coverage_policy.py",
+        "tests/retrospective/test_summary_tolerance.py",
+        "tests/sync/test_client_integration.py",
+        "tests/sync/test_daemon_singleton_reaper_consolidation.py",
+        "tests/unit/migration/test_backfill_runtime_state.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP06.yaml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp06-results.json",
+        "tests/charter/test_config_stem_parity.py",
+        "tests/cli/commands/test_agent_mission_commit_to_branch.py",
+        "tests/cli/test_cli_console.py",
+        "tests/contract/test_charter_compact_includes_section_anchors.py",
+        "tests/doctrine/drg/migration/test_extractor_projection.py",
+        "tests/doctrine/drg/test_reachability.py",
+        "tests/e2e/test_charter_epic_golden_path.py",
+        "tests/e2e/test_upgrade_post_state.py",
+        "tests/integration/test_mission_type_resolution_integration.py",
+        "tests/specify_cli/cli/commands/test_completion_fast_path.py",
+        "tests/specify_cli/cli/commands/test_doctor_restart_daemon_timing.py",
+        "tests/sync/test_daemon_self_retirement.py",
+        "tests/sync/test_dual_write_integration.py",
+        "tests/sync/test_sync_e2e_integration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP07.yaml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp07-results.json",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp07-route-manifest.yaml",
+        "tests/_arch_shard_map.py",
+        "tests/_next_shard_map.py",
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/_gate_coverage.py",
+        "tests/architectural/_golden_count_baseline.json",
+        "tests/architectural/baselines/fast-tests-core-misc-nodeids.txt",
+        "tests/architectural/baselines/integration-tests-next-nodeids.txt",
+        "tests/architectural/census/verdict_seam_IC01.yaml",
+        "tests/architectural/census/verdict_seam_IC08.yaml",
+        "tests/architectural/marker_baseline.txt",
+        "tests/architectural/mission_exit_baseline.txt",
+        "tests/architectural/test_ci_quality_path_filters.py",
+        "tests/architectural/test_exemption_registry_ratchet.py",
+        "tests/architectural/test_marker_job_completeness.py",
+        "tests/architectural/test_quarantine_marker.py",
+        "tests/architectural/test_ratchet_baselines.py",
+        "tests/architectural/test_ratchet_positional_anchor_ban.py",
+        "tests/architectural/test_suite_jobs_gate_blocking.py",
+        "tests/architectural/verdict_seam_census.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f",
+        "lane-i",
+        "lane-j",
+        "lane-k",
+        "lane-l",
+        "lane-m",
+        "lane-n",
+        "lane-o"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/audit.py",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions.yaml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/final-report.md",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/issue-matrix.md",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/head-census.json",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/head-workloads.yaml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/legacy-shard-normalization.yaml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/workflow-evidence.md",
+        "tests/README.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f",
+        "lane-g",
+        "lane-i",
+        "lane-j",
+        "lane-k",
+        "lane-l",
+        "lane-m",
+        "lane-n",
+        "lane-o"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-08-10T20:57:44.553927+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "5794e4f2fbd19adb355a41c28181b9cdd4df00bb"
+}

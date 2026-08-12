@@ -1,5 +1,0 @@
-# Intentionally empty. Mission tmp-literal-offender-burndown-01KWWRW2 (FR-003)
-# converted every grandfathered offender off the shared-temp-directory path
-# literal; tests/architectural/test_no_tmp_paths_in_tests.py is now a hard
-# gate — no baseline entries. See test_baseline_is_empty for the guard that
-# keeps this file from silently re-growing.

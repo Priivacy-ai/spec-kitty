@@ -134,12 +134,8 @@ from specify_cli.tracker.egress_verdict import EgressDestination, _JOIN, _LEGAL_
 
 #: Without a module-level marker this file is selected by **zero** CI gates, so every guard below
 #: would be invisible on a push to ``main`` -- a falsity guard that cannot turn the branch red is
-#: not a guard. Measured: omitting this reddened
-#: ``test_pytest_marker_convention::test_every_test_file_declares_a_pytestmark_marker``,
-#: ``test_gate_coverage::test_no_new_orphan_surfaces``,
-#: ``test_same_tier_uniqueness::test_split_preserves_zero_orphans`` and
-#: ``test_ci_collection_completeness::test_every_test_node_is_collected_on_a_push_to_main``,
-#: all four naming this file, with all eight guards listed as orphaned node ids.
+#: not a guard. Measured: omitting this reds the retained collection-completeness
+#: oracle and same-tier uniqueness guard, naming all eight nodes here as orphans.
 pytestmark = [pytest.mark.architectural]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]

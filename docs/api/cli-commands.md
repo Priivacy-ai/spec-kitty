@@ -839,6 +839,16 @@ _Charter pack management commands._
 
      spec-kitty charter synthesize --dry-run
 
+ Preserve-and-warn default (WP03): a plain run never drops backed
+ content -- it exits 0 and reports what it retained. Remove divergent
+ content explicitly::
+
+     spec-kitty charter synthesize --prune
+
+ Only orphaned content (backing artifact deleted) or an unparseable
+ on-disk overlay make a plain run refuse (exit 1); backed divergence is
+ always preserved and reported, never a refusal.
+
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --adapter                     TEXT  Adapter to use. 'generated' (default)    │
 │                                     validates agent-authored YAML under      │
@@ -846,7 +856,17 @@ _Charter pack management commands._
 │                                     is offline/testing only.                 │
 │                                     [default: generated]                     │
 │ --dry-run                           Stage and validate artifacts but do not  │
-│                                     promote to live tree.                    │
+│                                     promote to live tree. Also reports the   │
+│                                     reconciliation delta --prune would       │
+│                                     remove. Wins over --prune when both are  │
+│                                     given (preview only, no write).          │
+│ --prune                             Remove on-disk content the current run   │
+│                                     no longer targets and list every         │
+│                                     deletion. Without this flag, that        │
+│                                     content is preserved (default) unless it │
+│                                     is orphaned (backing artifact deleted),  │
+│                                     which refuses instead of silently        │
+│                                     keeping a dangling reference.            │
 │ --json                              Output JSON                              │
 │ --skip-code-evidence                Skip code-reading evidence collection.   │
 │ --skip-corpus                       Skip best-practice corpus loading.       │
@@ -1495,8 +1515,7 @@ _Project health diagnostics_
  Find review-cycle / arbiter-override records stranded under a retired resolver
  path, ahead of WP13's consumer-unification (FR-008).
 
- Every retired resolver comes from this mission's own verdict-seam census
- fragment (``tests/architectural/census/verdict_seam_IC08.yaml``), not a
+ Every retired resolver comes from WP08's reviewed retirement set, not a
  guessed set. Reports two DISTINCT stranded classes per finding: a
  deleted-coordination-branch mission (absorbed to PRIMARY, the measured
  45-mission corpus) and a live-coordination-branch mission still carrying a

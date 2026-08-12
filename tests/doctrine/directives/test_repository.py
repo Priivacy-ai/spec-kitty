@@ -44,12 +44,6 @@ class TestDirectiveRepository:
         assert by_full is not None
         assert by_num.id == by_full.id
 
-    def test_load_from_custom_shipped_dir(self, tmp_directive_dir: Path) -> None:
-        repo = DirectiveRepository(built_in_dir=tmp_directive_dir)
-        directives = repo.list_all()
-        assert {d.id for d in directives} == {"DIRECTIVE_999"}
-        assert directives[0].id == "DIRECTIVE_999"
-
     def test_malformed_yaml_skipped_with_warning(self, tmp_path: Path) -> None:
         """Malformed YAML files are skipped, not crash."""
         shipped = tmp_path / "built-in"

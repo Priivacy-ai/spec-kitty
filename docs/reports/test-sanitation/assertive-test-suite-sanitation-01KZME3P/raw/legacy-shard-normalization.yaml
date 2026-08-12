@@ -1,0 +1,184 @@
+schema_version: test-sanitation-normalization/v1
+mission: assertive-test-suite-sanitation-01KZME3P
+work_package: WP08
+authority:
+  actor: root-arbiter
+  decision: content-addressed mechanical closure after final permitted review
+  review_cycle_cap: 3
+  no_fourth_cycle: true
+  source: kitty-specs/assertive-test-suite-sanitation-01KZME3P/tasks/WP08-aggregate-closure.md#T044
+source_documents:
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP02.yaml
+    sha256: d5d0f604d5e19b1c079b435c0d14d7c66c82090624c1b1944960326fe296d8ed
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP03.yaml
+    sha256: 9f2e6c050fbb1913f9690009940644b101c53021f8e28f82a1807ea01895082b
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP05.yaml
+    sha256: facbef4cec824e3f3ee6c38ece5d389ccb5fcae528ae1a3487dc60a5d23f3302
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP04.yaml
+    sha256: 0084fb88675f7c21011fc9ef97c54c6d457a0b8ee4143734557625ba5b8d5e79
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP06.yaml
+    sha256: de6be53121a0e75f14f566f948b8e9caab990d6987b8103bd0a087e6c0b0e05e
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP07.yaml
+    sha256: 185781602e118a8e395131842c6f240c53bbc16373721b8dd776b3825aa3596d
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP09.yaml
+    sha256: ef11a0fca778ea6ceb6e434da149eea996370a08111bbb7de9b526036587750f
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP10.yaml
+    sha256: d01871deb728b8de964bb3167063d8a9a3e0e74ac5289abf08945b4d57c78ae7
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP11.yaml
+    sha256: 69fb58ce9e005ff1be7287842b7e14818c38d550f704bdf8bac614b5c0493d1f
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP12.yaml
+    sha256: 76e725416f90b3d5faa396f5495d0a39d50ce1d6015320bb086d60db0c012d5b
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP13.yaml
+    sha256: 775f8f17b5c0093b0be7c3e4c14673d84f259564a009eaa063c80128d8c5ba20
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP14.yaml
+    sha256: f37b796475711e8ffe57410bfbdcc96dbdf48008d1328b6ec3200bb4481197b8
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP15.yaml
+    sha256: 78448b08879deae79c34e9a712ab543c5bdaa03f612b72797d062d29972d3b08
+raw_artifacts:
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp05-results.json
+    sha256: 33e7958df4272d3571aa0ae6555866a7389d8dd66ae0f25f0a143d65f5a9a913
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp06-results.json
+    sha256: 4c32aaca71def15d773d9473b1dd4984339cbcabf2d794063172fdc880a83024
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp07-results.json
+    sha256: 7210898f5503ea4f91f884ad99b7451837110c99bdac752bde9255e743f20bec
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp07-route-manifest.yaml
+    sha256: 6f54882e123dac1714e3932f36790e4ad9430f8f821f67bb2e7784f26ec28fd5
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp09-results.json
+    sha256: 02b854b59e4e2076a9dfa21beac6ca9aec45899f52d2332677feeadacc03703a
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp10-probes-cycle2.json
+    sha256: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+  - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp10-results.json
+    sha256: 7d28f8feb01e77f55e8db82d193133e7220bd309d3be069c5d67d3e05d9d4116
+historical_blobs:
+  - commit: a332e5c0124479d29179e50bb75bd897fceb3928
+    path: tests/integration/test_pytest_venv_concurrency.py
+    git_blob: f7c4982f1dea691bffec122557aa0aab2fb43c13
+    sha256: cca54baaacca41c84c951bd758624843a5602cc1441eb1ef1aa3ce0db023df58
+  - commit: 95a4f672906521da5b73bb91ce7c1ff4305a2502
+    path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp10-probes-cycle2.json
+    git_blob: ae10e9338394b700b53a620292169a7c990cd1d7
+    sha256: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+  - commit: 6dec67fa85402f542896cb0cbae8c93cc706be1e
+    path: kitty-specs/assertive-test-suite-sanitation-01KZME3P/status.json
+    git_blob: d662ffdc1cceb369be9173f5d447fe2afa29015f
+    sha256: dc47405b7ffd59c4e977983da440ba44dde24a5ab2672741feab6d3775de1f25
+integration_surfaces:
+  - path: .github/workflows/ci-quality.yml
+    sha256: 1589d1b7e2a0ca24e9e1eb189a6e39cf6afd8aa435bddfa95a97ffdb9b3e567d
+  - path: tests/architectural/test_ci_quality_path_filters.py
+    sha256: 542a3f9fd55a288b403732e95620f5679e492d65bad713f9b7424dd302dcff0e
+  - path: tests/test_test_venv_bootstrap.py
+    sha256: de34c3f44d374b254a0a0b1d693fcc8151886a30a6767c7ce19a31e991a51f19
+operations:
+  - id: wp02-destructive-shared-venv-test
+    kind: patch_wp02_destructive_venv_test
+    source: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP02.yaml
+    candidate_id: wp02-shared-test-venv-concurrency-survivor
+    member: tests/integration/test_pytest_venv_concurrency.py::test_concurrent_contract_and_architectural_complete
+    historical_commit: a332e5c0124479d29179e50bb75bd897fceb3928
+    historical_path: tests/integration/test_pytest_venv_concurrency.py
+    historical_blob: f7c4982f1dea691bffec122557aa0aab2fb43c13
+    historical_sha256: cca54baaacca41c84c951bd758624843a5602cc1441eb1ef1aa3ce0db023df58
+    survivor_path: tests/test_test_venv_bootstrap.py
+    survivor_sha256: de34c3f44d374b254a0a0b1d693fcc8151886a30a6767c7ce19a31e991a51f19
+    survivor: tests/test_test_venv_bootstrap.py::test_two_spawned_processes_publish_one_shared_venv
+    order_probe_sha256: 69cce9ccda24e39aaa73920041dffc8f17a4137adc09bde39fb6595e188bdfe4
+  - id: wp05-retained-scanner-closure
+    kind: synthesize_wp05_survivors
+    source: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP05.yaml
+    evidence_artifact: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp05-results.json
+    pointer: survivor_proofs.nodes
+    expected_paths: 27
+  - id: cross-shard-wp04-wp12
+    kind: drop_candidates
+    source: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP04.yaml
+    candidate_ids:
+      - WP04-293a72517c20
+      - WP04-5a28b0c8c88a
+    reason: WP12 owns the reviewed cross-owner terminal records; each frozen member appears once.
+  - id: wp06-wp07-handoff
+    kind: drop_candidates
+    source: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP06.yaml
+    candidate_ids:
+      - wp06-handoff-wp07-ci-path-filter
+    reason: WP06 explicitly handed this identity to WP07, whose terminal DELETE row is authoritative.
+  - id: wp10-identity-and-hash-closure
+    kind: patch_wp10
+    source: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP10.yaml
+    candidate_id: WP10-wp03-kind-classifier-matrix
+    stale_member: tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestKindForMissionFile::test_known_paths_classify
+    canonical_member: tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestKindForMissionFile.test_known_paths_classify
+    canonical_observation: tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestKindForMissionFile::test_known_paths_classify[kitty-specs/write-surface-coherence-01KVTVZS/analysis-report.md-MissionArtifactKind.ANALYSIS_REPORT]
+    stale_probe_sha256: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    current_probe_sha256: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    expected_loaded_probe_references: 54
+    expected_serialized_probe_occurrences: 45
+    stale_results_sha256: 5b7e302353257f28162558f1612873b3200e79d70f2ba9dcbac373d11e8a7db3
+    current_results_sha256: 7d28f8feb01e77f55e8db82d193133e7220bd309d3be069c5d67d3e05d9d4116
+    omitted_exact_member: tests/architectural/test_no_authored_applies_edge.py::TestShippedTreeAuthorsNoAppliesEdge.test_allowlist_is_empty
+    omitted_exact_observation: tests/architectural/test_no_authored_applies_edge.py::TestShippedTreeAuthorsNoAppliesEdge::test_allowlist_is_empty
+    omitted_exact_survivor: tests/architectural/test_no_authored_applies_edge.py::TestShippedTreeAuthorsNoAppliesEdge.test_no_fragment_authors_an_applies_edge
+  - id: wp06-five-omitted-deletions
+    kind: append_wp06_omissions
+    source: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP06.yaml
+    evidence_artifact: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp06-results.json
+    members:
+      - tests/doctrine/drg/test_reachability.py::TestActionChannelReachability::test_bootstrap_depth_only_relaxes_the_steady_state
+      - tests/doctrine/drg/test_reachability.py::TestC009NormalizationSwingExcluded::test_pinned_sets_carry_no_store_form_not_a_node_slug
+      - tests/doctrine/drg/test_reachability.py::TestProfileChannelReachability::test_profile_channel_rescues_activated_artefacts_the_action_channel_misses
+      - tests/doctrine/drg/test_reachability.py::TestProfileRescuesHaveLedgerCoverage::test_cross_check_is_not_vacuous
+      - tests/doctrine/drg/test_reachability.py::TestProfileRescuesHaveLedgerCoverage::test_every_profile_rescue_member_has_a_ledger_row
+  - id: wp07-retained-route-scanner-closure
+    kind: append_wp07_scanner_paths
+    source: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP07.yaml
+    evidence_artifact: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp07-results.json
+    route_manifest: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp07-route-manifest.yaml
+    paths:
+      - tests/architectural/test_marker_job_completeness.py
+      - tests/architectural/test_quarantine_marker.py
+      - tests/architectural/test_suite_jobs_gate_blocking.py
+  - id: wp07-current-main-route-reconciliation
+    kind: patch_wp07_current_route
+    source: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP07.yaml
+    candidate_id: wp07-terminalize-recursive-route-probe
+    workflow_path: .github/workflows/ci-quality.yml
+    workflow_sha256: 1589d1b7e2a0ca24e9e1eb189a6e39cf6afd8aa435bddfa95a97ffdb9b3e567d
+    test_path: tests/architectural/test_ci_quality_path_filters.py
+    test_sha256: 542a3f9fd55a288b403732e95620f5679e492d65bad713f9b7424dd302dcff0e
+    decision: Retain generic blocking regression-tests, accept empty marker set via exit 5, remove deleted #2782 literal owner, and use a current non-empty architectural route for causal proof.
+  - id: wp09-capped-legacy-normalization
+    kind: synthesize_wp09_node_map
+    source: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP09.yaml
+    evidence_artifact: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp09-results.json
+    map_pointer: cycle_3_reconciliation.frozen_node_map
+    map_fields_pointer: cycle_3_reconciliation.map_fields
+    expected_members: 418
+    expected_current: 36
+    expected_terminal_deletions: 390
+    expected_net_removed: 382
+  - id: approved-review-metadata-closure
+    kind: backfill_approved_review_metadata
+    source: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP02.yaml
+    status_commit: 6dec67fa85402f542896cb0cbae8c93cc706be1e
+    status_path: kitty-specs/assertive-test-suite-sanitation-01KZME3P/status.json
+    packages:
+      WP02: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP02.yaml
+      WP03: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP03.yaml
+      WP04: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP04.yaml
+      WP05: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP05.yaml
+      WP06: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP06.yaml
+      WP07: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP07.yaml
+      WP09: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP09.yaml
+      WP10: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP10.yaml
+      WP11: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP11.yaml
+      WP12: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP12.yaml
+      WP13: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP13.yaml
+      WP14: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP14.yaml
+      WP15: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP15.yaml
+candidate_universe:
+  enforce: true
+  inert_candidates: exactly_once
+  exact_body_members: exactly_once
+  promoted_semantic_members: exactly_once
+  scanner_source_units: exactly_once
+content_sha256: 12512b26788ad10249949564487a4577306a1bcb6c74a19c326ae03d35184dd0

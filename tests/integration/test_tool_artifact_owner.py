@@ -12,9 +12,9 @@ owner of bytes spec-kitty generates on ANY surface:
 * **Executor adoption / one compensator** (T048 / TAO-3) — the merge executor's
   capture/restore now routes through the SAME owner compensator.
 * **Canonical churn classifier** (T049 / FR-012) — one classifier every gate consults.
-* **NFR-002** — a fork()+SIGKILL trial harness (≥100 trials, both-outcomes
-  non-vacuity floor, POSIX-gated) asserting each enrolled path is byte-identical to
-  either its pre-transaction bytes or its committed post-state, plus a
+* **NFR-002** — a deterministic fork()+SIGKILL barrier at the atomic commit seam,
+  POSIX-gated, asserting the enrolled path remains byte-identical to its
+  pre-transaction bytes before replace and reaches its committed post-state, plus a
   recovery-verified commit-spanning arm (re-invoke reaches the committed state, no
   residue) for the platforms where kill-atomicity cannot be asserted (Windows gap:
   recovery-only).
@@ -27,10 +27,9 @@ from __future__ import annotations
 
 import contextlib
 import os
-import random
+import select
 import signal
 import subprocess
-import time
 from pathlib import Path
 
 import pytest
@@ -290,11 +289,8 @@ def test_canonical_churn_classifier_unifies_bookkeeping_and_residue() -> None:
 
 
 # ---------------------------------------------------------------------------
-# NFR-002 — fork()+SIGKILL trial harness (both-outcomes floor, POSIX-gated)
+# NFR-002 — deterministic fork()+SIGKILL commit-seam barrier (POSIX-gated)
 # ---------------------------------------------------------------------------
-
-
-_TRIALS = 200
 
 
 @pytest.mark.skipif(
@@ -302,105 +298,52 @@ _TRIALS = 200
     reason="NFR-002 kill-atomicity requires POSIX os.fork(); Windows is recovery-only",
 )
 def test_nfr002_enrolled_path_never_observes_a_third_state(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path,
 ) -> None:
-    """≥100 fork+SIGKILL trials that RACE the kill against the write.
-
-    The child writes the enrolled artifact IMMEDIATELY; the parent then sleeps a
-    small RANDOM jitter and SIGKILLs — so the kill races the write and, across the
-    trials, some kills genuinely land mid-write (mid temp-write / mid ``os.replace``).
-    After every trial the target MUST be byte-identical to either its pre-transaction
-    snapshot OR its fully-committed post-state — NEVER a partial third state. Because
-    the owner's confined write is a temp-write + atomic ``os.replace``, a mid-write
-    kill can only leave the pre-state (target untouched, temp orphaned) or the fully
-    replaced post-state. If the write were regressed to a non-atomic in-place write,
-    a mid-write kill WOULD leave a partial target and this assertion WOULD fail — the
-    guard can fail on the regression it exists to catch (DIRECTIVE_041).
-
-    Non-vacuity is achieved via the RACE, not a deterministic split: the jitter
-    window is calibrated to the measured write duration so BOTH a killed-before-commit
-    (pre) and a survived-to-commit (post) outcome occur on any machine. Orphaned
-    ``.spec-kitty-*.tmp`` files are counted as direct evidence the kill landed
-    *during* the temp-write. If either outcome never occurs the run is flagged vacuous
-    and fails loudly.
-    """
+    """A kill at the reached replace seam preserves pre; a full write reaches post."""
     worktree = tmp_path / "wt"
     worktree.mkdir()
     target = worktree / "artifact.bin"
     pre = b"PRE-" * 8
-    # A ~1 MiB post payload widens the temp-write window so a small jitter can land
-    # the SIGKILL mid-write; distinct length + content from ``pre``.
     post = bytes((i * 31 + 7) % 256 for i in range(1024)) * 1024
     assert post != pre
     resolve = aw._resolve_confined_artifact_path
 
-    # Calibrate the race window to one uninterrupted atomic write, so the jitter
-    # brackets the write duration regardless of machine speed.
     aw._write_confined_artifact_bytes(worktree, target, pre, resolve=resolve)
-    _t0 = time.perf_counter()
+    ready_read, ready_write = os.pipe()
+    pid = os.fork()
+    if pid == 0:  # pragma: no cover — child process
+        os.close(ready_read)
+
+        def _block_at_replace(*args: object, **kwargs: object) -> None:
+            del args, kwargs
+            os.write(ready_write, b"1")
+            signal.pause()
+
+        aw.os.replace = _block_at_replace  # type: ignore[assignment]
+        try:
+            aw._write_confined_artifact_bytes(worktree, target, post, resolve=resolve)
+        except BaseException:
+            os._exit(2)
+        os._exit(0)
+
+    os.close(ready_write)
+    readable, _, _ = select.select([ready_read], [], [], 5.0)
+    reached_replace = os.read(ready_read, 1) if readable else b""
+    os.close(ready_read)
+    with contextlib.suppress(ProcessLookupError):
+        os.kill(pid, signal.SIGKILL)
+    _, status = os.waitpid(pid, 0)
+
+    assert reached_replace == b"1", "child never reached the atomic replace seam"
+    assert os.WIFSIGNALED(status) and os.WTERMSIG(status) == signal.SIGKILL
+    assert target.read_bytes() == pre
+    assert list(worktree.glob(".spec-kitty-*.tmp")), (
+        "kill at the reached replace seam must leave proof of the completed temp write"
+    )
+
     aw._write_confined_artifact_bytes(worktree, target, post, resolve=resolve)
-    write_dur = time.perf_counter() - _t0
-    # Bracket the write with a 3x window: the child's write under fork/COW runs a
-    # little slower than this warm calibration write, so a wider high side keeps the
-    # survived-to-commit (post) outcome comfortably above the non-vacuity floor while
-    # the near-zero delays keep landing kills mid-/pre-write.
-    max_delay = max(write_dur * 3.0, 0.001)
-
-    rng = random.Random(0xA7031C)
-    completed = 0  # target == post (write survived to atomic replace)
-    killed = 0  # target == pre (kill won the race before the replace landed)
-    for trial in range(_TRIALS):
-        # Reset to the pre-state atomically (parent, uninterrupted) before each trial.
-        aw._write_confined_artifact_bytes(worktree, target, pre, resolve=resolve)
-
-        pid = os.fork()
-        if pid == 0:  # pragma: no cover — child process
-            try:
-                aw._write_confined_artifact_bytes(
-                    worktree, target, post, resolve=resolve
-                )
-            except BaseException:
-                os._exit(2)
-            os._exit(0)
-
-        # Parent: small random jitter, then SIGKILL — RACE the write.
-        time.sleep(rng.uniform(0.0, max_delay))
-        with contextlib.suppress(ProcessLookupError):
-            os.kill(pid, signal.SIGKILL)  # child may have finished cleanly
-        os.waitpid(pid, 0)
-
-        data = target.read_bytes()
-        assert data in (pre, post), (
-            f"trial {trial}: enrolled path observed a THIRD (partial) state of "
-            f"{len(data)} bytes — kill-atomicity breached (a non-atomic write would "
-            "leave exactly this partial target)"
-        )
-        if data == post:
-            completed += 1
-        else:
-            killed += 1
-
-    # Orphaned temps == children SIGKILLed *during* the temp-write phase: direct
-    # evidence the race put kills mid-write (not merely before the write started).
-    mid_write_temp_residue = len(list(worktree.glob(".spec-kitty-*.tmp")))
-
-    with capsys.disabled():
-        print(
-            f"\n[NFR-002] {_TRIALS} racing trials: pre(killed)={killed} "
-            f"post(survived)={completed} mid-write-temp-orphans={mid_write_temp_residue} "
-            f"write_dur={write_dur * 1e3:.3f}ms max_jitter={max_delay * 1e3:.3f}ms"
-        )
-
-    assert completed + killed == _TRIALS
-    # Both-outcomes NON-VACUITY floor, achieved by the race (not a trial%2 split).
-    assert killed >= 1, (
-        "vacuous run: the SIGKILL never won the race (pre-state never observed) — "
-        "widen the jitter / payload so kills land before the atomic replace"
-    )
-    assert completed >= 1, (
-        "vacuous run: the write never survived to commit (post-state never observed) "
-        "— narrow the jitter so some writes finish before the SIGKILL"
-    )
+    assert target.read_bytes() == post
 
 
 def test_nfr002_commit_spanning_recovery_reaches_committed_state(coord_repo: Path) -> None:

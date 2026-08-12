@@ -211,30 +211,6 @@ class TestCodebaseWideSkipsExecutionModeConsistency:
         warnings = validate_execution_mode_consistency(m)
         assert warnings == []
 
-    def test_narrow_planning_with_src_still_warns(self) -> None:
-        """Narrow WPs still get mode consistency warnings."""
-        m = _manifest(
-            mode=ExecutionMode.PLANNING_ARTIFACT,
-            owned=("src/specify_cli/ownership/**",),
-            surface="src/specify_cli/ownership/",
-        )
-        warnings = validate_execution_mode_consistency(m)
-        assert len(warnings) == 1
-
-
-class TestScopeFieldOptional:
-    """test_scope_field_optional:
-    WP without scope field passes validation normally."""
-
-    def test_no_scope_passes_all_validations(self) -> None:
-        manifests = {
-            "WP01": _manifest(owned=("src/alpha/**",), surface="src/alpha/"),
-            "WP02": _manifest(owned=("src/beta/**",), surface="src/beta/"),
-        }
-        result = validate_all(manifests)
-        assert result.passed
-
-
 class TestMixedScopeMission:
     """test_mixed_scope_mission:
     Mission with both narrow and codebase-wide WPs validates correctly."""

@@ -6427,7 +6427,6 @@ pages:
     - {slug: "why", text: "Why", level: 3}
     - {slug: "what-uv-sync-frozen-does", text: "What `uv sync --frozen` does", level: 3}
     - {slug: "when-to-run-it", text: "When to run it", level: 3}
-    - {slug: "automated-detection", text: "Automated detection", level: 3}
     - {slug: "typer-click-version-skew-spec-kitty-review-preflight", text: "Typer/click version skew (`spec-kitty review` preflight)", level: 2}
     - {slug: "running-the-ci-residual-selection-locally", text: "Running the CI residual selection locally", level: 2}
     - {slug: "pre-review-regression-gate-move-task-to-for-review", text: "Pre-review regression gate (`move-task --to for_review`)", level: 2}
@@ -12637,6 +12636,31 @@ pages:
     anchors:
     - {slug: "what-spec-kitty-init-does", text: "What `spec-kitty init` does", level: 2}
     - {slug: "authoring-your-project-charter", text: "Authoring your project charter", level: 2}
+  - path: "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/final-report.md"
+    title: "Assertive Test-Suite Sanitation — Final Report"
+    divio_type: "none"
+    abstract: "Closure state: **for-review-with-explicit-gate-misses** Evidence commit: `f527f8733b87d567957b771101405478309b8b70` Generated: `2026-08-11T06:45:00Z`"
+    anchors:
+    - {slug: "outcome", text: "Outcome", level: 2}
+    - {slug: "before-after-inventory", text: "Before / after inventory", level: 2}
+    - {slug: "terminal-disposition-ledger", text: "Terminal disposition ledger", level: 2}
+    - {slug: "performance-criteria", text: "Performance criteria", level: 2}
+    - {slug: "repaired-base-vs-integrated-head-outcomes", text: "Repaired-base vs integrated-HEAD outcomes", level: 2}
+    - {slug: "acceptance-criteria", text: "Acceptance criteria", level: 2}
+    - {slug: "workflow-deviations-and-review", text: "Workflow deviations and review", level: 2}
+  - path: "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/issue-matrix.md"
+    title: "Test Sanitation Issue Matrix"
+    divio_type: "none"
+    abstract: "Generated from content-addressed closure authority for `f527f8733b87d567957b771101405478309b8b70`."
+    anchors: []
+  - path: "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/workflow-evidence.md"
+    title: "Test Sanitation Workflow Evidence"
+    divio_type: "none"
+    abstract: "Evidence commit: `f527f8733b87d567957b771101405478309b8b70` Environment: macOS host; Python 3.11 mission .venv; integrated lane f527f8733; exact commands and raw receipt hashes below"
+    anchors:
+    - {slug: "repository-and-cross-repository-gates", text: "Repository and cross-repository gates", level: 2}
+    - {slug: "integrated-platform-evidence", text: "Integrated platform evidence", level: 2}
+    - {slug: "fresh-clone-starts", text: "Fresh-clone starts", level: 2}
   - path: "docs/retrospective-learning-loop.md"
     title: "Retrospective Learning Loop"
     divio_type: "none"

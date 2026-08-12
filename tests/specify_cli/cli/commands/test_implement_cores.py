@@ -267,7 +267,7 @@ class TestDecodeMetaRouting:
     parser is routed onto the kernel L1 :func:`kernel.meta_decode.decode_meta`
     authority (FR-003). Malformed content now fails loud (``on_malformed=
     "raise"``) instead of the former silent ``None`` -- the ``"none"`` policy
-    preserves a caller that deliberately wants the absorbed sentinel."""
+        preserves a caller that deliberately wants the absorbed sentinel."""
 
     def test_valid_object(self) -> None:
         assert decode_meta(b'{"vcs": "git"}') == {"vcs": "git"}

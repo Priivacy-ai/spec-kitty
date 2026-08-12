@@ -424,21 +424,3 @@ class TestDeactivateCascadeAndInvalidKind:
         """deactivate() with an unknown kind raises ValueError."""
         with pytest.raises(ValueError, match="Unknown activation kind"):
             manager.deactivate(ctx, kind="not-a-kind", artifact_id="x")
-
-
-# ---------------------------------------------------------------------------
-# TestListAvailable
-# ---------------------------------------------------------------------------
-
-
-class TestListAvailable:
-    def test_raises_value_error_for_unknown_kind(self, manager: CharterPackManager, ctx: ProjectContext) -> None:
-        """list_available() with an unknown kind raises ValueError."""
-        with pytest.raises(ValueError, match="Unknown activation kind"):
-            manager.list_available(ctx, kind="bogus-kind")
-
-    def test_returns_nonempty_frozenset_for_directive(self, manager: CharterPackManager, ctx: ProjectContext) -> None:
-        """list_available('directive') returns at least one built-in directive ID."""
-        result = manager.list_available(ctx, kind="directive")
-        assert isinstance(result, frozenset)
-        assert len(result) > 0

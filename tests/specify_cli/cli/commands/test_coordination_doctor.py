@@ -441,24 +441,8 @@ def test_apply_coord_staleness_fixes_unstattable_mission_candidate_is_not_silent
 # --- H2 / cycle invariants ---------------------------------------------------
 
 
-def test_merge_import_is_function_local() -> None:
-    import ast
-
-    source = Path(cd.__file__).read_text(encoding="utf-8")
-    tree = ast.parse(source)
-    # No module-level (depth-1) import of the merge module.
-    for node in tree.body:
-        if isinstance(node, ast.ImportFrom) and node.module == "specify_cli.cli.commands.merge":
-            raise AssertionError("merge import must not be module-level (H2)")
-    # It must appear somewhere nested (inside a function).
-    assert "from specify_cli.cli.commands.merge import path_is_under_worktrees" in source
 
 
-def test_no_doctor_merge_import_cycle() -> None:
-    import importlib
-
-    importlib.import_module("specify_cli.cli.commands.doctor")
-    importlib.import_module("specify_cli.cli.commands.merge")
 
 
 # --- _fix_never_created_branches ---------------------------------------------

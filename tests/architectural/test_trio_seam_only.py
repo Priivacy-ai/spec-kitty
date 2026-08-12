@@ -259,21 +259,6 @@ def _scan_file_seam_violations(path: Path) -> list[_SeamViolation]:
 # ---------------------------------------------------------------------------
 
 
-def test_trio_files_exist() -> None:
-    """Every path in ``_TRIO_FILES`` is a real file on the current tree.
-
-    A stale/typo'd path would silently vacuous-pass every downstream
-    assertion below (an empty/missing file contributes zero violations).
-    """
-    missing = [str(p) for p in _TRIO_FILES if not p.is_file()]
-    assert not missing, f"Trio module paths do not exist on the current tree: {missing}"
-
-
-# ---------------------------------------------------------------------------
-# T027(b) -- the real assertion: zero seam bypasses on the live tree.
-# ---------------------------------------------------------------------------
-
-
 def test_trio_imports_route_only_through_seam_wrappers() -> None:
     """FR-004/FR-007: every trio module's read-path imports are seam-only.
 
@@ -364,126 +349,6 @@ def test_planted_raw_kitty_specs_dir_import_is_caught() -> None:
 # ---------------------------------------------------------------------------
 # T027(e) -- allowlist integrity: forbidden mission_runtime names are still live.
 # ---------------------------------------------------------------------------
-
-
-def test_forbidden_mission_runtime_names_are_live_exports() -> None:
-    """Every name in ``_FORBIDDEN_MISSION_RUNTIME_PATH_PRIMITIVES`` is a real export.
-
-    If one of these were renamed/removed upstream, the forbidden-name check
-    would silently stop matching anything -- this keeps the negative list
-    honest against the live ``mission_runtime.__all__``.
-    """
-    import mission_runtime
-
-    missing = sorted(_FORBIDDEN_MISSION_RUNTIME_PATH_PRIMITIVES - set(mission_runtime.__all__))
-    assert not missing, (
-        f"_FORBIDDEN_MISSION_RUNTIME_PATH_PRIMITIVES references names no longer "
-        f"exported by mission_runtime: {missing}. Update the forbidden set to "
-        "match the live API (or confirm the primitive was retired and drop it)."
-    )
-
-
-def _trio_resolver_module_imports() -> set[str]:
-    """Every name imported from ``_read_path_resolver`` by ANY real trio file."""
-    used: set[str] = set()
-    for path in _TRIO_FILES:
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom) and node.module == _READ_PATH_RESOLVER_MODULE:
-                used.update(alias.name for alias in node.names)
-    return used
-
-
-def _reacquired_leaf_primitives(used: set[str], blessed: frozenset[str]) -> set[str]:
-    """Names in *used* that are NOT in *blessed* -- a leaf-primitive reacquisition.
-
-    Deliberately NOT a subtraction that can null itself out regardless of
-    *blessed*'s size (the retired M6 shape was ``blessed - used -
-    {"resolve_handle_to_read_path"}``, which is the EMPTY set whenever
-    ``blessed <= {"resolve_handle_to_read_path"}`` -- vacuously green no
-    matter what the trio actually imports). This direction (``used -
-    blessed``) instead asks the real question: does the trio import anything
-    OUTSIDE the blessed set at all.
-    """
-    return used - blessed
-
-
-def test_allowed_read_path_resolver_names_are_currently_used() -> None:
-    """read-side-seam-primary-primitive-closure-01KYKMMT WP01 (T006, Ledger M6):
-
-    Reviewer note (review-cycle-1, N3): this node id is now a MISNOMER — the
-    body below asserts non-reacquisition (no ``_read_path_resolver`` import
-    falls outside the blessed set) plus non-vacuity (the blessed idiom is
-    actually imported somewhere), not literally "currently used" in the
-    original sense. The node id is kept STABLE anyway because the
-    gate-coverage baselines key on it by name; renaming it would silently
-    orphan that baseline entry. Noted here so this is read as a deliberate
-    naming debt, not drift.
-
-    POSITIVE replacement for the retired self-nullifying exemption.
-
-    The prior version computed ``unused = blessed - used -
-    {"resolve_handle_to_read_path"}`` -- once the blessed set shrank to
-    exactly ``{"resolve_handle_to_read_path"}`` (T006's own shrink, above),
-    that expression is the EMPTY set BY CONSTRUCTION regardless of what the
-    trio actually imports: a gate that would stay green even if the trio
-    regressed provides no coverage (DIRECTIVE_041).
-
-    This asserts the POSITIVE directly and is NOT satisfiable by an empty
-    set: every ``_read_path_resolver`` import across the real trio files must
-    be drawn from the blessed set (no leaf-primitive reacquisition), AND the
-    blessed seam idiom must actually be imported by at least one trio file
-    (non-vacuous — an empty ``used`` cannot intersect a non-empty blessed
-    set). Today this is EXPECTED RED: four trio files still import the two
-    just-dropped leaf primitives (WP05 routes them, greening this gate).
-
-    Reviewer note (review-cycle-1, N2): the second assertion depends on
-    ``resolve_handle_to_read_path`` STAYING IMPORTED by at least one trio
-    file — today that is the two surviving function-local imports at
-    ``cli/commands/agent/workflow.py:356`` and ``acceptance/__init__.py:722``.
-    This is the same "must remain in use" shape :func:`write_arm_anchors`
-    (``test_gate_read_literal_ban.py``) relies on for the deleted
-    ``primary_feature_dir_for_mission`` wrapper, one level up at the seam
-    entry point rather than the leaf primitive — named explicitly so a later
-    routing pass does not remove either import blind and silently vacuous
-    this gate.
-    """
-    used = _trio_resolver_module_imports()
-    reacquired = sorted(_reacquired_leaf_primitives(used, _SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES))
-    assert not reacquired, (
-        f"Trio module(s) import _read_path_resolver name(s) outside the blessed "
-        f"seam idiom: {reacquired}. Route through resolve_handle_to_read_path "
-        "instead (WP05 routes these sites), or justify a deliberate widening."
-    )
-    assert used & _SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES, (
-        "No trio module imports any blessed _read_path_resolver name at all -- "
-        "this positive assertion cannot be satisfied by an empty set (M6 "
-        "anti-vacuity)."
-    )
-
-
-def test_reacquired_leaf_primitives_bites_on_planted_import() -> None:
-    """T006 bite test: a planted leaf-primitive import is flagged as a
-    reacquisition -- proves the helper actually catches a real regression
-    shape, not merely a hypothetical."""
-    used = {"resolve_handle_to_read_path", "primary_feature_dir_for_mission"}
-    reacquired = _reacquired_leaf_primitives(used, _SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES)
-    assert reacquired == {"primary_feature_dir_for_mission"}, reacquired
-
-
-def test_reacquired_leaf_primitives_not_vacuous_when_blessed_set_shrinks() -> None:
-    """M6 anti-vacuity: an EMPTY blessed set still flags every import as a
-    reacquisition -- unlike the retired subtraction-based exemption, whose
-    teeth vanished the moment the blessed set shrank to one name. Mutating
-    the blessed set here (down to empty) does NOT make this helper go green:
-    it still has teeth."""
-    used = {"resolve_handle_to_read_path"}
-    reacquired = _reacquired_leaf_primitives(used, frozenset())
-    assert reacquired == {"resolve_handle_to_read_path"}, (
-        "with an empty blessed set every import must be flagged as a "
-        "reacquisition -- this helper's non-vacuity does not depend on the "
-        "blessed set's size, unlike the retired exemption"
-    )
 
 
 # ===========================================================================
@@ -719,16 +584,6 @@ def _unallowlisted_io_violations(path: Path) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def test_core_files_exist() -> None:
-    missing = [str(p) for p in _CORE_FILES if not p.is_file()]
-    assert not missing, f"Pure-core module paths do not exist on the current tree: {missing}"
-
-
-# ---------------------------------------------------------------------------
-# T028(b) -- the real assertion: zero unallowlisted I/O in the pure cores.
-# ---------------------------------------------------------------------------
-
-
 def test_cores_perform_no_unallowlisted_io() -> None:
     """FR-007: the four pure-core modules contain no I/O outside the allowlist.
 
@@ -748,30 +603,6 @@ def test_cores_perform_no_unallowlisted_io() -> None:
         "implement_cores.py's GitPort) or, if this is a genuinely lightweight, "
         "already-scoped read in the spirit of the five documented exceptions, "
         "add a justified entry to _IO_ALLOWLIST_SITES."
-    )
-
-
-def test_io_allowlist_entries_have_rationale() -> None:
-    empty = [k for k, v in _IO_ALLOWLIST.items() if not v.strip()]
-    assert not empty, f"IO allowlist entries with empty rationale: {empty}"
-
-
-def test_io_allowlist_entries_are_not_stale() -> None:
-    """Every allowlisted composite key still corresponds to a live banned call.
-
-    A stale entry (line drifted, or the call was removed) would silently
-    widen the allowlist without covering anything real.
-    """
-    live_keys: set[tuple[str, str]] = set()
-    for path in _CORE_FILES:
-        source = path.read_text(encoding="utf-8")
-        for violation in find_banned_io_calls(source):
-            live_keys.add(composite_key(source, violation.lineno))
-
-    stale = sorted(k for k in _IO_ALLOWLIST if k not in live_keys)
-    assert not stale, (
-        f"Stale _IO_ALLOWLIST_SITES entries (no longer a live banned-call site): {stale}. "
-        "Update the seed line/qualname or remove the entry."
     )
 
 

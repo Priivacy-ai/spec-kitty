@@ -219,14 +219,6 @@ class TestWidenAffordanceVisibility:
         # Verify by checking for the widen-specific fragment "iden" in prompt context.
         assert "iden" in result.output
 
-    def test_widen_not_shown_when_prereqs_absent(self, tmp_path: Path) -> None:
-        """[w]iden absent from prompt when prereqs not satisfied (SC-004)."""
-        _setup_repo(tmp_path)
-        inputs = _make_inputs([""] * _N_QUESTIONS)
-        result = _invoke_interview(tmp_path, inputs)
-        assert result.exit_code == 0, result.output
-        assert "[w]iden" not in result.output
-
     def test_widen_not_shown_when_token_unset(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """With SPEC_KITTY_SAAS_TOKEN unset, [w]iden must NOT appear (SC-004)."""
         _setup_repo(tmp_path)

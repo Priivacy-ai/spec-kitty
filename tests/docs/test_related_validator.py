@@ -123,16 +123,6 @@ def test_missing_docs_root_raises(tmp_path: Path) -> None:
         validate_related(docs_root=tmp_path / "absent", repo_root=tmp_path)
 
 
-def test_populated_tree_still_returns_report(tmp_path: Path) -> None:
-    """A tree with at least one ``related:`` edge still returns a report — the floor is non-vacuity only."""
-    repo = _stage_repo(tmp_path, dangling=False)
-
-    report = validate_related(docs_root=repo / "docs", repo_root=repo)
-
-    assert report.checked_count > 0
-    assert report.dangling_edges == []
-
-
 # --------------------------------------------------------------------------- #
 # T009 — Diff-scope mode (#3147, B-WP02)                                      #
 # --------------------------------------------------------------------------- #

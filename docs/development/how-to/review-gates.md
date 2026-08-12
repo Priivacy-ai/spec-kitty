@@ -57,26 +57,9 @@ Run `uv sync --frozen` any time:
 - You temporarily installed an editable / sibling-checkout copy of
   `spec-kitty-events` or `spec-kitty-tracker` for cross-package work
   (see [`local-overrides.md`](local-overrides.md) for the dev workflow).
-- The drift detector fails (see below).
+- A review gate or local command reports dependency drift.
 
-### Automated detection
-
-The architectural test
-[`tests/architectural/test_uv_lock_pin_drift.py`](../../../tests/architectural/test_uv_lock_pin_drift.py)
-detects drift between `uv.lock` and the installed versions of the
-governed shared packages (`spec-kitty-events`, `spec-kitty-tracker`).
-
-If that test fails, the failure message names every offending package
-and prints the literal command to fix it:
-
-```
-uv.lock vs installed-package drift detected for governed shared packages:
-  - spec-kitty-events: locked=4.1.0, installed=4.0.7
-Run the documented pre-review/pre-PR sync command from the repository root:
-  uv sync --frozen
-```
-
-That is the **only** documented sync command for this purpose. Do not
+`uv sync --frozen` is the **only** documented sync command for this purpose. Do not
 substitute `uv pip sync`, `uv pip install`, or any other variant -- they
 either re-resolve the graph or skip the lockfile entirely, both of which
 defeat the point.

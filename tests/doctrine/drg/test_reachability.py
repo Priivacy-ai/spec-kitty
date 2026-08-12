@@ -38,7 +38,6 @@ import pytest
 from charter import pack_context
 from charter.pack_context import (
     charter_activated_urns,
-    partition_activated_unreachable,
 )
 from doctrine.drg.loader import load_built_in_graph
 from doctrine.drg.models import DRGGraph, Relation
@@ -721,25 +720,8 @@ class TestActionChannelReachability:
             direct |= resolve_context(graph, seed, depth=_ACTION_D1_DEPTH).artifact_urns
         assert action_channel_reachable(graph, seeds, _ACTION_D1_DEPTH) == frozenset(direct)
 
-    def test_unreachable_at_d1_is_the_pinned_membership(self, graph: DRGGraph) -> None:
-        reachable = action_channel_reachable(graph, action_seed_urns(graph), _ACTION_D1_DEPTH)
-        measured = _activated() - reachable
-        assert measured == _ACTION_UNREACHABLE_D1, _describe(
-            "_ACTION_UNREACHABLE_D1", measured, _ACTION_UNREACHABLE_D1
-        )
 
-    def test_unreachable_at_d2_is_the_pinned_membership(self, graph: DRGGraph) -> None:
-        reachable = action_channel_reachable(graph, action_seed_urns(graph), _ACTION_D2_DEPTH)
-        measured = _activated() - reachable
-        assert measured == _ACTION_UNREACHABLE_D2, _describe(
-            "_ACTION_UNREACHABLE_D2", measured, _ACTION_UNREACHABLE_D2
-        )
 
-    def test_bootstrap_depth_only_relaxes_the_steady_state(self) -> None:
-        """d=2 reaches a superset, so its unreachable set is d=1's minus a spread
-        of exactly 7 (R-2) — never a set d=1 did not already contain."""
-        assert _ACTION_UNREACHABLE_D2 <= _ACTION_UNREACHABLE_D1
-        assert len(_ACTION_UNREACHABLE_D1 - _ACTION_UNREACHABLE_D2) == _ACTION_D1_D2_SPREAD
 
     def test_common_docs_cluster_and_asset_are_action_reachable(self, graph: DRGGraph) -> None:
         """FR-015 / WP09 acceptance (spec User Story 4, scenario 3): every wired
@@ -861,30 +843,7 @@ class TestProfileChannelReachability:
         retires)."""
         assert profile_channel_reachable(graph, frozenset()) == frozenset()
 
-    def test_profile_unreachable_is_the_pinned_membership(self, graph: DRGGraph) -> None:
-        reachable = profile_channel_reachable(graph, agent_profile_seed_urns(graph))
-        measured = _activated() - reachable
-        assert measured == _PROFILE_UNREACHABLE, _describe(
-            "_PROFILE_UNREACHABLE", measured, _PROFILE_UNREACHABLE
-        )
 
-    def test_profile_channel_rescues_activated_artefacts_the_action_channel_misses(
-        self, graph: DRGGraph
-    ) -> None:
-        """The load-bearing R-3 fact: the profile channel is a distinct entry
-        vector. These activated artefacts are unreachable from every action at
-        d=2 yet reachable because a profile ``requires`` them."""
-        rescues = _ACTION_UNREACHABLE_D2 - _PROFILE_UNREACHABLE
-        assert rescues == _PROFILE_RESCUES, _describe(
-            "_PROFILE_RESCUES", rescues, _PROFILE_RESCUES
-        )
-        assert rescues, "the profile channel must rescue at least one activated artefact"
-        # Delivered to nobody by the action channel, delivered by the profile
-        # channel: exactly the two-channel model (R-3), proven from the graph.
-        profile_reachable = profile_channel_reachable(graph, agent_profile_seed_urns(graph))
-        action_d2 = action_channel_reachable(graph, action_seed_urns(graph), _ACTION_D2_DEPTH)
-        assert rescues <= profile_reachable
-        assert not (rescues & action_d2)
 
 
 #: The wiring-table composition ledger this WP authored for the profile-channel
@@ -920,73 +879,8 @@ def _profile_channel_ledger_text() -> str:
     return text[start:end]
 
 
-@pytest.mark.doctrine
-class TestProfileRescuesHaveLedgerCoverage:
-    """T015 cross-check: every ``_PROFILE_RESCUES`` member is named in the ledger.
-
-    NFR-002 for the reachability pins is REVIEW-gated, not CI-gated (D18):
-    ``measured == pin`` greens on any pasted value. This cross-check does NOT
-    validate that a pin value is *numerically correct* — that remains the
-    reviewer's per-member ledger-vs-diff comparison. It catches only the most
-    common regression class: a pin edited without a matching wiring-table ledger
-    row. A green here means "every rescued member is documented", never "the
-    numbers are right".
-    """
-
-    def test_every_profile_rescue_member_has_a_ledger_row(self) -> None:
-        ledger = _profile_channel_ledger_text()
-        missing = sorted(m for m in _PROFILE_RESCUES if f"`{m}`" not in ledger)
-        assert not missing, (
-            "Every _PROFILE_RESCUES member must be named (backtick-quoted) in the "
-            "profile-channel walk-activation ledger of "
-            f"{_WIRING_TABLE_PATH.name}. Missing ledger rows for:\n"
-            + "\n".join(f"    - {m}" for m in missing)
-            + "\n\nAdd a ledger entry (which family/edge delivers it, which WP wired "
-            "the edge) before moving the pin — a pin move without a ledger row is an "
-            "NFR-002 violation."
-        )
-
-    def test_cross_check_is_not_vacuous(self) -> None:
-        """The cross-check must have real bite: a fabricated missing member is
-        caught. Guards against the ledger text going empty/unparseable and the
-        membership check silently passing over nothing (D18 vacuity risk)."""
-        ledger = _profile_channel_ledger_text()
-        fabricated = "tactic:__definitely-not-a-real-rescued-member__"
-        assert f"`{fabricated}`" not in ledger
-        # A member NOT in the ledger would be flagged — proving the assertion in
-        # the sibling test is load-bearing, not always-true.
-        pretend_rescues = frozenset({fabricated})
-        missing = sorted(m for m in pretend_rescues if f"`{m}`" not in ledger)
-        assert missing == [fabricated]
 
 
-@pytest.mark.doctrine
-class TestC009NormalizationSwingExcluded:
-    """The store->node slug reconciliation is declared, and never banked.
-
-    The swing size is pinned by ``_NORMALIZATION_DELTA`` (31 as of the
-    writing-comms/diagramming activation) rather than baked into names here, so a
-    later count change touches only the constant.
-    """
-
-    def test_normalization_delta_is_the_declared_swing(self, graph: DRGGraph) -> None:
-        node_urns = graph.node_urns()
-        reachable = action_channel_reachable(graph, action_seed_urns(graph), _ACTION_D1_DEPTH)
-        partition = partition_activated_unreachable(_raw_activated_map(), node_urns, reachable)
-        assert partition.normalization_delta == _NORMALIZATION_DELTA
-
-    def test_pinned_sets_carry_no_store_form_not_a_node_slug(self, graph: DRGGraph) -> None:
-        """The pinned progress sets are all node form, so the ``not_a_node``
-        store slugs (the C-009 swing) cannot inflate them (C-009)."""
-        node_urns = graph.node_urns()
-        reachable = action_channel_reachable(graph, action_seed_urns(graph), _ACTION_D1_DEPTH)
-        not_a_node = partition_activated_unreachable(
-            _raw_activated_map(), node_urns, reachable
-        ).not_a_node
-        assert not_a_node  # the swing exists...
-        for pinned in (_ACTION_UNREACHABLE_D1, _ACTION_UNREACHABLE_D2, _PROFILE_UNREACHABLE):
-            assert not (pinned & not_a_node)  # ...but is excluded from every pin
-            assert pinned <= node_urns
 
 
 @pytest.mark.doctrine

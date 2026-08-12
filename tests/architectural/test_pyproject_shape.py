@@ -1,255 +1,105 @@
-"""TOML shape assertions for the shared-package boundary cutover.
+"""Consumed packaging invariants for the published CLI distribution."""
 
-These tests enforce the pyproject-level constraints documented in
-``kitty-specs/shared-package-boundary-cutover-01KQ22DS/spec.md``:
-
-* **R4 / C-004**: ``[project.dependencies]`` MUST NOT exact-pin
-  (``==X.Y.Z``) the shared packages ``spec-kitty-events`` or
-  ``spec-kitty-tracker``. Exact pins live in ``uv.lock``; pyproject uses
-  compatible ranges (``>=X.Y,<X+1``) so downstream consumers can roll
-  forward without coordinated CLI releases.
-
-* **R5 / C-005**: ``[tool.uv.sources]`` MUST NOT contain a ``path`` or
-  ``editable`` entry for any of ``spec-kitty-events``,
-  ``spec-kitty-tracker``, or ``spec-kitty-runtime``. Editable / path
-  sources belong in developer-only configuration (e.g. ``uv.toml``
-  overrides), never in the committed pyproject -- see ADR notes in
-  ``contracts/events_consumer_surface.md``.
-
-* **R6 / FR-006**: ``[project.dependencies]`` MUST NOT list
-  ``spec-kitty-runtime``. The runtime PyPI surface is retired in this
-  mission; the internalized runtime under
-  ``src/runtime/next/_internal_runtime/`` is the only authoritative
-  source.
-
-These tests are TOML-shape assertions that run independently of the
-import-graph rules in ``test_shared_package_boundary.py``.
-
-NFR-006 caps total architectural-test runtime at ≤30 seconds; these tests
-parse a single TOML file and run in milliseconds.
-
-WP08 (``Cut over pyproject metadata``) lands the pyproject changes that
-satisfy R4, R5, and R6. Until then, the live assertions are
-``xfail``-marked with a clear reason. WP08's subtask T030 explicitly
-removes those markers as part of its acceptance criteria.
-"""
 from __future__ import annotations
 
+import ast
+import copy
 import tomllib
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_PYPROJECT_PATH = _REPO_ROOT / "pyproject.toml"
-
-_WP08_XFAIL_REASON = (
-    "WP08 lands the pyproject metadata cutover (compatible ranges, "
-    "removal of editable sources, removal of spec-kitty-runtime). "
-    "WP08's subtask T030 MUST remove this xfail marker as part of its "
-    "acceptance criteria. See "
-    "kitty-specs/shared-package-boundary-cutover-01KQ22DS/tasks/WP08-*.md."
-)
-
-
-def _load_pyproject() -> dict:
-    return tomllib.loads(_PYPROJECT_PATH.read_text(encoding="utf-8"))
-
-
-def test_pyproject_file_exists_and_parses() -> None:
-    """Sanity guard: the file we are asserting against must exist and parse.
-
-    If pyproject.toml gets renamed or relocated, the rest of these tests
-    would silently no-op; this guard prevents that.
-    """
-    assert _PYPROJECT_PATH.is_file(), f"pyproject.toml not found at {_PYPROJECT_PATH}"
-    data = _load_pyproject()
-    assert "project" in data, "pyproject.toml is missing the [project] table"
-    assert "dependencies" in data["project"], "pyproject.toml [project] is missing dependencies"
-
-
-# ---------------------------------------------------------------------------
-# R6 -- FR-006: spec-kitty-runtime MUST NOT appear in [project.dependencies]
-# ---------------------------------------------------------------------------
-
-
-def test_pyproject_does_not_list_spec_kitty_runtime() -> None:
-    """R6 / FR-006: ``spec-kitty-runtime`` must not be a declared dependency.
-
-    This rule is LIVE today: pyproject already excludes spec-kitty-runtime
-    (the dependency comment in pyproject.toml documents that the runtime
-    is supplied via the internalized surface, not the PyPI package). The
-    test guards against future regressions.
-    """
-    data = _load_pyproject()
-    deps = data["project"]["dependencies"]
-    offending = [d for d in deps if _dep_name(d) == "spec-kitty-runtime"]
-    assert not offending, (
-        f"pyproject.toml lists spec-kitty-runtime: {offending}. "
-        "Per FR-006, the CLI must not depend on the retired runtime PyPI "
-        "package. Remove the dependency line; the internalized runtime at "
-        "src/runtime/next/_internal_runtime/ replaces it."
-    )
-
-
-# ---------------------------------------------------------------------------
-# R4 -- C-004: shared packages must use compatible ranges, not exact pins
-# ---------------------------------------------------------------------------
-
-
-def test_pyproject_uses_compatible_ranges_for_shared_packages() -> None:
-    """R4 / C-004: ``spec-kitty-events`` / ``spec-kitty-tracker`` use ranges.
-
-    Both packages MUST appear in ``[project.dependencies]`` and MUST use
-    compatible ranges (``>=X.Y,<X+1``) rather than exact pins
-    (``==X.Y.Z``). Exact pins belong in ``uv.lock``.
-    """
-    data = _load_pyproject()
-    deps = data["project"]["dependencies"]
-    failures: list[str] = []
-    for pkg in ("spec-kitty-events", "spec-kitty-tracker"):
-        matching = [d for d in deps if _dep_name(d) == pkg]
-        if not matching:
-            failures.append(f"pyproject.toml does not list {pkg}")
-            continue
-        for entry in matching:
-            spec = entry[len(pkg):].strip()
-            if "==" in spec:
-                failures.append(
-                    f"pyproject.toml pins {pkg} exactly: {entry!r}. "
-                    "Per C-004, exact pins live in uv.lock; pyproject.toml "
-                    "uses compatible ranges (>=X.Y,<X+1)."
-                )
-    assert not failures, "\n".join(failures)
-
-
-# ---------------------------------------------------------------------------
-# R5 -- C-005: no committed editable / path sources for shared packages
-# ---------------------------------------------------------------------------
-
-
-def test_pyproject_has_no_committed_editable_sources_for_shared_packages() -> None:
-    """R5 / C-005: ``[tool.uv.sources]`` must not pin shared packages to local
-    paths or editable installs.
-
-    Editable / path sources are developer-only overrides; committing them
-    in ``pyproject.toml`` makes the published wheel un-buildable for
-    downstream consumers and silently drags in private trees in CI.
-    """
-    data = _load_pyproject()
-    sources = data.get("tool", {}).get("uv", {}).get("sources", {})
-    offending: list[str] = []
-    for pkg in ("spec-kitty-events", "spec-kitty-tracker", "spec-kitty-runtime"):
-        if pkg in sources:
-            offending.append(
-                f"[tool.uv.sources] contains {pkg}: {sources[pkg]!r}. "
-                "Per C-005, editable / path sources for shared packages must "
-                "live in developer-only configuration, not committed pyproject.toml."
-            )
-    assert not offending, "\n".join(offending)
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-# PEP 508 marker / extras / version specifiers begin with one of these chars.
+_PYPROJECT = _REPO_ROOT / "pyproject.toml"
+_SRC = _REPO_ROOT / "src"
+_SHARED_PACKAGES = ("spec-kitty-events", "spec-kitty-tracker")
+_RETIRED_PACKAGE = "spec-kitty-runtime"
+_SHIPPED_TREES = ("specify_cli", "runtime")
 _DEP_NAME_TERMINATORS = "[=<>!~;@ "
 
 
-def _dep_name(entry: str) -> str:
-    """Extract the bare package name from a PEP 508 dependency string.
+def _load_pyproject() -> dict[str, Any]:
+    return tomllib.loads(_PYPROJECT.read_text(encoding="utf-8"))
 
-    >>> _dep_name("spec-kitty-events==4.0.0")
-    'spec-kitty-events'
-    >>> _dep_name("typer>=0.24.1")
-    'typer'
-    >>> _dep_name("httpx[socks]>=0.28.1")
-    'httpx'
-    """
-    for i, ch in enumerate(entry):
-        if ch in _DEP_NAME_TERMINATORS:
-            return entry[:i].strip()
+
+def _dep_name(entry: str) -> str:
+    for index, char in enumerate(entry):
+        if char in _DEP_NAME_TERMINATORS:
+            return entry[:index].strip()
     return entry.strip()
 
 
-# ---------------------------------------------------------------------------
-# Wheel completeness — every first-party top-level package imported by shipped
-# code MUST be packaged in the wheel. Regression guard for the mission_runtime
-# omission (PR #1787 / FR-010): src/mission_runtime existed and was imported by
-# specify_cli, but was absent from [tool.hatch.build.targets.wheel].packages,
-# so clean installs crashed with ModuleNotFoundError.
-# ---------------------------------------------------------------------------
+def _metadata_violations(data: dict[str, Any]) -> list[str]:
+    dependencies = data.get("project", {}).get("dependencies", [])
+    by_name = {_dep_name(entry): entry for entry in dependencies}
+    failures: list[str] = []
+    for package in _SHARED_PACKAGES:
+        entry = by_name.get(package)
+        if entry is None:
+            failures.append(f"missing consumed dependency {package}")
+        elif "==" in entry:
+            failures.append(f"exact runtime pin for {package}: {entry}")
+    if _RETIRED_PACKAGE in by_name:
+        failures.append(f"retired dependency present: {by_name[_RETIRED_PACKAGE]}")
 
-import ast  # noqa: E402
-
-_SRC_ROOT = _REPO_ROOT / "src"
-# Shipped entry-point trees whose imports define the runtime closure.
-_SHIPPED_TREES = ("specify_cli", "runtime")
-
-
-def _wheel_packages() -> set[str]:
-    data = _load_pyproject()
-    pkgs = data["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"]
-    # Stored as "src/<name>"; reduce to the bare top-level package name.
-    return {Path(p).name for p in pkgs}
+    sources = data.get("tool", {}).get("uv", {}).get("sources", {})
+    for package in (*_SHARED_PACKAGES, _RETIRED_PACKAGE):
+        if package in sources:
+            failures.append(f"committed local source for {package}: {sources[package]!r}")
+    return failures
 
 
-def _first_party_top_level_dirs() -> set[str]:
-    """Top-level dirs under src/ that contain at least one .py file."""
-    names: set[str] = set()
-    for child in _SRC_ROOT.iterdir():
-        if child.is_dir() and any(child.rglob("*.py")):
-            names.add(child.name)
-    return names
-
-
-def _imported_top_level_packages() -> set[str]:
-    """Scan shipped trees for first-party top-level imports.
-
-    Returns the set of top-level package names (that exist as src/ dirs)
-    imported anywhere under the shipped entry-point trees.
-    """
-    first_party = _first_party_top_level_dirs()
+def _imported_first_party_packages(src_root: Path) -> set[str]:
+    first_party = {child.name for child in src_root.iterdir() if child.is_dir() and any(child.rglob("*.py"))}
     imported: set[str] = set()
-    for tree in _SHIPPED_TREES:
-        root = _SRC_ROOT / tree
-        for py_file in root.rglob("*.py"):
-            try:
-                node = ast.parse(py_file.read_text(encoding="utf-8"))
-            except (OSError, SyntaxError):
-                continue
-            for stmt in ast.walk(node):
-                if isinstance(stmt, ast.Import):
-                    for alias in stmt.names:
-                        head = alias.name.split(".", 1)[0]
-                        if head in first_party:
-                            imported.add(head)
-                elif isinstance(stmt, ast.ImportFrom) and stmt.level == 0 and stmt.module:
-                    head = stmt.module.split(".", 1)[0]
-                    if head in first_party:
-                        imported.add(head)
+    for shipped_tree in _SHIPPED_TREES:
+        for path in (src_root / shipped_tree).rglob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    names = [alias.name for alias in node.names]
+                elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                    names = [node.module]
+                else:
+                    continue
+                imported.update(name.split(".", 1)[0] for name in names if name.split(".", 1)[0] in first_party)
     return imported
 
 
-def test_wheel_packages_include_every_imported_first_party_package() -> None:
-    """Every first-party top-level package imported by shipped code must ship.
+def _missing_wheel_packages(data: dict[str, Any], src_root: Path) -> set[str]:
+    configured = {Path(path).name for path in data["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"]}
+    return _imported_first_party_packages(src_root) - configured
 
-    Catches the class of bug where a new top-level package (e.g.
-    ``mission_runtime``) is added under ``src/`` and imported by
-    ``specify_cli``/``runtime`` but never added to the wheel ``packages``
-    list — which silently produces a wheel that ``ModuleNotFoundError``s on
-    a clean install.
-    """
-    wheel = _wheel_packages()
-    imported = _imported_top_level_packages()
-    missing = sorted(imported - wheel)
-    assert not missing, (
-        "Shipped code imports first-party top-level packages that are NOT in the "
-        "wheel [tool.hatch.build.targets.wheel].packages list, so a clean install "
-        f"will ModuleNotFoundError: {missing}.\n"
-        "Add each to the wheel packages list (as 'src/<name>')."
-    )
+
+def test_published_metadata_uses_consumable_shared_dependencies() -> None:
+    """Published metadata must remain installable outside the checkout."""
+    data = _load_pyproject()
+    assert data["project"]["dependencies"]
+    assert _metadata_violations(data) == []
+
+    exact_pin = copy.deepcopy(data)
+    exact_pin["project"]["dependencies"] = [
+        "spec-kitty-events==6.1.0" if _dep_name(entry) == "spec-kitty-events" else entry for entry in exact_pin["project"]["dependencies"]
+    ]
+    assert _metadata_violations(exact_pin)
+
+    local_source = copy.deepcopy(data)
+    local_source.setdefault("tool", {}).setdefault("uv", {}).setdefault("sources", {})["spec-kitty-tracker"] = {"path": "../spec-kitty-tracker", "editable": True}
+    assert _metadata_violations(local_source)
+
+
+def test_wheel_contains_every_first_party_runtime_import() -> None:
+    """A clean wheel must contain every first-party package shipped code imports."""
+    data = _load_pyproject()
+    imported = _imported_first_party_packages(_SRC)
+    assert imported
+    assert _missing_wheel_packages(data, _SRC) == set()
+
+    omitted = copy.deepcopy(data)
+    victim = sorted(imported)[0]
+    packages = omitted["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"]
+    omitted["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] = [path for path in packages if Path(path).name != victim]
+    assert _missing_wheel_packages(omitted, _SRC) == {victim}
