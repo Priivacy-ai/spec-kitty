@@ -60,8 +60,21 @@ __all__ = [
 ]
 
 
-BUDGET_DEFAULT: int = 32_000
-"""Default character budget — NFR-001 pin (~8000 tokens at 4 chars/token)."""
+BUDGET_DEFAULT: int = 40_000
+"""Default character budget — NFR-001 pin (~10000 tokens at 4 chars/token).
+
+Raised 32_000 -> 40_000 (2026-08-12) after commit 3bcdda344 wired the
+software-dev doctrine cascade (mutation-testing, disciplined-refactoring,
+change-scope reconciliation) into action reachability. That legitimately grew
+the essential Action Doctrine payload past the old 32k pin, tripping the
+governance-contract guard (``tests/specify_cli/next/
+test_wp_prompt_governance_contract.py``) by compacting away the anti-drift
+anchors (DIRECTIVE_032, glossary path, ADR path). 40k gives the now-larger
+essential cascade headroom without dropping either delivery contract.
+
+NOTE: real charter payloads run ~65k pre-compaction, so this default is not a
+production ceiling — the deeper work of keeping the anti-drift anchors
+always-delivered under prod-scale compaction is tracked separately."""
 
 _PROFILE_INLINE_BODY_LIMIT_CHARS = 2_400
 """Per-entry inline-body character ceiling (WP03/WP12): a profile-cited
