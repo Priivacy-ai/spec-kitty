@@ -21,7 +21,7 @@ Anthropic’s **Claude Code** pairs naturally with Spec Kitty’s guardrails. Th
 
 ![Claude Code workflow - Mission Kitty splash](../../assets/images/claude-code-workflow-mission-kitty.png)
 
-_Stylized splash — the phase table art is decorative. CLI setup, prompt launch, and merge steps are in the sections below._
+_Stylized splash — the phase flowchart is decorative. CLI setup, prompt launch, and merge steps are in the sections below._
 
 > [!TIP]
 > For the opinionated slash-command tutorial (`/spec-kitty.specify` through implement), see [Claude Code + Spec Kitty Integration](claude-code-integration.md).

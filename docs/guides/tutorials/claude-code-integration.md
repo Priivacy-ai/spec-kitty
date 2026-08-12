@@ -15,7 +15,7 @@ related:
 
 ![Claude Code integration - Mission Kitty splash](../../assets/images/claude-code-integration-mission-kitty.png)
 
-_Stylized splash — the slash-command board is decorative. The opinionated workflow phases are in the sections below._
+_Stylized splash — the detective's case board is decorative. The opinionated workflow phases are in the sections below._
 
 > [!TIP]
 > For CLI prompt launch, worktree lanes, and dashboard lockstep, see [Claude Code Workflow](claude-code-workflow.md).
