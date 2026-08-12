@@ -21,7 +21,7 @@ related:
 
 > **📖 Looking for the complete workflow?** See the [README: Getting Started guide](https://github.com/Priivacy-ai/spec-kitty#-getting-started-complete-workflow) for the full lifecycle from CLI installation through feature development and merging.
 
-![](../../../assets/images/install-spec-kitty-mission-kitty.png)
+![Install Spec Kitty — Mission Kitty as a detective with a toolbox and gears](../../../assets/images/install-spec-kitty-mission-kitty.png)
 
 _Stylized splash — decorative only. Platform install paths and CLI steps are in the text below._
 
