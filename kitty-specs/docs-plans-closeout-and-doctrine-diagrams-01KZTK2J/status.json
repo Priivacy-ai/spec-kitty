@@ -1,0 +1,126 @@
+{
+  "event_count": 49,
+  "last_event_id": "01KZVQBERMY46V15D2JK3WFVDE",
+  "materialized_at": "2026-08-12T19:31:55.796639+00:00",
+  "mission_number": "",
+  "mission_slug": "docs-plans-closeout-and-doctrine-diagrams-01KZTK2J",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZVQB58ZE6Z280BTQ8XXJCEG",
+      "last_transition_at": "2026-08-12T19:31:46.079512+00:00",
+      "review_result": {
+        "reference": "independent-review-WP01",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 1486760,
+      "shell_pid_created_at": "1786554757.79"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZVQBD6HYB8JVX66ES4NVGE6",
+      "last_transition_at": "2026-08-12T19:31:54.193940+00:00",
+      "review_result": {
+        "reference": "independent-review-WP02",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 1584261,
+      "shell_pid_created_at": "1786560390.55"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZVQB6ZJQ9Q42PCWRT86QP6A",
+      "last_transition_at": "2026-08-12T19:31:47.826683+00:00",
+      "review_result": {
+        "reference": "independent-review-WP03",
+        "reviewer": "claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 1490048,
+      "shell_pid_created_at": "1786554950.6"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZVQB8HK3KSM1MZC6HZ520BF",
+      "last_transition_at": "2026-08-12T19:31:49.427626+00:00",
+      "review_result": {
+        "reference": "independent-review-WP04",
+        "reviewer": "claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 2369,
+      "shell_pid_created_at": "1786028989.73"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZVQBA3FAN4R3SYVR31WNRAQ",
+      "last_transition_at": "2026-08-12T19:31:51.023795+00:00",
+      "review_result": {
+        "reference": "independent-review-WP05",
+        "reviewer": "claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 1505927,
+      "shell_pid_created_at": "1786555437.92"
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZVQBBMMBKDZ8H6A90SB2K6B",
+      "last_transition_at": "2026-08-12T19:31:52.596224+00:00",
+      "review_result": {
+        "reference": "independent-review-WP06",
+        "reviewer": "claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 2369,
+      "shell_pid_created_at": "1786028989.73"
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZVQBERMY46V15D2JK3WFVDE",
+      "last_transition_at": "2026-08-12T19:31:55.796639+00:00",
+      "review_result": {
+        "reference": "independent-review-WP07",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 1609937,
+      "shell_pid_created_at": "1786561443.12"
+    }
+  }
+}
