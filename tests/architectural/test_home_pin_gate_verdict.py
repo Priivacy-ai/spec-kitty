@@ -46,7 +46,11 @@ from typing import Any
 import pytest
 import yaml
 
-from specify_cli.contracts.anchoring import composite_key_from_file
+from specify_cli.contracts.anchoring import (
+    code_tokens_by_line,
+    composite_key_from_file,
+    enclosing_qualname,
+)
 from tests.architectural import _home_pin_gate as gate
 
 pytestmark = pytest.mark.architectural
@@ -409,16 +413,40 @@ def test_f_void_is_a_precondition_and_not_a_band() -> None:
 # ---------------------------------------------------------------------------
 
 
+def _key_still_present(path: Path, published: tuple[str, ...]) -> bool:
+    """True when ``published``'s ``(qualname, token_line)`` pair occurs anywhere in ``path``.
+
+    Searched rather than indexed by line number, and that distinction is the whole point.
+    ``composite_key``'s components are content-addressed, but its *lookup* is
+    ``tokens.get(lineno, "")`` — so content inserted **above** a site moves the site and the
+    recomputed key changes, while the docstring's promise of stability under comment insertion
+    holds only for insertions below. Upstream inserted five lines above the site published as
+    ``cli/commands/test_sync_doctor_tracker_egress_3108.py:124``; line 124 became a comment,
+    whose token line is ``''``, and a key that had not changed at all was reported as forged.
+
+    Searching for the key restores what this limb is actually asserting — that the site the
+    verdict named still exists in this tree — and keeps the anti-forgery property intact, because
+    a fabricated ``(qualname, token_line)`` pair occurs at no line of the real file.
+    """
+    source = path.read_text(encoding="utf-8")
+    if published[0] != path.relative_to(TESTS_ROOT).as_posix():
+        return False
+    return any(
+        enclosing_qualname(source, lineno) == published[1]
+        for lineno, token_line in code_tokens_by_line(source).items()
+        if token_line == published[2]
+    )
+
+
 def test_g_published_end_sha_keys_recompute_in_this_tree() -> None:
     """``MemberKey`` is content-addressed, so every surviving key must recompute here.
 
-    The 3-tuple is composed explicitly — ``(relpath_posix, *composite_key_from_file(path, lineno))``
-    — **because the primitive returns a 2-tuple**; comparing the two directly is a ``mypy --strict``
-    type error, not merely a wrong assertion. Line numbers come from the published artefact at run
-    time, never from an int literal reaching the primitive's second positional argument.
+    Recomputation is a **search** for the published key, not a lookup at the published line —
+    see :func:`_key_still_present` for the upstream edit that proved the difference. The line
+    number is retained solely to report *what* sits there when a key does go missing.
 
-    This limb kills a fabricated end-SHA operand set: forging it now costs real token lines at real
-    line numbers in this repository.
+    This limb kills a fabricated end-SHA operand set: forging it now costs a real
+    ``(qualname, token_line)`` pair that must occur somewhere in a real file in this repository.
     """
     document = load_verdict(REPO_ROOT)
     mismatches: dict[str, tuple[str, ...]] = {}
@@ -428,10 +456,12 @@ def test_g_published_end_sha_keys_recompute_in_this_tree() -> None:
         if not path.is_file():
             continue
         published = tuple(str(part) for part in row["key"])
-        recomputed = (path.relative_to(TESTS_ROOT).as_posix(), *composite_key_from_file(path, row["lineno"]))
         checked.add(published)
-        if recomputed != published:
-            mismatches[f"{row['relpath']}:{row['lineno']}"] = recomputed
+        if not _key_still_present(path, published):
+            mismatches[f"{row['relpath']}:{row['lineno']}"] = (
+                path.relative_to(TESTS_ROOT).as_posix(),
+                *composite_key_from_file(path, row["lineno"]),
+            )
     assert mismatches == {}, f"published keys that do not recompute from this tree: {mismatches}"
     assert len(checked) >= KEYS_CHECKED_FLOOR, (
         f"only {len(checked)} of the published end-SHA keys were checkable against this tree, "
