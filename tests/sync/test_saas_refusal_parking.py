@@ -6,7 +6,7 @@ import json
 from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
-from datetime import UTC, datetime, timedelta
+from kernel.clock import UTC, datetime, now_utc, now_utc_iso, timedelta
 from pathlib import Path
 from threading import Event
 from types import SimpleNamespace
@@ -295,7 +295,7 @@ def test_opt_out_under_lease_rejects_cross_project_wrong_path_and_stale_context(
 
 
 def _deadline(*, minutes: int = 5) -> str:
-    return (datetime.now(UTC) + timedelta(minutes=minutes)).isoformat()
+    return (now_utc() + timedelta(minutes=minutes)).isoformat()
 
 
 def _operation_request(
@@ -1963,7 +1963,7 @@ def test_persisted_deadline_is_not_adopted_from_corrupt_or_ambiguous_history(
             (
                 duplicate_id,
                 json.dumps(metadata, sort_keys=True),
-                datetime.now(UTC).isoformat(),
+                now_utc_iso(),
                 store.project_uuid.storage_token,
                 ambiguous.attempt_id,
             ),
@@ -2164,7 +2164,7 @@ def test_query_executor_obeys_persisted_policy_and_deadline_before_callback(
             remote_operation_id="remote-policy-deadline",
         )
     if expired:
-        expired_at = (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
+        expired_at = (now_utc() - timedelta(minutes=1)).isoformat()
         with store.unit_of_work() as unit:
             row = unit.execute(
                 "SELECT payload_reference FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ?",
@@ -2575,7 +2575,7 @@ def test_terminal_projection_normalizes_state_result_and_authority_corruption(
                     result_target_generation,
                     context.admission_generation,
                     result_outcome,
-                    datetime.now(UTC).isoformat(),
+                    now_utc_iso(),
                 ),
             )
 

@@ -12,10 +12,11 @@ import logging
 import re
 import subprocess
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, UTC
+from kernel.clock import UTC, now_utc, parse_iso, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final
 from urllib.parse import urlparse
+from uuid import UUID
 
 import typer
 from rich.console import Console
@@ -24,25 +25,25 @@ from rich.panel import Panel
 from rich.table import Table
 
 if TYPE_CHECKING:
+    from specify_cli.identity.project import ProjectIdentity
     from specify_cli.delivery.config import EventSyncConfig, Mode
     from specify_cli.delivery.dispatcher import DispatchSummary
     from specify_cli.delivery.ledger import SqliteDeliveryLedger
     from specify_cli.delivery.receivers import DeliveryReceiver, GateDecision
-    from specify_cli.delivery.retention import RetentionResult
+    from specify_cli.delivery.retention import ProjectPurgeResult, RetentionResult
     from specify_cli.delivery.status_report import (
         PerProjectStoreReport,
         ProjectStoreRow,
         UnresolvedIdentityCandidate,
     )
-    from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
     from specify_cli.event_journal.journal import EventJournal
     from specify_cli.sync.history_import import UploadReport
+    from specify_cli.sync.body_queue import OfflineBodyUploadQueue
     from specify_cli.sync.project_identity import IdentityBackfillResult
     from specify_cli.sync.project_store import ProjectSyncStore
     from specify_cli.sync.migrate_journal import (
         CleanupResult,
         ConflictResolution,
-        MigrationAudit,
         MigrationResult,
     )
     from specify_cli.sync.target_authority import ResolvedSyncTarget
@@ -65,7 +66,7 @@ from specify_cli.core.vcs import (
 
 from specify_cli.sync.queue import QueueStats
 from specify_cli.core.saas_sync_config import saas_sync_opt_in_recorded_message
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.sync.feature_flags import (
     SAAS_SYNC_ENV_VAR,
     is_saas_sync_enabled,
@@ -284,12 +285,20 @@ def _handle_sync_now_unauthenticated(strict: bool) -> None:
         raise typer.Exit(1)
 
 
+@dataclass(frozen=True)
+class _IntentionalNoDelivery:
+    """An explicit operator-selected mode that deliberately has no receiver."""
+
+    summary: DispatchSummary
+
+
 def _enforce_sync_now_exit_from_dispatch(
     strict: bool,
     queue_size: int,
     summary: DispatchSummary | None,
     *,
     retained_work_present: bool = False,
+    intentional_no_delivery: bool = False,
 ) -> None:
     """Apply the strict ``spec-kitty sync now`` exit contract to the dispatch outcome.
 
@@ -324,6 +333,14 @@ def _enforce_sync_now_exit_from_dispatch(
 
     selected = summary.selected if summary is not None else 0
     progressed = summary.delivered + summary.duplicate + summary.pending if summary is not None else 0
+
+    if strict and retained_work_present and selected == 0 and not intentional_no_delivery:
+        # A zero-selection summary does not prove the canonical store is empty;
+        # gate/admission failures can produce this shape while retained reads are
+        # unavailable. Only the dispatcher's explicit receiver=None outcome for
+        # an operator-selected retention mode is a clean deliberate no-delivery;
+        # unknown or refused selection remains a strict failure.
+        raise typer.Exit(1)
 
     # Selected work made no durable progress. A pure gate/auth block records no
     # rows, so route it through teamspace-aware recovery; transport/content
@@ -445,10 +462,6 @@ def format_queue_health(stats: QueueStats, target_console: Console) -> None:
 # already-canonical handles and prints/serialises their results (plan IC-08).   #
 # --------------------------------------------------------------------------- #
 
-_DELIVERY_SUBDIR = "delivery"
-_LEDGER_DB_NAME = "ledger.db"
-_REGISTRY_DB_NAME = "targets.db"
-
 # Operator event-sync mode is persisted under a dedicated config.toml table so
 # it never collides with the [sync] target-authority keys (FR-016 / C-007).
 _EVENT_SYNC_TABLE = "event_sync"
@@ -457,43 +470,20 @@ _EVENT_SYNC_ENDPOINT_KEY = "external_endpoint"
 _EVENT_SYNC_DISPATCH_BATCH_LIMIT = 1000
 
 
-def _delivery_dir() -> Path:
-    """The spec-kitty-home directory that holds the ledger + target registry."""
-    from specify_cli.paths import get_runtime_root
-
-    base: Path = get_runtime_root().base
-    return base / _DELIVERY_SUBDIR
-
-
-def _ledger_db_path() -> Path:
-    """Canonical on-disk path of the WP05 delivery ledger."""
-    return _delivery_dir() / _LEDGER_DB_NAME
-
-
-def _registry_db_path() -> Path:
-    """Canonical on-disk path of the WP04 delivery-target registry."""
-    return _delivery_dir() / _REGISTRY_DB_NAME
-
-
 @dataclass
 class _EventSyncRuntime:
     """The already-resolved domain handles the thin CLI hands to the dispatcher
     / status-report / retention modules. The CLI never derives scope or URLs
     itself — it only opens these and passes them through (contract §1)."""
 
-    target: ResolvedSyncTarget
-    journal: EventJournal
-    ledger: SqliteDeliveryLedger
-    registry: SqliteDeliveryTargetRegistry
+    target: ResolvedSyncTarget | None
+    store: Any
     context: Any
+    delivery_target: Any | None
+    checkout_identity: ProjectIdentity | None = None
 
     def close(self) -> None:
-        # Closing the diagnostic SQLite handles must never mask the primary
-        # result, so a close failure is intentionally swallowed.
-        with contextlib.suppress(Exception):
-            self.ledger.close()
-        with contextlib.suppress(Exception):
-            self.registry.close()
+        return None
 
 
 @dataclass(frozen=True)
@@ -527,35 +517,45 @@ def _current_event_sync_scope() -> _EventSyncScope:
     return _EventSyncScope(team_slug=team_slug)
 
 
-def _open_event_sync_runtime(*, create: bool = True) -> _EventSyncRuntime:
-    """Resolve the WP01 target and open the journal/ledger/registry handles.
-
-    Uses the same producer scope as live capture so ``sync now`` drains the
-    journal that emitters actually write. ``create=False`` is for read-only
-    diagnostics: it refuses absent DB files instead of creating schemas.
-    """
-    from specify_cli.delivery.ledger import SqliteDeliveryLedger
-    from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
-    from specify_cli.event_journal.journal import EventJournal, resolve_journal_path
+def _open_event_sync_runtime(*, include_target: bool = True) -> _EventSyncRuntime:
+    """Open local project state for status/retention without auth or network."""
+    from specify_cli.identity.project import ProjectIdentity
+    from specify_cli.sync.layout_generation import LayoutMode
+    from specify_cli.sync.project_store import ProjectSyncStore
+    from specify_cli.sync.routing import resolve_checkout_sync_routing_readonly
     from specify_cli.sync.target_authority import resolve_sync_target
 
-    scope = _current_event_sync_scope()
-    target = resolve_sync_target(user_id=scope.user_id, team_slug=scope.team_slug)
-    journal_path = resolve_journal_path(user_id=scope.user_id, team_slug=scope.team_slug)
-    ledger_path = _ledger_db_path()
-    registry_path = _registry_db_path()
-    if create:
-        _delivery_dir().mkdir(parents=True, exist_ok=True)
-    else:
-        if not journal_path.exists():
-            raise FileNotFoundError(f"event-sync journal DB absent: {journal_path}")
-    journal = EventJournal(journal_path)
-    ledger = SqliteDeliveryLedger(str(ledger_path) if create or ledger_path.exists() else ":memory:")
-    registry = SqliteDeliveryTargetRegistry(str(registry_path) if create or registry_path.exists() else ":memory:")
-    return _EventSyncRuntime(target=target, journal=journal, ledger=ledger, registry=registry, context=None)
+    routing = resolve_checkout_sync_routing_readonly()
+    if routing is None or routing.project_uuid is None:
+        raise FileNotFoundError("event-sync project store unavailable: active checkout has no project_uuid")
+    store = ProjectSyncStore(routing.project_uuid)
+    layout = store.layout_generation().peek_state()
+    if layout.mode is not LayoutMode.PROJECT_ONLY:
+        raise RuntimeError(
+            f"event-sync project store migration required before status or retention (layout={layout.mode.value}); run `spec-kitty sync project-store-migrate`"
+        )
+    if not store.database_path.exists():
+        raise FileNotFoundError(f"event-sync project store DB absent: {store.database_path}")
+    scope = _current_event_sync_scope() if include_target else None
+    return _EventSyncRuntime(
+        target=(resolve_sync_target(user_id=scope.user_id, team_slug=scope.team_slug) if scope is not None else None),
+        store=store,
+        context=None,
+        delivery_target=None,
+        checkout_identity=ProjectIdentity(
+            project_uuid=(UUID(str(routing.project_uuid)) if routing.project_uuid is not None else None),
+            project_slug=routing.project_slug,
+            repo_slug=routing.repo_slug,
+            build_id=routing.build_id,
+        ),
+    )
 
 
-def _open_project_dispatch_runtime(*, create: bool = True) -> _ProjectDispatchRuntime:
+def _open_project_dispatch_runtime(
+    *,
+    create: bool = True,
+    require_project_only: bool = False,
+) -> _ProjectDispatchRuntime:
     """Resolve ProjectSyncStore-backed authority for canonical live dispatch only."""
     from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
     from specify_cli.sync.project_store import ProjectSyncStore
@@ -568,6 +568,14 @@ def _open_project_dispatch_runtime(*, create: bool = True) -> _ProjectDispatchRu
     if routing is None or routing.project_uuid is None:
         raise FileNotFoundError("event-sync project store unavailable: active checkout has no project_uuid")
     store = ProjectSyncStore(routing.project_uuid)
+    if require_project_only:
+        from specify_cli.sync.layout_generation import LayoutMode
+
+        layout = store.layout_generation().peek_state()
+        if layout.mode is not LayoutMode.PROJECT_ONLY:
+            raise RuntimeError(
+                f"event-sync project store migration required before status or retention (layout={layout.mode.value}); run `spec-kitty sync project-store-migrate`"
+            )
     if not create and not store.database_path.exists():
         raise FileNotFoundError(f"event-sync project store DB absent: {store.database_path}")
     context = store.create_context()
@@ -595,11 +603,16 @@ def _open_project_dispatch_runtime(*, create: bool = True) -> _ProjectDispatchRu
 
 def _open_event_sync_runtime_readonly() -> _EventSyncRuntime:
     """Open runtime handles only when DBs already exist."""
+    return _open_event_sync_runtime()
+
+
+def _open_retention_runtime_or_exit() -> _EventSyncRuntime:
+    """Open canonical local retention state with user-facing migration guidance."""
     try:
-        return _open_event_sync_runtime(create=False)
-    except TypeError:
-        # Compatibility for tests that monkeypatch the opener with a no-arg callable.
-        return _open_event_sync_runtime()
+        return _open_event_sync_runtime(include_target=False)
+    except (FileNotFoundError, RuntimeError) as exc:
+        console.print(f"[red]Retention unavailable:[/red] {exc}")
+        raise typer.Exit(1) from exc
 
 
 def _assert_event_sync_runtime_authority(
@@ -803,35 +816,30 @@ def _resolve_gated_receiver(target: ResolvedSyncTarget, config: EventSyncConfig,
 
 
 def _count_retained_events(runtime: _EventSyncRuntime) -> int:
-    with contextlib.suppress(Exception):
-        return len(runtime.journal.read_all())
-    return 0
+    from specify_cli.event_journal.journal import EventJournal
+
+    with runtime.store.unit_of_work() as unit:
+        return int(EventJournal(unit, runtime.store.layout_generation()).count())
 
 
 def _count_project_retained_events(runtime: _ProjectDispatchRuntime) -> int:
-    with contextlib.suppress(Exception):
-        from specify_cli.event_journal.journal import EventJournal
+    from specify_cli.event_journal.journal import EventJournal
 
-        with runtime.store.unit_of_work() as unit:
-            return int(EventJournal(unit, runtime.store.layout_generation()).count())
-    return 0
+    with runtime.store.unit_of_work() as unit:
+        return int(EventJournal(unit, runtime.store.layout_generation()).count())
 
 
 def _event_sync_retained_work_present() -> bool:
-    """Best-effort retained-work probe for strict infrastructure failures."""
+    """Conservative retained-work probe for strict infrastructure failures."""
     runtime: _EventSyncRuntime | None = None
     try:
         runtime = _open_event_sync_runtime_readonly()
         return _count_retained_events(runtime) > 0
+    except FileNotFoundError:
+        return False
     except Exception:
-        from specify_cli.event_journal.journal import resolve_journal_path
-
-        scope = _current_event_sync_scope()
-        path = resolve_journal_path(
-            user_id=scope.user_id,
-            team_slug=scope.team_slug,
-        )
-        return path.exists() and path.stat().st_size > 0
+        # Corrupt/unreadable/non-PROJECT_ONLY is unknown, never proof of empty.
+        return True
     finally:
         if runtime is not None:
             runtime.close()
@@ -954,38 +962,38 @@ def _run_dispatch_batches(
     return combined
 
 
-def _open_active_body_queue() -> Any:
+def _open_active_body_queue(
+    runtime: _EventSyncRuntime,
+    unit: Any,
+    *,
+    max_queue_size: int,
+) -> Any:
     """Open the body-upload queue for the WP11 ``body_upload_compatibility``
     section, or ``None`` when it cannot be read (the section then reports zeros)."""
     try:
         from specify_cli.sync.body_queue import OfflineBodyUploadQueue
-        from specify_cli.sync.queue import OfflineQueue
 
-        return OfflineBodyUploadQueue(db_path=OfflineQueue().db_path)
+        return OfflineBodyUploadQueue(
+            unit,
+            runtime.store.layout_generation(),
+            max_queue_size=max_queue_size,
+        )
     except Exception as exc:  # read-only diagnostic; never fail status on it
         _LOG.debug("body-upload queue unavailable for status report: %s", exc)
         return None
 
 
-def _open_migration_audit_readonly() -> MigrationAudit | None:
-    """Open the WP10 migration-audit store best-effort (or ``None``).
-
-    Only opens when the audit DB already exists on disk so that a status read
-    never *creates* the migration store as a side effect. Any failure degrades
-    to ``None`` (debug-logged) so the ``migration_conflicts`` section falls back
-    to its empty default instead of breaking the status surface.
-    """
+def _read_migration_conflicts_readonly() -> tuple[Any, ...]:
+    """Read legacy conflict evidence without opening a writable audit store."""
     from specify_cli.paths import get_runtime_root
-    from specify_cli.sync.migrate_journal import AUDIT_DB_NAME, MigrationAudit
+    from specify_cli.sync.migrate_journal import AUDIT_DB_NAME, read_migration_conflicts
 
     audit_path = get_runtime_root().base / AUDIT_DB_NAME
-    if not audit_path.exists():
-        return None
     try:
-        return MigrationAudit(audit_path)
+        return tuple(read_migration_conflicts(audit_path))
     except Exception as exc:  # read-only diagnostic; never fail status on it
         _LOG.debug("migration audit unavailable for status report: %s", exc)
-        return None
+        return ()
 
 
 def _event_sync_report(base: dict[str, Any], runtime: _EventSyncRuntime) -> dict[str, Any]:
@@ -997,21 +1005,32 @@ def _event_sync_report(base: dict[str, Any], runtime: _EventSyncRuntime) -> dict
     """
     from specify_cli.delivery.status_report import build_status_report
 
-    audit = _open_migration_audit_readonly()
-    try:
+    from specify_cli.delivery.ledger import SqliteDeliveryLedger
+    from specify_cli.event_journal.journal import EventJournal
+    from specify_cli.sync.queue import get_max_queue_size
+
+    if runtime.target is None:
+        raise RuntimeError("status target diagnostics were not requested")
+
+    # Both reads can stat/open files.  Resolve them before the project UoW owns
+    # BEGIN IMMEDIATE so local diagnostics never hold SQLite across filesystem
+    # or a second read-only SQLite boundary.
+    max_queue_size = get_max_queue_size()
+    migration_conflicts = _read_migration_conflicts_readonly()
+    with runtime.store.unit_of_work() as unit:
         return build_status_report(
             resolved_target=runtime.target,
-            journal=runtime.journal,
-            ledger=runtime.ledger,
-            target_registry=runtime.registry,
-            migration_audit=audit,
-            body_upload_queue=_open_active_body_queue(),
+            journal=EventJournal(unit, runtime.store.layout_generation()),
+            ledger=SqliteDeliveryLedger(unit, runtime.store.layout_generation()),
+            context=runtime.store.create_context_from_unit(unit),
+            body_upload_queue=_open_active_body_queue(
+                runtime,
+                unit,
+                max_queue_size=max_queue_size,
+            ),
+            migration_conflicts=migration_conflicts,
             base=base,
         )
-    finally:
-        if audit is not None:
-            with contextlib.suppress(Exception):
-                audit.close()
 
 
 #: Opening words of the empty-selection diagnosis. One constant because three tests
@@ -1170,14 +1189,16 @@ def _print_resolution_result(resolution: ConflictResolution) -> None:
         console.print("[yellow]Skipped conflicts are not yet canonical in the journal or their source is gone — left intact.[/yellow]")
 
 
-def _run_event_sync_dispatch() -> DispatchSummary | None:
+def _run_event_sync_dispatch() -> DispatchSummary | _IntentionalNoDelivery | None:
     """Drive the WP07 dispatcher over the resolved active target.
 
     This is the SOLE event-delivery path for ``sync now`` (the destructive
     legacy offline-queue event drain is retired). Returns the
     :class:`DispatchSummary` so the caller can derive the strict exit code; any
     infrastructure failure degrades to a dim notice and ``None`` rather than
-    crashing the command (NFR-006). Non-delivering modes return an empty summary.
+    crashing the command (NFR-006). An operator-selected mode with no receiver
+    returns an explicit wrapper around an empty summary so strict handling can
+    distinguish deliberate retention from gate/admission failure.
     Delivery outcomes surface via the printed summary; the journal is never
     deleted on success (FR-001).
     """
@@ -1185,6 +1206,7 @@ def _run_event_sync_dispatch() -> DispatchSummary | None:
         from specify_cli.delivery.dispatcher import DispatchSummary
 
         return DispatchSummary.empty()
+    from specify_cli.delivery.config import Mode
     from specify_cli.delivery.dispatcher import DispatchSummary
 
     runtime: _ProjectDispatchRuntime | None = None
@@ -1195,8 +1217,16 @@ def _run_event_sync_dispatch() -> DispatchSummary | None:
         receiver, gate_decision = _resolve_gated_receiver(runtime.target, config, auth_token=auth_token)
         if receiver is None:
             console.print(f"[dim]Event sync mode {config.mode.name}: retention only; no delivery attempted.[/dim]")
-            return DispatchSummary.empty()
-        assert gate_decision is not None  # a resolved receiver always carries a decision
+            empty = DispatchSummary.empty()
+            return _IntentionalNoDelivery(empty) if config.mode is Mode.LOCAL_RETENTION else empty
+        if gate_decision is None:
+            # Invariant: a resolved (non-None) receiver always carries a
+            # decision from _resolve_gated_receiver. An explicit raise (not
+            # assert) keeps this guard live under `python -O`; the
+            # surrounding `except Exception` still degrades it to a dim
+            # notice + None, same as before (this function must never break
+            # the command — NFR-006).
+            raise RuntimeError("resolved receiver carries no gate decision")
         if gate_decision.blocked:
             names = ", ".join(gate.name for gate in gate_decision.unsatisfied)
             console.print(f"[dim]Event sync gated: {names}[/dim]")
@@ -1387,12 +1417,12 @@ def _oldest_age_label(created_at: str | None) -> str:
     if not created_at:
         return "[dim]n/a[/dim]"
     try:
-        parsed = datetime.fromisoformat(created_at)
+        parsed = parse_iso(created_at)
     except ValueError:
         return created_at
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=UTC)
-    return f"{humanize_timedelta(datetime.now(UTC) - parsed)} ago"
+    return f"{humanize_timedelta(now_utc() - parsed)} ago"
 
 
 def _project_store_label(row: ProjectStoreRow) -> str:
@@ -1532,8 +1562,22 @@ def _per_project_store_table(report: PerProjectStoreReport) -> Table:
     return table
 
 
-def _open_journal_readonly() -> EventJournal:
-    """Open ONLY the journal for the current producer scope, read-only (#3030 T021).
+class _ScopedStatusJournal:
+    """Journal proxy that keeps its caller-owned read UoW active until closed."""
+
+    def __init__(self, journal: Any, unit_context: Any) -> None:
+        self._journal = journal
+        self._unit_context = unit_context
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._journal, name)
+
+    def close(self) -> None:
+        self._unit_context.__exit__(None, None, None)
+
+
+def _open_journal_readonly() -> Any:
+    """Open the canonical project journal in one scoped read UoW (#3030 T021).
 
     Deliberately not ``_open_event_sync_runtime_readonly``, which also resolves the
     delivery target and opens the ledger and target registry. A "whose data is in
@@ -1545,13 +1589,19 @@ def _open_journal_readonly() -> EventJournal:
     Raises ``FileNotFoundError`` when this scope has no journal file yet, which the
     caller renders as the benign absence it is.
     """
-    from specify_cli.event_journal.journal import EventJournal, resolve_journal_path
+    from specify_cli.event_journal.journal import EventJournal
 
-    scope = _current_event_sync_scope()
-    path = resolve_journal_path(user_id=scope.user_id, team_slug=scope.team_slug)
-    if not path.exists():
-        raise FileNotFoundError(f"event-sync journal DB absent: {path}")
-    return EventJournal(path)
+    runtime = _open_event_sync_runtime_readonly()
+    unit_context = runtime.store.unit_of_work()
+    unit = unit_context.__enter__()
+    try:
+        return _ScopedStatusJournal(
+            EventJournal(unit, runtime.store.layout_generation()),
+            unit_context,
+        )
+    except BaseException:
+        unit_context.__exit__(None, None, None)
+        raise
 
 
 def _render_per_project_store(console_out: Any, issues: list[str]) -> None:
@@ -1599,6 +1649,10 @@ def _render_per_project_store(console_out: Any, issues: list[str]) -> None:
             "the queue-health block above does not answer it."
         )
         return
+    finally:
+        close = getattr(journal, "close", None)
+        if callable(close):
+            close()
 
     console_out.print(f"\n[bold]{_PER_PROJECT_SECTION_TITLE}[/bold]")
     if report.rows:
@@ -3284,7 +3338,10 @@ def now(
     # Pending-work signal for the strict/unauthenticated exit contract (the
     # queued-but-undelivered event count). Read before delivery so a successful
     # drain does not erase the "there was work" signal.
-    queue_size = service.queue.size()
+    # The ambient OfflineQueue was retired. Keep zero-or-size only for injected
+    # compatibility test services; canonical retained work comes from the routed
+    # project journal immediately below.
+    queue_size = int(service.queue.size()) if service.queue is not None else 0
     retained_work_present = _event_sync_retained_work_present()
 
     # Single, non-destructive event-delivery path. The journal-based dispatcher
@@ -3294,7 +3351,9 @@ def now(
     # defect). Body uploads still flush via the body-ONLY entry point so
     # attachments keep working without ever touching the durable event journal
     # (C-006).
-    summary = _run_event_sync_dispatch()
+    dispatch_outcome = _run_event_sync_dispatch()
+    intentional_no_delivery = isinstance(dispatch_outcome, _IntentionalNoDelivery)
+    summary = dispatch_outcome.summary if intentional_no_delivery else dispatch_outcome
     service.drain_body_uploads_only()
 
     # Persist the per-outcome report (if requested) and map the dispatch outcome
@@ -3305,6 +3364,7 @@ def now(
         queue_size,
         summary,
         retained_work_present=retained_work_present,
+        intentional_no_delivery=intentional_no_delivery,
     )
 
 
@@ -3323,10 +3383,20 @@ def gc() -> None:
     """
     from specify_cli.delivery.retention import gc_payloads
 
-    runtime = _open_event_sync_runtime()
+    runtime = _open_retention_runtime_or_exit()
     try:
-        known_target_ids = [target.target_id for target in runtime.registry.list_targets()]
-        result = gc_payloads(runtime.journal, runtime.ledger, known_target_ids=known_target_ids)
+        from specify_cli.delivery.ledger import SqliteDeliveryLedger
+        from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
+        from specify_cli.event_journal.journal import EventJournal
+
+        with runtime.store.unit_of_work() as unit:
+            registry = ProjectDeliveryTargetRegistry(runtime.store)
+            known_target_ids = [target.target_id for target in registry.list_targets(unit)]
+            result = gc_payloads(
+                EventJournal(unit, runtime.store.layout_generation()),
+                SqliteDeliveryLedger(unit, runtime.store.layout_generation()),
+                known_target_ids=known_target_ids,
+            )
     finally:
         runtime.close()
     _print_retention_result(result)
@@ -3345,9 +3415,12 @@ def archive() -> None:
     """
     from specify_cli.delivery.retention import archive_payloads
 
-    runtime = _open_event_sync_runtime()
+    runtime = _open_retention_runtime_or_exit()
     try:
-        result = archive_payloads(runtime.journal)
+        from specify_cli.event_journal.journal import EventJournal
+
+        with runtime.store.unit_of_work() as unit:
+            result = archive_payloads(EventJournal(unit, runtime.store.layout_generation()))
     finally:
         runtime.close()
     _print_retention_result(result)
@@ -3396,33 +3469,25 @@ _PURGE_STORE_LABELS = {
 #: than a purge report pointed at a file nobody writes.
 _PURGE_SYNC_STATE_RELPATH = Path(".kittify") / "sync-state.json"
 
-#: How `--all` is described, in one place, because the wording is a decision and
-#: not a flourish (operator decision, 2026-07-30). The journal, the ledger and the
-#: body queue are machine-global; ``pending_local_commits`` is per-checkout
-#: ``LOCAL_RUNTIME`` state and there is no registry that could enumerate the other
-#: checkouts' files. A registry was rejected as new state to keep correct, and a
-#: filesystem scan because it can never prove completeness — which would leave the
-#: erasure claim unprovable while sounding total. So the command must not present
-#: `--all` as machine-wide erasure: "erased" that silently means "erased here" is
-#: the same class of defect as a gate reporting success for having done nothing.
+#: How `--all` is described, in one place, because the wording is an authority
+#: decision rather than a flourish. Project-owned payloads live in the active
+#: checkout's routed ``ProjectSyncStore``; ``pending_local_commits`` is likewise
+#: per-checkout ``LOCAL_RUNTIME`` state. The command must never imply that it scans
+#: or erases another project's physical store.
 _PURGE_ALL_SCOPE_NOTE = (
-    "Scope of --all: this machine's event journal, delivery ledger and body-upload "
-    "queue, plus the queued local-commit frames of THIS CHECKOUT ONLY ({frames_path}). "
-    "Other checkouts on this machine keep their own queued frames in their own "
-    "sync-state.json; there is no registry of checkouts, so they cannot be listed and "
-    "this run has not touched them. Re-run this command from each checkout you need "
-    "cleared."
+    "Scope of --all: the active project's event journal, delivery ledger and "
+    "body-upload queue, plus THIS CHECKOUT's queued local-commit frames "
+    "({frames_path}). No other project store or checkout is opened or scanned. "
+    "Re-run this command from each checkout whose active project you need cleared."
 )
 
-#: Printed on every destructive run. The ledger delete commits before the journal
-#: delete and they are not one transaction, so an interruption leaves the ledger
-#: purged with the journal intact — the recoverable direction, from which a re-run
-#: converges. A report that implied atomicity would leave the operator with no
-#: reason to re-run.
+#: Printed on every destructive run. Journal, ledger and body changes share one
+#: project-store transaction. The checkout-local frame file is a separate durable
+#: boundary, so interruption can still require a convergent re-run.
 _PURGE_NON_ATOMIC_NOTE = (
-    "The delivery ledger is deleted before the journal and the two are not one "
-    "transaction. If a run is interrupted the ledger delete may have committed with "
-    "the journal untouched; re-run the same command — it converges."
+    "The active project's journal, ledger and body queue are deleted in one local "
+    "database transaction. Checkout-local frames are a separate file boundary; if "
+    "a run is interrupted, re-run the same command — it converges."
 )
 
 
@@ -3500,73 +3565,43 @@ def _purge_usage_error(message: str) -> None:
     raise typer.Exit(2)
 
 
-def _purge_journal_census(journal_path: Path) -> _RawCensus:
-    """Raw ``GROUP BY project_uuid`` over the journal — the CLI's own read.
+def _purge_journal_census(journal: EventJournal) -> _RawCensus:
+    """Independent identity projection over one explicit project journal.
 
     Not ``retention._journal_census``: that one composes ``distinct_project_uuids``
     with the identity projection, which *filters falsy uuids*, so a blank-uuid row
     reaches it only through a derived remainder. For a differential the CLI needs the
     stored values verbatim, blank and whitespace included, each as its own bucket.
     """
-    import sqlite3
-
-    from specify_cli.event_journal.models import COL_PROJECT_UUID, TABLE_NAME
-
-    if not journal_path.exists():
-        return _RawCensus()
     try:
-        connection: Any = sqlite3.connect(str(journal_path))
-    except sqlite3.Error:
-        return _RawCensus(unreadable=True)
-    try:
-        # Static module-constant identifiers, no interpolated values.
-        total_row = connection.execute(f"SELECT COUNT(*) FROM {TABLE_NAME}").fetchone()  # noqa: S608  # nosec B608 — static module-constant identifiers
         by_key: dict[str, int] = {}
-        for raw, count in connection.execute(
-            f"SELECT {COL_PROJECT_UUID}, COUNT(*) FROM {TABLE_NAME} GROUP BY {COL_PROJECT_UUID}"  # noqa: S608  # nosec B608 — static module-constant identifiers
-        ):
-            by_key[_PURGE_NULL_KEY if raw is None else str(raw)] = int(count)
-    except sqlite3.Error:
+        rows = journal.read_identity_projection_for_report()
+        for row in rows:
+            key = _PURGE_NULL_KEY if row.project_uuid is None else str(row.project_uuid)
+            by_key[key] = by_key.get(key, 0) + 1
+        return _RawCensus(total=len(rows), by_key=by_key)
+    except Exception:
         return _RawCensus(unreadable=True)
-    finally:
-        connection.close()
-    return _RawCensus(total=int(total_row[0]) if total_row else 0, by_key=by_key)
 
 
-def _purge_journal_ids(journal_path: Path, *, project_uuid: str | None, every_row: bool) -> list[str]:
+def _purge_journal_ids(journal: EventJournal, *, project_uuid: str | None, every_row: bool) -> list[str]:
     """The journal ids the selector covers, resolved by the CLI's own raw read.
 
     ``project_uuid=None`` means ``IS NULL`` (FR-011's population). Used only to
     *measure* the ledger half — the deletion still selects through the primitives.
     """
-    import sqlite3
-
-    from specify_cli.event_journal.models import COL_EVENT_ID, COL_PROJECT_UUID, TABLE_NAME
-
-    if not journal_path.exists():
-        return []
-    if every_row:
-        sql = f"SELECT {COL_EVENT_ID} FROM {TABLE_NAME}"  # noqa: S608  # nosec B608 — static module-constant identifiers
-        params: tuple[Any, ...] = ()
-    elif project_uuid is None:
-        sql = f"SELECT {COL_EVENT_ID} FROM {TABLE_NAME} WHERE {COL_PROJECT_UUID} IS NULL"  # noqa: S608  # nosec B608 — static module-constant identifiers
-        params = ()
-    else:
-        sql = f"SELECT {COL_EVENT_ID} FROM {TABLE_NAME} WHERE {COL_PROJECT_UUID} = ?"  # noqa: S608  # nosec B608 — static module-constant identifiers
-        params = (project_uuid,)
     try:
-        connection: Any = sqlite3.connect(str(journal_path))
-    except sqlite3.Error:
+        rows = journal.read_identity_projection_for_report()
+        return [
+            str(row.event_id)
+            for row in rows
+            if every_row or (project_uuid is None and row.project_uuid is None) or (project_uuid is not None and row.project_uuid == project_uuid)
+        ]
+    except Exception:
         return []
-    try:
-        return [str(row[0]) for row in connection.execute(sql, params)]
-    except sqlite3.Error:
-        return []
-    finally:
-        connection.close()
 
 
-def _purge_ledger_census(ledger_path: Path, event_ids: list[str]) -> _RawCensus:
+def _purge_ledger_census(ledger: SqliteDeliveryLedger, event_ids: list[str]) -> _RawCensus:
     """``(total rows, rows for the selected ids)`` — the ledger has no project column.
 
     Bucketed under one synthetic key because "another project's ledger rows" is not
@@ -3574,35 +3609,19 @@ def _purge_ledger_census(ledger_path: Path, event_ids: list[str]) -> _RawCensus:
     outside the selection is therefore derived as *total change minus selected
     change*, from the CLI's own counts.
     """
-    import sqlite3
-
-    from specify_cli.delivery.ledger import LEDGER_TABLE
-    from specify_cli.event_journal.models import COL_EVENT_ID
-
-    if not ledger_path.exists():
-        return _RawCensus()
     try:
-        connection: Any = sqlite3.connect(str(ledger_path))
-    except sqlite3.Error:
+        rows = ledger.rows()
+        selected_ids = set(event_ids)
+        selected = sum(row.event_id in selected_ids for row in rows)
+        return _RawCensus(
+            total=len(rows),
+            by_key={_PURGE_LEDGER: selected},
+        )
+    except Exception:
         return _RawCensus(unreadable=True)
-    try:
-        total_row = connection.execute(f"SELECT COUNT(*) FROM {LEDGER_TABLE}").fetchone()  # noqa: S608  # nosec B608 — static module-constant identifiers
-        selected = 0
-        for event_id in event_ids:
-            row = connection.execute(
-                f"SELECT COUNT(*) FROM {LEDGER_TABLE} WHERE {COL_EVENT_ID} = ?",  # noqa: S608  # nosec B608 — static module-constant identifiers
-                (event_id,),
-            ).fetchone()
-            selected += int(row[0]) if row else 0
-    except sqlite3.Error:
-        return _RawCensus(unreadable=True)
-    finally:
-        connection.close()
-    total = int(total_row[0]) if total_row else 0
-    return _RawCensus(total=total, by_key={_PURGE_LEDGER: selected})
 
 
-def _purge_ledger_ghost_count(journal_path: Path, ledger_path: Path) -> int:
+def _purge_ledger_ghost_count(journal: EventJournal, ledger: SqliteDeliveryLedger) -> int:
     """Ledger rows whose ``event_id`` has no journal row at all.
 
     Unreachable by any targeted selector, because every targeted selection collects
@@ -3611,33 +3630,14 @@ def _purge_ledger_ghost_count(journal_path: Path, ledger_path: Path) -> int:
     that has run it holds some. The two stores are separate SQLite files, so this is
     a set difference in Python rather than a join.
     """
-    import sqlite3
-
-    from specify_cli.delivery.ledger import LEDGER_TABLE
-    from specify_cli.event_journal.models import COL_EVENT_ID
-
-    if not ledger_path.exists():
-        return 0
-    journal_ids = set(_purge_journal_ids(journal_path, project_uuid=None, every_row=True))
+    journal_ids = set(_purge_journal_ids(journal, project_uuid=None, every_row=True))
     try:
-        connection: Any = sqlite3.connect(str(ledger_path))
-    except sqlite3.Error:
+        return sum(row.event_id not in journal_ids for row in ledger.rows())
+    except Exception:
         return 0
-    try:
-        return sum(
-            int(count)
-            for event_id, count in connection.execute(
-                f"SELECT {COL_EVENT_ID}, COUNT(*) FROM {LEDGER_TABLE} GROUP BY {COL_EVENT_ID}"  # noqa: S608  # nosec B608 — static module-constant identifiers
-            )
-            if str(event_id) not in journal_ids
-        )
-    except sqlite3.Error:
-        return 0
-    finally:
-        connection.close()
 
 
-def _purge_body_census(queue: Any | None) -> _RawCensus:
+def _purge_body_census(queue: OfflineBodyUploadQueue | None) -> _RawCensus:
     """``count_by_project`` for the buckets, ``size`` for the total.
 
     Two different reads on purpose: the total cannot be affected by the attribution
@@ -3738,8 +3738,6 @@ def _purge_stored_spelling_conflicts(selector: str, censuses: list[_RawCensus]) 
     checkout's frames while leaving every journal row in place, and report "0 journal
     rows in scope" — indistinguishable from a project that was already clean.
     """
-    from uuid import UUID
-
     try:
         wanted: UUID | None = UUID(selector)
     except (ValueError, AttributeError, TypeError):
@@ -3760,7 +3758,11 @@ def _purge_stored_spelling_conflicts(selector: str, censuses: list[_RawCensus]) 
     return sorted(conflicts)
 
 
-def _purge_resolve_project(value: str, journal_path: Path, repo_root: Path | None) -> tuple[str, str | None]:
+def _purge_resolve_project(
+    value: str,
+    journal: EventJournal,
+    checkout_identity: ProjectIdentity | None,
+) -> tuple[str, str | None]:
     """Resolve ``--project`` (a uuid *or* either recorded name) to ``(uuid, matched)``.
 
     A uuid is taken verbatim, including one no store holds: an operator must be able
@@ -3792,8 +3794,6 @@ def _purge_resolve_project(value: str, journal_path: Path, repo_root: Path | Non
     refusal below — a purge must not span two projects, and refusing is the only safe
     answer to a selector that means two things.
     """
-    from uuid import UUID
-
     raw = str(value or "").strip()
     if not raw:
         _purge_usage_error("--project needs a project uuid or name; a blank selector matches nothing.")
@@ -3820,48 +3820,25 @@ def _purge_resolve_project(value: str, journal_path: Path, repo_root: Path | Non
         if name and name.strip() and uuid:
             candidates.setdefault(name.strip().casefold(), set()).add(str(uuid))
 
-    if journal_path.exists():
-        from specify_cli.event_journal.journal import EventJournal
-
-        for row in EventJournal(journal_path).read_identity_projection_for_report():
-            _offer(row.repo_slug, row.project_uuid)
-            _offer(row.project_slug, row.project_uuid)
-    if repo_root is not None:
-        from specify_cli.identity.project import load_identity
-
-        identity = load_identity(repo_root / ".kittify" / "config.yaml")
-        _offer(identity.repo_slug, identity.project_uuid)
-        _offer(identity.project_slug, identity.project_uuid)
+    for row in journal.read_identity_projection_for_report():
+        _offer(row.repo_slug, row.project_uuid)
+        _offer(row.project_slug, row.project_uuid)
+    if checkout_identity is not None:
+        _offer(checkout_identity.repo_slug, checkout_identity.project_uuid)
+        _offer(checkout_identity.project_slug, checkout_identity.project_uuid)
 
     matches = sorted(candidates.get(raw.casefold(), set()))
     if not matches:
         known = ", ".join(sorted(candidates)) or "none recorded"
         _purge_usage_error(
-            f'No project matches "{raw}". Names this machine has a record of '
+            f'No project matches "{raw}". Names the active project journal or '
+            "current checkout records "
             f"(repo slugs and project slugs alike): {known}. Pass the project uuid "
             "to purge a project whose rows carry no name."
         )
     if len(matches) > 1:
         _purge_usage_error(f'"{raw}" maps to {len(matches)} project uuids ({", ".join(matches)}); pass the uuid you mean — a purge must not span two projects.')
     return matches[0], raw
-
-
-def _purge_open_body_queue(queue_path: Path) -> Any | None:
-    """The real body queue, only when its DB already exists.
-
-    Constructing it creates the file and the schema, and a purge that *materialised*
-    a store in order to report zero rows in it would be reporting on its own side
-    effect.
-    """
-    if not queue_path.exists():
-        return None
-    try:
-        from specify_cli.sync.body_queue import OfflineBodyUploadQueue
-
-        return OfflineBodyUploadQueue(db_path=queue_path)
-    except Exception as exc:  # noqa: BLE001 — reported as unreadable, never as empty
-        _LOG.debug("body-upload queue unavailable for purge: %s", exc)
-        return None
 
 
 def _purge_validate_invocation(
@@ -3911,7 +3888,7 @@ def _purge_validate_invocation(
 
 
 def _purge_journal_selection(
-    journal_path: Path,
+    journal: EventJournal,
     census: _RawCensus,
     *,
     all_events: bool,
@@ -3920,10 +3897,10 @@ def _purge_journal_selection(
 ) -> tuple[frozenset[str], list[str]]:
     """``(census keys in scope, journal ids in scope)`` for this selector."""
     if all_events:
-        return frozenset(census.by_key), _purge_journal_ids(journal_path, project_uuid=None, every_row=True)
+        return frozenset(census.by_key), _purge_journal_ids(journal, project_uuid=None, every_row=True)
     if identity_less:
-        return frozenset({_PURGE_NULL_KEY}), _purge_journal_ids(journal_path, project_uuid=None, every_row=False)
-    return frozenset({selector_uuid}), _purge_journal_ids(journal_path, project_uuid=selector_uuid, every_row=False)
+        return frozenset({_PURGE_NULL_KEY}), _purge_journal_ids(journal, project_uuid=None, every_row=False)
+    return frozenset({selector_uuid}), _purge_journal_ids(journal, project_uuid=selector_uuid, every_row=False)
 
 
 def _purge_ledger_view(census: _RawCensus, *, all_events: bool) -> _RawCensus:
@@ -3943,34 +3920,28 @@ def _purge_ledger_view(census: _RawCensus, *, all_events: bool) -> _RawCensus:
 
 
 def _purge_run_journal_ledger(
-    journal_path: Path,
-    ledger_path: Path,
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
     *,
     all_events: bool,
     identity_less: bool,
     selector_uuid: str,
     dry_run: bool,
     confirm: str,
-) -> Any | None:
+) -> ProjectPurgeResult | None:
     """Run the journal+ledger purge primitive for this selector, or ``None``.
 
     ``None`` when no journal exists: there is nothing to purge, and opening
     ``EventJournal`` would *create* the store — a purge that materialised a store in
     order to report zero rows in it would be reporting on its own side effect.
     """
-    from specify_cli.delivery.ledger import SqliteDeliveryLedger
     from specify_cli.delivery.retention import (
         PurgeNotConfirmedError,
         purge_all_events,
         purge_identity_less_events,
         purge_project_events,
     )
-    from specify_cli.event_journal.journal import EventJournal
 
-    if not journal_path.exists():
-        return None
-    journal = EventJournal(journal_path)
-    ledger = SqliteDeliveryLedger(str(ledger_path) if ledger_path.exists() else ":memory:")
     try:
         if all_events:
             return purge_all_events(journal=journal, ledger=ledger, dry_run=dry_run, confirmation=confirm)
@@ -3980,8 +3951,6 @@ def _purge_run_journal_ledger(
     except PurgeNotConfirmedError as exc:
         console.print(f"[red]Refused:[/red] {exc}")
         raise typer.Exit(1) from exc
-    finally:
-        ledger.close()
 
 
 def _purge_frames_scope(census: _RawCensus, frames_result: Any | None, *, all_events: bool, selector_uuid: str) -> frozenset[str]:
@@ -4008,7 +3977,7 @@ def _purge_selector_line(*, project: str | None, identity_less: bool, selector_u
 
 
 def _purge_run_body_queue(
-    body_queue: Any,
+    body_queue: OfflineBodyUploadQueue,
     census: _RawCensus,
     *,
     all_events: bool,
@@ -4029,8 +3998,6 @@ def _purge_run_body_queue(
     is shown is measured separately from this module's own two censuses (NFR-006).
     """
     from specify_cli.delivery.retention import (
-        PurgeNotConfirmedError,
-        purge_all_body_uploads,
         purge_project_body_uploads,
     )
 
@@ -4038,11 +4005,12 @@ def _purge_run_body_queue(
         result = purge_project_body_uploads(selector_uuid, body_queue=body_queue, dry_run=dry_run)
         return frozenset({selector_uuid}), result.removed
 
-    try:
-        total = purge_all_body_uploads(body_queue=body_queue, dry_run=dry_run, confirmation=confirm)
-    except PurgeNotConfirmedError as exc:
-        console.print(f"[red]Refused:[/red] {exc}")
-        raise typer.Exit(1) from exc
+    del confirm
+    total = purge_project_body_uploads(
+        body_queue.project_uuid,
+        body_queue=body_queue,
+        dry_run=dry_run,
+    )
     return frozenset(census.by_key), total.removed
 
 
@@ -4282,7 +4250,13 @@ def _purge_render(
     scope_note: str | None,
 ) -> None:
     """Print the operator's report: the plan, the residue, and the scope."""
-    header = "[bold yellow]DRY RUN[/bold yellow] — no rows have been deleted" if dry_run else "[bold red]APPLIED[/bold red] — rows have been deleted"
+    removed_total = sum(outcome.removed_observed for outcome in outcomes.values())
+    if dry_run:
+        header = "[bold yellow]DRY RUN[/bold yellow] — no rows have been deleted"
+    elif removed_total:
+        header = "[bold red]APPLIED[/bold red] — rows have been deleted"
+    else:
+        header = "[bold red]APPLIED[/bold red] — no rows matched or were removed"
     console.print(f"\n[bold]Purge[/bold] {header}")
     console.print(selector_line)
 
@@ -4305,11 +4279,10 @@ def _purge_render(
     ledger = outcomes[_PURGE_LEDGER]
     states = "  ".join(f"{name}={count}" for name, count in sorted(ledger.states.items()))
     console.print(f"Delivery state of the events in scope: {states or 'no delivery attempt recorded'}  never-attempted={ledger.never_attempted}")
-    console.print(
-        "[dim]The ledger rows are deleted, so this breakdown is the only surviving "
-        "record of what happened to those events. Keep it (--report writes it as "
-        "JSON).[/dim]"
-    )
+    if dry_run:
+        console.print("[dim]The ledger rows would be deleted by an applied run. Keep this preview (--report writes it as JSON).[/dim]")
+    elif ledger.removed_observed:
+        console.print("[dim]The ledger rows were deleted, so this breakdown is the only surviving record. Keep it (--report writes it as JSON).[/dim]")
 
     for outcome in outcomes.values():
         if outcome.unreadable:
@@ -4360,7 +4333,7 @@ def purge(
         False,
         "--all",
         help=(
-            "Purge every row of this machine's journal, delivery ledger and "
+            "Purge every row in the active project's journal, delivery ledger and "
             "body-upload queue, plus THIS checkout's queued local-commit frames. "
             "Requires --confirm with the confirmation phrase."
         ),
@@ -4394,9 +4367,9 @@ def purge(
     by adding up what the purge reports deleting, and the report names the
     populations a targeted purge cannot reach instead of quietly leaving them out.
 
-    ``--all`` is per-checkout for the local-commit frames and the report says so:
-    the other three stores are machine-global, but there is no registry of checkouts,
-    so another checkout's queued frames are neither listed nor touched.
+    ``--all`` is bounded to the active project's routed store and this checkout's
+    local-commit frames. Another project store or checkout is neither listed nor
+    touched.
 
     Examples:
         spec-kitty sync purge --project acme-migration
@@ -4407,16 +4380,15 @@ def purge(
     import json as _json
 
     from specify_cli.core.paths import locate_project_root
-    from specify_cli.delivery.retention import (
-        ProjectPurgeResult,
-        resolve_live_store_paths,
-    )
+    from specify_cli.delivery.ledger import SqliteDeliveryLedger
+    from specify_cli.event_journal.journal import EventJournal
+    from specify_cli.sync.body_queue import OfflineBodyUploadQueue
     from specify_cli.sync.local_commit import (
         census_pending_local_commits,
         purge_all_pending_local_commits,
         purge_pending_local_commits,
     )
-    from specify_cli.sync.queue import default_queue_db_path
+    from specify_cli.sync.queue import get_max_queue_size
 
     _purge_validate_invocation(
         project=project,
@@ -4428,17 +4400,18 @@ def purge(
         report=report,
     )
 
-    journal_path, ledger_path = resolve_live_store_paths()
-    queue_path = default_queue_db_path()
+    runtime = _open_retention_runtime_or_exit()
+    store = runtime.store
+    authority = store.layout_generation()
     repo_root = locate_project_root(Path.cwd())
+    checkout_identity = runtime.checkout_identity
+    body_max_queue_size = get_max_queue_size()
     frames_location = str(repo_root / _PURGE_SYNC_STATE_RELPATH) if repo_root is not None else "no Spec Kitty checkout resolved from the current directory"
-
-    body_queue = _purge_open_body_queue(queue_path)
-    before = {
-        _PURGE_JOURNAL: _purge_journal_census(journal_path),
-        _PURGE_BODY: _purge_body_census(body_queue),
+    before: dict[str, _RawCensus] = {
         _PURGE_FRAMES: _purge_frames_census(repo_root),
     }
+    if apply and before[_PURGE_FRAMES].unreadable:
+        _purge_usage_error("checkout-local sync-state.json is unreadable; refusing before any project-store or frame deletion")
     # What the purge's own census sees, taken at the same instant as the CLI's raw
     # read of the same file so the two are comparable. Not decoration:
     # ``load_sync_state`` resets a malformed file to empty and never raises, so a
@@ -4447,55 +4420,90 @@ def purge(
     # slugs, i.e. client engagement names.
     frames_census_reported = sum(census_pending_local_commits(repo_root).values()) if repo_root is not None else 0
     frames_census_disagrees = repo_root is not None and not before[_PURGE_FRAMES].unreadable and frames_census_reported != before[_PURGE_FRAMES].total
+    if apply and frames_census_disagrees:
+        _purge_usage_error("checkout-local frame census disagrees with sync-state.json; refusing before any project-store or frame deletion")
 
     selector_uuid = ""
     matched_slug: str | None = None
-    if project is not None:
-        selector_uuid, matched_slug = _purge_resolve_project(project, journal_path, repo_root)
-        conflicts = _purge_stored_spelling_conflicts(selector_uuid, [before[_PURGE_JOURNAL], before[_PURGE_BODY], before[_PURGE_FRAMES]])
-        if conflicts:
-            _purge_usage_error(
-                f'"{selector_uuid}" is not how these stores spell that project. They hold '
-                f"{', '.join(repr(key) for key in conflicts)}. Re-run with the stored "
-                "spelling: the journal matches a uuid exactly while the frame queue "
-                "compares case-insensitively, so a mixed selector would clear one store "
-                "and silently miss the other."
-            )
-
-    # ---- selection scopes, expressed as census keys ------------------------ #
-    journal_scope, journal_ids = _purge_journal_selection(
-        journal_path,
-        before[_PURGE_JOURNAL],
-        all_events=all_events,
-        identity_less=identity_less,
-        selector_uuid=selector_uuid,
-    )
-    before[_PURGE_LEDGER] = _purge_ledger_view(_purge_ledger_census(ledger_path, journal_ids), all_events=all_events)
-    ledger_scope = frozenset({_PURGE_LEDGER})
-    ghosts_before = 0 if all_events else _purge_ledger_ghost_count(journal_path, ledger_path)
-
-    # ---- run the primitives ----------------------------------------------- #
-    result: ProjectPurgeResult | None = _purge_run_journal_ledger(
-        journal_path,
-        ledger_path,
-        all_events=all_events,
-        identity_less=identity_less,
-        selector_uuid=selector_uuid,
-        dry_run=not apply,
-        confirm=confirm,
-    )
-
+    result: ProjectPurgeResult | None = None
     body_removed_reported = 0
     body_scope: frozenset[str] = frozenset()
-    if body_queue is not None and not identity_less:
-        body_scope, body_removed_reported = _purge_run_body_queue(
-            body_queue,
-            before[_PURGE_BODY],
+    journal_scope: frozenset[str] = frozenset()
+    journal_ids: list[str] = []
+    ledger_scope = frozenset({_PURGE_LEDGER})
+    ghosts_before = 0
+    after: dict[str, _RawCensus] = {}
+
+    # All local payload repositories share this exact project UoW.  The UoW is
+    # closed before the checkout-local frame file is read or changed.
+    with store.unit_of_work() as unit:
+        journal = EventJournal(unit, authority)
+        ledger = SqliteDeliveryLedger(unit, authority)
+        body_queue = OfflineBodyUploadQueue(
+            unit,
+            authority,
+            max_queue_size=body_max_queue_size,
+        )
+        before[_PURGE_JOURNAL] = _purge_journal_census(journal)
+        before[_PURGE_BODY] = _purge_body_census(body_queue)
+
+        if project is not None:
+            selector_uuid, matched_slug = _purge_resolve_project(
+                project,
+                journal,
+                checkout_identity,
+            )
+            if selector_uuid.strip().lower() != str(store.project_uuid.storage_token):
+                _purge_usage_error("--project must identify the active project store; this command never opens or scans another project's physical store")
+        elif all_events:
+            selector_uuid = str(store.project_uuid.storage_token)
+
+        conflicts = _purge_stored_spelling_conflicts(
+            selector_uuid,
+            [before[_PURGE_JOURNAL], before[_PURGE_BODY], before[_PURGE_FRAMES]],
+        )
+        if conflicts:
+            _purge_usage_error(f'"{selector_uuid}" is not how these stores spell that project. They hold {", ".join(repr(key) for key in conflicts)}.')
+
+        journal_scope, journal_ids = _purge_journal_selection(
+            journal,
+            before[_PURGE_JOURNAL],
             all_events=all_events,
+            identity_less=identity_less,
+            selector_uuid=selector_uuid,
+        )
+        before[_PURGE_LEDGER] = _purge_ledger_view(
+            _purge_ledger_census(ledger, journal_ids),
+            all_events=all_events,
+        )
+        unreadable_project_stores = [_PURGE_STORE_LABELS[name] for name in (_PURGE_JOURNAL, _PURGE_LEDGER, _PURGE_BODY) if before[name].unreadable]
+        if apply and unreadable_project_stores:
+            _purge_usage_error("project-store census is unreadable for " + ", ".join(unreadable_project_stores) + "; refusing before any deletion")
+        ghosts_before = 0 if all_events else _purge_ledger_ghost_count(journal, ledger)
+        result = _purge_run_journal_ledger(
+            journal,
+            ledger,
+            all_events=all_events,
+            identity_less=identity_less,
             selector_uuid=selector_uuid,
             dry_run=not apply,
             confirm=confirm,
         )
+        if not identity_less:
+            body_scope, body_removed_reported = _purge_run_body_queue(
+                body_queue,
+                before[_PURGE_BODY],
+                all_events=all_events,
+                selector_uuid=selector_uuid,
+                dry_run=not apply,
+                confirm=confirm,
+            )
+        after[_PURGE_JOURNAL] = _purge_journal_census(journal)
+        after[_PURGE_LEDGER] = _purge_ledger_view(
+            _purge_ledger_census(ledger, journal_ids),
+            all_events=all_events,
+        )
+        after[_PURGE_BODY] = _purge_body_census(body_queue)
 
     frames_result = None
     if repo_root is not None and not identity_less:
@@ -4510,13 +4518,7 @@ def purge(
         selector_uuid=selector_uuid,
     )
 
-    # ---- measure again, independently ------------------------------------- #
-    after = {
-        _PURGE_JOURNAL: _purge_journal_census(journal_path),
-        _PURGE_LEDGER: _purge_ledger_view(_purge_ledger_census(ledger_path, journal_ids), all_events=all_events),
-        _PURGE_BODY: _purge_body_census(body_queue),
-        _PURGE_FRAMES: _purge_frames_census(repo_root),
-    }
+    after[_PURGE_FRAMES] = _purge_frames_census(repo_root)
 
     scopes = {
         _PURGE_JOURNAL: journal_scope,
@@ -4525,9 +4527,9 @@ def purge(
         _PURGE_FRAMES: frames_scope,
     }
     locations = {
-        _PURGE_JOURNAL: str(journal_path),
-        _PURGE_LEDGER: str(ledger_path),
-        _PURGE_BODY: str(queue_path),
+        _PURGE_JOURNAL: str(store.database_path),
+        _PURGE_LEDGER: str(store.database_path),
+        _PURGE_BODY: str(store.database_path),
         _PURGE_FRAMES: frames_location,
     }
     reported = {
@@ -4991,45 +4993,6 @@ def mode(
         )
 
 
-def _count_legacy_body_uploads_for_mission(mission_slug: str | None) -> int:
-    """Return the number of legacy ``body_upload_queue`` rows tagged for *mission_slug*.
-
-    Best-effort: returns 0 when the legacy DB does not exist, when the
-    ``body_upload_queue`` table is missing, or when ``mission_slug`` is
-    ``None``. The query is read-only — it never mutates the legacy DB.
-
-    Used by FR-013 to tag the legacy-queue diagnostic when setup-plan
-    body uploads from the active mission are still stranded in the
-    pre-scoped queue file.
-    """
-    if not mission_slug:
-        return 0
-    import sqlite3 as _sqlite3
-
-    from specify_cli.sync.queue import _legacy_queue_db_path
-
-    legacy_db = _legacy_queue_db_path()
-    if not legacy_db.exists():
-        return 0
-    try:
-        conn = _sqlite3.connect(legacy_db)
-    except _sqlite3.Error:
-        return 0
-    try:
-        cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='body_upload_queue'")
-        if cur.fetchone() is None:
-            return 0
-        row = conn.execute(
-            "SELECT COUNT(*) FROM body_upload_queue WHERE mission_slug = ?",
-            (mission_slug,),
-        ).fetchone()
-        return int(row[0]) if row else 0
-    except _sqlite3.Error:
-        return 0
-    finally:
-        conn.close()
-
-
 def _build_boundary_check_failures(
     *,
     failure_set: Any = None,
@@ -5118,6 +5081,9 @@ def _failure_lines_from_set(
     n_orphans = len(failure_set.orphan_records)
     if n_orphans > 0:
         failures.append(f"{n_orphans} orphan daemon record(s) detected; retire via `spec-kitty sync doctor`")
+
+    if failure_set.project_store_diagnostic is not None:
+        failures.append(f"project-store boundary unavailable: {failure_set.project_store_diagnostic}")
 
     return failures
 
@@ -5223,7 +5189,7 @@ def _emit_status_check_json() -> None:
 
     from specify_cli.sync.daemon import scan_sync_daemons
     from specify_cli.sync.preflight import build_boundary_failure_set
-    from specify_cli.sync.queue import OfflineQueue, _legacy_queue_db_path
+    from specify_cli.sync.queue import _legacy_queue_db_path
 
     failure_set = build_boundary_failure_set(repo_root=Path.cwd())
     fg = failure_set.foreground
@@ -5233,10 +5199,12 @@ def _emit_status_check_json() -> None:
     # detection already feeds ``failure_set.orphan_records``; we also probe
     # live processes so an unregistered ``run_sync_daemon`` running outside
     # the singleton fails ``--check`` even when on-disk state is clean.
+    daemon_scan_diagnostic: str | None = None
     try:
         live_orphan_report = scan_sync_daemons()
-    except Exception:
+    except Exception as exc:
         live_orphan_report = None
+        daemon_scan_diagnostic = f"live daemon scan failed: {str(exc)[:200]}"
     live_orphan_count = int(live_orphan_report.orphan_count) if live_orphan_report is not None else 0
 
     # FR-004 / contracts/sync-status-output.md: when
@@ -5247,28 +5215,12 @@ def _emit_status_check_json() -> None:
     auth_required = is_saas_sync_enabled()
     auth_present = fg.server_url is not None and fg.team_or_user is not None
 
-    # Active queue counts. Best-effort: never raise from a JSON path.
-    queue = OfflineQueue()
+    # Canonical project-store counts are filled from the additive report below.
+    # Zero is the honest fallback when the project store is unavailable.
     active_event_count = 0
-    try:
-        active_event_count = int(queue.size())
-    except Exception:
-        active_event_count = 0
     active_body_count = 0
-    try:
-        from specify_cli.sync.body_queue import OfflineBodyUploadQueue
-        import sqlite3 as _sqlite3
 
-        active_body_queue = OfflineBodyUploadQueue(db_path=queue.db_path)
-        _conn = _sqlite3.connect(active_body_queue.db_path)
-        try:
-            active_body_count = int(_conn.execute("SELECT COUNT(*) FROM body_upload_queue").fetchone()[0])
-        finally:
-            _conn.close()
-    except Exception:
-        active_body_count = 0
-
-    ok = failure_set.ok and (auth_present or not auth_required) and live_orphan_count == 0
+    ok = failure_set.ok and (auth_present or not auth_required) and live_orphan_count == 0 and daemon_scan_diagnostic is None
     payload: dict[str, Any] = {
         "ok": ok,
         "exit_code": 0 if ok else 2,
@@ -5286,6 +5238,7 @@ def _emit_status_check_json() -> None:
             "last_blocker_sample": None,
         },
         "live_orphan_daemon_count": live_orphan_count,
+        "daemon_scan_diagnostic": daemon_scan_diagnostic,
         "foreground": {
             "package_version": fg.package_version,
             "executable_path": str(fg.executable_path),
@@ -5310,12 +5263,18 @@ def _emit_status_check_json() -> None:
             "path": str(fg.queue_db_path),
             "event_count": active_event_count,
             "body_upload_count": active_body_count,
+            "available": failure_set.project_store_diagnostic is None,
+            "diagnostic": failure_set.project_store_diagnostic,
         },
+        "project_store_diagnostic": failure_set.project_store_diagnostic,
         "legacy_queue": {
             "path": str(_legacy_queue_db_path()),
             "event_count": failure_set.legacy_event_rows,
             "body_upload_count": failure_set.legacy_body_upload_rows,
             "rows_in_scope": failure_set.legacy_rows_for_scope,
+            "live_authority": False,
+            "inspected": False,
+            "diagnostic": ("legacy residue is WP10 migration/quarantine evidence; these compatibility counts are not a physical legacy-store census"),
         },
         "mismatches": [
             {
@@ -5353,12 +5312,21 @@ def _emit_status_check_json() -> None:
     try:
         runtime = _open_event_sync_runtime_readonly()
         payload = _event_sync_report(payload, runtime)
-    except Exception as exc:  # legacy --check contract must survive any failure
+        payload["active_queue"]["path"] = str(runtime.store.database_path)
+        payload["active_queue"]["event_count"] = int(payload["event_journal"]["retained_event_count"])
+        payload["active_queue"]["body_upload_count"] = int(payload["body_upload_compatibility"]["body_upload_queue_count"])
+    except Exception as exc:  # additive shape survives; authority fails closed
         from specify_cli.delivery.status_report import default_status_sections
 
         _LOG.debug("event-sync status sections unavailable: %s", exc)
         payload = {**payload, **default_status_sections()}
         payload["event_sync_status_error"] = str(exc)[:200]
+        payload["project_store_diagnostic"] = "project-store status read failed: " + str(exc)[:200]
+        payload["active_queue"]["available"] = False
+        payload["active_queue"]["diagnostic"] = payload["project_store_diagnostic"]
+        payload["ok"] = False
+        payload["exit_code"] = 2
+        ok = False
     finally:
         if runtime is not None:
             runtime.close()
@@ -5417,7 +5385,6 @@ def status(  # noqa: C901
     from specify_cli.auth import get_token_manager
     from specify_cli.sync.config import SyncConfig
     from specify_cli.sync.daemon import get_sync_daemon_status, scan_sync_daemons
-    from specify_cli.sync.queue import OfflineQueue
 
     # T014: --check --json short-circuit. Emits a single JSON object on
     # stdout matching contracts/sync-status-output.md and exits 0/2 based
@@ -5436,7 +5403,13 @@ def status(  # noqa: C901
     # in) — the URL sync actually hits — not the raw config.toml value (#2146).
     server_url = config.resolve_runtime_target().resolved_server_url
     saas_enabled = is_saas_sync_enabled()
-    queue = OfflineQueue()
+    local_runtime: _EventSyncRuntime | None = None
+    local_report: dict[str, Any] | None = None
+    try:
+        local_runtime = _open_event_sync_runtime_readonly()
+        local_report = _event_sync_report({}, local_runtime)
+    except Exception as exc:
+        _LOG.debug("project-store status unavailable: %s", exc)
     tm = get_token_manager()
     daemon_status = get_sync_daemon_status()
 
@@ -5446,7 +5419,7 @@ def status(  # noqa: C901
     table.add_column("Value")
 
     # Queue size
-    queue_size = queue.size()
+    queue_size = 0 if local_report is None else int(local_report["event_journal"]["retained_event_count"])
     queue_color = "green" if queue_size == 0 else "yellow"
     table.add_row("Queue", f"[{queue_color}]{queue_size} event(s)[/{queue_color}]")
 
@@ -5474,7 +5447,7 @@ def status(  # noqa: C901
     # Last sync
     if daemon_status.last_sync:
         try:
-            parsed_sync_time = datetime.fromisoformat(daemon_status.last_sync)
+            parsed_sync_time = parse_iso(daemon_status.last_sync)
             table.add_row(
                 _STATUS_LAST_SYNC_LABEL,
                 parsed_sync_time.strftime("%Y-%m-%d %H:%M:%S UTC"),
@@ -5521,10 +5494,13 @@ def status(  # noqa: C901
         # bleed-through restarts) are how the regression in #1071 manifests in
         # practice; report them here so operators see the divergence without
         # having to grep ``ps`` themselves.
+        orphan_scan_diagnostic: str | None = None
         try:
             orphan_report = scan_sync_daemons()
-        except Exception:
+        except Exception as exc:
             orphan_report = None
+            orphan_scan_diagnostic = f"live daemon scan failed: {str(exc)[:200]}"
+            table.add_row("Singleton", f"[red]Unavailable[/red] ({orphan_scan_diagnostic})")
         if orphan_report is not None:
             if orphan_report.orphan_count == 0:
                 table.add_row(
@@ -5548,9 +5524,8 @@ def status(  # noqa: C901
         console.print()
 
     # --- Queue health section (T022/T023) ---
-    queue_stats = queue.get_queue_stats()
-    if queue_stats.total_queued > 0:
-        format_queue_health(queue_stats, console)
+    if queue_size > 0:
+        console.print(f"[yellow]Project event store contains {queue_size} retained event(s).[/yellow]")
         console.print()
     else:
         console.print("[green]Queue empty -- all events synced.[/green]")
@@ -5587,7 +5562,6 @@ def status(  # noqa: C901
     from specify_cli.sync.preflight import build_boundary_failure_set
     from specify_cli.sync.queue import (
         _legacy_queue_db_path,
-        detect_legacy_rows_for_scope,
     )
 
     foreground_identity = compute_foreground_identity()
@@ -5601,40 +5575,23 @@ def status(  # noqa: C901
     # Structured failure set — single source of truth for --check / preflight.
     failure_set = build_boundary_failure_set(repo_root=Path.cwd())
 
-    active_scope = foreground_identity.get("auth_scope")
-    # WP02: ``detect_legacy_rows_for_scope`` now returns a structured
-    # ``LegacyRowCounts`` value that still acts like a per-table mapping
-    # (so the existing ``legacy_counts.get("body_upload_queue", 0)`` /
-    # ``sum(legacy_counts.values())`` / ``sorted(legacy_counts.items())``
-    # sites keep working) while exposing named subtotals to callers that
-    # want them (preflight uses those).
-    legacy_counts = detect_legacy_rows_for_scope(active_scope if isinstance(active_scope, str) else "")
+    # The canonical boundary preflight already owns the explicit WP10 legacy
+    # census.  Status renders that typed evidence rather than opening a retired
+    # shared queue adapter a second time.
+    legacy_counts = {
+        "queue": failure_set.legacy_event_rows,
+        "body_upload_queue": failure_set.legacy_body_upload_rows,
+    }
     legacy_db_path = _legacy_queue_db_path()
 
-    # FR-013: detect setup-plan body uploads stranded in the legacy DB
-    # for the current mission slug. Best-effort — when the active mission
-    # cannot be derived from cwd (e.g. operator running from the repo
-    # root), we omit the tag.
-    _workspace_path, active_mission_slug = _detect_workspace_context()
-    stranded_count = _count_legacy_body_uploads_for_mission(active_mission_slug)
-    stranded_tag = active_mission_slug if stranded_count > 0 else None
+    # Physical legacy residue is WP10 migration/quarantine evidence, never live
+    # status authority.  General status therefore does not open the retired
+    # shared queue to derive a mission tag; explicit migration diagnosis owns
+    # that read-side surface.
+    stranded_tag = None
 
     # Active-queue diagnostics on the foreground queue.
-    body_queue_count = 0
-    try:
-        from specify_cli.sync.body_queue import OfflineBodyUploadQueue
-
-        active_body_queue = OfflineBodyUploadQueue(db_path=queue.db_path)
-        import sqlite3 as _sqlite3
-
-        _conn = _sqlite3.connect(active_body_queue.db_path)
-        try:
-            body_queue_count = int(_conn.execute("SELECT COUNT(*) FROM body_upload_queue").fetchone()[0])
-        finally:
-            _conn.close()
-    # Read-only diagnostic: never let status rendering fail on queue inspection.
-    except Exception:
-        body_queue_count = 0
+    body_queue_count = 0 if local_report is None else int(local_report["body_upload_compatibility"]["body_upload_queue_count"])
 
     # Legacy body-upload count (read-only).
     legacy_body_count = legacy_counts.get("body_upload_queue", 0)
@@ -5866,6 +5823,8 @@ def status(  # noqa: C901
                 "process(es) detected outside the registered singleton — "
                 "run `spec-kitty sync doctor` for guided cleanup (#1071)."
             )
+        if orphan_scan_diagnostic is not None:
+            failures.append(orphan_scan_diagnostic + " — retry the scan or run `spec-kitty sync doctor`.")
         if failures:
             console.print(
                 "[red]Identity boundary check FAILED:[/red]",
@@ -5908,10 +5867,30 @@ def diagnose(
     import json as json_mod
 
     from specify_cli.sync.diagnose import diagnose_events
-    from specify_cli.sync.queue import OfflineQueue
+    from specify_cli.sync.queue import OfflineQueue, get_max_queue_size
 
-    queue = OfflineQueue()
-    pending = queue.drain_queue(limit=queue.MAX_QUEUE_SIZE)
+    try:
+        max_queue_size = get_max_queue_size()
+        runtime = _open_event_sync_runtime(include_target=False)
+        with runtime.store.unit_of_work() as unit:
+            queue = OfflineQueue(
+                unit,
+                runtime.store.layout_generation(),
+                max_queue_size=max_queue_size,
+            )
+            pending = queue.drain_queue(limit=queue.MAX_QUEUE_SIZE)
+    except (FileNotFoundError, RuntimeError, OSError, ValueError) as exc:
+        message = f"project event store is unavailable; no queue-health claim was made: {exc}"
+        if json_output:
+            console.print(
+                json_mod.dumps(
+                    {"available": False, "error": message, "results": []},
+                    sort_keys=True,
+                )
+            )
+        else:
+            console.print(f"[red]Unable to diagnose sync queue:[/red] {message}")
+        raise typer.Exit(2) from exc
 
     if not pending:
         if json_output:
@@ -5975,13 +5954,11 @@ def doctor() -> None:  # noqa: C901
     Examples:
         spec-kitty sync doctor
     """
-    from datetime import datetime
-
     from specify_cli.auth import get_token_manager
     from specify_cli.sync.body_queue import OfflineBodyUploadQueue
     from specify_cli.sync.config import SyncConfig
     from specify_cli.sync.diagnose import diagnose_body_queue
-    from specify_cli.sync.queue import OfflineQueue
+    from specify_cli.sync.queue import OfflineQueue, get_max_queue_size
 
     console.print()
     console.print("[bold cyan]Sync Doctor[/bold cyan]")
@@ -5989,40 +5966,54 @@ def doctor() -> None:  # noqa: C901
 
     issues: list[str] = []
 
-    # --- 1. Queue health ---
-    queue = OfflineQueue()
-    stats = queue.get_queue_stats()
-    body_queue = OfflineBodyUploadQueue(db_path=queue.db_path)
-    body_diagnostics = diagnose_body_queue(body_queue)["body_queue"]
-    queue_size = stats.total_queued
-    max_size = stats.max_queue_size
-    pct = (queue_size / max_size * 100) if max_size > 0 else 0
-
     table = Table(show_header=False, box=None)
     table.add_column("Key", style="dim", min_width=20)
     table.add_column("Value")
 
-    depth_color = "red" if pct >= 100 else ("yellow" if pct >= 80 else "green")
-    table.add_row("Queue size", f"[{depth_color}]{queue_size:,} / {max_size:,} ({pct:.0f}%)[/{depth_color}]")
-
-    if stats.oldest_event_age is not None:
-        age_str = humanize_timedelta(stats.oldest_event_age)
-        table.add_row("Oldest event", f"{age_str} ago")
+    # --- 1. Queue health ---
+    stats: QueueStats | None = None
+    body_diagnostics: dict[str, Any] | None = None
+    try:
+        max_queue_size = get_max_queue_size()
+        runtime = _open_event_sync_runtime(include_target=False)
+        with runtime.store.unit_of_work() as unit:
+            authority = runtime.store.layout_generation()
+            queue = OfflineQueue(unit, authority, max_queue_size=max_queue_size)
+            body_queue = OfflineBodyUploadQueue(
+                unit,
+                authority,
+                max_queue_size=max_queue_size,
+            )
+            stats = queue.get_queue_stats()
+            body_diagnostics = diagnose_body_queue(body_queue)["body_queue"]
+            queue_db = runtime.store.database_path
+    except (FileNotFoundError, RuntimeError, OSError, ValueError) as exc:
+        table.add_row("Project queue", f"[red]Unavailable[/red] ({exc})")
+        issues.append(
+            "Project queue authority is unavailable. Run `spec-kitty sync project-store-migrate` from an identified checkout; no empty-queue claim was made."
+        )
     else:
-        table.add_row("Oldest event", "[dim]n/a (empty)[/dim]")
-
-    table.add_row("Queue DB", str(queue.db_path))
-    table.add_row(
-        "Body uploads",
-        f"{body_diagnostics['total_tasks']} queued, {body_diagnostics['recorded_failure_count']} recorded failure(s)",
-    )
-
-    if pct >= 100:
-        issues.append("Queue is FULL -- oldest events are being evicted to make room for new ones. Run `spec-kitty sync now` after fixing auth/connectivity.")
-    elif pct >= 80:
-        issues.append(f"Queue is {pct:.0f}% full. Consider syncing soon with `spec-kitty sync now`.")
-    if body_diagnostics["recorded_failure_count"] > 0:
-        issues.append("Body upload failures were recorded. Review the recent body upload failures below and fix the underlying artifact or contract mismatch.")
+        queue_size = stats.total_queued
+        max_size = stats.max_queue_size
+        pct = (queue_size / max_size * 100) if max_size > 0 else 0
+        depth_color = "red" if pct >= 100 else ("yellow" if pct >= 80 else "green")
+        table.add_row("Queue size", f"[{depth_color}]{queue_size:,} / {max_size:,} ({pct:.0f}%)[/{depth_color}]")
+        if stats.oldest_event_age is not None:
+            age_str = humanize_timedelta(stats.oldest_event_age)
+            table.add_row("Oldest event", f"{age_str} ago")
+        else:
+            table.add_row("Oldest event", "[dim]n/a (empty)[/dim]")
+        table.add_row("Queue DB", str(queue_db))
+        table.add_row(
+            "Body uploads",
+            f"{body_diagnostics['total_tasks']} queued, {body_diagnostics['recorded_failure_count']} recorded failure(s)",
+        )
+        if pct >= 100:
+            issues.append("Queue is FULL -- oldest events are being evicted to make room for new ones. Run `spec-kitty sync now` after fixing auth/connectivity.")
+        elif pct >= 80:
+            issues.append(f"Queue is {pct:.0f}% full. Consider syncing soon with `spec-kitty sync now`.")
+        if body_diagnostics["recorded_failure_count"] > 0:
+            issues.append("Body upload failures were recorded. Review the recent body upload failures below and fix the underlying artifact or contract mismatch.")
 
     # --- 2. Auth status ---
     config = SyncConfig()
@@ -6040,7 +6031,7 @@ def doctor() -> None:  # noqa: C901
         access_exp_dt = session.access_token_expires_at
         refresh_exp_dt = session.refresh_token_expires_at
 
-        now = datetime.now(UTC)
+        now = now_utc()
 
         access_ok = access_exp_dt is not None and access_exp_dt > now
         refresh_ok = (
@@ -6114,8 +6105,11 @@ def doctor() -> None:  # noqa: C901
 
     try:
         singleton_report = scan_sync_daemons()
-    except Exception:
+    except Exception as exc:
         singleton_report = None
+        singleton_diagnostic = f"live daemon scan failed: {str(exc)[:200]}"
+        table.add_row("Daemon singleton", f"[red]Unavailable[/red] ({singleton_diagnostic})")
+        issues.append(singleton_diagnostic + ". Retry the scan or stop sync before trusting queue health.")
 
     if singleton_report is not None:
         if singleton_report.orphan_count == 0:
@@ -6174,7 +6168,7 @@ def doctor() -> None:  # noqa: C901
         console.print()
 
     # --- 4. Top event types (if queue non-empty) ---
-    if stats.top_event_types:
+    if stats is not None and stats.top_event_types:
         type_table = Table(
             title="Top Queued Event Types",
             show_header=True,
@@ -6189,7 +6183,7 @@ def doctor() -> None:  # noqa: C901
         console.print(type_table)
         console.print()
 
-    recent_failures = body_diagnostics["recent_failures"]
+    recent_failures = body_diagnostics["recent_failures"] if body_diagnostics is not None else []
     if recent_failures:
         failure_table = Table(
             title="Recent Body Upload Failures",

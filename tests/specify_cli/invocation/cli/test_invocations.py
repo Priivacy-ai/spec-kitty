@@ -11,7 +11,7 @@ Covers:
 
 from __future__ import annotations
 
-import datetime
+from kernel.clock import now_utc_iso
 import json
 import sys
 import time
@@ -63,7 +63,7 @@ def _write_started(
     started_at: str | None = None,
 ) -> Path:
     if started_at is None:
-        started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        started_at = now_utc_iso()
     record = {
         "event": "started",
         "invocation_id": invocation_id,
@@ -85,7 +85,7 @@ def _write_completed(path: Path, *, invocation_id: str, outcome: str = "done", c
     record = {
         "event": "completed",
         "invocation_id": invocation_id,
-        "completed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "completed_at": now_utc_iso(),
         "outcome": outcome,
         "closed_by": closed_by,
     }
@@ -117,7 +117,7 @@ def create_fixture_invocations(
     repo_root = events_dir.parent
     for _ in range(count):
         inv_id = _new_ulid()
-        started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        started_at = now_utc_iso()
         record = {
             "event": "started",
             "invocation_id": inv_id,
@@ -346,7 +346,7 @@ class TestInvocationsListJSON:
             {
                 "invocation_id": deleted_id,
                 "profile_id": "implementer-fixture",
-                "started_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "started_at": now_utc_iso(),
             },
         )
 

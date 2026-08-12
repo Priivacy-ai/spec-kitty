@@ -25,7 +25,7 @@ from specify_cli.context.store import load_context as _load_context
 from specify_cli.context.store import save_context
 from specify_cli.core.git_ops import resolve_primary_branch
 from specify_cli.core.paths import read_target_branch_from_meta
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.mission_metadata import load_meta, mission_identity_fields

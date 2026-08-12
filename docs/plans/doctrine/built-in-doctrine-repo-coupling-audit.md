@@ -5,13 +5,13 @@ doc_status: active
 updated: '2026-07-28'
 type: explanation
 related:
-- docs/development/review-gates.md
+- docs/development/how-to/review-gates.md
 - docs/plans/doctrine/charter-activation-reachability-assessment.md
 - docs/adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md
 ---
 # Repo-Coupling Audit of Built-In Doctrine
 
-**Rule being audited** — [`review-gates.md`, "Shippable doctrine"](../../development/review-gates.md):
+**Rule being audited** — [`review-gates.md`, "Shippable doctrine"](../../development/how-to/review-gates.md):
 built-in doctrine under `src/doctrine/**/built-in/` MUST be valid and actionable
 in a consumer repository that activated the pack but has **no** access to the
 spec-kitty source tree, CI, or tooling.

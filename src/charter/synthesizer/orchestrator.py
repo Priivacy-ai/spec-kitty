@@ -114,7 +114,7 @@ def _reconstruct_synthesis_result(
     one place that knows how to fall back to the first result when the
     primary target was not among the synthesized set.
     """
-    from datetime import datetime  # noqa: PLC0415
+    from kernel.clock import datetime, parse_iso  # noqa: PLC0415
 
     from .adapter import AdapterOutput as _AdapterOutput  # noqa: PLC0415
 
@@ -126,7 +126,7 @@ def _reconstruct_synthesis_result(
                 target_slug=prov.artifact_slug,
                 adapter_output=_AdapterOutput(
                     body=body,
-                    generated_at=datetime.fromisoformat(prov.generated_at)
+                    generated_at=parse_iso(prov.generated_at)
                     if not isinstance(prov.generated_at, datetime)
                     else prov.generated_at,
                 ),
@@ -143,7 +143,7 @@ def _reconstruct_synthesis_result(
         target_slug=first_prov.artifact_slug,
         adapter_output=_AdapterOutput(
             body=first_body,
-            generated_at=datetime.fromisoformat(first_prov.generated_at)
+            generated_at=parse_iso(first_prov.generated_at)
             if not isinstance(first_prov.generated_at, datetime)
             else first_prov.generated_at,
         ),

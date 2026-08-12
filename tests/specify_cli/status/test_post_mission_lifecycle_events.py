@@ -17,12 +17,12 @@ Covers the FR-001/FR-002 contract:
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from kernel.clock import UTC, datetime
 from specify_cli.status import lifecycle_events as le
 from specify_cli.status.lifecycle import derive_mission_lifecycle
 from specify_cli.status.lifecycle_events import (

@@ -12,8 +12,9 @@ directly from :meth:`DeviceFlowPoller.poll` on success.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, UTC
 from typing import Any
+
+from kernel.clock import datetime, now_utc, timedelta
 
 
 @dataclass
@@ -62,7 +63,7 @@ class DeviceFlowState:
         Returns:
             A populated :class:`DeviceFlowState`.
         """
-        now = datetime.now(UTC)
+        now = now_utc()
         expires_in = int(response.get("expires_in", 900))
         return cls(
             device_code=response["device_code"],
@@ -77,7 +78,7 @@ class DeviceFlowState:
 
     def is_expired(self) -> bool:
         """Return True when the device code has passed its expiry deadline."""
-        return datetime.now(UTC) >= self.expires_at
+        return now_utc() >= self.expires_at
 
     def time_remaining(self) -> timedelta:
         """Return the remaining time before the device code expires.
@@ -85,7 +86,7 @@ class DeviceFlowState:
         The result can be negative if the flow is already expired; callers
         that need a non-negative value should clamp it themselves.
         """
-        return self.expires_at - datetime.now(UTC)
+        return self.expires_at - now_utc()
 
     def record_poll(self) -> None:
         """Mark that a poll attempt just happened.
@@ -94,5 +95,5 @@ class DeviceFlowState:
         :attr:`poll_count`. Called by the poller immediately before each
         token request so the count reflects attempts, not successes.
         """
-        self.last_polled_at = datetime.now(UTC)
+        self.last_polled_at = now_utc()
         self.poll_count += 1

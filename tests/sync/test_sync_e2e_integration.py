@@ -765,9 +765,9 @@ class TestEventPayloadValidation:
         """Event timestamps are ISO 8601 format."""
         identity = ensure_identity(temp_repo)
 
+        from kernel.clock import parse_iso
         from specify_cli.sync.clock import LamportClock
         from specify_cli.sync.config import SyncConfig
-        from datetime import datetime
 
         clock_path = tmp_path / "clock.json"
         clock = LamportClock(value=0, node_id="test-node", _storage_path=clock_path)
@@ -793,5 +793,5 @@ class TestEventPayloadValidation:
         # Handle Z suffix
         if ts.endswith("Z"):
             ts = ts[:-1] + "+00:00"
-        parsed = datetime.fromisoformat(ts)
+        parsed = parse_iso(ts)
         assert parsed is not None

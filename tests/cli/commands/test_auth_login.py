@@ -19,7 +19,7 @@ Key behaviors under test (per WP04 acceptance criteria):
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, UTC
+from kernel.clock import timedelta, now_utc
 import re
 from unittest.mock import AsyncMock, patch
 
@@ -51,7 +51,7 @@ def _reset_tm(monkeypatch):
 
 
 def _make_session(email: str = "alice@example.com") -> StoredSession:
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="user-1",
         email=email,
@@ -191,6 +191,7 @@ class TestAuthLoginConfigErrors:
 
         assert result.exit_code != 0
         assert "SPEC_KITTY_SAAS_URL" in result.stdout
+        assert "https://app.spec-kitty.ai) and try again." in result.stdout
 
 
 # ---------------------------------------------------------------------------

@@ -194,7 +194,10 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.cli.commands._auth_doctor::ServerSessionStatus
         SymbolKey("ServerSessionStatus", "5814547ac903022d97fd3b3a685e3218971f8e6d2407cf99d1f505f2f964b25b"),
         SymbolKey("SessionSummary", "465b7c32684be07566e692b5ef249e2585ccb568f9b2ffe36fd88ba4ed872e74"),  # specify_cli.cli.commands._auth_doctor::SessionSummary
-        SymbolKey("assemble_report", "fa4ee3f45be25cf02f8878bd8077bb8e2a86ae2aa6739133650cbc5e2a840c01"),  # specify_cli.cli.commands._auth_doctor::assemble_report
+        # specify_cli.cli.commands._auth_doctor::assemble_report (hash refreshed
+        # kernel-clock-single-door PR #3305: body now calls kernel.clock.now_utc()
+        # instead of datetime.now(UTC), per the clock single-door migration)
+        SymbolKey("assemble_report", "4632c1fdf5f64e3614e930f1210c9784552a50eda1d201189c089020986e19fa"),
         # specify_cli.cli.commands._auth_doctor::compute_exit_code
         SymbolKey("compute_exit_code", "060144b6c7b405770cc41179f7c74273e8618e6271027c42794a87f567516179"),
         SymbolKey("render_report", "719c4b8b25a0a7b9e613e559e60abacbdef6ad4ab04788e9b956b7d788ad13fb"),  # specify_cli.cli.commands._auth_doctor::render_report
@@ -446,6 +449,20 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey("validate_source_register", "c9828e462d4312022aabd276cfddac19d8839c37480d692a1f54fc874ceca9d9"),
         # specify_cli.widen.interview_helpers::render_widen_hint_if_present
         SymbolKey("render_widen_hint_if_present", "488672b20073c5fb098086f3a277c270b6bfada6f1efc571c7ea6d3030286011"),
+        # kernel-clock-single-door PR #3305: FrozenClock/SystemClock are the
+        # genuine public injectable-clock API (Clock protocol's real
+        # implementation + deterministic test double) -- same "decomposed-
+        # module public API consumed by tests/wrapper" shape as the
+        # _auth_doctor family above. By design production code reads only the
+        # DEFAULT_CLOCK singleton (never SystemClock/FrozenClock by name), so
+        # there is no non-test src/ caller to wire; tests across
+        # kernel/agent/upgrade/specify_cli inject FrozenClock directly and
+        # DEFAULT_CLOCK is instantiated from SystemClock at module load. Kept
+        # public (not pruned from __all__) because both are load-bearing
+        # constructor targets for the SC-002 single-injection-point idiom
+        # documented in kernel/clock.py's own module + class docstrings.
+        SymbolKey("FrozenClock", "d7d3b0fc4c3f3073f8d91f3a9a52d572ed4c757fa0394e099a93cbdd55cc1254"),  # kernel.clock::FrozenClock
+        SymbolKey("SystemClock", "63636506c6ff5670c4d24b17ead03fa5f98c882a019a1566126d7bfb19ac82a0"),  # kernel.clock::SystemClock
     }
 )
 

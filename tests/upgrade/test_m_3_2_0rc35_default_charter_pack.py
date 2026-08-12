@@ -231,6 +231,62 @@ def test_apply_creates_backup_when_charter_md_exists(tmp_path: Path) -> None:
 
 
 @pytest.mark.fast
+def test_apply_backup_filename_timestamp_is_utc_not_local(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-011 (kernel-clock-single-door, WP13c): the backup filename's
+    timestamp suffix is derived from the door's aware-UTC ``now_utc()``, not
+    a naive local-time ``datetime.now()``.
+
+    Byte-changing: the pre-migration site called naive ``datetime.now()``
+    (interpreted in the host's local timezone); it now reads
+    ``format_stamp(now_utc(), "%Y-%m-%dT%H-%M-%S")``. Under a frozen clock,
+    this test pins the EXACT backup filename to the UTC-derived value.
+
+    C-009 mutation verified: reverting the site to
+    ``datetime.now().strftime(...)`` (local time) would produce a different
+    filename whenever the test runner's local timezone differs from UTC --
+    this assertion, pinned against a fixed frozen instant, fails under that
+    reversion in any non-UTC timezone.
+    """
+    import kernel.clock as clock_module
+    from kernel.clock import UTC, FrozenClock, datetime
+
+    frozen_instant = datetime(2026, 3, 4, 5, 6, 7, tzinfo=UTC)
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=frozen_instant))
+
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    config = kittify / "config.yaml"
+    config.write_text("agents:\n  available: []\n", encoding="utf-8")
+
+    charter_dir = kittify / "charter"
+    charter_dir.mkdir()
+    charter_md = charter_dir / "charter.md"
+    charter_md.write_text("# My Charter", encoding="utf-8")
+
+    fixture_pack = tmp_path / "fixture_default.yaml"
+    fixture_data = {key: [] for key in _PER_KIND_KEYS}
+    fixture_data["activated_kinds"] = []
+    fixture_data["mission_type_activations"] = ["software-dev"]
+    dump_yaml = YAML()
+    with fixture_pack.open("w", encoding="utf-8") as fh:
+        dump_yaml.dump(fixture_data, fh)
+
+    m = DefaultCharterPackMigration()
+    with patch.object(m_3_2_0rc35_default_charter_pack, "_DEFAULT_YAML_PATH", fixture_pack):
+        result = m.apply(tmp_path)
+
+    assert result.success is True
+
+    expected_backup = charter_dir / "backups" / "charter-2026-03-04T05-06-07.md"
+    assert expected_backup.exists(), (
+        f"Expected backup at {expected_backup}, found: "
+        f"{glob.glob(str(charter_dir / 'backups' / 'charter-*.md'))}"
+    )
+
+
+@pytest.mark.fast
 def test_apply_handles_missing_default_yaml_gracefully(tmp_path: Path) -> None:
     """apply() returns failure when default.yaml is missing (broken install)."""
     kittify = tmp_path / ".kittify"

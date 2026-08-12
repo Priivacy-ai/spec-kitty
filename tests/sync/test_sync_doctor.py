@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, UTC
 from io import StringIO
+from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
 from rich.console import Console
 
+from kernel.clock import UTC, datetime, now_utc, timedelta
 from specify_cli.cli.commands.sync import format_queue_health
 from specify_cli.sync.config import ConfigRead
 from specify_cli.sync.queue import DEFAULT_MAX_QUEUE_SIZE, QueueStats
@@ -18,7 +20,7 @@ pytestmark = pytest.mark.fast
 
 
 @pytest.fixture(autouse=True)
-def _isolated_runtime_root(tmp_path, monkeypatch):
+def _isolated_runtime_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep these tests off the developer's / runner's real spec-kitty state.
 
     Every other input to ``doctor`` in this file is mocked, but #3030 T021 added a
@@ -46,6 +48,23 @@ def _isolated_runtime_root(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path / "user-home"))
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    repo = tmp_path / "checkout"
+    (repo / ".kittify").mkdir(parents=True)
+    project_uuid = "aaaaaaaa-0000-0000-0000-00000000000a"
+    (repo / ".kittify" / "config.yaml").write_text(
+        f"project:\n  uuid: {project_uuid}\n  slug: doctor-test\n  node_id: doctor-test-node\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo))
+    monkeypatch.chdir(repo)
+    from specify_cli.sync.project_store import ProjectSyncStore
+
+    store = ProjectSyncStore(project_uuid)
+    authority = store.layout_generation()
+    authority.begin_cutover("doctor-test")
+    authority.publish_project_only("doctor-test", verify_exact=lambda: True)
+    with store.unit_of_work():
+        pass
     from specify_cli.event_journal.journal import reset_journal_cache
 
     reset_journal_cache()
@@ -74,7 +93,7 @@ def _make_fake_session(
 class TestFormatQueueHealthCapacity:
     """format_queue_health now shows capacity and percentage."""
 
-    def test_shows_capacity_and_percentage(self):
+    def test_shows_capacity_and_percentage(self) -> None:
         stats = QueueStats(
             total_queued=80_000,
             max_queue_size=DEFAULT_MAX_QUEUE_SIZE,
@@ -91,7 +110,7 @@ class TestFormatQueueHealthCapacity:
         assert "100,000" in output
         assert "80%" in output
 
-    def test_full_queue_shows_100_percent(self):
+    def test_full_queue_shows_100_percent(self) -> None:
         stats = QueueStats(
             total_queued=DEFAULT_MAX_QUEUE_SIZE,
             max_queue_size=DEFAULT_MAX_QUEUE_SIZE,
@@ -120,16 +139,16 @@ class TestDoctorCommand:
     @patch("specify_cli.sync.config.SyncConfig")
     def test_doctor_healthy(
         self,
-        mock_config_cls,
-        mock_get_tm,
-        mock_check,
-        mock_queue_cls,
-        mock_body_queue_cls,
-        mock_body_diag,
-        mock_scan_daemons,
-        _mock_orphan_records,
-        capsys,
-    ):
+        mock_config_cls: MagicMock,
+        mock_get_tm: MagicMock,
+        mock_check: MagicMock,
+        mock_queue_cls: MagicMock,
+        mock_body_queue_cls: MagicMock,
+        mock_body_diag: MagicMock,
+        mock_scan_daemons: MagicMock,
+        _mock_orphan_records: MagicMock,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
         """Doctor reports no issues when queue is empty, auth is valid, server reachable."""
         mock_scan_daemons.return_value = SimpleNamespace(
             orphan_count=0,
@@ -156,9 +175,7 @@ class TestDoctorCommand:
         mock_config = MagicMock()
         mock_config.get_server_url.return_value = "https://test.example.com"
         # Doctor now reads the resolved runtime target for the Server URL row (#2146).
-        mock_config.resolve_runtime_target.return_value.resolved_server_url = (
-            "https://test.example.com"
-        )
+        mock_config.resolve_runtime_target.return_value.resolved_server_url = "https://test.example.com"
         # #3030 FR-020: doctor now asks whether the consent index is READABLE, via
         # `SyncConfig().read()`. A bare MagicMock answers that with a truthy `.fault`
         # -- i.e. "unreadable" -- so the healthy answer has to be stated here, or the
@@ -166,7 +183,7 @@ class TestDoctorCommand:
         mock_config.read.return_value = ConfigRead(data={}, fault=None)
         mock_config_cls.return_value = mock_config
 
-        now = datetime.now(UTC)
+        now = now_utc()
         session = _make_fake_session(
             access_expires_at=now + timedelta(days=30),
             refresh_expires_at=now + timedelta(days=30),
@@ -178,6 +195,7 @@ class TestDoctorCommand:
         mock_check.return_value = ("[green]Connected[/green]", "Server reachable.")
 
         from specify_cli.cli.commands.sync import doctor
+
         doctor()
 
         captured = capsys.readouterr()
@@ -193,16 +211,16 @@ class TestDoctorCommand:
     @patch("specify_cli.sync.config.SyncConfig")
     def test_doctor_full_queue_expired_auth(
         self,
-        mock_config_cls,
-        mock_get_tm,
-        mock_check,
-        mock_queue_cls,
-        mock_body_queue_cls,
-        mock_body_diag,
-        mock_scan_daemons,
-        _mock_orphan_records,
-        capsys,
-    ):
+        mock_config_cls: MagicMock,
+        mock_get_tm: MagicMock,
+        mock_check: MagicMock,
+        mock_queue_cls: MagicMock,
+        mock_body_queue_cls: MagicMock,
+        mock_body_diag: MagicMock,
+        mock_scan_daemons: MagicMock,
+        _mock_orphan_records: MagicMock,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
         """Doctor reports issues when queue is full and auth is expired."""
         mock_scan_daemons.return_value = SimpleNamespace(
             orphan_count=0,
@@ -242,9 +260,7 @@ class TestDoctorCommand:
         mock_config = MagicMock()
         mock_config.get_server_url.return_value = "https://test.example.com"
         # Doctor now reads the resolved runtime target for the Server URL row (#2146).
-        mock_config.resolve_runtime_target.return_value.resolved_server_url = (
-            "https://test.example.com"
-        )
+        mock_config.resolve_runtime_target.return_value.resolved_server_url = "https://test.example.com"
         # #3030 FR-020: doctor now asks whether the consent index is READABLE, via
         # `SyncConfig().read()`. A bare MagicMock answers that with a truthy `.fault`
         # -- i.e. "unreadable" -- so the healthy answer has to be stated here, or the
@@ -264,6 +280,7 @@ class TestDoctorCommand:
         mock_check.return_value = ("[red]Unreachable[/red]", "Connection refused.")
 
         from specify_cli.cli.commands.sync import doctor
+
         doctor()
 
         captured = capsys.readouterr()
@@ -272,3 +289,91 @@ class TestDoctorCommand:
         assert "spec-kitty auth login" in captured.out
         assert "Recent Body Upload Failures" in captured.out
         assert "research/evidence-log.csv" in captured.out
+
+
+def test_doctor_and_diagnose_use_unmocked_project_repositories(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Public local diagnostics never reconstruct the retired path stores."""
+    from specify_cli.cli.commands import sync as sync_module
+    from specify_cli.cli.commands._auth_recovery import RecoveryOutcome
+
+    token_manager = MagicMock()
+    token_manager.get_current_session.return_value = None
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: token_manager)
+    monkeypatch.setattr(
+        sync_module,
+        "_check_server_connection",
+        lambda _url: ("[dim]Disabled[/dim]", "offline test"),
+    )
+    monkeypatch.setattr(
+        sync_module,
+        "handle_unauthenticated_with_teamspace",
+        lambda **_: RecoveryOutcome.NO_TEAMSPACE,
+    )
+    monkeypatch.setattr("specify_cli.sync.daemon.scan_sync_daemons", lambda: None)
+    monkeypatch.setattr("specify_cli.sync.owner.list_orphan_records", lambda: [])
+    from specify_cli.sync import queue as queue_module
+    from specify_cli.sync.project_store import ProjectSyncStore
+
+    project_uuid = "aaaaaaaa-0000-0000-0000-00000000000a"
+    real_get_max_queue_size = queue_module.get_max_queue_size
+    max_queue_reads = 0
+
+    def max_queue_size_with_lock_probe() -> int:
+        nonlocal max_queue_reads
+        max_queue_reads += 1
+        with ProjectSyncStore(project_uuid).unit_of_work(lock_timeout_seconds=0):
+            pass
+        return cast(int, cast(Any, real_get_max_queue_size)())
+
+    monkeypatch.setattr(queue_module, "get_max_queue_size", max_queue_size_with_lock_probe)
+
+    sync_module.diagnose(json_output=True)
+    diagnosed = capsys.readouterr().out
+    assert '"total": 0' in diagnosed
+    assert "unavailable" not in diagnosed.lower()
+
+    sync_module.doctor()
+    rendered = capsys.readouterr().out
+    assert "Queue size" in rendered
+    assert "Project queue         Unavailable" not in rendered
+    assert max_queue_reads >= 2
+
+
+def test_doctor_fails_health_claim_when_daemon_scan_is_unreadable(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A process-table failure is an issue, never an empty singleton census."""
+    from specify_cli.cli.commands import sync as sync_module
+    from specify_cli.cli.commands._auth_recovery import RecoveryOutcome
+
+    token_manager = MagicMock()
+    token_manager.get_current_session.return_value = None
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: token_manager)
+    monkeypatch.setattr(
+        sync_module,
+        "_check_server_connection",
+        lambda _url: ("[dim]Disabled[/dim]", "offline test"),
+    )
+    monkeypatch.setattr(
+        sync_module,
+        "handle_unauthenticated_with_teamspace",
+        lambda **_: RecoveryOutcome.NO_TEAMSPACE,
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.daemon.scan_sync_daemons",
+        lambda: (_ for _ in ()).throw(RuntimeError("process table unavailable")),
+    )
+    monkeypatch.setattr("specify_cli.sync.owner.list_orphan_records", lambda: [])
+
+    sync_module.doctor()
+
+    rendered = capsys.readouterr().out
+    assert "Daemon singleton" in rendered
+    assert "Unavailable" in rendered
+    assert "live daemon scan failed: process table unavailable" in rendered
+    assert "Issues found" in rendered
+    assert "No issues detected" not in rendered

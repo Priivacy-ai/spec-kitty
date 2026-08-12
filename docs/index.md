@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-07-21'
 related:
 - docs/changelog/index.md
-- docs/release-goals/index.md
+- docs/changelog/release-goals.md
 - docs/migrations/from-charter-2x.md
 - docs/migrations/index.md
 - docs/migrations/upgrade-to-0-12-0.md
@@ -16,15 +16,15 @@ related:
   <h1 id="sk-docs-title">Spec Kitty documentation</h1>
   <p class="sk-docs-lead">Spec Kitty is for developers and teams who use AI coding agents (Claude Code, Cursor, Gemini CLI, and others) and want those agents to build the right thing, in the right order, without losing the plot halfway through. It gives your agent a clear spec, a plan, and a checklist to work from — instead of a loose prompt and a hope.</p>
   <nav class="sk-docs-actions" aria-label="Primary documentation paths">
-    <a class="sk-btn sk-btn-primary" href="guides/getting-started.md">Get started</a>
+    <a class="sk-btn sk-btn-primary" href="guides/tutorials/getting-started.md">Get started</a>
     <a class="sk-btn" href="migrations/index.md">Upgrade a project</a>
     <a class="sk-btn" href="api/index.md">Open the API reference</a>
   </nav>
 </section>
 
-New here? [Get started](guides/getting-started.md) walks you through installing Spec Kitty and running your first mission end to end — about 30 minutes, no prior Spec Kitty knowledge required.
+New here? [Get started](guides/tutorials/getting-started.md) walks you through installing Spec Kitty and running your first mission end to end — about 30 minutes, no prior Spec Kitty knowledge required.
 
-Just need the install steps? [Install Spec Kitty](guides/install-spec-kitty.md) covers macOS, Linux, and Windows — the `pipx`, `uv`, and `pip` paths, adding Spec Kitty to a repository you already have, and what to do when your distribution blocks a system-wide `pip install`.
+Just need the install steps? [Install Spec Kitty](guides/how-to/installation/install-spec-kitty.md) covers macOS, Linux, and Windows — the `pipx`, `uv`, and `pip` paths, adding Spec Kitty to a repository you already have, and what to do when your distribution blocks a system-wide `pip install`.
 
 Set up and wondering what to type? The [slash command reference](api/slash-commands.md) covers the `/spec-kitty.*` commands your AI agent gains — specify, plan, tasks, implement, review, accept, merge — with each one's syntax, prerequisites, and the files it writes.
 
@@ -33,7 +33,7 @@ Already using Spec Kitty? Head to [Migrations](migrations/index.md) if you're up
 ## What's new and roadmap
 
 - [Changelog](changelog/index.md) — release history (canonical `CHANGELOG.md`).
-- [Release goals](release-goals/index.md) — declared intent of each release line (3.2.x, 3.3.x); each line's execution roadmap is linked from there and from [Plans](plans/index.md).
+- [Release goals](changelog/release-goals.md) — declared intent of each release line (3.2.x, 3.3.x); each line's execution roadmap is linked from there and from [Plans](plans/index.md).
 
 ## Browse by topic
 
@@ -43,12 +43,12 @@ Already using Spec Kitty? Head to [Migrations](migrations/index.md) if you're up
     <strong>Context</strong>
     <span>Glossary narrative, audiences, and the Charter-era governance model.</span>
   </a>
-  <a class="sk-doc-card" href="core-concepts/index.md">
+  <a class="sk-doc-card" href="context/index.md">
     <span class="sk-card-kicker">Core Concepts</span>
     <strong>Core Concepts</strong>
     <span>Context, terminology, and the doctrine layer that governs your agent.</span>
   </a>
-  <a class="sk-doc-card" href="doctrine/index.md">
+  <a class="sk-doc-card" href="architecture/doctrine-kinds.md">
     <span class="sk-card-kicker">Doctrine</span>
     <strong>Doctrine</strong>
     <span>The layered artifacts — directives, tactics, profiles — that shape agent behavior.</span>
@@ -73,7 +73,7 @@ Already using Spec Kitty? Head to [Migrations](migrations/index.md) if you're up
     <strong>API and CLI reference</strong>
     <span>Exact CLI, file, schema, and environment behavior.</span>
   </a>
-  <a class="sk-doc-card" href="reference/index.md">
+  <a class="sk-doc-card" href="api/index.md">
     <span class="sk-card-kicker">Reference</span>
     <strong>Reference</strong>
     <span>API, configuration, integrations, and security — exact behavior, no narrative.</span>
@@ -113,12 +113,12 @@ Already using Spec Kitty? Head to [Migrations](migrations/index.md) if you're up
     <strong>Changelog</strong>
     <span>Release history.</span>
   </a>
-  <a class="sk-doc-card" href="release-goals/index.md">
+  <a class="sk-doc-card" href="changelog/release-goals.md">
     <span class="sk-card-kicker">Release Goals</span>
     <strong>Release goals</strong>
     <span>Declared intent of each release line.</span>
   </a>
-  <a class="sk-doc-card" href="updates/index.md">
+  <a class="sk-doc-card" href="changelog/index.md">
     <span class="sk-card-kicker">Project Updates</span>
     <strong>Project Updates</strong>
     <span>Changelog, release goals, and mission run history.</span>
@@ -130,13 +130,13 @@ Already using Spec Kitty? Head to [Migrations](migrations/index.md) if you're up
 | Section | Landing page |
 |---|---|
 | Context | [context/index.md](context/index.md) |
-| Core Concepts | [core-concepts/index.md](core-concepts/index.md) |
-| Doctrine | [doctrine/index.md](doctrine/index.md) |
+| Core Concepts | [core-concepts/index.md](context/index.md) |
+| Doctrine | [doctrine/index.md](architecture/doctrine-kinds.md) |
 | Architecture | [architecture/index.md](architecture/index.md) |
 | ADRs | [adr/index.md](adr/index.md) |
 | Plans | [plans/index.md](plans/index.md) |
 | API | [api/index.md](api/index.md) |
-| Reference | [reference/index.md](reference/index.md) |
+| Reference | [reference/index.md](api/index.md) |
 | Configuration | [configuration/index.md](configuration/index.md) |
 | Integrations | [integrations/index.md](integrations/index.md) |
 | Security | [security/index.md](security/index.md) |
@@ -144,8 +144,8 @@ Already using Spec Kitty? Head to [Migrations](migrations/index.md) if you're up
 | Operations | [operations/index.md](operations/index.md) |
 | Migrations | [migrations/index.md](migrations/index.md) |
 | Changelog | [changelog/index.md](changelog/index.md) |
-| Release Goals | [release-goals/index.md](release-goals/index.md) |
-| Project Updates | [updates/index.md](updates/index.md) |
+| Release Goals | [release-goals/index.md](changelog/release-goals.md) |
+| Project Updates | [updates/index.md](changelog/index.md) |
 
 ## Migration and archive
 

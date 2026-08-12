@@ -27,7 +27,7 @@ Covers each documented sub-state:
 from __future__ import annotations
 
 import os
-import time
+from kernel.clock import now_epoch
 from pathlib import Path
 from textwrap import dedent
 
@@ -138,7 +138,7 @@ def _bump_bundle_mtimes_to_future(repo: Path, *, offset_seconds: float = 100.0) 
     A deterministic future offset (rather than relying on real elapsed
     wall-clock time between calls) keeps the reproduction stable regardless
     of how fast the test machine runs."""
-    bump = time.time() + offset_seconds
+    bump = now_epoch() + offset_seconds
     for name in BUNDLE_CONTENT_HASH_FILES:
         os.utime(repo / ".kittify" / "charter" / name, (bump, bump))
 

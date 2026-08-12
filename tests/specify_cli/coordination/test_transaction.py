@@ -154,7 +154,10 @@ def test_concurrent_first_acquire_serializes_coord_worktree_creation(repo: Path)
                 operation="concurrent_first_acquire",
                 timeout=10.0,
             ) as txn:
-                assert txn.worktree_root == worktree_path
+                if txn.worktree_root != worktree_path:
+                    raise AssertionError(
+                        f"expected worktree_root={worktree_path}, got {txn.worktree_root}"
+                    )
         except Exception as exc:  # noqa: BLE001 - test records all failures
             outcome = f"{type(exc).__name__}: {exc}"
         else:

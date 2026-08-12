@@ -12,7 +12,7 @@ import logging
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime, timedelta
+from kernel.clock import now_utc, now_utc_iso, timedelta
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -920,7 +920,7 @@ def _annotation_for_request(
         request.wp_id,
         request.annotation_delta,
         actor=request.actor,
-        at=at or datetime.now(UTC).isoformat(),
+        at=at or now_utc_iso(),
         event_id=_emit._generate_ulid(),
     )
 
@@ -1432,7 +1432,7 @@ def emit_status_transition_batch_transactional(
         mission_id_for_event = identity.mission_id
         from_lane = str(_emit._derive_from_lane(txn.feature_dir, first.wp_id))
         built: list[tuple[StatusEvent, TransitionRequest]] = []
-        started_at = datetime.now(UTC)
+        started_at = now_utc()
 
         # The loop below makes sure every transition in this batch is for the
         # same work package, by checking they all sit in the same mission folder.

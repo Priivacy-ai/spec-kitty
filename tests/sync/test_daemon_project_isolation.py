@@ -7,7 +7,7 @@ import json
 import threading
 import urllib.request
 from collections.abc import Iterator
-from datetime import UTC, datetime, timedelta
+from kernel.clock import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast

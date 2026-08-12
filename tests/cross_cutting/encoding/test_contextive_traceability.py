@@ -154,7 +154,9 @@ def test_render_context_yaml_contains_all_terms(sample_md_file: Path) -> None:
 
 def test_render_context_yaml_is_deterministic(sample_md_file: Path) -> None:
     ctx = gen.parse_context_file(sample_md_file)
-    assert gen.render_context_yaml(ctx) == gen.render_context_yaml(ctx)
+    first_yaml = gen.render_context_yaml(ctx)
+    second_yaml = gen.render_context_yaml(ctx)
+    assert first_yaml == second_yaml
 
 
 def test_render_scope_yaml_contains_imports(tmp_path: Path) -> None:

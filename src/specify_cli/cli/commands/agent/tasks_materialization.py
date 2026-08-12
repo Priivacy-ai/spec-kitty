@@ -12,8 +12,8 @@ re-exports these names back for existing call sites).
 
 from __future__ import annotations
 
-from datetime import datetime, UTC
 from kernel._safe_re import re
+from kernel.clock import now_utc_stamp
 from mission_runtime import MissionArtifactKind, placement_seam
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -42,9 +42,9 @@ from specify_cli.cli.commands.agent.tasks_outline import (
     _parse_pipe_table_header,
 )
 
-# Mirror of the timestamp format defined in ``tasks``. Hoisted as a module-local
-# constant so this seam has no back-import to the god-module.
-UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+# FR-004 (kernel-clock-single-door WP03): defined once on the door
+# (kernel.clock.UTC_SECOND_TIMESTAMP_FORMAT), imported above; call sites here
+# are untouched (package remediation is WP12's job).
 
 
 def _persist_review_artifact_override(
@@ -77,7 +77,7 @@ def _persist_review_artifact_override(
     # kitty-specs feature_dir and its directory name is the mission slug.
     feature_dir = artifact_path.parents[2]
     mission_slug = feature_dir.name
-    timestamp = datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT)
+    timestamp = now_utc_stamp()
     override = ReviewOverride(at=timestamp, actor=actor, wp_id=wp_id, reason=reason)
     emit_inner_state_changed(
         feature_dir,

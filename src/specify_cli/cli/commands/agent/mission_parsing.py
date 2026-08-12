@@ -13,7 +13,6 @@ INV-8: imports lower layers only (``core``, ``status``, ``requirement_mapping``,
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 import json
 from pathlib import Path
 
@@ -23,7 +22,7 @@ from specify_cli.cli.console import console
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.status import WPMetadata
-from specify_cli.task_utils import TIMESTAMP_FORMAT
+from kernel.clock import now_utc_stamp
 from kernel.paths import to_posix
 
 
@@ -258,10 +257,11 @@ def _emit_console_or_json_error(*, json_output: bool, message: str) -> None:
 def _utc_now_iso() -> str:
     """Return deterministic UTC timestamp string for prompt/runtime variables.
 
-    Uses the shared ``TIMESTAMP_FORMAT`` stamp constant (SAFE Sonar campsite
-    fold, mission-resolver-port-01KX1C05 T026) rather than a hardcoded
-    literal. Serialized output is byte-identical to before (NFR-004): this
-    is the same ``%Y-%m-%dT%H:%M:%SZ`` format `task_utils.support.now_utc`
-    already uses.
+    Delegates to the door's ``now_utc_stamp()`` (kernel-clock-single-door
+    WP12, FR-010) rather than reading the wall clock directly. Serialized
+    output is byte-identical to before (NFR-004): ``now_utc_stamp()`` is
+    defined as exactly ``DEFAULT_CLOCK.now().strftime(
+    UTC_SECOND_TIMESTAMP_FORMAT)`` -- the same ``%Y-%m-%dT%H:%M:%SZ`` format
+    `task_utils.support.now_utc` also delegates to.
     """
-    return datetime.now(UTC).strftime(TIMESTAMP_FORMAT)
+    return now_utc_stamp()

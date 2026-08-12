@@ -1,0 +1,13 @@
+{
+  "wp_id": "WP09",
+  "captured_at": "2026-08-10T09:49:46Z",
+  "base_branch": "docs/common-docs-cleanup",
+  "base_commit": "8a6144f9870e783cfedfbaf3e369dd12f005488e",
+  "test_runner": "custom",
+  "total": 0,
+  "passed": 0,
+  "failed": 0,
+  "skipped": 0,
+  "failures": [],
+  "source_identity": "DeclaredCommandScopeSource/text"
+}

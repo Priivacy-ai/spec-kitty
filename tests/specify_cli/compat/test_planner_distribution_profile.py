@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from kernel.clock import UTC, datetime, timedelta
 from typing import Literal
 from unittest.mock import MagicMock
 

@@ -5,12 +5,11 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
-from datetime import datetime
+from kernel.clock import datetime, now_utc_iso, parse_iso
 from pathlib import Path
 from typing import Any
 from collections.abc import Sequence
 
-from specify_cli.core.time_utils import now_utc_iso
 
 
 def _spec_kitty_dir() -> Path:
@@ -203,7 +202,7 @@ def _parse_datetime(value: Any) -> datetime | None:
     if not isinstance(value, str) or not value.strip():
         return None
     try:
-        return datetime.fromisoformat(value)
+        return parse_iso(value)
     except ValueError:
         return None
 

@@ -36,7 +36,7 @@ from specify_cli.skills.manifest_store import ManifestEntry
 from specify_cli.skills import command_renderer
 from specify_cli.skills._agent_roster import SUPPORTED_AGENTS as SUPPORTED_AGENTS
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.shims.registry import CONSUMER_SKILLS
 from kernel.paths import to_posix
 

@@ -39,12 +39,11 @@ import contextlib
 import json
 import logging
 import os
-from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 from collections.abc import Iterable, Mapping
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import datetime, now_utc, now_utc_iso, parse_iso
 from specify_cli.workspace.root_resolver import WorkspaceRootNotFound, resolve_canonical_root
 
 from .models import Lane as _Lane
@@ -155,7 +154,7 @@ def _iso_str_to_datetime(iso: str | None) -> datetime | None:
     """
     if iso is None:
         return None
-    return datetime.fromisoformat(iso)
+    return parse_iso(iso)
 
 
 def _generate_event_id() -> str:
@@ -528,7 +527,7 @@ def emit_project_initialized(
         project_slug=project_slug,
         actor=actor,
         runtime_version=runtime_version,
-        initialized_at=_iso_str_to_datetime(initialized_at) or datetime.now(UTC),
+        initialized_at=_iso_str_to_datetime(initialized_at) or now_utc(),
     ).model_dump(mode="json", exclude_none=False)
     return append_lifecycle_event(
         log_path,
@@ -727,7 +726,7 @@ def emit_wp_created_local(
         wp_path=wp_path,
         depends_on=list(depends_on or []),
         actor=actor,
-        created_at=_iso_str_to_datetime(created_at) or datetime.now(UTC),
+        created_at=_iso_str_to_datetime(created_at) or now_utc(),
     )
     payload: dict[str, Any] = payload_model.model_dump(
         mode="json", exclude_none=False

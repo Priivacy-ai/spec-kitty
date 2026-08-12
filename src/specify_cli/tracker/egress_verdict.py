@@ -7,12 +7,17 @@ gates that raise (WP04, WP05) and the diagnostic surface that reports (WP06 ``sy
 call this same function, so the enforced answer and the reported answer cannot disagree --
 that is the whole point of the module existing.
 
-**Channel 1** (existing, unchanged) -- hosted-sync consent, resolved by
-``project_egress_refusal`` -> ``resolve_egress_consent`` -> ``permits_egress``
+**Channel 1** -- hosted-sync consent, resolved by a **single** evaluation:
+``_egress_decision`` -> ``resolve_egress_consent`` -> ``permits_egress``
 (``specify_cli/egress.py``). Absence denies. This module holds the **Mission's only
-module-level import** of ``project_egress_refusal`` -- see "Import-form rules" below.
-Channel 1 is asked with this call site's own ``identifiers`` fragment, which Bundle B made a
-required parameter of ``project_egress_refusal``.
+module-level import** of ``_egress_decision`` -- see "Import-form rules" below. Channel 1 is
+asked with this call site's own ``identifiers`` fragment, which Bundle B made a required
+parameter of ``_egress_decision``'s public wrapper, ``project_egress_refusal``. The
+egress-single-authority mission (WP03) collapsed what used to be two reads of Channel 1's
+routing/consent chain -- this enforcing one, plus a second, independent reporting
+re-derivation (the former Channel-1 reporting classifier, now deleted -- see below) -- into
+this single one: ``channel1_state`` and ``generic`` are read directly off the same
+``EgressDecision`` that decides ``permits``, never recomputed.
 
 **Channel 2** (new, #3108) -- the project's own committed ``tracker.egress`` key in
 ``.kittify/config.yaml``: ``absent`` / ``refused`` / ``permitted`` / ``fault``. Decoded by
@@ -90,34 +95,39 @@ Import-form rules -- both load-bearing, both fail loudly rather than silently
   ``ast.Attribute`` node whose value is the name ``EgressDestination``; an aliased import turns
   every call-site argument into an ``Attribute`` on the alias, and G5 reports it as non-literal --
   a **false red**, not a silent hole, but a lost afternoon for anyone not told in advance.
-- **This module holds no import-time dependency on ``specify_cli.sync``.** The Channel-1
-  reporting classifier (see below) reaches ``specify_cli.sync.consent`` and
-  ``specify_cli.sync.routing`` by a **call-time guarded import**, degrading to generic Channel-1
-  wording if the import fails. An ``ImportError`` raised out of a gate that NFR-003 says must
-  never raise is exactly the failure mode this closes. A test asserts the module imports cleanly
-  with ``specify_cli.sync`` made unimportable.
+- **This module holds no import-time dependency on ``specify_cli.sync``, and (after the
+  egress-single-authority mission) no call-time dependency on it either.** Channel-1 diagnostic
+  state used to be re-derived here by reaching around into ``specify_cli.sync.consent`` /
+  ``specify_cli.sync.routing`` (the now-deleted Channel-1 reporting classifier, see below);
+  that reach-around is gone. ``_resolve_channel1`` delegates entirely to
+  :func:`~specify_cli.egress._egress_decision`, which performs the single **call-time guarded
+  import** of ``specify_cli.sync``, degrading to generic Channel-1 wording if it fails. An
+  ``ImportError`` raised out of a gate that NFR-003 says must never raise is exactly the failure
+  mode this closes. A test asserts the module imports cleanly with ``specify_cli.sync`` made
+  unimportable.
 
-The Channel-1 reporting classifier is recorded debt -- read this before touching it
+The Channel-1 reporting classifier existed as recorded debt -- it has now retired
 -------------------------------------------------------------------------------------
 
-(a) **Cause.** The registry contract this module's Channel-1 answer is ultimately funneled
-    through is ``_egress_consent_resolver: Callable[[Path], bool] | None`` at
-    **``invocation/adapters.py:81``**. That contract manufactures an ``EgressConsent`` member
-    from a bare ``bool``, so *why* a project is refused is discarded at the boundary and has to
-    be re-derived alongside it if anyone wants to report it. :func:`_classify_channel1` is that
-    re-derivation. It is not a design choice; it is the shape of a missing return type on a port
-    this module does not own and must not widen (C-004).
-(b) **Retirement condition.** When sibling Bundle B's open **Q3** gives that resolver contract a
-    decision-carrying return value instead of a bare ``bool``, :func:`_classify_channel1` --
-    **and both of its non-authoritativeness pins** (see its own docstring) -- are **delete**d,
-    **not migrate**d. There will be nothing to migrate: the decision value Q3 adds replaces the
-    re-derivation this classifier exists only to perform.
-(c) **Unregistered-consumer note.** :func:`_classify_channel1` reaches around the registry
-    indirection straight to ``specify_cli.sync.consent.resolve_project_consent`` and
-    ``specify_cli.sync.routing.resolve_checkout_sync_routing_readonly``, by call-time guarded
-    import, rather than going through the ``invocation/adapters.py`` seam. This is a recorded,
-    accepted exception to that boundary -- named here so a future boundary audit finds a known
-    exception instead of a surprise -- and it retires on the same condition as (b).
+(a) **Cause, historical.** The registry contract Channel-1's answer was ultimately funneled
+    through, ``_egress_consent_resolver: Callable[[Path], bool] | None`` at
+    **``invocation/adapters.py:81``**, used to manufacture an ``EgressConsent`` member from a
+    bare ``bool`` -- so *why* a project was refused was discarded at that boundary. A
+    now-deleted, privately-named Channel-1 classifier function re-derived that "why" by
+    reaching around the registry indirection straight into
+    ``specify_cli.sync.consent.resolve_project_consent`` and
+    ``specify_cli.sync.routing.resolve_checkout_sync_routing_readonly`` -- a second, independent
+    resolution of the same routing/consent facts the enforcing resolver had already resolved
+    once (an unregistered-consumer exception to the ``invocation/adapters.py`` seam, accepted
+    only for as long as (b) below had not yet landed).
+(b) **Retirement.** Sibling Bundle B's open **Q3** gave that resolver contract a
+    decision-carrying return value (:class:`~specify_cli.egress.EgressDecision`, produced by
+    :func:`~specify_cli.egress._egress_decision`) instead of a bare ``bool``. Once ``egress.py``
+    could hand back ``channel1_state``/``generic`` directly, alongside ``permits``, there was
+    nothing left for that classifier to re-derive -- so the egress-single-authority
+    mission **delete**d it, **not migrate**d it (both of its non-authoritativeness pins rebuilt
+    as a structural one-resolution-each proof instead): ``_resolve_channel1`` now reads
+    ``channel1_state`` and ``generic`` straight off ``_egress_decision``'s one evaluation.
 
 Why this module exists at all, in one line: Bundle B's implementer opens
 ``src/specify_cli/tracker/`` and ``src/specify_cli/egress/``, not
@@ -140,16 +150,17 @@ from specify_cli.tracker.config import (
     load_tracker_config,
 )
 
-# This module holds the Mission's only module-level import of ``project_egress_refusal``
-# (#3108 handoff §4.2). Bundle B HAS landed: the function moved to ``specify_cli.egress`` and
-# ``specify_cli/tracker/egress_consent.py`` no longer exists. The handoff predicted this import
-# would be the only line needing a change; that was almost right. Bundle B also made
-# ``identifiers`` a REQUIRED second parameter -- deliberately not defaulted, so a transport that
-# did not declare what it can put on the wire cannot render a refusal naming nothing -- so
-# :func:`tracker_egress_verdict` now threads it through to Channel 1 as well.
+# This module holds the Mission's only module-level import from ``specify_cli.egress``
+# (#3108 handoff §4.2 / egress-single-authority mission Decision 3). It imports
+# ``_egress_decision`` rather than the public ``project_egress_refusal`` wrapper:
+# ``_resolve_channel1`` is rewired onto the single decider so ``channel1_state``/``generic``
+# are read off the same evaluation that decides ``permits``, never re-derived a second time.
+# ``identifiers`` is a REQUIRED second parameter of both -- deliberately not defaulted, so a
+# transport that did not declare what it can put on the wire cannot render a refusal naming
+# nothing -- and :func:`tracker_egress_verdict` threads it through to Channel 1 unchanged.
 from specify_cli.egress import (
     UNDETERMINED_PROJECT_REFUSAL,
-    project_egress_refusal,
+    _egress_decision,
 )
 
 #: Empty until WP04/WP05 wire a call site: the symbol-level dead-code gate
@@ -254,32 +265,38 @@ _JOIN: Final[dict[tuple[str, EgressDestination], str]] = {
 }
 
 #: The Channel-1 *reporting* triple (FR-012) -- never to be confused with Channel 2's *value*
-#: vocabulary just above. These describe why the one true derivation
-#: (``project_egress_refusal`` -> ``resolve_egress_consent`` -> ``permits_egress``) refused;
-#: they never decide it. Returned **only** by :func:`_classify_channel1`, which is itself
-#: invoked **only** when Channel 1 refuses (see :func:`_channel1_report`) -- review round 1,
-#: HIGH-2: an earlier revision invoked the classifier unconditionally and reported
-#: ``recorded_refusal`` for a project whose Channel 1 had, in fact, granted.
+#: vocabulary just above. These describe why the single decider
+#: (:func:`~specify_cli.egress._egress_decision`) refused; they never decide it -- ``permits``
+#: alone decides. Sourced directly off ``EgressDecision.channel1_state`` (egress-single-authority
+#: mission, WP03): the former second, independent re-derivation (the retired Channel-1
+#: reporting classifier) used to compute these from a fresh ``sync.consent``/``sync.routing``
+#: read, which is exactly the defect review round 1's HIGH-2 found -- there is no second read
+#: left to disagree with the first.
 CHANNEL1_NO_RECORD: Final = "no_record"
 CHANNEL1_RECORDED_REFUSAL: Final = "recorded_refusal"
 CHANNEL1_NOT_CONSENTABLE: Final = "not_consentable"
 
-#: Channel 1 actually **permits**. Set directly by :func:`_channel1_report` whenever
-#: ``channel1_permits`` is ``True``, without ever asking :func:`_classify_channel1` -- none of
-#: that function's three labels describe a grant, and asking it anyway is what produced HIGH-2.
+#: Channel 1 actually **permits**. :func:`~specify_cli.egress._egress_decision` sets this
+#: directly whenever the resolved ``EgressConsent`` member is ``GRANTED`` -- none of the three
+#: refusal-flavoured labels above ever apply to a permitting verdict.
 CHANNEL1_GRANTED: Final = "granted"
 
-#: Channel 1 refuses, but :func:`_classify_channel1` itself raised while determining which of
-#: the three reasons applies. Deliberately **distinct** from :data:`CHANNEL1_NO_RECORD`: a
-#: raised classification asserts nothing about *why* Channel 1 refused, and reporting one
-#: specific (and possibly wrong) reason would be a confident-sounding lie -- review round 1,
-#: LOW-4, the same class of defect as HIGH-2 applied to the classifier's own failure path.
+#: Channel 1 refuses, but the resolved ``EgressConsent`` member is one of the **degraded** ones
+#: (``NO_RESOLVER``, ``UNANSWERABLE``, resolver-import-failure, or -- as a fail-safe -- any
+#: future member this module has not named). :func:`~specify_cli.egress._egress_decision` sets
+#: ``generic = True`` alongside this state so the message composer renders generic wording
+#: instead of indexing a dict keyed only on the three named refusal states (no ``KeyError`` --
+#: NFR-003). Deliberately **distinct** from :data:`CHANNEL1_NO_RECORD`: a degraded resolution
+#: asserts nothing about *why* Channel 1 refused, and reporting one specific (and possibly
+#: wrong) reason would be a confident-sounding lie -- review round 1, LOW-4, now closed by
+#: sourcing this state from the same decision that enforces, rather than from a second,
+#: unrelated derivation that could disagree with it.
 CHANNEL1_UNCLASSIFIED: Final = "unclassified"
 
 #: A sixth Channel-1 state, reachable **only** when ``root is None`` -- there is no checkout to
-#: classify, so none of the labels above (which all describe *some* project's recorded state or
-#: its absence) apply. Set directly, without calling :func:`_classify_channel1` or
-#: :func:`_channel1_report` at all.
+#: resolve a decision for, so none of the labels above (which all describe *some* project's
+#: recorded state or its absence) apply. Set directly by :func:`tracker_egress_verdict` before
+#: :func:`_resolve_channel1` is ever called.
 CHANNEL1_UNDETERMINED: Final = "undetermined"
 
 
@@ -307,13 +324,14 @@ class TrackerEgressVerdict:
     #: reported verdicts were asked about the same destination.
     destination: EgressDestination
 
-    #: One of :data:`CHANNEL1_GRANTED` (Channel 1 permits -- the classifier is never asked),
+    #: One of :data:`CHANNEL1_GRANTED` (the resolved ``EgressConsent`` member is ``GRANTED``),
     #: :data:`CHANNEL1_NO_RECORD`, :data:`CHANNEL1_RECORDED_REFUSAL`,
-    #: :data:`CHANNEL1_NOT_CONSENTABLE` (the classifier's own closed set of three, reachable
-    #: only when Channel 1 refuses), :data:`CHANNEL1_UNCLASSIFIED` (Channel 1 refuses but the
-    #: classifier itself raised), or :data:`CHANNEL1_UNDETERMINED` (``root is None`` only).
-    #: Reporting-only and **not authoritative** -- see :func:`_classify_channel1` and
-    #: :func:`_channel1_report`.
+    #: :data:`CHANNEL1_NOT_CONSENTABLE` (the three split refusal members),
+    #: :data:`CHANNEL1_UNCLASSIFIED` (a degraded member -- ``NO_RESOLVER``, ``UNANSWERABLE``, or
+    #: an import failure), or :data:`CHANNEL1_UNDETERMINED` (``root is None`` only). Sourced
+    #: directly off :func:`~specify_cli.egress._egress_decision`'s one evaluation (via
+    #: :func:`_resolve_channel1`) -- diagnostic, never authoritative over ``refused``, which is
+    #: derived from ``permits`` alone.
     channel1_state: str
 
     #: One of :data:`CHANNEL2_ABSENT`, ``EGRESS_REFUSED`` (``"refused"``), ``EGRESS_PERMITTED``
@@ -374,88 +392,22 @@ def _resolve_channel2(root: Path) -> tuple[str, object]:
     return CHANNEL2_FAULT, raw
 
 
-def _resolve_channel1(root: Path, identifiers: str) -> tuple[bool, str | None]:
-    """The one true Channel-1 derivation (C-004): ``None`` -- and only ``None`` -- permits.
+def _resolve_channel1(root: Path, identifiers: str) -> tuple[bool, str | None, str, bool]:
+    """The one true Channel-1 derivation (C-004): one evaluation, no second re-derivation.
 
-    Delegates entirely to :func:`~specify_cli.egress.project_egress_refusal`,
-    which itself performs the guarded ``specify_cli.sync`` import and never raises.
+    Delegates entirely to :func:`~specify_cli.egress._egress_decision`, which performs the
+    single consent/routing resolution (the registered resolver) and derives every field --
+    ``permits``, ``refusal_message``, ``channel1_state``, ``generic`` -- from that one
+    :class:`~specify_cli.invocation.adapters.EgressConsent` member. This absorbs what the
+    former ``_channel1_report`` helper and its Channel-1 reporting classifier used to do as a
+    second, independent re-derivation of *why* Channel 1 refused: that classifier is
+    **delete**d, **not migrate**d (C-002) -- there is nothing left to migrate, because the
+    decision it used to re-derive is now returned directly by the single decider. See the
+    module docstring's retirement note (sibling Bundle B's Q3, ``invocation/adapters.py:81``)
+    for why this was debt in the first place.
     """
-    refusal = project_egress_refusal(root, identifiers)
-    return refusal is None, refusal
-
-
-def _classify_channel1(root: Path) -> str:
-    """Reporting-only classifier over Channel 1's already-decided *refusal*. Recorded debt.
-
-    Returns exactly one of :data:`CHANNEL1_NO_RECORD`, :data:`CHANNEL1_RECORDED_REFUSAL`, or
-    :data:`CHANNEL1_NOT_CONSENTABLE` -- a closed set of three, and nothing else. It **never
-    changes the enforced answer**, and it is invoked **only when Channel 1 refuses**:
-    :func:`_channel1_report` checks ``channel1_permits`` first and never calls this function
-    when that is ``True`` (review round 1, HIGH-2 -- an earlier revision called this function
-    unconditionally and reported ``recorded_refusal`` for a project whose Channel 1 had, in
-    fact, granted, because "any non-``ABSENT`` level answered" is not the same claim as "that
-    level's answer was a refusal").
-
-    It is pinned non-authoritative by two tests: one that proves this function is never even
-    reached when Channel 1 permits (:data:`CHANNEL1_GRANTED` is assigned directly instead, so a
-    forced wrong label from this function cannot leak into a permitting verdict), and one that
-    makes this function itself raise while Channel 1 refuses (asserting the caller still
-    produces a refusal with generic wording and the distinct :data:`CHANNEL1_UNCLASSIFIED`
-    state -- never :data:`CHANNEL1_NO_RECORD`, which would assert a specific, unverified reason
-    -- and never a propagated exception).
-
-    Why this function exists, and why it is debt rather than a design element: the registry
-    contract it ultimately reports on, ``_egress_consent_resolver: Callable[[Path], bool] | None``
-    at ``invocation/adapters.py:81``, manufactures an ``EgressConsent`` member from a bare
-    ``bool`` and therefore discards *why* a project is refused. This function is that
-    information's re-derivation, reached by a call-time guarded import straight into
-    ``specify_cli.sync.consent`` / ``specify_cli.sync.routing`` -- an unregistered, recorded
-    exception to the usual registry indirection, retiring on the same condition named next.
-
-    Retirement condition: when sibling Bundle B's open Q3 gives that resolver contract a
-    decision-carrying return value instead of a bare bool, this function -- and both of its
-    non-authoritativeness pins -- are deleted, not migrated. There will be nothing left to
-    migrate onto.
-    """
-    try:
-        from specify_cli.sync.consent import ConsentLevel, resolve_project_consent  # noqa: PLC0415
-        from specify_cli.sync.routing import resolve_checkout_sync_routing_readonly  # noqa: PLC0415
-    except Exception:  # noqa: BLE001 - NFR-003: degrade, never raise out of this gate
-        return CHANNEL1_NO_RECORD
-
-    routing = resolve_checkout_sync_routing_readonly(root)
-    if routing is None or not routing.project_uuid:
-        return CHANNEL1_NOT_CONSENTABLE
-
-    decision = resolve_project_consent(routing.project_uuid, checkout_roots=[routing.repo_root])
-    if decision.level is ConsentLevel.ABSENT:
-        return CHANNEL1_NO_RECORD
-    return CHANNEL1_RECORDED_REFUSAL
-
-
-def _channel1_report(root: Path, *, channel1_permits: bool) -> tuple[str, bool]:
-    """Compute :attr:`TrackerEgressVerdict.channel1_state`. Never raises, never authoritative.
-
-    Branches on the enforced answer ``channel1_permits`` **before** ever asking
-    :func:`_classify_channel1` (review round 1, HIGH-2): that function's own precondition
-    restricts it to a path whose refusal is already decided, so a permitting Channel 1 gets
-    :data:`CHANNEL1_GRANTED` directly -- never one of the three refusal-flavoured labels the
-    classifier can return, and never by calling it at all. Callers on the permitting path
-    cannot leak a wrong classifier answer they never asked for.
-
-    Returns ``(state, generic)``. ``generic`` is ``True`` only when the classifier itself
-    raised while Channel 1 refuses (second non-authoritativeness pin) -- in which case *state*
-    is :data:`CHANNEL1_UNCLASSIFIED`, deliberately distinct from :data:`CHANNEL1_NO_RECORD`
-    (review round 1, LOW-4): a raised classification is evidence of nothing, not evidence of
-    "no record", and the caller must use generic message wording rather than the
-    label-specific description in either case.
-    """
-    if channel1_permits:
-        return CHANNEL1_GRANTED, False
-    try:
-        return _classify_channel1(root), False
-    except Exception:  # noqa: BLE001 - NFR-003 + non-authoritativeness: never raise, never assert a specific label
-        return CHANNEL1_UNCLASSIFIED, True
+    decision = _egress_decision(root, identifiers)
+    return decision.permits, decision.refusal_message, decision.channel1_state, decision.generic
 
 
 #: Literal channel-name prefixes. Every composed message names which channel it is talking
@@ -562,6 +514,15 @@ def _channel1_decided_message(
     string is returned **verbatim**, never recomposed. WP05 measured the recomposition and
     reported the divergence rather than accepting it.
 
+    **This passthrough is gated on ``not channel1_generic`` (egress-single-authority mission,
+    post-plan M2).** FR-016 only measured the three named refusal states -- it never claimed
+    byte-identity for a *degraded* Channel 1 (``NO_RESOLVER``/``UNANSWERABLE``/import-failure),
+    whose own refusal text (e.g. ``_IMPORT_FAILURE_TEMPLATE``) is not the shipped
+    ``#3030`` string at all. A degraded state must still render this function's generic wording
+    at ``HOSTED_SERVICE``, exactly as it does at ``LOCAL_SUBPROCESS`` -- the composer must be
+    total over `channel1_generic` at **every** destination (NFR-003/WP01 T004), not only the one
+    FR-016 does not carve out.
+
     That also resolves review round 1's MEDIUM-2 more cleanly than the prospective note did.
     The original defect was the absent and recorded cases being byte-identical *and* the absent
     one asserting a recorded grant the operator does not have. Passing the raw text through
@@ -598,10 +559,13 @@ def _channel1_decided_message(
             f"{_CHANNEL1_LABEL} refused: {detail}; refusing tracker egress to {destination.value}. "
             f"{_HOSTED_GRANT_NOTE_RECORDED}"
         )
-    elif channel1_refusal_text is not None:
-        # FR-016: the shipped hosted refusal, byte-identical. No recomposition, no note.
+    elif channel1_refusal_text is not None and not channel1_generic:
+        # FR-016: the shipped hosted refusal, byte-identical. No recomposition, no note. Only
+        # for the three named refusal states -- a degraded (`generic`) state falls through to
+        # the composed generic wording below instead (post-plan M2: FR-016 never measured
+        # byte-identity for a degraded Channel 1).
         message = channel1_refusal_text
-    else:  # pragma: no cover - Channel 1 refuses, so its text is never None here
+    else:
         message = f"{_CHANNEL1_LABEL} refused: {detail}; refusing tracker egress to {destination.value}"
     return message, remedies
 
@@ -700,8 +664,9 @@ def tracker_egress_verdict(
         )
 
     channel2_state, channel2_raw = _resolve_channel2(root)
-    channel1_permits, channel1_refusal_text = _resolve_channel1(root, identifiers)
-    channel1_label, channel1_generic = _channel1_report(root, channel1_permits=channel1_permits)
+    channel1_permits, channel1_refusal_text, channel1_label, channel1_generic = _resolve_channel1(
+        root, identifiers
+    )
     outcome = _JOIN[(channel2_state, destination)]
 
     if outcome == OUTCOME_PERMIT:

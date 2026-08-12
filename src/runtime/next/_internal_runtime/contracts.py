@@ -6,10 +6,11 @@
 # public-API inventory.
 from __future__ import annotations
 
-from datetime import datetime, UTC
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from kernel.clock import datetime, now_utc
 
 
 class RemediationPayload(BaseModel):
@@ -34,7 +35,7 @@ class RemediationPayload(BaseModel):
         description="Debug info: resolver name, precedence position, validation rules"
     )
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=now_utc,
         description="When remediation was generated"
     )
 

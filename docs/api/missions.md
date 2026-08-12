@@ -548,12 +548,12 @@ For the operator-narrative walkthrough (decision resolution, advancement, recove
 
 ## Getting Started
 
-- [Claude Code Workflow](../guides/claude-code-workflow.md)
+- [Claude Code Workflow](../guides/tutorials/claude-code-workflow.md)
 
 ## Practical Usage
 
-- [Use the Dashboard](../guides/use-dashboard.md)
-- [Non-Interactive Init](../guides/non-interactive-init.md)
+- [Use the Dashboard](../guides/how-to/monitoring/use-dashboard.md)
+- [Non-Interactive Init](../guides/how-to/installation/non-interactive-init.md)
 
 ## Background
 

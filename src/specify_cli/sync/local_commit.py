@@ -60,11 +60,10 @@ import logging
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-import datetime as _dt
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from kernel.clock import UTC, datetime, parse_iso
 from specify_cli.core.atomic import atomic_write
 
 logger = logging.getLogger(__name__)
@@ -321,9 +320,9 @@ async def flush_pending_local_commits_async(repo_root: Path, client: Any) -> Non
     def _sort_key(entry: dict[str, Any]) -> datetime:
         ts: str = entry.get("committed_at", "")
         try:
-            return datetime.fromisoformat(ts)
+            return parse_iso(ts)
         except (ValueError, TypeError):
-            return datetime.min.replace(tzinfo=_dt.UTC)
+            return datetime.min.replace(tzinfo=UTC)
 
     unacked.sort(key=_sort_key)
 

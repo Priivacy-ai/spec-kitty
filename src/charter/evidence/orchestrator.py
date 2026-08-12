@@ -1,7 +1,6 @@
 """Evidence orchestration for charter synthesis."""
 from __future__ import annotations
 
-import datetime
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -10,6 +9,7 @@ import ruamel.yaml
 from charter.evidence.code_reader import CodeReadingCollector
 from charter.evidence.corpus_loader import CorpusLoader
 from charter.synthesizer.evidence import CodeSignals, CorpusSnapshot, EvidenceBundle
+from kernel.clock import now_utc_iso
 
 __all__ = [
     "EvidenceOrchestrator",
@@ -73,7 +73,7 @@ class EvidenceOrchestrator:
             code_signals=code_signals,
             url_list=self._url_list,
             corpus_snapshot=corpus_snapshot,
-            collected_at=datetime.datetime.now(datetime.UTC).isoformat(),
+            collected_at=now_utc_iso(),
         )
         return EvidenceResult(bundle=bundle, warnings=warnings)
 

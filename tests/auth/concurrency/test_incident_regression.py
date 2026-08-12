@@ -26,7 +26,7 @@ import sys
 import textwrap
 import threading
 import time
-from datetime import datetime, timedelta, UTC
+from kernel.clock import now_utc, timedelta
 from http.server import HTTPServer
 from pathlib import Path
 
@@ -179,7 +179,7 @@ def _seed_disk_session(home_dir: Path) -> StoredSession:
     """Persist an expired starter session under ``home_dir/.spec-kitty/auth``."""
     auth_dir = home_dir / ".spec-kitty" / "auth"
     auth_dir.mkdir(parents=True, exist_ok=True)
-    now = datetime.now(UTC)
+    now = now_utc()
     session = StoredSession(
         user_id="user_seed",
         email="seed@example.com",

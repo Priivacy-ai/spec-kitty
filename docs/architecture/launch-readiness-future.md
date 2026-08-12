@@ -173,5 +173,5 @@ editorial rule. It is what keeps the launch honest.
 - [Environment variables reference](../api/environment-variables.md)
   — the canonical entries for `SPEC_KITTY_ENABLE_SAAS_SYNC` and
   `SPEC_KITTY_SAAS_URL`.
-- [Upgrade the Spec Kitty CLI](../guides/upgrade-cli.md)
+- [Upgrade the Spec Kitty CLI](../guides/how-to/installation/upgrade-cli.md)
   — backs the `spec-kitty upgrade --cli` remediation snippet.

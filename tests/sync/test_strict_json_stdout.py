@@ -79,7 +79,7 @@ import re
 import subprocess
 import sys
 from collections.abc import Mapping
-from datetime import UTC, datetime, timedelta
+from kernel.clock import now_utc, timedelta
 
 import pytest
 
@@ -273,7 +273,7 @@ def _seed_shared_only_session(auth_dir: pathlib.Path) -> None:
 
     auth_dir.mkdir(parents=True, exist_ok=True)
 
-    now = datetime.now(UTC)
+    now = now_utc()
     session = StoredSession(
         user_id="test-user",
         email="test@example.com",
@@ -728,23 +728,114 @@ def _scaffold_minimal_kittify_repo(repo_root: pathlib.Path) -> None:
     kittify.mkdir(parents=True, exist_ok=True)
     (repo_root / "kitty-specs").mkdir(parents=True, exist_ok=True)
     (kittify / "config.yaml").write_text(
-        "vcs:\n  type: git\nagents:\n  available:\n  - claude\nproject:\n  uuid: 00000000-0000-0000-0000-000000000000\n  slug: ac006-test\n",
+        "vcs:\n  type: git\n"
+        "agents:\n  available:\n  - claude\n"
+        "project:\n  uuid: 00000000-0000-0000-0000-000000000000\n  slug: ac006-test\n"
+        "mission_type_activations:\n- software-dev\n- documentation\n- research\n- plan\n",
         encoding="utf-8",
     )
 
 
-# NOTE: ``test_mission_create_json_strict_when_sync_skips_ingress`` (#2782,
-# a RED-FIRST P0 reproduction, already carrying ``@pytest.mark.regression``)
-# was extracted to
-# ``tests/regression/test_issue_2782_sync_strict_json_ingress_skip.py``
-# (landing fold: make ``@pytest.mark.regression`` mean exactly one thing --
-# every non-regression suite is expected green, so an intentionally-failing
-# P0 reproduction cannot share a file with the passing strict-JSON-contract
-# tests in this module). The extracted module imports this file's isolation
-# harness (``_worktree_src``, ``_build_isolated_home``,
-# ``_resolve_in_tree_specify_cli``, ``_run_cli_isolated``,
-# ``_stop_isolated_sync_daemon``, ``_scaffold_minimal_kittify_repo``)
-# read-only rather than duplicating it.
+@pytest.mark.slow
+def test_mission_create_json_strict_when_sync_defers_ingress(
+    tmp_path: pathlib.Path,
+) -> None:
+    """AC-006: ``agent mission create --json`` stdout stays strict JSON while sync defers ingress.
+
+    AC-006 names ``mission create --json`` *specifically* -- the command
+    that mints a new mission and has the strongest motivation to emit a
+    success-payload JSON document to stdout while sync side-effects run.
+
+    Architecture note (formerly issue #2782, now closed as a corrected test
+    contract). ``mission create``'s sync is fully DEFERRED: the lifecycle
+    event is queued to the offline outbox and dossier bodies to
+    ``OfflineBodyUploadQueue``; the command returns without making a
+    synchronous direct-ingress attempt. It therefore -- by design -- does
+    NOT emit the ``direct ingress skipped`` diagnostic inline (verified:
+    the diagnostic never fires here even with project consent recorded,
+    because no in-process ingress is attempted). The former #2782
+    reproduction asserted that inline diagnostic on stderr -- a contract
+    the deferred-sync architecture cannot satisfy. The diagnostic's own
+    firing is proven at the resolver seam by
+    ``test_sync_diagnostic_emits_to_stderr_with_strict_json_command``; this
+    test owns the complementary, architecturally-honest mission-create
+    contract:
+
+    * ``returncode == 0`` (FR-010: the local command succeeds even when
+      sync ingress is deferred/skipped);
+    * ``json.loads(stdout)`` is a dict with ``result == "success"`` and a
+      ``mission_slug`` (NFR-003 / AC-006);
+    * NO sync-diagnostic prose leaks onto stdout (FR-009);
+    * the seeded shared-only session loaded cleanly -- sync did NOT fall
+      through to the unauthenticated final-sync gate whose
+      ``no valid access token`` / ``Not authenticated`` prose marks the
+      #2254 drift class.
+
+    Setup mirrors the sibling strict-JSON tests: a fresh isolated ``HOME``
+    with a seeded shared-only encrypted ``StoredSession``, an isolated
+    ``SPEC_KITTY_HOME``, ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` (conftest), and
+    ``SPEC_KITTY_SAAS_URL=http://localhost:1`` so any rehydrate fails fast.
+    The minimal ``.kittify/`` scaffold (``_scaffold_minimal_kittify_repo``)
+    provisions ``mission_type_activations`` exactly as ``spec-kitty init``
+    does, so mission create clears the WP04 charter-activation gate.
+    """
+    repo_root = tmp_path / "scaffold-repo"
+    repo_root.mkdir()
+    _scaffold_minimal_kittify_repo(repo_root)
+
+    env_overrides = _build_isolated_home(tmp_path)
+
+    # Defensive pre-condition: the in-tree package wins over any global install.
+    resolved_path = _resolve_in_tree_specify_cli(env_overrides)
+    worktree_src = _worktree_src().resolve()
+    assert resolved_path.is_relative_to(worktree_src), f"subprocess resolved specify_cli at {resolved_path}, expected under {worktree_src}"
+
+    try:
+        result = _run_cli_isolated(
+            [
+                "agent",
+                "mission",
+                "create",
+                "ac-006-smoke",
+                "--json",
+            ],
+            env_overrides=env_overrides,
+            cwd=repo_root,
+        )
+    finally:
+        _stop_isolated_sync_daemon(env_overrides)
+
+    # FR-010: local command must succeed even when sync ingress is deferred.
+    assert result.returncode == 0, (
+        "agent mission create --json must succeed even when sync ingress "
+        "is deferred/skipped (FR-010).\n"
+        f"resolved specify_cli: {resolved_path}\n"
+        f"stdout={result.stdout!r}\nstderr={result.stderr!r}"
+    )
+
+    # NFR-003 / AC-006: stdout is a single strict-JSON document that proves
+    # the mission was actually created.
+    parsed = json.loads(result.stdout)
+    assert isinstance(parsed, dict), f"expected top-level JSON object, got {type(parsed).__name__}"
+    assert parsed.get("result") == "success", f"expected result=success in payload, got: {parsed!r}"
+    assert "mission_slug" in parsed, f"expected mission_slug field in payload, got keys: {sorted(parsed.keys())!r}"
+
+    # FR-009: no sync diagnostic prose on stdout.
+    assert "Connection failed" not in result.stdout, f"sync diagnostic leaked onto stdout: {result.stdout!r}"
+    assert "direct ingress skipped" not in result.stdout
+    assert "direct_ingress_missing_private_team" not in result.stdout
+
+    # #2254 drift guard: the seeded session must load cleanly. If it did not,
+    # sync would fall through to the unauthenticated final-sync gate whose
+    # diagnostic carries 'no valid access token' / 'Not authenticated'. Assert
+    # that gate did NOT fire, so a recurrence fails loudly rather than passing
+    # for the wrong reason.
+    assert "no valid access token" not in result.stderr, (
+        "sync fell through to the unauthenticated final_sync gate -- the "
+        "seeded session did not load (the #2254 drift class).\n"
+        f"stderr={result.stderr!r}"
+    )
+    assert "Not authenticated" not in result.stderr
 
 
 # ---------------------------------------------------------------------------

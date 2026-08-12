@@ -2,21 +2,26 @@
 
 from __future__ import annotations
 
+from os import PathLike
 from pathlib import Path
 from types import SimpleNamespace
-from typing import cast
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import pytest
 
 from specify_cli.sync import body_transport
-from specify_cli.sync.background import BackgroundSyncService
+from specify_cli.sync.background import (
+    BackgroundSyncService,
+    LegacyQueueNotConvergedError,
+    LegacyQueueUndeterminedError,
+)
 from specify_cli.sync.body_queue import OfflineBodyUploadQueue
 from specify_cli.sync.consent import record_project_opt_in, record_project_opt_out
 from specify_cli.sync.deny_hints import DenyHintAction, publish_deny_hint
 from specify_cli.sync.layout_generation import LayoutAuthorityError
 from specify_cli.sync.namespace import NamespaceRef, UploadOutcome, UploadStatus
-from specify_cli.sync.project_store import ProjectSyncStore
+from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork
 from specify_cli.sync.transport_attempts import DeliveryOutcome
 
 pytestmark = pytest.mark.fast
@@ -85,6 +90,51 @@ def _enqueue_body(store: ProjectSyncStore, content_hash: str = "abc123") -> str:
         return cast("str", queue.drain()[0].row_id)
 
 
+def _required_row(unit: ProjectUnitOfWork, query: str) -> tuple[object, ...]:
+    row = unit.execute(query).fetchone()
+    assert row is not None
+    return tuple(row)
+
+
+def _required_scalar(unit: ProjectUnitOfWork, query: str) -> object:
+    return _required_row(unit, query)[0]
+
+
+def test_background_refuses_absent_legacy_layout_without_materializing() -> None:
+    service = _service()
+    probe = ProjectSyncStore(PROJECT_A).layout_generation()
+    before = tuple(path.exists() for path in (probe.record_path, probe.marker_path, probe.lock_path))
+
+    with pytest.raises(LegacyQueueNotConvergedError, match="layout is legacy"):
+        service._assert_legacy_queue_converged()
+
+    assert tuple(path.exists() for path in (probe.record_path, probe.marker_path, probe.lock_path)) == before
+
+
+def test_background_refuses_cutover_without_project_database() -> None:
+    store = ProjectSyncStore(PROJECT_A)
+    store.layout_generation().begin_cutover("background-no-db")
+    assert not store.database_path.exists()
+
+    with pytest.raises(LegacyQueueNotConvergedError, match="cutover_pending"):
+        _service()._assert_legacy_queue_converged()
+
+    assert not store.database_path.exists()
+
+
+def test_background_refuses_corrupt_layout_without_project_database() -> None:
+    store = ProjectSyncStore(PROJECT_A)
+    authority = store.layout_generation()
+    authority.record_path.parent.mkdir(parents=True, exist_ok=True)
+    authority.record_path.write_text("{not-json", encoding="utf-8")
+    assert not store.database_path.exists()
+
+    with pytest.raises(LegacyQueueUndeterminedError, match="unreadable"):
+        _service()._assert_legacy_queue_converged()
+
+    assert not store.database_path.exists()
+
+
 @pytest.fixture(autouse=True)
 def _runtime_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
@@ -101,6 +151,19 @@ def _runtime_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 def test_public_background_drain_records_body_attempt_and_result(monkeypatch: pytest.MonkeyPatch) -> None:
     store = _admit_project(PROJECT_B)
     _enqueue_body(store)
+    from specify_cli.sync import queue as queue_module
+
+    real_get_max_queue_size = queue_module.get_max_queue_size
+    max_queue_reads = 0
+
+    def max_queue_size_with_lock_probe() -> int:
+        nonlocal max_queue_reads
+        max_queue_reads += 1
+        with store.unit_of_work(lock_timeout_seconds=0):
+            pass
+        return cast(int, cast(Any, real_get_max_queue_size)())
+
+    monkeypatch.setattr(queue_module, "get_max_queue_size", max_queue_size_with_lock_probe)
     push = MagicMock(
         return_value=UploadOutcome(
             artifact_path="spec.md",
@@ -114,10 +177,11 @@ def test_public_background_drain_records_body_attempt_and_result(monkeypatch: py
     _service().drain_body_uploads_only()
 
     push.assert_called_once()
+    assert max_queue_reads == 2
     with store.unit_of_work() as unit:
-        assert unit.execute("SELECT state FROM body_upload_tasks").fetchone()[0] == "uploaded"
-        attempt = unit.execute("SELECT state, project_uuid, target_generation, admission_generation FROM delivery_attempts").fetchone()
-        result = unit.execute("SELECT outcome, target_generation, admission_generation FROM delivery_results").fetchone()
+        assert _required_scalar(unit, "SELECT state FROM body_upload_tasks") == "uploaded"
+        attempt = _required_row(unit, "SELECT state, project_uuid, target_generation, admission_generation FROM delivery_attempts")
+        result = _required_row(unit, "SELECT outcome, target_generation, admission_generation FROM delivery_results")
     assert attempt == ("succeeded", PROJECT_B, 4, "1")
     assert result == (DeliveryOutcome.DELIVERED.value, 4, "1")
 
@@ -137,8 +201,8 @@ def test_public_background_drain_withholds_unadmitted_and_cross_target_without_h
     push.assert_not_called()
     for store in (unadmitted, cross_target):
         with store.unit_of_work() as unit:
-            assert unit.execute("SELECT COUNT(*) FROM delivery_attempts").fetchone()[0] == 0
-            assert unit.execute("SELECT state FROM body_upload_tasks").fetchone()[0] == "pending"
+            assert _required_scalar(unit, "SELECT COUNT(*) FROM delivery_attempts") == 0
+            assert _required_scalar(unit, "SELECT state FROM body_upload_tasks") == "pending"
 
 
 def test_project_a_revocation_does_not_block_project_b_public_background_progress(
@@ -163,11 +227,11 @@ def test_project_a_revocation_does_not_block_project_b_public_background_progres
 
     push.assert_called_once()
     with store_a.unit_of_work() as unit_a:
-        assert unit_a.execute("SELECT COUNT(*) FROM delivery_attempts").fetchone()[0] == 0
-        assert unit_a.execute("SELECT state FROM body_upload_tasks").fetchone()[0] == "pending"
+        assert _required_scalar(unit_a, "SELECT COUNT(*) FROM delivery_attempts") == 0
+        assert _required_scalar(unit_a, "SELECT state FROM body_upload_tasks") == "pending"
     with store_b.unit_of_work() as unit_b:
-        assert unit_b.execute("SELECT state FROM body_upload_tasks").fetchone()[0] == "uploaded"
-        assert unit_b.execute("SELECT outcome FROM delivery_results").fetchone()[0] == DeliveryOutcome.DUPLICATE.value
+        assert _required_scalar(unit_b, "SELECT state FROM body_upload_tasks") == "uploaded"
+        assert _required_scalar(unit_b, "SELECT outcome FROM delivery_results") == DeliveryOutcome.DUPLICATE.value
 
 
 def test_colliding_body_task_ids_update_only_the_selected_project(
@@ -178,7 +242,7 @@ def test_colliding_body_task_ids_update_only_the_selected_project(
     _enqueue_body(store_a, "same-hash")
     _enqueue_body(store_b, "same-hash")
     with store_a.unit_of_work() as unit_a:
-        colliding_id = str(unit_a.execute("SELECT body_task_id FROM body_upload_tasks").fetchone()[0])
+        colliding_id = str(_required_scalar(unit_a, "SELECT body_task_id FROM body_upload_tasks"))
     with store_b.unit_of_work() as unit_b:
         unit_b.execute("UPDATE body_upload_tasks SET body_task_id = ?", (colliding_id,))
     record_project_opt_out(PROJECT_A, actor="wp08-test")
@@ -198,9 +262,9 @@ def test_colliding_body_task_ids_update_only_the_selected_project(
     _service().drain_body_uploads_only()
 
     with store_a.unit_of_work() as unit_a:
-        assert unit_a.execute("SELECT state FROM body_upload_tasks").fetchone()[0] == "pending"
+        assert _required_scalar(unit_a, "SELECT state FROM body_upload_tasks") == "pending"
     with store_b.unit_of_work() as unit_b:
-        assert unit_b.execute("SELECT state FROM body_upload_tasks").fetchone()[0] == "uploaded"
+        assert _required_scalar(unit_b, "SELECT state FROM body_upload_tasks") == "uploaded"
 
 
 def test_public_background_drain_uses_current_target_generation_after_change(
@@ -251,8 +315,8 @@ def test_public_background_drain_requires_current_account_and_private_team(
 
     push.assert_not_called()
     with store.unit_of_work() as unit:
-        assert unit.execute("SELECT COUNT(*) FROM delivery_attempts").fetchone()[0] == 0
-        assert unit.execute("SELECT state FROM body_upload_tasks").fetchone()[0] == "pending"
+        assert _required_scalar(unit, "SELECT COUNT(*) FROM delivery_attempts") == 0
+        assert _required_scalar(unit, "SELECT state FROM body_upload_tasks") == "pending"
 
 
 def test_valid_observed_deny_hint_skips_only_its_project_store_open(
@@ -266,16 +330,20 @@ def test_valid_observed_deny_hint_skips_only_its_project_store_open(
     service = _service()
     service._observed_consent_generations[PROJECT_A] = refusal.generation
 
-    from specify_cli.sync import project_store as project_store_module
+    import sqlite3
 
     opened: list[Path] = []
-    real_connect = project_store_module.sqlite3.connect
+    real_connect = sqlite3.connect
 
-    def tracked_connect(database: object, *args: object, **kwargs: object) -> object:
+    def tracked_connect(
+        database: str | bytes | PathLike[str] | PathLike[bytes],
+        *args: object,
+        **kwargs: object,
+    ) -> sqlite3.Connection:
         opened.append(Path(str(database)))
-        return real_connect(database, *args, **kwargs)
+        return cast("sqlite3.Connection", cast(Any, real_connect)(database, *args, **kwargs))
 
-    monkeypatch.setattr(project_store_module.sqlite3, "connect", tracked_connect)
+    monkeypatch.setattr(sqlite3, "connect", tracked_connect)
     monkeypatch.setattr(
         body_transport,
         "_send_content_request",
@@ -328,8 +396,60 @@ def test_corrupt_project_a_store_does_not_stop_project_b(
     )
     monkeypatch.setattr(body_transport, "_send_content_request", push)
 
-    _service().drain_body_uploads_only()
+    service = _service()
+    with pytest.raises(
+        RuntimeError,
+        match=f"{PROJECT_A}.*project sync store could not be verified as SQLite",
+    ):
+        service.drain_body_uploads_only()
 
     push.assert_called_once()
     with store_b.unit_of_work() as unit:
-        assert unit.execute("SELECT state FROM body_upload_tasks").fetchone()[0] == "uploaded"
+        assert _required_scalar(unit, "SELECT state FROM body_upload_tasks") == "uploaded"
+
+
+def test_corrupt_only_project_keeps_tick_failed_and_retryable() -> None:
+    """A withheld corrupt store cannot stamp a healthy last-sync time."""
+    corrupt = ProjectSyncStore(PROJECT_A)
+    corrupt.database_path.parent.mkdir(parents=True)
+    corrupt.database_path.write_bytes(b"not sqlite")
+    service = _service()
+
+    result = service._sync_once()
+
+    assert result.error_count == 1
+    assert PROJECT_A in result.error_messages[0]
+    assert service.last_sync is None
+    assert service.consecutive_failures == 1
+    assert service._backoff_seconds == 1.0
+
+
+def test_corrupt_project_a_allows_b_progress_but_tick_remains_failed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Isolation permits B's send while aggregate bookkeeping retries A."""
+    corrupt_a = ProjectSyncStore(PROJECT_A)
+    corrupt_a.database_path.parent.mkdir(parents=True)
+    corrupt_a.database_path.write_bytes(b"not sqlite")
+    store_b = _admit_project(PROJECT_B)
+    _enqueue_body(store_b, "hash-b")
+    push = MagicMock(
+        return_value=UploadOutcome(
+            artifact_path="spec.md",
+            status=UploadStatus.UPLOADED,
+            reason="stored",
+            content_hash="hash-b",
+        )
+    )
+    monkeypatch.setattr(body_transport, "_send_content_request", push)
+    service = _service()
+
+    result = service._sync_once()
+
+    push.assert_called_once()
+    with store_b.unit_of_work() as unit:
+        assert _required_scalar(unit, "SELECT state FROM body_upload_tasks") == "uploaded"
+    assert result.error_count == 1
+    assert PROJECT_A in result.error_messages[0]
+    assert service.last_sync is None
+    assert service.consecutive_failures == 1

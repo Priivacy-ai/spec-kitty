@@ -33,7 +33,7 @@ This suite:
 from __future__ import annotations
 
 import subprocess
-from datetime import datetime
+from kernel.clock import now_utc
 from pathlib import Path
 
 import pytest
@@ -76,7 +76,7 @@ def _write_stranded_project(project: Path, *, config_body: str = "vcs:\n  type: 
 
     metadata = ProjectMetadata(
         version=_STRANDED_FROM_VERSION,
-        initialized_at=datetime.now(),
+        initialized_at=now_utc(),
         python_version="3.11",
         platform="test",
         platform_version="test",

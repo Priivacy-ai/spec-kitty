@@ -24,7 +24,7 @@ touch the real auth store — matches the pattern established by
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, UTC
+from kernel.clock import datetime, timedelta, now_utc
 from io import StringIO
 from unittest.mock import Mock, patch
 
@@ -87,7 +87,7 @@ def _make_session(
     session and materializing the status output don't push the integer
     division below the next boundary (e.g. 89 days - 0.001s -> 88 days).
     """
-    now = datetime.now(UTC)
+    now = now_utc()
     if teams is None:
         teams = [
             Team(id="tm_acme", name="Acme Corp", role="admin", is_private_teamspace=True),

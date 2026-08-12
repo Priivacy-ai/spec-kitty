@@ -4,8 +4,8 @@ description: 'Page index for docs/architecture/: living C4 model and vision, per
 doc_status: active
 updated: '2026-07-22'
 related:
-- docs/adr/3.x/adr-connector-auth-binding-separation.md
-- docs/adr/3.x/adr-github-app-installation-authority.md
+- docs/adr/3.x/2026-04-06-2-connector-auth-binding-separation.md
+- docs/adr/3.x/2026-04-06-3-github-app-installation-authority.md
 - docs/architecture/README.md
 - docs/architecture/feature-detection.md
 - docs/architecture/gap-analysis-connector-installation-model.md
@@ -31,12 +31,10 @@ boundary rule and layout).
 
 ## Versioned history — 3.x
 
-- [Architecture 3.x](README-3.x.md) — landing page for the 3.x track (since the 3.0.0 release).
 - [3.x — vision (history slot)](vision/README-3.x.md) — the 3.x era's settled vision history.
 
 ## Versioned history — 2.x
 
-- [Architecture 2.x](README-2.x.md) — landing page for the 2.x architecture track.
 - [2.x — vision (history slot)](vision/README-2.x.md) — per-era vision record for 2.x.
 - [2.x System Landscape](00_landscape/README.md) — C4 level 0 historical snapshot.
 - [2.x System Context](01_context/README.md) — C4 level 1 historical record.
@@ -48,7 +46,6 @@ boundary rule and layout).
 
 ## Versioned history — 1.x
 
-- [Architecture 1.x](README-1.x.md) — landing page for the legacy 1.x architecture record.
 - [1.x — vision (history slot)](vision/README-1.x.md) — per-era vision record for 1.x.
 
 ## Explanations
@@ -76,12 +73,21 @@ boundary rule and layout).
 - [WP runtime-state eviction](wp-runtime-state-eviction.md) — evicting runtime-mutable state into the event log.
 - [Launch-readiness behavior (coming soon)](launch-readiness-future.md) — pre-launch Teamspace design intent.
 - [Architecture: centralized feature detection](feature-detection.md) — how Spec Kitty detects project frameworks and capabilities.
+- [Doctrine artifact kinds](doctrine-kinds.md) — what each of the eight doctrine artifact kinds is for, with a built-in example of each.
+- [SPDD and the REASONS Canvas](spdd-reasons.md) — the opt-in Structured-Prompt-Driven Development doctrine pack and its change-intent canvas.
+
+## Status, trail & workflow models
+
+- [Status model (operator reference)](status-model.md) — the append-only event-log lane state machine, the `--mission` selector, and `mission_id` ULID identity.
+- [Trail model](trail-model.md) — how every standalone dispatch writes an auditable JSONL trail for accountability and provenance.
+- [Host-surface parity matrix](host-surface-parity.md) — how each supported host surface teaches the governance-injection contract, with per-surface parity status.
+- [Spec Kitty mission workflow (canonical authority)](spec-kitty-mission-workflow.md) — the nine-phase end-to-end mission workflow and the focused-PR path.
 
 ## Connector & installation notes
 
 - [Gap analysis: connector installation model](gap-analysis-connector-installation-model.md) — open gaps in the installation-link-mapping-override connector model.
-- [Connector auth / binding separation](../adr/3.x/adr-connector-auth-binding-separation.md) — separating connector authentication from binding.
-- [GitHub App installation authority](../adr/3.x/adr-github-app-installation-authority.md) — installation-authority model for the GitHub App.
+- [Connector auth / binding separation](../adr/3.x/2026-04-06-2-connector-auth-binding-separation.md) — separating connector authentication from binding.
+- [GitHub App installation authority](../adr/3.x/2026-04-06-3-github-app-installation-authority.md) — installation-authority model for the GitHub App.
 
 ## Assessments
 

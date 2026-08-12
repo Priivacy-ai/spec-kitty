@@ -23,7 +23,7 @@ import logging
 import subprocess
 from collections.abc import Callable
 from contextlib import AbstractContextManager
-from datetime import UTC, datetime
+from kernel.clock import now_utc
 from pathlib import Path
 from types import TracebackType
 
@@ -794,7 +794,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
 
         receipt = CommitReceipt(
             commit_sha=result.sha,
-            committed_at=datetime.now(UTC),
+            committed_at=now_utc(),
             destination_ref=self.destination_ref,
             worktree_root=self.worktree_root,
             event_ids=tuple(self._event_ids),
@@ -859,7 +859,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             )
         return CommitReceipt(
             commit_sha=sha,
-            committed_at=datetime.now(UTC),
+            committed_at=now_utc(),
             destination_ref=self.destination_ref,
             worktree_root=self.worktree_root,
             event_ids=tuple(self._event_ids),

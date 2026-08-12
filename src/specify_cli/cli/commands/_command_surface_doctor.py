@@ -167,31 +167,32 @@ def _print_slash_command_report(
     fix: bool,
 ) -> bool:
     """Render slash-command audit section and return True if healthy."""
+    # Single return (S3516): the health boolean is computed once; the branches
+    # below only drive console output. Fall through to one trailing return.
     slash_healthy = not slash_gaps
-    if not configured_slash:
-        return slash_healthy
-    console.print()
-    if not slash_gaps:
-        console.print(
-            f"[green]✓ Slash Commands[/green]: all configured agents healthy"
-            f" ({len(configured_slash)} agent(s))"
-        )
-        return slash_healthy
-    console.print("[bold]Slash Commands[/bold] — gap(s) found\n")
-    for agent_key in configured_slash:
-        agent_gaps = [g for g in slash_gaps if g.agent_key == agent_key]
-        if agent_gaps:
-            console.print(f"  [red]✗[/red] {agent_key}: {len(agent_gaps)} gap(s)")
-            for gap in agent_gaps[:5]:
-                console.print(f"      {gap.status}: {gap.expected_path.name}")
-            if len(agent_gaps) > 5:
-                console.print(f"      ... and {len(agent_gaps) - 5} more")
+    if configured_slash:
+        console.print()
+        if not slash_gaps:
+            console.print(
+                f"[green]✓ Slash Commands[/green]: all configured agents healthy"
+                f" ({len(configured_slash)} agent(s))"
+            )
         else:
-            console.print(f"  [green]✓[/green] {agent_key}: all commands present")
-    if not fix:
-        console.print(
-            "\nRun [cyan]spec-kitty doctor skills --fix[/cyan] to reinstall."
-        )
+            console.print("[bold]Slash Commands[/bold] — gap(s) found\n")
+            for agent_key in configured_slash:
+                agent_gaps = [g for g in slash_gaps if g.agent_key == agent_key]
+                if agent_gaps:
+                    console.print(f"  [red]✗[/red] {agent_key}: {len(agent_gaps)} gap(s)")
+                    for gap in agent_gaps[:5]:
+                        console.print(f"      {gap.status}: {gap.expected_path.name}")
+                    if len(agent_gaps) > 5:
+                        console.print(f"      ... and {len(agent_gaps) - 5} more")
+                else:
+                    console.print(f"  [green]✓[/green] {agent_key}: all commands present")
+            if not fix:
+                console.print(
+                    "\nRun [cyan]spec-kitty doctor skills --fix[/cyan] to reinstall."
+                )
     return slash_healthy
 
 

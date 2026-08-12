@@ -253,17 +253,16 @@ def test_shipped_catalog_never_expires(monkeypatch: pytest.MonkeyPatch) -> None:
     branch. Freezing the clock far in the future is the actual proof --
     a merely-recent check would not catch a reintroduced finite
     max_catalog_age_hours.
+
+    kernel-clock-single-door (WP05): the loader now reads the current
+    instant via the door's ``now_utc()`` producer rather than a raw
+    ``datetime.now(UTC)`` call, so the freeze point is ``loader_mod.now_utc``
+    itself rather than a subclassed ``datetime.now``.
     """
-    import datetime as _datetime_mod
-
     from doctrine.model_task_routing import loader as loader_mod
+    from kernel.clock import UTC, datetime
 
-    class _FarFutureDatetime(_datetime_mod.datetime):
-        @classmethod
-        def now(cls, tz: _datetime_mod.tzinfo | None = None) -> _datetime_mod.datetime:
-            return _datetime_mod.datetime(2099, 1, 1, tzinfo=tz)
-
-    monkeypatch.setattr(loader_mod, "datetime", _FarFutureDatetime)
+    monkeypatch.setattr(loader_mod, "now_utc", lambda: datetime(2099, 1, 1, tzinfo=UTC))
 
     result = loader_mod.load()
 

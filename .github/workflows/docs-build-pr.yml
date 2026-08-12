@@ -1,0 +1,143 @@
+name: docs-build-pr
+
+# Required pre-merge DocFX build gate (Common Docs Convergence, IC-03b / OB-2,
+# FR-016/020, NFR-001, SC-006). The deploy workflow (docs-pages.yml) runs the
+# DocFX render + redirect injection + coverage + seo_verify ONLY on push to
+# main/2.x — so a render-side regression (a DocFX build error, a redirect stub
+# pointing at a 404, or a rendered-HTML SEO defect) is caught at DEPLOY time,
+# after merge, on the target branch. This job closes that gap: it runs the same
+# render + gates on every pull request, so a docs regression blocks the PR
+# instead of reaching the deployed site.
+#
+# It also enforces this mission's TERMINAL structural verification (OB-2): the
+# extended structural lint (single-root / sanctioned-section / one-index-per-dir),
+# the redirect-map freshness cross-check, and the reverse rename-reconcile gate.
+# Per OB-2 these are enforced here as the terminal blocking build gate, NOT as a
+# standing per-PR single-root lint (that would reverse the retired #2851 ratchet).
+#
+# Registering this workflow as a REQUIRED status check is an operator action in
+# GitHub branch-protection settings; the workflow file is the code half.
+
+on:
+  pull_request:
+    # INVARIANT (mirrors docs-freshness.yml): this list must cover every path the
+    # steps below READ. A narrower filter silently stops guarding real changes.
+    paths:
+      - 'docs/**'
+      - 'kitty-specs/common-docs-convergence-01KZMTR9/occurrence_map.yaml'
+      - 'scripts/docs/**'
+      - 'packs/built-in/assets/docs_structural_lint.py'
+      - 'packs/built-in/styleguides/common-docs.styleguide.yaml'
+      - '.github/workflows/docs-build-pr.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-build-pr-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The docs structural lint LOADS its policy from the common-docs styleguide
+  # (FR-011); no hard-coded default. Point both the lint and touched-set gates
+  # at the same SSOT block.
+  SPEC_KITTY_STYLEGUIDE: packs/built-in/styleguides/common-docs.styleguide.yaml
+  # The docs scripts import the shared guard as `scripts.docs._guards`
+  # (e.g. audience_resolver.py). Running `python3 scripts/docs/<x>.py` puts the
+  # script's own dir on sys.path[0], not the repo root, so the `scripts` package
+  # is only importable with the repo root on PYTHONPATH. See the pr-landing
+  # runbook gotcha: "`scripts/` invocations need `PYTHONPATH=.`".
+  PYTHONPATH: .
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # rename-reconcile diffs against the base ref
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install project (editable)
+        run: pip install -e .
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - name: Install DocFX
+        run: dotnet tool install -g docfx
+
+      # --- Terminal structural gates (blocking; OB-2) -----------------------
+
+      # Redirect map is DERIVED single-writer: assert it is fresh vs the merged
+      # occurrence_map spine (NFR-010). A stale map reds here, not at deploy.
+      - name: Redirect map freshness (NFR-010)
+        run: |
+          python3 scripts/docs/redirect_stub_generator.py check-map \
+            --occurrence-map kitty-specs/common-docs-convergence-01KZMTR9/occurrence_map.yaml
+
+      # Reverse rename-reconcile: every rename/deletion under docs/ must be
+      # covered by an occurrence_map moves: entry (no page silently off-spine).
+      - name: Rename reconcile (NFR-005, reverse)
+        run: |
+          python3 scripts/docs/rename_reconcile.py \
+            --base "origin/${{ github.base_ref }}" --strict --no-cross-check
+
+      # Extended structural lint = the four standing checks PLUS the T004
+      # invariants (sanctioned_section_membership + one_index_per_dir). Terminal
+      # blocking verification (OB-2); NOT wired into the standing per-PR run().
+      - name: Structural lint — terminal invariants (NFR-003/006/007)
+        run: |
+          python3 packs/built-in/assets/docs_structural_lint.py docs \
+            --repo-root . --styleguide "$SPEC_KITTY_STYLEGUIDE" --extended
+
+      # Bare-relative body links must all resolve (FR-002/C-007).
+      - name: Relative-link integrity (FR-002)
+        run: python3 scripts/docs/relative_link_fixer.py --repo-root . --check
+
+      # Every audience: reference must resolve to a persona under the catalog.
+      - name: Audience reference resolution (FR-003)
+        run: python3 scripts/docs/audience_resolver.py --strict
+
+      # --- DocFX render + render-side gates (blocking; NFR-001/002/SC-006) ---
+
+      # DocFX build gate. Broken anchors (InvalidBookmark) and real build errors
+      # BLOCK. DocFX `InvalidFileLink` warnings do NOT block: the ADRs and
+      # engineering notes intentionally reference files OUTSIDE the docs/ content
+      # root — source modules, tests, workflows, data/evidence files, directories
+      # — which resolve on GitHub but are not part of the published site, so
+      # DocFX cannot resolve them. These are long-standing, correct references,
+      # not breakage. Docs-page-link integrity is still gated upstream by
+      # related_validator.py --strict and relative_link_fixer.py --check.
+      - name: Build documentation (anchors + build errors block)
+        run: |
+          python3 scripts/docs/generate_kitty_specs_docs.py
+          cd docs
+          set -o pipefail
+          docfx docfx.json 2>&1 | tee docfx-build.log
+          if grep -qE "warning InvalidBookmark|: error [A-Z]" docfx-build.log; then
+            echo "::error::DocFX reported a broken anchor (InvalidBookmark) or a build error — see the log above. Fix the anchor/target; out-of-content-root file links are allowed and never reach this branch."
+            exit 1
+          fi
+          cd ..
+          python3 scripts/docs/seo_postprocess.py
+
+      - name: Auto-link glossary terms (FR-011)
+        run: python3 scripts/docs/glossary_linker.py --site-dir docs/_site
+
+      - name: Inject redirect stubs into _site (FR-006, no-404)
+        run: python3 scripts/docs/redirect_stub_generator.py generate --site-dir docs/_site
+
+      - name: Verify redirect coverage (NFR-002/010)
+        run: python3 scripts/docs/redirect_stub_generator.py coverage --site-dir docs/_site
+
+      - name: Verify built-output SEO metadata (FR-005/008/012)
+        run: python3 scripts/docs/seo_verify.py --site-dir docs/_site --strict

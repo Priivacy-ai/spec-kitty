@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from kernel.clock import datetime, now_utc, timedelta
 from enum import StrEnum
 from pathlib import Path
 from typing import Final
@@ -113,7 +113,7 @@ def publish_deny_hint(
         raise ValueError("deny-hint reason must be a payload-free category")
     if ttl <= timedelta(0):
         raise ValueError("deny-hint expiration must be in the future")
-    observed_at = now or datetime.now(UTC)
+    observed_at = now or now_utc()
     if observed_at.tzinfo is None:
         raise ValueError("deny-hint clock must be timezone-aware")
     expires_at = observed_at + ttl
@@ -235,7 +235,7 @@ def read_deny_hint(
         layout_version=layout_version,
         checksum=checksum,
     )
-    observed_at = now or datetime.now(UTC)
+    observed_at = now or now_utc()
     if expires_at.tzinfo is None or observed_at.tzinfo is None:
         return DenyHintProbe(
             DenyHintStatus.AUTHORITY_REQUIRED,

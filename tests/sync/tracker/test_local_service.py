@@ -720,23 +720,31 @@ class TestNoSaaSImports:
 
 
 # ---------------------------------------------------------------------------
-# FR-017 / SC-019 / T025 step 4: the five docstrings this Mission falsifies
-# or adds, pinned by one test so a later revert of any one of them reds.
+# FR-017 / SC-019 / T025 step 4: the docstrings this Mission falsifies or adds, pinned by one
+# test so a later revert of any one of them reds. Originally five; the egress-single-authority
+# mission (WP03) retired the fifth (`_classify_channel1`'s own docstring) along with the
+# function itself -- see the test's own docstring for why that is a refresh, not a loosening.
 # ---------------------------------------------------------------------------
 
 
-def test_fr017_five_docstrings_are_not_falsified() -> None:
-    """Pins all five FR-017 deliverables: the three docstrings this WP amends
-    (`local_service.py`'s module docstring, `_check_sync_readiness`, `_check_binding_readiness`)
-    and WP03's two authored ones (`egress_verdict.py`'s module docstring and
-    `_classify_channel1`'s docstring). A later revert of *any* one of these five reds this
-    single test -- verified by temporarily mutating each in a scratch copy, never a source
-    edit during a verification run.
+def test_fr017_surviving_docstrings_are_not_falsified() -> None:
+    """Pins the FR-017 deliverables that survive the egress-single-authority mission (WP03):
+    the three docstrings this WP amends (`local_service.py`'s module docstring,
+    `_check_sync_readiness`, `_check_binding_readiness`) and WP03's own authored module
+    docstring on `egress_verdict.py`. A later revert of *any* one of these reds this single
+    test -- verified by temporarily mutating each in a scratch copy, never a source edit during
+    a verification run.
+
+    Originally pinned a fifth docstring, `_classify_channel1`'s own -- retired here (not
+    softened, not silently dropped) because the function itself is **delete**d, **not
+    migrate**d by the egress-single-authority mission (research.md Decision 3/4, C-002): there
+    is no docstring left to falsify. Its four required literals
+    (`invocation/adapters.py:81`/`Q3`/`delete`/`not migrate`) survive on the module docstring
+    below, which records the classifier's retirement in full.
     """
     import specify_cli.tracker.egress_verdict as egress_verdict_mod
     import specify_cli.tracker.local_service as local_service_mod
     from specify_cli.cli.commands.tracker import _check_binding_readiness, _check_sync_readiness
-    from specify_cli.tracker.egress_verdict import _classify_channel1
 
     # 1. local_service.py's module docstring no longer claims zero consultation of any
     # consent/verdict machinery -- it records that this module consults the tracker-egress
@@ -756,8 +764,9 @@ def test_fr017_five_docstrings_are_not_falsified() -> None:
     assert "tracker_egress_verdict" in binding_doc, binding_doc
     assert "does not" in binding_doc.lower(), binding_doc
 
-    # 4/5. WP03's two authored docstrings -- SC-019's literal strings, so the retirement
-    # condition (Bundle B's Q3) cannot be softened into a "consider revisiting".
-    for doc in (egress_verdict_mod.__doc__ or "", _classify_channel1.__doc__ or ""):
-        for literal in ("invocation/adapters.py:81", "Q3", "delete", "not migrate"):
-            assert literal in doc, (literal, doc)
+    # 4. WP03's authored module docstring -- SC-019's literal strings, so the retirement
+    # condition (Bundle B's Q3) cannot be softened into a "consider revisiting", even though
+    # the classifier it once described has itself been retired.
+    doc = egress_verdict_mod.__doc__ or ""
+    for literal in ("invocation/adapters.py:81", "Q3", "delete", "not migrate"):
+        assert literal in doc, (literal, doc)

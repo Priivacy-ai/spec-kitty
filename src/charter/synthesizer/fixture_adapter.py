@@ -25,12 +25,13 @@ See KD-4, R-0-6, data-model.md §E-3.
 
 from __future__ import annotations
 
-from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 from collections.abc import Mapping
 
 from ruamel.yaml import YAML
+
+from kernel.clock import UTC, datetime, timedelta
 
 from .adapter import AdapterOutput
 from .errors import FixtureAdapterMissingError
@@ -57,7 +58,6 @@ def _deterministic_generated_at(inputs_hash_hex: str) -> datetime:
     identical inputs while making it unique per fixture (not a constant).
     """
     offset_us = int(inputs_hash_hex[:8], 16)
-    from datetime import timedelta
     return _EPOCH + timedelta(microseconds=offset_us)
 
 

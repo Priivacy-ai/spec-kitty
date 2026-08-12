@@ -4,7 +4,7 @@ description: 'Executive/stakeholder synthesis of 3.2.x goals and progress since 
 doc_status: active
 updated: '2026-07-30'
 related:
-- docs/release-goals/3.2.x.md
+- docs/changelog/3.2.x.md
 - docs/plans/3-2-x-milestone-roadmap.md
 - docs/plans/3-2-x-open-core-delivery-plan.md
 - docs/changelog/index.md
@@ -15,7 +15,7 @@ related:
 *Point-in-time stakeholder synthesis, 2026-07-30. Covers everything since the 3.2.4
 release (2026-07-05): the shipped 3.2.5 release and the in-flight 3.2.6 cycle. Reads
 the milestone from a PO / C-suite / customer point of view; the durable goal
-declaration is [release-goals/3.2.x](../release-goals/3.2.x.md), the operator execution
+declaration is [release-goals/3.2.x](../changelog/3.2.x.md), the operator execution
 detail is the [milestone roadmap](3-2-x-milestone-roadmap.md), the delivery strategy is
 the [open-core delivery plan](3-2-x-open-core-delivery-plan.md), and what actually
 shipped is the [changelog](../changelog/index.md). Status was verified by two read-only

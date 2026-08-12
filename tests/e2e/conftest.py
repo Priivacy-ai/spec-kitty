@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import tomllib
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 from textwrap import dedent
 
@@ -263,7 +263,7 @@ def e2e_project(tmp_path: Path) -> Path:
 
         _charter_content = _charter_md.read_text(encoding="utf-8")
         _charter_hash = _hash_content(_charter_content)  # returns "sha256:<hex>"
-        _now_iso = datetime.now(tz=UTC).isoformat()
+        _now_iso = now_utc_iso()
         (_charter_dir / "metadata.yaml").write_text(
             f'charter_hash: {_charter_hash}\nextracted_at: "{_now_iso}"\n',
             encoding="utf-8",

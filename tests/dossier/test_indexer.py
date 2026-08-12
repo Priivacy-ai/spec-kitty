@@ -13,7 +13,7 @@ Tests cover:
 import os
 import pytest
 import tempfile
-from datetime import UTC, datetime
+from kernel.clock import now_utc
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -509,9 +509,9 @@ class TestMissionDossierBuilder:
         (tmp_path / "spec.md").write_text("# Specification")
 
         indexer = Indexer(ManifestRegistry())
-        before = datetime.now(UTC)
+        before = now_utc()
         dossier = indexer.index_feature(tmp_path, "software-dev")
-        after = datetime.now(UTC)
+        after = now_utc()
 
         assert dossier.dossier_updated_at is not None
         assert before <= dossier.dossier_updated_at <= after

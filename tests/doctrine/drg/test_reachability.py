@@ -69,10 +69,16 @@ _REPO_ROOT: Path = Path(__file__).resolve().parents[3]
 _ACTION_D1_DEPTH = 1
 _ACTION_D2_DEPTH = 2
 
-#: The C-009 normalization swing (WP06): 25 activated directive slugs whose
-#: STORE form is not a graph node while their NORMALIZED form is. Reconciling
-#: the form is not reachability progress and is excluded from SC-005.
-_NORMALIZATION_DELTA = 25
+#: The C-009 normalization swing (WP06): activated directive slugs whose STORE
+#: form is not a graph node while their NORMALIZED form is. Reconciling the form
+#: is not reachability progress and is excluded from SC-005. Bumped 25 -> 31 for
+#: the writing-comms/diagramming activation (commit 9a99801f1, #3009): six more
+#: activated directives whose store slug is not a node while their normalized form
+#: is -- the four numbered 047-050 (``NNN-...`` -> ``DIRECTIVE_NNN``) and the two
+#: slug hubs use-c4-model-techniques / reconcile-change-scope-tensions
+#: (``slug`` -> ``USE_C4_MODEL_TECHNIQUES`` / ``RECONCILE_CHANGE_SCOPE_TENSIONS``,
+#: now that id_normalizer folds hyphens to underscores).
+_NORMALIZATION_DELTA = 31
 
 #: The measured d=1 <-> d=2 action-channel spread (R-2): d=2 (bootstrap) reaches
 #: exactly 10 more nodes than d=1 (compact), so d=2's unreachable set is d=1's
@@ -319,6 +325,33 @@ _ACTION_UNREACHABLE_D1: frozenset[str] = frozenset(
         "toolguide:python-review-checks",
         "toolguide:terminology-guard",
         "toolguide:typescript-mutation-tools",
+        # Writing-comms/diagramming activation (commit 9a99801f1, #3009): these
+        # seventeen newly-activated artefacts are reached by no action-channel
+        # traversal at this depth. All are in canonical DRG node form (the two
+        # slug-hub directives normalize to their UPPER_SNAKE node id, not the old
+        # hyphenated store slug -- see the id_normalizer fix). Seven of them
+        # (DIRECTIVE_047-050, quadruple-a-test-format, writing-audience-catalog,
+        # USE_C4_MODEL_TECHNIQUES) ARE rescued by the profile channel (see
+        # _PROFILE_RESCUES); the other ten are unreachable from BOTH channels and
+        # are the tracked #3009 debt the deferred A2 orphan-wiring doctrine mission
+        # will wire with real inbound edges.
+        "directive:DIRECTIVE_047",
+        "directive:DIRECTIVE_048",
+        "directive:DIRECTIVE_049",
+        "directive:DIRECTIVE_050",
+        "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
+        "directive:USE_C4_MODEL_TECHNIQUES",
+        "procedure:glossary-maintenance-workflow",
+        "styleguide:divio-type-discipline",
+        "styleguide:docs-accessibility",
+        "styleguide:docs-freshness-sla",
+        "styleguide:plain-language",
+        "styleguide:professional-communications",
+        "styleguide:publication-authority",
+        "styleguide:quadruple-a-test-format",
+        "styleguide:research-citation-discipline",
+        "tactic:dialectic-research",
+        "tactic:writing-audience-catalog",
     }
 )
 
@@ -376,6 +409,28 @@ _ACTION_UNREACHABLE_D2: frozenset[str] = frozenset(
         "toolguide:python-mutation-tools",
         "toolguide:terminology-guard",
         "toolguide:typescript-mutation-tools",
+        # Writing-comms/diagramming activation (commit 9a99801f1, #3009): the same
+        # seventeen additions as _ACTION_UNREACHABLE_D1 (canonical node form) -- all
+        # seventeen remain action-unreachable at d=2 too, so the d1<->d2 spread is
+        # unchanged (10) and D2 stays a subset of D1. See the D1 block for the
+        # debt/rescue split.
+        "directive:DIRECTIVE_047",
+        "directive:DIRECTIVE_048",
+        "directive:DIRECTIVE_049",
+        "directive:DIRECTIVE_050",
+        "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
+        "directive:USE_C4_MODEL_TECHNIQUES",
+        "procedure:glossary-maintenance-workflow",
+        "styleguide:divio-type-discipline",
+        "styleguide:docs-accessibility",
+        "styleguide:docs-freshness-sla",
+        "styleguide:plain-language",
+        "styleguide:professional-communications",
+        "styleguide:publication-authority",
+        "styleguide:quadruple-a-test-format",
+        "styleguide:research-citation-discipline",
+        "tactic:dialectic-research",
+        "tactic:writing-audience-catalog",
     }
 )
 
@@ -439,7 +494,15 @@ _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
         "directive:DIRECTIVE_035",
         "directive:DIRECTIVE_038",
         "directive:DIRECTIVE_039",
-        "directive:DIRECTIVE_042",
+        # DIRECTIVE_042 and the common-docs cluster (styleguide:common-docs +
+        # the four common-docs-* tactics) left this pin when DIRECTIVE_047 (the
+        # audience-metadata directive, mission common-docs-convergence) was
+        # wired into the built-in graph: 047 ``requires`` DIRECTIVE_042 and
+        # ``suggests`` styleguide:common-docs, and 042 then delivers the cluster
+        # transitively. The profile channel follows ``suggests`` (WP01), so all
+        # six became profile-reachable via real authored edges — not C-009
+        # normalization — so they are dropped here (NFR-004: real wiring shrinks
+        # the pin).
         "directive:DIRECTIVE_046",
         "paradigm:atomic-design",
         "paradigm:deep-module-design",
@@ -452,7 +515,6 @@ _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
         "procedure:mission-wrap-up-sequence",
         "procedure:refactoring",
         "procedure:test-first-bug-fixing",
-        "styleguide:common-docs",
         "styleguide:deployable-skill-authoring",
         "styleguide:java-conventions",
         "tactic:analysis-extract-before-interpret",
@@ -461,10 +523,8 @@ _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
         "tactic:avoid-gold-plating",
         "tactic:boring-code-review",
         "tactic:chain-of-responsibility-rule-pipeline",
-        "tactic:common-docs-curation",
-        "tactic:common-docs-find",
-        "tactic:common-docs-scaffold",
-        "tactic:common-docs-write",
+        # common-docs-{curation,find,scaffold,write} dropped — see the
+        # DIRECTIVE_047 note above; the cluster is now profile-reachable.
         "tactic:compositional-stream-boundaries",
         "tactic:cross-cutting-state-via-store",
         "tactic:deepening-opportunity-assessment",
@@ -492,6 +552,24 @@ _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
         "tactic:testing-select-appropriate-level",
         "toolguide:git-agent-commit-signing",
         "toolguide:maven-review-checks",
+        # Writing-comms/diagramming activation (commit 9a99801f1, #3009): ten of
+        # the seventeen newly-activated artefacts are unreachable from the profile
+        # channel too. These ten (action-d2-unreachable AND profile-unreachable)
+        # are the true "activating cascades to nothing" #3009 debt the deferred A2
+        # orphan-wiring mission will wire. The other seven action-d2-unreachable
+        # additions ARE profile-reachable and appear in _PROFILE_RESCUES instead
+        # (USE_C4_MODEL_TECHNIQUES is one of them -- diagram-daisy requires it -- so
+        # it is NOT listed here).
+        "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
+        "procedure:glossary-maintenance-workflow",
+        "styleguide:divio-type-discipline",
+        "styleguide:docs-accessibility",
+        "styleguide:docs-freshness-sla",
+        "styleguide:plain-language",
+        "styleguide:professional-communications",
+        "styleguide:publication-authority",
+        "styleguide:research-citation-discipline",
+        "tactic:dialectic-research",
     }
 )
 
@@ -511,6 +589,13 @@ _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
 #: table flagged for the "fast-follow walk-update mission" (this mission). Every
 #: member here is covered by a wiring-table ledger row — enforced by
 #: ``test_profile_rescues_have_ledger_coverage`` below.
+#:
+#: Writing-comms/diagramming activation (commit 9a99801f1, #3009): 30 → 37. Seven
+#: newly-activated artefacts are action-d2-unreachable but profile-rescued
+#: (DIRECTIVE_047-050, USE_C4_MODEL_TECHNIQUES, quadruple-a-test-format,
+#: writing-audience-catalog); their delivering profile edges and ledger rows are
+#: recorded in the set body and the wiring table's profile-channel walk-activation
+#: ledger.
 _PROFILE_RESCUES: frozenset[str] = frozenset(
     {
         "directive:DIRECTIVE_044",
@@ -543,6 +628,23 @@ _PROFILE_RESCUES: frozenset[str] = frozenset(
         "toolguide:python-mutation-tools",
         "toolguide:terminology-guard",
         "toolguide:typescript-mutation-tools",
+        # Writing-comms/diagramming activation (commit 9a99801f1, #3009): seven of
+        # the seventeen newly-activated artefacts are rescued by the profile channel
+        # -- action-d2-unreachable yet delivered by an activated writing-comms
+        # profile. Delivering edges (traced from the built-in graph; ledger rows
+        # below):
+        #   DIRECTIVE_047, DIRECTIVE_048  <- agent_profile:scribe-sally
+        #   DIRECTIVE_049, DIRECTIVE_050  <- agent_profile:minutes-maker-mahad
+        #   quadruple-a-test-format       <- generic-agent -> DIRECTIVE_041 (suggests)
+        #   writing-audience-catalog      <- agent_profile:comms-cleo
+        #   USE_C4_MODEL_TECHNIQUES       <- agent_profile:diagram-daisy (requires)
+        "directive:DIRECTIVE_047",
+        "directive:DIRECTIVE_048",
+        "directive:DIRECTIVE_049",
+        "directive:DIRECTIVE_050",
+        "directive:USE_C4_MODEL_TECHNIQUES",
+        "styleguide:quadruple-a-test-format",
+        "tactic:writing-audience-catalog",
     }
 )
 
@@ -860,9 +962,14 @@ class TestProfileRescuesHaveLedgerCoverage:
 
 @pytest.mark.doctrine
 class TestC009NormalizationSwingExcluded:
-    """The 25-slug store->node reconciliation is declared, and never banked."""
+    """The store->node slug reconciliation is declared, and never banked.
 
-    def test_normalization_delta_is_the_declared_25_swing(self, graph: DRGGraph) -> None:
+    The swing size is pinned by ``_NORMALIZATION_DELTA`` (31 as of the
+    writing-comms/diagramming activation) rather than baked into names here, so a
+    later count change touches only the constant.
+    """
+
+    def test_normalization_delta_is_the_declared_swing(self, graph: DRGGraph) -> None:
         node_urns = graph.node_urns()
         reachable = action_channel_reachable(graph, action_seed_urns(graph), _ACTION_D1_DEPTH)
         partition = partition_activated_unreachable(_raw_activated_map(), node_urns, reachable)

@@ -1,7 +1,7 @@
 """Tests for dossier REST API endpoints (WP06)."""
 
 import json
-from datetime import UTC, datetime
+from kernel.clock import datetime, now_utc
 from pathlib import Path
 from typing import Optional
 from unittest.mock import MagicMock, patch
@@ -55,7 +55,7 @@ def sample_artifacts():
             required_status="required",
             is_present=True,
             error_reason=None,
-            indexed_at=datetime.now(UTC),
+            indexed_at=now_utc(),
         ),
         ArtifactRef(
             artifact_key="output.tasks.per_wp",
@@ -68,7 +68,7 @@ def sample_artifacts():
             required_status="required",
             is_present=True,
             error_reason=None,
-            indexed_at=datetime.now(UTC),
+            indexed_at=now_utc(),
         ),
         ArtifactRef(
             artifact_key="evidence.review.notes",
@@ -81,7 +81,7 @@ def sample_artifacts():
             required_status="optional",
             is_present=True,
             error_reason=None,
-            indexed_at=datetime.now(UTC),
+            indexed_at=now_utc(),
         ),
         ArtifactRef(
             artifact_key="policy.manifest",
@@ -94,7 +94,7 @@ def sample_artifacts():
             required_status="required",
             is_present=False,
             error_reason="not_found",
-            indexed_at=datetime.now(UTC),
+            indexed_at=now_utc(),
         ),
     ]
 
@@ -110,8 +110,8 @@ def sample_dossier(sample_artifacts):
         artifacts=sample_artifacts,
         manifest={"required": ["input.spec.main", "output.tasks.per_wp", "policy.manifest"]},
         latest_snapshot=None,
-        dossier_created_at=datetime.now(UTC),
-        dossier_updated_at=datetime.now(UTC),
+        dossier_created_at=now_utc(),
+        dossier_updated_at=now_utc(),
     )
 
 
@@ -136,7 +136,7 @@ def sample_snapshot():
             {"artifact_key": "evidence.review.notes", "artifact_class": "evidence"},
             {"artifact_key": "policy.manifest", "artifact_class": "policy"},
         ],
-        computed_at=datetime.now(UTC),
+        computed_at=now_utc(),
     )
 
 

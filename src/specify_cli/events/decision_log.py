@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.paths import assert_safe_path_segment
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 from mission_runtime import (
     CommitTarget,

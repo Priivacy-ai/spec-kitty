@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-import time
 from collections.abc import Collection
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Protocol
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_epoch, now_utc_iso
 from specify_cli.sync.consent import allocate_capture_sequence
 from specify_cli.sync.layout_generation import (
     LayoutDestination,
@@ -186,7 +185,7 @@ class OfflineBodyUploadQueue:
             return BodyEnqueueResult.ALREADY_EXISTS
         if self.size() >= self._max_queue_size:
             return BodyEnqueueResult.QUEUE_FULL
-        created = time.time()
+        created = now_epoch()
 
         def write(permit: LayoutWritePermit) -> None:
             _require_project_destination(permit)
@@ -282,7 +281,7 @@ class OfflineBodyUploadQueue:
         if self.project_uuid in denied_projects:
             return []
         denied_rows = {str(value) for value in (exclude_row_ids or ())}
-        now = time.time()
+        now = now_epoch()
         return [task for task in (self._task(row) for row in self._rows()) if task.row_id not in denied_rows and task.next_attempt_at <= now][:limit]
 
     def _update(
@@ -300,7 +299,7 @@ class OfflineBodyUploadQueue:
         data: Any = json.loads(str(row[4]))
         retry_count = task.retry_count + (1 if retry else 0)
         data["retry_count"] = retry_count
-        data["next_attempt_at"] = time.time() + min(_BACKOFF_BASE * (2 ** max(0, retry_count - 1)), _BACKOFF_CAP) if retry else task.next_attempt_at
+        data["next_attempt_at"] = now_epoch() + min(_BACKOFF_BASE * (2 ** max(0, retry_count - 1)), _BACKOFF_CAP) if retry else task.next_attempt_at
         data["last_error"] = error if error is not None else task.last_error
 
         def write(permit: LayoutWritePermit) -> None:
@@ -383,7 +382,7 @@ class OfflineBodyUploadQueue:
 
     def get_stats(self) -> BodyQueueStats:
         tasks = [self._task(row) for row in self._rows()]
-        now = time.time()
+        now = now_epoch()
         histogram: dict[int, int] = {}
         for task in tasks:
             histogram[task.retry_count] = histogram.get(task.retry_count, 0) + 1

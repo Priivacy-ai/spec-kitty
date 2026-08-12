@@ -18,10 +18,10 @@ import fnmatch
 import logging
 import re
 import uuid
-from datetime import datetime, UTC
 from pathlib import Path
 from collections.abc import Iterator
 
+from kernel.clock import now_utc
 from specify_cli.dossier.hasher import hash_file_with_validation, hash_wp_static_projection
 from specify_cli.dossier.manifest import ManifestRegistry, ExpectedArtifactManifest
 from specify_cli.dossier.models import ArtifactRef, MissionDossier
@@ -137,7 +137,7 @@ class Indexer:
         dossier.artifacts.extend(missing)
 
         # Update timestamp
-        dossier.dossier_updated_at = datetime.now(UTC)
+        dossier.dossier_updated_at = now_utc()
 
         return dossier
 
@@ -384,7 +384,7 @@ class Indexer:
                     required_status=required_status,
                     is_present=False,
                     error_reason="not_found",
-                    indexed_at=datetime.now(UTC),
+                    indexed_at=now_utc(),
                 )
                 missing.append(ghost)
 

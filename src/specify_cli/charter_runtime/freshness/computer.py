@@ -86,7 +86,7 @@ report it produces).
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from kernel.clock import from_epoch
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -265,7 +265,7 @@ def _mtime_iso(path: Path) -> str | None:
     if not path.exists():
         return None
     try:
-        return datetime.fromtimestamp(path.stat().st_mtime, tz=UTC).isoformat()
+        return from_epoch(path.stat().st_mtime).isoformat()
     except OSError:
         return None
 
@@ -281,7 +281,7 @@ def _latest_mtime(paths: list[Path]) -> str | None:
                 continue
     if not stamps:
         return None
-    return datetime.fromtimestamp(max(stamps), tz=UTC).isoformat()
+    return from_epoch(max(stamps)).isoformat()
 
 
 # ---------------------------------------------------------------------------

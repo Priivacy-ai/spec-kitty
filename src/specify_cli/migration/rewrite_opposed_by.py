@@ -90,7 +90,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 from typing import Any
 
@@ -333,7 +333,7 @@ def _load_graph(pack_root: Path, artifact_type: str) -> DRGGraph:
     if not path.exists():
         return DRGGraph(
             schema_version="1.0",
-            generated_at=datetime.now(UTC).isoformat(),
+            generated_at=now_utc_iso(),
             generated_by=_GENERATED_BY,
             nodes=[],
             edges=[],

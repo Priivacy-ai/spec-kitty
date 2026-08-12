@@ -17,7 +17,7 @@ import json
 import multiprocessing
 import os
 import time
-from datetime import UTC, datetime, timedelta
+from kernel.clock import timedelta, now_utc
 from pathlib import Path
 from typing import Any
 
@@ -40,7 +40,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _write_synthetic_record(path: Path, *, age_s: float = 0.0, pid: int = 12345) -> None:
     """Write a synthetic lock record at ``path``."""
-    started = datetime.now(UTC) - timedelta(seconds=age_s)
+    started = now_utc() - timedelta(seconds=age_s)
     payload: dict[str, Any] = {
         "schema_version": 1,
         "pid": pid,

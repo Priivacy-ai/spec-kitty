@@ -6,7 +6,7 @@ missing-file handling, location string format, and regex edge cases.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from kernel.clock import UTC, datetime, timedelta
 from pathlib import Path
 
 from specify_cli.decisions.models import (

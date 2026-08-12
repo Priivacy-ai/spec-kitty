@@ -48,6 +48,11 @@ owned_files:
 - src/specify_cli/sync/daemon_protocol.py
 - src/specify_cli/sync/migrate_journal.py
 - src/specify_cli/cli/commands/sync.py
+- src/specify_cli/delivery/status_report.py
+- src/specify_cli/sync/background.py
+- src/specify_cli/sync/layout_generation.py
+- src/specify_cli/sync/preflight.py
+- src/specify_cli/sync/project_store.py
 - tests/sync/test_project_store_migration.py
 - tests/sync/test_daemon_cutover_protocol.py
 - tests/sync/test_migration_writer_barrier.py
@@ -60,6 +65,17 @@ owned_files:
 - tests/architectural/_baselines.yaml
 - tests/specify_cli/cli/commands/test_sync_opt_in_converge.py
 - tests/cli/commands/test_sync_commands.py
+- tests/cli/commands/test_sync_purge_3030.py
+- tests/cli/commands/test_sync_report_label_is_a_purge_selector_3030.py
+- tests/delivery/test_status_report.py
+- tests/sync/test_background.py
+- tests/sync/test_background_authority_convergence.py
+- tests/sync/test_layout_generation.py
+- tests/sync/test_legacy_queue_guard_3030.py
+- tests/sync/test_legacy_queue_precondition_3030.py
+- tests/sync/test_sync_boundary_preflight.py
+- tests/sync/test_sync_doctor.py
+- tests/sync/test_sync_status_boundary_check.py
 role: implementer
 tags: []
 tracker_refs:
@@ -196,3 +212,4 @@ writer edits in this WP, a second layout authority, or live legacy fallback.
 - 2026-08-11T19:15:00Z – codex – Narrow re-review reroll reconciled result dependencies after divergent-duplicate classification, so a result whose exact source-owned attempt is quarantined becomes a ledger ghost before partition/copy. Delivery-result validation now requires the exact canonical column set and the shared strict RFC3339 validator while preserving lowercase `t`/`z` contract parity. Red-first duplicate and shape/time mutants pass; decisive migration/barrier/daemon set is 31 passed, with Ruff, format, strict mypy, and diff-check green. Held uncommitted for independent re-review.
 - 2026-08-11T19:41:32Z – codex – Final schema/duplicate/authority reroll moved duplicate poisoning ahead of schema and relation filtering, so one malformed divergent attempt poisons every same-identity copy and fixed-point reconciliation parks dependent results. Inventory now uses `table_xinfo` and fails closed on generated/hidden extensions. Attempt deadline/creation timestamps use the shared strict RFC3339 validator with lowercase `t`/`z` and numeric-offset parity. Lane-h write scope now records all seven previously authorized sequential architecture/legacy-test paths without changing other lane history. Red-first mutants pass; decisive set: 34 passed; governed owned set: 52 passed; retired-command controls: 7 passed; adjacent set: 139 passed; architecture: 51 passed, 2 intentional xfails; Ruff/format, strict mypy, JSON/diff, and ownership checks pass. Held uncommitted for independent re-review.
 - 2026-08-11T19:49:26Z – codex – Narrow exact-schema reroll changed delivery-attempt validation from subset acceptance to exact canonical key-set equality. A real visible `future_authority` extension now quarantines the attempt as incompatible before copy and its dependent result as a ledger ghost, preventing PROJECT_ONLY publication from silently dropping unknown authority. Red-first mutant: 1 passed after correction; decisive migration/barrier/daemon set: 35 passed; Ruff/format, strict mypy, diff, and lane-h ownership checks pass. Held uncommitted for independent re-review.
+- 2026-08-12T12:00:00Z – codex – Main-integration review exposed live status, retention, purge, doctor, diagnose, preflight, and background callers still constructing retired path-owned stores. The arbiter authorized sequential WP10 ownership of their exact product/test/architecture surfaces. The integration reroll routes them through an existing verified PROJECT_ONLY store and one scoped UoW, keeps filesystem/network I/O outside the UoW, fails closed on absent/corrupt/CUTOVER authority, and preserves legacy residue solely as named migration/quarantine evidence.

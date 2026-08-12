@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import sys
 import types
-from datetime import datetime, timedelta, UTC
+from kernel.clock import UTC, datetime, now_utc, timedelta
 
 import httpx
 import pytest
@@ -40,7 +40,7 @@ from specify_cli.auth.session import StoredSession, Team
 pytestmark = [pytest.mark.integration]
 
 def _now() -> datetime:
-    return datetime.now(UTC)
+    return now_utc()
 
 
 def _make_session(

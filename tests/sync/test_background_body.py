@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 import json
-import time
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from kernel.clock import now_epoch
 from specify_cli.sync.body_queue import BodyUploadTask, OfflineBodyUploadQueue
 from specify_cli.sync.namespace import UploadOutcome, UploadStatus
 from specify_cli.sync.project_store import ProjectSyncStore
@@ -151,7 +151,7 @@ def _make_task(
         size_bytes=8,
         retry_count=retry_count,
         next_attempt_at=next_attempt_at,
-        created_at=time.time(),
+        created_at=now_epoch(),
         last_error=None,
     )
 
@@ -392,7 +392,7 @@ class TestEdgeCases:
         conn = sqlite3.connect(service._body_queue.db_path)
         try:
             reference = json.loads(conn.execute("SELECT body_reference FROM body_upload_tasks").fetchone()[0])
-            reference["next_attempt_at"] = time.time() + 9999
+            reference["next_attempt_at"] = now_epoch() + 9999
             conn.execute(
                 "UPDATE body_upload_tasks SET body_reference = ?",
                 (json.dumps(reference, sort_keys=True, separators=(",", ":")),),

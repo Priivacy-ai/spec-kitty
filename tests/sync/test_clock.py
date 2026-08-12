@@ -206,7 +206,9 @@ class TestGenerateNodeId:
 
     def test_stable_across_calls(self):
         """Same machine returns same node_id."""
-        assert generate_node_id() == generate_node_id()
+        first_call = generate_node_id()
+        second_call = generate_node_id()
+        assert first_call == second_call
 
     def test_default_node_id_matches(self, tmp_path: Path):
         """Default node_id in clock matches generate_node_id()."""

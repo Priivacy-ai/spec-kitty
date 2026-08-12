@@ -2,7 +2,7 @@
 title: Spec-Driven Development Explained
 description: "Why Spec Kitty writes a full specification before any code: the spec becomes the executable contract that drives specify, plan, and tasks and enables parallel work packages."
 doc_status: active
-updated: '2026-06-12'
+updated: '2026-08-09'
 related:
 - docs/architecture/execution-lanes.md
 - docs/architecture/kanban-workflow.md
@@ -61,42 +61,7 @@ This becomes critical in parallel development where multiple AI agents implement
 
 ## The Spec-Kitty Workflow
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     PLANNING PHASE                              │
-│             (in the repository root checkout)                  │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  /spec-kitty.specify     →    Creates spec.md                   │
-│         ↓                                                       │
-│  /spec-kitty.plan        →    Creates plan.md                   │
-│         ↓                                                       │
-│  /spec-kitty.tasks       →    Creates tasks/WP01.md, etc.       │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│                   IMPLEMENTATION PHASE                          │
-│                (in separate worktrees)                          │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  spec-kitty next --agent <agent> --mission <slug>               │
-│    → Agent A: spec-kitty agent action implement WP01 --agent A  │
-│    → Agent B: spec-kitty agent action implement WP02 --agent B  │
-│    → Agent C: spec-kitty agent action implement WP03 --agent C  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│                      REVIEW PHASE                               │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  /spec-kitty.review          →   Check implementation vs spec   │
-│  /spec-kitty.accept          →   Validate readiness before merge │
-│  /spec-kitty.merge           →   Land accepted mission           │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+![Spec Kitty workflow: planning, implementation, and review phases](../assets/images/spec-driven-development-flow.svg)
 
 Each phase produces artifacts that feed into the next phase.
 
@@ -212,13 +177,13 @@ Spec-driven development with Spec Kitty enables parallel work:
 
 ## Try It
 
-- [Claude Code Integration](../guides/claude-code-integration.md)
-- [Claude Code Workflow](../guides/claude-code-workflow.md)
+- [Claude Code Integration](../guides/tutorials/claude-code-integration.md)
+- [Claude Code Workflow](../guides/tutorials/claude-code-workflow.md)
 
 ## How-To Guides
 
-- [Install Spec Kitty](../guides/install-spec-kitty.md)
-- [Use the Dashboard](../guides/use-dashboard.md)
+- [Install Spec Kitty](../guides/how-to/installation/install-spec-kitty.md)
+- [Use the Dashboard](../guides/how-to/monitoring/use-dashboard.md)
 
 ## Reference
 

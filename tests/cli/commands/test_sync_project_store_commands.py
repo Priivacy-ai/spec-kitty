@@ -6,8 +6,10 @@ import json
 import sqlite3
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.sync import app
@@ -143,6 +145,133 @@ def test_retired_auto_convergence_is_guidance_only(
     sync_command._auto_converge_legacy_on_enable()
 
     assert "Automatic legacy convergence is retired" in capsys.readouterr().out
+
+
+def _route_local_store(
+    monkeypatch: pytest.MonkeyPatch,
+    store: ProjectSyncStore,
+) -> None:
+    import specify_cli.sync.routing as routing
+
+    monkeypatch.setattr(
+        routing,
+        "resolve_checkout_sync_routing_readonly",
+        lambda: SimpleNamespace(
+            project_uuid=store.project_uuid,
+            project_slug="project-store-test",
+            repo_slug=None,
+            build_id=None,
+        ),
+    )
+    monkeypatch.setattr(
+        sync_command,
+        "_current_event_sync_scope",
+        lambda: SimpleNamespace(user_id=None, team_slug=None),
+    )
+
+
+@pytest.mark.parametrize("command", ["gc", "archive"])
+def test_local_retention_refuses_legacy_layout_without_materializing_store(
+    command: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_root = tmp_path / "runtime"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime_root))
+    store = ProjectSyncStore(PROJECT)
+    authority = store.layout_generation()
+    _route_local_store(monkeypatch, store)
+
+    result = CliRunner().invoke(app, [command])
+
+    assert result.exit_code == 1
+    assert "project store migration required" in result.output
+    assert "project-store-migrate" in result.output
+    assert not store.database_path.exists()
+    assert not authority.record_path.exists()
+    assert not authority.marker_path.exists()
+    assert not authority.lock_path.exists()
+
+
+def test_project_only_status_and_archive_are_offline_and_project_bound(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from specify_cli.event_journal import Event
+    from specify_cli.event_journal.journal import EventJournal
+    from specify_cli.sync.migrate_journal import (
+        AUDIT_DB_NAME,
+        MigrationAudit,
+        MigrationConflict,
+    )
+
+    runtime_root = tmp_path / "runtime"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime_root))
+    store = ProjectSyncStore(PROJECT)
+    authority = store.layout_generation()
+    authority.begin_cutover("offline-status")
+    authority.publish_project_only("offline-status", verify_exact=lambda: True)
+    with store.unit_of_work() as unit:
+        journal = EventJournal(unit, authority)
+        journal.append(
+            Event(
+                event_id="offline-status-event",
+                event_type="mission.changed",
+                payload=b"{}",
+                occurred_at="2026-08-01T00:00:00Z",
+                created_at="2026-08-01T00:00:00Z",
+                project_uuid=PROJECT,
+            )
+        )
+    _route_local_store(monkeypatch, store)
+    from specify_cli.sync import queue as queue_module
+
+    real_get_max_queue_size = queue_module.get_max_queue_size
+    max_queue_reads = 0
+
+    def max_queue_size_with_lock_probe() -> int:
+        nonlocal max_queue_reads
+        max_queue_reads += 1
+        with store.unit_of_work(lock_timeout_seconds=0):
+            pass
+        return cast(int, cast(Any, real_get_max_queue_size)())
+
+    monkeypatch.setattr(queue_module, "get_max_queue_size", max_queue_size_with_lock_probe)
+    monkeypatch.setattr(
+        sync_command,
+        "_assert_event_sync_runtime_authority",
+        lambda **_: pytest.fail("local status consulted authenticated transport authority"),
+    )
+
+    audit_path = runtime_root / AUDIT_DB_NAME
+    audit = MigrationAudit(audit_path)
+    audit.record_conflict(
+        MigrationConflict(
+            event_id="offline-conflict",
+            source_digest="legacy",
+            existing_sha="aaa",
+            incoming_sha="bbb",
+        )
+    )
+    audit.commit()
+    audit.close()
+    audit_bytes = audit_path.read_bytes()
+
+    runtime = sync_command._open_event_sync_runtime()
+    report = sync_command._event_sync_report({}, runtime)
+    archived = CliRunner().invoke(app, ["archive"])
+
+    assert report["event_journal"]["retained_event_count"] == 1
+    assert max_queue_reads == 1
+    assert report["migration_conflicts"]["conflicts"][0]["event_id"] == "offline-conflict"
+    assert audit_path.read_bytes() == audit_bytes
+    assert not Path(f"{audit_path}-wal").exists()
+    assert not Path(f"{audit_path}-shm").exists()
+    assert archived.exit_code == 0, archived.output
+    with store.unit_of_work() as unit:
+        stored = EventJournal(unit, authority).read_by_id("offline-status-event")
+        assert stored is not None
+        assert stored.archived_at is not None
 
 
 def _migrated_runtime(
@@ -316,4 +445,29 @@ def test_history_confirmation_then_apply_uses_exact_wp07_capability_transport(
     ]
     assert seen["project_context"] is context
     assert seen["target"] is target
-    assert seen["history_capability"].action_id == action_id
+    assert cast(Any, seen["history_capability"]).action_id == action_id
+
+
+def test_strict_sync_refuses_zero_selection_when_retained_state_is_unknown() -> None:
+    """A gate-blocked zero summary cannot erase the conservative retained signal."""
+    from specify_cli.cli.commands.sync import _enforce_sync_now_exit_from_dispatch
+    from specify_cli.delivery.dispatcher import DispatchSummary
+
+    summary = DispatchSummary(
+        target_id=None,
+        selected=0,
+        delivered=0,
+        duplicate=0,
+        pending=0,
+        rejected=0,
+        transient=0,
+        terminal_failed=0,
+    )
+    with pytest.raises(typer.Exit) as excinfo:
+        _enforce_sync_now_exit_from_dispatch(
+            True,
+            0,
+            summary,
+            retained_work_present=True,
+        )
+    assert excinfo.value.exit_code == 1

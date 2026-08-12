@@ -4,7 +4,7 @@ description: 'Archive and migration plan for the Spec Kitty 3.2 docs mission (WP
 doc_status: draft
 updated: '2026-06-27'
 related:
-- docs/archive/2x/index.md
+- docs/changelog/2x/index.md
 - docs/migrations/from-charter-2x.md
 ---
 # Spec Kitty 3.2 — Archive & Migration Plan
@@ -81,7 +81,7 @@ contract regex `^>\s*(?:Archive notice|Migration note)\b`.
 | `docs/2x/adr-coverage.md` | archival | move | `docs/archive/2x/adr-coverage.md` | Archive notice (2.x) | No incoming links from `current` pages detected. |
 | `docs/2x/doctrine-and-charter.md` | archival | move | `docs/archive/2x/doctrine-and-charter.md` | Archive notice (2.x) | No incoming links from `current` pages detected. |
 | `docs/2x/glossary-system.md` | archival | move | `docs/archive/2x/glossary-system.md` | Archive notice (2.x) | No incoming links from `current` pages detected. |
-| `docs/2x/index.md` | archival | move | `docs/archive/2x/index.md` | Archive notice (2.x) | Referenced from `docs/context/index.md:81` as `[\`docs/2x/\`](../../archive/2x/index.md)` — **live link**. Execution mission must update this to `../archive/2x/index.md` (relative from `docs/context/index.md`). |
+| `docs/2x/index.md` | archival | move | `docs/archive/2x/index.md` | Archive notice (2.x) | Referenced from `docs/context/index.md:81` as `[\`docs/2x/\`](../../changelog/2x/index.md)` — **live link**. Execution mission must update this to `../archive/2x/index.md` (relative from `docs/context/index.md`). |
 | `docs/2x/model-discipline-routing.md` | archival | move | `docs/archive/2x/model-discipline-routing.md` | Archive notice (2.x) | No incoming links from `current` pages detected. |
 | `docs/2x/model-to-task_type.md` | archival | move | `docs/archive/2x/model-to-task_type.md` | Archive notice (2.x) | No incoming links from `current` pages detected. |
 | `docs/2x/orchestration-and-api.md` | archival | move | `docs/archive/2x/orchestration-and-api.md` | Archive notice (2.x) | No incoming links from `current` pages detected. |

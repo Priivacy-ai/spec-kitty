@@ -15,7 +15,7 @@ no real port: the resolver and every probe here are pure/in-process.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from kernel.clock import now_utc, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -82,7 +82,7 @@ def _stored_session(
     email: str = USER,
     private_teamspace_id: str | None = PRIVATE_TEAMSPACE_ID,
 ) -> StoredSession:
-    now = datetime.now(UTC)
+    now = now_utc()
     teams = (
         [
             Team(

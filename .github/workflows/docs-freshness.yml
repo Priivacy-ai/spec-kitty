@@ -76,6 +76,11 @@ jobs:
       # periodic bulk curation rather than a per-PR blocking gate.)
       - name: Related-edge validator (R2, --strict)
         run: uv run python scripts/docs/related_validator.py --strict --repo-root .
+      # Audience resolver (NFR-002, FR-018): every audience: reference on a page
+      # must resolve to a persona under docs/context/audience/. --strict reds CI
+      # on any dangling reference (mirror of the related-edge resolver).
+      - name: Audience resolver (NFR-002, --strict)
+        run: uv run python scripts/docs/audience_resolver.py --strict --repo-root .
       - name: Description-length gate (NFR-003, --strict)
         run: uv run python scripts/docs/description_length_check.py --strict --repo-root .
       - name: Relative body-link gate (WP18, --check)
@@ -104,6 +109,31 @@ jobs:
       # the doc to the full command set, so it stays green on a fresh tree.
       - name: Check slash-command reference freshness (FR-001)
         run: uv run python scripts/docs/check_slash_command_freshness.py
+      # CLI-reference freshness (NFR-009): behavior-doc pages regenerated from the
+      # live Typer surface must not silently drift. Complements the freshness
+      # sub-check; run explicitly so a new/renamed command without a docs entry is
+      # surfaced against docs/api/cli-commands.md.
+      - name: Check CLI reference freshness (NFR-009)
+        env:
+          SPEC_KITTY_ENABLE_SAAS_SYNC: "1"
+        run: uv run python scripts/docs/check_cli_reference_freshness.py --ci --saas-sync-was-set
+      # --- Advisory mission gates (IC-03a; WP13 flips them blocking) ----------
+      # Touched-set presence/placement + rename/redirect reconciliation. These
+      # are diffed against the PR base (baseline-diff classification, #3147) so
+      # the denominator is only mission-introduced changes, never the whole tree
+      # (C-012). continue-on-error keeps them advisory at this stage.
+      - name: Touched-set docs gates (advisory)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: >-
+          uv run python scripts/docs/touched_set_gates.py
+          --base ${{ github.event.pull_request.base.sha }} --repo-root .
+      - name: Rename/redirect reconciliation (advisory)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: >-
+          uv run python scripts/docs/rename_reconcile.py
+          --base ${{ github.event.pull_request.base.sha }} --repo-root .
       - name: Docs freshness (R3 lockfile drift default-on + sub-checks)
         env:
           SPEC_KITTY_ENABLE_SAAS_SYNC: "1"

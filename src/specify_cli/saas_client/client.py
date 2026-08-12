@@ -17,7 +17,7 @@ import hashlib
 import json as json_module
 import logging
 import secrets
-from datetime import UTC, datetime, timedelta
+from kernel.clock import UTC, datetime, now_utc, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlsplit, urlunsplit
@@ -273,7 +273,7 @@ class SaasClient:
             payload_reference=disclosed,
             repeatability=repeatability,
             reconciliation_policy="native_identity_retry",
-            deadline_at=(datetime.now(UTC) + timedelta(seconds=min(max(effective_timeout * 4, 5.0), 300.0))).isoformat(),
+            deadline_at=(now_utc() + timedelta(seconds=min(max(effective_timeout * 4, 5.0), 300.0))).isoformat(),
             recover_with_persisted_deadline=True,
             collaborative_teamspace_id=collaborative_teamspace_id,
         )
@@ -485,7 +485,7 @@ class SaasClient:
 
     @staticmethod
     def _remaining_seconds(deadline: datetime) -> float:
-        return (deadline - datetime.now(UTC)).total_seconds()
+        return (deadline - now_utc()).total_seconds()
 
     @classmethod
     def _classify_generic_response(

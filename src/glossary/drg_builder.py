@@ -12,10 +12,10 @@ import hashlib
 import logging
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 
 from charter.drg import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from kernel.clock import now_utc_iso
 
 from .models import SenseStatus, TermSense
 from .store import GlossaryStore
@@ -279,7 +279,7 @@ def build_glossary_drg_layer(
 
     return DRGGraph(
         schema_version="1.0",
-        generated_at=datetime.now(tz=UTC).isoformat(),
+        generated_at=now_utc_iso(),
         generated_by="glossary-drg-builder-v1",
         nodes=nodes,
         edges=edges,

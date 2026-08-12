@@ -33,10 +33,10 @@ import contextlib
 import logging
 import subprocess
 import traceback
-from datetime import datetime, UTC
 from pathlib import Path
 
 import typer
+from kernel.clock import now_utc_stamp
 from specify_cli.cli.console import console
 from typing import Annotated
 
@@ -356,7 +356,9 @@ logger = logging.getLogger(__name__)
 # and reads it back through ``_tasks.SPEC_MD_FILENAME`` (the WP05
 # ``UTC_SECOND_TIMESTAMP_FORMAT`` precedent).
 SPEC_MD_FILENAME = "spec.md"
-UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+# FR-004 (kernel-clock-single-door WP03): UTC_SECOND_TIMESTAMP_FORMAT is now
+# defined once on the door (kernel.clock), imported above; call sites here
+# are untouched (package remediation is WP12's job).
 
 
 app = typer.Typer(name="tasks", help="Task workflow commands for AI agents", no_args_is_help=True)
@@ -980,7 +982,7 @@ def add_history(
         # through reconstruct_wp_view (the snapshot is the sole authority) --
         # rather than a bare extract_scalar, so this reader never bypasses the
         # snapshot-authority seam (#2093).
-        timestamp = datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT)
+        timestamp = now_utc_stamp()
         agent_name = agent or wp.agent or "unknown"
         shell_pid_val = shell_pid or wp.shell_pid or ""
 

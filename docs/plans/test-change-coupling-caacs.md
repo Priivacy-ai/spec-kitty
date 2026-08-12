@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-07-21'
 related:
 - docs/plans/testing/test-suite-friction-audit.md
-- docs/development/testing-flakiness.md
+- docs/development/testing/testing-flakiness.md
 ---
 # CaaCS: test↔production change-coupling analysis
 

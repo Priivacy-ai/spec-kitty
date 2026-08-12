@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import re
 import subprocess
-from datetime import datetime, timezone, UTC
+from kernel.clock import now_utc_iso
 from pathlib import Path
 from typing import Tuple
 
@@ -220,7 +220,7 @@ def _create_test_feature(
         # Build a valid transition chain: planned -> done (with force to skip intermediate)
         from ulid import ULID
 
-        now = datetime.now(UTC).isoformat()
+        now = now_utc_iso()
         event = StatusEvent(
             event_id=str(ULID()),
             mission_slug=mission_slug,

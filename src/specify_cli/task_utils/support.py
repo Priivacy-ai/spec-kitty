@@ -7,10 +7,11 @@ import re
 import subprocess
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT as TIMESTAMP_FORMAT
+from kernel.clock import now_utc_stamp
 from specify_cli.core.paths import get_main_repo_root, locate_project_root
 from specify_cli.mission_metadata import load_meta as _load_meta_canonical
 
@@ -24,7 +25,17 @@ if TYPE_CHECKING:
 
 LANES: tuple[str, ...] = CANONICAL_LANES
 LANE_ALIASES: dict[str, str] = {"doing": "in_progress"}
-TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+# FR-004 (kernel-clock-single-door WP03): the format itself is now defined once
+# on the door (kernel.clock.UTC_SECOND_TIMESTAMP_FORMAT); this module keeps its
+# pre-existing local name via the import-as above so call sites are untouched.
+# FR-010 (WP11): this module's own ``now_utc()`` below is a stamp-string
+# producer with a different signature (``-> str``) than the door's
+# datetime-returning ``kernel.clock.now_utc()`` (``-> datetime``) -- same
+# name, distinct contract (C-003). Its body now delegates to the door's
+# ``now_utc_stamp()`` (defined as exactly ``DEFAULT_CLOCK.now().strftime(
+# UTC_SECOND_TIMESTAMP_FORMAT)``) rather than reading the wall clock directly,
+# so this module's pre-existing local name/signature stay untouched for
+# callers while the actual clock read routes through the door.
 
 
 class TaskCliError(RuntimeError):
@@ -104,7 +115,7 @@ def ensure_lane(value: str) -> str:
 
 
 def now_utc() -> str:
-    return datetime.now(UTC).strftime(TIMESTAMP_FORMAT)
+    return now_utc_stamp()
 
 
 def git_status_lines(repo_root: Path) -> list[str]:

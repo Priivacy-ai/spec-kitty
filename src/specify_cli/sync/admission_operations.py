@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from enum import StrEnum
 from typing import Literal, Protocol
 
@@ -156,7 +156,7 @@ class AdmissionOperationService:
         audience: AdmissionAudience,
         request_hash: str,
     ) -> AdmissionOperationRecord:
-        now = datetime.now(UTC).isoformat()
+        now = now_utc_iso()
         with self.store.unit_of_work() as unit:
             current_target = self.targets.get_current(unit)
             if current_target is None:
@@ -201,7 +201,7 @@ class AdmissionOperationService:
             return created
 
     def _mark_sent(self, operation_key: str) -> AdmissionOperationRecord:
-        now = datetime.now(UTC).isoformat()
+        now = now_utc_iso()
         with self.store.unit_of_work() as unit:
             unit.execute(
                 "UPDATE admission_operations SET state = 'sent', attempts = attempts + 1, "
@@ -219,7 +219,7 @@ class AdmissionOperationService:
         *,
         action: AdmissionAction,
     ) -> AdmissionOperationRecord:
-        now = datetime.now(UTC).isoformat()
+        now = now_utc_iso()
         with self.store.unit_of_work() as unit:
             unit.execute(
                 "UPDATE admission_operations SET state = 'unknown', updated_at = ? WHERE operation_key = ? AND state NOT IN ('acknowledged', 'refused')",
@@ -252,7 +252,7 @@ class AdmissionOperationService:
         operation_key: str,
         response: AdmissionResponse,
     ) -> AdmissionOperationRecord:
-        now = datetime.now(UTC).isoformat()
+        now = now_utc_iso()
         with self.store.unit_of_work() as unit:
             existing = self._get(unit, operation_key)
             if existing is None:  # pragma: no cover

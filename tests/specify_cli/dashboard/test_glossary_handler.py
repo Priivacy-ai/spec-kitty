@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import json
-from datetime import datetime
+from kernel.clock import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -527,6 +527,53 @@ class TestCollectAllSenses:
         assert surfaces == ["alpha", "gamma"], (
             f"recovery should keep alpha + gamma and skip beta; got {surfaces}"
         )
+
+    def test_recovered_term_provenance_timestamp_is_aware_utc(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """FR-011 (kernel-clock-single-door, WP13c): per-term recovery stamps
+        ``Provenance.timestamp`` via the door's aware-UTC ``now_utc()``, not
+        a naive local ``datetime.now()``.
+
+        A naive ``datetime.now()`` here has no UTC offset once serialized by
+        any downstream ``Provenance`` renderer (e.g.
+        ``glossary.models.term_sense_to_dict``'s ``.isoformat()`` call) --
+        this pins ``tzinfo``/the exact frozen instant so a reversion to the
+        naive form is caught even though this handler's own JSON response
+        does not itself render the timestamp.
+
+        C-009 mutation verified: reverting the site to a naive
+        ``datetime.now()`` makes ``provenance.timestamp.tzinfo`` ``None``,
+        failing the assertion below.
+        """
+        import kernel.clock as clock_module
+        from kernel.clock import UTC, FrozenClock
+        from specify_cli.dashboard.handlers.glossary import _collect_all_senses
+
+        frozen_instant = datetime(2026, 3, 4, 5, 6, 7, tzinfo=UTC)
+        monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=frozen_instant))
+
+        seed_dir = tmp_path / ".kittify" / "glossaries"
+        seed_dir.mkdir(parents=True)
+        (seed_dir / "spec_kitty_core.yaml").write_text(
+            "terms:\n"
+            "  - surface: alpha\n"
+            "    definition: First letter\n"
+            "    confidence: 0.9\n"
+            "    status: active\n"
+            "  - surface: beta\n"
+            "    definition: Second letter\n"
+            "    confidence: 0.9\n"
+            "    status: active\n"
+            "    bogus_extra_field: rejected\n",
+            encoding="utf-8",
+        )
+
+        result = _collect_all_senses(tmp_path)
+
+        recovered = next(t for t in result if t.surface.surface_text == "alpha")
+        assert recovered.provenance.timestamp.tzinfo is not None
+        assert recovered.provenance.timestamp == frozen_instant
 
 
 class TestGlossaryPage:

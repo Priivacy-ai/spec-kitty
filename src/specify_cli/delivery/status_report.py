@@ -55,14 +55,13 @@ from specify_cli.delivery.selection import unselectable_identity_count
 from specify_cli.delivery.targets import (
     InvalidTargetUrlError,
     canonicalize_url,
-    compute_url_hash,
+    compute_target_id,
 )
 from specify_cli.sync.body_queue import OfflineBodyUploadQueue
 from specify_cli.sync.project_context import validate_project_sync_context_authority
 
 if TYPE_CHECKING:
     from specify_cli.delivery.ledger import SqliteDeliveryLedger
-    from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
     from specify_cli.event_journal import EventJournal
     from specify_cli.sync.migrate_journal import MigrationAudit
     from specify_cli.sync.project_context import ProjectSyncContext
@@ -175,7 +174,10 @@ _DELIVERED_IDS_SQL = f"SELECT target_id, event_id FROM {LEDGER_TABLE} WHERE stat
 # ---------------------------------------------------------------------------
 
 
-def _resolve_current_target(resolved_target: ResolvedSyncTarget, registry: SqliteDeliveryTargetRegistry) -> Any:
+def _resolve_current_target(
+    resolved_target: ResolvedSyncTarget,
+    context: ProjectSyncContext,
+) -> Any:
     """Return the registered :class:`DeliveryTarget` for the resolved active URL.
 
     Derives the C-002 identity from ``resolved_server_url`` + scope using the
@@ -187,17 +189,32 @@ def _resolve_current_target(resolved_target: ResolvedSyncTarget, registry: Sqlit
         canonical = canonicalize_url(resolved_target.resolved_server_url)
     except InvalidTargetUrlError:
         return None
-    url_hash = compute_url_hash(canonical)
-    return registry.get(url_hash, resolved_target.team_slug, resolved_target.user_id)
+    current_target = context.target_audience
+    if current_target is None or current_target.target_identity != canonical:
+        return None
+    return current_target
 
 
-def _target_identity_dict(target: Any) -> dict[str, Any]:
+def _target_identity_dict(target: Any, context: ProjectSyncContext) -> dict[str, Any]:
     """Identity view (URL + scope) of a registered target."""
     return {
-        "target_id": target.target_id,
-        "canonical_url": target.canonical_url,
-        "team_slug": target.team_slug,
-        "user_email": target.user_email,
+        "target_id": compute_target_id(
+            target_identity=target.target_identity,
+            account_identity=target.account_identity,
+            private_teamspace_id=target.private_teamspace_id,
+            project_uuid=target.project_uuid,
+            configuration_generation=target.configuration_generation,
+        ),
+        "canonical_url": target.target_identity,
+        "team_slug": "",
+        "user_email": "",
+        "account_identity": target.account_identity,
+        "private_teamspace_id": target.private_teamspace_id,
+        "project_uuid": target.project_uuid.storage_token,
+        "configuration_generation": target.configuration_generation,
+        "admission_state": (None if context.admission_state is None else context.admission_state.value),
+        "admission_generation": context.admission_generation,
+        "binding_audience": context.binding_audience,
     }
 
 
@@ -274,7 +291,7 @@ def _delivery_ledger_section(status_rows: list[Any], current_target_id: str | No
 
 def _delivery_targets_section(
     resolved_target: ResolvedSyncTarget,
-    registry: SqliteDeliveryTargetRegistry,
+    context: ProjectSyncContext,
     status_rows: list[Any],
 ) -> tuple[dict[str, Any], str | None]:
     """Build ``delivery_targets`` and return ``(section, current_target_id)``.
@@ -282,21 +299,41 @@ def _delivery_targets_section(
     ``previous`` lists every known target other than the current one that has
     actually received deliveries, with its own delivered count (US4).
     """
-    current_target = _resolve_current_target(resolved_target, registry)
-    current_target_id = current_target.target_id if current_target is not None else None
+    stored_target_present = context.target_audience is not None
+    current_target = _resolve_current_target(resolved_target, context)
+    current_target_id = (
+        None
+        if current_target is None
+        else compute_target_id(
+            target_identity=current_target.target_identity,
+            account_identity=current_target.account_identity,
+            private_teamspace_id=current_target.private_teamspace_id,
+            project_uuid=current_target.project_uuid,
+            configuration_generation=current_target.configuration_generation,
+        )
+    )
     delivered_by_target = _delivered_counts_by_target(status_rows)
     previous: list[dict[str, Any]] = []
-    for target in registry.list_targets():
-        if current_target_id is not None and target.target_id == current_target_id:
+    for target_id, delivered in sorted(delivered_by_target.items()):
+        if current_target_id is not None and target_id == current_target_id:
             continue
-        delivered = delivered_by_target.get(target.target_id, 0)
         if delivered <= 0:
             continue
-        entry = _target_identity_dict(target)
-        entry["delivered_count"] = delivered
-        previous.append(entry)
-    current = _target_identity_dict(current_target) if current_target is not None else _resolved_identity_dict(resolved_target)
-    return {"current": current, "previous": previous}, current_target_id
+        previous.append(
+            {
+                "target_id": target_id,
+                "canonical_url": None,
+                "team_slug": "",
+                "user_email": "",
+                "delivered_count": delivered,
+            }
+        )
+    current = _target_identity_dict(current_target, context) if current_target is not None else _resolved_identity_dict(resolved_target)
+    return {
+        "current": current,
+        "previous": previous,
+        "authority_mismatch": stored_target_present and current_target is None,
+    }, current_target_id
 
 
 def _delivered_success_ids_by_target(ledger: SqliteDeliveryLedger) -> dict[str, set[str]]:
@@ -403,14 +440,17 @@ def _conflict_dict(conflict: Any) -> dict[str, Any]:
     }
 
 
-def _migration_conflicts_section(migration_audit: MigrationAudit | None) -> dict[str, Any]:
+def _migration_conflicts_section(
+    migration_audit: MigrationAudit | None,
+    migration_conflicts: tuple[Any, ...],
+) -> dict[str, Any]:
     """Unresolved divergent-duplicate conflicts (WP10); cleanup-blocked flag."""
-    if migration_audit is None:
+    if migration_audit is None and not migration_conflicts:
         return {"count": 0, "cleanup_blocked": False, "conflicts": []}
-    conflicts = migration_audit.conflicts()
+    conflicts = list(migration_conflicts) if migration_audit is None else migration_audit.conflicts()
     return {
         "count": len(conflicts),
-        "cleanup_blocked": migration_audit.has_conflicts(),
+        "cleanup_blocked": bool(conflicts),
         "conflicts": [_conflict_dict(conflict) for conflict in conflicts],
     }
 
@@ -496,8 +536,9 @@ def build_status_report(
     resolved_target: ResolvedSyncTarget,
     journal: EventJournal,
     ledger: SqliteDeliveryLedger,
-    target_registry: SqliteDeliveryTargetRegistry,
+    context: ProjectSyncContext,
     migration_audit: MigrationAudit | None = None,
+    migration_conflicts: tuple[Any, ...] = (),
     body_upload_queue: Any = None,
     base: dict[str, Any] | None = None,
     large_threshold_bytes: int | None = None,
@@ -514,15 +555,31 @@ def build_status_report(
     network connection, mutates nothing, and never reads raw SQLite to resolve a
     target (C-001 / C-002).
     """
+    # Validate the store-minted authority and exact shared UoW before any
+    # compatibility section reads the repositories.  Status is a read side, not
+    # a second target resolver or connection owner.
+    build_project_store_status(
+        context=context,
+        journal=journal,
+        ledger=ledger,
+        body_upload_queue=body_upload_queue,
+    )
     status_rows = _ledger_status_rows(ledger)
-    targets_section, current_target_id = _delivery_targets_section(resolved_target, target_registry, status_rows)
-    known_target_ids = tuple(target.target_id for target in target_registry.list_targets())
+    targets_section, current_target_id = _delivery_targets_section(
+        resolved_target,
+        context,
+        status_rows,
+    )
+    known_target_ids = () if current_target_id is None else (current_target_id,)
     sections: dict[str, Any] = {
         TARGET_AUTHORITY_KEY: resolved_target.to_diagnostics_dict(),
         EVENT_JOURNAL_KEY: _event_journal_section(journal, ledger, known_target_ids, large_threshold_bytes),
         DELIVERY_TARGETS_KEY: targets_section,
         DELIVERY_LEDGER_KEY: _delivery_ledger_section(status_rows, current_target_id),
-        MIGRATION_CONFLICTS_KEY: _migration_conflicts_section(migration_audit),
+        MIGRATION_CONFLICTS_KEY: _migration_conflicts_section(
+            migration_audit,
+            migration_conflicts,
+        ),
         TERMINAL_FAILURES_KEY: _terminal_failures_section(ledger),
         BODY_UPLOAD_COMPAT_KEY: _body_upload_compatibility_section(body_upload_queue),
         PER_PROJECT_STORE_KEY: _per_project_store_section(journal),

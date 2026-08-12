@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "305d8b6928b495eb0c542a1504073fac081de60c",
+  "change_mode": "bulk_edit",
+  "created_at": "2026-08-10T03:16:40.585514+00:00",
+  "flattened": true,
+  "friendly_name": "Common Docs Convergence",
+  "mission_id": "01KZMTR909QSZ1CZ46VWS9F8YZ",
+  "mission_number": null,
+  "mission_slug": "common-docs-convergence-01KZMTR9",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Spec Kitty's documentation has grown to ~700 files across flat mega-directories plus several stray documentation directories at the repository root, so readers on the published site and contributors cannot reliably find or trust the right page even though per-page frontmatter is already clean. This mission brings the corpus into line with the activated Common Docs doctrine (one docs/ root of 13 sections) by first establishing a central audience-profile set and an audience frontmatter field that grounds tone and depth, then rehoming stray docs, dissolving non-canonical and umbrella sections, de-conflating guides by Divio type, collapsing the architecture version shadow, normalizing indexes and names, and rewriting page bodies for scanability, all while keeping the published DocFX site building and honoring governance and code references. The docs/plans historical backlog is deferred to a follow-on mission.",
+  "purpose_tldr": "Converge Spec Kitty's docs onto the Common Docs single-root 13-section standard: rehome, restructure, and rewrite pages for discoverability and scanability, grounded by per-page audience metadata; the docs/plans backlog is deferred to a follow-on mission.",
+  "slug": "common-docs-convergence-01KZMTR9",
+  "status_phase": "1",
+  "target_branch": "docs/common-docs-cleanup",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-10T04:50:01.788841+00:00"
+}

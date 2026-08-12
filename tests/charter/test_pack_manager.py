@@ -346,6 +346,42 @@ class TestMergeDefaults:
         result = manager.merge_defaults(ctx)
         assert result.backup_path is None
 
+    def test_backup_filename_matches_pre_migration_golden_bytes(
+        self,
+        manager: CharterPackManager,
+        ctx: ProjectContext,
+        project_root: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """SC-004 persisted-artifact golden (kernel-clock-single-door WP07).
+
+        Captured from the PRE-migration tree (before ``pack_manager.py``
+        routed onto the door): under a frozen instant of
+        ``2026-11-02T14:15:16.654321+00:00``, the raw
+        ``datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%SZ")`` call this method
+        used to make produced the literal backup filename
+        ``charter-20261102T141516Z.md``. This test freezes the door's
+        ``DEFAULT_CLOCK`` (the seam the migrated call now reads through via
+        ``now_utc_compact_stamp()``) to that exact instant and asserts the
+        backup filename this WP's migrated code produces is byte-identical
+        to that pre-migration golden -- proving the swap-to-producer changed
+        no on-disk bytes.
+        """
+        import kernel.clock as clock_module
+        from kernel.clock import UTC, FrozenClock, datetime as door_datetime
+
+        fixed = door_datetime(2026, 11, 2, 14, 15, 16, 654321, tzinfo=UTC)
+        monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=fixed))
+
+        charter_dir = project_root / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        (charter_dir / "charter.md").write_text("# My Charter\n", encoding="utf-8")
+
+        result = manager.merge_defaults(ctx)
+
+        assert result.backup_path is not None
+        assert result.backup_path.name == "charter-20261102T141516Z.md"
+
 
 # ---------------------------------------------------------------------------
 # TestActivateCascadeWarning

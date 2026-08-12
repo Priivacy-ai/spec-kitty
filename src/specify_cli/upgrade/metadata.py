@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 from dataclasses import dataclass, field
-from datetime import datetime
+from kernel.clock import datetime, now_utc, parse_iso
 from pathlib import Path
 
 import yaml
@@ -102,7 +102,7 @@ class ProjectMetadata:
                 applied.append(
                     MigrationRecord(
                         id=m["id"],
-                        applied_at=datetime.fromisoformat(m["applied_at"]),
+                        applied_at=parse_iso(m["applied_at"]),
                         result=m["result"],
                         notes=m.get("notes"),
                     )
@@ -113,13 +113,13 @@ class ProjectMetadata:
 
         initialized_at_str = spec_kitty.get("initialized_at")
         try:
-            initialized_at = datetime.fromisoformat(initialized_at_str) if initialized_at_str else datetime.now()
+            initialized_at = parse_iso(initialized_at_str) if initialized_at_str else now_utc()
         except ValueError:
-            initialized_at = datetime.now()
+            initialized_at = now_utc()
 
         last_upgraded_str = spec_kitty.get("last_upgraded_at")
         try:
-            last_upgraded_at = datetime.fromisoformat(last_upgraded_str) if last_upgraded_str else None
+            last_upgraded_at = parse_iso(last_upgraded_str) if last_upgraded_str else None
         except ValueError:
             last_upgraded_at = None
 
@@ -270,7 +270,7 @@ class ProjectMetadata:
         self.applied_migrations.append(
             MigrationRecord(
                 id=migration_id,
-                applied_at=datetime.now(),
+                applied_at=now_utc(),
                 result=result,
                 notes=notes,
             )

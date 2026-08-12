@@ -7,7 +7,7 @@ import os
 import shutil
 import subprocess
 import sys
-from datetime import datetime
+from kernel.clock import now_utc
 from pathlib import Path
 from collections.abc import Callable
 
@@ -22,7 +22,7 @@ from specify_cli.core import (
     AI_CHOICES,
 )
 from specify_cli.core.env import is_interactive
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.core.utils import safe_is_dir
 from specify_cli.core.vcs import (
     is_git_available,
@@ -835,7 +835,17 @@ def init(  # noqa: C901
                                 use_global = False
                         if not use_global:
                             if template_mode == "local":
-                                assert local_repo is not None
+                                # Invariant: template_mode is only set to "local"
+                                # right after local_repo is confirmed non-None
+                                # (see get_local_repo_root() above). An explicit
+                                # raise (not assert) keeps this guard live under
+                                # `python -O` and lets the surrounding
+                                # `except Exception` translate it via
+                                # tracker.error(...) + re-raise, same as before.
+                                if local_repo is None:
+                                    raise RuntimeError(
+                                        "local_repo must be set when template_mode is 'local'"
+                                    )
                                 copy_specify_base_from_local(local_repo, project_path)
                             else:
                                 copy_specify_base_from_package(project_path)
@@ -1185,7 +1195,7 @@ def init(  # noqa: C901
 
         metadata = ProjectMetadata(
             version=__version__,
-            initialized_at=datetime.now(),
+            initialized_at=now_utc(),
             python_version=plat.python_version(),
             platform=system.platform,
             platform_version=plat.platform(),

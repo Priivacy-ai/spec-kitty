@@ -13,7 +13,6 @@ constructed in-memory inputs.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +20,7 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
+from kernel.clock import now_utc, now_utc_iso
 from runtime.next._internal_runtime import (
     DiscoveryContext,
     MissionPolicySnapshot,
@@ -573,7 +573,7 @@ def test_plan_next_pending_decision_audit_branch() -> None:
             "requested_by": ActorIdentity(
                 actor_id="x", actor_type="human", provider=None, model=None, tool=None
             ).model_dump(mode="json"),
-            "requested_at": datetime.now(timezone.utc).isoformat(),
+            "requested_at": now_utc_iso(),
         }
     }
     snap = MissionRunSnapshot(
@@ -600,7 +600,7 @@ def test_plan_next_pending_decision_input_branch() -> None:
             "requested_by": ActorIdentity(
                 actor_id="x", actor_type="human", provider=None, model=None, tool=None
             ).model_dump(mode="json"),
-            "requested_at": datetime.now(timezone.utc).isoformat(),
+            "requested_at": now_utc_iso(),
         }
     }
     snap = MissionRunSnapshot(
@@ -980,7 +980,7 @@ def test_dimension_score_override_records_audit() -> None:
         override_reason="manual review forced this",
         original_scores={"user_customer_impact": 0},
         new_scores={"user_customer_impact": 3},
-        override_timestamp=datetime.now(timezone.utc),
+        override_timestamp=now_utc(),
     )
     assert override.override_reason == "manual review forced this"
 
@@ -993,7 +993,7 @@ def test_dimension_score_override_rejects_non_human_actor() -> None:
             override_reason="bot override",
             original_scores={"user_customer_impact": 0},
             new_scores={"user_customer_impact": 1},
-            override_timestamp=datetime.now(timezone.utc),
+            override_timestamp=now_utc(),
         )
 
 

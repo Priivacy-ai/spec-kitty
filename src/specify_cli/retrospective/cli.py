@@ -13,9 +13,9 @@ Source-of-truth:
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from kernel.clock import now_utc_iso, date
 import json
 import sys
-from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -56,7 +56,7 @@ def _build_json_envelope(snapshot: SummarySnapshot) -> dict[str, object]:
     return {
         "schema_version": "1",
         "command": "retrospect.summary",
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": now_utc_iso(),
         "result": snapshot.model_dump(),
     }
 

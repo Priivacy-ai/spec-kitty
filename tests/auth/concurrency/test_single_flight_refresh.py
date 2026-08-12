@@ -22,7 +22,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import types
-from datetime import datetime, timedelta, UTC
+from kernel.clock import datetime, now_utc, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -39,7 +39,7 @@ class _MembershipRehydrateAttempted(BaseException):
 
 
 def _now() -> datetime:
-    return datetime.now(UTC)
+    return now_utc()
 
 
 def _private_teamspace() -> Team:

@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, cast
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.delivery.receivers import TERMINAL_REJECTION_CATEGORIES
 from specify_cli.sync.layout_generation import (
     LayoutDestination,

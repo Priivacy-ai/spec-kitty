@@ -7,7 +7,7 @@ No network calls are made.
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime, timedelta
+from kernel.clock import timedelta, now_utc_iso, now_utc
 from pathlib import Path
 from unittest.mock import patch
 
@@ -32,7 +32,7 @@ def patched_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 def _write_cache(path: Path, version: str, age_seconds: int = 0) -> None:
     """Write a cache file with the given version and age."""
     checked_at = (
-        datetime.now(UTC) - timedelta(seconds=age_seconds)
+        now_utc() - timedelta(seconds=age_seconds)
     ).isoformat()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -90,7 +90,7 @@ class TestGetAvailableVersion:
         """Cache JSON without latest_version key returns None."""
         patched_cache.parent.mkdir(parents=True, exist_ok=True)
         patched_cache.write_text(
-            json.dumps({"checked_at": datetime.now(UTC).isoformat()}),
+            json.dumps({"checked_at": now_utc_iso()}),
             encoding="utf-8",
         )
         checker = UpgradeChecker()

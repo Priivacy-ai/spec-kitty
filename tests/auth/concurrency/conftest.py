@@ -34,7 +34,7 @@ from __future__ import annotations
 import json
 import threading
 from collections.abc import Iterator
-from datetime import datetime, timedelta, UTC
+from kernel.clock import now_utc, timedelta
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -94,7 +94,7 @@ def _build_seed_session(
     will trigger refresh, and a 30-day refresh-token TTL so the server-side
     expiry check never fires accidentally.
     """
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="user_seed",
         email="seed@example.com",
@@ -135,7 +135,7 @@ def seed_session(auth_store_root: Path) -> StoredSession:
 
 
 def _now_iso(seconds_from_now: int) -> str:
-    return (datetime.now(UTC) + timedelta(seconds=seconds_from_now)).isoformat()
+    return (now_utc() + timedelta(seconds=seconds_from_now)).isoformat()
 
 
 def _build_handler_class(

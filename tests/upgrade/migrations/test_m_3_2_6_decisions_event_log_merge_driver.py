@@ -11,7 +11,7 @@ already-recorded meta+traces id would strand it forever (re-inheriting #2709).
 from __future__ import annotations
 
 import subprocess
-from datetime import datetime, UTC
+from kernel.clock import now_utc
 from pathlib import Path
 
 import pytest
@@ -82,7 +82,7 @@ def test_prior_meta_traces_upgrade_does_not_strand_decisions_driver(tmp_path: Pa
 
     # Simulate a consumer already at the 2-driver meta+traces state.
     MetaTracesMergeDriverMigration().apply(repo)
-    metadata = ProjectMetadata(version="3.2.6", initialized_at=datetime.now(UTC))
+    metadata = ProjectMetadata(version="3.2.6", initialized_at=now_utc())
     metadata.record_migration(_META_TRACES_ID, "success")
     assert metadata.has_migration(_META_TRACES_ID) is True
     # decisions.events.jsonl driver absent from that consumer's .gitattributes:

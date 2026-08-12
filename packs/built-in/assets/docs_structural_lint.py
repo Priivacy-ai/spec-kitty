@@ -80,7 +80,9 @@ __all__ = [
     "build_parser",
     "check_frontmatter_contract",
     "check_index_completeness",
+    "check_one_index_per_dir",
     "check_point_in_time_placement",
+    "check_sanctioned_section_membership",
     "check_shadow_tree_basename",
     "load_config",
     "main",
@@ -195,6 +197,13 @@ class LintConfig:
     shadow_tree_nav_exemptions: tuple[str, ...]
     redirect_stub_description_prefix: str
     guides_boundary: str
+    # T004 invariant fields (common-docs-convergence WP04). Defaulted so a
+    # direct-construction test fixture that predates them still builds; the real
+    # config always populates them via ``_build_config`` (loud on absence).
+    sanctioned_content_sections: tuple[str, ...] = ()
+    non_content_dirs: tuple[str, ...] = ()
+    root_allowlist: tuple[str, ...] = ()
+    one_index_per_dir: bool = False
 
 
 class ConfigError(Exception):
@@ -212,6 +221,10 @@ _REQUIRED_STR_LIST_KEYS: Final[tuple[str, ...]] = (
     "frontmatter_required_fields",
     "frontmatter_in_scope_exclusions",
     "shadow_tree_nav_exemptions",
+    # T004 invariant list fields (common-docs-convergence WP04).
+    "sanctioned_content_sections",
+    "non_content_dirs",
+    "root_allowlist",
 )
 
 
@@ -302,6 +315,10 @@ def _build_config(block: Mapping[str, Any], source: Path) -> LintConfig:
             block, "redirect_stub_description_prefix", source
         ),
         guides_boundary=_require_str(block, "guides_boundary", source),
+        sanctioned_content_sections=values["sanctioned_content_sections"],
+        non_content_dirs=values["non_content_dirs"],
+        root_allowlist=values["root_allowlist"],
+        one_index_per_dir=_require_bool(block, "one_index_per_dir", source),
     )
 
 
@@ -316,6 +333,13 @@ def _require_str(block: Mapping[str, Any], key: str, source: Path) -> str:
     raw = block.get(key)
     if not isinstance(raw, str) or not raw:
         raise ConfigError(f"{source}: '{_CONFIG_KEY}.{key}' must be a non-empty string")
+    return raw
+
+
+def _require_bool(block: Mapping[str, Any], key: str, source: Path) -> bool:
+    raw = block.get(key)
+    if not isinstance(raw, bool):
+        raise ConfigError(f"{source}: '{_CONFIG_KEY}.{key}' must be a boolean")
     return raw
 
 
@@ -598,11 +622,171 @@ def check_frontmatter_contract(
     return violations
 
 
+# --- Check 5 (T011): one_index_per_dir (advisory; not wired into run()) ------
+
+
+#: Basenames that count as a directory "index / landing" page for the
+#: ``one_index_per_dir`` check. A directory carrying more than one of these is
+#: flagged when ``config.one_index_per_dir`` is enabled.
+_INDEX_LANDING_BASENAMES: Final[tuple[str, ...]] = ("index.md", "README.md")
+
+
+def _is_exempt_landing(
+    md_path: Path, docs_root: Path, curated: set[str], config: LintConfig
+) -> bool:
+    """True when a landing page does not COMPETE with a dir's canonical index.md.
+
+    ``index.md`` is always the canonical keeper (never exempted away). A
+    ``README.md`` is exempt when it is a redirect stub (old-path placeholder) or
+    it sits in a curated-complete section (prose intro alongside the enumerating
+    index). See :func:`check_one_index_per_dir` for the rationale.
+    """
+    if md_path.name == "index.md":
+        return False
+    if _is_redirect_stub(md_path, config):
+        return True
+    return _top_level_section(md_path, docs_root) in curated
+
+
+def check_one_index_per_dir(
+    md_files: list[Path],
+    docs_root: Path,
+    repo_root: Path,
+    config: LintConfig,
+) -> list[Violation]:
+    """Flag directories carrying more than one *competing* landing page (T011).
+
+    Config-gated: a no-op unless ``config.one_index_per_dir`` is true. When a
+    directory holds both an ``index.md`` and a ``README.md`` the directory has
+    two landing pages; the surviving landing is ``index.md`` and the rest are
+    reported — with two principled exemptions so the terminal-verification flip
+    (OB-2) is green without deleting intentional pages:
+
+    * A **redirect-stub** landing (``description: "Redirect stub: …"``) is not a
+      competing page — it is an old-path placeholder that redirects to the
+      canonical ``index.md`` (mirrors the ``shadow_tree_basename`` exemption).
+      This covers the ``adr/<era>/README.md`` era stubs (#2227).
+    * A ``README.md`` inside a **curated-complete** section (config
+      ``curated_complete_sections``) is the section's prose intro that
+      legitimately coexists with the enumerating ``index.md`` (e.g.
+      ``architecture/README.md``, which the architecture-consistency contract
+      requires alongside the curated ``index.md``).
+    """
+    if not config.one_index_per_dir:
+        return []
+    curated = set(config.curated_complete_sections)
+    by_dir: dict[Path, list[Path]] = {}
+    for md_path in md_files:
+        if md_path.name in _INDEX_LANDING_BASENAMES:
+            by_dir.setdefault(md_path.parent, []).append(md_path)
+    violations: list[Violation] = []
+    for directory, all_landings in sorted(by_dir.items()):
+        landings = [
+            p
+            for p in all_landings
+            if not _is_exempt_landing(p, docs_root, curated, config)
+        ]
+        if len(landings) < 2:
+            continue
+        # Prefer index.md as the surviving landing; flag the rest.
+        ordered = sorted(landings, key=lambda p: (p.name != "index.md", p.name))
+        for extra in ordered[1:]:
+            extra_rel = _repo_relative(extra, repo_root)
+            keeper_rel = _repo_relative(ordered[0], repo_root)
+            violations.append(
+                Violation(
+                    rule_id="one_index_per_dir",
+                    path=extra_rel,
+                    message=(
+                        f"{_repo_relative(directory, repo_root)} carries more than "
+                        f"one index/landing page; {extra_rel} competes with "
+                        f"{keeper_rel}"
+                    ),
+                )
+            )
+    return violations
+
+
+# --- Check 6 (T011): sanctioned_section_membership (advisory) -----------------
+
+
+def _top_level_section(md_path: Path, docs_root: Path) -> str:
+    """The first path segment of ``md_path`` relative to ``docs_root``.
+
+    Files that live directly under ``docs_root`` (no subdirectory) return the
+    empty string, treated as the implicit ``index`` section by callers.
+    """
+    rel = _repo_relative(md_path, docs_root)
+    head, _, tail = rel.partition("/")
+    return head if tail else ""
+
+
+def _under_non_content_dir(rel_to_docs: str, non_content: tuple[str, ...]) -> bool:
+    """True when a ``docs_root``-relative path lives under a non-content dir.
+
+    Matches the FULL ``non_content_dirs`` entry as a path PREFIX, not just the
+    top-level segment — so a **nested** entry such as ``templates/spec-kitty/``
+    is honoured. The prior top-level-only comparison silently never matched a
+    multi-segment entry (a page under ``templates/spec-kitty/`` mapped to the
+    top segment ``templates``, which is not in the list), so the whole nested
+    scaffolding zone was wrongly flagged as off-structure (WP04 reviewer bug).
+    """
+    return any(
+        rel_to_docs == prefix or rel_to_docs.startswith(f"{prefix}/")
+        for prefix in non_content
+    )
+
+
+def check_sanctioned_section_membership(
+    md_files: list[Path], docs_root: Path, repo_root: Path, config: LintConfig
+) -> list[Violation]:
+    """Flag pages whose top-level section is not sanctioned (T011).
+
+    A page is off-structure when its top-level section under ``docs_root`` is
+    neither in ``config.sanctioned_content_sections`` nor covered by
+    ``config.non_content_dirs`` (nav/scaffolding zones). ``non_content_dirs``
+    entries are matched as full path PREFIXES via
+    :func:`_under_non_content_dir`, so **nested** scaffolding zones (e.g.
+    ``templates/spec-kitty/``) are honoured — not only single-segment ones.
+    Pages that sit directly at ``docs_root`` map to the implicit ``index``
+    section. Reads the T004 config lists (no inlined literals). WP13 flips it
+    blocking as terminal verification (OB-2).
+    """
+    sanctioned = set(config.sanctioned_content_sections)
+    non_content = tuple(entry.rstrip("/") for entry in config.non_content_dirs)
+    violations: list[Violation] = []
+    for md_path in md_files:
+        section = _top_level_section(md_path, docs_root) or "index"
+        if section in sanctioned:
+            continue
+        if _under_non_content_dir(_repo_relative(md_path, docs_root), non_content):
+            continue
+        page_rel = _repo_relative(md_path, repo_root)
+        violations.append(
+            Violation(
+                rule_id="sanctioned_section_membership",
+                path=page_rel,
+                message=(
+                    f"{page_rel} lives in non-sanctioned section '{section}/' "
+                    "(not in sanctioned_content_sections / non_content_dirs)"
+                ),
+            )
+        )
+    return violations
+
+
 # --- Aggregation + CLI --------------------------------------------------------
 
 
 def run(*, docs_root: Path, repo_root: Path, config: LintConfig) -> LintReport:
-    """Run all four checks over ``docs_root`` and return the aggregate report."""
+    """Run the four standing checks over ``docs_root`` and return the aggregate.
+
+    This is the default per-PR aggregate. The two T004 structural invariants
+    (``sanctioned_section_membership`` and ``one_index_per_dir``) are NOT wired
+    in here: a standing single-root/sanctioned-section blocking lint reverses
+    #2851 (the anti-sprawl ratchet was deliberately retired). They are enforced
+    as **terminal verification** via :func:`run_extended` instead (OB-2).
+    """
     if not docs_root.exists() or not docs_root.is_dir():
         return LintReport(checked=0, violations=[])
 
@@ -614,6 +798,27 @@ def run(*, docs_root: Path, repo_root: Path, config: LintConfig) -> LintReport:
     violations.extend(check_frontmatter_contract(md_files, docs_root, repo_root, config))
     violations.sort(key=lambda v: (v.rule_id, v.path))
     return LintReport(checked=len(md_files), violations=violations)
+
+
+def run_extended(*, docs_root: Path, repo_root: Path, config: LintConfig) -> LintReport:
+    """Terminal-verification aggregate: the standing checks PLUS the T004 invariants.
+
+    Adds ``sanctioned_section_membership`` (single-root / sanctioned-section) and
+    ``one_index_per_dir`` to :func:`run`. This is the OB-2 terminal-blocking stance
+    the convergence mission's pre-merge build enforces (``--extended``), kept
+    OFF the standing per-PR aggregate so it does not re-impose the retired #2851
+    ratchet on unrelated changes. Green on the reconciled tree = the invariants hold.
+    """
+    if not docs_root.exists() or not docs_root.is_dir():
+        return LintReport(checked=0, violations=[])
+
+    base = run(docs_root=docs_root, repo_root=repo_root, config=config)
+    md_files = sorted(docs_root.rglob("*.md"))
+    extra: list[Violation] = []
+    extra.extend(check_sanctioned_section_membership(md_files, docs_root, repo_root, config))
+    extra.extend(check_one_index_per_dir(md_files, docs_root, repo_root, config))
+    violations = sorted(base.violations + extra, key=lambda v: (v.rule_id, v.path))
+    return LintReport(checked=base.checked, violations=violations)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -652,6 +857,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Emit the report as JSON instead of a human summary.",
     )
+    parser.add_argument(
+        "--extended",
+        action="store_true",
+        help=(
+            "Terminal-verification mode (OB-2): also enforce the T004 structural "
+            "invariants (sanctioned_section_membership + one_index_per_dir). Used "
+            "by the pre-merge build gate; OFF by default to avoid re-imposing the "
+            "retired #2851 ratchet on unrelated per-PR changes."
+        ),
+    )
     return parser
 
 
@@ -663,7 +878,8 @@ def main(argv: list[str] | None = None) -> int:
     except ConfigError as exc:
         sys.stderr.write(f"docs_structural_lint: {exc}\n")
         return 2
-    report = run(docs_root=args.docs_root, repo_root=args.repo_root, config=config)
+    runner = run_extended if args.extended else run
+    report = runner(docs_root=args.docs_root, repo_root=args.repo_root, config=config)
     _emit(report, as_json=args.json)
     return 1 if report.violations else 0
 

@@ -34,6 +34,7 @@ Covers (T006):
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -43,6 +44,7 @@ from pathlib import Path
 
 import pytest
 
+import doctrine
 from charter.pack_context import PackContext
 from doctrine.missions.mission_type_repository import (
     MissionTypeRepository,
@@ -212,6 +214,33 @@ _IMPORT_SPY_SCRIPT = textwrap.dedent(
 )
 
 
+def _subprocess_env_with_src_root() -> dict[str, str]:
+    """Build a subprocess env that guarantees ``doctrine``/``charter`` import cleanly.
+
+    ``sys.executable`` guarantees the *same interpreter*, but not the same
+    import roots: pytest's ``pythonpath = src`` ini option mutates this
+    process's ``sys.path`` in memory, and a child process spawned via
+    ``subprocess.run`` does not inherit an in-memory ``sys.path`` mutation --
+    only environment variables. In a local editable-install layout that gap
+    is often invisible (the venv's site-packages happens to resolve
+    ``doctrine``/``charter`` too), but is real whenever the running
+    interpreter's site-packages does not carry an editable install for THIS
+    checkout (e.g. a plain ``uv run`` environment, or a shared venv whose
+    editable install points at a different checkout) -- then the subprocess
+    raises ``ModuleNotFoundError`` before the I/O probe ever runs, instead
+    of measuring anything. Propagate the ``src`` root this process actually
+    resolved ``doctrine`` from, so the subprocess sees the same package
+    regardless of what its own default ``sys.path`` would have produced.
+    """
+    src_root = str(Path(doctrine.__file__).resolve().parents[1])
+    env = dict(os.environ)
+    existing_pythonpath = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = (
+        os.pathsep.join([src_root, existing_pythonpath]) if existing_pythonpath else src_root
+    )
+    return env
+
+
 class TestHotModulesTriggerZeroImportTimeIo:
     """Importing the two hot charter modules triggers at most 1 cached read.
 
@@ -237,7 +266,23 @@ class TestHotModulesTriggerZeroImportTimeIo:
             capture_output=True,
             text=True,
             check=False,
+            env=_subprocess_env_with_src_root(),
         )
+
+        # A non-zero exit with an unhandled traceback (e.g. ModuleNotFoundError
+        # because the subprocess interpreter could not import 'doctrine' or
+        # 'charter') is an environment/setup failure, NOT the unbounded-I/O
+        # condition this test guards against -- the I/O probe in
+        # _IMPORT_SPY_SCRIPT never even ran. Fail with a truthful message
+        # instead of misattributing it to NFR-001.
+        if result.returncode != 0 and "Traceback (most recent call last):" in result.stderr:
+            pytest.fail(
+                "subprocess failed to import charter/doctrine modules before "
+                "the import-time-I/O probe could run -- this is an "
+                "interpreter/environment setup failure (e.g. the spawned "
+                "interpreter cannot import 'doctrine'/'charter'), NOT an "
+                f"unbounded-I/O violation:\nstdout={result.stdout}\nstderr={result.stderr}"
+            )
 
         assert result.returncode == 0, (
             "importing charter.mission_type_profiles / charter.pack_context "

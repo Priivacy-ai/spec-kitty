@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-08-02'
+updated: '2026-08-10'
 ---
 # Changelog
 
@@ -19,6 +19,12 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **Documentation pages can now declare who they are for: a canonical `audience:`
+  frontmatter field, plus a Common Docs styleguide and gates, ship in the built-in
+  doctrine pack (mission `common-docs-convergence`).** Each page states its
+  intended reader and Divio type, and projects that activate the pack inherit the
+  same Common Docs conventions — the single-root structure and audience/type
+  discipline — out of the box.
 - **`charter synthesize` is now non-destructive — it preserves backed governance
   content by default (mission `charter-synthesize-reconciliation`; `#3270` P0,
   folds `#2777` / `#3052`).** Previously an authoring-only charter edit forced
@@ -140,9 +146,9 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     **delivered-but-not-activation-gated** (`gate = ALL`) - a reachable source
     pulls them in without an activation list. This closes the defect where
     `asset_ids = []` was the silently-conforming outcome forever.
-  - **Docs**: [Create a doctrine artifact](../doctrine/create-a-doctrine-artifact.md)
+  - **Docs**: [Create a doctrine artifact](../development/how-to/create-a-doctrine-artifact.md)
     gains an executable asset how-to (author a manifest, place the blob, resolve
-    it), and [Doctrine artifact kinds](../doctrine/doctrine-kinds.md) documents
+    it), and [Doctrine artifact kinds](../architecture/doctrine-kinds.md) documents
     the shipped built-in asset and the three delivery categories.
 - **New checks that catch a change which looks like it worked and did nothing
   (mission `doctrine-silence-guards`).** Four additions, all aimed at the same
@@ -217,7 +223,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `spec_kitty.cli_package`, `spec_kitty.upgrade_provider`, and
   `spec_kitty.distribution_profile` - without overlaying `src/specify_cli/**`.
   Stock public-PyPI / `spec-kitty-cli` installs with no hooks are unchanged.
-  Packager guide: [`docs/guides/fork-packaging-hooks.md`](../guides/fork-packaging-hooks.md).
+  Packager guide: [`docs/guides/fork-packaging-hooks.md`](../guides/how-to/installation/fork-packaging-hooks.md).
 - **Doctrine-controlled transition gates - the `for_review` pre-review gate is now
   declared by the repo's active doctrine, not hardcoded to Spec Kitty's own repo
   shape (#2595, #2596, #2598; epic #2535 half A).** Scope resolution moves behind a
@@ -363,6 +369,83 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **Restored an honest red CI gate: `main`'s two standing reds now go green for
+  the right reason, and `move-task`'s pre-review gate stops crying wolf
+  (test-layer only; epic `#3260` — "a red gate must mean a real regression").**
+  This is a CI/gate-correctness pass with **no runtime or behavior change** — no
+  `src/` change, no `__init__.py` touch, no version bump — so nothing you install
+  or run changes. What changes is that the project's own signal is trustworthy
+  again:
+  - **The blocking `regression tests` job goes green** because the last resident
+    red-first reproduction (`#2782`) was retired. That repro asserted `agent
+    mission create --json` synchronously emits a `direct ingress skipped`
+    diagnostic on stderr — a contract the deferred/offline sync architecture
+    cannot satisfy (mission-create queues its lifecycle event and dossier bodies
+    to the offline outbox and returns without an in-process ingress attempt, so
+    the diagnostic never fires there, even with consent recorded). It was
+    redesigned into a green functional test of the architecturally-honest
+    mission-create contract (`rc=0` + strict-JSON stdout + no diagnostic prose on
+    stdout + the `#2254` drift guard), moved back beside its strict-JSON siblings,
+    and un-marked `regression`. `-m regression` now collects nothing, so the
+    blocking job passes. (The diagnostic's real firing is still proven at the
+    resolver seam by a separate test.)
+  - **The `integration-tests-cli` job goes green** because a drifted test was
+    locking a since-corrected contract at the `commit_to_branch` seam. Following
+    `#3269` / commit `793872a19`, only a genuine empty changeset maps to
+    `unchanged`; a rejecting pre-commit hook is a real failure. The test was
+    rewritten to assert the corrected contract (hook rejection re-raises and
+    leaves the artifact dirty).
+  - **`move-task`'s pre-review gate stops reporting phantom "new failures"** —
+    two false reds that made the reliability gate untrustworthy (both children of
+    epic `#3260`). `tests/doctrine/test_hatch_build.py` now guards its transitive
+    import with `pytest.importorskip("hatchling")`, so the pre-review gate's
+    ephemeral baseline venv (which lacks `hatchling` outside the `test` extra)
+    skips it cleanly instead of hard-failing collection; the normal test job
+    installs the extra and still runs every test (`#3224`). And
+    `test_inline_meta_read_gate` now relativizes scanned paths against the scanned
+    tree's own root rather than the gate file's location, so a cross-tree
+    (git-worktree baseline) scan no longer produces absolute paths that silently
+    over-count `mission_metadata.py` as a violation (`#3241`, PART 2).
+
+- **`spec-kitty auth login` (and any caller of the SaaS URL helper) now points
+  you at the real hosted service when `SPEC_KITTY_SAAS_URL` is unset, not a fake
+  placeholder (`#3297`, closes `#3296`).** Previously, running the command
+  without that variable set told you to `Set it to your spec-kitty-saas instance
+  URL (e.g. https://api.spec-kitty.example.com)` — a `.example.com` placeholder
+  that does not resolve, so a first-time user who copied it got a dead URL. The
+  guidance now names the actual hosted URL, `https://app.spec-kitty.ai`, so the
+  example is copy-paste-usable; self-hosted instances still override via the env
+  var exactly as before.
+- **Timestamps that Spec Kitty writes into your project no longer record local
+  time while labelling it UTC (mission `kernel-clock-single-door`; `#3305`,
+  closes `#3289`, owns the closed `#3288`).** Roughly twenty places across the
+  tool — charter backup filenames, status-event stamps, auth-doctor report times,
+  and other persisted "now" values — read the machine's _local_ clock and then
+  tagged the result as UTC. On any machine not set to UTC the stored time was
+  simply wrong: a backup taken at 09:00 CET was filed as `…T09-00-00` and read
+  back as 09:00 UTC, an hour or two off. Every such value now comes from one
+  canonical aware-UTC producer, so stamps are correct and consistent regardless
+  of the host timezone. Under the hood all wall-clock reads now go through a
+  single `kernel.clock` "door" that every package can import, and a repo-wide CI
+  gate blocks any new raw `datetime.now()` / `time.time()` read from
+  reintroducing the drift — but the change you can observe is simply: the
+  timestamps are right now.
+- **`spec-kitty doctor auth --fix` now reports a real disk failure instead of
+  quietly claiming "nothing removed" (mission `sonar-bug-blocker-remediation`).**
+  When breaking a stale auth lock hit a genuine I/O error — a full or failing
+  disk — `force_release` mislabeled it as ordinary lock contention, so the
+  command told you nothing was wrong while the real fault went unseen. It now
+  lets genuine filesystem errors propagate while true lock contention still
+  returns cleanly, matching the rest of the locking layer.
+- **Activating a slug-named hub directive (e.g. `use-c4-model-techniques`) in a
+  charter now resolves to the real doctrine node instead of a dangling
+  identifier (`#3009`, `#3298`).** The directive-id normalizer folded numbered
+  slugs (`024-...` → `DIRECTIVE_024`) but left slug-named directives hyphenated
+  and uppercased (`use-c4-model-techniques` → `USE-C4-MODEL-TECHNIQUES`), which
+  is not the artifact's canonical node id (`USE_C4_MODEL_TECHNIQUES`). So
+  activating or referencing such a directive by its slug silently pointed at
+  nothing. The normalizer now folds hyphens to underscores, matching the
+  canonical node id — so slug-hub directives activate and cascade like any other.
 - **`spec-kitty tracker sync publish` on a local (`beads`/`fp`) binding now
   prints a clear error instead of crashing with a Python traceback (`#3168`).**
   Local providers have no snapshot-publish transport, but the command delegated
@@ -378,6 +461,16 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   bundled doctrine"` placeholder on the next run. `active_languages` now has a
   single authority and an empty result means "no signal → admit all" (round-tripped
   as an absent field, not a persisted `[]`), so repeated generates are byte-stable.
+- **The reason `spec-kitty sync doctor` gives for a refused tracker egress can
+  no longer disagree with what the gate actually enforced (`#3287`, `#3291`).**
+  The gate decided whether to refuse from one source but re-derived the _why_ —
+  and the remedy shown to you — from a second, independent consent lookup that
+  could drift from the enforced answer, and it repeated a full git-identity
+  resolution on every gated sync. The reason now comes from the same evaluation
+  that enforces the decision: a refusal's explanation always matches the
+  refusal, a consent record that cannot be read is reported as its own state
+  instead of masquerading as "no consent recorded", and a gated
+  `tracker sync` resolves your project's consent once instead of twice.
 - **A spec commit that genuinely FAILS is no longer silently reported as
   "unchanged" (`#3269`).** When a `git commit` failed for a real reason — a
   rejecting pre-commit hook, a lock error — `safe_commit` collapsed every
@@ -777,7 +870,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     that exists nowhere in the vocabulary** (`urn:profile:...`). Anyone who copied
     it got a declaration that merged without complaint and produced no edge. The
     example is corrected in `AGENTS.md` / `CLAUDE.md` and in
-    [the org-pack authoring guide](../guides/create-an-org-doctrine-pack.md), and
+    [the org-pack authoring guide](../guides/how-to/governance/create-an-org-doctrine-pack.md), and
     the accepted forms are now enforced at merge time.
 
 - **`spec-kitty agent tasks mark-status` could not find subtask ids written the
@@ -1146,6 +1239,29 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ♻️ Changed
 
+- **The beginner guides now open with illustrated Mission Kitty splashes, and the
+  Spec-Driven Development page carries a real diagram instead of ASCII art
+  (`#3276`).** Getting Started, Understanding Missions, Your First Mission, and
+  When to use Spec Kitty modes each gain a hero illustration; When to use modes
+  adds a four-path comparison board; and the SDD workflow — previously a plain
+  ASCII box diagram — is now a styled SVG flowchart that renders cleanly in light
+  and dark mode. The guide prose also switches to native DocFX alerts
+  (`> [!NOTE]` / `> [!TIP]`) so callouts stand out on the published site. Where a
+  stylized splash shows a workflow-like board, a one-line caption points to the
+  authoritative steps, modes, or mission types on the same page, so the artwork
+  reads as illustration and the page text stays the source of truth. The written
+  content and structure are unchanged; the pages are just easier to scan.
+- **Spec Kitty's documentation now lives under one predictable `docs/` root with
+  canonical sections, so you can find a page by where it logically belongs
+  (mission `common-docs-convergence`; `#2215`, `#2887`, `#3273`).** The scattered
+  root folders (`research/`, `examples/`, `glossary/`, `media/`) and the duplicate
+  `reference/` vs `api/` split are gone. How-tos are now organised by audience —
+  user how-tos under `guides/`, contributor how-tos under `development/` — each
+  subdivided by concern behind a single landing page, so you reach what you need
+  in fewer clicks. Old documentation URLs redirect to their new homes, so existing
+  links and bookmarks keep working. Every page now declares its intended reader
+  and Divio type, and the architecture docs present one living design with prior
+  versions filed as ADRs.
 - **Dead queue-backed event-drain code removed from `sync/batch.py`, closing a
   latent consent-bypass path (mission `chain-b-consent-bypass-3167`; `#3167`,
   `#3190`, `#3187`, `#3220`).** `batch_sync` and `sync_all_queued_events` had no
@@ -1289,6 +1405,21 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   (create-if-absent); an existing curated companion is left byte-for-byte untouched,
   preserving the #2772 never-clobber invariant. `charter.md` remains display-only, never a
   resolving input. ADR 2026-07-18-1 amended.
+- **Internal: the `specify_cli` aware-UTC clock contract is now enforced structurally
+  (#2496).** Follow-up to #2494's clock-consolidation sweep. Routes the remaining
+  byte-identical `datetime.now(UTC).isoformat()` "now"-stamp call sites in `specify_cli`
+  onto the single canonical `now_utc_iso()` helper, the canonical producer of that form.
+  Behaviour-preserving: the `UTC` / `timezone.utc` spellings serialize byte-identically
+  under `requires-python >=3.11`. Adds an **AST negative gate** over the whole
+  `src/specify_cli` tree (`tests/specify_cli/test_clock_consolidation.py`), alongside
+  the pre-existing owned-file inventory, so a module added later is covered the moment it
+  lands rather than silently regressing while the suite stays green; the gate ships a
+  self-mutant non-vacuity test and a stale-exemption check. It targets the fluent
+  single-expression `<x>.now(<aware-UTC>).isoformat()` idiom (import aliases resolved);
+  distinct contracts are deliberately out of scope and not flagged: the second-precision
+  `%Y-%m-%dT%H:%M:%SZ` stamp family, `isoformat(timespec=...)`, naive `now()`, the
+  datetime-returning family, and non-fluent forms (a variable-split or a space-separated
+  `str()` of an aware instant).
 - **Internal: the coord-authority trio is decomposed into ports + pure cores
   (#2464, #2465).** The three coord-authority god-modules are restructured
   behaviour-preservingly into the shipped Typer-shell + request-dataclass + pure-cores
@@ -1432,7 +1563,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   endpoint that cannot be resolved is now refused at merge time with an
   `unresolved_edge_endpoint` conflict naming the token, instead of being dropped
   or silently re-pointed at an invented node. See
-  [the org-pack authoring guide](../guides/create-an-org-doctrine-pack.md).
+  [the org-pack authoring guide](../guides/how-to/governance/create-an-org-doctrine-pack.md).
 - **A push to a protected branch now starts 49 of 50 test jobs instead of about
   10.** Pull requests are unaffected - path filtering still narrows a PR to the
   suites its diff touches. This is a deliberate trade of CI minutes for
@@ -1564,7 +1695,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   block with `review.fail_on_pre_review_regression` (enforced only when
   `review.test_command` is set; `move-task --force` overrides), and override the
   scope per-WP via frontmatter `pre_review_test_scope`. See
-  [review-gates.md](../development/review-gates.md).
+  [review-gates.md](../development/how-to/review-gates.md).
 - **`spec-kitty review --check-residual` + environment-parity preflight
   (#2283).** The new `--check-residual` flag runs CI's always-on
   `unit-contract-residual` `-m` selection over `tests/` locally - the `-m`
@@ -4109,7 +4240,7 @@ command and no new top-level runtime dependencies.
 - **`behavior-driven-development` tactic enriched** - extended `notes` with a toolchain landscape section (Cucumber family, Playwright, Selenium, Serenity BDD, custom DSLs; source: `patterns.sddevelopment.be/primers/toolchain-and-automation/bdd`); three new `failure_modes` (rubber-stamp scenarios, shared mutable state between scenarios, orphaned step definitions); cross-references to the new BDD paradigm and procedure.
 - **`tactic-references` union-merged in `resolve_profile()`** - `tactic-references` added to `_LIST_FIELDS` in `src/doctrine/agent_profiles/repository.py`. Specialist profiles now inherit base-profile tactic references via `_union_merge` at resolution time rather than overriding them.
 - **Tactic compliance test extended** - `test_tactic_compliance.py` `ARTIFACT_DIRS` now includes `procedure` and `paradigm` types, enabling cross-type reference validation for tactics that reference procedures or paradigms.
-- **Shared package boundary cutover** (mission `shared-package-boundary-cutover-01KQ22DS`) - `spec-kitty-runtime` is no longer a dependency of `spec-kitty-cli`. The CLI now owns its own runtime internally under `src/specify_cli/next/_internal_runtime/`; `spec-kitty next` works from a clean install of `spec-kitty-cli` alone. `spec-kitty-events` and `spec-kitty-tracker` are external PyPI dependencies consumed via their public import surfaces (`spec_kitty_events`, `spec_kitty_tracker`). The vendored events tree under `src/specify_cli/spec_kitty_events/` has been removed (~23 kLoC). Developers who relied on editable cross-package overrides should consult [`docs/development/local-overrides.md`](../development/local-overrides.md); operators upgrading from a pre-cutover release should consult [`docs/migration/shared-package-boundary-cutover.md`](../migrations/shared-package-boundary-cutover.md). Decision rationale recorded in [ADR 2026-04-25-1](../adr/3.x/2026-04-25-1-shared-package-boundary.md).
+- **Shared package boundary cutover** (mission `shared-package-boundary-cutover-01KQ22DS`) - `spec-kitty-runtime` is no longer a dependency of `spec-kitty-cli`. The CLI now owns its own runtime internally under `src/specify_cli/next/_internal_runtime/`; `spec-kitty next` works from a clean install of `spec-kitty-cli` alone. `spec-kitty-events` and `spec-kitty-tracker` are external PyPI dependencies consumed via their public import surfaces (`spec_kitty_events`, `spec_kitty_tracker`). The vendored events tree under `src/specify_cli/spec_kitty_events/` has been removed (~23 kLoC). Developers who relied on editable cross-package overrides should consult [`docs/development/local-overrides.md`](../development/how-to/local-overrides.md); operators upgrading from a pre-cutover release should consult [`docs/migration/shared-package-boundary-cutover.md`](../migrations/shared-package-boundary-cutover.md). Decision rationale recorded in [ADR 2026-04-25-1](../adr/3.x/2026-04-25-1-shared-package-boundary.md).
 
 ### Removed
 

@@ -17,13 +17,12 @@ import asyncio
 import atexit
 import contextlib
 import logging
-import sqlite3
 import threading
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from kernel.clock import datetime, now_utc
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.errors import AuthenticationError
 from specify_cli.auth.refresh_transaction import RefreshLockTimeoutError
@@ -75,9 +74,18 @@ _BODY_DRAIN_MAX_WINDOWS = 20
 
 def _enumerate_project_store_candidates() -> tuple[CanonicalProjectUUID, ...]:
     """Return canonical project directory/hint names without opening a store."""
+    from specify_cli.core.paths import locate_project_root
+    from specify_cli.identity.project import load_identity
+
     from .deny_hints import enumerate_deny_hint_project_uuids
 
     candidates = set(enumerate_deny_hint_project_uuids())
+    repo_root = locate_project_root(Path.cwd())
+    if repo_root is not None:
+        with contextlib.suppress(OSError, TypeError, ValueError):
+            identity = load_identity(repo_root / ".kittify" / "config.yaml")
+            if identity.project_uuid is not None:
+                candidates.add(CanonicalProjectUUID.parse(str(identity.project_uuid)))
     projects_dir = Path(get_runtime_root().base) / "projects"
     if projects_dir.is_dir():
         for path in projects_dir.iterdir():
@@ -107,52 +115,6 @@ class LegacyQueueUndeterminedError(LegacyQueueNotConvergedError):
     while callers and tests can still tell "there are N stranded rows" apart from
     "the store could not be read". Inability to determine is not permission.
     """
-
-
-#: Failures of the legacy-count read that mean "could not determine" rather than
-#: "the shape of this API changed". Anything outside this set — a ``TypeError``
-#: from a changed arity, an ``AttributeError`` from a renamed field — must
-#: propagate, because a guard whose safe default is *permission* silently
-#: disables itself otherwise. That is the swallowed-exception fake green this
-#: mission already hit once.
-_UNDETERMINED_LEGACY_COUNT_ERRORS = (sqlite3.Error, OSError, ValueError)
-
-
-def _count_legacy_event_rows() -> int | None:
-    """Return the number of legacy queue *event* rows, or ``None`` if undeterminable.
-
-    Read-only: composes the same ``detect_legacy_rows_for_scope`` helper the
-    sync preflight uses, so the daemon and ``sync now`` agree on what "legacy
-    rows remain" means rather than growing a second definition.
-
-    Returns:
-        The event-row count (``0`` when there is genuinely nothing stranded), or
-        ``None`` when the legacy store could not be read. ``None`` is deliberately
-        a distinct answer from ``0``: this function gates daemon start, so
-        collapsing "unknown" onto "clean" hands out permission on a fault.
-        ``counts.event_rows`` is read directly — no ``getattr`` default — so a
-        renamed field raises instead of degrading to "clean".
-    """
-    from .queue import detect_legacy_rows_for_scope, read_queue_scope_from_credentials
-
-    try:
-        # The legacy DB has no per-scope partitioning, so the callee ignores this
-        # argument (it ``del``s it); it is log context only. A failure to read it
-        # is therefore NOT evidence about legacy rows and must not be reported as
-        # "undetermined" — otherwise an unrelated credentials fault would refuse
-        # the daemon.
-        scope = read_queue_scope_from_credentials() or ""
-    except (OSError, ValueError) as exc:
-        logger.debug("Could not read the queue scope for log context: %s", exc)
-        scope = ""
-
-    try:
-        counts = detect_legacy_rows_for_scope(scope)
-    except _UNDETERMINED_LEGACY_COUNT_ERRORS as exc:
-        logger.warning("Could not read the legacy queue to count stranded rows: %s", exc)
-        return None
-
-    return int(counts.event_rows)
 
 
 def _emit_nonfatal_final_sync_diagnostic(
@@ -192,7 +154,7 @@ def _emit_direct_ingress_skip_diagnostic() -> None:
 
 
 def _unauthenticated_sync_result(
-    queue: OfflineQueue,
+    queue: OfflineQueue | None,
     *,
     limit: int | None = None,
 ) -> BatchSyncResult:
@@ -205,6 +167,9 @@ def _unauthenticated_sync_result(
 
     _emit_direct_ingress_skip_diagnostic()
     read_limit = queue_size if limit is None else min(queue_size, limit)
+    if queue is None:
+        result.error_messages.append(_UNAUTHENTICATED_SYNC_ERROR)
+        return result
     events = queue.drain_queue(limit=read_limit)
     result.total_events = len(events)
     result.error_count = len(events)
@@ -337,7 +302,7 @@ def _consenting_body_project_uuids(tasks: list[BodyUploadTask]) -> frozenset[str
 class BackgroundSyncService:
     """Manages periodic background sync of the offline event queue."""
 
-    queue: OfflineQueue
+    queue: OfflineQueue | None
     config: SyncConfig
     sync_interval_seconds: float = 300.0  # 5 minutes default
     _timer: threading.Timer | None = field(default=None, init=False, repr=False)
@@ -354,7 +319,7 @@ class BackgroundSyncService:
         return bool(_enumerate_project_store_candidates())
 
     def _assert_legacy_queue_converged(self) -> None:
-        """Refuse to run while unmigrated legacy queue rows remain (#3030 T007).
+        """Require every discovered live project to use project-only layout.
 
         WP02 removed the queue-backed event drain (FR-012). For rows captured
         after ``_capture_to_journal`` (``sync/emitter.py``) that is lossless —
@@ -377,29 +342,46 @@ class BackgroundSyncService:
                 not route through the sync runtime, so it can still be run (and it
                 reports the unreadable source as a ``source_errors`` count).
         """
-        stranded = _count_legacy_event_rows()
-        if stranded is None:
-            undetermined = (
-                "Refusing to start background sync: could not read the legacy "
-                "queue at ~/.spec-kitty/queue.db, so whether undeliverable rows "
-                "remain is unknown. Run `spec-kitty sync migrate` to converge and "
-                "report on it; if the file is corrupt and holds nothing you need, "
-                "move it aside. Inability to determine is not clearance."
-            )
-            logger.error(undetermined)
-            raise LegacyQueueUndeterminedError(undetermined)
-        if stranded <= 0:
-            return
+        from .layout_generation import LayoutMode
 
-        message = (
-            f"Refusing to start background sync: {stranded} legacy queue event "
-            "row(s) remain that no drain will deliver. The queue-backed drain "
-            "was removed (#3030 FR-012) and these rows may have no journal "
-            "copy. Run `spec-kitty sync migrate` to converge them into the "
-            "event journal, then start sync again."
-        )
-        logger.error(message)
-        raise LegacyQueueNotConvergedError(message)
+        candidates = _enumerate_project_store_candidates()
+        probe_uuid = candidates[0] if candidates else CanonicalProjectUUID.parse("ffffffff-ffff-4fff-8fff-ffffffffffff")
+        try:
+            machine_layout = ProjectSyncStore(probe_uuid).layout_generation().peek_state()
+        except Exception as exc:
+            raise LegacyQueueUndeterminedError(f"Refusing to start background sync: machine layout authority is unreadable: {exc}") from exc
+        if machine_layout.mode is not LayoutMode.PROJECT_ONLY:
+            raise LegacyQueueNotConvergedError(
+                f"Refusing to start background sync: machine project-store layout is {machine_layout.mode.value}; run `spec-kitty sync project-store-migrate`."
+            )
+        if not candidates:
+            raise LegacyQueueUndeterminedError(
+                "Refusing to start background sync: no existing project identity or project store can establish live queue authority."
+            )
+        for project_uuid in candidates:
+            store = ProjectSyncStore(project_uuid)
+            try:
+                layout = store.layout_generation().peek_state()
+            except Exception as exc:
+                raise LegacyQueueUndeterminedError(
+                    f"Refusing to start background sync: project layout authority is unreadable for {project_uuid.storage_token}: {exc}"
+                ) from exc
+            if layout.mode is LayoutMode.PROJECT_ONLY:
+                try:
+                    store.verify_existing_readonly()
+                except ProjectStoreError as exc:
+                    raise LegacyQueueUndeterminedError(
+                        f"Refusing to start background sync: routed project store is unavailable for {project_uuid.storage_token}: {exc}"
+                    ) from exc
+                continue
+            message = (
+                "Refusing to start background sync: project store layout is "
+                f"{layout.mode.value} for {project_uuid.storage_token}. Run "
+                "`spec-kitty sync project-store-migrate`; legacy residue is "
+                "diagnosis/quarantine evidence and is never a live queue."
+            )
+            logger.error(message)
+            raise LegacyQueueNotConvergedError(message)
 
     def start(self) -> None:
         """Start the background sync service."""
@@ -481,7 +463,7 @@ class BackgroundSyncService:
         # hangs the process.  Events stay in the durable queue and will
         # be drained on the next daemon tick.
         body_queue_has_work = _safe_optional_queue_size(self._body_queue) > 0 or self._has_discovered_project_candidates()
-        if self.queue.size() > 0 or body_queue_has_work:
+        if _safe_optional_queue_size(self.queue) > 0 or body_queue_has_work:
             sync_thread = threading.Thread(
                 target=self._guarded_final_sync,
                 daemon=True,
@@ -572,7 +554,7 @@ class BackgroundSyncService:
         if not self._running:
             return
         body_queue_has_work = _safe_optional_queue_size(self._body_queue) > 0 or self._has_discovered_project_candidates()
-        if self.queue.size() > 0 or body_queue_has_work:
+        if _safe_optional_queue_size(self.queue) > 0 or body_queue_has_work:
             self._perform_sync()
         self._schedule_next_sync()
 
@@ -629,7 +611,7 @@ class BackgroundSyncService:
                     return self._record_unauthenticated_tick(result)
                 self._consecutive_failures = 0
                 self._backoff_seconds = 0.5
-                self._last_sync = datetime.now(UTC)
+                self._last_sync = now_utc()
                 return result
             except Exception as exc:
                 self._consecutive_failures += 1
@@ -681,7 +663,7 @@ class BackgroundSyncService:
                 return self._record_unauthenticated_tick(result)
             self._consecutive_failures = 0
             self._backoff_seconds = 0.5
-            self._last_sync = datetime.now(UTC)
+            self._last_sync = now_utc()
             return result
         except Exception as exc:
             self._consecutive_failures += 1
@@ -818,7 +800,9 @@ class BackgroundSyncService:
         from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
         from .body_queue import OfflineBodyUploadQueue
         from .project_context import AdmissionState, ConsentState
+        from .queue import get_max_queue_size
 
+        max_queue_size = get_max_queue_size()
         context = store.create_context()
         if context.consent_generation is not None:
             self._observed_consent_generations[store.project_uuid.storage_token] = context.consent_generation
@@ -841,7 +825,11 @@ class BackgroundSyncService:
             return None
 
         with store.unit_of_work() as unit:
-            queue = OfflineBodyUploadQueue(unit, store.layout_generation())
+            queue = OfflineBodyUploadQueue(
+                unit,
+                store.layout_generation(),
+                max_queue_size=max_queue_size,
+            )
             removed = queue.remove_stale(max_retry_count=20)
             tasks = queue.drain(limit=limit)
         if removed > 0:
@@ -861,11 +849,17 @@ class BackgroundSyncService:
         """Record an outcome only through the task's already-known owning store."""
         from .body_queue import OfflineBodyUploadQueue
         from .namespace import UploadStatus
+        from .queue import get_max_queue_size
 
         if task.project_uuid != store.project_uuid.storage_token:
             raise ValueError("body task project UUID does not match its selected store")
+        max_queue_size = get_max_queue_size()
         with store.unit_of_work() as unit:
-            queue = OfflineBodyUploadQueue(unit, store.layout_generation())
+            queue = OfflineBodyUploadQueue(
+                unit,
+                store.layout_generation(),
+                max_queue_size=max_queue_size,
+            )
             if outcome.status is UploadStatus.UPLOADED:
                 queue.mark_uploaded(task.row_id)
             elif outcome.status is UploadStatus.ALREADY_EXISTS:
@@ -891,6 +885,7 @@ class BackgroundSyncService:
         resolved_target, account_identity, private_teamspace_id = authenticated_target
 
         remaining = _BODY_DRAIN_BATCH_LIMIT
+        project_failures: list[str] = []
         for project_uuid in _enumerate_project_store_candidates():
             if remaining <= 0:
                 break
@@ -925,11 +920,14 @@ class BackgroundSyncService:
                     self._record_project_body_outcome(store, task, outcome)
                     remaining -= 1
             except Exception as exc:  # noqa: BLE001 - one project fault must not stop another project
+                project_failures.append(f"{project_uuid.storage_token}: {exc}")
                 logger.warning(
                     "Withholding project %s body work after a project-scoped failure: %s",
                     project_uuid.storage_token,
                     exc,
                 )
+        if project_failures:
+            raise RuntimeError("one or more project body drains failed after isolated progress: " + "; ".join(project_failures))
         return True
 
     def _drain_body_queue(self) -> bool:
@@ -1159,7 +1157,7 @@ def get_sync_service() -> BackgroundSyncService:
         with _service_lock:
             if _service is None:
                 service = BackgroundSyncService(
-                    queue=OfflineQueue(),
+                    queue=None,
                     config=SyncConfig(),
                 )
                 # Publish the singleton only once start() has succeeded (#3030 H8).

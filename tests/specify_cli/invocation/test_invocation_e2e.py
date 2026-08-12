@@ -249,7 +249,7 @@ def test_sync_disabled_no_saas_events(tmp_path: Path) -> None:
     with (
         patch(
             "specify_cli.invocation.propagator.resolve_egress_consent",
-            return_value=EgressConsent.DENIED,  # the project has not consented
+            return_value=EgressConsent.NO_RECORD,  # the project has not consented
         ),
         patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -817,7 +817,7 @@ def test_sync_disabled_no_propagation_errors(tmp_path: Path) -> None:
     with (
         patch(
             "specify_cli.invocation.propagator.resolve_egress_consent",
-            return_value=EgressConsent.DENIED,  # the project has not consented
+            return_value=EgressConsent.NO_RECORD,  # the project has not consented
         ),
         patch("specify_cli.invocation.propagator._get_saas_client") as mock_client,
     ):

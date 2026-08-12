@@ -117,7 +117,9 @@ class TestNamespaceRef:
             mission_type="m",
             manifest_version="v",
         )
-        assert ns.dedupe_key("a.md", "h1") == ns.dedupe_key("a.md", "h1")
+        first_key = ns.dedupe_key("a.md", "h1")
+        second_key = ns.dedupe_key("a.md", "h1")
+        assert first_key == second_key
 
     def test_frozen(self) -> None:
         ns = NamespaceRef(

@@ -204,6 +204,12 @@ def _normalize_directive_id(raw: str) -> str:
     """Normalise a directive slug like '024-locality-of-change' -> 'DIRECTIVE_024'.
 
     If the raw value already looks like DIRECTIVE_NNN, return as-is.
+
+    Kept in lock-step with ``doctrine.drg.migration.id_normalizer.normalize_directive_id``
+    (a separate copy for a documented import-cycle reason): the fallback folds
+    hyphens to underscores so slug-named hub directives
+    (``use-c4-model-techniques`` -> ``USE_C4_MODEL_TECHNIQUES``) resolve to their
+    canonical node id rather than a dangling hyphenated form (#3009).
     """
     if re.match(r"^DIRECTIVE_\d+$", raw):
         return raw
@@ -211,4 +217,4 @@ def _normalize_directive_id(raw: str) -> str:
     if match:
         number = match.group(1).zfill(3)
         return f"DIRECTIVE_{number}"
-    return raw.upper()
+    return raw.upper().replace("-", "_")

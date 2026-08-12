@@ -7,7 +7,7 @@ import html
 import json
 import re
 from dataclasses import dataclass
-from datetime import date
+from kernel.clock import now_utc
 from pathlib import Path
 from urllib.parse import quote
 
@@ -76,6 +76,14 @@ def should_index(relative_path: str, markup: str) -> bool:
     if rel.endswith("/toc.html") or rel == "toc.html":
         return False
     if rel.startswith("assets/"):
+        return False
+    # kitty-specs are dogfooded mission artifacts (spec/plan/tasks/... per
+    # mission) surfaced in the site for provenance, not curated public pages:
+    # they legitimately share a per-mission description and carry glossary-linked
+    # titles. They are internal, so they stay out of search indexing — and, as
+    # the single indexability authority (I-08), out of the SEO rules (og:title,
+    # duplicate-description) and the sitemap too.
+    if rel.startswith("kitty-specs/") or "/kitty-specs/" in rel:
         return False
     if 'http-equiv="refresh"' in markup.lower():
         return False
@@ -356,7 +364,14 @@ def process_html(site_dir: Path, base_url: str, image_path: str) -> list[Page]:
 
 
 def write_sitemap(site_dir: Path, pages: list[Page]) -> None:
-    today = date.today().isoformat()
+    # FR-011 (kernel-clock-single-door): the door has no date-only producer
+    # (plan Sec 1.1). Prior site was local-time `date.today()` -- a naive
+    # local-time read masquerading as a date. Routed onto the door's aware
+    # `now_utc().date()`, which flips local -> UTC date: BYTE-CHANGING when
+    # the build host's local date differs from the UTC date at build time
+    # (e.g. near midnight). See research/migration-notes.md (WP14) for the
+    # adjudication record and pinning test.
+    today = now_utc().date().isoformat()
     urls = "\n".join(
         f"  <url><loc>{html.escape(page.url)}</loc><lastmod>{today}</lastmod></url>" for page in pages
     )

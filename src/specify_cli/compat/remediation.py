@@ -441,13 +441,12 @@ def _uv_injected_dep_args(req: UvRequirement) -> list[str] | None:
         return None
     if req.editable is not None:
         return ["--with-editable", req.editable]
-    source = _uv_injected_dep_source(req)
-    if source is not None:
-        return ["--with", source]
-    return None
+    # _uv_injected_dep_source is total (always returns a non-empty str via the
+    # name+specifier fallback), so no None guard is needed here (S2583).
+    return ["--with", _uv_injected_dep_source(req)]
 
 
-def _uv_injected_dep_source(req: UvRequirement) -> str | None:
+def _uv_injected_dep_source(req: UvRequirement) -> str:
     """Resolve the `--with` source token for an injected dependency."""
     if req.directory is not None:
         return req.directory

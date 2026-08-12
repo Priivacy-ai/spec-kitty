@@ -264,14 +264,14 @@ def test_runner_repairs_current_v2_after_original_migration_was_recorded(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Already-recorded original migration must not suppress same-version repair."""
-    from datetime import datetime
+    from kernel.clock import now_utc
 
     from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
     from specify_cli.upgrade.metadata import ProjectMetadata
     from specify_cli.upgrade.runner import MigrationRunner
 
     _create_legacy_v2_bundle_without_built_in_only(tmp_path)
-    metadata = ProjectMetadata(version="3.2.0rc35", initialized_at=datetime.now())
+    metadata = ProjectMetadata(version="3.2.0rc35", initialized_at=now_utc())
     metadata.record_migration(
         CharterBundleV2Migration.migration_id,
         "success",

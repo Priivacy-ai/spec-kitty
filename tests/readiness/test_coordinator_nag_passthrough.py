@@ -10,7 +10,7 @@ Mission: cli-startup-readiness-coordinator-skeleton-01KS7JRV
 from __future__ import annotations
 
 import sys
-from datetime import UTC, datetime, timedelta
+from kernel.clock import UTC, datetime, timedelta
 from typing import Any
 
 import pytest

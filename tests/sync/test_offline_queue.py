@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Iterator
-from datetime import UTC, datetime, timedelta
+from kernel.clock import now_utc, timedelta
 from io import StringIO
 from pathlib import Path
 
@@ -267,7 +267,7 @@ class TestQueueStats:
         assert len(temp_queue.get_queue_stats().top_event_types) == 5
 
     def test_oldest_event_age_from_past_timestamp(self, temp_queue: OfflineQueue) -> None:
-        now = datetime.now(UTC)
+        now = now_utc()
         temp_queue.queue_event(_event("old-evt", "TestEvent", created_at=(now - timedelta(hours=1)).isoformat()))
         temp_queue.queue_event(_event("new-evt", "TestEvent", created_at=now.isoformat()))
         age = temp_queue.get_queue_stats().oldest_event_age

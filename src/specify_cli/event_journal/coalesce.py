@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 from .journal import CoalesceDecision, EventJournal, register_coalesce_strategy
 from .models import Event

@@ -3,14 +3,19 @@
 Covers T015-T020 of the WP03 work-package prompt:
 
 * T015 -- module shape: ``EgressDestination`` (closed two-member set), the verdict value
-  object (no ``binding_kind``), the two authored deliverable docstrings (module + classifier)
-  carrying their required literal strings, and the no-import-time-``specify_cli.sync`` pin.
+  object (no ``binding_kind``), the module docstring carrying its required literal strings
+  (the classifier's own docstring pin retired alongside its deletion -- egress-single-authority
+  mission, WP03), and the no-import-time-``specify_cli.sync`` pin.
 * T016 -- Channel 2's ``isinstance``-guarded resolver, observed red (as a ``TypeError``, not an
   ``AssertionError``) then green.
 * T017 -- ``_JOIN``: the 8-cell table, both the structural (``len(_JOIN) == 8``) and the
   behavioural (a parametrised test over all 8 cells) pins.
-* T018 -- the Channel-1 classifier: root-equality from a subdirectory, and both
-  non-authoritativeness pins.
+* T018 -- (egress-single-authority mission, WP03) the former Channel-1 classifier
+  (``_classify_channel1``) and its two non-authoritativeness pins are retired: the classifier
+  is deleted, not migrated, and ``TestReportingSplitNeverFlipsEnforcement`` is rebuilt as a
+  structural one-resolution-each proof (NFR-004/SC-003) plus the classifier's symbol-absence
+  (SC-004), rather than re-pointed onto a monkeypatched disagreement that no longer has a
+  second authority to disagree with.
 * T019 -- message composition: the ``root=None`` byte-identity pin (both destinations), the
   fault message naming the offending value and both legal values, and the
   message-not-recomposed pin.
@@ -29,7 +34,7 @@ import sys
 import uuid as uuid_module
 from collections.abc import Callable
 from pathlib import Path
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import pytest
 
@@ -57,11 +62,10 @@ from specify_cli.tracker.egress_verdict import (
     EgressDestination,
     TrackerEgressVerdict,
     _channel1_decided_message,
-    _channel1_report,
     _channel2_decided_message,
-    _classify_channel1,
     _JOIN,
     _permit_message,
+    _resolve_channel1,
     _resolve_channel2,
     tracker_egress_verdict,
 )
@@ -206,13 +210,6 @@ class TestModuleShape:
         import specify_cli.tracker.egress_verdict as mod
 
         doc = mod.__doc__ or ""
-        assert "invocation/adapters.py:81" in doc
-        assert "Q3" in doc
-        assert "delete" in doc
-        assert "not migrate" in doc
-
-    def test_classifier_docstring_carries_the_four_required_literals(self) -> None:
-        doc = _classify_channel1.__doc__ or ""
         assert "invocation/adapters.py:81" in doc
         assert "Q3" in doc
         assert "delete" in doc
@@ -542,211 +539,134 @@ class TestJoinTable:
 
 
 # ---------------------------------------------------------------------------
-# T018 -- the Channel-1 classifier: root-equality, non-authoritativeness
+# T018 -- retired (egress-single-authority mission, WP03): the Channel-1 classifier and its
+# two non-authoritativeness pins are deleted, not migrated (C-002) -- see
+# TestReportingSplitNeverFlipsEnforcement below for the rebuilt guarantee.
 # ---------------------------------------------------------------------------
 
 
-class TestChannel1Classifier:
-    def test_classifies_no_record(self, tmp_path: Path) -> None:
-        root = _no_record_root(tmp_path)
-        assert _classify_channel1(root) == CHANNEL1_NO_RECORD
+# ---------------------------------------------------------------------------
+# Rebuilt (not re-pointed), egress-single-authority mission WP03, Decision 4 --
+# supersedes the PR #3135 adversarial-squad pin (HIGH-2) that used to live here.
+# ---------------------------------------------------------------------------
 
-    def test_classifies_recorded_refusal(self, tmp_path: Path) -> None:
-        root = _recorded_refusal_root(tmp_path)
-        assert _classify_channel1(root) == CHANNEL1_RECORDED_REFUSAL
 
-    def test_classifies_not_consentable(self, tmp_path: Path) -> None:
-        root = _not_consentable_root(tmp_path)
-        assert _classify_channel1(root) == CHANNEL1_NOT_CONSENTABLE
+class TestReportingSplitNeverFlipsEnforcement:
+    """Structural proof that there is no second authority left to disagree with the first.
 
-    def test_classifier_returns_only_the_closed_set_of_three(self, tmp_path: Path) -> None:
-        closed_set = {CHANNEL1_NO_RECORD, CHANNEL1_RECORDED_REFUSAL, CHANNEL1_NOT_CONSENTABLE}
-        for builder in (_no_record_root, _recorded_refusal_root, _not_consentable_root, _recorded_grant_root):
-            root = builder(tmp_path, name=f"closed-{builder.__name__}")
-            assert _classify_channel1(root) in closed_set
+    PR #3135's adversarial squad (robertDouglass) originally flagged HIGH-2 here: Channel 1
+    was *enforced* through the single canonical authority (``_resolve_channel1`` ->
+    ``project_egress_refusal``), but its diagnostic *state* was independently re-resolved by
+    ``_classify_channel1`` through a second, separate read of ``specify_cli.sync.consent`` /
+    ``specify_cli.sync.routing``. The original two tests here forced that classifier to
+    disagree with the enforcing read and proved the enforced answer did not move.
 
-    def test_guarded_import_failure_degrades_instead_of_raising(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """T018 step 3: a failing guarded import degrades to a closed-set label rather than
-        propagating. ``sys.modules[name] = None`` is the standard mechanism to force
-        ``ImportError`` on the next ``import``/``from ... import`` of that exact name."""
-        monkeypatch.setitem(sys.modules, "specify_cli.sync.consent", None)
-        root = _no_record_root(tmp_path)
-        assert _classify_channel1(root) == CHANNEL1_NO_RECORD
+    That premise is gone (research.md Decision 4): ``_classify_channel1`` is **delete**d, **not
+    migrate**d -- ``channel1_state``/``generic`` are now sourced directly off the same
+    :func:`~specify_cli.egress._egress_decision` evaluation that decides ``permits``
+    (:func:`~specify_cli.tracker.egress_verdict._resolve_channel1`). There is no longer a
+    second, independent resolution to force into disagreement, so this class is rebuilt as the
+    structural claim that makes that true: exactly one ``resolve_checkout_sync_routing_readonly``
+    and one ``resolve_project_consent`` call happen per gated verdict (NFR-004/SC-003), and the
+    ``_classify_channel1`` symbol itself no longer exists (SC-004). The full
+    enforcement-equivalence matrix (the permit row and every consent-precedence level) is
+    WP01's own C-001 certifier
+    (``tests/sync/tracker/test_egress_single_authority.py::TestT001EnforcementEquivalenceMatrix``)
+    and is intentionally not re-duplicated here.
+    """
 
-    def test_root_equality_from_a_subdirectory(self, tmp_path: Path) -> None:
-        """The classifier's ``checkout_roots=[routing.repo_root]`` must resolve to the same
-        root the registered enforcer resolves, even when asked from a subdirectory --
-        otherwise the reported state can contradict the enforced one."""
-        from specify_cli.sync.routing import resolve_checkout_sync_routing_readonly
+    def test_classify_channel1_symbol_is_absent(self) -> None:
+        """SC-004: the classifier is gone, not merely unused."""
+        import specify_cli.tracker.egress_verdict as mod
 
-        root = _no_record_root(tmp_path)
-        subdir = root / "kitty-specs" / "some-mission"
-        subdir.mkdir(parents=True)
+        assert not hasattr(mod, "_classify_channel1"), (
+            "_classify_channel1 must be deleted, not migrated, once channel1_state is sourced from the single authority (C-002)"
+        )
 
-        enforcer_routing = resolve_checkout_sync_routing_readonly(subdir)
-        assert enforcer_routing is not None
-        assert enforcer_routing.repo_root == root
+    def test_gated_verdict_resolves_routing_and_consent_exactly_once(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """NFR-004/SC-003: a refusing root reaches the registered enforcing resolver's own
+        routing/consent resolution exactly once each -- there is no second, independent read
+        of either left to run alongside it."""
+        from specify_cli.sync import consent as consent_module
+        from specify_cli.sync import routing as routing_module
 
-        # The classifier, invoked from the same subdirectory, must classify consistently
-        # with what the enforcer just resolved for that exact root.
-        label = _classify_channel1(subdir)
-        assert label == CHANNEL1_NO_RECORD
-        # And calling it directly on the resolved root gives the identical answer --
-        # proving the classifier did not silently resolve a different root.
-        assert _classify_channel1(root) == label
+        routing_calls: list[Path] = []
+        real_routing = routing_module.resolve_checkout_sync_routing_readonly
 
-    def test_non_authoritative_forced_labels_while_channel1_permits(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Non-authoritativeness pin 1, corrected after review round 1 (HIGH-2).
+        def _counting_routing(root: Path) -> Any:
+            routing_calls.append(root)
+            return real_routing(root)
 
-        The fix makes ``_classify_channel1`` **unreachable** whenever Channel 1 permits --
-        ``_channel1_report`` checks ``channel1_permits`` first and assigns
-        ``CHANNEL1_GRANTED`` directly. So the meaningful pin is no longer "forcing a label
-        doesn't change the enforced answer" (that would now be vacuously true, since the
-        classifier is never even called) but the stronger claim this fix makes true: the
-        classifier is **provably never invoked** on a permitting path, and the reported state
-        is unconditionally ``CHANNEL1_GRANTED`` regardless of what the classifier would have
-        said. Patching it to unconditionally raise proves both at once -- if it were called,
-        this test would fail with a propagated exception instead of passing.
-        """
-        root = _recorded_grant_root(tmp_path)  # Channel 1 genuinely permits
+        consent_calls: list[tuple[Any, ...]] = []
+        real_consent = consent_module.resolve_project_consent
 
-        def _must_not_be_called(_root: Path) -> str:
-            raise AssertionError("_classify_channel1 must not be invoked when Channel 1 permits")
+        def _counting_consent(*args: Any, **kwargs: Any) -> Any:
+            consent_calls.append(args)
+            return real_consent(*args, **kwargs)
 
-        monkeypatch.setattr("specify_cli.tracker.egress_verdict._classify_channel1", _must_not_be_called)
+        monkeypatch.setattr(routing_module, "resolve_checkout_sync_routing_readonly", _counting_routing)
+        monkeypatch.setattr(consent_module, "resolve_project_consent", _counting_consent)
 
-        for destination in DESTINATIONS:
-            verdict = tracker_egress_verdict(root, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
-            assert verdict.refused is False
-            assert verdict.channel1_state == CHANNEL1_GRANTED
+        root = _recorded_refusal_root(tmp_path)  # Channel 1 genuinely refuses
+        verdict = tracker_egress_verdict(
+            root,
+            destination=EgressDestination.LOCAL_SUBPROCESS,
+            identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS],
+        )
 
-    def test_channel1_report_never_calls_classifier_when_permitting(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The same claim, proven directly against ``_channel1_report`` without going through
-        the full verdict composition, and without needing to construct any fixture at all --
-        the branch is unconditional on ``channel1_permits``."""
-
-        def _must_not_be_called(_root: Path) -> str:
-            raise AssertionError("_classify_channel1 must not be invoked when channel1_permits is True")
-
-        monkeypatch.setattr("specify_cli.tracker.egress_verdict._classify_channel1", _must_not_be_called)
-        label, generic = _channel1_report(Path("/does/not/matter"), channel1_permits=True)
-        assert label == CHANNEL1_GRANTED
-        assert generic is False
-
-    def test_non_authoritative_classifier_raises_generic_wording(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Non-authoritativeness pin 2: a raising classifier must not propagate, and the
-        refusal must print generic wording, never a specific (and possibly wrong) label's
-        wording."""
-        root = _no_record_root(tmp_path)  # Channel 1 genuinely refuses
-
-        def _boom(_root: Path) -> str:
-            raise RuntimeError("classifier exploded")
-
-        monkeypatch.setattr("specify_cli.tracker.egress_verdict._classify_channel1", _boom)
-
-        verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS, identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS])
         assert verdict.refused is True
-        no_record_specific = _channel1_decided_message(
+        assert verdict.channel1_state == CHANNEL1_RECORDED_REFUSAL
+        assert len(routing_calls) == 1, f"NFR-004/SC-003: expected exactly one checkout-routing resolution per gated verdict, got {len(routing_calls)}"
+        assert len(consent_calls) == 1, f"NFR-004/SC-003: expected exactly one project-consent resolution per gated verdict, got {len(consent_calls)}"
+
+
+# ---------------------------------------------------------------------------
+# T016 -- the message composer stays total over a degraded channel1_state (post-plan M2).
+# A direct, unit-level replacement for the deleted non-authoritativeness pin 2 (a raising
+# classifier could reach this same branch before; now a degraded EgressConsent member does).
+# ---------------------------------------------------------------------------
+
+
+class TestMessageComposerTotalOverDegradedState:
+    """``_channel1_decided_message`` must check ``channel1_generic`` *before* indexing
+    ``_CHANNEL1_DESCRIPTIONS``/``_CHANNEL1_REMEDIES`` -- both dicts are keyed only on the three
+    named refusal states, so a degraded ``channel1_label`` (e.g. the reused
+    ``CHANNEL1_UNCLASSIFIED``) would ``KeyError`` if the generic branch were not checked first.
+    Exercised directly against the composer, at both destinations, rather than only through
+    ``tracker_egress_verdict`` -- so a regression here fails at the unit that owns the
+    total/never-raise contract, not only at the integration harness (WP01 T004) that also pins
+    it end to end.
+    """
+
+    @pytest.mark.parametrize("destination", DESTINATIONS, ids=["local_subprocess", "hosted_service"])
+    def test_degraded_label_renders_generic_wording_never_keyerror(self, destination: EgressDestination) -> None:
+        message, remedies = _channel1_decided_message(
+            destination=destination,
+            channel1_permits=False,
+            channel1_label=CHANNEL1_UNCLASSIFIED,
+            channel1_generic=True,
+            noop=False,
+        )
+        assert "could not be determined in detail" in message
+        if destination is EgressDestination.LOCAL_SUBPROCESS:
+            # LOCAL_SUBPROCESS always offers the Channel-2 grant remedy, independently of
+            # channel1_generic -- it is not one of the state-keyed `_CHANNEL1_REMEDIES`.
+            assert len(remedies) == 1 and "permitted" in remedies[0]
+        else:
+            assert remedies == ()
+
+    def test_non_generic_label_still_indexes_the_specific_description(self) -> None:
+        """Control: a non-degraded label still renders its specific wording, so the generic
+        branch is proven to be a real fork rather than the only path ever taken."""
+        message, remedies = _channel1_decided_message(
             destination=EgressDestination.LOCAL_SUBPROCESS,
             channel1_permits=False,
             channel1_label=CHANNEL1_NO_RECORD,
             channel1_generic=False,
             noop=False,
-        )[0]
-        assert verdict.message != no_record_specific, "must not silently reuse a specific label's wording"
-        assert "could not be determined in detail" in verdict.message
-        # LOW-4 regression (review round 1): the reported state must be the distinct
-        # CHANNEL1_UNCLASSIFIED, never CHANNEL1_NO_RECORD -- a raised classification is
-        # evidence of nothing, not evidence of "no record".
-        assert verdict.channel1_state == CHANNEL1_UNCLASSIFIED
-
-
-# ---------------------------------------------------------------------------
-# Landing-pass regression -- two-authority reporting split cannot flip the
-# enforced answer (PR #3135 adversarial squad, HIGH-2)
-# ---------------------------------------------------------------------------
-
-
-class TestReportingSplitNeverFlipsEnforcement:
-    """Defense-in-depth pin, not a red-first bugfix.
-
-    PR #3135's adversarial squad (robertDouglass) flagged HIGH-2: Channel 1 is *enforced*
-    through the single canonical authority (``_resolve_channel1`` -> ``project_egress_refusal``),
-    but its diagnostic *state* is independently re-resolved by ``_classify_channel1`` through a
-    second, separate read of ``specify_cli.sync.consent`` / ``specify_cli.sync.routing``. Under
-    concurrent consent mutation between the two reads -- or if the two resolution paths ever
-    diverge for any other reason -- the reported *reason* for a refusal can be wrong.
-
-    This module's own docstring already records that split as accepted debt (see
-    ``_classify_channel1``'s "Retirement condition"): it retires only when sibling Bundle B's
-    open Q3 gives the ``_egress_consent_resolver: Callable[[Path], bool] | None`` registry
-    contract (``invocation/adapters.py:81``) a decision-carrying return value, so the diagnostic
-    detail this classifier re-derives no longer needs a second read to exist at all. That
-    contract is owned outside this module and outside this landing pass.
-
-    What matters for THIS landing pass is severity: can the split ever change the *security*
-    outcome -- flip a refusal to a permit, or vice versa -- rather than only the human-readable
-    label? Traced in ``tracker_egress_verdict``: every ``refused=`` and every
-    ``_refusing_channels(...)`` call site is built from ``channel1_permits`` (the single value
-    ``_resolve_channel1`` -- i.e. ``project_egress_refusal`` -- produced) and ``channel2_state``
-    alone. ``channel1_label`` / ``channel1_generic`` (``_classify_channel1``'s output, via
-    ``_channel1_report``) feed **only** ``TrackerEgressVerdict.channel1_state`` and the
-    message/remedy text composed by ``_channel1_decided_message`` -- never the boolean decision.
-    The two tests below force the classifier to disagree with the enforcing read and prove the
-    enforced answer does not move.
-    """
-
-    def test_classifier_disagreement_does_not_change_refused_or_refusing_channels(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Channel 1 genuinely refuses (``channel1_permits=False``). Force the independently
-        re-resolved classifier to report a *different* closed-set label than the one that
-        actually applies here (``CHANNEL1_RECORDED_REFUSAL``) -- simulating exactly the
-        divergence HIGH-2 describes, e.g. a concurrent mutation landing between the two reads.
-        The enforced fields must be identical to the undisturbed run; only the diagnostic label
-        and its derived remedy text may differ.
-        """
-        root = _recorded_refusal_root(tmp_path)  # Channel 1 genuinely refuses
-        baseline = tracker_egress_verdict(
-            root,
-            destination=EgressDestination.LOCAL_SUBPROCESS,
-            identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS],
         )
-        assert baseline.channel1_state == CHANNEL1_RECORDED_REFUSAL  # sanity: the true label
-
-        # Force the second, independent authority to disagree with the first.
-        monkeypatch.setattr(
-            "specify_cli.tracker.egress_verdict._classify_channel1",
-            lambda _root: CHANNEL1_NOT_CONSENTABLE,
-        )
-        disagreeing = tracker_egress_verdict(
-            root,
-            destination=EgressDestination.LOCAL_SUBPROCESS,
-            identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS],
-        )
-
-        # The enforced answer is untouched by the disagreement.
-        assert disagreeing.refused == baseline.refused is True
-        assert disagreeing.refusing_channels == baseline.refusing_channels == frozenset({CHANNEL_1})
-        # Only the diagnostic label (and the remedy text it selects) actually moved.
-        assert disagreeing.channel1_state == CHANNEL1_NOT_CONSENTABLE
-        assert disagreeing.channel1_state != baseline.channel1_state
-
-    def test_classifier_disagreement_at_hosted_service_does_not_change_refused(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Same proof at ``HOSTED_SERVICE``, where FR-016 additionally requires the message to
-        stay byte-identical to the shipped `#3030` text -- confirming the classifier's forced
-        disagreement cannot even reach the message on this path, let alone the enforced answer.
-        """
-        root = _recorded_refusal_root(tmp_path)
-        monkeypatch.setattr(
-            "specify_cli.tracker.egress_verdict._classify_channel1",
-            lambda _root: CHANNEL1_NOT_CONSENTABLE,
-        )
-        verdict = tracker_egress_verdict(
-            root,
-            destination=EgressDestination.HOSTED_SERVICE,
-            identifiers=_IDENTIFIERS_FOR[EgressDestination.HOSTED_SERVICE],
-        )
-        assert verdict.refused is True
-        assert verdict.refusing_channels == frozenset({CHANNEL_1})
+        assert "no record" in message
+        assert remedies != ()
 
 
 # ---------------------------------------------------------------------------
@@ -895,13 +815,11 @@ class TestMessageComposition:
         Recomputes against the *real* Channel-1 answer for this root (rather than assuming
         one) so the assertion cannot pass by coincidence.
         """
-        from specify_cli.tracker.egress_verdict import _resolve_channel1
-
         root = tmp_path / "refused-both"
         _write_config(root, "tracker:\n  egress: refused\n")
         for destination in DESTINATIONS:
             verdict = tracker_egress_verdict(root, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
-            channel1_permits, channel1_refusal_text = _resolve_channel1(root, _IDENTIFIERS_FOR[destination])
+            channel1_permits, channel1_refusal_text, _channel1_state, _channel1_generic = _resolve_channel1(root, _IDENTIFIERS_FOR[destination])
             expected = _channel2_decided_message(
                 destination=destination,
                 channel2_state="refused",

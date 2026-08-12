@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind, placement_seam
 from collections import Counter
-from datetime import UTC, datetime
+from kernel.clock import datetime, now_utc, parse_iso
 from pathlib import Path
 
 from rich.console import Console
@@ -48,7 +48,7 @@ def _get_last_event_time(events: list[StatusEvent], wp_id: str) -> datetime | No
     if not at_str:
         return None
     try:
-        return datetime.fromisoformat(at_str)
+        return parse_iso(at_str)
     except ValueError:
         return None
 
@@ -274,7 +274,7 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
 
         # --- Stall detection (T025) ---
         # Flag in_review WPs whose last event is older than the threshold
-        now_utc = datetime.now(UTC)
+        current_instant = now_utc()
         stalled_wps: list[dict] = []
         for wp in by_lane.get(Lane.IN_REVIEW, []):
             wp_id = wp["id"]
@@ -282,7 +282,7 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
                 continue
             last_event_time = _get_last_event_time(events, wp_id)
             if last_event_time is not None:
-                age_minutes = (now_utc - last_event_time).total_seconds() / 60
+                age_minutes = (current_instant - last_event_time).total_seconds() / 60
                 if age_minutes > threshold_minutes:
                     stall_label = f"STALLED — no move-task in {int(age_minutes)}m"
                     wp["_stall_label"] = stall_label

@@ -59,7 +59,6 @@ import logging
 import re
 import subprocess
 import contextlib
-from datetime import UTC
 from pathlib import Path
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Annotated

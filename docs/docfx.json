@@ -17,25 +17,11 @@
           "development/**.md",
           "operations/**.md",
           "migrations/**.md",
-          "changelog/**.md",
-          "release-goals/**.md",
-          "doctrine/**.md",
-          "core-concepts/**.md",
-          "reference/**.md",
-          "updates/**.md"
+          "changelog/**.md"
         ],
         "exclude": [
           "**/_*.md"
         ]
-      },
-      {
-        "files": [
-          "**.md",
-          "**/toc.yml",
-          "toc.yml"
-        ],
-        "src": "archive",
-        "dest": "archive"
       }
     ],
     "resource": [
@@ -51,17 +37,7 @@
         ]
       }
     ],
-    "overwrite": [
-      {
-        "files": [
-          "apidoc/**.md"
-        ],
-        "exclude": [
-          "obj/**",
-          "_site/**"
-        ]
-      }
-    ],
+    "overwrite": [],
     "dest": "_site",
     "globalMetadataFiles": [],
     "fileMetadataFiles": [],
@@ -80,7 +56,7 @@
       "_appTitle": "Spec Kitty Documentation",
       "_appName": "Spec Kitty",
       "_siteUrl": "https://docs.spec-kitty.ai/",
-      "_appFooter": "Spec Kitty documentation — context, architecture, ADRs, plans, API, configuration, integrations, security, guides, operations, migrations, and changelog · <a href=\"https://docs.spec-kitty.ai/archive/1x/\">1.x historical archive</a> · <a href=\"https://docs.spec-kitty.ai/archive/2x/\">2.x historical archive</a>",
+      "_appFooter": "Spec Kitty documentation — context, architecture, ADRs, plans, API, configuration, integrations, security, guides, operations, migrations, and changelog · <a href=\"https://docs.spec-kitty.ai/changelog/1x/\">1.x historical archive</a> · <a href=\"https://docs.spec-kitty.ai/changelog/2x/\">2.x historical archive</a>",
       "_enableSearch": true,
       "_disableContribution": false,
       "_gitContribute": {

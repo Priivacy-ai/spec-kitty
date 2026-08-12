@@ -507,7 +507,9 @@ def test_fingerprint_known_value() -> None:
     expected = hashlib.sha256(b"hello").hexdigest()  # noqa: TID251 — skills manifest fingerprint() is defined as raw SHA-256; the test verifies that definition, not charter freshness
     assert fingerprint(b"hello") == expected
     assert len(fingerprint(b"hello")) == 64
-    assert fingerprint(b"hello") == fingerprint(b"hello")  # idempotent
+    first_digest = fingerprint(b"hello")
+    second_digest = fingerprint(b"hello")
+    assert first_digest == second_digest  # idempotent
 
 
 def test_fingerprint_empty_bytes() -> None:

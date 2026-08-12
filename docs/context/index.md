@@ -2,7 +2,9 @@
 title: Context
 description: "Context section landing page: the unified home for Spec Kitty's canonical glossary contexts, the stakeholder/audience persona catalog, and the Charter governance model."
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-08-10'
+audience: docs/context/audience/internal/system-architect.md
+type: explanation
 ---
 # Context
 
@@ -24,9 +26,16 @@ to do and why.
 
 ### Glossary reference notes
 
-Companion notes to the glossary contexts, relocated here from the legacy
-`glossary/` surface:
+Companion notes to the glossary contexts, folded in here from the legacy
+root-level `glossary/` stub and the previously homeless context docs:
 
+- [Glossary Conventions](glossary-conventions.md) — source-of-truth precedence,
+  the policy/runtime layering, term status lifecycle, and the per-term entry
+  schema every context page follows (folded from the root `glossary/` stub).
+- [Contextive Glossary Integration](contextive-glossaries.md) — how the context
+  pages generate Contextive-compatible IDE hover glossaries.
+- [Specification-Driven Development (SDD)](spec-driven.md) — the methodology
+  behind Spec Kitty, rehomed from the repository root.
 - [Naming Decision: Tool vs Agent](naming-decision-tool-vs-agent.md) — the
   canonical split between *tool* (concrete execution product) and *agent*
   (logical collaborator identity/role).
@@ -75,18 +84,18 @@ For the full mental model, see [How Charter Works](charter-overview.md).
 
 #### Tutorials — learning-oriented
 
-- [Governed Charter Workflow End-to-End](../guides/charter-governed-workflow.md) — Start from a fresh repo, set up governance, synthesize doctrine, and run a governed mission action
-- [Getting Started with Spec Kitty](../guides/getting-started.md) — First project from scratch
-- [Multi-Agent Workflow](../guides/multi-agent-workflow.md) — Run a mission across multiple harnesses
+- [Governed Charter Workflow End-to-End](../guides/tutorials/charter-governed-workflow.md) — Start from a fresh repo, set up governance, synthesize doctrine, and run a governed mission action
+- [Getting Started with Spec Kitty](../guides/tutorials/getting-started.md) — First project from scratch
+- [Multi-Agent Workflow](../guides/tutorials/multi-agent-workflow.md) — Run a mission across multiple harnesses
 
 #### How-to guides — task-oriented
 
-- [How to Set Up Project Governance](../guides/setup-governance.md) — Charter interview, generate, and sync
-- [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md) — `charter synthesize`, `charter resynthesize`, bundle validation
-- [How to Run a Governed Mission](../guides/run-governed-mission.md) — `spec-kitty next --agent` with Charter context injection
-- [How to Manage the Glossary](../guides/manage-glossary.md) — Living glossary, Charter integration, retrospective proposals
-- [How to Use the Retrospective Learning Loop](../guides/use-retrospective-learning.md) — `retrospect summary`, `agent retrospect synthesize`
-- [Troubleshooting Charter Failures](../guides/troubleshoot-charter.md) — Stale bundle, missing doctrine, compact-context, retro gate failures
+- [How to Set Up Project Governance](../guides/how-to/governance/setup-governance.md) — Charter interview, generate, and sync
+- [How to Synthesize and Maintain Doctrine](../guides/how-to/governance/synthesize-doctrine.md) — `charter synthesize`, `charter resynthesize`, bundle validation
+- [How to Run a Governed Mission](../guides/how-to/governance/run-governed-mission.md) — `spec-kitty next --agent` with Charter context injection
+- [How to Manage the Glossary](../guides/how-to/governance/manage-glossary.md) — Living glossary, Charter integration, retrospective proposals
+- [How to Use the Retrospective Learning Loop](../guides/how-to/governance/use-retrospective-learning.md) — `retrospect summary`, `agent retrospect synthesize`
+- [Troubleshooting Charter Failures](../guides/how-to/governance/troubleshoot-charter.md) — Stale bundle, missing doctrine, compact-context, retro gate failures
 
 #### Reference — authoritative specifications
 

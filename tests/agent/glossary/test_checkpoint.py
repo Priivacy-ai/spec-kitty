@@ -2,9 +2,10 @@
 
 import json
 import uuid
-from datetime import datetime, UTC
 
 import pytest
+
+from kernel.clock import datetime, now_utc, now_utc_iso
 
 from glossary.checkpoint import (
     VALID_CURSORS,
@@ -126,7 +127,7 @@ class TestStepCheckpoint:
                 input_hash="short",
                 cursor="pre_generation_gate",
                 retry_token=str(uuid.uuid4()),
-                timestamp=datetime.now(UTC),
+                timestamp=now_utc(),
             )
 
     def test_invalid_input_hash_chars(self):
@@ -140,7 +141,7 @@ class TestStepCheckpoint:
                 input_hash="Z" * 64,  # uppercase not allowed
                 cursor="pre_generation_gate",
                 retry_token=str(uuid.uuid4()),
-                timestamp=datetime.now(UTC),
+                timestamp=now_utc(),
             )
 
     def test_invalid_retry_token_length(self):
@@ -154,7 +155,7 @@ class TestStepCheckpoint:
                 input_hash="a" * 64,
                 cursor="pre_generation_gate",
                 retry_token="too-short",
-                timestamp=datetime.now(UTC),
+                timestamp=now_utc(),
             )
 
     def test_invalid_cursor_value(self):
@@ -168,7 +169,7 @@ class TestStepCheckpoint:
                 input_hash="a" * 64,
                 cursor="invalid_cursor",
                 retry_token=str(uuid.uuid4()),
-                timestamp=datetime.now(UTC),
+                timestamp=now_utc(),
             )
 
     def test_all_valid_cursors_accepted(self):
@@ -182,7 +183,7 @@ class TestStepCheckpoint:
                 input_hash="a" * 64,
                 cursor=cursor,
                 retry_token=str(uuid.uuid4()),
-                timestamp=datetime.now(UTC),
+                timestamp=now_utc(),
             )
             assert cp.cursor == cursor
 
@@ -379,7 +380,7 @@ class TestParseCheckpointEvent:
             "input_hash": "a" * 64,
             "cursor": "pre_generation_gate",
             "retry_token": str(uuid.uuid4()),
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": now_utc_iso(),
         }
         with pytest.raises(ValueError, match="Invalid checkpoint event payload"):
             parse_checkpoint_event(payload)
@@ -411,7 +412,7 @@ class TestParseCheckpointEvent:
             "input_hash": "a" * 64,
             "cursor": "pre_generation_gate",
             "retry_token": str(uuid.uuid4()),
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": now_utc_iso(),
         }
         parsed = parse_checkpoint_event(payload)
         assert parsed.scope_refs == ()

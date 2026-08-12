@@ -314,6 +314,37 @@ class TestContextStateBookkeeping:
         assert isinstance(actions, dict)
         assert "implement" in actions
 
+    def test_mark_action_loaded_matches_pre_migration_golden_bytes(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """SC-004 persisted-artifact golden (kernel-clock-single-door WP07).
+
+        Captured from the PRE-migration tree (before ``context_state.py``
+        routed onto the door): under a frozen instant of
+        ``2026-11-02T14:15:16.654321+00:00``, the raw
+        ``datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")`` call this
+        function used to make persisted the literal timestamp
+        ``2026-11-02T14:15:16Z`` into ``context-state.json``. This test
+        freezes the door's ``DEFAULT_CLOCK`` (the seam the migrated call now
+        reads through via ``now_utc_stamp()``) to that exact instant and
+        asserts the persisted bytes this WP's migrated code writes are
+        byte-identical to that pre-migration golden.
+        """
+        import kernel.clock as clock_module
+        from kernel.clock import UTC, FrozenClock, datetime as door_datetime
+
+        fixed = door_datetime(2026, 11, 2, 14, 15, 16, 654321, tzinfo=UTC)
+        monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=fixed))
+
+        path = tmp_path / "context-state.json"
+        state: dict[str, object] = {"schema_version": "1.0.0", "actions": {}}
+        _mark_action_loaded(state, path, "implement")
+
+        reloaded = _load_state(path)
+        actions = reloaded["actions"]
+        assert isinstance(actions, dict)
+        assert actions["implement"] == "2026-11-02T14:15:16Z"
+
     def test_prepare_context_state_first_load_uses_min_effective_depth(
         self, tmp_path: Path
     ) -> None:

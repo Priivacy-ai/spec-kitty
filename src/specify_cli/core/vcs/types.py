@@ -9,10 +9,11 @@ These types are backend-agnostic and used by GitVCS.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Literal
+
+from kernel.clock import datetime
 
 
 # =============================================================================

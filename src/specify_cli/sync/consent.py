@@ -13,7 +13,7 @@ import logging
 from collections.abc import Callable
 from contextlib import ExitStack
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from kernel.clock import datetime, now_utc_iso
 from pathlib import Path
 from typing import Any
 
@@ -698,7 +698,7 @@ def _write_decision(
 
         generation = 1 if current is None else current.generation + 1
         tail = _capture_tail(unit)
-        decided_at = datetime.now(UTC).isoformat()
+        decided_at = now_utc_iso()
         _seal_active_epochs(
             unit,
             tail=tail,

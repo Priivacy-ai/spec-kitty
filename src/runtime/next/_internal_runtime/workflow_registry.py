@@ -13,9 +13,17 @@ Search precedence
 Layer rule (C-001 / NFR-003)
 -----------------------------
 This module lives inside the runtime package
-(``runtime.next._internal_runtime``).  It MUST NOT import from ``charter``,
-``doctrine`` (Python modules), or ``kernel``.  Doctrine YAML files are loaded
+(``runtime.next._internal_runtime``).  It MUST NOT import from ``charter``
+or ``doctrine`` (Python modules).  Doctrine YAML files are loaded
 as raw data from disk; they are not imported as Python modules.
+
+``kernel.clock`` is the one sanctioned exception (mission
+``kernel-clock-single-door``, D-1): this invariant is about runtime
+re-extractability -- not depending on doctrine-family internals -- not
+about general purity. ``kernel`` is the stdlib-only layer floor every
+package may import and carries no doctrine-family coupling, so a
+``kernel.clock`` import does not violate the re-extractability rationale
+this rule protects.
 
 FR-015 — no silent fallback
 ----------------------------

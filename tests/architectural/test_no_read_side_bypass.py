@@ -31,7 +31,7 @@ ONLY via ``_LEAF_PRIMITIVE_ALIASES`` bookkeeping, never a member of
 no census entry at all -- a module outside the five named foundation sites
 could import it directly and call it with a canonical handle, reopening the
 exact canonical-handle + caller-chosen-partition bypass this mission exists to
-end, invisibly to this gate. See ``docs/development/read-side-seam-classification.md``'s
+end, invisibly to this gate. See ``docs/development/reference/read-side-seam-classification.md``'s
 "Post-merge closeout" section for the full record.
 
 Scope of the guarantee (honest bounds — do NOT overstate)
@@ -85,7 +85,7 @@ this).
 
 Allow-list (T018) — the ledger is the ONE authority, mechanically
 ------------------------------------------------------------------
-``docs/development/read-side-seam-classification.md`` (WP02) is the single
+``docs/development/reference/read-side-seam-classification.md`` (WP02) is the single
 authority for WHICH sites stay lenient and HOW MANY there are. This module
 does not restate those numbers: it PARSES the ledger (``_ledger_summary_counts``
 + ``_ledger_stay_lenient_index``) and reconciles ``_ALLOW_LIST_SEED`` against
@@ -403,7 +403,7 @@ def _scan_read_bypass_module(path: Path) -> list[_Finding]:
 #: hand-synced literal): perturbing either the live-census Summary counts or
 #: the § "Stay-lenient allow-list index (machine-checked)" table REDS this
 #: gate.
-_LEDGER_PATH = _REPO_ROOT / "docs" / "development" / "read-side-seam-classification.md"
+_LEDGER_PATH = _REPO_ROOT / "docs" / "development" / "reference" / "read-side-seam-classification.md"
 
 #: Heading of the ledger's machine-checked ``rel_path | qualname | primitive``
 #: index table (G2: the stay-lenient index, keyed per SITE).
@@ -1174,7 +1174,7 @@ def _ledger_text() -> str:
 def test_allow_list_membership_is_exactly_the_ledgers_stay_lenient_index() -> None:
     """The allow-list IS the ledger's stay-lenient index -- parsed, not hand-synced.
 
-    The ledger (``docs/development/read-side-seam-classification.md``,
+    The ledger (``docs/development/reference/read-side-seam-classification.md``,
     § "Stay-lenient allow-list index (machine-checked)") is the ONE authority
     for WHICH sites stay lenient. This test parses that table and asserts
     ``(rel_path, qualname, primitive, site_token)`` set equality with
@@ -1214,7 +1214,7 @@ def test_foundation_sanction_membership_is_exactly_the_ledgers_foundation_index(
 
     Mirrors ``test_allow_list_membership_is_exactly_the_ledgers_stay_lenient_index``
     for the separate FR-005 foundation-site table (WP02 T011/E3): editing
-    ``docs/development/read-side-seam-classification.md``'s
+    ``docs/development/reference/read-side-seam-classification.md``'s
     § "Foundation-site sanctions (machine-checked)" table without touching
     ``_FOUNDATION_SANCTION_SEED`` (or vice versa) REDS here.
     """

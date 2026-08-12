@@ -30,6 +30,7 @@ from unittest.mock import patch
 
 import pytest
 import typer
+import yaml
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.upgrade import upgrade
@@ -1212,3 +1213,46 @@ def test_contract_path_malformed_fails_hard(tmp_path: Path) -> None:
 
     with pytest.raises(json.JSONDecodeError):
         _load_contract(malformed_path)
+
+
+# ---------------------------------------------------------------------------
+# kernel-clock-single-door FR-011: last_upgraded_at is aware-UTC, not naive
+# ---------------------------------------------------------------------------
+
+
+def test_no_op_upgrade_stamps_last_upgraded_at_as_aware_utc(tmp_path: Path) -> None:
+    """The version-stamp-only path (no migrations needed) writes an
+    aware-UTC ``last_upgraded_at``, not naive local time.
+
+    Regression guard for the naive ``datetime.now()`` site formerly in
+    ``cli.commands.upgrade`` (research/migration-notes.md): a naive value
+    persists to ``metadata.yaml`` WITHOUT a UTC offset suffix; the door's
+    ``now_utc()`` always carries ``+00:00``. Non-vacuity: reverting the
+    door call back to a bare ``datetime.now()`` drops the offset and this
+    assertion fails.
+
+    ``MigrationRegistry.get_applicable`` is patched to ``[]`` so the test
+    exercises exactly the "no migrations needed, still stamp the version"
+    branch, independent of the real migration set's version windows.
+    """
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "metadata.yaml").write_text(
+        "spec_kitty:\n"
+        "  schema_version: 3\n"
+        "  version: 0.1.0\n"
+        "  initialized_at: '2020-01-01T00:00:00+00:00'\n",
+        encoding="utf-8",
+    )
+
+    with patch("specify_cli.upgrade.registry.MigrationRegistry.get_applicable", return_value=[]):
+        result = _invoke_upgrade([], cwd=tmp_path)
+
+    assert result.exit_code == 0, result.output
+    data = yaml.safe_load((kittify / "metadata.yaml").read_text(encoding="utf-8"))
+    last_upgraded_at = data["spec_kitty"]["last_upgraded_at"]
+    assert isinstance(last_upgraded_at, str), "expected an unquoted ISO string in the raw YAML"
+    assert last_upgraded_at.endswith("+00:00"), (
+        f"last_upgraded_at={last_upgraded_at!r} is missing the aware-UTC offset suffix "
+        "-- the naive datetime.now() regression has returned"
+    )

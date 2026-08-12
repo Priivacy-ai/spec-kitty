@@ -37,7 +37,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 from typing import Any
 
@@ -130,7 +130,7 @@ class DeferralDisposition:
 
 
 def _utc_now_iso() -> str:
-    return datetime.now(UTC).isoformat()
+    return now_utc_iso()
 
 
 # ---------------------------------------------------------------------------

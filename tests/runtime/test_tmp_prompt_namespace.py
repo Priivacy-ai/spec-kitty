@@ -59,7 +59,9 @@ class TestPromptTmpDir:
         assert result.is_dir()
 
     def test_stable_for_same_repo_root(self, tmp_path: Path) -> None:
-        assert prompt_tmp_dir(tmp_path) == prompt_tmp_dir(tmp_path)
+        first_dir = prompt_tmp_dir(tmp_path)
+        second_dir = prompt_tmp_dir(tmp_path)
+        assert first_dir == second_dir
 
     def test_distinct_for_distinct_repo_roots(self, tmp_path: Path) -> None:
         other = tmp_path / "other-repo"

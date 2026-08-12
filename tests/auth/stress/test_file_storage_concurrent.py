@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta, UTC
+from kernel.clock import now_utc, timedelta
 from pathlib import Path
 
 from specify_cli.auth.secure_storage.file_fallback import FileFallbackStorage
@@ -53,7 +53,7 @@ class _FastFileFallbackStorage(FileFallbackStorage):
 
 def _make_session(i: int) -> StoredSession:
     """Return a distinct StoredSession tagged with the writer index ``i``."""
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id=f"u_writer_{i}",
         email=f"writer{i}@example.com",

@@ -4,8 +4,10 @@ This module is owned by **neither transport**. Before it existed the same policy
 was written twice — once for the tracker SaaS transport (#3030 FR-029) and once
 for the widen-mode SaaS client (#3030 FR-030) — as two near-identical modules
 that a future editor could change independently. FR-008 requires **exactly one
-editable presentation**, and this is it: one sentence template, four verdict
-branches, one ``None`` guard and one import-failure degradation.
+editable presentation**, and this is it: one sentence template shared by the
+three refusal-member verdict branches (split from a former single ``DENIED``
+by the egress-single-authority mission), two further verdict branches for the
+undetermined causes, one ``None`` guard and one import-failure degradation.
 
 **Each transport passes its own identifier-set fragment as an argument.** The two
 sets are asymmetric on purpose: the tracker carries no ``decision_id`` and the
@@ -30,11 +32,12 @@ re-derive the checkout to project to consent chain locally**. The single
 derivation lives in ``sync/__init__.py``'s ``_egress_consent_resolver``, which
 reads the checkout's identity through
 ``routing.resolve_checkout_sync_routing_readonly`` and then asks
-``sync.consent.consented_project_uuids`` — the same funnel the drain
-(``delivery/selection.py``), the emitter, the daemon and ``local_commit`` all
-walk, over the one declared precedence chain (project-local, machine index,
-env). Re-deriving it here would be a second expression of one invariant, free to
-drift, which is the defect class this mission keeps re-finding.
+``sync.consent.resolve_project_consent``, whose ``granted`` verdict wraps the
+same ``consented_project_uuids`` funnel the drain (``delivery/selection.py``),
+the emitter, the daemon and ``local_commit`` all walk, over the one declared
+precedence chain (project-local, machine index, env). Re-deriving it here would
+be a second expression of one invariant, free to drift, which is the defect
+class this mission keeps re-finding.
 
 The seam is registered by ``sync`` into the CORE registry slot in
 ``invocation/adapters.py``, so reaching it costs one import and no new chain.
@@ -187,6 +190,7 @@ project.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -232,13 +236,14 @@ _NO_RESOLVER_REFUSAL = (
 #: not the same problem as an unattributed transport.
 _UNANSWERABLE_TEMPLATE = (
     "consent for the project at {project_root} could not be determined "
-    "(the consent chain raised or answered with a non-bool); refusing to "
+    "(the consent chain raised or returned an unrecognized answer); refusing to "
     "transmit, because inability to determine consent is not consent"
 )
 
 #: Verdict branch: a member added to :class:`EgressConsent` after this module was
 #: written. ``permits_egress`` has already refused it; naming it here keeps the
-#: operator message honest rather than silently reusing DENIED's remedy.
+#: operator message honest rather than silently reusing one of the three
+#: refusal members' shared remedy.
 _UNRECOGNISED_VERDICT_TEMPLATE = (
     "hosted-sync consent for the project at {project_root} resolved to "
     "{verdict!r}, which does not permit egress; refusing to transmit"
@@ -251,6 +256,49 @@ _IMPORT_FAILURE_TEMPLATE = (
     "could not be resolved; refusing to transmit ({exc})"
 )
 
+#: The Channel-1 diagnostic labels :func:`_egress_decision` produces
+#: (egress-single-authority mission, data-model "Channel-1 diagnostic state").
+#: Defined **here**, privately, rather than imported from
+#: ``tracker/egress_verdict.py`` — that module imports *from* this one (see its
+#: module docstring's C-004 note), so the dependency cannot run the other way.
+#: The consumer there is expected to read these same string values back out of
+#: :class:`EgressDecision` rather than recomputing them locally.
+_CHANNEL1_STATE_GRANTED = "granted"
+_CHANNEL1_STATE_NO_RECORD = "no_record"
+_CHANNEL1_STATE_RECORDED_REFUSAL = "recorded_refusal"
+_CHANNEL1_STATE_NOT_CONSENTABLE = "not_consentable"
+#: The degraded, generic-rendering label — reached for ``NO_RESOLVER``,
+#: ``UNANSWERABLE``, resolver-import-failure, and (as a fail-safe) any future
+#: :class:`~specify_cli.invocation.adapters.EgressConsent` member this module
+#: has not named yet. Always paired with ``generic=True``.
+_CHANNEL1_STATE_UNCLASSIFIED = "unclassified"
+#: Reserved for the ``project_root is None`` case only — never reused for a
+#: degraded verdict. See :class:`EgressDecision`.
+_CHANNEL1_STATE_UNDETERMINED = "undetermined"
+
+
+@dataclass(frozen=True, slots=True)
+class EgressDecision:
+    """The one decision :func:`_egress_decision` computes, in full.
+
+    ``permits`` always equals the obtained
+    :class:`~specify_cli.invocation.adapters.EgressConsent` member's own
+    ``permits_egress`` (or ``False`` when *project_root* was ``None``).
+    ``refusal_message`` is ``None`` exactly when ``permits`` is ``True``, and
+    otherwise the byte-identical operator-facing string
+    :func:`project_egress_refusal` already returned. ``channel1_state`` and
+    ``generic`` are the diagnostic pair ``tracker_egress_verdict`` composes into
+    its own message (egress-single-authority mission Decision 3): a degraded
+    verdict sets ``generic=True`` so a message composer keyed only on the three
+    named refusal states can render generic wording instead of indexing a dict
+    that does not have an entry for it.
+    """
+
+    permits: bool
+    refusal_message: str | None
+    channel1_state: str
+    generic: bool
+
 
 def _render_denied_refusal(project_root: Path, identifiers: str) -> str:
     """Render the shared template for *identifiers*, the caller's own fragment."""
@@ -262,15 +310,18 @@ def _refusal_for_verdict(
 ) -> str | None:
     """Map a consent verdict to its operator-facing refusal, or ``None`` to permit.
 
-    The four verdict branches live here and nowhere else (FR-008/SC-015).
+    The verdict branches live here and nowhere else (FR-008/SC-015).
     ``permits_egress`` is asked rather than comparing against ``GRANTED``, so a
-    future member cannot silently widen egress.
+    future member cannot silently widen egress. All three refusal members split
+    from the former ``DENIED`` (``NO_RECORD``, ``RECORDED_REFUSAL``,
+    ``NOT_CONSENTABLE``) render the same shared template — no fall-through to
+    the unrecognised-verdict branch for any of them.
     """
     from specify_cli.invocation.adapters import EgressConsent as _Verdict  # noqa: PLC0415
 
     if verdict.permits_egress:
         return None
-    if verdict is _Verdict.DENIED:
+    if verdict in (_Verdict.NO_RECORD, _Verdict.RECORDED_REFUSAL, _Verdict.NOT_CONSENTABLE):
         return _render_denied_refusal(project_root, identifiers)
     if verdict is _Verdict.NO_RESOLVER:
         return _NO_RESOLVER_REFUSAL
@@ -278,6 +329,94 @@ def _refusal_for_verdict(
         return _UNANSWERABLE_TEMPLATE.format(project_root=project_root)
     return _UNRECOGNISED_VERDICT_TEMPLATE.format(
         project_root=project_root, verdict=verdict.value
+    )
+
+
+def _channel1_state_for_verdict(verdict: EgressConsent) -> tuple[str, bool]:
+    """Map a consent verdict to its ``(channel1_state, generic)`` diagnostic pair.
+
+    Mirrors :func:`_refusal_for_verdict`'s branches so the two can never
+    disagree about which members are the three named refusal states versus
+    degraded. The permit branch asks ``permits_egress`` (not ``is GRANTED``),
+    exactly as :func:`_refusal_for_verdict` does, so the two provably co-vary: a
+    future permitting member cannot make one report ``granted`` while the other
+    still refuses. Only the degraded members — ``NO_RESOLVER``, ``UNANSWERABLE``,
+    and (as a fail-safe) any future member this module has not named — set
+    ``generic = True`` (egress-single-authority mission Decision 3).
+    """
+    from specify_cli.invocation.adapters import EgressConsent as _Verdict  # noqa: PLC0415
+
+    if verdict.permits_egress:
+        return _CHANNEL1_STATE_GRANTED, False
+    if verdict is _Verdict.NO_RECORD:
+        return _CHANNEL1_STATE_NO_RECORD, False
+    if verdict is _Verdict.RECORDED_REFUSAL:
+        return _CHANNEL1_STATE_RECORDED_REFUSAL, False
+    if verdict is _Verdict.NOT_CONSENTABLE:
+        return _CHANNEL1_STATE_NOT_CONSENTABLE, False
+    return _CHANNEL1_STATE_UNCLASSIFIED, True
+
+
+def _egress_decision(project_root: Path | None, identifiers: str) -> EgressDecision:
+    """Compute the single decision this module owns (egress-single-authority C-004).
+
+    **Obtains** the :class:`~specify_cli.invocation.adapters.EgressConsent`
+    member via :func:`~specify_cli.invocation.adapters.resolve_egress_consent`
+    and derives every :class:`EgressDecision` field from that one member. This
+    function performs **no** local consent/routing resolution and imports
+    neither ``specify_cli.sync.consent`` nor ``specify_cli.sync.routing`` — the
+    single derivation and the split-mapping both live once, in the registered
+    resolver (``sync/__init__.py``'s ``_egress_consent_resolver``); see the
+    module docstring's "Why this module asks
+    ``invocation.adapters.resolve_egress_consent``" section (FR-012).
+
+    *project_root* / *identifiers* have the same contract as
+    :func:`project_egress_refusal`, which is a thin wrapper over this function
+    returning only its ``refusal_message`` field.
+    """
+    if project_root is None:
+        return EgressDecision(
+            permits=False,
+            refusal_message=UNDETERMINED_PROJECT_REFUSAL,
+            channel1_state=_CHANNEL1_STATE_UNDETERMINED,
+            generic=True,
+        )
+
+    # Importing ``specify_cli.sync`` is what *registers* the resolver into the CORE
+    # slot (``sync/__init__.py::register_default_handlers``). Without it a process
+    # that never loaded the sync package would get ``NO_RESOLVER`` and refuse every
+    # send — fail-closed, but a false denial for a project that has genuinely opted
+    # in. Deliberately not suppressed into a permit: if sync cannot be imported at
+    # all there is no consent chain to consult, and that is an undetermined answer.
+    #
+    # This import stays **lazy and inside the function** (FR-013). A module-level
+    # form would execute ``specify_cli/sync/__init__.py`` at transport-import time
+    # and defeat the degradation structurally. Note this module is separately
+    # routed into the ``sync`` CI filter group **by WP02, which lands alongside
+    # this one** — that is job selection, not an import edge, and the two must
+    # not be "tidied" to match each other. (Stated as a forward reference rather
+    # than as present fact: nothing gates the claim, so if WP02 were dropped this
+    # comment would silently lie.)
+    try:
+        import specify_cli.sync  # noqa: F401, PLC0415  (imported for registration)
+    except Exception as exc:  # noqa: BLE001 - degrades to a refusal, never a permit
+        return EgressDecision(
+            permits=False,
+            refusal_message=_IMPORT_FAILURE_TEMPLATE.format(exc=exc),
+            channel1_state=_CHANNEL1_STATE_UNCLASSIFIED,
+            generic=True,
+        )
+
+    from specify_cli.invocation.adapters import resolve_egress_consent  # noqa: PLC0415
+
+    root = Path(project_root)
+    verdict = resolve_egress_consent(root)
+    channel1_state, generic = _channel1_state_for_verdict(verdict)
+    return EgressDecision(
+        permits=verdict.permits_egress,
+        refusal_message=_refusal_for_verdict(verdict, root, identifiers),
+        channel1_state=channel1_state,
+        generic=generic,
     )
 
 
@@ -305,34 +444,13 @@ def project_egress_refusal(project_root: Path | None, identifiers: str) -> str |
     Corollary: nobody may "fix" this string by appending the destination team's
     name; that would *add* an identifier to an operator-facing message rather than
     remove one.
+
+    A thin wrapper over :func:`_egress_decision` (egress-single-authority mission
+    contract §3) — this function's ``str | None`` contract is unchanged; both of
+    its consumers (``saas_client/client.py``, ``tracker/egress_verdict.py``) see
+    no difference.
     """
-    if project_root is None:
-        return UNDETERMINED_PROJECT_REFUSAL
-
-    # Importing ``specify_cli.sync`` is what *registers* the resolver into the CORE
-    # slot (``sync/__init__.py::register_default_handlers``). Without it a process
-    # that never loaded the sync package would get ``NO_RESOLVER`` and refuse every
-    # send — fail-closed, but a false denial for a project that has genuinely opted
-    # in. Deliberately not suppressed into a permit: if sync cannot be imported at
-    # all there is no consent chain to consult, and that is an undetermined answer.
-    #
-    # This import stays **lazy and inside the function** (FR-013). A module-level
-    # form would execute ``specify_cli/sync/__init__.py`` at transport-import time
-    # and defeat the degradation structurally. Note this module is separately
-    # routed into the ``sync`` CI filter group **by WP02, which lands alongside
-    # this one** — that is job selection, not an import edge, and the two must
-    # not be "tidied" to match each other. (Stated as a forward reference rather
-    # than as present fact: nothing gates the claim, so if WP02 were dropped this
-    # comment would silently lie.)
-    try:
-        import specify_cli.sync  # noqa: F401, PLC0415  (imported for registration)
-    except Exception as exc:  # noqa: BLE001 - degrades to a refusal, never a permit
-        return _IMPORT_FAILURE_TEMPLATE.format(exc=exc)
-
-    from specify_cli.invocation.adapters import resolve_egress_consent  # noqa: PLC0415
-
-    root = Path(project_root)
-    return _refusal_for_verdict(resolve_egress_consent(root), root, identifiers)
+    return _egress_decision(project_root, identifiers).refusal_message
 
 
 # Only names with a real ``src/`` consumer are advertised — the symbol-level

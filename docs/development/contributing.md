@@ -3,13 +3,14 @@ title: Contributing to Spec Kitty
 description: The full contributor guide for Spec Kitty — developer setup, running tests, submitting pull requests, AI-assistance disclosure, and the release process.
 doc_status: active
 updated: '2026-07-31'
+audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
 - docs/guides/index.md
-- docs/development/review-gates.md
-- docs/development/pr-landing.md
-- docs/development/testing-parallel.md
-- docs/guides/diagnose-installation.md
+- docs/development/how-to/review-gates.md
+- docs/development/how-to/pr-landing.md
+- docs/development/testing/testing-parallel.md
+- docs/guides/how-to/installation/diagnose-installation.md
 ---
 
 # Contributing to Spec Kitty
@@ -198,7 +199,7 @@ pytest tests/integration/test_version_isolation.py  # Isolation tests
 
 To run the suite in parallel (typically ≥2× faster on a ≥4-core machine), plus
 the serial daemon pass and the coverage-neutrality gates, see
-[Running the test suite in parallel](testing-parallel.md).
+[Running the test suite in parallel](testing/testing-parallel.md).
 
 ### Testing Unreleased Main or a Pull Request
 
@@ -353,7 +354,7 @@ If the broken package lives in a global or Homebrew Python environment, remove
 the stale `spec_kitty_events/` directory and matching `.dist-info/` metadata
 from that interpreter's `site-packages`, then reinstall
 `spec-kitty-events`. See
-[Diagnose Installation Problems](../guides/diagnose-installation.md#9-shared-package-imports-resolve-as-a-namespace-package)
+[Diagnose Installation Problems](../guides/how-to/installation/diagnose-installation.md#9-shared-package-imports-resolve-as-a-namespace-package)
 for the full recovery procedure.
 
 ### How Test Isolation Works
@@ -388,14 +389,14 @@ Here are a few things you can do that will increase the likelihood of your pull 
 - Update documentation (`README.md`, `spec-driven.md`) if your changes affect user-facing features.
 - Keep your change as focused as possible. If there are multiple changes you would like to make that are not dependent upon each other, consider submitting them as separate pull requests.
 - Write a [good commit message](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html), and keep your history clean but not over-squashed: compress your own bookkeeping commits (fixups, "wip", formatting-only) into the related work, but keep genuinely separate logical/code changes as separate commits — each commit should be one coherent, reviewable change.
-- Write a PR body that leads with **impact** — what changes for a user or operator, in plain language, before any architecture or test-strategy detail. See [Review gates: PR body style](review-gates.md#pr-body-style-consumer-focused-bluf).
-- If your change is user-facing, add a consumer-focused entry to `docs/changelog/CHANGELOG.md` under `[Unreleased]` — impact-first, one line a user understands, not an internal-mechanism summary. See [Review gates: Changelog update and style](review-gates.md#changelog-update-and-style).
+- Write a PR body that leads with **impact** — what changes for a user or operator, in plain language, before any architecture or test-strategy detail. See [Review gates: PR body style](how-to/review-gates.md#pr-body-style-consumer-focused-bluf).
+- If your change is user-facing, add a consumer-focused entry to `docs/changelog/CHANGELOG.md` under `[Unreleased]` — impact-first, one line a user understands, not an internal-mechanism summary. See [Review gates: Changelog update and style](how-to/review-gates.md#changelog-update-and-style).
 - Test your changes with the Spec-Driven Development workflow to ensure compatibility.
-- Don't request review while your PR title is prefixed `WIP` / `[WIP]` -- a non-draft WIP-titled PR fails the `quality-gate` by design. Drop the prefix or keep the PR in draft. See [Review Gates](review-gates.md#pr-draft-and-wip-title-conventions).
+- Don't request review while your PR title is prefixed `WIP` / `[WIP]` -- a non-draft WIP-titled PR fails the `quality-gate` by design. Drop the prefix or keep the PR in draft. See [Review Gates](how-to/review-gates.md#pr-draft-and-wip-title-conventions).
 
 ## Maintainer guides
 
-- [Landing contributor PRs](pr-landing.md) — the maintainer runbook for taking a contributor PR from "open with red CI" to "merge-ready, evidence posted, operator merges": claim, isolated worktree, rebase, red classification, folds, red-first verification, push discipline, and hand-off.
+- [Landing contributor PRs](how-to/pr-landing.md) — the maintainer runbook for taking a contributor PR from "open with red CI" to "merge-ready, evidence posted, operator merges": claim, isolated worktree, rebase, red classification, folds, red-first verification, push discipline, and hand-off.
 
 ## Development workflow
 
@@ -660,7 +661,7 @@ Please be respectful to maintainers and disclose AI assistance.
 
 ## Resources
 
-- [Spec-Driven Development Methodology](../../spec-driven.md)
+- [Spec-Driven Development Methodology](../context/spec-driven.md)
 - [How to Contribute to Open Source](https://opensource.guide/how-to-contribute/)
 - [Using Pull Requests](https://help.github.com/articles/about-pull-requests/)
 - [GitHub Help](https://help.github.com)

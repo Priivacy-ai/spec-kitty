@@ -6,7 +6,7 @@ updated: '2026-07-20'
 type: explanation
 related:
 - kitty-specs/docs-ia-onboarding-overhaul-01KY02JB/docs-audit.md
-- docs/doctrine/doctrine-kinds.md
+- docs/architecture/doctrine-kinds.md
 ---
 
 # Docs IA & Onboarding Overhaul — Terminology Sweep & Closing Report

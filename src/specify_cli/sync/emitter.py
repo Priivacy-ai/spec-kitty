@@ -30,7 +30,6 @@ import platform
 import re
 import subprocess
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -39,7 +38,7 @@ from rich.console import Console
 
 from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.core.payload_shaping import apply_keep_none_fields
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso, parse_iso
 from specify_cli.event_journal import (
     CaptureGateState,
 )
@@ -221,7 +220,7 @@ def _is_datetime_string(value: Any) -> bool:
         return False
     try:
         candidate = value.replace("Z", "+00:00")
-        datetime.fromisoformat(candidate)
+        parse_iso(candidate)
         return True
     except ValueError:
         return False

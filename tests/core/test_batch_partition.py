@@ -57,7 +57,9 @@ def test_split_in_half_returns_fresh_lists_and_does_not_mutate_input() -> None:
 
 def test_split_in_half_deterministic() -> None:
     source = ["a", "b", "c", "d", "e"]
-    assert split_in_half(source) == split_in_half(source)
+    first_split = split_in_half(source)
+    second_split = split_in_half(source)
+    assert first_split == second_split
 
 
 # --------------------------------------------------------------------------- #

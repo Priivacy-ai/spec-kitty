@@ -6,13 +6,12 @@ import hashlib
 import json
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Protocol, cast
 
 import toml
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import UTC, datetime, now_utc, now_utc_iso, timedelta
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
 from specify_cli.paths import get_runtime_root
@@ -499,7 +498,7 @@ class OfflineQueue:
         if tasks:
             try:
                 oldest = min(datetime.fromisoformat(task.created_at) for task in tasks)
-                oldest_age = datetime.now(UTC) - oldest.astimezone(UTC)
+                oldest_age = now_utc() - oldest.astimezone(UTC)
             except ValueError:
                 oldest_age = None
         return QueueStats(

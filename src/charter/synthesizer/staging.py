@@ -36,11 +36,12 @@ from __future__ import annotations
 import contextlib
 import io
 import traceback
-from datetime import UTC, datetime
 from pathlib import Path
 from types import TracebackType
 
 from ruamel.yaml import YAML
+
+from kernel.clock import now_utc_iso
 
 from .path_guard import PathGuard
 
@@ -200,7 +201,7 @@ class StagingDir:
                 {
                     "reason": cause,
                     "traceback": tb_text,
-                    "timestamp": datetime.now(tz=UTC).isoformat(),
+                    "timestamp": now_utc_iso(),
                 },
                 buf,
             )

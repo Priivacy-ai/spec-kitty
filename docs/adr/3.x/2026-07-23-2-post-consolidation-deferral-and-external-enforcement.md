@@ -171,4 +171,4 @@ state the contract at the moment it assigns the status.
   [2026-07-23-1](./2026-07-23-1-surface-vocabulary-two-domains-and-topology-surface-rename.md).
 * Issues: #1834 (the live leg), #2885, #2795, #2882.
 * Mission: `kitty-specs/lifecycle-gate-execution-context-01KY72GQ/`.
-* User-facing guide: [accept-and-merge](../../guides/accept-and-merge.md).
+* User-facing guide: [accept-and-merge](../../guides/how-to/missions/accept-and-merge.md).

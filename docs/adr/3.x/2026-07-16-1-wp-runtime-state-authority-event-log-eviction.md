@@ -329,5 +329,5 @@ identically to today from the reduced snapshot. Acceptance criteria:
 - Design: [`docs/architecture/wp-runtime-state-eviction.md`](../../architecture/wp-runtime-state-eviction.md)
 - [ADR 2026-07-01-1 — No legacy-compat branches in resolvers](2026-07-01-1-no-legacy-compat-branches-in-resolvers.md)
 - [ADR 2026-06-11-1 — Op as a first-class execution artifact](2026-06-11-1-op-as-first-class-execution-artifact.md)
-- [ADR 2026-06-07-1 — WP lane FSM, the `genesis` lane, and the finalize event-log clobber fix](2026-06-07-1-wp-lane-fsm-genesis-and-finalize-clobber.md)
+- [ADR 2026-06-07-3 — WP lane FSM, the `genesis` lane, and the finalize event-log clobber fix](2026-06-07-3-wp-lane-fsm-genesis-and-finalize-clobber.md)
 - Issues: #2093, #2400 (charter parent), #2160 (co-sequence), #1619 / #1666 (aggregate, gates the later schema flip)

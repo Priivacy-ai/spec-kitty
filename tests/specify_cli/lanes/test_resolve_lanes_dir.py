@@ -50,7 +50,9 @@ def test_resolve_lanes_dir_is_pure_no_io(tmp_path: Path) -> None:
 def test_resolve_lanes_dir_is_deterministic(tmp_path: Path) -> None:
     """Repeated calls on the same input return equal paths."""
     feature_dir = tmp_path / "feature"
-    assert resolve_lanes_dir(feature_dir) == resolve_lanes_dir(feature_dir)
+    first_resolved = resolve_lanes_dir(feature_dir)
+    second_resolved = resolve_lanes_dir(feature_dir)
+    assert first_resolved == second_resolved
 
 
 def test_no_ad_hoc_lanes_join_outside_the_seam_in_persistence() -> None:

@@ -23,7 +23,7 @@ Pure-logic coverage (no subprocess, no real git -- see
 
 from __future__ import annotations
 
-from datetime import date
+from kernel.clock import date
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 

@@ -43,14 +43,13 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from typing import Any, cast
 
 import ulid as _ulid_mod
 from pydantic import ValidationError
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc, now_utc_iso, timedelta
 from specify_cli.mission_metadata import load_meta
 from specify_cli.frontmatter import FrontmatterError, read_frontmatter, write_frontmatter
 from specify_cli.workspace import canonicalize_feature_dir
@@ -837,7 +836,7 @@ def emit_status_transition_batch(  # noqa: C901 — composite transition orchest
     mission_id = _load_mission_id(feature_dir)
     from_lane: str = str(_derive_from_lane(feature_dir, wp_id))
     built: list[tuple[StatusEvent, TransitionRequest]] = []
-    batch_started_at = datetime.now(UTC)
+    batch_started_at = now_utc()
 
     for request in requests:
         request_feature_dir = request.feature_dir or request.mission_dir

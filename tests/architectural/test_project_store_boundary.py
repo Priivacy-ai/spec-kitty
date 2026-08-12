@@ -782,6 +782,13 @@ _WP10_READ_ONLY_MIGRATION_SITE_COUNTS: Counter[str] = Counter(
     }
 )
 
+_READ_ONLY_STATUS_SITE_COUNTS: Counter[str] = Counter(
+    {
+        "specify_cli/sync/migrate_journal.py::read_migration_conflicts::sqlite_connect": 1,
+        "specify_cli/sync/project_store.py::ProjectSyncStore.verify_existing_readonly::sqlite_connect": 1,
+    }
+)
+
 
 def _is_canonical_project_store_site(site: StoreSite) -> bool:
     return site.relpath == "specify_cli/sync/project_store.py" and site.qualname == "ProjectSyncStore.unit_of_work"
@@ -795,6 +802,11 @@ def _is_wp10_read_only_migration_site(site: StoreSite) -> bool:
     )
 
 
+def _is_read_only_status_site(site: StoreSite) -> bool:
+    """Allow only the two named, nonmaterializing operator-diagnostic reads."""
+    return site.read_only and site.key in _READ_ONLY_STATUS_SITE_COUNTS
+
+
 def final_project_store_violations(
     sites: tuple[StoreSite, ...],
 ) -> tuple[StoreSite, ...]:
@@ -804,7 +816,8 @@ def final_project_store_violations(
         exact_uow = _is_canonical_project_store_site(site)
         exact_read_only_migration = site.relpath == "specify_cli/sync/project_store_migration.py" and site.kind is SiteKind.SQLITE_CONNECT and site.read_only
         exact_migration_scratch = _is_wp10_read_only_migration_site(site) and site.migration_scratch
-        if not (exact_uow or exact_read_only_migration or exact_migration_scratch):
+        exact_read_only_status = _is_read_only_status_site(site)
+        if not (exact_uow or exact_read_only_migration or exact_migration_scratch or exact_read_only_status):
             violations.append(site)
     return tuple(violations)
 
@@ -820,7 +833,13 @@ def test_current_store_census_cannot_grow_and_every_site_has_evidence() -> None:
     migration_sites = [site for site in sites if _is_wp10_read_only_migration_site(site)]
     assert sum(site.read_only for site in migration_sites) == 1
     assert sum(site.migration_scratch for site in migration_sites) == 2
-    observed = Counter(site.key for site in sites if not _is_canonical_project_store_site(site) and not _is_wp10_read_only_migration_site(site))
+    status_reads = Counter(site.key for site in sites if _is_read_only_status_site(site))
+    assert status_reads == _READ_ONLY_STATUS_SITE_COUNTS
+    observed = Counter(
+        site.key
+        for site in sites
+        if not _is_canonical_project_store_site(site) and not _is_wp10_read_only_migration_site(site) and not _is_read_only_status_site(site)
+    )
     growth = observed - _KNOWN_SITE_COUNTS
     assert not growth, "new direct store ownership sites:\n" + "\n".join(f"{key} (+{count})" for key, count in sorted(growth.items()))
     assert set(observed) >= _KNOWN_LIVE_FLOOR
@@ -1045,3 +1064,30 @@ def test_project_store_adr_records_the_incident_and_boundary() -> None:
         "1,322",
     ):
         assert required in text
+
+
+def test_live_source_cannot_reconstruct_retired_path_owned_stores() -> None:
+    """Ratchet constructor shapes that masked the WP10 ownership cutover."""
+    allowed_migration_files = {
+        "specify_cli/sync/migrate_journal.py",
+        "specify_cli/sync/project_store_migration.py",
+    }
+    violations: list[str] = []
+    for path in sorted(_SRC.rglob("*.py")):
+        relpath = path.relative_to(_SRC).as_posix()
+        if relpath in allowed_migration_files:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            callee = _callee_text(node.func).split(".")[-1]
+            forbidden = (
+                (callee == "OfflineQueue" and not node.args and not node.keywords)
+                or (callee == "OfflineBodyUploadQueue" and any(keyword.arg == "db_path" for keyword in node.keywords))
+                or (callee in {"EventJournal", "SqliteDeliveryLedger"} and len(node.args) == 1)
+                or callee in {"resolve_live_store_paths", "default_queue_db_path"}
+            )
+            if forbidden:
+                violations.append(f"{relpath}:{node.lineno}:{callee}")
+    assert violations == []

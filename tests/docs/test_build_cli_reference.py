@@ -21,7 +21,9 @@ import pytest
 import typer
 
 # Ensure the env flags exist before importing the build module.
-os.environ.setdefault("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+# SPEC_KITTY_ENABLE_SAAS_SYNC is set collection-wide in tests/conftest.py
+# pytest_configure (#3213) — not per-module, which made the gate selection-
+# dependent.
 os.environ.setdefault("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
 
 from scripts.docs import build_cli_reference as build

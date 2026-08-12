@@ -44,6 +44,42 @@ def test_layout_authority_can_only_be_constructed_by_project_store(
     assert authority.marker_path == (tmp_path / "runtime" / "projects" / ".layout-generation.initialized")
 
 
+def test_layout_peek_is_read_only_when_authority_is_absent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+    authority = store.layout_generation()
+    projects = authority.record_path.parent
+
+    state = authority.peek_state()
+
+    assert state.mode is LayoutMode.LEGACY
+    assert not projects.exists()
+    assert not authority.record_path.exists()
+    assert not authority.marker_path.exists()
+    assert not authority.lock_path.exists()
+
+
+def test_layout_peek_detects_missing_record_without_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+    authority = store.layout_generation()
+    authority.read_state()
+    authority.record_path.unlink()
+    before_marker = authority.marker_path.read_bytes()
+    authority.lock_path.unlink(missing_ok=True)
+
+    with pytest.raises(LayoutAuthorityCorruptError, match="record is missing"):
+        authority.peek_state()
+
+    assert authority.marker_path.read_bytes() == before_marker
+    assert not authority.record_path.exists()
+    assert not authority.lock_path.exists()
+
+
 def test_cutover_requires_exact_verification_and_project_only_has_no_legacy_path(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

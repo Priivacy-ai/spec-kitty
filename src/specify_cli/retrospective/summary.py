@@ -17,13 +17,13 @@ WP03 addition (T017):
 from __future__ import annotations
 
 from specify_cli.core.constants import RETROSPECTIVE_FILENAME
+from kernel.clock import UTC, date, datetime, now_utc_iso, parse_iso
 from specify_cli.core.utils import safe_is_dir
 from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 import json
 import logging
 from collections import defaultdict
-from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Generator, Literal, cast
 
@@ -157,15 +157,15 @@ class SummarySnapshot(BaseModel):
 #: Heuristic release timestamp — missions started before this are considered
 #: "legacy" (no retrospective expected).  Filled in at the time this tranche
 #: was merged; adjust if you are backfilling history.
-_TRANCHE_RELEASE_CUTOFF: datetime = datetime(2026, 4, 27, 0, 0, 0, tzinfo=timezone.utc)
+_TRANCHE_RELEASE_CUTOFF: datetime = datetime(2026, 4, 27, 0, 0, 0, tzinfo=UTC)
 
 
 def _is_legacy(mission_started_at: str) -> bool:
     """Return True if the mission predates the tranche release."""
     try:
-        started = datetime.fromisoformat(mission_started_at)
+        started = parse_iso(mission_started_at)
         if started.tzinfo is None:
-            started = started.replace(tzinfo=timezone.utc)
+            started = started.replace(tzinfo=UTC)
         return started < _TRANCHE_RELEASE_CUTOFF
     except ValueError:
         return False
@@ -351,7 +351,7 @@ def build_summary(
         A :class:`SummarySnapshot` (always — never raises on malformed
         records; they appear in ``snapshot.malformed``).
     """
-    generated_at = datetime.now(timezone.utc).isoformat()
+    generated_at = now_utc_iso()
 
     # Mutable accumulator state
     mission_count = 0
@@ -413,7 +413,7 @@ def build_summary(
             else:
                 if since is not None:
                     try:
-                        created_dt = datetime.fromisoformat(gen_record.created_at)
+                        created_dt = parse_iso(gen_record.created_at)
                         if created_dt.date() < since:
                             continue
                     except (ValueError, AttributeError):
@@ -485,7 +485,7 @@ def build_summary(
         # --since filter
         if since is not None:
             try:
-                started_dt = datetime.fromisoformat(record.mission.mission_started_at)
+                started_dt = parse_iso(record.mission.mission_started_at)
                 started_date = started_dt.date()
                 if started_date < since:
                     continue

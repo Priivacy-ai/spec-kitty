@@ -18,7 +18,7 @@ import copy
 import json
 import logging
 import stat
-from datetime import datetime
+from kernel.clock import parse_iso
 from pathlib import Path
 
 import pytest
@@ -77,7 +77,7 @@ class TestEmitEvent:
         ts = events[0]["timestamp"]
 
         # Must parse as ISO 8601
-        parsed = datetime.fromisoformat(ts)
+        parsed = parse_iso(ts)
         # Must be UTC (offset-aware with +00:00)
         assert parsed.tzinfo is not None
         assert parsed.utcoffset().total_seconds() == 0

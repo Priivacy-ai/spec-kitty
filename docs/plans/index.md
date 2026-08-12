@@ -5,7 +5,7 @@ doc_status: draft
 updated: '2026-07-05'
 related:
 - docs/plans/3-2-x-milestone-roadmap.md
-- docs/release-goals/index.md
+- docs/changelog/release-goals.md
 ---
 # Plans
 
@@ -43,7 +43,7 @@ durable architecture/reference docs it is retired.
 
 The [3.2.x milestone roadmap](3-2-x-milestone-roadmap.md) is the operator-facing
 execution roadmap for the current milestone. The durable declarations of intent
-it executes live in [release goals](../release-goals/index.md); as a plans/
+it executes live in [release goals](../changelog/release-goals.md); as a plans/
 document, the roadmap itself follows the distil-then-retire lifecycle.
 
 ## Themed clusters

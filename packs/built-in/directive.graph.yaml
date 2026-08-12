@@ -376,6 +376,12 @@ edges:
   target: tactic:reviewer-implementer-role-separation
   relation: suggests
 - source: directive:DIRECTIVE_047
+  target: directive:DIRECTIVE_042
+  relation: requires
+- source: directive:DIRECTIVE_047
+  target: styleguide:common-docs
+  relation: suggests
+- source: directive:DIRECTIVE_047
   target: tactic:writing-audience-catalog
   relation: suggests
 - source: directive:DIRECTIVE_048

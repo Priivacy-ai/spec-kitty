@@ -42,13 +42,14 @@ import dataclasses
 import json
 import socket
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any, Literal, cast
 
 from rich.console import Console
 from specify_cli.cli.console import console
 from rich.table import Table
+
+from kernel.clock import datetime, now_utc
 
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.token_manager import _refresh_lock_path
@@ -203,7 +204,7 @@ def _read_session_summary() -> tuple[SessionSummary | None, Any]:
     if session is None:
         return None, None
 
-    now = datetime.now(UTC)
+    now = now_utc()
     access_remaining = (session.access_token_expires_at - now).total_seconds()
     refresh_remaining: float | None = (
         None
@@ -599,7 +600,7 @@ def assemble_report(*, stuck_threshold_s: float = 60.0) -> DoctorReport:
 
     return DoctorReport(
         schema_version=_SCHEMA_VERSION,
-        generated_at=datetime.now(UTC),
+        generated_at=now_utc(),
         auth_root=_read_auth_root(),
         session=session_summary,
         refresh_lock=refresh_lock,

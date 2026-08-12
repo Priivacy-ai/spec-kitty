@@ -6,7 +6,7 @@ import os
 import subprocess
 import sys
 import textwrap
-from datetime import UTC, datetime
+from kernel.clock import UTC, datetime
 from pathlib import Path
 
 import pytest

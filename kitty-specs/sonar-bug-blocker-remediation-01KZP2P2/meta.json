@@ -1,0 +1,16 @@
+{
+  "coordination_branch": "kitty/mission-sonar-bug-blocker-remediation-01KZP2P2",
+  "created_at": "2026-08-10T14:54:31.495212+00:00",
+  "flattened": false,
+  "friendly_name": "Sonar BUG and BLOCKER Remediation",
+  "mission_id": "01KZP2P2J6CRP74QW89EK5ZPRP",
+  "mission_number": null,
+  "mission_slug": "sonar-bug-blocker-remediation-01KZP2P2",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "SonarCloud reports 34 BUG and 7 BLOCKER issues that block a clean quality gate and mask real defects: assertions comparing a value to itself (proving nothing), assertions swallowed by their own except-AssertionError handler, empty parametrize sets that silently skip tests, conditions that can never be false, methods that always return the same value, and filesystem paths built from user-controlled data. This mission fixes them at the root (never suppression), separating mechanical cleanups from cases that need investigation.",
+  "purpose_tldr": "Fix every open SonarCloud BUG and BLOCKER: real logic bugs, path-injection security hotspots, and defective (tautological or swallowed) test assertions.",
+  "slug": "sonar-bug-blocker-remediation-01KZP2P2",
+  "target_branch": "fix/sonar-bug-blocker-remediation",
+  "topology": "coord"
+}

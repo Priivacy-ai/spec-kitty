@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="https://github.com/Priivacy-ai/spec-kitty/raw/main/media/logo_small.webp" alt="Spec Kitty logo"/>
+    <img src="https://github.com/Priivacy-ai/spec-kitty/raw/main/docs/assets/logo_small.webp" alt="Spec Kitty logo"/>
     <h1>Spec Kitty</h1>
     <p><strong>Spec-driven development for AI coding agents, multi-agent workflows, and governed software factories.</strong></p>
 </div>

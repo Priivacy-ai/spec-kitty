@@ -9,6 +9,7 @@ from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
 from specify_cli.cli.commands.charter._common import _emit_error
+from kernel.clock import now_utc_iso
 
 # Test-patch shim — see ``synthesize.py``.
 import specify_cli.cli.commands.charter as _charter_pkg
@@ -78,6 +79,51 @@ def _print_charter_lint_banner(
     return True
 
 
+def _load_org_layer(
+    repo_root: Any, *, output_json: bool
+) -> tuple[list[str], list[OrgDRGFragment]]:
+    """Load configured org DRG packs for ``charter lint`` (Slice F WP06 / FR-003).
+
+    Returns ``(org_layer_summary, org_fragments)`` so the caller can attribute
+    findings (or the OK marker) to each configured layer by name. Extracted
+    from ``charter_lint`` to keep the command under the cyclomatic-complexity
+    gate (mirrors the existing ``_print_charter_lint_banner`` extraction).
+    """
+    from charter.drg import OrgDRGFragment, load_org_drg
+
+    org_layer_summary: list[str] = []
+    org_fragments: list[OrgDRGFragment] = []
+    try:
+        org_fragments = load_org_drg(repo_root)
+    except Exception as exc:  # noqa: BLE001 - degrade gracefully on bad pack
+        # A pack-loading failure (e.g. ``OrgPackMissingError``) should
+        # surface as a lint-time hard error, not silently swallow.
+        # FR-004 binding: hard-fail with a named error so the operator
+        # can fix the missing pack before re-running lint.
+        from charter.drg import OrgDRGConflictError, OrgPackMissingError
+
+        if isinstance(exc, (OrgPackMissingError, OrgDRGConflictError)):
+            message = f"Charter Lint: org-layer load failed: {exc}"
+            _emit_error(console, json_output=output_json, message=message)
+            raise typer.Exit(code=1) from exc
+        # Unknown failure shape — log and continue without org layer.
+        if not output_json:
+            console.print(
+                f"[yellow]warning:[/yellow] org-layer skipped (load error): {exc}"
+            )
+    else:
+        # Type-narrow against the public Pydantic schema so a regression
+        # that returns the wrong shape fails fast at the CLI boundary — this
+        # check must NOT be caught by the pack-loading ``except`` above (it
+        # would previously masquerade as a benign "load error" and degrade
+        # to a warning instead of surfacing the real bug).
+        if not all(isinstance(f, OrgDRGFragment) for f in org_fragments):
+            raise TypeError("load_org_drg must return OrgDRGFragment instances")
+        for fragment in org_fragments:
+            org_layer_summary.append(f"org:{fragment.pack_name}")
+    return org_layer_summary, org_fragments
+
+
 @charter_app.command("lint")
 def charter_lint(
     mission: str | None = typer.Option(None, "--mission", help="Scope lint to a specific mission slug"),
@@ -116,35 +162,7 @@ def charter_lint(
     # marker) to each configured layer by name. JSON output is unchanged
     # — programmatic consumers read provenance from the merged DRG via
     # ``charter.drg.merge_three_layers`` directly.
-    org_layer_summary: list[str] = []
-    org_fragments: list[OrgDRGFragment] = []
-    try:
-        from charter.drg import OrgDRGFragment, load_org_drg
-
-        org_fragments = load_org_drg(repo_root)
-        # Type-narrow against the public Pydantic schema so a regression
-        # that returns the wrong shape fails fast at the CLI boundary.
-        assert all(isinstance(f, OrgDRGFragment) for f in org_fragments), (
-            "load_org_drg must return OrgDRGFragment instances"
-        )
-        for fragment in org_fragments:
-            org_layer_summary.append(f"org:{fragment.pack_name}")
-    except Exception as exc:  # noqa: BLE001 - degrade gracefully on bad pack
-        # A pack-loading failure (e.g. ``OrgPackMissingError``) should
-        # surface as a lint-time hard error, not silently swallow.
-        # FR-004 binding: hard-fail with a named error so the operator
-        # can fix the missing pack before re-running lint.
-        from charter.drg import OrgDRGConflictError, OrgPackMissingError
-
-        if isinstance(exc, (OrgPackMissingError, OrgDRGConflictError)):
-            message = f"Charter Lint: org-layer load failed: {exc}"
-            _emit_error(console, json_output=output_json, message=message)
-            raise typer.Exit(code=1) from exc
-        # Unknown failure shape — log and continue without org layer.
-        if not output_json:
-            console.print(
-                f"[yellow]warning:[/yellow] org-layer skipped (load error): {exc}"
-            )
+    org_layer_summary, org_fragments = _load_org_layer(repo_root, output_json=output_json)
 
     # When org packs are configured, exercise ``merge_three_layers``
     # against an empty built-in graph so any pack-level conflict (layer
@@ -154,8 +172,6 @@ def charter_lint(
     # existing graph load remains authoritative for findings — but the
     # call enforces FR-005 hard-fails as a lint gate.
     if org_fragments:
-        import datetime as _dt
-
         from charter.drg import (
             DRGGraph,
             OrgDRGConflict,
@@ -165,7 +181,7 @@ def charter_lint(
 
         empty_built_in = DRGGraph(
             schema_version="1.0",
-            generated_at=_dt.datetime.now(_dt.UTC).isoformat(),
+            generated_at=now_utc_iso(),
             generated_by="charter-lint",
             nodes=[],
             edges=[],

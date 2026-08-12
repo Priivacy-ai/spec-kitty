@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 
 import pytest
@@ -87,7 +87,7 @@ def _create_minimal_feature(tmp_path: Path) -> tuple[Path, Path]:
     # Status event log — WP01 forced straight to done
     from ulid import ULID
 
-    now = datetime.now(UTC).isoformat()
+    now = now_utc_iso()
     event = StatusEvent(
         event_id=str(ULID()),
         mission_slug=_FEATURE_SLUG,

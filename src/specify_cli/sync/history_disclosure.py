@@ -6,10 +6,9 @@ import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from typing import Any, cast
 
-from specify_cli.core.time_utils import now_utc_iso
 from .project_context import AdmissionState, ConsentState, ProjectSyncContext
 from .project_context import validate_project_sync_context_authority
 from .project_store import ProjectSyncStore, ProjectUnitOfWork
@@ -418,7 +417,7 @@ def confirm_history_disclosure(
                     preview.preview_count,
                     preview.preview_hash,
                     provenance,
-                    datetime.now(UTC).isoformat(),
+                    now_utc_iso(),
                     consent_generation,
                     target_generation,
                     admission_generation,

@@ -370,9 +370,18 @@ def _callee_name(call: ast.Call) -> str | None:
     return None
 
 
-def _rel(path: Path) -> str:
+def _rel(path: Path, root: Path) -> str:
+    """Relativise *path* against *root* (the scanned tree's repo root).
+
+    Takes the root explicitly rather than the module-level ``_REPO_ROOT`` so a
+    cross-tree scan (e.g. a ``git worktree`` baseline) relativises against the
+    tree it is scanning. Deriving the root from the gate file's own location
+    made every ``rel`` absolute for a foreign tree, silently breaking the
+    ``EXCLUDED_REL_PATHS`` membership check and over-counting
+    ``mission_metadata.py`` as a violation (issue #3241).
+    """
     try:
-        return path.relative_to(_REPO_ROOT).as_posix()
+        return path.relative_to(root).as_posix()
     except ValueError:
         return path.as_posix()
 
@@ -615,8 +624,9 @@ def scan_inline_meta_reads(src_root: Path) -> list[InlineMetaReadSite]:
     the ``task_utils`` adapter) per the contract.
     """
     sites: list[InlineMetaReadSite] = []
+    repo_root = src_root.parent
     for path in _iter_source_files(src_root):
-        rel = _rel(path)
+        rel = _rel(path, repo_root)
         if rel in EXCLUDED_REL_PATHS:
             continue
         sites.extend(_scan_file_for_inline_meta_reads(path, rel))
@@ -686,8 +696,9 @@ def scan_routed_load_meta_calls(src_root: Path) -> list[tuple[str, int]]:
     JSON-parsing implementation (which is what the INLINE scan excludes).
     """
     sites: list[tuple[str, int]] = []
+    repo_root = src_root.parent
     for path in _iter_source_files(src_root):
-        rel = _rel(path)
+        rel = _rel(path, repo_root)
         source = path.read_text(encoding="utf-8")
         try:
             tree = ast.parse(source, filename=str(path))

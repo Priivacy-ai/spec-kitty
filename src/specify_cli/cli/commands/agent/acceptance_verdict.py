@@ -39,7 +39,6 @@ enforce_negative_invariants` engine (never reimplemented here), recording its
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 
@@ -57,6 +56,7 @@ from specify_cli.acceptance.matrix import (
 from specify_cli.agent_tasks_ports import RealRender
 from specify_cli.cli.console import console
 from specify_cli.cli.selector_resolution import resolve_mission_handle
+from kernel.clock import now_utc_iso
 from specify_cli.task_utils import TaskCliError, find_repo_root
 
 if TYPE_CHECKING:
@@ -124,7 +124,7 @@ def _resolve_criterion_update(
         return existing
     return replace(
         candidate,
-        verified_at=datetime.now(UTC).isoformat(),
+        verified_at=now_utc_iso(),
     )
 
 

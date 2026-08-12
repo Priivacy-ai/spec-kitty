@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, UTC
+from kernel.clock import timedelta, now_utc
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -45,7 +45,7 @@ def _isolate_home_for_preflight(
 
 
 def _session() -> StoredSession:
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="user-1",
         email="robert@example.com",

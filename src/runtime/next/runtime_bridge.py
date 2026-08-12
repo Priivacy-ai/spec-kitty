@@ -142,9 +142,10 @@ from __future__ import annotations
 import dataclasses
 import logging
 import shutil
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+from kernel.clock import now_utc_iso
 
 if TYPE_CHECKING:
     from charter.invocation_context import OperationalContext as OperationalContextT
@@ -1215,7 +1216,7 @@ def _dn_bootstrap(
     remaining phases.
     """
     feature_dir = _resolve_runtime_feature_dir(repo_root, mission_slug)
-    now = datetime.now(UTC).isoformat()
+    now = now_utc_iso()
 
     if not feature_dir.is_dir():
         return None, _materialize_decision(
@@ -1494,7 +1495,7 @@ def _dn_composition_blocked_decision(
     )
     prompt_file = (
         _build_prompt_safe(
-            action or current_step_id,
+            action,
             ctx.feature_dir,
             ctx.mission_slug,
             wp_id,
@@ -2065,7 +2066,7 @@ def query_current_state(
     """
     from mission_runtime import ActionContextError, MissionArtifactKind, mission_context_for
 
-    now = datetime.now(UTC).isoformat()
+    now = now_utc_iso()
     try:
         mission_context = mission_context_for(repo_root, mission_slug)
         mission_slug = mission_context.mission_slug

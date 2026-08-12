@@ -8,7 +8,7 @@ noted otherwise.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from kernel.clock import datetime
 from enum import StrEnum
 from typing import Any
 

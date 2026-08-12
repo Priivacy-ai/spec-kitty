@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 from .enums import ToolSurfaceKind
 from .model import SurfaceDefinition, SurfaceInstance, SurfacePlan

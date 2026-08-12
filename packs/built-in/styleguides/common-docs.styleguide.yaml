@@ -10,6 +10,7 @@ principles:
   - "Lifecycle key is doc_status, never status. The frontmatter lifecycle key is the namespaced doc_status with the controlled vocabulary draft | active | deprecated | superseded. The bare key status is prohibited in frontmatter because it collides with the work-package lane status model. The freshness date is carried by updated: YYYY-MM-DD."
   - "SEO description is bounded. Frontmatter carries a description string of 50-180 characters (inclusive) consumed by the SEO post-processing step; descriptions outside that band are rejected."
   - "Cross-references use related: resolvable paths. Cross-references are a related: frontmatter list of repo-relative .md paths that each resolve to an existing file. The dead citation_refs sidecar field is not reintroduced."
+  - "Audience is named via a resolvable audience: path. Every documentation page touched by a change declares its target reader through an audience: frontmatter field — one resolvable repo-relative .md path (or a list of paths) targeting a persona under docs/context/audience/. This is the machine-checkable form of DIRECTIVE_047's audience-oriented-writing rule. The field is required on touched pages only and is deliberately NOT added to frontmatter_required_fields, so untouched legacy pages are never red-lined for lacking it (C-012)."
   - "ADRs live under adr/<era>/ with YAML frontmatter. Architecture Decision Records are filed under adr/1.x/, adr/2.x/, or adr/3.x/ by era of decision and carry YAML frontmatter so the docsite can index them. The living architectural design collapses into a single unversioned architecture/ location."
   - "Naming is kebab-case and section-scoped. Documentation file and directory names are lowercase kebab-case; ADR filenames keep their dated prefix; one concern per file."
   - "Curate by delete-stale. docs/ is not a wiki: one concern per file, every behaviour-changing change updates the relevant docs in the same commit, and stale or deprecated documents are distilled into a decision (adr/) or design (architecture/) and then retired rather than accumulating."
@@ -46,6 +47,25 @@ patterns:
       related:
         - ../architecture/charter-activation.md
         - ../adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
+      ---
+  - name: audience-resolvable
+    description: >
+      Name a page's target reader through the audience: frontmatter field whose
+      value is a resolvable repo-relative .md path (or a list of paths) into
+      docs/context/audience/, validated by the audience resolver, rather than a
+      free-text audience note that nothing can check. Required on touched pages
+      only (C-012).
+    bad_example: |
+      ---
+      title: Merge Workflow
+      audience: maintainers   # free text — unresolvable, unverifiable
+      ---
+    good_example: |
+      ---
+      title: Merge Workflow
+      doc_status: active
+      updated: 2026-08-10
+      audience: ../context/audience/internal/maintainer.md
       ---
 
 anti_patterns:
@@ -84,6 +104,7 @@ tooling:
   frontmatter-ssot-lockfile: "WP04 page-inventory lockfile freshness gate (asserts the rollup is regenerated FROM frontmatter and the committed lockfile is in sync)."
   frontmatter-seo-description: "WP04 page-inventory lockfile freshness gate (asserts every description is 50-180 characters)."
   related-resolvable-paths: "WP03 related: path validator (asserts every related: entry resolves to an existing repo-relative .md path)."
+  audience-resolvable: "WP02 audience: path resolver (scripts/docs/audience_resolver.py or an extension of related_validator) — asserts every audience: value on a touched page resolves to an existing repo-relative .md persona under docs/context/audience/. Non-vacuous: reuses assert_examined_floor (min_files >= the count of audience-tagged pages; fails on 0 examined) and emits checked_count; runs --strict on PR in docs-freshness.yml (exit 1 on any dangling reference). Scoped to touched pages only — never added to frontmatter_required_fields (C-012)."
 
 quality_test: >
   A documentation change satisfies this styleguide when: the
@@ -111,8 +132,19 @@ structural_lint_config:
   curated_complete_sections:
     - architecture
   # Concern-bucket -> canonical section home (data-model.md "Canonical section").
+  # RATIONALE (T003, FR-009, research D2): how_to routing is AUDIENCE-BASED, not
+  # a single fixed home. The retired ratchet routed all how_to -> development/
+  # and forbade guides/ as a how_to target, but guides/ already holds ~21
+  # user-facing how-tos. Splitting how_to by audience (contributor/maintainer
+  # -> development/, user -> guides/) reconciles the config with reality and ties
+  # the routing to the audience catalog (internal -> development/, external ->
+  # guides/). Expressed as two audience-scoped string entries so this block stays
+  # a flat dict[str, str] — the lint loads it via _require_str_dict, so a nested
+  # value here would break config load. All other buckets keep a single home.
+  # This is the single routing edit every mover WP consumes.
   concern_bucket_to_section:
-    how_to: development/
+    how_to_internal: development/   # contributor/maintainer (internal-audience) how-tos
+    how_to_external: guides/        # user-facing (external-audience) how-tos
     reference_policy: development/
     point_in_time: plans/engineering-notes/
     ops_runbook: operations/
@@ -174,9 +206,78 @@ structural_lint_config:
   # the correct fix is this config-declared signal. (e.g.
   # docs/retrospective-learning-loop.md -> docs/architecture/retrospective-learning-loop.md.)
   redirect_stub_description_prefix: "Redirect stub:"
-  # C-001 restated as a machine-checkable boundary: nothing relocates into
-  # docs/guides/ under this mission's redistribution work.
-  guides_boundary: "docs/guides/ is not a relocation target for how_to or reference_policy content moved by this mission."
+  # Guides-section boundary, reconciled with the audience-based how_to routing
+  # above (T003, FR-009, research D2). docs/guides/ is the canonical home for
+  # USER-FACING (external-audience) how-tos ONLY; contributor/maintainer
+  # (internal-audience) how-tos and all reference_policy content route to
+  # development/. guides/ therefore remains NOT a relocation target for
+  # internal-audience how_to content or for any reference_policy content moved by
+  # this mission.
+  guides_boundary: "docs/guides/ is the canonical home for user-facing (external-audience) how-tos only; internal-audience (contributor/maintainer) how_to content and all reference_policy content route to development/. guides/ is not a relocation target for internal-audience how_to or reference_policy content moved by this mission (FR-009, research D2)."
+
+  # --- T004 invariant fields (WP01 audience/routing above + WP04 fields below;
+  #     3-way merge reconciled at WP13) --------------------------------------
+  # The four fields below are the config surface the extended structural-lint
+  # check-fns (one_index_per_dir, sanctioned-section membership) and the
+  # touched-set root-allowlist gate consume. They land here together with the
+  # LintConfig dataclass + check-fns so the three-way schema/LintConfig/YAML
+  # parity guard (test_schema_properties_match_lintconfig_fields) stays green.
+  # (WP01 carries the placeholder comment marking this insertion point; the
+  # values themselves mirror the spec Definitions exactly.)
+  #
+  # The closed set of sanctioned CONTENT sections under docs/. A page whose
+  # top-level section is not one of these (and not covered by non_content_dirs)
+  # is off-structure. Advisory now; WP13 flips it blocking (OB-2).
+  sanctioned_content_sections:
+    - index
+    - context
+    - architecture
+    - adr
+    - plans
+    - api
+    - configuration
+    - integrations
+    - security
+    - guides
+    - operations
+    - migrations
+    - changelog
+    - development
+  # Sanctioned NON-content directories under docs/ — nav/scaffolding zones that
+  # are exempt from sanctioned-section membership (they hold assets/templates,
+  # not curated documentation pages).
+  non_content_dirs:
+    - "assets/"
+    - "contracts/"
+    - "templates/"
+    # ``templates/spec-kitty/`` is the DocFX template zone; the broader
+    # ``templates/`` above subsumes it (incl. the templates/ landing). Entries
+    # are matched as full path prefixes (nested-dir aware), so a two-segment
+    # entry like this one is honoured — the prior top-level-only comparison
+    # silently never matched it (WP04 reviewer bug, fixed in the lint's
+    # _under_non_content_dir).
+    - "templates/spec-kitty/"
+  # The closed allowlist of documentation-bearing files permitted at the
+  # repository root (outside docs/). The root-allowlist gate (touched_set_gates)
+  # fails on any doc-bearing root file not in this set. Advisory now; WP13 T040
+  # flips it blocking (NFR-006/SC-002).
+  root_allowlist:
+    - README.md
+    - LICENSE
+    - CHANGELOG.md
+    - CONTRIBUTING.md
+    - CLAUDE.md
+    - AGENTS.md
+    - CODE_OF_CONDUCT.md
+    - SECURITY-POSITION.md
+    - CONTRIBUTORS.md
+    - RELEASE_CHECKLIST.md
+    - .all-contributorsrc
+    - ascii-art.txt
+  # When true, a directory carries at most one index/landing page (index.md).
+  # Advisory now; WP13 flips it blocking once the movers consolidate the
+  # README.md/index.md pairs that currently coexist in a handful of dirs.
+  one_index_per_dir: true
 
 references:
   - packs/built-in/directives/042-common-docs.directive.yaml

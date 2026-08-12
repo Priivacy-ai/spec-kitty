@@ -318,7 +318,7 @@ def _no_coord_branch(feature_dir: Path, checkpoint: str) -> None:
 
 
 def _write_lanes(feature_dir: Path, slug: str, mission_branch: str) -> None:
-    from datetime import datetime, timezone
+    from kernel.clock import now_utc_iso
 
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
     from specify_cli.lanes.persistence import write_lanes_json
@@ -349,7 +349,7 @@ def _write_lanes(feature_dir: Path, slug: str, mission_branch: str) -> None:
                     parallel_group=0,
                 ),
             ],
-            computed_at=datetime.now(timezone.utc).isoformat(),  # noqa: UP017
+            computed_at=now_utc_iso(),
             computed_from="test-fixture",
         ),
     )

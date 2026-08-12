@@ -80,7 +80,7 @@ from typing import Any
 from mission_runtime import CommitTarget
 from kernel.paths import to_posix
 from specify_cli.core.commit_guard import GuardCapability, GuardVerdict, ProtectionState
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
 from specify_cli.git.protection_policy import ProtectionPolicy
 

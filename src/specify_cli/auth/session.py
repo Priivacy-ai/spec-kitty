@@ -23,8 +23,9 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, UTC
 from typing import Any, Literal
+
+from kernel.clock import UTC, datetime, now_utc, parse_iso, timedelta
 
 StorageBackend = Literal["file"]
 AuthMethod = Literal["authorization_code", "device_code"]
@@ -146,7 +147,7 @@ class StoredSession:
         A ``buffer_seconds`` of 0 means "expired". Values > 0 let callers
         refresh proactively before the current token lapses.
         """
-        now = datetime.now(UTC)
+        now = now_utc()
         return self.access_token_expires_at <= now + timedelta(seconds=buffer_seconds)
 
     def is_refresh_token_expired(self) -> bool:
@@ -159,11 +160,11 @@ class StoredSession:
         """
         if self.refresh_token_expires_at is None:
             return False  # server-managed; client cannot decide proactively
-        return self.refresh_token_expires_at <= datetime.now(UTC)
+        return self.refresh_token_expires_at <= now_utc()
 
     def touch(self) -> None:
         """Update ``last_used_at`` to the current UTC time."""
-        self.last_used_at = datetime.now(UTC)
+        self.last_used_at = now_utc()
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-safe dict."""
@@ -195,7 +196,7 @@ class StoredSession:
         """Deserialize from the dict produced by ``to_dict``."""
         refresh_exp_raw = data.get("refresh_token_expires_at")
         refresh_exp = (
-            datetime.fromisoformat(refresh_exp_raw) if refresh_exp_raw else None
+            parse_iso(refresh_exp_raw) if refresh_exp_raw else None
         )
         return cls(
             user_id=data["user_id"],
@@ -206,12 +207,12 @@ class StoredSession:
             access_token=data["access_token"],
             refresh_token=data["refresh_token"],
             session_id=data["session_id"],
-            issued_at=datetime.fromisoformat(data["issued_at"]),
-            access_token_expires_at=datetime.fromisoformat(data["access_token_expires_at"]),
+            issued_at=parse_iso(data["issued_at"]),
+            access_token_expires_at=parse_iso(data["access_token_expires_at"]),
             refresh_token_expires_at=refresh_exp,
             scope=data["scope"],
             storage_backend=data["storage_backend"],
-            last_used_at=datetime.fromisoformat(data["last_used_at"]),
+            last_used_at=parse_iso(data["last_used_at"]),
             auth_method=data["auth_method"],
             generation=data.get("generation"),
         )

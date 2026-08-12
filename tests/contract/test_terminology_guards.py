@@ -62,7 +62,7 @@ DOCTRINE_SKILL_GLOBS = ("src/doctrine/skills/**/*.md",)
 AGENT_DOC_GLOBS = ("docs/**/*.md",)
 TOP_LEVEL_DOCS = ("README.md", "CONTRIBUTING.md")
 # Exemption policy and rationale for each exempt surface:
-# docs/development/terminology-exemptions.md
+# docs/development/reference/terminology-exemptions.md
 FORBIDDEN_SCAN_ROOTS = (
     "kitty-specs/",
     "architecture/",
@@ -82,7 +82,6 @@ FORBIDDEN_SCAN_ROOTS = (
     # docs — the active planning pages at docs/plans/*.md stay scanned.
     "docs/plans/engineering-notes/",
     "docs/plans/initiatives/",
-    "docs/plans/notes/",
 )
 
 
@@ -134,7 +133,6 @@ def _live_doc_scan_targets() -> list[tuple[Path, str]]:
                     "docs/adr/",
                     "docs/plans/engineering-notes/",
                     "docs/plans/initiatives/",
-                    "docs/plans/notes/",
                 )
             ):
                 continue
@@ -554,9 +552,9 @@ def test_terminology_exemption_policy_doc_is_present_and_consistent() -> None:
 
     Authority: FR-013 (policy doc linked from the guard test).
     """
-    policy_doc = REPO_ROOT / "docs" / "development" / "terminology-exemptions.md"
+    policy_doc = REPO_ROOT / "docs" / "development" / "reference" / "terminology-exemptions.md"
     assert policy_doc.exists(), (
-        "docs/development/terminology-exemptions.md must exist. "
+        "docs/development/reference/terminology-exemptions.md must exist. "
         "Authority: FR-013. The exemption policy must be documented in a human-readable form."
     )
 

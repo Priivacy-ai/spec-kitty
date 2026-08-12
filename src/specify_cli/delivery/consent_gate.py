@@ -52,7 +52,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 import hashlib
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from kernel.clock import datetime, now_utc, timedelta
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, final
 
@@ -143,7 +143,7 @@ class _ProjectTransportPhaseRefusal(RuntimeError):
 
 def default_transport_deadline(*, now: datetime | None = None) -> str:
     """Return the bounded disclosure deadline used by interactive senders."""
-    base = now or datetime.now(UTC)
+    base = now or now_utc()
     return (base + timedelta(minutes=5)).isoformat()
 
 

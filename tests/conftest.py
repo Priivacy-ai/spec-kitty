@@ -155,6 +155,23 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 def pytest_configure(config: pytest.Config) -> None:
     os.environ.setdefault(_REAL_HOME_ENV_VAR, str(Path.home()))
 
+    # #3213: set the SaaS-sync feature flag ONCE, collection-wide, before any test
+    # module is imported. Import-time ``@pytest.mark.skipif(not
+    # os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC"))`` gates are evaluated at
+    # collection, which the per-test autouse ``_enable_saas_sync_feature_flag``
+    # fixture (a setup-time monkeypatch) is too late to satisfy. Previously six
+    # docs/architectural modules set it at import via their own
+    # ``os.environ.setdefault``, so whether the gate fired depended on whether
+    # one of those modules happened to be collected — ``pytest tests/ -m
+    # regression`` enforced it, ``pytest tests/regression`` did not. Setting it
+    # here is the single collection-time authority, so a given node's skip/run
+    # decision is the same under every selection. (Historically this also
+    # re-exposed the then-open #2782 P0 red under ``pytest tests/regression``;
+    # #2782 has since been resolved and its reproduction retired, so nothing in
+    # ``tests/regression`` is red today — but the invariant still governs every
+    # other import-time SaaS-sync gate.)
+    os.environ.setdefault("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+
     # WP04: isolate this worker's home BEFORE collection so modules that bind a
     # home-derived path at import time (e.g. ``daemon.SPEC_KITTY_DIR`` at
     # ``daemon.py:94``) resolve into the per-worker isolated home, never the

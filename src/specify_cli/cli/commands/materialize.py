@@ -16,7 +16,7 @@ import typer
 from specify_cli.cli.console import console
 
 from specify_cli.core.paths import locate_project_root
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 
 

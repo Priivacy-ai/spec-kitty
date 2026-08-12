@@ -325,6 +325,38 @@ def test_metadata_written(
     assert "version" in data["spec_kitty"]
 
 
+def test_metadata_initialized_at_is_aware_utc(
+    cli_app: tuple[Typer, Console],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """kernel-clock-single-door FR-011: ``initialized_at`` is aware-UTC, not naive local time.
+
+    Regression guard for the naive ``datetime.now()`` site formerly in
+    ``cli.commands.init`` (research/migration-notes.md): a naive value
+    persists to ``metadata.yaml`` WITHOUT a UTC offset suffix; the door's
+    ``now_utc()`` always carries ``+00:00``. Non-vacuity: reverting the
+    door call back to a bare ``datetime.now()`` drops the offset and this
+    assertion fails.
+    """
+    app, console = cli_app
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
+
+    result = _run(app, ["init", "meta-aware-test", "--ai", "claude", "--non-interactive"])
+
+    assert result.exit_code == 0, result.output
+    metadata_file = tmp_path / "meta-aware-test" / ".kittify" / "metadata.yaml"
+    data = yaml.safe_load(metadata_file.read_text(encoding="utf-8"))
+    initialized_at = data["spec_kitty"]["initialized_at"]
+    assert isinstance(initialized_at, str), "expected an unquoted ISO string in the raw YAML"
+    assert initialized_at.endswith("+00:00"), (
+        f"initialized_at={initialized_at!r} is missing the aware-UTC offset suffix "
+        "-- the naive datetime.now() regression has returned"
+    )
+
+
 # ---------------------------------------------------------------------------
 # FR-014: config.yaml has no `selection` key
 # ---------------------------------------------------------------------------

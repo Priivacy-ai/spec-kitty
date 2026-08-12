@@ -67,4 +67,6 @@ def test_same_sync_runtime_instance_fingerprints_identically_to_itself() -> None
     """
     runtime = SyncRuntime()
 
-    assert _content_fingerprint(runtime) == _content_fingerprint(runtime)
+    first_fingerprint = _content_fingerprint(runtime)
+    second_fingerprint = _content_fingerprint(runtime)
+    assert first_fingerprint == second_fingerprint

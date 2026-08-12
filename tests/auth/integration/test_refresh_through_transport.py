@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import sys
 import types
-from datetime import datetime, timedelta, UTC
+from kernel.clock import UTC, datetime, now_utc, timedelta
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -46,7 +46,7 @@ runner = CliRunner()
 
 
 def _now() -> datetime:
-    return datetime.now(UTC)
+    return now_utc()
 
 
 def _make_expired_session() -> StoredSession:

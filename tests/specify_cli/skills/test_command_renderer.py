@@ -570,7 +570,8 @@ def test_nfr004_all_canonical_steps_render() -> None:
             continue
         try:
             skill = render(prompt_path, "codex", _TEST_VERSION)
-            assert skill.name == f"spec-kitty.{command}", f"Wrong skill name for {command}: {skill.name}"
+            if skill.name != f"spec-kitty.{command}":
+                raise AssertionError(f"Wrong skill name for {command}: {skill.name}")
         except Exception as exc:  # noqa: BLE001
             render_errors.append(f"{command}: {exc}")
 

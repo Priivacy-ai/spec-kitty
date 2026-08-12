@@ -10,7 +10,7 @@ Covers:
 from __future__ import annotations
 
 import json
-from datetime import datetime, UTC
+from kernel.clock import UTC, datetime
 from pathlib import Path
 
 

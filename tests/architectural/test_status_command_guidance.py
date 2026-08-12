@@ -38,7 +38,8 @@ import pytest
 import typer
 import typer.main
 
-os.environ.setdefault("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+# SPEC_KITTY_ENABLE_SAAS_SYNC is set collection-wide in tests/conftest.py
+# pytest_configure (#3213), not per-module.
 os.environ.setdefault("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
 
 #: ``architectural`` is what the always-on ``arch-adversarial`` CI pole selects
@@ -60,7 +61,7 @@ _SCOPED_SOURCE_FILES = (
     Path("docs/api/environment-variables.md"),
     Path("docs/api/upgrade-lifecycle.md"),
     Path("docs/architecture/launch-readiness-future.md"),
-    Path("docs/guides/install-and-upgrade.md"),
+    Path("docs/guides/how-to/installation/install-and-upgrade.md"),
 )
 _SCOPED_SOURCE_DENOMINATOR = 5
 

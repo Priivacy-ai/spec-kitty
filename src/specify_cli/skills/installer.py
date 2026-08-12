@@ -6,7 +6,7 @@ import shutil
 import stat
 from collections.abc import Callable
 from contextlib import suppress
-from datetime import datetime, timezone, UTC
+from kernel.clock import now_utc_iso, now_utc_compact_stamp
 from pathlib import Path
 
 from specify_cli.core.config import (
@@ -14,7 +14,6 @@ from specify_cli.core.config import (
     SKILL_CLASS_SHARED,
     SKILL_CLASS_WRAPPER,
 )
-from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.skills.command_renderer import ensure_skill_frontmatter
 from specify_cli.skills.manifest import (
     ManagedFileEntry,
@@ -108,7 +107,7 @@ def _ensure_backup_root(project_path: Path, backup_root: Path | None) -> Path:
     if backup_root is not None:
         return backup_root
 
-    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = now_utc_compact_stamp()
     root = project_path / ".kittify" / ".migration-backup" / "agent-skills" / timestamp
     root.mkdir(parents=True, exist_ok=True)
     return root

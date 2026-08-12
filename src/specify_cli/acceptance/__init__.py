@@ -7,7 +7,7 @@ import logging
 import os
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from kernel.clock import now_utc_stamp
 from pathlib import Path
 from typing import Any
 
@@ -1321,7 +1321,7 @@ def perform_acceptance(
         raise AcceptanceError("Acceptance checks failed; run verify to see outstanding issues.")
 
     actor_name = resolve_acceptance_actor(actor)
-    timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    timestamp = now_utc_stamp()
 
     parent_commit: str | None = None
     accept_commit: str | None = None

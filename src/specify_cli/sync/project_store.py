@@ -7,7 +7,7 @@ import sqlite3
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager, suppress
 from contextvars import ContextVar
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 from typing import Final, TypeAlias, cast
 from uuid import UUID
@@ -497,6 +497,32 @@ class ProjectSyncStore:
         if layout_version != self.layout_version:
             raise ProjectStoreVersionError(f"project store layout {layout_version!r} is incompatible with {self.layout_version}")
 
+    def verify_existing_readonly(self) -> VerifiedProjectStoreIdentity:
+        """Verify an existing project store without creating files or a write txn."""
+        if not self.database_path.exists():
+            raise ProjectStoreError(f"project sync store does not exist: {self.database_path}")
+        connection: sqlite3.Connection | None = None
+        try:
+            connection = sqlite3.connect(
+                f"file:{self.database_path.as_posix()}?mode=ro",
+                uri=True,
+                isolation_level=None,
+            )
+            if not self._metadata_table_exists(connection):
+                raise ProjectStoreCorruptError("existing sync.db is not an initialized project store")
+            self._verify_owner(connection)
+        except sqlite3.DatabaseError as exc:
+            raise self._translate_open_error(exc) from exc
+        finally:
+            if connection is not None:
+                connection.close()
+        return _new_verified_project_store_identity(
+            project_uuid=self.project_uuid,
+            database_path=self.database_path,
+            schema_version=self.schema_version,
+            layout_version=self.layout_version,
+        )
+
     @staticmethod
     def _translate_open_error(error: sqlite3.DatabaseError) -> ProjectStoreError:
         message = str(error).lower()
@@ -544,7 +570,7 @@ class ProjectSyncStore:
                         self.project_uuid.storage_token,
                         self.schema_version,
                         self.layout_version,
-                        datetime.now(UTC).isoformat(),
+                        now_utc_iso(),
                     ),
                 )
             self._verify_owner(connection)

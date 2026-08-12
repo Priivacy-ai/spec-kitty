@@ -11,11 +11,11 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from kernel.clock import now_utc, parse_iso
 from .models import Lane
 from .reducer import SNAPSHOT_FILENAME, reduce
 from .store import read_events
@@ -160,7 +160,7 @@ def check_stale_claims(
 ) -> list[Finding]:
     """Check for WPs stuck in claimed or in_progress."""
     findings: list[Finding] = []
-    now = datetime.now(UTC)
+    now = now_utc()
 
     work_packages = snapshot.get("work_packages", {})
     for wp_id, wp_state in work_packages.items():
@@ -171,7 +171,7 @@ def check_stale_claims(
             continue
 
         try:
-            transition_time = datetime.fromisoformat(last_transition_at)
+            transition_time = parse_iso(last_transition_at)
         except (ValueError, TypeError):
             continue
 

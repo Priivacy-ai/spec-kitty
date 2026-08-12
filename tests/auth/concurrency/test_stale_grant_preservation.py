@@ -31,7 +31,7 @@ from __future__ import annotations
 import logging
 import sys
 import types
-from datetime import datetime, timedelta, UTC
+from kernel.clock import now_utc, timedelta
 from pathlib import Path
 import pytest
 
@@ -72,7 +72,7 @@ def _make_session(
     session_id: str = "sess_seed",
     expired: bool = True,
 ) -> StoredSession:
-    now = datetime.now(UTC)
+    now = now_utc()
     access_exp = (
         now - timedelta(seconds=1)
         if expired
@@ -117,7 +117,7 @@ class _RotateOnceFlow:
             )
         if session.refresh_token == "rt_seed_v1":
             _RotateOnceFlow.rotated = True
-            now = datetime.now(UTC)
+            now = now_utc()
             return StoredSession(
                 user_id=session.user_id,
                 email=session.email,
@@ -139,7 +139,7 @@ class _RotateOnceFlow:
                 auth_method=session.auth_method,
             )
         # The rotated token presented again — idempotent rotation.
-        now = datetime.now(UTC)
+        now = now_utc()
         return StoredSession(
             user_id=session.user_id,
             email=session.email,
@@ -357,7 +357,7 @@ def _make_replay_session(
     session_id: str = "sess_replay",
 ) -> StoredSession:
     """Build a StoredSession for replay tests."""
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="user_replay",
         email="replay@example.com",
@@ -379,7 +379,7 @@ def _make_replay_session(
 
 def _make_refreshed_session(base: StoredSession, *, refresh_token: str, access_token: str) -> StoredSession:
     """Build a refreshed StoredSession with rotated tokens."""
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id=base.user_id,
         email=base.email,

@@ -31,6 +31,14 @@ PROJECT_UUID = "aaaaaaaa-0000-0000-0000-000000000001"
 def mock_queue(tmp_path, monkeypatch) -> OfflineQueue:
     """Real project-owned queue with a live unit for the fixture lifetime."""
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    repo = tmp_path / "repo"
+    (repo / ".kittify").mkdir(parents=True)
+    (repo / ".kittify" / "config.yaml").write_text(
+        f"project:\n  uuid: {PROJECT_UUID}\n  slug: background\n  node_id: node\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo))
+    monkeypatch.chdir(repo)
     store = ProjectSyncStore(PROJECT_UUID)
     authority = store.layout_generation()
     authority.begin_cutover("background-test")
@@ -47,9 +55,7 @@ def mock_auth(monkeypatch):
     set ``.return_value = None`` to simulate the unauthenticated state.
     """
     fake_fetch = MagicMock(return_value="token")
-    monkeypatch.setattr(
-        "specify_cli.sync.background._fetch_access_token_sync", fake_fetch
-    )
+    monkeypatch.setattr("specify_cli.sync.background._fetch_access_token_sync", fake_fetch)
     return fake_fetch
 
 
@@ -68,7 +74,6 @@ def service(mock_queue, mock_auth, mock_config, monkeypatch) -> BackgroundSyncSe
     The ``mock_auth`` fixture already patched the token-fetch bridge, so
     constructing the service is a no-op w.r.t. auth plumbing.
     """
-    monkeypatch.setattr("specify_cli.sync.background._count_legacy_event_rows", lambda: 0)
     background = BackgroundSyncService(
         queue=mock_queue,
         config=mock_config,
@@ -76,6 +81,26 @@ def service(mock_queue, mock_auth, mock_config, monkeypatch) -> BackgroundSyncSe
     )
     monkeypatch.setattr(background, "_has_discovered_project_candidates", lambda: False)
     return background
+
+
+@pytest.fixture
+def singleton_project_store(tmp_path, monkeypatch) -> ProjectSyncStore:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    repo = tmp_path / "repo"
+    (repo / ".kittify").mkdir(parents=True)
+    (repo / ".kittify" / "config.yaml").write_text(
+        f"project:\n  uuid: {PROJECT_UUID}\n  slug: singleton\n  node_id: node\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo))
+    monkeypatch.chdir(repo)
+    store = ProjectSyncStore(PROJECT_UUID)
+    authority = store.layout_generation()
+    authority.begin_cutover("background-singleton")
+    authority.publish_project_only("background-singleton", verify_exact=lambda: True)
+    with store.unit_of_work():
+        pass
+    return store
 
 
 def _failing_drain(service: BackgroundSyncService):
@@ -86,9 +111,7 @@ def _failing_drain(service: BackgroundSyncService):
     the backoff contract.
     """
     service._body_queue = MagicMock()
-    return patch.object(
-        service, "_drain_body_queue", side_effect=Exception("fail")
-    )
+    return patch.object(service, "_drain_body_queue", side_effect=Exception("fail"))
 
 
 class TestStartStop:
@@ -354,8 +377,7 @@ class TestSingletonAccessor:
 
     @patch("specify_cli.sync.background.SyncConfig")
     @patch("specify_cli.sync.background.OfflineQueue")
-    @patch("specify_cli.sync.background._count_legacy_event_rows", return_value=0)
-    def test_get_sync_service_returns_same_instance(self, _count, mock_q, _c):
+    def test_get_sync_service_returns_same_instance(self, mock_q, _c, singleton_project_store):
         """get_sync_service() returns the same instance."""
         mock_q.return_value.size.return_value = 0
         s1 = get_sync_service()
@@ -365,8 +387,7 @@ class TestSingletonAccessor:
 
     @patch("specify_cli.sync.background.SyncConfig")
     @patch("specify_cli.sync.background.OfflineQueue")
-    @patch("specify_cli.sync.background._count_legacy_event_rows", return_value=0)
-    def test_reset_clears_singleton(self, _count, mock_q, _c):
+    def test_reset_clears_singleton(self, mock_q, _c, singleton_project_store):
         """reset_sync_service() allows new instance."""
         mock_q.return_value.size.return_value = 0
         s1 = get_sync_service()

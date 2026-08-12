@@ -1,0 +1,301 @@
+{
+  "version": 1,
+  "mission_slug": "common-docs-convergence-01KZMTR9",
+  "mission_id": "01KZMTR909QSZ1CZ46VWS9F8YZ",
+  "mission_branch": "kitty/mission-common-docs-convergence-01KZMTR9",
+  "target_branch": "docs/common-docs-cleanup",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "packs/built-in/directives/042-common-docs.directive.yaml",
+        "packs/built-in/directives/047-audience-oriented-writing.directive.yaml",
+        "packs/built-in/styleguides/common-docs.styleguide.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/context/audience/**",
+        "scripts/docs/audience_resolver.py",
+        "tests/docs/test_audience_resolves.py"
+      ],
+      "predicted_surfaces": [
+        "dashboard",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "scripts/docs/redirect_stub_generator.py",
+        "tests/docs/test_redirect_spine.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        ".github/workflows/docs-freshness.yml",
+        "packs/built-in/assets/docs_structural_lint.py",
+        "scripts/docs/rename_reconcile.py",
+        "scripts/docs/touched_set_gates.py",
+        "tests/docs/test_touched_set_gates.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/core-concepts/**",
+        "docs/output/**",
+        "docs/updates/**",
+        "research/**",
+        "src/specify_cli/missions/documentation/mission.yaml"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "contracts/batch-api-contract.md",
+        "docs/api/**",
+        "docs/reference/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        ".github/workflows/canonical-producer-lint.yml",
+        "docs/architecture/**",
+        "docs/doctrine/**",
+        "docs/host-surface-parity.md",
+        "docs/status-model.md",
+        "docs/trail-model.md",
+        "scripts/lint_canonical_producers.py",
+        "spec-kitty-mission-workflow.md",
+        "src/doctrine/templates/diagrams/README.md",
+        "tests/docs/test_no_retrospect_preview.py",
+        "tests/status/test_producer_conformance.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "docs/guides/**",
+        "examples/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-j",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        "docs/development/*.md",
+        "docs/development/getting-started/**",
+        "docs/development/how-to/**",
+        "docs/development/reference/**",
+        "docs/development/testing/**",
+        "docs/development/toc.yml",
+        "src/specify_cli/doc_analysis/gap_analysis.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-k",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        ".kittify/charter/charter.yaml",
+        ".kittify/charter/governance.yaml",
+        "docs/context/*.md",
+        "docs/contextive-glossaries.md",
+        "glossary/**",
+        "spec-driven.md",
+        "tests/architectural/test_no_legacy_terminology.py",
+        "tests/contract/test_terminology_guards.py",
+        "tests/docs/test_current_charter_paths.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-l",
+      "wp_ids": [
+        "WP12"
+      ],
+      "write_scope": [
+        "HOW_TO_MAINTAIN.md",
+        "README.md",
+        "docs/archive/**",
+        "docs/assets/**",
+        "docs/changelog/**",
+        "docs/operations/**",
+        "docs/p0-baseline-refresh.md",
+        "docs/release-goals/**",
+        "media/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "docs/adr/**",
+        "docs/migrations/**"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d",
+        "lane-g"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-m",
+      "wp_ids": [
+        "WP13"
+      ],
+      "write_scope": [
+        ".github/workflows/docs-build-pr.yml",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "docs/development/3-2-docs-retrieval-index.yaml",
+        "docs/development/3-2-page-inventory.yaml",
+        "docs/docfx.json",
+        "docs/llms.txt",
+        "docs/toc.yml",
+        "scripts/docs/redirect_map.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-e",
+        "lane-f",
+        "lane-g",
+        "lane-h",
+        "lane-i",
+        "lane-j",
+        "lane-k",
+        "lane-l"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-08-10T04:32:52.888420+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "c290ce844be04aebead4f24dc149e9968c63fcd4"
+}

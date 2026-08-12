@@ -24,7 +24,7 @@ import sys
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from kernel.clock import now_utc_compact_stamp
 from pathlib import Path
 from typing import Literal
 
@@ -99,7 +99,7 @@ class MigrationOutcome:
 
 def _utc_timestamp() -> str:
     """Return a compact UTC timestamp string: YYYYMMDDTHHMMSSz."""
-    return datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    return now_utc_compact_stamp()
 
 
 def _is_non_empty_dir(p: Path) -> bool:

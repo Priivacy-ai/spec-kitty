@@ -17,7 +17,8 @@ from pathlib import Path
 
 import pytest
 
-os.environ.setdefault("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+# SPEC_KITTY_ENABLE_SAAS_SYNC is set collection-wide in tests/conftest.py
+# pytest_configure (#3213), not per-module.
 os.environ.setdefault("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -693,10 +694,10 @@ def test_cli_version_returns_string() -> None:
 
 
 def test_now_iso_is_iso8601() -> None:
-    from datetime import datetime
+    from kernel.clock import parse_iso
 
     s = orchestrator._now_iso()
-    parsed = datetime.fromisoformat(s)
+    parsed = parse_iso(s)
     assert parsed.tzinfo is not None
 
 

@@ -6,7 +6,7 @@ import hashlib
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from kernel.clock import UTC, datetime, now_utc, now_utc_iso, timedelta
 from enum import StrEnum
 from typing import Any, cast
 from uuid import UUID, uuid4
@@ -590,7 +590,7 @@ def mark_transport_started(
         raise ProjectStoreError("delivery attempt was not prepared for transport start")
     _assert_attempt_authority_matches_context(row=row, unit=unit, context=context)
     deadline = _parse_deadline(str(row[6]) if row[6] is not None else "")
-    if deadline <= (now or datetime.now(UTC)):
+    if deadline <= (now or now_utc()):
         raise ProjectStoreError("delivery attempt deadline expired before transport start")
     unit.execute(
         "UPDATE delivery_attempts SET state = ? WHERE project_uuid = ? AND attempt_id = ? AND state = ?",
@@ -788,7 +788,7 @@ def restart_delivery_attempt(
     }:
         raise ProjectStoreError("delivery attempt retry is not authorized by reconciliation policy")
     deadline = _parse_deadline(str(row[6]) if row[6] is not None else "")
-    if deadline <= (now or datetime.now(UTC)):
+    if deadline <= (now or now_utc()):
         raise ProjectStoreError("delivery attempt deadline expired before transport restart")
     unit.execute(
         "UPDATE delivery_attempts SET state = ? WHERE project_uuid = ? AND attempt_id = ? AND state = ?",
@@ -845,7 +845,7 @@ def plan_delivery_attempt_recovery(
         DeliveryAttemptState.PENDING_REMOTE,
         DeliveryAttemptState.RETRYABLE_NO_EFFECT,
         DeliveryAttemptState.UNKNOWN,
-    } and deadline <= (now or datetime.now(UTC)):
+    } and deadline <= (now or now_utc()):
         return DeliveryRecoveryDecision(
             attempt_id=attempt_id,
             state=state,
@@ -950,7 +950,7 @@ def allocate_logical_delivery_operation(
     attempt or authorize a network call; callers must leave this transaction and
     use the normal WP06 start/restart/query surfaces.
     """
-    current_time = (now or datetime.now(UTC)).astimezone(UTC)
+    current_time = (now or now_utc()).astimezone(UTC)
     policy = _validate_logical_operation_request(request)
     with (
         acquire_project_transport_lease(
@@ -1429,7 +1429,7 @@ def _require_query_recovery_decision(
         deadline = _parse_deadline(candidate.deadline_at or "")
     except ValueError as exc:
         raise ProjectStoreError("remote operation query deadline is corrupt") from exc
-    if deadline > datetime.now(UTC) + _LOGICAL_OPERATION_MAX_LIFETIME:
+    if deadline > now_utc() + _LOGICAL_OPERATION_MAX_LIFETIME:
         raise ProjectStoreError("remote operation query deadline is not bounded")
     recovery = plan_delivery_attempt_recovery(unit, attempt_id=candidate.attempt_id)
     if recovery.action is not RecoveryAction.QUERY_NATIVE_IDENTITY:
@@ -2383,7 +2383,7 @@ def _parse_reconciliation_policy(value: str) -> ReconciliationPolicy:
 
 
 def _now() -> str:
-    return datetime.now(UTC).isoformat()
+    return now_utc_iso()
 
 
 __all__ = [

@@ -1,0 +1,317 @@
+# Occurrence map — Common Docs Convergence (DIRECTIVE_035 bulk-edit)
+# Schema: src/doctrine/schemas/occurrence-map.schema.yaml (top-level additionalProperties:false —
+# only target/categories/moves are keys; all rationale below is comments).
+#
+# CUMULATIVE SPINE (OB-1, NFR-010): `regenerate-map` OVERWRITES redirect_map.yaml from baseline + THIS
+# moves list (no additive merge; _relocate is single-move). So every `from` maps a baseline path to its
+# FINAL destination, AND WP03 (T008) must carry/collapse the prior closed mission
+# (common-docs-structural-move-01KW3SBK) 29 moves from scripts/docs/redirect_map.yaml so regen reproduces
+# all ~151 prior redirect entries + the new ones. WP13 (T037) merges per-WP fragments + regenerates.
+#
+# ENUMERATED code/test/CI refs the FR-018 grep gate must cover (non-vacuous):
+#   spec-kitty-mission-workflow.md -> scripts/lint_canonical_producers.py:5,723,812;
+#     tests/status/test_producer_conformance.py:15; tests/docs/test_no_retrospect_preview.py:36;
+#     .github/workflows/canonical-producer-lint.yml:4   (canonical AUTHORITY doc — dest architecture/, not guides)
+#   spec-driven.md -> tests/docs/test_current_charter_paths.py:16; docs/development/contributing.md:388,663
+#   docs/output/ -> src/specify_cli/missions/documentation/mission.yaml:41 (deliverables) — repoint FIRST
+#   docs/doctrine/ -> tests/docs/test_asset_howto.py; tests/charter/test_charter_context_spdd_reasons.py:290
+#   docs/reference/cli-cheatsheet.md -> tests/docs/test_docs_query_cli.py:69 + build_cli_reference/check_* default-path comments
+#   media/logo_small.webp -> README.md:2 (absolute raw <img> URL — relative_link_fixer will NOT touch; MANUAL rewrite)
+#   docs/guides/use-retrospective-learning.md -> src/specify_cli/retrospective/deprecation.py (runtime msg)
+# MANUAL rewrite (not link-fixer reachable): README.md:2 <img> media/logo_small.webp -> docs/assets/logo_small.webp
+# code_symbols: redirect_stub_generator.py:75-77 MISSION_SLUG/DEFAULT_OCCURRENCE_MAP default -> repoint (WP03 T009)
+
+target:
+  term: docs-sprawl-and-root-clutter
+  replacement: common-docs-sanctioned-structure
+  operation: rename
+
+categories:
+  filesystem_paths:    { action: rename }                  # the doc file/dir relocations (see moves:)
+  code_symbols:        { action: manual_review }           # redirect_stub_generator MISSION_SLUG default constant
+  import_paths:        { action: do_not_change }           # no python import paths change
+  serialized_keys:     { action: manual_review }           # frontmatter audience:, concern routing config, toc/docfx/llms/redirect regen (WP13)
+  cli_commands:        { action: do_not_change }           # no CLI command names change
+  user_facing_strings: { action: rename_if_user_visible }  # in-prose [text](path) links + 13 free-text audience: values migrated
+  tests_fixtures:      { action: manual_review }           # enumerated test path literals (above) + gap_analysis subdir assumptions
+  logs_telemetry:      { action: manual_review }           # deprecation.py runtime message referencing docs/guides/use-retrospective-learning.md
+
+# Structural moves (baseline path -> FINAL dest). WP03 prepends the collapsed prior-mission spine.
+moves:
+  # WP05 retire
+  - { from: ["research/"], to: "RETIRE", reason: "13 stale agent files, no live inbound; distil any survivor to docs/integrations/ (NOT docs/plans, C-001)" }
+  - { from: ["docs/core-concepts/"], to: "RETIRE", reason: "index-only nav mirror -> keep as toc.yml nav zone (WP13)" }
+  - { from: ["docs/updates/"], to: "RETIRE", reason: "index-only nav mirror -> toc.yml nav zone (WP13)" }
+  - { from: ["docs/output/"], to: "RETIRE", reason: "unpublished placeholder; repoint documentation mission.yaml:41 deliverables FIRST" }
+  # WP06 api
+  - { from: ["docs/reference/README.md"], to: "docs/api/index.md", reason: "WP13 reconcile: reference umbrella index folded to api/index (docs/api/README.md retired)" }
+  - { from: ["docs/reference/"], to: "docs/api", reason: "reference duplicates api; fold skills/+agent_profiles/; retire umbrella" }
+  - { from: ["contracts/batch-api-contract.md"], to: "docs/api", reason: "API contract doc; fixtures/*.json stay (test data, C-002)" }
+  # WP07 architecture (version-shadow collapse + rehome + authority doc)
+  - { from: ["docs/architecture/README-1.x.md"], to: "docs/adr/1.x", reason: "distil era history; closes #2215" }
+  - { from: ["docs/architecture/README-2.x.md"], to: "docs/adr/2.x", reason: "repoint src/doctrine/templates/diagrams/README.md anchors FIRST" }
+  - { from: ["docs/architecture/README-3.x.md"], to: "docs/adr/3.x", reason: "distil era history" }
+  - { from: ["docs/status-model.md"], to: "docs/architecture", reason: "homeless explanation -> architecture" }
+  - { from: ["docs/trail-model.md"], to: "docs/architecture", reason: "homeless explanation -> architecture" }
+  - { from: ["docs/host-surface-parity.md"], to: "docs/architecture", reason: "homeless explanation -> architecture" }
+  - { from: ["docs/doctrine/doctrine-kinds.md", "docs/doctrine/spdd-reasons.md"], to: "docs/architecture", reason: "explanation half of doctrine/; update test refs" }
+  - { from: ["docs/doctrine/create-a-doctrine-artifact.md"], to: "docs/development", reason: "how-to (contributor audience)" }
+  - { from: ["spec-kitty-mission-workflow.md"], to: "docs/architecture", reason: "canonical AUTHORITY doc (NOT guides); update 4 canonical-producer refs" }
+  # WP09 guides (user surface)
+  - { from: ["examples/"], to: "docs/guides", reason: "user scenario walkthroughs; rename off 'feature'" }
+  # WP11 context + governance
+  - { from: ["glossary/"], to: "docs/context", reason: "README-only stub; sequence AFTER IC-09 glossary/contexts authority-path repair" }
+  - { from: ["docs/contextive-glossaries.md"], to: "docs/context", reason: "homeless -> context" }
+  - { from: ["spec-driven.md"], to: "docs/context", reason: "methodology doc; update test_current_charter_paths.py:16 + contributing refs" }
+  # WP12 media/assets + ops/changelog
+  - { from: ["media/"], to: "docs/assets", reason: "images; + MANUAL README <img> rewrite" }
+  - { from: ["HOW_TO_MAINTAIN.md"], to: "docs/operations", reason: "maintainer doc" }
+  - { from: ["docs/p0-baseline-refresh.md"], to: "docs/operations", reason: "ops runbook" }
+  - { from: ["docs/release-goals/"], to: "docs/changelog", reason: "NOT docs/plans (C-001); dedup README/index" }
+  - { from: ["docs/archive/"], to: "docs/changelog", reason: "holds 14 baseline redirect targets; WP13 re-points prior redirects (NFR-010)" }
+
+  # ---------------------------------------------------------------------------
+  # COLLAPSED PRIOR-MISSION SPINE (WP03 T008 — OB-1 default = collapsed-data).
+  # Carries the closed common-docs-structural-move-01KW3SBK redirect entries so
+  # `regenerate-map` from redirect_baseline_urls.json + THIS moves list reproduces
+  # all 149 prior redirect_map.yaml keys + the new ones. The tool OVERWRITES the map
+  # from ONE occurrence-map and `_relocate` is single-move (no additive merge, no
+  # transitive closure), so the prior spine must live HERE. Recovered from the
+  # committed scripts/docs/redirect_map.yaml (the closed mission's derived output).
+  #
+  # TWICE-MOVE COMPOSITION: WP12 above relocates docs/archive/ -> docs/changelog.
+  # The prior spine redirected the 1x/2x shadow URLs INTO docs/archive, so carrying
+  # them verbatim would point every 1x/2x redirect at a now-dead archive/ target.
+  # They are collapsed ONE hop further to docs/changelog/{1x,2x} here (baseline path
+  # -> FINAL dest); the live archive/* pages pick up archive/ -> changelog/ from the
+  # WP12 move. No _relocate fixed-point / code-merge escalation was needed (OB-1
+  # collapsed-data spine proved sufficient — see plan IC-02/OB-1).
+  #
+  # File-level exceptions precede their directory move (first-match wins in _relocate).
+  - { from: ["docs/how-to/run-mutation-tests.md"], to: "docs/development/testing/run-mutation-tests.md", reason: "prior spine: how-to page routed to development, not guides" }
+  - { from: ["docs/how-to/internal-hosted-readiness.md"], to: "docs/operations", reason: "prior spine: how-to page routed to operations, not guides" }
+  - { from: ["docs/how-to/write-time-dependent-tests.md"], to: "docs/development/testing/write-time-dependent-tests.md", reason: "prior spine: how-to page routed to development, not guides" }
+  - { from: ["docs/tutorials/your-first-feature.md"], to: "docs/guides/tutorials/your-first-mission.md", reason: "prior spine: tutorial rehomed + renamed to your-first-mission (terminology canon)" }
+  - { from: ["docs/guides/contract-pinning.md"], to: "docs/development/how-to/contract-pinning.md", reason: "prior spine: guides -> development contributor doc" }
+  - { from: ["docs/guides/contributing.md"], to: "docs/development", reason: "prior spine: guides -> development contributor doc" }
+  - { from: ["docs/guides/coverage-signals.md"], to: "docs/development/reference/coverage-signals.md", reason: "prior spine: guides -> development contributor doc" }
+  - { from: ["docs/guides/internal-hosted-readiness.md"], to: "docs/operations", reason: "prior spine: guides -> operations runbook" }
+  - { from: ["docs/guides/local-overrides.md"], to: "docs/development/how-to/local-overrides.md", reason: "prior spine: guides -> development contributor doc" }
+  - { from: ["docs/guides/manage-issue-tracker.md"], to: "docs/development/how-to/manage-issue-tracker.md", reason: "prior spine: guides -> development contributor doc" }
+  - { from: ["docs/guides/pr-landing.md"], to: "docs/development/how-to/pr-landing.md", reason: "prior spine: guides -> development contributor doc" }
+  - { from: ["docs/guides/red-main-and-release-readiness.md"], to: "docs/development/reference/red-main-and-release-readiness.md", reason: "prior spine: guides -> development contributor doc" }
+  - { from: ["docs/guides/review-gates.md"], to: "docs/development/how-to/review-gates.md", reason: "prior spine: guides -> development contributor doc" }
+  - { from: ["docs/guides/run-mutation-tests.md"], to: "docs/development/testing/run-mutation-tests.md", reason: "prior spine: guides -> development contributor doc" }
+  - { from: ["docs/guides/testing-flakiness.md"], to: "docs/development/testing/testing-flakiness.md", reason: "prior spine: guides -> development contributor doc" }
+  - { from: ["docs/guides/testing-parallel.md"], to: "docs/development/testing/testing-parallel.md", reason: "prior spine: guides -> development contributor doc" }
+  - { from: ["docs/guides/write-time-dependent-tests.md"], to: "docs/development/testing/write-time-dependent-tests.md", reason: "prior spine: guides -> development contributor doc" }
+  # WP13 reconcile: mover subdivision renames (how-to/tutorials Divio -> guides/{how-to/<cat>,tutorials}) — file exceptions precede the docs/how-to & docs/tutorials directory carries (first-match wins).
+  - { from: ["docs/how-to/accept-and-merge.md"], to: "docs/guides/how-to/missions/accept-and-merge.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/adhoc-specialist-session.md"], to: "docs/guides/how-to/collaboration/adhoc-specialist-session.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/build-custom-orchestrator.md"], to: "docs/guides/how-to/collaboration/build-custom-orchestrator.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/create-an-org-doctrine-pack.md"], to: "docs/guides/how-to/governance/create-an-org-doctrine-pack.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/create-plan.md"], to: "docs/guides/how-to/missions/create-plan.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/create-specification.md"], to: "docs/guides/how-to/missions/create-specification.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/diagnose-installation.md"], to: "docs/guides/how-to/installation/diagnose-installation.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/generate-tasks.md"], to: "docs/guides/how-to/missions/generate-tasks.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/handle-dependencies.md"], to: "docs/guides/how-to/missions/handle-dependencies.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/harnesses/amazon-q.md"], to: "docs/guides/how-to/harnesses/amazon-q.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/harnesses/antigravity.md"], to: "docs/guides/how-to/harnesses/antigravity.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/harnesses/augment.md"], to: "docs/guides/how-to/harnesses/augment.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/harnesses/claude-code.md"], to: "docs/guides/how-to/harnesses/claude-code.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/harnesses/codex.md"], to: "docs/guides/how-to/harnesses/codex.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/harnesses/copilot.md"], to: "docs/guides/how-to/harnesses/copilot.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/harnesses/cursor.md"], to: "docs/guides/how-to/harnesses/cursor.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/harnesses/gemini.md"], to: "docs/guides/how-to/harnesses/gemini.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/harnesses/kilocode.md"], to: "docs/guides/how-to/harnesses/kilocode.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/harnesses/kiro.md"], to: "docs/guides/how-to/harnesses/kiro.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/harnesses/letta.md"], to: "docs/guides/how-to/harnesses/letta.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/harnesses/opencode.md"], to: "docs/guides/how-to/harnesses/opencode.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/harnesses/pi-tui.md"], to: "docs/guides/how-to/harnesses/pi-tui.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/harnesses/qwen.md"], to: "docs/guides/how-to/harnesses/qwen.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/harnesses/roo.md"], to: "docs/guides/how-to/harnesses/roo.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/harnesses/setup-lint-hooks.md"], to: "docs/guides/how-to/harnesses/setup-lint-hooks.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/harnesses/windsurf.md"], to: "docs/guides/how-to/harnesses/windsurf.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/implement-work-package.md"], to: "docs/guides/how-to/missions/implement-work-package.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/install-and-upgrade.md"], to: "docs/guides/how-to/installation/install-and-upgrade.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/install-claude-code-plugin.md"], to: "docs/guides/how-to/installation/install-claude-code-plugin.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/install-linux.md"], to: "docs/guides/how-to/installation/install-linux.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/install-macos.md"], to: "docs/guides/how-to/installation/install-macos.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/install-spec-kitty.md"], to: "docs/guides/how-to/installation/install-spec-kitty.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/install-windows.md"], to: "docs/guides/how-to/installation/install-windows.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/keep-main-clean.md"], to: "docs/guides/how-to/missions/keep-main-clean.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/manage-agents.md"], to: "docs/guides/how-to/collaboration/manage-agents.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/manage-glossary.md"], to: "docs/guides/how-to/governance/manage-glossary.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/merge-feature.md"], to: "docs/guides/how-to/missions/merge-mission.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/non-interactive-init.md"], to: "docs/guides/how-to/installation/non-interactive-init.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/parallel-development.md"], to: "docs/guides/how-to/collaboration/parallel-development.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/recover-from-implementation-crash.md"], to: "docs/guides/how-to/recovery/recover-from-implementation-crash.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/recover-from-interrupted-merge.md"], to: "docs/guides/how-to/recovery/recover-from-interrupted-merge.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/review-artifacts-with-planbridge.md"], to: "docs/guides/how-to/missions/review-artifacts-with-planbridge.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/review-work-package.md"], to: "docs/guides/how-to/missions/review-work-package.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/run-an-autonomous-mission.md"], to: "docs/guides/how-to/collaboration/run-an-autonomous-mission.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/run-external-orchestrator.md"], to: "docs/guides/how-to/collaboration/run-external-orchestrator.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/run-governed-mission.md"], to: "docs/guides/how-to/governance/run-governed-mission.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/setup-codex-spec-kitty-launcher.md"], to: "docs/guides/how-to/harnesses/setup-codex-spec-kitty-launcher.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/setup-governance.md"], to: "docs/guides/how-to/governance/setup-governance.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/switch-missions.md"], to: "docs/guides/how-to/missions/switch-missions.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/sync-workspaces.md"], to: "docs/guides/how-to/collaboration/sync-workspaces.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/synthesize-doctrine.md"], to: "docs/guides/how-to/governance/synthesize-doctrine.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/tool-surface-upgrade-and-repair.md"], to: "docs/guides/how-to/installation/tool-surface-upgrade-and-repair.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/troubleshoot-charter.md"], to: "docs/guides/how-to/governance/troubleshoot-charter.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/troubleshoot-merge.md"], to: "docs/guides/how-to/recovery/troubleshoot-merge.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/uninstall.md"], to: "docs/guides/how-to/installation/uninstall.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/upgrade-cli.md"], to: "docs/guides/how-to/installation/upgrade-cli.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/upgrade-project.md"], to: "docs/guides/how-to/installation/upgrade-project.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/use-dashboard.md"], to: "docs/guides/how-to/monitoring/use-dashboard.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/use-operation-history.md"], to: "docs/guides/how-to/monitoring/use-operation-history.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/use-retrospective-learning.md"], to: "docs/guides/how-to/governance/use-retrospective-learning.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/use-wps-yaml-manifest.md"], to: "docs/guides/how-to/missions/use-wps-yaml-manifest.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/how-to/worktrees-with-mcp-agents.md"], to: "docs/guides/how-to/collaboration/worktrees-with-mcp-agents.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/tutorials/charter-governed-workflow.md"], to: "docs/guides/tutorials/charter-governed-workflow.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/tutorials/claude-code-integration.md"], to: "docs/guides/tutorials/claude-code-integration.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/tutorials/claude-code-workflow.md"], to: "docs/guides/tutorials/claude-code-workflow.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/tutorials/getting-started.md"], to: "docs/guides/tutorials/getting-started.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/tutorials/missions-overview.md"], to: "docs/guides/tutorials/missions-overview.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/tutorials/multi-agent-workflow.md"], to: "docs/guides/tutorials/multi-agent-workflow.md", reason: "WP13 reconcile: mover subdivision rename" }
+  - { from: ["docs/tutorials/orchestrator-quickstart.md"], to: "docs/guides/tutorials/orchestrator-quickstart.md", reason: "WP13 reconcile: mover subdivision rename" }
+  # WP13 reconcile: FULL rename/deletion coverage (NFR-005 rename_reconcile reverse gate).
+  # Every git rename/deletion under docs/ carried so no page is silently off-spine.
+  # These are intermediate/never-published (not in the immutable baseline), so they add
+  # no redirect entries; they exist for rename-coverage + relative_link_fixer spine healing.
+  - { from: ["docs/adr/1.x/2026-01-25-8-deterministic-csv-schema-enforcement.md"], to: "docs/adr/1.x/2026-01-25-9-deterministic-csv-schema-enforcement.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/adr/3.x/2026-06-07-1-session-presence-multi-harness-architecture.md"], to: "docs/adr/3.x/2026-06-07-2-session-presence-multi-harness-architecture.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/adr/3.x/2026-06-07-1-wp-lane-fsm-genesis-and-finalize-clobber.md"], to: "docs/adr/3.x/2026-06-07-3-wp-lane-fsm-genesis-and-finalize-clobber.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/adr/3.x/2026-06-26-1-core-integration-boundary.md"], to: "docs/adr/3.x/2026-06-26-2-core-integration-boundary.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/adr/3.x/2026-07-19-1-skill-projection-copies-not-symlinks.md"], to: "docs/adr/3.x/2026-07-19-2-skill-projection-copies-not-symlinks.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/adr/3.x/2026-07-21-1-glossary-first-order-doctrine-artefact.md"], to: "docs/adr/3.x/2026-07-21-2-glossary-first-order-doctrine-artefact.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/adr/3.x/adr-connector-auth-binding-separation.md"], to: "docs/adr/3.x/2026-04-06-2-connector-auth-binding-separation.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/adr/3.x/adr-github-app-installation-authority.md"], to: "docs/adr/3.x/2026-04-06-3-github-app-installation-authority.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/api/README.md"], to: "RETIRE", reason: "WP13 reconcile: retired nav/deleted" }
+  - { from: ["docs/development/contract-pinning.md"], to: "docs/development/how-to/contract-pinning.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/development/coverage-signals.md"], to: "docs/development/reference/coverage-signals.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/development/cutover-guard.md"], to: "docs/development/how-to/cutover-guard.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/development/isolated_dev_environments.md"], to: "docs/development/getting-started/isolated-dev-environments.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/development/known-friction-points.md"], to: "docs/development/reference/known-friction-points.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/development/local-overrides.md"], to: "docs/development/how-to/local-overrides.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/development/manage-issue-tracker.md"], to: "docs/development/how-to/manage-issue-tracker.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/development/onboarding-run.md"], to: "docs/development/getting-started/onboarding-run.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/development/pr-landing.md"], to: "docs/development/how-to/pr-landing.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/development/process-global-inventory-3115.md"], to: "docs/development/reference/process-global-inventory-3115.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/development/quality-and-tech-debt-standing-orders.md"], to: "docs/development/reference/quality-and-tech-debt-standing-orders.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/development/read-side-seam-classification.md"], to: "docs/development/reference/read-side-seam-classification.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/development/red-main-and-release-readiness.md"], to: "docs/development/reference/red-main-and-release-readiness.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/development/review-gates.md"], to: "docs/development/how-to/review-gates.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/development/run-mutation-tests.md"], to: "docs/development/testing/run-mutation-tests.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/development/terminology-exemptions.md"], to: "docs/development/reference/terminology-exemptions.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/development/testing-flakiness.md"], to: "docs/development/testing/testing-flakiness.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/development/testing-parallel.md"], to: "docs/development/testing/testing-parallel.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/development/ui-e2e.md"], to: "docs/development/testing/ui-e2e.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/development/write-time-dependent-tests.md"], to: "docs/development/testing/write-time-dependent-tests.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/doctrine/README.md"], to: "RETIRE", reason: "WP13 reconcile: retired nav/deleted" }
+  - { from: ["docs/doctrine/index.md"], to: "RETIRE", reason: "WP13 reconcile: retired nav/deleted" }
+  - { from: ["docs/guides/accept-and-merge.md"], to: "docs/guides/how-to/missions/accept-and-merge.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/adhoc-specialist-session.md"], to: "docs/guides/how-to/collaboration/adhoc-specialist-session.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/build-custom-orchestrator.md"], to: "docs/guides/how-to/collaboration/build-custom-orchestrator.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/charter-governed-workflow.md"], to: "docs/guides/tutorials/charter-governed-workflow.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/claude-code-integration.md"], to: "docs/guides/tutorials/claude-code-integration.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/claude-code-workflow.md"], to: "docs/guides/tutorials/claude-code-workflow.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/create-an-org-doctrine-pack.md"], to: "docs/guides/how-to/governance/create-an-org-doctrine-pack.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/create-plan.md"], to: "docs/guides/how-to/missions/create-plan.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/create-specification.md"], to: "docs/guides/how-to/missions/create-specification.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/diagnose-installation.md"], to: "docs/guides/how-to/installation/diagnose-installation.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/fork-packaging-hooks.md"], to: "docs/guides/how-to/installation/fork-packaging-hooks.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/generate-tasks.md"], to: "docs/guides/how-to/missions/generate-tasks.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/getting-started.md"], to: "docs/guides/tutorials/getting-started.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/handle-dependencies.md"], to: "docs/guides/how-to/missions/handle-dependencies.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/harnesses/amazon-q.md"], to: "docs/guides/how-to/harnesses/amazon-q.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/harnesses/antigravity.md"], to: "docs/guides/how-to/harnesses/antigravity.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/harnesses/augment.md"], to: "docs/guides/how-to/harnesses/augment.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/harnesses/claude-code.md"], to: "docs/guides/how-to/harnesses/claude-code.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/harnesses/codex.md"], to: "docs/guides/how-to/harnesses/codex.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/harnesses/copilot.md"], to: "docs/guides/how-to/harnesses/copilot.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/harnesses/cursor.md"], to: "docs/guides/how-to/harnesses/cursor.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/harnesses/gemini.md"], to: "docs/guides/how-to/harnesses/gemini.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/harnesses/how-to-toc.yml"], to: "RETIRE", reason: "WP13 reconcile: retired nav/deleted" }
+  - { from: ["docs/guides/harnesses/kilocode.md"], to: "docs/guides/how-to/harnesses/kilocode.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/harnesses/kiro.md"], to: "docs/guides/how-to/harnesses/kiro.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/harnesses/letta.md"], to: "docs/guides/how-to/harnesses/letta.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/harnesses/opencode.md"], to: "docs/guides/how-to/harnesses/opencode.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/harnesses/pi-tui.md"], to: "docs/guides/how-to/harnesses/pi-tui.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/harnesses/qwen.md"], to: "docs/guides/how-to/harnesses/qwen.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/harnesses/roo.md"], to: "docs/guides/how-to/harnesses/roo.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/harnesses/setup-lint-hooks.md"], to: "docs/guides/how-to/harnesses/setup-lint-hooks.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/harnesses/windsurf.md"], to: "docs/guides/how-to/harnesses/windsurf.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/how-to-index.md"], to: "RETIRE", reason: "WP13 reconcile: retired nav/deleted" }
+  - { from: ["docs/guides/how-to-toc.yml"], to: "RETIRE", reason: "WP13 reconcile: retired nav/deleted" }
+  - { from: ["docs/guides/implement-work-package.md"], to: "docs/guides/how-to/missions/implement-work-package.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/install-and-upgrade.md"], to: "docs/guides/how-to/installation/install-and-upgrade.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/install-claude-code-plugin.md"], to: "docs/guides/how-to/installation/install-claude-code-plugin.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/install-linux.md"], to: "docs/guides/how-to/installation/install-linux.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/install-macos.md"], to: "docs/guides/how-to/installation/install-macos.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/install-spec-kitty.md"], to: "docs/guides/how-to/installation/install-spec-kitty.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/install-windows.md"], to: "docs/guides/how-to/installation/install-windows.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/keep-main-clean.md"], to: "docs/guides/how-to/missions/keep-main-clean.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/manage-agents.md"], to: "docs/guides/how-to/collaboration/manage-agents.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/manage-glossary.md"], to: "docs/guides/how-to/governance/manage-glossary.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/merge-feature.md"], to: "docs/guides/how-to/missions/merge-mission.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/missions-overview.md"], to: "docs/guides/tutorials/missions-overview.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/multi-agent-workflow.md"], to: "docs/guides/tutorials/multi-agent-workflow.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/non-interactive-init.md"], to: "docs/guides/how-to/installation/non-interactive-init.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/orchestrator-quickstart.md"], to: "docs/guides/tutorials/orchestrator-quickstart.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/parallel-development.md"], to: "docs/guides/how-to/collaboration/parallel-development.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/recover-from-implementation-crash.md"], to: "docs/guides/how-to/recovery/recover-from-implementation-crash.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/recover-from-interrupted-merge.md"], to: "docs/guides/how-to/recovery/recover-from-interrupted-merge.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/review-artifacts-with-planbridge.md"], to: "docs/guides/how-to/missions/review-artifacts-with-planbridge.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/review-work-package.md"], to: "docs/guides/how-to/missions/review-work-package.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/run-an-autonomous-mission.md"], to: "docs/guides/how-to/collaboration/run-an-autonomous-mission.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/run-external-orchestrator.md"], to: "docs/guides/how-to/collaboration/run-external-orchestrator.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/run-governed-mission.md"], to: "docs/guides/how-to/governance/run-governed-mission.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/setup-codex-spec-kitty-launcher.md"], to: "docs/guides/how-to/harnesses/setup-codex-spec-kitty-launcher.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/setup-governance.md"], to: "docs/guides/how-to/governance/setup-governance.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/switch-missions.md"], to: "docs/guides/how-to/missions/switch-missions.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/sync-workspaces.md"], to: "docs/guides/how-to/collaboration/sync-workspaces.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/synthesize-doctrine.md"], to: "docs/guides/how-to/governance/synthesize-doctrine.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/tool-surface-upgrade-and-repair.md"], to: "docs/guides/how-to/installation/tool-surface-upgrade-and-repair.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/troubleshoot-charter.md"], to: "docs/guides/how-to/governance/troubleshoot-charter.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/troubleshoot-merge.md"], to: "docs/guides/how-to/recovery/troubleshoot-merge.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/tutorials-index.md"], to: "RETIRE", reason: "WP13 reconcile: retired nav/deleted" }
+  - { from: ["docs/guides/tutorials-toc.yml"], to: "RETIRE", reason: "WP13 reconcile: retired nav/deleted" }
+  - { from: ["docs/guides/uninstall.md"], to: "docs/guides/how-to/installation/uninstall.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/upgrade-cli.md"], to: "docs/guides/how-to/installation/upgrade-cli.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/upgrade-project.md"], to: "docs/guides/how-to/installation/upgrade-project.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/use-dashboard.md"], to: "docs/guides/how-to/monitoring/use-dashboard.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/use-operation-history.md"], to: "docs/guides/how-to/monitoring/use-operation-history.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/use-retrospective-learning.md"], to: "docs/guides/how-to/governance/use-retrospective-learning.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/use-wps-yaml-manifest.md"], to: "docs/guides/how-to/missions/use-wps-yaml-manifest.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/worktrees-with-mcp-agents.md"], to: "docs/guides/how-to/collaboration/worktrees-with-mcp-agents.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/guides/your-first-mission.md"], to: "docs/guides/tutorials/your-first-mission.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  - { from: ["docs/migrations/06_migration_and_shim_rules.md"], to: "docs/migrations/migration-and-shim-rules.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
+  # Directory carries (after the file-level exceptions above).
+  - { from: ["docs/how-to"], to: "docs/guides", reason: "prior spine: Divio how-to -> guides" }
+  - { from: ["docs/tutorials"], to: "docs/guides", reason: "prior spine: Divio tutorials -> guides" }
+  - { from: ["docs/explanation"], to: "docs/architecture", reason: "prior spine: Divio explanation -> architecture" }
+  - { from: ["docs/recovery"], to: "docs/operations", reason: "prior spine: Divio recovery -> operations" }
+  - { from: ["docs/3x"], to: "docs/context", reason: "prior spine: 3x charter shadow -> context" }
+  - { from: ["docs/1x"], to: "docs/changelog/1x", reason: "prior spine 1x -> archive/1x COLLAPSED one hop (docs/archive -> docs/changelog) to FINAL docs/changelog/1x" }
+  - { from: ["docs/2x"], to: "docs/changelog/2x", reason: "prior spine 2x -> archive/2x COLLAPSED one hop to FINAL docs/changelog/2x" }
+
+  # ---------------------------------------------------------------------------
+  # WP02 catalog index normalization (folded in per review): the audience landing
+  # pages were renamed README.md -> index.md. Captured as file-level moves so WP13's
+  # rename-reconcile gate (`git --find-renames` subset of occurrence_map) and the
+  # redirect-stub regen do not miss them (else the old README URLs get no redirect
+  # and existing body-links dangle). Not published today -> no redirect entry, but
+  # they must be in the spine for the reconcile grep gate.
+  - { from: ["docs/context/audience/README.md"], to: "docs/context/audience/index.md", reason: "WP02 audience-catalog index normalization (README -> index)" }
+  - { from: ["docs/context/audience/internal/README.md"], to: "docs/context/audience/internal/index.md", reason: "WP02 audience-catalog index normalization (README -> index)" }
+  - { from: ["docs/context/audience/external/README.md"], to: "docs/context/audience/external/index.md", reason: "WP02 audience-catalog index normalization (README -> index)" }
+
+  # WP06/07/09/10/12 in-section kebab renames, IC-06 how-to routing, IC-07 index/kebab: per-WP fragments appended at implement time.
+
+  # Single-root completion: 5 pre-existing stray root files adjudicated (retire/rehome).
+  - { from: ["MANUAL_TEST_PLAN.md"], to: "docs/operations/manual-test-plan.md", reason: "single-root: root QA plan -> operations reference" }
+  - { from: ["WORKING-PLAN-coordination-stabilization-2026-06-12.md"], to: "docs/plans/engineering-notes/2026-06-12-coordination-topology-stabilization.md", reason: "single-root: point-in-time working plan -> plans/engineering-notes (superseded)" }
+  - { from: ["research-notes-csf-2670.md"], to: "docs/plans/engineering-notes/research-notes-csf-2670.md", reason: "single-root: point-in-time research -> plans/engineering-notes" }
+  - { from: ["T022-perf.txt"], to: "RETIRE", reason: "single-root: transient perf-gate dump, retired" }
+  - { from: ["review-feedback-WP04.md"], to: "RETIRE", reason: "single-root: transient review artifact, retired" }

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
 import functools
 from io import StringIO
 import logging
@@ -17,6 +16,7 @@ from ruamel.yaml import YAML
 from charter._io import load_charter_file
 from charter.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
 from charter.charter_yaml_io import save_charter_yaml, update_charter_yaml_section
+from kernel.clock import now_utc_stamp
 from charter.interview import (
     CharterInterview,
     LocalSupportDeclaration,
@@ -620,7 +620,7 @@ def _build_catalog_dict(compiled: CompiledCharter) -> dict[str, Any]:
 def _build_metadata_dict() -> dict[str, Any]:
     """Build the charter.yaml ``metadata`` section (refresh timestamp)."""
     metadata = CharterYamlMetadata(
-        generated_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        generated_at=now_utc_stamp(),
         bundle_schema_version=2,
     )
     dumped: dict[str, Any] = metadata.model_dump(mode="json")
@@ -1517,7 +1517,7 @@ def _render_charter_markdown(
     selected_tactics: list[str] | None = None,
 ) -> str:
     selected_tactics = selected_tactics or []
-    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = now_utc_stamp()
 
     testing = interview.answers.get(
         "testing_requirements",

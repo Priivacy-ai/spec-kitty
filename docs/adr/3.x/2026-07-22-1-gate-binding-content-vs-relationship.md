@@ -16,7 +16,7 @@ date: '2026-07-22'
 (doctrine-controlled transition gates, half A); tracker
 [#2468](https://github.com/Priivacy-ai/spec-kitty/issues/2468) (the decision-record
 obligation this ADR discharges); spec constraint C-001; sibling ADR
-[2026-07-21-1-glossary-first-order-doctrine-artefact.md](2026-07-21-1-glossary-first-order-doctrine-artefact.md)
+[2026-07-21-2-glossary-first-order-doctrine-artefact.md](2026-07-21-2-glossary-first-order-doctrine-artefact.md)
 (the precedent this ADR reconciles).
 
 ---
@@ -33,7 +33,7 @@ activatable universe), or does it attach to an artefact that already exists?
 This question was flagged for a decision record by tracker #2468 and by the post-plan
 adversarial squad (finding C-C4), because the mission has a **visible opposite precedent
 in the same doctrine layer, decided one day earlier**: ADR
-[2026-07-21-1](2026-07-21-1-glossary-first-order-doctrine-artefact.md) promotes
+[2026-07-21-2](2026-07-21-2-glossary-first-order-doctrine-artefact.md) promotes
 `GLOSSARY_PACK` to a first-class, charter-activatable `ArtifactKind`. Without an explicit
 rule, a reader lands on "glossary got its own kind" and "gate binding did not" back-to-back
 and reasonably reads it as inconsistency rather than principle.
@@ -147,7 +147,7 @@ join, or the lane→contract ownership mapping; those are IC-04's schema work
 
 ## Related ADRs
 
-- [2026-07-21-1-glossary-first-order-doctrine-artefact.md](2026-07-21-1-glossary-first-order-doctrine-artefact.md)
+- [2026-07-21-2-glossary-first-order-doctrine-artefact.md](2026-07-21-2-glossary-first-order-doctrine-artefact.md)
   — the **promote** precedent this ADR reconciles: same content-vs-relationship rule,
   opposite outcome, because the glossary pack is new distributable content and a gate
   binding is a relationship on an existing artefact.

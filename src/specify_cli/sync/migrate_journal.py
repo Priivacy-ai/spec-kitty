@@ -44,6 +44,7 @@ clear. It is safe because delivery reads solely from the journal (the legacy
 offline-queue drain is retired), so a row proven durable in the journal remains
 deliverable after its source copy is removed.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -53,11 +54,10 @@ import logging
 import re
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import from_epoch, now_utc_iso
 from specify_cli.event_journal import Event, EventJournal, JournalTransaction
 
 if TYPE_CHECKING:  # pragma: no cover - typing-only (avoid the queue<->authority cycle)
@@ -224,23 +224,17 @@ class MigrationAudit:
     def close(self) -> None:
         self._conn.close()
 
-    def record_provenance(
-        self, *, event_id: str, source_digest: str, target_id: str, payload_sha: str
-    ) -> None:
+    def record_provenance(self, *, event_id: str, source_digest: str, target_id: str, payload_sha: str) -> None:
         """Idempotently record one ``(event_id, source_digest)`` provenance row."""
         self._conn.execute(
-            "INSERT OR IGNORE INTO migration_provenance "
-            "(event_id, source_digest, target_id, payload_sha, recorded_at) "
-            "VALUES (?, ?, ?, ?, ?)",
+            "INSERT OR IGNORE INTO migration_provenance (event_id, source_digest, target_id, payload_sha, recorded_at) VALUES (?, ?, ?, ?, ?)",
             (event_id, source_digest, target_id, payload_sha, now_utc_iso()),
         )
 
     def record_conflict(self, conflict: MigrationConflict) -> None:
         """Idempotently record a divergent-duplicate migration-conflict row."""
         self._conn.execute(
-            "INSERT OR IGNORE INTO migration_conflicts "
-            "(event_id, source_digest, existing_sha, incoming_sha, detail, recorded_at) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT OR IGNORE INTO migration_conflicts (event_id, source_digest, existing_sha, incoming_sha, detail, recorded_at) VALUES (?, ?, ?, ?, ?, ?)",
             (
                 conflict.event_id,
                 conflict.source_digest,
@@ -260,8 +254,7 @@ class MigrationAudit:
     def provenance_for(self, event_id: str) -> list[str]:
         """Return the sorted distinct source digests recorded for *event_id*."""
         rows = self._conn.execute(
-            "SELECT DISTINCT source_digest FROM migration_provenance "
-            "WHERE event_id = ? ORDER BY source_digest",
+            "SELECT DISTINCT source_digest FROM migration_provenance WHERE event_id = ? ORDER BY source_digest",
             (event_id,),
         ).fetchall()
         return [str(row["source_digest"]) for row in rows]
@@ -283,8 +276,7 @@ class MigrationAudit:
         never returned here. Ordered for reproducibility.
         """
         rows = self._conn.execute(
-            "SELECT DISTINCT event_id FROM migration_provenance "
-            "WHERE source_digest = ? ORDER BY event_id",
+            "SELECT DISTINCT event_id FROM migration_provenance WHERE source_digest = ? ORDER BY event_id",
             (source_digest,),
         ).fetchall()
         return [str(row["event_id"]) for row in rows]
@@ -292,8 +284,7 @@ class MigrationAudit:
     def conflicts(self) -> list[MigrationConflict]:
         """Return every recorded migration conflict (ordered for reproducibility)."""
         rows = self._conn.execute(
-            "SELECT event_id, source_digest, existing_sha, incoming_sha, detail "
-            "FROM migration_conflicts ORDER BY event_id, source_digest"
+            "SELECT event_id, source_digest, existing_sha, incoming_sha, detail FROM migration_conflicts ORDER BY event_id, source_digest"
         ).fetchall()
         return [
             MigrationConflict(
@@ -326,9 +317,7 @@ class MigrationAudit:
         resolution converges the boundary without ever losing data.
         """
         self._conn.execute(
-            "INSERT OR IGNORE INTO quarantined_conflicts "
-            "(event_id, source_digest, payload, existing_sha, incoming_sha, resolved_at) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT OR IGNORE INTO quarantined_conflicts (event_id, source_digest, payload, existing_sha, incoming_sha, resolved_at) VALUES (?, ?, ?, ?, ?, ?)",
             (event_id, source_digest, payload, existing_sha, incoming_sha, now_utc_iso()),
         )
 
@@ -343,6 +332,34 @@ class MigrationAudit:
         """Return the number of archived (quarantined) conflict payloads."""
         row = self._conn.execute("SELECT COUNT(*) FROM quarantined_conflicts").fetchone()
         return int(row[0]) if row else 0
+
+
+def read_migration_conflicts(db_path: Path | str) -> list[MigrationConflict]:
+    """Read legacy migration-conflict evidence without creating or mutating DBs."""
+    path = Path(db_path)
+    if not path.is_file():
+        return []
+    connection = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
+    connection.row_factory = sqlite3.Row
+    try:
+        table = connection.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'migration_conflicts'").fetchone()
+        if table is None:
+            return []
+        rows = connection.execute(
+            "SELECT event_id, source_digest, existing_sha, incoming_sha, detail FROM migration_conflicts ORDER BY event_id, source_digest"
+        ).fetchall()
+        return [
+            MigrationConflict(
+                event_id=str(row["event_id"]),
+                source_digest=str(row["source_digest"]),
+                existing_sha=str(row["existing_sha"]),
+                incoming_sha=str(row["incoming_sha"]),
+                detail=None if row["detail"] is None else str(row["detail"]),
+            )
+            for row in rows
+        ]
+    finally:
+        connection.close()
 
 
 # --- per-source outcomes + overall result ---------------------------------
@@ -420,9 +437,7 @@ def _payload_sha(payload: bytes) -> str:
 
 
 def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
-    cur = conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name = ?", (table,)
-    )
+    cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", (table,))
     return cur.fetchone() is not None
 
 
@@ -439,9 +454,7 @@ def _read_queued_rows(path: Path) -> list[_QueuedRow]:
             return []
         columns = {str(row[1]) for row in conn.execute("PRAGMA table_info(queue)")}
         has_coalesce = "coalesce_key" in columns
-        projection = "event_id, event_type, data, timestamp" + (
-            ", coalesce_key" if has_coalesce else ""
-        )
+        projection = "event_id, event_type, data, timestamp" + (", coalesce_key" if has_coalesce else "")
         rows = conn.execute(
             f"SELECT {projection} FROM queue ORDER BY timestamp ASC, id ASC"  # noqa: S608  # nosec B608 - projection is built from a fixed allowlist, not user input
         ).fetchall()
@@ -463,11 +476,7 @@ def _row_to_queued(row: tuple[Any, ...], has_coalesce: bool) -> _QueuedRow:
 
 def _build_event(row: _QueuedRow, payload: bytes) -> Event:
     """Build a journal :class:`Event`, carrying ``event_id`` verbatim (C-005)."""
-    when = (
-        datetime.fromtimestamp(row.timestamp, tz=UTC).isoformat()
-        if row.timestamp is not None
-        else now_utc_iso()
-    )
+    when = from_epoch(row.timestamp).isoformat() if row.timestamp is not None else now_utc_iso()
     return Event(
         event_id=row.event_id,
         event_type=row.event_type,
@@ -541,9 +550,7 @@ class _SourceStaging:
         outcome.conflicts += len(self.conflicts)
 
 
-def _classify_and_apply(
-    row: _QueuedRow, txn: JournalTransaction, source_digest: str
-) -> _RowImport:
+def _classify_and_apply(row: _QueuedRow, txn: JournalTransaction, source_digest: str) -> _RowImport:
     """Append/dedupe/quarantine one row against the staged journal batch.
 
     * unseen ``event_id`` → stage the canonical payload (``imported``);
@@ -783,24 +790,16 @@ def cleanup_migrated_sources(
         return cleanup
     cleanup.ran = True
     for source in discover_source_dbs(spec_kitty_dir):
-        migrated = [
-            event_id
-            for event_id in audit.event_ids_for_source(source.digest)
-            if journal.read_by_id(event_id) is not None
-        ]
+        migrated = [event_id for event_id in audit.event_ids_for_source(source.digest) if journal.read_by_id(event_id) is not None]
         if not migrated:
             cleanup.outcomes.append(CleanupOutcome(digest=source.digest, is_legacy=source.is_legacy))
             continue
         try:
             deleted = _delete_migrated_rows(source.path, migrated)
         except sqlite3.Error as exc:  # a locked/corrupt source — report, keep going
-            cleanup.outcomes.append(
-                CleanupOutcome(digest=source.digest, is_legacy=source.is_legacy, error=str(exc))
-            )
+            cleanup.outcomes.append(CleanupOutcome(digest=source.digest, is_legacy=source.is_legacy, error=str(exc)))
             continue
-        cleanup.outcomes.append(
-            CleanupOutcome(digest=source.digest, is_legacy=source.is_legacy, deleted=deleted)
-        )
+        cleanup.outcomes.append(CleanupOutcome(digest=source.digest, is_legacy=source.is_legacy, deleted=deleted))
     return cleanup
 
 
@@ -969,15 +968,11 @@ def converge_legacy_runtime(
     """
     from specify_cli.sync.project_identity import backfill_journal_identity
 
-    result = migrate_queues_to_journal(
-        spec_kitty_dir, journal=journal, audit=audit, resolved_target=resolved_target
-    )
+    result = migrate_queues_to_journal(spec_kitty_dir, journal=journal, audit=audit, resolved_target=resolved_target)
     resolution: ConflictResolution | None = None
     if resolve_conflicts and result.conflicts:
         resolution = resolve_conflicts_keep_journal(spec_kitty_dir, journal=journal, audit=audit)
-        result = migrate_queues_to_journal(
-            spec_kitty_dir, journal=journal, audit=audit, resolved_target=resolved_target
-        )
+        result = migrate_queues_to_journal(spec_kitty_dir, journal=journal, audit=audit, resolved_target=resolved_target)
     # Best-effort: a journal that cannot be backfilled must not abort a migration
     # that has already imported rows successfully. The CLI reports ``None`` as an
     # outstanding backfill rather than treating it as "nothing to do".
@@ -989,9 +984,7 @@ def converge_legacy_runtime(
 
     cleanup_result: CleanupResult | None = None
     if cleanup and not result.cleanup_blocked:
-        cleanup_result = cleanup_migrated_sources(
-            spec_kitty_dir, journal=journal, audit=audit, result=result
-        )
+        cleanup_result = cleanup_migrated_sources(spec_kitty_dir, journal=journal, audit=audit, result=result)
     return ConvergeResult(
         migration=result,
         resolution=resolution,
@@ -1017,4 +1010,5 @@ __all__ = [
     "converge_legacy_runtime",
     "discover_source_dbs",
     "migration_target_token",
+    "read_migration_conflicts",
 ]

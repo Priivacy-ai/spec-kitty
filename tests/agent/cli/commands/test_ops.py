@@ -4,7 +4,7 @@ Tests operation history and undo functionality for git backend.
 """
 
 import subprocess
-from datetime import datetime, UTC
+from kernel.clock import now_utc
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -71,7 +71,7 @@ def mock_git_vcs():
 @pytest.fixture
 def sample_operations():
     """Create sample operation info for testing."""
-    now = datetime.now(UTC)
+    now = now_utc()
     return [
         OperationInfo(
             operation_id="abc123def456789",
@@ -276,7 +276,7 @@ class TestDisplayFormatting:
             OperationInfo(
                 operation_id=long_id,
                 description="Test operation",
-                timestamp=datetime.now(UTC),
+                timestamp=now_utc(),
                 heads=["abc123"],
                 working_copy_commit="abc123",
                 is_undoable=False,
@@ -313,7 +313,7 @@ class TestDisplayFormatting:
             OperationInfo(
                 operation_id="abc123",
                 description=long_desc,
-                timestamp=datetime.now(UTC),
+                timestamp=now_utc(),
                 heads=["abc123"],
                 working_copy_commit="abc123",
                 is_undoable=False,

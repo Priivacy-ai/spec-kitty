@@ -16,7 +16,7 @@ import json
 import logging
 from pathlib import Path
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 logger = logging.getLogger(__name__)
 

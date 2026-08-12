@@ -6,7 +6,7 @@ not required.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from kernel.clock import now_utc, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -23,7 +23,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _utc_days_ago(days: int) -> str:
     """Return an ISO-8601 UTC string for *days* ago."""
-    dt = datetime.now(tz=timezone.utc) - timedelta(days=days)
+    dt = now_utc() - timedelta(days=days)
     return dt.isoformat()
 
 

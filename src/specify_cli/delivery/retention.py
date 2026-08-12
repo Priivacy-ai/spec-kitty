@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import cast
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.delivery.ledger import SqliteDeliveryLedger
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.sync.layout_generation import (

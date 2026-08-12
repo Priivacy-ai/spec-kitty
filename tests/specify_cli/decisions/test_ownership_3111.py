@@ -24,7 +24,7 @@ from __future__ import annotations
 import ast
 import json
 import os
-from datetime import UTC, datetime
+from kernel.clock import UTC, datetime
 from pathlib import Path
 from typing import Any
 

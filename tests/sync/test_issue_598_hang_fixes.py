@@ -29,6 +29,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from kernel.clock import now_epoch
+
 pytestmark = pytest.mark.fast
 
 
@@ -103,7 +105,7 @@ def full_body_queue(tmp_path: Path):
             (
                 "proj-uuid", "047-feat", "main", "software-dev",
                 "1", "spec.md", "a" * 64, "sha256",
-                "# spec", 6, time.time(),
+                "# spec", 6, now_epoch(),
             ),
         )
         conn.commit()

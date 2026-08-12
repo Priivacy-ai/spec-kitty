@@ -6,9 +6,10 @@ not required.  All scenarios run without any LLM client.
 
 from __future__ import annotations
 
-import datetime
 import json
 from pathlib import Path
+
+from kernel.clock import now_utc, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -44,7 +45,7 @@ def _make_drg(nodes: list, edges: list | None = None) -> SimpleNamespace:
 
 def _make_stale_ts() -> str:
     """Return an ISO timestamp 91 days in the past (beyond the 90-day threshold)."""
-    stale = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=91)
+    stale = now_utc() - timedelta(days=91)
     return stale.isoformat()
 
 

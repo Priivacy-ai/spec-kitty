@@ -12,7 +12,7 @@ import sys
 import tempfile
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from kernel.clock import now_utc_seconds
 from pathlib import Path
 
 HOOK_TEMPLATE = """\
@@ -71,7 +71,7 @@ def install(repo_root: Path) -> HookInstallRecord:
             f"(absolute: {interpreter}) does not exist."
         )
 
-    installed_at = datetime.now(UTC).isoformat(timespec="seconds")
+    installed_at = now_utc_seconds()
     rendered = HOOK_TEMPLATE.format(
         installed_at=installed_at,
         interpreter=str(interpreter),

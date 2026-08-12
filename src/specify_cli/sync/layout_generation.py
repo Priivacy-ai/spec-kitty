@@ -6,7 +6,7 @@ import json
 import os
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -80,7 +80,7 @@ class LayoutTestHooks:
 
 
 def _utc_now() -> str:
-    return datetime.now(UTC).isoformat()
+    return now_utc_iso()
 
 
 class LayoutGenerationAuthority:
@@ -135,15 +135,13 @@ class LayoutGenerationAuthority:
             updated_at=_utc_now(),
         )
 
-    def _read_locked(self) -> LayoutGenerationState:
-        initialized = self._read_marker_locked()
-        if not self._record_path.exists():
-            if initialized:
-                raise LayoutAuthorityCorruptError(f"machine layout authority record is missing: {self._record_path}")
-            state = self._initial_state()
-            self._write_locked(state)
-            self._write_marker_locked()
-            return state
+    def _read_existing_record_locked(
+        self,
+        *,
+        initialized: bool,
+        materialize_marker: bool,
+    ) -> LayoutGenerationState:
+        """Decode an existing authority record, optionally repairing its marker."""
         try:
             raw: Any = json.loads(self._record_path.read_text(encoding="utf-8"))
             if not isinstance(raw, dict):
@@ -171,9 +169,23 @@ class LayoutGenerationAuthority:
             raise LayoutAuthorityCorruptError("cutover_pending layout must name its migration")
         if state.mode is not LayoutMode.CUTOVER_PENDING and state.migration_id is not None:
             raise LayoutAuthorityCorruptError("only cutover_pending layout may retain a migration identity")
-        if not initialized:
+        if not initialized and materialize_marker:
             self._write_marker_locked()
         return state
+
+    def _read_locked(self) -> LayoutGenerationState:
+        initialized = self._read_marker_locked()
+        if not self._record_path.exists():
+            if initialized:
+                raise LayoutAuthorityCorruptError(f"machine layout authority record is missing: {self._record_path}")
+            state = self._initial_state()
+            self._write_locked(state)
+            self._write_marker_locked()
+            return state
+        return self._read_existing_record_locked(
+            initialized=initialized,
+            materialize_marker=True,
+        )
 
     def _read_marker_locked(self) -> bool:
         if not self._marker_path.exists():
@@ -240,6 +252,18 @@ class LayoutGenerationAuthority:
     def read_state(self) -> LayoutGenerationState:
         """Return the current verified machine layout state."""
         return self._under_lock(self._read_locked)
+
+    def peek_state(self) -> LayoutGenerationState:
+        """Read an atomic authority snapshot without creating a lock or files."""
+        initialized = self._read_marker_locked()
+        if not self._record_path.exists():
+            if initialized:
+                raise LayoutAuthorityCorruptError(f"machine layout authority record is missing: {self._record_path}")
+            return self._initial_state()
+        return self._read_existing_record_locked(
+            initialized=initialized,
+            materialize_marker=False,
+        )
 
     @staticmethod
     def _destination(state: LayoutGenerationState) -> LayoutDestination:

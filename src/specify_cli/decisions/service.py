@@ -20,11 +20,11 @@ from __future__ import annotations
 from mission_runtime import MissionArtifactKind, placement_seam
 import json
 from collections.abc import Callable
-from datetime import UTC, datetime
 from pathlib import Path
 
 import ulid as _ulid_mod
 
+from kernel.clock import now_utc
 from specify_cli.decisions import emit as _emit
 from specify_cli.decisions import store as _store
 from specify_cli.decisions.models import (
@@ -80,11 +80,6 @@ class DecisionError(Exception):
 def _mint_decision_id() -> str:
     """Mint a new ULID-based decision_id."""
     return str(_ulid_mod.ULID())
-
-
-def _now_utc() -> datetime:
-    """Return current UTC datetime (timezone-aware)."""
-    return datetime.now(UTC)
 
 
 _TERMINAL_STATUSES = {
@@ -370,7 +365,7 @@ def open_decision(
 
     # Mint new decision (use caller-supplied id if provided, else mint fresh)
     decision_id = decision_id if decision_id is not None else _mint_decision_id()
-    created_at = _now_utc()
+    created_at = now_utc()
     entry = IndexEntry(
         decision_id=decision_id,
         origin_flow=origin_flow,
@@ -490,7 +485,7 @@ def _terminal_command(
         )
 
     # Apply the terminal transition
-    resolved_at = _now_utc()
+    resolved_at = now_utc()
     updated_index = _store.update_entry(
         mission_dir,
         decision_id,

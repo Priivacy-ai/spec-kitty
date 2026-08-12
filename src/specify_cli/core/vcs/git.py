@@ -16,8 +16,9 @@ layer.
 from __future__ import annotations
 
 import subprocess
-from datetime import datetime, UTC
 from pathlib import Path
+
+from kernel.clock import from_epoch, now_utc, parse_iso
 
 from .exceptions import VCSSyncError
 from .types import (
@@ -1096,7 +1097,7 @@ class GitVCS:
             commit_id = parts[0]
             author = parts[1]
             author_email = parts[2]
-            timestamp = datetime.fromtimestamp(int(parts[3]), tz=UTC)
+            timestamp = from_epoch(int(parts[3]))
             message = parts[4]
             parents = parts[5].split() if parts[5] else []
             message_full = parts[6] if len(parts) > 6 else message
@@ -1127,7 +1128,7 @@ class GitVCS:
             commit_id = parts[0]
             author = parts[1]
             author_email = parts[2]
-            timestamp = datetime.fromtimestamp(int(parts[3]), tz=UTC)
+            timestamp = from_epoch(int(parts[3]))
             message = parts[4]
             parents = parts[5].split() if len(parts) > 5 and parts[5] else []
 
@@ -1202,9 +1203,9 @@ def git_get_reflog(repo_path: Path, limit: int = 20) -> list[OperationInfo]:
 
                 # Parse timestamp
                 try:
-                    timestamp = datetime.fromisoformat(timestamp_str.replace(" ", "T").replace(" ", ""))
+                    timestamp = parse_iso(timestamp_str.replace(" ", "T").replace(" ", ""))
                 except ValueError:
-                    timestamp = datetime.now(UTC)
+                    timestamp = now_utc()
 
                 operations.append(
                     OperationInfo(

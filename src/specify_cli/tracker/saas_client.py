@@ -21,7 +21,7 @@ import secrets
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, UTC
+from kernel.clock import UTC, datetime, now_utc, timedelta
 from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urlsplit, urlunsplit
@@ -186,7 +186,7 @@ def _force_refresh_sync() -> bool:
     if session is None:
         raise NotAuthenticatedError("No session to refresh")
     # Bump expiry so refresh_if_needed treats the token as stale.
-    session.access_token_expires_at = datetime.now(UTC) - timedelta(seconds=60)
+    session.access_token_expires_at = now_utc() - timedelta(seconds=60)
     _run_in_fresh_loop(tm.refresh_if_needed())
     return True
 
@@ -693,7 +693,7 @@ class SaaSTrackerClient:
             ),
             repeatability=(LogicalOperationRepeatability.IDEMPOTENT_WRITE if is_write else LogicalOperationRepeatability.REPEATABLE_READ),
             reconciliation_policy=("native_identity_retry_then_query" if is_write else "native_identity_retry"),
-            deadline_at=(datetime.now(UTC) + timedelta(seconds=min(max(self._timeout * 4, 30.0), 300.0))).isoformat(),
+            deadline_at=(now_utc() + timedelta(seconds=min(max(self._timeout * 4, 30.0), 300.0))).isoformat(),
             recover_with_persisted_deadline=True,
             requested_native_identity=caller_key,
             collaborative_teamspace_id=authority.collaborative_team_slug,
@@ -1058,7 +1058,7 @@ class SaaSTrackerClient:
 
     @staticmethod
     def _remaining_seconds(deadline: datetime) -> float:
-        return (deadline - datetime.now(UTC)).total_seconds()
+        return (deadline - now_utc()).total_seconds()
 
     def _remaining_transport_seconds(
         self,

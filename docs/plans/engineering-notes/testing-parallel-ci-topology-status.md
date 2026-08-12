@@ -4,13 +4,13 @@ description: 'Point-in-time mission-status snapshot of the CI shard-topology re-
 doc_status: active
 updated: '2026-07-22'
 related:
-- docs/development/testing-parallel.md
+- docs/development/testing/testing-parallel.md
 ---
 # Test-suite parallelization — CI shard topology status
 
 This note carries the point-in-time mission-status snapshots (named mission IDs, PENDING
 wall-clock records, and per-job CI-confirmation state) that used to live at the bottom of
-[`docs/development/testing-parallel.md`](../../development/testing-parallel.md). The durable
+[`docs/development/testing-parallel.md`](../../development/testing/testing-parallel.md). The durable
 how-to (the one correct local command, why `--dist loadfile` is required, per-worker HOME
 isolation, the serial daemon pass, volume env gates, and the stability ratchet entrypoint) stays
 on that page; this page is the engineering-note-shaped record of *which* shard flips have

@@ -18,7 +18,7 @@ timestamp, making a true byte-identical comparison of the written
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from kernel.clock import UTC, datetime
 from pathlib import Path
 import subprocess
 
@@ -61,21 +61,23 @@ def _read_meta_bytes(repo_root: Path, mission_slug_prefix: str) -> bytes:
 
 @pytest.fixture
 def _frozen_mint(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Freeze the ULID mint and wall-clock inside ``mission_creation`` so two
-    independent ``create_mission_core()`` calls made under this fixture mint
-    the identical ``mission_id`` / ``created_at`` -- the only two per-call
+    """Freeze the ULID mint and the clock seam inside ``mission_creation`` so
+    two independent ``create_mission_core()`` calls made under this fixture
+    mint the identical ``mission_id`` / ``created_at`` -- the only two per-call
     non-deterministic fields in the schema (the ``mid8`` embedded in
     ``slug``/``mission_slug`` derives from ``mission_id``, so freezing it also
     pins those fields).
+
+    The ``created_at`` stamp routes through the canonical
+    :func:`kernel.clock.now_utc_iso` helper (#2496), imported
+    into ``mission_creation`` as a module-level name. Freezing that name is the
+    supported seam; there is deliberately no module-local ``datetime`` copy
+    left to patch.
     """
-
-    class _FrozenDatetime(datetime):
-        @classmethod
-        def now(cls, tz: object | None = None) -> _FrozenDatetime:  # noqa: ARG003
-            return cls.fromtimestamp(_FROZEN_NOW.timestamp(), tz=UTC)
-
     monkeypatch.setattr(mission_creation_module, "ULID", _FrozenULID)
-    monkeypatch.setattr(mission_creation_module, "datetime", _FrozenDatetime)
+    monkeypatch.setattr(
+        mission_creation_module, "now_utc_iso", lambda: _FROZEN_NOW.isoformat()
+    )
 
 
 def test_make_mission_meta_is_byte_identical_to_direct_core_call(

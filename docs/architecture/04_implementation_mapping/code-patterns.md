@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-05-19'
 related:
 - docs/architecture/04_implementation_mapping/README.md
-- docs/status-model.md
+- docs/architecture/status-model.md
 ---
 # Core Code Patterns Applied in the Codebase
 
@@ -77,7 +77,7 @@ see `_auth_doctor.render_report`), orchestrators with side effects.
 
 ## 2. Append-Only Event Log + Reducer
 
-**Reference documentation:** [Status Model](../../../docs/status-model.md);
+**Reference documentation:** [Status Model](../status-model.md);
 canonical specs in
 `kitty-specs/034-feature-status-status-state-model-remediation/data-model.md`.
 

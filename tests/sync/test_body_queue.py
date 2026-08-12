@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import json
 import logging
-import time
 from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
+from kernel.clock import now_epoch
 from specify_cli.sync.body_queue import (
     BodyEnqueueResult,
     BodyQueueStats,
@@ -166,12 +166,12 @@ class TestEnqueue:
 
 class TestDrain:
     def test_returns_fifo_order(self, queue: OfflineBodyUploadQueue) -> None:
-        with patch("specify_cli.sync.body_queue.time") as mock_time:
-            mock_time.time.return_value = 100.0
+        with patch("specify_cli.sync.body_queue.now_epoch") as mock_now_epoch:
+            mock_now_epoch.return_value = 100.0
             queue.enqueue(_ns(), "a.md", "h1", "body-a", 6)
-            mock_time.time.return_value = 200.0
+            mock_now_epoch.return_value = 200.0
             queue.enqueue(_ns(), "b.md", "h2", "body-b", 6)
-            mock_time.time.return_value = 300.0
+            mock_now_epoch.return_value = 300.0
             tasks = queue.drain()
         assert [task.artifact_path for task in tasks] == ["a.md", "b.md"]
 
@@ -179,8 +179,8 @@ class TestDrain:
         self,
         queue: OfflineBodyUploadQueue,
     ) -> None:
-        with patch("specify_cli.sync.body_queue.time") as mock_time:
-            mock_time.time.return_value = 100.0
+        with patch("specify_cli.sync.body_queue.now_epoch") as mock_now_epoch:
+            mock_now_epoch.return_value = 100.0
             queue.enqueue(_ns(), "a.md", "h1", "body-a", 6)
             queue.enqueue(_ns(), "b.md", "h2", "body-b", 6)
             tasks = queue.drain()
@@ -246,12 +246,12 @@ class TestMarkFailedRetryable:
         queue: OfflineBodyUploadQueue,
         unit: ProjectUnitOfWork,
     ) -> None:
-        with patch("specify_cli.sync.body_queue.time") as mock_time:
-            mock_time.time.return_value = 100.0
+        with patch("specify_cli.sync.body_queue.now_epoch") as mock_now_epoch:
+            mock_now_epoch.return_value = 100.0
             queue.enqueue(_ns(), "spec.md", "h1", "body", 4)
             task = queue.drain()[0]
             queue.mark_failed_retryable(task.row_id, "err")
-            mock_time.time.return_value = 100.5
+            mock_now_epoch.return_value = 100.5
             stats = queue.get_stats()
         reference = _reference(unit, task.row_id)
         assert reference["next_attempt_at"] == 101.0
@@ -284,9 +284,9 @@ class TestBackoffProgression:
         expected_delays = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 300.0]
         for index, expected in enumerate(expected_delays):
             _update_reference(unit, row_id, next_attempt_at=0.0)
-            now = time.time()
-            with patch("specify_cli.sync.body_queue.time") as mock_time:
-                mock_time.time.return_value = now
+            now = now_epoch()
+            with patch("specify_cli.sync.body_queue.now_epoch") as mock_now_epoch:
+                mock_now_epoch.return_value = now
                 queue.mark_failed_retryable(row_id, f"error {index}")
             reference = _reference(unit, row_id)
             next_attempt = reference["next_attempt_at"]

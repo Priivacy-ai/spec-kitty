@@ -66,9 +66,8 @@ def _load_store_from_seeds(repo_root: Path) -> GlossaryStore:
     Returns:
         Populated GlossaryStore reflecting both seed data and event log state
     """
-    from datetime import datetime
-
     from glossary.models import Provenance, SenseStatus
+    from kernel.clock import now_utc_iso, parse_iso
 
     # Create a dummy event log path (store needs it but we read from seeds)
     event_log_path = repo_root / ".kittify" / "events" / "glossary" / "_cli.events.jsonl"
@@ -99,7 +98,7 @@ def _load_store_from_seeds(repo_root: Path) -> GlossaryStore:
                             definition=new_sense_data.get("definition", ""),
                             provenance=Provenance(
                                 actor_id=event.get("actor", {}).get("actor_id", "system:event_log"),
-                                timestamp=datetime.fromisoformat(event.get("timestamp", datetime.now().isoformat())),
+                                timestamp=parse_iso(event.get("timestamp", now_utc_iso())),
                                 source="event_log",
                             ),
                             confidence=new_sense_data.get("confidence", 1.0),
@@ -122,7 +121,7 @@ def _load_store_from_seeds(repo_root: Path) -> GlossaryStore:
                             definition=selected["definition"],
                             provenance=Provenance(
                                 actor_id=event.get("actor", {}).get("actor_id", "system:event_log"),
-                                timestamp=datetime.fromisoformat(event.get("timestamp", datetime.now().isoformat())),
+                                timestamp=parse_iso(event.get("timestamp", now_utc_iso())),
                                 source="clarification_resolved",
                             ),
                             confidence=selected.get("confidence", 1.0),

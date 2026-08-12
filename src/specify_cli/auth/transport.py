@@ -51,7 +51,7 @@ import asyncio
 import logging
 import threading
 from contextlib import suppress
-from datetime import datetime, timedelta, UTC
+from kernel.clock import now_utc, timedelta
 from typing import Any
 
 import httpx
@@ -244,7 +244,7 @@ def _force_refresh_sync() -> None:
             "No active session to refresh. Run `spec-kitty auth login`.",
             error_code="not_authenticated",
         )
-    session.access_token_expires_at = datetime.now(UTC) - timedelta(seconds=60)
+    session.access_token_expires_at = now_utc() - timedelta(seconds=60)
     try:
         _run_in_fresh_loop(tm.refresh_if_needed())
     except RefreshLockTimeoutError as exc:

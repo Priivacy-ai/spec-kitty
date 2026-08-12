@@ -6,13 +6,13 @@ updated: '2026-08-02'
 related:
 - docs/context/charter-overview.md
 - docs/context/governance-files.md
-- docs/guides/setup-governance.md
+- docs/guides/how-to/governance/setup-governance.md
 - docs/api/charter-commands.md
-- docs/reference/agent_profiles/generic-agent.md
+- docs/api/agent_profiles/generic-agent.md
 ---
 # Charter Pack Usage Journey: Apply, Generate, and the Dispatch Safety Net
 
-[How to Set Up Project Governance](../guides/setup-governance.md) documents the
+[How to Set Up Project Governance](../guides/how-to/governance/setup-governance.md) documents the
 **interview-driven** path to a charter (`charter interview` → `charter generate`). This page
 documents the second, **pack-driven** onboarding path — `spec-kitty charter pack apply <name>` —
 which is faster to run but has a two-step shape operators can miss: applying a pack alone does
@@ -86,7 +86,9 @@ config merge — it introduces no new compiler. That means `--compile` also **in
 git-worktree requirement**: default `apply` stays git-agnostic, but `apply --compile` needs a git
 working tree, exactly like a standalone `charter generate` call.
 
-### Why `apply` does not auto-compile {#why-apply-does-not-auto-compile}
+<a id="why-apply-does-not-auto-compile"></a>
+
+### Why `apply` does not auto-compile
 
 Compiling is opt-in rather than automatic because `generate` does more than the bare minimum:
 it requires a git working tree, seeds `charter.md` when absent, creates `library/`, writes
@@ -159,10 +161,10 @@ If `charter status` still reports the charter as missing after `apply`, that is 
 - [How Charter Works](../context/charter-overview.md) — the write-store/compiled-bundle/companion
   model in full, plus the DRG-backed context model
 - [Governance Files Reference](../context/governance-files.md) — authoritative per-file table
-- [How to Set Up Project Governance](../guides/setup-governance.md) — the interview-driven
+- [How to Set Up Project Governance](../guides/how-to/governance/setup-governance.md) — the interview-driven
   onboarding path (the alternative to pack apply)
 - [Charter CLI Reference](../api/charter-commands.md) — narrative command reference; see the
   generated [CLI Command Reference](../api/cli-commands.md#spec-kitty-charter-pack) for the full,
   `--help`-verified `charter pack` flag surface
-- [Generic Agent — Agent Profile](../reference/agent_profiles/generic-agent.md) — the profile the
+- [Generic Agent — Agent Profile](../api/agent_profiles/generic-agent.md) — the profile the
   dispatch safety net falls back to
