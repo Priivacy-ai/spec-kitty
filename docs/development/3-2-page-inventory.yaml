@@ -2948,6 +2948,18 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/code-quality/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/code-quality/targeted-cleanup-scoping.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/doctrine-charter-domain-plan.md
   tag: current
   divio_type: none

@@ -2,8 +2,9 @@
 title: Plans
 description: 'Plans landing page: durable domain throughlines plus the distil-then-retire working surface of investigations, research, initiatives, and release-scoped plans.'
 doc_status: active
-updated: '2026-08-11'
+updated: '2026-08-12'
 related:
+- docs/plans/code-quality/index.md
 - docs/plans/saas-hosted-sync-domain-plan.md
 - docs/plans/doctrine-charter-domain-plan.md
 - docs/plans/3-2-x-milestone-roadmap.md
@@ -64,6 +65,8 @@ cataloguing its contents. Roughly ordered by current activity:
 - **[Doctrine](doctrine/index.md)** — doctrine layering, charter boundary, and
   artifact-selection planning.
 - **[Refactor](refactor/index.md)** — degod/unshim program and slice-landing planning.
+- **[Code quality](code-quality/index.md)** — the SonarCloud baseline, quality-metric
+  evolution, the smell/vulnerability cluster taxonomy, and targeted cleanup scoping.
 - **[Testing](testing/index.md)** — mutation testing, acceleration, friction audit,
   and CI gate tuning.
 - **[Investigations](investigations/index.md)** — scope assessments, compatibility

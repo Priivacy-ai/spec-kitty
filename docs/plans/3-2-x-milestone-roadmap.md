@@ -2,10 +2,11 @@
 title: 3.2.x Milestone — Roadmap
 description: 'Operator-facing roadmap for the 3.2.x milestone: the epic dependency spine, degod/unshim wave status, milestone census, exit criteria, and watch items.'
 doc_status: active
-updated: '2026-08-04'
+updated: '2026-08-12'
 related:
 - docs/changelog/index.md
 - docs/plans/index.md
+- docs/plans/code-quality/index.md
 - docs/plans/testing/qa-tidy-first-sequencing.md
 - docs/plans/doctrine/manifesto-program-delivery-sequence.md
 - docs/plans/saas-hosted-sync-domain-plan.md
@@ -19,6 +20,45 @@ related:
 ## Intent of 3.2.x
 
 3.2.x is the **stabilization + structural debt paydown** cycle: (G1) deepen Doctrine/Charter/DRG impact on runtime execution, (G2) strangle the core domains — naming, identity, read/write paths — onto canonical SSOTs by *adopting* the existing execution-context machinery rather than building new construction, and (G3) land the DevEx enablers that make (G1)/(G2) enforceable. No new shadow paths. The milestone stays open until all three goals hold (full declaration: [`docs/release-goals/3.2.x.md`](../changelog/3.2.x.md)). Everything experience-shaped — UX, dashboard, SaaS tie-in — is deliberately deferred to 3.3.x, which builds on the SSOTs this cycle establishes. The SaaS deferral covers the hosted *product launch* (the #1800 / #1091 / #3322 epics, all milestone 3.3.x), **not** the core **sync and consent integrity P0s** (#3178 / #3278 / #3307), which are in-cycle 3.2.x stabilization work; the [SaaS & Hosted Sync — Domain Plan](saas-hosted-sync-domain-plan.md) is the domain's canonical map of that split.
+
+## Addendum 2026-08-12 — release-posture refresh (CI green except the standing Sonar backlog)
+
+*Read-only observation grounded in the 2026-08-12 CI Quality run (`workflow_dispatch`
+on `main`, commit `f6b90d34e`) and the live SonarCloud project. It updates the release
+posture the [2026-07-30 addendum](#addendum-2026-07-30--verified-status-re-read--spine-re-anchoring)
+recorded ("`main` NOT tag-ready, CI red 10+ consecutive runs"), which has since gone
+stale in the milestone's favour.*
+
+**Health signal has converged toward the stabilization goal.** Since the 07-30 note:
+coverage recovered **47% -> 84.1%** (a project high), reliability bugs cleared
+**34 -> 0** (2026-08-11), duplication holds at **0.5%**, and CI Quality on normal `main`
+pushes is **green**. The dedicated Playwright `ui-e2e` and `ci-windows` workflows are
+green on the head commit. Full measurement and cluster analysis:
+[Code Quality — Working Collection](code-quality/index.md).
+
+**The one red is honest, not a regression.** The `workflow_dispatch` CI Quality run
+fails only on the SonarCloud quality gate, and only on `new_security_rating = C`. All
+21 vulnerabilities predate any current release candidate (created 2026-06-24 ->
+2026-07-30); the head commit contributed none. Sonar runs only on
+`workflow_dispatch`/`schedule`, so it surfaces the accumulated backlog rather than a
+change — an honest standing red per
+[ADR 2026-07-17-1](../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md).
+
+**The debt is the roadmap's own scoped paydown.** The security backlog (17 `S6350`
+subprocess findings) and the worst complexity files map almost 1:1 onto the
+**QUEUED** Wave 2 (coord-authority) and Wave 4 (sync adapters) degod slices — see the
+[debt -> wave mapping](code-quality/index.md#how-the-debt-maps-onto-the-roadmap). The 3
+`S2083` BLOCKER path-traversal vulns (`merge/bookkeeping_projection.py`,
+`skills/verifier.py`) are **not** on a wave and are a ~90-min targeted fix.
+
+**Implication for tagging.** A patch **release candidate** (e.g. `3.2.6-rc1`) is
+cuttable on code-health grounds: every functional gate — all test suites,
+`e2e-cross-cutting`, blocking regression, `ui-e2e`, Windows — is green, and the Sonar
+gate is a known standing backlog, not a candidate regression. This does **not** close
+the 3.2.x milestone: the degod spine (Waves 2-4) and the P0 book (#2160, #1619) remain
+open per the exit criteria below. Cutting an rc is a checkpoint inside the cycle, not
+its completion. Recommended before the *final* 3.2.6 tag: triage the 3 `S2083` blockers
+and note the remaining Sonar backlog as known/deferred in the release notes.
 
 ## Addendum 2026-07-30 — verified status re-read + spine re-anchoring
 
