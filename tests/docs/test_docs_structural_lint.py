@@ -554,18 +554,29 @@ def test_live_plans_research_and_investigations_pass_clean() -> None:
 
 
 def test_live_nav_basenames_do_not_trip_shadow_tree() -> None:
-    """The index.md / README.md nav basenames never trip shadow_tree."""
+    """The index.md / README.md nav basenames never trip shadow_tree.
+
+    Non-vacuity floors are keyed on index.md (the README->index standardization
+    target) and the migration-invariant combined cohort, not a draining README
+    floor. See research.md D2 for the original 38/38 baseline.
+    """
     config = load_config(STYLEGUIDE_PATH)
     docs_root = _REPO_ROOT / "docs"
     md_files = sorted(docs_root.rglob("*.md"))
     index_count = sum(1 for p in md_files if p.name == "index.md")
     readme_count = sum(1 for p in md_files if p.name == "README.md")
-    assert index_count >= 30  # 38 per research.md D2
-    # Floor lowered 2026-08-11: the docs/plans landing-file standardization
-    # (README.md -> index.md, plus one redirect-stub removal) intentionally shrank
-    # the README nav cohort by 4. The substantive guard below (no shadow_tree
-    # violations) is unaffected; this floor only guards against wholesale loss.
-    assert readme_count >= 25
+    # These floors exist only for NON-VACUITY: the substantive guard below
+    # (no shadow_tree violations) is meaningless unless the corpus actually
+    # contains nav basenames to check. The original 38/38 split (research.md D2)
+    # is being deliberately drained by the README.md -> index.md landing-file
+    # standardization (#3324 standardized docs/plans), so index.md is now the
+    # dominant, growing nav basename and a README-specific floor is the wrong
+    # ratchet — it would trip on the very migration it is meant to allow.
+    # Key the floor on index.md (the standardization target) and on the
+    # migration-invariant combined cohort, both set below today's actuals
+    # (index_count=57, combined=84 as of #3324).
+    assert index_count >= 40, index_count
+    assert index_count + readme_count >= 70, (index_count, readme_count)
 
     violations = check_shadow_tree_basename(md_files, docs_root, _REPO_ROOT, config)
 
