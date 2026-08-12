@@ -20,7 +20,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 ### ✨ Added
 
 - **Multi-Agent Parallel Development and Orchestrator Quickstart tutorials now open
-  with illustrated Mission Kitty splashes.** Each page adds a decorative hero and
+  with illustrated Mission Kitty splashes (`#3331`).** Each page adds a decorative hero and
   a one-line caption that points to the authoritative workflow steps in the prose
   below, matching the pattern introduced in `#3276`.
 - **Documentation pages can now declare who they are for: a canonical `audience:`
