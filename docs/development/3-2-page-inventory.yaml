@@ -2978,12 +2978,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/doctrine-charter-domain-plan.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/plans/doctrine/3179-public-api-surface-scoping.md
   tag: current
   divio_type: none
@@ -3183,6 +3177,36 @@
   current_target: true
   notes: null
 - path: docs/plans/doctrine/wp-prompt-governance-atdd-findings.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/domains/api-dashboard-domain-plan.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/domains/doctrine-charter-domain-plan.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/domains/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/domains/packs-extraction-domain-plan.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/domains/saas-hosted-sync-domain-plan.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -4239,12 +4263,6 @@
   current_target: true
   notes: null
 - path: docs/plans/reviews/test-plan-pr305.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/saas-hosted-sync-domain-plan.md
   tag: current
   divio_type: none
   owning_workstream: none

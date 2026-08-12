@@ -7,14 +7,14 @@ related:
 - docs/changelog/3.2.x.md
 - docs/plans/3-2-x-milestone-roadmap.md
 - docs/plans/3-2-x-open-core-delivery-plan.md
-- docs/plans/saas-hosted-sync-domain-plan.md
-- docs/plans/doctrine-charter-domain-plan.md
+- docs/plans/domains/saas-hosted-sync-domain-plan.md
+- docs/plans/domains/doctrine-charter-domain-plan.md
 - docs/changelog/index.md
 ---
 
 # 3.2.x Executive Overview
 
-> **Related domain plans (durable throughlines):** [SaaS & Hosted Sync](saas-hosted-sync-domain-plan.md) · [Doctrine & Charter](doctrine-charter-domain-plan.md). This overview is release-scoped; the domain plans hold the version-spanning strategy and the standing P0/reliability picture behind these outcomes.
+> **Related domain plans (durable throughlines):** [SaaS & Hosted Sync](domains/saas-hosted-sync-domain-plan.md) · [Doctrine & Charter](domains/doctrine-charter-domain-plan.md). This overview is release-scoped; the domain plans hold the version-spanning strategy and the standing P0/reliability picture behind these outcomes.
 
 *Point-in-time stakeholder synthesis, 2026-07-30. Covers everything since the 3.2.4
 release (2026-07-05): the shipped 3.2.5 release and the in-flight 3.2.6 cycle. Reads
