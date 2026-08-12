@@ -17,7 +17,7 @@ Add a **local, build-time** PlantUML render step to the DocFX pipeline (a post-p
 **Project Type**: single (docs + docs-tooling)
 **Performance Goals**: render adds ≤ 60s — a **monitored budget/warning**, not a hard per-PR gate (flakiness policy)
 **Constraints**: zero doctrine-content egress (local jar; `docker --network=none` isolation proof); `plantuml.jar` pinned by version+sha256; SVGs CI-generated; diagrams render docsite-only (not github.com); the drift guard introspects models (never hand-counts); READMEs are pointer-only
-**Scale/Scope**: ~12 artefact-kind diagrams; 1 render script; 2 workflow edits; 1 ADR; 1 drift guard; N module READMEs; 2 kinds filled
+**Scale/Scope**: **4 priority schema diagrams + a cross-kind overview** across 3 doc files (FR-003 is the authoritative count — NOT "~12"; the drift-guard binding table sizes to this); 1 render script; 2 workflow edits; 1 ADR; 1 drift guard; ~17 module READMEs (EXTEND-heavy — they already exist); 2 kinds filled
 
 ## Charter Check
 
@@ -54,9 +54,10 @@ src/doctrine/** models                 # READ-ONLY — source of truth for diagr
 - **Purpose**: local build-time render of `@start*` fences to SVG, zero egress.
 - **Requirements**: FR-001, NFR-002, NFR-003, NFR-004, NFR-005, C-001, C-002, C-006
 - **Affected surfaces**: `scripts/docs/plantuml_render.py`; `docs-build-pr.yml` + `docs-pages.yml` (both; the deploy `paths:` allowlist); a sample diagram page
-- **Plan specifics** (post-spec squad): insert **after** `glossary_linker` in each workflow (fence stays `<pre><code>`, safe); `html.unescape()` the payload; assert the emitted `language-plantuml` class; **egress spike first** — confirm `docker run --network=none` (portable) renders green on `blacksmith-4vcpu-ubuntu-2404` + `ubuntu-latest` before committing the mechanism; `unshare -rn` only if the runner permits unprivileged userns (with `ip link set lo up`); behavioral SANDBOX negative test.
-- **Sequencing/depends-on**: none — **precedes IC-03/IC-04**
-- **Risks**: CI isolation runnability (mitigated by the spike + docker fallback); glossary_linker SVG corruption (mitigated by ordering + `<pre><code>` recovery form).
+- **Plan specifics** (post-plan squad): **execution locus** — Python orchestration runs host-native + **stdlib-only** (`docs-pages.yml` has no setup-python / no pip install); only `java -jar` is wrapped in `docker run --network=none -v <tmp>:<tmp> <digest-pinned-JRE-image>` (prefetch the image **before** isolation; **drop host `setup-java`**, redundant). Insert **immediately after `glossary_linker`, before redirect-stub + `seo_verify`** in BOTH workflows (+ extend the `docs-pages.yml` enumerated `paths:` allowlist — not a glob). `html.unescape()` the payload + confirm the emitted fence class against real `_site` HTML.
+- **The egress spike is a BLOCKING WP01** — runnability is currently **UNPROVEN** (not "de-risked"): render a REAL `@startyaml` diagram under `--network=none` on **both** `ubuntu-latest` and `blacksmith-4vcpu-ubuntu-2404`, confirming no font/DNS-driven failure. Its green exit-criterion gates every render/diagram WP.
+- **Sequencing/depends-on**: none — **its render-acceptance precedes IC-03's SVG scenario** (IC-04 does NOT need it, see IC-04)
+- **Risks**: CI isolation runnability (the spike is the gate); glossary_linker SVG corruption (mitigated by ordering + `<pre><code>` recovery form).
 
 ### IC-02 — ADR + R-04 amendment
 
@@ -79,24 +80,28 @@ src/doctrine/** models                 # READ-ONLY — source of truth for diagr
 - **Purpose**: enforce zero diagram/code drift.
 - **Requirements**: FR-004, NFR-001, C-003
 - **Affected surfaces**: a new guard test; the `file:class` binding table; read-only models
-- **Plan specifics**: explicit binding table (1:N, e.g. DRG → `DRGNode`+`DRGEdge`+`NodeKind`+`Relation`); Pydantic `model_fields` with `FieldInfo.alias or name` + **transitive nested recursion** (test at depth — add a field to a nested value-object and assert FAIL); dataclass `fields()`; StrEnum `list()`; **binding completeness** from `list(ArtifactKind)` + the priority list. ATDD red-first.
-- **Sequencing/depends-on**: with/after IC-03
+- **Plan specifics**: both sides pinned — **diagram-side parse** (top-level `@startyaml` keys, recursing into nested sub-maps, = declared field set) AND model introspection (`FieldInfo.alias or name` + transitive recursion; dataclass `fields()`; StrEnum `list()`). Non-fakeable tests: **completeness over ALL `ArtifactKind`** (a synthetic new member FAILS until dispositioned — not just the 4 priority kinds); **omit-a-field** (a diagram missing a model field FAILS); **nested depth-2** pinned to `AgentProfileSchema → AgentSpecialization` (DRG is FLAT — not usable for the depth test). ATDD red-first.
+- **Sequencing/depends-on**: **parallel with IC-01** — it is a pytest parsing `@startyaml` text + introspecting models; it does NOT need the render pipeline. Only IC-03's render-acceptance serializes behind IC-01.
 
 ### IC-05 — Per-module code→docs READMEs
 
 - **Purpose**: pointer-only bridge from source modules to canonical docs.
 - **Requirements**: FR-005, C-005
 - **Affected surfaces**: `src/doctrine/**/README.md` (extend, don't clobber); a README structural lint
-- **Plan specifics**: explicit module→plan mapping + fallback; **external precondition — Scope A domain plans merged to `main`** so the plan links resolve; a machine lint (length cap / forbid field-table markers) enforces pointer-only.
-- **Sequencing/depends-on**: IC-03 (diagram links) + external Scope-A merge
+- **Plan specifics**: **independently landable** — each README's fallback links point at **in-mission** targets (the doctrine-kinds entry + the schema diagram) that always resolve, so FR-005's link check never reds on an external merge; the "owning domain plan" link is added opportunistically (doctrine-charter is already on `main` via #3324; packs-extraction/api-dashboard arrive with Scope A). **N≈17 modules already carry READMEs → EXTEND-heavy**, don't clobber. A machine lint (length cap / forbid field-table markers) enforces pointer-only.
+- **Sequencing/depends-on**: **LAST, decoupled, abandonable** WP — never on the critical path to mission merge; no hard external dependency (fallback links resolve in-mission).
 
 ### IC-06 — Fill genuinely-thin kinds + campsite
 
 - **Purpose**: fill `glossary-pack` + `anti-pattern`; tidy the catalog.
 - **Requirements**: FR-006, C-004
 - **Affected surfaces**: `doctrine-kinds.md` (fill + sweep the stale "## The eight doctrine artifact kinds" heading to the 12-member reality; record the `template` audit note); `doctrine-relationships.md` (note the unguarded "15" prose literal)
-- **Sequencing/depends-on**: pairs with IC-03 (shared file `doctrine-kinds.md` — co-locate to avoid contention)
+- **Sequencing/depends-on**: **hard co-location, not a suggestion** — a SINGLE WP owns `doctrine-kinds.md` (overview diagram + glossary-pack/anti-pattern fills + "eight"→12 heading sweep) AND a single WP owns `doctrine-relationships.md` (DRG diagram + the unguarded "15" prose note), since both files are shared by IC-03 and IC-06.
 
 ## Notes
 
-Post-spec squad (3 lenses) applied: no-egress mechanism de-risked (docker `--network=none` + spike, not `unshare` alone); behavioral SANDBOX negative test; drift-guard binding-completeness + nested-depth + explicit binding table; accessibility reconciliation carve-out; both-workflow insertion + order-after-glossary_linker + unescape + class assertion; FR-005 Scope-A precondition + module→plan mapping; action-index standalone prose; `list(NodeKind)` (no literal); template/heading/`15`-literal campsite notes.
+Post-spec squad (3 lenses) applied: no-egress mechanism (docker `--network=none` + spike, not `unshare` alone); behavioral SANDBOX; drift-guard binding-completeness + nested-depth + explicit binding table; accessibility reconciliation carve-out; both-workflow insertion; FR-005 module→plan mapping; action-index standalone prose; `list(NodeKind)` (no literal); template/heading/`15` campsite notes.
+
+**Post-plan squad (3 lenses) applied** (this revision): IC-01 execution-locus pinned (Python host-native stdlib-only + `java -jar` in `docker --network=none` with a digest-pinned JRE, drop `setup-java`); egress spike is a **blocking WP01**, runnability **UNPROVEN**; render slot pinned after `glossary_linker` before redirect-stub/`seo_verify`; drift guard's diagram-side parse pinned + completeness-over-all-`ArtifactKind` + omit-a-field + depth-2-on-a-real-nested-model; SANDBOX negative test uses a local listener (not "build fails"); alt-text made a concrete distinct-caption predicate; IC-04 parallel to IC-01; **IC-05 made independently-landable** (in-mission fallback links; last/abandonable), diagram count reconciled to FR-003's 4+overview; hard single-WP ownership of `doctrine-kinds.md` and `doctrine-relationships.md`.
+
+**Tracker (DIR-012/DIR-013)**: this mission edits `.github/workflows/docs-*.yml` and pins an external `plantuml.jar` — capture/assign a backing tracking issue to the HiC before `implement`, and pre-declare the DIR-013 baseline-red attribution posture for the `tests/docs/` touch.
