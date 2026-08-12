@@ -24,8 +24,9 @@ A contributor adds a `@startyaml` block to a doctrine page and, on the built doc
 **Acceptance Scenarios**:
 
 1. **Given** a page with a ` ```plantuml `-fenced `@startyaml` block, **When** the docs build runs, **Then** the published HTML contains a rendered SVG (with alt/aria text) in place of the fence.
-2. **Given** the render step, **When** it runs inside a network-denied namespace (`unshare -rn`), **Then** it still succeeds — proving zero egress.
-3. **Given** an existing Mermaid diagram, **When** PlantUML rendering is enabled, **Then** the Mermaid diagram renders unchanged.
+2. **Given** the render step under network isolation on the actual CI runner (`docker run --network=none` default; `unshare -rn` with loopback up only where the runner permits unprivileged userns), **When** it runs, **Then** it still succeeds — proving zero egress (CI-Linux is the hard gate; a plan-time spike confirms the mechanism on the runner images).
+3. **Given** a diagram containing an egress directive (`!include`/`!includeurl`), **When** rendered under `-DPLANTUML_SECURITY_PROFILE=SANDBOX`, **Then** the fetch is refused / the build fails-closed — SANDBOX is proven behaviorally, not by flag presence.
+4. **Given** an existing Mermaid diagram, **When** PlantUML rendering is enabled, **Then** the Mermaid diagram renders unchanged.
 
 ### User Story 2 - Code-grounded doctrine schema diagrams (Priority: P1)
 
@@ -80,11 +81,11 @@ A reader looking up `glossary-pack` or `anti-pattern` finds a kind description; 
 
 | ID | Title | User Story | Priority | Status |
 |----|-------|------------|----------|--------|
-| FR-001 | Add local build-time PlantUML rendering (`scripts/docs/plantuml_render.py`, a post-DocFX HTML post-processor mirroring `glossary_linker.py`) that replaces ` ```plantuml `-fenced `@start*` blocks in `docs/_site` with SVGs; pin the insertion point in the ordered post-processor chain; pin `plantuml.jar` by version+sha256; run with `-DPLANTUML_SECURITY_PROFILE=SANDBOX`; each injected SVG carries descriptive alt/aria text | US1 | High | Open |
+| FR-001 | Add local build-time PlantUML rendering (`scripts/docs/plantuml_render.py`) that recovers ` ```plantuml `-fenced `@start*` blocks from `docs/_site` (HTML-unescaping the payload; assert the emitted `language-plantuml` class), renders them to SVG with a version+sha256-pinned `plantuml.jar` under `-DPLANTUML_SECURITY_PROFILE=SANDBOX`, injecting them with descriptive alt/aria text. Wire into **both** docs workflows (`docs-build-pr.yml` PR gate + `docs-pages.yml` deploy incl. its `paths:` allowlist), positioned **after** `glossary_linker` in each | US1 | High | Open |
 | FR-002 | Record the rendering decision as an ADR that cites the existing `plantuml-diagramming.toolguide.yaml`, amends R-04/#1839 with a precise carve-out (R-04 unchanged for hand-authored C4; new lane = generated, docsite-only schema diagrams), and positions schema diagrams relative to the charter's C4-zoom doctrine | US1 | High | Open |
 | FR-003 | Author `@startyaml` typed-placeholder schema diagrams for the priority artefacts — agent-profile, mission-type/step, DRG, artefact-kind vocabulary — generated from the frozen code models; place the mission-type/step (and action-index) diagram in `mission-type-resolution.md`, the DRG in `doctrine-relationships.md`, the cross-kind overview in `doctrine-kinds.md` | US2 | High | Open |
-| FR-004 | Provide an automated drift guard: introspect each bound model's field set (Pydantic `model_fields` with `FieldInfo.alias or name` normalization + recursion into nested models; frozen-dataclass `fields()`; StrEnum members via `list(EnumType)` — never a hand-copied count), support 1:N multi-model bindings, dispatch across the three model families, and FAIL on any field-set mismatch; bind by `file:class` to disambiguate the `AntiPattern` name-clash | US2 | High | Open |
-| FR-005 | Add a small **pointer-only** `README.md` to each doctrine source module (and domain-relevant modules) linking the doctrine-kinds entry, the schema diagram, and the owning domain plan; extend existing READMEs rather than clobber; a light check confirms each covered module has a README and its links resolve | US3 | Medium | Open |
+| FR-004 | Provide an automated drift guard driven by an **explicit `file:class` binding table** (per diagram, 1:N allowed): introspect each bound model's field set (Pydantic `model_fields` with `FieldInfo.alias or name` normalization + **transitive recursion into nested models**; frozen-dataclass `fields()`; StrEnum members via `list(EnumType)` — never a hand-copied count), dispatch across the three model families, and FAIL on any field-set mismatch. **Binding completeness**: derive the expected set from `list(ArtifactKind)` + the priority-artefact list and FAIL if any is unregistered | US2 | High | Open |
+| FR-005 | Add a small **pointer-only** `README.md` to each doctrine source module (and domain-relevant modules) linking the doctrine-kinds entry, the schema diagram, and the owning domain plan (per an explicit module→plan mapping; fallback when a module has no owning plan). **Precondition**: the Scope-A domain plans are merged to `main` so the plan links resolve. Extend existing READMEs rather than clobber; a light check confirms each covered module has a README and its links resolve | US3 | Medium | Open |
 | FR-006 | Fill kind documentation for the genuinely-thin kinds (`glossary-pack`, `anti-pattern`); `step-contract` is augment-only (already documented); `action-index` is documented under mission-type resolution, not the kinds catalog | US4 | Low | Open |
 
 ### Non-Functional Requirements
@@ -92,10 +93,10 @@ A reader looking up `glossary-pack` or `anti-pattern` finds a kind description; 
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
 | NFR-001 | Diagram/code fidelity | Every schema diagram matches its source model with **zero** field drift, enforced by the FR-004 guard, with all counts/members derived by introspection (`list(NodeKind)` = 16, etc.), never hand-copied. | Correctness | High | Open |
-| NFR-002 | No doctrine-content egress | Proven by two mechanisms: (a) the render invocation asserts `-DPLANTUML_SECURITY_PROFILE=SANDBOX`; (b) the render step runs successfully inside a network-denied namespace (`unshare -rn`). A URL-grep is a secondary lint only. | Security/Privacy | High | Open |
+| NFR-002 | No doctrine-content egress | Proven **behaviorally**: (a) a diagram with an egress directive (`!include`/`!includeurl`) fails-closed under SANDBOX (negative test); (b) the render succeeds under network isolation on the actual CI runner — `docker run --network=none` is the portable default (CI has Docker); `unshare -rn` only where the runner permits unprivileged userns, with loopback up; a plan-time spike confirms the mechanism on the Ubuntu-24.04 runners; CI-Linux is the hard gate. URL-grep is a secondary lint. | Security/Privacy | High | Open |
 | NFR-003 | Reproducible build | `plantuml.jar` pinned by version **and** sha256; SVGs CI-generated (not committed). Added build time (target ≤ 60s) is a **monitored budget/warning**, not a hard per-PR gate (flakiness policy). | Reliability | Medium | Open |
 | NFR-004 | Non-regression | Existing Mermaid/C4 diagrams render unchanged; the full `tests/docs/` suite + terminology guard stay green. | Compatibility | High | Open |
-| NFR-005 | Accessibility | Every injected SVG carries descriptive alt/aria text (charter Diagramming/Documentation accessibility rule + the `docs-accessibility` styleguide). | Accessibility | High | Open |
+| NFR-005 | Accessibility | Every injected SVG carries descriptive alt/aria text derived from the diagram's `@startyaml` title/caption (asserted non-trivial by the render pipeline). The `docs-accessibility` "restate the diagram's facts in prose" duty is discharged by the surrounding doctrine-kinds prose — NOT by re-listing fields (which would recreate the drift surface C-005 forbids); this carve-out is recorded in the ADR. | Accessibility | High | Open |
 
 ### Constraints
 
@@ -104,8 +105,8 @@ A reader looking up `glossary-pack` or `anti-pattern` finds a kind description; 
 | C-001 | Local rendering only | Rendering uses a local `plantuml.jar`; the client-side PlantUML-server approach is rejected on egress grounds. | Technical | High | Open |
 | C-002 | Docsite-only rendering | Pre-rendered SVGs render only on the built docsite, not on github.com source view; documented and accepted. | Business | Medium | Open |
 | C-003 | Introspection, never hand-counts | The drift guard derives every field set/enum member from the live model (`list(NodeKind)` → 16, `Relation` → 15, `ArtifactKind` → 12); no literal counts in diagram or guard. | Technical | High | Open |
-| C-004 | Correct doctrine filing | `action-index` is NOT an artefact kind (document under mission-type resolution, not the kinds catalog); `step-contract` is already documented (augment-only); do not conflate `styleguides` `AntiPattern` with the DRG `anti_pattern` node. | Technical | High | Open |
-| C-005 | READMEs are pointers, not copies | Module READMEs link the canonical docs; they never duplicate schema/field content (no new drift surface) and sit outside the FR-004 guard. | Technical | High | Open |
+| C-004 | Correct doctrine filing | `action-index` is NOT an artefact kind — its FR-003 diagram in `mission-type-resolution.md` carries **standalone explanatory prose** (not a picture alone), not a kinds-catalog entry; `step-contract` is already documented (augment-only); `template` was audited and consciously left as a note. Bind diagrams by `file:class` as robust hygiene — the `styleguides` `AntiPattern` example type shares a name with the DRG `anti_pattern` kind (a NodeKind string with no backing class) but is a different concept. | Technical | High | Open |
+| C-005 | READMEs are pointers, not copies | Module READMEs link the canonical docs; they never duplicate schema/field content (no new drift surface) and sit outside the FR-004 guard. A cheap structural lint (length cap / forbid field-table markers) enforces the no-duplication property by machine, not review alone. | Technical | High | Open |
 | C-006 | Governed reconciliation | The FR-002 ADR must cite the active `plantuml-diagramming` toolguide and reconcile the README-R-04 "generation out of scope" line against the charter diagramming doctrine — not only R-04/#1839. | Technical | Medium | Open |
 
 ### Key Entities
@@ -121,7 +122,7 @@ A reader looking up `glossary-pack` or `anti-pattern` finds a kind description; 
 
 - **SC-001**: The published docsite renders the schema diagrams; a network-denied-namespace build check confirms **zero** doctrine content egresses.
 - **SC-002**: **100%** of authored schema diagrams match their source model (alias-normalized, nested-recursed) with zero field drift, proven by the FR-004 guard in CI.
-- **SC-003**: Each priority artefact kind has a schema diagram; the drift guard derives all enum members by introspection (`NodeKind`=16 verified live).
+- **SC-003**: Each priority artefact kind has a schema diagram; the drift guard derives all enum members by introspection (matches `list(NodeKind)` live — no hard-coded count, since members change across missions).
 - **SC-004**: Every covered doctrine source module has a pointer-only `README.md` whose links resolve; none duplicate schema content.
 - **SC-005**: `glossary-pack` and `anti-pattern` have kind descriptions; `action-index` is documented under mission-type resolution (not the kinds catalog); the full `tests/docs/` suite + terminology guard pass.
 
