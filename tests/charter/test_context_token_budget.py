@@ -463,8 +463,12 @@ class TestEdgeCases:
         assert joined == ""
         assert notes == []
 
-    def test_default_budget_is_32k(self) -> None:
-        assert BUDGET_DEFAULT == 32_000
+    def test_default_budget_is_40k(self) -> None:
+        # Raised 32_000 -> 40_000 (2026-08-12) so the software-dev doctrine
+        # cascade wired by 3bcdda344 fits without compacting away the
+        # anti-drift anchors (DIRECTIVE_032, glossary, ADR). See
+        # BUDGET_DEFAULT's docstring in token_budget.py.
+        assert BUDGET_DEFAULT == 40_000
 
     def test_non_positive_budget_is_noop(self) -> None:
         sections = [_make_section("a", "x" * 100)]
