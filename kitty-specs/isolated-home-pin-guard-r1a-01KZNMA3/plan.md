@@ -826,10 +826,14 @@ Swept every backticked file path across `spec.md`, `plan.md`, `research.md`, `da
 **The three that matter**, and they are all the same class the operator identified:
 
 1. **`docs/adr/3.x/2026-08-07-1-a-mission-halting-instrument-is-worth-its-cost.md`** — cited in `spec.md`'s
-   header as the **Record of the halt**. It does not exist here; it exists on `spike/isolated-home-3121`.
+   header as the **Record of the halt**. At planning time it did not exist here; it existed on
+   `spike/isolated-home-3121`.
    And C-006 separately lists *"the halt-path ADR"* as something R1a **writes** — so as it stood, R1a was
    set up to author a **second, divergent record of one halt** while its own header cited the first. Now
    recorded at the citation: the owning WP must **import it verbatim**, not author a new one.
+   *(Resolved at landing: imported verbatim; body-only sha256 matches the spike's copy. The single
+   divergence is an added `description:` frontmatter key, which the docs gates require and which is not
+   part of the decision record. One halt, one record.)*
 2. **`home_partition`'s rule** — BLOCKER-2, now imported.
 3. **`scripts/mutants/ablate_home_pin_3121.py` and `evidence/ablation/VERDICT.md`** (FR-009's corrections,
    D-1/D-2) — these were **already correctly labelled** as spike-only and deferred to R1b, so they are the
