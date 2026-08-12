@@ -365,7 +365,8 @@ def _resolve_activation_kind(kind: str) -> str:
     Fail-closed (C-006 / NFR-005): an unrecognised kind raises ``ValueError``
     naming the accepted kinds rather than silently inferring an identity.
     """
-    from doctrine.artifact_kinds import (  # noqa: PLC0415 — lazy: charter→doctrine read, mirror NFR-001 import-time-I/O convention
+    # Lazy: charter→doctrine read, mirrors the NFR-001 import-time-I/O convention.
+    from doctrine.artifact_kinds import (  # noqa: PLC0415
         ArtifactKind,
     )
 
@@ -400,7 +401,8 @@ def normalize_activation_identifier(kind: str, identifier: str) -> str:
     identifier:
         The stored identifier (file slug or node id).
     """
-    from doctrine.drg.migration.id_normalizer import (  # noqa: PLC0415 — lazy: charter→doctrine read, mirror NFR-001 import-time-I/O convention
+    # Lazy: charter→doctrine read, mirrors the NFR-001 import-time-I/O convention.
+    from doctrine.drg.migration.id_normalizer import (  # noqa: PLC0415
         artifact_to_urn,
     )
 

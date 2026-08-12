@@ -27,7 +27,7 @@ from doctrine.missions.mission_type_repository import (
     builtin_mission_type_ids,
 )
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 _SHIPPED_MISSION_TYPES_DIR = (
     Path(__file__).parent.parent.parent.parent / "packs" / "built-in" / "missions" / "mission_types"

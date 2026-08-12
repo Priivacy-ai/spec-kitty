@@ -17,7 +17,7 @@ from specify_cli.cli.console import console
 from rich.panel import Panel
 
 if TYPE_CHECKING:
-    from doctrine.model_task_routing.evaluator import RoutingRecommendation
+    from charter.model_routing import RoutingRecommendation
 
 from specify_cli.invocation.errors import (
     InvocationWriteError,

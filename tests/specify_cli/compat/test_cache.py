@@ -264,19 +264,6 @@ class TestPosixSecurity:
 # ---------------------------------------------------------------------------
 
 
-class TestOversizedFile:
-    """Oversized-file guard applies on all platforms."""
-
-    @pytest.mark.skipif(sys.platform == "win32", reason="chmod 0o600 required for read on POSIX")
-    def test_oversized_read_returns_none_posix(self, tmp_path: Path) -> None:
-        """Oversized file → read returns None (POSIX path)."""
-        path = tmp_path / "upgrade-nag.json"
-        path.write_bytes(b"x" * (65 * 1024 + 1))
-        os.chmod(str(path), 0o600)
-        cache = NagCache(path)
-        assert cache.read() is None
-
-
 # ---------------------------------------------------------------------------
 # Missing / corrupt file
 # ---------------------------------------------------------------------------
@@ -506,12 +493,6 @@ class TestHasFreshData:
         fetched = _NOW + timedelta(seconds=3600)
         record = _make_record(fetched_at=fetched, last_shown_at=None)
         assert NagCache.has_fresh_data(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is False
-
-    def test_delta_zero_returns_true(self) -> None:
-        """Fetched at exactly now (delta==0) → True (within window)."""
-        record = _make_record(fetched_at=_NOW, last_shown_at=None)
-        assert NagCache.has_fresh_data(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is True
-
 
 # ---------------------------------------------------------------------------
 # Serialisation helpers

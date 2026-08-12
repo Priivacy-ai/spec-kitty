@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "mission_slug": "charter-sync-sonar-remediation-01KZPPZW",
+  "mission_id": "01KZPPZWXE9HP26RSQCJ433RKB",
+  "mission_branch": "kitty/mission-charter-sync-sonar-remediation-01KZPPZW",
+  "target_branch": "fix/charter-sync-sonar-remediation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/context_renderers/token_budget.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/compiler.py",
+        "src/charter/consistency_check.py",
+        "src/charter/context.py",
+        "src/charter/context_renderers/catalog_diagnosis.py",
+        "src/charter/evidence/code_reader.py",
+        "src/specify_cli/charter_runtime/lint/checks/org_layer.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/context_renderers/bootstrap_text.py",
+        "src/charter/context_renderers/profile_sections.py",
+        "src/charter/context_renderers/section_bodies.py",
+        "src/charter/interview.py",
+        "src/charter/kind_vocabulary.py",
+        "src/charter/pack_manager.py",
+        "src/charter/synthesizer/interview_mapping.py",
+        "src/charter/synthesizer/write_pipeline.py",
+        "src/specify_cli/charter_activate.py",
+        "src/specify_cli/charter_runtime/lint/checks/contradiction.py",
+        "src/specify_cli/charter_runtime/lint/checks/reference_integrity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/charter/action_grain.py",
+        "src/charter/context_json.py",
+        "src/charter/context_renderers/activation_block.py",
+        "src/charter/context_renderers/artifact_bodies.py",
+        "src/charter/context_renderers/reference_pointers.py",
+        "src/charter/context_renderers/selection_block.py",
+        "src/charter/default_pack.py",
+        "src/charter/doctrine_service_builder.py",
+        "src/charter/pack_context.py",
+        "src/charter/synthesizer/manifest.py",
+        "src/specify_cli/charter_runtime/freshness/computer.py",
+        "src/specify_cli/charter_runtime/preflight/runner.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/sync/background.py",
+        "src/specify_cli/sync/body_upload.py",
+        "src/specify_cli/sync/classification.py",
+        "src/specify_cli/sync/dossier_pipeline.py",
+        "src/specify_cli/sync/orphan_sweep.py",
+        "src/specify_cli/sync/owner.py",
+        "src/specify_cli/sync/runtime_event_emitter.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/sync/__init__.py",
+        "src/specify_cli/sync/body_queue.py",
+        "src/specify_cli/sync/client.py",
+        "src/specify_cli/sync/consent.py",
+        "src/specify_cli/sync/emitter.py",
+        "src/specify_cli/sync/events.py",
+        "src/specify_cli/sync/local_commit.py",
+        "src/specify_cli/sync/migrate_journal.py",
+        "src/specify_cli/sync/queue.py",
+        "src/specify_cli/sync/restart.py",
+        "src/specify_cli/sync/runtime.py",
+        "src/specify_cli/sync/sharing_client.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-10T21:10:08.459864+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "b08267caf6d0534bab483d08b7af20d1b1699e86"
+}

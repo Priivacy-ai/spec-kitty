@@ -1,4 +1,4 @@
-"""Shared non-vacuity examined-floor guard (#3273).
+"""Shared non-vacuity examined-floor guard (#3273) + diff-scope resolution (#3147).
 
 ``related_validator.validate_related`` and
 ``relative_link_fixer.check_dead_body_links`` each implement the same
@@ -15,9 +15,64 @@ This is a distinct contract from ``redirect_stub_generator.assert_non_vacuous``
 (raises ``ValueError``) and the ``_published_pages`` census floor (also
 ``ValueError`` / ``CoverageError``) — those are a different exception family
 and are intentionally left alone.
+
+This module also carries :func:`resolve_changed_files`, the shared diff-scope
+resolver both blocking docs gates use for their ``--changed-from`` mode
+(#3147, WP02). **B-WP02 (BLOCKER, see
+``kitty-specs/ci-scoping-gate-reliability-01KZP80D/investigate-squad-findings.md``):
+the fail-closed trigger is git base RESOLVABILITY, never changed-set
+emptiness.** ``docs-freshness.yml`` fires on many non-``.md`` paths
+(``src/specify_cli/**``, ``pyproject.toml``, …), so a legitimate PR often
+changes zero ``docs/**/*.md`` files; a resolved diff that yields zero
+in-scope files must be a clean PASS, not an error. Only a git subprocess
+failure — an unresolvable/unfetched base ref — is fail-closed. Callers MUST
+NOT route the diff-scope emptiness case through :func:`assert_examined_floor`
+(that floor stays reserved for the whole-tree/``push`` mode).
 """
 
 from __future__ import annotations
+
+import subprocess
+from pathlib import Path
+
+
+class GitDiffError(RuntimeError):
+    """The git base ref could not be resolved (the sole diff-scope fail-closed trigger).
+
+    Raised only on git subprocess failure (non-zero return code, missing
+    ``git`` executable, or an unresolvable/unfetched base ref) — never on a
+    successfully-resolved diff that happens to contain zero files (B-WP02).
+    """
+
+
+def resolve_changed_files(repo_root: Path, base_ref: str) -> list[str]:
+    """Return repo-relative POSIX paths added/copied/modified/renamed since *base_ref*.
+
+    Runs ``git diff --name-only --diff-filter=ACMR <base_ref>...HEAD`` in
+    *repo_root*. The three-dot form asks git to diff against the merge-base of
+    *base_ref* and ``HEAD``, so a normal PR (base branch has moved on) reports
+    only the PR's own changes.
+
+    Fail-closed (B-WP02): a non-zero git return code — an unresolvable or
+    unfetched *base_ref*, a missing ``git`` executable, or any other
+    subprocess failure — raises :class:`GitDiffError`. This is the ONLY
+    fail-closed trigger. An empty result list (base resolved, zero files
+    changed) is a normal, successful return — callers must treat it as "zero
+    changed files", never as an error.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--name-only", "--diff-filter=ACMR", f"{base_ref}...HEAD"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as exc:
+        raise GitDiffError(f"resolve_changed_files: could not run git (base_ref={base_ref!r}): {exc}") from exc
+    if result.returncode != 0:
+        raise GitDiffError(f"resolve_changed_files: `git diff --name-only {base_ref}...HEAD` failed (exit {result.returncode}): {result.stderr.strip()}")
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
 def assert_examined_floor(
@@ -61,7 +116,4 @@ def assert_examined_floor(
     """
     if count < minimum:
         detail = f", {extra}" if extra else ""
-        raise RuntimeError(
-            f"{gate}: only {count} {noun} — expected at least {minimum} "
-            f"({fr_id} non-vacuity guard{detail})"
-        )
+        raise RuntimeError(f"{gate}: only {count} {noun} — expected at least {minimum} ({fr_id} non-vacuity guard{detail})")

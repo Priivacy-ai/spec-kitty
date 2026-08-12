@@ -22,7 +22,12 @@
 # delete the entry AND lower CHARTER_PATH_LITERAL_FLOOR + this baseline to the
 # new honest census. FRESHEN PROCEDURE (a legitimate edit moved the token):
 # re-run the gate; the stale entry is reported with its live token — copy it in.
-charter_path_literal_baseline: 49
+# DRAINED 2026-08-11 (#3317 landing): 49 -> 48. The FR-005 graceful-degrade
+# charter.md prose read was extracted out of context.py::build_charter_context
+# into context_result_builders.py, where `charter_path` arrives as a parameter
+# rather than a `<root> / CHARTER_MD` literal -- so the keyed literal site is
+# genuinely gone from the census (not relocated). FLOOR lowered in the gate too.
+charter_path_literal_baseline: 48
 
 charter_path_literals:
 - file: src/charter/compiler.py
@@ -82,12 +87,12 @@ charter_path_literals:
   token: "charter_yaml_path = charter_dir /"
   rationale: "PERMANENT (layering): versioning.py's own module docstring states 'This module must NOT import from charter.*'; the doctrine wheel cannot depend on charter.bundle."
 - file: src/doctrine/versioning.py
-  qualname: migrate_v1_to_v2
-  line: 451
+  qualname: _stamp_charter_bundle_version
+  line: 530
   literal: "charter.yaml"
   clause: "a"
   token: "charter_yaml_path = bundle_root /"
-  rationale: "PERMANENT (layering): same doctrine->charter import prohibition as :190; migrate_v1_to_v2 resolves charter.yaml inside a caller-supplied bundle_root."
+  rationale: "PERMANENT (layering): same doctrine->charter import prohibition as :190; _stamp_charter_bundle_version (a phase-helper extracted from migrate_v1_to_v2 for S3776) resolves charter.yaml inside a caller-supplied bundle_root."
 - file: src/specify_cli/charter_runtime/freshness/computer.py
   qualname: <module>
   line: 179
@@ -303,20 +308,13 @@ charter_path_literals:
   clause: "b"
   token: "if not charter_yaml_path . exists ( ) and not charter_path . exists ( ) :"
   rationale: "The flagship C-003 prose-presence OR-gate this mission's own FR-002 classification comment (context.py:203-233) documents at length: 'missing' only when BOTH charter.yaml and charter.md are absent; charter.yaml alone remains the authority for FR-003/004/006. Pinned by tests/charter/test_context_prose_presence_pin.py."
-- file: src/charter/context.py
-  qualname: build_charter_context
-  line: 321
-  literal: "charter.md"
-  clause: "b"
-  token: "if charter_path . exists ( ) :"
-  rationale: "FR-005 graceful-degrade companion to :270 -- reads the optional charter.md prose summary when present, else renders with an empty summary; charter.yaml presence already gated the branch above."
-- file: src/charter/context.py
-  qualname: build_charter_context_include
-  line: 390
+- file: src/charter/context_renderers/template_include.py
+  qualname: _render_section_include_selector
+  line: 294
   literal: "charter.md"
   clause: "b"
   token: "if not charter_path . exists ( ) :"
-  rationale: "`--include section:<id>` selector reads prose sections that only exist in charter.md; this is a readability check for the secondary prose source, not a governance-authority decision."
+  rationale: "`--include section:<id>` selector reads prose sections that only exist in charter.md; this is a readability check for the secondary prose source, not a governance-authority decision. FRESHENED 2026-08-11 (#3317 landing): the section-selector prose read was extracted from context.py::build_charter_context_include into _render_section_include_selector; behaviour-preserving move, same token/literal/clause."
 - file: src/charter/context_json.py
   qualname: _project_charter_json_block
   line: 105

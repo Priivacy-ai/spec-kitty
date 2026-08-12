@@ -102,6 +102,21 @@ META_PATH_VAR_NAMES: frozenset[str] = frozenset(
 # graph. Adding the two names here is the fix this gate's structure supports —
 # it does no call-graph resolution, so a full transitive walk would be a larger
 # structural change than this landing fold warrants.
+#
+# ``decode_meta`` and ``parse_meta_file`` joined this family in mission
+# ``meta-json-fail-closed-routing-01KZPJ1F`` (FR-008 / WP05 / T022). The mission
+# stood up the L1/L2/L3 decode seam (research.md D1/D3): the kernel L1 primitive
+# ``kernel.meta_decode.decode_meta`` (str/bytes -> dict, the single malformed
+# authority) and the public L2 reader ``mission_metadata.parse_meta_file`` (path
+# -> dict, empty->benign short-circuit). The five previously-unrouted blob-fed
+# read sites (ref_advance A/B, implement_cores C/D, merge_driver E) route onto
+# these two symbols instead of hand-rolling ``json.loads`` over meta content.
+# ``scan_routed_load_meta_calls`` counts callee *names*, so until these two names
+# were added here the routing was invisible to the census (WP02/03/04 route onto
+# still-uncounted names -- census-neutral by design; this WP is the single census
+# change that makes them countable). Adding them here counts the 5 routed sites
+# AND every internal L1/L2/L3 delegation, which is why the floor is re-pinned
+# below.
 ROUTED_CALLEES: frozenset[str] = frozenset(
     {
         "load_meta",
@@ -110,6 +125,8 @@ ROUTED_CALLEES: frozenset[str] = frozenset(
         "load_meta_fail_closed",
         "_load_meta_fail_closed",
         "_require_meta",
+        "decode_meta",
+        "parse_meta_file",
     }
 )
 
@@ -239,8 +256,27 @@ FLOOR_MARGIN = 2
 # established 3-below-live gap (mechanic 2) against the corrected 133, strictly
 # satisfying the anti-vacuity check (same convention as the three prior entries
 # above).
+#
+# RAISED 2026-08-10 (mission meta-json-fail-closed-routing-01KZPJ1F, WP05 / T022
+# + T023 -- the SINGLE census change of this mission): T022 added the new decode
+# family ``decode_meta`` (kernel L1) and ``parse_meta_file`` (public L2) to
+# :data:`ROUTED_CALLEES` (see that constant's comment). WP02/03/04 had already
+# routed the five blob-fed sites (ref_advance A/B, implement_cores C/D,
+# merge_driver E) onto these two names, but the census counted callee *names*
+# only, so the routing was invisible until the names were added -- census-neutral
+# by design (the gate sat at 133/130 through WP02-04). Adding the two names makes
+# the 5 routed sites AND every internal L1/L2/L3 delegation countable, so the
+# live routed census jumped 133 -> 138. Measured on this tree via
+# ``PYTHONPATH=$PWD/src python -c "from
+# tests.architectural.test_inline_meta_read_gate import
+# scan_routed_load_meta_calls, SRC_ROOT;
+# print(len(scan_routed_load_meta_calls(SRC_ROOT)))"`` on 2026-08-10: live == 138.
+# Floor raised 130 -> 135 to restore the established 3-below-live gap (mechanic 2)
+# against the fresh 138 (``floor == live - 3``; band ``live - MARGIN(4) <= floor
+# < live`` holds: 134 <= 135 < 138), strictly satisfying the anti-vacuity check
+# (same convention as the four prior entries above).
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 130
+ROUTED_LOAD_META_FLOOR = 135
 
 
 # --------------------------------------------------------------------------- #
@@ -710,6 +746,102 @@ def scan_routed_load_meta_calls(src_root: Path) -> list[tuple[str, int]]:
     return sites
 
 
+# --------------------------------------------------------------------------- #
+# FR-010 — meta-content decoder enumeration (mission
+# meta-json-fail-closed-routing-01KZPJ1F, WP05 / T024).
+# --------------------------------------------------------------------------- #
+# The mission collapsed all ``meta.json`` decoding onto ONE malformed authority:
+# the kernel L1 primitive ``kernel.meta_decode.decode_meta`` (``str``/``bytes`` ->
+# ``dict``). Every other read routes THROUGH it (or the public L2
+# ``mission_metadata.parse_meta_file`` that delegates to it) instead of
+# hand-rolling ``json.loads`` over meta content.
+#
+# The routed-count floor above is a *floor* (``>=``): it proves routing GREW but
+# cannot detect a 6th UN-routed decoder hiding beside it. This gate closes that
+# hole (research.md D5): it enforces "exactly one decoder" structurally.
+#
+#   * Independent-decoder assertion: the ONLY module permitted to apply
+#     ``json.loads``/``json.load`` to meta content as the raw-content authority is
+#     the kernel L1 module; the independent-decoder set MUST equal exactly
+#     ``{kernel L1}``.
+#   * Completeness assertion: every remaining inline meta-path read is a deferred
+#     bypass governed by the composite-key allow-list above -- nothing may hide
+#     beyond that enumerated set (so a future 6th bypass reds instead of slipping
+#     under the floor).
+#
+# Two sites are deliberately EXCLUDED from the meta scope and asserted
+# non-tripping by the canary below:
+#   (a) ``kernel.meta_decode.decode_meta`` -- the sanctioned L1 authority (a
+#       raw-content ``json.loads(text)`` where ``text`` comes from a ``raw``
+#       parameter, identified by its module path, NOT a file read); and
+#   (b) ``merge_driver._parse_json_document`` -- decodes the issue/row-matrix
+#       document (raising ``RowMatrixMergeError``), NOT ``meta.json``; its generic
+#       ``path`` argument is not a meta path, so the meta-scope detection
+#       (:func:`is_meta_path_expr`) never flags it.
+#
+# SCOPE (honest limitation): "meta content" is detected by the proven meta-path
+# read machinery (:func:`scan_inline_meta_reads`) -- a ``json.loads``/``json.load``
+# whose argument resolves to a ``<dir> / "meta.json"`` read. The kernel L1 is the
+# one raw-content authority, positively identified by its module path. A
+# hand-rolled decoder that takes an *already-read* raw string with no meta-path
+# provenance and no meta variable name is out of this gate's structural reach
+# (same class of limitation the inline-read scanner itself carries); the routed
+# census + the ``load_meta`` ledger gate cover the routed-call axis.
+_FR010_KERNEL_L1_REL = "src/kernel/meta_decode.py"
+
+
+def _count_kernel_l1_meta_decoders(src_root: Path) -> int:
+    """Count ``json.loads``/``json.load`` calls in the kernel L1 module.
+
+    The kernel L1 primitive is the single sanctioned raw-content meta decoder
+    (the malformed authority). It is identified by its module path rather than a
+    meta-path read because it decodes a ``raw: str | bytes`` parameter, not a
+    file it opens itself. A healthy tree has exactly one such call.
+    """
+    l1_path = src_root / "kernel" / "meta_decode.py"
+    if not l1_path.exists():
+        return 0
+    source = l1_path.read_text(encoding="utf-8")
+    try:
+        tree = ast.parse(source, filename=str(l1_path))
+    except SyntaxError:  # pragma: no cover - kernel L1 is always parseable
+        return 0
+    bindings = _collect_json_import_bindings(tree)
+    return sum(
+        1
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and node.args
+        and (_is_json_loads_call(node, bindings) or _is_json_load_call(node, bindings))
+    )
+
+
+def independent_meta_decoders(
+    src_root: Path, allowlist: set[InlineMetaReadKey]
+) -> set[str]:
+    """Return the repo-relative modules that decode meta content as an authority.
+
+    An *independent* meta decoder is a site that applies the malformed definition
+    itself rather than routing through the canonical reader. Two contributors:
+
+    * the kernel L1 module, when it holds its sanctioned ``json.loads`` (always
+      expected on a healthy tree); and
+    * any inline meta-path ``json.loads``/``json.load`` read (:func:`scan_inline_meta_reads`)
+      that is NOT sanctioned by the deferred allow-list -- an un-routed bypass.
+
+    A healthy tree returns exactly ``{_FR010_KERNEL_L1_REL}``: the single decoder
+    the mission promises (FR-010 / SC-003). A hand-rolled meta decoder anywhere
+    else grows this set and reds :func:`test_fr010_single_meta_decoder`.
+    """
+    decoders: set[str] = set()
+    if _count_kernel_l1_meta_decoders(src_root):
+        decoders.add(_FR010_KERNEL_L1_REL)
+    for site in scan_inline_meta_reads(src_root):
+        if site.key not in allowlist:
+            decoders.add(site.rel_path)
+    return decoders
+
+
 # =========================================================================== #
 # TESTS
 # =========================================================================== #
@@ -1087,7 +1219,7 @@ def test_scan_routed_load_meta_calls_counts_call_sites(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     routed = scan_routed_load_meta_calls(tmp_path / "src")
-    assert len(routed) == 2  # only the two Call nodes, not the def or the import
+    assert len(routed) == 2  # only the two Call nodes, not the def or the import  # golden-count: cardinality-is-contract
 
 
 # --- T046: gate mechanic 1+2 — concrete floor + margin ----------------------
@@ -1237,7 +1369,7 @@ def test_routed_count_floor_blocks_mass_allowlist(tmp_path: Path) -> None:
     scratch_src = tmp_path / "src"
 
     sites = scan_inline_meta_reads(scratch_src)
-    assert len(sites) == 2, "fixture must contain two genuine inline meta reads"
+    assert len(sites) == 2, "fixture must contain two genuine inline meta reads"  # golden-count: cardinality-is-contract
 
     # "Mass allow-list" the drain: sanction every discovered site instead of
     # routing the code onto load_meta*.
@@ -1256,6 +1388,119 @@ def test_routed_count_floor_blocks_mass_allowlist(tmp_path: Path) -> None:
     )
     # This is exactly the failure shape ROUTED_LOAD_META_FLOOR catches on the real
     # tree: a floor requiring routed growth reds when routing didn't happen.
+
+
+# --- FR-010: single-decoder enumeration + completeness + anti-vacuity canary -
+def test_fr010_single_meta_decoder() -> None:
+    """SC-003 / FR-010: the independent meta-content decoder set is exactly kernel L1.
+
+    Enumerates every module that decodes ``meta.json`` content as an authority
+    (kernel L1 + any un-allowlisted inline meta-path read). On a healthy tree the
+    only member is the kernel L1 primitive: all five routed sites (ref_advance
+    A/B, implement_cores C/D, merge_driver E) decode THROUGH it, so none appears
+    here. A hand-rolled second decoder grows the set and reds this gate.
+    """
+    allowlist = set(load_allowlist(ALLOWLIST_PATH))
+    decoders = independent_meta_decoders(SRC_ROOT, allowlist)
+    assert decoders == {_FR010_KERNEL_L1_REL}, (
+        "FR-010: expected exactly one independent meta.json decoder "
+        f"({_FR010_KERNEL_L1_REL}, kernel L1); found {sorted(decoders)}. A new "
+        "json.loads/json.load over meta content must route through "
+        "kernel.meta_decode.decode_meta (or the public parse_meta_file), not "
+        "hand-roll its own decode."
+    )
+
+
+def test_fr010_kernel_l1_is_the_single_authority() -> None:
+    """The kernel L1 module holds exactly one ``json.loads``/``json.load`` call.
+
+    The malformed *definition* lives once, in ``kernel.meta_decode`` (D2). A
+    second decode call inside the kernel module -- or its disappearance -- is a
+    regression this pins directly (complements the tree-wide enumeration above).
+    """
+    assert _count_kernel_l1_meta_decoders(SRC_ROOT) == 1, (
+        "kernel.meta_decode must contain exactly one json decode call (the single "
+        "malformed authority)."
+    )
+
+
+def test_fr010_completeness_no_hidden_meta_bypass() -> None:
+    """FR-010 completeness: 0 un-routed ``meta.json`` bypass reads beyond the set.
+
+    Every live inline meta-path read must be an enumerated allow-list entry, so a
+    future 6th bypass cannot hide behind the routed-count floor (which is a
+    ``>=`` floor and would not notice one un-routed addition). Distinct from the
+    ``<=`` ceiling in :func:`test_inline_meta_read_floor`: this asserts exact
+    accounting against the deferred set, not merely staying under a count.
+    """
+    allowlist = set(load_allowlist(ALLOWLIST_PATH))
+    unrouted = [site for site in scan_inline_meta_reads(SRC_ROOT) if site.key not in allowlist]
+    assert unrouted == [], (
+        "FR-010 completeness: un-routed meta.json bypass read(s) beyond the "
+        "enumerated allow-list:\n"
+        + "\n".join(f"  {s.rel_path}:{s.lineno} ({s.key.enclosing_qualname})" for s in unrouted)
+    )
+
+
+def test_fr010_canary_flags_planted_meta_decoder(tmp_path: Path) -> None:
+    """Anti-vacuity: a planted meta ``json.loads`` outside kernel L1 IS flagged.
+
+    A gate that never fires is worthless. This plants a hand-rolled meta decoder
+    in a scratch tree (no kernel L1 present) and asserts it surfaces as an
+    independent decoder -- proving :func:`test_fr010_single_meta_decoder` would
+    RED on the exact regression it guards.
+    """
+    scratch_src = _write_scratch_reader(
+        tmp_path,
+        "fr010_planted_pkg",
+        "class RogueMetaDecoder:\n"
+        "    def load(self, feature_dir):\n"
+        "        meta_path = feature_dir / 'meta.json'\n"
+        "        return json.loads(meta_path.read_text(encoding='utf-8'))\n",
+    )
+    decoders = independent_meta_decoders(scratch_src, set())
+    assert "src/fr010_planted_pkg/reader.py" in decoders, (
+        "self-test: a planted meta json.loads must surface as an independent decoder"
+    )
+
+
+def test_fr010_canary_allowed_shapes_do_not_trip(tmp_path: Path) -> None:
+    """Anti-vacuity: the two allowed non-meta shapes do NOT trip the meta scope.
+
+    (a) the kernel L1 raw-content shape (``json.loads(text)`` where ``text`` is a
+    decoded ``raw`` parameter, NOT a file read) and (b) the
+    ``merge_driver._parse_json_document`` row-matrix shape (``json.loads`` over a
+    generic ``path`` argument) are both invisible to the meta-path detection.
+    Placed at a scratch path (not the kernel module), neither is flagged -- the
+    gate keys on meta-content provenance, not on the mere presence of
+    ``json.loads``.
+    """
+    scratch_src = _write_scratch_reader(
+        tmp_path,
+        "fr010_allowed_pkg",
+        "class AllowedShapes:\n"
+        "    def decode_meta(self, raw):\n"  # (a) kernel L1 raw-content shape
+        "        text = raw.decode('utf-8') if isinstance(raw, bytes) else raw\n"
+        "        return json.loads(text)\n"
+        "    def parse_json_document(self, path):\n"  # (b) row-matrix shape
+        "        text = path.read_text(encoding='utf-8').strip()\n"
+        "        return json.loads(text)\n",
+    )
+    assert scan_inline_meta_reads(scratch_src) == [], (
+        "self-test: neither the raw-content kernel-L1 shape nor the generic-path "
+        "row-matrix shape may be flagged as a meta-content read"
+    )
+    # And on the REAL tree the row-matrix decoder is not surfaced as a meta read.
+    row_matrix = [
+        site
+        for site in scan_inline_meta_reads(SRC_ROOT)
+        if site.rel_path.endswith("cli/commands/merge_driver.py")
+        and site.key.enclosing_qualname == "_parse_json_document"
+    ]
+    assert row_matrix == [], (
+        "the row-matrix decoder (_parse_json_document) must be excluded from the "
+        "meta scope (it decodes issue/row-matrix docs, not meta.json)"
+    )
 
 
 # --- timing (fast-tier budget) ----------------------------------------------

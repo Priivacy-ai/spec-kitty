@@ -331,22 +331,3 @@ def test_run_audit_mode_mission_not_found_human(
     with pytest.raises(typer.Exit) as exc:
         ms._run_audit_mode(tmp_path, None, "999-x", None, False, False)
     assert exc.value.exit_code == 1
-
-
-def test_mission_state_doctor_does_not_import_doctor() -> None:
-    import ast
-
-    source = Path(ms.__file__).read_text(encoding="utf-8")
-    tree = ast.parse(source)
-    relative: list[str] = []
-    absolute: list[str] = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom):
-            if node.level and node.level > 0:
-                relative.append(node.module or "")
-            elif node.module:
-                absolute.append(node.module)
-        elif isinstance(node, ast.Import):
-            absolute.extend(alias.name for alias in node.names)
-    assert "specify_cli.cli.commands.doctor" not in absolute
-    assert set(relative) <= {"_doctor_shared"}

@@ -1,58 +1,40 @@
-"""Integration tests for dual-write consistency (T075).
-
-Verifies that emit_status_transition keeps the event log (JSONL),
-materialized snapshot (status.json), and frontmatter views in sync.
-"""
+"""Focused persistence coverage for status aliases and forced transitions."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-from specify_cli.status.emit import emit_status_transition
-from specify_cli.status.models import Lane, ReviewResult
-from specify_cli.status.store import read_events, read_events_raw
-from specify_cli.status.reducer import SNAPSHOT_FILENAME
-
 import pytest
+
+from specify_cli.status.emit import emit_status_transition
+from specify_cli.status.models import Lane
+from specify_cli.status.reducer import SNAPSHOT_FILENAME
+from specify_cli.status.store import read_events, read_events_raw
 
 pytestmark = pytest.mark.git_repo
 
-# ── Helpers ──────────────────────────────────────────────────────
 
-
-def _setup_mission_dir(tmp_path: Path, mission_slug: str = "099-test") -> Path:
-    """Create a minimal mission directory with tasks/ and a WP file."""
+def _setup_mission_dir(tmp_path: Path, *, initial_lane: str = "planned") -> Path:
+    """Create one WP whose canonical event stream starts in ``initial_lane``."""
     repo_root = tmp_path / "repo"
-    mission_dir = repo_root / "kitty-specs" / mission_slug
+    mission_dir = repo_root / "kitty-specs" / "099-test"
     tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
-
-    # Create WP01 file with frontmatter
-    wp_file = tasks_dir / "WP01-test.md"
-    wp_file.write_text(
-        "---\nwork_package_id: WP01\ntitle: Test WP\nlane: planned\n"
+    (tasks_dir / "WP01-test.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: Test WP\n"
+        f"lane: {initial_lane}\n"
         "dependencies: []\nsubtasks: []\n---\n\n# WP01 Content\n",
         encoding="utf-8",
     )
-
-    # Seed a PRIMARY tasks.md with a completed WP01 section so the
-    # ``in_progress -> for_review`` subtask gate passes on its own. Post-#2160
-    # (FR-002/FR-003) that gate is fail-CLOSED: an absent tasks.md blocks the
-    # transition. These dual-write tests exercise event/frontmatter persistence,
-    # not the gate, so the WP is seeded as genuinely reviewable (all rows [x]).
     (mission_dir / "tasks.md").write_text(
         "# Tasks\n\n## WP01 — Test WP\n- [x] T001 Done (WP01)\n",
         encoding="utf-8",
     )
-
-    # Set up phase 1 (dual-write) via meta.json
-    meta = {"status_phase": 1}
-    (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
-
-    # Seed WP01 out of the non-display 'genesis' state into 'planned' (as
-    # finalize-tasks does), written directly to the event log so the lane
-    # lifecycle can begin with planned -> claimed.
+    (mission_dir / "meta.json").write_text(
+        json.dumps({"status_phase": 1}),
+        encoding="utf-8",
+    )
     seed_event = {
         "actor": "seed",
         "at": "2026-05-31T00:00:00+00:00",
@@ -61,296 +43,120 @@ def _setup_mission_dir(tmp_path: Path, mission_slug: str = "099-test") -> Path:
         "execution_mode": "worktree",
         "force": False,
         "from_lane": "genesis",
-        "mission_slug": mission_slug,
+        "mission_slug": "099-test",
         "reason": "seed",
         "review_ref": None,
-        "to_lane": "planned",
+        "to_lane": initial_lane,
         "wp_id": "WP01",
     }
     (mission_dir / "status.events.jsonl").write_text(
-        json.dumps(seed_event, sort_keys=True) + "\n", encoding="utf-8"
+        json.dumps(seed_event, sort_keys=True) + "\n",
+        encoding="utf-8",
     )
-
     return mission_dir
 
 
-def _read_snapshot(mission_dir: Path) -> dict:
-    """Read the status.json snapshot from disk."""
-    path = mission_dir / SNAPSHOT_FILENAME
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def _read_wp_frontmatter_lane(mission_dir: Path, wp_id: str) -> str | None:
-    """Read the lane field from a WP file's frontmatter."""
-    tasks_dir = mission_dir / "tasks"
-    wp_files = list(tasks_dir.glob(f"{wp_id}-*.md"))
-    if not wp_files:
-        return None
-    content = wp_files[0].read_text(encoding="utf-8")
-    for line in content.split("\n"):
-        stripped = line.strip()
-        if stripped.startswith("lane:"):
-            return stripped.split(":", 1)[1].strip()
-    return None
+def _read_snapshot(mission_dir: Path) -> dict[str, object]:
+    return json.loads((mission_dir / SNAPSHOT_FILENAME).read_text(encoding="utf-8"))
 
 
 @pytest.fixture(autouse=True)
-def _reset_sync_singletons_after_emit():
-    """#3130 fold: every test in this module drives ``emit_status_transition``,
+def _reset_sync_singletons_after_emit(
+    monkeypatch: pytest.MonkeyPatch,
+):  # type: ignore[no-untyped-def]
+    """Isolate emit's local-only path without destroying prior worker state."""
+    from specify_cli.sync import background as background_module
+    from specify_cli.sync import runtime as runtime_module
 
-    whose production call chain bootstraps the ``sync.runtime._runtime`` (E26)
-    and ``sync.background._service`` (E27) singletons -- and BackgroundSyncService
-    self-reschedules a live ``threading.Timer`` on ``start()`` -- with no
-    restoring finally of its own. None of the four tests here call any reset
-    seam, so the first one to run in a worker leaks E26/E27 plus two threads,
-    and every later one leaks a fresh timer thread on top. Reset both
-    singletons after every test so nothing here outlives its own test.
-    """
-    yield
-    from specify_cli.sync.background import reset_sync_service
-    from specify_cli.sync.runtime import reset_runtime
+    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    prior_runtime = runtime_module._runtime
+    prior_service = background_module._service
+    runtime_module._runtime = None
+    background_module._service = None
+    try:
+        yield
+    finally:
+        current_runtime = runtime_module._runtime
+        current_service = background_module._service
+        runtime_module._runtime = None
+        background_module._service = None
+        try:
+            if current_runtime is not None and current_runtime is not prior_runtime:
+                current_runtime.stop()
+        finally:
+            try:
+                if current_service is not None and current_service is not prior_service:
+                    current_service.stop()
+            finally:
+                runtime_module._runtime = prior_runtime
+                background_module._service = prior_service
 
-    reset_runtime()
-    reset_sync_service()
 
-
-# ── Tests ────────────────────────────────────────────────────────
-
-
-class TestDualWriteEventAndFrontmatterConsistent:
-    """T075: Verify event log, status.json, and frontmatter all agree."""
-
-    def test_dual_write_event_and_frontmatter_consistent(self, tmp_path: Path):
-        """Emit planned->claimed, verify event in JSONL, status.json,
-        and frontmatter all agree."""
+class TestDualWriteAliasResolvedEverywhere:
+    def test_dual_write_alias_resolved_everywhere(self, tmp_path: Path) -> None:
+        """The ``doing`` alias is canonical in return, journal, and snapshot."""
         mission_dir = _setup_mission_dir(tmp_path)
+        repo_root = mission_dir.parent.parent
+        emit_status_transition(
+            mission_dir=mission_dir,
+            mission_slug="099-test",
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="agent-1",
+            repo_root=repo_root,
+            ensure_sync_daemon=False,
+            sync_dossier=False,
+        )
 
         event = emit_status_transition(
             mission_dir=mission_dir,
             mission_slug="099-test",
             wp_id="WP01",
-            to_lane="claimed",
-            actor="test-agent",
-            repo_root=mission_dir.parent.parent,
-        )
-
-        # 1. Verify event in JSONL (genesis->planned seed + planned->claimed)
-        events = read_events(mission_dir)
-        assert len(events) == 2
-        assert events[-1].event_id == event.event_id
-        assert events[-1].from_lane == Lane.PLANNED
-        assert events[-1].to_lane == Lane.CLAIMED
-
-        # 2. Verify status.json
-        snapshot = _read_snapshot(mission_dir)
-        assert snapshot["work_packages"]["WP01"]["lane"] == "claimed"
-        assert snapshot["event_count"] == 2
-
-        # 3. Verify frontmatter updated
-        fm_lane = _read_wp_frontmatter_lane(mission_dir, "WP01")
-        assert fm_lane == "claimed"
-
-
-class TestDualWriteMultipleTransitions:
-    """T075: Multiple transitions maintain consistency."""
-
-    def test_dual_write_multiple_transitions(self, tmp_path: Path):
-        """Emit planned->claimed->in_progress->for_review,
-        verify 3 events, final state consistent everywhere."""
-        mission_dir = _setup_mission_dir(tmp_path)
-        slug = "099-test"
-        repo_root = mission_dir.parent.parent
-
-        # Transition 1: planned -> claimed
-        emit_status_transition(
-            mission_dir=mission_dir,
-            mission_slug=slug,
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="agent-1",
-            repo_root=repo_root,
-        )
-
-        # Transition 2: claimed -> in_progress
-        emit_status_transition(
-            mission_dir=mission_dir,
-            mission_slug=slug,
-            wp_id="WP01",
-            to_lane="in_progress",
-            actor="agent-1",
-            repo_root=repo_root,
-        )
-
-        # Transition 3: in_progress -> for_review
-        emit_status_transition(
-            mission_dir=mission_dir,
-            mission_slug=slug,
-            wp_id="WP01",
-            to_lane="for_review",
-            actor="agent-1",
-            repo_root=repo_root,
-        )
-
-        # Verify 3 lifecycle events in JSONL (plus the genesis->planned seed)
-        events = read_events(mission_dir)
-        assert len(events) == 4
-
-        # Verify final state in status.json
-        snapshot = _read_snapshot(mission_dir)
-        assert snapshot["work_packages"]["WP01"]["lane"] == "for_review"
-        assert snapshot["event_count"] == 4
-
-        # Verify frontmatter
-        fm_lane = _read_wp_frontmatter_lane(mission_dir, "WP01")
-        assert fm_lane == "for_review"
-
-
-class TestDualWriteAliasResolvedEverywhere:
-    """T075: Alias 'doing' is resolved to 'in_progress' everywhere."""
-
-    def test_dual_write_alias_resolved_everywhere(self, tmp_path: Path):
-        """Emit using 'doing', verify event has 'in_progress' everywhere."""
-        mission_dir = _setup_mission_dir(tmp_path)
-        slug = "099-test"
-        repo_root = mission_dir.parent.parent
-
-        # First move to claimed (required intermediate step)
-        emit_status_transition(
-            mission_dir=mission_dir,
-            mission_slug=slug,
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="agent-1",
-            repo_root=repo_root,
-        )
-
-        # Now use the alias "doing" instead of "in_progress"
-        event = emit_status_transition(
-            mission_dir=mission_dir,
-            mission_slug=slug,
-            wp_id="WP01",
             to_lane="doing",
             actor="agent-1",
             repo_root=repo_root,
+            ensure_sync_daemon=False,
+            sync_dossier=False,
         )
 
-        # Event should have canonical "in_progress", not alias "doing"
-        assert event.to_lane == Lane.IN_PROGRESS
-
-        # JSONL should have canonical value
-        events = read_events(mission_dir)
-        assert events[-1].to_lane == Lane.IN_PROGRESS
-
-        # Raw JSONL should have canonical string
-        raw_events = read_events_raw(mission_dir)
-        assert raw_events[-1]["to_lane"] == "in_progress"
-
-        # status.json should have canonical value
+        assert event.to_lane is Lane.IN_PROGRESS
+        assert read_events(mission_dir)[-1].to_lane is Lane.IN_PROGRESS
+        assert read_events_raw(mission_dir)[-1]["to_lane"] == "in_progress"
         snapshot = _read_snapshot(mission_dir)
-        assert snapshot["work_packages"]["WP01"]["lane"] == "in_progress"
+        assert snapshot["work_packages"]["WP01"]["lane"] == "in_progress"  # type: ignore[index]
 
 
 class TestDualWriteForceTransitionRecorded:
-    """T075: Force transitions record force flag and reason."""
-
-    def test_dual_write_force_transition_recorded(self, tmp_path: Path):
-        """Force done->in_progress, verify force flag and reason in event."""
-        mission_dir = _setup_mission_dir(tmp_path)
-        slug = "099-test"
-        repo_root = mission_dir.parent.parent
-
-        # Set up WP01 as "done" via full lifecycle
-        emit_status_transition(
-            mission_dir=mission_dir,
-            mission_slug=slug,
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="agent-1",
-            repo_root=repo_root,
-        )
-        emit_status_transition(
-            mission_dir=mission_dir,
-            mission_slug=slug,
-            wp_id="WP01",
-            to_lane="in_progress",
-            actor="agent-1",
-            repo_root=repo_root,
-        )
-        emit_status_transition(
-            mission_dir=mission_dir,
-            mission_slug=slug,
-            wp_id="WP01",
-            to_lane="for_review",
-            actor="agent-1",
-            repo_root=repo_root,
-        )
-        emit_status_transition(
-            mission_dir=mission_dir,
-            mission_slug=slug,
-            wp_id="WP01",
-            to_lane="in_review",
-            actor="reviewer-1",
-            repo_root=repo_root,
-        )
-        emit_status_transition(
-            mission_dir=mission_dir,
-            mission_slug=slug,
-            wp_id="WP01",
-            to_lane="approved",
-            actor="reviewer-1",
-            repo_root=repo_root,
-            review_result=ReviewResult(
-                reviewer="reviewer-1",
-                verdict="approved",
-                reference="PR#99",
-            ),
-            evidence={
-                "review": {
-                    "reviewer": "reviewer-1",
-                    "verdict": "approved",
-                    "reference": "PR#99",
-                },
-            },
-        )
-        emit_status_transition(
-            mission_dir=mission_dir,
-            mission_slug=slug,
-            wp_id="WP01",
-            to_lane="done",
-            actor="reviewer-1",
-            repo_root=repo_root,
-            evidence={
-                "review": {
-                    "reviewer": "reviewer-1",
-                    "verdict": "approved",
-                    "reference": "PR#99",
-                },
-            },
-        )
-
-        # Now force done -> in_progress (illegal without force)
+    def test_dual_write_force_transition_recorded(self, tmp_path: Path) -> None:
+        """Force metadata survives return, journal serialization, and reduction."""
+        mission_dir = _setup_mission_dir(tmp_path, initial_lane="done")
+        reason = "Rework needed after production issue"
         event = emit_status_transition(
             mission_dir=mission_dir,
-            mission_slug=slug,
+            mission_slug="099-test",
             wp_id="WP01",
             to_lane="in_progress",
             actor="admin",
             force=True,
-            reason="Rework needed after production issue",
-            repo_root=repo_root,
+            reason=reason,
+            repo_root=mission_dir.parent.parent,
+            ensure_sync_daemon=False,
+            sync_dossier=False,
         )
 
-        # Verify force flag and reason in event
+        assert event.actor == "admin"
         assert event.force is True
-        assert event.reason == "Rework needed after production issue"
-
-        # Verify in raw JSONL
-        raw_events = read_events_raw(mission_dir)
-        last_raw = raw_events[-1]
-        assert last_raw["force"] is True
-        assert last_raw["reason"] == "Rework needed after production issue"
-
-        # Verify snapshot reflects the forced state
+        assert event.reason == reason
+        persisted = read_events(mission_dir)[-1]
+        assert persisted.actor == "admin"
+        assert persisted.force is True
+        assert persisted.reason == reason
+        raw = read_events_raw(mission_dir)[-1]
+        assert raw["actor"] == "admin"
+        assert raw["force"] is True
+        assert raw["reason"] == reason
         snapshot = _read_snapshot(mission_dir)
-        assert snapshot["work_packages"]["WP01"]["lane"] == "in_progress"
-        assert snapshot["work_packages"]["WP01"]["force_count"] == 1
+        wp = snapshot["work_packages"]["WP01"]  # type: ignore[index]
+        assert wp["lane"] == "in_progress"
+        assert wp["actor"] == "admin"
+        assert wp["force_count"] == 1

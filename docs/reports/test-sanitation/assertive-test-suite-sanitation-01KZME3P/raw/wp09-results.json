@@ -1,0 +1,3760 @@
+{
+  "schema_version": "test-sanitation/v1",
+  "mission": "assertive-test-suite-sanitation-01KZME3P",
+  "work_package": "WP09",
+  "profile": "architect-alphonso",
+  "base_commit": "28ae75ea998c898aba57364db7a06d2088bd2af2",
+  "implementation_parent": "d25eec230295b73d6ec86f39f0001ab9837e942e",
+  "base_census_content_sha256": "08ef931c46e9d6a2608baec729203442640933bf2970cc83e794bf2f78011e08",
+  "decision_rule": "Retain only current negative invariants or behavioral contracts with a nonzero live corpus and a realistic authority-violating fault that reaches the assertion. Historical proof, names, self-presence, exact counts, positive placement, prose pins, synthetic self-tests, and advisory-only findings are deleted.",
+  "summary": {
+    "assigned_files": 37,
+    "reconciled_files": 37,
+    "unowned_files": 0,
+    "baseline_collected_nodes": 418,
+    "surviving_collected_nodes": 36,
+    "removed_collected_nodes": 382,
+    "removed_node_percent": 91.3876,
+    "deleted_files": 26,
+    "modified_test_files": 10,
+    "support_only_files": 1,
+    "product_files_changed": 0,
+    "workflow_files_changed": 0,
+    "shared_map_files_changed": 0,
+    "test_source_insertions_before_evidence": 397,
+    "test_source_deletions": 13835,
+    "skip_xfail_quarantine_added": 0
+  },
+  "environment": {
+    "platform": "macOS arm64",
+    "python": "3.11.15",
+    "venv_command": "uv sync --frozen --all-extras",
+    "pyproject_sha256": "b14b477bea53d1304e7e0e1af63c5389d1c1bffce704444c5f64461f866ca1ee",
+    "pytest_ini_sha256": "b75368c5df52dfd157c5af22de8da32558c9b8382a23ec2c4300d56ec89ae6bc",
+    "uv_lock_sha256": "5dbf66689f0048244c6d47082992e750fa3d047385f8e113d3f25f47382bcd5c"
+  },
+  "node_accounting": {
+    "base_nodeids_ref": "base-census.json collection.nodes[path_ref -> collection.tables.paths[path_ref]], restricted to the exact 37 WP09 owned paths",
+    "removed_nodeids_rule": "cycle_3_reconciliation partitions all 418 frozen nodeids into terminal same-oracle families and separately reconciles the independently collected 36 current nodeids; net reduction is 418 - 36 = 382",
+    "survivors": [
+      {
+        "path": "tests/architectural/test_arch_pole_deserialized.py",
+        "baseline": 2,
+        "current": 1,
+        "survivor_nodeids": ["tests/architectural/test_arch_pole_deserialized.py::test_architectural_suite_has_a_running_job"]
+      },
+      {
+        "path": "tests/architectural/test_arch_shard_marker_completeness.py",
+        "baseline": 7,
+        "current": 2,
+        "survivor_nodeids": [
+          "tests/architectural/test_arch_shard_marker_completeness.py::test_every_group_root_node_has_exactly_one_shard_marker[arch]",
+          "tests/architectural/test_arch_shard_marker_completeness.py::test_every_group_root_node_has_exactly_one_shard_marker[next]"
+        ]
+      },
+      {
+        "path": "tests/architectural/test_ci_collection_completeness.py",
+        "baseline": 46,
+        "current": 2,
+        "survivor_nodeids": [
+          "tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main",
+          "tests/architectural/test_ci_collection_completeness.py::test_orphan_sweep_and_parallel_pool_are_disjoint"
+        ]
+      },
+      {
+        "path": "tests/architectural/test_ci_fast_jobs_have_timeout.py",
+        "baseline": 10,
+        "current": 2,
+        "survivor_nodeids": [
+          "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_ci_quality_fast_jobs_carry_timeout",
+          "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_timeout_exemptions_exist_and_record_a_reason"
+        ]
+      },
+      {
+        "path": "tests/architectural/test_coverage_consumer_needs.py",
+        "baseline": 4,
+        "current": 2,
+        "survivor_nodeids": [
+          "tests/architectural/test_coverage_consumer_needs.py::test_src_coverage_emitters_reach_sonarcloud",
+          "tests/architectural/test_coverage_consumer_needs.py::test_coverage_consumers_depend_only_on_emitters"
+        ]
+      },
+      {
+        "path": "tests/architectural/test_coverage_root_collisions.py",
+        "baseline": 5,
+        "current": 2,
+        "survivor_nodeids": [
+          "tests/architectural/test_coverage_root_collisions.py::test_every_coverage_target_resolves",
+          "tests/architectural/test_coverage_root_collisions.py::test_path_form_coverage_roots_do_not_collide"
+        ]
+      },
+      {
+        "path": "tests/architectural/test_gate_read_literal_ban.py",
+        "baseline": 39,
+        "current": 0,
+        "survivor_nodeids": [],
+        "support_consumers": ["tests/architectural/test_coord_read_residuals_closeout.py"]
+      },
+      {
+        "path": "tests/architectural/test_mission_resolver_walker_gate.py",
+        "baseline": 5,
+        "current": 1,
+        "survivor_nodeids": ["tests/architectural/test_mission_resolver_walker_gate.py::test_no_unsanctioned_raw_kitty_specs_enumeration_in_src"]
+      },
+      {
+        "path": "tests/architectural/test_src_filter_coverage.py",
+        "baseline": 11,
+        "current": 3,
+        "survivor_nodeids": [
+          "tests/architectural/test_src_filter_coverage.py::test_unmatched_refs_equal_parsed_filter_groups_live",
+          "tests/architectural/test_src_filter_coverage.py::test_every_named_group_gates_a_test_running_job_live",
+          "tests/architectural/test_src_filter_coverage.py::test_catch_all_ignore_lists_mirror_owned_roots_live"
+        ]
+      },
+      {
+        "path": "tests/merge/test_push_preflight.py",
+        "baseline": 20,
+        "current": 15,
+        "survivor_nodeids": [
+          "tests/merge/test_push_preflight.py::test_domain_preflight_does_not_import_push_preflight_at_module_load",
+          "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[in_sync-True]",
+          "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[ahead-True]",
+          "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[behind-False]",
+          "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[diverged-False]",
+          "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[no_tracking_branch-True]",
+          "tests/merge/test_push_preflight.py::test_check_push_safety_fetch_failure_returns_not_safe",
+          "tests/merge/test_push_preflight.py::test_check_push_safety_diverged_returns_not_safe",
+          "tests/merge/test_push_preflight.py::test_check_push_safety_ahead_returns_safe",
+          "tests/merge/test_push_preflight.py::test_push_blocked_but_local_results_preserved_when_diverged",
+          "tests/merge/test_push_preflight.py::test_resume_preserves_original_push_request",
+          "tests/merge/test_push_preflight.py::test_resume_cannot_add_push_to_local_only_merge",
+          "tests/merge/test_push_preflight.py::test_branch_commit_exists_inserts_end_of_options_before_ref",
+          "tests/merge/test_push_preflight.py::test_resolve_tracking_branch_inserts_end_of_options_before_ref",
+          "tests/merge/test_push_preflight.py::test_resolve_tracking_branch_still_resolves_real_upstream"
+        ]
+      },
+      {
+        "path": "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py",
+        "baseline": 13,
+        "current": 6,
+        "survivor_nodeids": [
+          "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_ff_advance_ignores_obstructing_coordination_status_residue",
+          "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_ff_advance_still_raises_on_obstructing_non_residue_file",
+          "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_recognizes_previously_omitted_residue_member[issue-matrix.md]",
+          "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_recognizes_previously_omitted_residue_member[acceptance-matrix.json]",
+          "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_does_not_swallow_non_residue_source_conflict",
+          "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_does_not_swallow_primary_planning_conflict"
+        ]
+      }
+    ]
+  },
+  "controlled_fault_proofs": [
+    {
+      "family": "ci-route-and-coverage-graph",
+      "authority": "open #1931 and ADR 2026-05-28-1",
+      "production_copy": "/tmp/wp09-probes.OF42ZQ/.github/workflows/ci-quality.yml",
+      "faults": ["remove architectural selector from every owning gate", "remove fast timeout", "disconnect coverage emitter", "add phantom consumer need", "add unresolved coverage root", "add two roots with the same emitted relative filename", "rename a src filter without route wiring"],
+      "act_reached": true,
+      "intended_assertions_failed": 8,
+      "unrelated_assertions_passed": 2,
+      "duration_seconds": 132.14,
+      "command": ".venv/bin/pytest -q test_arch_pole_deserialized.py test_ci_fast_jobs_have_timeout.py test_coverage_consumer_needs.py test_coverage_root_collisions.py test_src_filter_coverage.py",
+      "result": "8 failed, 2 passed"
+    },
+    {
+      "family": "ci-collection-route",
+      "authority": "open #1931",
+      "fault": "remove architectural selector from every primary-push owning gate",
+      "corpus_nodes": 37072,
+      "act_reached": true,
+      "intended_assertion_failed": true,
+      "observed_orphans": 1149,
+      "duration_seconds": 113.49,
+      "command": ".venv/bin/pytest -q tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main"
+    },
+    {
+      "family": "cross-job-disjointness",
+      "authority": "GC-2/C-007 in ci-test-topology-performance-01KXBJRT",
+      "healthy_topology": "fast-tests-sync-orphan-sweep serial selection intersects unit-contract-residual parallel pool at zero nodes",
+      "corpus_nodes": 9,
+      "fault": "remove the actual --ignore=tests/sync/test_orphan_sweep.py from the unit-contract-residual step in a disposable ci-quality.yml copy, then reparse its live Gate",
+      "act_reached": true,
+      "compliant_control_passed": true,
+      "intended_assertion_failed": true,
+      "observed_overlap_nodes": 9,
+      "command": ".venv/bin/pytest -q tests/architectural/test_ci_collection_completeness.py::test_orphan_sweep_and_parallel_pool_are_disjoint",
+      "result": "1 passed in 102.97s; embedded two-sided control observed empty healthy intersection and exact 9-node faulty overlap"
+    },
+    {
+      "family": "timeout-exemption-and-catchall-ownership",
+      "authority": "open #3143 and open #1931",
+      "faults": ["remove required exemption rationale", "add tests/ghost_suite catch-all ignore with no owning shard"],
+      "act_reached": true,
+      "intended_assertions_failed": 2,
+      "duration_seconds": 39.62,
+      "result": "2 failed"
+    },
+    {
+      "family": "shard-partition",
+      "authority": "tests._shard_registry and open #1931",
+      "fault": "give a live architectural node all three arch shard markers in the disposable source copy",
+      "corpus_nodes": 37072,
+      "act_reached": true,
+      "intended_assertion_failed": true,
+      "observed_markers": ["arch_shard_1", "arch_shard_2", "arch_shard_3"],
+      "duration_seconds": 97.15
+    },
+    {
+      "family": "mission-resolver-boundary",
+      "authority": "ADR 2026-07-08-1",
+      "fault": "add src/specify_cli/wp09_unsanctioned_walker.py calling iterdir on repo_root/kitty-specs",
+      "act_reached": true,
+      "intended_assertion_failed": true,
+      "observed_hit": "src/specify_cli/wp09_unsanctioned_walker.py:8 iterdir"
+    },
+    {
+      "family": "push-safety-behavior",
+      "authority": "ADR 2026-06-05-1",
+      "fault": "make behind remote state publish-safe while diverged remains blocked",
+      "act_reached": true,
+      "intended_assertions_failed": 1,
+      "compliant_controls_passed": 4,
+      "observed_failure": "behind expected False, got True"
+    },
+    {
+      "family": "coord-residue-behavior",
+      "authority": "current artifact partition and stale-lane auto-rebase ADR",
+      "fault": "make every path coordination residue",
+      "act_reached": true,
+      "intended_assertions_failed": 3,
+      "compliant_coord_residue_controls_passed": 3,
+      "observed_failures": ["author-owned obstruction did not raise", "source conflict was swallowed", "primary plan conflict was swallowed"]
+    },
+    {
+      "family": "coord-read-support-compatibility",
+      "authority": "ADR 2026-06-26-1",
+      "equivalent_live_gate": "tests/architectural/test_coord_read_residuals_closeout.py",
+      "result": "11 passed in 43.85s",
+      "command": ".venv/bin/pytest -q tests/architectural/test_coord_read_residuals_closeout.py"
+    }
+  ],
+  "validation": [
+    {"command": ".venv/bin/pytest --collect-only -q <11 retained WP09 paths>", "result": "35 tests collected in 44.96s"},
+    {"command": ".venv/bin/pytest -q <11 retained WP09 paths>", "result": "35 passed in 180.37s"},
+    {"command": ".venv/bin/pytest -q <15 pre-final-authority-pass retained WP09 paths>", "result": "45 passed in 303.77s; final four paths were then deleted as historical positive-shape scaffolds"},
+    {"command": ".venv/bin/ruff check <retained WP09 paths>", "result": "All checks passed"},
+    {"command": ".venv/bin/mypy <13 changed source files before final four deletions>", "result": "Success: no issues found"},
+    {"command": ".venv/bin/pytest -q tests/architectural/test_coord_read_residuals_closeout.py", "result": "11 passed in 43.85s"},
+    {"command": ".venv/bin/pytest -q -p no:cacheprovider <11 retained WP09 paths>", "result": "cycle 2: 35 passed in 182.65s"},
+    {"command": ".venv/bin/ruff check <11 retained WP09 paths>", "result": "cycle 2: All checks passed"},
+    {"command": ".venv/bin/python <fail-closed artifact reconciliation>", "result": "WP09_RECONCILIATION_PASS paths=37 base=418 current=35 delta=383 node_map=418"},
+    {"command": "git diff --check", "result": "cycle 2: clean"},
+    {"command": ".venv/bin/pytest --collect-only -q -p no:cacheprovider <11 retained WP09 paths>", "result": "cycle 3: 36 tests collected in 42.96s"},
+    {"command": ".venv/bin/pytest -q -p no:cacheprovider <11 retained WP09 paths>", "result": "cycle 3: 36 passed in 251.22s"},
+    {"command": ".venv/bin/ruff check tests/architectural/test_ci_collection_completeness.py", "result": "cycle 3: All checks passed"},
+    {"command": ".venv/bin/mypy tests/architectural/test_ci_collection_completeness.py", "result": "cycle 3: Success: no issues found in 1 source file"},
+    {"command": ".venv/bin/python <fail-closed artifact reconciliation>", "result": "cycle 3: WP09_RECONCILIATION_PASS paths=37 base=418 current=36 delta=382 node_map=418"},
+    {"command": "git diff --check", "result": "cycle 3: clean"}
+  ],
+  "handoff": {
+    "owner": "WP07",
+    "shared_map": "tests/_arch_shard_map.py",
+    "deleted_path_count": 26,
+    "deleted_paths_ref": "WP09.yaml handoff.deleted_paths",
+    "support_only_path_to_keep": "tests/architectural/test_gate_read_literal_ban.py"
+  },
+  "cycle_3_reconciliation":
+{
+  "authority": {
+    "census": "../assertive-test-suite-sanitation-01KZME3P-lane-a/docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/base-census.json",
+    "content_sha256": "08ef931c46e9d6a2608baec729203442640933bf2970cc83e794bf2f78011e08",
+    "path_join": "collection.nodes[*][1] -> collection.tables.paths",
+    "current_source": "independent focused pytest collection recorded in node_accounting.survivors"
+  },
+  "map_fields": [
+    "frozen_nodeid",
+    "outcome",
+    "family",
+    "successor_or_equivalent"
+  ],
+  "family_definitions": {
+    "arch-partition-fold": {
+      "outcome": "FOLD_TO_SURVIVOR",
+      "basis": "base arch partition/scanner cases fold to one live nonempty exact-one-marker oracle and its controlled multi-marker red"
+    },
+    "baseline-ratchet": {
+      "outcome": "DELETE_NO_UNIQUE_BOUNDARY",
+      "basis": "mutable orphan/selection baseline records current shape and is regenerable; it is not an absolute current authority"
+    },
+    "collection-route-fold": {
+      "outcome": "FOLD_TO_SURVIVOR",
+      "basis": "full live node/workflow corpus replaces named-route and model spot checks; prohibited route loss reaches the zero-orphan assertion"
+    },
+    "coord-read-fold": {
+      "outcome": "FOLD_TO_EXTERNAL_SURVIVOR",
+      "basis": "support detector remains imported by the live production-corpus coord-read gate; 11 live consumer cases passed"
+    },
+    "coverage-consumer-fold": {
+      "outcome": "FOLD_TO_SURVIVOR",
+      "basis": "live consumer dependencies and phantom-need fault are covered by the retained graph oracle"
+    },
+    "coverage-emitter-fold": {
+      "outcome": "FOLD_TO_SURVIVOR",
+      "basis": "live emitter-to-SonarCloud reachability and disconnected-emitter fault are covered by the retained graph oracle"
+    },
+    "coverage-root-collision-fold": {
+      "outcome": "FOLD_TO_SURVIVOR",
+      "basis": "live path roots cannot emit equal relative files; synthetic collision reaches the retained assertion"
+    },
+    "coverage-root-resolve-fold": {
+      "outcome": "FOLD_TO_SURVIVOR",
+      "basis": "all live --cov targets must resolve; dead-root fault reaches the retained assertion"
+    },
+    "cross-job-disjointness-fold": {
+      "outcome": "FOLD_TO_SURVIVOR",
+      "basis": "the frozen real-topology member folds to the minimal live-corpus GC-2/C-007 guard whose actual pool-ignore removal yields a 9-node overlap"
+    },
+    "cross-job-helper-self-test": {
+      "outcome": "DELETE_NO_UNIQUE_BOUNDARY",
+      "basis": "synthetic helper self-test protects the scanner implementation; the retained real-topology guard executes that helper with two-sided controls"
+    },
+    "cross-job-report-only": {
+      "outcome": "DELETE_NO_UNIQUE_BOUNDARY",
+      "basis": "generic duplicate reporting has no distinct enforcement boundary; GC-2/C-007 is enforced by the specific serial-orphan-sweep/parallel-pool survivor"
+    },
+    "exact-survivor": {
+      "outcome": "KEEP_EXACT",
+      "basis": "same frozen node identity survives and passed the focused cohort"
+    },
+    "next-partition-fold": {
+      "outcome": "FOLD_TO_SURVIVOR",
+      "basis": "base next partition/scanner cases fold to the next parameter of the live exact-one-marker oracle"
+    },
+    "path-homogeneous-deletion": {
+      "outcome": "DELETE_NO_UNIQUE_BOUNDARY",
+      "basis": "all frozen members share the path-level removed_shape and no current authority or unique live boundary survives"
+    },
+    "positive-route-pin": {
+      "outcome": "DELETE_NO_UNIQUE_BOUNDARY",
+      "basis": "named job/path/trigger placement can stay green while coverage moves; full live route oracle owns correctness"
+    },
+    "scanner-self-test": {
+      "outcome": "DELETE_NO_UNIQUE_BOUNDARY",
+      "basis": "parser/classifier/fault-injection test protects test implementation rather than product or CI behavior"
+    },
+    "timeout-exemption-fold": {
+      "outcome": "FOLD_TO_SURVIVOR",
+      "basis": "live exemption existence and reason are covered by the retained exemption oracle"
+    },
+    "windows-route-fold": {
+      "outcome": "FOLD_TO_SURVIVOR",
+      "basis": "Windows-marker route is covered by full live collection; removing its route produced 23 Windows-node orphans at the intended assertion"
+    }
+  },
+  "path_reconciliation": [
+    {
+      "path": "tests/architectural/test_arch_pole_deserialized.py",
+      "baseline": 2,
+      "current": 1,
+      "delta": 1,
+      "baseline_nodeids": [
+        "tests/architectural/test_arch_pole_deserialized.py::test_arch_pole_needs_no_fast_lane_job",
+        "tests/architectural/test_arch_pole_deserialized.py::test_architectural_suite_has_a_running_job"
+      ],
+      "current_nodeids": [
+        "tests/architectural/test_arch_pole_deserialized.py::test_architectural_suite_has_a_running_job"
+      ],
+      "baseline_nodeids_sha256": "56cd4192948ef9a5a12c12f40286b6866b296dcd7c51cd09fe1c88f684042c67",
+      "current_nodeids_sha256": "6742a9fff2eea9410716aaff24bbaf28060510cbe14fadf8d24368c59602d620"
+    },
+    {
+      "path": "tests/architectural/test_arch_shard_marker_completeness.py",
+      "baseline": 7,
+      "current": 2,
+      "delta": 5,
+      "baseline_nodeids": [
+        "tests/architectural/test_arch_shard_marker_completeness.py::test_duplicate_key_registration_with_different_definition_is_rejected",
+        "tests/architectural/test_arch_shard_marker_completeness.py::test_every_pole_root_test_has_exactly_one_shard_marker",
+        "tests/architectural/test_arch_shard_marker_completeness.py::test_expected_groups_are_all_registered",
+        "tests/architectural/test_arch_shard_marker_completeness.py::test_pole_root_universe_is_nonempty",
+        "tests/architectural/test_arch_shard_marker_completeness.py::test_removed_registration_fails_with_diagnosable_message",
+        "tests/architectural/test_arch_shard_marker_completeness.py::test_shard_union_equals_full_pole_root_universe",
+        "tests/architectural/test_arch_shard_marker_completeness.py::test_unmarked_next_universe_fails_not_passes"
+      ],
+      "current_nodeids": [
+        "tests/architectural/test_arch_shard_marker_completeness.py::test_every_group_root_node_has_exactly_one_shard_marker[arch]",
+        "tests/architectural/test_arch_shard_marker_completeness.py::test_every_group_root_node_has_exactly_one_shard_marker[next]"
+      ],
+      "baseline_nodeids_sha256": "50c7462513518fc036b031478d02444dd6573e7dc637d938a810bcb3e83fd802",
+      "current_nodeids_sha256": "b2f9bae60a8302f6835ee4012bcddfdd3b53aa57bec91a2b58c28570bc49299b"
+    },
+    {
+      "path": "tests/architectural/test_arch_unblind_matrix.py",
+      "baseline": 3,
+      "current": 0,
+      "delta": 3,
+      "baseline_nodeids": [
+        "tests/architectural/test_arch_unblind_matrix.py::test_every_dir_is_arch_selected",
+        "tests/architectural/test_arch_unblind_matrix.py::test_matrix_spans_every_src_package_dir",
+        "tests/architectural/test_arch_unblind_matrix.py::test_no_src_dir_is_architecturally_blind"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "9a26e1ab40f2bf38c731fd26ce6c6f0d15bc67b8b45d624f914d9145994de655",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_ci_architectural_gate_coverage.py",
+      "baseline": 5,
+      "current": 0,
+      "delta": 5,
+      "baseline_nodeids": [
+        "tests/architectural/test_ci_architectural_gate_coverage.py::test_arch_suite_runs_unconditionally_cannot_be_masked",
+        "tests/architectural/test_ci_architectural_gate_coverage.py::test_core_misc_filter_not_over_broad",
+        "tests/architectural/test_ci_architectural_gate_coverage.py::test_guarded_surfaces_in_core_misc_filter",
+        "tests/architectural/test_ci_architectural_gate_coverage.py::test_lifecycle_events_covered_by_core_misc",
+        "tests/architectural/test_ci_architectural_gate_coverage.py::test_tests_architectural_stays_in_core_misc"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "6ed41445e6b774644159a42bf88075b5c4b14cd5e7cc80f61f2b56dd5a071170",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_ci_collection_completeness.py",
+      "baseline": 46,
+      "current": 2,
+      "delta": 44,
+      "baseline_nodeids": [
+        "tests/architectural/test_ci_collection_completeness.py::test_active_jobs_grow_monotonically_with_the_filter_state",
+        "tests/architectural/test_ci_collection_completeness.py::test_analyze_default_still_models_every_job",
+        "tests/architectural/test_ci_collection_completeness.py::test_every_group_atom_is_a_positive_unnegated_test",
+        "tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main",
+        "tests/architectural/test_ci_collection_completeness.py::test_gate_reads_no_ratchet_baseline",
+        "tests/architectural/test_ci_collection_completeness.py::test_issue_2957_named_files_are_collected_on_a_push_to_main",
+        "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_honours_an_active_group",
+        "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[${{ (always()) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') }}-True]",
+        "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[False-False]",
+        "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[None-True]",
+        "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[True-True]",
+        "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[always() && (needs.changes.outputs.cli == 'true' || github.event_name == 'push')-True]",
+        "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[always() && github.event_name != 'pull_request'-True]",
+        "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[always() && github.event_name == 'pull_request'-False]",
+        "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[always() && github.event_name == 'push'-True]",
+        "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[always() && needs.changes.outputs.cli == 'true'-False]",
+        "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[always() && needs.changes.outputs.core_misc == 'true'-False]",
+        "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[always()-True]",
+        "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[needs.fast-tests-cli.result == 'success'-True]",
+        "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[needs.kernel-tests.result != 'failure'-True]",
+        "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[some.unmodelled.expression == 'true'-False]",
+        "tests/architectural/test_ci_collection_completeness.py::test_label_guard_blocks_only_pull_requests",
+        "tests/architectural/test_ci_collection_completeness.py::test_normalize_condition[${{ always() }}-always()]",
+        "tests/architectural/test_ci_collection_completeness.py::test_normalize_condition[((always()))-always()]",
+        "tests/architectural/test_ci_collection_completeness.py::test_normalize_condition[(a) && (b)-(a) && (b)]",
+        "tests/architectural/test_ci_collection_completeness.py::test_normalize_condition[always()/n  && github.event_name == 'push'-always() && github.event_name == 'push']",
+        "tests/architectural/test_ci_collection_completeness.py::test_release_workflow_does_not_run_on_a_push_to_main",
+        "tests/architectural/test_ci_collection_completeness.py::test_selfmutation_planted_uncollected_node_is_reported",
+        "tests/architectural/test_ci_collection_completeness.py::test_selfmutation_removing_the_push_disjunct_is_reported",
+        "tests/architectural/test_ci_collection_completeness.py::test_split_top_level_respects_parentheses[(a || b) && c-||-expected3]",
+        "tests/architectural/test_ci_collection_completeness.py::test_split_top_level_respects_parentheses[-&&-expected4]",
+        "tests/architectural/test_ci_collection_completeness.py::test_split_top_level_respects_parentheses[a && (b && c)-&&-expected1]",
+        "tests/architectural/test_ci_collection_completeness.py::test_split_top_level_respects_parentheses[a && b-&&-expected0]",
+        "tests/architectural/test_ci_collection_completeness.py::test_split_top_level_respects_parentheses[a || b || c-||-expected2]",
+        "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[aliased attribute-from tests.architectural import _gate_coverage as gc/ngc.load_baseline()/n]",
+        "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[direct symbol import-from tests.architectural._gate_coverage import load_baseline/nload_baseline()/n]",
+        "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[fully dotted access-import tests.architectural._gate_coverage/ntests.architectural._gate_coverage.load_baseline()/n]",
+        "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[getattr indirection-from tests.architectural import _gate_coverage as gc/ngetattr(gc, 'load_baseline')()/n]",
+        "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[literal baseline path-from pathlib import Path/nPath('tests/architectural/_gate_coverage_baseline.json').read_text()/n]",
+        "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[literal path as a keyword argument-open(file='tests/architectural/_gate_coverage_baseline.json').read()/n]",
+        "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[literal path by joining-from pathlib import Path/ndata = Path('tests/architectural') / '_gate_coverage_baseline.json'/n]",
+        "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[literal path inside an f-string-from pathlib import Path/nroot = 'tests/architectural'/ndata = Path(f'{root}/_gate_coverage_baseline.json').read_text()/n]",
+        "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[rebound alias-from tests.architectural import _gate_coverage as gc/nsneaky = gc/nsneaky.update_baseline()/n]",
+        "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[renamed module import-import tests.architectural._gate_coverage as gate/ngate.load_baseline()/n]",
+        "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_does_not_fire_on_prose",
+        "tests/architectural/test_ci_collection_completeness.py::test_worst_case_filter_state_is_reachable"
+      ],
+      "current_nodeids": [
+        "tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main",
+        "tests/architectural/test_ci_collection_completeness.py::test_orphan_sweep_and_parallel_pool_are_disjoint"
+      ],
+      "baseline_nodeids_sha256": "9f1b9e93ef8531b2464dce484a3d67059cc2cfe6f2892d59e5514bbe200e7f19",
+      "current_nodeids_sha256": "dbe18e729c13d1c4efd42c9fc9e8598a3e76748d66d650eb970e9f06cbcf4153"
+    },
+    {
+      "path": "tests/architectural/test_ci_fast_jobs_have_timeout.py",
+      "baseline": 10,
+      "current": 2,
+      "delta": 8,
+      "baseline_nodeids": [
+        "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_ci_quality_exempt_jobs_carry_marker_comment",
+        "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_ci_quality_fast_jobs_carry_timeout",
+        "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_exempt_allowlist_members_still_exist",
+        "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_fault_injection_both_exempt_jobs_with_comment_do_not_bite",
+        "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_fault_injection_exempt_job_without_marker_comment_bites",
+        "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_fault_injection_marker_only_job_is_still_classified_fast_tier",
+        "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_fault_injection_missing_timeout_on_covered_job_bites",
+        "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_fault_injection_new_fast_job_without_allowlisting_bites",
+        "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_fault_injection_non_fast_job_is_not_classified_fast_tier",
+        "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_fault_injection_timeout_present_does_not_bite"
+      ],
+      "current_nodeids": [
+        "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_ci_quality_fast_jobs_carry_timeout",
+        "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_timeout_exemptions_exist_and_record_a_reason"
+      ],
+      "baseline_nodeids_sha256": "e55d997544e65846c2bcad478705f8e6bb69e35a108f896793d8be27e961645c",
+      "current_nodeids_sha256": "5ed84384c96e93866e4d59575898e6371e21c1d5ef9140198745b2fa50efa70c"
+    },
+    {
+      "path": "tests/architectural/test_ci_topology_worklist.py",
+      "baseline": 14,
+      "current": 0,
+      "delta": 14,
+      "baseline_nodeids": [
+        "tests/architectural/test_ci_topology_worklist.py::test_census_arch_blind_groups_matches_live_derivation",
+        "tests/architectural/test_ci_topology_worklist.py::test_census_mapped_dirs_matches_live_derivation",
+        "tests/architectural/test_ci_topology_worklist.py::test_census_worklist_matches_live_derivation",
+        "tests/architectural/test_ci_topology_worklist.py::test_committed_census_carries_no_loc",
+        "tests/architectural/test_ci_topology_worklist.py::test_every_worklist_dir_declares_a_focused_shard",
+        "tests/architectural/test_ci_topology_worklist.py::test_every_worklist_dir_meets_loc_floor",
+        "tests/architectural/test_ci_topology_worklist.py::test_every_worklist_dir_routes_to_named_src_backed_group",
+        "tests/architectural/test_ci_topology_worklist.py::test_freshness_index_reds_on_floor_crossing",
+        "tests/architectural/test_ci_topology_worklist.py::test_freshness_index_reds_on_hand_trim",
+        "tests/architectural/test_ci_topology_worklist.py::test_freshness_index_reds_on_phantom_dir",
+        "tests/architectural/test_ci_topology_worklist.py::test_freshness_index_reds_on_routing_edit",
+        "tests/architectural/test_ci_topology_worklist.py::test_no_worklist_dir_falls_to_unmatched_run_all",
+        "tests/architectural/test_ci_topology_worklist.py::test_rank_altering_loc_churn_keeps_gate_green",
+        "tests/architectural/test_ci_topology_worklist.py::test_worklist_is_non_empty"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "6e4e35006a18de0db3d2ed0a2ebdf997406ae3498e4d09251ceafcd643914d8a",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_coverage_consumer_needs.py",
+      "baseline": 4,
+      "current": 2,
+      "delta": 2,
+      "baseline_nodeids": [
+        "tests/architectural/test_coverage_consumer_needs.py::test_coverage_binding_is_not_slow_tests_needs",
+        "tests/architectural/test_coverage_consumer_needs.py::test_diff_coverage_and_mutation_needs_are_real_emitters",
+        "tests/architectural/test_coverage_consumer_needs.py::test_emitter_set_is_non_empty",
+        "tests/architectural/test_coverage_consumer_needs.py::test_src_coverage_emitters_are_sonarcloud_consumers"
+      ],
+      "current_nodeids": [
+        "tests/architectural/test_coverage_consumer_needs.py::test_coverage_consumers_depend_only_on_emitters",
+        "tests/architectural/test_coverage_consumer_needs.py::test_src_coverage_emitters_reach_sonarcloud"
+      ],
+      "baseline_nodeids_sha256": "e4fb6bbac99d5aea19b4aff1d30e3841ca66c8cc3adb4cb263ff935501646312",
+      "current_nodeids_sha256": "1f3da01fafaf891e66a9ef97c42d0a29542ad3c66e9ce9d51497693938e1cb38"
+    },
+    {
+      "path": "tests/architectural/test_coverage_root_collisions.py",
+      "baseline": 5,
+      "current": 2,
+      "delta": 3,
+      "baseline_nodeids": [
+        "tests/architectural/test_coverage_root_collisions.py::test_collision_guard_is_clean_on_the_dotted_remediation",
+        "tests/architectural/test_coverage_root_collisions.py::test_collision_guard_reds_on_a_synthetic_colliding_invocation",
+        "tests/architectural/test_coverage_root_collisions.py::test_every_cov_target_resolves_to_something_real",
+        "tests/architectural/test_coverage_root_collisions.py::test_no_multi_root_invocation_collides_on_the_real_tree",
+        "tests/architectural/test_coverage_root_collisions.py::test_reality_guard_reds_on_a_synthetic_dead_root"
+      ],
+      "current_nodeids": [
+        "tests/architectural/test_coverage_root_collisions.py::test_every_coverage_target_resolves",
+        "tests/architectural/test_coverage_root_collisions.py::test_path_form_coverage_roots_do_not_collide"
+      ],
+      "baseline_nodeids_sha256": "b3dc6903b5be3fc1c23a4e4d6b3c08f0b2a4dc21acab39aee8f778a301f864d0",
+      "current_nodeids_sha256": "02e5397741f8161b73918edf247a2b8c9328a4411ec582437b87c265198b370b"
+    },
+    {
+      "path": "tests/architectural/test_cross_gate_churn_agreement.py",
+      "baseline": 4,
+      "current": 0,
+      "delta": 4,
+      "baseline_nodeids": [
+        "tests/architectural/test_cross_gate_churn_agreement.py::test_all_churn_gates_agree_on_corpus",
+        "tests/architectural/test_cross_gate_churn_agreement.py::test_corpus_is_non_vacuous",
+        "tests/architectural/test_cross_gate_churn_agreement.py::test_owner_routed_gates_already_agree",
+        "tests/architectural/test_cross_gate_churn_agreement.py::test_ref_advance_now_agrees_with_the_owner_on_the_former_2795_probe"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "a64e893da875c91a0f8e1146fa34aca2656f1b00ab4e13367a208038f0d46acf",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_cross_grain_builtin_gate.py",
+      "baseline": 1,
+      "current": 0,
+      "delta": 1,
+      "baseline_nodeids": [
+        "tests/architectural/test_cross_grain_builtin_gate.py::test_shipped_tree_is_cross_grain_disjoint_and_covers_every_type"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "5d77b2eda23746cf460bd0c2101c47305af534e1a5de931bea36862189cce073",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_docs_scoped_arch_coverage.py",
+      "baseline": 10,
+      "current": 0,
+      "delta": 10,
+      "baseline_nodeids": [
+        "tests/architectural/test_docs_scoped_arch_coverage.py::test_all_arch_shard_legs_share_identical_paths",
+        "tests/architectural/test_docs_scoped_arch_coverage.py::test_detector_flags_dunder_file_rooted_docs_path",
+        "tests/architectural/test_docs_scoped_arch_coverage.py::test_detector_flags_repo_rooted_docs_path",
+        "tests/architectural/test_docs_scoped_arch_coverage.py::test_detector_flags_scan_roots_docs",
+        "tests/architectural/test_docs_scoped_arch_coverage.py::test_detector_ignores_tmp_path_docs",
+        "tests/architectural/test_docs_scoped_arch_coverage.py::test_detector_ignores_unrelated_docs_literal",
+        "tests/architectural/test_docs_scoped_arch_coverage.py::test_every_docs_reading_arch_test_is_docs_scoped",
+        "tests/architectural/test_docs_scoped_arch_coverage.py::test_known_docs_scanners_are_docs_scoped",
+        "tests/architectural/test_docs_scoped_arch_coverage.py::test_marker_detector_reads_list_and_single_forms",
+        "tests/architectural/test_docs_scoped_arch_coverage.py::test_scan_dirs_equal_pole_matrix_paths"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "38a824af1a583dc32c64590fb1de73bdb4a269af6b3ccac1dbd6e82323d7a5af",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_gate_coverage.py",
+      "baseline": 37,
+      "current": 0,
+      "delta": 37,
+      "baseline_nodeids": [
+        "tests/architectural/test_gate_coverage.py::test_all_suite_workflows_parse_into_gates",
+        "tests/architectural/test_gate_coverage.py::test_analyze_detects_orphan_and_covered_records",
+        "tests/architectural/test_gate_coverage.py::test_baseline_file_is_well_formed",
+        "tests/architectural/test_gate_coverage.py::test_baseline_files_exist_for_all_targets",
+        "tests/architectural/test_gate_coverage.py::test_ci_quality_workflow_file_is_itself_a_core_misc_glob",
+        "tests/architectural/test_gate_coverage.py::test_cli_only_pr_selects_the_saas_attribution_guard",
+        "tests/architectural/test_gate_coverage.py::test_collect_universe_fails_loudly_on_collection_error",
+        "tests/architectural/test_gate_coverage.py::test_cross_job_disjoint_selection_is_pure_and_detects_overlap",
+        "tests/architectural/test_gate_coverage.py::test_duplicate_selection_is_reported",
+        "tests/architectural/test_gate_coverage.py::test_egress_module_diff_selects_both_sync_and_core_misc",
+        "tests/architectural/test_gate_coverage.py::test_gc2b_bites_on_baseline_file_side_injection",
+        "tests/architectural/test_gate_coverage.py::test_gc2b_bites_on_producer_side_selection_shrink",
+        "tests/architectural/test_gate_coverage.py::test_gc2b_current_selection_matches_baseline[fast-tests-core-misc]",
+        "tests/architectural/test_gate_coverage.py::test_gc2b_current_selection_matches_baseline[integration-tests-next]",
+        "tests/architectural/test_gate_coverage.py::test_gc2b_current_selection_matches_baseline[slow-tests]",
+        "tests/architectural/test_gate_coverage.py::test_gc2b_orphan_drift_bites_on_genuine_orphan",
+        "tests/architectural/test_gate_coverage.py::test_gc2b_orphan_drift_ignores_routine_test_file_churn",
+        "tests/architectural/test_gate_coverage.py::test_group_claim_derivation_is_discriminating",
+        "tests/architectural/test_gate_coverage.py::test_integration_tests_next_is_tier_classified_integration",
+        "tests/architectural/test_gate_coverage.py::test_join_continuations_merges_backslash_lines",
+        "tests/architectural/test_gate_coverage.py::test_marker_expressions_compile",
+        "tests/architectural/test_gate_coverage.py::test_model_fidelity_spotcheck_sharded_next_tier",
+        "tests/architectural/test_gate_coverage.py::test_next_shard_completeness_logic_is_wired",
+        "tests/architectural/test_gate_coverage.py::test_no_new_orphan_surfaces",
+        "tests/architectural/test_gate_coverage.py::test_orphan_backlog_does_not_grow",
+        "tests/architectural/test_gate_coverage.py::test_orphan_sweep_and_sync_pool_are_disjoint_today",
+        "tests/architectural/test_gate_coverage.py::test_parser_ignores_non_command_pytest_tokens",
+        "tests/architectural/test_gate_coverage.py::test_path_matches_nodeid_prefix_branch",
+        "tests/architectural/test_gate_coverage.py::test_pytest_marker_expression_import_contract",
+        "tests/architectural/test_gate_coverage.py::test_required_selection_structures_present",
+        "tests/architectural/test_gate_coverage.py::test_saas_guard_collection_derivation_is_discriminating",
+        "tests/architectural/test_gate_coverage.py::test_selection_logic_matches_marker_and_path",
+        "tests/architectural/test_gate_coverage.py::test_selection_respects_ignore",
+        "tests/architectural/test_gate_coverage.py::test_strip_to_command_strips_env_and_runner_prefixes",
+        "tests/architectural/test_gate_coverage.py::test_substitute_matrix_expands_and_blanks",
+        "tests/architectural/test_gate_coverage.py::test_tracker_only_diff_selects_the_job_collecting_its_ratchets",
+        "tests/architectural/test_gate_coverage.py::test_windows_gate_models_windows_ci_marker"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "3357983769c22afb8c191fde9828cca29acd6e6f61c55a133fa453395688852a",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_gate_coverage_parse_model.py",
+      "baseline": 17,
+      "current": 0,
+      "delta": 17,
+      "baseline_nodeids": [
+        "tests/architectural/test_gate_coverage_parse_model.py::test_cov_target_repo_path_expands_dotted_form",
+        "tests/architectural/test_gate_coverage_parse_model.py::test_cov_target_repo_path_passes_through_path_form",
+        "tests/architectural/test_gate_coverage_parse_model.py::test_discover_pytest_workflows_detects_fixture_workflow",
+        "tests/architectural/test_gate_coverage_parse_model.py::test_discover_pytest_workflows_matches_module_allowlist",
+        "tests/architectural/test_gate_coverage_parse_model.py::test_is_src_cov_target_recognizes_both_shapes",
+        "tests/architectural/test_gate_coverage_parse_model.py::test_is_src_cov_target_rejects_non_src_targets",
+        "tests/architectural/test_gate_coverage_parse_model.py::test_positive_marker_tokens_fails_loudly_on_invalid_expression",
+        "tests/architectural/test_gate_coverage_parse_model.py::test_positive_marker_tokens_is_negation_aware",
+        "tests/architectural/test_gate_coverage_parse_model.py::test_registered_markers_live_registry",
+        "tests/architectural/test_gate_coverage_parse_model.py::test_registered_markers_parses_fixture_ini",
+        "tests/architectural/test_gate_coverage_parse_model.py::test_routed_marker_names_live_floor",
+        "tests/architectural/test_gate_coverage_parse_model.py::test_workflow_model_handles_absent_trigger_sections",
+        "tests/architectural/test_gate_coverage_parse_model.py::test_workflow_model_live_ci_quality_relations",
+        "tests/architectural/test_gate_coverage_parse_model.py::test_workflow_model_parses_cov_targets_and_critical_paths",
+        "tests/architectural/test_gate_coverage_parse_model.py::test_workflow_model_parses_filter_groups_and_job_gating",
+        "tests/architectural/test_gate_coverage_parse_model.py::test_workflow_model_parses_needs_and_result_reads",
+        "tests/architectural/test_gate_coverage_parse_model.py::test_workflow_model_parses_trigger_types_and_paths"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "5f496d583a77b355a7f09af59935d589ba13c918f16b2d541bfbbd0ffef101dd",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_gate_read_literal_ban.py",
+      "baseline": 39,
+      "current": 0,
+      "delta": 39,
+      "baseline_nodeids": [
+        "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_does_not_sanction_status_kind_seam_binding",
+        "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_flags_coord_bearing_attribute",
+        "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_flags_one_hop_cross_function_param",
+        "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_flags_one_hop_keyword_binding",
+        "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_identity_flags_inline_call",
+        "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_identity_flags_keyword_two_hop",
+        "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_identity_flags_two_hop",
+        "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_identity_passes_parameter_dir",
+        "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_identity_passes_primary_fold",
+        "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_lanes_flags_inline_call",
+        "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_lanes_flags_two_hop",
+        "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_lanes_passes_primary_fold",
+        "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_passes_one_hop_caller_primary_fold",
+        "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_passes_sanctioned_primary_attribute",
+        "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_sanctions_primary_seam_binding_but_still_flags_bad_read",
+        "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_shape_isolation",
+        "tests/architectural/test_gate_read_literal_ban.py::test_callshape_coord_aware_set_aligns_with_read_arm",
+        "tests/architectural/test_gate_read_literal_ban.py::test_dir_read_arm_default_deny_accept_package_clean",
+        "tests/architectural/test_gate_read_literal_ban.py::test_dir_read_arm_known_residuals_are_pinned",
+        "tests/architectural/test_gate_read_literal_ban.py::test_dir_read_arm_self_test_c008_subpath_not_flagged",
+        "tests/architectural/test_gate_read_literal_ban.py::test_dir_read_arm_self_test_flags_inline_call_shape",
+        "tests/architectural/test_gate_read_literal_ban.py::test_dir_read_arm_self_test_passes_routed_inline_seam",
+        "tests/architectural/test_gate_read_literal_ban.py::test_enumerated_surface_set_is_pinned_and_live",
+        "tests/architectural/test_gate_read_literal_ban.py::test_primary_partition_read_dir_call_discriminates_on_kind_argument",
+        "tests/architectural/test_gate_read_literal_ban.py::test_read_arm_default_deny_flags_unlisted_slug_resolver_command",
+        "tests/architectural/test_gate_read_literal_ban.py::test_read_arm_default_deny_no_unlisted_topology_join",
+        "tests/architectural/test_gate_read_literal_ban.py::test_read_arm_gate_surfaces_route_through_seam",
+        "tests/architectural/test_gate_read_literal_ban.py::test_read_arm_self_test_flags_bare_tasks_dir_topology_join",
+        "tests/architectural/test_gate_read_literal_ban.py::test_read_arm_self_test_flags_direct_topology_join",
+        "tests/architectural/test_gate_read_literal_ban.py::test_read_arm_self_test_flags_topology_resolver_read",
+        "tests/architectural/test_gate_read_literal_ban.py::test_read_arm_self_test_passes_clean_seam_read",
+        "tests/architectural/test_gate_read_literal_ban.py::test_read_arm_self_test_passes_clean_wp_tasks_seam_and_status_dir",
+        "tests/architectural/test_gate_read_literal_ban.py::test_write_arm_mutation_neither_candidate_nor_primary_reds_positive_assertion",
+        "tests/architectural/test_gate_read_literal_ban.py::test_write_arm_primary_seam_thin_adapter_kind_discipline_holds",
+        "tests/architectural/test_gate_read_literal_ban.py::test_write_arm_recognises_primary_seam_idiom_literal_join_spelling",
+        "tests/architectural/test_gate_read_literal_ban.py::test_write_arm_recognises_primary_seam_thin_adapter_post_migration_shape",
+        "tests/architectural/test_gate_read_literal_ban.py::test_write_arm_resolvers_anchor_meta_on_primary",
+        "tests/architectural/test_gate_read_literal_ban.py::test_write_arm_self_test_flags_candidate_meta_anchor",
+        "tests/architectural/test_gate_read_literal_ban.py::test_write_arm_self_test_passes_primary_meta_anchor"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "43018e8f9c33cb4223614e317c88c5effdf5f7605b92172a468457d247229431",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_inline_meta_read_gate.py",
+      "baseline": 40,
+      "current": 0,
+      "delta": 40,
+      "baseline_nodeids": [
+        "tests/architectural/test_inline_meta_read_gate.py::test_allowlist_entries_are_still_live",
+        "tests/architectural/test_inline_meta_read_gate.py::test_allowlist_matches_floor",
+        "tests/architectural/test_inline_meta_read_gate.py::test_allowlist_shrink_only",
+        "tests/architectural/test_inline_meta_read_gate.py::test_collect_json_import_bindings_resolves_all_forms",
+        "tests/architectural/test_inline_meta_read_gate.py::test_follow_assignment_chain_resolves_at_the_hop_limit",
+        "tests/architectural/test_inline_meta_read_gate.py::test_follow_assignment_chain_respects_hop_limit",
+        "tests/architectural/test_inline_meta_read_gate.py::test_gate_runs_under_fast_tier_budget",
+        "tests/architectural/test_inline_meta_read_gate.py::test_inline_meta_read_floor",
+        "tests/architectural/test_inline_meta_read_gate.py::test_inline_meta_read_gate_green_against_seeded_allowlist",
+        "tests/architectural/test_inline_meta_read_gate.py::test_inline_meta_read_key_is_hashable_and_value_keyed",
+        "tests/architectural/test_inline_meta_read_gate.py::test_is_json_loads_call_resolves_arbitrary_module_alias",
+        "tests/architectural/test_inline_meta_read_gate.py::test_is_json_loads_call_resolves_from_import_binding",
+        "tests/architectural/test_inline_meta_read_gate.py::test_is_meta_path_expr_matches_inline_join",
+        "tests/architectural/test_inline_meta_read_gate.py::test_is_meta_path_expr_matches_pattern_names",
+        "tests/architectural/test_inline_meta_read_gate.py::test_is_meta_path_expr_rejects_other_join_suffix",
+        "tests/architectural/test_inline_meta_read_gate.py::test_is_meta_path_expr_rejects_unrelated_name",
+        "tests/architectural/test_inline_meta_read_gate.py::test_is_meta_path_expr_resolves_arbitrary_name_via_assignment",
+        "tests/architectural/test_inline_meta_read_gate.py::test_is_meta_path_expr_resolves_two_hop_reassignment_chain",
+        "tests/architectural/test_inline_meta_read_gate.py::test_is_meta_path_expr_without_fn_context_rejects_arbitrary_name",
+        "tests/architectural/test_inline_meta_read_gate.py::test_loader_rejects_entry_without_issue",
+        "tests/architectural/test_inline_meta_read_gate.py::test_loader_rejects_entry_without_rationale",
+        "tests/architectural/test_inline_meta_read_gate.py::test_loader_rejects_entry_without_token",
+        "tests/architectural/test_inline_meta_read_gate.py::test_loader_rejects_non_integer_line",
+        "tests/architectural/test_inline_meta_read_gate.py::test_module_is_json_accepts_aliased_import",
+        "tests/architectural/test_inline_meta_read_gate.py::test_new_inline_meta_read_is_flagged",
+        "tests/architectural/test_inline_meta_read_gate.py::test_read_source_base_direct_open_call",
+        "tests/architectural/test_inline_meta_read_gate.py::test_read_source_base_direct_read_text",
+        "tests/architectural/test_inline_meta_read_gate.py::test_read_source_base_returns_none_for_unrelated_read",
+        "tests/architectural/test_inline_meta_read_gate.py::test_read_source_base_traces_named_assignment",
+        "tests/architectural/test_inline_meta_read_gate.py::test_read_source_base_traces_with_statement_binding",
+        "tests/architectural/test_inline_meta_read_gate.py::test_routed_count_floor_blocks_mass_allowlist",
+        "tests/architectural/test_inline_meta_read_gate.py::test_routed_load_meta_floor",
+        "tests/architectural/test_inline_meta_read_gate.py::test_scan_detects_aliased_json_module_import",
+        "tests/architectural/test_inline_meta_read_gate.py::test_scan_detects_arbitrary_variable_name",
+        "tests/architectural/test_inline_meta_read_gate.py::test_scan_detects_from_json_import_loads",
+        "tests/architectural/test_inline_meta_read_gate.py::test_scan_detects_two_hop_reassignment",
+        "tests/architectural/test_inline_meta_read_gate.py::test_scan_excludes_mission_metadata_and_task_utils",
+        "tests/architectural/test_inline_meta_read_gate.py::test_scan_routed_load_meta_calls_counts_call_sites",
+        "tests/architectural/test_inline_meta_read_gate.py::test_staleness_twin_guard_empty_when_all_live",
+        "tests/architectural/test_inline_meta_read_gate.py::test_staleness_twin_guard_flags_stale_entry"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "785b7a86647f480566eefad55f7eab5bf942bc6a9a277a97bdbe38dcec4a04f4",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_job_count_ceiling.py",
+      "baseline": 3,
+      "current": 0,
+      "delta": 3,
+      "baseline_nodeids": [
+        "tests/architectural/test_job_count_ceiling.py::test_ceiling_leaves_headroom_for_composite_design",
+        "tests/architectural/test_job_count_ceiling.py::test_ceiling_relation_bites_when_graph_exceeds_it",
+        "tests/architectural/test_job_count_ceiling.py::test_quality_gate_needs_within_ceiling"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "2e23d95cabe23c90b283de86118ede9b2157234d64d9cab9d3639354588f29a2",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_marker_baseline.py",
+      "baseline": 5,
+      "current": 0,
+      "delta": 5,
+      "baseline_nodeids": [
+        "tests/architectural/test_marker_baseline.py::test_baseline_file_is_non_empty",
+        "tests/architectural/test_marker_baseline.py::test_fault_injection_growth_bites",
+        "tests/architectural/test_marker_baseline.py::test_fault_injection_identical_sets_pass",
+        "tests/architectural/test_marker_baseline.py::test_fault_injection_shrink_is_not_a_violation",
+        "tests/architectural/test_marker_baseline.py::test_marker_set_does_not_grow_vs_baseline"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "7e8e8d8d210596b4515e0a026b3ec394ec874679f86a95b2726f4112be6f342f",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_marker_registry_single_source.py",
+      "baseline": 2,
+      "current": 0,
+      "delta": 2,
+      "baseline_nodeids": [
+        "tests/architectural/test_marker_registry_single_source.py::test_pyproject_does_not_redeclare_pytest_markers",
+        "tests/architectural/test_marker_registry_single_source.py::test_pytest_ini_exists_and_declares_markers"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "3b0d480934be62ee8c581596ec138ce1cc8bdb23560f22731826828e0dc39858",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_mission_resolver_walker_gate.py",
+      "baseline": 5,
+      "current": 1,
+      "delta": 4,
+      "baseline_nodeids": [
+        "tests/architectural/test_mission_resolver_walker_gate.py::test_gate_scan_scope_reaches_known_walker_files",
+        "tests/architectural/test_mission_resolver_walker_gate.py::test_no_unsanctioned_raw_kitty_specs_enumeration_in_src",
+        "tests/architectural/test_mission_resolver_walker_gate.py::test_planted_raw_walker_is_detected_outside_allowlist",
+        "tests/architectural/test_mission_resolver_walker_gate.py::test_planted_walker_using_conventional_parameter_name_is_detected",
+        "tests/architectural/test_mission_resolver_walker_gate.py::test_resolve_mission_free_function_callers_do_not_silently_multiply"
+      ],
+      "current_nodeids": [
+        "tests/architectural/test_mission_resolver_walker_gate.py::test_no_unsanctioned_raw_kitty_specs_enumeration_in_src"
+      ],
+      "baseline_nodeids_sha256": "881a154103d0e20a36bc89006169dc97a6aea7ee10d3aa9e47aa14d4a2d57156",
+      "current_nodeids_sha256": "01dbf539d53539e7496995dfff7905472e1573104f9a2778fe68b4d7666d811b"
+    },
+    {
+      "path": "tests/architectural/test_next_shard_marker_completeness.py",
+      "baseline": 3,
+      "current": 0,
+      "delta": 3,
+      "baseline_nodeids": [
+        "tests/architectural/test_next_shard_marker_completeness.py::test_every_next_root_test_has_exactly_one_shard_marker",
+        "tests/architectural/test_next_shard_marker_completeness.py::test_next_root_universe_is_nonempty",
+        "tests/architectural/test_next_shard_marker_completeness.py::test_shard_union_equals_full_next_root_universe"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "b43c794c0145170475586294ce742eb8407bfc53cc36815772a33d1a6f56ca74",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_no_primary_anchored_gates.py",
+      "baseline": 2,
+      "current": 0,
+      "delta": 2,
+      "baseline_nodeids": [
+        "tests/architectural/test_no_primary_anchored_gates.py::test_is_committed_signature_has_no_retired_topology_params",
+        "tests/architectural/test_no_primary_anchored_gates.py::test_no_is_committed_call_passes_retired_topology_kwargs"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "b3d1a89a6505157208aaecf4c0fb5a0057d32c9852563b3effc069e4e765f962",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_plugin_validate_workflow.py",
+      "baseline": 2,
+      "current": 0,
+      "delta": 2,
+      "baseline_nodeids": [
+        "tests/architectural/test_plugin_validate_workflow.py::test_plugin_validate_triggers_cover_plugin_build_inputs[pull_request]",
+        "tests/architectural/test_plugin_validate_workflow.py::test_plugin_validate_triggers_cover_plugin_build_inputs[push]"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "fee13da779209af5681ffdf7c4020c25560c29d9280ce37483d55122c09ed628",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_pytest_marker_convention.py",
+      "baseline": 2,
+      "current": 0,
+      "delta": 2,
+      "baseline_nodeids": [
+        "tests/architectural/test_pytest_marker_convention.py::test_every_test_file_declares_a_pytestmark_marker",
+        "tests/architectural/test_pytest_marker_convention.py::test_support_helper_tree_is_exempt_from_marker_convention"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "491085aed612eaab50c92d5fd3ac24e61d9593b5e4c308f51194d05ab9b87758",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_pytest_marker_correctness.py",
+      "baseline": 2,
+      "current": 0,
+      "delta": 2,
+      "baseline_nodeids": [
+        "tests/architectural/test_pytest_marker_correctness.py::test_fast_marker_must_not_apply_to_subprocess_users",
+        "tests/architectural/test_pytest_marker_correctness.py::test_subprocess_git_users_must_carry_git_repo_marker"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "76fcc20d52c7f6df7d1fdd27861ad5fc729bcaeca27fd3ac4142230d725b9b41",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_resolution_authority_gates.py",
+      "baseline": 47,
+      "current": 0,
+      "delta": 47,
+      "baseline_nodeids": [
+        "tests/architectural/test_resolution_authority_gates.py::test_allowlist_key_is_hashable_and_value_keyed",
+        "tests/architectural/test_resolution_authority_gates.py::test_allowlist_no_stale_entries",
+        "tests/architectural/test_resolution_authority_gates.py::test_allowlist_shrink_only",
+        "tests/architectural/test_resolution_authority_gates.py::test_c001_bare_probe_is_pinned_in_allowlist",
+        "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_accepts_bare_modern_fold_assigned_handle",
+        "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_accepts_dir_name_attribute",
+        "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_accepts_fold_assigned_handle",
+        "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_attribute_callee_not_mismatched",
+        "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_bare_modern_fold_auto_routes",
+        "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_bare_modern_fold_does_not_canonicalize_raw_param",
+        "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_def_use_is_intra_function_only",
+        "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_detects_keyword_arg_form",
+        "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_flags_raw_handle",
+        "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_gate_green_against_seeded_allowlist",
+        "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_permanent_allowlist_is_exactly_3",
+        "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_self_mutation_injects_violation",
+        "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_by_design_modules_classified_write",
+        "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_by_design_survives_at_three_non_vacuous",
+        "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_flags_write_in_same_function",
+        "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_floor_non_vacuous_against_reverted_by_design_write",
+        "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_gate_floor",
+        "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_gate_green_against_seeded_allowlist",
+        "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_open_read_mode_not_write",
+        "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_open_write_mode_is_write",
+        "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_pure_read_probe_not_write",
+        "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_self_mutation_injects_violation",
+        "tests/architectural/test_resolution_authority_gates.py::test_coord_by_design_writes_in_allowlist",
+        "tests/architectural/test_resolution_authority_gates.py::test_derive_live_key_distinguishes_same_method_name_in_two_classes",
+        "tests/architectural/test_resolution_authority_gates.py::test_derive_live_key_module_scope",
+        "tests/architectural/test_resolution_authority_gates.py::test_derive_live_key_nested_function_chain",
+        "tests/architectural/test_resolution_authority_gates.py::test_emit_py_has_no_live_coord_blind_resolver_call_sites",
+        "tests/architectural/test_resolution_authority_gates.py::test_every_allowlist_entry_has_live_match",
+        "tests/architectural/test_resolution_authority_gates.py::test_gates_run_under_fast_tier_budget",
+        "tests/architectural/test_resolution_authority_gates.py::test_loader_rejects_entry_without_rationale",
+        "tests/architectural/test_resolution_authority_gates.py::test_loader_rejects_entry_without_token",
+        "tests/architectural/test_resolution_authority_gates.py::test_placement_seam_write_target_and_read_dir_require_kind",
+        "tests/architectural/test_resolution_authority_gates.py::test_real_allowlist_declares_no_count_qualifiers",
+        "tests/architectural/test_resolution_authority_gates.py::test_staleness_failure_message_prints_nearest_live_token",
+        "tests/architectural/test_resolution_authority_gates.py::test_staleness_twin_guard_empty_when_all_live",
+        "tests/architectural/test_resolution_authority_gates.py::test_staleness_twin_guard_flags_stale_entry",
+        "tests/architectural/test_resolution_authority_gates.py::test_theater_content_leg_reds_entry_point[canonicalizer]",
+        "tests/architectural/test_resolution_authority_gates.py::test_theater_content_leg_reds_entry_point[coord_authority]",
+        "tests/architectural/test_resolution_authority_gates.py::test_theater_drift_leg_stays_green[canonicalizer]",
+        "tests/architectural/test_resolution_authority_gates.py::test_theater_drift_leg_stays_green[coord_authority]",
+        "tests/architectural/test_resolution_authority_gates.py::test_theater_new_offender_leg_reds[canonicalizer]",
+        "tests/architectural/test_resolution_authority_gates.py::test_theater_new_offender_leg_reds[coord_authority]",
+        "tests/architectural/test_resolution_authority_gates.py::test_within_function_collision_count_is_bidirectional"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "7e7e6a05f1cd8a807e4088e50baa559a42475dca226712cd3bbd214f1a15d7d3",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_shard_universe_bounded.py",
+      "baseline": 2,
+      "current": 0,
+      "delta": 2,
+      "baseline_nodeids": [
+        "tests/architectural/test_shard_universe_bounded.py::test_catch_all_jobs_are_present",
+        "tests/architectural/test_shard_universe_bounded.py::test_no_single_shard_collects_the_full_catch_all_universe"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "e8892ebcd6bce2450b14e57e4972a617aa0bafc9438f869230cc8c6d9e89df16",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_src_filter_coverage.py",
+      "baseline": 11,
+      "current": 3,
+      "delta": 8,
+      "baseline_nodeids": [
+        "tests/architectural/test_src_filter_coverage.py::test_catch_all_ignore_lists_mirror_owned_roots_live",
+        "tests/architectural/test_src_filter_coverage.py::test_docs_e2e_do_not_mask_unmapped_src_live",
+        "tests/architectural/test_src_filter_coverage.py::test_every_named_group_gates_a_test_running_job_live",
+        "tests/architectural/test_src_filter_coverage.py::test_faultinjection_group_missing_from_catchall_reds",
+        "tests/architectural/test_src_filter_coverage.py::test_faultinjection_missing_ready_for_review_reds",
+        "tests/architectural/test_src_filter_coverage.py::test_faultinjection_spurious_catchall_ignore_reds",
+        "tests/architectural/test_src_filter_coverage.py::test_ready_for_review_trigger_present_live",
+        "tests/architectural/test_src_filter_coverage.py::test_rednegative_group_reorder_stays_green",
+        "tests/architectural/test_src_filter_coverage.py::test_rednegative_ignore_reorder_stays_green",
+        "tests/architectural/test_src_filter_coverage.py::test_unmatched_boolean_semantics",
+        "tests/architectural/test_src_filter_coverage.py::test_unmatched_refs_equal_parsed_filter_groups_live"
+      ],
+      "current_nodeids": [
+        "tests/architectural/test_src_filter_coverage.py::test_catch_all_ignore_lists_mirror_owned_roots_live",
+        "tests/architectural/test_src_filter_coverage.py::test_every_named_group_gates_a_test_running_job_live",
+        "tests/architectural/test_src_filter_coverage.py::test_unmatched_refs_equal_parsed_filter_groups_live"
+      ],
+      "baseline_nodeids_sha256": "01fb4f9eea1f6137243e71e2447c2d2f43803976ad4deca35a5c4d30e1e83870",
+      "current_nodeids_sha256": "cc33620ea0644c2e0d876902ad1339e9cc6d7f57e30407a4378b31a446cab41e"
+    },
+    {
+      "path": "tests/architectural/test_tasks_domain_gate_visibility.py",
+      "baseline": 2,
+      "current": 0,
+      "delta": 2,
+      "baseline_nodeids": [
+        "tests/architectural/test_tasks_domain_gate_visibility.py::test_no_tasks_domain_path_in_orphan_baseline",
+        "tests/architectural/test_tasks_domain_gate_visibility.py::test_theater_synthetic_tasks_orphan_fires"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "02774378815901724f8d4d9e29a5b96155490e5e3e9ad7d7275dc179101dbf0a",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_trigger_registry_coverage.py",
+      "baseline": 5,
+      "current": 0,
+      "delta": 5,
+      "baseline_nodeids": [
+        "tests/architectural/test_trigger_registry_coverage.py::test_allowed_actions_constant_is_a_frozenset_for_immutability",
+        "tests/architectural/test_trigger_registry_coverage.py::test_every_declared_trigger_is_in_the_registered_set",
+        "tests/architectural/test_trigger_registry_coverage.py::test_registered_triggers_constant_is_a_frozenset_for_immutability",
+        "tests/architectural/test_trigger_registry_coverage.py::test_registered_triggers_is_strict_superset_of_allowed_actions",
+        "tests/architectural/test_trigger_registry_coverage.py::test_trigger_registry_runtime_export_in_sync"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "b87b0a0ff1d8a805ce02acfd05eca0f4035db9d9b06f9f8ea73a7b3e4c817e67",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_ui_e2e_coverage_discovered.py",
+      "baseline": 7,
+      "current": 0,
+      "delta": 7,
+      "baseline_nodeids": [
+        "tests/architectural/test_ui_e2e_coverage_discovered.py::test_coverage_ui_e2e_xml_is_in_discovered_set_live",
+        "tests/architectural/test_ui_e2e_coverage_discovered.py::test_faultinjection_download_dir_not_scanned_reds",
+        "tests/architectural/test_ui_e2e_coverage_discovered.py::test_faultinjection_missing_download_step_is_none",
+        "tests/architectural/test_ui_e2e_coverage_discovered.py::test_faultinjection_run_lookup_without_head_sha_is_not_keyed",
+        "tests/architectural/test_ui_e2e_coverage_discovered.py::test_faultinjection_uploaded_basename_mismatch_is_caught",
+        "tests/architectural/test_ui_e2e_coverage_discovered.py::test_ui_e2e_artifact_is_downloaded_cross_workflow_live",
+        "tests/architectural/test_ui_e2e_coverage_discovered.py::test_ui_e2e_run_lookup_is_head_sha_keyed_live"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "4b9a1000be15e180d759e2d0681ede53d89755dd3660ed4754ad9a611a1e0817",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_unit_contract_residual_gate.py",
+      "baseline": 6,
+      "current": 0,
+      "delta": 6,
+      "baseline_nodeids": [
+        "tests/architectural/test_unit_contract_residual_gate.py::test_env_check_marker_parser_agrees_with_gate_coverage_live",
+        "tests/architectural/test_unit_contract_residual_gate.py::test_faultinjection_miskeyed_job_name_does_not_vacuously_pass",
+        "tests/architectural/test_unit_contract_residual_gate.py::test_faultinjection_residual_dropped_from_needs_reds",
+        "tests/architectural/test_unit_contract_residual_gate.py::test_faultinjection_residual_with_if_gate_reds",
+        "tests/architectural/test_unit_contract_residual_gate.py::test_unit_contract_residual_is_always_on_live",
+        "tests/architectural/test_unit_contract_residual_gate.py::test_unit_contract_residual_is_named_quality_gate_dependency_live"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "552f3145404d556b3a59c866d46718920385620686e7c995e026d76165e6cad2",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_workflow_coherence.py",
+      "baseline": 16,
+      "current": 0,
+      "delta": 16,
+      "baseline_nodeids": [
+        "tests/architectural/test_workflow_coherence.py::test_diff_cover_critical_paths_are_cov_backed_live",
+        "tests/architectural/test_workflow_coherence.py::test_every_filter_glob_is_live",
+        "tests/architectural/test_workflow_coherence.py::test_every_filter_group_is_consumed_live",
+        "tests/architectural/test_workflow_coherence.py::test_faultinjection_dead_glob_reds",
+        "tests/architectural/test_workflow_coherence.py::test_faultinjection_extra_pytest_workflow_reds",
+        "tests/architectural/test_workflow_coherence.py::test_faultinjection_job_groups_mapping_drift_reds",
+        "tests/architectural/test_workflow_coherence.py::test_faultinjection_unbacked_critical_path_reds",
+        "tests/architectural/test_workflow_coherence.py::test_faultinjection_unconsumed_filter_group_reds",
+        "tests/architectural/test_workflow_coherence.py::test_faultinjection_undeclared_needs_read_reds",
+        "tests/architectural/test_workflow_coherence.py::test_job_groups_table_equals_parsed_if_gating_live",
+        "tests/architectural/test_workflow_coherence.py::test_needs_result_reads_are_declared_live",
+        "tests/architectural/test_workflow_coherence.py::test_pytest_workflow_set_equals_model_allowlist",
+        "tests/architectural/test_workflow_coherence.py::test_quality_gate_consumes_tojson_needs_not_literal_reads",
+        "tests/architectural/test_workflow_coherence.py::test_quality_gate_decision_data_blocks_present_live",
+        "tests/architectural/test_workflow_coherence.py::test_quality_gate_decision_step_pins_shell_bash",
+        "tests/architectural/test_workflow_coherence.py::test_quarantine_visibility_is_not_blocking_live"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "88ed36dd8128a3cc31fa3c982a9d0bbaccb85237678e6506d93db18eb7be9818",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/architectural/test_workflow_dist_lint.py",
+      "baseline": 14,
+      "current": 0,
+      "delta": 14,
+      "baseline_nodeids": [
+        "tests/architectural/test_workflow_dist_lint.py::test_auto_runs_pair_with_loadfile_in_current_workflows",
+        "tests/architectural/test_workflow_dist_lint.py::test_fault_injection_bare_dist_load_bites",
+        "tests/architectural/test_workflow_dist_lint.py::test_fault_injection_bare_dist_load_does_not_over_fire_on_loadfile",
+        "tests/architectural/test_workflow_dist_lint.py::test_fault_injection_fixed_range_under_auto_bites",
+        "tests/architectural/test_workflow_dist_lint.py::test_fault_injection_fixed_range_under_auto_respects_explicit_ignore",
+        "tests/architectural/test_workflow_dist_lint.py::test_fault_injection_matrix_fail_fast_false_passes",
+        "tests/architectural/test_workflow_dist_lint.py::test_fault_injection_matrix_fail_fast_true_bites",
+        "tests/architectural/test_workflow_dist_lint.py::test_fault_injection_matrix_missing_fail_fast_bites",
+        "tests/architectural/test_workflow_dist_lint.py::test_fault_injection_missing_loadfile_pairing_bites",
+        "tests/architectural/test_workflow_dist_lint.py::test_fault_injection_non_matrix_job_is_ignored",
+        "tests/architectural/test_workflow_dist_lint.py::test_fixed_range_suites_not_collected_under_auto_in_current_workflows",
+        "tests/architectural/test_workflow_dist_lint.py::test_matrix_jobs_set_fail_fast_false_in_current_workflows",
+        "tests/architectural/test_workflow_dist_lint.py::test_no_bare_dist_load_in_current_workflows",
+        "tests/architectural/test_workflow_dist_lint.py::test_workflow_parse_is_not_vacuous"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "9d01d1bff82536dd18d4ddc5f53482e669823c153387af11412271568b0e221e",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/merge/test_push_preflight.py",
+      "baseline": 20,
+      "current": 15,
+      "delta": 5,
+      "baseline_nodeids": [
+        "tests/merge/test_push_preflight.py::test_branch_commit_exists_inserts_end_of_options_before_ref",
+        "tests/merge/test_push_preflight.py::test_check_push_safety_ahead_returns_safe",
+        "tests/merge/test_push_preflight.py::test_check_push_safety_diverged_returns_not_safe",
+        "tests/merge/test_push_preflight.py::test_check_push_safety_fetch_failure_returns_not_safe",
+        "tests/merge/test_push_preflight.py::test_domain_preflight_does_not_import_push_preflight_at_module_load",
+        "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[ahead-True]",
+        "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[behind-False]",
+        "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[diverged-False]",
+        "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[in_sync-True]",
+        "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[no_tracking_branch-True]",
+        "tests/merge/test_push_preflight.py::test_merge_no_push_never_calls_check_push_safety[ahead]",
+        "tests/merge/test_push_preflight.py::test_merge_no_push_never_calls_check_push_safety[behind]",
+        "tests/merge/test_push_preflight.py::test_merge_no_push_never_calls_check_push_safety[diverged]",
+        "tests/merge/test_push_preflight.py::test_merge_no_push_never_calls_check_push_safety[in_sync]",
+        "tests/merge/test_push_preflight.py::test_merge_no_push_never_calls_check_push_safety[no_tracking_branch]",
+        "tests/merge/test_push_preflight.py::test_push_blocked_but_local_results_preserved_when_diverged",
+        "tests/merge/test_push_preflight.py::test_resolve_tracking_branch_inserts_end_of_options_before_ref",
+        "tests/merge/test_push_preflight.py::test_resolve_tracking_branch_still_resolves_real_upstream",
+        "tests/merge/test_push_preflight.py::test_resume_cannot_add_push_to_local_only_merge",
+        "tests/merge/test_push_preflight.py::test_resume_preserves_original_push_request"
+      ],
+      "current_nodeids": [
+        "tests/merge/test_push_preflight.py::test_branch_commit_exists_inserts_end_of_options_before_ref",
+        "tests/merge/test_push_preflight.py::test_check_push_safety_ahead_returns_safe",
+        "tests/merge/test_push_preflight.py::test_check_push_safety_diverged_returns_not_safe",
+        "tests/merge/test_push_preflight.py::test_check_push_safety_fetch_failure_returns_not_safe",
+        "tests/merge/test_push_preflight.py::test_domain_preflight_does_not_import_push_preflight_at_module_load",
+        "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[ahead-True]",
+        "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[behind-False]",
+        "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[diverged-False]",
+        "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[in_sync-True]",
+        "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[no_tracking_branch-True]",
+        "tests/merge/test_push_preflight.py::test_push_blocked_but_local_results_preserved_when_diverged",
+        "tests/merge/test_push_preflight.py::test_resolve_tracking_branch_inserts_end_of_options_before_ref",
+        "tests/merge/test_push_preflight.py::test_resolve_tracking_branch_still_resolves_real_upstream",
+        "tests/merge/test_push_preflight.py::test_resume_cannot_add_push_to_local_only_merge",
+        "tests/merge/test_push_preflight.py::test_resume_preserves_original_push_request"
+      ],
+      "baseline_nodeids_sha256": "a108041bdbd690348cfa7c36c220211f6fc8df3a3b1f14d892c0c76db4962e54",
+      "current_nodeids_sha256": "10d8a13adf92eff987df8cf5c778d5f9b1b45f08916a44eee2938d3cf09dc827"
+    },
+    {
+      "path": "tests/review/test_pre_review_gate_sole_caller_audit.py",
+      "baseline": 5,
+      "current": 0,
+      "delta": 5,
+      "baseline_nodeids": [
+        "tests/review/test_pre_review_gate_sole_caller_audit.py::test_evaluate_pre_review_gate_has_exactly_one_production_call_site",
+        "tests/review/test_pre_review_gate_sole_caller_audit.py::test_registry_handler_call_site_names_scope_source_explicitly",
+        "tests/review/test_pre_review_gate_sole_caller_audit.py::test_registry_handler_resolves_a_concrete_non_none_scope_source",
+        "tests/review/test_pre_review_gate_sole_caller_audit.py::test_retired_census_caller_has_no_call_site_anywhere",
+        "tests/review/test_pre_review_gate_sole_caller_audit.py::test_retired_census_caller_is_gone_from_both_modules_not_re_shimmed"
+      ],
+      "current_nodeids": [],
+      "baseline_nodeids_sha256": "0195c3abfc7de011d04af4434b7e61c156af31aaa480e332980435c4aa7ddef0",
+      "current_nodeids_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py",
+      "baseline": 13,
+      "current": 6,
+      "delta": 7,
+      "baseline_nodeids": [
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_expressed_once_guard_trips_on_planted_offender",
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_ff_advance_ignores_obstructing_coordination_status_residue",
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_ff_advance_still_raises_on_obstructing_non_residue_file",
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_merge_path_consumer_carries_no_local_residue_literal[src/specify_cli/lanes/auto_rebase.py]",
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_merge_path_consumer_carries_no_local_residue_literal[src/specify_cli/merge/executor.py]",
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_merge_path_consumer_imports_residue_authority[src/specify_cli/lanes/auto_rebase.py]",
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_merge_path_consumer_imports_residue_authority[src/specify_cli/merge/executor.py]",
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_ref_advance_callers_pass_coord_owned_filenames[src/specify_cli/lanes/merge.py]",
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_ref_advance_callers_pass_coord_owned_filenames[src/specify_cli/merge/ordering.py]",
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_does_not_swallow_non_residue_source_conflict",
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_does_not_swallow_primary_planning_conflict",
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_recognizes_previously_omitted_residue_member[acceptance-matrix.json]",
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_recognizes_previously_omitted_residue_member[issue-matrix.md]"
+      ],
+      "current_nodeids": [
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_ff_advance_ignores_obstructing_coordination_status_residue",
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_ff_advance_still_raises_on_obstructing_non_residue_file",
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_does_not_swallow_non_residue_source_conflict",
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_does_not_swallow_primary_planning_conflict",
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_recognizes_previously_omitted_residue_member[acceptance-matrix.json]",
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_recognizes_previously_omitted_residue_member[issue-matrix.md]"
+      ],
+      "baseline_nodeids_sha256": "96539a3f1817afe3ea0c6573c37356bc39258caa9e963db7a816d0ad3a4e455c",
+      "current_nodeids_sha256": "eeca3acfb7e1a61578aa4eee5e5686c5f8f78f372bb2545eb9d475b79da74367"
+    }
+  ],
+  "frozen_node_map": [
+    [
+      "tests/architectural/test_arch_pole_deserialized.py::test_arch_pole_needs_no_fast_lane_job",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "positive-route-pin",
+      null
+    ],
+    [
+      "tests/architectural/test_arch_pole_deserialized.py::test_architectural_suite_has_a_running_job",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/architectural/test_arch_pole_deserialized.py::test_architectural_suite_has_a_running_job"
+    ],
+    [
+      "tests/architectural/test_arch_shard_marker_completeness.py::test_duplicate_key_registration_with_different_definition_is_rejected",
+      "FOLD_TO_SURVIVOR",
+      "arch-partition-fold",
+      "tests/architectural/test_arch_shard_marker_completeness.py::test_every_group_root_node_has_exactly_one_shard_marker[arch]"
+    ],
+    [
+      "tests/architectural/test_arch_shard_marker_completeness.py::test_every_pole_root_test_has_exactly_one_shard_marker",
+      "FOLD_TO_SURVIVOR",
+      "arch-partition-fold",
+      "tests/architectural/test_arch_shard_marker_completeness.py::test_every_group_root_node_has_exactly_one_shard_marker[arch]"
+    ],
+    [
+      "tests/architectural/test_arch_shard_marker_completeness.py::test_expected_groups_are_all_registered",
+      "FOLD_TO_SURVIVOR",
+      "arch-partition-fold",
+      "tests/architectural/test_arch_shard_marker_completeness.py::test_every_group_root_node_has_exactly_one_shard_marker[arch]"
+    ],
+    [
+      "tests/architectural/test_arch_shard_marker_completeness.py::test_pole_root_universe_is_nonempty",
+      "FOLD_TO_SURVIVOR",
+      "arch-partition-fold",
+      "tests/architectural/test_arch_shard_marker_completeness.py::test_every_group_root_node_has_exactly_one_shard_marker[arch]"
+    ],
+    [
+      "tests/architectural/test_arch_shard_marker_completeness.py::test_removed_registration_fails_with_diagnosable_message",
+      "FOLD_TO_SURVIVOR",
+      "arch-partition-fold",
+      "tests/architectural/test_arch_shard_marker_completeness.py::test_every_group_root_node_has_exactly_one_shard_marker[arch]"
+    ],
+    [
+      "tests/architectural/test_arch_shard_marker_completeness.py::test_shard_union_equals_full_pole_root_universe",
+      "FOLD_TO_SURVIVOR",
+      "arch-partition-fold",
+      "tests/architectural/test_arch_shard_marker_completeness.py::test_every_group_root_node_has_exactly_one_shard_marker[arch]"
+    ],
+    [
+      "tests/architectural/test_arch_shard_marker_completeness.py::test_unmarked_next_universe_fails_not_passes",
+      "FOLD_TO_SURVIVOR",
+      "next-partition-fold",
+      "tests/architectural/test_arch_shard_marker_completeness.py::test_every_group_root_node_has_exactly_one_shard_marker[next]"
+    ],
+    [
+      "tests/architectural/test_arch_unblind_matrix.py::test_every_dir_is_arch_selected",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_arch_unblind_matrix.py::test_matrix_spans_every_src_package_dir",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_arch_unblind_matrix.py::test_no_src_dir_is_architecturally_blind",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_architectural_gate_coverage.py::test_arch_suite_runs_unconditionally_cannot_be_masked",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_architectural_gate_coverage.py::test_core_misc_filter_not_over_broad",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_architectural_gate_coverage.py::test_guarded_surfaces_in_core_misc_filter",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_architectural_gate_coverage.py::test_lifecycle_events_covered_by_core_misc",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_architectural_gate_coverage.py::test_tests_architectural_stays_in_core_misc",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_active_jobs_grow_monotonically_with_the_filter_state",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_analyze_default_still_models_every_job",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_every_group_atom_is_a_positive_unnegated_test",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main"
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_gate_reads_no_ratchet_baseline",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_issue_2957_named_files_are_collected_on_a_push_to_main",
+      "FOLD_TO_SURVIVOR",
+      "collection-route-fold",
+      "tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main"
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_honours_an_active_group",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[${{ (always()) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') }}-True]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[False-False]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[None-True]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[True-True]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[always() && (needs.changes.outputs.cli == 'true' || github.event_name == 'push')-True]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[always() && github.event_name != 'pull_request'-True]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[always() && github.event_name == 'pull_request'-False]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[always() && github.event_name == 'push'-True]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[always() && needs.changes.outputs.cli == 'true'-False]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[always() && needs.changes.outputs.core_misc == 'true'-False]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[always()-True]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[needs.fast-tests-cli.result == 'success'-True]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[needs.kernel-tests.result != 'failure'-True]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_job_runs_under_push_with_no_group_active[some.unmodelled.expression == 'true'-False]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_label_guard_blocks_only_pull_requests",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_normalize_condition[${{ always() }}-always()]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_normalize_condition[((always()))-always()]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_normalize_condition[(a) && (b)-(a) && (b)]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_normalize_condition[always()/n  && github.event_name == 'push'-always() && github.event_name == 'push']",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_release_workflow_does_not_run_on_a_push_to_main",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_selfmutation_planted_uncollected_node_is_reported",
+      "FOLD_TO_SURVIVOR",
+      "collection-route-fold",
+      "tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main"
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_selfmutation_removing_the_push_disjunct_is_reported",
+      "FOLD_TO_SURVIVOR",
+      "collection-route-fold",
+      "tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main"
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_split_top_level_respects_parentheses[(a || b) && c-||-expected3]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_split_top_level_respects_parentheses[-&&-expected4]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_split_top_level_respects_parentheses[a && (b && c)-&&-expected1]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_split_top_level_respects_parentheses[a && b-&&-expected0]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_split_top_level_respects_parentheses[a || b || c-||-expected2]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[aliased attribute-from tests.architectural import _gate_coverage as gc/ngc.load_baseline()/n]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[direct symbol import-from tests.architectural._gate_coverage import load_baseline/nload_baseline()/n]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[fully dotted access-import tests.architectural._gate_coverage/ntests.architectural._gate_coverage.load_baseline()/n]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[getattr indirection-from tests.architectural import _gate_coverage as gc/ngetattr(gc, 'load_baseline')()/n]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[literal baseline path-from pathlib import Path/nPath('tests/architectural/_gate_coverage_baseline.json').read_text()/n]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[literal path as a keyword argument-open(file='tests/architectural/_gate_coverage_baseline.json').read()/n]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[literal path by joining-from pathlib import Path/ndata = Path('tests/architectural') / '_gate_coverage_baseline.json'/n]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[literal path inside an f-string-from pathlib import Path/nroot = 'tests/architectural'/ndata = Path(f'{root}/_gate_coverage_baseline.json').read_text()/n]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[rebound alias-from tests.architectural import _gate_coverage as gc/nsneaky = gc/nsneaky.update_baseline()/n]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_catches_every_known_escape[renamed module import-import tests.architectural._gate_coverage as gate/ngate.load_baseline()/n]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_the_baseline_reach_checker_does_not_fire_on_prose",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_collection_completeness.py::test_worst_case_filter_state_is_reachable",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_ci_quality_exempt_jobs_carry_marker_comment",
+      "FOLD_TO_SURVIVOR",
+      "timeout-exemption-fold",
+      "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_timeout_exemptions_exist_and_record_a_reason"
+    ],
+    [
+      "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_ci_quality_fast_jobs_carry_timeout",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_ci_quality_fast_jobs_carry_timeout"
+    ],
+    [
+      "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_exempt_allowlist_members_still_exist",
+      "FOLD_TO_SURVIVOR",
+      "timeout-exemption-fold",
+      "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_timeout_exemptions_exist_and_record_a_reason"
+    ],
+    [
+      "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_fault_injection_both_exempt_jobs_with_comment_do_not_bite",
+      "FOLD_TO_SURVIVOR",
+      "timeout-exemption-fold",
+      "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_timeout_exemptions_exist_and_record_a_reason"
+    ],
+    [
+      "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_fault_injection_exempt_job_without_marker_comment_bites",
+      "FOLD_TO_SURVIVOR",
+      "timeout-exemption-fold",
+      "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_timeout_exemptions_exist_and_record_a_reason"
+    ],
+    [
+      "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_fault_injection_marker_only_job_is_still_classified_fast_tier",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_fault_injection_missing_timeout_on_covered_job_bites",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_fault_injection_new_fast_job_without_allowlisting_bites",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_fault_injection_non_fast_job_is_not_classified_fast_tier",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_fast_jobs_have_timeout.py::test_fault_injection_timeout_present_does_not_bite",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_topology_worklist.py::test_census_arch_blind_groups_matches_live_derivation",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_topology_worklist.py::test_census_mapped_dirs_matches_live_derivation",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_topology_worklist.py::test_census_worklist_matches_live_derivation",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_topology_worklist.py::test_committed_census_carries_no_loc",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_topology_worklist.py::test_every_worklist_dir_declares_a_focused_shard",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_topology_worklist.py::test_every_worklist_dir_meets_loc_floor",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_topology_worklist.py::test_every_worklist_dir_routes_to_named_src_backed_group",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_topology_worklist.py::test_freshness_index_reds_on_floor_crossing",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_topology_worklist.py::test_freshness_index_reds_on_hand_trim",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_topology_worklist.py::test_freshness_index_reds_on_phantom_dir",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_topology_worklist.py::test_freshness_index_reds_on_routing_edit",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_topology_worklist.py::test_no_worklist_dir_falls_to_unmatched_run_all",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_topology_worklist.py::test_rank_altering_loc_churn_keeps_gate_green",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ci_topology_worklist.py::test_worklist_is_non_empty",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_coverage_consumer_needs.py::test_coverage_binding_is_not_slow_tests_needs",
+      "FOLD_TO_SURVIVOR",
+      "coverage-emitter-fold",
+      "tests/architectural/test_coverage_consumer_needs.py::test_src_coverage_emitters_reach_sonarcloud"
+    ],
+    [
+      "tests/architectural/test_coverage_consumer_needs.py::test_diff_coverage_and_mutation_needs_are_real_emitters",
+      "FOLD_TO_SURVIVOR",
+      "coverage-consumer-fold",
+      "tests/architectural/test_coverage_consumer_needs.py::test_coverage_consumers_depend_only_on_emitters"
+    ],
+    [
+      "tests/architectural/test_coverage_consumer_needs.py::test_emitter_set_is_non_empty",
+      "FOLD_TO_SURVIVOR",
+      "coverage-emitter-fold",
+      "tests/architectural/test_coverage_consumer_needs.py::test_src_coverage_emitters_reach_sonarcloud"
+    ],
+    [
+      "tests/architectural/test_coverage_consumer_needs.py::test_src_coverage_emitters_are_sonarcloud_consumers",
+      "FOLD_TO_SURVIVOR",
+      "coverage-consumer-fold",
+      "tests/architectural/test_coverage_consumer_needs.py::test_coverage_consumers_depend_only_on_emitters"
+    ],
+    [
+      "tests/architectural/test_coverage_root_collisions.py::test_collision_guard_is_clean_on_the_dotted_remediation",
+      "FOLD_TO_SURVIVOR",
+      "coverage-root-collision-fold",
+      "tests/architectural/test_coverage_root_collisions.py::test_path_form_coverage_roots_do_not_collide"
+    ],
+    [
+      "tests/architectural/test_coverage_root_collisions.py::test_collision_guard_reds_on_a_synthetic_colliding_invocation",
+      "FOLD_TO_SURVIVOR",
+      "coverage-root-collision-fold",
+      "tests/architectural/test_coverage_root_collisions.py::test_path_form_coverage_roots_do_not_collide"
+    ],
+    [
+      "tests/architectural/test_coverage_root_collisions.py::test_every_cov_target_resolves_to_something_real",
+      "FOLD_TO_SURVIVOR",
+      "coverage-root-resolve-fold",
+      "tests/architectural/test_coverage_root_collisions.py::test_every_coverage_target_resolves"
+    ],
+    [
+      "tests/architectural/test_coverage_root_collisions.py::test_no_multi_root_invocation_collides_on_the_real_tree",
+      "FOLD_TO_SURVIVOR",
+      "coverage-root-collision-fold",
+      "tests/architectural/test_coverage_root_collisions.py::test_path_form_coverage_roots_do_not_collide"
+    ],
+    [
+      "tests/architectural/test_coverage_root_collisions.py::test_reality_guard_reds_on_a_synthetic_dead_root",
+      "FOLD_TO_SURVIVOR",
+      "coverage-root-resolve-fold",
+      "tests/architectural/test_coverage_root_collisions.py::test_every_coverage_target_resolves"
+    ],
+    [
+      "tests/architectural/test_cross_gate_churn_agreement.py::test_all_churn_gates_agree_on_corpus",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_cross_gate_churn_agreement.py::test_corpus_is_non_vacuous",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_cross_gate_churn_agreement.py::test_owner_routed_gates_already_agree",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_cross_gate_churn_agreement.py::test_ref_advance_now_agrees_with_the_owner_on_the_former_2795_probe",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_cross_grain_builtin_gate.py::test_shipped_tree_is_cross_grain_disjoint_and_covers_every_type",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_docs_scoped_arch_coverage.py::test_all_arch_shard_legs_share_identical_paths",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_docs_scoped_arch_coverage.py::test_detector_flags_dunder_file_rooted_docs_path",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_docs_scoped_arch_coverage.py::test_detector_flags_repo_rooted_docs_path",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_docs_scoped_arch_coverage.py::test_detector_flags_scan_roots_docs",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_docs_scoped_arch_coverage.py::test_detector_ignores_tmp_path_docs",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_docs_scoped_arch_coverage.py::test_detector_ignores_unrelated_docs_literal",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_docs_scoped_arch_coverage.py::test_every_docs_reading_arch_test_is_docs_scoped",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_docs_scoped_arch_coverage.py::test_known_docs_scanners_are_docs_scoped",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_docs_scoped_arch_coverage.py::test_marker_detector_reads_list_and_single_forms",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_docs_scoped_arch_coverage.py::test_scan_dirs_equal_pole_matrix_paths",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_all_suite_workflows_parse_into_gates",
+      "FOLD_TO_SURVIVOR",
+      "collection-route-fold",
+      "tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main"
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_analyze_detects_orphan_and_covered_records",
+      "FOLD_TO_SURVIVOR",
+      "collection-route-fold",
+      "tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main"
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_baseline_file_is_well_formed",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "baseline-ratchet",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_baseline_files_exist_for_all_targets",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "baseline-ratchet",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_ci_quality_workflow_file_is_itself_a_core_misc_glob",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "positive-route-pin",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_cli_only_pr_selects_the_saas_attribution_guard",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "positive-route-pin",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_collect_universe_fails_loudly_on_collection_error",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_cross_job_disjoint_selection_is_pure_and_detects_overlap",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "cross-job-helper-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_duplicate_selection_is_reported",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "cross-job-report-only",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_egress_module_diff_selects_both_sync_and_core_misc",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "positive-route-pin",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_gc2b_bites_on_baseline_file_side_injection",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "baseline-ratchet",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_gc2b_bites_on_producer_side_selection_shrink",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "baseline-ratchet",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_gc2b_current_selection_matches_baseline[fast-tests-core-misc]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "baseline-ratchet",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_gc2b_current_selection_matches_baseline[integration-tests-next]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "baseline-ratchet",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_gc2b_current_selection_matches_baseline[slow-tests]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "baseline-ratchet",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_gc2b_orphan_drift_bites_on_genuine_orphan",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "baseline-ratchet",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_gc2b_orphan_drift_ignores_routine_test_file_churn",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "baseline-ratchet",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_group_claim_derivation_is_discriminating",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_integration_tests_next_is_tier_classified_integration",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "positive-route-pin",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_join_continuations_merges_backslash_lines",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_marker_expressions_compile",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_model_fidelity_spotcheck_sharded_next_tier",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "positive-route-pin",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_next_shard_completeness_logic_is_wired",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "positive-route-pin",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_no_new_orphan_surfaces",
+      "FOLD_TO_SURVIVOR",
+      "collection-route-fold",
+      "tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main"
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_orphan_backlog_does_not_grow",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "baseline-ratchet",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_orphan_sweep_and_sync_pool_are_disjoint_today",
+      "FOLD_TO_SURVIVOR",
+      "cross-job-disjointness-fold",
+      "tests/architectural/test_ci_collection_completeness.py::test_orphan_sweep_and_parallel_pool_are_disjoint"
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_parser_ignores_non_command_pytest_tokens",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_path_matches_nodeid_prefix_branch",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_pytest_marker_expression_import_contract",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_required_selection_structures_present",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "positive-route-pin",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_saas_guard_collection_derivation_is_discriminating",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "positive-route-pin",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_selection_logic_matches_marker_and_path",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_selection_respects_ignore",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_strip_to_command_strips_env_and_runner_prefixes",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_substitute_matrix_expands_and_blanks",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_tracker_only_diff_selects_the_job_collecting_its_ratchets",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "positive-route-pin",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage.py::test_windows_gate_models_windows_ci_marker",
+      "FOLD_TO_SURVIVOR",
+      "windows-route-fold",
+      "tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main"
+    ],
+    [
+      "tests/architectural/test_gate_coverage_parse_model.py::test_cov_target_repo_path_expands_dotted_form",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage_parse_model.py::test_cov_target_repo_path_passes_through_path_form",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage_parse_model.py::test_discover_pytest_workflows_detects_fixture_workflow",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage_parse_model.py::test_discover_pytest_workflows_matches_module_allowlist",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage_parse_model.py::test_is_src_cov_target_recognizes_both_shapes",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage_parse_model.py::test_is_src_cov_target_rejects_non_src_targets",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage_parse_model.py::test_positive_marker_tokens_fails_loudly_on_invalid_expression",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage_parse_model.py::test_positive_marker_tokens_is_negation_aware",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage_parse_model.py::test_registered_markers_live_registry",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage_parse_model.py::test_registered_markers_parses_fixture_ini",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage_parse_model.py::test_routed_marker_names_live_floor",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage_parse_model.py::test_workflow_model_handles_absent_trigger_sections",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage_parse_model.py::test_workflow_model_live_ci_quality_relations",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage_parse_model.py::test_workflow_model_parses_cov_targets_and_critical_paths",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage_parse_model.py::test_workflow_model_parses_filter_groups_and_job_gating",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage_parse_model.py::test_workflow_model_parses_needs_and_result_reads",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_coverage_parse_model.py::test_workflow_model_parses_trigger_types_and_paths",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_does_not_sanction_status_kind_seam_binding",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_flags_coord_bearing_attribute",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_flags_one_hop_cross_function_param",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_flags_one_hop_keyword_binding",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_identity_flags_inline_call",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_identity_flags_keyword_two_hop",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_identity_flags_two_hop",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_identity_passes_parameter_dir",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_identity_passes_primary_fold",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_lanes_flags_inline_call",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_lanes_flags_two_hop",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_lanes_passes_primary_fold",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_passes_one_hop_caller_primary_fold",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_passes_sanctioned_primary_attribute",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_sanctions_primary_seam_binding_but_still_flags_bad_read",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_callshape_arm_shape_isolation",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_callshape_coord_aware_set_aligns_with_read_arm",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_dir_read_arm_default_deny_accept_package_clean",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_dir_read_arm_known_residuals_are_pinned",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_dir_read_arm_self_test_c008_subpath_not_flagged",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_dir_read_arm_self_test_flags_inline_call_shape",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_dir_read_arm_self_test_passes_routed_inline_seam",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_enumerated_surface_set_is_pinned_and_live",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_primary_partition_read_dir_call_discriminates_on_kind_argument",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_read_arm_default_deny_flags_unlisted_slug_resolver_command",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_read_arm_default_deny_no_unlisted_topology_join",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_read_arm_gate_surfaces_route_through_seam",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_read_arm_self_test_flags_bare_tasks_dir_topology_join",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_read_arm_self_test_flags_direct_topology_join",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_read_arm_self_test_flags_topology_resolver_read",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_read_arm_self_test_passes_clean_seam_read",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_read_arm_self_test_passes_clean_wp_tasks_seam_and_status_dir",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_write_arm_mutation_neither_candidate_nor_primary_reds_positive_assertion",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_write_arm_primary_seam_thin_adapter_kind_discipline_holds",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_write_arm_recognises_primary_seam_idiom_literal_join_spelling",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_write_arm_recognises_primary_seam_thin_adapter_post_migration_shape",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_write_arm_resolvers_anchor_meta_on_primary",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_write_arm_self_test_flags_candidate_meta_anchor",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_gate_read_literal_ban.py::test_write_arm_self_test_passes_primary_meta_anchor",
+      "FOLD_TO_EXTERNAL_SURVIVOR",
+      "coord-read-fold",
+      "tests/architectural/test_coord_read_residuals_closeout.py"
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_allowlist_entries_are_still_live",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_allowlist_matches_floor",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_allowlist_shrink_only",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_collect_json_import_bindings_resolves_all_forms",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_follow_assignment_chain_resolves_at_the_hop_limit",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_follow_assignment_chain_respects_hop_limit",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_gate_runs_under_fast_tier_budget",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_inline_meta_read_floor",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_inline_meta_read_gate_green_against_seeded_allowlist",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_inline_meta_read_key_is_hashable_and_value_keyed",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_is_json_loads_call_resolves_arbitrary_module_alias",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_is_json_loads_call_resolves_from_import_binding",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_is_meta_path_expr_matches_inline_join",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_is_meta_path_expr_matches_pattern_names",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_is_meta_path_expr_rejects_other_join_suffix",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_is_meta_path_expr_rejects_unrelated_name",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_is_meta_path_expr_resolves_arbitrary_name_via_assignment",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_is_meta_path_expr_resolves_two_hop_reassignment_chain",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_is_meta_path_expr_without_fn_context_rejects_arbitrary_name",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_loader_rejects_entry_without_issue",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_loader_rejects_entry_without_rationale",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_loader_rejects_entry_without_token",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_loader_rejects_non_integer_line",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_module_is_json_accepts_aliased_import",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_new_inline_meta_read_is_flagged",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_read_source_base_direct_open_call",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_read_source_base_direct_read_text",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_read_source_base_returns_none_for_unrelated_read",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_read_source_base_traces_named_assignment",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_read_source_base_traces_with_statement_binding",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_routed_count_floor_blocks_mass_allowlist",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_routed_load_meta_floor",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_scan_detects_aliased_json_module_import",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_scan_detects_arbitrary_variable_name",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_scan_detects_from_json_import_loads",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_scan_detects_two_hop_reassignment",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_scan_excludes_mission_metadata_and_task_utils",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_scan_routed_load_meta_calls_counts_call_sites",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_staleness_twin_guard_empty_when_all_live",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_inline_meta_read_gate.py::test_staleness_twin_guard_flags_stale_entry",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_job_count_ceiling.py::test_ceiling_leaves_headroom_for_composite_design",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_job_count_ceiling.py::test_ceiling_relation_bites_when_graph_exceeds_it",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_job_count_ceiling.py::test_quality_gate_needs_within_ceiling",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_marker_baseline.py::test_baseline_file_is_non_empty",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_marker_baseline.py::test_fault_injection_growth_bites",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_marker_baseline.py::test_fault_injection_identical_sets_pass",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_marker_baseline.py::test_fault_injection_shrink_is_not_a_violation",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_marker_baseline.py::test_marker_set_does_not_grow_vs_baseline",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_marker_registry_single_source.py::test_pyproject_does_not_redeclare_pytest_markers",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_marker_registry_single_source.py::test_pytest_ini_exists_and_declares_markers",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_mission_resolver_walker_gate.py::test_gate_scan_scope_reaches_known_walker_files",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_mission_resolver_walker_gate.py::test_no_unsanctioned_raw_kitty_specs_enumeration_in_src",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/architectural/test_mission_resolver_walker_gate.py::test_no_unsanctioned_raw_kitty_specs_enumeration_in_src"
+    ],
+    [
+      "tests/architectural/test_mission_resolver_walker_gate.py::test_planted_raw_walker_is_detected_outside_allowlist",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_mission_resolver_walker_gate.py::test_planted_walker_using_conventional_parameter_name_is_detected",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_mission_resolver_walker_gate.py::test_resolve_mission_free_function_callers_do_not_silently_multiply",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_next_shard_marker_completeness.py::test_every_next_root_test_has_exactly_one_shard_marker",
+      "FOLD_TO_SURVIVOR",
+      "next-partition-fold",
+      "tests/architectural/test_arch_shard_marker_completeness.py::test_every_group_root_node_has_exactly_one_shard_marker[next]"
+    ],
+    [
+      "tests/architectural/test_next_shard_marker_completeness.py::test_next_root_universe_is_nonempty",
+      "FOLD_TO_SURVIVOR",
+      "next-partition-fold",
+      "tests/architectural/test_arch_shard_marker_completeness.py::test_every_group_root_node_has_exactly_one_shard_marker[next]"
+    ],
+    [
+      "tests/architectural/test_next_shard_marker_completeness.py::test_shard_union_equals_full_next_root_universe",
+      "FOLD_TO_SURVIVOR",
+      "next-partition-fold",
+      "tests/architectural/test_arch_shard_marker_completeness.py::test_every_group_root_node_has_exactly_one_shard_marker[next]"
+    ],
+    [
+      "tests/architectural/test_no_primary_anchored_gates.py::test_is_committed_signature_has_no_retired_topology_params",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_no_primary_anchored_gates.py::test_no_is_committed_call_passes_retired_topology_kwargs",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_plugin_validate_workflow.py::test_plugin_validate_triggers_cover_plugin_build_inputs[pull_request]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_plugin_validate_workflow.py::test_plugin_validate_triggers_cover_plugin_build_inputs[push]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_pytest_marker_convention.py::test_every_test_file_declares_a_pytestmark_marker",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_pytest_marker_convention.py::test_support_helper_tree_is_exempt_from_marker_convention",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_pytest_marker_correctness.py::test_fast_marker_must_not_apply_to_subprocess_users",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_pytest_marker_correctness.py::test_subprocess_git_users_must_carry_git_repo_marker",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_allowlist_key_is_hashable_and_value_keyed",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_allowlist_no_stale_entries",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_allowlist_shrink_only",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_c001_bare_probe_is_pinned_in_allowlist",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_accepts_bare_modern_fold_assigned_handle",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_accepts_dir_name_attribute",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_accepts_fold_assigned_handle",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_attribute_callee_not_mismatched",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_bare_modern_fold_auto_routes",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_bare_modern_fold_does_not_canonicalize_raw_param",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_def_use_is_intra_function_only",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_detects_keyword_arg_form",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_flags_raw_handle",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_gate_green_against_seeded_allowlist",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_permanent_allowlist_is_exactly_3",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_canonicalizer_self_mutation_injects_violation",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_by_design_modules_classified_write",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_by_design_survives_at_three_non_vacuous",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_flags_write_in_same_function",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_floor_non_vacuous_against_reverted_by_design_write",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_gate_floor",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_gate_green_against_seeded_allowlist",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_open_read_mode_not_write",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_open_write_mode_is_write",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_pure_read_probe_not_write",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_coord_authority_self_mutation_injects_violation",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_coord_by_design_writes_in_allowlist",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_derive_live_key_distinguishes_same_method_name_in_two_classes",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_derive_live_key_module_scope",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_derive_live_key_nested_function_chain",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_emit_py_has_no_live_coord_blind_resolver_call_sites",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_every_allowlist_entry_has_live_match",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_gates_run_under_fast_tier_budget",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_loader_rejects_entry_without_rationale",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_loader_rejects_entry_without_token",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_placement_seam_write_target_and_read_dir_require_kind",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_real_allowlist_declares_no_count_qualifiers",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_staleness_failure_message_prints_nearest_live_token",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_staleness_twin_guard_empty_when_all_live",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_staleness_twin_guard_flags_stale_entry",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_theater_content_leg_reds_entry_point[canonicalizer]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_theater_content_leg_reds_entry_point[coord_authority]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_theater_drift_leg_stays_green[canonicalizer]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_theater_drift_leg_stays_green[coord_authority]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_theater_new_offender_leg_reds[canonicalizer]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_theater_new_offender_leg_reds[coord_authority]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_resolution_authority_gates.py::test_within_function_collision_count_is_bidirectional",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_shard_universe_bounded.py::test_catch_all_jobs_are_present",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_shard_universe_bounded.py::test_no_single_shard_collects_the_full_catch_all_universe",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_src_filter_coverage.py::test_catch_all_ignore_lists_mirror_owned_roots_live",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/architectural/test_src_filter_coverage.py::test_catch_all_ignore_lists_mirror_owned_roots_live"
+    ],
+    [
+      "tests/architectural/test_src_filter_coverage.py::test_docs_e2e_do_not_mask_unmapped_src_live",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "positive-route-pin",
+      null
+    ],
+    [
+      "tests/architectural/test_src_filter_coverage.py::test_every_named_group_gates_a_test_running_job_live",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/architectural/test_src_filter_coverage.py::test_every_named_group_gates_a_test_running_job_live"
+    ],
+    [
+      "tests/architectural/test_src_filter_coverage.py::test_faultinjection_group_missing_from_catchall_reds",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_src_filter_coverage.py::test_faultinjection_missing_ready_for_review_reds",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_src_filter_coverage.py::test_faultinjection_spurious_catchall_ignore_reds",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_src_filter_coverage.py::test_ready_for_review_trigger_present_live",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "positive-route-pin",
+      null
+    ],
+    [
+      "tests/architectural/test_src_filter_coverage.py::test_rednegative_group_reorder_stays_green",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_src_filter_coverage.py::test_rednegative_ignore_reorder_stays_green",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_src_filter_coverage.py::test_unmatched_boolean_semantics",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/architectural/test_src_filter_coverage.py::test_unmatched_refs_equal_parsed_filter_groups_live",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/architectural/test_src_filter_coverage.py::test_unmatched_refs_equal_parsed_filter_groups_live"
+    ],
+    [
+      "tests/architectural/test_tasks_domain_gate_visibility.py::test_no_tasks_domain_path_in_orphan_baseline",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_tasks_domain_gate_visibility.py::test_theater_synthetic_tasks_orphan_fires",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_trigger_registry_coverage.py::test_allowed_actions_constant_is_a_frozenset_for_immutability",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_trigger_registry_coverage.py::test_every_declared_trigger_is_in_the_registered_set",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_trigger_registry_coverage.py::test_registered_triggers_constant_is_a_frozenset_for_immutability",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_trigger_registry_coverage.py::test_registered_triggers_is_strict_superset_of_allowed_actions",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_trigger_registry_coverage.py::test_trigger_registry_runtime_export_in_sync",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ui_e2e_coverage_discovered.py::test_coverage_ui_e2e_xml_is_in_discovered_set_live",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ui_e2e_coverage_discovered.py::test_faultinjection_download_dir_not_scanned_reds",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ui_e2e_coverage_discovered.py::test_faultinjection_missing_download_step_is_none",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ui_e2e_coverage_discovered.py::test_faultinjection_run_lookup_without_head_sha_is_not_keyed",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ui_e2e_coverage_discovered.py::test_faultinjection_uploaded_basename_mismatch_is_caught",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ui_e2e_coverage_discovered.py::test_ui_e2e_artifact_is_downloaded_cross_workflow_live",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_ui_e2e_coverage_discovered.py::test_ui_e2e_run_lookup_is_head_sha_keyed_live",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_unit_contract_residual_gate.py::test_env_check_marker_parser_agrees_with_gate_coverage_live",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_unit_contract_residual_gate.py::test_faultinjection_miskeyed_job_name_does_not_vacuously_pass",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_unit_contract_residual_gate.py::test_faultinjection_residual_dropped_from_needs_reds",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_unit_contract_residual_gate.py::test_faultinjection_residual_with_if_gate_reds",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_unit_contract_residual_gate.py::test_unit_contract_residual_is_always_on_live",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_unit_contract_residual_gate.py::test_unit_contract_residual_is_named_quality_gate_dependency_live",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_coherence.py::test_diff_cover_critical_paths_are_cov_backed_live",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_coherence.py::test_every_filter_glob_is_live",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_coherence.py::test_every_filter_group_is_consumed_live",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_coherence.py::test_faultinjection_dead_glob_reds",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_coherence.py::test_faultinjection_extra_pytest_workflow_reds",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_coherence.py::test_faultinjection_job_groups_mapping_drift_reds",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_coherence.py::test_faultinjection_unbacked_critical_path_reds",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_coherence.py::test_faultinjection_unconsumed_filter_group_reds",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_coherence.py::test_faultinjection_undeclared_needs_read_reds",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_coherence.py::test_job_groups_table_equals_parsed_if_gating_live",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_coherence.py::test_needs_result_reads_are_declared_live",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_coherence.py::test_pytest_workflow_set_equals_model_allowlist",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_coherence.py::test_quality_gate_consumes_tojson_needs_not_literal_reads",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_coherence.py::test_quality_gate_decision_data_blocks_present_live",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_coherence.py::test_quality_gate_decision_step_pins_shell_bash",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_coherence.py::test_quarantine_visibility_is_not_blocking_live",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_dist_lint.py::test_auto_runs_pair_with_loadfile_in_current_workflows",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_dist_lint.py::test_fault_injection_bare_dist_load_bites",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_dist_lint.py::test_fault_injection_bare_dist_load_does_not_over_fire_on_loadfile",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_dist_lint.py::test_fault_injection_fixed_range_under_auto_bites",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_dist_lint.py::test_fault_injection_fixed_range_under_auto_respects_explicit_ignore",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_dist_lint.py::test_fault_injection_matrix_fail_fast_false_passes",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_dist_lint.py::test_fault_injection_matrix_fail_fast_true_bites",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_dist_lint.py::test_fault_injection_matrix_missing_fail_fast_bites",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_dist_lint.py::test_fault_injection_missing_loadfile_pairing_bites",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_dist_lint.py::test_fault_injection_non_matrix_job_is_ignored",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_dist_lint.py::test_fixed_range_suites_not_collected_under_auto_in_current_workflows",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_dist_lint.py::test_matrix_jobs_set_fail_fast_false_in_current_workflows",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_dist_lint.py::test_no_bare_dist_load_in_current_workflows",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/architectural/test_workflow_dist_lint.py::test_workflow_parse_is_not_vacuous",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_branch_commit_exists_inserts_end_of_options_before_ref",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/merge/test_push_preflight.py::test_branch_commit_exists_inserts_end_of_options_before_ref"
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_check_push_safety_ahead_returns_safe",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/merge/test_push_preflight.py::test_check_push_safety_ahead_returns_safe"
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_check_push_safety_diverged_returns_not_safe",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/merge/test_push_preflight.py::test_check_push_safety_diverged_returns_not_safe"
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_check_push_safety_fetch_failure_returns_not_safe",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/merge/test_push_preflight.py::test_check_push_safety_fetch_failure_returns_not_safe"
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_domain_preflight_does_not_import_push_preflight_at_module_load",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/merge/test_push_preflight.py::test_domain_preflight_does_not_import_push_preflight_at_module_load"
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[ahead-True]",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[ahead-True]"
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[behind-False]",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[behind-False]"
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[diverged-False]",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[diverged-False]"
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[in_sync-True]",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[in_sync-True]"
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[no_tracking_branch-True]",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[no_tracking_branch-True]"
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_merge_no_push_never_calls_check_push_safety[ahead]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_merge_no_push_never_calls_check_push_safety[behind]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_merge_no_push_never_calls_check_push_safety[diverged]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_merge_no_push_never_calls_check_push_safety[in_sync]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_merge_no_push_never_calls_check_push_safety[no_tracking_branch]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "scanner-self-test",
+      null
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_push_blocked_but_local_results_preserved_when_diverged",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/merge/test_push_preflight.py::test_push_blocked_but_local_results_preserved_when_diverged"
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_resolve_tracking_branch_inserts_end_of_options_before_ref",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/merge/test_push_preflight.py::test_resolve_tracking_branch_inserts_end_of_options_before_ref"
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_resolve_tracking_branch_still_resolves_real_upstream",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/merge/test_push_preflight.py::test_resolve_tracking_branch_still_resolves_real_upstream"
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_resume_cannot_add_push_to_local_only_merge",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/merge/test_push_preflight.py::test_resume_cannot_add_push_to_local_only_merge"
+    ],
+    [
+      "tests/merge/test_push_preflight.py::test_resume_preserves_original_push_request",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/merge/test_push_preflight.py::test_resume_preserves_original_push_request"
+    ],
+    [
+      "tests/review/test_pre_review_gate_sole_caller_audit.py::test_evaluate_pre_review_gate_has_exactly_one_production_call_site",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/review/test_pre_review_gate_sole_caller_audit.py::test_registry_handler_call_site_names_scope_source_explicitly",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/review/test_pre_review_gate_sole_caller_audit.py::test_registry_handler_resolves_a_concrete_non_none_scope_source",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/review/test_pre_review_gate_sole_caller_audit.py::test_retired_census_caller_has_no_call_site_anywhere",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/review/test_pre_review_gate_sole_caller_audit.py::test_retired_census_caller_is_gone_from_both_modules_not_re_shimmed",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "path-homogeneous-deletion",
+      null
+    ],
+    [
+      "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_expressed_once_guard_trips_on_planted_offender",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "positive-route-pin",
+      null
+    ],
+    [
+      "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_ff_advance_ignores_obstructing_coordination_status_residue",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_ff_advance_ignores_obstructing_coordination_status_residue"
+    ],
+    [
+      "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_ff_advance_still_raises_on_obstructing_non_residue_file",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_ff_advance_still_raises_on_obstructing_non_residue_file"
+    ],
+    [
+      "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_merge_path_consumer_carries_no_local_residue_literal[src/specify_cli/lanes/auto_rebase.py]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "positive-route-pin",
+      null
+    ],
+    [
+      "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_merge_path_consumer_carries_no_local_residue_literal[src/specify_cli/merge/executor.py]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "positive-route-pin",
+      null
+    ],
+    [
+      "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_merge_path_consumer_imports_residue_authority[src/specify_cli/lanes/auto_rebase.py]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "positive-route-pin",
+      null
+    ],
+    [
+      "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_merge_path_consumer_imports_residue_authority[src/specify_cli/merge/executor.py]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "positive-route-pin",
+      null
+    ],
+    [
+      "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_ref_advance_callers_pass_coord_owned_filenames[src/specify_cli/lanes/merge.py]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "positive-route-pin",
+      null
+    ],
+    [
+      "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_ref_advance_callers_pass_coord_owned_filenames[src/specify_cli/merge/ordering.py]",
+      "DELETE_NO_UNIQUE_BOUNDARY",
+      "positive-route-pin",
+      null
+    ],
+    [
+      "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_does_not_swallow_non_residue_source_conflict",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_does_not_swallow_non_residue_source_conflict"
+    ],
+    [
+      "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_does_not_swallow_primary_planning_conflict",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_does_not_swallow_primary_planning_conflict"
+    ],
+    [
+      "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_recognizes_previously_omitted_residue_member[acceptance-matrix.json]",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_recognizes_previously_omitted_residue_member[acceptance-matrix.json]"
+    ],
+    [
+      "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_recognizes_previously_omitted_residue_member[issue-matrix.md]",
+      "KEEP_EXACT",
+      "exact-survivor",
+      "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py::test_take_theirs_recognizes_previously_omitted_residue_member[issue-matrix.md]"
+    ]
+  ],
+  "set_hashes": {
+    "owned_paths_sha256": "91f8618353f79e0d0c79624c1a273e1c9489d017383e595eef1cd4f40e9a9f95",
+    "baseline_nodeids_sha256": "d9f4fff14d0efd7c43057cb69e3b88e7a646c38e93db0d7f37d0a8cfa6ab863d",
+    "current_nodeids_sha256": "0da4bd0b13ab43d61f91c59689430f33cb4aebce1fa384c6cd1c01bd4bb8f02f"
+  },
+  "fail_closed_checks": {
+    "owned_paths_exactly_37_unique": true,
+    "all_owned_paths_present_in_census_path_table": true,
+    "baseline_nodeids_exactly_418_unique": true,
+    "frozen_node_map_is_total_and_unique": true,
+    "every_mapping_family_has_matching_outcome": true,
+    "current_nodeids_exactly_36_unique": true,
+    "yaml_path_counts_match_authoritative_sets": true,
+    "arithmetic": "418 - 36 = 382",
+    "status": "PASS"
+  },
+  "focused_route_equivalence": {
+    "windows_fault": "remove Windows marker selector from its owning workflow route",
+    "intended_assertion": "tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main",
+    "observed": "intended assertion red; 23 Windows nodes became orphans",
+    "cross_job_overlap_decision": "KEEP_MINIMAL: GC-2/C-007 is current authority; healthy serial-orphan-sweep/parallel-pool intersection is empty and removal of the actual pool ignore produces the exact 9-node serial overlap"
+  }
+}
+}

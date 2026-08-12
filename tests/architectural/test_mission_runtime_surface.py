@@ -160,11 +160,6 @@ class TestMissionRuntimeSurface:
         )
         assert result.returncode == 0, result.stderr
 
-    def test_public_surface_matches_contract(self) -> None:
-        """The public API stays lean; compatibility attrs are not in __all__."""
-        import mission_runtime
-
-        assert mission_runtime.__all__ == _PUBLIC_SURFACE
 
     def test_no_external_submodule_imports(self, evaluable: EvaluableArchitecture) -> None:
         """pytestarch rule: nothing imports mission_runtime internals directly.

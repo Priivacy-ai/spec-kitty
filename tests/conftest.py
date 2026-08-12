@@ -1,20 +1,27 @@
 from __future__ import annotations
 
 import atexit
+import hashlib
+import json
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import tomllib
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from collections.abc import Callable, Iterable, Iterator
 
+import psutil
 import pytest
 import yaml
 from filelock import FileLock, Timeout
 
+from kernel.clock import now_epoch
 from runtime.next._tmp_namespace import prompt_tmp_dir
 from tests import _arch_shard_map  # noqa: F401 — import-time `arch` group registration via register()
 from tests import _next_shard_map  # noqa: F401 — import-time `next` group registration via register()
@@ -25,7 +32,7 @@ from tests._support.quarantine import (
     quarantine_skip_mark,
 )
 from tests._support.wall_clock_assertions import (
-    find_wall_clock_assertion_violations,
+    find_wall_clock_assertion_violations_cached,
     find_test_python_paths,
     format_wall_clock_assertion_violations,
 )
@@ -140,7 +147,49 @@ def _apply_home_env(home_base: Path) -> None:
 
 _VENV_CACHE_PATH = Path(".pytest_cache/spec-kitty-test-venv")
 _VENV_LOCK_PATH = Path(".pytest_cache/spec-kitty-test-venv.lock")
-_LOCK_TIMEOUT_S = 60.0
+_VENV_STATE_PATH = Path(".pytest_cache/spec-kitty-test-venv.state.json")
+_STATE_LOCK_TIMEOUT_S = 10.0
+_HEARTBEAT_INTERVAL_S = 5.0
+_LEASE_SECONDS = 30.0
+_WAIT_TIMEOUT_S = 900.0
+_WAIT_POLL_INTERVAL_S = 0.2
+_LEASE_STATES = {"BUILDING", "VALIDATED", "PUBLISHED"}
+
+
+@dataclass(frozen=True)
+class _BootstrapLease:
+    state: str
+    owner_pid: int
+    process_start_token: str
+    heartbeat_at: float
+    lease_seconds: float
+    temp_path: Path
+    source_version: str
+    environment_hash: str
+
+    def to_json(self) -> dict[str, object]:
+        return {
+            "state": self.state,
+            "owner_pid": self.owner_pid,
+            "process_start_token": self.process_start_token,
+            "heartbeat_at": self.heartbeat_at,
+            "lease_seconds": self.lease_seconds,
+            "temp_path": str(self.temp_path),
+            "source_version": self.source_version,
+            "environment_hash": self.environment_hash,
+        }
+
+    def with_state(self, state: str, *, heartbeat_at: float | None = None) -> _BootstrapLease:
+        return _BootstrapLease(
+            state=state,
+            owner_pid=self.owner_pid,
+            process_start_token=self.process_start_token,
+            heartbeat_at=self.heartbeat_at if heartbeat_at is None else heartbeat_at,
+            lease_seconds=self.lease_seconds,
+            temp_path=self.temp_path,
+            source_version=self.source_version,
+            environment_hash=self.environment_hash,
+        )
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -262,7 +311,11 @@ def _apply_shard_markers(item: pytest.Item) -> None:
 def _fail_on_wall_clock_assertions(items: list[pytest.Item]) -> None:
     del items
     paths = find_test_python_paths(Path(__file__).parent)
-    violations = find_wall_clock_assertion_violations(paths)
+    violations = find_wall_clock_assertion_violations_cached(
+        paths,
+        REPO_ROOT / ".pytest_cache" / "wall-clock-assertion-scan",
+        config_paths=(REPO_ROOT / "pytest.ini", REPO_ROOT / "pyproject.toml"),
+    )
     if violations:
         raise pytest.UsageError(format_wall_clock_assertion_violations(violations))
 
@@ -319,6 +372,36 @@ def _isolated_worker_home(
 def _enable_saas_sync_feature_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep legacy sync/auth tests enabled unless a test opts out explicitly."""
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+
+
+@pytest.fixture(autouse=True)
+def _isolate_global_encoding_provenance(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Keep relative charter provenance writes inside each test sandbox.
+
+    ``charter._io`` intentionally routes non-mission inputs to the relative
+    ``.kittify/encoding-provenance/global.jsonl`` sink.  Tests commonly load
+    absolute files from ``tmp_path`` while pytest's process CWD remains the
+    source checkout; under xdist those otherwise append the same ignored
+    source file while source-pollution tests inventory it.  Redirect only that
+    canonical relative sink.  Absolute and per-mission routes keep exercising
+    the production resolver unchanged, and CLI subprocesses retain their own
+    project CWD.
+    """
+    import charter._io as charter_io
+
+    original_route = charter_io._route_provenance_path
+    isolated_sink = tmp_path / ".kittify" / "encoding-provenance" / "global.jsonl"
+
+    def _isolated_route(source_path: Path | None) -> Path:
+        routed = original_route(source_path)
+        if routed == Path(".kittify/encoding-provenance/global.jsonl"):
+            return isolated_sink
+        return routed
+
+    monkeypatch.setattr(charter_io, "_route_provenance_path", _isolated_route)
 
 
 # ---------------------------------------------------------------------------
@@ -545,17 +628,23 @@ def _neutralize_worktree_detection(request, monkeypatch: pytest.MonkeyPatch) -> 
 
 
 def _venv_python(venv_dir: Path) -> Path:
-    candidate = venv_dir / "bin" / "python"
-    if candidate.exists():
-        return candidate
-    return venv_dir / "Scripts" / "python.exe"
+    posix = venv_dir / "bin" / "python"
+    windows = venv_dir / "Scripts" / "python.exe"
+    if posix.exists():
+        return posix
+    if windows.exists():
+        return windows
+    return windows if os.name == "nt" else posix
 
 
 def _venv_pip(venv_dir: Path) -> Path:
-    candidate = venv_dir / "bin" / "pip"
-    if candidate.exists():
-        return candidate
-    return venv_dir / "Scripts" / "pip.exe"
+    posix = venv_dir / "bin" / "pip"
+    windows = venv_dir / "Scripts" / "pip.exe"
+    if posix.exists():
+        return posix
+    if windows.exists():
+        return windows
+    return windows if os.name == "nt" else posix
 
 
 def _venv_has_required_runtime(venv_dir: Path) -> bool:
@@ -565,7 +654,7 @@ def _venv_has_required_runtime(venv_dir: Path) -> bool:
         return False
     probe = (
         "import importlib.util,sys;"
-        "mods=['typer','rich','httpx','yaml'];"
+        "mods=['typer','rich','httpx','yaml','specify_cli'];"
         "missing=[m for m in mods if importlib.util.find_spec(m) is None];"
         "sys.exit(1 if missing else 0)"
     )
@@ -595,33 +684,323 @@ def _venv_is_valid(venv_dir: Path, source_version: str) -> bool:
     return _venv_has_required_runtime(venv_dir)
 
 
-def _ensure_test_venv(project_root: Path, source_version: str) -> Path:
-    """Create or reuse the shared test venv, serialised across concurrent pytest processes.
+def _test_venv_environment_hash(project_root: Path, source_version: str) -> str:
+    lock_path = project_root / "uv.lock"
+    # File-integrity identity, not charter content hashing.
+    lock_hash = (
+        hashlib.sha256(lock_path.read_bytes()).hexdigest()  # noqa: TID251
+        if lock_path.is_file()
+        else "missing"
+    )
+    payload = json.dumps(
+        {
+            "lock_hash": lock_hash,
+            "platform": sys.platform,
+            "python": list(sys.version_info[:2]),
+            "source_version": source_version,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()  # noqa: TID251
 
-    Uses a file lock at ``_VENV_LOCK_PATH`` (relative to *project_root*) so that
-    parallel pytest invocations (e.g., contract + architectural gates) cannot race
-    and observe a half-created venv.  The lock timeout is ``_LOCK_TIMEOUT_S``
-    seconds; if the lock cannot be acquired, an operator-actionable RuntimeError is
-    raised that names the lock file and explains how to remove it.
 
-    Implements FR-003 and FR-004.
-    """
-    venv_path = project_root / _VENV_CACHE_PATH
-    lock_path = project_root / _VENV_LOCK_PATH
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
+def _process_start_token(pid: int) -> str | None:
     try:
-        with FileLock(str(lock_path), timeout=_LOCK_TIMEOUT_S):
-            if not _venv_is_valid(venv_path, source_version):
-                shutil.rmtree(venv_path, ignore_errors=True)
-                _create_test_venv(venv_path, source_version)
-                (venv_path / "VERSION").write_text(source_version, encoding="utf-8")
-    except Timeout:
+        return f"{psutil.Process(pid).create_time():.6f}"
+    except (psutil.Error, OSError):
+        return None
+
+
+def _read_bootstrap_lease(state_path: Path) -> _BootstrapLease | None:
+    if not state_path.exists():
+        return None
+    try:
+        payload = json.loads(state_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise TypeError("state is not an object")
+        state = payload["state"]
+        owner_pid = payload["owner_pid"]
+        process_start_token = payload["process_start_token"]
+        heartbeat_at = payload["heartbeat_at"]
+        lease_seconds = payload["lease_seconds"]
+        temp_path = payload["temp_path"]
+        source_version = payload["source_version"]
+        environment_hash = payload["environment_hash"]
+        if state not in _LEASE_STATES:
+            raise ValueError(f"unknown state {state!r}")
+        if not isinstance(owner_pid, int) or isinstance(owner_pid, bool) or owner_pid <= 0:
+            raise TypeError("owner_pid must be a positive integer")
+        if not isinstance(process_start_token, str) or not process_start_token:
+            raise TypeError("process_start_token must be a non-empty string")
+        if not isinstance(heartbeat_at, int | float) or isinstance(heartbeat_at, bool):
+            raise TypeError("heartbeat_at must be numeric")
+        if not isinstance(lease_seconds, int | float) or isinstance(lease_seconds, bool) or lease_seconds <= 0:
+            raise TypeError("lease_seconds must be positive")
+        if not isinstance(temp_path, str) or not temp_path:
+            raise TypeError("temp_path must be a non-empty string")
+        if not isinstance(source_version, str) or not isinstance(environment_hash, str):
+            raise TypeError("version/hash must be strings")
+        return _BootstrapLease(
+            state=state,
+            owner_pid=owner_pid,
+            process_start_token=process_start_token,
+            heartbeat_at=float(heartbeat_at),
+            lease_seconds=float(lease_seconds),
+            temp_path=Path(temp_path),
+            source_version=source_version,
+            environment_hash=environment_hash,
+        )
+    except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
         raise RuntimeError(
-            f"Timed out acquiring {lock_path} after {_LOCK_TIMEOUT_S}s. "
-            f"If no test process is currently running, remove the lock file: "
-            f"rm {lock_path}"
-        ) from None
-    return venv_path
+            f"Malformed test-venv lease state at {state_path}: {exc}. "
+            "Inspect and remove that state file only after confirming no test builder is running."
+        ) from exc
+
+
+def _write_bootstrap_lease(state_path: Path, lease: _BootstrapLease) -> None:
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = state_path.with_name(f"{state_path.name}.tmp-{os.getpid()}-{uuid.uuid4().hex}")
+    try:
+        temporary.write_text(
+            json.dumps(lease.to_json(), sort_keys=True, separators=(",", ":")) + "\n",
+            encoding="utf-8",
+        )
+        os.replace(temporary, state_path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _lease_is_live_and_fresh(lease: _BootstrapLease, now: float) -> bool:
+    current_token = _process_start_token(lease.owner_pid)
+    return (
+        current_token is not None
+        and current_token == lease.process_start_token
+        and now - lease.heartbeat_at <= lease.lease_seconds
+    )
+
+
+def _expected_temp_path(temp_path: Path, final_path: Path) -> bool:
+    candidate = Path(os.path.abspath(temp_path))
+    final = Path(os.path.abspath(final_path))
+    return (
+        os.path.normcase(str(candidate.parent)) == os.path.normcase(str(final.parent))
+        and candidate.name.startswith(f"{final.name}.build-")
+    )
+
+
+def _remove_path_without_following_symlinks(path: Path) -> None:
+    """Remove one cache entry without following a file or directory symlink."""
+    if path.is_symlink() or path.is_file():
+        path.unlink(missing_ok=True)
+    elif path.exists():
+        shutil.rmtree(path)
+
+
+def _remove_recorded_temp(lease: _BootstrapLease, final_path: Path) -> None:
+    if not _expected_temp_path(lease.temp_path, final_path):
+        raise RuntimeError(
+            f"Refusing to recover test venv from unsafe temp_path {lease.temp_path}; "
+            f"expected a sibling named {final_path.name}.build-* beside {final_path}."
+        )
+    _remove_path_without_following_symlinks(lease.temp_path)
+
+
+def _lease_owned_by(lease: _BootstrapLease | None, owner: _BootstrapLease) -> bool:
+    return bool(
+        lease is not None
+        and lease.owner_pid == owner.owner_pid
+        and lease.process_start_token == owner.process_start_token
+        and lease.temp_path == owner.temp_path
+        and lease.environment_hash == owner.environment_hash
+    )
+
+
+def _heartbeat_bootstrap_lease(
+    state_path: Path,
+    lock_path: Path,
+    owner: _BootstrapLease,
+    stop: threading.Event,
+    interval: float,
+) -> None:
+    while not stop.wait(interval):
+        try:
+            with FileLock(str(lock_path), timeout=_STATE_LOCK_TIMEOUT_S):
+                lease = _read_bootstrap_lease(state_path)
+                if not _lease_owned_by(lease, owner) or lease is None or lease.state != "BUILDING":
+                    return
+                _write_bootstrap_lease(state_path, lease.with_state("BUILDING", heartbeat_at=now_epoch()))
+        except (OSError, RuntimeError, Timeout):
+            # A missed heartbeat is recoverable. Repeated misses eventually make
+            # the lease stale, while the owning process remains independently
+            # identifiable by its start token.
+            continue
+
+
+def _claim_bootstrap_lease(
+    project_root: Path,
+    source_version: str,
+    *,
+    validate: Callable[[Path, str], bool],
+    lease_seconds: float,
+) -> tuple[Path | None, _BootstrapLease | None, _BootstrapLease | None]:
+    final_path = project_root / _VENV_CACHE_PATH
+    lock_path = project_root / _VENV_LOCK_PATH
+    state_path = project_root / _VENV_STATE_PATH
+    environment_hash = _test_venv_environment_hash(project_root, source_version)
+    now = now_epoch()
+    with FileLock(str(lock_path), timeout=_STATE_LOCK_TIMEOUT_S):
+        if validate(final_path, source_version):
+            return final_path, None, None
+
+        lease = _read_bootstrap_lease(state_path)
+        if lease is not None and lease.state in {"BUILDING", "VALIDATED"}:
+            if _lease_is_live_and_fresh(lease, now):
+                return None, None, lease
+            _remove_recorded_temp(lease, final_path)
+
+        if final_path.exists() or final_path.is_symlink():
+            _remove_path_without_following_symlinks(final_path)
+        final_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = Path(tempfile.mkdtemp(prefix=f"{final_path.name}.build-", dir=final_path.parent))
+        process_token = _process_start_token(os.getpid())
+        if process_token is None:
+            shutil.rmtree(temp_path, ignore_errors=True)
+            raise RuntimeError(f"Cannot identify test-venv builder process {os.getpid()}.")
+        owner = _BootstrapLease(
+            state="BUILDING",
+            owner_pid=os.getpid(),
+            process_start_token=process_token,
+            heartbeat_at=now,
+            lease_seconds=lease_seconds,
+            temp_path=temp_path,
+            source_version=source_version,
+            environment_hash=environment_hash,
+        )
+        _write_bootstrap_lease(state_path, owner)
+        return None, owner, None
+
+
+def _publish_bootstrap_lease(
+    project_root: Path,
+    source_version: str,
+    owner: _BootstrapLease,
+    *,
+    validate: Callable[[Path, str], bool],
+) -> Path:
+    final_path = project_root / _VENV_CACHE_PATH
+    lock_path = project_root / _VENV_LOCK_PATH
+    state_path = project_root / _VENV_STATE_PATH
+    with FileLock(str(lock_path), timeout=_STATE_LOCK_TIMEOUT_S):
+        lease = _read_bootstrap_lease(state_path)
+        if not _lease_owned_by(lease, owner) or lease is None or lease.state != "BUILDING":
+            raise RuntimeError("Test-venv builder lost lease ownership before publication.")
+        if not validate(owner.temp_path, source_version):
+            raise RuntimeError(f"Test-venv validation failed before publication: {owner.temp_path}")
+
+        validated = lease.with_state("VALIDATED", heartbeat_at=now_epoch())
+        _write_bootstrap_lease(state_path, validated)
+        if final_path.exists() or final_path.is_symlink():
+            if validate(final_path, source_version):
+                _remove_recorded_temp(validated, final_path)
+                _write_bootstrap_lease(
+                    state_path,
+                    validated.with_state("PUBLISHED", heartbeat_at=now_epoch()),
+                )
+                return final_path
+            _remove_path_without_following_symlinks(final_path)
+        owner.temp_path.rename(final_path)
+        _write_bootstrap_lease(
+            state_path,
+            validated.with_state("PUBLISHED", heartbeat_at=now_epoch()),
+        )
+        return final_path
+
+
+def _cleanup_failed_bootstrap(project_root: Path, owner: _BootstrapLease) -> None:
+    lock_path = project_root / _VENV_LOCK_PATH
+    state_path = project_root / _VENV_STATE_PATH
+    try:
+        with FileLock(str(lock_path), timeout=_STATE_LOCK_TIMEOUT_S):
+            lease = _read_bootstrap_lease(state_path)
+            if _lease_owned_by(lease, owner):
+                _remove_recorded_temp(owner, project_root / _VENV_CACHE_PATH)
+                state_path.unlink(missing_ok=True)
+    except (OSError, RuntimeError, Timeout):
+        return
+
+
+def _ensure_test_venv(
+    project_root: Path,
+    source_version: str,
+    *,
+    _build: Callable[[Path, str], None] | None = None,
+    _validate: Callable[[Path, str], bool] | None = None,
+    _heartbeat_interval: float = _HEARTBEAT_INTERVAL_S,
+    _lease_seconds: float = _LEASE_SECONDS,
+    _wait_timeout: float = _WAIT_TIMEOUT_S,
+    _poll_interval: float = _WAIT_POLL_INTERVAL_S,
+) -> Path:
+    """Create or reuse a validated shared venv through a recoverable lease."""
+    build = _create_test_venv if _build is None else _build
+    validate = _venv_is_valid if _validate is None else _validate
+    final_path = project_root / _VENV_CACHE_PATH
+    state_path = project_root / _VENV_STATE_PATH
+    deadline = time.monotonic() + _wait_timeout
+    last_observed: _BootstrapLease | None = None
+
+    while time.monotonic() < deadline:
+        try:
+            ready, owner, observed = _claim_bootstrap_lease(
+                project_root,
+                source_version,
+                validate=validate,
+                lease_seconds=_lease_seconds,
+            )
+        except Timeout:
+            time.sleep(_poll_interval)
+            continue
+        if ready is not None:
+            return ready
+        if owner is None:
+            last_observed = observed
+            time.sleep(_poll_interval)
+            continue
+
+        heartbeat_stop = threading.Event()
+        heartbeat = threading.Thread(
+            target=_heartbeat_bootstrap_lease,
+            args=(state_path, project_root / _VENV_LOCK_PATH, owner, heartbeat_stop, _heartbeat_interval),
+            name="spec-kitty-test-venv-heartbeat",
+            daemon=True,
+        )
+        heartbeat.start()
+        try:
+            build(owner.temp_path, source_version)
+            (owner.temp_path / "VERSION").write_text(source_version, encoding="utf-8")
+            return _publish_bootstrap_lease(
+                project_root,
+                source_version,
+                owner,
+                validate=validate,
+            )
+        except BaseException:
+            _cleanup_failed_bootstrap(project_root, owner)
+            raise
+        finally:
+            heartbeat_stop.set()
+            heartbeat.join(timeout=max(1.0, _heartbeat_interval * 2))
+
+    age = "unknown"
+    owner_summary = "unknown"
+    if last_observed is not None:
+        age = f"{max(0.0, now_epoch() - last_observed.heartbeat_at):.1f}s"
+        owner_summary = f"pid={last_observed.owner_pid} start={last_observed.process_start_token}"
+    raise RuntimeError(
+        f"Timed out waiting {_wait_timeout:.1f}s for shared test venv {final_path}; "
+        f"owner={owner_summary}, heartbeat_age={age}, state={state_path}. "
+        "Confirm the owner process is stopped, then inspect the state file before removing it."
+    )
 
 
 def _venv_site_packages(venv_dir: Path) -> Path:

@@ -117,8 +117,13 @@ def doctor_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Itera
     test function, each chdir-ing explicitly via :func:`_run_doctor`.
     """
     from specify_cli.auth.manager import reset_token_manager
+    from specify_cli.sync import register_default_handlers
 
     reset_token_manager()
+    # Adapter tests deliberately clear the process-global registry. Importing
+    # ``specify_cli.sync`` again does not replay its module-level registration,
+    # so establish the production resolver explicitly for every checkout.
+    register_default_handlers()
     home = tmp_path / "home"
     home.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))

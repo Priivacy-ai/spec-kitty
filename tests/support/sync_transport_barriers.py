@@ -2182,12 +2182,16 @@ def _invoke_relay(
             patch("specify_cli.sync.daemon.get_sync_daemon_status", lambda **_kwargs: status),
             patch.object(events.urllib.request, "urlopen", _urlopen),
         ):
+            # ``occurred_at`` now travels inside ``metadata=WPStatusChangeMetadata``
+            # (main's S107 wrapper refactor); the flat kwarg raises TypeError.
+            from specify_cli.status import WPStatusChangeMetadata
+
             emitted = events.emit_wp_status_changed(
                 "WP09",
                 "in_progress",
                 "for_review",
                 actor="wp09-adapter-matrix",
-                occurred_at="2026-08-11T20:00:00+00:00",
+                metadata=WPStatusChangeMetadata(occurred_at="2026-08-11T20:00:00+00:00"),
             )
     except PhysicalSinkPoison:
         raise

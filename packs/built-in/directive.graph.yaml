@@ -118,12 +118,18 @@ edges:
   target: directive:DIRECTIVE_025
   relation: in_tension_with
   reason: Locality of Change bounds new work to the minimum scope the goal requires; Boy Scout Rule endorses opportunistic improvement of touched areas, which can justify expanding a change beyond that boundary. Both remain valid, co-activatable rules -- the tension is resolved per-change by keeping adjacent campsite cleaning inside the touched area while deferring genuinely broad refactors with an explicit rationale, not by retiring either rule. See directive:RECONCILE_CHANGE_SCOPE_TENSIONS.
+- source: directive:DIRECTIVE_024
+  target: directive:RECONCILE_CHANGE_SCOPE_TENSIONS
+  relation: suggests
 - source: directive:DIRECTIVE_025
   target: directive:DIRECTIVE_024
   relation: requires
 - source: directive:DIRECTIVE_025
   target: directive:DIRECTIVE_040
   relation: requires
+- source: directive:DIRECTIVE_025
+  target: directive:RECONCILE_CHANGE_SCOPE_TENSIONS
+  relation: suggests
 - source: directive:DIRECTIVE_025
   target: paradigm:brownfield-onboarding
   relation: suggests
@@ -139,6 +145,9 @@ edges:
   relation: suggests
 - source: directive:DIRECTIVE_029
   target: toolguide:git-agent-commit-signing
+  relation: suggests
+- source: directive:DIRECTIVE_030
+  target: directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
   relation: suggests
 - source: directive:DIRECTIVE_030
   target: procedure:red-main-release-discipline

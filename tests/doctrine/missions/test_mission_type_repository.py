@@ -24,7 +24,7 @@ from pydantic import ValidationError
 from doctrine.missions.mission_type_repository import MissionTypeRepository
 from doctrine.missions.models import MissionType
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 
 # ── MissionType model unit tests ─────────────────────────────────────────────

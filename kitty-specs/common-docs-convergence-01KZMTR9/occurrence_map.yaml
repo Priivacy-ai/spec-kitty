@@ -315,3 +315,20 @@ moves:
   - { from: ["research-notes-csf-2670.md"], to: "docs/plans/engineering-notes/research-notes-csf-2670.md", reason: "single-root: point-in-time research -> plans/engineering-notes" }
   - { from: ["T022-perf.txt"], to: "RETIRE", reason: "single-root: transient perf-gate dump, retired" }
   - { from: ["review-feedback-WP04.md"], to: "RETIRE", reason: "single-root: transient review artifact, retired" }
+
+  # ---------------------------------------------------------------------------
+  # docs/plans curation (#3324, 2026-08-11): the planning surface was curated —
+  # orphaned top-level notes filed into subject subdirectories, subdirectory
+  # landing files standardized on index.md, and a duplicate redirect stub retired.
+  # These pages are not in redirect_baseline_urls.json (post-baseline plans
+  # notes), so the derived redirect map is unchanged (regen is a no-op and
+  # `check-map` stays fresh) — same as the WP02 block above. They are captured
+  # here only so the reverse rename-reconcile gate (NFR-005) sees them on-spine.
+  - { from: ["docs/plans/2497-external-observability-endpoints-assessment.md"], to: "docs/plans/investigations/2497-external-observability-endpoints-assessment.md", reason: "#3324: orphaned top-level note -> investigations/" }
+  - { from: ["docs/plans/loop-friction-fastfollow-spec.md"], to: "docs/plans/investigations/loop-friction-fastfollow-spec.md", reason: "#3324: orphaned top-level note -> investigations/" }
+  - { from: ["docs/plans/test-change-coupling-caacs.md"], to: "docs/plans/testing/test-change-coupling-caacs.md", reason: "#3324: orphaned top-level note -> testing/" }
+  - { from: ["docs/plans/charter-sole-door-deferred-issues.md"], to: "docs/plans/doctrine/charter-sole-door-deferred-issues.md", reason: "#3324: orphaned top-level note -> doctrine/" }
+  - { from: ["docs/plans/initiatives/README.md"], to: "docs/plans/initiatives/index.md", reason: "#3324: subdirectory landing file standardized on index.md (README -> index)" }
+  - { from: ["docs/plans/next-mission-mappings/README.md"], to: "docs/plans/next-mission-mappings/index.md", reason: "#3324: subdirectory landing file standardized on index.md (README -> index)" }
+  - { from: ["docs/plans/user_journey/README.md"], to: "docs/plans/user_journey/index.md", reason: "#3324: subdirectory landing file standardized on index.md (README -> index)" }
+  - { from: ["docs/plans/initiatives/next-mission-mappings/README.md"], to: "RETIRE", reason: "#3324: duplicate next-mission-mappings redirect stub retired (canonical lives at docs/plans/next-mission-mappings/index.md)" }

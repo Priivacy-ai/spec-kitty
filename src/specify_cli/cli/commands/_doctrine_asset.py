@@ -31,7 +31,7 @@ from specify_cli.cli.console import console
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from doctrine.assets.repository import AssetRepository
+    from charter.assets import AssetRepository
 
 __all__ = ["asset_app"]
 
@@ -84,7 +84,7 @@ def _build_asset_repository() -> AssetRepository:
     repo_root = locate_project_root()
     if repo_root is not None:
         from charter._doctrine_paths import resolve_project_root
-        from specify_cli.doctrine.config import resolve_org_roots
+        from charter.drg import resolve_org_roots
 
         project_root = resolve_project_root(repo_root)
         org_roots = [root for root in resolve_org_roots(repo_root) if root.exists()]
@@ -114,7 +114,7 @@ def _resolved_path_str(repo: AssetRepository, asset_id: str) -> str:
     rather than one of them crashing the whole ``list`` command with an
     uncaught traceback.
     """
-    from doctrine.assets.repository import AssetNotFoundError, AssetPathEscapeError
+    from charter.assets import AssetNotFoundError, AssetPathEscapeError
 
     try:
         return str(repo.resolve_path(asset_id))
@@ -169,7 +169,7 @@ def asset_path(
     Exits ``0`` and prints the path on success. An unknown id or a containment
     refusal exits non-zero with the offending id named (A-7 / NFR-006).
     """
-    from doctrine.assets.repository import (
+    from charter.assets import (
         AssetNotFoundError,
         AssetPathEscapeError,
     )

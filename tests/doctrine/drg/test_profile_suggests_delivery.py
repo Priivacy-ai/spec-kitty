@@ -41,7 +41,7 @@ from doctrine.drg.query import resolve_context
 from doctrine.drg.reachability import profile_channel_reachable
 from doctrine.service import DoctrineService
 
-pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 # --- URNs under test --------------------------------------------------------
 _ARCHITECT = "agent_profile:architect-alphonso"

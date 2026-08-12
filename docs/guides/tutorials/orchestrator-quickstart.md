@@ -2,7 +2,7 @@
 title: Orchestrator Quickstart
 description: Learn how Spec Kitty and spec-kitty-orchestrator work together to run a small mission through implementation and review.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-08-11'
 audience: docs/context/audience/external/project-owner.md
 type: tutorial
 related:
@@ -32,6 +32,10 @@ You need:
 
 If you do not have a mission yet, finish [Your First Mission](your-first-mission.md)
 first.
+
+![Orchestrator quickstart - Mission Kitty splash](../../assets/images/orchestrator-quickstart-mission-kitty.png)
+
+_Stylized splash — the conductor's podium is decorative. Host contract, orchestrator run, and recovery steps are in the sections below._
 
 ## Version compatibility
 

@@ -10,7 +10,7 @@ from ruamel.yaml import YAML
 from doctrine.drg.models import DRGGraph, Relation
 from doctrine.service import DoctrineService
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 
 def _write_yaml(path: Path, data: dict) -> None:

@@ -19,13 +19,13 @@ import typer
 import yaml
 from typer.testing import CliRunner
 
-from specify_cli.doctrine.config import (
+from doctrine.drg.org_pack_config import (
     OrgPackConfig,
     PackRegistry,
-    load_pack_registry,
     resolve_org_roots,
     save_pack_registry,
 )
+from specify_cli.doctrine.config import load_pack_registry
 from specify_cli.doctrine.sources.protocol import FetchResult
 
 

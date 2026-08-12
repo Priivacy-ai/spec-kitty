@@ -26,8 +26,6 @@ from specify_cli.cli.commands.implement_cores import (
     _feature_dir_status_entries,
     _files_changed_vs_ref,
     _is_self_write_only_diff,
-    _is_vcs_lock_only_meta_diff,
-    _parse_meta_mapping,
     _parse_porcelain_entries,
     _placement_coord_filter,
     _PorcelainEntry,
@@ -37,6 +35,8 @@ from specify_cli.cli.commands.implement_cores import (
     resolve_planning_artifact_staging,
     resolve_precondition_ref,
 )
+from kernel.meta_decode import MetaDecodeError, decode_meta
+from kernel.vcs_lock import is_vcs_lock_only_change
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.coordination.coherence import is_status_state_path
 from mission_runtime import CommitTarget
@@ -231,11 +231,19 @@ class TestStatusPathsForCommit:
 
 
 class TestIsVcsLockOnlyMetaDiff:
+    """WP03 / T016: the retired ``implement_cores._is_vcs_lock_only_meta_diff``
+    comparator is routed onto the single canonical
+    :func:`kernel.vcs_lock.is_vcs_lock_only_change` (FR-006). The kernel adopts
+    the sentinel (absent != present-but-null) semantics; it also returns
+    ``True`` on an EMPTY diff (two identical mappings -- the empty set of
+    differences is trivially a subset of the lock fields), unlike the retired
+    predicate's ``bool(changed_keys) and ...`` shape."""
+
     @pytest.mark.parametrize(
         ("committed", "working", "expected"),
         [
-            (None, {}, False),
-            ({}, {}, False),
+            (None, {}, True),
+            ({}, {}, True),
             ({"vcs": "git"}, {"vcs": "git", "vcs_locked_at": "t0"}, True),
             ({"friendly_name": "a"}, {"friendly_name": "b"}, False),
             (
@@ -251,21 +259,33 @@ class TestIsVcsLockOnlyMetaDiff:
         ],
     )
     def test_truth_table(self, committed: dict[str, str] | None, working: dict[str, str], expected: bool) -> None:
-        assert _is_vcs_lock_only_meta_diff(committed, working) is expected
+        assert is_vcs_lock_only_change(committed, working) is expected
 
 
-class TestParseMetaMapping:
+class TestDecodeMetaRouting:
+    """WP03 / T016: the retired ``implement_cores._parse_meta_mapping`` blob
+    parser is routed onto the kernel L1 :func:`kernel.meta_decode.decode_meta`
+    authority (FR-003). Malformed content now fails loud (``on_malformed=
+    "raise"``) instead of the former silent ``None`` -- the ``"none"`` policy
+        preserves a caller that deliberately wants the absorbed sentinel."""
+
     def test_valid_object(self) -> None:
-        assert _parse_meta_mapping(b'{"vcs": "git"}') == {"vcs": "git"}
+        assert decode_meta(b'{"vcs": "git"}') == {"vcs": "git"}
 
-    def test_non_object_json_returns_none(self) -> None:
-        assert _parse_meta_mapping(b"[1, 2, 3]") is None
+    def test_non_object_json_raises(self) -> None:
+        with pytest.raises(MetaDecodeError):
+            decode_meta(b"[1, 2, 3]")
+        assert decode_meta(b"[1, 2, 3]", on_malformed="none") is None
 
-    def test_invalid_json_returns_none(self) -> None:
-        assert _parse_meta_mapping(b"not json") is None
+    def test_invalid_json_raises(self) -> None:
+        with pytest.raises(MetaDecodeError):
+            decode_meta(b"not json")
+        assert decode_meta(b"not json", on_malformed="none") is None
 
-    def test_bad_encoding_returns_none(self) -> None:
-        assert _parse_meta_mapping(b"\xff\xfe\x00") is None
+    def test_bad_encoding_raises(self) -> None:
+        with pytest.raises(MetaDecodeError):
+            decode_meta(b"\xff\xfe\x00")
+        assert decode_meta(b"\xff\xfe\x00", on_malformed="none") is None
 
 
 class TestCommittedMetaMapping:

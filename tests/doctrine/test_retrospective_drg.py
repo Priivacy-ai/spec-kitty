@@ -22,7 +22,7 @@ from doctrine.agent_profiles.repository import AgentProfileRepository
 from doctrine.drg.models import DRGGraph, NodeKind
 from doctrine.drg.query import resolve_context
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 # ---------------------------------------------------------------------------
 # Fixtures

@@ -365,7 +365,7 @@ def _resolve_review_cycle_sub_artifact_dir(feature_dir: Path, wp_slug: str) -> P
 
     WP05 (verdict-seam-write-unification-01KZ9Q35): this used to be a RAW
     ``feature_dir / "tasks" / wp_slug`` join -- one of the three sites WP04's
-    own ``verdict_seam_IC04.yaml`` fragment flagged as unrouted (alongside
+    review flagged as unrouted (alongside
     ``workflow_executor.py::implement_try_render_fix_mode_prompt`` and
     ``workflow.py::review``). Now routes through
     :func:`~specify_cli.review.cycle._review_cycle_wp_dir` (the T058 owner

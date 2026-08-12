@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#2986": {
+      "evidence_ref": "Runtime->doctrine lazy-import blind spot closed by WP04 sibling ratchet (parent-tracking descent, only-shrink baseline now 0 for migrated files)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP04"
+    },
+    "#3101": {
+      "evidence_ref": "Follow-up: #3101 tracks the wheel cutover; C-004 keeps it out of scope (precondition only)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP02"
+    },
+    "#3179": {
+      "evidence_ref": "Mission complete: doctrine public surface + facades + ratchet + migration + Sonar debt; all 10 WPs approved",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP07"
+    }
+  },
+  "schema_version": 1
+}

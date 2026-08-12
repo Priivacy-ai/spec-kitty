@@ -70,6 +70,8 @@ class TestCanonicalFanOut:
     )
     def test_fan_out_passes_canonical_lanes_directly(self, from_lane: Lane, to_lane: Lane) -> None:
         """Each canonical lane value is passed directly to emit_wp_status_changed."""
+        from specify_cli.sync.events import WPStatusChangeMetadata
+
         event = self._make_event(from_lane=from_lane, to_lane=to_lane)
         mock_emit = MagicMock()
         with patch("specify_cli.sync.events.emit_wp_status_changed", mock_emit):
@@ -85,14 +87,16 @@ class TestCanonicalFanOut:
             "actor": "test-actor",
             "mission_slug": "039-test-feature",
             "mission_id": None,
-            "causation_id": "01HXYZ0000000000000000TEST",
-            "policy_metadata": None,
-            "force": False,
-            "reason": None,
-            "review_ref": None,
-            "execution_mode": "worktree",
-            "evidence": None,
-            "occurred_at": event.at,
+            "metadata": WPStatusChangeMetadata(
+                causation_id="01HXYZ0000000000000000TEST",
+                policy_metadata=None,
+                force=False,
+                reason=None,
+                review_ref=None,
+                execution_mode="worktree",
+                evidence=None,
+                occurred_at=event.at,
+            ),
             "ensure_daemon": True,
         }
 

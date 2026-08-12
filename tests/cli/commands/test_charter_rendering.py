@@ -298,7 +298,7 @@ def test_context_json_uses_same_depth_as_rendered_context(tmp_path: Path) -> Non
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
         patch("charter.context.build_charter_context", return_value=fake_ctx),
         patch("charter.context.build_charter_context_json", side_effect=_json_builder),
-        patch("specify_cli.doctrine.config.resolve_org_roots", return_value=[]),
+        patch("charter.drg.resolve_org_roots", return_value=[]),
         patch(
             "specify_cli.doctrine.org_charter_loader.load_org_charter_json_block",
             return_value={"present": False, "packs": []},
@@ -347,7 +347,7 @@ def test_context_include_renders_selector_without_action(tmp_path: Path) -> None
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("specify_cli.doctrine.config.resolve_org_roots", return_value=[]),
+        patch("charter.drg.resolve_org_roots", return_value=[]),
         patch(
             "charter.context.build_charter_context_include",
             return_value="### Regression Vigilance\nRule body.",
@@ -392,7 +392,7 @@ def test_activation_stanza_include_command_is_registered_cli_surface(
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("specify_cli.doctrine.config.resolve_org_roots", return_value=[]),
+        patch("charter.drg.resolve_org_roots", return_value=[]),
         patch(
             "charter.context.build_charter_context_include",
             return_value="Styleguide caveman-comments: Caveman",
@@ -418,7 +418,7 @@ def test_context_include_json_renders_machine_envelope(tmp_path: Path) -> None:
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("specify_cli.doctrine.config.resolve_org_roots", return_value=[]),
+        patch("charter.drg.resolve_org_roots", return_value=[]),
         patch(
             "charter.context.build_charter_context_include",
             return_value="### Regression Vigilance\nRule body.",
@@ -443,7 +443,7 @@ def test_context_include_renders_value_error(tmp_path: Path) -> None:
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("specify_cli.doctrine.config.resolve_org_roots", return_value=[]),
+        patch("charter.drg.resolve_org_roots", return_value=[]),
         patch(
             "charter.context.build_charter_context_include",
             side_effect=ValueError("bad selector"),
@@ -462,7 +462,7 @@ def test_context_requires_action_without_include(tmp_path: Path) -> None:
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("specify_cli.doctrine.config.resolve_org_roots", return_value=[]),
+        patch("charter.drg.resolve_org_roots", return_value=[]),
     ):
         result = runner.invoke(app, ["context"])
 

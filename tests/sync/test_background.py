@@ -27,6 +27,14 @@ from specify_cli.sync.project_store import ProjectSyncStore
 PROJECT_UUID = "aaaaaaaa-0000-0000-0000-000000000001"
 
 
+@pytest.fixture(autouse=True)
+def _isolate_legacy_queue(
+    tmp_path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep lifecycle tests independent of a worker's earlier queue rows."""
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime-home"))
+
+
 @pytest.fixture
 def mock_queue(tmp_path, monkeypatch) -> OfflineQueue:
     """Real project-owned queue with a live unit for the fixture lifetime."""

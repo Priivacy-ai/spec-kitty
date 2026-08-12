@@ -131,7 +131,7 @@ def render_command_template(
     which preserves byte-for-byte parity with pre-WP04 output for any caller
     that has not been updated to pass ``repo_root``.
     """
-    from doctrine.spdd_reasons import apply_spdd_blocks_for_project  # noqa: PLC0415
+    from charter.spdd_reasons import apply_spdd_blocks_for_project  # noqa: PLC0415
 
     template_text = template_path.read_text(encoding="utf-8-sig").replace("\r", "")
     template_text = apply_spdd_blocks_for_project(template_text, repo_root)

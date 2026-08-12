@@ -186,7 +186,8 @@ def _checkout_project_uuid(repo_root: Path) -> str | None:
         from specify_cli.identity.project import load_identity  # noqa: PLC0415
 
         identity = load_identity(Path(repo_root) / ".kittify" / "config.yaml")
-    except Exception:  # noqa: BLE001 - an unreadable identity is absence, and absence denies
+    # An unreadable identity is absence, and absence denies.
+    except Exception:  # noqa: BLE001
         logger.debug("Could not read project identity at %s", repo_root, exc_info=True)
         return None
     return str(identity.project_uuid) if identity.project_uuid else None

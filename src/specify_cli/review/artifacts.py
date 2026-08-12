@@ -406,5 +406,5 @@ class ReviewCycleArtifact:
 # module carried (squad #1's scope correction: NOT ``ReviewCycleArtifact.
 # latest``/``.from_file``, which are content/cycle-number loaders, kept
 # above). Every consumer now resolves the event authority
-# (``status.event_sourced_review_result``) instead; see
-# ``tests/architectural/verdict_seam_census.yaml`` for the retirement rows.
+# (``status.event_sourced_review_result``) instead; WP08's reconciliation task
+# records the retired reader set.

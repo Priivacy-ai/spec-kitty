@@ -93,16 +93,6 @@ class TestSentinelTokensAlwaysLoad:
 class TestNonSentinelScopingUnchanged:
     """The sentinel guard must not alter behavior for non-sentinel tokens."""
 
-    def test_concrete_lang_overlap_still_true(self) -> None:
-        assert applies_to_languages_match(["python"], ["python"]) is True
-
-    def test_concrete_lang_no_overlap_still_false(self) -> None:
-        assert applies_to_languages_match(["python"], ["rust"]) is False
-
-    def test_concrete_lang_empty_active_still_false(self) -> None:
-        """Normal scoped artifact + empty active scope → False (unchanged)."""
-        assert applies_to_languages_match(["python"], []) is False
-
     def test_mixed_sentinel_and_real_lang_returns_true(self) -> None:
         """``[any, python]`` — mixed list containing a sentinel.
 

@@ -37,7 +37,7 @@ from doctrine.drg.models import NodeKind
 if TYPE_CHECKING:
     from doctrine.drg.models import DRGGraph, DRGNode
 
-pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 _PACK_URN = "glossary_pack:spec-kitty-core"
 _FRAGMENT_NAME = "glossary_pack.graph.yaml"

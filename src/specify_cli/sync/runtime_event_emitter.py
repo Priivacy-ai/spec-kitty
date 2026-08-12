@@ -183,26 +183,56 @@ class SyncRuntimeEventEmitter:
         return "runtime"
 
     @staticmethod
-    def _infer_phase_from_snapshot(snapshot: Any) -> str | None:
+    def _phase_from_issued_step(snapshot: Any) -> str | None:
         issued_step_id = getattr(snapshot, "issued_step_id", None)
         if isinstance(issued_step_id, str) and issued_step_id:
             return issued_step_id
+        return None
 
+    @staticmethod
+    def _phase_from_pending_decisions(snapshot: Any) -> str | None:
         pending_decisions = getattr(snapshot, "pending_decisions", None) or {}
-        if isinstance(pending_decisions, dict):
-            for decision in pending_decisions.values():
-                if isinstance(decision, dict):
-                    step_id = decision.get("step_id")
-                    if isinstance(step_id, str) and step_id:
-                        return step_id
+        if not isinstance(pending_decisions, dict):
+            return None
+        for decision in pending_decisions.values():
+            if not isinstance(decision, dict):
+                continue
+            step_id = decision.get("step_id")
+            if isinstance(step_id, str) and step_id:
+                return step_id
+        return None
 
+    @staticmethod
+    def _phase_from_completed_steps(snapshot: Any) -> str | None:
         completed_steps = getattr(snapshot, "completed_steps", None) or []
-        if isinstance(completed_steps, list) and completed_steps:
-            last_step = completed_steps[-1]
-            if isinstance(last_step, str) and last_step:
-                return last_step
+        if not isinstance(completed_steps, list) or not completed_steps:
+            return None
+        last_step = completed_steps[-1]
+        if isinstance(last_step, str) and last_step:
+            return last_step
+        return None
 
+    @staticmethod
+    def _phase_from_blocked_reason(snapshot: Any) -> str | None:
         if getattr(snapshot, "blocked_reason", None):
             return "blocked"
+        return None
 
+    @classmethod
+    def _infer_phase_from_snapshot(cls, snapshot: Any) -> str | None:
+        """Infer the current phase from a persisted runtime snapshot.
+
+        Tries each source in priority order; the first hit wins. Each
+        ``_phase_from_*`` lookup is an isolated, independently testable
+        helper — flattening what was previously deep sequential nesting.
+        """
+        for lookup in (
+            cls._phase_from_issued_step,
+            cls._phase_from_pending_decisions,
+            cls._phase_from_completed_steps,
+            cls._phase_from_blocked_reason,
+        ):
+            phase = lookup(snapshot)
+            if phase is not None:
+                return phase
         return None

@@ -67,6 +67,7 @@ _SRC_ROOT = _REPO_ROOT / "src"
 # surface is locked down to the blessed set below.
 _COMMIT_GUARD_MODULE = "specify_cli.core.commit_guard"
 _DECISION_SYMBOL = "evaluate"
+_SAFE_COMMIT_MODULE = "specify_cli.git.commit_helpers"
 _BLESSED_EVALUATE_IMPORTERS: frozenset[str] = frozenset(
     {
         # The C-GUARD-1 facade: runs evaluate on every safe_commit() path.
@@ -122,43 +123,186 @@ def _rel(path: Path) -> str:
     return path.relative_to(_REPO_ROOT).as_posix()
 
 
-def _module_imports_evaluate(path: Path) -> bool:
-    """True iff ``path`` imports ``evaluate`` from ``core.commit_guard``.
+def _dotted_name(node: ast.expr) -> str | None:
+    parts: list[str] = []
+    current: ast.expr = node
+    while isinstance(current, ast.Attribute):
+        parts.append(current.attr)
+        current = current.value
+    if not isinstance(current, ast.Name):
+        return None
+    parts.append(current.id)
+    return ".".join(reversed(parts))
 
-    Catches both ``from ... import evaluate`` and the
-    ``from ... import evaluate as evaluate_commit_guard`` alias form.
-    """
-    tree = ast.parse(path.read_text(encoding="utf-8"))
+
+def _source_imports_or_calls_evaluate(source: str) -> bool:
+    """Detect direct and module-aliased access to commit-guard ``evaluate``."""
+    tree = ast.parse(source)
+    module_aliases: set[str] = set()
+    decision_aliases: set[str] = set()
     for node in ast.walk(tree):
-        if not isinstance(node, ast.ImportFrom):
+        if isinstance(node, ast.ImportFrom):
+            if node.module == _COMMIT_GUARD_MODULE:
+                decision_aliases.update(
+                    alias.asname or alias.name
+                    for alias in node.names
+                    if alias.name in {_DECISION_SYMBOL, "*"}
+                )
+            elif node.module == "specify_cli.core":
+                module_aliases.update(
+                    alias.asname or alias.name
+                    for alias in node.names
+                    if alias.name == "commit_guard"
+                )
+        elif isinstance(node, ast.Import):
+            module_aliases.update(
+                alias.asname
+                for alias in node.names
+                if alias.name == _COMMIT_GUARD_MODULE and alias.asname
+            )
+    if decision_aliases:
+        return True
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Attribute):
             continue
-        if node.module != _COMMIT_GUARD_MODULE:
+        dotted = _dotted_name(node)
+        if dotted is None:
             continue
-        for alias in node.names:
-            if alias.name == _DECISION_SYMBOL:
-                return True
+        if dotted == f"{_COMMIT_GUARD_MODULE}.{_DECISION_SYMBOL}":
+            return True
+        prefix, _, symbol = dotted.rpartition(".")
+        if symbol == _DECISION_SYMBOL and prefix in module_aliases:
+            return True
+    return False
+
+
+def _module_imports_evaluate(path: Path) -> bool:
+    return _source_imports_or_calls_evaluate(path.read_text(encoding="utf-8"))
+
+
+def _safe_commit_import_aliases(tree: ast.Module) -> tuple[set[str], set[str]]:
+    module_aliases: set[str] = set()
+    safe_commit_aliases: set[str] = {"safe_commit"}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            if node.module == _SAFE_COMMIT_MODULE:
+                safe_commit_aliases.update(
+                    alias.asname or alias.name
+                    for alias in node.names
+                    if alias.name == "safe_commit"
+                )
+            elif node.module == "specify_cli.git":
+                module_aliases.update(
+                    alias.asname or alias.name
+                    for alias in node.names
+                    if alias.name == "commit_helpers"
+                )
+        elif isinstance(node, ast.Import):
+            module_aliases.update(
+                alias.asname
+                for alias in node.names
+                if alias.name == _SAFE_COMMIT_MODULE and alias.asname
+            )
+    return module_aliases, safe_commit_aliases
+
+
+def _is_safe_commit_ref(
+    expr: ast.expr, module_aliases: set[str], safe_commit_aliases: set[str]
+) -> bool:
+    dotted = _dotted_name(expr)
+    if dotted in safe_commit_aliases:
+        return True
+    if dotted == f"{_SAFE_COMMIT_MODULE}.safe_commit":
+        return True
+    if dotted is None:
+        return False
+    prefix, _, symbol = dotted.rpartition(".")
+    return symbol == "safe_commit" and prefix in module_aliases
+
+
+def _propagate_safe_commit_rebindings(
+    tree: ast.Module, module_aliases: set[str], safe_commit_aliases: set[str]
+) -> None:
+    def is_ref(expr: ast.expr) -> bool:
+        return _is_safe_commit_ref(expr, module_aliases, safe_commit_aliases)
+
+    while True:
+        rebound: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign) and is_ref(node.value):
+                rebound.update(
+                    target.id for target in node.targets if isinstance(target, ast.Name)
+                )
+            elif (
+                isinstance(node, ast.AnnAssign)
+                and isinstance(node.target, ast.Name)
+                and node.value is not None
+                and is_ref(node.value)
+            ):
+                rebound.add(node.target.id)
+        rebound -= safe_commit_aliases
+        if not rebound:
+            break
+        safe_commit_aliases |= rebound
+
+
+def _source_calls_safe_commit_destination_ref(source: str) -> bool:
+    """Detect direct, module-aliased, and rebound legacy ``safe_commit`` calls."""
+    tree = ast.parse(source)
+    module_aliases, safe_commit_aliases = _safe_commit_import_aliases(tree)
+    _propagate_safe_commit_rebindings(tree, module_aliases, safe_commit_aliases)
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if not any(kw.arg == "destination_ref" for kw in node.keywords):
+            continue
+        if _is_safe_commit_ref(node.func, module_aliases, safe_commit_aliases):
+            return True
     return False
 
 
 def _safe_commit_destination_ref_call_sites(path: Path) -> bool:
     """True iff ``path`` calls ``safe_commit(..., destination_ref=...)``.
 
-    Only direct ``safe_commit`` calls are inspected; calls to other functions
-    that happen to take a ``destination_ref`` keyword (e.g.
-    ``BookkeepingTransaction.acquire``) are deliberately ignored.
+    Direct imports, aliases, and module-qualified calls are inspected; other
+    functions that take ``destination_ref`` remain out of scope.
     """
-    tree = ast.parse(path.read_text(encoding="utf-8"))
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
-            continue
-        func = node.func
-        if (
-            isinstance(func, ast.Name)
-            and func.id == "safe_commit"
-            and any(kw.arg == "destination_ref" for kw in node.keywords)
-        ):
-            return True
-    return False
+    return _source_calls_safe_commit_destination_ref(path.read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "from specify_cli.core.commit_guard import evaluate as decide\ndecide(None)",
+        "import specify_cli.core.commit_guard as guard\nguard.evaluate(None)",
+        "from specify_cli.core import commit_guard as guard\nguard.evaluate(None)",
+        "import specify_cli.core.commit_guard\nspecify_cli.core.commit_guard.evaluate(None)",
+        "import specify_cli.core.commit_guard as guard\n"
+        "decide = guard.evaluate\ndecide(None)",
+    ],
+)
+def test_evaluate_scanner_rejects_every_supported_import_shape(source: str) -> None:
+    assert _source_imports_or_calls_evaluate(source)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import specify_cli.git.commit_helpers as commits\n"
+        "commits.safe_commit(repo, destination_ref='main')",
+        "from specify_cli.git import commit_helpers as commits\n"
+        "commits.safe_commit(repo, destination_ref='main')",
+        "from specify_cli.git.commit_helpers import safe_commit as commit\n"
+        "commit(repo, destination_ref='main')",
+        "import specify_cli.git.commit_helpers as commits\n"
+        "commit = commits.safe_commit\ncommit(repo, destination_ref='main')",
+        "from specify_cli.git.commit_helpers import safe_commit as commit\n"
+        "rebound = commit\nrebound(repo, destination_ref='main')",
+    ],
+)
+def test_safe_commit_scanner_rejects_attribute_and_alias_forms(source: str) -> None:
+    assert _source_calls_safe_commit_destination_ref(source)
 
 
 def test_evaluate_has_exactly_the_blessed_importers() -> None:

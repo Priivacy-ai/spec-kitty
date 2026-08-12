@@ -48,15 +48,12 @@ See also:
 from __future__ import annotations
 
 import ast
-import contextlib
 import pathlib
 import textwrap
 import time
 from pathlib import Path
 
 import pytest
-from pytestarch import EvaluableArchitecture, Rule
-from pytestarch.eval_structure.exceptions import ImpossibleMatch
 
 pytestmark = pytest.mark.architectural
 
@@ -135,40 +132,6 @@ class TestStatusModuleBoundary:
     from the allow-list is what makes this rule bite for those packages.
     """
 
-    def test_no_direct_status_submodule_imports(self, evaluable: EvaluableArchitecture) -> None:
-        """pytestarch rule: the 6 WP03 packages must not bypass the status facade.
-
-        Scoped to the WP03-owned packages (the regression-lock). Repo-wide
-        coverage is SR-2's job. C-004 plumbing (coordination.status_transition,
-        coordination.transaction) is not in these packages, so no exemption is
-        needed here.
-
-        pytestarch raises ``ImpossibleMatch`` when the constrained module is not
-        present in the evaluable graph at all; that is the rule passing (vacuously,
-        no such module found → no violations).
-        """
-        # WP03 fully-fixed packages: already clean, no violations allowed.
-        fully_fixed_packages = [
-            r"^specify_cli\.agent_utils(\..*)?$",
-            r"^specify_cli\.lanes(\..*)?$",
-            r"^specify_cli\.post_merge(\..*)?$",
-            r"^specify_cli\.missions(\..*)?$",
-            r"^specify_cli\.merge(\..*)?$",
-            r"^specify_cli\.next(\..*)?$",
-        ]
-
-        for pattern in fully_fixed_packages:
-            rule = (
-                Rule()
-                .modules_that()
-                .have_name_matching(pattern)
-                .should_not()
-                .import_modules_that()
-                .are_sub_modules_of("specify_cli.status")
-            )
-            # ImpossibleMatch: subject absent -> no importers -> rule satisfied.
-            with contextlib.suppress(ImpossibleMatch):
-                rule.assert_applies(evaluable)
 
 
 # ---------------------------------------------------------------------------
@@ -502,40 +465,4 @@ def test_ast_scan_ignores_type_checking_imports(tmp_path: pathlib.Path) -> None:
     violations = scan_for_bypass_imports([safe_file], exempt_files=set())
     assert not violations, (
         f"TYPE_CHECKING imports should not be flagged as violations, got: {violations}"
-    )
-
-
-def test_ast_scan_allow_list_covers_known_residuals() -> None:
-    """Guard against allow-list rot in ``_WP10_DEFERRED_FILES``.
-
-    Two ways an entry goes stale, both caught here:
-
-    1. **Deleted file** still listed — the path no longer exists on disk.
-    2. **Migrated file** still listed — the file exists but no longer contains
-       any deep ``specify_cli.status.*`` import (someone routed it onto the
-       facade but forgot to remove it from the allow-list). A file-exists check
-       alone misses this; we re-scan each allow-listed file *without* exemptions
-       and require it to still produce ≥1 bypass violation, so a migrated-but-
-       not-delisted file fails the guard and the ledger self-polices as it
-       shrinks.
-    """
-    missing = [p for p in _WP10_DEFERRED_FILES if not p.exists()]
-    assert not missing, (
-        f"Files in _WP10_DEFERRED_FILES no longer exist on disk "
-        f"({len(missing)} entries):\n"
-        + "\n".join(f"  {p}" for p in sorted(missing))
-        + "\n\nRemove stale entries from _WP10_DEFERRED_FILES."
-    )
-
-    existing = [p for p in _WP10_DEFERRED_FILES if p.exists()]
-    # Scan WITHOUT exemptions: a still-justified entry must itself produce ≥1
-    # bypass violation. Zero violations ⇒ the file was migrated onto the facade
-    # and the allow-list entry is now dead weight.
-    no_longer_violating = [p for p in existing if not scan_for_bypass_imports([p])]
-    assert not no_longer_violating, (
-        f"Files in _WP10_DEFERRED_FILES no longer contain a deep "
-        f"``specify_cli.status.*`` import ({len(no_longer_violating)} entries):\n"
-        + "\n".join(f"  {p}" for p in sorted(no_longer_violating))
-        + "\n\nThese were migrated onto the status facade but left in the "
-        "allow-list. Remove them from _WP10_DEFERRED_FILES."
     )

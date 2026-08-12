@@ -15,10 +15,16 @@ doctrine.template_catalog.TemplateRef``).
 Mirrors the pattern of :mod:`charter.profiles` and :mod:`charter.resolution`.
 """
 
-from doctrine.template_catalog import TemplateRef, TierRoot, discover_templates
+from doctrine.template_catalog import (
+    TemplateRef,
+    TierRoot,
+    discover_templates,
+    resolve_template_by_id,
+)
 
 __all__ = [
     "discover_templates",
+    "resolve_template_by_id",
     "TemplateRef",
     "TierRoot",
 ]

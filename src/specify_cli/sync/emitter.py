@@ -811,6 +811,28 @@ class ConnectionStatus:
     BATCH_MODE = "OfflineBatchMode"
 
 
+@dataclass(frozen=True)
+class TokenUsageMetadata:
+    """Optional ``TokenUsageRecorded`` fields, bundled into one params object.
+
+    S107: ``emit_token_usage_recorded`` is a two-layer signature — this
+    module's :meth:`EventEmitter.emit_token_usage_recorded` and
+    ``sync.events.emit_token_usage_recorded`` (the singleton wrapper) both
+    threaded these 8 fields as individual keyword parameters. Bundling them
+    here and passing ``metadata`` through both layers keeps each below the
+    parameter-count ceiling.
+    """
+
+    run_id: str | None = None
+    step_id: str | None = None
+    wp_id: str | None = None
+    phase_name: str | None = None
+    actor: dict[str, Any] | None = None
+    provider: str | None = None
+    model: str | None = None
+    causation_id: str | None = None
+
+
 def _generate_ulid() -> str:
     """Generate a new ULID string.
 
@@ -945,7 +967,8 @@ class EventEmitter:
                 timeout=5,
                 check=False,
             )
-        except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+        # S5713: ``FileNotFoundError`` derives from ``OSError``, already caught below.
+        except (OSError, subprocess.TimeoutExpired):
             return None
 
         workspace_path = result.stdout.strip() if result.returncode == 0 else ""
@@ -1585,16 +1608,18 @@ class EventEmitter:
         estimated_cost_usd: float,
         source: str,
         *,
-        run_id: str | None = None,
-        step_id: str | None = None,
-        wp_id: str | None = None,
-        phase_name: str | None = None,
-        actor: dict[str, Any] | None = None,
-        provider: str | None = None,
-        model: str | None = None,
-        causation_id: str | None = None,
+        metadata: TokenUsageMetadata | None = None,
     ) -> dict[str, Any] | None:
-        """Emit TokenUsageRecorded for trustworthy runtime usage data."""
+        """Emit TokenUsageRecorded for trustworthy runtime usage data.
+
+        ``metadata`` bundles the optional tail — ``run_id``, ``step_id``,
+        ``wp_id``, ``phase_name``, ``actor``, ``provider``, ``model``,
+        ``causation_id`` — into one params object (S107: this dropped the
+        declared-parameter count from 14 to 7). Threaded through unchanged
+        from the ``sync.events.emit_token_usage_recorded`` wrapper, which
+        accepts the same ``metadata`` object (the two-layer signature).
+        """
+        metadata = metadata or TokenUsageMetadata()
         payload: dict[str, Any] = {
             "mission_id": mission_id,
             "input_tokens": input_tokens,
@@ -1603,26 +1628,26 @@ class EventEmitter:
             "estimated_cost_usd": estimated_cost_usd,
             "source": source,
         }
-        if run_id is not None:
-            payload["run_id"] = run_id
-        if step_id is not None:
-            payload["step_id"] = step_id
-        if wp_id is not None:
-            payload["wp_id"] = wp_id
-        if phase_name is not None:
-            payload["phase_name"] = phase_name
-        if actor is not None:
-            payload["actor"] = actor
-        if provider is not None:
-            payload["provider"] = provider
-        if model is not None:
-            payload["model"] = model
+        if metadata.run_id is not None:
+            payload["run_id"] = metadata.run_id
+        if metadata.step_id is not None:
+            payload["step_id"] = metadata.step_id
+        if metadata.wp_id is not None:
+            payload["wp_id"] = metadata.wp_id
+        if metadata.phase_name is not None:
+            payload["phase_name"] = metadata.phase_name
+        if metadata.actor is not None:
+            payload["actor"] = metadata.actor
+        if metadata.provider is not None:
+            payload["provider"] = metadata.provider
+        if metadata.model is not None:
+            payload["model"] = metadata.model
         return self._emit(
             event_type="TokenUsageRecorded",
             aggregate_id=mission_id,
             aggregate_type="Mission",
             payload=payload,
-            causation_id=causation_id,
+            causation_id=metadata.causation_id,
         )
 
     def emit_diff_summary_recorded(
@@ -1967,7 +1992,8 @@ class EventEmitter:
             from specify_cli.core.paths import locate_project_root
 
             root = locate_project_root(Path.cwd().resolve())
-        except Exception:  # noqa: BLE001 - an unreadable cwd is absence, not a decision
+        # An unreadable cwd is absence, not a decision.
+        except Exception:  # noqa: BLE001
             return []
         return [root] if root is not None else []
 
@@ -2012,7 +2038,8 @@ class EventEmitter:
             from .consent import consented_project_uuids
 
             return bool(consented_project_uuids([project_uuid], checkout_roots=self._offered_consent_roots()))
-        except Exception as exc:  # noqa: BLE001 - inability to determine is not consent
+        # Inability to determine consent is not consent.
+        except Exception as exc:  # noqa: BLE001
             logger.debug(
                 "Could not resolve hosted-sync consent for project %s; refusing capture: %s",
                 project_uuid,

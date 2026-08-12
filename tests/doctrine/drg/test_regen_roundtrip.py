@@ -31,7 +31,7 @@ from doctrine.drg.migration.hand_authored_overlay import (
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode
 from specify_cli.cli.commands.doctrine import _doctrine_root
 
-pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 

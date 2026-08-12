@@ -173,25 +173,58 @@ def _scan_roots(
     mode C-006 forbids.
     """
     dirs: list[tuple[Path, bool]] = []
+    built_in = _built_in_scan_dir(kind)
+    if built_in is not None:
+        dirs.append(built_in)
+    dirs.extend(_org_scan_dirs(kind, org_roots))
+    dirs.extend(_layer_scan_dirs(kind, layer_roots))
+    return dirs
+
+
+def _built_in_scan_dir(kind: ArtifactKind) -> tuple[Path, bool] | None:
+    """Return the flattened built-in scan dir for *kind*, or ``None``.
+
+    ``None`` covers both the fail-soft ``built_in_dir`` errors (see the
+    ``_scan_roots`` docstring) and the case where the resolved directory does
+    not exist on disk.
+    """
     try:
         flattened_built_in = built_in_dir(kind)
     except (PackRootNotFound, BuiltInContentDirNotAvailable):
-        flattened_built_in = None
+        return None
     if flattened_built_in is not None and flattened_built_in.is_dir():
-        dirs.append((flattened_built_in, True))
+        return (flattened_built_in, True)
+    return None
+
+
+def _org_scan_dirs(
+    kind: ArtifactKind, org_roots: list[Path] | None
+) -> list[tuple[Path, bool]]:
+    """Return ``<root>/<plural>/built-in`` dirs that exist for *org_roots*."""
+    dirs: list[tuple[Path, bool]] = []
     for root in org_roots or []:
         candidate = root / kind.plural / "built-in"
         if candidate.is_dir():
             dirs.append((candidate, True))
-    if layer_roots:
-        for layer, root in layer_roots.items():
-            candidate = (
-                root / "doctrine" / PROJECT_KIND_DIRS.get(kind, kind.plural)
-                if layer == "project"
-                else root / "doctrine" / kind.plural / layer
-            )
-            if candidate.is_dir():
-                dirs.append((candidate, False))
+    return dirs
+
+
+def _layer_candidate_dir(kind: ArtifactKind, layer: str, root: Path) -> Path:
+    """Return the candidate doctrine dir for *kind* within a single *layer*."""
+    if layer == "project":
+        return root / "doctrine" / PROJECT_KIND_DIRS.get(kind, kind.plural)
+    return root / "doctrine" / kind.plural / layer
+
+
+def _layer_scan_dirs(
+    kind: ArtifactKind, layer_roots: dict[str, Path] | None
+) -> list[tuple[Path, bool]]:
+    """Return layer doctrine dirs that exist for *kind*, across *layer_roots*."""
+    dirs: list[tuple[Path, bool]] = []
+    for layer, root in (layer_roots or {}).items():
+        candidate = _layer_candidate_dir(kind, layer, root)
+        if candidate.is_dir():
+            dirs.append((candidate, False))
     return dirs
 
 

@@ -16,6 +16,16 @@ each one resolves and formats a single ``--include <kind>:<id>`` selector.
 
 ``_default_missions_root`` is a private helper consumed only by
 :func:`_render_template_include` in this module and stays un-exported.
+
+charter-sync-sonar-remediation-01KZPPZW WP02 (Sonar S3776) additionally
+relocated ``build_charter_context_include``'s per-selector-kind dispatch
+bodies here — ``_render_section_include_selector``, ``_resolve_include_kind``,
+``_render_agent_profile_include_selector``,
+``_render_catalog_kind_include_selector`` — for the same reason as the
+original six: keeping the WP-contended orchestrator's own cognitive
+complexity (and ``context.py``'s independently-enforced 600-line ceiling)
+under their respective gates. The orchestrator itself (branch *selection*)
+stays in ``context.py``.
 """
 
 from __future__ import annotations
@@ -24,6 +34,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from charter._doctrine_paths import resolve_project_root
+from charter.bundle import CHARTER_MD
+from charter.context_json import _bundle_root_for_json
 from charter.context_renderers.artifact_bodies import (
     _format_full_artifact_payload_body,
     _format_inline_agent_profile_body,
@@ -36,17 +48,22 @@ from charter.context_renderers.artifact_bodies import (
     _format_inline_toolguide_body,
     _format_profile_directive_code,
 )
+from charter.context_renderers.section_bodies import render_critical_section_include
 
 if TYPE_CHECKING:
     import doctrine.service as _doctrine_service_module
+    from doctrine.artifact_kinds import ArtifactKind
+
     from charter.repository_protocol import ArtifactRepository
 
 __all__ = [
-    "_render_directive_include",
+    "_render_agent_profile_include_selector",
+    "_render_catalog_kind_include_selector",
     "_render_doctrine_artifact_include",
     "_render_generic_artifact_include",
-    "_render_tactic_include",
+    "_render_section_include_selector",
     "_render_template_include",
+    "_resolve_include_kind",
 ]
 
 
@@ -263,3 +280,102 @@ def _render_doctrine_artifact_include(
             *_format_full_artifact_payload_body(artifact),
         ]
     )
+
+
+def _render_section_include_selector(
+    repo_root: Path,
+    selector: str,
+    identifier: str,
+    action: str | None,
+) -> str:
+    """Render the ``section:<id>`` selector — a charter.md heading lookup."""
+    canonical_root = _bundle_root_for_json(repo_root)
+    charter_path = canonical_root / CHARTER_MD
+    if not charter_path.exists():
+        raise ValueError("No charter.md found for section selector.")
+    charter_content = charter_path.read_text(encoding="utf-8")
+    section = render_critical_section_include(
+        charter_content,
+        identifier,
+        action=action.strip().lower() if action else None,
+    )
+    if section is None:
+        raise ValueError(f"No charter section found for selector '{selector}'.")
+    return str(section)
+
+
+def _resolve_include_kind(kind: str, selector: str) -> ArtifactKind:
+    """Resolve *kind* to its canonical :class:`~doctrine.artifact_kinds.ArtifactKind`.
+
+    Raises ``ValueError`` (not the raw doctrine exception) when the
+    operator-facing ``mission-type`` token is used — mission types are not
+    addressable governance artifacts.
+    """
+    from doctrine.artifact_kinds import ArtifactKind, MissionTypeNotAnArtifactKind
+
+    try:
+        return ArtifactKind.from_operator_token(kind)
+    except MissionTypeNotAnArtifactKind as exc:
+        raise ValueError(
+            f"--include does not support the 'mission-type' selector "
+            f"(selector {selector!r}); mission types are not addressable "
+            "governance artifacts."
+        ) from exc
+
+
+def _render_agent_profile_include_selector(
+    # object (not DoctrineService): the caller forwards either the plain or the
+    # activation-aware service (charter.resolver.DoctrineService, an unrelated
+    # class), and this only forwards it to _render_doctrine_artifact_include(service: object).
+    gated_service: object,
+    canonical_kind: str,
+    identifier: str,
+    selector: str,
+) -> str:
+    """Render an ``agent-profile:<id>`` selector via the activation-aware service.
+
+    Takes the already-built *gated_service* (not ``repo_root``/``org_roots``)
+    so the caller — ``charter.context.build_charter_context_include`` — stays
+    the sole call site of
+    :func:`charter.doctrine_service_builder._build_activation_aware_doctrine_service`.
+    That preserves the existing ``context_module._build_activation_aware_doctrine_service``
+    monkeypatch seam several tests rely on
+    (e.g. ``tests/charter/test_context_include_activation.py``).
+    """
+    # For a kind with a registered renderer (agent_profile has one),
+    # _render_doctrine_artifact_include renders the activated profile or
+    # raises ("No agent_profile found ...") for a gated/missing one — it
+    # never returns None here, so a direct return is sufficient (no dead
+    # fall-through branch to guard).
+    artifact_result = _render_doctrine_artifact_include(
+        gated_service, canonical_kind, identifier
+    )
+    if artifact_result is None:
+        raise ValueError(f"No {canonical_kind} found for selector '{selector}'.")
+    return artifact_result
+
+
+def _render_catalog_kind_include_selector(
+    service: _doctrine_service_module.DoctrineService,
+    canonical_kind: str,
+    identifier: str,
+    selector: str,
+) -> str | None:
+    """Render a directive/tactic/generic-artifact selector on the unwrapped service.
+
+    Takes the already-built *service* (not ``repo_root``/``org_roots``) so the
+    caller stays the sole call site of
+    :func:`charter.doctrine_service_builder._build_doctrine_service` — see
+    :func:`_render_agent_profile_include_selector` for why that matters.
+
+    Returns ``None`` when *canonical_kind* has no registered include renderer
+    (the caller raises the "unsupported kind" error using the original,
+    pre-resolution *kind* token for a user-facing message).
+    """
+    from doctrine.artifact_kinds import ArtifactKind
+
+    if canonical_kind == ArtifactKind.DIRECTIVE.value:
+        return _render_directive_include(service.directives, identifier, selector)
+    if canonical_kind == ArtifactKind.TACTIC.value:
+        return _render_tactic_include(service.tactics, identifier, selector)
+    return _render_doctrine_artifact_include(service, canonical_kind, identifier)

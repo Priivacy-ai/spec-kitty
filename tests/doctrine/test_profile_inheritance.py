@@ -10,7 +10,7 @@ from doctrine.agent_profiles.profile import TaskContext
 from doctrine.agent_profiles.repository import AgentProfileRepository
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 
 def _lineage_drg(*pairs: tuple[str, str]) -> DRGGraph:

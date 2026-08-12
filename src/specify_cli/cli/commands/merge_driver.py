@@ -60,6 +60,7 @@ from specify_cli.acceptance import (
     ACCEPTANCE_PROVENANCE_FIELDS,
 )
 from specify_cli.acceptance.matrix import AcceptanceMatrix
+from specify_cli.mission_metadata import parse_meta_file
 from specify_cli.status import EventLogMergeError, merge_event_log_files
 from specify_cli.tasks.issue_matrix import ISSUE_MATRIX_SCHEMA_VERSION
 
@@ -171,17 +172,56 @@ def merge_driver_event_log(
 # ---------------------------------------------------------------------------
 
 
+# L2's non-object failure message begins with this prefix (regression-pinned in
+# ``test_mission_metadata.py`` / ``test_feature_metadata.py``: ``"Expected JSON
+# object in {path}, got {type}"``). The site-E wrapper keys on it to keep the
+# driver's historical ``"is not a JSON object"`` wording for the non-object arm
+# (pinned by ``test_merge_driver_wrappers_2709`` / this mission's site-E test)
+# while surfacing every other decode failure as a named, path-carrying error.
+_L2_NON_OBJECT_PREFIX = "Expected JSON object in "
+
+
+def _blob_meta_error(path: Path, exc: ValueError) -> EventLogMergeError:
+    """Translate a path-named L2 ``parse_meta_file`` failure into the driver's error.
+
+    ``parse_meta_file(on_malformed="raise")`` raises a path-named
+    :class:`ValueError` (:class:`kernel.meta_decode.MetaDecodeError` is a
+    ``ValueError`` subclass; L2 re-expresses it as a plain path-named
+    ``ValueError``) for both a non-object top level and a malformed body. Both
+    arms become a single :class:`EventLogMergeError` so the ``merge_driver_meta``
+    wrapper's existing ``except EventLogMergeError`` still translates them to
+    ``typer.Exit(1)``. The non-object arm keeps the historical ``"is not a JSON
+    object"`` wording; any other decode failure names the path and surfaces the
+    underlying reason.
+    """
+    if str(exc).startswith(_L2_NON_OBJECT_PREFIX):
+        return EventLogMergeError(f"{path}: meta.json is not a JSON object")
+    return EventLogMergeError(f"{path}: malformed meta.json ({exc})")
+
+
 def _load_json_object(path: Path) -> dict[str, Any]:
-    """Load a JSON object from *path*; empty/missing yields ``{}``."""
+    """Load a ``meta.json`` object from *path*; empty/missing yields ``{}``.
+
+    Decoding routes through the public L2 reader
+    :func:`specify_cli.mission_metadata.parse_meta_file` (``on_malformed="raise"``)
+    so a corrupt merge-blob ``meta.json`` fails LOUD and NAMED — an
+    :class:`EventLogMergeError` carrying the path — rather than the pre-routing
+    bare, unnamed :class:`json.JSONDecodeError` (mission
+    ``meta-json-fail-closed-routing-01KZPJ1F`` / site E). The empty/whitespace-only
+    short-circuit (C-010) is preserved *before* decoding.
+    """
     if not path.exists():
         return {}
-    text = path.read_text(encoding="utf-8").strip()
-    if not text:
+    if not path.read_text(encoding="utf-8").strip():
         return {}
-    data = json.loads(text)
-    if not isinstance(data, dict):
-        raise EventLogMergeError(f"{path}: meta.json is not a JSON object")
-    return data
+    try:
+        data = parse_meta_file(path, on_malformed="raise")
+    except ValueError as exc:
+        raise _blob_meta_error(path, exc) from exc
+    # parse_meta_file("raise") returns a dict on success — a non-object top level
+    # already raised above, and the empty case short-circuited to ``{}`` before
+    # decoding, so ``data`` is never ``None`` here.
+    return data or {}
 
 
 def _union_acceptance_history(
@@ -662,8 +702,7 @@ def merge_driver_acceptance_matrix(
 # a two-verdict collision is embedded, best-effort, and NEVER aborts the squash
 # ---------------------------------------------------------------------------
 #
-# T017's discharge (see WP04's ruling, tests/architectural/census/
-# verdict_seam_IC04.yaml, and tests/architectural/test_merge_reconciliation_
+# T017's discharge (see WP04's ruling and tests/architectural/test_merge_reconciliation_
 # class_guard.py::test_review_cycle_tasks_hazard_is_ruled_and_tracked): the
 # create-window split (ADR 2026-08-03-1) means a coord mission's review
 # cycles land on TWO different physical surfaces during the migration window

@@ -23,7 +23,7 @@ from doctrine.assets.repository import (
 )
 from doctrine.base import DoctrineLayerCollisionWarning
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 _SHIPPED_ASSET_ID = "common-docs-structural-lint"
 

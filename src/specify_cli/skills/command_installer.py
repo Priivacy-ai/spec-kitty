@@ -114,13 +114,12 @@ def _package_templates_dir(mission_type: str = "software-dev") -> Path:
         The mission type sub-directory to resolve (defaults to
         ``"software-dev"``).
     """
-    from doctrine.missions.repository import MissionTemplateRepository  # noqa: PLC0415 — deferred to avoid import-time side effects
+    from charter.missions import MissionTemplateRepository  # noqa: PLC0415 — deferred to avoid import-time side effects
 
-    return (
-        MissionTemplateRepository.default_missions_root()
-        / "mission-steps"
-        / mission_type
-    )
+    # Typed pin: ``charter.*`` is ``follow_imports = "skip"`` in pyproject, so the
+    # facade re-export is ``Any`` to mypy; the runtime type is ``Path``.
+    missions_root: Path = MissionTemplateRepository.default_missions_root()
+    return missions_root / "mission-steps" / mission_type
 
 
 # ---------------------------------------------------------------------------

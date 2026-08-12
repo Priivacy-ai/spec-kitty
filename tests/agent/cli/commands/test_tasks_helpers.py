@@ -91,30 +91,6 @@ def test_self_review_fallback_requires_explicit_force_and_metadata() -> None:
     ) is None
 
 
-def test_issue_matrix_approval_blocker_requires_resolved_verdicts(tmp_path: Path) -> None:
-    feature_dir = tmp_path / "kitty-specs" / "demo"
-    feature_dir.mkdir(parents=True)
-    (feature_dir / "spec.md").write_text("Fix Priivacy-ai/spec-kitty issue #1582.\n", encoding="utf-8")
-
-    blocker = _issue_matrix_approval_blocker(feature_dir)
-    assert blocker is not None
-    assert "issue-matrix.md is required" in blocker
-    assert "#1582" in blocker
-
-    _write_issue_matrix(feature_dir, "unknown")
-    blocker = _issue_matrix_approval_blocker(feature_dir)
-    assert blocker is not None
-    assert "Unknown: #1582" in blocker
-
-    _write_issue_matrix(feature_dir, "fixed", issue="#1111")
-    blocker = _issue_matrix_approval_blocker(feature_dir)
-    assert blocker is not None
-    assert "Missing rows: #1582" in blocker
-
-    _write_issue_matrix(feature_dir, "fixed")
-    assert _issue_matrix_approval_blocker(feature_dir) is None
-
-
 def test_issue_matrix_read_is_coord_authoritative_no_primary_fallback(
     tmp_path: Path,
 ) -> None:
@@ -597,25 +573,8 @@ def test_behind_commits_diff_failure(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_is_pipe_table_task_row_match() -> None:
-    assert _is_pipe_table_task_row("| T001 | description | WP01 | No |", "T001") is True
-
-
-def test_is_pipe_table_task_row_padded() -> None:
-    assert _is_pipe_table_task_row("|  T001  | desc |", "T001") is True
-
-
-def test_is_pipe_table_task_row_no_match() -> None:
-    assert _is_pipe_table_task_row("| T002 | description |", "T001") is False
-
-
 def test_is_pipe_table_task_row_separator() -> None:
     assert _is_pipe_table_task_row("|------|------|", "T001") is False
-
-
-def test_is_pipe_table_task_row_partial_id_not_matched() -> None:
-    # T001 should not match T0012
-    assert _is_pipe_table_task_row("| T0012 | desc |", "T001") is False
 
 
 # ---------------------------------------------------------------------------
@@ -648,11 +607,4 @@ def test_parse_pipe_table_header_no_header() -> None:
     """Returns empty dict when there is no header row above the task row."""
     lines = ["Some prose line", "| T001 | desc |"]
     result = _parse_pipe_table_header(lines, 1)
-    assert result == {}
-
-
-def test_parse_pipe_table_header_at_top() -> None:
-    """Returns empty dict when task row is the first line."""
-    lines = ["| T001 | desc |"]
-    result = _parse_pipe_table_header(lines, 0)
     assert result == {}

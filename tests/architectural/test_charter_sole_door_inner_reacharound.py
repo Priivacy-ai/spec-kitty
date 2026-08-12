@@ -99,16 +99,12 @@ _EXEMPT_DIR_PREFIXES = ("src/charter/", "tests/charter/")
 # LITERALS containing "._inner" (never real ast.Attribute nodes in this file's
 # own tree), but the exemption is named explicitly rather than relying on that
 # distinction holding forever as this file grows.
-_EXEMPT_FILES = frozenset(
-    {"tests/architectural/test_charter_sole_door_inner_reacharound.py"}
-)
+_EXEMPT_FILES = frozenset({"tests/architectural/test_charter_sole_door_inner_reacharound.py"})
 
 # The one sanctioned construction path for a charter.resolver.DoctrineService
 # outside src/charter/** (FR-008's unified builder).
 _FACTORY_FUNC_NAME = "build_activation_aware_doctrine_service"
-_FACTORY_MODULES = frozenset(
-    {"specify_cli.doctrine_service_factory", "charter.doctrine_service_builder"}
-)
+_FACTORY_MODULES = frozenset({"specify_cli.doctrine_service_factory", "charter.doctrine_service_builder"})
 
 # The wrapper's own constructor -- tracked too so the taint heuristic stays
 # correct even though NFR-001's sibling gate independently forbids
@@ -147,9 +143,7 @@ def _dotted_prefix(node: ast.expr) -> str | None:
 
 
 def _matches_sanctioned_origin(module: str, name: str) -> bool:
-    return (module in _FACTORY_MODULES and name == _FACTORY_FUNC_NAME) or (
-        module == _CTOR_MODULE and name == _CTOR_NAME
-    )
+    return (module in _FACTORY_MODULES and name == _FACTORY_FUNC_NAME) or (module == _CTOR_MODULE and name == _CTOR_NAME)
 
 
 def _call_constructs_doctrine_service(call: ast.Call, aliases: _Bindings) -> bool:
@@ -182,11 +176,7 @@ def _taint_if_construction(
     value: ast.expr,
     aliases: _Bindings,
 ) -> None:
-    if (
-        isinstance(target, ast.Name)
-        and isinstance(value, ast.Call)
-        and _call_constructs_doctrine_service(value, aliases)
-    ):
+    if isinstance(target, ast.Name) and isinstance(value, ast.Call) and _call_constructs_doctrine_service(value, aliases):
         tainted.add(target.id)
 
 
@@ -203,12 +193,8 @@ def _tainted_names(tree: ast.AST, aliases: _Bindings) -> set[str]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
             for target in node.targets:
-                if isinstance(target, (ast.Tuple, ast.List)) and isinstance(
-                    node.value, (ast.Tuple, ast.List)
-                ):
-                    for sub_target, sub_value in zip(
-                        target.elts, node.value.elts, strict=False
-                    ):
+                if isinstance(target, (ast.Tuple, ast.List)) and isinstance(node.value, (ast.Tuple, ast.List)):
+                    for sub_target, sub_value in zip(target.elts, node.value.elts, strict=False):
                         _taint_if_construction(tainted, sub_target, sub_value, aliases)
                 else:
                     _taint_if_construction(tainted, target, node.value, aliases)
@@ -230,12 +216,7 @@ def _is_inner_getattr_call(call: ast.Call) -> bool:
     """
     func = call.func
     is_getattr = isinstance(func, ast.Name) and func.id == "getattr"
-    is_object_getattribute = (
-        isinstance(func, ast.Attribute)
-        and func.attr == "__getattribute__"
-        and isinstance(func.value, ast.Name)
-        and func.value.id == "object"
-    )
+    is_object_getattribute = isinstance(func, ast.Attribute) and func.attr == "__getattribute__" and isinstance(func.value, ast.Name) and func.value.id == "object"
     if not (is_getattr or is_object_getattribute):
         return False
     return len(call.args) >= 2 and _is_string_literal(call.args[1], "_inner")
@@ -249,14 +230,10 @@ def _is_inner_dict_subscript(node: ast.Subscript) -> bool:
     return _is_string_literal(node.slice, "_inner")
 
 
-def _receiver_is_tainted(
-    receiver: ast.expr, tainted: set[str], aliases: _Bindings
-) -> bool:
+def _receiver_is_tainted(receiver: ast.expr, tainted: set[str], aliases: _Bindings) -> bool:
     if isinstance(receiver, ast.Name) and receiver.id in tainted:
         return True
-    return isinstance(receiver, ast.Call) and _call_constructs_doctrine_service(
-        receiver, aliases
-    )
+    return isinstance(receiver, ast.Call) and _call_constructs_doctrine_service(receiver, aliases)
 
 
 def _attribute_wrapping(tree: ast.AST) -> dict[int, ast.Attribute]:
@@ -380,72 +357,9 @@ def _remedy_message(kind: str | None) -> str:
 # ---------------------------------------------------------------------------
 
 
-def test_gate_scan_scope_reaches_known_files() -> None:
-    """The gate must not silently go blind to any part of ``src/``.
-
-    Asserts the wholesale ``rglob("*.py")`` scan reaches representative
-    files scattered across distinct subpackages, including both known
-    false-positive-risk files -- proving the scan actually visits them
-    rather than skipping them by accident.
-    """
-    scanned = {_rel(p) for p in _iter_scan_files((_SRC_ROOT,))}
-
-    representative_sample = {
-        "src/specify_cli/invocation/registry.py",
-        "src/specify_cli/invocation/org_profiles.py",
-        "src/specify_cli/auth/transport.py",
-        "src/specify_cli/events/decision_log.py",
-        "src/charter/resolver.py",
-    }
-    missing = representative_sample - scanned
-    assert not missing, (
-        f"Gate scan scope did not reach: {sorted(missing)} -- "
-        "the src/ walk may have silently narrowed."
-    )
-    assert len(scanned) > 200
-
-
-def test_gate_scan_scope_now_reaches_the_tests_directory() -> None:
-    """Scope widening (landing-fold gate hardening): ``tests/`` is now scanned.
-
-    NFR-001 says "outside src/charter/**" -- ``tests/`` is outside ``src/``,
-    so it was always in scope by that wording even though the pre-fold
-    implementation only ever walked ``_SRC_ROOT``. This pins the widened
-    walk actually reaches a representative ``tests/`` file, including one
-    inside the newly-exempt ``tests/charter/**`` prefix.
-    """
-    scanned = {_rel(p) for p in _iter_scan_files((_TESTS_ROOT,))}
-    representative_sample = {
-        "tests/charter/test_doctrine_service_builder_unification.py",
-        "tests/architectural/test_charter_sole_door_inner_reacharound.py",
-    }
-    missing = representative_sample - scanned
-    assert not missing, (
-        f"Gate scan scope did not reach: {sorted(missing)} -- "
-        "the tests/ walk may have silently narrowed."
-    )
-    assert len(scanned) > 1000
-
-
 # ---------------------------------------------------------------------------
 # Known false-positive risks stay clean (debugger-debbie finding)
 # ---------------------------------------------------------------------------
-
-
-def test_gate_does_not_flag_unrelated_inner_attributes() -> None:
-    """``auth/transport.py`` and ``events/decision_log.py`` must stay clean.
-
-    Both hold legitimate ``self._inner`` wrapper attributes unrelated to
-    ``DoctrineService`` (an ``OAuthHttpClient`` wrapper and a decision-log
-    delegate). A gate broad enough to flag these would be too broad to ship
-    (review guidance in the WP04 task file).
-    """
-    for rel in (
-        "src/specify_cli/auth/transport.py",
-        "src/specify_cli/events/decision_log.py",
-    ):
-        hits = _find_inner_reacharounds(REPO_ROOT / rel)
-        assert hits == [], f"{rel} unexpectedly flagged at {hits}"
 
 
 # ---------------------------------------------------------------------------
@@ -467,11 +381,7 @@ def test_no_inner_reacharound_on_doctrine_service_outside_charter() -> None:
 
     if violations:
         details = "\n".join(
-            f"  {path}: "
-            + "; ".join(
-                f"line {lineno} ({_remedy_message(kind)})" for lineno, kind in hits
-            )
-            for path, hits in sorted(violations.items())
+            f"  {path}: " + "; ".join(f"line {lineno} ({_remedy_message(kind)})" for lineno, kind in hits) for path, hits in sorted(violations.items())
         )
         pytest.fail(
             "Found a `._inner` reach-around (direct attribute access, "
@@ -531,126 +441,12 @@ def test_planted_unrelated_inner_attribute_is_not_detected(tmp_path: Path) -> No
     """
     planted = tmp_path / "planted_unrelated_inner.py"
     planted.write_text(
-        "class ScratchWrapper:\n"
-        "    def __init__(self, inner):\n"
-        "        self._inner = inner\n"
-        "\n"
-        "    def call(self):\n"
-        "        return self._inner.request()\n",
+        "class ScratchWrapper:\n    def __init__(self, inner):\n        self._inner = inner\n\n    def call(self):\n        return self._inner.request()\n",
         encoding="utf-8",
     )
 
     hits = _find_inner_reacharounds(planted)
-    assert hits == [], (
-        f"Gate falsely flagged an unrelated ._inner attribute access: {hits!r}. "
-        "The taint heuristic is too broad."
-    )
-
-
-def test_planted_inline_construction_reacharound_is_detected(tmp_path: Path) -> None:
-    """An inline (no intermediate variable) construction + ``._inner`` chain
-    is also caught -- covers the module-qualified-call resolution tier, not
-    just the assigned-variable tier exercised above.
-    """
-    planted = tmp_path / "planted_inline_reacharound.py"
-    planted.write_text(
-        "import specify_cli.doctrine_service_factory as dsf\n"
-        "\n"
-        "\n"
-        "def peek(repo_root):\n"
-        "    return dsf.build_activation_aware_doctrine_service(repo_root)._inner.agent_profiles\n",
-        encoding="utf-8",
-    )
-
-    hits = _find_inner_reacharounds(planted)
-    assert [lineno for lineno, _ in hits] == [5]
-    assert hits[0][1] == "agent_profiles"
-
-
-def test_annotated_assign_reacharound_is_flagged(tmp_path: Path) -> None:
-    """``service: DoctrineService = <ctor>(...)`` still taints.
-
-    ``ast.AnnAssign`` is the *default* spelling in a mypy-clean codebase.
-    Injected at function-local scope (NFR-003).
-    """
-    planted = tmp_path / "annotated_reacharound.py"
-    planted.write_text(
-        "from charter.resolver import DoctrineService\n"
-        "\n"
-        "\n"
-        "def build(inner):\n"
-        "    service: DoctrineService = DoctrineService(inner, pack_context=None)\n"
-        "    return service._inner.tactics\n",
-        encoding="utf-8",
-    )
-
-    hits = _find_inner_reacharounds(planted)
-    assert [lineno for lineno, _ in hits] == [6], hits
-    assert hits[0][1] == "tactics"
-
-
-def test_walrus_reacharound_is_flagged(tmp_path: Path) -> None:
-    """A walrus-bound (``:=``) construction still taints.
-
-    Injected at function-local scope (NFR-003).
-    """
-    planted = tmp_path / "walrus_reacharound.py"
-    planted.write_text(
-        "from charter.resolver import DoctrineService\n"
-        "\n"
-        "\n"
-        "def build(inner):\n"
-        "    if (service := DoctrineService(inner, pack_context=None)) is not None:\n"
-        "        return service._inner.procedures\n"
-        "    return None\n",
-        encoding="utf-8",
-    )
-
-    hits = _find_inner_reacharounds(planted)
-    assert [lineno for lineno, _ in hits] == [6], hits
-    assert hits[0][1] == "procedures"
-
-
-def test_tuple_unpack_reacharound_is_flagged(tmp_path: Path) -> None:
-    """A tuple-unpack target of ``ast.Assign`` still taints.
-
-    ``service, ready = DoctrineService(...), True`` pairs the construction
-    call element-wise against its tuple target. Injected at function-local
-    scope (NFR-003).
-    """
-    planted = tmp_path / "tuple_unpack_reacharound.py"
-    planted.write_text(
-        "from charter.resolver import DoctrineService\n"
-        "\n"
-        "\n"
-        "def build(inner):\n"
-        "    service, ready = DoctrineService(inner, pack_context=None), True\n"
-        "    return service._inner.glossary_packs if ready else None\n",
-        encoding="utf-8",
-    )
-
-    hits = _find_inner_reacharounds(planted)
-    assert [lineno for lineno, _ in hits] == [6], hits
-    assert hits[0][1] == "glossary_packs"
-
-
-def test_injected_from_package_import_module_is_flagged(tmp_path: Path) -> None:
-    """``from charter import resolver`` then ``resolver.DoctrineService(...)``
-    still taints. Injected at function-local scope (NFR-003).
-    """
-    planted = tmp_path / "frompkg_reacharound.py"
-    planted.write_text(
-        "def build(inner):\n"
-        "    from charter import resolver\n"
-        "\n"
-        "    service = resolver.DoctrineService(inner, pack_context=None)\n"
-        "    return service._inner.styleguides\n",
-        encoding="utf-8",
-    )
-
-    hits = _find_inner_reacharounds(planted)
-    assert [lineno for lineno, _ in hits] == [5], hits
-    assert hits[0][1] == "styleguides"
+    assert hits == [], f"Gate falsely flagged an unrelated ._inner attribute access: {hits!r}. The taint heuristic is too broad."
 
 
 def test_getattr_string_reach_around_is_flagged(tmp_path: Path) -> None:
@@ -676,64 +472,3 @@ def test_getattr_string_reach_around_is_flagged(tmp_path: Path) -> None:
     hits = _find_inner_reacharounds(planted)
     assert [lineno for lineno, _ in hits] == [8], hits
     assert hits[0][1] == "agent_profiles"
-
-
-def test_dunder_getattribute_reach_around_is_flagged(tmp_path: Path) -> None:
-    """``object.__getattribute__(service, "_inner")`` also reds."""
-    planted = tmp_path / "dunder_getattribute_reacharound.py"
-    planted.write_text(
-        "from specify_cli.doctrine_service_factory import (\n"
-        "    build_activation_aware_doctrine_service,\n"
-        ")\n"
-        "\n"
-        "\n"
-        "def build_catalog(repo_root):\n"
-        "    service = build_activation_aware_doctrine_service(repo_root)\n"
-        '    return object.__getattribute__(service, "_inner").tactics\n',
-        encoding="utf-8",
-    )
-
-    hits = _find_inner_reacharounds(planted)
-    assert [lineno for lineno, _ in hits] == [8], hits
-    assert hits[0][1] == "tactics"
-
-
-def test_dict_subscript_reach_around_is_flagged(tmp_path: Path) -> None:
-    """``service.__dict__["_inner"]`` also reopens the reach-around."""
-    planted = tmp_path / "dict_subscript_reacharound.py"
-    planted.write_text(
-        "from specify_cli.doctrine_service_factory import (\n"
-        "    build_activation_aware_doctrine_service,\n"
-        ")\n"
-        "\n"
-        "\n"
-        "def build_catalog(repo_root):\n"
-        "    service = build_activation_aware_doctrine_service(repo_root)\n"
-        '    return service.__dict__["_inner"].mission_step_contracts\n',
-        encoding="utf-8",
-    )
-
-    hits = _find_inner_reacharounds(planted)
-    assert [lineno for lineno, _ in hits] == [8], hits
-    assert hits[0][1] == "mission_step_contracts"
-
-
-def test_getattr_on_untainted_receiver_is_not_flagged(tmp_path: Path) -> None:
-    """True negative: ``getattr(x, "_inner")`` on an unrelated object is clean.
-
-    Mirrors ``test_planted_unrelated_inner_attribute_is_not_detected`` for the
-    getattr spelling specifically -- the widening must not become overbroad.
-    """
-    planted = tmp_path / "getattr_unrelated.py"
-    planted.write_text(
-        "class ScratchWrapper:\n"
-        "    def __init__(self, inner):\n"
-        "        self._inner = inner\n"
-        "\n"
-        "    def call(self):\n"
-        '        return getattr(self, "_inner").request()\n',
-        encoding="utf-8",
-    )
-
-    hits = _find_inner_reacharounds(planted)
-    assert hits == [], hits

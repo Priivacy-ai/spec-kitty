@@ -172,8 +172,7 @@ def test_review_cycle_authored_lands_on_coord_ref_and_is_absent_on_primary(
     test is a SECOND, independently discovered instance encoding the same
     pre-ADR assumption on the WRITE side, found only by running the full
     regression suite after WP04's classifier landed (not by design-trace) — see
-    ``tests/architectural/census/verdict_seam_IC04.yaml``'s
-    ``WP04-XWP-04`` finding. A reader relying on the ADR's inventory alone would
+    WP04's ``WP04-XWP-04`` review finding. A reader relying on the ADR's inventory alone would
     have missed this one; do not assume that document's "what needs re-pinning"
     list is exhaustive.
 
@@ -191,8 +190,8 @@ def test_review_cycle_authored_lands_on_coord_ref_and_is_absent_on_primary(
     still passes ``kind=MissionArtifactKind.WORK_PACKAGE_TASK`` — the SAME kind
     the real caller (``review/cycle.py::_commit_review_cycle_artifact``, line
     422, byte-identical after this WP per its own DoD) passes TODAY, uncorrected
-    by this WP (that caller-kind fix is WP10's, per
-    ``verdict_seam_IC04.yaml``'s ``WP04-XWP-01`` finding). This is the point:
+    by this WP (that caller-kind fix is WP10's, per WP04's
+    ``WP04-XWP-01`` review finding). This is the point:
     ``_group_files_by_partition`` classifies each file by its OWN path-derived
     kind (via ``is_coord_residue_churn`` -> ``kind_for_mission_file`` ->
     ``_artifact_kind_for_path``, now returning ``REVIEW_CYCLE`` post-WP04),

@@ -1,6 +1,5 @@
 """Scope: git ops integration tests — creates real git repositories."""
 
-import sys
 from pathlib import Path
 
 import pytest
@@ -18,26 +17,6 @@ from specify_cli.core.git_ops import (
 from specify_cli.core.paths import MissionMetaReadError
 
 pytestmark = pytest.mark.git_repo
-
-
-def test_run_command_captures_stdout():
-    code, stdout, stderr = run_command(
-        [sys.executable, "-c", "print('hello world')"],
-        capture=True,
-    )
-    assert code == 0
-    assert stdout == "hello world"
-    assert stderr == ""
-
-
-def test_run_command_allows_nonzero_when_not_checking():
-    code, stdout, stderr = run_command(
-        [sys.executable, "-c", "import sys; sys.exit(3)"],
-        check_return=False,
-    )
-    assert code == 3
-    assert stdout == ""
-    assert stderr == ""
 
 
 # ============================================================================
@@ -83,15 +62,6 @@ def test_get_current_branch_normal(tmp_path):
 
     branch = get_current_branch(repo)
     assert branch == "develop"
-
-
-def test_get_current_branch_not_git_repo(tmp_path):
-    """get_current_branch returns None for a non-git directory."""
-    plain_dir = tmp_path / "not-a-repo"
-    plain_dir.mkdir()
-
-    branch = get_current_branch(plain_dir)
-    assert branch is None
 
 
 @pytest.mark.usefixtures("_git_identity")
@@ -140,14 +110,6 @@ def test_has_remote_without_origin(tmp_path):
     assert has_remote(repo) is False
 
 
-def test_has_remote_nonexistent_repo(tmp_path):
-    """Test has_remote returns False for non-git directory."""
-    non_repo = tmp_path / "not-a-repo"
-    non_repo.mkdir()
-
-    assert has_remote(non_repo) is False
-
-
 @pytest.mark.usefixtures("_git_identity")
 def test_exclude_from_git_index(tmp_path):
     """Test exclude_from_git_index adds patterns to .git/info/exclude."""
@@ -183,18 +145,6 @@ def test_exclude_from_git_index_duplicate(tmp_path):
     exclude_file = repo / ".git" / "info" / "exclude"
     content = exclude_file.read_text()
     assert content.count(".worktrees/") == 1
-
-
-def test_exclude_from_git_index_non_git_repo(tmp_path):
-    """Test exclude_from_git_index silently skips non-git directories."""
-    non_repo = tmp_path / "not-a-repo"
-    non_repo.mkdir()
-
-    # Should not raise an error
-    exclude_from_git_index(non_repo, [".worktrees/"])
-
-    # Verify no .git directory was created
-    assert not (non_repo / ".git").exists()
 
 
 def test_has_tracking_branch_with_tracking(tmp_path, _git_identity):

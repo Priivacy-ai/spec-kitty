@@ -1,8 +1,18 @@
-"""Compatibility facade for the shared org-pack config contract.
+"""Org-pack config bindings for the ``specify_cli.doctrine`` management package.
 
-The parser and value objects live in ``doctrine.drg.org_pack_config`` so
-``charter`` and ``specify_cli`` consume one contract. This module preserves the
-existing ``specify_cli.doctrine.config`` import surface for CLI code.
+Conduit closure (mission ``doctrine-public-api-surface-01KZPDSR``, WP05 / C-005,
+FR-004): the doctrine-origin org-pack-config symbols are NO LONGER part of this
+module's ``__all__``. Previously they were re-exported through ``__all__``, which
+laundered doctrine-origin objects behind a first-party public surface;
+non-exempt runtime that reached them via ``specify_cli.doctrine.config`` now
+consumes them through the ``charter.drg`` door (object-identity re-export).
+
+The module-level bindings survive as explicit ``import X as X`` re-exports because
+the exempt management package's own public surface (``specify_cli.doctrine``'s
+``__init__`` and its unit tests) still exposes the shared contract. They are
+deliberately kept out of ``__all__`` — the source-side laundering guard enforces
+``__all__``, so their absence there is what closes the conduit.
+``assert_pack_local_paths_exist`` is the sole genuine first-party public symbol.
 """
 
 from __future__ import annotations
@@ -10,25 +20,15 @@ from __future__ import annotations
 from pathlib import Path
 
 from doctrine.drg.org_pack_config import (
-    OrgPackConfig,
-    PackRegistry,
-    load_pack_registry,
-    resolve_org_roots,
-    save_pack_registry,
+    OrgPackConfig as OrgPackConfig,
+    PackRegistry as PackRegistry,
+    load_pack_registry as load_pack_registry,
+    resolve_org_roots as resolve_org_roots,
+    save_pack_registry as save_pack_registry,
 )
 
-# OrgPackEnvVarUnsetError / OrgPackSubdirEscapeError are intentionally NOT
-# re-exported here: every runtime caller imports them from the canonical
-# contract module (doctrine.drg.org_pack_config), so re-exporting them through
-# this compat facade would be a dead symbol-level export (see the C-007
-# `__all__` convention and tests/architectural/test_no_dead_symbols.py).
 __all__ = [
-    "OrgPackConfig",
-    "PackRegistry",
     "assert_pack_local_paths_exist",
-    "load_pack_registry",
-    "resolve_org_roots",
-    "save_pack_registry",
 ]
 
 

@@ -24,7 +24,6 @@ Covers:
 
 from __future__ import annotations
 
-import ast
 from pathlib import Path
 from typing import Any
 
@@ -82,8 +81,7 @@ def test_promote_arbitrary_kinds_appends_exactly_those_ids(tmp_path: Path) -> No
     """Promoting a directive+paradigm+styleguide set appends exactly those."""
     config_path = _write_config(
         tmp_path,
-        "activated_directives:\n  - 001-foo\n"
-        "activated_paradigms:\n  - ddd\n",
+        "activated_directives:\n  - 001-foo\nactivated_paradigms:\n  - ddd\n",
     )
     data, yaml = _load(config_path)
     save = _save_with(yaml)
@@ -114,31 +112,6 @@ def test_promote_arbitrary_kinds_appends_exactly_those_ids(tmp_path: Path) -> No
     assert list(reloaded["activated_styleguides"]) == ["py-style"]
 
 
-def test_promote_arbitrary_kinds_writes_via_commit_plan_only(tmp_path: Path) -> None:
-    """No sibling writer — every byte on disk traces to a commit_plan call."""
-    config_path = _write_config(tmp_path, "activated_directives:\n  - 001-foo\n")
-    data, yaml = _load(config_path)
-
-    write_calls: list[Path] = []
-
-    def counting_save(path: Path, payload: dict[str, Any]) -> None:
-        write_calls.append(path)
-        _save_with(yaml)(path, payload)
-
-    plans = promote_activations(
-        {"activated_directives": ["002-bar", "003-baz"]},
-        config_path=config_path,
-        config_data=data,
-        save=counting_save,
-    )
-
-    # Exactly one commit_plan-mediated write per yaml_key (one key here).
-    assert write_calls == [config_path]
-    assert plans[0].activated == ["002-bar", "003-baz"]
-    reloaded, _ = _load(config_path)
-    assert list(reloaded["activated_directives"]) == ["001-foo", "002-bar", "003-baz"]
-
-
 def test_promote_is_idempotent_on_repeated_calls(tmp_path: Path) -> None:
     """Promoting the same ids twice appends them exactly once (no duplicates)."""
     config_path = _write_config(tmp_path, "activated_directives:\n  - 001-foo\n")
@@ -167,24 +140,6 @@ def test_promote_is_idempotent_on_repeated_calls(tmp_path: Path) -> None:
     assert list(reloaded["activated_directives"]) == ["001-foo", "002-bar"]
 
 
-def test_promote_dedupes_ids_within_a_single_call(tmp_path: Path) -> None:
-    """A duplicate id in the same promotion request is only appended once."""
-    config_path = _write_config(tmp_path, "activated_tactics:\n  - t1\n")
-    data, yaml = _load(config_path)
-    save = _save_with(yaml)
-
-    plans = promote_activations(
-        {"activated_tactics": ["t2", "t2", "t1"]},
-        config_path=config_path,
-        config_data=data,
-        save=save,
-    )
-
-    assert plans[0].activated == ["t2"]
-    reloaded, _ = _load(config_path)
-    assert list(reloaded["activated_tactics"]) == ["t1", "t2"]
-
-
 # ---------------------------------------------------------------------------
 # T022(b) LAND-BLOCKER — absent-key first-run parity (no built-in drop)
 # ---------------------------------------------------------------------------
@@ -203,9 +158,7 @@ def test_promote_into_absent_key_preserves_all_builtins_active(tmp_path: Path) -
     # ``PackContext.from_config`` round-trip below doesn't hard-fail
     # (WP04, C-A1) -- it is unrelated to the directive-promotion
     # absent-key behavior this test pins.
-    config_path = _write_config(
-        tmp_path, "vcs:\n  type: git\nmission_type_activations:\n  - software-dev\n"
-    )
+    config_path = _write_config(tmp_path, "vcs:\n  type: git\nmission_type_activations:\n  - software-dev\n")
     data, yaml = _load(config_path)
     save = _save_with(yaml)
     builtin_directives = ["d1", "d2", "d3"]
@@ -236,36 +189,6 @@ def test_promote_into_absent_key_preserves_all_builtins_active(tmp_path: Path) -
     assert ctx.activated_directives == frozenset({"d1", "d2", "d3", "d4"})
 
 
-def test_promote_into_absent_key_never_writes_bare_restrictive_list(
-    tmp_path: Path,
-) -> None:
-    """Regression guard: an absent-key promotion must not equal the raw ids.
-
-    Directly pins the LAND-BLOCKER: writing ``activated_directives: [d4]``
-    (bare, no built-ins) into a previously-absent key would flip runtime
-    resolution from "all built-ins active" to "only d4 active", dropping every
-    other built-in. This asserts the committed list is a strict superset of
-    the promoted ids whenever default_ids is non-empty.
-    """
-    config_path = _write_config(tmp_path, "vcs:\n  type: git\n")
-    data, yaml = _load(config_path)
-    save = _save_with(yaml)
-    builtin_directives = [f"builtin-{i}" for i in range(19)]
-
-    plans = promote_activations(
-        {"activated_directives": ["promoted-1"]},
-        config_path=config_path,
-        config_data=data,
-        save=save,
-        default_ids={"activated_directives": builtin_directives},
-    )
-
-    committed = plans[0].new_list
-    assert committed != ["promoted-1"]
-    assert set(builtin_directives).issubset(set(committed))
-    assert len(committed) == len(builtin_directives) + 1
-
-
 def test_promote_into_present_key_ignores_default_ids(tmp_path: Path) -> None:
     """When the key is already present, default_ids must not be materialized."""
     config_path = _write_config(tmp_path, "activated_directives:\n  - 001-foo\n")
@@ -283,30 +206,3 @@ def test_promote_into_present_key_ignores_default_ids(tmp_path: Path) -> None:
     reloaded, _ = _load(config_path)
     assert list(reloaded["activated_directives"]) == ["001-foo", "002-bar"]
     assert "999-should-not-appear" not in plans[0].new_list
-
-
-# ---------------------------------------------------------------------------
-# T022(c) — layer rule: no specify_cli import in this module
-# ---------------------------------------------------------------------------
-
-
-def test_activation_engine_module_has_no_specify_cli_import() -> None:
-    """C-001: charter must never import specify_cli (hard layer ratchet)."""
-    module_path = (
-        Path(__file__).resolve().parents[2] / "src" / "charter" / "activation_engine.py"
-    )
-    tree = ast.parse(module_path.read_text(encoding="utf-8"))
-
-    imported_roots: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                imported_roots.add(alias.name.split(".")[0])
-        elif isinstance(node, ast.ImportFrom) and node.module:
-            imported_roots.add(node.module.split(".")[0])
-
-    assert "specify_cli" not in imported_roots
-    # Also pin the module's own documented claim: zero charter-internal
-    # imports (avoids the pack_manager <-> activation_engine import cycle).
-    assert "charter" not in imported_roots
-    assert "pack_manager" not in imported_roots

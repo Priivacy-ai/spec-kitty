@@ -33,7 +33,7 @@ import pytest
 from doctrine.pack_paths import resolve_pack_root
 from doctrine.service import DoctrineService
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONTENT_MANIFEST = Path(__file__).parent / "fixtures" / "content-manifest.json"

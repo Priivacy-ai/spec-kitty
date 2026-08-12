@@ -18,7 +18,7 @@ from doctrine.drg.validator import assert_valid
 if TYPE_CHECKING:
     from doctrine.drg.models import DRGGraph
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.fast, pytest.mark.corpus]
 
 
 def test_node_kind_glossary_value() -> None:

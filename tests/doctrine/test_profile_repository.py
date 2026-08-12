@@ -14,6 +14,7 @@ Follows ATDD approach with ZOMBIES ordering:
 from pathlib import Path
 
 import pytest
+from ruamel.yaml import YAML
 
 from doctrine.agent_profiles.profile import AgentProfile, Role, TaskContext
 from doctrine.agent_profiles.repository import AgentProfileRepository
@@ -1209,3 +1210,128 @@ class TestRoleLookup:
         assert repo.get("arch-alex") is p1
         assert repo.get("arch-bob") is p2
         assert repo.get("arch-alex") is not p2
+
+
+# ---------------------------------------------------------------------------
+# WP03 T011 — direct unit tests for _parse_profile_from_file, extracted from
+# _load_layer (R-011-B) to keep its cognitive complexity within the ruff C901
+# limit (15).
+# ---------------------------------------------------------------------------
+
+
+class TestParseProfileFromFileDirect:
+    def _repo(self, tmp_path: Path) -> AgentProfileRepository:
+        """A minimally-loaded repository (no built-in dir) to host direct
+        ``_parse_profile_from_file`` calls without pulling in shipped profiles."""
+        empty = tmp_path / "empty-built-in"
+        empty.mkdir()
+        return AgentProfileRepository(built_in_dir=empty, project_dir=None)
+
+    def test_returns_none_and_records_skip_for_empty_document(
+        self, tmp_path: Path
+    ) -> None:
+        repo = self._repo(tmp_path)
+        empty_file = tmp_path / "empty.agent.yaml"
+        empty_file.write_text("", encoding="utf-8")
+
+        result = repo._parse_profile_from_file(
+            YAML(typ="safe"), empty_file, layer="org", built_in_profiles={}
+        )
+
+        assert result is None
+        summaries = [s.error_summary for s in repo.skipped_profiles()]
+        assert any("Empty profile file" in s for s in summaries)
+
+    def test_returns_none_and_records_skip_for_missing_profile_id(
+        self, tmp_path: Path
+    ) -> None:
+        repo = self._repo(tmp_path)
+        no_id_file = tmp_path / "noid.agent.yaml"
+        no_id_file.write_text("name: No ID Profile\n", encoding="utf-8")
+
+        result = repo._parse_profile_from_file(
+            YAML(typ="safe"), no_id_file, layer="org", built_in_profiles={}
+        )
+
+        assert result is None
+        skips = repo.skipped_profiles()
+        assert any(s.path == str(no_id_file) for s in skips)
+
+    def test_returns_none_and_records_skip_for_unparsable_yaml(
+        self, tmp_path: Path
+    ) -> None:
+        repo = self._repo(tmp_path)
+        bad_file = tmp_path / "bad.agent.yaml"
+        bad_file.write_text("profile-id: [unterminated\n", encoding="utf-8")
+
+        result = repo._parse_profile_from_file(
+            YAML(typ="safe"), bad_file, layer="org", built_in_profiles={}
+        )
+
+        assert result is None
+        summaries = [s.error_summary for s in repo.skipped_profiles()]
+        assert any("YAML/read error" in s for s in summaries)
+
+    def test_returns_none_and_records_skip_for_schema_validation_failure(
+        self, tmp_path: Path
+    ) -> None:
+        repo = self._repo(tmp_path)
+        broken_file = tmp_path / "broken.agent.yaml"
+        # 'purpose' and 'specialization' are required and deliberately omitted.
+        broken_file.write_text(
+            "profile-id: broken\nname: Broken\nroles:\n  - implementer\n",
+            encoding="utf-8",
+        )
+
+        result = repo._parse_profile_from_file(
+            YAML(typ="safe"), broken_file, layer="org", built_in_profiles={}
+        )
+
+        assert result is None
+        skips = repo.skipped_profiles()
+        assert any(s.profile_id == "broken" for s in skips)
+
+    def test_returns_profile_for_valid_builtin_layer_file(
+        self, tmp_path: Path, minimal_profile_yaml: str
+    ) -> None:
+        repo = self._repo(tmp_path)
+        valid_file = tmp_path / "valid.agent.yaml"
+        valid_file.write_text(minimal_profile_yaml, encoding="utf-8")
+
+        result = repo._parse_profile_from_file(
+            YAML(typ="safe"), valid_file, layer="builtin", built_in_profiles={}
+        )
+
+        assert result is not None
+        assert result.profile_id == "test-profile"
+        # builtin layer never triggers the collision diagnostic.
+        assert repo.skipped_profiles() == []
+
+    def test_merges_onto_built_in_when_profile_id_already_present(
+        self, tmp_path: Path
+    ) -> None:
+        repo = self._repo(tmp_path)
+        base = AgentProfile.model_validate(
+            {
+                "profile-id": "test-profile",
+                "name": "Base Name",
+                "purpose": "Base purpose",
+                "roles": ["implementer"],
+                "specialization": {"primary-focus": "Base focus"},
+            }
+        )
+        override_file = tmp_path / "override.agent.yaml"
+        override_file.write_text(
+            "profile-id: test-profile\nname: Overridden Name\n", encoding="utf-8"
+        )
+
+        result = repo._parse_profile_from_file(
+            YAML(typ="safe"),
+            override_file,
+            layer="org",
+            built_in_profiles={"test-profile": base},
+        )
+
+        assert result is not None
+        assert result.name == "Overridden Name"
+        assert result.purpose == "Base purpose"  # inherited, field-merge

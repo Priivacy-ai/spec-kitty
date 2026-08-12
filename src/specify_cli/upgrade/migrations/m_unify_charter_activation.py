@@ -210,7 +210,7 @@ class UnifyCharterActivationMigration(BaseMigration):
         "so config-authority derivation never silently drops an artefact "
         "recorded only in the charter interview (FR-006)."
     )
-    target_version = "3.2.6"
+    target_version = "3.2.6rc1"
 
     def detect(self, project_path: Path) -> bool:
         """Return True when at least one answers-only selection is promotable."""

@@ -2,16 +2,22 @@
 title: 'Tutorial: Governed Charter Workflow End-to-End'
 description: A guided tour connecting charter setup, doctrine synthesis, a governed mission run, and the retrospective loop into one journey.
 doc_status: active
-updated: '2026-07-20'
+updated: '2026-08-11'
 audience: docs/context/audience/external/project-owner.md
 type: tutorial
 related:
 - docs/context/charter-overview.md
 - docs/guides/how-to/governance/setup-governance.md
+- docs/guides/how-to/governance/run-governed-mission.md
+- docs/guides/how-to/governance/use-retrospective-learning.md
 ---
 # Tutorial: Governed Charter Workflow End-to-End
 
 > **Background**: If you're new to Charter, read [How Charter Works](../../context/charter-overview.md) first.
+
+![Governed charter workflow - Mission Kitty splash](../../assets/images/charter-governed-workflow-mission-kitty.png)
+
+_Stylized splash — the seal and stage board are decorative. Setup, governed run, and retrospective steps are in the linked how-tos below._
 
 ## What you'll build
 
@@ -21,6 +27,9 @@ does not repeat the step-by-step commands for each stage — each stage already 
 authoritative how-to. Instead, it connects them in the order you'll actually use them, so you
 understand the complete operator flow: from a blank git repository to agents receiving consistent,
 policy-backed context on every action.
+
+> [!TIP]
+> This page is a tour. Stage commands live in the linked how-tos: [setup governance](../how-to/governance/setup-governance.md), [run a governed mission](../how-to/governance/run-governed-mission.md), [retrospective learning](../how-to/governance/use-retrospective-learning.md).
 
 ---
 

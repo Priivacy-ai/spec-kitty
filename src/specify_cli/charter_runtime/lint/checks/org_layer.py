@@ -18,6 +18,8 @@ from typing import Any
 
 from specify_cli.charter_runtime.lint.findings import LintFinding
 
+KITTIFY_DIR_NAME = ".kittify"
+
 _OVERRIDABLE_ARTIFACT_TYPES: tuple[str, ...] = (
     "directives",
     "tactics",
@@ -40,10 +42,10 @@ def _find_repo_root_from_drg(drg: Any) -> Path | None:
     """
     _ = drg  # drg carries no repo-root metadata today
     cwd = Path.cwd()
-    if (cwd / ".kittify").exists():
+    if (cwd / KITTIFY_DIR_NAME).exists():
         return cwd
     for parent in cwd.parents:
-        if (parent / ".kittify").exists():
+        if (parent / KITTIFY_DIR_NAME).exists():
             return parent
     return None
 
@@ -67,67 +69,16 @@ class OrgOverridesBuiltinChecker:
         if repo_root is None:
             return []
 
-        try:
-            from specify_cli.doctrine.config import load_pack_registry
-        except ImportError:
+        services = _resolve_override_scan_services(repo_root)
+        if services is None:
             return []
-
-        registry = load_pack_registry(repo_root)
-        if not registry.packs:
-            return []
-
-        # Build a service with org layer applied so provenance is populated.
-        service = _build_service_with_org_layer(repo_root, registry)
-        if service is None:
-            return []
-
-        # Build a built-in-only baseline to detect which IDs exist in built-in.
-        built_in_only = _build_built_in_only_service(repo_root)
-        if built_in_only is None:
-            return []
+        service, built_in_only = services
 
         findings: list[LintFinding] = []
         for artifact_type in _OVERRIDABLE_ARTIFACT_TYPES:
-            org_repo = service.raw_repository(artifact_type)
-            built_in_repo = built_in_only.raw_repository(artifact_type)
-            if org_repo is None or built_in_repo is None:
-                continue
-            try:
-                items = org_repo.list_all()
-            except Exception:  # noqa: BLE001, S112 — degrade silently on bad pack
-                continue
-            for item in items:
-                item_id = getattr(item, "id", None)
-                if not isinstance(item_id, str):
-                    continue
-                try:
-                    provenance = org_repo.get_provenance(item_id)
-                except Exception:  # noqa: BLE001, S112 — provenance is advisory only
-                    continue
-                if provenance != "org":
-                    continue
-                try:
-                    builtin_match = built_in_repo.get(item_id)
-                except Exception:  # noqa: BLE001
-                    builtin_match = None
-                if builtin_match is None:
-                    continue
-                findings.append(
-                    LintFinding(
-                        category="org_layer",
-                        type="org_overrides_builtin",
-                        id=f"{artifact_type}:{item_id}",
-                        severity="low",
-                        message=(
-                            f"org layer overrides built-in {artifact_type[:-1]} "
-                            f"{item_id!r}"
-                        ),
-                        remediation_hint=(
-                            "Verify the override is intentional; remove the org pack "
-                            "copy if the built-in artifact already meets policy."
-                        ),
-                    )
-                )
+            findings.extend(
+                _scan_artifact_type_for_overrides(artifact_type, service, built_in_only)
+            )
         return findings
 
 
@@ -212,6 +163,89 @@ class OrgCharterDeviationChecker:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def _resolve_override_scan_services(repo_root: Path) -> tuple[Any, Any] | None:
+    """Build the (org-layered, built-in-only) service pair for override scanning.
+
+    Returns ``None`` when the ``charter.drg`` facade is unavailable, no org
+    packs are configured, or either service fails to construct — every case
+    degrades to "skip the advisory".
+    """
+    try:
+        from charter.drg import load_pack_registry
+    except ImportError:
+        return None
+
+    registry = load_pack_registry(repo_root)
+    if not registry.packs:
+        return None
+
+    # Build a service with org layer applied so provenance is populated.
+    service = _build_service_with_org_layer(repo_root, registry)
+    if service is None:
+        return None
+
+    # Build a built-in-only baseline to detect which IDs exist in built-in.
+    built_in_only = _build_built_in_only_service(repo_root)
+    if built_in_only is None:
+        return None
+
+    return service, built_in_only
+
+
+def _scan_artifact_type_for_overrides(
+    artifact_type: str, service: Any, built_in_only: Any
+) -> list[LintFinding]:
+    """Return org-overrides-builtin findings for a single artifact type."""
+    org_repo = service.raw_repository(artifact_type)
+    built_in_repo = built_in_only.raw_repository(artifact_type)
+    if org_repo is None or built_in_repo is None:
+        return []
+
+    try:
+        items = org_repo.list_all()
+    except Exception:  # noqa: BLE001, S112 — degrade silently on bad pack
+        return []
+
+    findings: list[LintFinding] = []
+    for item in items:
+        finding = _check_item_overrides_builtin(artifact_type, item, org_repo, built_in_repo)
+        if finding is not None:
+            findings.append(finding)
+    return findings
+
+
+def _check_item_overrides_builtin(
+    artifact_type: str, item: Any, org_repo: Any, built_in_repo: Any
+) -> LintFinding | None:
+    """Return a finding if *item* is org-provenanced and shadows a built-in artifact."""
+    item_id = getattr(item, "id", None)
+    if not isinstance(item_id, str):
+        return None
+    try:
+        provenance = org_repo.get_provenance(item_id)
+    except Exception:  # noqa: BLE001, S112 — provenance is advisory only
+        return None
+    if provenance != "org":
+        return None
+    try:
+        builtin_match = built_in_repo.get(item_id)
+    except Exception:  # noqa: BLE001
+        builtin_match = None
+    if builtin_match is None:
+        return None
+    return LintFinding(
+        category="org_layer",
+        type="org_overrides_builtin",
+        id=f"{artifact_type}:{item_id}",
+        severity="low",
+        message=f"org layer overrides built-in {artifact_type[:-1]} {item_id!r}",
+        remediation_hint=(
+            "Verify the override is intentional; remove the org pack "
+            "copy if the built-in artifact already meets policy."
+        ),
+    )
 
 
 def _build_scan_service(repo_root: Path, *, org_roots: list[Path] | None = None) -> Any:
@@ -317,7 +351,7 @@ def _load_project_charter_fields(repo_root: Path) -> dict[str, Any]:
     Returns an empty dict if the file is absent or unreadable — the calling
     advisory check will then emit no findings.
     """
-    answers_path = repo_root / ".kittify" / "charter" / "interview" / "answers.yaml"
+    answers_path = repo_root / KITTIFY_DIR_NAME / "charter" / "interview" / "answers.yaml"
     if not answers_path.exists():
         return {}
     try:

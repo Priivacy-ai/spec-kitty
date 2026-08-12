@@ -265,7 +265,8 @@ def _drain_checkout_roots() -> list[Path]:
         from specify_cli.core.paths import locate_project_root
 
         root = locate_project_root(Path.cwd().resolve())
-    except Exception:  # noqa: BLE001 - an unreadable cwd is absence, not a decision
+    except Exception:  # noqa: BLE001
+        # An unreadable cwd is absence, not a decision.
         return []
     return [root] if root is not None else []
 
@@ -296,6 +297,40 @@ def _consenting_body_project_uuids(tasks: list[BodyUploadTask]) -> frozenset[str
             exc_info=True,
         )
         return frozenset()
+
+
+def _partition_window(
+    window: list[BodyUploadTask], granted: frozenset[str],
+) -> tuple[list[BodyUploadTask], set[str], int]:
+    """Partition one drained window into consenting vs withheld tasks.
+
+    Pure decision/partition helper extracted from
+    ``_collect_consenting_body_tasks`` to keep its complexity within budget
+    (Sonar S3776 / ruff C901). Touches no queue/DB state — the drain/window
+    loop itself stays inline in the caller, byte-identical, so the
+    timing-sensitive daemon drain behavior is unaffected.
+
+    Returns ``(consenting_tasks, newly_denied_identities, withheld_count)``.
+    """
+    consenting: list[BodyUploadTask] = []
+    newly_denied: set[str] = set()
+    withheld_here = 0
+    for task in window:
+        uuid = str(task.project_uuid or "").strip()
+        if uuid and uuid in granted:
+            consenting.append(task)
+            continue
+        withheld_here += 1
+        # A blank identity is added as ``""``: unattributable rows are never
+        # consentable, and grouping them lets one exclusion step past all of
+        # them instead of accumulating a row id per legacy row.
+        newly_denied.add(uuid)
+        logger.debug(
+            "Body upload withheld: project %s has not consented to hosted sync (%s)",
+            uuid or "<unidentified>",
+            task.artifact_path,
+        )
+    return consenting, newly_denied, withheld_here
 
 
 @dataclass
@@ -507,7 +542,7 @@ class BackgroundSyncService:
         loops until the queue is empty or all remaining events have
         exceeded their retry limit.
         """
-        return self._perform_full_sync(show_progress=show_progress)
+        return self._perform_full_sync(_show_progress=show_progress)
 
     def drain_body_uploads_only(self) -> None:
         """Drain ONLY the auth-gated body-upload queue; skip event sync entirely.
@@ -569,11 +604,14 @@ class BackgroundSyncService:
         with self._lock:
             return self._sync_once()
 
-    def _perform_full_sync(self, *, show_progress: bool = False) -> BatchSyncResult:  # noqa: ARG002
+    def _perform_full_sync(self, *, _show_progress: bool = False) -> BatchSyncResult:
         """Drain body uploads; the queue-backed event drain was removed (#3030 FR-012).
 
-        ``show_progress`` is retained for signature compatibility with the callers
-        and tests that still pass it; it no longer has an event drain to report on.
+        ``_show_progress`` (underscore-prefixed: a deliberately unused contract
+        slot, not a removable dead param — S1172) is retained for signature
+        compatibility with ``sync_now``, its only caller, which still forwards
+        its own public ``show_progress`` kwarg here; there is no longer an
+        event drain to report progress on.
 
         Thread-safe: holds _lock for the full duration so background
         timer ticks are serialised.
@@ -1081,23 +1119,11 @@ class BackgroundSyncService:
                 break
 
             granted = _consenting_body_project_uuids(window)
-            withheld_here = 0
-            for task in window:
-                uuid = str(task.project_uuid or "").strip()
-                if uuid and uuid in granted:
-                    collected.append(task)
-                    collected_row_ids.add(task.row_id)
-                    continue
-                withheld_here += 1
-                # A blank identity is added as ``""``: unattributable rows are never
-                # consentable, and grouping them lets one exclusion step past all of
-                # them instead of accumulating a row id per legacy row.
-                denied_identities.add(uuid)
-                logger.debug(
-                    "Body upload withheld: project %s has not consented to hosted sync (%s)",
-                    uuid or "<unidentified>",
-                    task.artifact_path,
-                )
+            consenting, newly_denied, withheld_here = _partition_window(window, granted)
+            for task in consenting:
+                collected.append(task)
+                collected_row_ids.add(task.row_id)
+            denied_identities |= newly_denied
             withheld_total += withheld_here
             if withheld_here == 0:
                 break

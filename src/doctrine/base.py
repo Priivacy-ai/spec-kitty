@@ -255,52 +255,103 @@ class BaseDoctrineRepository(ABC, Generic[T]):
             if not overlay_dir.exists():
                 continue
             for yaml_file in self._project_scan(overlay_dir):
-                try:
-                    data = yaml_parser.load(yaml_file)
-                    if data is None:
-                        continue
-                    self._pre_validate(data, yaml_file)
-                    item_id = data.get("id")
-                    if not item_id:
-                        warnings.warn(
-                            f"Skipping {layer_name} {self._kind} {yaml_file.name}: no id",
-                            UserWarning,
-                            stacklevel=3,
-                        )
-                        continue
-                    if item_id in built_in:
-                        merged = self._merge(built_in[item_id], data)
-                        if self._include_item(merged):
-                            self._record_collision_if_present(
-                                item_id=item_id,
-                                higher_layer=layer_name,
-                                higher_data=data,
-                            )
-                            self._post_validate(merged, yaml_file)
-                            self._items[item_id] = merged
-                            self._provenance[item_id] = layer_name
-                        else:
-                            self._scope_filtered_ids.add(item_id)
-                    else:
-                        obj = self._schema.model_validate(data)
-                        if self._include_item(obj):
-                            key = self._key(obj)
-                            self._record_collision_if_present(
-                                item_id=key,
-                                higher_layer=layer_name,
-                                higher_data=data,
-                            )
-                            self._post_validate(obj, yaml_file)
-                            self._items[key] = obj
-                            self._provenance[key] = layer_name
-                        else:
-                            self._scope_filtered_ids.add(self._key(obj))
-                except (YAMLError, ValidationError, OSError) as exc:
-                    warnings.warn(
-                        f"Skipping invalid {layer_name} {self._kind} {yaml_file.name}: {exc}",
-                        UserWarning,
-                        stacklevel=3,
-                    )
+                self._apply_overlay_file(
+                    yaml_file, layer_name, yaml_parser=yaml_parser, built_in=built_in
+                )
+
+    def _apply_overlay_file(
+        self,
+        yaml_file: Path,
+        layer_name: str,
+        *,
+        yaml_parser: YAML,
+        built_in: dict[str, T],
+    ) -> None:
+        """Parse, validate, and merge-or-insert one overlay YAML file.
+
+        Extracted from :meth:`_apply_overlay_layer` to keep its cognitive
+        complexity within the ruff C901 limit (15); the per-file logic now
+        starts at nesting level 0 instead of nested under two loops. Moving
+        this one stack frame deeper than the original inline block bumps the
+        ``warnings.warn`` ``stacklevel`` from 3 to 4 so the warning is still
+        attributed to the repository's construction call site.
+        """
+        try:
+            data = yaml_parser.load(yaml_file)
+            if data is None:
+                return
+            self._pre_validate(data, yaml_file)
+            item_id = data.get("id")
+            if not item_id:
+                warnings.warn(
+                    f"Skipping {layer_name} {self._kind} {yaml_file.name}: no id",
+                    UserWarning,
+                    stacklevel=4,
+                )
+                return
+            if item_id in built_in:
+                self._merge_overlay_item(item_id, data, yaml_file, built_in, layer_name)
+            else:
+                self._insert_overlay_item(data, yaml_file, layer_name)
+        except (YAMLError, ValidationError, OSError) as exc:
+            warnings.warn(
+                f"Skipping invalid {layer_name} {self._kind} {yaml_file.name}: {exc}",
+                UserWarning,
+                stacklevel=4,
+            )
+
+    def _merge_overlay_item(
+        self,
+        item_id: str,
+        data: dict[str, Any],
+        yaml_file: Path,
+        built_in: dict[str, T],
+        layer_name: str,
+    ) -> None:
+        """Field-merge an overlay item that shares an ID with a built-in item.
+
+        Extracted from :meth:`_apply_overlay_file` (itself extracted from
+        :meth:`_apply_overlay_layer`) to keep cognitive complexity within the
+        ruff C901 limit (15).
+        """
+        merged = self._merge(built_in[item_id], data)
+        if not self._include_item(merged):
+            self._scope_filtered_ids.add(item_id)
+            return
+        self._record_collision_if_present(
+            item_id=item_id,
+            higher_layer=layer_name,
+            higher_data=data,
+        )
+        self._post_validate(merged, yaml_file)
+        self._items[item_id] = merged
+        self._provenance[item_id] = layer_name
+
+    def _insert_overlay_item(
+        self,
+        data: dict[str, Any],
+        yaml_file: Path,
+        layer_name: str,
+    ) -> None:
+        """Validate and insert a new overlay item with no built-in counterpart.
+
+        Extracted from :meth:`_apply_overlay_file` (itself extracted from
+        :meth:`_apply_overlay_layer`) to keep cognitive complexity within the
+        ruff C901 limit (15).
+        """
+        obj = self._schema.model_validate(data)
+        if not self._include_item(obj):
+            self._scope_filtered_ids.add(self._key(obj))
+            return
+        key = self._key(obj)
+        self._record_collision_if_present(
+            item_id=key,
+            higher_layer=layer_name,
+            higher_data=data,
+        )
+        self._post_validate(obj, yaml_file)
+        self._items[key] = obj
+        self._provenance[key] = layer_name
 
     def _load(self) -> None:
         """Walk built-in + org + project dirs, parse, merge, warn on failure."""

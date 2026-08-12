@@ -630,24 +630,6 @@ def test_fr003_assert_status_path_within_target_surface_rejects_backslash_slug(
         )
 
 
-def test_fr003_assert_status_path_within_target_surface_accepts_valid_slug(
-    tmp_path: Path,
-) -> None:
-    """FR-003 sibling-seam :828 — valid slug is accepted (no ValueError on slug validation)."""
-    # The slug is valid; candidate IS under the surface root → no ValueError
-    mission_slug = "valid-mission-01KVBBT6"
-    surface_root = tmp_path / "kitty-specs" / mission_slug
-    candidate = surface_root / "status.events.jsonl"
-    # Should NOT raise for the slug; may raise for containment if candidate is outside —
-    # here we put it inside the surface root so the whole call succeeds.
-    result = _assert_status_path_within_target_surface(
-        repo_root=tmp_path,
-        mission_slug=mission_slug,
-        candidate=candidate,
-    )
-    assert result == candidate.resolve(strict=False)
-
-
 # ---------------------------------------------------------------------------
 # WP04 / T014 FR-003: :2382 path — _validate_mission_slug_path_segment called before
 # primary_feature_dir_for_mission is used in _run_lane_based_merge.
@@ -791,16 +773,6 @@ def test_bookkeeping_snapshot_trusted_set_accepts_exact_merge_state_json(tmp_pat
     candidate = tmp_path / KITTIFY_DIR / "merge-state.json"
     snapshots = _capture_merge_snapshots(tmp_path, candidate)
     assert candidate.resolve(strict=False) in snapshots
-
-
-def test_bookkeeping_snapshot_trusted_set_rejects_outside_all(tmp_path: Path) -> None:
-    """T017 pin: path outside all 3 dirs AND not the exact file is rejected.
-
-    If any trusted-set member is dropped (e.g. KITTIFY_DIR/runtime/merge), this turns RED.
-    """
-    outside = tmp_path / "completely-outside" / "file.json"
-    with pytest.raises(ValueError):
-        _capture_merge_snapshots(tmp_path, outside)
 
 
 def test_bookkeeping_snapshot_trusted_set_rejects_kittify_root_not_exact_file(

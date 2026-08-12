@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-08-10'
+updated: '2026-08-12'
 ---
 # Changelog
 
@@ -13,12 +13,79 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 3.2.6
+## [Unreleased] - 3.2.6rc2
 
-_The 3.2.6 development cycle is open. Entries land here as missions merge._
+_The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land here as missions merge._
+
+### 🐛 Fixed
+
+- **Root README guide links point at the post-IA `tutorials/` and `how-to/`
+  paths.** Fixes GitHub 404s from stale flat `docs/guides/*.md` hrefs after the
+  guides subdivision (e.g. Your First Mission).
+
+## [3.2.6rc1] - 2026-08-12
+
+> [!WARNING]
+> **`3.2.6rc1` is a Release Candidate — an internal, delta build published for validation, NOT an official `3.2.6` release.** It ships as a GitHub _prerelease_ and to PyPI as a PEP 440 prerelease, so ordinary installers skip it unless you explicitly opt in with `--pre`. Do **not** use it for production or general rollout. The last official release remains `v3.2.5`; when `3.2.6` is finalized its changelog section supersedes this one.
+
+**Install for testing (opt-in only):**
+
+```bash
+pipx install --pre spec-kitty-cli==3.2.6rc1
+# or, inside an existing environment:
+pip install --pre spec-kitty-cli==3.2.6rc1
+```
+
+**Highlights since `v3.2.5`** — the operator-facing changes worth exercising in this candidate:
+
+- **Breaking — built-in doctrine content relocated to `packs/built-in/` with no compatibility shim** (mission `relocate-builtin-doctrine-packs`). Repoint any reference that still targets the old `src/doctrine/<kind>/built-in/` path.
+- **Breaking — local `beads`/`fp` tracker sync now requires a recorded egress decision** (mission `tracker-egress-refusal-3108`). A binding that never recorded hosted-sync consent stops syncing on upgrade until you record `tracker.egress: permitted` or `sync.enabled: true`.
+- **Breaking — the `rtk-search-tooling` toolguide is removed**, and the `3.2.6_retire_rtk_search_tooling` upgrade migration strips it from projects that had it activated (it runs automatically on `spec-kitty upgrade` and is safe to re-run).
+- **Breaking — org packs with an unrecognised agent-profile or DRG key now fail to load** (mission `doctrine-silence-guards`). Run `spec-kitty doctor doctrine --json` and check `skipped_profiles` before you upgrade.
+- **`charter synthesize` is now non-destructive** — it preserves backed governance content by default, with `--prune` as the explicit opt-in and `--dry-run` to preview (mission `charter-synthesize-reconciliation`; `#3270` P0, folds `#2777` / `#3052`). The `implement` / `next` boundary no longer hard-blocks until you resynthesize.
+- **Approving a work package after a rejection now sticks with no override flag required** (mission `review-verdict-write-integrity`; `#3044`) — the reject → fix → approve cycle no longer forces `--skip-review-artifact-check`.
+- **Timestamps Spec Kitty writes into your project are now correct aware-UTC** instead of local time mislabelled as UTC (mission `kernel-clock-single-door`; `#3305`, closes `#3289`).
+- **CLI UX: shell autocompletion, a `-h` short-help alias, and alphabetical command listing** (`#2232`, `#2234`, `#2235`) — additive, with no behavior change to existing commands.
+
+The complete, factual list of changes for this candidate follows in the entries below.
 
 ### ✨ Added
 
+- **Multi-Agent Parallel Development and Orchestrator Quickstart tutorials now open
+  with illustrated Mission Kitty splashes (`#3331`).** Each page adds a decorative hero and
+  a one-line caption that points to the authoritative workflow steps in the prose
+  below, matching the pattern introduced in `#3276`.
+- **Governed Charter Workflow, Claude Code Integration, and Claude Code Workflow
+  tutorials now open with illustrated Mission Kitty splashes, plus TIP cross-links
+  and hub `related:` edges (`#3333`).** Each page adds a decorative hero and a one-line
+  caption; the Charter tour points at the governance how-tos, and the two Claude
+  Code tutorials link each other for slash-command vs CLI/dashboard paths.
+- **Three #3276 Mission Kitty heroes are regenerated as decorative-only splashes
+  (missions overview, your first mission, when-to-use-modes alternate art) (`#3341`).**
+  Replaces caption-mitigated board labels with abstract art; each PNG compressed
+  to ≤500 KB. Memphis, four-paths, and corporate-comics assets on when-to-use-modes
+  are unchanged.
+- **The DRG now carries a whole-graph, action-only reachability companion guard, and six genuine residual
+  orphans are wired into the graph (mission `drg-reachability-metric-wiring-01KZS5VR`; `#3009` point 3,
+  `#1923`).** `TestReachabilityCompanionGuard` in `tests/doctrine/drg/test_reachability.py` asserts every
+  activatable-kind node reachable from **neither** the action channel nor the profile channel's
+  `{requires, specializes_from, suggests}` web is correctly partitioned into "both-channel dead" vs
+  "profile-delivered" — live totality/disjointness assertions against the graph measured at test time, not
+  an exact-membership pin (the ever-growing frozenset-literal pin was softened out during PR #3342 landing,
+  consistent with mission `assertive-test-suite-sanitation-01KZME3P`'s "test plausible graph behavior, not
+  exact ever-growing membership"). A fixed anti-gaming gate (`TestActionUnreachableShippedLedgerCoverage`)
+  independently proves the thirteen URNs this mission wires are genuinely action-reachable and named in a
+  wiring-table ledger row, so a node with outbound edges but no inbound path still cannot pass silently. Six
+  traced inbound edges (`procedure:refactoring → DISCIPLINED_REFACTORING`, `DIRECTIVE_024`/`DIRECTIVE_025` →
+  `RECONCILE_CHANGE_SCOPE_TENSIONS`, `DIRECTIVE_030` → `USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY`,
+  `researcher-robbie → spike-timebox-policy`, `lexical-larry → glossary-maintenance-workflow`,
+  `minutes-maker-mahad → meeting-minutes-pipeline`) move the action-only whole-graph residual **88 → 75** and
+  the both-channel-dead subset **38 → 34** (descriptive measurements at time of wiring, not pinned
+  assertions). The `#1923` DRG orphan-residual record
+  (`kitty-specs/mission-lifecycle-dispatch-drg-closeout-01KV0S99/drg-orphan-residual.md`) is truth-upped
+  against the wired graph: every one of the 75 residual members now carries an individual or group
+  disposition, `toolguide:rtk-search-tooling` is retired (already removed from disk), and only the genuinely
+  action-reachable members of the prior "6 promoted" claim are recorded as promoted.
 - **Documentation pages can now declare who they are for: a canonical `audience:`
   frontmatter field, plus a Common Docs styleguide and gates, ship in the built-in
   doctrine pack (mission `common-docs-convergence`).** Each page states its
@@ -369,6 +436,67 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **A corrupt, truncated, or wrong-authority `meta.json` is now rejected loudly by
+  every mission read path instead of being silently accepted (mission
+  `meta-json-fail-closed-routing`; closes epic `#3259` — `#3228` / `#3229` /
+  `#3230` / `#3240`).** A mission's `meta.json` is its canonical identity and
+  VCS-lock record. Several internal read paths — git ref-advance, `implement`, and
+  the acceptance-matrix merge-driver — still decoded it through hand-rolled parsers
+  that would quietly accept a malformed or wrong-authority file, exactly the
+  split-brain / wrong-authority failure the metadata-authority work exists to close.
+  Before, a bad `meta.json` could let a mission proceed on corrupt identity state
+  and surface later as a confusing, hard-to-trace failure; now every remaining read
+  routes through one fail-closed decode seam and fails immediately with a clear,
+  path-named error. The duplicated VCS-lock comparison — two copies that could
+  return contradictory verdicts on the same file — is also unified into a single
+  authority.
+
+- **Two blocking CI gates now reflect what a PR actually changed (mission
+  `ci-scoping-gate-reliability`; `#3008`, `#3147`).** _Corpus data no longer ships
+  unguarded (`#3008`):_ a PR that changed only non-source corpus data — shipped
+  doctrine under `packs/**`, a mission's planning artifacts under `kitty-specs/**`,
+  or charter config under `.kittify/**` — never triggered the quality workflow at
+  all, so every corpus-reading suite was silently skipped pre- and post-merge and a
+  regression in shipped data shipped invisibly. Narrow, discrete trigger globs now
+  start the workflow on such changes, and a new blocking `fast-tests-corpus` job
+  runs the corpus-reading suites (selected by a `@pytest.mark.corpus` marker, so
+  already-covered suites are not re-run) and gates the merge. The trigger
+  deliberately excludes lifecycle churn (`status.events.jsonl`, notes, trace) so it
+  does not fire on every mission PR. _Docs dead-link gate no longer over-fires
+  (`#3147`):_ the blocking dead-link / related-edge check scanned the whole tree and
+  failed a docs PR for pre-existing broken links in files it never touched. The
+  blocking check is now scoped to the PR's own changed files (fail-closed on an
+  unresolvable base ref — a shallow clone or unfetched base errors rather than
+  passing trivially), while the unfiltered whole-tree scan is retained as the
+  non-blocking `push: main` backstop so genuine repo-wide rot is still surfaced.
+- **The `charter` and `sync` modules are cleared of their Sonar maintainability
+  backlog, including a super-linear-backtracking regex (mission
+  `charter-sync-sonar-remediation`; `#3232`-adjacent).** 80 SonarCloud findings
+  across the two modules — 27 over-complex functions, 15 duplicate literals, 20
+  malformed suppression comments, unused parameters, too-many-parameter
+  signatures, and one ReDoS-class regex flagged `BLOCKER` — were resolved with
+  **behavior-preserving** refactors and **no new suppressions**. Over-complex
+  functions were brought to the ≤15 cognitive-complexity ceiling via tested
+  helper extraction (each helper carries a focused test); duplicate literals
+  became named constants; the `token_budget` heading regex was rewritten to
+  remove its `.`/`\s` ambiguity (proven match-equivalent by a characterization
+  test); and the two too-many-parameter event emitters (`emit_wp_status_changed`
+  and `emit_token_usage_recorded`) were slimmed by bundling their optional tail
+  fields into typed params objects (`WPStatusChangeMetadata` /
+  `TokenUsageMetadata`), with every call site migrated to the params object so
+  the tail stays fully type-checked rather than routed through an untyped
+  `**kwargs` bag. Two findings are Sonar false-positives (a Pydantic
+  `PrivateAttr` and an already-single-return method) with no clean code fix;
+  they remain for a SonarCloud UI won't-fix. No runtime behavior changes.
+- **Signature change for out-of-tree callers of two exported event emitters
+  (mission `charter-sync-sonar-remediation`; `#3317`).** `emit_wp_status_changed`
+  and `emit_token_usage_recorded` (re-exported from the `sync` facade) no longer
+  accept their optional tail fields (`causation_id`, `force`, `evidence`,
+  `run_id`, `provider`, `model`, …) as individual keyword arguments. Pass a
+  `WPStatusChangeMetadata` / `TokenUsageMetadata` object via the keyword-only
+  `metadata=` parameter instead. All in-tree callers are already migrated; only
+  external plugins that called these helpers with the old keyword tail are
+  affected.
 - **Restored an honest red CI gate: `main`'s two standing reds now go green for
   the right reason, and `move-task`'s pre-review gate stops crying wolf
   (test-layer only; epic `#3260` — "a red gate must mean a real regression").**
@@ -407,6 +535,22 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     (git-worktree baseline) scan no longer produces absolute paths that silently
     over-count `mission_metadata.py` as a violation (`#3241`, PART 2).
 
+- **The #2804 gate-artifact merge invariant is guarded again at the driver level,
+  and the doctrine module's Sonar maintainability debt is cleared (mission
+  `gate-artifact-merge-driver-unit-gate`; `#3232`).** A prior refactor (`b04da00e1`)
+  deleted the unit test that pinned "a merge must never reset a filled acceptance/
+  issue gate artifact back to a scaffold placeholder", and it was never restored
+  because it had been written for a whole-file heuristic the row-union authority
+  model (`#3076`) replaced. This restores that guard as a fast, in-memory unit gate
+  over the shipped row-union reconcilers: a filled/accepted criterion is never reset
+  to the scaffold marker, the accepted evidence handle survives a merge (including
+  inside a structured conflict marker), and the merged verdict stays in its
+  admissible domain — each with a falsifying control. Bundled opportunistically:
+  the `src/doctrine/` Sonar backlog is cleared — 37 duplicate-literal findings hoisted
+  to named constants, 7 over-complex functions reduced to the ≤15 cognitive-complexity
+  ceiling via tested helper extraction, and 3 minor smells resolved — all
+  behavior-preserving with no new suppressions. (One 183-complexity function is
+  deferred to a dedicated mission.)
 - **`spec-kitty auth login` (and any caller of the SaaS URL helper) now points
   you at the real hosted service when `SPEC_KITTY_SAAS_URL` is unset, not a fake
   placeholder (`#3297`, closes `#3296`).** Previously, running the command
@@ -1239,6 +1383,43 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ♻️ Changed
 
+- **The test suite is leaner and its CI ownership is explicit (mission
+  `assertive-test-suite-sanitation`).** Removed permanently inert tests,
+  dominated duplicates, historical shape/count pins, stale scaffolds, and
+  non-causal structural scanners while preserving reviewed live-path and
+  planted-fault guards. The shared pytest environment now publishes a validated
+  staged build with lease heartbeats, eliminating the `#3283` sibling timeout
+  cascade. Regression remains a generic blocking marker route with honest
+  empty-set handling; quarantine remains an empty Tier-3 visibility route whose
+  owner manifest is checked against repository-wide marker discovery. The
+  original `doctor restart-daemon` NFR-002 ≤10-second shared-runner wall-clock
+  claim is explicitly retired; its controlled Linux lane now enforces
+  distinct-PID restart and healthy-control-plane behavior under bounded
+  operation timeouts. Hosted-macOS performance evidence is deferred to a
+  controlled developer/canary harness rather than shared-runner wall clock.
+  The integrated census records 36,013 nodes / 2,667 Python test files versus
+  the frozen 37,444 / 2,731 baseline, with every frozen candidate terminally
+  owned.
+
+- **The `doctrine` module now has a curated, enforced public API surface, so
+  runtime code imports it through stable doors instead of reaching into its
+  internals (mission `doctrine-public-api-surface`; `#3179`, closes the
+  runtime→doctrine half of `#2986`).** A new `doctrine.api` manifest names the
+  symbols the future `spec-kitty-doctrine` wheel will export, the `charter.*`
+  facades re-export them by object identity, and ~34 `specify_cli` modules move
+  off direct `doctrine.*` imports onto those facades. A lazy-import ratchet plus a
+  source-side laundering guard keep new reach-through from creeping back in. This
+  is an internal architecture boundary only — no CLI command, output, or runtime
+  behavior changes — and it unblocks the `#3101` doctrine wheel cutover.
+- **The contributor planning surface (`docs/plans/`) gains durable, version-spanning
+  _domain plans_ and a curated index (`#3324`).** Two domain throughlines — SaaS & hosted sync,
+  and doctrine & charter — now hold the standing strategy and invariants for their
+  surface across releases, distinct from the release-scoped `3.2.x` plans that retire
+  once distilled. The plans index is reorganized into domain throughlines, portfolio &
+  milestone planning, and a single working-collections list; loose top-level notes are
+  filed into their subject subdirectories; and subdirectory landing files are
+  standardized on `index.md`. This is an internal contributor-facing change — the CLI
+  and templates are unaffected.
 - **The beginner guides now open with illustrated Mission Kitty splashes, and the
   Spec-Driven Development page carries a real diagram instead of ASCII art
   (`#3276`).** Getting Started, Understanding Missions, Your First Mission, and

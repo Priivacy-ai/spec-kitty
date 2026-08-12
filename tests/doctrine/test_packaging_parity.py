@@ -37,7 +37,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.distribution, pytest.mark.integration, pytest.mark.git_repo]
+pytestmark = [pytest.mark.distribution, pytest.mark.integration, pytest.mark.git_repo, pytest.mark.corpus]
 
 _THIS = Path(__file__).resolve()
 REPO_ROOT = _THIS.parents[2]

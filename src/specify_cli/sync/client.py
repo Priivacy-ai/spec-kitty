@@ -800,7 +800,7 @@ class WebSocketClient:
         elif msg_type == "ping":
             await self._handle_ping(data)
         elif msg_type == "LocalCommitAck":
-            await self._handle_local_commit_ack(data)
+            self._handle_local_commit_ack(data)
         else:
             # Unknown message type
             pass
@@ -899,7 +899,7 @@ class WebSocketClient:
             pong["build_id"] = self._project_identity.build_id
         await self.ws.send(json.dumps(pong))
 
-    async def _handle_local_commit_ack(self, data: dict):
+    def _handle_local_commit_ack(self, data: dict):
         """Ignore unmatched LocalCommit Acks; the exact waiter owns mutation."""
         logger.debug(
             "Unmatched LocalCommitAck received for project=%s build=%s hash=%s",

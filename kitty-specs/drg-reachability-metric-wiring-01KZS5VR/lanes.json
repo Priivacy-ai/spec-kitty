@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "mission_slug": "drg-reachability-metric-wiring-01KZS5VR",
+  "mission_id": "01KZS5VRCYZ04G2K54SSQPY5BA",
+  "mission_branch": "kitty/mission-drg-reachability-metric-wiring-01KZS5VR",
+  "target_branch": "fix/drg-reachability-metric-wiring",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/development/3-2-page-inventory.yaml",
+        "docs/plans/doctrine/delivery-reachability-wiring-table.md",
+        "packs/built-in/*.graph.yaml",
+        "src/doctrine/drg/migration/extractor.py",
+        "tests/doctrine/drg/migration/test_extractor_projection.py",
+        "tests/doctrine/drg/test_reachability.py",
+        "tests/specify_cli/cli/commands/test_doctrine_regenerate_graph.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-08-11T20:36:13.774889+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "0987374d8de177ca2683ea78e757281742932914"
+}

@@ -15,7 +15,7 @@ from doctrine.service import DoctrineService
 
 from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 
 # Post-relocation the shipped built-in doctrine kinds live flattened under

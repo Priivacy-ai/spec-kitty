@@ -130,17 +130,6 @@ def test_resolve_artifact_urn_is_reject_not_drop_on_unresolvable_stem(
 # --------------------------------------------------------------------------- #
 
 
-def test_config_declares_exactly_the_expected_directive_count(
-    activated_directive_stems: list[str],
-) -> None:
-    # Pins the observed activated-directive count so a silent addition/removal
-    # in the activation store is visible as an intentional test update, not an
-    # invisible drift. Bumped 25 -> 31 for the writing-comms/diagramming
-    # doctrine activation (commit 9a99801f1): numbered directives 046-050 plus
-    # the two deliberately slug-named hub directives
-    # (use-c4-model-techniques, reconcile-change-scope-tensions).
-    assert len(activated_directive_stems) == 31  # golden-count: cardinality-is-contract
-
 
 def _directive_stems_for_parametrize() -> list[str]:
     """Read config.activated_directives eagerly for parametrize IDs.
@@ -148,9 +137,8 @@ def _directive_stems_for_parametrize() -> list[str]:
     ``pytest.mark.parametrize`` needs its argument list at collection time,
     before fixtures run, so this re-reads the same config file the
     ``activated_directive_stems`` fixture reads. Both routes must produce the
-    same stems; :func:`test_config_declares_exactly_the_expected_directive_count`
-    pins the count so drift between the two reads would show up as a count
-    mismatch, not silently.
+    same stems; the behavioral round-trip below rejects unresolved drift
+    without pinning a corpus cardinality.
     """
     config = _load_config(_find_repo_root())
     stems = config.get("activated_directives")

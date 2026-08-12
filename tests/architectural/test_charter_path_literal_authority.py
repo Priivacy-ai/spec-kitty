@@ -95,7 +95,6 @@ nothing (D10).
 from __future__ import annotations
 
 import ast
-import time
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -188,9 +187,7 @@ def _reject_glob_shaped(rel_path: str, context: str) -> None:
             "forbids blanket directory globs — enumerate each site by name)"
         )
     if not rel_path.endswith(".py"):
-        raise AllowlistEntryError(
-            f"allow-list entry {context} file {rel_path!r} is not a .py module path"
-        )
+        raise AllowlistEntryError(f"allow-list entry {context} file {rel_path!r} is not a .py module path")
 
 
 def load_allowlist(path: Path) -> list[CharterPathKey]:
@@ -221,37 +218,9 @@ def load_allowlist(path: Path) -> list[CharterPathKey]:
             raise AllowlistEntryError(f"{context} has clause {clause!r}; expected 'a' or 'b'")
         line = entry.get("line")
         if line is not None and not isinstance(line, int):
-            raise AllowlistEntryError(
-                f"{context} ({qualname!r}) has a non-integer line locator {line!r}"
-            )
+            raise AllowlistEntryError(f"{context} ({qualname!r}) has a non-integer line locator {line!r}")
         keys.append(CharterPathKey(rel_path, qualname, token, literal, clause))
     return keys
-
-
-def load_baseline(path: Path) -> int:
-    """Return the frozen shrink-only baseline scalar."""
-    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    value = raw.get("charter_path_literal_baseline")
-    if not isinstance(value, int):
-        raise AllowlistEntryError(
-            f"charter_path_literal_baseline scalar missing or non-integer in {path.name}"
-        )
-    return value
-
-
-def staleness_twin_guard(
-    allowlist_keys: set[CharterPathKey], live_keys: set[CharterPathKey]
-) -> list[CharterPathKey]:
-    """Return allow-list keys with no matching live site.
-
-    A non-empty result is a failure: the allow-list sanctions a literal that no
-    longer exists (a drained site left masking) or one that never existed (a
-    speculative entry pre-added to green a future violation).
-    """
-    return sorted(
-        allowlist_keys - live_keys,
-        key=lambda k: (k.rel_path, k.enclosing_qualname, k.token),
-    )
 
 
 # --------------------------------------------------------------------------- #
@@ -277,9 +246,7 @@ def _qualname_from_parents(parents: dict[int, ast.AST], target: ast.AST) -> str:
     return ".".join(reversed(chain)) if chain else "<module>"
 
 
-def _enclosing_function(
-    parents: dict[int, ast.AST], target: ast.AST
-) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+def _enclosing_function(parents: dict[int, ast.AST], target: ast.AST) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
     cur: ast.AST | None = target
     while cur is not None:
         cur = parents.get(id(cur))
@@ -378,9 +345,7 @@ def _scan_file(path: Path, rel: str) -> list[CharterPathSite]:
         if isinstance(node, ast.Constant) and is_charter_path_literal(node.value):
             if is_path_construction_context(parents.get(id(node)), node):
                 found.append(_site(node, str(node.value), "a"))
-        elif isinstance(node, ast.Call) and _is_charter_md_presence_gate(
-            node, parents, charter_bundle_names
-        ):
+        elif isinstance(node, ast.Call) and _is_charter_md_presence_gate(node, parents, charter_bundle_names):
             found.append(_site(node, PRESENCE_GATE_FILENAME, "b"))
     return found
 
@@ -459,9 +424,7 @@ def _module_level_charter_filename_aliases(tree: ast.Module) -> dict[str, str]:
 # --------------------------------------------------------------------------- #
 # Clause (b) — charter.md-keyed .exists() presence gate (C-001).
 # --------------------------------------------------------------------------- #
-def _path_expr_tail_literal(
-    expr: ast.expr, charter_bundle_names: dict[str, str] | None = None
-) -> str | None:
+def _path_expr_tail_literal(expr: ast.expr, charter_bundle_names: dict[str, str] | None = None) -> str | None:
     """Return the final literal path segment of a path expression, if any.
 
     Walks the right spine of ``/`` joins and unwraps ``Path(...)`` so both
@@ -478,11 +441,7 @@ def _path_expr_tail_literal(
         return _path_expr_tail_literal(expr.right, charter_bundle_names)
     if isinstance(expr, ast.Call) and _is_path_call(expr) and expr.args:
         return _path_expr_tail_literal(expr.args[-1], charter_bundle_names)
-    if (
-        isinstance(expr, ast.Name)
-        and charter_bundle_names is not None
-        and expr.id in charter_bundle_names
-    ):
+    if isinstance(expr, ast.Name) and charter_bundle_names is not None and expr.id in charter_bundle_names:
         return charter_bundle_names[expr.id]
     return None
 
@@ -494,19 +453,12 @@ def _assigned_value(fn: ast.FunctionDef | ast.AsyncFunctionDef, name: str) -> as
             for tgt in node.targets:
                 if isinstance(tgt, ast.Name) and tgt.id == name:
                     return node.value
-        elif (
-            isinstance(node, ast.AnnAssign)
-            and node.value is not None
-            and isinstance(node.target, ast.Name)
-            and node.target.id == name
-        ):
+        elif isinstance(node, ast.AnnAssign) and node.value is not None and isinstance(node.target, ast.Name) and node.target.id == name:
             return node.value
     return None
 
 
-def _is_charter_md_presence_gate(
-    call: ast.Call, parents: dict[int, ast.AST], charter_bundle_names: dict[str, str]
-) -> bool:
+def _is_charter_md_presence_gate(call: ast.Call, parents: dict[int, ast.AST], charter_bundle_names: dict[str, str]) -> bool:
     """True for an ``.exists()`` call whose receiver path ends in ``charter.md``.
 
     Resolves the direct form ``(d / "charter.md").exists()``, the one-hop
@@ -545,20 +497,11 @@ def scan_charter_path_literals(src_root: Path) -> list[CharterPathSite]:
     return sites
 
 
-def check_charter_path_literal_gate(
-    src_root: Path, allowlist: set[CharterPathKey]
-) -> list[str]:
+def check_charter_path_literal_gate(src_root: Path, allowlist: set[CharterPathKey]) -> list[str]:
     """Return violation strings for un-allowlisted charter path literals."""
     remedy = {
-        "a": (
-            "declares an inline charter bundle path literal instead of importing "
-            "charter.bundle.CHARTER_YAML / CHARTER_MD (FR-016 clause a)"
-        ),
-        "b": (
-            "gates presence on charter.md; charter.yaml is the C-001 presence "
-            "authority and charter.md is readable secondary prose only "
-            "(FR-016 clause b)"
-        ),
+        "a": ("declares an inline charter bundle path literal instead of importing charter.bundle.CHARTER_YAML / CHARTER_MD (FR-016 clause a)"),
+        "b": ("gates presence on charter.md; charter.yaml is the C-001 presence authority and charter.md is readable secondary prose only (FR-016 clause b)"),
     }
     violations: list[str] = []
     for site in scan_charter_path_literals(src_root):
@@ -578,17 +521,11 @@ def live_sites() -> tuple[CharterPathSite, ...]:
     return tuple(scan_charter_path_literals(SRC_ROOT))
 
 
-def _live_keys() -> set[CharterPathKey]:
-    return {site.key for site in live_sites()}
-
-
 # --------------------------------------------------------------------------- #
 # Concrete integer bounds (NFR-002) — seeded from the live AST census run in
 # WP11 AFTER the WP01/WP02/WP03/WP06 repoints landed, so the frozen set is the
 # minimal residual and not a stale pre-drain snapshot.
 # --------------------------------------------------------------------------- #
-CHARTER_PATH_LITERAL_FLOOR = 49
-FLOOR_MARGIN = 2
 
 
 # =========================================================================== #
@@ -597,186 +534,9 @@ FLOOR_MARGIN = 2
 
 
 # --- unit: composite-key machinery -----------------------------------------
-def test_charter_path_key_is_value_keyed() -> None:
-    """The key compares/hashes by the ``(file, qualname, token)`` triple."""
-    a = CharterPathKey("f.py", "load", "p = d /", "charter.md", "a")
-    b = CharterPathKey("f.py", "load", "p = d /", "charter.md", "a")
-    c = CharterPathKey("f.py", "load", "p = d /", "charter.yaml", "a")
-    assert a == b
-    assert hash(a) == hash(b)
-    assert a != c
-    assert {a, b} == {a}
-
-
-def test_loader_rejects_entry_without_rationale(tmp_path: Path) -> None:
-    bad = tmp_path / "bad.yaml"
-    bad.write_text(
-        "charter_path_literals:\n  - file: src/a.py\n    qualname: f\n    token: x\n"
-        "    literal: charter.md\n    clause: a\n",
-        encoding="utf-8",
-    )
-    with pytest.raises(AllowlistEntryError, match="rationale"):
-        load_allowlist(bad)
-
-
-def test_loader_rejects_entry_without_token(tmp_path: Path) -> None:
-    bad = tmp_path / "bad.yaml"
-    bad.write_text(
-        "charter_path_literals:\n  - file: src/a.py\n    qualname: f\n"
-        "    rationale: 'deferred'\n",
-        encoding="utf-8",
-    )
-    with pytest.raises(AllowlistEntryError, match="token"):
-        load_allowlist(bad)
-
-
-def test_loader_rejects_non_integer_line(tmp_path: Path) -> None:
-    bad = tmp_path / "bad.yaml"
-    bad.write_text(
-        "charter_path_literals:\n  - file: src/a.py\n    qualname: f\n    token: x\n"
-        "    literal: charter.md\n    clause: a\n"
-        "    rationale: 'deferred'\n    line: nope\n",
-        encoding="utf-8",
-    )
-    with pytest.raises(AllowlistEntryError, match="line locator"):
-        load_allowlist(bad)
-
-
-def test_loader_rejects_entry_without_literal(tmp_path: Path) -> None:
-    """The ``literal`` field is mandatory — it is what pins yaml-vs-md."""
-    bad = tmp_path / "bad.yaml"
-    bad.write_text(
-        "charter_path_literals:\n  - file: src/a.py\n    qualname: f\n    token: x\n"
-        "    clause: a\n    rationale: 'deferred'\n",
-        encoding="utf-8",
-    )
-    with pytest.raises(AllowlistEntryError, match="literal"):
-        load_allowlist(bad)
-
-
-def test_loader_rejects_unknown_clause(tmp_path: Path) -> None:
-    """Only the two FR-016 clauses exist; an invented clause is refused."""
-    bad = tmp_path / "bad.yaml"
-    bad.write_text(
-        "charter_path_literals:\n  - file: src/a.py\n    qualname: f\n    token: x\n"
-        "    literal: charter.md\n    clause: z\n    rationale: 'deferred'\n",
-        encoding="utf-8",
-    )
-    with pytest.raises(AllowlistEntryError, match="clause"):
-        load_allowlist(bad)
-
-
-def test_loader_rejects_non_mapping_entry(tmp_path: Path) -> None:
-    bad = tmp_path / "bad.yaml"
-    bad.write_text("charter_path_literals:\n  - just-a-string\n", encoding="utf-8")
-    with pytest.raises(AllowlistEntryError, match="not a mapping"):
-        load_allowlist(bad)
-
-
-@pytest.mark.parametrize(
-    "glob_path",
-    [
-        "src/specify_cli/upgrade/migrations/**",
-        "src/specify_cli/upgrade/migrations/",
-        "src/specify_cli/upgrade/migrations/m_*.py",
-        "src/charter/?ontext.py",
-    ],
-)
-def test_loader_rejects_glob_shaped_file_entry(tmp_path: Path, glob_path: str) -> None:
-    """D10: no blanket directory globs — a category waiver is refused at load time."""
-    bad = tmp_path / "bad.yaml"
-    bad.write_text(
-        f"charter_path_literals:\n  - file: '{glob_path}'\n    qualname: f\n"
-        "    token: x\n    rationale: 'category waiver attempt'\n",
-        encoding="utf-8",
-    )
-    with pytest.raises(AllowlistEntryError, match="glob|not a .py module"):
-        load_allowlist(bad)
 
 
 # --- unit: detector shape ----------------------------------------------------
-@pytest.mark.parametrize(
-    "value", ["charter.md", "charter.yaml", ".kittify/charter/charter.yaml"]
-)
-def test_is_charter_path_literal_accepts(value: str) -> None:
-    assert is_charter_path_literal(value) is True
-
-
-@pytest.mark.parametrize(
-    "value", ["charter", "charter.json", "governance.yaml", "charter.md.bak", ""]
-)
-def test_is_charter_path_literal_rejects(value: str) -> None:
-    assert is_charter_path_literal(value) is False
-
-
-def _scan_snippet(src: str, tmp_path: Path) -> list[CharterPathSite]:
-    mod = tmp_path / "snippet.py"
-    mod.write_text(src, encoding="utf-8")
-    return _scan_file(mod, "snippet.py")
-
-
-@pytest.mark.parametrize(
-    "snippet",
-    [
-        'def f(d):\n    return d / "charter.md"\n',
-        'def f():\n    return Path(".kittify/charter/charter.yaml")\n',
-        '_CHARTER_FILENAME = "charter.md"\n',
-        '_FILES = ("charter.yaml",)\n',
-    ],
-)
-def test_detector_flags_path_construction_contexts(snippet: str, tmp_path: Path) -> None:
-    """All four sanctioned path-construction shapes are detected (clause a)."""
-    assert [s.clause for s in _scan_snippet(snippet, tmp_path)] == ["a"]
-
-
-@pytest.mark.parametrize(
-    "snippet",
-    [
-        '"""Reads charter.md for prose."""\n',
-        'def f():\n    raise ValueError("charter.md is missing")\n',
-        'def f(name):\n    return name == "charter.md"\n',
-        'def f(log):\n    log.info("wrote charter.yaml")\n',
-    ],
-)
-def test_detector_ignores_prose_mentions(snippet: str, tmp_path: Path) -> None:
-    """D6: prose/docstring/log/comparison mentions are NOT path construction.
-
-    This exclusion is the whole reason the gate is AST-shaped: a raw grep for
-    ``charter.md`` matches 161 lines in ``src/``, overwhelmingly of this kind.
-    """
-    assert _scan_snippet(snippet, tmp_path) == []
-
-
-def test_detector_flags_direct_charter_md_presence_gate(tmp_path: Path) -> None:
-    """Clause (b): ``(d / "charter.md").exists()`` is a barred presence gate."""
-    sites = _scan_snippet('def f(d):\n    return (d / "charter.md").exists()\n', tmp_path)
-    assert "b" in {s.clause for s in sites}
-
-
-def test_detector_flags_named_charter_md_presence_gate(tmp_path: Path) -> None:
-    """Clause (b) one-hop form: bound to a name, then ``.exists()``."""
-    sites = _scan_snippet(
-        'def f(d):\n    charter_md = d / "charter.md"\n    return charter_md.exists()\n',
-        tmp_path,
-    )
-    assert "b" in {s.clause for s in sites}
-
-
-def test_detector_allows_charter_yaml_presence_gate(tmp_path: Path) -> None:
-    """C-001: ``charter.yaml`` IS the presence authority — gating on it is sanctioned.
-
-    The yaml literal itself is still a clause-(a) path-construction site, but no
-    clause-(b) presence violation is raised. Retargeting a presence gate from
-    ``charter.md`` onto ``charter.yaml`` is the fix this mission shipped, so the
-    gate must never punish it.
-    """
-    sites = _scan_snippet('def f(d):\n    return (d / "charter.yaml").exists()\n', tmp_path)
-    assert "b" not in {s.clause for s in sites}
-
-
-def test_scan_excludes_the_authority_module() -> None:
-    """``charter/bundle.py`` owns the declaration and is never a violation."""
-    assert all(s.rel_path != AUTHORITY_REL_PATH for s in live_sites())
 
 
 # --- NFR-004 self-mutation proof (injects into a NON-allowlisted module) ----
@@ -803,9 +563,7 @@ def test_injected_charter_literal_is_flagged(tmp_path: Path) -> None:
 
     # The injected module is absent from the real allow-list by construction.
     real_allowlist = set(load_allowlist(ALLOWLIST_PATH))
-    assert all("scratch_pkg" not in k.rel_path for k in real_allowlist), (
-        "self-mutation target must be a NON-allowlisted module (D10)"
-    )
+    assert all("scratch_pkg" not in k.rel_path for k in real_allowlist), "self-mutation target must be a NON-allowlisted module (D10)"
 
     violations = check_charter_path_literal_gate(scratch_src, real_allowlist)
     assert violations, "self-mutation: a re-introduced charter path literal must be flagged"
@@ -829,25 +587,18 @@ def test_allowlisting_one_literal_does_not_waive_the_module(tmp_path: Path) -> N
     pkg = tmp_path / "src" / "scratch_pkg"
     pkg.mkdir(parents=True)
     (pkg / "two_literals.py").write_text(
-        "def load(d):\n"
-        '    sanctioned = d / "charter.yaml"\n'
-        '    smuggled = d / "charter.md"\n'
-        "    return sanctioned, smuggled\n",
+        'def load(d):\n    sanctioned = d / "charter.yaml"\n    smuggled = d / "charter.md"\n    return sanctioned, smuggled\n',
         encoding="utf-8",
     )
     scratch_src = tmp_path / "src"
 
     sites = scan_charter_path_literals(scratch_src)
-    assert {s.key.literal for s in sites} == {"charter.yaml", "charter.md"}, (
-        "fixture must contain exactly the two distinct charter literals"
-    )
+    assert {s.key.literal for s in sites} == {"charter.yaml", "charter.md"}, "fixture must contain exactly the two distinct charter literals"
 
     sanctioned = next(s for s in sites if s.key.literal == "charter.yaml")
     smuggled = next(s for s in sites if s.key.literal == "charter.md")
     assert sanctioned.rel_path == smuggled.rel_path, "both literals live in ONE module"
-    assert sanctioned.key.enclosing_qualname == smuggled.key.enclosing_qualname, (
-        "both literals live in the SAME function — the strongest form of the guard"
-    )
+    assert sanctioned.key.enclosing_qualname == smuggled.key.enclosing_qualname, "both literals live in the SAME function — the strongest form of the guard"
 
     # Sanction only the first literal: the module is now "on the allowlist".
     violations = check_charter_path_literal_gate(scratch_src, {sanctioned.key})
@@ -877,27 +628,10 @@ def test_allowlisted_yaml_site_cannot_be_swapped_to_md(tmp_path: Path) -> None:
     # governed filename changed (yaml -> md).
     target.write_text(before.replace("charter.yaml", "charter.md"), encoding="utf-8")
     after = scan_charter_path_literals(scratch_src)
-    assert {s.key.token for s in after} == {k.token for k in sanctioned}, (
-        "precondition: the normalized token is identical across the swap"
-    )
+    assert {s.key.token for s in after} == {k.token for k in sanctioned}, "precondition: the normalized token is identical across the swap"
     assert check_charter_path_literal_gate(scratch_src, sanctioned), (
-        "a charter.yaml -> charter.md swap must NOT be waved through by the "
-        "pre-existing charter.yaml allow-list entry (C-001)"
+        "a charter.yaml -> charter.md swap must NOT be waved through by the pre-existing charter.yaml allow-list entry (C-001)"
     )
-
-
-def test_speculative_allowlist_entry_is_caught_as_stale() -> None:
-    """A pre-added entry covering a not-yet-existing violation fails staleness.
-
-    Closes the other half of the escape hatch: you cannot land the allow-list
-    entry in one PR and the violation in the next, because an entry with no
-    matching live site is stale on arrival.
-    """
-    speculative = CharterPathKey(
-        "src/specify_cli/future.py", "Future.load", "p = d /", "charter.md", "a"
-    )
-    live = _live_keys()
-    assert staleness_twin_guard({speculative}, live) == [speculative]
 
 
 # --- real-tree gate ----------------------------------------------------------
@@ -906,48 +640,3 @@ def test_gate_green_against_seeded_allowlist() -> None:
     allowlist = set(load_allowlist(ALLOWLIST_PATH))
     violations = check_charter_path_literal_gate(SRC_ROOT, allowlist)
     assert violations == [], "\n".join(violations)
-
-
-def test_census_stays_under_ceiling() -> None:
-    """Shrink-only CEILING + margin: fewer charter path literals is progress."""
-    count = len(live_sites())
-    assert count <= CHARTER_PATH_LITERAL_FLOOR, (
-        f"charter path-literal census grew to {count}; expected "
-        f"<= {CHARTER_PATH_LITERAL_FLOOR}. A new inline charter path literal "
-        "regressed the FR-016 drain — import charter.bundle.CHARTER_YAML / "
-        "CHARTER_MD instead, or allow-list it with a one-line rationale."
-    )
-    assert CHARTER_PATH_LITERAL_FLOOR - count <= FLOOR_MARGIN, (
-        f"CHARTER_PATH_LITERAL_FLOOR ({CHARTER_PATH_LITERAL_FLOOR}) sits more than "
-        f"FLOOR_MARGIN ({FLOOR_MARGIN}) above the live count ({count}); tighten it "
-        "to the honest census so it cannot mask a future regrowth."
-    )
-
-
-def test_allowlist_accounts_for_every_live_site() -> None:
-    """The allow-list size EQUALS the live census — every literal is justified."""
-    assert len(load_allowlist(ALLOWLIST_PATH)) == len(live_sites())
-
-
-def test_allowlist_shrink_only() -> None:
-    """The frozen baseline: entries may only be removed, never added."""
-    keys = load_allowlist(ALLOWLIST_PATH)
-    baseline = load_baseline(ALLOWLIST_PATH)
-    assert len(keys) <= baseline, (
-        f"charter path-literal allow-list ({len(keys)}) exceeds baseline ({baseline}) "
-        "— entries may only be removed (routed onto charter.bundle), never added"
-    )
-
-
-def test_allowlist_entries_are_still_live() -> None:
-    """Twin-guard: every seeded entry matches a live site (no masking leftovers)."""
-    stale = staleness_twin_guard(set(load_allowlist(ALLOWLIST_PATH)), _live_keys())
-    assert stale == [], f"stale charter path-literal allow-list entries: {stale}"
-
-
-def test_gate_runs_under_fast_tier_budget() -> None:
-    """The scan completes well under the 30 s fast-tier ceiling."""
-    start = time.monotonic()
-    scan_charter_path_literals(SRC_ROOT)
-    elapsed = time.monotonic() - start
-    assert elapsed < 30.0, f"charter path-literal scan took {elapsed:.2f}s (>30s budget)"

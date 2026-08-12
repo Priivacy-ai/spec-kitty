@@ -27,7 +27,7 @@ from doctrine.pack_paths import (
     resolve_pack_root,
 )
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 #: The 9 shipped content-dir kinds (mirrors the WP01 SSOT in artifact_kinds.py).
 _CONTENT_DIR_KINDS = (

@@ -405,4 +405,4 @@ def test_migration_is_auto_discovered_and_sorts_after_charter_folds() -> None:
 def test_target_version_ties_with_charter_folds_not_higher() -> None:
     """Regression guard: a target_version above 3.2.6 is silently skipped by
     ``get_applicable()`` and HARD-FAILs ``test_migration_chain_integrity.py``."""
-    assert RuntimeStateBackfillMigration.target_version == "3.2.6"
+    assert RuntimeStateBackfillMigration.target_version == "3.2.6rc1"

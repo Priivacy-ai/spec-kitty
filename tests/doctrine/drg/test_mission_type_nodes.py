@@ -27,7 +27,7 @@ from doctrine.drg.migration.extractor import generate_graph
 from doctrine.drg.models import DRGNode, NodeKind, Relation
 from doctrine.missions.mission_type_repository import MissionTypeRepository
 
-pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[3] / "src" / "doctrine"
 # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)

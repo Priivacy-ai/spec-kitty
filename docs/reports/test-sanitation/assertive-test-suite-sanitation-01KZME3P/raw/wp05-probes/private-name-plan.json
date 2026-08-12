@@ -1,0 +1,12 @@
+{
+  "schema": "wp05-causal-probe/v1",
+  "base_commit": "c1c79d53937abf11b1c8435311a9eaa47f4d8d8f",
+  "mutation_ids": ["behavior-preserving-plan-local-rename"],
+  "historical_patch_sha256": "db326e55aac5a444da2161a8dec47f24d722bc85261b386d57a8690331f79794",
+  "materialize_command": "perl -pi -e 's/resolved_mission_type/resolved_context/g' src/specify_cli/cli/commands/agent/mission_setup_plan.py",
+  "test_command": ".venv/bin/pytest -q -p no:cacheprovider tests/architectural/test_no_parity_scaffold.py::test_plan_legacy_selector_is_confined_to_typeless_compatibility_branch tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py::test_resolve_plan_template_uses_context_and_configured_seam tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py::test_resolve_plan_template_preserves_missing_meta_legacy_boundary",
+  "red": {"exit_code": 1, "salient_output": "old AST guard: Legacy plan selection escaped its exact mission_type is None body; both behavioral nodes passed; 1 failed, 2 passed in 44.04s"},
+  "restore_command": "git restore -- src/specify_cli/cli/commands/agent/mission_setup_plan.py",
+  "clean_command": "test -z \"$(git status --porcelain)\"",
+  "green": {"exit_code": 0, "salient_output": "old guard plus both behavioral nodes: 3 passed in 101.44s"}
+}

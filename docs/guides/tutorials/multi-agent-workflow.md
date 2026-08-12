@@ -2,7 +2,7 @@
 title: Multi-Agent Parallel Development
 description: 'Tutorial for Multi-Agent Parallel Development in Spec Kitty 3.2: Learn how to coordinate multiple AI agents working on different work packages simultaneously.'
 doc_status: active
-updated: '2026-06-12'
+updated: '2026-08-11'
 audience: docs/context/audience/external/project-owner.md
 type: tutorial
 related:
@@ -16,6 +16,10 @@ Learn how to coordinate multiple AI agents working on different work packages si
 
 **Time**: ~1 hour
 **Prerequisites**: Completed [Your First Mission](your-first-mission.md)
+
+![Multi-agent parallel development - Mission Kitty splash](../../assets/images/multi-agent-workflow-mission-kitty.png)
+
+_Stylized splash — the glowing parallel lanes are decorative. Worktrees, WP dependencies, and the hands-on steps are in the text below._
 
 ## Why Parallel Development?
 

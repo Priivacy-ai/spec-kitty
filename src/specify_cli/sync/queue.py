@@ -218,7 +218,9 @@ def get_max_queue_size() -> int:
     try:
         data = toml.load(config_file)
         return int(data.get("sync", {}).get("max_queue_size", DEFAULT_MAX_QUEUE_SIZE))
-    except (OSError, TypeError, ValueError, toml.TomlDecodeError):
+    # S5713: ``toml.TomlDecodeError`` derives from ``ValueError``, so it is
+    # already covered by the ``ValueError`` branch below.
+    except (OSError, TypeError, ValueError):
         return DEFAULT_MAX_QUEUE_SIZE
 
 

@@ -225,6 +225,15 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/context/resolver.py", "_read_meta_json"): (1, "pending-batch-a"),
     ("src/specify_cli/coordination/commit_router.py", "_resolve_mid8"): (1, "silent-by-contract"),
     ("src/specify_cli/coordination/legacy_resolution.py", "_load_mission_meta"): (1, "silent-by-contract"),
+    # ``load_meta_fail_closed`` is the canonical fail-closed authority; it calls
+    # ``load_meta`` once via a deferred (function-local) import — the D4-sanctioned
+    # shape that avoids the module-level ``core.paths -> mission_metadata`` cycle
+    # while keeping the legacy path-named messages + ``MissionMetaReadError`` wrap.
+    # (Landing #3319: the mission had briefly re-expressed this to decode via the
+    # kernel L1 primitive directly and deleted this row; that changed observable
+    # error messages and the ``MissionMetaReadError.cause`` chain and broke the
+    # D4 import-shape guard, so the delegation — and this "authority" row — are
+    # restored to match ``main``.)
     ("src/specify_cli/core/paths.py", "load_meta_fail_closed"): (1, "authority"),
     ("src/specify_cli/core/vcs/detection.py", "_get_locked_vcs_from_feature"): (2, "silent-by-contract"),
     ("src/specify_cli/dashboard/scanner.py", "_read_dashboard_feature_meta"): (1, "silent-by-contract"),

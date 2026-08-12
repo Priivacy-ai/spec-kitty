@@ -16,7 +16,6 @@ on:
       - 'docs/**'
       - 'scripts/docs/**'
       - 'scripts/ci/**'
-      - '.kittify/doctrine/overlays/**'
       - 'tests/**'
       - 'pyproject.toml'
       - '.kittify/metadata.yaml'
@@ -36,6 +35,24 @@ on:
       - '.github/workflows/release.yml'
       - '.github/workflows/release-readiness.yml'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
+      # corpus (#3008 Gate 0, mission ci-scoping-gate-reliability): the
+      # wheel-shipped doctrine corpus and narrow mission-spec/charter leaves
+      # that ~70 tests read but that no other glob above covers. Discrete
+      # globs ONLY -- GitHub `on.paths` does not support `{a,b}` brace
+      # expansion (see the `corpus:` dorny filter below for the identical,
+      # non-src, mirrored set). Never add bare `kitty-specs/**` or
+      # `status.events.jsonl` here (C-001) -- that would fire on routine
+      # WP status churn.
+      - 'packs/**'
+      - 'kitty-specs/**/spec.md'
+      - 'kitty-specs/**/plan.md'
+      - 'kitty-specs/**/tasks/**'
+      - 'kitty-specs/**/contracts/**'
+      - 'kitty-specs/**/acceptance-matrix.json'
+      - '.kittify/charter/**'
+      - '.kittify/glossaries/**'
+      - '.kittify/doctrine/**'
+      - '.kittify/release/downstream-verified.json'
   push:
     branches:
       - main
@@ -46,7 +63,6 @@ on:
       - 'docs/**'
       - 'scripts/docs/**'
       - 'scripts/ci/**'
-      - '.kittify/doctrine/overlays/**'
       - 'tests/**'
       - 'pyproject.toml'
       - '.kittify/metadata.yaml'
@@ -64,6 +80,19 @@ on:
       - '.github/workflows/release.yml'
       - '.github/workflows/release-readiness.yml'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
+      # corpus (#3008 Gate 0, mission ci-scoping-gate-reliability): mirrors
+      # the pull_request corpus globs above so the push:main post-merge run
+      # also fires on a corpus-only change. See that block's comment.
+      - 'packs/**'
+      - 'kitty-specs/**/spec.md'
+      - 'kitty-specs/**/plan.md'
+      - 'kitty-specs/**/tasks/**'
+      - 'kitty-specs/**/contracts/**'
+      - 'kitty-specs/**/acceptance-matrix.json'
+      - '.kittify/charter/**'
+      - '.kittify/glossaries/**'
+      - '.kittify/doctrine/**'
+      - '.kittify/release/downstream-verified.json'
   schedule:
     # Nightly Sonar run on the default branch. Offset from the top of the hour
     # to avoid GitHub Actions' busiest scheduling window.
@@ -179,6 +208,11 @@ jobs:
       execution_context: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.execution_context }}
       e2e: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.e2e }}
       docs: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.docs }}
+      # corpus (#3008, mission ci-scoping-gate-reliability): non-src, mirrors
+      # the `docs:` row shape exactly. Never added to src_backed_groups / the
+      # unmatched loop / ci_topology_census.json (M2) -- corpus is data, not
+      # a src/specify_cli child dir.
+      corpus: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.corpus }}
       glossary: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.glossary }}
       acceptance: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.acceptance }}
       # Composite src-backed groups (mission ci-topology-shrink FR-002): same
@@ -374,6 +408,25 @@ jobs:
               - 'docs/**'
               - 'tests/docs/**'
               - 'scripts/docs/**'
+            # corpus (#3008, mission ci-scoping-gate-reliability): mirrors the
+            # on.paths corpus globs above (T001) exactly -- discrete, non-src.
+            # Selects the dedicated fast-tests-corpus job (below) instead of
+            # relying on the src-only `unmatched` catch-all, which a
+            # packs/**-only or kitty-specs-leaf-only PR would never trip
+            # (any_src stays false). Do NOT add to src_backed_groups / the
+            # unmatched loop / ci_topology_census.json (M2) -- every glob
+            # here is non-src.
+            corpus:
+              - 'packs/**'
+              - 'kitty-specs/**/spec.md'
+              - 'kitty-specs/**/plan.md'
+              - 'kitty-specs/**/tasks/**'
+              - 'kitty-specs/**/contracts/**'
+              - 'kitty-specs/**/acceptance-matrix.json'
+              - '.kittify/charter/**'
+              - '.kittify/glossaries/**'
+              - '.kittify/doctrine/**'
+              - '.kittify/release/downstream-verified.json'
             charter:
               - 'src/charter/**'
               - 'src/specify_cli/charter_runtime/**'
@@ -1681,7 +1734,6 @@ jobs:
               --ignore=tests/specify_cli/charter_lint
               --ignore=tests/specify_cli/charter_preflight
               --ignore=tests/specify_cli/test_lane_regression_guard.py
-              --ignore=tests/specify_cli/test_template_lane_guard.py
               --ignore=tests/specify_cli/compat
               --ignore=tests/specify_cli/tool_surface
               --ignore=tests/specify_cli/invocation
@@ -1690,7 +1742,6 @@ jobs:
           - shard: specify-cli-rest-2
             paths: >-
               tests/specify_cli/test_lane_regression_guard.py
-              tests/specify_cli/test_template_lane_guard.py
               tests/specify_cli/compat
               tests/specify_cli/tool_surface
               tests/specify_cli/invocation
@@ -1781,6 +1832,73 @@ jobs:
           name: fast-test-core-misc-${{ matrix.shard }}-reports
           path: out/reports/
           if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # fast-tests-corpus: BLOCKING job for the wheel-shipped doctrine corpus and
+  # narrow mission-spec/charter data (#3008, mission ci-scoping-gate-reliability).
+  # Closes the two silent-no-op gates a packs/built-in/**-only or
+  # kitty-specs-leaf-only PR previously hit:
+  #   Gate 0: on.paths (T001) now triggers the whole workflow for these paths.
+  #   Gate 1: the `corpus` dorny filter (T002) selects THIS job.
+  # Runs `-m corpus` (NOT whole directories, M1): the ~70 corpus-reading
+  # modules live scattered across tests/doctrine, tests/architectural,
+  # tests/charter/synthesizer, tests/contract, tests/glossary, and
+  # tests/integration -- directories that ALSO carry many non-corpus tests
+  # already covered by fast-tests-doctrine / integration-tests-core-misc /
+  # fast-tests-charter etc. Running those directories whole here would
+  # duplicate that coverage on every push/mixed PR; `-m corpus` scopes the
+  # run to exactly the marked reader set (T005). The overlap this causes is
+  # NOT small: on `push` and on any mixed PR, every corpus-marked test also
+  # runs in its home fast shard, so the overlap is the full corpus reader set
+  # (all ~1274 corpus tests, not a residual few) -- that duplication is the
+  # accepted cost of closing the data-only-PR trigger gap (NFR-004), not a
+  # claim of near-zero overlap. The same-tier shard-selection uniqueness
+  # invariant (tests/architectural/test_same_tier_uniqueness.py) treats
+  # fast-tests-corpus as a trigger-disjoint overlay gate and excludes it from
+  # its peer set for exactly this reason -- see #3315 for the durable model
+  # reconciliation.
+  # No default `-m` addopts exists in pytest.ini (only `--tb=short`); the
+  # mutmut-only `-m` list in pyproject.toml's [tool.mutmut] is never seen by
+  # plain pytest/CI, so `-m "corpus and not windows_ci"` is the sole filter
+  # here, with no override contest. If the `corpus` marker is registered but
+  # selects zero tests, pytest exits 5 (no tests collected) and this job
+  # FAILS -- a fail-safe RED, never masked (no `|| true`, no
+  # `--suppress-no-test-exit-code`).
+  # ---------------------------------------------------------------------------
+  fast-tests-corpus:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    needs: [changes]
+    if: >-
+      always()
+      && (needs.changes.outputs.corpus == 'true' || github.event_name == 'push')
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: '3.12'
+      - run: uv sync --frozen --all-extras
+      - run: mkdir -p out/reports/coverage
+      - name: "Run fast tests — corpus"
+        run: |
+          uv run python -m pytest \
+            tests/architectural \
+            tests/charter/synthesizer \
+            tests/contract \
+            tests/doctrine \
+            tests/glossary \
+            tests/integration \
+            -m "corpus and not windows_ci" -q --tb=short \
+            --timeout=240 --timeout-method=signal \
+            -n auto --dist loadfile \
+            --durations=50 \
+            --cov=src/doctrine \
+            --cov-report=xml:out/reports/coverage/coverage-fast-corpus.xml
+      - name: "Upload fast-corpus coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-corpus-reports
+          path: out/reports/
 
   # ---------------------------------------------------------------------------
   # fast-tests-docs: dedicated CHEAP job for docs-only changes (#2359). A
@@ -2175,8 +2293,9 @@ jobs:
   # existing timing-marked test the same way it rescues the WP-prompt ones
   # (Issue #2034 anti-pattern). ``--ignore`` excludes
   # ``test_doctor_restart_daemon_timing.py``: that file's tests stay the sole
-  # responsibility of ``restart-daemon-nfr-timing`` below (OS-matrixed,
-  # cli-gated by design) — ignoring it here is what prevents a double-run.
+  # responsibility of ``restart-daemon-nfr-timing`` below (the historical job
+  # id is retained for aggregation compatibility; it uses the controlled Linux
+  # runner and is cli-gated by design) — ignoring it here prevents a double-run.
   #
   # ALWAYS-ON by construction: ``if: always()``, no dorny filter-group ``if:``
   # gate, no ``needs`` edge — mirrors the arch-adversarial pole above, NOT the
@@ -2967,7 +3086,7 @@ jobs:
           # marker negation alone does not cover it; the ignore is the structural
           # guard (mirrors slow-tests). See tests/_real_port_suites.py.
           uv run python -m pytest tests/ \
-            -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or regression or timing or stress or docs_scoped or arch_shard_1 or arch_shard_2 or arch_shard_3 or next_shard_1 or next_shard_2 or next_shard_3)" \
+            -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or regression or timing or stress or docs_scoped or corpus or arch_shard_1 or arch_shard_2 or arch_shard_3 or next_shard_1 or next_shard_2 or next_shard_3)" \
             -q --tb=short \
             --ignore=tests/sync/test_orphan_sweep.py \
             --ignore=tests/sync/test_daemon_orphan_classification.py \
@@ -3077,13 +3196,18 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
-  # restart-daemon-nfr-timing: issue #1153 / NFR-002. Runs the real daemon
-  # restart path on Linux and macOS, but stays out of the fast suite because it
-  # starts subprocesses and asserts wall-clock time.
+  # restart-daemon-nfr-timing: historical job id retained for quality-gate
+  # compatibility. PR #3285 retires issue #1153 / NFR-002's portable <=10s
+  # shared-runner performance claim. The controlled Linux runner now enforces
+  # the replacement functional contract: stop the old daemon, spawn a distinct
+  # pid, and observe a healthy control plane within bounded operation timeouts.
+  # Hosted macOS is excluded because its OS-global port/bootstrap environment
+  # repeatedly fails before the command under test; macOS performance evidence
+  # requires a controlled developer/canary harness rather than shared-runner CI.
   # ---------------------------------------------------------------------------
   restart-daemon-nfr-timing:
-    name: doctor restart-daemon NFR-002 timing (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    name: doctor restart-daemon functional health
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes]
     if: >-
       ${{ always()
@@ -3091,10 +3215,6 @@ jobs:
       && !contains(github.event.pull_request.labels.*.name, 'pr:deferred')
       && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     timeout-minutes: 5
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [blacksmith-4vcpu-ubuntu-2404, macos-latest]
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -3105,27 +3225,27 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
-      - name: Run NFR-002 timing gate
+      - name: Run restart-daemon functional health gate
         env:
           SPEC_KITTY_ENABLE_SAAS_SYNC: "1"
         run: |
           python -m pytest \
-            tests/specify_cli/cli/commands/test_doctor_restart_daemon_timing.py \
-            -m timing \
+            tests/specify_cli/cli/commands/test_doctor_restart_daemon_timing.py::test_doctor_restart_daemon_restarts_and_becomes_healthy \
             -q \
             --tb=short
 
   # ---------------------------------------------------------------------------
-  # quarantine-visibility: runs `-m quarantine` for real (SPEC_KITTY_RUN_QUARANTINE=1)
-  # so irreducible environmental flakes stay VISIBLE — never silently retried to
-  # green. Per docs/development/testing-flakiness.md this job is intentionally
+  # quarantine-visibility: validates the explicit owner manifest and runs only
+  # its listed `-m quarantine` tests (SPEC_KITTY_RUN_QUARANTINE=1), so irreducible
+  # environmental flakes stay VISIBLE — never silently retried to green. Per
+  # docs/development/testing-flakiness.md this job is intentionally
   # NON-BLOCKING: it MUST NOT be added to the `quality-gate` aggregation below
   # or to branch-protection required checks, so a quarantined flake can never turn
   # main red or block an unrelated PR. Tolerates pytest exit code 5 (no tests
   # currently quarantined) so an empty quarantine set is green, not red.
   # ---------------------------------------------------------------------------
   quarantine-visibility:
-    name: quarantine visibility (non-blocking)
+    name: quarantine owner-manifest visibility (non-blocking)
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes]
     if: ${{ (always() && ( github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' )) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
@@ -3140,13 +3260,26 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
-      - name: Run quarantined tests (visible, never blocks merge)
+      - name: Validate quarantine owner manifest and run listed tests
         env:
           SPEC_KITTY_RUN_QUARANTINE: "1"
           PWHEADLESS: "1"
         run: |
+          # Empty by adjudication: quarantine is reserved for irreducible Tier-3
+          # environmental flakes, and the sanitation census found none. Keep the
+          # manifest deliberately uses an in-workflow bash array: the workflow is
+          # the execution owner, and the architectural guard below verifies the
+          # array is a complete mirror of direct markers in tests/. This job
+          # never scans the unrelated whole tree.
+          # The architectural guard discovers direct quarantine markers across
+          # tests/ and requires this owner manifest to match exactly.
+          QUARANTINE_PATHS=()
+          if [ "${#QUARANTINE_PATHS[@]}" -eq 0 ]; then
+            echo "::notice::No tests are currently quarantined (owner manifest is empty)."
+            exit 0
+          fi
           set +e
-          python -m pytest tests/ -m quarantine -p no:cacheprovider -q --tb=short
+          python -m pytest "${QUARANTINE_PATHS[@]}" -m quarantine -p no:cacheprovider -q --tb=short
           ec=$?
           set -e
           if [ "$ec" -eq 5 ]; then
@@ -3193,6 +3326,9 @@ jobs:
         env:
           PWHEADLESS: "1"
         run: |
+          # Regression is marker-owned. The route remains blocking when a red-first
+          # reproduction exists and explicitly accepts pytest exit 5 while the
+          # marker set is empty; there is no stale literal owner manifest.
           set +e
           python -m pytest tests/ -m regression -p no:cacheprovider -q --tb=short
           ec=$?
@@ -3434,6 +3570,10 @@ jobs:
     needs:
       - kernel-tests
       - fast-tests-doctrine
+      # fast-tests-corpus emits --cov=src/doctrine (the wheel-shipped corpus
+      # gate, #3008) — a sonarcloud coverage-consumer per the C-005 invariant;
+      # its coverage XML would otherwise be silently dropped from the aggregator.
+      - fast-tests-corpus
       - fast-tests-sync
       # fast-tests-sync-orphan-sweep emits --cov=src/specify_cli/sync (extracted
       # from fast-tests-sync's own serial step, WP06 T016) — a sonarcloud
@@ -4218,6 +4358,7 @@ jobs:
       - fast-tests-cli
       - fast-tests-core-misc
       - fast-tests-docs
+      - fast-tests-corpus
       - fast-tests-charter
       - fast-tests-agent
       - mission-loader-coverage
@@ -4312,6 +4453,7 @@ jobs:
               "fast-tests-cli": ["cli"],
               "fast-tests-core-misc": ["core_misc", "cli", "execution_context", "glossary", "acceptance", "auth_audit_git", "lifecycle", "agent_surface", "closeout", "governance", "platform"],
               "fast-tests-docs": ["docs"],
+              "fast-tests-corpus": ["corpus"],
               "fast-tests-charter": ["charter"],
               "fast-tests-agent": ["agent"],
               "integration-tests-doctrine": ["doctrine"],

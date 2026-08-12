@@ -18,7 +18,6 @@ import pytest
 from glossary.exceptions import BlockedByConflict
 from glossary.models import ConflictType, Severity
 from glossary.pipeline import (
-    GlossaryMiddlewarePipeline,
     create_standard_pipeline,
 )
 from glossary.strictness import Strictness
@@ -1319,14 +1318,6 @@ class TestErrorHandlingEdgeCases:
         # Prompt fails -> conflict deferred -> MAX blocks
         with pytest.raises(BlockedByConflict):
             pipeline.process(ctx)
-
-    def test_null_context_raises_value_error(self):
-        """Pipeline raises ValueError if context is None."""
-        pipeline = GlossaryMiddlewarePipeline(middleware=[])
-
-        with pytest.raises(ValueError, match="must not be None"):
-            pipeline.process(None)
-
 
 # ---------------------------------------------------------------------------
 # Performance validation

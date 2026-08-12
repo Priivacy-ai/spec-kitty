@@ -8,6 +8,7 @@ exit 1 and ``create_lane_workspace`` is never invoked.
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 import typer
@@ -56,9 +57,7 @@ def test_implement_aborts_before_worktree_allocation_on_failure(
 ) -> None:
     """Preflight failure exits 1 BEFORE ``create_lane_workspace`` is called."""
     from specify_cli.cli.commands import implement as implement_mod
-    from specify_cli.charter_runtime.preflight import hook as hook_mod
 
-    monkeypatch.setattr(hook_mod, "run_charter_preflight", lambda **_: _fail_result())
     monkeypatch.setattr(implement_mod, "find_repo_root", lambda: tmp_path)
 
     create_calls: list = []
@@ -71,7 +70,13 @@ def test_implement_aborts_before_worktree_allocation_on_failure(
 
     monkeypatch.setattr(implement_mod, "create_lane_workspace", _create)
 
-    with pytest.raises(typer.Exit) as excinfo:
+    with (
+        patch(
+            "specify_cli.charter_runtime.preflight.hook.run_charter_preflight",
+            return_value=_fail_result(),
+        ),
+        pytest.raises(typer.Exit) as excinfo,
+    ):
         _call_implement_unwrapped(
             wp_id="WP01",
             mission="042-test-feature",
@@ -95,9 +100,7 @@ def test_implement_proceeds_past_preflight_when_passed(
 ) -> None:
     """On success the gate releases control to the downstream stages."""
     from specify_cli.cli.commands import implement as implement_mod
-    from specify_cli.charter_runtime.preflight import hook as hook_mod
 
-    monkeypatch.setattr(hook_mod, "run_charter_preflight", lambda **_: _pass_result())
     monkeypatch.setattr(implement_mod, "find_repo_root", lambda: tmp_path)
 
     sentinel = RuntimeError("reached detect_feature_context")
@@ -109,7 +112,13 @@ def test_implement_proceeds_past_preflight_when_passed(
     # it proves the gate let us through.
     monkeypatch.setattr(implement_mod, "detect_feature_context", _detect)
 
-    with pytest.raises(RuntimeError) as excinfo:
+    with (
+        patch(
+            "specify_cli.charter_runtime.preflight.hook.run_charter_preflight",
+            return_value=_pass_result(),
+        ),
+        pytest.raises(RuntimeError) as excinfo,
+    ):
         _call_implement_unwrapped(
             wp_id="WP01",
             mission="042-test-feature",

@@ -159,7 +159,7 @@ def _emit_step_removal_warnings(kind: str, artifact_id: str, repo_root: Path) ->
     if kind != "mission-type":
         return
 
-    from doctrine.missions.mission_type_repository import (  # noqa: PLC0415  # boundary: lazy import intentionally not facaded (PLC0415; boundary-invisible)
+    from charter.missions import (  # noqa: PLC0415
         MissionTypeRepository,
     )
 

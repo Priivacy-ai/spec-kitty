@@ -56,9 +56,20 @@ from charter.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
 )
+# ArtifactKind is re-exported from the curated public surface ``doctrine.api``
+# (not ``doctrine.artifact_kinds`` directly) so the PUBLIC wheel symbol gains a
+# live in-repo caller — the from-``doctrine.api`` wiring the no-dead-symbol gate
+# (``tests/architectural/test_no_dead_symbols.py``) and the strict T007
+# live-caller assertion (``test_doctrine_public_surface.py``) depend on. Object
+# identity is unchanged: ``doctrine.api.ArtifactKind is
+# doctrine.artifact_kinds.ArtifactKind`` (mission ``doctrine-public-api-surface``
+# WP03, FR-003 / NFR-002 / contract C1).
 from charter.pack_context import PackContext
-from doctrine.artifact_kinds import ArtifactKind
+from doctrine.api import ArtifactKind
+from doctrine.base import DoctrineLayerCollisionWarning
 from doctrine.drg import (
+    DRGLoadError,
+    DRGValidationError,
     load_built_in_graph,
     load_graph,
     merge_layers,
@@ -71,7 +82,7 @@ from doctrine.drg.merge import (
     merge_three_layers,
 )
 from doctrine.drg.merge import (
-    _bridge_org_edge_to_drg_edge as bridge_org_edge_to_drg_edge,
+    bridge_org_edge_to_drg_edge,
 )
 from doctrine.drg.migration.extractor import (
     FIELDS_WITHHELD_FROM_GRAPH_OUTPUT,
@@ -82,7 +93,8 @@ from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.org_pack_config import (
     OrgPackEnvVarUnsetError,
     OrgPackSubdirEscapeError,
-    load_pack_registry,
+    load_pack_registry as load_pack_registry,
+    resolve_org_roots,
 )
 from doctrine.drg.org_pack_loader import (
     OrgDRGFragment,
@@ -112,7 +124,10 @@ __all__ = [
     "ArtifactKind",
     "DRGEdge",
     "DRGGraph",
+    "DRGLoadError",
     "DRGNode",
+    "DRGValidationError",
+    "DoctrineLayerCollisionWarning",
     "FIELDS_WITHHELD_FROM_GRAPH_OUTPUT",
     "NodeKind",
     "OrgDRGConflict",
@@ -134,6 +149,7 @@ __all__ = [
     "merge_three_layers",
     "model_to_graph_dict",
     "resolve_context",
+    "resolve_org_roots",
     "validate_dangling_references",
 ]
 

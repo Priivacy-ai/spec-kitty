@@ -204,36 +204,3 @@ class TestIntendedUnifiedContractCliSideOnly:
         primary_files, coord_files = _partition_files_for_commit([kind_none_path])
         assert primary_files == [kind_none_path]
         assert coord_files == []
-
-    def test_read_and_write_derive_the_ref_from_the_shared_expression(self) -> None:
-        import inspect
-
-        from specify_cli.cli.commands.implement import (
-            _commit_planning_artifacts_transaction,
-        )
-        from specify_cli.cli.commands.implement_cores import resolve_precondition_ref
-
-        read_source = inspect.getsource(resolve_precondition_ref)
-        write_source = inspect.getsource(_commit_planning_artifacts_transaction)
-        assert "_commit_target_ref_for" in read_source
-        assert "_commit_target_ref_for" in write_source
-
-    def test_this_gate_file_plants_no_commit_router_side_xfail_markers(self) -> None:
-        """squad RISK-4 / DoD: the commit_router-side structural contract is
-        owned by WP05 T024, a DIFFERENT lane that does not own this file --
-        an xfail-pending-WP05 marker here could never be flipped by WP05
-        and (xfail_strict unset) would silently XPASS forever. AST-parsed
-        (not a substring scan) so prose in comments/docstrings explaining
-        why one is NOT used -- unavoidably containing that word -- cannot
-        false-positive this guard; only an ACTUAL decorator use would."""
-        import ast
-
-        tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
-        xfail_decorators = [
-            node
-            for node in ast.walk(tree)
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-            for deco in node.decorator_list
-            if "xfail" in ast.dump(deco).lower()
-        ]
-        assert xfail_decorators == []

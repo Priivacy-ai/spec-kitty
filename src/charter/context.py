@@ -13,7 +13,6 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -36,7 +35,6 @@ from charter.context_json import (
     _project_charter_json_block as _project_charter_json_block,
     _project_directive_entries as _project_directive_entries,
 )
-from charter.context_renderers import render_critical_section_include
 from charter.context_renderers.artifact_bodies import (
     _jsonable_artifact_value as _jsonable_artifact_value,
 )
@@ -45,8 +43,6 @@ from charter.context_renderers.bootstrap_text import (
 )
 from charter.context_renderers.compact_governance import (
     _compact_section_block as _compact_section_block,
-    _render_compact_from_bundle,
-    _render_compact_governance,
 )
 from charter.context_renderers.delivery_table import (
     _Gate as _Gate,
@@ -57,18 +53,28 @@ from charter.context_renderers.delivery_table import (
 from charter.context_renderers.profile_sections import (
     _render_profile_sections as _render_profile_sections,
 )
-from charter.context_renderers.reference_pointers import _load_references
+from charter.context_renderers.reference_pointers import (
+    _load_references as _load_references,  # FR-009 preserved surface (no internal use)
+)
 from charter.context_renderers.template_include import (
-    _render_directive_include,
-    _render_doctrine_artifact_include,
+    _render_agent_profile_include_selector,
+    _render_catalog_kind_include_selector,
+    _render_doctrine_artifact_include as _render_doctrine_artifact_include,  # FR-009 preserved surface
     _render_generic_artifact_include,
-    _render_tactic_include,
+    _render_section_include_selector,
     _render_template_include,
+    _resolve_include_kind,
+)
+from charter.context_result_builders import (
+    CharterContextResult as CharterContextResult,
+    build_bootstrap_context_result as _bootstrap_context_result,
+    build_compact_bundle_context_result as _compact_bundle_context_result,
+    build_missing_charter_context_result as _missing_charter_context_result,
+    build_non_bootstrap_context_result as _non_bootstrap_context_result,
 )
 from charter.context_state import (
     KITTIFY_DIRNAME as KITTIFY_DIRNAME,
     _MIN_EFFECTIVE_DEPTH as _MIN_EFFECTIVE_DEPTH,
-    _mark_action_loaded as _mark_action_loaded,
     _prepare_context_state as _prepare_context_state,
 )
 from charter.doctrine_service_builder import (
@@ -110,18 +116,6 @@ BOOTSTRAP_ACTIONS: frozenset[str] = frozenset({"specify", "plan", "implement", "
 #: re-declaring the ``"charter.md"`` filename locally (Sonar S1192 pre-emption
 #: the earlier local ``CHARTER_FILENAME = "charter.md"`` duplicate is retired).
 NONE_LABEL = "(none)"
-
-
-@dataclass(frozen=True)
-class CharterContextResult:
-    """Rendered charter context payload."""
-
-    action: str
-    mode: str
-    first_load: bool
-    text: str
-    references_count: int
-    depth: int
 
 
 def build_charter_context(
@@ -257,39 +251,19 @@ def build_charter_context(
         return text
 
     if normalized not in BOOTSTRAP_ACTIONS:
-        effective_depth = depth if depth is not None else 1
-        return CharterContextResult(
-            action=normalized,
-            mode="compact",
-            first_load=False,
-            text=_augment(
-                _render_compact_governance(
-                    repo_root,
-                    profile=profile_record,
-                    action=normalized,
-                    suppress_project_resolver=suppress_project_resolver,
-                )
-            ),
-            references_count=0,
-            depth=effective_depth,
+        return _non_bootstrap_context_result(
+            repo_root,
+            normalized,
+            depth,
+            profile_record,
+            suppress_project_resolver=suppress_project_resolver,
+            augment=_augment,
         )
 
     state_bundle = _prepare_context_state(repo_root, normalized, depth)
 
     if not charter_yaml_path.exists() and not charter_path.exists():
-        text = (
-            "Charter Context:\n"
-            "  - Charter file not found at `.kittify/charter/charter.yaml`.\n"
-            "  - Run `spec-kitty charter interview` then `spec-kitty charter generate`."
-        )
-        return CharterContextResult(
-            action=normalized,
-            mode="missing",
-            first_load=state_bundle.first_load,
-            text=_augment(text),
-            references_count=0,
-            depth=state_bundle.effective_depth,
-        )
+        return _missing_charter_context_result(normalized, state_bundle, augment=_augment)
 
     # WP11 (T060/B-3) — compute the bundle BEFORE the depth-tier branch so it
     # is delivered on EVERY load; the old order returned compact before it existed.
@@ -304,59 +278,27 @@ def build_charter_context(
 
     if state_bundle.effective_depth < _MIN_EFFECTIVE_DEPTH:
         # Steady-state load: deliver via the widened compact rail (T061/FR-010).
-        if mark_loaded and state_bundle.first_load:
-            _mark_action_loaded(state_bundle.state, state_bundle.state_path, normalized)
-        return CharterContextResult(
-            action=normalized,
-            mode="compact",
-            first_load=state_bundle.first_load,
-            text=_augment(
-                _render_compact_from_bundle(
-                    repo_root,
-                    action=normalized,
-                    profile=profile_record,
-                    bundle=doctrine_bundle,
-                    suppress_project_resolver=suppress_project_resolver,
-                )
-            ),
-            references_count=0,
-            depth=state_bundle.effective_depth,
+        return _compact_bundle_context_result(
+            repo_root,
+            normalized,
+            state_bundle,
+            profile_record,
+            doctrine_bundle,
+            suppress_project_resolver=suppress_project_resolver,
+            mark_loaded=mark_loaded,
+            augment=_augment,
         )
 
-    # FR-005 graceful-degrade: charter.md prose is optional now that presence
-    # is authoritative via charter.yaml (SC-002 -- rendering must survive a
-    # deleted charter.md), mirroring the existing compact-section handling of
-    # an absent heading rather than crashing on a missing prose file.
-    if charter_path.exists():
-        charter_content = charter_path.read_text(encoding="utf-8")
-        summary = _extract_policy_summary(charter_content)
-    else:
-        charter_content = ""
-        summary = []
-    references = _load_references(canonical_root)
-    doctrine_selection = _load_doctrine_selection(repo_root)
-    text = _render_bootstrap_text(
-        charter_path=charter_path,
-        action=normalized,
-        summary=summary,
-        doctrine_bundle=doctrine_bundle,
-        references=references,
-        profile=profile_record,
-        repo_root=repo_root,
-        doctrine_selection=doctrine_selection,
-        charter_content=charter_content,
-    )
-
-    if mark_loaded and state_bundle.first_load:
-        _mark_action_loaded(state_bundle.state, state_bundle.state_path, normalized)
-
-    return CharterContextResult(
-        action=normalized,
-        mode="bootstrap",
-        first_load=state_bundle.first_load,
-        text=_augment(text),
-        references_count=len(references),
-        depth=state_bundle.effective_depth,
+    return _bootstrap_context_result(
+        repo_root,
+        normalized,
+        charter_path,
+        canonical_root,
+        state_bundle,
+        doctrine_bundle,
+        profile_record,
+        mark_loaded=mark_loaded,
+        augment=_augment,
     )
 
 
@@ -382,10 +324,7 @@ def build_charter_context_include(
     Unknown selector kinds fail closed with the canonical vocabulary error
     raised by :meth:`ArtifactKind.from_operator_token` (no silent fallback).
     """
-    from doctrine.artifact_kinds import (
-        ArtifactKind,
-        MissionTypeNotAnArtifactKind,
-    )
+    from doctrine.artifact_kinds import ArtifactKind
 
     kind, separator, identifier = selector.partition(":")
     kind = kind.strip().lower()
@@ -394,19 +333,7 @@ def build_charter_context_include(
         raise ValueError("Expected --include selector in '<kind>:<id>' form.")
 
     if kind == "section":
-        canonical_root = _bundle_root_for_json(repo_root)
-        charter_path = canonical_root / CHARTER_MD
-        if not charter_path.exists():
-            raise ValueError("No charter.md found for section selector.")
-        charter_content = charter_path.read_text(encoding="utf-8")
-        section = render_critical_section_include(
-            charter_content,
-            identifier,
-            action=action.strip().lower() if action else None,
-        )
-        if section is None:
-            raise ValueError(f"No charter section found for selector '{selector}'.")
-        return str(section)
+        return _render_section_include_selector(repo_root, selector, identifier, action)
 
     org_roots = [org_root] if org_root is not None else None
 
@@ -418,14 +345,7 @@ def build_charter_context_include(
     # hyphenated tokens (``agent-profile``) and canonical underscore tokens
     # (``agent_profile``) both resolve, and unknown tokens fail closed with the
     # shared vocabulary error (no second kind enumeration here — CC-4).
-    try:
-        resolved_kind = ArtifactKind.from_operator_token(kind)
-    except MissionTypeNotAnArtifactKind as exc:
-        raise ValueError(
-            f"--include does not support the 'mission-type' selector "
-            f"(selector {selector!r}); mission types are not addressable "
-            "governance artifacts."
-        ) from exc
+    resolved_kind = _resolve_include_kind(kind, selector)
 
     if resolved_kind is ArtifactKind.TEMPLATE:
         return _render_template_include(repo_root, identifier, selector)
@@ -435,29 +355,25 @@ def build_charter_context_include(
         # FR-016: the agent-profile fetch path must inherit the charter
         # activation gate, so it (and only it) uses the activation-aware
         # service. Every other include kind stays on the unwrapped service.
+        # The service is built HERE (not inside the sibling helper) so this
+        # remains the sole call site of
+        # ``_build_activation_aware_doctrine_service`` — several tests
+        # monkeypatch that name on this module.
         gated_service = _build_activation_aware_doctrine_service(
             repo_root, org_roots=org_roots
         )
-        # For a kind with a registered renderer (agent_profile has one),
-        # _render_doctrine_artifact_include renders the activated profile or
-        # raises ("No agent_profile found ...") for a gated/missing one — it
-        # never returns None here, so a direct return is sufficient (no dead
-        # fall-through branch to guard).
-        artifact_result = _render_doctrine_artifact_include(
-            gated_service, canonical_kind, identifier
+        return _render_agent_profile_include_selector(
+            gated_service, canonical_kind, identifier, selector
         )
-        if artifact_result is None:
-            raise ValueError(f"No {canonical_kind} found for selector '{selector}'.")
-        return artifact_result
 
+    # Built here for the same reason: keep this the sole call site of
+    # ``_build_doctrine_service`` that several tests monkeypatch.
     service = _build_doctrine_service(repo_root, org_roots=org_roots)
-    if canonical_kind == ArtifactKind.DIRECTIVE.value:
-        return _render_directive_include(service.directives, identifier, selector)
-    if canonical_kind == ArtifactKind.TACTIC.value:
-        return _render_tactic_include(service.tactics, identifier, selector)
-    artifact = _render_doctrine_artifact_include(service, canonical_kind, identifier)
-    if artifact is not None:
-        return artifact
+    result = _render_catalog_kind_include_selector(
+        service, canonical_kind, identifier, selector
+    )
+    if result is not None:
+        return result
 
     raise ValueError(f"Unsupported --include selector kind '{kind}'.")
 

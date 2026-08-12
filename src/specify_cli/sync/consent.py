@@ -394,7 +394,8 @@ def _read_project_local(
                 detail=f"{config_path}: could not be opened ({exc})",
             ),
         )
-    except Exception as exc:  # noqa: BLE001 - carried as a fault, never raised
+    # Carried as a fault, never raised.
+    except Exception as exc:  # noqa: BLE001
         # It opened and its syntax does not parse. In practice this is a
         # ``ruamel.yaml.YAMLError``; the catch stays broad because this function's
         # contract is to answer rather than raise, and anything else escaping the

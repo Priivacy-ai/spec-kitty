@@ -3,8 +3,8 @@ T030/T031, FR-003).
 
 D-PLAN-12: this is a SERIALIZED-FIELD assertion -- parse a written
 ``review-cycle-N.md`` and assert its on-disk frontmatter has no ``verdict``
-key -- distinct from ``tests/architectural/verdict_seam_census.yaml``, which
-classifies FUNCTIONS (writer/resolver/reader shapes), never asserts on a
+key -- distinct from the retired function-census artifact, which classified
+writer/resolver/reader shapes and never asserted on a
 literal serialized payload. Also gates the schema directly (squad #12): a
 payload without ``verdict`` deserializes cleanly via ``from_dict``, and
 ``validate_review_artifact`` no longer requires or accepts it as an

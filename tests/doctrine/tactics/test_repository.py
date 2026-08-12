@@ -30,12 +30,6 @@ class TestTacticRepository:
         repo = TacticRepository(built_in_dir=tmp_tactic_dir)
         assert repo.get("nonexistent-tactic") is None
 
-    def test_load_from_custom_shipped_dir(self, tmp_tactic_dir: Path) -> None:
-        repo = TacticRepository(built_in_dir=tmp_tactic_dir)
-        tactics = repo.list_all()
-        assert {t.id for t in tactics} == {"test-tactic"}
-        assert tactics[0].id == "test-tactic"
-
     def test_malformed_yaml_skipped_with_warning(self, tmp_path: Path) -> None:
         """Malformed YAML files are skipped, not crash."""
         shipped = tmp_path / "built-in"

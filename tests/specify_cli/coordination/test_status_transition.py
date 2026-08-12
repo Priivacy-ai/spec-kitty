@@ -156,7 +156,7 @@ def test_transactional_emit_fans_out_only_after_commit(
     event = emit_status_transition_transactional(_request(repo), sync_dossier=False)
 
     assert mock_saas_sink.call_count == 1
-    assert mock_saas_sink.last_kwargs["causation_id"] == event.event_id
+    assert mock_saas_sink.last_kwargs["metadata"].causation_id == event.event_id
 
     show = _git(repo, "show", f"{COORD_BRANCH}:kitty-specs/{MISSION_DIRNAME}/status.events.jsonl")
     assert event.event_id in show.stdout

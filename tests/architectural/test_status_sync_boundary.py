@@ -31,24 +31,29 @@ def _collect_imports(package_path: Path) -> list[tuple[str, str]]:
     edges: list[tuple[str, str]] = []
     for py_file in sorted(package_path.rglob("*.py")):
         try:
+            source_file = str(py_file.relative_to(SRC))
+        except ValueError:
+            source_file = str(py_file)
+        try:
             tree = ast.parse(py_file.read_text(encoding="utf-8"))
         except SyntaxError:
             continue
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.module:
-                edges.append((str(py_file.relative_to(SRC)), node.module))
+                edges.append((source_file, node.module))
             elif isinstance(node, ast.Import):
                 for alias in node.names:
-                    edges.append((str(py_file.relative_to(SRC)), alias.name))
+                    edges.append((source_file, alias.name))
     return edges
 
 
 class TestStatusSyncBoundary:
     """specify_cli.status must not import specify_cli.sync."""
 
-    def test_status_does_not_import_sync(self) -> None:
-        """No status module may import from specify_cli.sync (any sub-module)."""
+    def test_status_does_not_import_sync(self, tmp_path: Path) -> None:
+        """Scan the live package and prove the oracle rejects a planted edge."""
         edges = _collect_imports(STATUS_PATH)
+        assert edges, "status import corpus must be non-empty"
         violations = [
             f"  {src}: imports '{mod}'"
             for src, mod in edges
@@ -61,9 +66,18 @@ class TestStatusSyncBoundary:
             + "\n\nFix: route through specify_cli.status.adapters.fire_* instead."
         )
 
-    def test_status_path_exists(self) -> None:
-        """Sanity check: status package must exist so the boundary test is non-vacuous."""
-        assert STATUS_PATH.is_dir(), (
-            f"specify_cli.status not found at {STATUS_PATH}. "
-            "Update SRC or STATUS_PATH if the package moved."
+        control = tmp_path / "control"
+        control.mkdir()
+        (control / "module.py").write_text(
+            "from specify_cli.status import adapters\n", encoding="utf-8"
         )
+        assert not [mod for _, mod in _collect_imports(control) if mod.startswith("specify_cli.sync")]
+
+        fault = tmp_path / "fault"
+        fault.mkdir()
+        (fault / "module.py").write_text(
+            "from specify_cli.sync import emit\n", encoding="utf-8"
+        )
+        assert [mod for _, mod in _collect_imports(fault) if mod.startswith("specify_cli.sync")] == [
+            "specify_cli.sync"
+        ]

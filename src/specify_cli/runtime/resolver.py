@@ -490,7 +490,7 @@ def resolve_template_by_urn(
 
     The URN is split into its mission-qualified ``<mission>/<name>`` template
     ID and handed to
-    :func:`doctrine.template_catalog.resolve_template_by_id`, which performs
+    :func:`charter.template_catalog.resolve_template_by_id`, which performs
     that split itself and delegates to the same Stage-2 five-tier precedence
     (override > legacy > global-mission > global > package) that
     :func:`resolve_template` implements -- so an override at
@@ -525,7 +525,7 @@ def resolve_template_by_urn(
 
     template_id = urn[len(_TEMPLATE_URN_PREFIX) :]
 
-    from doctrine.template_catalog import TierRoot, resolve_template_by_id  # noqa: PLC0415
+    from charter.template_catalog import TierRoot, resolve_template_by_id  # noqa: PLC0415
 
     tier_roots = [
         TierRoot(

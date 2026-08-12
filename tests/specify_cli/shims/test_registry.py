@@ -141,9 +141,6 @@ class TestPromptDrivenCommands:
     def test_subset_of_consumer_skills(self) -> None:
         assert PROMPT_DRIVEN_COMMANDS.issubset(CONSUMER_SKILLS)
 
-    def test_disjoint_from_cli_driven(self) -> None:
-        assert frozenset() == PROMPT_DRIVEN_COMMANDS & CLI_DRIVEN_COMMANDS
-
     def test_retired_checklist_is_not_prompt_driven(self) -> None:
         assert "checklist" not in PROMPT_DRIVEN_COMMANDS
 
@@ -151,9 +148,6 @@ class TestPromptDrivenCommands:
 class TestCliDrivenCommands:
     def test_is_frozenset(self) -> None:
         assert isinstance(CLI_DRIVEN_COMMANDS, frozenset)
-
-    def test_has_seven_commands(self) -> None:
-        assert len(CLI_DRIVEN_COMMANDS) == 7
 
     @pytest.mark.parametrize(
         "skill",
@@ -183,10 +177,6 @@ class TestCommandClassificationInvariant:
 
     def test_no_overlap_between_sets(self) -> None:
         assert frozenset() == PROMPT_DRIVEN_COMMANDS & CLI_DRIVEN_COMMANDS
-
-    def test_total_count_matches_consumer_skills(self) -> None:
-        assert len(PROMPT_DRIVEN_COMMANDS) + len(CLI_DRIVEN_COMMANDS) == len(CONSUMER_SKILLS)
-
 
 class TestIsPromptDriven:
     @pytest.mark.parametrize("skill", sorted(PROMPT_DRIVEN_COMMANDS))

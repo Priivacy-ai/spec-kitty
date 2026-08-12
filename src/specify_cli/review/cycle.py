@@ -135,16 +135,15 @@ def _review_cycle_wp_dir(
     ``_review_cycle_wp_dir``'s write-side default) — but per FR-011's
     correction above, no consumer has actually done so yet. A follow-up WP that
     flips the write-side default must re-verify ``test_analysis_report_rehome.py``
-    (plus recheck the three already-flagged unrouted sites WP04's own
-    ``verdict_seam_IC04.yaml`` fragment names: ``workflow.py::review``,
+    (plus recheck the three unrouted sites recorded by WP04:
+    ``workflow.py::review``,
     ``workflow_cores.py::has_prior_rejection``,
     ``workflow_executor.py::implement_try_render_fix_mode_prompt``) in the SAME
     change before the WRITE-side default can safely flip. See this WP's final
     report for the full citations.
 
-    **FR-007 wording reconciliation (WP06).** This mission's census
-    (``tests/architectural/verdict_seam_census.yaml``) marks THIS function
-    ``status: retire`` (source WP08/IC08) — a future WP is expected to retire
+    **FR-007 wording reconciliation (WP06).** WP08's reviewed retirement set
+    marks THIS function for retirement — a future WP is expected to retire
     ``_review_cycle_wp_dir`` itself once the write-side default safely flips
     (the hazards above are resolved) and every consumer routes through the
     canonical placement resolver directly. Until then, the COORD→PRIMARY

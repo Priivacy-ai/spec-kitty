@@ -46,7 +46,7 @@ It is probably overkill for one-off edits, tiny scripts, or teams that do not us
 | Keep quality visible | Review, accept, merge, and retrospective gates |
 | See progress | Optional local kanban dashboard with `spec-kitty dashboard` |
 | Integrate agents | Slash commands or skills for Claude Code, Codex, Cursor, Gemini, Copilot, Windsurf, OpenCode, and more |
-| Learn from missions | Every completed mission generates a retrospective by default. Tune via `.kittify/config.yaml#retrospective` or charter; see [how-to](docs/guides/use-retrospective-learning.md). |
+| Learn from missions | Every completed mission generates a retrospective by default. Tune via `.kittify/config.yaml#retrospective` or charter; see [how-to](docs/guides/how-to/governance/use-retrospective-learning.md). |
 
 ## Common Use Cases
 
@@ -59,10 +59,10 @@ It is probably overkill for one-off edits, tiny scripts, or teams that do not us
 ## Governance layer
 
 Spec Kitty keeps runtime governance in the repo instead of treating it as
-agent-only prompt text. The trail model in [docs/trail-model.md](docs/trail-model.md)
+agent-only prompt text. The trail model in [docs/architecture/trail-model.md](docs/architecture/trail-model.md)
 describes how `spec-kitty dispatch "<request>"` maps operator intent to
 runtime behavior, while
-[docs/host-surface-parity.md](docs/host-surface-parity.md) tracks parity across
+[docs/architecture/host-surface-parity.md](docs/architecture/host-surface-parity.md) tracks parity across
 CLI, slash-command, and hosted surfaces.
 
 The primary standalone governance command is:
@@ -129,7 +129,7 @@ autonomous facilitator), not by `merge`. Once it exists, use
 `spec-kitty agent retrospect synthesize --mission <mission-slug>` to apply any
 staged proposals (dry-run by default — pass `--apply` to mutate).
 
-For the full walkthrough, see [Your First Mission](docs/guides/your-first-mission.md).
+For the full walkthrough, see [Your First Mission](docs/guides/tutorials/your-first-mission.md).
 
 ## Everyday Commands
 
@@ -146,14 +146,14 @@ For the full walkthrough, see [Your First Mission](docs/guides/your-first-missio
 
 Start here:
 
-- [Getting Started](docs/guides/getting-started.md)
-- [Your First Mission](docs/guides/your-first-mission.md)
-- [Orchestrator Quickstart](docs/guides/orchestrator-quickstart.md)
+- [Getting Started](docs/guides/tutorials/getting-started.md)
+- [Your First Mission](docs/guides/tutorials/your-first-mission.md)
+- [Orchestrator Quickstart](docs/guides/tutorials/orchestrator-quickstart.md)
 - [CLI Command Reference](docs/api/cli-commands.md)
 - [Slash Commands](docs/api/slash-commands.md)
 - [Supported Agents](docs/api/supported-agents.md)
-- [Dashboard Guide](docs/guides/use-dashboard.md)
-- [Install and Upgrade](docs/guides/install-and-upgrade.md)
+- [Dashboard Guide](docs/guides/how-to/monitoring/use-dashboard.md)
+- [Install and Upgrade](docs/guides/how-to/installation/install-and-upgrade.md)
 
 Deeper topics:
 
@@ -161,11 +161,11 @@ Deeper topics:
 - [Mission System](docs/architecture/mission-system.md)
 - [Git Worktrees](docs/architecture/git-worktrees.md)
 - [Multi-Agent Orchestration](docs/architecture/multi-agent-orchestration.md)
-- [External Orchestrator Runbook](docs/guides/run-external-orchestrator.md)
-- [Hosted Sync Workspaces](docs/guides/sync-workspaces.md)
+- [External Orchestrator Runbook](docs/guides/how-to/collaboration/run-external-orchestrator.md)
+- [Hosted Sync Workspaces](docs/guides/how-to/collaboration/sync-workspaces.md)
 
 Hosted auth, sync, and tracker flows remain opt-in. For setup details, see
-[Hosted Sync Workspaces](docs/guides/sync-workspaces.md), [Internal
+[Hosted Sync Workspaces](docs/guides/how-to/collaboration/sync-workspaces.md), [Internal
 Hosted-Readiness](docs/operations/internal-hosted-readiness.md), and
 [Launch-Readiness Behavior](docs/architecture/launch-readiness-future.md).
 

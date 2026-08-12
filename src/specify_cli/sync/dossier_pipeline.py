@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from specify_cli.dossier.models import MissionDossier
+    from specify_cli.dossier.snapshot import MissionDossierSnapshot
     from specify_cli.identity.project import ProjectIdentity
 
     from .body_queue import OfflineBodyUploadQueue
@@ -38,6 +39,228 @@ class DossierSyncResult:
         return self.dossier is not None and not self.errors
 
 
+def _emit_artifact_events(
+    dossier: MissionDossier,
+    namespace_ref: NamespaceRef,
+    step_id: str | None,
+    ns_dict: dict[str, object],
+    *,
+    project_context: ProjectSyncContext | None = None,
+    project_unit: ProjectUnitOfWork | None = None,
+    project_layout: LayoutGenerationAuthority | None = None,
+) -> int:
+    """Emit indexed/missing events for every artifact in the dossier.
+
+    Each artifact's emission is independently isolated (its own try/except)
+    so one artifact's failure never blocks the rest — mirrors the original
+    inline loop's per-artifact isolation. Returns the count of events
+    successfully emitted (a non-``None`` result).
+
+    The optional same-UoW project authority tuple is threaded through to the
+    emitters unchanged; ``None`` means the caller carries no store-minted
+    local-capture authority.
+    """
+    from specify_cli.dossier.events import emit_artifact_indexed, emit_artifact_missing
+
+    events_emitted = 0
+    for artifact in dossier.artifacts:
+        if artifact.is_present:
+            try:
+                result = emit_artifact_indexed(
+                    mission_slug=namespace_ref.mission_slug,
+                    artifact_key=artifact.artifact_key,
+                    artifact_class=artifact.artifact_class,
+                    relative_path=artifact.relative_path,
+                    content_hash_sha256=artifact.content_hash_sha256,
+                    size_bytes=artifact.size_bytes,
+                    step_id=step_id,
+                    required_status=artifact.required_status,
+                    namespace=ns_dict,
+                    project_context=project_context,
+                    project_unit=project_unit,
+                    project_layout=project_layout,
+                )
+                if result is not None:
+                    events_emitted += 1
+            except Exception as e:
+                logger.warning(
+                    "Event emission failed for %s: %s",
+                    artifact.relative_path,
+                    e,
+                )
+        else:
+            # Emit missing event for non-present required artifacts
+            try:
+                result = emit_artifact_missing(
+                    mission_slug=namespace_ref.mission_slug,
+                    artifact_key=artifact.artifact_key,
+                    artifact_class=artifact.artifact_class,
+                    expected_path_pattern=artifact.relative_path,
+                    reason_code=artifact.error_reason or "not_found",
+                    blocking=artifact.required_status == "required",
+                    namespace=ns_dict,
+                    project_context=project_context,
+                    project_unit=project_unit,
+                    project_layout=project_layout,
+                )
+                if result is not None:
+                    events_emitted += 1
+            except Exception as e:
+                logger.warning(
+                    "Missing event emission failed for %s: %s",
+                    artifact.relative_path,
+                    e,
+                )
+    return events_emitted
+
+
+def _emit_snapshot(
+    dossier: MissionDossier,
+    feature_dir: Path,
+    namespace_ref: NamespaceRef,
+    ns_dict: dict[str, object],
+    *,
+    project_context: ProjectSyncContext | None = None,
+    project_unit: ProjectUnitOfWork | None = None,
+    project_layout: LayoutGenerationAuthority | None = None,
+) -> tuple[MissionDossierSnapshot | None, int]:
+    """Compute, persist, and emit the dossier snapshot.
+
+    Retains its own try/except so a snapshot failure never aborts the other
+    pipeline steps. Returns ``(snapshot, events_emitted)`` — ``snapshot`` is
+    ``None`` and ``events_emitted`` is ``0`` on failure.
+    """
+    from specify_cli.dossier.events import emit_snapshot_computed
+    from specify_cli.dossier.snapshot import compute_snapshot, save_snapshot
+
+    snapshot: MissionDossierSnapshot | None = None
+    events_emitted = 0
+    try:
+        snapshot = compute_snapshot(dossier)
+        save_snapshot(snapshot, feature_dir)
+        dossier.latest_snapshot = snapshot.model_dump(mode="json")
+
+        result = emit_snapshot_computed(
+            mission_slug=namespace_ref.mission_slug,
+            parity_hash_sha256=snapshot.parity_hash_sha256,
+            total_artifacts=snapshot.total_artifacts,
+            required_artifacts=snapshot.required_artifacts,
+            required_present=snapshot.required_present,
+            required_missing=snapshot.required_missing,
+            optional_artifacts=snapshot.optional_artifacts,
+            optional_present=snapshot.optional_present,
+            completeness_status=snapshot.completeness_status,
+            snapshot_id=snapshot.snapshot_id,
+            namespace=ns_dict,
+            project_context=project_context,
+            project_unit=project_unit,
+            project_layout=project_layout,
+        )
+        if result is not None:
+            events_emitted += 1
+    except Exception as e:
+        logger.warning("Snapshot computation/emission failed for %s: %s", feature_dir, e)
+    return snapshot, events_emitted
+
+
+def _emit_drift(
+    snapshot: MissionDossierSnapshot,
+    feature_dir: Path,
+    namespace_ref: NamespaceRef,
+    ns_dict: dict[str, object],
+    repo_root: Path,
+    project_identity: ProjectIdentity,
+    *,
+    project_context: ProjectSyncContext | None = None,
+    project_unit: ProjectUnitOfWork | None = None,
+    project_layout: LayoutGenerationAuthority | None = None,
+) -> int:
+    """Detect and emit parity drift against the baseline snapshot.
+
+    Retains its own try/except so a drift-detection failure never aborts the
+    other pipeline steps. Returns the count of events emitted (0 or 1).
+    """
+    from specify_cli.dossier.drift_detector import detect_drift
+    from specify_cli.dossier.events import emit_parity_drift_detected
+
+    events_emitted = 0
+    try:
+        has_drift, drift_info = detect_drift(
+            mission_slug=namespace_ref.mission_slug,
+            current_snapshot=snapshot,
+            repo_root=repo_root,
+            project_identity=project_identity,
+            target_branch=namespace_ref.target_branch,
+            mission_type=namespace_ref.mission_type,
+            manifest_version=namespace_ref.manifest_version,
+        )
+        if has_drift and drift_info is not None:
+            result = emit_parity_drift_detected(
+                mission_slug=namespace_ref.mission_slug,
+                local_parity_hash=drift_info["local_parity_hash"],
+                baseline_parity_hash=drift_info["baseline_parity_hash"],
+                missing_in_local=drift_info["missing_in_local"],
+                missing_in_baseline=drift_info["missing_in_baseline"],
+                severity=drift_info["severity"],
+                namespace=ns_dict,
+                project_context=project_context,
+                project_unit=project_unit,
+                project_layout=project_layout,
+            )
+            if result is not None:
+                events_emitted += 1
+    except Exception as e:
+        logger.warning("Parity drift detection/emission failed for %s: %s", feature_dir, e)
+    return events_emitted
+
+
+def _prepare_bodies(
+    dossier: MissionDossier,
+    namespace_ref: NamespaceRef,
+    body_queue: OfflineBodyUploadQueue,
+    feature_dir: Path,
+    *,
+    project_context: ProjectSyncContext | None = None,
+    project_unit: ProjectUnitOfWork | None = None,
+    project_layout: LayoutGenerationAuthority | None = None,
+) -> tuple[list[UploadOutcome], list[str]]:
+    """Prepare body uploads for the dossier's artifacts.
+
+    Retains its own try/except so a body-upload-preparation failure never
+    aborts the events already emitted. Returns ``(body_outcomes, errors)``.
+
+    When the caller supplies the full explicit same-UoW authority tuple it is
+    forwarded so ``prepare_body_uploads`` validates and uses that exact store
+    decision; otherwise the legacy fail-closed consent lookup applies.
+    """
+    from .body_upload import prepare_body_uploads
+
+    body_outcomes: list[UploadOutcome] = []
+    errors: list[str] = []
+    try:
+        if project_context is not None and project_unit is not None and project_layout is not None:
+            body_outcomes = prepare_body_uploads(
+                artifacts=dossier.artifacts,
+                namespace_ref=namespace_ref,
+                body_queue=body_queue,
+                feature_dir=feature_dir,
+                project_context=project_context,
+                project_unit=project_unit,
+                project_layout=project_layout,
+            )
+        else:
+            body_outcomes = prepare_body_uploads(
+                artifacts=dossier.artifacts,
+                namespace_ref=namespace_ref,
+                body_queue=body_queue,
+                feature_dir=feature_dir,
+            )
+    except Exception as e:
+        logger.exception("Body upload preparation failed for %s", feature_dir)
+        errors.append(f"body_upload_preparation_failed: {e}")
+    return body_outcomes, errors
+
+
 def sync_feature_dossier(
     feature_dir: Path,
     namespace_ref: NamespaceRef,
@@ -56,17 +279,10 @@ def sync_feature_dossier(
     This is the ONLY entrypoint for body upload preparation.
     BackgroundSyncService only drains already-enqueued work.
     """
-    from specify_cli.dossier.drift_detector import detect_drift
-    from specify_cli.dossier.events import (
-        emit_artifact_indexed,
-        emit_parity_drift_detected,
-        emit_snapshot_computed,
-    )
     from specify_cli.dossier.indexer import Indexer
     from specify_cli.dossier.manifest import ManifestRegistry
-    from specify_cli.dossier.snapshot import compute_snapshot, save_snapshot
 
-    from .body_upload import log_upload_outcomes, prepare_body_uploads
+    from .body_upload import log_upload_outcomes
     from .lint_report_staging import stage_charter_lint_report
     from .namespace import UploadStatus
 
@@ -96,8 +312,6 @@ def sync_feature_dossier(
                 errors=[f"dossier_project_context_invalid: {exc}"],
             )
 
-    errors: list[str] = []
-
     # Step 0: Stage the repo-global charter-lint decay report into this
     # mission's dossier BEFORE indexing, but only when the report was produced
     # for this mission (issue #2481, unblocks saas #392). Best-effort no-op.
@@ -112,7 +326,7 @@ def sync_feature_dossier(
         indexer = Indexer(ManifestRegistry())
         dossier = indexer.index_feature(feature_dir, mission_type, step_id)
     except Exception as e:
-        logger.error("Indexer failed for %s: %s", feature_dir, e)
+        logger.exception("Indexer failed for %s", feature_dir)
         return DossierSyncResult(
             dossier=None,
             events_emitted=0,
@@ -120,144 +334,55 @@ def sync_feature_dossier(
             errors=[str(e)],
         )
 
-    # Step 2: Emit dossier events for present and missing artifacts
-    events_emitted = 0
     ns_dict = namespace_ref.to_dict()
-    for artifact in dossier.artifacts:
-        if artifact.is_present:
-            try:
-                result = emit_artifact_indexed(
-                    mission_slug=namespace_ref.mission_slug,
-                    artifact_key=artifact.artifact_key,
-                    artifact_class=artifact.artifact_class,
-                    relative_path=artifact.relative_path,
-                    content_hash_sha256=artifact.content_hash_sha256,
-                    size_bytes=artifact.size_bytes,
-                    step_id=step_id,
-                    required_status=artifact.required_status,
-                    namespace=ns_dict,
-                    project_context=project_context,
-                    project_unit=project_unit,
-                    project_layout=project_layout,
-                )
-                if result is not None:
-                    events_emitted += 1
-            except Exception as e:
-                logger.warning(
-                    "Event emission failed for %s: %s",
-                    artifact.relative_path,
-                    e,
-                )
-        else:
-            # Emit missing event for non-present required artifacts
-            try:
-                from specify_cli.dossier.events import emit_artifact_missing
+    events_emitted = 0
 
-                result = emit_artifact_missing(
-                    mission_slug=namespace_ref.mission_slug,
-                    artifact_key=artifact.artifact_key,
-                    artifact_class=artifact.artifact_class,
-                    expected_path_pattern=artifact.relative_path,
-                    reason_code=artifact.error_reason or "not_found",
-                    blocking=artifact.required_status == "required",
-                    namespace=ns_dict,
-                    project_context=project_context,
-                    project_unit=project_unit,
-                    project_layout=project_layout,
-                )
-                if result is not None:
-                    events_emitted += 1
-            except Exception as e:
-                logger.warning(
-                    "Missing event emission failed for %s: %s",
-                    artifact.relative_path,
-                    e,
-                )
+    # Step 2: Emit dossier events for present and missing artifacts
+    events_emitted += _emit_artifact_events(
+        dossier,
+        namespace_ref,
+        step_id,
+        ns_dict,
+        project_context=project_context,
+        project_unit=project_unit,
+        project_layout=project_layout,
+    )
 
     # Step 3: Compute + emit snapshot (always) and drift (if baseline exists)
-    snapshot = None
-    try:
-        snapshot = compute_snapshot(dossier)
-        save_snapshot(snapshot, feature_dir)
-        dossier.latest_snapshot = snapshot.model_dump(mode="json")
+    snapshot, snapshot_events = _emit_snapshot(
+        dossier,
+        feature_dir,
+        namespace_ref,
+        ns_dict,
+        project_context=project_context,
+        project_unit=project_unit,
+        project_layout=project_layout,
+    )
+    events_emitted += snapshot_events
 
-        result = emit_snapshot_computed(
-            mission_slug=namespace_ref.mission_slug,
-            parity_hash_sha256=snapshot.parity_hash_sha256,
-            total_artifacts=snapshot.total_artifacts,
-            required_artifacts=snapshot.required_artifacts,
-            required_present=snapshot.required_present,
-            required_missing=snapshot.required_missing,
-            optional_artifacts=snapshot.optional_artifacts,
-            optional_present=snapshot.optional_present,
-            completeness_status=snapshot.completeness_status,
-            snapshot_id=snapshot.snapshot_id,
-            namespace=ns_dict,
+    if snapshot is not None and repo_root is not None and project_identity is not None:
+        events_emitted += _emit_drift(
+            snapshot,
+            feature_dir,
+            namespace_ref,
+            ns_dict,
+            repo_root,
+            project_identity,
             project_context=project_context,
             project_unit=project_unit,
             project_layout=project_layout,
         )
-        if result is not None:
-            events_emitted += 1
-    except Exception as e:
-        logger.warning("Snapshot computation/emission failed for %s: %s", feature_dir, e)
-
-    if snapshot is not None and repo_root is not None and project_identity is not None:
-        try:
-            has_drift, drift_info = detect_drift(
-                mission_slug=namespace_ref.mission_slug,
-                current_snapshot=snapshot,
-                repo_root=repo_root,
-                project_identity=project_identity,
-                target_branch=namespace_ref.target_branch,
-                mission_type=namespace_ref.mission_type,
-                manifest_version=namespace_ref.manifest_version,
-            )
-            if has_drift and drift_info is not None:
-                result = emit_parity_drift_detected(
-                    mission_slug=namespace_ref.mission_slug,
-                    local_parity_hash=drift_info["local_parity_hash"],
-                    baseline_parity_hash=drift_info["baseline_parity_hash"],
-                    missing_in_local=drift_info["missing_in_local"],
-                    missing_in_baseline=drift_info["missing_in_baseline"],
-                    severity=drift_info["severity"],
-                    namespace=ns_dict,
-                    project_context=project_context,
-                    project_unit=project_unit,
-                    project_layout=project_layout,
-                )
-                if result is not None:
-                    events_emitted += 1
-        except Exception as e:
-            logger.warning("Parity drift detection/emission failed for %s: %s", feature_dir, e)
 
     # Step 4: Prepare body uploads
-    body_outcomes: list[UploadOutcome] = []
-    try:
-        if project_context is not None and project_unit is not None and project_layout is not None:
-            body_outcomes = prepare_body_uploads(
-                artifacts=dossier.artifacts,
-                namespace_ref=namespace_ref,
-                body_queue=body_queue,
-                feature_dir=feature_dir,
-                project_context=project_context,
-                project_unit=project_unit,
-                project_layout=project_layout,
-            )
-        else:
-            body_outcomes = prepare_body_uploads(
-                artifacts=dossier.artifacts,
-                namespace_ref=namespace_ref,
-                body_queue=body_queue,
-                feature_dir=feature_dir,
-            )
-    except Exception as e:
-        logger.error(
-            "Body upload preparation failed for %s: %s",
-            feature_dir,
-            e,
-        )
-        errors.append(f"body_upload_preparation_failed: {e}")
+    body_outcomes, errors = _prepare_bodies(
+        dossier,
+        namespace_ref,
+        body_queue,
+        feature_dir,
+        project_context=project_context,
+        project_unit=project_unit,
+        project_layout=project_layout,
+    )
 
     # Per-artifact result logging (FR-012)
     if body_outcomes:

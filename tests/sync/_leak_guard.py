@@ -399,10 +399,15 @@ _PINNED_LEAKS: tuple[_PinnedLeak, ...] = (
     # reproduces" for both.
     #   - tests/sync/test_issue_598_hang_fixes.py::TestBackgroundStopBounded::test_stop_does_not_hang_when_sync_is_slow
     #   - tests/sync/test_issue_598_hang_fixes.py::TestBackgroundStopBounded::test_stop_emits_structured_warning_when_sync_times_out
-    # UN-PINNED 2026-08-12: the project-init node now uses the canonical
-    # ProjectSyncStore and its existing finally block leaves all watched runtime
-    # globals and threads clean.  The guard's self-proving isolated run rejected
-    # the old pin with "this run left NOTHING dirty" before this entry was removed.
+    # UN-PINNED on both sides of the 2026-08-12 reconciliation merge, for
+    # convergent reasons. Main (2026-08-11, WP08 assertive sanitation): the
+    # lifecycle readiness oracle now replaces incidental runtime attachment
+    # with a no-thread fake and restores the exact prior emitter; its former
+    # pin was itself order-flaky. Branch (2026-08-12): the project-init node
+    # now uses the canonical ProjectSyncStore and its existing finally block
+    # leaves all watched runtime globals and threads clean — the guard's
+    # self-proving isolated run rejected the old pin with "this run left
+    # NOTHING dirty" before this entry was removed.
     #   - tests/sync/test_lifecycle_readiness.py::test_init_emits_project_init_event_offline
     # UN-PINNED 2026-08-06 (#3130 fold, landing pass for #3209; per the
     # "un-pinning requires a leak that provably stopped as a consequence of

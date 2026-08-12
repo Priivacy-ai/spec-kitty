@@ -30,6 +30,10 @@ from specify_cli.core.env import is_truthy
 _EVENTS_MODULE = ".events"
 _FEATURE_FLAGS_MODULE = ".feature_flags"
 _LOCAL_COMMIT_MODULE = ".local_commit"
+_BATCH_MODULE = ".batch"
+_BACKGROUND_MODULE = ".background"
+_RUNTIME_MODULE = ".runtime"
+_DAEMON_MODULE = ".daemon"
 
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     # Keep package init cheap. Importing a sync submodule such as
@@ -64,30 +68,30 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "is_saas_sync_enabled": (_FEATURE_FLAGS_MODULE, "is_saas_sync_enabled"),
     "saas_sync_disabled_message": (_FEATURE_FLAGS_MODULE, "saas_sync_disabled_message"),
     # Lazy-loaded names that require heavier optional/runtime dependencies.
-    "BatchEventResult": (".batch", "BatchEventResult"),
-    "BatchSyncResult": (".batch", "BatchSyncResult"),
+    "BatchEventResult": (_BATCH_MODULE, "BatchEventResult"),
+    "BatchSyncResult": (_BATCH_MODULE, "BatchSyncResult"),
     # NOTE (#3030 FR-012): ``batch_sync`` and ``sync_all_queued_events`` are
     # deliberately absent. They are the retired queue-backed event drain, which
     # carries no per-project consent; the journal dispatcher
     # (``delivery/dispatcher.py``) is the sole event drain. Re-exporting them
     # reinstates the cross-project leak — guarded by
     # ``tests/sync/test_no_queue_drain_constructed_3030.py``.
-    "categorize_error": (".batch", "categorize_error"),
-    "format_sync_summary": (".batch", "format_sync_summary"),
-    "generate_failure_report": (".batch", "generate_failure_report"),
-    "write_failure_report": (".batch", "write_failure_report"),
+    "categorize_error": (_BATCH_MODULE, "categorize_error"),
+    "format_sync_summary": (_BATCH_MODULE, "format_sync_summary"),
+    "generate_failure_report": (_BATCH_MODULE, "generate_failure_report"),
+    "write_failure_report": (_BATCH_MODULE, "write_failure_report"),
     "WebSocketClient": (".client", "WebSocketClient"),
     "SyncConfig": (".config", "SyncConfig"),
-    "BackgroundSyncService": (".background", "BackgroundSyncService"),
-    "get_sync_service": (".background", "get_sync_service"),
-    "reset_sync_service": (".background", "reset_sync_service"),
-    "SyncRuntime": (".runtime", "SyncRuntime"),
-    "get_runtime": (".runtime", "get_runtime"),
-    "reset_runtime": (".runtime", "reset_runtime"),
-    "SyncDaemonStatus": (".daemon", "SyncDaemonStatus"),
-    "ensure_sync_daemon_running": (".daemon", "ensure_sync_daemon_running"),
-    "get_sync_daemon_status": (".daemon", "get_sync_daemon_status"),
-    "stop_sync_daemon": (".daemon", "stop_sync_daemon"),
+    "BackgroundSyncService": (_BACKGROUND_MODULE, "BackgroundSyncService"),
+    "get_sync_service": (_BACKGROUND_MODULE, "get_sync_service"),
+    "reset_sync_service": (_BACKGROUND_MODULE, "reset_sync_service"),
+    "SyncRuntime": (_RUNTIME_MODULE, "SyncRuntime"),
+    "get_runtime": (_RUNTIME_MODULE, "get_runtime"),
+    "reset_runtime": (_RUNTIME_MODULE, "reset_runtime"),
+    "SyncDaemonStatus": (_DAEMON_MODULE, "SyncDaemonStatus"),
+    "ensure_sync_daemon_running": (_DAEMON_MODULE, "ensure_sync_daemon_running"),
+    "get_sync_daemon_status": (_DAEMON_MODULE, "get_sync_daemon_status"),
+    "stop_sync_daemon": (_DAEMON_MODULE, "stop_sync_daemon"),
     # LocalCommit core (WP05): SyncState and frame lifecycle.
     "SyncState": (_LOCAL_COMMIT_MODULE, "SyncState"),
     "load_sync_state": (_LOCAL_COMMIT_MODULE, "load_sync_state"),

@@ -394,94 +394,11 @@ class AgentProfileRepository:
 
         scan = directory.rglob(_AGENT_PROFILE_GLOB) if recursive else directory.glob(_AGENT_PROFILE_GLOB)
         for yaml_file in sorted(scan):
-            try:
-                data = yaml.load(yaml_file)
-            except (YAMLError, OSError) as exc:
-                self._record_skip(
-                    layer=layer,
-                    path=yaml_file,
-                    profile_id=None,
-                    error_summary=f"YAML/read error: {exc}",
-                )
+            profile = self._parse_profile_from_file(
+                yaml, yaml_file, layer=layer, built_in_profiles=built_in_profiles
+            )
+            if profile is None:
                 continue
-
-            if data is None:
-                self._record_skip(
-                    layer=layer,
-                    path=yaml_file,
-                    profile_id=None,
-                    error_summary="Empty profile file (no YAML document)",
-                )
-                continue
-
-            profile_id = data.get("profile-id") or data.get("profile_id") if isinstance(data, dict) else None
-
-            # Inline-reference rejection is a *surfaced skip*, consistent with the
-            # ``diagnostics.py`` docstring (FR-003 / I-9). Loading is eager and
-            # all-or-nothing: a propagated raise would abort the whole layer load
-            # and blank out valid sibling profiles (the #1584 false-healthy
-            # class). We catch it here — where the YAML is in hand, so we can
-            # populate ``profile_id`` (the exception lacks it, DD-2) and a clear,
-            # readable ``error_summary`` (forbidden field + migration hint) — and
-            # record it via ``_record_skip``. Valid siblings keep loading.
-            try:
-                reject_agent_profile_inline_refs(data, file_path=str(yaml_file))
-            except InlineReferenceRejectedError as exc:
-                self._record_skip(
-                    layer=layer,
-                    path=yaml_file,
-                    profile_id=profile_id,
-                    error_summary=(
-                        f"Forbidden inline-reference field '{exc.forbidden_field}'. "
-                        f"{exc.migration_hint}"
-                    ),
-                )
-                continue
-
-            if not profile_id:
-                schema_errors = (
-                    validate_agent_profile_yaml(data) if isinstance(data, dict) else []
-                )
-                summary = (
-                    "; ".join(schema_errors)
-                    if schema_errors
-                    else "Missing required 'profile-id'"
-                )
-                self._record_skip(
-                    layer=layer,
-                    path=yaml_file,
-                    profile_id=None,
-                    error_summary=summary,
-                )
-                continue
-
-            try:
-                if layer != "builtin" and profile_id in built_in_profiles:
-                    profile = self._merge_profiles(built_in_profiles[profile_id], data)
-                else:
-                    profile = AgentProfile.model_validate(data)
-            except ValidationError as exc:
-                schema_errors = (
-                    validate_agent_profile_yaml(data) if isinstance(data, dict) else []
-                )
-                summary = "; ".join(schema_errors) if schema_errors else str(exc)
-                self._record_skip(
-                    layer=layer,
-                    path=yaml_file,
-                    profile_id=profile_id,
-                    error_summary=summary,
-                )
-                continue
-
-            if not applies_to_languages_match(profile.applies_to_languages, self._active_languages):
-                continue
-
-            if layer != "builtin":
-                self._record_profile_collision_if_present(
-                    profile_id=profile.profile_id,
-                    higher_layer=layer,
-                    higher_data=data,
-                )
 
             self._profiles[profile.profile_id] = profile
             self._provenance[profile.profile_id] = layer
@@ -489,6 +406,116 @@ class AgentProfileRepository:
             loaded[profile.profile_id] = profile
 
         return loaded
+
+    def _parse_profile_from_file(
+        self,
+        yaml: YAML,
+        yaml_file: Path,
+        *,
+        layer: str,
+        built_in_profiles: dict[str, AgentProfile],
+    ) -> AgentProfile | None:
+        """Parse, validate, and (for org/project) merge one profile YAML file.
+
+        Extracted from :meth:`_load_layer` (R-011-B) to keep its cognitive
+        complexity within the ruff C901 limit (15); the per-file gate chain
+        now starts at nesting level 0. Every failure path records a skip via
+        :meth:`_record_skip` and returns ``None`` in place of the original
+        loop's ``continue``. On success this also fires the layer-collision
+        diagnostic for org/project profiles — the caller is responsible only
+        for the final ``self._profiles``/``self._provenance``/
+        ``self._source_paths`` writes and ``loaded`` bookkeeping.
+        """
+        try:
+            data = yaml.load(yaml_file)
+        except (YAMLError, OSError) as exc:
+            self._record_skip(
+                layer=layer,
+                path=yaml_file,
+                profile_id=None,
+                error_summary=f"YAML/read error: {exc}",
+            )
+            return None
+
+        if data is None:
+            self._record_skip(
+                layer=layer,
+                path=yaml_file,
+                profile_id=None,
+                error_summary="Empty profile file (no YAML document)",
+            )
+            return None
+
+        profile_id = data.get("profile-id") or data.get("profile_id") if isinstance(data, dict) else None
+
+        # Inline-reference rejection is a *surfaced skip*, consistent with the
+        # ``diagnostics.py`` docstring (FR-003 / I-9). Loading is eager and
+        # all-or-nothing: a propagated raise would abort the whole layer load
+        # and blank out valid sibling profiles (the #1584 false-healthy
+        # class). We catch it here — where the YAML is in hand, so we can
+        # populate ``profile_id`` (the exception lacks it, DD-2) and a clear,
+        # readable ``error_summary`` (forbidden field + migration hint) — and
+        # record it via ``_record_skip``. Valid siblings keep loading.
+        try:
+            reject_agent_profile_inline_refs(data, file_path=str(yaml_file))
+        except InlineReferenceRejectedError as exc:
+            self._record_skip(
+                layer=layer,
+                path=yaml_file,
+                profile_id=profile_id,
+                error_summary=(
+                    f"Forbidden inline-reference field '{exc.forbidden_field}'. "
+                    f"{exc.migration_hint}"
+                ),
+            )
+            return None
+
+        if not profile_id:
+            schema_errors = (
+                validate_agent_profile_yaml(data) if isinstance(data, dict) else []
+            )
+            summary = (
+                "; ".join(schema_errors)
+                if schema_errors
+                else "Missing required 'profile-id'"
+            )
+            self._record_skip(
+                layer=layer,
+                path=yaml_file,
+                profile_id=None,
+                error_summary=summary,
+            )
+            return None
+
+        try:
+            if layer != "builtin" and profile_id in built_in_profiles:
+                profile = self._merge_profiles(built_in_profiles[profile_id], data)
+            else:
+                profile = AgentProfile.model_validate(data)
+        except ValidationError as exc:
+            schema_errors = (
+                validate_agent_profile_yaml(data) if isinstance(data, dict) else []
+            )
+            summary = "; ".join(schema_errors) if schema_errors else str(exc)
+            self._record_skip(
+                layer=layer,
+                path=yaml_file,
+                profile_id=profile_id,
+                error_summary=summary,
+            )
+            return None
+
+        if not applies_to_languages_match(profile.applies_to_languages, self._active_languages):
+            return None
+
+        if layer != "builtin":
+            self._record_profile_collision_if_present(
+                profile_id=profile.profile_id,
+                higher_layer=layer,
+                higher_data=data,
+            )
+
+        return profile
 
     def _record_profile_collision_if_present(
         self,

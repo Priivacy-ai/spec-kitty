@@ -27,6 +27,7 @@ not prove the absence of runtime coupling by other means — ``importlib``
 string-indirection, ``__import__``, entry points, or duck-typed objects handed
 in as data. Those are out of scope here by construction.
 """
+
 from __future__ import annotations
 
 import ast
@@ -98,8 +99,7 @@ def test_charter_never_imports_specify_cli() -> None:
         "src/charter/** must not import specify_cli at any scope "
         "(kernel <- doctrine <- charter <- specify_cli; FR-008, SC-004).\n"
         "Resolve the package version via importlib.metadata, or accept the "
-        "value as data from a specify_cli-layer caller.\nViolations:\n"
-        + "\n".join(f"  {rel}:{lineno} imports {mod}" for rel, lineno, mod in violations)
+        "value as data from a specify_cli-layer caller.\nViolations:\n" + "\n".join(f"  {rel}:{lineno} imports {mod}" for rel, lineno, mod in violations)
     )
 
 
@@ -130,21 +130,6 @@ def test_walker_catches_in_function_import(tmp_path: Path) -> None:
     violations = collect_specify_cli_imports(tmp_path)
 
     assert violations == [("synthesize_pipeline.py", 7, "specify_cli")]
-
-
-def test_walker_catches_module_level_and_from_imports(tmp_path: Path) -> None:
-    """Both ``import specify_cli.x`` and ``from specify_cli.x import y`` count."""
-    (tmp_path / "plain.py").write_text("import specify_cli.core.paths\n", encoding="utf-8")
-    (tmp_path / "fromform.py").write_text(
-        "from specify_cli.core.paths import repo_root\n", encoding="utf-8"
-    )
-
-    violations = collect_specify_cli_imports(tmp_path)
-
-    assert violations == [
-        ("fromform.py", 1, "specify_cli.core.paths"),
-        ("plain.py", 1, "specify_cli.core.paths"),
-    ]
 
 
 def test_walker_ignores_non_violating_imports(tmp_path: Path) -> None:

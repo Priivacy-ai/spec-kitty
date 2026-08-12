@@ -41,7 +41,7 @@ from charter.synthesizer.synthesize_pipeline import canonical_yaml
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.corpus]
 
 def _compute_manifest_hash(
     manifest: SynthesisManifest,

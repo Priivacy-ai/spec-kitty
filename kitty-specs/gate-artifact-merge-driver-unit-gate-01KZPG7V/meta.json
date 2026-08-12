@@ -1,0 +1,18 @@
+{
+  "created_at": "2026-08-10T18:51:25.538171+00:00",
+  "flattened": true,
+  "friendly_name": "Gate-Artifact Merge Driver Unit Gate",
+  "mission_id": "01KZPG7VF1AYQRQMMZ3ZK7JY9P",
+  "mission_number": null,
+  "mission_slug": "gate-artifact-merge-driver-unit-gate-01KZPG7V",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Commit b04da00e1 deleted the unit gate (tests/merge/test_gate_artifact_merge_drivers_2804.py) that held the #2804 invariant at merge-driver level, and it was built for the pre-#3076 whole-file fill-score heuristic that no longer exists. The only remaining coverage is a slow subprocess integration marker plus a general row-union sibling test; neither pins the #2804-specific scaffold-clobber + evidence-survival contract. This mission restores a narrow, fast in-memory unit gate calling the pure row-union reconcilers directly. It does not touch the integration marker and does not fix the #3231 product defect (the gate admits 'pending').",
+  "purpose_tldr": "Restore driver-level unit coverage for the #2804 gate-artifact merge invariant against the #3076 row-union model, so a filled acceptance/issue criterion is never reset to a scaffold placeholder.",
+  "slug": "gate-artifact-merge-driver-unit-gate-01KZPG7V",
+  "status_phase": "1",
+  "target_branch": "fix/gate-artifact-merge-driver-unit-gate",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-10T19:29:28.215751+00:00"
+}

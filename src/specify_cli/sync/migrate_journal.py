@@ -91,15 +91,21 @@ _QUEUE_DIGEST_RE = re.compile(r"^queue-([0-9a-f]+)\.db$", re.ASCII)
 # Explicit ASCII allowlist for any human-readable migration-target token; every
 # other code point (including accented Latin) folds to ``_`` so the produced
 # identifier is always ``.isascii()`` (charter Identifier Safety).
-_NON_IDENTIFIER_CHARS = re.compile(r"[^A-Za-z0-9_]", re.ASCII)
+# S6353: ``\W`` is the concise form of ``[^A-Za-z0-9_]``; ``re.ASCII`` pins it
+# to that exact set — without the flag, ``\W``/``\w`` fall back to Unicode
+# word-character semantics, which is precisely the accented-Latin leak this
+# token sanitizer exists to prevent (see the docstring below and the
+# match-equivalence test in test_sonar_mechanical_helpers.py).
+_NON_IDENTIFIER_CHARS = re.compile(r"\W", re.ASCII)
 
 
 def migration_target_token(raw: str) -> str:
     """Sanitize *raw* to an ASCII-only deterministic migration-target token.
 
-    Uses the ``[A-Za-z0-9_]`` allowlist compiled with ``re.ASCII`` so accented
-    input never leaks through the default Unicode ``\\w`` semantics. The result
-    is always ``.isascii()`` and stable for a given input.
+    Uses ``\\W`` compiled with ``re.ASCII`` — equivalent to the explicit
+    ``[A-Za-z0-9_]`` allowlist — so accented input never leaks through the
+    default Unicode ``\\w`` semantics. The result is always ``.isascii()``
+    and stable for a given input.
     """
     return _NON_IDENTIFIER_CHARS.sub("_", raw)
 
@@ -433,7 +439,8 @@ def _canonical_payload(data: str) -> bytes:
 
 
 def _payload_sha(payload: bytes) -> str:
-    return hashlib.sha256(payload).hexdigest()  # noqa: TID251 - migration payload digest, not the charter freshness hash
+    # Migration payload digest, not the charter freshness hash.
+    return hashlib.sha256(payload).hexdigest()  # noqa: TID251
 
 
 def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
@@ -979,7 +986,8 @@ def converge_legacy_runtime(
     identity: IdentityBackfillResult | None = None
     try:
         identity = backfill_journal_identity(journal)
-    except Exception as exc:  # noqa: BLE001 - reported by the caller, never fatal
+    # Reported by the caller, never fatal.
+    except Exception as exc:  # noqa: BLE001
         logger.warning("Journal identity backfill failed: %s", exc)
 
     cleanup_result: CleanupResult | None = None

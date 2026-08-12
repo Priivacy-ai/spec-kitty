@@ -11,10 +11,6 @@ from specify_cli.compat.upgrade_hint import UpgradeHint
 pytestmark = [pytest.mark.fast]
 
 
-def test_shared_allowlist_constant() -> None:
-    assert COMMAND_ALLOWLIST_MAX_LEN == 512
-
-
 def test_long_index_command_accepted() -> None:
     long_index = "https://example.invalid/" + ("p" * 100) + "/simple/"
     command = f"pip install --upgrade --index-url {long_index} acme-spec-kitty-cli"

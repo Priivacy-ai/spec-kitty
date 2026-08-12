@@ -1,13 +1,21 @@
 from __future__ import annotations
 
+import json
+import multiprocessing
+import os
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 pytestmark = [pytest.mark.unit]
 
 from tests._support.wall_clock_assertions import (
+    _ImportAliasMetrics,
+    _collect_import_aliases,
+    _wall_clock_scan_result_authenticator,
     find_wall_clock_assertion_violations,
+    find_wall_clock_assertion_violations_cached,
     find_test_python_paths,
     format_wall_clock_assertion_violations,
 )
@@ -1096,3 +1104,123 @@ def test_format_wall_clock_assertion_violations_names_injection_pattern(tmp_path
 
     assert "Inject a stable `now=`/clock" in message
     assert "test_bad.py:4: datetime.now()" in message
+
+
+def _write_alias_chain(root: Path, size: int) -> list[Path]:
+    paths: list[Path] = []
+    for index in range(size):
+        path = root / f"m{index:03d}.py"
+        source = (
+            "from datetime import datetime\nresult = datetime.now\n"
+            if index == 0
+            else f"from m{index - 1:03d} import result as upstream\nresult = upstream\n"
+        )
+        path.write_text(source, encoding="utf-8")
+        paths.append(path)
+    return paths
+
+
+def _cached_scan_worker(test_file: str, cache_root: str, results: Any) -> None:
+    violations = find_wall_clock_assertion_violations_cached(
+        [Path(test_file)],
+        Path(cache_root),
+    )
+    results.put((os.getpid(), [violation.render() for violation in violations]))
+
+
+def test_import_alias_worklist_scales_approximately_linearly_with_common_names(tmp_path: Path) -> None:
+    small_root = tmp_path / "small"
+    large_root = tmp_path / "large"
+    small_root.mkdir()
+    large_root.mkdir()
+    small_paths = _write_alias_chain(small_root, 20)
+    large_paths = _write_alias_chain(large_root, 40)
+    small_metrics = _ImportAliasMetrics()
+    large_metrics = _ImportAliasMetrics()
+
+    small = _collect_import_aliases(small_paths, _metrics=small_metrics)
+    large = _collect_import_aliases(large_paths, _metrics=large_metrics)
+
+    assert small["m019"][("result",)] == ("datetime", "datetime", "now")
+    assert large["m039"][("result",)] == ("datetime", "datetime", "now")
+    assert small_metrics.module_visits <= 3 * len(small_paths)
+    assert large_metrics.module_visits <= 3 * len(large_paths)
+    assert large_metrics.module_visits <= small_metrics.module_visits * 2.5
+
+
+def test_cached_scan_repairs_corruption_and_invalidates_on_source_change(tmp_path: Path) -> None:
+    test_file = tmp_path / "test_bad.py"
+    cache_root = tmp_path / "cache"
+    test_file.write_text(
+        "from datetime import datetime\n\ndef test_bad():\n    assert datetime.now().year == 2026\n",
+        encoding="utf-8",
+    )
+
+    first = find_wall_clock_assertion_violations_cached([test_file], cache_root)
+    cache_files = list(cache_root.glob("*.json"))
+    assert [(row.line, row.call) for row in first] == [(4, "datetime.now()")]
+    assert len(cache_files) == 1  # golden-count: cardinality-is-contract
+    cache_files[0].write_text("corrupt", encoding="utf-8")
+
+    repaired = find_wall_clock_assertion_violations_cached([test_file], cache_root)
+    assert repaired == first
+    assert cache_files[0].read_text(encoding="utf-8").startswith("{")
+
+    payload = json.loads(cache_files[0].read_text(encoding="utf-8"))
+    payload["violations"] = []
+    cache_files[0].write_text(json.dumps(payload), encoding="utf-8")
+    assert find_wall_clock_assertion_violations_cached([test_file], cache_root) == first
+
+    payload = json.loads(cache_files[0].read_text(encoding="utf-8"))
+    payload["violations"][0]["call"] = "time.time()"
+    cache_files[0].write_text(json.dumps(payload), encoding="utf-8")
+    assert find_wall_clock_assertion_violations_cached([test_file], cache_root) == first
+
+    payload = json.loads(cache_files[0].read_text(encoding="utf-8"))
+    payload["violations"] = []
+    payload["result_sha256"] = _wall_clock_scan_result_authenticator(
+        payload["digest"],
+        payload["violations"],
+    )
+    cache_files[0].write_text(json.dumps(payload), encoding="utf-8")
+    assert find_wall_clock_assertion_violations_cached([test_file], cache_root) == first
+    assert json.loads(cache_files[0].read_text(encoding="utf-8"))["violations"]
+
+    test_file.write_text("def test_good():\n    assert 1 == 1\n", encoding="utf-8")
+    assert find_wall_clock_assertion_violations_cached([test_file], cache_root) == []
+    assert len(list(cache_root.glob("*.json"))) == 2  # golden-count: cardinality-is-contract
+
+
+def test_cached_scan_is_published_and_read_by_distinct_processes(tmp_path: Path) -> None:
+    test_file = tmp_path / "test_bad.py"
+    cache_root = tmp_path / "cache"
+    test_file.write_text(
+        "from datetime import datetime\n\ndef test_bad():\n    assert datetime.now().year == 2026\n",
+        encoding="utf-8",
+    )
+    context = multiprocessing.get_context("spawn")
+    results = context.Queue()
+
+    publisher = context.Process(
+        target=_cached_scan_worker,
+        args=(str(test_file), str(cache_root), results),
+    )
+    publisher.start()
+    publisher.join(timeout=10)
+    assert publisher.exitcode == 0
+
+    reader = context.Process(
+        target=_cached_scan_worker,
+        args=(str(test_file), str(cache_root), results),
+    )
+    reader.start()
+    reader.join(timeout=10)
+    assert reader.exitcode == 0
+
+    first_pid, first_rows = results.get(timeout=1)
+    second_pid, second_rows = results.get(timeout=1)
+    assert first_pid != second_pid
+    assert first_rows == second_rows
+    assert len(first_rows) == 1
+    assert len(list(cache_root.glob("*.json"))) == 1  # golden-count: cardinality-is-contract
+    assert (cache_root / "authority.key").stat().st_size == 32

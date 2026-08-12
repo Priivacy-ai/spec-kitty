@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP04",
+  "captured_at": "2026-08-10T21:06:14Z",
+  "base_branch": "feat/meta-json-l1-seam-routing-3259",
+  "base_commit": "e8b240d6f59fefefcbbf15aa7c0ba059718f06a0",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<gate-coverage-junit>",
+      "error": "no JUnit XML artifact produced by the scoped run",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}

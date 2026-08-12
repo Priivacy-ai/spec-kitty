@@ -251,7 +251,8 @@ def _load_references(canonical_root: Path) -> list[dict[str, str]]:
     the authoritative charter, not the file the fold migration deletes. Returns
     ``[]`` when charter.yaml or its ``catalog`` section is absent.
     """
-    from charter.charter_yaml_io import load_charter_yaml  # noqa: PLC0415 — same-layer, lazy to avoid import cycles
+    # Same-layer, lazy import: avoids an import cycle with ``charter.charter_yaml_io``.
+    from charter.charter_yaml_io import load_charter_yaml  # noqa: PLC0415
 
     charter_yaml_path = canonical_root / CHARTER_YAML
     if not charter_yaml_path.exists():

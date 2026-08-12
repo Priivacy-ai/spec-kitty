@@ -33,7 +33,7 @@ from specify_cli.cli.console import console
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from doctrine.drg.merge import OrgDRGConflict, OrgDRGConflictError
+    from charter.drg import OrgDRGConflict, OrgDRGConflictError
 
     from ._doctrine_health import DoctrineHealthReport
 

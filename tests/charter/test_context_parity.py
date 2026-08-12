@@ -63,7 +63,7 @@ _LONG_BODY_NEEDLE = "PARITY-FIXTURE-LONG-BODY-MARKER-78321"
 _LONG_BODY = (
     f"Canonical term line reinforcing prose consistency ({_LONG_BODY_NEEDLE}).\n"
     * 700
-)  # ~48,000 chars — comfortably over BUDGET_DEFAULT (32,000).
+)  # ~48,000 chars — comfortably over BUDGET_DEFAULT (40,000).
 
 _GHOST_DIRECTIVE_CODE = "998"
 

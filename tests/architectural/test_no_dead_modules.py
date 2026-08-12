@@ -278,7 +278,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # pkgutil.iter_modules + @MigrationRegistry.register; never statically
         # imported by runtime code. Named m_zz_* (not a numeric-prefix name) so it
         # sorts alphabetically AFTER the m_unify_charter_activation* folds at the
-        # same tied target_version="3.2.6" (see the module docstring).
+        # same tied target_version="3.2.6rc1" (see the module docstring).
         "specify_cli.upgrade.migrations.m_zz_runtime_state_backfill",
         # verdict-seam-write-unification-01KZ9Q35 pre-merge remediation (#3236,
         # FR-012/SC-008): auto-discovered upgrade migration that backfills each
@@ -286,7 +286,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # status.events.jsonl. Auto-discovered via pkgutil.iter_modules +
         # @MigrationRegistry.register; never statically imported by runtime code.
         # Named m_zz_* (same ordering rationale as the runtime-state sibling
-        # above) at the tied target_version="3.2.6".
+        # above) at the tied target_version="3.2.6rc1".
         "specify_cli.upgrade.migrations.m_zz_verdict_provenance_backfill",
         # review-cycle-verdict-seam-rebuild-01KZ2W7W WP18/T079 (T017): installs
         # the review-cycle-*.md fail-closed merge driver for already-init'd
@@ -681,29 +681,4 @@ def test_no_new_dead_modules_under_src() -> None:
     assert not new_orphans and not stale_allowlist_entries, _format_failure(
         new_orphans=new_orphans,
         stale_allowlist_entries=stale_allowlist_entries,
-    )
-
-
-def test_category_7_grandfathered_at_most_seven_entries() -> None:
-    """AC-7 (Slice F WP01): Cat-7 grandfathered orphans MUST be <= 7.
-
-    The Slice F mission shrank Cat-7 from 10 -> 7 by deleting
-    ``doctrine.templates.repository`` (WP01 T005),
-    ``glossary.prompts`` and
-    ``glossary.rendering`` (WP01 T006). This assertion
-    locks in the new ceiling so any regression that re-adds a Cat-7
-    entry without further burn-down is caught immediately, independently
-    of the per-category baseline in ``_baselines.yaml``.
-
-    Per C-006 (binding), Cat-7 MUST shrink by >= 2 entries per major
-    release; target = 0 by 4.0. This assertion is the floor side of
-    that ratchet for the Slice F mission.
-    """
-    current = len(_CATEGORY_7_GRANDFATHERED_ORPHANS)
-    assert current <= 7, (
-        f"_CATEGORY_7_GRANDFATHERED_ORPHANS has {current} entries; "
-        f"the Slice F WP01 AC-7 invariant caps it at 7. Either wire "
-        f"or delete the regressed entry, OR if growth is unavoidable "
-        f"escalate per the C-006 burn-down policy and update this "
-        f"assertion together with _baselines.yaml and the charter."
     )

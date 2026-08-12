@@ -10,6 +10,7 @@ No external runtime dependencies — stdlib ``pathlib`` and ``os.walk`` only.
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from pathlib import Path
 
 from charter.synthesizer.evidence import CodeSignals
@@ -101,6 +102,22 @@ class CodeReadingError(Exception):
 
 
 # ---------------------------------------------------------------------------
+# Internal data
+# ---------------------------------------------------------------------------
+
+
+@dataclass(slots=True)
+class _TreeScan:
+    """Raw file-system observations gathered by a single ``os.walk`` pass."""
+
+    indicator_files: set[str]
+    source_files: list[str]
+    test_files: list[str]
+    ts_files: int
+    js_files: int
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -176,6 +193,37 @@ class CodeReadingCollector:
     # ------------------------------------------------------------------
 
     def _detect(self) -> CodeSignals:
+        scan = self._scan_tree()
+
+        language = self._detect_language(
+            scan.indicator_files, scan.ts_files, scan.js_files
+        )
+        frameworks = self._detect_frameworks(scan.indicator_files)
+        test_fws = self._detect_test_frameworks(
+            scan.indicator_files, scan.test_files, language
+        )
+        stack_id = self._build_stack_id(language, frameworks, test_fws)
+
+        # representative files (5 source + 5 test)
+        representative: list[str] = scan.source_files[:5] + scan.test_files[:5]
+
+        return CodeSignals(
+            stack_id=stack_id,
+            primary_language=language,
+            frameworks=tuple(frameworks),
+            test_frameworks=tuple(test_fws),
+            scope_tag=language,
+            representative_files=tuple(representative),
+            detected_at=now_utc_iso(),
+        )
+
+    def _scan_tree(self) -> _TreeScan:
+        """Walk the repository tree once and bucket every file it finds.
+
+        Returns indicator filenames (for language/framework detection),
+        source vs. test file paths, and TS/JS counts (for the TS-vs-JS
+        majority heuristic) — all gathered in a single ``os.walk`` pass.
+        """
         indicator_files: set[str] = set()
         source_files: list[str] = []
         test_files: list[str] = []
@@ -218,16 +266,35 @@ class CodeReadingCollector:
                 else:
                     source_files.append(rel_path)
 
-        # --- language detection ------------------------------------------
-        language = self._detect_language(indicator_files, ts_files, js_files)
+        return _TreeScan(
+            indicator_files=indicator_files,
+            source_files=source_files,
+            test_files=test_files,
+            ts_files=ts_files,
+            js_files=js_files,
+        )
 
-        # --- framework detection ----------------------------------------
+    @staticmethod
+    def _detect_frameworks(indicator_files: set[str]) -> list[str]:
+        """Return app-framework names whose indicator file was observed."""
         frameworks: list[str] = []
         for indicator, fw in FRAMEWORK_INDICATORS.items():
             if indicator in indicator_files and fw not in frameworks:
                 frameworks.append(fw)
+        return frameworks
 
-        # --- test framework detection ------------------------------------
+    @staticmethod
+    def _detect_test_frameworks(
+        indicator_files: set[str],
+        test_files: list[str],
+        language: str,
+    ) -> list[str]:
+        """Return test-framework names, falling back to a pytest heuristic.
+
+        When no test-framework indicator file was found but the project is
+        Python and at least one test file lives under a ``tests`` directory,
+        assume pytest (the de-facto standard).
+        """
         test_fws: list[str] = []
         for indicator, tf in TEST_FRAMEWORK_INDICATORS.items():
             if indicator in indicator_files and tf not in test_fws:
@@ -241,29 +308,25 @@ class CodeReadingCollector:
                     test_fws.append("pytest")
                     break
 
-        # --- stack_id ---------------------------------------------------
+        return test_fws
+
+    @staticmethod
+    def _build_stack_id(
+        language: str,
+        frameworks: list[str],
+        test_fws: list[str],
+    ) -> str:
+        """Compose the ``language[+framework][+test_framework]`` stack id."""
+        if language == "unknown":
+            return "unknown"
+
         parts_stack: list[str] = [language]
         if frameworks:
             parts_stack.append(frameworks[0])
         if test_fws:
             parts_stack.append(test_fws[0])
 
-        stack_id = "+".join(parts_stack) if language != "unknown" else "unknown"
-
-        # --- representative files (5 source + 5 test) -------------------
-        representative: list[str] = (
-            source_files[:5] + test_files[:5]
-        )
-
-        return CodeSignals(
-            stack_id=stack_id,
-            primary_language=language,
-            frameworks=tuple(frameworks),
-            test_frameworks=tuple(test_fws),
-            scope_tag=language,
-            representative_files=tuple(representative),
-            detected_at=now_utc_iso(),
-        )
+        return "+".join(parts_stack)
 
     def _detect_language(
         self,

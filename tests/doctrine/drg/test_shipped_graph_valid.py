@@ -24,7 +24,7 @@ from doctrine.drg.validator import assert_valid
 if TYPE_CHECKING:
     from doctrine.drg.models import DRGGraph
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.fast, pytest.mark.corpus]
 
 
 def test_shipped_graph_loads_and_validates(built_in_graph: DRGGraph) -> None:

@@ -1,0 +1,143 @@
+{
+  "schema_version": "test-sanitation-wp-results/v1",
+  "mission": "assertive-test-suite-sanitation-01KZME3P",
+  "work_package": "WP15",
+  "profile": "architect-alphonso",
+  "generated_at": "2026-08-10T17:37:24Z",
+  "implementation_cycle": 1,
+  "review_cycle_limit": 3,
+  "planning_base": "28ae75ea998c898aba57364db7a06d2088bd2af2",
+  "implementation_head_before_commit": "9977127e1e659125af94f8cd5a3436f65b927d93",
+  "tracker": {
+    "reference": "#1931",
+    "state": "OPEN",
+    "assignee": "robertDouglass",
+    "mission_comment_author": "robertDouglass",
+    "mission_comment_verified": true
+  },
+  "environment": {
+    "platform": "Darwin 24.6.0 arm64",
+    "python": "3.11.15",
+    "pytest": "9.0.3",
+    "ruff": "0.15.12",
+    "mypy": "1.20.2",
+    "cache_provider": false,
+    "architectural_environment_id": "041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c",
+    "full_parallel_environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+  },
+  "census": {
+    "path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/base-census.json",
+    "source_branch": "kitty/mission-assertive-test-suite-sanitation-01KZME3P-lane-a",
+    "sha256": "c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b",
+    "assigned_test_paths": 12,
+    "reconciled_test_paths": 12,
+    "scanner_candidates_reconciled": 12,
+    "base_source_units": 101,
+    "base_nodes": 109,
+    "unowned": []
+  },
+  "baseline": {
+    "authority": "WP01 immutable dual census at planning base",
+    "collected_nodes": 109,
+    "source_functions": 101,
+    "source_lines": 3171,
+    "execution_note": "No redundant pre-reduction execution; every exact base identity comes from WP01's complete census."
+  },
+  "head": {
+    "collection_command": ".venv/bin/pytest --collect-only -q -p no:cacheprovider <6 surviving owned test paths>",
+    "command": ".venv/bin/pytest -q -p no:cacheprovider <6 surviving owned test paths>",
+    "collected_nodes": 10,
+    "collection_seconds": 45.73,
+    "wall_seconds": 56.22,
+    "pytest_summary": {
+      "passed": 10,
+      "skipped": 0,
+      "xfailed": 0,
+      "warnings": 0,
+      "exit_code": 0
+    },
+    "live_test_files": 6,
+    "live_source_functions": 10,
+    "live_source_lines": 621,
+    "collection_artifact_sha256": "6f1932f196d11a2c6e7ffa393d0748ac242d6b5c37c6174a4d3e23950b4c4023"
+  },
+  "delta": {
+    "whole_files_deleted": 6,
+    "reduced_files": 6,
+    "deleted_base_source_units": 91,
+    "net_nodes_removed": 99,
+    "node_reduction_percent": 90.8257,
+    "source_lines_removed": 2550,
+    "source_line_reduction_percent": 80.4163,
+    "tracked_diff_insertions": 188,
+    "tracked_diff_deletions": 2738,
+    "test_diff_sha256": "5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7"
+  },
+  "screening": [
+    {"path": "tests/specify_cli/cli/commands/test_command_surface_doctor.py", "scanner_kinds": ["ast", "source"], "base_nodes": 37, "head_nodes": 0, "verdict": "DELETE", "authority": null, "consumer": "dominated by live doctor skills/slash/tool-surfaces CLI suites", "corpus": "direct helper mocks", "polarity": "coverage-shape", "route": "full-parallel"},
+    {"path": "tests/specify_cli/cli/commands/test_doctor_shared.py", "scanner_kinds": ["ast", "source"], "base_nodes": 18, "head_nodes": 2, "verdict": "KEEP_REDUCED", "authority": "live CI prompt and JSON state safety", "consumer": "doctor command siblings", "corpus": "TTY/env/logging states", "polarity": "behavioral-negative", "route": "full-parallel"},
+    {"path": "tests/specify_cli/tool_surface/providers/test_plugin_bundle.py", "scanner_kinds": ["ast", "source"], "base_nodes": 15, "head_nodes": 1, "verdict": "KEEP_REDUCED", "authority": "2026-06-15 marketplace descriptor ADR", "consumer": "doctor tool-surfaces", "corpus": "three distribution projectors", "polarity": "behavioral-negative", "route": "full-parallel"},
+    {"path": "tests/architectural/test_artifact_selection_completeness.py", "scanner_kinds": ["source", "structural"], "base_nodes": 3, "head_nodes": 0, "verdict": "DELETE", "authority": null, "consumer": null, "corpus": "current model fields", "polarity": "positive-shape", "route": "architectural"},
+    {"path": "tests/architectural/test_cli_console_render_width.py", "scanner_kinds": ["source", "structural"], "base_nodes": 3, "head_nodes": 0, "verdict": "DELETE", "authority": null, "consumer": "dominated by live table rendering", "corpus": "synthetic table and exact singleton roster", "polarity": "advisory/positive-shape", "route": "architectural"},
+    {"path": "tests/architectural/test_cli_console_single_seam.py", "scanner_kinds": ["ast", "source", "structural"], "base_nodes": 2, "head_nodes": 1, "verdict": "KEEP_REDUCED", "authority": "2026-07-14 canonical CLI console seam ADR", "consumer": "all CLI output", "corpus": "src/specify_cli/cli/**/*.py", "polarity": "negative-boundary", "route": "architectural"},
+    {"path": "tests/architectural/test_pyproject_shape.py", "scanner_kinds": ["ast", "source", "structural", "text"], "base_nodes": 5, "head_nodes": 2, "verdict": "KEEP_REDUCED", "authority": "public shared-package consumer contracts and wheel metadata", "consumer": "clean PyPI installs", "corpus": "dependencies plus shipped first-party imports", "polarity": "negative-packaging", "route": "architectural"},
+    {"path": "tests/architectural/test_shared_package_boundary.py", "scanner_kinds": ["ast", "source", "structural"], "base_nodes": 8, "head_nodes": 3, "verdict": "KEEP_REDUCED", "authority": "events/tracker consumer contracts", "consumer": "all production imports", "corpus": "five src roots plus tracker SDK", "polarity": "negative-boundary", "route": "architectural"},
+    {"path": "tests/architectural/test_template_governance_payload_contract.py", "scanner_kinds": ["source", "structural", "text"], "base_nodes": 10, "head_nodes": 0, "verdict": "DELETE", "authority": null, "consumer": "dominated by rendered prompt and baseline tests", "corpus": "exact template/resolver prose", "polarity": "positive-prose", "route": "architectural"},
+    {"path": "tests/architectural/test_typer_compat_ci.py", "scanner_kinds": ["source", "structural"], "base_nodes": 1, "head_nodes": 0, "verdict": "DELETE", "authority": null, "consumer": "dominated by live JSON CLI tests", "corpus": "CI YAML text", "polarity": "positive-prose", "route": "architectural"},
+    {"path": "tests/architectural/test_uv_lock_pin_drift.py", "scanner_kinds": ["source", "structural", "text"], "base_nodes": 2, "head_nodes": 0, "verdict": "DELETE", "authority": "uv sync --frozen", "consumer": null, "corpus": "developer environment metadata", "polarity": "environment-health", "route": "architectural"},
+    {"path": "tests/architectural/tool_artifact_enrolment/test_enrolment_inventory.py", "scanner_kinds": ["ast", "source", "structural", "text"], "base_nodes": 5, "head_nodes": 1, "verdict": "KEEP_REDUCED", "authority": "tool-artifact owner contract", "consumer": "transactionality/recovery gates", "corpus": "live generated-write sinks and inventory rows", "polarity": "negative-bijection", "route": "architectural"}
+  ],
+  "deleted_paths": [
+    "tests/architectural/test_artifact_selection_completeness.py",
+    "tests/architectural/test_cli_console_render_width.py",
+    "tests/architectural/test_template_governance_payload_contract.py",
+    "tests/architectural/test_typer_compat_ci.py",
+    "tests/architectural/test_uv_lock_pin_drift.py",
+    "tests/specify_cli/cli/commands/test_command_surface_doctor.py"
+  ],
+  "reduced_paths": [
+    {"path": "tests/specify_cli/cli/commands/test_doctor_shared.py", "base_nodes": 18, "head_nodes": 2},
+    {"path": "tests/specify_cli/tool_surface/providers/test_plugin_bundle.py", "base_nodes": 15, "head_nodes": 1},
+    {"path": "tests/architectural/test_cli_console_single_seam.py", "base_nodes": 2, "head_nodes": 1},
+    {"path": "tests/architectural/test_pyproject_shape.py", "base_nodes": 5, "head_nodes": 2},
+    {"path": "tests/architectural/test_shared_package_boundary.py", "base_nodes": 8, "head_nodes": 3},
+    {"path": "tests/architectural/tool_artifact_enrolment/test_enrolment_inventory.py", "base_nodes": 5, "head_nodes": 1}
+  ],
+  "survivor_proofs": [
+    {"family": "doctor interactivity and JSON state safety", "path": "tests/specify_cli/cli/commands/test_doctor_shared.py", "corpus": "live helper across TTY/env/logging states", "nonzero": true, "fault": "CI prompt override or leaked logging disable", "control": "local TTY/force and normal JSON exit", "act_reached": true, "intended_oracle_failed": true},
+    {"family": "plugin staging-only repair", "path": "tests/specify_cli/tool_surface/providers/test_plugin_bundle.py", "corpus": "three live distribution projectors", "nonzero": true, "fault": "dry-run write or write outside dist", "control": "missing-to-present staged projection", "act_reached": true, "intended_oracle_failed": true},
+    {"family": "canonical CLI console seam", "path": "tests/architectural/test_cli_console_single_seam.py", "corpus": "all live CLI modules", "nonzero": true, "fault": "raw Console constructor", "control": "shared console/CliConsole/type annotation", "act_reached": true, "intended_oracle_failed": true},
+    {"family": "published dependency metadata", "path": "tests/architectural/test_pyproject_shape.py", "corpus": "nonempty project dependencies", "nonzero": true, "fault": "exact pin or local source", "control": "compatible public dependency", "act_reached": true, "intended_oracle_failed": true},
+    {"family": "wheel import closure", "path": "tests/architectural/test_pyproject_shape.py", "corpus": "first-party imports under shipped trees", "nonzero": true, "fault": "omit imported package from wheel", "control": "complete configured package set", "act_reached": true, "intended_oracle_failed": true},
+    {"family": "retired runtime import boundary", "path": "tests/architectural/test_shared_package_boundary.py", "corpus": "five production roots", "nonzero": true, "fault": "import spec_kitty_runtime", "control": "canonical internal runtime", "act_reached": true, "intended_oracle_failed": true},
+    {"family": "retired vendored-events boundary", "path": "tests/architectural/test_shared_package_boundary.py", "corpus": "five production roots", "nonzero": true, "fault": "import specify_cli.spec_kitty_events", "control": "import spec_kitty_events", "act_reached": true, "intended_oracle_failed": true},
+    {"family": "tracker namespace boundary", "path": "tests/architectural/test_shared_package_boundary.py", "corpus": "live CLI and SDK namespaces", "nonzero": true, "fault": "alias SDK public symbol from CLI adapter", "control": "CLI-private exports", "act_reached": true, "intended_oracle_failed": true},
+    {"family": "tool-artifact enrolment bijection", "path": "tests/architectural/tool_artifact_enrolment/test_enrolment_inventory.py", "corpus": "AST-discovered live sinks plus inventory rows", "nonzero": true, "fault": "unenrolled sink or ghost row", "control": "exact key agreement with valid disposition", "act_reached": true, "intended_oracle_failed": true}
+  ],
+  "validation": {
+    "focused_pytest": "10 passed in 56.22s; exit 0",
+    "focused_collection": "10 collected in 45.73s; exit 0",
+    "overlap_pytest": "111 passed; 3 inherited ANSI-assumption failures in untouched tests/cli/test_cli_console.py; exit 1",
+    "overlap_inheritance_proof": "git diff --quiet planning-base -- tests/cli/test_cli_console.py and -- src both exited 0",
+    "wp01_auditor": "aggregate over immutable base-census.json, base-workloads.yaml, and WP15.yaml exited 0; 12 dispositions and 101 unique census members",
+    "ruff": "All checks passed; exit 0",
+    "mypy_strict": "Success: no issues found in 6 source files; exit 0",
+    "diff_check": "clean; exit 0"
+  },
+  "wp07_handoff": {
+    "central_map_modified": false,
+    "deleted_architectural_paths": [
+      "tests/architectural/test_artifact_selection_completeness.py",
+      "tests/architectural/test_cli_console_render_width.py",
+      "tests/architectural/test_template_governance_payload_contract.py",
+      "tests/architectural/test_typer_compat_ci.py",
+      "tests/architectural/test_uv_lock_pin_drift.py"
+    ],
+    "deleted_non_architectural_paths": [
+      "tests/specify_cli/cli/commands/test_command_surface_doctor.py"
+    ],
+    "base_nodes": 109,
+    "head_nodes": 10,
+    "removed_nodes": 99
+  }
+}

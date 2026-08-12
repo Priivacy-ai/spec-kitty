@@ -191,7 +191,8 @@ def _offered_consent_roots() -> list[Path]:
     """
     try:
         root = locate_project_root(Path.cwd().resolve())
-    except Exception:  # noqa: BLE001 - an unreadable cwd is absence, not a decision
+    # An unreadable cwd is absence, not a decision.
+    except Exception:  # noqa: BLE001
         return []
     return [root] if root is not None else []
 
@@ -285,7 +286,8 @@ def event_project_consents_to_publish(event: object) -> bool:
             and context.admission_generation is not None
             and context.binding_audience is not None
         )
-    except Exception as exc:  # noqa: BLE001 - inability to determine is not consent
+    # Inability to determine is not consent.
+    except Exception as exc:  # noqa: BLE001
         _report_publish_refusal(project_uuid, f"hosted-sync consent could not be resolved: {exc}")
         return False
 

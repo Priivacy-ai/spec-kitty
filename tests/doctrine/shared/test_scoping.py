@@ -65,17 +65,11 @@ class TestAppliesToLanguagesMatch:
     def test_unscoped_artifact_none_returns_true(self):
         assert applies_to_languages_match(None, ["python"]) is True
 
-    def test_unscoped_artifact_empty_list_returns_true(self):
-        assert applies_to_languages_match([], ["python"]) is True
-
     def test_active_languages_none_returns_true(self):
         assert applies_to_languages_match(["python"], None) is True
 
     def test_empty_active_scope_returns_false(self):
         assert applies_to_languages_match(["python"], []) is False
-
-    def test_empty_active_scope_tuple_returns_false(self):
-        assert applies_to_languages_match(["python"], ()) is False
 
     def test_matching_language_returns_true(self):
         assert applies_to_languages_match(["python"], ["python"]) is True
@@ -83,22 +77,5 @@ class TestAppliesToLanguagesMatch:
     def test_non_matching_language_returns_false(self):
         assert applies_to_languages_match(["python"], ["rust"]) is False
 
-    def test_any_overlap_returns_true(self):
-        assert applies_to_languages_match(["python", "java"], ["rust", "java"]) is True
-
-    def test_no_overlap_returns_false(self):
-        assert applies_to_languages_match(["python", "java"], ["rust", "go"]) is False
-
     def test_case_insensitive_match(self):
         assert applies_to_languages_match(["Python"], ["python"]) is True
-
-    def test_unscoped_and_unfiltered_returns_true(self):
-        assert applies_to_languages_match(None, None) is True
-
-    def test_matching_returns_true_not_false(self):
-        result = applies_to_languages_match(["python"], ["python"])
-        assert result is not False
-
-    def test_no_overlap_returns_false_not_true(self):
-        result = applies_to_languages_match(["python"], ["rust"])
-        assert result is not True

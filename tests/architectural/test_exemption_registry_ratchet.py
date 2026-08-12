@@ -639,7 +639,6 @@ def test_new_arch_test_files_are_shard_registered() -> None:
 
     new_files = (
         "tests/architectural/test_exemption_registry_ratchet.py",
-        "tests/architectural/test_cross_gate_churn_agreement.py",
         "tests/architectural/tool_artifact_enrolment/test_enrolment_inventory.py",
     )
     orphaned: list[str] = []

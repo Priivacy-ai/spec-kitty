@@ -37,7 +37,7 @@ from tests.doctrine._builtin_inventory import (
     shipped_builtin_node_count,
 )
 
-pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 _REPO_ROOT: Path = Path(__file__).resolve().parents[4]
 DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
@@ -550,6 +550,46 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     (``tactic:dependency-hygiene`` and ``tactic:secure-design-checklist``
 #:     leave ``_PROFILE_UNREACHABLE``; ``_PROFILE_RESCUES`` UNCHANGED) is
 #:     ledgered in ``tests/doctrine/drg/test_reachability.py``.
+#: (19) drg-reachability-metric-wiring-01KZS5VR WP01 (T001/T002, #3009 point 3):
+#:     SEVEN new curated edges added to ``_CURATED_ARTIFACT_EDGES`` (the six
+#:     traced #3009-remedy relationships from research.md; edge "6" splits into
+#:     two physical tuples, 6a/6b, one per profile) -- no new node, no overlay
+#:     content. Measured LIVE against the pre-wiring graph at HEAD: pure nodes
+#:     334, pure edges 838; shipped nodes 347, shipped edges 966 (two more edges
+#:     than entry (18)'s stated 334/836 -- a pre-existing prose/measurement
+#:     drift from an unrelated intervening change, out of this WP's scope to
+#:     reconcile; the live count is authoritative, per the wiring-table's own
+#:     "50 vs 60" reconciliation precedent). PURE golden counts move +0 NODES /
+#:     +7 edges: pure nodes UNCHANGED at 334, pure edges 838 -> 845.
+#:     ``HAND_AUTHORED_NODES``/``HAND_AUTHORED_EDGES`` are UNCHANGED at 13/128
+#:     (this WP touches no overlay content), so shipped counts move by exactly
+#:     the PURE delta: shipped nodes UNCHANGED at 347, shipped edges 966 -> 973
+#:     (verified: ``load_built_in_graph()`` measures 973 post-regeneration).
+#:     Two of the seven edges are ``requires`` (edges 5, 6b); five are
+#:     ``suggests`` (edges 1, 2, 3, 4, 6a) -- ``RELATION_DESCRIPTIONS`` /
+#:     ``docs/architecture/doctrine-relationships.md`` were not updated (neither
+#:     carries a stated count for ``requires``/``suggests``, per the existing
+#:     convention of leaving uncounted relations unstated).
+#:     THREE nodes leave the orphan set (a **shrink**, C-003):
+#:     ``directive:RECONCILE_CHANGE_SCOPE_TENSIONS`` leaves
+#:     ``_ACTIVATED_BUT_ORPHANED`` (edges 2/3 give it real inbound edges);
+#:     ``directive:DISCIPLINED_REFACTORING`` and ``directive:USE_MUTATION_
+#:     TESTING_TO_VALIDATE_TEST_QUALITY`` leave ``_AWAITING_REFERENCES`` (edges
+#:     1/4). Pure orphans 29 -> 26 (``_ACTIVATED_BUT_ORPHANED`` 6 -> 5,
+#:     ``_AWAITING_REFERENCES`` 5 -> 3). All three were ALREADY resolved by the
+#:     hand-authored overlay in the shipped graph (ledger entries 10/12: family-B
+#:     ``suggests`` edges for DISCIPLINED_REFACTORING, family-D ``suggests``
+#:     edges for USE_MUTATION_TESTING, and the ``reconciles_tension`` overlay for
+#:     RECONCILE), so they also leave ``_ORPHANS_RESOLVED_BY_OVERLAY`` (8 -> 5)
+#:     by the SAME three -- ``_SHIPPED_ORPHANS`` (= ``_INTENTIONAL_ORPHANS`` -
+#:     ``_ORPHANS_RESOLVED_BY_OVERLAY``) is measured UNCHANGED at 21 (already
+#:     tight against ``DOCUMENTED_ORPHAN_RESIDUAL`` before this wiring, and
+#:     still tight after -- no ratchet needed, verified empirically rather than
+#:     assumed). The per-channel reachability move (the whole-graph companion
+#:     metric 88 -> 75, and the activated-only ``_ACTION_UNREACHABLE_D1``/``D2``,
+#:     ``_PROFILE_UNREACHABLE``, ``_PROFILE_RESCUES`` moves) is ledgered in
+#:     ``tests/doctrine/drg/test_reachability.py`` and
+#:     ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
 #: Node count DERIVED from the ``packs/built-in`` inventory (#3234), not frozen: a
 #: fresh ``generate_graph`` (pure, no overlay) must produce exactly one node per
 #: shipped source file across the file-backed kinds, plus the structurally-derived
@@ -630,13 +670,14 @@ _AWAITING_REFERENCES: frozenset[str] = frozenset(
         # pack layer by ADR 2026-07-26-2, which made it a node for the first
         # time. Nothing references it yet.
         "toolguide:powershell-syntax",
-        # Ledger (10) #3063 family-B: the new disciplined-refactoring hub
-        # directive. It carries no inline references, so a pure ``generate_graph``
-        # mints its node but no edge; its only edges are the hand-authored
-        # family-B ``suggests`` edges (to the seven refactoring tactics, and from
-        # the seven implementer-role profiles). Wired by the overlay -- see
-        # _ORPHANS_RESOLVED_BY_OVERLAY.
-        "directive:DISCIPLINED_REFACTORING",
+        # Ledger (10) #3063 family-B introduced ``directive:DISCIPLINED_
+        # REFACTORING`` here as a pure orphan wired only by the family-B
+        # overlay. Ledger (19) (drg-reachability-metric-wiring-01KZS5VR, WP01,
+        # #3009 point 3) RETIRES that status: ``procedure:refactoring
+        # --suggests--> DISCIPLINED_REFACTORING`` (edge 1) is now a real,
+        # extractor-minted (curated-table) edge, so it is no longer a pure
+        # orphan -- removed from this set (and from
+        # _ORPHANS_RESOLVED_BY_OVERLAY). See ledger entry (19).
         # Ledger (11) #3063 family-C introduced ``directive:USE_C4_MODEL_TECHNIQUES``
         # here as a pure orphan wired only by the family-C overlay. Ledger (15)
         # (rehome-writing-comms-doctrine) RETIRES that status: the new
@@ -644,21 +685,24 @@ _AWAITING_REFERENCES: frozenset[str] = frozenset(
         # for it, so the extractor now mints a real ``requires`` edge into it and it
         # is no longer a pure orphan -- removed from this set (and from
         # _ORPHANS_RESOLVED_BY_OVERLAY). See ledger entry (15).
-        # Ledger (12) #3063 family-D: the five new TESTING/BDD/MUTATION artefacts.
-        # Each carries no inline references, so a pure ``generate_graph`` mints its
-        # node but no edge; every one is wired only by the hand-authored family-D
-        # ``suggests`` edges. Wired by the overlay -- see
-        # _ORPHANS_RESOLVED_BY_OVERLAY.
+        # Ledger (12) #3063 family-D introduced the five new TESTING/BDD/MUTATION
+        # artefacts. Each carried no inline references, so a pure
+        # ``generate_graph`` minted its node but no edge; every one was wired
+        # only by the hand-authored family-D ``suggests`` edges.
         #
         # Ledger (writing-comms/diagramming activation, commit 9a99801f1, #3009):
         # four of the five family-D artefacts -- quadruple-a-test-format,
         # given-when-then-authoring, sonar, gherkin -- became charter-ACTIVATED. An
         # activated pure orphan is a tracked #3009 defect, so they graduate to
         # _ACTIVATED_BUT_ORPHANED (the floor guard demands it, and the orphan
-        # partition keeps each URN in exactly one bucket). Only
-        # ``USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY`` -- which is NOT activated
-        # -- stays here as a plain awaiting-references orphan.
-        "directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        # partition keeps each URN in exactly one bucket).
+        #
+        # ``USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY`` -- which is NOT
+        # activated -- was the sole family-D survivor here as a plain
+        # awaiting-references orphan. Ledger (19) RETIRES that status too:
+        # ``directive:DIRECTIVE_030 --suggests--> USE_MUTATION_TESTING_TO_
+        # VALIDATE_TEST_QUALITY`` (edge 4) is now a real, extractor-minted edge
+        # -- removed from this set (and from _ORPHANS_RESOLVED_BY_OVERLAY).
     }
 )
 
@@ -731,20 +775,35 @@ _ACTIVATED_BUT_ORPHANED: frozenset[str] = frozenset(
         "toolguide:sonar",
         "toolguide:gherkin",
         # Ledger (writing-comms/diagramming activation, commit 9a99801f1, #3009):
-        # the reconcile-change-scope-tensions hub directive. Its only edges are the
-        # hand-authored ``reconciles_tension`` overlay edges (still in
-        # _ORPHANS_RESOLVED_BY_OVERLAY); it became charter-ACTIVATED, and once
-        # id_normalizer folds its slug to the node URN it is detected as an
-        # activated pure orphan -- so it graduates here from _AWAITING_REFERENCES.
-        "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
+        # the reconcile-change-scope-tensions hub directive graduated here from
+        # _AWAITING_REFERENCES (its only edges were the hand-authored
+        # ``reconciles_tension`` overlay edges; it became charter-ACTIVATED, and
+        # once id_normalizer folds its slug to the node URN it was detected as
+        # an activated pure orphan).
+        #
+        # Ledger (19) (drg-reachability-metric-wiring-01KZS5VR, WP01, #3009
+        # point 3) RETIRES that status: ``directive:DIRECTIVE_024``/
+        # ``DIRECTIVE_025 --suggests--> RECONCILE_CHANGE_SCOPE_TENSIONS``
+        # (edges 2/3) are now real, extractor-minted edges, so
+        # ``directive:RECONCILE_CHANGE_SCOPE_TENSIONS`` is no longer a pure
+        # orphan -- removed from this set (and from
+        # _ORPHANS_RESOLVED_BY_OVERLAY). See ledger entry (19); this is a
+        # SHRINK of the tracked #3009 defect set (C-003).
     }
 )
 
 #: Every node a PURE ``generate_graph`` run leaves incident to no edge.
-#: 17 + 5 + 1 + 6 = 29 (``_AWAITING_REFERENCES`` shrank 10 -> 5 when the
-#: writing-comms/diagramming activation (commit 9a99801f1, #3009) graduated four
-#: family-D artefacts plus the reconcile-change-scope-tensions hub directive into
-#: ``_ACTIVATED_BUT_ORPHANED`` 1 -> 6; the union is unchanged. It had earlier
+#: 17 + 3 + 1 + 5 = 26 (was 17 + 5 + 1 + 6 = 29 before ledger entry (19)
+#: (drg-reachability-metric-wiring-01KZS5VR, WP01, #3009 point 3): three URNs
+#: leave -- ``directive:RECONCILE_CHANGE_SCOPE_TENSIONS`` leaves
+#: ``_ACTIVATED_BUT_ORPHANED`` (6 -> 5) and ``directive:DISCIPLINED_
+#: REFACTORING`` / ``directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY``
+#: leave ``_AWAITING_REFERENCES`` (5 -> 3), each because a curated edge now
+#: gives it a real extractor-minted inbound edge. This is a SHRINK, C-003).
+#: Earlier: ``_AWAITING_REFERENCES`` shrank 10 -> 5 when the writing-comms/
+#: diagramming activation (commit 9a99801f1, #3009) graduated four family-D
+#: artefacts plus the reconcile-change-scope-tensions hub directive into
+#: ``_ACTIVATED_BUT_ORPHANED`` 1 -> 6; the union was unchanged. It had earlier
 #: shrunk to 10 with ledger entry (15)'s
 #: rehome-writing-comms-doctrine, which gives ``directive:USE_C4_MODEL_TECHNIQUES`` a
 #: real extractor edge via ``agent_profile:diagram-daisy`` -- it had grown to 11 with
@@ -761,29 +820,23 @@ _INTENTIONAL_ORPHANS: frozenset[str] = (
     | _ACTIVATED_BUT_ORPHANED
 )
 
-#: The pure-extractor figure (29) and the shipped-graph figure (21) differ by
-#: exactly these eight, and by nothing else: the hand-authored overlay
+#: The pure-extractor figure (26) and the shipped-graph figure (21) differ by
+#: exactly these five, and by nothing else: the hand-authored overlay
 #: (``doctrine.drg.migration.hand_authored_overlay``) carries edges the
 #: extractor has no frontmatter mechanism to mint, and they land on these nodes.
 #: (Ledger entry (15) removed ``directive:USE_C4_MODEL_TECHNIQUES`` from this set --
-#: it gained a real extractor edge, so the overlay no longer resolves it.)
+#: it gained a real extractor edge, so the overlay no longer resolves it. Ledger
+#: entry (19) removed ``directive:RECONCILE_CHANGE_SCOPE_TENSIONS``,
+#: ``directive:DISCIPLINED_REFACTORING`` and ``directive:USE_MUTATION_TESTING_TO_
+#: VALIDATE_TEST_QUALITY`` for the same reason -- each gained a real curated-table
+#: extractor edge, so the overlay no longer resolves it; the overlay edges that
+#: used to wire them are still present and still counted in
+#: ``HAND_AUTHORED_EDGES``, they simply no longer determine orphan status.)
 #: Naming them keeps the two figures related by a stated cause instead of by two
 #: independent magic numbers that could drift apart unnoticed.
 _ORPHANS_RESOLVED_BY_OVERLAY: frozenset[str] = frozenset(
     {
         "asset:common-docs-structural-lint",
-        "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
-        # Ledger (10) #3063 family-B: the disciplined-refactoring hub directive.
-        # Pure-orphan (no inline refs), wired only by the family-B overlay edges.
-        "directive:DISCIPLINED_REFACTORING",
-        # Ledger (11) #3063 family-C introduced ``directive:USE_C4_MODEL_TECHNIQUES``
-        # here (pure-orphan wired only by the family-C overlay). Ledger (15)
-        # (rehome-writing-comms-doctrine) removes it: agent_profile:diagram-daisy now
-        # references it, so the extractor mints a real edge and it is no longer a
-        # pure orphan for the overlay to resolve.
-        # Ledger (12) #3063 family-D: the five new TESTING/BDD/MUTATION artefacts.
-        # Pure-orphans (no inline refs), wired only by the family-D overlay edges.
-        "directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
         "styleguide:quadruple-a-test-format",
         "styleguide:given-when-then-authoring",
         "toolguide:sonar",
@@ -856,29 +909,6 @@ def _describe_orphan_drift(measured: set[str], expected: frozenset[str]) -> str:
     return "orphan membership drifted.\n  " + "\n  ".join(lines)
 
 
-def _charter_activated_urns() -> set[str]:
-    """Return every ``<kind>:<id>`` the project charter currently activates.
-
-    WP07/T035 repoint (FR-017): this now delegates to the single activation
-    authority, :func:`charter.pack_context.charter_activated_urns`, which reads
-    the store resolved through the ``config.yaml`` ``charter:`` pointer
-    (``charter.yaml`` when migrated, else the legacy config-embedded keys) —
-    never the retired ``config.yaml`` ``activated_*`` mirror. Repointing here
-    BEFORE the mirror is removed (T036) is load-bearing: consulting the mirror
-    after its removal would return the empty set, failing this gate's floor
-    assertion while its stray guard went vacuously true.
-
-    Directives are the reason this needs a mapping rather than a bare id
-    comparison: a directive node's URN carries its ``code``
-    (``directive:DIRECTIVE_035``) while the store activates the file slug
-    (``035-bulk-edit-occurrence-classification``). That reconciliation now
-    happens inside the authority via the single C-009 normalization boundary.
-    """
-    from charter.pack_context import charter_activated_urns
-
-    return charter_activated_urns(_REPO_ROOT)
-
-
 @pytest.mark.doctrine
 class TestDRGZeroDelta:
     """The projection re-point leaves the shipped DRG graph unchanged (NFR-002)."""
@@ -947,30 +977,6 @@ class TestDRGZeroDelta:
         )
         assert sum(len(part) for part in parts) == len(_INTENTIONAL_ORPHANS), (
             "the orphan buckets overlap -- a URN is filed under two reasons"
-        )
-
-    def test_activated_but_unreachable_orphans_are_really_activated(self) -> None:
-        """Floor for the tracked-defect set (#3009).
-
-        A set that merely *claims* ten artefacts are charter-activated would
-        keep this defect visible after the charter stopped activating them --
-        or hide it if an entry were quietly dropped. Read the real charter
-        config and compare, resolving directive URNs through their file slug
-        (``directive:DIRECTIVE_035`` is activated as
-        ``035-bulk-edit-occurrence-classification``), which is precisely the
-        mapping issue #3009's own matcher lacks.
-        """
-        activated = _charter_activated_urns()
-        assert activated >= _ACTIVATED_BUT_ORPHANED, (
-            "these are filed as activated-yet-orphaned but the charter no "
-            "longer activates them -- move them to another bucket: "
-            f"{sorted(_ACTIVATED_BUT_ORPHANED - activated)}"
-        )
-        strays = (_INTENTIONAL_ORPHANS & activated) - _ACTIVATED_BUT_ORPHANED
-        assert not strays, (
-            "these orphans are charter-ACTIVATED but are filed under an "
-            f"'acceptable' reason: {sorted(strays)}. Activating them cascades "
-            "to nothing -- add them to _ACTIVATED_BUT_ORPHANED and #3009."
         )
 
     def test_shipped_graph_is_fresh_and_byte_identical(self) -> None:

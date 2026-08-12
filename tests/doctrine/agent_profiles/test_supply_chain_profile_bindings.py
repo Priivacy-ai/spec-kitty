@@ -23,7 +23,7 @@ from doctrine.agent_profiles.profile import AgentProfile
 from doctrine.agent_profiles.repository import AgentProfileRepository
 from doctrine.directives.repository import DirectiveRepository
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 _TARGETED_PROFILES = (
     "reviewer-renata",

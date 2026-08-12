@@ -18,14 +18,9 @@ original claim above — that this is the **exactly one** mutation point for a
 review-cycle verdict across the whole runtime — was already false when
 written, and more so after this mission's WP07/WP10/WP12 landed. The
 authoritative count of verdict writers, location resolvers, and frontmatter
-readers is no longer restated as a number in this docstring at all — it is
-whatever ``tests/architectural/verdict_seam_census.yaml`` (the WP16-folded,
-machine-checked census; see ``tests/architectural/test_verdict_seam_census.py``)
-currently enumerates as ``status: active`` rows per category, because that
-file is verified against the live AST on every run and this docstring is
-not. Consult the census directly for the current count instead of trusting a
-number restated here, which is exactly the kind of claim that goes stale
-silently.
+readers is no longer restated as a number in this docstring. Live code is the
+authority; this docstring intentionally carries no second frozen count that
+can go stale silently.
 
 Sites in this module that **mention** ``review-cycle-*`` artifacts but do
 **not** mutate the counter or write any artifact:
@@ -1072,9 +1067,9 @@ def _resolved_model_provider(model_id: str | None) -> str | None:
     if model_id is None:
         return None
     try:
-        from doctrine.model_task_routing import loader as routing_loader
+        from charter.model_routing import load as routing_load
 
-        loaded = routing_loader.load()
+        loaded = routing_load()
         if loaded is None:
             raise ValueError("the canonical routing catalog is unavailable")
         model = next(

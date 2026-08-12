@@ -35,8 +35,10 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 from doctrine.drg.merge import (
     DuplicateURNError,
+    OrgDRGConflict,
     OrgDRGConflictError,
     UnknownRelationError,
+    _filter_surviving_org_nodes,
     merge_three_layers,
 )
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
@@ -488,7 +490,6 @@ class TestInvariantsPreserved:
         """The permitted override is queryable as a non-fatal conflict record
         with ``resolution_applied == 'org_override'``."""
         from doctrine.drg.merge import (  # noqa: PLC0415 — local-only helper import
-            OrgDRGConflict,
             _resolve_builtin_collision,
         )
         from doctrine.drg.merge import _tag_source  # noqa: PLC0415
@@ -544,7 +545,6 @@ class TestInvariantsPreserved:
         merge refuses the substitution rather than corrupting the node's kind.
         """
         from doctrine.drg.merge import (  # noqa: PLC0415
-            OrgDRGConflict,
             _resolve_builtin_collision,
             _tag_source,
         )
@@ -868,3 +868,65 @@ class TestGlobalURNUniquenessScan:
         # Does not raise DuplicateURNError — the override machinery handles it.
         merged = merge_three_layers(built_in=built_in, org_fragments=[org], project=None)
         assert any(n.urn == "tactic:shared" for n in merged.nodes)
+
+
+# ---------------------------------------------------------------------------
+# WP03 T011 — _filter_surviving_org_nodes (extracted from _merge_org_fragment
+# to keep its cognitive complexity within the ruff C901 limit)
+# ---------------------------------------------------------------------------
+
+
+class TestFilterSurvivingOrgNodes:
+    """Direct unit tests for the layer-rule filtering helper (C-001/FR-005)."""
+
+    def test_all_nodes_survive_when_none_violate_layer_rule(self) -> None:
+        fragment = _fragment(
+            "acme",
+            nodes=[
+                {"id": "policy", "kind": "directives", "title": "Policy"},
+                {"id": "play", "kind": "tactics", "title": "Play"},
+            ],
+            edges=[],
+        )
+        conflicts: list[OrgDRGConflict] = []
+
+        surviving = _filter_surviving_org_nodes(fragment, conflicts, "org:acme")
+
+        assert [n.id for n in surviving] == ["policy", "play"]
+        assert conflicts == []
+
+    def test_violating_node_is_excluded_and_recorded_as_hard_fail(self) -> None:
+        fragment = _fragment(
+            "acme",
+            nodes=[
+                {"id": "policy", "kind": "directives", "title": "Policy"},
+                {
+                    "id": "smuggled",
+                    "kind": "directives",
+                    "title": "Reaches into specify_cli.core",
+                },
+            ],
+            edges=[],
+        )
+        conflicts: list[OrgDRGConflict] = []
+
+        surviving = _filter_surviving_org_nodes(fragment, conflicts, "org:acme")
+
+        assert [n.id for n in surviving] == ["policy"]
+        # golden-count: cardinality-is-contract -- the invariant is "exactly one
+        # conflict is recorded"; the single conflict's full identity is pinned by
+        # the conflicts[0] field assertions immediately below, so the count guards
+        # against a spurious second conflict rather than standing in for membership.
+        assert len(conflicts) == 1  # golden-count: cardinality-is-contract
+        conflict = conflicts[0]
+        assert conflict.kind == "layer_rule_violation"
+        assert conflict.target_id == "smuggled"
+        assert conflict.conflicting_layers == ["org:acme"]
+        assert conflict.resolution_applied == "hard_fail"
+
+    def test_empty_fragment_yields_no_survivors_and_no_conflicts(self) -> None:
+        fragment = _fragment("acme", nodes=[], edges=[])
+
+        surviving = _filter_surviving_org_nodes(fragment, [], "org:acme")
+
+        assert surviving == []

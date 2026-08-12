@@ -225,7 +225,7 @@ def _resolve_contract_refs(
     at runtime too.
     """
     # Local import to avoid load-time coupling on the doctrine package.
-    from doctrine.missions.step_contracts import (
+    from charter.mission_steps import (
         MissionStepContractRepository,
     )
 

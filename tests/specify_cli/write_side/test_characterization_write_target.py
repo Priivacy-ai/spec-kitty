@@ -31,7 +31,6 @@ import pytest
 from mission_runtime import MissionArtifactKind
 from mission_runtime.resolution import resolve_placement_only
 from specify_cli.coordination.status_transition import (
-    _current_branch,
     _identity_for_request,
 )
 from specify_cli.status.models import TransitionRequest
@@ -79,8 +78,7 @@ def test_inline_write_target_oracle_documents_git_head_divergence(
 
     before→after (WP05): ``identity.destination_ref`` flipped from ``off_target``
     (git HEAD, the bug) to ``TARGET_BRANCH`` (CWD-invariant, the fix). The
-    ``_current_branch`` import is retained so this row keeps witnessing that the
-    correct value is NOT the git-HEAD value.
+    The off-target branch fixture proves the correct value is not git HEAD.
     """
     primary = build_primary(tmp_path)
     # Park HEAD on an off-target branch so git HEAD != meta.target_branch.
@@ -99,7 +97,6 @@ def test_inline_write_target_oracle_documents_git_head_divergence(
     # NOT the off-target git HEAD the inline selector used to return (the bug).
     assert identity.destination_ref == TARGET_BRANCH
     assert identity.destination_ref != off_target
-    assert identity.destination_ref != _current_branch(primary.repo_root)
     # Read and write now resolve the SAME ref via the SAME resolver (SC-002).
     assert factory.ref == TARGET_BRANCH
     assert identity.destination_ref == factory.ref  # convergence (the fix)

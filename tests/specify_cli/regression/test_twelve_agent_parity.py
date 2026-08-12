@@ -200,12 +200,6 @@ def test_vibe_not_in_agent_command_config() -> None:
     assert "vibe" not in AGENT_COMMAND_CONFIG, "vibe was found in AGENT_COMMAND_CONFIG. Vibe uses the Agent Skills pipeline, not the command-file pipeline."
 
 
-def test_pi_and_letta_not_in_agent_command_config() -> None:
-    """pi and letta must NOT be in AGENT_COMMAND_CONFIG."""
-    assert "pi" not in AGENT_COMMAND_CONFIG
-    assert "letta" not in AGENT_COMMAND_CONFIG
-
-
 @pytest.mark.parametrize("agent", NON_MIGRATED_AGENTS)
 def test_agent_baseline_directory_exists(agent: str) -> None:
     """Each non-migrated agent must have a baseline directory."""

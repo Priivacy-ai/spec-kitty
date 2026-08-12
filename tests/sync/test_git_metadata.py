@@ -290,97 +290,46 @@ class TestTTLCache:
 class TestParseRepoSlug:
     """Test parse_repo_slug() for all remote URL formats."""
 
-    def test_ssh_standard(self):
-        """Standard SSH URL: git@github.com:owner/repo.git"""
-        assert parse_repo_slug("git@github.com:acme/spec-kitty.git") == "acme/spec-kitty"
-
-    def test_https_standard(self):
-        """Standard HTTPS URL: https://github.com/owner/repo.git"""
-        assert parse_repo_slug("https://github.com/acme/spec-kitty.git") == "acme/spec-kitty"
-
-    def test_ssh_no_git_suffix(self):
-        """SSH URL without .git suffix."""
-        assert parse_repo_slug("git@github.com:acme/spec-kitty") == "acme/spec-kitty"
-
-    def test_https_no_git_suffix(self):
-        """HTTPS URL without .git suffix."""
-        assert parse_repo_slug("https://github.com/acme/spec-kitty") == "acme/spec-kitty"
-
-    def test_gitlab_subgroup(self):
-        """GitLab subgroup: git@gitlab.com:org/team/repo.git"""
-        assert parse_repo_slug("git@gitlab.com:org/team/repo.git") == "org/team/repo"
-
-    def test_ssh_url_format(self):
-        """SSH URL form: ssh://git@github.com/owner/repo.git."""
-        assert parse_repo_slug("ssh://git@github.com/acme/spec-kitty.git") == "acme/spec-kitty"
-
-    def test_ssh_url_gitlab_subgroup(self):
-        """SSH URL supports GitLab subgroups."""
-        assert parse_repo_slug("ssh://git@gitlab.com/org/team/repo.git") == "org/team/repo"
-
-    def test_bitbucket_ssh(self):
-        """Bitbucket SSH URL."""
-        assert parse_repo_slug("git@bitbucket.org:acme/spec-kitty.git") == "acme/spec-kitty"
-
-    def test_self_hosted_https(self):
-        """Self-hosted HTTPS URL."""
-        assert parse_repo_slug("https://git.internal.co/acme/repo.git") == "acme/repo"
-
-    def test_https_with_trailing_slash(self):
-        """Trailing slash is normalized away."""
-        assert parse_repo_slug("https://github.com/acme/spec-kitty/") == "acme/spec-kitty"
-
-    def test_no_path_returns_none(self):
-        """URL without owner/repo path returns None."""
-        assert parse_repo_slug("git@github.com:repo.git") is None
-
-    def test_https_deep_subgroup(self):
-        """HTTPS URL with deep subgroup path."""
-        assert parse_repo_slug("https://gitlab.com/org/team/subteam/repo.git") == "org/team/subteam/repo"
-
-    def test_ssh_deep_subgroup(self):
-        """SSH URL with deep subgroup path."""
-        assert parse_repo_slug("git@gitlab.com:org/team/subteam/repo.git") == "org/team/subteam/repo"
-
-    def test_https_self_hosted_no_git_suffix(self):
-        """Self-hosted HTTPS without .git suffix."""
-        assert parse_repo_slug("https://git.internal.co/acme/repo") == "acme/repo"
-
-    def test_empty_string(self):
-        """Empty string returns None (no slash in path)."""
-        assert parse_repo_slug("") is None
-
-    def test_file_url_returns_none(self):
-        """file:// remotes are local and should not be treated as repo slugs."""
-        assert parse_repo_slug("file:///nonexistent/spec-kitty") is None
-
-    def test_local_filesystem_path_returns_none(self):
-        """Bare filesystem paths are not hosted repo slugs."""
-        assert parse_repo_slug("/nonexistent/spec-kitty") is None
-
-    def test_relative_filesystem_path_returns_none(self):
-        """Relative local paths are not hosted repo slugs."""
-        assert parse_repo_slug("../spec-kitty") is None
+    def test_supported_and_rejected_remote_matrix(self):
+        """All supported URL grammars and rejected local forms stay covered."""
+        expected = {
+            "git@github.com:acme/spec-kitty.git": "acme/spec-kitty",
+            "https://github.com/acme/spec-kitty.git": "acme/spec-kitty",
+            "git@github.com:acme/spec-kitty": "acme/spec-kitty",
+            "https://github.com/acme/spec-kitty": "acme/spec-kitty",
+            "git@gitlab.com:org/team/repo.git": "org/team/repo",
+            "ssh://git@github.com/acme/spec-kitty.git": "acme/spec-kitty",
+            "ssh://git@gitlab.com/org/team/repo.git": "org/team/repo",
+            "git@bitbucket.org:acme/spec-kitty.git": "acme/spec-kitty",
+            "https://git.internal.co/acme/repo.git": "acme/repo",
+            "https://github.com/acme/spec-kitty/": "acme/spec-kitty",
+            "https://gitlab.com/org/team/subteam/repo.git": "org/team/subteam/repo",
+            "git@gitlab.com:org/team/subteam/repo.git": "org/team/subteam/repo",
+            "https://git.internal.co/acme/repo": "acme/repo",
+            "git@github.com:repo.git": None,
+            "": None,
+            "file:///nonexistent/spec-kitty": None,
+            "/nonexistent/spec-kitty": None,
+            "../spec-kitty": None,
+        }
+        assert {remote: parse_repo_slug(remote) for remote in expected} == expected
 
 
 class TestDeriveRepoSlug:
     """Test _derive_repo_slug_from_remote() with mocked subprocess."""
 
     @patch("specify_cli.sync.git_metadata.subprocess.run")
-    def test_from_ssh_remote(self, mock_run, tmp_path):
-        """SSH remote URL is parsed into owner/repo."""
-        mock_run.return_value = MagicMock(returncode=0, stdout="git@github.com:acme/spec-kitty.git\n")
+    def test_supported_remote_schemes(self, mock_run, tmp_path):
+        """SSH and HTTPS subprocess results route through the canonical parser."""
         resolver = GitMetadataResolver(repo_root=tmp_path)
-        slug = resolver._derive_repo_slug_from_remote()
-        assert slug == "acme/spec-kitty"
-
-    @patch("specify_cli.sync.git_metadata.subprocess.run")
-    def test_from_https_remote(self, mock_run, tmp_path):
-        """HTTPS remote URL is parsed into owner/repo."""
-        mock_run.return_value = MagicMock(returncode=0, stdout="https://github.com/acme/spec-kitty.git\n")
-        resolver = GitMetadataResolver(repo_root=tmp_path)
-        slug = resolver._derive_repo_slug_from_remote()
-        assert slug == "acme/spec-kitty"
+        results = {}
+        for remote in (
+            "git@github.com:acme/spec-kitty.git",
+            "https://github.com/acme/spec-kitty.git",
+        ):
+            mock_run.return_value = MagicMock(returncode=0, stdout=f"{remote}\n")
+            results[remote] = resolver._derive_repo_slug_from_remote()
+        assert set(results.values()) == {"acme/spec-kitty"}
 
     @patch("specify_cli.sync.git_metadata.subprocess.run")
     def test_no_remote(self, mock_run, tmp_path):
@@ -406,50 +355,21 @@ class TestDeriveRepoSlug:
 class TestRepoSlugValidation:
     """Test _validate_repo_slug() method."""
 
-    def test_valid_owner_repo(self, tmp_path):
-        """Standard owner/repo is valid."""
+    def test_validation_matrix(self, tmp_path):
+        """Every supported and rejected slug shape stays represented."""
         resolver = GitMetadataResolver(repo_root=tmp_path)
-        assert resolver._validate_repo_slug("acme/spec-kitty") is True
-
-    def test_valid_subgroup(self, tmp_path):
-        """Subgroup org/team/repo is valid."""
-        resolver = GitMetadataResolver(repo_root=tmp_path)
-        assert resolver._validate_repo_slug("org/team/repo") is True
-
-    def test_invalid_no_slash(self, tmp_path):
-        """String without slash is invalid."""
-        resolver = GitMetadataResolver(repo_root=tmp_path)
-        assert resolver._validate_repo_slug("noslash") is False
-
-    def test_invalid_empty_segment(self, tmp_path):
-        """Leading slash creates empty segment: invalid."""
-        resolver = GitMetadataResolver(repo_root=tmp_path)
-        assert resolver._validate_repo_slug("/repo") is False
-
-    def test_invalid_trailing_slash(self, tmp_path):
-        """Trailing slash creates empty segment: invalid."""
-        resolver = GitMetadataResolver(repo_root=tmp_path)
-        assert resolver._validate_repo_slug("owner/") is False
-
-    def test_invalid_double_slash(self, tmp_path):
-        """Double slash creates empty segment: invalid."""
-        resolver = GitMetadataResolver(repo_root=tmp_path)
-        assert resolver._validate_repo_slug("owner//repo") is False
-
-    def test_invalid_empty_string(self, tmp_path):
-        """Empty string is invalid."""
-        resolver = GitMetadataResolver(repo_root=tmp_path)
-        assert resolver._validate_repo_slug("") is False
-
-    def test_valid_with_hyphens_and_underscores(self, tmp_path):
-        """Hyphens and underscores in segments are valid."""
-        resolver = GitMetadataResolver(repo_root=tmp_path)
-        assert resolver._validate_repo_slug("my-org/my_repo") is True
-
-    def test_valid_deep_path(self, tmp_path):
-        """Deep paths with multiple segments are valid."""
-        resolver = GitMetadataResolver(repo_root=tmp_path)
-        assert resolver._validate_repo_slug("org/team/subteam/repo") is True
+        expected = {
+            "acme/spec-kitty": True,
+            "org/team/repo": True,
+            "my-org/my_repo": True,
+            "org/team/subteam/repo": True,
+            "noslash": False,
+            "/repo": False,
+            "owner/": False,
+            "owner//repo": False,
+            "": False,
+        }
+        assert {slug: resolver._validate_repo_slug(slug) for slug in expected} == expected
 
 
 class TestRepoSlugPrecedence:
@@ -538,16 +458,34 @@ class TestRepoSlugPrecedence:
 class TestGracefulDegradation:
     """Test failure modes return None values and log warnings."""
 
-    @patch(
-        "specify_cli.sync.git_metadata.subprocess.run",
-        side_effect=FileNotFoundError("git not found"),
-    )
-    def test_git_not_installed(self, mock_run, tmp_path):
-        """FileNotFoundError (git not installed) produces all-None metadata."""
-        resolver = GitMetadataResolver(repo_root=tmp_path)
-        meta = resolver.resolve()
-        assert meta.git_branch is None
-        assert meta.head_commit_sha is None
+    def test_platform_failures_return_empty_metadata_and_warn(self, tmp_path, caplog):
+        """Missing git, timeout, and permission failures keep distinct diagnostics."""
+        cases = {
+            "missing": (FileNotFoundError("git not found"), "git not found"),
+            "timeout": (subprocess.TimeoutExpired("git", 5), "timed out"),
+            "permission": (PermissionError("access denied"), "access denied"),
+        }
+        results = {}
+        for name, (error, warning) in cases.items():
+            caplog.clear()
+            resolver = GitMetadataResolver(repo_root=tmp_path)
+            with caplog.at_level(logging.WARNING), patch(
+                "specify_cli.sync.git_metadata.subprocess.run",
+                side_effect=error,
+            ):
+                meta = resolver.resolve()
+            results[name] = (
+                meta.git_branch,
+                meta.head_commit_sha,
+                meta.repo_slug,
+                warning in caplog.text.lower(),
+            )
+
+        assert results == {
+            "missing": (None, None, None, True),
+            "timeout": (None, None, None, True),
+            "permission": (None, None, None, True),
+        }
 
     @patch("specify_cli.sync.git_metadata.subprocess.run")
     def test_not_in_git_repo(self, mock_run, tmp_path):
@@ -557,72 +495,6 @@ class TestGracefulDegradation:
         meta = resolver.resolve()
         assert meta.git_branch is None
         assert meta.head_commit_sha is None
-
-    @patch(
-        "specify_cli.sync.git_metadata.subprocess.run",
-        side_effect=subprocess.TimeoutExpired("git", 5),
-    )
-    def test_subprocess_timeout(self, mock_run, tmp_path):
-        """TimeoutExpired produces all-None metadata."""
-        resolver = GitMetadataResolver(repo_root=tmp_path)
-        meta = resolver.resolve()
-        assert meta.git_branch is None
-        assert meta.head_commit_sha is None
-
-    @patch(
-        "specify_cli.sync.git_metadata.subprocess.run",
-        side_effect=PermissionError("access denied"),
-    )
-    def test_permission_error(self, mock_run, tmp_path):
-        """PermissionError produces all-None metadata."""
-        resolver = GitMetadataResolver(repo_root=tmp_path)
-        meta = resolver.resolve()
-        assert meta.git_branch is None
-        assert meta.head_commit_sha is None
-        assert meta.repo_slug is None
-
-    @patch(
-        "specify_cli.sync.git_metadata.subprocess.run",
-        side_effect=FileNotFoundError("git not found"),
-    )
-    def test_warning_logged_for_missing_git(self, mock_run, tmp_path, caplog):
-        """FileNotFoundError logs a warning about missing git."""
-        resolver = GitMetadataResolver(repo_root=tmp_path)
-        with caplog.at_level(logging.WARNING):
-            resolver.resolve()
-        assert "git not found" in caplog.text
-
-    @patch(
-        "specify_cli.sync.git_metadata.subprocess.run",
-        side_effect=subprocess.TimeoutExpired("git", 5),
-    )
-    def test_warning_logged_for_timeout(self, mock_run, tmp_path, caplog):
-        """TimeoutExpired logs a warning about timeout."""
-        resolver = GitMetadataResolver(repo_root=tmp_path)
-        with caplog.at_level(logging.WARNING):
-            resolver.resolve()
-        assert "timed out" in caplog.text
-
-    @patch(
-        "specify_cli.sync.git_metadata.subprocess.run",
-        side_effect=PermissionError("access denied"),
-    )
-    def test_warning_logged_for_permission_error(self, mock_run, tmp_path, caplog):
-        """PermissionError logs a warning."""
-        resolver = GitMetadataResolver(repo_root=tmp_path)
-        with caplog.at_level(logging.WARNING):
-            resolver.resolve()
-        assert "failed" in caplog.text.lower() or "access denied" in caplog.text.lower()
-
-    @patch(
-        "specify_cli.sync.git_metadata.subprocess.run",
-        side_effect=FileNotFoundError("git not found"),
-    )
-    def test_git_not_installed_repo_slug_also_none(self, mock_run, tmp_path):
-        """When git is missing, repo_slug is also None (derive fails gracefully)."""
-        resolver = GitMetadataResolver(repo_root=tmp_path)
-        meta = resolver.resolve()
-        assert meta.repo_slug is None
 
     @patch("specify_cli.sync.git_metadata.subprocess.run")
     def test_branch_ok_remote_timeout(self, mock_run, tmp_path):

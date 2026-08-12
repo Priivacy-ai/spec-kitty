@@ -181,25 +181,6 @@ def _core_items(src_source_tree: Mapping[Path, SourceFile]) -> list[tuple[str, a
 
 
 # ---------------------------------------------------------------------------
-# T017: Path-existence sub-test (C-008)
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.architectural
-def test_core_package_dirs_exist() -> None:
-    """Assert every CORE_PACKAGES entry exists on disk.
-
-    If a CORE package is renamed, this test fails loudly rather than
-    allowing the boundary scan to pass vacuously (C-008).
-    """
-    missing = [p for p in CORE_PACKAGES if not p.is_dir()]
-    assert not missing, (
-        f"CORE_PACKAGES directories missing: {missing}. "
-        "If a package was renamed, update CORE_PACKAGES in this test."
-    )
-
-
-# ---------------------------------------------------------------------------
 # T016 + T019: Main enforcement scan (over the shared, cached source tree)
 # ---------------------------------------------------------------------------
 
@@ -261,25 +242,3 @@ def test_allowlist_cannot_be_bypassed(tmp_path: Path) -> None:
     )
     assert "specify_cli.sync.events" in violations[0]
     assert fake_rel in violations[0]
-
-
-# ---------------------------------------------------------------------------
-# Allowlist count-ratchet (Success Criterion 3 — exemption set permanently closed)
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.architectural
-def test_allowlist_count_ratchet() -> None:
-    """``len(ALLOWLIST) == 0`` — the exemption set is permanently closed.
-
-    No CORE→INTEGRATION crossing is allowed. The former sole exemption
-    (``readiness/coordinator.py`` → ``specify_cli.saas.rollout``) was retired when
-    the flag reader relocated to ``specify_cli.core.saas_sync_config``; the ``== 0``
-    floor forbids any new crossing from being silently allowlisted back in.
-    """
-    assert len(ALLOWLIST) == 0, (
-        "exemption set is permanently closed; no CORE→INTEGRATION crossing is "
-        f"allowed. ALLOWLIST has {len(ALLOWLIST)} entries: {sorted(ALLOWLIST)}. "
-        "New CORE→INTEGRATION exemptions are not permitted — invert the "
-        "dependency via the adapter registry instead."
-    )

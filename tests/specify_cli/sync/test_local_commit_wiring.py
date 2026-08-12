@@ -159,7 +159,7 @@ def test_handle_message_dispatches_local_commit_ack() -> None:
 
     client = WebSocketClient(repo_root=Path("/nonexistent/fake-repo"))
 
-    with patch.object(client, "_handle_local_commit_ack", new_callable=AsyncMock) as mock_ack:
+    with patch.object(client, "_handle_local_commit_ack") as mock_ack:
         asyncio.run(client._handle_message({"type": "LocalCommitAck", "git_hash": "abc123"}))
 
     mock_ack.assert_called_once_with({"type": "LocalCommitAck", "git_hash": "abc123"})
@@ -172,7 +172,7 @@ def test_unmatched_local_commit_ack_cannot_mutate_pending_state(tmp_path: Path) 
     client = WebSocketClient(repo_root=tmp_path)
 
     with patch("specify_cli.sync.local_commit.record_local_commit_ack") as mock_record:
-        asyncio.run(client._handle_local_commit_ack({"type": "LocalCommitAck", "git_hash": "deadbeef"}))
+        client._handle_local_commit_ack({"type": "LocalCommitAck", "git_hash": "deadbeef"})
 
     mock_record.assert_not_called()
 
@@ -199,7 +199,7 @@ def test_unmatched_local_commit_ack_integration_preserves_pending(tmp_path: Path
     save_sync_state(tmp_path, state)
 
     client = WebSocketClient(repo_root=tmp_path)
-    asyncio.run(client._handle_local_commit_ack({"type": "LocalCommitAck", "git_hash": "deadbeef" * 5}))
+    client._handle_local_commit_ack({"type": "LocalCommitAck", "git_hash": "deadbeef" * 5})
 
     updated = load_sync_state(tmp_path)
     assert updated.last_saas_confirmed_hash is None
@@ -212,7 +212,7 @@ def test_handle_local_commit_ack_missing_hash_does_not_raise(tmp_path: Path) -> 
 
     client = WebSocketClient(repo_root=tmp_path)
     # Should not raise, should not write anything
-    asyncio.run(client._handle_local_commit_ack({"type": "LocalCommitAck"}))
+    client._handle_local_commit_ack({"type": "LocalCommitAck"})
     # sync-state.json should not be created
     assert not (tmp_path / ".kittify" / "sync-state.json").exists()
 
@@ -228,7 +228,7 @@ def test_handle_local_commit_ack_never_raises_on_error(tmp_path: Path) -> None:
         side_effect=OSError("disk full"),
     ):
         # Should NOT raise
-        asyncio.run(client._handle_local_commit_ack({"type": "LocalCommitAck", "git_hash": "abc"}))
+        client._handle_local_commit_ack({"type": "LocalCommitAck", "git_hash": "abc"})
 
 
 # ---------------------------------------------------------------------------

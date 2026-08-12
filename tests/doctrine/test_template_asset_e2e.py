@@ -42,7 +42,7 @@ from doctrine.drg.query import resolve_transitive_refs
 from specify_cli.doctrine.pack_validator import validate_pack
 from tests.doctrine._builtin_inventory import builtin_asset_urns
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 _FIXTURES_ROOT = Path(__file__).parent / "fixtures" / "org_pack_template_asset"
 

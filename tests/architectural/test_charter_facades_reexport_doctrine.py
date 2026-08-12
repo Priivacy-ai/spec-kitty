@@ -17,6 +17,7 @@ and (b) ``facade.SYMBOL is doctrine.SYMBOL`` (object identity).
 from __future__ import annotations
 
 import importlib
+import pathlib
 
 import pytest
 
@@ -31,6 +32,9 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("Role", "doctrine.agent_profiles.profile"),
         ("AgentProfileRepository", "doctrine.agent_profiles.repository"),
         ("DEFAULT_ROLE_CAPABILITIES", "doctrine.agent_profiles.capabilities"),
+        # Tabled during the #3321 landing squad (inverse-containment hardening,
+        # below): advertised in ``__all__`` but previously identity-unchecked.
+        ("SkippedProfile", "doctrine.agent_profiles.diagnostics"),
     ],
     "charter.mission_steps": [
         # MissionStep retired from the facade contract 2026-06-11: the last src/
@@ -41,9 +45,19 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("MissionStepInput", "doctrine.missions.step_contracts"),
         ("MissionStepContractRepository", "doctrine.missions.step_contracts"),
         ("MissionStepContractStep", "doctrine.missions.step_contracts"),
+        # Widened by mission ``doctrine-public-api-surface-01KZPDSR`` WP03
+        # (T011): the gate-binding model on a mission-step contract. FACADE-ONLY.
+        ("GateBinding", "doctrine.missions.step_contracts"),
+        # Tabled during the #3321 landing squad (inverse-containment hardening):
+        # advertised in this facade's ``__all__`` but previously only tabled
+        # under ``charter.missions`` — so identity was unchecked HERE.
+        ("MissionStepRepository", "doctrine.missions.mission_step_repository"),
     ],
     "charter.drg": [
-        ("ArtifactKind", "doctrine.artifact_kinds"),
+        # PUBLIC: re-exported from the curated public surface ``doctrine.api``
+        # (WP03/T010) so the wheel symbol gains a live in-repo caller. Identity
+        # holds: ``doctrine.api.ArtifactKind is doctrine.artifact_kinds.ArtifactKind``.
+        ("ArtifactKind", "doctrine.api"),
         ("DRGEdge", "doctrine.drg.models"),
         ("DRGGraph", "doctrine.drg.models"),
         ("DRGNode", "doctrine.drg.models"),
@@ -59,6 +73,87 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # surface (not ``doctrine.drg.validator``) so the package's ``__all__``
         # entry has a real ``src/`` importer instead of being a dead export.
         ("validate_dangling_references", "doctrine.drg"),
+        # Widened by mission ``doctrine-public-api-surface-01KZPDSR`` WP03
+        # (T010): the DRG error hierarchy + org-root resolution + org-DRG
+        # conflict absorb the ``drg.*`` reach-through cluster. All FACADE-ONLY.
+        ("DRGLoadError", "doctrine.drg"),
+        ("DRGValidationError", "doctrine.drg"),
+        ("OrgDRGConflict", "doctrine.drg.merge"),
+        ("resolve_org_roots", "doctrine.drg.org_pack_config"),
+        # ``doctrine.base`` census-drift door (WP01 FACADE-ONLY): the
+        # layer-collision warning belongs on the layer-merge facade beside
+        # ``merge_layers`` / ``merge_three_layers``. Consumer is WP05-owned.
+        ("DoctrineLayerCollisionWarning", "doctrine.base"),
+        # Tabled during the #3321 landing squad (inverse-containment hardening,
+        # below). These 10 were advertised in ``charter.drg.__all__`` yet absent
+        # from this table, so they were public but identity-unchecked — a
+        # wrapper/shim could have replaced any of them with the gate staying
+        # green. All FACADE-ONLY; identity verified live at add time.
+        ("OrgDRGConflictError", "doctrine.drg.merge"),
+        ("OrgDRGFragment", "doctrine.drg.org_pack_loader"),
+        ("OrgPackEnvVarUnsetError", "doctrine.drg.org_pack_config"),
+        ("OrgPackMissingError", "doctrine.drg.org_pack_loader"),
+        ("OrgPackSubdirEscapeError", "doctrine.drg.org_pack_config"),
+        ("UnknownRelationError", "doctrine.drg.merge"),
+        ("graph_document_to_dict", "doctrine.drg.migration.extractor"),
+        ("load_built_in_graph", "doctrine.drg.loader"),
+        ("merge_three_layers", "doctrine.drg.merge"),
+        ("model_to_graph_dict", "doctrine.drg.migration.extractor"),
+        # Promoted from a private doctrine helper during the #3321 landing (the
+        # post-fold squad flagged charter surfacing ``doctrine.drg.merge``'s
+        # private ``_bridge_org_edge_to_drg_edge``). It is now a public symbol in
+        # ``doctrine.drg.merge.__all__`` with a live runtime consumer
+        # (``specify_cli.drg_writers.registry``), so it is a plain re-export.
+        ("bridge_org_edge_to_drg_edge", "doctrine.drg.merge"),
+    ],
+    # New door (WP03/T012): mission-template / mission-type / mission-step
+    # repository surfaces. All FACADE-ONLY per the WP01 census.
+    "charter.missions": [
+        ("MissionsRootNotFound", "doctrine.missions.repository"),
+        ("MissionTemplateRepository", "doctrine.missions.repository"),
+        ("MissionTypeRepository", "doctrine.missions.mission_type_repository"),
+        ("builtin_mission_type_ids", "doctrine.missions.mission_type_repository"),
+        ("project_template_set", "doctrine.missions.step_projection"),
+        ("MissionStepRepository", "doctrine.missions.mission_step_repository"),
+    ],
+    # New door (WP03/T013): symbol-level model→task routing surface. PUBLIC —
+    # re-exported from ``doctrine.api`` (leaf callables/types only, NOT the
+    # ``.loader`` / ``.evaluator`` submodules). Identity holds transitively:
+    # ``charter.model_routing.load is doctrine.api.load is
+    # doctrine.model_task_routing.loader.load``.
+    "charter.model_routing": [
+        ("CatalogLoadResult", "doctrine.api"),
+        ("RoutingRecommendation", "doctrine.api"),
+        ("evaluate", "doctrine.api"),
+        ("load", "doctrine.api"),
+    ],
+    # New door (WP03/T014): asset-resolution surface. PUBLIC — re-exported from
+    # ``doctrine.api`` so the wheel symbols gain live in-repo callers.
+    "charter.assets": [
+        ("AssetManifest", "doctrine.api"),
+        ("AssetNotFoundError", "doctrine.api"),
+        ("AssetPathEscapeError", "doctrine.api"),
+        ("AssetRepository", "doctrine.api"),
+        ("AssetResolutionError", "doctrine.api"),
+    ],
+    # New narrow doors (WP03/T015). All FACADE-ONLY per the WP01 census.
+    "charter.glossary_packs": [
+        ("GlossaryPack", "doctrine.glossary_packs"),
+    ],
+    "charter.spdd_reasons": [
+        ("apply_spdd_blocks_for_project", "doctrine.spdd_reasons"),
+    ],
+    "charter.pack_paths": [
+        ("built_in_dir", "doctrine.pack_paths"),
+        ("built_in_root", "doctrine.pack_paths"),
+    ],
+    # Widened by WP03/T015: ``resolve_template_by_id`` (WP01 found it missing;
+    # ``runtime/resolver.py`` needs it in WP07/T036). FACADE-ONLY.
+    "charter.template_catalog": [
+        ("discover_templates", "doctrine.template_catalog"),
+        ("TemplateRef", "doctrine.template_catalog"),
+        ("TierRoot", "doctrine.template_catalog"),
+        ("resolve_template_by_id", "doctrine.template_catalog"),
     ],
     "charter.primitives": [
         ("PrimitiveExecutionContext", "doctrine.missions"),
@@ -74,8 +169,46 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("check_bundle_compatibility", "doctrine.versioning"),
         ("get_bundle_schema_version", "doctrine.versioning"),
         ("run_migration", "doctrine.versioning"),
+        # Tabled during the #3321 landing squad (inverse-containment hardening):
+        # advertised in ``__all__`` but previously identity-unchecked.
+        ("repair_v2_synthesis_manifest_defaults", "doctrine.versioning"),
+    ],
+    # Not a pure "facade" (it carries local ``from_operator_token`` /
+    # ``resolve_artifact_urn`` logic), but it DOES re-export two doctrine symbols
+    # in ``__all__``. Tabled during the #3321 post-fold squad: the self-discovery
+    # inverse gate below found these public but identity-unchecked (they escaped
+    # the earlier key-scoped gate because this module was absent from the table).
+    "charter.kind_vocabulary": [
+        ("ArtifactKind", "doctrine.artifact_kinds"),
+        ("MissionTypeNotAnArtifactKind", "doctrine.artifact_kinds"),
     ],
 }
+
+#: Top-level packages whose re-exports through a charter ``__all__`` MUST carry an
+#: identity contract: ``doctrine`` (the migrated surface) plus the external
+#: shared-contract packages (per the Shared Package Boundary). A charter-local
+#: definition (``__module__`` under ``charter``) is not a re-export; a stdlib
+#: value instance such as a ``pathlib.Path`` constant is not one either — both are
+#: correctly excluded by keying on these origins rather than on "not charter".
+_IDENTITY_REQUIRED_ORIGINS = frozenset(
+    {"doctrine", "spec_kitty_events", "spec_kitty_tracker"}
+)
+
+_CHARTER_SRC = pathlib.Path(__file__).resolve().parents[2] / "src" / "charter"
+
+
+def _charter_modules() -> list[str]:
+    """Self-discover every top-level ``charter.*`` module from ``src/charter/``.
+
+    The inverse-containment gate iterates THIS, not ``_FACADE_TABLE.keys()``, so a
+    re-export module simply never added to the table (e.g. ``charter.kind_vocabulary``,
+    caught by the #3321 post-fold squad) cannot hide from the check.
+    """
+    return [
+        f"charter.{path.stem}"
+        for path in sorted(_CHARTER_SRC.glob("*.py"))
+        if path.stem != "__init__"
+    ]
 
 
 def _flat_cases() -> list[tuple[str, str, str]]:
@@ -129,4 +262,39 @@ def test_facade_all_lists_every_reexport(facade_module: str) -> None:
     assert not missing, (
         f"{facade_module}.__all__ is missing contract symbols: {sorted(missing)}. "
         f"Add them to __all__ or update the contract table."
+    )
+
+
+@pytest.mark.parametrize("facade_module", _charter_modules())
+def test_facade_all_reexports_are_tabled(facade_module: str) -> None:
+    """Reverse of :func:`test_facade_all_lists_every_reexport`, enforced repo-wide:
+    every symbol a charter module advertises in ``__all__`` whose object ORIGINATES
+    from doctrine (or an external shared-contract package) MUST carry an identity
+    contract — an entry in ``_FACADE_TABLE``.
+
+    Without this the identity gate is one-directional: a re-export placed in
+    ``__all__`` but omitted from the table is public yet identity-UNCHECKED, so a
+    later PR could replace it with a wrapper/shim and every gate stays green.
+
+    Two scoping choices make the guard complete rather than manually curated:
+    it is parametrized over **every** ``charter.*`` module self-discovered from
+    ``src/charter/`` (not just ``_FACADE_TABLE.keys()``), so a re-export module
+    absent from the table cannot hide (the ``charter.kind_vocabulary`` escape the
+    #3321 post-fold squad found); and it keys on
+    :data:`_IDENTITY_REQUIRED_ORIGINS`, which includes doctrine-origin re-exports
+    while excluding both charter-local definitions and stdlib value instances
+    (e.g. a ``pathlib.Path`` module-level constant).
+    """
+    facade = importlib.import_module(facade_module)
+    covered = {symbol for symbol, _ in _FACADE_TABLE.get(facade_module, [])}
+    untabled: list[tuple[str, str]] = []
+    for name in getattr(facade, "__all__", None) or []:
+        origin = getattr(getattr(facade, name, None), "__module__", None)
+        if origin and origin.split(".")[0] in _IDENTITY_REQUIRED_ORIGINS and name not in covered:
+            untabled.append((name, origin))
+    assert not untabled, (
+        f"{facade_module}.__all__ advertises re-exported symbols with no "
+        f"identity contract (public but UNCHECKED): {sorted(untabled)}. Add each "
+        f"to _FACADE_TABLE (promote a private doctrine symbol to a public name "
+        f"before re-exporting it, rather than aliasing a private symbol)."
     )

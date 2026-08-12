@@ -1,0 +1,1136 @@
+{
+  "schema_version": "test-sanitation-probes/v1",
+  "mission": "assertive-test-suite-sanitation-01KZME3P",
+  "work_package": "WP10",
+  "cycle": 3,
+  "planning_base": "28ae75ea998c898aba57364db7a06d2088bd2af2",
+  "prepared_from": "95a4f6729",
+  "execution_head": "607267b6a",
+  "environment": {
+    "python": "3.11.15",
+    "pytest": "9.0.3",
+    "platform": "Darwin 24.6.0 arm64",
+    "cache_provider": false
+  },
+  "execution": {
+    "survivor_cohort_command": ".venv/bin/pytest -q -p no:cacheprovider <42 exact surviving WP10 paths>",
+    "survivor_cohort_outcome": "535 passed, 2 xfailed in 261.21s",
+    "survivor_cohort_exit_code": 0,
+    "selected_probe_command": ".venv/bin/pytest -q -p no:cacheprovider <42 exact selected probe nodes>",
+    "selected_probe_outcome": "55 passed in 50.36s",
+    "selected_probe_exit_code": 0,
+    "live_oracle_command": ".venv/bin/pytest -q -p no:cacheprovider tests/architectural/test_guard_capability_call_sites.py tests/architectural/test_dossier_sync_boundary.py",
+    "live_oracle_outcome": "8 passed in 64.50s",
+    "live_oracle_exit_code": 0,
+    "final_cycle3_deletion_proof_command": ".venv/bin/pytest -q -p no:cacheprovider <24 exact current successor nodes/files>",
+    "final_cycle3_deletion_proof_outcome": "41 passed in 61.35s",
+    "final_cycle3_deletion_proof_exit_code": 0,
+    "final_cycle3_supplemental_command": ".venv/bin/pytest -q -p no:cacheprovider tests/specify_cli/lanes/test_branch_naming_ssot_entrypoint.py::test_resolve_transaction_mid8_cascade_preserved tests/architectural/test_execution_context_parity.py::test_full_sequence_direct_to_target",
+    "final_cycle3_supplemental_outcome": "2 passed in 61.94s",
+    "final_cycle3_supplemental_exit_code": 0
+  },
+  "replay_contract": {
+    "mutation_materialization": "Each survivor record names the exact pytest node that materializes its prohibited live-shaped input using tmp_path, monkeypatch, an isolated repository fixture, or an explicit API argument. The record's command executes those source bytes at execution_head.",
+    "intended_red_observation": "Each selected node asserts that its prohibited input reaches and is rejected by the named retained oracle. A passing aggregate is therefore the green harness result around an asserted in-process red witness, not a claim that an unasserted mutation stayed green.",
+    "aggregate_exit_code": 0,
+    "aggregate_output": "55 passed in 50.36s",
+    "restore": "All materialized inputs are pytest-owned temporary files, monkeypatch state, isolated repositories, or value arguments. Pytest teardown restored them; the subsequent full 42-path cohort returned 535 passed, 2 xfailed.",
+    "restored_green_exit_code": 0,
+    "restored_green_output": "535 passed, 2 xfailed in 261.21s"
+  },
+  "survivors": [
+    {
+      "path": "tests/git/test_guard_capability_regression.py",
+      "production_path": "src/specify_cli/core/commit_guard.py",
+      "authority": "src/specify_cli/core/commit_guard.py::_PROTECTED_FLOW_CAPABILITIES",
+      "probe_node": "tests/git/test_guard_capability_regression.py::test_legacy_workflow_commit_refused_on_protected_target",
+      "mutation": "ordinary status flow gains a protected-ref bypass capability",
+      "intended_red": "standard capability is refused on a protected destination",
+      "corpus": {
+        "identity": "src/specify_cli/core/commit_guard.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/git/test_guard_capability_regression.py::test_legacy_workflow_commit_refused_on_protected_target'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_identity_audit.py",
+      "production_path": "src/specify_cli/cli/commands/_identity_audit.py",
+      "authority": "docs/context/identity.md",
+      "probe_node": "tests/specify_cli/cli/commands/test_identity_audit.py::test_run_identity_audit_json_fail_on_exits_1",
+      "mutation": "duplicate or ambiguous mission identity enters the audited scope",
+      "intended_red": "identity audit exits nonzero and identifies the ambiguity",
+      "corpus": {
+        "identity": "src/specify_cli/cli/commands/_identity_audit.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/cli/commands/test_identity_audit.py::test_run_identity_audit_json_fail_on_exits_1'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_sparse_checkout_doctor.py",
+      "production_path": "src/specify_cli/cli/commands/_sparse_checkout_doctor.py",
+      "authority": "src/specify_cli/cli/commands/_sparse_checkout_doctor.py::run_sparse_checkout",
+      "probe_node": "tests/specify_cli/cli/commands/test_sparse_checkout_doctor.py::test_run_sparse_checkout_ci_refusal",
+      "mutation": "sparse-checkout repair is requested non-interactively in CI",
+      "intended_red": "doctor refuses mutation and returns the actionable failure",
+      "corpus": {
+        "identity": "src/specify_cli/cli/commands/_sparse_checkout_doctor.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/cli/commands/test_sparse_checkout_doctor.py::test_run_sparse_checkout_ci_refusal'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/specify_cli/core/test_load_meta_fail_closed_authority.py",
+      "production_path": "src/specify_cli/mission_metadata.py",
+      "authority": "src/specify_cli/mission_metadata.py::load_meta",
+      "probe_node": "tests/specify_cli/core/test_load_meta_fail_closed_authority.py::test_corrupt_meta_raises_typed_error_not_raw_value_error",
+      "mutation": "mission meta contains corrupt JSON",
+      "intended_red": "public reader raises its typed fail-closed error",
+      "corpus": {
+        "identity": "src/specify_cli/mission_metadata.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/core/test_load_meta_fail_closed_authority.py::test_corrupt_meta_raises_typed_error_not_raw_value_error'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/specify_cli/decisions/test_ownership_3111.py",
+      "production_path": "src/specify_cli/decisions/ownership.py",
+      "authority": "docs/context/identity.md",
+      "probe_node": "tests/specify_cli/decisions/test_ownership_3111.py::test_symlinked_mission_directory_pointing_outside_is_excluded",
+      "mutation": "an ownership candidate escapes the checkout through a symlink",
+      "intended_red": "ownership is not established for the escaped path",
+      "corpus": {
+        "identity": "src/specify_cli/decisions/ownership.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/decisions/test_ownership_3111.py::test_symlinked_mission_directory_pointing_outside_is_excluded'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/specify_cli/saas_client/test_client_consent_gate_3030.py",
+      "production_path": "src/specify_cli/saas_client/client.py",
+      "authority": "docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md",
+      "probe_node": "tests/specify_cli/saas_client/test_client_consent_gate_3030.py::test_unconsented_project_puts_no_engagement_name_on_the_wire",
+      "mutation": "an authenticated but unconsented project attempts SaaS egress",
+      "intended_red": "no engagement identifier reaches the recorded transport",
+      "corpus": {
+        "identity": "src/specify_cli/saas_client/client.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/saas_client/test_client_consent_gate_3030.py::test_unconsented_project_puts_no_engagement_name_on_the_wire'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/specify_cli/test_meta_fail_closed_full_census_contract.py",
+      "production_path": "src/specify_cli/mission_metadata.py",
+      "authority": "src/specify_cli/mission_metadata.py::load_meta",
+      "probe_node": "tests/specify_cli/test_meta_fail_closed_full_census_contract.py::test_no_unaccounted_load_meta_call_sites",
+      "mutation": "a routed reader handles corrupt or non-object meta as valid",
+      "intended_red": "the full live caller census remains fail-closed",
+      "corpus": {
+        "identity": "src/specify_cli/mission_metadata.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/test_meta_fail_closed_full_census_contract.py::test_no_unaccounted_load_meta_call_sites'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/sync/test_consent_resolver_3030.py",
+      "production_path": "src/specify_cli/sync/consent.py",
+      "authority": "docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md",
+      "probe_node": "tests/sync/test_consent_resolver_3030.py::test_project_local_refusal_outranks_an_index_grant",
+      "mutation": "a machine index grant conflicts with project-local refusal",
+      "intended_red": "project-local refusal wins and egress remains denied",
+      "corpus": {
+        "identity": "src/specify_cli/sync/consent.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/sync/test_consent_resolver_3030.py::test_project_local_refusal_outranks_an_index_grant'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/sync/test_project_identity_resolver_3030.py",
+      "production_path": "src/specify_cli/sync/project_identity.py",
+      "authority": "src/specify_cli/sync/project_identity.py::PROJECT_UUID_RESOLUTION_CHAIN",
+      "probe_node": "tests/sync/test_project_identity_resolver_3030.py::test_nil_sentinel_does_not_mask_a_real_later_site",
+      "mutation": "a nil identity appears before a real identity in an event",
+      "intended_red": "the canonical chain continues to the real project identity",
+      "corpus": {
+        "identity": "src/specify_cli/sync/project_identity.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/sync/test_project_identity_resolver_3030.py::test_nil_sentinel_does_not_mask_a_real_later_site'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/sync/test_sync_action_gate.py",
+      "production_path": "src/specify_cli/cli/commands/sync.py",
+      "authority": "src/specify_cli/cli/commands/sync.py::_require_daemon_owner_coherence",
+      "probe_node": "tests/sync/test_sync_action_gate.py::test_gate_refuses_on_multiple_mismatches",
+      "mutation": "foreground and daemon ownership fields diverge",
+      "intended_red": "the mutating sync action is refused with mismatch details",
+      "corpus": {
+        "identity": "src/specify_cli/cli/commands/sync.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/sync/test_sync_action_gate.py::test_gate_refuses_on_multiple_mismatches'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/sync/tracker/test_saas_client_consent_gate_3030.py",
+      "production_path": "src/specify_cli/tracker/saas_client.py",
+      "authority": "docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md",
+      "probe_node": "tests/sync/tracker/test_saas_client_consent_gate_3030.py::test_unconsented_project_transmits_no_engagement_name",
+      "mutation": "an authenticated tracker client lacks project consent",
+      "intended_red": "the transport records no engagement identifier",
+      "corpus": {
+        "identity": "src/specify_cli/tracker/saas_client.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/sync/tracker/test_saas_client_consent_gate_3030.py::test_unconsented_project_transmits_no_engagement_name'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_2093_authority_invariant.py",
+      "production_path": "src/specify_cli/status/reducer.py",
+      "authority": "docs/adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md",
+      "probe_node": "tests/architectural/test_2093_authority_invariant.py::test_detector_flags_extract_scalar_frontmatter_read",
+      "mutation": "a runtime field is read from legacy WP frontmatter",
+      "intended_red": "the single-authority detector reports the frontmatter read",
+      "corpus": {
+        "identity": "src/specify_cli/status/reducer.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_2093_authority_invariant.py::test_detector_flags_extract_scalar_frontmatter_read'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_auth_transport_singleton.py",
+      "production_path": "src/specify_cli/auth/transport.py",
+      "authority": "docs/adr/3.x/2026-04-26-2-auth-transport-boundary.md",
+      "probe_node": "tests/architectural/test_auth_transport_singleton.py::TestAuthTransportSingleton::test_negative_control_detects_violation",
+      "mutation": "a sync subsystem directly constructs httpx.Client",
+      "intended_red": "the live subsystem boundary reports the direct transport",
+      "corpus": {
+        "identity": "src/specify_cli/auth/transport.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_auth_transport_singleton.py::TestAuthTransportSingleton::test_negative_control_detects_violation'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_dossier_sync_boundary.py",
+      "production_path": "src/specify_cli/dossier/emitter_adapter.py",
+      "authority": "src/specify_cli/dossier/emitter_adapter.py::fire_dossier_event",
+      "probe_node": "tests/architectural/test_dossier_sync_boundary.py::TestDossierSyncBoundary::test_import_scanner_has_two_sided_fault_bite",
+      "mutation": "a dossier consumer imports specify_cli.sync",
+      "intended_red": "the exact live import-boundary oracle returns the offending edge",
+      "corpus": {
+        "identity": "src/specify_cli/dossier/emitter_adapter.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_dossier_sync_boundary.py::TestDossierSyncBoundary::test_import_scanner_has_two_sided_fault_bite'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_drg_writer_discovery.py",
+      "production_path": "src/doctrine/drg/migration/extractor.py",
+      "authority": "src/specify_cli/drg_writers/registry.py::registered_writer_qualnames",
+      "probe_node": "tests/architectural/test_drg_writer_discovery.py::test_self_mutation_dict_literal_writer_reds_independently",
+      "mutation": "an unregistered writer hand-builds the five-field DRG document",
+      "intended_red": "the live writer discovery reports the bypass",
+      "corpus": {
+        "identity": "src/doctrine/drg/migration/extractor.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_drg_writer_discovery.py::test_self_mutation_dict_literal_writer_reds_independently'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_egress_consent_boundary.py",
+      "production_path": "src/specify_cli/sync/consent.py",
+      "authority": "docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md",
+      "probe_node": "tests/architectural/test_egress_consent_boundary.py::TestGuardBites::test_unlisted_sender_is_reported_with_its_seam",
+      "mutation": "a new source module introduces an unlisted egress sink",
+      "intended_red": "the egress boundary reports the sender and required seam",
+      "corpus": {
+        "identity": "src/specify_cli/sync/consent.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_egress_consent_boundary.py::TestGuardBites::test_unlisted_sender_is_reported_with_its_seam'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_git_matrix_paths_resolve.py",
+      "production_path": "src/doctrine/skills/spec-kitty-git-workflow/references/git-operations-matrix.md",
+      "authority": "src/doctrine/skills/spec-kitty-git-workflow/references/git-operations-matrix.md",
+      "probe_node": "tests/architectural/test_git_matrix_paths_resolve.py::test_guard_bites_on_planted_phantom_path",
+      "mutation": "the shipped operations matrix names a phantom source file",
+      "intended_red": "the matrix resolver reports the unresolved path",
+      "corpus": {
+        "identity": "src/doctrine/skills/spec-kitty-git-workflow/references/git-operations-matrix.md",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_git_matrix_paths_resolve.py::test_guard_bites_on_planted_phantom_path'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_guard_capability_call_sites.py",
+      "production_path": "src/specify_cli/core/commit_guard.py",
+      "authority": "src/specify_cli/core/commit_guard.py::_PROTECTED_FLOW_CAPABILITIES",
+      "probe_node": "tests/architectural/test_guard_capability_call_sites.py::test_guard_capability_enforcement_has_two_sided_fault_bite",
+      "mutation": "a non-authority source asserts GuardCapability.TEST_MODE",
+      "intended_red": "the exact live allowlist oracle reports src/probe.py",
+      "corpus": {
+        "identity": "src/specify_cli/core/commit_guard.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_guard_capability_call_sites.py::test_guard_capability_enforcement_has_two_sided_fault_bite'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_innerstatechanged_invariants.py",
+      "production_path": "src/specify_cli/status/models.py",
+      "authority": "docs/adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md",
+      "probe_node": "tests/architectural/test_innerstatechanged_invariants.py::test_invariant_is_non_vacuous_naive_transition_fold_would_fail",
+      "mutation": "an annotation is naively folded as a lane transition",
+      "intended_red": "lane or force-count state changes and the invariant rejects it",
+      "corpus": {
+        "identity": "src/specify_cli/status/models.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_innerstatechanged_invariants.py::test_invariant_is_non_vacuous_naive_transition_fold_would_fail'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_integration_boundary.py",
+      "production_path": "src/specify_cli/core",
+      "authority": "docs/adr/3.x/2026-06-05-1-merge-publish-layer-boundary.md",
+      "probe_node": "tests/architectural/test_integration_boundary.py::test_allowlist_cannot_be_bypassed",
+      "mutation": "a core module imports an integration-only package",
+      "intended_red": "the nonempty live import boundary reports the forbidden edge",
+      "corpus": {
+        "identity": "src/specify_cli/core",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_integration_boundary.py::test_allowlist_cannot_be_bypassed'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_layer_rules.py",
+      "production_path": "src/doctrine",
+      "authority": "docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md",
+      "probe_node": "tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_rule_rejects_out_of_ledger_import",
+      "mutation": "a lower architecture layer imports an out-of-ledger upper module",
+      "intended_red": "the layer rule rejects the dependency edge",
+      "corpus": {
+        "identity": "src/doctrine",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_rule_rejects_out_of_ledger_import'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_merge_reconciliation_class_guard.py",
+      "production_path": "src/specify_cli/merge",
+      "authority": "docs/adr/3.x/2026-06-05-1-merge-publish-layer-boundary.md",
+      "probe_node": "tests/architectural/test_merge_reconciliation_class_guard.py",
+      "mutation": "a canonical both-sides-divergent artifact is blindly copied",
+      "intended_red": "the reconciliation/driver completeness guard reports the loss vector",
+      "corpus": {
+        "identity": "src/specify_cli/merge",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_merge_reconciliation_class_guard.py'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_no_authored_applies_edge.py",
+      "production_path": "src/doctrine",
+      "authority": "docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md",
+      "probe_node": "tests/architectural/test_no_authored_applies_edge.py::test_fragment_guard_has_two_sided_fault_bite",
+      "mutation": "a shipped doctrine fragment authors an applies edge",
+      "intended_red": "the exact fragment oracle reports applies while a compliant fragment stays green",
+      "corpus": {
+        "identity": "src/doctrine",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_no_authored_applies_edge.py::test_fragment_guard_has_two_sided_fault_bite'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_no_inert_schema_slots.py",
+      "production_path": "src/doctrine/schemas",
+      "authority": "src/doctrine/schemas",
+      "probe_node": "tests/architectural/test_no_inert_schema_slots.py::test_inert_slot_scanner_has_two_sided_fault_bite",
+      "mutation": "a schema declares a slot with no live producer",
+      "intended_red": "the exact inert-slot oracle reports missing_producer",
+      "corpus": {
+        "identity": "src/doctrine/schemas",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_no_inert_schema_slots.py::test_inert_slot_scanner_has_two_sided_fault_bite'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_no_invalid_windows_filenames.py",
+      "production_path": "src",
+      "authority": "src/specify_cli/core/constants.py",
+      "probe_node": "tests/architectural/test_no_invalid_windows_filenames.py",
+      "mutation": "a repository path contains a Windows-illegal or shell-expansion name",
+      "intended_red": "the platform path guard reports the invalid component",
+      "corpus": {
+        "identity": "src",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_no_invalid_windows_filenames.py'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_no_op_stable_writes.py",
+      "production_path": "src/specify_cli/status/store.py",
+      "authority": "src/specify_cli/status/store.py::append_event",
+      "probe_node": "tests/architectural/test_no_op_stable_writes.py::test_status_json_materialize_is_no_op_stable",
+      "mutation": "the same logical state is materialized twice",
+      "intended_red": "the second write is byte-stable and does not create drift",
+      "corpus": {
+        "identity": "src/specify_cli/status/store.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_no_op_stable_writes.py::test_status_json_materialize_is_no_op_stable'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_no_read_side_bypass.py",
+      "production_path": "src/specify_cli",
+      "authority": "docs/adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md",
+      "probe_node": "tests/architectural/test_no_read_side_bypass.py::test_ratchet_bites_on_a_planted_leaf_primitive_call_outside_sanctioned_modules",
+      "mutation": "a reader calls a placement leaf primitive outside sanctioned authority",
+      "intended_red": "the live whole-tree read oracle reports the bypass",
+      "corpus": {
+        "identity": "src/specify_cli",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_no_read_side_bypass.py::test_ratchet_bites_on_a_planted_leaf_primitive_call_outside_sanctioned_modules'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_no_runtime_pypi_dep.py",
+      "production_path": "pyproject.toml",
+      "authority": "pyproject.toml",
+      "probe_node": "tests/architectural/test_no_runtime_pypi_dep.py::test_cli_next_decision_imports_without_spec_kitty_runtime",
+      "mutation": "the CLI decision path requires the retired runtime PyPI package",
+      "intended_red": "the import probe fails unless the production dependency boundary is clean",
+      "corpus": {
+        "identity": "pyproject.toml",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_no_runtime_pypi_dep.py::test_cli_next_decision_imports_without_spec_kitty_runtime'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_no_shipped_layer_label.py",
+      "production_path": "src/doctrine",
+      "authority": "docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md",
+      "probe_node": "tests/architectural/test_no_shipped_layer_label.py::test_layer_label_walker_detects_forbidden_value",
+      "mutation": "a public doctrine JSON layer position emits the retired shipped label",
+      "intended_red": "the layer-label oracle exposes the forbidden value",
+      "corpus": {
+        "identity": "src/doctrine",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_no_shipped_layer_label.py::test_layer_label_walker_detects_forbidden_value'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_no_tmp_paths_in_tests.py",
+      "production_path": "tests",
+      "authority": "tests/conftest.py",
+      "probe_node": "tests/architectural/test_no_tmp_paths_in_tests.py::test_shared_tmp_scanner_has_two_sided_fault_bite",
+      "mutation": "a test writes through a process-shared temporary root",
+      "intended_red": "the exact live literal oracle reports the shared root",
+      "corpus": {
+        "identity": "tests",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_no_tmp_paths_in_tests.py::test_shared_tmp_scanner_has_two_sided_fault_bite'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_no_write_side_rederivation.py",
+      "production_path": "src/specify_cli",
+      "authority": "docs/adr/3.x/2026-06-24-2-write-branch-resolution-primary-anchor.md",
+      "probe_node": "tests/architectural/test_no_write_side_rederivation.py::test_bite_unallowlisted_rederivation_is_not_absorbed_by_the_allow_list",
+      "mutation": "a writer re-derives a target from checkout state",
+      "intended_red": "the live whole-tree write oracle reports the rederivation",
+      "corpus": {
+        "identity": "src/specify_cli",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_no_write_side_rederivation.py::test_bite_unallowlisted_rederivation_is_not_absorbed_by_the_allow_list'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_read_surface_placement_guard.py",
+      "production_path": "src/mission_runtime/resolution.py",
+      "authority": "docs/adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md",
+      "probe_node": "tests/architectural/test_read_surface_placement_guard.py::test_read_dir_fails_loud_on_deleted_coord_branch",
+      "mutation": "a coord-partition read resolves after its coordination branch was deleted",
+      "intended_red": "the read authority raises CoordinationBranchDeleted",
+      "corpus": {
+        "identity": "src/mission_runtime/resolution.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_read_surface_placement_guard.py::test_read_dir_fails_loud_on_deleted_coord_branch'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_real_home_isolation_guard.py",
+      "production_path": "tests/conftest.py",
+      "authority": "docs/adr/3.x/2026-04-08-1-global-kittify-machine-level-runtime.md",
+      "probe_node": "tests/architectural/test_real_home_isolation_guard.py::test_sentinel_guard_catches_creation_from_absent",
+      "mutation": "a test creates state in the worker's real home",
+      "intended_red": "the session sentinel detects the new real-home artifact",
+      "corpus": {
+        "identity": "tests/conftest.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_real_home_isolation_guard.py::test_sentinel_guard_catches_creation_from_absent'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_safety_registry_completeness.py",
+      "production_path": "src/specify_cli/compat/safety.py",
+      "authority": "src/specify_cli/compat/safety.py::SAFETY_REGISTRY",
+      "probe_node": "tests/architectural/test_safety_registry_completeness.py::test_hypothetical_explode_command_is_unsafe",
+      "mutation": "an unregistered destructive-looking command is classified",
+      "intended_red": "the safety authority defaults it to unsafe",
+      "corpus": {
+        "identity": "src/specify_cli/compat/safety.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_safety_registry_completeness.py::test_hypothetical_explode_command_is_unsafe'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_same_tier_uniqueness.py",
+      "production_path": ".github/workflows/ci-quality.yml",
+      "authority": ".github/workflows/ci-quality.yml",
+      "probe_node": "tests/architectural/test_same_tier_uniqueness.py::test_same_tier_relation_bites_on_synthetic_double_run",
+      "mutation": "one test is selected by two same-tier shards",
+      "intended_red": "the route relation reports the duplicate execution",
+      "corpus": {
+        "identity": ".github/workflows/ci-quality.yml",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_same_tier_uniqueness.py::test_same_tier_relation_bites_on_synthetic_double_run'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_serial_port_preservation.py",
+      "production_path": ".github/workflows/ci-quality.yml",
+      "authority": ".github/workflows/ci-quality.yml",
+      "probe_node": "tests/architectural/test_serial_port_preservation.py::test_relation_bites_on_daemon_in_parallel_pool",
+      "mutation": "a fixed-port daemon test enters the parallel pool",
+      "intended_red": "the CI relation reports the unsafe parallel placement",
+      "corpus": {
+        "identity": ".github/workflows/ci-quality.yml",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_serial_port_preservation.py::test_relation_bites_on_daemon_in_parallel_pool'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_tid251_enforcement.py",
+      "production_path": "pyproject.toml",
+      "authority": "docs/adr/3.x/2026-05-28-1-ci-dependency-resolution-and-test-surface-consistency.md",
+      "probe_node": "tests/architectural/test_tid251_enforcement.py::test_raw_sha256_in_formerly_exempt_dir_is_flagged",
+      "mutation": "a formerly exempt test adds an unannotated hashlib.sha256 call",
+      "intended_red": "the enforced TID251 probe exits nonzero",
+      "corpus": {
+        "identity": "pyproject.toml",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_tid251_enforcement.py::test_raw_sha256_in_formerly_exempt_dir_is_flagged'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_trio_seam_only.py",
+      "production_path": "src/specify_cli",
+      "authority": "docs/adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md",
+      "probe_node": "tests/architectural/test_trio_seam_only.py::test_planted_raw_kitty_specs_dir_import_is_caught",
+      "mutation": "a trio module imports raw KITTY_SPECS_DIR or a pure core performs I/O",
+      "intended_red": "the corresponding live import/I-O oracle reports the boundary violation",
+      "corpus": {
+        "identity": "src/specify_cli",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_trio_seam_only.py::test_planted_raw_kitty_specs_dir_import_is_caught'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_unfiltered_journal_read_boundary.py",
+      "production_path": "src/specify_cli/event_journal/journal.py",
+      "authority": "docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md",
+      "probe_node": "tests/architectural/test_unfiltered_journal_read_boundary.py::TestGuardBites::test_the_incident_shape_is_reported_with_its_replacement",
+      "mutation": "a new consumer reaches the project-unfiltered journal read",
+      "intended_red": "the live boundary reports the consumer and filtered replacement",
+      "corpus": {
+        "identity": "src/specify_cli/event_journal/journal.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_unfiltered_journal_read_boundary.py::TestGuardBites::test_the_incident_shape_is_reported_with_its_replacement'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_unregistered_shim_scanner.py",
+      "production_path": "src/specify_cli",
+      "authority": "docs/adr/3.x/2026-04-08-5-shim-generation-supersedes-script-dispatch.md",
+      "probe_node": "tests/architectural/test_unregistered_shim_scanner.py::TestShimScanner::test_scanner_detects_simple_assignment",
+      "mutation": "a production module declares a deprecated shim outside the registry",
+      "intended_red": "the live shim oracle reports the assignment",
+      "corpus": {
+        "identity": "src/specify_cli",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_unregistered_shim_scanner.py::TestShimScanner::test_scanner_detects_simple_assignment'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_untrusted_path_containment.py",
+      "production_path": "src/specify_cli",
+      "authority": "src/specify_cli/core/paths.py",
+      "probe_node": "tests/architectural/test_untrusted_path_containment.py::test_theater_undocumented_sink_goes_red",
+      "mutation": "an untrusted path reaches an undocumented filesystem sink",
+      "intended_red": "the containment audit reports the undispositioned sink",
+      "corpus": {
+        "identity": "src/specify_cli",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_untrusted_path_containment.py::test_theater_undocumented_sink_goes_red'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    },
+    {
+      "path": "tests/architectural/test_write_surface_placement_guard.py",
+      "production_path": "src/mission_runtime/resolution.py",
+      "authority": "docs/adr/3.x/2026-06-24-2-write-branch-resolution-primary-anchor.md",
+      "probe_node": "tests/architectural/test_write_surface_placement_guard.py::test_anti_mutant_pre_fix_partition_makes_planning_ref_go_red",
+      "mutation": "an artifact kind is routed through the pre-fix partition",
+      "intended_red": "the exact write placement oracle resolves the wrong ref and turns red",
+      "corpus": {
+        "identity": "src/mission_runtime/resolution.py",
+        "nonzero_count": 1
+      },
+      "prep": "Collect the live path and execute its compliant control plus the selected prohibited input through the retained oracle.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_write_surface_placement_guard.py::test_anti_mutant_pre_fix_partition_makes_planning_ref_go_red'",
+      "restore": "pytest tmp_path/monkeypatch isolation restores controlled inputs; no production source mutation is retained.",
+      "restored_green": true
+    }
+  ],
+  "deletions": [
+    {
+      "path": "tests/architectural/test_all_declarations_required.py",
+      "survivor": null,
+      "proof": "No current authority requires blanket __all__ declaration shape; behavioral imports remain in the survivor cohort.",
+      "command": null
+    },
+    {
+      "path": "tests/architectural/test_batch_split_single_authority.py",
+      "survivor": "tests/sync/test_sync_action_gate.py",
+      "proof": "Live sync behavior, not the private len/half AST spelling, owns correct action gating.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/sync/test_sync_action_gate.py'"
+    },
+    {
+      "path": "tests/architectural/test_compat_shims.py",
+      "survivor": null,
+      "proof": "The adapter inventory was empty; there is no live compatibility behavior to preserve.",
+      "command": null
+    },
+    {
+      "path": "tests/architectural/test_no_prompt_filtering_added.py",
+      "survivor": null,
+      "proof": "No current product authority prescribes the private prompt-filter call name.",
+      "command": null
+    },
+    {
+      "path": "tests/architectural/test_patch_seam_census_control.py",
+      "survivor": null,
+      "proof": "Hand-counted test-meta census has no product oracle or live consumer.",
+      "command": null
+    },
+    {
+      "path": "tests/architectural/test_shared_module_object_patches.py",
+      "survivor": null,
+      "proof": "Frozen test-meta baseline/count/prose assertions have no product oracle.",
+      "command": null
+    },
+    {
+      "path": "tests/architectural/test_wp_owned_files_no_kitty_specs.py",
+      "survivor": null,
+      "proof": "The check pins a completed historical mission, not a current governance consumer.",
+      "command": null
+    },
+    {
+      "path": "tests/architectural/test_wp_prompt_build_latency.py",
+      "survivor": null,
+      "proof": "No controlled benchmark environment or current latency budget authority exists.",
+      "command": null
+    },
+    {
+      "path": "tests/integration/test_cross_seam_consumers.py",
+      "family": "status-transition identity fail-closed",
+      "members": ["test_status_transition_coord_bare_slug_fails_closed"],
+      "production_paths": ["src/specify_cli/coordination/status_transition.py::_identity_for_request"],
+      "authority": "docs/context/identity.md",
+      "corpus": {"identity": "_identity_for_request coordination topology", "nonzero_count": 1},
+      "oracle": "unresolved coordination identity refuses before status write",
+      "fault": "coordination topology has neither mission_id nor resolvable mid8",
+      "survivor_nodes": [
+        "tests/runtime/test_runtime_identity_resolution.py::test_resolve_coordination_branch_malformed_modern_mission_fails_closed",
+        "tests/specify_cli/coordination/test_status_transition_adoption.py::test_read_write_resolution_equivalence_across_topologies[coord]"
+      ],
+      "result": "passed in final-cycle 41-node execution"
+    },
+    {
+      "path": "tests/integration/test_cross_seam_consumers.py",
+      "family": "implement identity fail-closed",
+      "members": ["test_implement_resolver_coord_bare_slug_fails_closed"],
+      "production_paths": ["src/specify_cli/cli/commands/implement.py::_resolve_bookkeeping_transaction_identifiers"],
+      "authority": "docs/context/identity.md",
+      "corpus": {"identity": "modern coord bookkeeping without identity", "nonzero_count": 1},
+      "oracle": "unresolved modern bookkeeping identity is never fabricated",
+      "fault": "missing mission_id and mid8",
+      "survivor_nodes": [
+        "tests/runtime/test_runtime_identity_resolution.py::test_resolve_coordination_branch_malformed_modern_mission_fails_closed",
+        "tests/specify_cli/cli/commands/test_implement_bookkeeping_identifiers.py::test_mid8_is_none_when_no_meta_mid8_and_no_mission_id"
+      ],
+      "result": "passed in final-cycle 41-node execution"
+    },
+    {
+      "path": "tests/integration/test_cross_seam_consumers.py",
+      "family": "implement mission-id derivation",
+      "members": ["test_backfilled_legacy_mission_resolves_from_mission_id"],
+      "production_paths": ["src/specify_cli/cli/commands/implement.py::_resolve_bookkeeping_transaction_identifiers"],
+      "authority": "docs/context/identity.md",
+      "corpus": {"identity": "mission_id without explicit mid8", "nonzero_count": 1},
+      "oracle": "mission_id derives effective mid8",
+      "fault": "mission_id derivation is dropped or reordered",
+      "survivor_nodes": ["tests/specify_cli/cli/commands/test_implement_bookkeeping_identifiers.py::test_mid8_falls_back_to_resolve_mid8_when_meta_mid8_absent"],
+      "result": "passed in final-cycle 41-node execution"
+    },
+    {
+      "path": "tests/integration/test_cross_seam_consumers.py",
+      "family": "implement bare-surface fallback",
+      "members": [
+        "test_meta_less_modern_slug_degrades_without_fabrication",
+        "test_unbackfilled_legacy_slug_resolves_to_bare_surface"
+      ],
+      "production_paths": ["src/specify_cli/cli/commands/implement.py::_resolve_bookkeeping_transaction_identifiers"],
+      "authority": "docs/context/identity.md",
+      "corpus": {"identity": "identity-less non-coordination input", "nonzero_count": 2},
+      "oracle": "empty-mid8 bare-surface fallback remains non-fabricating",
+      "fault": "identity-less input fabricates an id or mid8",
+      "survivor_nodes": [
+        "tests/specify_cli/cli/commands/test_implement_bookkeeping_identifiers.py::test_legacy_slug_fallback_when_mission_id_absent",
+        "tests/specify_cli/cli/commands/test_implement_bookkeeping_identifiers.py::test_legacy_slug_fallback_when_no_meta_at_all",
+        "tests/specify_cli/cli/commands/test_implement_bookkeeping_identifiers.py::test_mid8_is_none_when_no_meta_mid8_and_no_mission_id"
+      ],
+      "result": "passed in final-cycle 41-node execution"
+    },
+    {
+      "path": "tests/integration/test_cross_seam_consumers.py",
+      "family": "implement slug-tail mid8",
+      "members": ["test_mid8_slug_tail_resolves_without_fabrication"],
+      "production_paths": ["src/specify_cli/cli/commands/implement.py::_resolve_bookkeeping_transaction_identifiers"],
+      "authority": "docs/context/identity.md",
+      "corpus": {"identity": "valid embedded mid8 tail", "nonzero_count": 1},
+      "oracle": "canonical transaction-mid8 cascade recognizes the valid tail",
+      "fault": "valid embedded tail is ignored or changed",
+      "survivor_nodes": ["tests/specify_cli/lanes/test_branch_naming_ssot_entrypoint.py::test_resolve_transaction_mid8_cascade_preserved"],
+      "result": "passed in final-cycle supplemental execution"
+    },
+    {
+      "path": "tests/integration/test_cross_seam_consumers.py",
+      "family": "status aggregate fabrication substring",
+      "members": ["test_no_fabrication_idiom_in_owned_files[specify_cli/status/aggregate.py]"],
+      "production_paths": ["src/specify_cli/status/aggregate.py"],
+      "authority": "tests/architectural/test_no_write_side_rederivation.py",
+      "corpus": {"identity": "whole-tree write rederivation scan", "nonzero_count": 1},
+      "oracle": "canonical write-side identity has no inline rederivation",
+      "fault": "checkout-derived or fabricated write identity",
+      "survivor_nodes": ["tests/architectural/test_no_write_side_rederivation.py::test_adopted_modules_have_no_write_side_rederivation"],
+      "result": "passed in final-cycle 41-node execution"
+    },
+    {
+      "path": "tests/integration/test_cross_seam_consumers.py",
+      "family": "status transition fabrication substring",
+      "members": ["test_no_fabrication_idiom_in_owned_files[specify_cli/coordination/status_transition.py]"],
+      "production_paths": ["src/specify_cli/coordination/status_transition.py"],
+      "authority": "tests/architectural/test_no_write_side_rederivation.py",
+      "corpus": {"identity": "whole-tree write rederivation scan", "nonzero_count": 1},
+      "oracle": "canonical write-side identity has no inline rederivation",
+      "fault": "checkout-derived or fabricated write identity",
+      "survivor_nodes": ["tests/architectural/test_no_write_side_rederivation.py::test_adopted_modules_have_no_write_side_rederivation"],
+      "result": "passed in final-cycle 41-node execution"
+    },
+    {
+      "path": "tests/integration/test_cross_seam_consumers.py",
+      "family": "implement fabrication substring",
+      "members": ["test_no_fabrication_idiom_in_owned_files[specify_cli/cli/commands/implement.py]"],
+      "production_paths": ["src/specify_cli/cli/commands/implement.py"],
+      "authority": "tests/architectural/test_no_write_side_rederivation.py",
+      "corpus": {"identity": "whole-tree write rederivation scan", "nonzero_count": 1},
+      "oracle": "canonical write-side identity has no inline rederivation",
+      "fault": "checkout-derived or fabricated write identity",
+      "survivor_nodes": ["tests/architectural/test_no_write_side_rederivation.py::test_adopted_modules_have_no_write_side_rederivation"],
+      "result": "passed in final-cycle 41-node execution"
+    },
+    {
+      "path": "tests/integration/test_cross_seam_consumers.py",
+      "family": "aggregate topology private shape",
+      "members": ["test_aggregate_topology_predicate_uses_registry_authority"],
+      "production_paths": ["src/specify_cli/status/aggregate.py::_is_coord_dir"],
+      "authority": "tests/unit/status/test_mission_status_aggregate.py",
+      "corpus": {"identity": "registered coordination mission", "nonzero_count": 1},
+      "oracle": "registered coordination topology is classified behaviorally",
+      "fault": "registered coordination mission is classified flat",
+      "survivor_nodes": ["tests/unit/status/test_mission_status_aggregate.py::TestLoadCoordMission::test_topology_is_coordination_when_coord_worktree_exists"],
+      "no_authority_evidence": "rg over docs/context and docs/adr/3.x found no contract naming private _is_coord_dir or mandating its exact callee",
+      "result": "passed in final-cycle 41-node execution"
+    },
+    {
+      "path": "tests/integration/test_cross_seam_consumers.py",
+      "family": "aggregate branch private shape",
+      "members": ["test_aggregate_branch_compose_uses_naming_authority"],
+      "production_paths": ["src/specify_cli/status/aggregate.py"],
+      "authority": "tests/unit/status/test_mission_status_aggregate.py",
+      "corpus": {"identity": "coord branch transition with absent worktree", "nonzero_count": 1},
+      "oracle": "transition validates against authoritative coordination branch",
+      "fault": "aggregate chooses a non-authoritative destination ref",
+      "survivor_nodes": ["tests/unit/status/test_mission_status_aggregate.py::TestTransitionHappyPath::test_transition_validates_against_coord_branch_when_worktree_absent"],
+      "no_authority_evidence": "rg over docs/context and docs/adr/3.x found no contract requiring a mission_branch_name_required token in aggregate.py",
+      "result": "passed in final-cycle 41-node execution"
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py",
+      "family": "artifact kind classifier matrix",
+      "members": ["TestKindForMissionFile::*"],
+      "production_paths": ["src/mission_runtime/artifacts.py::kind_for_mission_file"],
+      "authority": "src/mission_runtime/artifacts.py",
+      "corpus": {"identity": "MissionArtifactKind partition", "nonzero_count": 1},
+      "oracle": "artifact homes remain exhaustive, disjoint, and correctly partitioned",
+      "fault": "SPEC or STATUS_STATE moves homes or partition sets overlap",
+      "survivor_nodes": [
+        "tests/mission_runtime/test_artifact_partition.py::test_artifact_home_for_spec_is_primary",
+        "tests/mission_runtime/test_artifact_partition.py::test_artifact_home_for_status_state_stays_placement",
+        "tests/mission_runtime/test_artifact_partition_mapping.py::test_partition_invariant_stays_exhaustive_and_disjoint"
+      ],
+      "result": "passed in final-cycle 41-node execution"
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py",
+      "family": "safe-commit kind threading",
+      "members": ["TestSafeCommitMissionAwareTargetIsKindAware::*"],
+      "production_paths": ["src/specify_cli/cli/commands/safe_commit_cmd.py"],
+      "authority": "docs/adr/3.x/2026-07-30-1-post-merge-write-routing.md",
+      "corpus": {"identity": "PRIMARY-kind retrospective after publish", "nonzero_count": 1},
+      "oracle": "public safe-commit durably commits and reads back the routed artifact",
+      "fault": "kind-aware placement is dropped",
+      "survivor_nodes": ["tests/specify_cli/cli/commands/test_safe_commit_cmd.py::test_public_safe_commit_succeeds_after_merged_branch_deleted_3033"],
+      "result": "passed in final-cycle 41-node execution"
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py",
+      "family": "protected refusal behavior",
+      "members": ["TestFR008MessagesNameFeatureBranch::*"],
+      "production_paths": ["src/specify_cli/core/commit_guard.py"],
+      "authority": "src/specify_cli/core/commit_guard.py",
+      "corpus": {"identity": "router/direct protected primary paths", "nonzero_count": 2},
+      "oracle": "both paths refuse an ordinary protected-ref write",
+      "fault": "router or direct safe-commit permits protected write",
+      "survivor_nodes": [
+        "tests/missions/test_write_surface_coherence.py::test_fr008_router_returns_no_op_wrong_surface",
+        "tests/missions/test_write_surface_coherence.py::test_fr008_safe_commit_raises_protected_branch_refused"
+      ],
+      "no_authority_evidence": "current authority requires refusal but not the retired feature-branch remedy sentence",
+      "result": "passed in final-cycle 41-node execution"
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py",
+      "family": "tasks direct safe-commit source shape",
+      "members": ["TestTasksTailsRouteThroughCommitForMission::*"],
+      "production_paths": ["src/specify_cli/cli/commands/agent/tasks.py"],
+      "authority": "tests/specify_cli/cli/commands/agent/test_tasks_core_backed_orchestration.py",
+      "corpus": {"identity": "map-requirements auto-commit", "nonzero_count": 1},
+      "oracle": "authored mapping commits through artifact capability",
+      "fault": "mapping bypasses routed artifact capability",
+      "survivor_nodes": ["tests/specify_cli/cli/commands/agent/test_tasks_core_backed_orchestration.py::test_map_requirements_auto_commit_routes_via_commit_artifact"],
+      "no_authority_evidence": "no current authority mandates a specific imported symbol or AST call spelling",
+      "result": "passed in final-cycle 41-node execution"
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py",
+      "family": "tasks protected-message byte pins",
+      "members": [
+        "TestTasksTailsProtectedPrimaryByteIdentical::test_map_requirements_protected_primary_message_byte_identical",
+        "TestTasksTailsProtectedPrimaryByteIdentical::test_move_task_protected_primary_message_byte_identical"
+      ],
+      "production_paths": ["src/specify_cli/cli/commands/agent/tasks.py"],
+      "authority": "src/specify_cli/core/commit_guard.py",
+      "corpus": {"identity": "protected-primary task mutation", "nonzero_count": 2},
+      "oracle": "task mutation refuses on protected primary",
+      "fault": "task mutation lands on main",
+      "survivor_nodes": ["tests/architectural/test_execution_context_parity.py::test_full_sequence_direct_to_target"],
+      "no_authority_evidence": "rg over docs/context and docs/adr/3.x found no byte-identical task refusal message contract",
+      "result": "current successor is an existing independently green gate; not repeated in the bounded 41-node execution"
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py",
+      "family": "mark-status event-only",
+      "members": ["TestTasksTailsProtectedPrimaryByteIdentical::test_mark_status_event_only_bypasses_artifact_protection"],
+      "production_paths": ["src/specify_cli/cli/commands/agent/tasks.py"],
+      "authority": "tests/git/test_guard_capability_regression.py",
+      "corpus": {"identity": "event-only mark-status on protected target", "nonzero_count": 1},
+      "oracle": "command lands no protected-ref commit",
+      "fault": "event-only completion creates authored commit",
+      "survivor_nodes": ["tests/git/test_guard_capability_regression.py::test_mark_status_test_mode_env_lands_no_commit_on_protected_target"],
+      "result": "passed in final-cycle 41-node execution"
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py",
+      "family": "self-review fallback validation",
+      "members": ["TestTasksTailsProtectedPrimaryByteIdentical::test_move_task_self_review_guard_precedes_protected_branch"],
+      "production_paths": ["src/specify_cli/cli/commands/agent/tasks.py"],
+      "authority": "tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py",
+      "corpus": {"identity": "target-lane/fallback cross product", "nonzero_count": 1},
+      "oracle": "fallback is accepted only on approval/done transitions",
+      "fault": "invalid target lane accepts self-review fallback",
+      "survivor_nodes": ["tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py::test_self_review_fallback_guard_full_matrix"],
+      "result": "passed in final-cycle 41-node execution"
+    },
+    {
+      "path": "tests/specify_cli/test_egress_consolidation_3110.py",
+      "family": "denied rendering and transport fragments",
+      "members": [
+        "test_nfr004_denied_branch_names_the_operator_action",
+        "test_sc004_clause1_the_non_fragment_portion_is_byte_identical",
+        "test_sc004_clause2_fragment_names_its_own_set_and_no_foreign_kind"
+      ],
+      "production_paths": ["src/specify_cli/egress.py::_render_denied_refusal"],
+      "authority": "docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md",
+      "corpus": {"identity": "SaaS + tracker denied transports", "nonzero_count": 2},
+      "oracle": "both denied transports send nothing and render own accurate actionable fragment",
+      "fault": "denied identifier leaks or wrong fragment/remedy is rendered",
+      "survivor_nodes": [
+        "tests/specify_cli/saas_client/test_client_consent_gate_3030.py::test_sc016_denied_wording_is_pinned_for_this_transport",
+        "tests/sync/tracker/test_saas_client_consent_gate_3030.py::test_sc016_denied_wording_is_pinned_for_this_transport"
+      ],
+      "result": "passed in final-cycle 41-node execution"
+    },
+    {
+      "path": "tests/specify_cli/test_egress_consolidation_3110.py",
+      "family": "import-failure diagnostic",
+      "members": ["test_nfr004_import_failure_branch_carries_the_exception_text"],
+      "production_paths": ["src/specify_cli/egress.py::project_egress_refusal"],
+      "authority": "docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md",
+      "corpus": {"identity": "consent resolver import failure", "nonzero_count": 1},
+      "oracle": "inability to resolve consent refuses",
+      "fault": "hosted-sync consent resolver cannot be imported",
+      "survivor_nodes": [
+        "tests/specify_cli/saas_client/test_client_consent_gate_3030.py::test_no_attribution_is_a_refusal_at_the_gate_itself",
+        "tests/sync/tracker/test_saas_client_consent_gate_3030.py::test_no_attribution_is_a_refusal_at_the_gate_itself"
+      ],
+      "no_authority_evidence": "ADR requires default deny but not raw ImportError echoing",
+      "result": "passed in final-cycle 41-node execution"
+    },
+    {
+      "path": "tests/specify_cli/test_egress_consolidation_3110.py",
+      "family": "NO_RESOLVER diagnostic",
+      "members": ["test_nfr004_no_resolver_branch_names_the_resolver"],
+      "production_paths": ["src/specify_cli/egress.py::_refusal_for_verdict"],
+      "authority": "docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md",
+      "corpus": {"identity": "no registered consent resolver", "nonzero_count": 1},
+      "oracle": "NO_RESOLVER remains non-permitting",
+      "fault": "unregistered consent seam permits egress",
+      "survivor_nodes": ["tests/invocation/test_adapters.py::test_resolve_egress_consent_refuses_when_unregistered"],
+      "no_authority_evidence": "no current authority requires the exact diagnostic word resolver",
+      "result": "passed in final-cycle 41-node execution"
+    },
+    {
+      "path": "tests/specify_cli/test_egress_consolidation_3110.py",
+      "family": "UNANSWERABLE versus undetermined prose",
+      "members": ["test_nfr004_undetermined_and_unanswerable_stay_distinguishable"],
+      "production_paths": ["src/specify_cli/egress.py::_refusal_for_verdict"],
+      "authority": "docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md",
+      "corpus": {"identity": "resolver none/exception plus missing project attribution", "nonzero_count": 2},
+      "oracle": "both states remain non-permitting",
+      "fault": "unanswerable or unattributed state permits egress",
+      "survivor_nodes": [
+        "tests/invocation/test_adapters.py::test_resolve_egress_consent_refuses_a_none_answer",
+        "tests/invocation/test_adapters.py::test_resolve_egress_consent_refuses_on_resolver_exception",
+        "tests/specify_cli/saas_client/test_client_consent_gate_3030.py::test_no_attribution_is_a_refusal_at_the_gate_itself"
+      ],
+      "no_authority_evidence": "current authority requires fail-closed polarity but not two exact distinct sentences",
+      "result": "passed in final-cycle 41-node execution"
+    },
+    {
+      "path": "tests/specify_cli/test_egress_consolidation_3110.py",
+      "family": "hypothetical future-verdict remedy",
+      "members": ["test_nfr004_unrecognised_future_verdict_does_not_reuse_denied_remedy"],
+      "production_paths": ["src/specify_cli/egress.py::_refusal_for_verdict"],
+      "authority": null,
+      "corpus": {"identity": "synthetic value=quarantined object", "nonzero_count": 1},
+      "oracle": null,
+      "fault": "hypothetical object uses a remedy sentence",
+      "survivor_nodes": [],
+      "no_authority_evidence": "rg found no current enum member, production caller, ADR, or context contract for quarantined/future-verdict prose",
+      "result": "no-authority disposition"
+    },
+    {
+      "path": "tests/specify_cli/test_egress_consolidation_3110.py",
+      "family": "cross-module object identity",
+      "members": [
+        "test_sc004_clause3_both_deciding_modules_bind_the_one_definition_site",
+        "test_sc004_clause3_names_are_reachable_and_the_comparison_is_not_self_identity"
+      ],
+      "production_paths": ["src/specify_cli/egress.py::project_egress_refusal"],
+      "authority": null,
+      "corpus": {"identity": "completed #3110 module layout", "nonzero_count": 1},
+      "oracle": null,
+      "fault": "equivalent wrapper/import style changes Python object identity",
+      "survivor_nodes": [],
+      "no_authority_evidence": "docs/context + docs/adr/3.x search found no object-identity or exact definition-site contract; live transport behavior is independently executed",
+      "result": "no-authority disposition"
+    },
+    {
+      "path": "tests/specify_cli/test_egress_consolidation_3110.py",
+      "family": "string definition-site census",
+      "members": ["test_sc015_template_and_verdict_branches_have_exactly_one_definition_site"],
+      "production_paths": ["src/specify_cli/egress.py"],
+      "authority": null,
+      "corpus": {"identity": "src string constants", "nonzero_count": 1},
+      "oracle": null,
+      "fault": "equivalent presentation is relocated or factored",
+      "survivor_nodes": [],
+      "no_authority_evidence": "no current ADR/context authority requires exact string-constant cardinality or file location",
+      "result": "no-authority disposition"
+    },
+    {
+      "path": "tests/specify_cli/test_egress_consolidation_3110.py",
+      "family": "integration-prefix self-presence",
+      "members": ["test_sc025_the_shared_module_is_classified_as_integration"],
+      "production_paths": ["tests/architectural/test_integration_boundary.py::INTEGRATION_PREFIXES"],
+      "authority": null,
+      "corpus": {"identity": "test-owned prefix list", "nonzero_count": 1},
+      "oracle": null,
+      "fault": "another test's positive list member changes",
+      "survivor_nodes": [],
+      "no_authority_evidence": "only the test's own #3110 comment mandates exact membership; current ADR governs refusal behavior rather than layer-list syntax",
+      "result": "no-authority disposition"
+    },
+    {
+      "path": "tests/specify_cli/test_egress_consolidation_3110.py",
+      "family": "relocated rationale prose",
+      "members": ["test_fr012_rationale_and_tracker_precondition_live_in_the_consolidated_module"],
+      "production_paths": ["src/specify_cli/egress.py::__doc__"],
+      "authority": null,
+      "corpus": {"identity": "egress module docstring", "nonzero_count": 1},
+      "oracle": null,
+      "fault": "historical requirement tokens or explanatory sentences are edited",
+      "survivor_nodes": [],
+      "no_authority_evidence": "no executable caller consumes these docstring tokens; ADR is the durable rationale authority",
+      "result": "no-authority disposition"
+    },
+    {
+      "path": "tests/specify_cli/test_meta_reader_sweep.py",
+      "survivor": "tests/specify_cli/test_meta_fail_closed_full_census_contract.py",
+      "proof": "The full live reader census strictly supersedes the touched-module migration sweep.",
+      "command": ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/test_meta_fail_closed_full_census_contract.py'"
+    }
+  ]
+}

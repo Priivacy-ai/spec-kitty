@@ -10,7 +10,7 @@ import pytest
 
 from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 _DOCTRINE_ROOT = DOCTRINE_SOURCE_ROOT
 _PACKS_BUILT_IN = _DOCTRINE_ROOT.parents[1] / "packs" / "built-in"
