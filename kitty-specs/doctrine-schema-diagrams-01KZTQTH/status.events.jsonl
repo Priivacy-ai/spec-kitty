@@ -30,3 +30,5 @@
 {"actor": "user", "at": "2026-08-12T19:19:44.995541+00:00", "delta": {"subtasks": {"T023": "done", "T024": "done", "T025": "done"}}, "event_id": "01KZVPN533ART1KQPSDE38R9EE", "kind": "annotation", "wp_id": "WP07"}
 {"actor": "user", "at": "2026-08-12T19:19:45.010520+00:00", "delta": {"subtasks": {"T026": "done", "T027": "done", "T028": "done", "T029": "done", "T030": "done"}}, "event_id": "01KZVPN53JZVV98PCN9BNYNGAG", "kind": "annotation", "wp_id": "WP08"}
 {"actor": "user", "at": "2026-08-12T19:19:45.022770+00:00", "delta": {"subtasks": {"T031": "done", "T032": "done", "T033": "done", "T034": "done"}}, "event_id": "01KZVPN53Y53GGE2SGQND8A2P5", "kind": "annotation", "wp_id": "WP09"}
+{"actor": "migration:backfill_runtime_state", "at": "2026-08-12T16:49:41.358857+00:00", "delta": {"tracker_refs": ["#3366"]}, "event_id": "28JWGWEE5E19S25BNHVW6QPJ38", "kind": "annotation", "wp_id": "WP01"}
+{"actor": "migration:backfill_runtime_state", "at": "2026-08-12T16:49:42.343792+00:00", "delta": {"tracker_refs": ["#3366"]}, "event_id": "3DXXPVYMKNYC2583XFPCXF1YNX", "kind": "annotation", "wp_id": "WP02"}
