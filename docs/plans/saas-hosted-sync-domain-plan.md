@@ -157,8 +157,7 @@ state is scoped to the grant (never silently written machine-global or outliving
 grant). No non-consenting project's events leave the machine.
 
 **Design of record.** Epic #1091 identity-boundary MVP work and the cross-repo sync
-identity boundary epic it references; the consent/identity issues clustered under
-#1800.
+identity boundary epic it references; the consent/identity issues clustered under #1800.
 
 **Open issues.**
 
