@@ -1,18 +1,15 @@
 ---
 title: 'Doctrine & Charter — Domain Plan'
 description: 'Durable, version-spanning plan for the doctrine/charter surface: charter lifecycle, sole-door access, extensibility, activation, fail-closed reads, public API, and glossary.'
-doc_status: active
-updated: '2026-08-11'
+doc_status: durable
+updated: '2026-08-12'
 related:
 - docs/plans/index.md
 - docs/plans/3-2-x-open-core-delivery-plan.md
 - docs/plans/glossary-doctrine-overhaul-program.md
 - docs/plans/doctrine/charter-sole-door-deferred-issues.md
 - docs/plans/doctrine/index.md
-- docs/plans/doctrine/charter-activation-reachability-assessment.md
-- docs/plans/doctrine/runtime-charter-doctrine-boundary.md
-- docs/plans/doctrine/next-slice-wheel-mission-types-public-api-research.md
-- docs/plans/saas-hosted-sync-domain-plan.md
+- docs/plans/domains/saas-hosted-sync-domain-plan.md
 - docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
 - docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md
 ---
@@ -104,18 +101,18 @@ cross-references the release-scoped docs rather than duplicating their tables.
 There has been **no standalone doctrine/charter throughline** before this document.
 The planning was distributed across four surfaces, none of which is the domain's index:
 
-1. **[3.2.x Open-Core Delivery Plan](3-2-x-open-core-delivery-plan.md)** — the closest
+1. **[3.2.x Open-Core Delivery Plan](../3-2-x-open-core-delivery-plan.md)** — the closest
    thing to a doctrine/charter strategy, but framed as a *release-window* delivery plan,
    not a durable domain map. Its organizing principle is the "last permitted
    breaking-change window" for the doctrine/charter seam: charter-as-sole-door (its §1.1
    / §2.2 done-bar), the built-in → module extraction (§2.2 item 3), and the
    Creed/Values schema build (§3 item 4). It carries the *what-ships-in-3.2.x* framing;
    it does not hold the domain's standing invariants across versions.
-2. **[Glossary Doctrine Overhaul — Program Plan](glossary-doctrine-overhaul-program.md)**
+2. **[Glossary Doctrine Overhaul — Program Plan](../glossary-doctrine-overhaul-program.md)**
    — a four-mission program promoting the glossary to a first-order `GLOSSARY_PACK`
    doctrine kind and building the executable ASSET-kind gate. A program plan scoped to
    one sub-area, not the domain.
-3. **[`docs/plans/doctrine/`](doctrine/index.md)** — the design/review corpus: the
+3. **[`docs/plans/doctrine/`](../doctrine/index.md)** — the design/review corpus: the
    charter-activation-vs-reachability assessment, the `runtime → charter → doctrine`
    boundary audit, the charter-as-central-path-resolver gap analysis, the layered
    resolution design, the doctrine-inclusion assessment, the FoundationalValues/Creed
@@ -156,13 +153,15 @@ activation seam.
 **Design of record.** Epic **#2519** (charter authoring & lifecycle hardening — the
 disjoint-ledgers root defect, deterministic intake, `charter author` scaffold, charter
 domain events); the sole-door done-bar in the
-[Open-Core Delivery Plan §1.1/§2.2](3-2-x-open-core-delivery-plan.md); ADR
-[2026-05-16-1 doctrine-layer merge semantics](../adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md)
-(plan/commit activation seam, cascade over DRG edges); and the two load-bearing design
-notes — [charter-activation-reachability-assessment](doctrine/charter-activation-reachability-assessment.md)
+[Open-Core Delivery Plan §1.1/§2.2](../3-2-x-open-core-delivery-plan.md); ADR
+[2026-05-16-1 doctrine-layer merge semantics](../../adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md)
+(plan/commit activation seam, cascade over DRG edges). The reasoning trail lives in two
+now-archived design notes (both `doc_status: deprecated`, cited here as historical
+provenance) — [charter-activation-reachability-assessment](../doctrine/charter-activation-reachability-assessment.md)
 (the V1/V2/V3 activation-vocabulary split; 185 activated artefacts, zero surfaced at the
-action boundary) and [runtime-charter-doctrine-boundary](doctrine/runtime-charter-doctrine-boundary.md)
-(the `runtime → charter → doctrine` layering ratchet).
+action boundary) and [runtime-charter-doctrine-boundary](../doctrine/runtime-charter-doctrine-boundary.md)
+(the `runtime → charter → doctrine` layering ratchet); their findings are distilled into
+this plan's invariants and §4 gaps.
 
 **Open issues.**
 
@@ -180,7 +179,7 @@ action boundary) and [runtime-charter-doctrine-boundary](doctrine/runtime-charte
   that is the one activation vector that *does* surface artefacts today.
 
 > **Standing sub-thread — activation reachability (unspecced, durable).** The
-> [reachability assessment](doctrine/charter-activation-reachability-assessment.md)'s R1
+> [reachability assessment](../doctrine/charter-activation-reachability-assessment.md)'s (now archived) R1
 > ("make activation an entry vector into action context") and R2 ("collapse the three
 > activation vocabularies to one") are the difference between a doctrine layer that is
 > *declared* and one that is *in force*. They are blast-radius-bearing (they change what
@@ -205,9 +204,9 @@ pack validator; verified-distribution #2539 deferred to 3.3.x); epic **#2216**
 (governance tiers — the owner-declared `component-type` immutability model folding in
 the consumer-declared `replaceable-builtins.yaml` #2082) under parent epic **#1799**
 (charter/doctrine governance configuration & docs); the pack/DRG merge semantics in ADR
-[2026-05-16-1](../adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md)
+[2026-05-16-1](../../adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md)
 (`enhances` = field-merge, `overrides` = full replacement, `specializes_from` lineage
-as a DRG edge); and the [doctrine-inclusion-assessment](doctrine/doctrine-inclusion-assessment.md)
+as a DRG edge); and the [doctrine-inclusion-assessment](../doctrine/doctrine-inclusion-assessment.md)
 (the three pillars — agent profiles, mission-type customization, ad-hoc composition —
 and the compiler gap).
 
@@ -235,10 +234,10 @@ sequenced #2658 template-slot → #2659 activation-driven enumeration → #2660 
 `meta.json`-less fallback → #2661 delete the doctrine→`.kittify` copy step) and its AC
 ("availability is charter-activation-driven, not filesystem-driven"); the provisioned
 default-charter revision (#2657, under #461) that retires "all built-in doctrine" as the
-implicit default; and the interlock analysis in
-[next-slice-wheel-mission-types-public-api-research](doctrine/next-slice-wheel-mission-types-public-api-research.md)
-(how #3091 / #2468 / #2652 converge on the same end state via three independently
-sequenced efforts).
+implicit default; and the interlock analysis in the now-archived
+[next-slice-wheel-mission-types-public-api-research](../doctrine/next-slice-wheel-mission-types-public-api-research.md)
+note *(deprecated — historical record)* (how #3091 / #2468 / #2652 converge on the same
+end state via three independently sequenced efforts).
 
 **Open issues.**
 
@@ -263,9 +262,9 @@ same "resolves means reachable, not just present" honesty the activation surface
 
 **Design of record.** *None as an owning workstream* — this is the domain's content-QA
 gap (see §4). The nearest guardrails are the terminology enforcement in the
-[glossary program](glossary-doctrine-overhaul-program.md) (canonical-term casing, banned
-synonyms) and the reachability-metric discipline in the
-[reachability assessment §5](doctrine/charter-activation-reachability-assessment.md)
+[glossary program](../glossary-doctrine-overhaul-program.md) (canonical-term casing, banned
+synonyms) and the reachability-metric discipline recorded in the now-archived
+[reachability assessment §5](../doctrine/charter-activation-reachability-assessment.md) *(deprecated)*
 (measure reachability, not incidence) — both wiring/terminology gates, neither a
 content-scoping review.
 
@@ -319,11 +318,11 @@ service extraction → formalized typed contracts → architectural test enforci
 single-entry-point invariant → *then* a transport/framework choice, sequenced last. The
 verified surface gap: `doctrine/__init__.py` declares 3 public names while **79 files
 reach past it across ~30 distinct submodule paths**, with no architectural test pinning
-"use the public surface." The `runtime → charter → doctrine` boundary audit
-([runtime-charter-doctrine-boundary](doctrine/runtime-charter-doctrine-boundary.md)) is
-the internal half of the same invariant; the
-[next-slice research §(c)](doctrine/next-slice-wheel-mission-types-public-api-research.md)
-establishes that this public surface is a **precondition** for a credible wheel-cutover
+"use the public surface." The now-archived `runtime → charter → doctrine` boundary audit
+([runtime-charter-doctrine-boundary](../doctrine/runtime-charter-doctrine-boundary.md), *deprecated*) is
+the internal half of the same invariant; the now-archived
+[next-slice research §(c)](../doctrine/next-slice-wheel-mission-types-public-api-research.md) *(deprecated)*
+established that this public surface is a **precondition** for a credible wheel-cutover
 external contract, not a parallel effort.
 
 **Open issues.**
@@ -350,7 +349,7 @@ executable-ASSET primitive it introduces is what lets other repo-specific enforc
 move out of the shared runtime into doctrine.
 
 **Design of record.** The
-[Glossary Doctrine Overhaul — Program Plan](glossary-doctrine-overhaul-program.md) — four
+[Glossary Doctrine Overhaul — Program Plan](../glossary-doctrine-overhaul-program.md) — four
 sequenced missions **A** (glossary-pack kind keystone, #1418) → **D** (executable
 ASSET-kind gate, #2599/#2535, phased built-in-only trust model) → **B** (enforcement +
 cleanup, #2822/#2830/#2823) → **C** (retire the runtime glossary, #2727) — and its
@@ -376,9 +375,9 @@ program-planning maturity (`doc_status: draft`), ahead of its per-mission specs.
    class) under a content-QA epic, or explicitly folding a content-scoping gate into the
    glossary program's ASSET-gate rail (mission B) so shipped content is reviewed the way
    its wiring now is.
-2. **#3179 epic-home discrepancy.** The
-   [next-slice research §(c)](doctrine/next-slice-wheel-mission-types-public-api-research.md)
-   records #3179 as filed **parented under #2466** (extensibility & pack ecosystem),
+2. **#3179 epic-home discrepancy.** The now-archived
+   [next-slice research §(c)](../doctrine/next-slice-wheel-mission-types-public-api-research.md) *(deprecated)*
+   recorded #3179 as filed **parented under #2466** (extensibility & pack ecosystem),
    while the issue itself is framed entirely on the **#645/#460** stable-application-API
    pattern (its Refs list is #3101, #645, #460, #2787, #3176) and the triage parents it
    to **#645**. These are different epics. Recommend the plan text and the tracker
@@ -386,17 +385,17 @@ program-planning maturity (`doc_status: draft`), ahead of its per-mission specs.
    invariant, not of the pack ecosystem — and that §3.6 / §5 be the reconciling view
    until the tracker parent is corrected.
 3. **Charter-sole-door residual doors are tracked in two places.** The residual bypass
-   inventory lives in **both** the [charter-sole-door-deferred-issues](doctrine/charter-sole-door-deferred-issues.md)
+   inventory lives in **both** the [charter-sole-door-deferred-issues](../doctrine/charter-sole-door-deferred-issues.md)
    record (six deferred issues: #2986, #3036, #3039, #3091, #3022, #3101) **and** the
-   [Open-Core Delivery Plan §1.1](3-2-x-open-core-delivery-plan.md) residual list
+   [Open-Core Delivery Plan §1.1](../3-2-x-open-core-delivery-plan.md) residual list
    (`resolve_template_by_id`'s 5 importers, `runtime/resolver.py`'s tier-1–4
    reimplementation, `runtime/home.py`'s importlib-resources root, three missions-root
    duplicates, the escalated #3176 site, sequenced as #3176/#3091/#3022/#3101). The two
    overlap but neither is the canonical ledger. Recommend one canonical residual-door
    ledger (this §3.1 + the deferred-issues doc as its citable summary) so a reader is not
    left to diff two lists to learn what the sole-door still leaks.
-4. **Activation reachability (R1/R2) is unspecced and durable.** Per the
-   [reachability assessment](doctrine/charter-activation-reachability-assessment.md), 185
+4. **Activation reachability (R1/R2) is unspecced and durable.** Per the now-archived
+   [reachability assessment](../doctrine/charter-activation-reachability-assessment.md) *(deprecated)*, 185
    charter-activated artefacts surface **zero** at the action-context boundary because
    activation is operationalised as *filter membership* (V1) while the boundary renders
    from the *interview-answer* vocabulary (V2/V3). R1 (activation as an entry vector into
@@ -455,30 +454,34 @@ are open but unscheduled; #3275 has no owning epic at all — the §4 content-QA
 
 **Release-scoped doctrine/charter docs (the "what ships"):**
 
-- [3.2.x Open-Core Delivery Plan](3-2-x-open-core-delivery-plan.md) — the release-window
+- [3.2.x Open-Core Delivery Plan](../3-2-x-open-core-delivery-plan.md) — the release-window
   delivery strategy: charter-as-sole-door done-bar (§1.1/§2.2), built-in → module
   extraction (§2.2), Creed/Values schema (§3 item 4). The `what-ships-in-3.2.x` view of
   §3.1/§3.2 here.
-- [Glossary Doctrine Overhaul — Program Plan](glossary-doctrine-overhaul-program.md) —
+- [Glossary Doctrine Overhaul — Program Plan](../glossary-doctrine-overhaul-program.md) —
   the §3.7 program in detail (missions A/D/B/C; #1418/#2599/#2822/#2830/#2823/#2727).
-- [Charter as Sole Door: Deferred Issues Record](doctrine/charter-sole-door-deferred-issues.md) —
+- [Charter as Sole Door: Deferred Issues Record](../doctrine/charter-sole-door-deferred-issues.md) —
   the citable residual-door summary for §3.1 (six deferred follow-ons).
 
-**Doctrine design corpus** ([`docs/plans/doctrine/`](doctrine/index.md)):
+**Doctrine design corpus** ([`docs/plans/doctrine/`](../doctrine/index.md)):
 
-- [Charter Activation vs DRG Reachability](doctrine/charter-activation-reachability-assessment.md) — the V1/V2/V3 split and R1–R5 (§3.1, §4 gap 4).
-- [Runtime → Charter → Doctrine — boundary audit](doctrine/runtime-charter-doctrine-boundary.md) — the layering ratchet (§3.6).
-- [Next doctrine slice — wheel / mission-types / public API research](doctrine/next-slice-wheel-mission-types-public-api-research.md) — the (a)/(b)/(c) interlock (§3.3, §3.6, §4 gap 2).
-- [Charter as Central Path Resolver — Gap Analysis](doctrine/charter-path-resolution-gaps.md), [Doctrine Inclusion Assessment](doctrine/doctrine-inclusion-assessment.md), [Layered Doctrine Resolution — Design Blueprint](doctrine/layered-doctrine-resolution-design.md), and the FoundationalValues/Creed AUTHORITY docs — background design for §3.1/§3.2.
+- [Charter as Central Path Resolver — Gap Analysis](../doctrine/charter-path-resolution-gaps.md), [Doctrine Inclusion Assessment](../doctrine/doctrine-inclusion-assessment.md), [Layered Doctrine Resolution — Design Blueprint](../doctrine/layered-doctrine-resolution-design.md), and the FoundationalValues/Creed AUTHORITY docs — background design for §3.1/§3.2.
+
+**Archived design notes (retired — cited above as historical provenance, not live design authority).**
+These three `docs/plans/doctrine/` investigations have been distilled into the invariants and gaps above and flipped to `doc_status: deprecated`; the durable throughline no longer treats them as its live design corpus. They are retained for lineage — read them for the reasoning trail, not for current state:
+
+- [Charter Activation vs DRG Reachability](../doctrine/charter-activation-reachability-assessment.md) *(deprecated)* — the V1/V2/V3 split and R1–R5, distilled into §3.1 and §4 gap 4.
+- [Runtime → Charter → Doctrine — boundary audit](../doctrine/runtime-charter-doctrine-boundary.md) *(deprecated)* — the layering ratchet, distilled into §3.6.
+- [Next doctrine slice — wheel / mission-types / public API research](../doctrine/next-slice-wheel-mission-types-public-api-research.md) *(deprecated)* — the (a)/(b)/(c) interlock, distilled into §3.3, §3.6, and §4 gap 2.
 
 **Doctrine/charter ADRs (design of record):**
 
-- [2026-05-16-1 doctrine-layer merge semantics](../adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md) — activation plan/commit seam, cascade, DRG merge verbs (§3.1, §3.2).
-- [2026-08-02-1 charter-wheel assessment](../adr/3.x/2026-08-02-1-charter-wheel-assessment.md) — the deferred `kernel → doctrine → charter` cutover (packs-extraction sibling; §3.6 precondition).
+- [2026-05-16-1 doctrine-layer merge semantics](../../adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md) — activation plan/commit seam, cascade, DRG merge verbs (§3.1, §3.2).
+- [2026-08-02-1 charter-wheel assessment](../../adr/3.x/2026-08-02-1-charter-wheel-assessment.md) — the deferred `kernel → doctrine → charter` cutover (packs-extraction sibling; §3.6 precondition).
 
 **Epics:** #2519 (charter authoring & lifecycle), #2466 (extensibility & pack ecosystem), #2652
 (specify_cli/missions retirement / activation-driven availability), #1799
 (governance configuration & docs), #2216 (governance tiers), #3259 (meta.json fail-closed
 routing), #645 (stable application API surface).
 
-**Plans index:** [docs/plans/index.md](index.md).
+**Plans index:** [docs/plans/index.md](../index.md).

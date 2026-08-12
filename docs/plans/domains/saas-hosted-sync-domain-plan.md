@@ -1,8 +1,8 @@
 ---
 title: 'SaaS & Hosted Sync — Domain Plan'
 description: 'Durable, version-spanning domain plan for the SaaS / hosted-sync surface: sync & event-envelope integrity, consent & identity, auth & token lifecycle, and hosted rollout readiness.'
-doc_status: active
-updated: '2026-08-11'
+doc_status: durable
+updated: '2026-08-12'
 related:
 - docs/plans/index.md
 - docs/plans/3-2-x-open-core-delivery-plan.md
@@ -57,7 +57,7 @@ Team Kitty product and the CLI ↔ hosted boundary that feeds it:
 - **Not the open-core doctrine/charter split.** Despite the "SaaS" label sometimes
   attached to it, the open-core work (charter-as-sole-door, built-in doctrine module
   extraction, Creed/Values schema) is a *different domain*. It lives in the
-  [3.2.x Open-Core Delivery Plan](3-2-x-open-core-delivery-plan.md) and the
+  [3.2.x Open-Core Delivery Plan](../3-2-x-open-core-delivery-plan.md) and the
   doctrine+charter throughline. This plan does not restate it. (This distinction is
   the single most-common miscategorisation in the corpus: the open-core plan's "SaaS"
   is the open-core split of the doctrine layer, not the hosted product.)
@@ -84,16 +84,16 @@ There has been **no standalone SaaS plan** before this document. A sweep of
 prompt inside a tracker-binding initiative and one event-sync research synthesis
 note. SaaS planning was instead distributed across five surfaces:
 
-1. **[3.2.x Open-Core Delivery Plan](3-2-x-open-core-delivery-plan.md)** — despite
+1. **[3.2.x Open-Core Delivery Plan](../3-2-x-open-core-delivery-plan.md)** — despite
    "open-core," it is scoped to the *doctrine/charter* seam. Its §3 remaining-work
    table has **no sync, hosted-sync, or auth row**, and its readiness posture (§1.5)
    is about the CI-red baseline, not the P0 SaaS cluster. It is a non-goal boundary
    for this plan, not a home for the hosted surface.
-2. **ADR [2026-04-11-1 SaaS Rollout Gate and Hosted Readiness Split](../adr/3.x/2026-04-11-1-saas-rollout-and-readiness.md)**
+2. **ADR [2026-04-11-1 SaaS Rollout Gate and Hosted Readiness Split](../../adr/3.x/2026-04-11-1-saas-rollout-and-readiness.md)**
    — the `src/specify_cli/saas/` rollout-gate + `HostedReadiness` evaluator design.
    The closest thing to a SaaS design of record, but a single-mission ADR, not a
    program plan.
-3. **ADR [2026-01-27-12 Two-Branch Strategy for SaaS Transformation](../adr/2.x/2026-01-27-12-two-branch-strategy-for-saas-transformation.md)**
+3. **ADR [2026-01-27-12 Two-Branch Strategy for SaaS Transformation](../../adr/2.x/2026-01-27-12-two-branch-strategy-for-saas-transformation.md)**
    — historical origin of the SaaS transformation (2.x greenfield branch, YAML →
    event-log migration). Superseded in practice by the single-`main` posture; kept
    for lineage.
@@ -129,7 +129,7 @@ must not emit envelopes the pinned events library declares invalid.
 **Design of record.** Epic #1800 scope bullets (event envelope, sync protocol,
 concurrency/safety, local durability); the event-sync retention/delivery research
 synthesis that feeds it; ADR
-[2026-06-30-1 sync-daemon identity and cleanup classification](../adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md).
+[2026-06-30-1 sync-daemon identity and cleanup classification](../../adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md).
 
 **Open issues.**
 
@@ -183,10 +183,10 @@ non-interactive/machine contexts have a supported auth path; and token-refresh
 failures are diagnosed by name, never surfaced as an unexplained error.
 
 **Design of record.** ADR
-[2026-04-09-2 CLI-to-SaaS auth is browser-mediated OAuth](../adr/3.x/2026-04-09-2-cli-saas-auth-is-browser-mediated-oauth-not-password.md)
+[2026-04-09-2 CLI-to-SaaS auth is browser-mediated OAuth](../../adr/3.x/2026-04-09-2-cli-saas-auth-is-browser-mediated-oauth-not-password.md)
 (PKCE loopback default, device flow headless fallback), **superseded on local session
 storage** by ADR
-[2026-04-19-1 CLI auth uses encrypted-file-only session storage](../adr/3.x/2026-04-19-1-cli-auth-uses-encrypted-file-only-session-storage.md);
+[2026-04-19-1 CLI auth uses encrypted-file-only session storage](../../adr/3.x/2026-04-19-1-cli-auth-uses-encrypted-file-only-session-storage.md);
 and the auth-transport boundary ADRs (2026-04-26-2, 2026-05-18-2). Note the OAuth ADR
 explicitly scopes **machine-to-machine automation as a separate, still-unspecified auth
 model** — which is exactly the gap in §4.
@@ -218,7 +218,7 @@ packaged CLI has a default hosted URL and the `SPEC_KITTY_ENABLE_SAAS_SYNC` /
 `SPEC_KITTY_SAAS_URL` flags are dev/test overrides, not required launch setup.
 
 **Design of record.** ADR
-[2026-04-11-1 SaaS Rollout Gate and Hosted Readiness Split](../adr/3.x/2026-04-11-1-saas-rollout-and-readiness.md)
+[2026-04-11-1 SaaS Rollout Gate and Hosted Readiness Split](../../adr/3.x/2026-04-11-1-saas-rollout-and-readiness.md)
 — the canonical `src/specify_cli/saas/` package (`rollout.py`, `readiness.py`), the
 6-state `ReadinessState` evaluator, the `DaemonIntent` gate, and the
 `BackgroundDaemonPolicy` config key. Epic #1091 launch acceptance (default hosted URL,
@@ -288,8 +288,8 @@ under #3322 — the former §4 gap, now closed.*
 
 **Sibling domain throughlines (the durable spine of `docs/plans/`):**
 
-- **Doctrine & charter** — [3.2.x Open-Core Delivery Plan](3-2-x-open-core-delivery-plan.md)
-  and [Glossary Doctrine Overhaul — Program Plan](glossary-doctrine-overhaul-program.md).
+- **Doctrine & charter** — [3.2.x Open-Core Delivery Plan](../3-2-x-open-core-delivery-plan.md)
+  and [Glossary Doctrine Overhaul — Program Plan](../glossary-doctrine-overhaul-program.md).
   The open-core plan is the **non-goal boundary** for this plan (§1): its "SaaS" is the
   open-core split of the doctrine layer, not the hosted product.
 - **Packs extraction** — *(planned sibling domain plan; not yet written.)* Will own the
@@ -299,13 +299,13 @@ under #3322 — the former §4 gap, now closed.*
 
 **SaaS ADRs (design of record):**
 
-- [2026-04-11-1 SaaS Rollout Gate and Hosted Readiness Split](../adr/3.x/2026-04-11-1-saas-rollout-and-readiness.md) — rollout gate + `HostedReadiness`.
-- [2026-04-09-2 CLI-to-SaaS auth is browser-mediated OAuth](../adr/3.x/2026-04-09-2-cli-saas-auth-is-browser-mediated-oauth-not-password.md) — human auth model (superseded on session storage).
-- [2026-04-19-1 CLI auth uses encrypted-file-only session storage](../adr/3.x/2026-04-19-1-cli-auth-uses-encrypted-file-only-session-storage.md) — the superseding session-storage decision.
-- [2026-06-30-1 sync-daemon identity and cleanup classification](../adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md) — daemon identity/cleanup.
-- [2026-01-27-12 Two-Branch Strategy for SaaS Transformation](../adr/2.x/2026-01-27-12-two-branch-strategy-for-saas-transformation.md) — historical origin.
+- [2026-04-11-1 SaaS Rollout Gate and Hosted Readiness Split](../../adr/3.x/2026-04-11-1-saas-rollout-and-readiness.md) — rollout gate + `HostedReadiness`.
+- [2026-04-09-2 CLI-to-SaaS auth is browser-mediated OAuth](../../adr/3.x/2026-04-09-2-cli-saas-auth-is-browser-mediated-oauth-not-password.md) — human auth model (superseded on session storage).
+- [2026-04-19-1 CLI auth uses encrypted-file-only session storage](../../adr/3.x/2026-04-19-1-cli-auth-uses-encrypted-file-only-session-storage.md) — the superseding session-storage decision.
+- [2026-06-30-1 sync-daemon identity and cleanup classification](../../adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md) — daemon identity/cleanup.
+- [2026-01-27-12 Two-Branch Strategy for SaaS Transformation](../../adr/2.x/2026-01-27-12-two-branch-strategy-for-saas-transformation.md) — historical origin.
 
 **Epics:** #1800 (SaaS sync & event-envelope hardening, 3.3.x), #1091 (Team Kitty
 launch gate, 3.3.x), #3322 (CLI auth & token-lifecycle reliability, 3.3.x).
 
-**Plans index:** [docs/plans/index.md](index.md).
+**Plans index:** [docs/plans/index.md](../index.md).

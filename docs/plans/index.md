@@ -5,8 +5,9 @@ doc_status: active
 updated: '2026-08-12'
 related:
 - docs/plans/code-quality/index.md
-- docs/plans/saas-hosted-sync-domain-plan.md
-- docs/plans/doctrine-charter-domain-plan.md
+- docs/plans/domains/index.md
+- docs/plans/domains/saas-hosted-sync-domain-plan.md
+- docs/plans/domains/doctrine-charter-domain-plan.md
 - docs/plans/3-2-x-milestone-roadmap.md
 - docs/changelog/release-goals.md
 ---
@@ -25,19 +26,25 @@ epics and roadmaps for the "what ships when" rather than duplicating them. Epics
 release/milestone-scoped tracking, not the throughline. Unlike the working notes
 below, a throughline does not retire when a milestone closes.
 
-- **SaaS & hosted sync** — [SaaS & Hosted Sync — Domain Plan](saas-hosted-sync-domain-plan.md):
+- **SaaS & hosted sync** — [SaaS & Hosted Sync — Domain Plan](domains/saas-hosted-sync-domain-plan.md):
   sync & event-envelope integrity, consent & identity boundary, auth & token
   lifecycle, and hosted rollout readiness.
-- **Doctrine & charter** — [Doctrine & Charter — Domain Plan](doctrine-charter-domain-plan.md):
+- **Doctrine & charter** — [Doctrine & Charter — Domain Plan](domains/doctrine-charter-domain-plan.md):
   charter lifecycle & sole-door access, pack extensibility, activation-driven
   availability, meta.json fail-closed reads, the public API surface, and
   glossary-as-doctrine. Its release- and program-scoped companions are the
   [3.2.x Open-Core Delivery Plan](3-2-x-open-core-delivery-plan.md) and the
   [Glossary Doctrine Overhaul — Program Plan](glossary-doctrine-overhaul-program.md).
-- **Packs extraction** — *(planned domain plan)*.
-- **API & dashboard** — *(planned domain plan)*.
+- **Packs extraction** — [Packs Extraction — Domain Plan](domains/packs-extraction-domain-plan.md):
+  physically extracting the doctrine layer into the standalone `spec-kitty-doctrine`
+  module — boundary definition, import-cycle break, strangler cutover, and repo split.
+- **API & dashboard** — [API & Dashboard — Domain Plan](domains/api-dashboard-domain-plan.md):
+  the stable application/mission-data API surface (#645) and the dashboard/UX consumers
+  (#650), including retiring the Feature-labelled UI drift.
 
-Naming convention for throughlines: `<domain>-domain-plan.md`.
+All four throughlines are catalogued one hop away in the
+[domains catalog](domains/index.md). Naming convention for throughlines:
+`<domain>-domain-plan.md`, filed under `domains/`.
 
 ## Portfolio & milestone planning
 
@@ -71,14 +78,18 @@ cataloguing its contents. Roughly ordered by current activity:
   and CI gate tuning.
 - **[Investigations](investigations/index.md)** — scope assessments, compatibility
   matrices, and RFC/endpoint research.
-- **[Engineering notes](engineering-notes/index.md)** — runtime/state overhaul,
-  surface-resolution clusters, triage logs, architectural reviews.
-- **[Reviews](reviews/index.md)** — PR review resolution plans, test plans, and
-  execution reports.
+- **[Engineering notes](engineering-notes/index.md)** — the live remainder: architecture
+  audits & reviews, mission notes, DRG/doctrine analyses, and maintenance/field-report
+  briefs. (The runtime/state-overhaul, surface-resolution-cluster, and triage-log
+  sub-clusters have been distilled and retired to `deprecated`; they remain on disk as
+  archived provenance only.)
 - **[Initiatives](initiatives/index.md)** — active architecture initiatives.
 - **[User journeys](user_journey/index.md)** — end-to-end user-journey docs.
 - **[Research](research/index.md)** — research deliverables (era spikes/explorations).
 - **[Next-mission mappings](next-mission-mappings/index.md)** — mapping notes for the
   mission-next compatibility surface.
-- **[3.2 doc publication](3-2-doc-publication/index.md)** — IA, navigation, and the
-  publication checklist for the 3.2 docs cut.
+
+Retired collections (distilled and closed out; their `index.md` is `deprecated`, kept
+on disk as archived provenance, not a live working surface): the **Reviews** collection
+(PR review resolution plans, test plans, execution reports) and the **3.2 doc
+publication** collection (IA, navigation, and the 3.2 publication checklist).

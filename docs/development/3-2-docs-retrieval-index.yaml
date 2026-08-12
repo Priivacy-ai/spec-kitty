@@ -8948,24 +8948,6 @@ pages:
     - {slug: "tier-1-mechanical-wins-safe-now-1h-15-findings", text: "Tier 1 — mechanical wins, safe now (~1h, 15 findings)", level: 3}
     - {slug: "tier-2-cognitive-complexity-ride-wave-4-3h-11x-s3776", text: "Tier 2 — cognitive complexity, ride Wave 4 (~3h, 11x S3776)", level: 3}
     - {slug: "effort-summary", text: "Effort summary", level: 2}
-  - path: "docs/plans/doctrine-charter-domain-plan.md"
-    title: "Doctrine & Charter — Domain Plan"
-    divio_type: "none"
-    abstract: "Durable, version-spanning plan for the doctrine/charter surface: charter lifecycle, sole-door access, extensibility, activation, fail-closed reads, public API, and glossary."
-    anchors:
-    - {slug: "1-purpose-scope", text: "1. Purpose & scope", level: 2}
-    - {slug: "2-where-doctrine-charter-planning-lives-today-honest-inventory", text: "2. Where doctrine/charter planning lives today (honest inventory)", level: 2}
-    - {slug: "3-standing-concerns-the-durable-spine", text: "3. Standing concerns — the durable spine", level: 2}
-    - {slug: "3-1-charter-authoring-activation-lifecycle", text: "3.1 Charter authoring, activation & lifecycle", level: 3}
-    - {slug: "3-2-doctrine-charter-extensibility-the-pack-ecosystem", text: "3.2 Doctrine/charter extensibility & the pack ecosystem", level: 3}
-    - {slug: "3-3-activation-driven-availability-the-single-canonical-mission-type-source", text: "3.3 Activation-driven availability & the single canonical mission-type source", level: 3}
-    - {slug: "3-4-doctrine-content-quality", text: "3.4 Doctrine content quality", level: 3}
-    - {slug: "3-5-meta-json-fail-closed-read-routing", text: "3.5 meta.json fail-closed read routing", level: 3}
-    - {slug: "3-6-stable-public-api-surface-for-doctrine-charter", text: "3.6 Stable public API surface for doctrine & charter", level: 3}
-    - {slug: "3-7-glossary-as-doctrine", text: "3.7 Glossary-as-doctrine", level: 3}
-    - {slug: "4-known-gaps", text: "4. Known gaps", level: 2}
-    - {slug: "5-release-scoped-view-the-what-ships-when", text: "5. Release-scoped view (the \"what ships when\")", level: 2}
-    - {slug: "6-cross-references", text: "6. Cross-references", level: 2}
   - path: "docs/plans/doctrine/3179-public-api-surface-scoping.md"
     title: "2026-08-10 — #3179 doctrine public API surface — scoping brief"
     divio_type: "none"
@@ -9611,6 +9593,74 @@ pages:
     - {slug: "how-these-findings-map-to-the-remediation-mission-spec", text: "How these findings map to the remediation mission spec", level: 2}
     - {slug: "suggested-mission-name", text: "Suggested mission name", level: 2}
     - {slug: "self-test-discipline", text: "Self-test discipline", level: 2}
+  - path: "docs/plans/domains/api-dashboard-domain-plan.md"
+    title: "API & Dashboard — Domain Plan"
+    divio_type: "none"
+    abstract: "Durable domain plan for the application/mission-data API surface (#645) and dashboard/UX (#650): stable data API, dashboard consumers, retiring the Feature-labelled UI drift."
+    anchors:
+    - {slug: "1-purpose-scope", text: "1. Purpose & scope", level: 2}
+    - {slug: "2-where-api-dashboard-planning-lives-today-honest-inventory", text: "2. Where API/dashboard planning lives today (honest inventory)", level: 2}
+    - {slug: "3-standing-concerns-the-durable-spine", text: "3. Standing concerns — the durable spine", level: 2}
+    - {slug: "3-1-the-application-mission-data-api-contract", text: "3.1 The application/mission-data API contract", level: 3}
+    - {slug: "3-2-the-dashboard-ux-surface", text: "3.2 The dashboard / UX surface", level: 3}
+    - {slug: "3-3-terminology-fidelity-in-the-ui-retiring-the-feature-drift", text: "3.3 Terminology fidelity in the UI (retiring the `Feature` drift)", level: 3}
+    - {slug: "4-known-gaps", text: "4. Known gaps", level: 2}
+    - {slug: "5-release-scoped-view-the-what-ships-when", text: "5. Release-scoped view (the \"what ships when\")", level: 2}
+    - {slug: "6-cross-references", text: "6. Cross-references", level: 2}
+  - path: "docs/plans/domains/doctrine-charter-domain-plan.md"
+    title: "Doctrine & Charter — Domain Plan"
+    divio_type: "none"
+    abstract: "Durable, version-spanning plan for the doctrine/charter surface: charter lifecycle, sole-door access, extensibility, activation, fail-closed reads, public API, and glossary."
+    anchors:
+    - {slug: "1-purpose-scope", text: "1. Purpose & scope", level: 2}
+    - {slug: "2-where-doctrine-charter-planning-lives-today-honest-inventory", text: "2. Where doctrine/charter planning lives today (honest inventory)", level: 2}
+    - {slug: "3-standing-concerns-the-durable-spine", text: "3. Standing concerns — the durable spine", level: 2}
+    - {slug: "3-1-charter-authoring-activation-lifecycle", text: "3.1 Charter authoring, activation & lifecycle", level: 3}
+    - {slug: "3-2-doctrine-charter-extensibility-the-pack-ecosystem", text: "3.2 Doctrine/charter extensibility & the pack ecosystem", level: 3}
+    - {slug: "3-3-activation-driven-availability-the-single-canonical-mission-type-source", text: "3.3 Activation-driven availability & the single canonical mission-type source", level: 3}
+    - {slug: "3-4-doctrine-content-quality", text: "3.4 Doctrine content quality", level: 3}
+    - {slug: "3-5-meta-json-fail-closed-read-routing", text: "3.5 meta.json fail-closed read routing", level: 3}
+    - {slug: "3-6-stable-public-api-surface-for-doctrine-charter", text: "3.6 Stable public API surface for doctrine & charter", level: 3}
+    - {slug: "3-7-glossary-as-doctrine", text: "3.7 Glossary-as-doctrine", level: 3}
+    - {slug: "4-known-gaps", text: "4. Known gaps", level: 2}
+    - {slug: "5-release-scoped-view-the-what-ships-when", text: "5. Release-scoped view (the \"what ships when\")", level: 2}
+    - {slug: "6-cross-references", text: "6. Cross-references", level: 2}
+  - path: "docs/plans/domains/index.md"
+    title: "Domain Throughlines — Catalog"
+    divio_type: "none"
+    abstract: "One-hop catalog of the durable, version-spanning domain throughlines under docs/plans/domains/: SaaS & hosted sync, doctrine & charter, packs extraction, and API & dashboard."
+    anchors:
+    - {slug: "the-throughlines", text: "The throughlines", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/plans/domains/packs-extraction-domain-plan.md"
+    title: "Packs Extraction — Domain Plan"
+    divio_type: "none"
+    abstract: "Durable domain plan for physically extracting the doctrine layer into the standalone spec-kitty-doctrine module: boundary, import-cycle break, strangler cutover, repo split."
+    anchors:
+    - {slug: "1-purpose-scope", text: "1. Purpose & scope", level: 2}
+    - {slug: "2-where-extraction-planning-lives-today-honest-inventory", text: "2. Where extraction planning lives today (honest inventory)", level: 2}
+    - {slug: "3-standing-concerns-the-durable-spine", text: "3. Standing concerns — the durable spine", level: 2}
+    - {slug: "3-1-the-module-boundary-the-import-cycle-break", text: "3.1 The module boundary & the import-cycle break", level: 3}
+    - {slug: "3-2-in-place-strangler-cutover", text: "3.2 In-place strangler cutover", level: 3}
+    - {slug: "3-3-wheel-repo-split-packaging-transparency", text: "3.3 Wheel/repo-split packaging & transparency", level: 3}
+    - {slug: "4-known-gaps", text: "4. Known gaps", level: 2}
+    - {slug: "5-release-scoped-view-the-what-ships-when", text: "5. Release-scoped view (the \"what ships when\")", level: 2}
+    - {slug: "6-cross-references", text: "6. Cross-references", level: 2}
+  - path: "docs/plans/domains/saas-hosted-sync-domain-plan.md"
+    title: "SaaS & Hosted Sync — Domain Plan"
+    divio_type: "none"
+    abstract: "Durable, version-spanning domain plan for the SaaS / hosted-sync surface: sync & event-envelope integrity, consent & identity, auth & token lifecycle, and hosted rollout readiness."
+    anchors:
+    - {slug: "1-purpose-scope", text: "1. Purpose & scope", level: 2}
+    - {slug: "2-where-saas-planning-lives-today-honest-inventory", text: "2. Where SaaS planning lives today (honest inventory)", level: 2}
+    - {slug: "3-standing-concerns-the-durable-spine", text: "3. Standing concerns — the durable spine", level: 2}
+    - {slug: "3-1-sync-event-envelope-integrity", text: "3.1 Sync & event-envelope integrity", level: 3}
+    - {slug: "3-2-consent-identity-boundary", text: "3.2 Consent & identity boundary", level: 3}
+    - {slug: "3-3-auth-token-lifecycle", text: "3.3 Auth & token lifecycle", level: 3}
+    - {slug: "3-4-hosted-rollout-readiness-gating", text: "3.4 Hosted rollout & readiness gating", level: 3}
+    - {slug: "4-known-gaps", text: "4. Known gaps", level: 2}
+    - {slug: "5-release-scoped-view-the-what-ships-when", text: "5. Release-scoped view (the \"what ships when\")", level: 2}
+    - {slug: "6-cross-references", text: "6. Cross-references", level: 2}
   - path: "docs/plans/engineering-notes/01KSMG8Y-closeout/baseline.md"
     title: "Post-Mission Test Baseline: 01KSMG8Y"
     divio_type: "none"
@@ -10581,6 +10631,7 @@ pages:
     abstract: "Internal engineering notes for Spec Kitty: runtime and state overhaul, surface-resolution clusters, triage logs, architectural reviews, and reflections."
     anchors:
     - {slug: "clusters", text: "Clusters", level: 2}
+    - {slug: "retired-clusters-deprecated", text: "Retired clusters (deprecated)", level: 3}
     - {slug: "field-reports", text: "Field reports", level: 2}
     - {slug: "closing-reports", text: "Closing reports", level: 2}
     - {slug: "pre-spec-research", text: "Pre-spec research", level: 2}
@@ -11785,6 +11836,8 @@ pages:
     divio_type: "none"
     abstract: "Scope and compatibility investigations — issue analyses, schema-generation research, and mission review reports."
     anchors:
+    - {slug: "live-investigations", text: "Live investigations", level: 2}
+    - {slug: "retired-shipped-records", text: "Retired (shipped) records", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/plans/investigations/issue-1040-scope-assessment.md"
     title: "Issue #1040 — ADRs as First-Class Primitive: Scope Inclusion Assessment"
@@ -12411,21 +12464,6 @@ pages:
     - {slug: "10-mission-type-hard-error-regression-guard", text: "10. `--mission-type` hard error regression guard", level: 2}
     - {slug: "11-ruff-lint-gate", text: "11. Ruff / lint gate", level: 2}
     - {slug: "summary-checklist", text: "Summary checklist", level: 2}
-  - path: "docs/plans/saas-hosted-sync-domain-plan.md"
-    title: "SaaS & Hosted Sync — Domain Plan"
-    divio_type: "none"
-    abstract: "Durable, version-spanning domain plan for the SaaS / hosted-sync surface: sync & event-envelope integrity, consent & identity, auth & token lifecycle, and hosted rollout readiness."
-    anchors:
-    - {slug: "1-purpose-scope", text: "1. Purpose & scope", level: 2}
-    - {slug: "2-where-saas-planning-lives-today-honest-inventory", text: "2. Where SaaS planning lives today (honest inventory)", level: 2}
-    - {slug: "3-standing-concerns-the-durable-spine", text: "3. Standing concerns — the durable spine", level: 2}
-    - {slug: "3-1-sync-event-envelope-integrity", text: "3.1 Sync & event-envelope integrity", level: 3}
-    - {slug: "3-2-consent-identity-boundary", text: "3.2 Consent & identity boundary", level: 3}
-    - {slug: "3-3-auth-token-lifecycle", text: "3.3 Auth & token lifecycle", level: 3}
-    - {slug: "3-4-hosted-rollout-readiness-gating", text: "3.4 Hosted rollout & readiness gating", level: 3}
-    - {slug: "4-known-gaps", text: "4. Known gaps", level: 2}
-    - {slug: "5-release-scoped-view-the-what-ships-when", text: "5. Release-scoped view (the \"what ships when\")", level: 2}
-    - {slug: "6-cross-references", text: "6. Cross-references", level: 2}
   - path: "docs/plans/testing/ci-coverage-gate-tuning.md"
     title: "CI Coverage Gate — Tuning Notes"
     divio_type: "none"
