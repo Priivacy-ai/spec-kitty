@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#3366": {
+      "evidence_ref": "https://github.com/Priivacy-ai/spec-kitty/issues/3366",
+      "fr": "FR-001",
+      "nfr": "NFR-002",
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": "SC-001",
+      "scope": "CI docs-*.yml render step + pinned plantuml.jar (DIR-012)",
+      "source_file": "spec.md",
+      "title": "[DIR-012] local PlantUML docsite rendering (CI workflow + pinned plantuml.jar)",
+      "verdict": "tracked",
+      "wp": "WP01,WP02"
+    }
+  },
+  "schema_version": 1
+}
