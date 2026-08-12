@@ -141,11 +141,21 @@ jobs:
       - name: Render PlantUML schema diagrams (FR-001, no-egress)
         run: |
           python3 - <<'PY'
-          import hashlib, json, pathlib, subprocess, urllib.request
+          import hashlib, json, pathlib, subprocess, time, urllib.request
           pins = json.loads(pathlib.Path("scripts/docs/plantuml_pins.json").read_text())
           jar = pathlib.Path("plantuml.jar")
           if not jar.exists():
-              urllib.request.urlretrieve(pins["plantuml_jar_url"], jar)
+              last = None
+              for attempt in range(5):  # GitHub release downloads flake with RemoteDisconnected
+                  try:
+                      urllib.request.urlretrieve(pins["plantuml_jar_url"], jar)
+                      last = None
+                      break
+                  except Exception as exc:  # noqa: BLE001 - retry any transient download error
+                      last = exc
+                      time.sleep(2 * (attempt + 1))
+              if last is not None:
+                  raise SystemExit(f"plantuml.jar download failed after retries: {last}")
           got = hashlib.sha256(jar.read_bytes()).hexdigest()
           if got != pins["plantuml_jar_sha256"].lower():
               raise SystemExit(f"plantuml.jar sha256 mismatch: {got}")

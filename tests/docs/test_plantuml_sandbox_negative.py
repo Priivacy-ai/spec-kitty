@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import time
 import sys
 import urllib.request
 from pathlib import Path
@@ -47,7 +48,17 @@ def _ensure_jar() -> Path:
     jar = _REPO_ROOT / "plantuml.jar"
     pins = plantuml_invoke.load_pins()
     if not jar.exists():
-        urllib.request.urlretrieve(pins.plantuml_jar_url, jar)  # noqa: S310 - pinned https URL
+        last: Exception | None = None
+        for attempt in range(5):  # GitHub release downloads flake with RemoteDisconnected
+            try:
+                urllib.request.urlretrieve(pins.plantuml_jar_url, jar)  # noqa: S310 - pinned https URL
+                last = None
+                break
+            except Exception as exc:  # noqa: BLE001 - retry any transient download error
+                last = exc
+                time.sleep(2 * (attempt + 1))
+        if last is not None:
+            raise last
     plantuml_invoke.verify_jar_sha256(jar, pins.plantuml_jar_sha256)
     return jar
 
