@@ -1,10 +1,13 @@
 ---
 title: 'Research synthesis — #2007 (3.2.0 training bugs Robert witnessed)'
 description: "Research synthesis for #2007 (3.2.0 training bugs): the four-profile squad's repro, ticket map, systemic read, and command-drift findings (2026-06-16)."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # Research synthesis — #2007 (3.2.0 training bugs Robert witnessed)
+
+> **Retired (deprecated).** Design shipped/superseded via the shipped 3.2.0 release (CHANGELOG `[3.2.0]` 2026-06-16; training-bug epic #2007). Preserved as a historical record.
+
 
 **Date:** 2026-06-16. **Squad:** debugger-debbie (repro-on-HEAD) · planner-priti (ticket map + sequencing)
 · architect-alphonso (systemic) · python-pedro (command-drift + guard). All opus, profile-loaded. Inputs:

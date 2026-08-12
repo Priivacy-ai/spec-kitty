@@ -1,7 +1,7 @@
 ---
 title: Verification round — three-lens review of the finalized authorities
 description: "Final review squad before handover: sequence executability, fresh-eyes fix verification, and adversarial number-by-number reproduction. Verdict plus the applied fix list."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-07-26'
 related:
 - docs/plans/doctrine/foundational-values-and-creed.md
@@ -9,6 +9,8 @@ related:
 - docs/plans/doctrine/index.md
 ---
 # Verification round — three-lens review of the finalized authorities
+
+> **Retired (deprecated).** Superseded by the canonical creed AUTHORITY doc [foundational-values-and-creed.md](../foundational-values-and-creed.md). Preserved as a historical record.
 
 > **EVIDENCE + the applied fix record.** Three profile-loaded lenses ran read-only against the
 > corpus at `0fcb4b3d2` after the publication-readiness rewrite. Every finding below marked ✅ was

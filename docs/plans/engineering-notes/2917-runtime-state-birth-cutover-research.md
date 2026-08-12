@@ -1,11 +1,14 @@
 ---
 title: "#2917 Runtime-State Birth-Cutover — Pre-Spec Research"
 description: "Grounded findings from a 4-lens research squad on the #2917 runtime-state cutover drift: the problem, its true (inert) impact, and the solution fork the spec must choose."
-doc_status: active
+doc_status: deprecated
 updated: '2026-07-25'
 ---
 
 # #2917 Runtime-State Birth-Cutover — Pre-Spec Research
+
+> **Retired (deprecated).** Design shipped/superseded via merged mission `runtime-state-birth-cutover-all-paths-01KYH654` (#2917; `kitty-specs/runtime-state-birth-cutover-all-paths-01KYH654/`). Preserved as a historical record.
+
 
 **Status: pre-spec. This grounds the problem and the solution space so the operator can choose the mission's shape before speccing.** Not a spec.
 

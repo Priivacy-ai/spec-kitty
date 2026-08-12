@@ -1,12 +1,17 @@
 ---
 title: 'Mission-type step-model unification — retire "template" as a discriminator'
 description: 'Operator proposal to reserve "template" for doctrine example-artefacts and make recursive steps the mission-type building block; assessment + grounding questions.'
-doc_status: active
-updated: '2026-07-16'
+doc_status: deprecated
+updated: '2026-08-12'
 related:
 - docs/architecture/mission-type-resolution.md
 - docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
 ---
+
+> **RETIRED (shipped)** — this investigation's proposal was ratified and delivered:
+> formalized in ADR [`2026-07-16-2`](../../adr/3.x/2026-07-16-2-mission-type-step-authority-and-template-vocabulary.md)
+> (#2658) and shipped by mission `templates-as-config-01KXMS1G`. Retained for historical
+> reference; do not consult for current behavior.
 
 # Mission-type step-model unification
 

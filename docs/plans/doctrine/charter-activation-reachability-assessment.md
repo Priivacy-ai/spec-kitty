@@ -1,7 +1,7 @@
 ---
 title: 'Charter Activation vs DRG Reachability: Which Path Actually Reaches an Agent'
 description: Why 185 charter-activated doctrine artefacts never surface at the action-context boundary, the three parallel activation vocabularies behind it, and the recommended fix ordering.
-doc_status: active
+doc_status: deprecated
 updated: '2026-07-28'
 type: explanation
 related:
@@ -11,6 +11,8 @@ related:
 - docs/adr/3.x/2026-07-26-1-drg-edges-are-the-canonical-relationship-authority.md
 ---
 # Charter Activation vs DRG Reachability
+
+> **Retired (deprecated).** Shipped as the landing pass for PR #3007 (#3009); superseded by the delivery-reachability wiring table. Preserved as a historical record.
 
 **Origin.** Written during the landing pass for PR #3007 (mission
 `doctrine-silence-guards-01KYFV7Q`), in response to an operator question:

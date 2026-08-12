@@ -1,7 +1,7 @@
 ---
 title: '#2007 training-bug ticket mapping & sequencing impact — planner-priti'
 description: "Planner Priti's ticket mapping and sequencing-impact analysis for the #2007 training bugs, with live-verified issue states and milestones (2026-06-16)."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # #2007 training-bug ticket mapping & sequencing impact — planner-priti

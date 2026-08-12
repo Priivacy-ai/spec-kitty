@@ -1,7 +1,7 @@
 ---
 title: 'Coord-branch bookkeeping: read/write split-brain root-cause'
 description: 'Root-cause analysis of the coordination-branch drift (#2841) as an unenforced write-placement split-brain, and the single placement-port seam that prevents it.'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-07-22'
 related:
 - docs/adr/3.x/2026-06-27-1-common-docs-reconciliation.md
@@ -9,6 +9,9 @@ related:
 ---
 
 # Coord-branch bookkeeping: read/write split-brain root-cause
+
+> **Retired (deprecated).** Design shipped/superseded via merged mission `coord-write-placement-closure-01KYCF83` (#2841; `kitty-specs/coord-write-placement-closure-01KYCF83/`). Preserved as a historical record.
+
 
 **Scope:** ground a PREVENTION-first re-scope of #2841 (coord-branch drift). READ-ONLY analysis; no product code changed.
 **Thesis under test:** coord drift is a read/write split-brain — coord bookkeeping is a *second, independently-writable copy* of a truth whose authority lives elsewhere. Confirmed, with one precise refinement (below).

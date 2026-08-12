@@ -1,9 +1,12 @@
 ---
 title: "Follow-up mission preparation debrief — tasks.py render-seam + shim relocation"
 description: "Scope, inventory, approach, and risks for the follow-up mission finishing the tasks.py degod (render seam + shim relocation), deferred from tasks-py-degod-01KWF08S."
-doc_status: active
-updated: '2026-07-02'
+doc_status: deprecated
+updated: '2026-08-12'
 ---
+
+> ⚠ **Retired 2026-08-12 (`doc_status: deprecated`).** Follow-up preparation debrief; shipped as mission `tasks-py-degod-wave2-01KWH9EQ` (PR #2308, closing #2305 / #2116). Content preserved as an audit-trail record.
+
 
 # Follow-up mission preparation debrief — tasks.py render-seam + shim relocation
 

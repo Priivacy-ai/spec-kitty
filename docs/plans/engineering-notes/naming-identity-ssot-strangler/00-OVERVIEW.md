@@ -1,10 +1,13 @@
 ---
 title: Naming / Identity SSOT Strangler — Capstone Overview (3.2.1)
 description: "Capstone overview (3.2.1) of the naming/identity SSOT strangler: Architect Alphonso's aggregation of the research squad's findings, read-only at 3.2.0."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # Naming / Identity SSOT Strangler — Capstone Overview (3.2.1)
+
+> **Retired (deprecated).** Design shipped/superseded via the open-core delivery plan §1.2 "G2 — strangle the core domains onto SSOTs" (identity primitive moved to the lower layer; naming/identity derive once) — see `docs/plans/3-2-x-open-core-delivery-plan.md`. Preserved as a historical record.
+
 
 **Author:** Architect Alphonso (squad aggregation — capstone deliverable)
 **Branch:** `research/naming-identity-ssot-strangler` @ spec-kitty 3.2.0 (read-only; no commit/switch)

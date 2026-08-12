@@ -1,11 +1,13 @@
 ---
 title: '2026-08-04 — Next doctrine slice: wheel cutover, mission-type relocation, public API surface'
 description: 'Preliminary research on the post-#3176 scope: kernel/doctrine/charter wheel packaging, the missions/ tree relocation, and a stable public API for the doctrine & charter modules.'
-doc_status: active
+doc_status: deprecated
 updated: '2026-08-04'
 ---
 
 # Next doctrine slice — preliminary research
+
+> **Retired (deprecated).** Design shipped via merged mission `doctrine-public-api-surface-01KZPDSR` (#3179). Preserved as a historical record.
 
 Branch: `research/doctrine-wheel-mission-types-public-api` (off `upstream/main` @ `abca7ec9`).
 No mission created yet — this is pre-spec research only, gathered by reading the tracker, the

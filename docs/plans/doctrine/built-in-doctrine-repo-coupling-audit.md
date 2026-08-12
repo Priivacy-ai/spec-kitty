@@ -1,7 +1,7 @@
 ---
 title: 'Repo-Coupling Audit of Built-In Doctrine'
 description: Classified audit of repository-local references in shipped built-in doctrine, the gate that currently requires one, and the relocation order for follow-on missions.
-doc_status: active
+doc_status: deprecated
 updated: '2026-07-28'
 type: explanation
 related:
@@ -10,6 +10,8 @@ related:
 - docs/adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md
 ---
 # Repo-Coupling Audit of Built-In Doctrine
+
+> **Retired (deprecated).** Relocation shipped via merged mission `doctrine-consumer-surface-missions-extraction-01KZ6G6H`. Preserved as a historical record.
 
 **Rule being audited** — [`review-gates.md`, "Shippable doctrine"](../../development/how-to/review-gates.md):
 built-in doctrine under `src/doctrine/**/built-in/` MUST be valid and actionable

@@ -1,11 +1,14 @@
 ---
 title: "Coord-Trust Residual + Runtime-State Birth-Cutover — Mission Scope"
 description: "Pre-spec scope: close #2841's write-placement residual (Part A) so the split-brain write is unrepresentable, plus #2917's runtime-state birth-cutover as Part B on the settled port."
-doc_status: active
+doc_status: deprecated
 updated: '2026-07-25'
 ---
 
 # Coord-Trust Residual + Runtime-State Birth-Cutover — Mission Scope
+
+> **Retired (deprecated).** Design shipped/superseded via merged mission `runtime-state-birth-cutover-all-paths-01KYH654` (#2917; `kitty-specs/runtime-state-birth-cutover-all-paths-01KYH654/`). Preserved as a historical record.
+
 
 **Pre-spec. One mission, two ordered phases. Not a spec.** Grounded by a 2-lens residual squad (architecture + patterns) on top of the earlier 4-lens #2917 grounding ([`2917-runtime-state-birth-cutover-research.md`](2917-runtime-state-birth-cutover-research.md)).
 

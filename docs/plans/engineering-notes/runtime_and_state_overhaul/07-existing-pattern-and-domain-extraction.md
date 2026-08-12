@@ -1,7 +1,7 @@
 ---
 title: 07 — Existing Infra Pattern + MissionStatus / MissionFlow Extraction Assessment
 description: Assessment of mirroring the existing doctrine/charter infra-context pattern for new contexts and whether MissionStatus/MissionFlow can be extracted as domains.
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-03'
 ---
 # 07 — Existing Infra Pattern + MissionStatus / MissionFlow Extraction Assessment

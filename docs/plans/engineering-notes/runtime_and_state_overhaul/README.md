@@ -1,7 +1,7 @@
 ---
 title: Runtime & State Overhaul — Engineering Notes
 description: 'Landing page for the runtime and state overhaul engineering notes: design exploration complete and handed off for ADR finalization (epic #1619).'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-03'
 related:
 - docs/plans/engineering-notes/runtime_and_state_overhaul/01-ticket-capture.md
@@ -24,6 +24,9 @@ related:
 - docs/plans/engineering-notes/runtime_and_state_overhaul/SESSION-RECAP.md
 ---
 # Runtime & State Overhaul — Engineering Notes
+
+> **Retired (deprecated).** Design shipped/superseded via the open-core delivery plan §1.2 "G2 — strangle the core domains onto SSOTs" (execution-context unification, epic #1619) — see `docs/plans/3-2-x-open-core-delivery-plan.md`. Preserved as a historical record.
+
 
 **Status:** Design exploration complete; handed to @robertDouglass for ADR finalization
 **Owner:** Architecture (Architect Alphonso persona) + Stijn Dejongh

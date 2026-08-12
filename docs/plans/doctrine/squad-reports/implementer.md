@@ -1,13 +1,15 @@
 ---
 title: Implementer lens — feasibility and the prototype slice
 description: "Buildability of the creed design here: real Pydantic models, the delta representation decision, the coverage gate, and a one-day pre-registered prototype."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-07-26'
 related:
 - docs/plans/doctrine/creed-and-values-design-hardened.md
 - docs/plans/doctrine/creed-and-values-design-as-proposed.md
 ---
 # Implementer lens — feasibility and the prototype slice
+
+> **Retired (deprecated).** Superseded by the canonical creed AUTHORITY doc [foundational-values-and-creed.md](../foundational-values-and-creed.md). Preserved as a historical record.
 
 > Raw squad report, 2026-07-26. Profile-loaded, read-only. Preserved verbatim as the
 > evidence base for [`creed-and-values-design-hardened.md`](../creed-and-values-design-hardened.md).

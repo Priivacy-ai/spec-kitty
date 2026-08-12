@@ -1,7 +1,7 @@
 ---
 title: Randy Reducer — Split-Brain Authority Map (naming/identity SSOT strangler)
 description: "Randy Reducer's split-brain authority map for the naming/identity SSOT strangler: the behavioral envelope for each divergent authority."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # Randy Reducer — Split-Brain Authority Map (naming/identity SSOT strangler)

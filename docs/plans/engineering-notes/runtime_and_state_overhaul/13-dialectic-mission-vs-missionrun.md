@@ -1,7 +1,7 @@
 ---
 title: '13 — Dialectic: Is "Mission" the same as "Mission Run"?'
 description: Dialectical research (Phase 2) on whether Mission is the same as Mission Run, corroborating then refuting and reconciling, for the runtime and state overhaul.
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-03'
 ---
 # 13 — Dialectic: Is "Mission" the same as "Mission Run"?

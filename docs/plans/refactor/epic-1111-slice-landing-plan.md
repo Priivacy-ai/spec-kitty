@@ -1,9 +1,12 @@
 ---
 title: 'Epic #1111 — Slice Gap Analysis & Independent Landing Assessment'
 description: "Architect Alphonso's slice gap analysis and independent-landing assessment for epic #1111: whether each slice can land independently (2026-05-18)."
-doc_status: draft
-updated: '2026-05-19'
+doc_status: deprecated
+updated: '2026-08-12'
 ---
+
+> ⚠ **Retired 2026-08-12 (`doc_status: deprecated`).** Slice-F working note; the Slice-F mission `slice-f-multi-context-extensibility-01KRX5C8` merged (commit `2623a22db`, Epic #1111). Content preserved as an audit-trail record.
+
 # Epic #1111 — Slice Gap Analysis & Independent Landing Assessment
 
 **Author:** Architect Alphonso (ad-hoc profile session)  
