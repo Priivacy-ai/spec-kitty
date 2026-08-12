@@ -1,0 +1,15 @@
+{
+  "coordination_branch": "kitty/mission-docs-plans-closeout-and-doctrine-diagrams-01KZTK2J",
+  "created_at": "2026-08-12T08:57:56.258350+00:00",
+  "flattened": false,
+  "friendly_name": "docs/plans Closeout and Doctrine Schema Diagrams",
+  "mission_id": "01KZTK2JS1J16X3JD67SWG9T5X",
+  "mission_number": null,
+  "mission_slug": "docs-plans-closeout-and-doctrine-diagrams-01KZTK2J",
+  "mission_type": "software-dev",
+  "purpose_context": "Following PR #3324's domain-throughline model, this mission completes the docs/plans working surface (retiring shipped/superseded plan clusters, authoring the packs-extraction and api-dashboard domain plans, and migrating the domain plans into a domains/ cluster) and enriches the doctrine documentation with PlantUML schema diagrams of agent-profiles, mission-types, the DRG, and other artefacts generated from the canonical code models so they never drift. It also adds local PlantUML rendering to the DocFX docsite as the prerequisite capability.",
+  "purpose_tldr": "Finish the docs/plans curation and give the doctrine artefacts code-grounded schema diagrams.",
+  "slug": "docs-plans-closeout-and-doctrine-diagrams-01KZTK2J",
+  "target_branch": "feat/docs-plans-tier3-closeout",
+  "topology": "coord"
+}
