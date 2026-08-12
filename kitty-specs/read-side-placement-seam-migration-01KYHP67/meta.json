@@ -14,9 +14,8 @@
   "accepted_by": "stijn",
   "accepted_from_commit": "8ef96d325840816674c95345c784f87724130e32",
   "baseline_merge_commit": "8c90b2a7f81f6dc9b3da06e8149c7bcdd0ec2c17",
-  "coordination_branch": "kitty/mission-read-side-placement-seam-migration-01KYHP67",
   "created_at": "2026-07-27T11:43:30.209782+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Read-Side Placement-Seam Migration",
   "mission_id": "01KYHP67X17QFWXX788XSKQ24E",
   "mission_number": null,
@@ -28,7 +27,7 @@
   "slug": "read-side-placement-seam-migration-01KYHP67",
   "status_phase": "1",
   "target_branch": "fix/read-side-placement-seam-migration",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-27T12:28:00.790096+00:00"
 }

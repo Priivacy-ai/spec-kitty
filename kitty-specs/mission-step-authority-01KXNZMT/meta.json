@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "81530f51833016db140c2fb45504c5431e853cac",
-  "coordination_branch": "kitty/mission-mission-step-authority-01KXNZMT",
   "created_at": "2026-07-16T17:30:01.536477+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Step authority: step.yaml as single source",
   "mission_id": "01KXNZMTXZ36XXM3JG0WTJ7BKQ",
   "mission_number": 181,
@@ -14,7 +13,7 @@
   "slug": "mission-step-authority-01KXNZMT",
   "status_phase": "1",
   "target_branch": "feat/mission-step-authority",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-16T18:44:14.849467+00:00"
 }

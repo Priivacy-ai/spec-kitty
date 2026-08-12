@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "de5cfb5af1479f34a145570daefd11fefd506b63",
-  "coordination_branch": "kitty/mission-wp-prompt-latency-flake-isolation-01KWWWAC",
   "created_at": "2026-07-06T23:30:52.361742+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Isolate the WP-prompt latency NFR tests from parallel execution (warm/median measurement)",
   "mission_id": "01KWWWACA9585DNNJGQZ15T70Q",
   "mission_number": 167,
@@ -14,5 +13,5 @@
   "slug": "wp-prompt-latency-flake-isolation-01KWWWAC",
   "status_phase": "1",
   "target_branch": "fix/latency-nfr-isolation",
-  "topology": "coord"
+  "topology": "lanes"
 }

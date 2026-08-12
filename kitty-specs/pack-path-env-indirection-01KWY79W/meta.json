@@ -14,9 +14,8 @@
   "accepted_by": "cursor",
   "accepted_from_commit": "f598ebe4df565823ab937975370626c3e5d66499",
   "baseline_merge_commit": "5f6587547dcde9f051f040bc7d2be74f5f45fd9f",
-  "coordination_branch": "kitty/mission-pack-path-env-indirection-01KWY79W",
   "created_at": "2026-07-07T12:02:04.835288+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "pack path env indirection",
   "mission_id": "01KWY79WD1J4JFECZXEF87F5BZ",
   "mission_number": 167,
@@ -27,7 +26,7 @@
   "slug": "pack-path-env-indirection-01KWY79W",
   "status_phase": "1",
   "target_branch": "issue/2437-env-var-pack-paths",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-07T12:37:06.450632+00:00"
 }

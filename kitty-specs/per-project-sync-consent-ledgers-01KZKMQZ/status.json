@@ -1,18 +1,18 @@
 {
-  "event_count": 115,
-  "last_event_id": "01KZRSJRQEAHS50FWFMCSQ8H54",
-  "materialized_at": "2026-08-11T16:13:09.230557+00:00",
+  "event_count": 120,
+  "last_event_id": "01KZRV04SBNVYRV6M25FY3D147",
+  "materialized_at": "2026-08-11T16:37:56.139627+00:00",
   "mission_number": "",
   "mission_slug": "per-project-sync-consent-ledgers-01KZKMQZ",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 6,
+    "approved": 8,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
-    "in_progress": 1,
+    "for_review": 0,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 3
   },
@@ -238,14 +238,14 @@
       ]
     },
     "WP07": {
-      "actor": "codex",
+      "actor": "user",
       "agent": "codex",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 3,
-      "lane": "for_review",
-      "last_event_id": "01KZRSJRQEAHS50FWFMCSQ8H54",
-      "last_transition_at": "2026-08-11T16:13:09.230557+00:00",
+      "lane": "approved",
+      "last_event_id": "01KZRT3YW5CXXE6F5VV99QVN0X",
+      "last_transition_at": "2026-08-11T16:22:32.582032+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for independent review on aggregate d908f4ec: T031-T035 complete; reviewed integrations da3c9d126, be5d811c1, e46fecebd; gates 79 focused, 360 broad, 151 adapters, 85 protocol; independent aggregate verdict PASS. Force is limited to inherited unrelated WP08 baseline-tests.json (a7c57066) falsely classified as WP07-owned after the first force-free refusal; WP08 artifact untouched.",
@@ -257,13 +257,12 @@
       "provider": "__resolved_provider_absent__",
       "review": null,
       "review_result": {
-        "feedback_path": "/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260810-130708-cEJgwV/spec-kitty-pr3293-runtime/kitty-specs/per-project-sync-consent-ledgers-01KZKMQZ/tasks/WP07-interactive-transport-convergence/review-cycle-3.md",
-        "reference": "review-cycle://per-project-sync-consent-ledgers-01KZKMQZ/WP07-interactive-transport-convergence/review-cycle-3.md",
-        "reviewer": "user",
-        "verdict": "changes_requested"
+        "reference": "Cycle-3 independent review PASS on b86de058b3: isolated and aggregate strict mypy pass, authoritative selected-path gate 1539 passed/1 skipped/2 xfailed with one unchanged warning, Ruff/format/diff clean, and all anti-pattern checks pass.",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
       },
-      "role": "implementer",
-      "shell_pid": 0,
+      "role": "reviewer",
+      "shell_pid": 64936,
       "shell_pid_created_at": "1786343378.968437",
       "subtasks": {
         "T031": "done",
@@ -280,23 +279,34 @@
       ]
     },
     "WP08": {
-      "actor": "codex",
+      "actor": "user",
       "agent": "codex",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "in_progress",
-      "last_event_id": "01KZPG6230Q40ETTFBX2SRG0G4",
-      "last_transition_at": "2026-08-10T18:50:26.783765+00:00",
+      "lane": "approved",
+      "last_event_id": "01KZRV04SBNVYRV6M25FY3D147",
+      "last_transition_at": "2026-08-11T16:37:56.139627+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "WP08 current-head evidence complete on 2be07dae: 536-pass combined gate with only filed #3318 deselected, strict mypy/Ruff/diff clean, and T036-T039 authority/isolation behavior independently pre-reviewed.",
         "Independent WP08 whole-package review PASS on 7e97cfa84: owned/architecture 194 passed with #3318 deselected and 2 expected xfails, non-overlapping WP06/WP07 delegation 354 passed/1 skip, strict mypy/Ruff/diff clean, and all authority/isolation anti-pattern checks pass."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
+      "review_result": {
+        "reference": "Independent WP08 whole-package review PASS on 7e97cfa84: owned/architecture 194 passed with #3318 deselected and 2 expected xfails, non-overlapping WP06/WP07 delegation 354 passed/1 skip, strict mypy/Ruff/diff clean, and all authority/isolation anti-pattern checks pass.",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
       "shell_pid": 64936,
       "shell_pid_created_at": "1786343378.968437",
+      "subtasks": {
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T039": "done"
+      },
       "tracker_refs": [
         "Priivacy-ai/spec-kitty#3262",
         "Priivacy-ai/spec-kitty#3030"

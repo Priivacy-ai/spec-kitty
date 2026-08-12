@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "f75312e857ec4e0fcd10a21828d34e05b00b4a2d",
-  "coordination_branch": "kitty/mission-doctrine-charter-split-unification-01KZ0SRB",
   "created_at": "2026-08-02T08:34:26.253790+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Doctrine-Charter Split: Single-Path Authority Foundation",
   "mission_id": "01KZ0SRBTBFDRFM0MVT62AEVB4",
   "mission_number": 188,
@@ -14,7 +13,7 @@
   "slug": "doctrine-charter-split-unification-01KZ0SRB",
   "status_phase": "1",
   "target_branch": "feat/doctrine-charter-split-unification",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-08-02T10:07:39.365281+00:00"
 }

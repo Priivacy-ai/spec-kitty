@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "b6ffdc8f5b303923b3dac661a50950bd8965e613",
-  "coordination_branch": "kitty/mission-refactor-stable-gate-substrate-01KWK3FY",
   "created_at": "2026-07-03T04:23:50.487439+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Refactor-Stable Gate Substrate",
   "mission_id": "01KWK3FYEP2K9FBJ2QCJB4Y3TD",
   "mission_number": 159,
@@ -14,7 +13,7 @@
   "slug": "refactor-stable-gate-substrate-01KWK3FY",
   "status_phase": "1",
   "target_branch": "tidy/gate-substrate",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-03T07:11:51.774591+00:00"
 }

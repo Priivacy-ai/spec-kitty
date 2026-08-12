@@ -1,7 +1,7 @@
 {
   "baseline_merge_commit": "44775466926514c4368e2c5d404b39c837686021",
-  "coordination_branch": "kitty/mission-do-dispatch-open-op-lifecycle-01KTSJ2H",
   "created_at": "2026-06-10T20:02:42.592268+00:00",
+  "flattened": true,
   "friendly_name": "Do Dispatch Open-Op Lifecycle",
   "mission_id": "01KTSJ2H8E5YF2EGJYGAE5Z5Q2",
   "mission_number": 130,
@@ -12,6 +12,7 @@
   "slug": "do-dispatch-open-op-lifecycle-01KTSJ2H",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-06-10T21:09:56.416013+00:00"
 }

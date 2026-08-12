@@ -27,6 +27,7 @@
   "slug": "egress-single-authority-01KZN7CB",
   "status_phase": "1",
   "target_branch": "feat/egress-single-authority",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-08-10T11:13:01.949519+00:00"
 }

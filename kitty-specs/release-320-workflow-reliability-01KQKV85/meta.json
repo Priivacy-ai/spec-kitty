@@ -1,5 +1,6 @@
 {
   "created_at": "2026-05-02T08:00:32.257612+00:00",
+  "flattened": false,
   "friendly_name": "3.2.0 Workflow Reliability Blockers",
   "mission_id": "01KQKV85G0STH8VF1RB66TW8DJ",
   "mission_number": 111,
@@ -11,5 +12,6 @@
   "source_description": "start-here.md requested one software-dev mission for the 3.2.0 stable-release workflow reliability blockers found during mission-state-audit-01KQHRB8.",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git"
 }

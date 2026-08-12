@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "ccb24acb11dbf941f0cb86885ccc55a465f44231",
-  "coordination_branch": "kitty/mission-alphabetical-command-listing-01KW6N8W",
   "created_at": "2026-06-28T08:24:25.738982+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Alphabetical Command Listing",
   "mission_id": "01KW6N8WCAAYSHWXT47BD3J1PW",
   "mission_number": 153,
@@ -14,5 +13,5 @@
   "slug": "alphabetical-command-listing-01KW6N8W",
   "status_phase": "1",
   "target_branch": "feat/alphabetical-command-listing",
-  "topology": "coord"
+  "topology": "lanes"
 }

@@ -26,7 +26,7 @@
   "slug": "coord-read-residuals-merge-lanes-and-identity-routing-01KW2M8V",
   "status_phase": "1",
   "target_branch": "mission/coord-read-residuals-2185-2186",
-  "topology": "flat",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-06-27T09:08:13.128340+00:00"
 }

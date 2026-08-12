@@ -1,7 +1,6 @@
 {
-  "coordination_branch": "kitty/mission-sonar-bug-blocker-remediation-01KZP2P2",
   "created_at": "2026-08-10T14:54:31.495212+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Sonar BUG and BLOCKER Remediation",
   "mission_id": "01KZP2P2J6CRP74QW89EK5ZPRP",
   "mission_number": null,
@@ -12,5 +11,5 @@
   "purpose_tldr": "Fix every open SonarCloud BUG and BLOCKER: real logic bugs, path-injection security hotspots, and defective (tautological or swallowed) test assertions.",
   "slug": "sonar-bug-blocker-remediation-01KZP2P2",
   "target_branch": "fix/sonar-bug-blocker-remediation",
-  "topology": "coord"
+  "topology": "lanes"
 }

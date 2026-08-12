@@ -14,9 +14,8 @@
   "accepted_by": "stijn",
   "accepted_from_commit": "2401de3e165583baff5a4ced4afaf53a50040327",
   "baseline_merge_commit": "f4df3c7db350bf15cff4bd703acaac6a7486878c",
-  "coordination_branch": "kitty/mission-post-merge-write-authoring-finish-01KYRRM5",
   "created_at": "2026-07-30T05:40:44.324707+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Post-Merge Write Mode and Authoring Finish",
   "mission_id": "01KYRRM554DDW6XCMYVCFH74S2",
   "mission_number": null,
@@ -28,7 +27,7 @@
   "slug": "post-merge-write-authoring-finish-01KYRRM5",
   "status_phase": "1",
   "target_branch": "feat/post-merge-write-authoring-finish",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-30T12:45:44.256412+00:00"
 }

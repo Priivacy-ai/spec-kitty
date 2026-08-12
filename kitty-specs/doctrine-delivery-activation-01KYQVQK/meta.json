@@ -21,9 +21,8 @@
   "accepted_by": "stijn",
   "accepted_from_commit": "439cfa30185f229222e5382eb11ab6ac8195d0aa",
   "baseline_merge_commit": "24c7e551d904e5f504ed1863a2c0bacdf505b4fc",
-  "coordination_branch": "kitty/mission-doctrine-delivery-activation-01KYQVQK",
   "created_at": "2026-07-29T21:15:48.248330+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Doctrine Delivery Activation Fast-Follow",
   "mission_id": "01KYQVQK4Q0HXQB5T591KFXM23",
   "mission_number": null,
@@ -35,7 +34,7 @@
   "slug": "doctrine-delivery-activation-01KYQVQK",
   "status_phase": "1",
   "target_branch": "feat/doctrine-delivery-activation",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-30T04:59:46.806420+00:00"
 }

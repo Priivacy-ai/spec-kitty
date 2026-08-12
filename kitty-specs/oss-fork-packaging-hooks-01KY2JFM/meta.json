@@ -14,9 +14,8 @@
   "accepted_by": "cursor",
   "accepted_from_commit": "65e3a43949f3becb9e58e6365259040faa467f34",
   "baseline_merge_commit": "7b864b1dcbf233c3b68202c8ad8bdcf54d01aa20",
-  "coordination_branch": "kitty/mission-oss-fork-packaging-hooks-01KY2JFM",
   "created_at": "2026-07-21T14:50:07.609441+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "OSS Fork Packaging Hooks",
   "mission_id": "01KY2JFMVQFA4Z4PHR5RDMMVCW",
   "mission_number": 185,
@@ -28,5 +27,5 @@
   "slug": "oss-fork-packaging-hooks-01KY2JFM",
   "status_phase": "1",
   "target_branch": "feat/oss-fork-packaging-hooks",
-  "topology": "coord"
+  "topology": "lanes"
 }

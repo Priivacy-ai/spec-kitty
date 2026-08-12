@@ -27,6 +27,7 @@
   "slug": "supply-chain-security-checks-layer-01KZBFBS",
   "status_phase": "1",
   "target_branch": "feat/supply-chain-security-checks-layer",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-08-06T14:44:34.051234+00:00"
 }

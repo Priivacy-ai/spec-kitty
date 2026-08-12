@@ -1,5 +1,6 @@
 {
   "created_at": "2026-04-29T08:05:24.042983+00:00",
+  "flattened": false,
   "friendly_name": "Opt-in SPDD and REASONS Canvas Doctrine Pack",
   "mission_id": "01KQC4AX9R4BJ40WWND37CCCJT",
   "mission_number": 107,
@@ -11,5 +12,6 @@
   "source_description": "Implement epic #873: opt-in SPDD/REASONS doctrine pack across 6 WPs (#876, #879, #878, #875, #877, #874). Brief: .kittify/mission-brief.md.",
   "status_phase": "1",
   "target_branch": "doctrine/spdd-reasons-pack",
+  "topology": "lanes",
   "vcs": "git"
 }

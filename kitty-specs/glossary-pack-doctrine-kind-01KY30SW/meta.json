@@ -14,9 +14,8 @@
   "accepted_by": "stijn",
   "accepted_from_commit": "87b10ed779a93b2b019a01fb446200f173945ba0",
   "baseline_merge_commit": "b41f37d52d2fff58d0cf14dc869a514168c1b467",
-  "coordination_branch": "kitty/mission-glossary-pack-doctrine-kind-01KY30SW",
   "created_at": "2026-07-21T19:00:23.134105+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Glossary Pack Doctrine Kind",
   "mission_id": "01KY30SWEX1F4TVWW969P9H69Z",
   "mission_number": null,
@@ -28,7 +27,7 @@
   "slug": "glossary-pack-doctrine-kind-01KY30SW",
   "status_phase": "1",
   "target_branch": "research/glossary-doctrine-artefact",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-21T20:26:34.698674+00:00"
 }

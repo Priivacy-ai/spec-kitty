@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "edbfa15983e603aadd09f87aea3b52e75705bc36",
-  "coordination_branch": "kitty/mission-relocate-builtin-doctrine-packs-01KYT87F",
   "created_at": "2026-07-30T19:32:40.254060+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Relocate Built-In Doctrine to packs/built-in",
   "mission_id": "01KYT87F5XWGATBZ36CWT73Q7V",
   "mission_number": 187,
@@ -14,5 +13,5 @@
   "slug": "relocate-builtin-doctrine-packs-01KYT87F",
   "status_phase": "1",
   "target_branch": "feat/relocate-builtin-doctrine-packs",
-  "topology": "coord"
+  "topology": "lanes"
 }

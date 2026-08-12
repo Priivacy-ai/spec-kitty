@@ -1,7 +1,7 @@
 {
   "baseline_merge_commit": "789d34b042276063559d301fa700ed5acc03c9af",
-  "coordination_branch": "kitty/mission-tool-surface-contract-01KV2K2P",
   "created_at": "2026-06-14T08:13:26.186483+00:00",
+  "flattened": true,
   "friendly_name": "ToolSurfaceContract -- Unified Tool Surface Registry",
   "mission_id": "01KV2K2P989VGC1TZF43ATGCPC",
   "mission_number": 135,
@@ -14,5 +14,6 @@
   "source_description": "GitHub issue #1945 (epic) with research gist and architecture gist. Child issues: #1936, #1944, #1937-#1943.",
   "status_phase": "1",
   "target_branch": "feat/tool-surface-contract",
+  "topology": "lanes",
   "vcs": "git"
 }

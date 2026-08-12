@@ -1,6 +1,6 @@
 {
-  "coordination_branch": "kitty/mission-op-records-git-durability-01KTB49K",
   "created_at": "2026-06-05T05:32:32.212045+00:00",
+  "flattened": true,
   "friendly_name": "Op Record Git Durability",
   "mission_id": "01KTB49KJKRJ71YR8KERVDMHHA",
   "mission_number": null,
@@ -12,5 +12,6 @@
   "source_description": "GitHub issue #1688 — Step 1 (git durability) of the Op artifact architectural proposal",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git"
 }

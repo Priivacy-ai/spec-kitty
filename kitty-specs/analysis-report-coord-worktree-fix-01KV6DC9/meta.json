@@ -1,6 +1,6 @@
 {
-  "coordination_branch": "kitty/mission-analysis-report-coord-worktree-fix-01KV6DC9",
   "created_at": "2026-06-15T19:50:47.495565+00:00",
+  "flattened": true,
   "friendly_name": "Analysis Report Coord-Worktree Fix & Recovery UX",
   "mission_id": "01KV6DC9Y5FJ9FCYJMM1KA09XK",
   "mission_number": null,
@@ -11,5 +11,6 @@
   "purpose_tldr": "Fix record-analysis to succeed under coord-worktree topology and emit actionable recovery guidance when analysis-report.md is in carrier format.",
   "slug": "analysis-report-coord-worktree-fix-01KV6DC9",
   "status_phase": "1",
-  "target_branch": "fix/analysis-report-coord-worktree-fix"
+  "target_branch": "fix/analysis-report-coord-worktree-fix",
+  "topology": "lanes"
 }

@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "a72c764580b002e86284d91eb1d862cfc0e82c3e",
-  "coordination_branch": "kitty/mission-runtime-bridge-degod-01KX8M1C",
   "created_at": "2026-07-11T12:57:02.071393+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Runtime-Bridge God-Module Decomposition",
   "mission_id": "01KX8M1CBPNQ77M1FPFRRHEB62",
   "mission_number": 174,
@@ -14,5 +13,5 @@
   "slug": "runtime-bridge-degod-01KX8M1C",
   "status_phase": "1",
   "target_branch": "design/runtime-bridge-degod",
-  "topology": "coord"
+  "topology": "lanes"
 }

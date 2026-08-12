@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "c8cc0058829ade61cc4a1d58d52af2253d9591d3",
-  "coordination_branch": "kitty/mission-sonar-qa-config-remediation-01KWYCX7",
   "created_at": "2026-07-07T13:40:01.635959+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "SonarCloud QA config: projectVersion tracking + coverage-scope reconciliation + promote the review tool",
   "mission_id": "01KWYCX7F3MB2QQS7DQK901483",
   "mission_number": 167,
@@ -14,7 +13,7 @@
   "slug": "sonar-qa-config-remediation-01KWYCX7",
   "status_phase": "1",
   "target_branch": "feat/sonar-qa-config-remediation",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-07T14:35:55.724302+00:00"
 }

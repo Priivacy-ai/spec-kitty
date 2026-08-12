@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KZVS2KX6KVSG0ZFN5A3NY9JQ",
+  "completed_at": "2026-08-12T20:08:31.039229+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "Renata fidelity review: sampled WP acceptance criteria across Core WP01-WP08 and SaaS WP01-WP08; findings include unreviewed WP09/WP10 implementation on Core canonical branch, red Core CI on last full run with no CI on head b75a2522, placeholder acceptance matrices in both missions, WP06 SaaS recovery of un-attested approved diff, stale PR descriptions"
+}

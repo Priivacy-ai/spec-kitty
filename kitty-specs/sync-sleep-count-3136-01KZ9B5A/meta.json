@@ -1,7 +1,6 @@
 {
-  "coordination_branch": "kitty/mission-sync-sleep-count-3136-01KZ9B5A",
   "created_at": "2026-08-05T16:12:32.117822+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Sleep-count assertions survive concurrent sleepers",
   "mission_id": "01KZ9B5AFNEJ6Y6M3C64G266CK",
   "mission_number": null,
@@ -12,5 +11,5 @@
   "purpose_tldr": "Make the tracker retry tests assert on their own sleeps, not on every thread's",
   "slug": "sync-sleep-count-3136-01KZ9B5A",
   "target_branch": "feat/sync-sleep-count-3136",
-  "topology": "coord"
+  "topology": "lanes"
 }
