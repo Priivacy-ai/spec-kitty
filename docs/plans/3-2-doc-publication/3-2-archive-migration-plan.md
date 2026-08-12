@@ -1,12 +1,15 @@
 ---
 title: Spec Kitty 3.2 — Archive & Migration Plan
 description: 'Archive and migration plan for the Spec Kitty 3.2 docs mission (WP09 / FR-013): how legacy and version-tiered pages are archived and redirected in the refresh.'
-doc_status: draft
-updated: '2026-06-27'
+doc_status: deprecated
+updated: '2026-08-12'
 related:
 - docs/changelog/2x/index.md
 - docs/migrations/from-charter-2x.md
 ---
+
+> ⚠ **Retired 2026-08-12 (`doc_status: deprecated`).** Working note for the 3.2 documentation mission `spec-kitty-3-2-docs-01KS4KSZ` (14/14 WPs done 2026-05-21); the docs are published (now 3.2.6). Content preserved as an audit-trail record.
+
 # Spec Kitty 3.2 — Archive & Migration Plan
 
 **Mission**: `spec-kitty-3-2-docs-01KS4KSZ`

@@ -1,7 +1,7 @@
 ---
 title: Context-Threading Feasibility — Is the fix ADOPTION, not a new seam? (python-pedro lens)
 description: "Python Pedro's feasibility lens on context-threading: whether the fix is adoption of an existing seam rather than a new one, with threading cost and tests."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # Context-Threading Feasibility — Is the fix ADOPTION, not a new seam? (python-pedro lens)

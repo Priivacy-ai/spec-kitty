@@ -1,7 +1,7 @@
 ---
 title: 'Mission #883 Research Dossier (pre-spec, 4-lens squad)'
 description: 'Point-in-time pre-spec research synthesis for mission #883 with file:line evidence; superseded by the ADR and brief where they differ.'
-doc_status: active
+doc_status: deprecated
 type: explanation
 updated: '2026-07-14'
 related:
@@ -10,6 +10,9 @@ related:
 ---
 
 # Issue #883 — Pre-spec research synthesis (4-lens squad)
+
+> **Retired (deprecated).** Superseded via ADR `2026-07-14-2-doctrine-to-core-mission-type-resolution-unification` and canonical `docs/architecture/mission-type-resolution.md` (#883). Preserved as a historical record.
+
 
 > **Point-in-time dossier.** This is the raw pre-spec research (four-lens squad
 > plus the architect design pass) captured for maintainer/implementer reference —

@@ -19,18 +19,28 @@ maintainers rather than end-user documentation.
 
 ## Clusters
 
-- [Runtime and state overhaul](runtime_and_state_overhaul/README.md) — unifying mission execution context and state.
-- [Triage](triage/README.md) — investigation and triage logs.
+Live clusters:
+
 - [Architectural review](architectural-review/README.md) — design reviews and findings.
 - [Findings](finding/README.md) — recorded engineering findings.
 - [Reflections](reflections/README.md) — retrospective engineering reflections.
 - [Test-suite parallelization — CI shard topology status](testing-parallel-ci-topology-status.md) — point-in-time mission-status snapshot of the CI shard-topology re-flip, carved out of the durable `testing-parallel.md` how-to.
 
-Additional clusters cover infra/logic separation (`2173-infra-logic-separation/`),
-surface-resolution work (`3-2-3-surface-resolution-cluster/`), naming/identity SSOT
-(`naming-identity-ssot-strangler/`), transient mission-scoped classifications
-([mission notes](mission-notes/index.md)), and a preserved historical mission closeout
+Additional live references: transient mission-scoped classifications
+([mission notes](mission-notes/index.md)) and a preserved historical mission closeout
 ([01KSMG8Y — Pre-Doctrine Test Stabilization](01KSMG8Y-closeout/index.md)).
+
+### Retired clusters (deprecated)
+
+These clusters captured design/investigation work that has since shipped or been
+superseded; their pages are preserved as historical records with
+`doc_status: deprecated` (not live).
+
+- [Runtime and state overhaul](runtime_and_state_overhaul/README.md) — **retired (deprecated)**; design shipped as execution-context unification (#1619), open-core delivery plan §1.2.
+- [Triage](triage/README.md) — **retired (deprecated)**; closeout for merged mission `test-stabilization-and-debt-pass-01KSF9HJ`.
+- Infra/logic separation (`2173-infra-logic-separation/`) — **retired (deprecated)**; Phase 1 shipped via merged mission `runtime-bridge-degod-01KX8M1C` (#2173 / #2531).
+- Surface-resolution work (`3-2-3-surface-resolution-cluster/`) — **retired (deprecated)**; shipped in the 3.2.3 release.
+- Naming/identity SSOT (`naming-identity-ssot-strangler/`) — **retired (deprecated)**; identity-primitive lower-layer move shipped, open-core delivery plan §1.2.
 
 ## Field reports
 
@@ -65,8 +75,8 @@ belongs and what has drifted, replacing the retired anti-sprawl ratchet:
 Durable design investigations that inform a convention or a future mission:
 
 - [Agent knowledge: canonical homes](agent-knowledge-canonical-homes.md) — where rules (charter), practices (doctrine), reference (Common Docs), and learned facts (`.kittify/memory/`) belong; how to stop a per-agent memory duplicating the repo.
-- [Coord-branch bookkeeping: read/write split-brain root-cause](coord-splitbrain-rootcause.md) — #2841 drift is unenforced write-placement (writers pick their own dir), not a broken partition contract; the single placement-port seam that makes wrong-partition writes unrepresentable at commit.
-- [Coordination-branch trust & reconciliation model — mission scope](coord-trust-mission-scope.md) — the pre-spec scope for the coord-trust friction-remediation mission: Gap-1 staleness, Symptom-B gate exemption, and why reconciliation is a minimized fail-loud residual, not the centerpiece.
+- [Coord-branch bookkeeping: read/write split-brain root-cause](coord-splitbrain-rootcause.md) — **retired (deprecated)**; delivered by merged mission `coord-write-placement-closure-01KYCF83` (#2841). #2841 drift is unenforced write-placement (writers pick their own dir), not a broken partition contract; the single placement-port seam that makes wrong-partition writes unrepresentable at commit.
+- [Coordination-branch trust & reconciliation model — mission scope](coord-trust-mission-scope.md) — **retired (deprecated)**; delivered by merged mission `coord-write-placement-closure-01KYCF83` (#2841). The pre-spec scope for the coord-trust friction-remediation mission: Gap-1 staleness, Symptom-B gate exemption, and why reconciliation is a minimized fail-loud residual, not the centerpiece.
 
 ## See also
 

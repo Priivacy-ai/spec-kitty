@@ -1,7 +1,7 @@
 ---
 title: CaaCS — Robbie's Forensic Dataset (Quantitative Evidence Base)
 description: "Researcher Robbie's CaaCS forensic dataset: the quantitative evidence base for the naming/identity SSOT strangler, read-only at 3.2.0."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # CaaCS — Robbie's Forensic Dataset (Quantitative Evidence Base)

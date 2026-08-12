@@ -1,10 +1,13 @@
 ---
 title: Dialectic synthesis — 3.2.x design under white-team + red-team
 description: 'Dialectic synthesis of the 3.2.x design under white-team corroboration and red-team refutation: what survives the adversarial test and what does not (2026-06-16).'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # Dialectic synthesis — 3.2.x design under white-team + red-team
+
+> **Retired (deprecated).** Design shipped/superseded via the open-core delivery plan §1 "Status re-read (verified)" (G1–G3 goal corroboration folded into the plan) — see `docs/plans/3-2-x-open-core-delivery-plan.md`. Preserved as a historical record.
+
 
 **Date:** 2026-06-16. **Method:** a white-team squad corroborated the 3.2.x design/goals; a red-team
 squad was then mandated to refute them. This is the synthesis — what survives the adversarial test,

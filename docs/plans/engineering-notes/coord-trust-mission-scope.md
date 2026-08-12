@@ -1,7 +1,7 @@
 ---
 title: 'Coordination-branch trust & reconciliation model — mission scope (#2841)'
 description: 'Pre-spec scope for the coord-branch trust friction-remediation mission (#2841): the missing write-placement model, the solution shape, and the locked design decisions.'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-07-22'
 related:
 - docs/adr/3.x/2026-06-27-1-common-docs-reconciliation.md
@@ -9,6 +9,9 @@ related:
 ---
 
 # Mission-scoping brief — Coordination-branch trust & reconciliation model (#2841)
+
+> **Retired (deprecated).** Design shipped/superseded via merged mission `coord-write-placement-closure-01KYCF83` (#2841; `kitty-specs/coord-write-placement-closure-01KYCF83/`). Preserved as a historical record.
+
 
 Status: **pre-spec, for operator sign-off**. READ-ONLY analysis; no product code changed.
 Grounded in the code at the state of branch `doctrine/drg-completeness-2843` (worktree copy).

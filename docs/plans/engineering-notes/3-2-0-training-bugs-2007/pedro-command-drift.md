@@ -1,7 +1,7 @@
 ---
 title: Command-Contract Drift — Ground Truth, Inventory, and Guard Design
 description: "Python Pedro's research on #2007's command-contract drift: the ground truth, an inventory of skill/prompt/doc divergence, and a guard design."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-26'
 ---
 # Command-Contract Drift — Ground Truth, Inventory, and Guard Design

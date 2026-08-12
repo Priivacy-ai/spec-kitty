@@ -1,9 +1,13 @@
 ---
 title: Model-First Schema Generation
 description: 'Design note on model-first schema generation: deriving schemas from the data model rather than hand-authoring them, in a field-table record.'
-doc_status: draft
-updated: '2026-04-04'
+doc_status: deprecated
+updated: '2026-08-12'
 ---
+> **RETIRED (shipped)** — the model-first design in this note shipped as the
+> `scripts/generate_schemas.py` pipeline (Pydantic models as the single source of truth for the
+> doctrine YAML schemas). Retained for historical reference; do not consult for current behavior.
+
 # Model-First Schema Generation
 
 | Field | Value |

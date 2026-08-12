@@ -1,12 +1,14 @@
 ---
 title: Runtime → Charter → Doctrine — boundary audit and recommendations
 description: Architect Alphonso's audit (2026-05-17) of the runtime to charter to doctrine boundary, with recommendations for tightening the seams.
-doc_status: draft
+doc_status: deprecated
 updated: '2026-05-19'
 related:
 - docs/plans/doctrine/doctrine-artifact-selection-preflight.md
 ---
 # Runtime → Charter → Doctrine — boundary audit and recommendations
+
+> **Retired (deprecated).** Design shipped via the org-doctrine-layer three-layer model (all 8 layer-rule tests pass; PRs #305/#348; drivers #832/#883/#1013/#391). Preserved as a historical record.
 
 **Author:** Architect Alphonso
 **Date:** 2026-05-17

@@ -1,13 +1,15 @@
 ---
 title: Doctrine-curator lens — exemptions, accreditation, provenance
 description: "Doctrine integrity review of the creed design: the per-kind exemption table, the value_impact vs value_bias split, accreditation placement, and the gates it trips."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-07-26'
 related:
 - docs/plans/doctrine/creed-and-values-design-hardened.md
 - docs/plans/doctrine/creed-and-values-design-as-proposed.md
 ---
 # Doctrine-curator lens — exemptions, accreditation, provenance
+
+> **Retired (deprecated).** Superseded by the canonical creed AUTHORITY doc [foundational-values-and-creed.md](../foundational-values-and-creed.md). Preserved as a historical record.
 
 > Squad report, 2026-07-26. Profile-loaded (`doctrine-daphne`), read-only. Evidence base for
 > [`creed-and-values-design-hardened.md`](../creed-and-values-design-hardened.md).

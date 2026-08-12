@@ -1,9 +1,12 @@
 ---
 title: 3.2 Harness Research Method
 description: Defines a repeatable, evidence-driven procedure for classifying the AI coding harnesses (agents) Spec Kitty supports, naming the sources of authority used.
-doc_status: draft
-updated: '2026-06-27'
+doc_status: deprecated
+updated: '2026-08-12'
 ---
+
+> ⚠ **Retired 2026-08-12 (`doc_status: deprecated`).** Working note for the 3.2 documentation mission `spec-kitty-3-2-docs-01KS4KSZ` (14/14 WPs done 2026-05-21); the docs are published (now 3.2.6). Content preserved as an audit-trail record.
+
 # 3.2 Harness Research Method
 
 **Purpose:** Define a repeatable, evidence-driven procedure for classifying the AI coding harnesses (a.k.a. "agents") that Spec Kitty supports. The output of this method is the support matrix at [`docs/api/supported-harnesses.md`](../../api/supported-harnesses.md).

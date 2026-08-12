@@ -1,7 +1,7 @@
 ---
 title: 'Issue #2007 — Debugger Debbie repro/triage on CURRENT HEAD'
 description: "Debugger Debbie's read-only repro/triage of #2007 on the current HEAD: per-row static root-cause citations against the live tree."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # Issue #2007 — Debugger Debbie repro/triage on CURRENT HEAD

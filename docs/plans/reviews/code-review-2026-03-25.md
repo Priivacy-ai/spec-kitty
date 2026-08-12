@@ -1,9 +1,12 @@
 ---
 title: Code Review — 2026-03-25
 description: "Code-review record dated 2026-03-25: the reviewed scope, the findings, and their dispositions captured in the review's field table."
-doc_status: draft
-updated: '2026-04-05'
+doc_status: deprecated
+updated: '2026-08-12'
 ---
+
+> ⚠ **Retired 2026-08-12 (`doc_status: deprecated`).** Per-PR review working note for PR #305 (agent-profile-implementation); the agent-profile system shipped as mission `045-agent-profile-system` (#136 / #1975). Content preserved as an audit-trail record.
+
 # Code Review — 2026-03-25
 
 | Field | Value |

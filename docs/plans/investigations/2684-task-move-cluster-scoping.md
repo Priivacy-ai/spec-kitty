@@ -1,11 +1,16 @@
 ---
 title: 'Scoping brief: evict runtime-mutable WP state into the event log (#2684 cluster)'
 description: 'Scoping and code-grounding brief for the #2684 task-move / WP-metadata-split / task-status cluster: authority inventory, migration contract, and a proposed decomposition.'
-doc_status: active
-updated: '2026-07-19'
+doc_status: deprecated
+updated: '2026-08-12'
 related:
 - docs/adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md
 ---
+> **RETIRED (shipped)** — the #2684 runtime-state eviction this brief scoped was ratified in ADR
+> [`2026-07-19-1`](../../adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md)
+> and shipped by mission `wp-runtime-state-eviction-01KXWN13` (impl `dfe6b2ead`). Evidence: #2684
+> (+ #2093/#2816). Retained for historical reference; do not consult for current behavior.
+
 # Scoping brief — evict runtime-mutable WP state into the event log (#2684 cluster)
 
 > **Status: scoping input for `/spec-kitty.specify`.** This brief is the research spine for a

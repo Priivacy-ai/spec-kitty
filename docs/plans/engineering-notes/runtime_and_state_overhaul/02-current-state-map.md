@@ -1,7 +1,7 @@
 ---
 title: '02 — Current-State Map: How Execution Context Is Derived Today'
 description: 'Current-state map (2026-06-03): a read-only code survey of how execution context is derived today in the rc35 tree, describing what exists not what should be.'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-03'
 ---
 # 02 — Current-State Map: How Execution Context Is Derived Today

@@ -1,10 +1,13 @@
 ---
 title: Infra-to-logic separation (#2173) — investigation synthesis
 description: "Investigation synthesis for the infra-to-logic separation epic (#2173, sub of #1619): three profile-loaded squads' conclusions on injecting infra as ports (2026-06-26)."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-26'
 ---
 # Infra-to-logic separation (#2173) — investigation synthesis
+
+> **Retired (deprecated).** Phase 1 shipped/superseded via merged mission `runtime-bridge-degod-01KX8M1C` (#2173 / #2531; `kitty-specs/runtime-bridge-degod-01KX8M1C/`); Phase 2 (#1619) deferred. Preserved as a historical record.
+
 
 **Date:** 2026-06-26 · **Branch:** `design/infra-logic-separation-2173` · **Epic:** #2173 (sub-issue of #1619)
 **Method:** 3 investigation squads (profile-loaded, read-only) after a prior resolver-port research squad. **Status:** investigation complete; Phase 1 ADR + spec to follow.

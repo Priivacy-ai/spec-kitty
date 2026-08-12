@@ -1,10 +1,13 @@
 ---
 title: 3.2.3 Surface-Resolution Cluster — Research Synthesis
 description: "Research synthesis for the 3.2.3 surface-resolution cluster: the three-lens squad's live confirmation, SSOT/topology verdict, and cluster-consolidation conclusion."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-26'
 ---
 # 3.2.3 Surface-Resolution Cluster — Research Synthesis
+
+> **Retired (deprecated).** Design shipped/superseded via the shipped 3.2.3 release (CHANGELOG `[3.2.3]` 2026-06-29; `fix/3.2.3-coord-surface-regressions`). Preserved as a historical record.
+
 
 **Authors:** 3-lens research squad — debugger-debbie (live confirmation),
 architect-alphonso (SSOT/topology verdict), paula-patterns (cluster consolidation).

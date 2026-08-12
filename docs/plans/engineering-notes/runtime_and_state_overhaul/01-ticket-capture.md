@@ -1,7 +1,7 @@
 ---
 title: '01 — Ticket Capture: Failure Modes & Suggested Implementations'
 description: 'Ticket capture (2026-06-03) for the runtime and state overhaul: the failure modes, cited evidence, and proposed implementations drawn from GitHub issues.'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-03'
 ---
 # 01 — Ticket Capture: Failure Modes & Suggested Implementations

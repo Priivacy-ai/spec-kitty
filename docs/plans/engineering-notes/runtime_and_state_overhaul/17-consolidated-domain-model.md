@@ -1,7 +1,7 @@
 ---
 title: 17 — Consolidated Domain Model (code-validated baseline)
 description: 'The consolidated, code-validated domain model (Phase 3) for the runtime and state overhaul: the internally-consistent baseline superseding the note-14 sketch.'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-03'
 ---
 # 17 — Consolidated Domain Model (code-validated baseline)

@@ -1,10 +1,13 @@
 ---
 title: Triage notes
 description: 'Landing page for the triage engineering notes: mission-scoped root-cause clustering, DIR-013 sub-issue plans, and post-mission delta summaries.'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-05-26'
 ---
 # Triage notes
+
+> **Retired (deprecated).** Design shipped/superseded via merged mission `test-stabilization-and-debt-pass-01KSF9HJ` (`kitty-specs/test-stabilization-and-debt-pass-01KSF9HJ/`). Preserved as a historical record.
+
 
 Mission-scoped triage artifacts: root-cause clustering, DIR-013 sub-issue plans,
 and post-mission delta summaries.

@@ -1,7 +1,7 @@
 ---
 title: Session Recap — Runtime & State Overhaul (Architecture Phases 1–2)
 description: 'Session recap of Architecture Phases 1-2 of the runtime and state overhaul (2026-06-03), summarizing the grounding and conceptual-modeling work for #1619.'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-03'
 ---
 # Session Recap — Runtime & State Overhaul (Architecture Phases 1–2)

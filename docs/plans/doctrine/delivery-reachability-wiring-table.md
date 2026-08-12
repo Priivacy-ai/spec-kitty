@@ -1,7 +1,7 @@
 ---
 title: "Delivery-reachability wiring table (FR-015)"
 description: "Per candidate artefact: proposed inbound source, its measured action-reachability (WP08 helper), and the C-007 wire/defer disposition; the deferred set is the decision surface."
-doc_status: active
+doc_status: deprecated
 updated: '2026-07-29'
 related:
   - kitty-specs/doctrine-delivery-reachability-01KYMXD6/spec.md
@@ -10,6 +10,8 @@ related:
 ---
 
 # Delivery-reachability wiring table (FR-015, WP09)
+
+> **Retired (deprecated).** Design shipped via merged mission `doctrine-delivery-reachability-01KYMXD6` (15 WPs). Preserved as a historical record.
 
 This is the enumerated wiring table FR-015 requires. Its purpose is to make
 "obvious" a **computation** rather than a judgement, so this work package does

@@ -1,12 +1,14 @@
 ---
 title: Connascence-matrix measurement
 description: "Measured analysis of the AMMERSE first- and second-order impact matrices: spectral radius, truncation soundness, the false derivation claim, and the one asymmetric cell."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-07-26'
 related:
 - docs/plans/doctrine/foundational-values-and-creed.md
 ---
 # Connascence-matrix analysis — measured 2026-07-26
+
+> **Retired (deprecated).** Superseded by the canonical creed AUTHORITY doc [foundational-values-and-creed.md](../foundational-values-and-creed.md). Preserved as a historical record.
 
 > ⚠️ **SUPERSEDED MATHS — read [`foundational-values-and-creed.md`](../foundational-values-and-creed.md) §6 and §11 instead.**
 > This evidence file endorses the three-term composition (`base + 0.5×fo + 0.25×so`) and quotes a

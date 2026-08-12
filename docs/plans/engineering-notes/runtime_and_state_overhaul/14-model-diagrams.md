@@ -1,7 +1,7 @@
 ---
 title: 14 — Model Diagrams (multi-tier)
 description: Multi-tier model diagrams (Phase 2) for the runtime and state overhaul's conceptual domain model, authored under the Architect Alphonso persona.
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-03'
 related:
 - docs/plans/engineering-notes/runtime_and_state_overhaul/17-consolidated-domain-model.md

@@ -1,13 +1,15 @@
 ---
 title: Manifesto tier — verdict, corrections, and handover
 description: "Verdict of two adversarial squads on the proposed manifesto tier: the diagnosis survives, the mechanism is rejected by an experiment the proposal itself nominated."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-07-26'
 related:
 - docs/plans/doctrine/manifesto-tier-primary-drivers.md
 - docs/plans/doctrine/index.md
 ---
 # Manifesto tier — verdict, corrections, and handover
+
+> **Retired (deprecated).** Superseded by the canonical creed AUTHORITY doc [foundational-values-and-creed.md](foundational-values-and-creed.md). Preserved as a historical record.
 
 > ⚠️ **RECORD.** This verdict killed the *derived-tension* mechanism; a **successor design exists
 > and is the build target**: [`foundational-values-and-creed.md`](foundational-values-and-creed.md)

@@ -1,9 +1,14 @@
 ---
 title: 'Fast-Follow Spec: Implement-Loop Friction Quick-Wins'
 description: 'Fast-follow spec for the implement-loop friction quick-wins: topology default, pre-review-gate escape hatch, finalize per-branch hashes, and charter first-run parity.'
-doc_status: active
-updated: '2026-07-12'
+doc_status: deprecated
+updated: '2026-08-12'
 ---
+
+> **RETIRED (shipped)** — the primary quick-win this fast-follow scoped, #2581 (coord-topology
+> default), closed 2026-07-12 as COMPLETED; the friction fixes landed via `ec3e2c528` /
+> `266d757f5` and mission `loop-reliability-ci-red-burndown-01KXWWD6`. Retained for historical
+> reference; do not consult for current behavior.
 
 # Mission Spec (materialization-ready): Implement-Loop Friction Quick-Wins
 
