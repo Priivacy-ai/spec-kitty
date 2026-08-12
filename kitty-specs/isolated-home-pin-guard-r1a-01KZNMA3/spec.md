@@ -166,13 +166,15 @@ The old 2 s budget is violated **14×** by the unfiltered classifier and was met
 
 | Quantity | Measured | Against |
 |---|---|---|
-| Guard scan, including the `HOME` limb and partitions | **0.88 s** | NFR-001's **6 s** — about **7x** headroom |
+| Guard scan, including the `HOME` limb and partitions | **0.88 s** (3.14) · **1.24 s** (3.11) | NFR-001's **6 s** — about **7x** / **4.8x** headroom |
 | SC-002 both-passes differential (0.684 s pre-filtered + 8.36 s unfiltered) | **9.0 s** | NFR-002's **90 s** — about **10x** |
 | Full two-SHA gate driver (`git archive` x2 + `discover()` x2) | **1.86 s** | not budgeted; the driver is one-shot |
 
 `git archive` is the correct extraction: `git worktree add` is slower, mutates `.git`, and needs failure cleanup.
 
 **These are a FLOOR, not the CI figure.** They were taken warm on a workstation under Python 3.14; `arch-adversarial` runs 3.12 on 4 vCPU with `-n auto` **and coverage**. They are the right figure for the `timing`-marked module, which runs `-n0` without `--cov` (OD-003).
+
+**Re-measured at landing** on the rebased tree (base `f6b90d34e`) under **Python 3.11.15**, five consecutive `discover()` runs: cold 1.211 s, warm worst **1.244 s**, warm mean 1.226 s, 42 members — **4.82x** headroom against NFR-001's 6 s. The interpreter, not the tree, accounts for the gap from the 3.14 figure; both are recorded above rather than one overwriting the other, because "which Python" is exactly the kind of denominator this table exists to publish. The margin narrows from 7x to 4.8x on the older interpreter and NFR-001 still holds with room.
 
 **Three inconsistent numbers existed for one quantity** — §0.6/§0.7's `1.83-1.86 s / 0.986-1.003 s`, a task's `0.056 s`, and the measured `0.684 s / 8.36 s`. The measured pair above is the one that stands; **the argument for the pre-filter never depended on which, and does not change.**
 
