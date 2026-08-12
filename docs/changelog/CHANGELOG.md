@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-08-11'
+updated: '2026-08-12'
 ---
 # Changelog
 
@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - 3.2.6rc2
 
 _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land here as missions merge._
+
+### 🐛 Fixed
+
+- **Root README guide links point at the post-IA `tutorials/` and `how-to/`
+  paths.** Fixes GitHub 404s from stale flat `docs/guides/*.md` hrefs after the
+  guides subdivision (e.g. Your First Mission).
 
 ## [3.2.6rc1] - 2026-08-12
 
