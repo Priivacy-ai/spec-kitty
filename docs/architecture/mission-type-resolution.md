@@ -2,7 +2,7 @@
 title: Mission-Type Resolution — the doctrine → charter → core seam
 description: "Why per-mission-type behaviour resolves through one doctrine → charter → core seam keyed off mission_type in meta.json."
 doc_status: active
-updated: '2026-07-16'
+updated: '2026-08-12'
 type: explanation
 related:
 - docs/architecture/mission-system.md
@@ -206,6 +206,70 @@ derived tree (#2661).
 **Specified but not built:** a mission-instance addendum layer (a top field-merge
 layer read from a `meta.json` governance addendum) is designed for completeness
 but deferred — no surface exists today and the layer is unproven (YAGNI).
+
+## Schema at a glance: mission-step contracts and the action index
+
+Two code models carry the shapes this page describes. Both diagrams below are
+**generated from the frozen code models** and kept honest by the drift guard
+(`tests/docs/diagram_drift/`, FR-004) — every field is introspected from the live
+model (`FieldInfo.alias or name`; frozen-dataclass `fields()`), never hand-copied.
+
+### Mission-step contract
+
+A **`MissionStepContract`** binds one workflow `action` (e.g. `plan`, `implement`)
+for a `mission` type to an ordered list of **`MissionStepContractStep`s** — the
+step-by-step instructions the runtime executes. Note the nested shape: a contract
+*has* steps, and each step declares its own `inputs`, `command`, and `delegates_to`.
+
+```plantuml
+@startyaml
+title Mission-step contract — MissionStepContract and its nested MissionStepContractStep
+MissionStepContract:
+  id: "<str>"
+  schema_version: "<str>"
+  action: "<action>"
+  mission: "<mission-type>"
+  steps:
+    MissionStepContractStep:
+      id: "<str>"
+      description: "<str>"
+      command: "<str | null>"
+      inputs: "<list>"
+      delegates_to: "<str | null>"
+      guidance: "<str | null>"
+  gates: "<list>"
+@endyaml
+```
+
+### The action index
+
+The **`action index`** is NOT a doctrine artefact kind — it is a **mission concept**
+(so it lives here, not in the [artefact-kinds catalog](doctrine-kinds.md)). It is the
+resolved, action-grain projection the runtime hands to an agent at a step boundary:
+for one workflow `action`, the exact set of doctrine references — directives,
+tactics, paradigms, styleguides, toolguides, procedures, and agent profiles — that
+apply. Where the mission-step contract says *what to do*, the action index says
+*which governance is in force while doing it*. It is a frozen dataclass (`ActionIndex`),
+computed by resolution, never authored by hand.
+
+```plantuml
+@startyaml
+title Action index — the per-action resolved governance projection (ActionIndex)
+ActionIndex:
+  action: "<action>"
+  directives: "<list[ref]>"
+  tactics: "<list[ref]>"
+  paradigms: "<list[ref]>"
+  styleguides: "<list[ref]>"
+  toolguides: "<list[ref]>"
+  procedures: "<list[ref]>"
+  agent_profiles: "<list[ref]>"
+@endyaml
+```
+
+Likewise **`mission_type`** is a mission concept (the key in `meta.json` this whole
+seam resolves off), not an artefact kind — the [kinds catalog](doctrine-kinds.md)
+deliberately omits both.
 
 ## See also
 
