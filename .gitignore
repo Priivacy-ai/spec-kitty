@@ -205,3 +205,6 @@ pytest-of-*/
 .kittify/brief-source.yaml
 .kittify/legacy-warning-shown-*
 .local/
+
+# Build-time PlantUML jar (downloaded + sha256-verified in CI/tests, never committed)
+/plantuml.jar

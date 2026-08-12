@@ -98,15 +98,23 @@ def build_docker_argv(
 
     Kept pure/testable so a unit test can assert the security-critical flags are
     present without needing docker. Note the flag ordering: JVM options precede
-    ``-jar``; PlantUML options (``-tsvg``, ``-failfast2``) follow the jar.
+    ``-jar``; PlantUML options (``-tsvg``, ``-failfast2``) follow the jar. Both the
+    working directory AND the jar's directory are bind-mounted (deduped) so the jar
+    is always reachable inside the container even when it lives outside ``workdir``.
     """
+    mounts: list[str] = []
+    seen: set[str] = set()
+    for directory in (workdir, jar_path.parent):
+        as_str = str(directory)
+        if as_str not in seen:
+            seen.add(as_str)
+            mounts.extend(("-v", f"{as_str}:{as_str}"))
     return [
         "docker",
         "run",
         "--rm",
         "--network=none",
-        "-v",
-        f"{workdir}:{workdir}",
+        *mounts,
         "-w",
         str(workdir),
         image_digest,
