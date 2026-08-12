@@ -35,7 +35,7 @@ first.
 
 ![Orchestrator quickstart - Mission Kitty splash](../../assets/images/orchestrator-quickstart-mission-kitty.png)
 
-_Stylized splash — the conductor panel is decorative. Host contract, orchestrator run, and recovery steps are in the sections below._
+_Stylized splash — the conductor's podium is decorative. Host contract, orchestrator run, and recovery steps are in the sections below._
 
 ## Version compatibility
 
