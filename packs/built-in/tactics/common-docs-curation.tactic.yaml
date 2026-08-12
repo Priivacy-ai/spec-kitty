@@ -21,8 +21,9 @@ steps:
   - title: Author frontmatter as the source of truth
     description: >
       Write in-file YAML frontmatter as the per-page source of truth: title; the
-      namespaced doc_status (draft | active | deprecated | superseded) — never a
-      bare status key; updated: YYYY-MM-DD; a description of 50-180 characters for
+      namespaced doc_status (draft | active | deprecated | superseded | durable —
+      durable is the reserved never-retire value for domain throughlines) — never
+      a bare status key; updated: YYYY-MM-DD; a description of 50-180 characters for
       SEO; and a related: list of resolvable repo-relative .md paths for
       cross-references. Do not maintain a parallel sidecar metadata store; the
       page-inventory rollup is regenerated from frontmatter.
