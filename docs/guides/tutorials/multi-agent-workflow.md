@@ -19,7 +19,7 @@ Learn how to coordinate multiple AI agents working on different work packages si
 
 ![Multi-agent parallel development - Mission Kitty splash](../../assets/images/multi-agent-workflow-mission-kitty.png)
 
-_Stylized splash — the parallel lanes board is decorative. Worktrees, WP dependencies, and the hands-on steps are in the text below._
+_Stylized splash — the glowing parallel lanes are decorative. Worktrees, WP dependencies, and the hands-on steps are in the text below._
 
 ## Why Parallel Development?
 
