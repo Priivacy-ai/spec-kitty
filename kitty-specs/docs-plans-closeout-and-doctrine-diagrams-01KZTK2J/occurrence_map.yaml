@@ -1,61 +1,34 @@
-# Occurrence map for the bulk-edit components of this mission (C-002).
-# Scope: (A) the domains/ migration (moving the 4 domain plans + updating references)
-#        (B) the doc_status: durable propagation.
-# The rest of the mission is net-new authoring and is NOT bulk-edit.
-mission: docs-plans-closeout-and-doctrine-diagrams-01KZTK2J
-change_mode: bulk_edit_scoped   # scoped to the two components below; net-new WPs are exempt
+# Occurrence map (DIRECTIVE_035) for the domains/ migration bulk edit.
+# change_mode: bulk_edit is set in meta.json so the runtime gate fires.
+# Schema: src/doctrine/schemas/occurrence-map.schema.yaml
+#
+# Scope: relocating the four domain plans into docs/plans/domains/ and updating
+# every reference to their paths. The `durable` doc_status addition (IC-01) is an
+# ADDITIVE frontmatter value, not a same-string rename, so it is out of this map.
 
-components:
-  domains_migration:
-    from:
-      - docs/plans/saas-hosted-sync-domain-plan.md
-      - docs/plans/doctrine-charter-domain-plan.md
-    to_dir: docs/plans/domains/
-    new_files:
-      - docs/plans/domains/packs-extraction-domain-plan.md
-      - docs/plans/domains/api-dashboard-domain-plan.md
-      - docs/plans/domains/index.md
-  durable_marker:
-    value: durable
-    enum: scripts/docs/frontmatter_backfill.py:DocStatus
+target:
+  term: docs/plans/saas-hosted-sync-domain-plan.md
+  replacement: docs/plans/domains/saas-hosted-sync-domain-plan.md
+  operation: rename
 
 categories:
-  code_symbols:
-    action: edit
-    items:
-      - "scripts/docs/frontmatter_backfill.py:DocStatus — add DURABLE member"
-      - "retire-sweep / freshness gate logic — treat durable as never-retire"
-  import_paths:
-    action: none
-    note: "No Python import paths change; the moved files are Markdown, not modules."
-  filesystem_paths:
-    action: move
-    items:
-      - "docs/plans/saas-hosted-sync-domain-plan.md -> docs/plans/domains/"
-      - "docs/plans/doctrine-charter-domain-plan.md -> docs/plans/domains/"
-  serialized_keys:
-    action: edit
-    items:
-      - "doc_status: durable in the 4 domain plans' frontmatter"
-      - "related: frontmatter entries pointing at the moved plan paths (index, release docs)"
-      - "styleguide/structural-lint allowed doc_status set -> add durable"
-  cli_commands:
-    action: none
-  user_facing_strings:
-    action: edit
-    items:
-      - "Markdown links to the moved plans in docs/plans/index.md"
-      - "Related domain plans blocks in the four 3-2-x-* release docs"
-      - "SaaS/doctrine-charter §6 cross-references (packs/api now live, in domains/)"
-  tests_fixtures:
-    action: edit
-    items:
-      - "tests/docs/*: fixtures asserting the doc_status value set -> include durable"
-      - "new: drift-guard + render-step + no-egress tests"
-  logs_telemetry:
-    action: none
+  code_symbols:         { action: do_not_change }          # no code symbols reference these doc paths
+  import_paths:         { action: do_not_change }          # Markdown pages, not importable modules
+  filesystem_paths:     { action: manual_review }          # frontmatter `related:` path entries; docs lockfile path rows
+  serialized_keys:      { action: do_not_change }          # frontmatter KEYS are unchanged (only path VALUES move)
+  cli_commands:         { action: do_not_change }
+  user_facing_strings:  { action: rename_if_user_visible } # Markdown links in index.md + the 3-2-x-* release docs + §6 cross-refs
+  tests_fixtures:       { action: manual_review }          # docs tests keyed on the paths (lockfile-driven regeneration)
+  logs_telemetry:       { action: do_not_change }
 
-verification:
-  - "relative-link-fixer test: zero dead links after the move"
-  - "docs lockfiles regenerated (docs_index.py --write + inventory_lockfile.py)"
-  - "durable accepted at every doc_status validation site (test)"
+moves:
+  - from:
+      - docs/plans/saas-hosted-sync-domain-plan.md
+      - docs/plans/doctrine-charter-domain-plan.md
+    to: docs/plans/domains/
+
+exceptions:
+  - path: "docs/plans/domains/*-domain-plan.md"
+    field_path: "related"
+    action: manual_review
+    reason: "Each plan's own related: list references sibling plans by path; those entries move with the plan and need per-entry review, not a blanket rename."

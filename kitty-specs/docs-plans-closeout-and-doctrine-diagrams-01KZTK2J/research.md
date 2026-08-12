@@ -1,81 +1,58 @@
-# Research: docs/plans Closeout and Doctrine Schema Diagrams
+# Research: docs/plans Tier 3 Closeout (Scope A)
 
-Consolidates the pre-spec investigations (SaaS-plan, docs-Tier-3, doctrine-docs-map,
-artefact-schemas, PlantUML-integration) with the `doc_status` enumeration grep. Each
-decision below resolves a Technical Context unknown or a spec requirement.
+Consolidates the pre-spec docs-Tier-3 investigation with the post-plan squad's Scope-A findings.
+Scope-B research (PlantUML integration, artefact schemas, drift guard) moves to Mission B.
 
-## D1 — `doc_status: durable` marker and its propagation sites (FR-002, C-005)
+## D1 — `doc_status: durable` vocabulary and its propagation sites (FR-002, NFR-001, C-004/C-005)
 
-- **Decision**: Add `DURABLE = "durable"` to the canonical `DocStatus(StrEnum)` and teach every
-  validation site to accept it; the retire tooling and freshness/structural gates treat `durable`
-  as never-retire.
-- **Enumeration sites (verified via `git grep doc_status`)**:
-  - `scripts/docs/frontmatter_backfill.py` — `class DocStatus(StrEnum)` (line ~109): the canonical enum. Add `DURABLE`.
-  - `packs/built-in/styleguides/common-docs.styleguide.yaml` — the frontmatter contract / allowed `doc_status` set consumed by the structural lint (verify the allowlist and extend).
-  - `tests/docs/test_docs_structural_lint.py`, `test_frontmatter_backfill.py`, `test_audience_resolves.py`, `test_description_length_gate.py`, `test_adr_converter.py` — tests that assert on doc_status values; extend fixtures/expectations.
-  - The structural-lint asset (`common-docs-structural-lint`) frontmatter-contract check.
-- **Rationale**: A dedicated enum value is machine-distinguishable (chosen over `throughline: true` field per operator decision); the retire sweep keys on it directly.
-- **Alternatives considered**: new frontmatter field `throughline: true` (rejected by operator — prefers a first-class `doc_status`); "active + banner convention" (rejected — not machine-distinguishable).
-- **Risk**: a missed validation site rejects `durable`. Mitigation: a test that asserts `durable` passes every gate over a fixture domain plan (ATDD red-first).
+- **Decision**: `durable` is a **reserved, never-retire** value added to the vocabulary. The
+  AUTHORITY is **directive `042-common-docs`** (the closed vocabulary is declared there and
+  restated); the `DocStatus` StrEnum **mirrors** it. Editing the enum alone leaves directive
+  (authority) and code inconsistent — that is doctrine/code drift.
+- **Full enumeration of validation/enumeration sites** (post-plan squad, independently grepped):
+  1. `packs/built-in/directives/042-common-docs.directive.yaml` — **authoritative vocabulary** (edit first).
+  2. `scripts/docs/frontmatter_backfill.py:DocStatus` (StrEnum) — the mirror.
+  3. `packs/built-in/styleguides/common-docs.styleguide.yaml` — `structural_lint_config` (`point_in_time_markers`, `frontmatter_required_fields`) + vocabulary prose. Assert `durable ∉ point_in_time`.
+  4. `packs/built-in/styleguides/docs-freshness-sla.styleguide.yaml` — the freshness/retire gate (never-stale for durable).
+  5. `packs/built-in/assets/docs_structural_lint.py` — `point_in_time_markers` consumer.
+  6. `src/doctrine/styleguides/models.py` + the generated schema — if durable is encoded structurally.
+  7. Tests: `tests/docs/{test_docs_structural_lint,test_frontmatter_backfill,test_audience_resolves,test_description_length_gate}.py` **and** `tests/doctrine/test_schema_generation_integrity.py`.
+  8. (Awareness) `scripts/docs/bulk_ref_rewrite.py`, `frontmatter_backfill_sections.yaml`, `publication-authority.styleguide.yaml`, `divio-type-discipline.styleguide.yaml` — verify none reject an unlisted value.
+- **Correction**: `closeout` is **not** a `DocStatus` value (enum = draft/active/deprecated/superseded);
+  it is a point-in-time-marker / archive-directory convention → `deprecated`. FR-001's mechanism uses
+  `deprecated` (or move-to-archive), never a `closeout` enum value.
+- **Risk**: a missed site rejects `durable`. Mitigation: a directive-042-led enumeration + one test
+  asserting `durable` passes every site (red-first).
 
-## D2 — Retire/archive sweep evidence and mechanism (FR-001, NFR-005, C-001)
+## D2 — Retire/archive sweep evidence and mechanism (FR-001, NFR-002, C-001)
 
-- **Decision**: Per-document retirement, evidence-gated. Mechanism: **in-place `superseded`/`closeout`
-  marker** for RECORD-tier docs; **move-to-archive** for whole dead clusters. Never delete content.
-- **Candidate ledger (from docs-Tier-3 investigation)** — 11 clusters:
-  - **Auto-retireable (3, evidenced in open-core plan §1.2/§1.4)**: `engineering-notes/runtime_and_state_overhaul/`, `naming-identity-ssot-strangler/`, `3-2-x-goal-corroboration/`.
-  - **Evidence-gated (8, need a per-doc `gh issue view` before flip)**: the `3-2-0-training-bugs-2007/` + surface/symmetry clusters; `doctrine/` architecture-review drafts (RECORD-tier, selective — do NOT sweep the #3324-relocated `charter-sole-door-deferred-issues.md`); `reviews/` PR305 cluster; `refactor/` #1111 debriefs; `3-2-doc-publication/` checklist; stale `investigations/` drafts; `next-mission-mappings/` compat surface.
-  - **Deferred (blocked, C-001)**: `3-2-x-milestone-roadmap.md` — retire only when open-core item R lands.
-- **Rationale**: retirement must be reversible and honest; a blanket sweep would hide un-shipped work.
-- **Risk**: partial-shipping. Mitigation: a doc stays live if its backing design is not fully shipped.
+- **Decision**: per-document, evidence-gated. Mechanism: `doc_status: deprecated` in place (RECORD-tier)
+  or move-to-archive (dead clusters). Content is never deleted. **There is no automated sweep tool** —
+  this is manual curation.
+- **Candidate ledger (11 clusters)**: 3 auto-retireable (`runtime_and_state_overhaul/`,
+  `naming-identity-ssot-strangler/`, `3-2-x-goal-corroboration/` — evidenced in the open-core plan);
+  8 evidence-gated (per-doc `gh issue view` before flip; do NOT sweep the #3324-relocated
+  `charter-sole-door-deferred-issues.md`); 1 deferred (`3-2-x-milestone-roadmap.md`, C-001).
+- **Decomposition**: fan out at tasks time (auto batch + per-evidence-source WPs).
 
 ## D3 — Two new domain plans + boundary seams (FR-003, FR-004)
 
-- **Decision**: Author `packs-extraction-domain-plan.md` (physical extraction/modularization lineage:
-  standalone `spec-kitty-doctrine` module boundary, the charter↔doctrine import-cycle blocker, in-place
-  strangler cutover, repo-split transparency) and `api-dashboard-domain-plan.md` (application/mission-data
-  API #645 + dashboard/UX #650). Each states an explicit non-goal against doctrine-charter §3.2 (pack
-  ecosystem) and §3.6 (doctrine public API).
-- **Source material**: open-core plan §2.2–2.3 + the verified standalone `src/doctrine/pyproject.toml`
-  (`spec-kitty-doctrine` v1.0.0); epics #2466/#2539/#2216 (packs), #645/#650 (api-dashboard).
-- **Rationale**: complete the four-domain throughline set with no overlap.
+- **Decision**: `packs-extraction-domain-plan.md` (physical extraction/modularization lineage:
+  standalone `spec-kitty-doctrine` module boundary, the charter↔doctrine import-cycle blocker,
+  in-place strangler cutover, repo-split transparency) and `api-dashboard-domain-plan.md`
+  (application/mission-data API #645 + dashboard/UX #650). Each declares an explicit non-goal against
+  doctrine-charter §3.2 (pack ecosystem) and §3.6 (doctrine public API).
+- **Source material**: open-core plan §2.2–2.3 + the standalone `src/doctrine/pyproject.toml`; epics
+  #2466/#2539/#2216 (packs), #645/#650 (api-dashboard).
 
-## D4 — PlantUML docsite rendering approach (FR-006, NFR-002/003/004, C-004/006)
+## D4 — domains/ migration (FR-005, C-002)
 
-- **Decision**: Local **build-time `plantuml.jar` pre-render**, wired as a **post-DocFX HTML
-  post-processor** (`scripts/docs/plantuml_render.py`, mirroring `glossary_linker.py`) that replaces
-  `@startjson`/`@startyaml` fences with SVGs in `docs/_site`. Both `docs-pages.yml` and
-  `docs-build-pr.yml` gain: `actions/setup-java` (Temurin 17) → fetch a **pinned** `plantuml.jar`
-  (version + sha256) → run the render with `-DPLANTUML_SECURITY_PROFILE=SANDBOX`. SVGs CI-generated,
-  not committed. No `docfx.json` change; native Mermaid undisturbed.
-- **Rationale**: keeps doctrine content **local** (zero egress), reproducible, extends a proven seam.
-- **Alternatives considered**: client-side plantuml-server encoder (**rejected** — egresses doctrine
-  content to plantuml.com unless self-hosted; C-006); custom .NET DocFX plugin (**rejected** — highest
-  effort, still needs the jar, fragile against `dotnet tool install -g docfx@latest`).
-- **Accepted limitation (C-004)**: SVGs render only on the built docsite, not github.com source view.
-
-## D5 — Doctrine artefact schemas (source of truth for diagrams) (FR-008, FR-010, NFR-001)
-
-- **Decision**: Generate `@startyaml` typed-placeholder diagrams from the **frozen** code models
-  (`frozen=True, extra="forbid"` → closed field sets, safe to depict completely). A drift guard
-  (FR-010) compares each diagram's fields against its model and fails on mismatch.
-- **Model source of truth (verified)**:
-  - agent-profile → `src/doctrine/agent_profiles/schema_models.py:AgentProfileSchema` (6-section, kebab-case)
-  - mission-type/step/action-index → `src/doctrine/missions/models.py` (`MissionType`, `MissionStep`), `step_contracts.py:MissionStepContract`, `action_index.py:ActionIndex`
-  - DRG → `src/doctrine/drg/models.py` (`NodeKind`×15, `Relation`×15, `DRGNode/Edge/Graph`, `RELATION_DESCRIPTIONS`)
-  - artefact-kind vocab → `src/doctrine/artifact_kinds.py:ArtifactKind` (12 members)
-  - other kinds → `src/doctrine/<plural>/models.py` (directive/tactic/paradigm/styleguide/toolguide/procedure/glossary_pack/asset)
-- **Trap**: `styleguides/models.py:AntiPattern` (inline example type) ≠ the DRG `anti_pattern` node — do not conflate (FR-009).
-- **Placement (doctrine-docs-map)**: cross-kind overview in `doctrine-kinds.md`; DRG in `doctrine-relationships.md`; mission-type/step in `mission-type-resolution.md`.
-
-## D6 — Diagram/code drift guard mechanism (FR-010, NFR-001)
-
-- **Decision**: A pytest guard that parses each schema diagram's field set and asserts it equals the
-  field set introspected from the source model (Pydantic `model_fields` / dataclass fields). Fails on
-  any add/remove/rename. Runs in `tests/docs/` (or `tests/architectural/`).
-- **Rationale**: makes NFR-001 (zero drift) enforceable rather than aspirational; ATDD red-first.
+- **Decision**: move all four plans into `docs/plans/domains/` with a `domains/index.md`; update every
+  reference (index, `3-2-x-*` release docs, §6 cross-refs); regenerate the docs lockfiles.
+  `change_mode: bulk_edit` + a schema-conformant `occurrence_map.yaml` (per
+  `src/doctrine/schemas/occurrence-map.schema.yaml`) so the gate fires. Verified by the
+  relative-link-fixer test (zero dead links).
 
 ## Open questions
 
-None blocking. The 8 evidence-gated retire candidates are resolved per-doc **during implementation**
-(each WP carries its `gh issue view` evidence line), not pre-committed here.
+None blocking. The 8 evidence-gated retire candidates are resolved per-document during implementation.

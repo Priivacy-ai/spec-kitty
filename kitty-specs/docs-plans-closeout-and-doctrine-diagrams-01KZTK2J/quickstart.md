@@ -1,36 +1,21 @@
-# Quickstart: doctrine schema diagrams & docs curation
+# Quickstart: docs/plans Tier 3 closeout (Scope A)
 
-## Add a doctrine-artefact schema diagram
+## Add the `durable` doc_status value
 
-1. Find the frozen model (source of truth), e.g. `src/doctrine/agent_profiles/schema_models.py:AgentProfileSchema`.
-2. In the target doctrine page (`docs/architecture/doctrine-kinds.md` etc.), author a `@startyaml` typed-placeholder block whose keys/structure mirror the model's fields, values are type/constraint placeholders, and required fields are `#highlight`-ed:
-   ```
-   @startyaml
-   #highlight "profile-id"
-   profile-id: "str (required, unique)"
-   roles: ["<role>", "..."]
-   routing-priority: int
-   context-sources:
-     doctrine-layers: ["<layer>"]
-   @endyaml
-   ```
-3. Bind it to its model for the drift guard (comment marker `<!-- model: <path>:<Symbol> -->`).
-4. Run the drift guard: `PWHEADLESS=1 python -m pytest tests/docs/test_doctrine_diagram_drift.py -q`.
-
-## Render diagrams locally (build-time)
-
-- The docsite build (CI) runs `scripts/docs/plantuml_render.py` after DocFX, replacing `@start*` blocks with SVGs from a pinned local `plantuml.jar` (SANDBOX; no network).
-- Locally, run the same script against a built `docs/_site` to preview.
+1. Edit the AUTHORITY first: `packs/built-in/directives/042-common-docs.directive.yaml` (add `durable` to the vocabulary).
+2. Mirror in `scripts/docs/frontmatter_backfill.py:DocStatus` (`DURABLE = "durable"`).
+3. Update the styleguide `structural_lint_config` / freshness-SLA gate so `durable` is accepted and `durable ∉ point_in_time`.
+4. Run `PWHEADLESS=1 python -m pytest tests/docs/ tests/doctrine/test_schema_generation_integrity.py -q` — the `durable`-accepted-everywhere test must go green.
 
 ## Retire a plan cluster
 
 1. Confirm shipped/distilled evidence (`gh issue view <n>` or an open-core-plan citation).
-2. Flip `doc_status` to `superseded`/`closeout` (RECORD-tier) or move the cluster to archive; never delete.
+2. Flip `doc_status` to `deprecated` (RECORD-tier) or move the cluster to an archive dir; never delete. `closeout` is NOT a doc_status value.
 3. Update `docs/plans/index.md`; keep `3-2-x-milestone-roadmap.md` untouched (deferred, C-001).
 
 ## Migrate a domain plan into domains/
 
-- Follow `occurrence_map.yaml`: move the file, update every reference (index, release docs, §6 cross-refs), regenerate the docs lockfiles, and confirm zero dead links via the relative-link-fixer test.
+- Follow `occurrence_map.yaml`: move the file into `docs/plans/domains/`, update every reference (index, release docs, §6 cross-refs), regenerate the docs lockfiles (`docs_index.py --write` + `inventory_lockfile.py`), and confirm zero dead links via the relative-link-fixer test.
 
 ## Gates before commit
 
