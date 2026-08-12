@@ -38,7 +38,7 @@ nothing (``appended_count == 0`` for every mission) -- ``detect()`` returns
 
 Version-key ordering
 --------------------
-``target_version = "3.2.6"`` -- tied to the installed package version
+``target_version = "3.2.6rc1"`` -- tied to the installed package version
 (``pyproject.toml``), the same still-unreleased cycle as the sibling
 ``m_zz_runtime_state_backfill.py``. The ``m_zz_`` filename prefix keeps this
 module importing (and registering) after the ``m_unify_charter_activation*``
@@ -97,7 +97,7 @@ class VerdictProvenanceBackfillMigration(BaseMigration):
         "review_result event, so the event authority is complete after the "
         "verdict-reader collapse (FR-012, SC-008). Idempotent."
     )
-    target_version = "3.2.6"
+    target_version = "3.2.6rc1"
     runs_on_worktrees = False
 
     def detect(self, project_path: Path) -> bool:

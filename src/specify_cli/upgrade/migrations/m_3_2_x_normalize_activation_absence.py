@@ -27,11 +27,11 @@ Reconciliation of the two prior migrations (WP07/T041)
 Two migrations already fought over this surface, in opposite directions, and the
 config-embedded ``activated_*`` mirror survived both:
 
-1. ``m_unify_charter_activation.py`` (``target_version = "3.2.6"``) made
+1. ``m_unify_charter_activation.py`` (``target_version = "3.2.6rc1"``) made
    ``config.activated_<kind>`` the single activation authority — it *wrote*
    activation INTO ``config.yaml``.
 2. ``m_unify_charter_activation_finalize.py``
-   (``consolidate_charter_bundle_fold``, ``target_version = "3.2.6"``) reversed
+   (``consolidate_charter_bundle_fold``, ``target_version = "3.2.6rc1"``) reversed
    that: it folded activation into a git-tracked ``charter.yaml`` and minted the
    ``config.yaml`` ``charter:`` pointer, then stripped the ``activated_*`` keys
    from ``config.yaml``.
@@ -49,7 +49,7 @@ Why the finalize pass did not take (the mirror is still present on checkouts):
   migration only when ``from_version < target_version <= to_version``, or when
   ``target_version == from_version`` *and* ``detect()`` is true on an explicit
   upgrade run. A project already stamped at the finalize migration's own
-  ``3.2.6`` target (e.g. via the seed migration that shares that version, or via
+  ``3.2.6rc1`` target (e.g. via the seed migration that shares that version, or via
   hand-authored dogfood config) reaches ``3.2.6`` with no ``from < to`` window,
   so the mirror-removal (``_rewrite_config``) only fires if an upgrade is
   explicitly invoked at that exact version. That timing gap left a
@@ -122,7 +122,7 @@ from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
 MIGRATION_ID = "normalize_activation_absence"
-TARGET_VERSION = "3.2.6"
+TARGET_VERSION = "3.2.6rc1"
 
 _KITTIFY_DIRNAME = ".kittify"
 _CONFIG_FILENAME = "config.yaml"

@@ -13,9 +13,35 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 3.2.6
+## [Unreleased]
 
-_The 3.2.6 development cycle is open. Entries land here as missions merge._
+_The next development cycle is open. Entries land here as missions merge._
+
+## [3.2.6rc1] - 2026-08-12
+
+> [!WARNING]
+> **`3.2.6rc1` is a Release Candidate — an internal, delta build published for validation, NOT an official `3.2.6` release.** It ships as a GitHub _prerelease_ and to PyPI as a PEP 440 prerelease, so ordinary installers skip it unless you explicitly opt in with `--pre`. Do **not** use it for production or general rollout. The last official release remains `v3.2.5`; when `3.2.6` is finalized its changelog section supersedes this one.
+
+**Install for testing (opt-in only):**
+
+```bash
+pipx install --pre spec-kitty-cli==3.2.6rc1
+# or, inside an existing environment:
+pip install --pre spec-kitty-cli==3.2.6rc1
+```
+
+**Highlights since `v3.2.5`** — the operator-facing changes worth exercising in this candidate:
+
+- **Breaking — built-in doctrine content relocated to `packs/built-in/` with no compatibility shim** (mission `relocate-builtin-doctrine-packs`). Repoint any reference that still targets the old `src/doctrine/<kind>/built-in/` path.
+- **Breaking — local `beads`/`fp` tracker sync now requires a recorded egress decision** (mission `tracker-egress-refusal-3108`). A binding that never recorded hosted-sync consent stops syncing on upgrade until you record `tracker.egress: permitted` or `sync.enabled: true`.
+- **Breaking — the `rtk-search-tooling` toolguide is removed**, and the `3.2.6_retire_rtk_search_tooling` upgrade migration strips it from projects that had it activated (it runs automatically on `spec-kitty upgrade` and is safe to re-run).
+- **Breaking — org packs with an unrecognised agent-profile or DRG key now fail to load** (mission `doctrine-silence-guards`). Run `spec-kitty doctor doctrine --json` and check `skipped_profiles` before you upgrade.
+- **`charter synthesize` is now non-destructive** — it preserves backed governance content by default, with `--prune` as the explicit opt-in and `--dry-run` to preview (mission `charter-synthesize-reconciliation`; `#3270` P0, folds `#2777` / `#3052`). The `implement` / `next` boundary no longer hard-blocks until you resynthesize.
+- **Approving a work package after a rejection now sticks with no override flag required** (mission `review-verdict-write-integrity`; `#3044`) — the reject → fix → approve cycle no longer forces `--skip-review-artifact-check`.
+- **Timestamps Spec Kitty writes into your project are now correct aware-UTC** instead of local time mislabelled as UTC (mission `kernel-clock-single-door`; `#3305`, closes `#3289`).
+- **CLI UX: shell autocompletion, a `-h` short-help alias, and alphabetical command listing** (`#2232`, `#2234`, `#2235`) — additive, with no behavior change to existing commands.
+
+The complete, factual list of changes for this candidate follows in the entries below.
 
 ### ✨ Added
 
