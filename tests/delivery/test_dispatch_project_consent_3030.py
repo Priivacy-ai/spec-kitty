@@ -37,6 +37,11 @@ def _stub_emitter(*, project_slug: str, build_id: str) -> EventEmitter:
     emitter = EventEmitter()
     emitter._identity = SimpleNamespace(build_id=build_id, project_uuid=uuid4(), project_slug=project_slug)
     emitter._get_git_metadata = lambda: GitMetadata(repo_slug=f"org/{project_slug}")
+    # The emit path stamps the envelope's drain_blocked_reason from these two
+    # seams (not from _capture_gate_state); a fully-ready session must stub
+    # them too or every capture is stamped blocked and never selected.
+    emitter._is_authenticated = lambda: True
+    emitter._get_team_slug = lambda: "team"
     emitter._capture_gate_state = lambda _team, **_kwargs: CaptureGateState(
         saas_enabled=True,
         checkout_enabled=True,

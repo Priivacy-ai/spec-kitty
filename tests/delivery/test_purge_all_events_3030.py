@@ -17,7 +17,6 @@ from specify_cli.delivery.retention import (
     purge_project_events,
 )
 from specify_cli.event_journal import Event, EventJournal
-from specify_cli.event_journal.models import TABLE_NAME
 from specify_cli.sync.layout_generation import LayoutMode
 from specify_cli.sync.project_store import ProjectSyncStore
 
@@ -63,9 +62,10 @@ def store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
 
 
 def _counts(store: ProjectSyncStore) -> tuple[int, int]:
+    """Independent raw-SQL census of the per-project store's own tables."""
     connection = sqlite3.connect(str(store.database_path))
     try:
-        journal = connection.execute(f"SELECT COUNT(*) FROM {TABLE_NAME}").fetchone()  # noqa: S608
+        journal = connection.execute("SELECT COUNT(*) FROM journal_entries").fetchone()
         ledger = connection.execute(f"SELECT COUNT(*) FROM {LEDGER_TABLE}").fetchone()  # noqa: S608
         return int(journal[0]), int(ledger[0])
     finally:

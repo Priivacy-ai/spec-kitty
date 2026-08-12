@@ -63,7 +63,10 @@ def _drive_handler(tmp_path: Path) -> Iterator[tuple[MagicMock, MagicMock]]:
     the two MissionCreated-only side effects.
     """
     identity = MagicMock(
-        project_uuid="proj-uuid",
+        # Must parse as a CanonicalProjectUUID: the handler now routes the
+        # queued event through ProjectSyncStore(str(project_uuid)), which
+        # rejects non-UUID text at construction.
+        project_uuid="aaaaaaaa-0000-0000-0000-000000000001",
         build_id="build-id",
         project_slug="slug",
         node_id="node-1",
@@ -86,6 +89,10 @@ def _drive_handler(tmp_path: Path) -> Iterator[tuple[MagicMock, MagicMock]]:
         ),
         patch("specify_cli.core.contract_gate.validate_outbound_payload"),
         patch("spec_kitty_events.Event", MagicMock()),
+        # Per-project store cutover: the handler queues via
+        # ProjectSyncStore(...).unit_of_work() + OfflineQueue(unit, authority);
+        # both stay stubbed as the no-op queue boundary.
+        patch("specify_cli.sync.project_store.ProjectSyncStore"),
         patch("specify_cli.sync.queue.OfflineQueue"),
         patch("specify_cli.sync.events._publish_event_via_sync_daemon", publish_spy),
         patch("specify_cli.sync.events._request_dashboard_sync", dashboard_spy),
