@@ -1,0 +1,61 @@
+# Occurrence map for the bulk-edit components of this mission (C-002).
+# Scope: (A) the domains/ migration (moving the 4 domain plans + updating references)
+#        (B) the doc_status: durable propagation.
+# The rest of the mission is net-new authoring and is NOT bulk-edit.
+mission: docs-plans-closeout-and-doctrine-diagrams-01KZTK2J
+change_mode: bulk_edit_scoped   # scoped to the two components below; net-new WPs are exempt
+
+components:
+  domains_migration:
+    from:
+      - docs/plans/saas-hosted-sync-domain-plan.md
+      - docs/plans/doctrine-charter-domain-plan.md
+    to_dir: docs/plans/domains/
+    new_files:
+      - docs/plans/domains/packs-extraction-domain-plan.md
+      - docs/plans/domains/api-dashboard-domain-plan.md
+      - docs/plans/domains/index.md
+  durable_marker:
+    value: durable
+    enum: scripts/docs/frontmatter_backfill.py:DocStatus
+
+categories:
+  code_symbols:
+    action: edit
+    items:
+      - "scripts/docs/frontmatter_backfill.py:DocStatus — add DURABLE member"
+      - "retire-sweep / freshness gate logic — treat durable as never-retire"
+  import_paths:
+    action: none
+    note: "No Python import paths change; the moved files are Markdown, not modules."
+  filesystem_paths:
+    action: move
+    items:
+      - "docs/plans/saas-hosted-sync-domain-plan.md -> docs/plans/domains/"
+      - "docs/plans/doctrine-charter-domain-plan.md -> docs/plans/domains/"
+  serialized_keys:
+    action: edit
+    items:
+      - "doc_status: durable in the 4 domain plans' frontmatter"
+      - "related: frontmatter entries pointing at the moved plan paths (index, release docs)"
+      - "styleguide/structural-lint allowed doc_status set -> add durable"
+  cli_commands:
+    action: none
+  user_facing_strings:
+    action: edit
+    items:
+      - "Markdown links to the moved plans in docs/plans/index.md"
+      - "Related domain plans blocks in the four 3-2-x-* release docs"
+      - "SaaS/doctrine-charter §6 cross-references (packs/api now live, in domains/)"
+  tests_fixtures:
+    action: edit
+    items:
+      - "tests/docs/*: fixtures asserting the doc_status value set -> include durable"
+      - "new: drift-guard + render-step + no-egress tests"
+  logs_telemetry:
+    action: none
+
+verification:
+  - "relative-link-fixer test: zero dead links after the move"
+  - "docs lockfiles regenerated (docs_index.py --write + inventory_lockfile.py)"
+  - "durable accepted at every doc_status validation site (test)"
