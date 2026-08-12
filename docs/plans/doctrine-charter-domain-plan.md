@@ -212,13 +212,13 @@ as a DRG edge); and the [doctrine-inclusion-assessment](doctrine/doctrine-inclus
 and the compiler gap).
 
 **Open issues.** Chiefly the #2466 children: **#2467** (pack-split keystone — the
-foundational schema change everything else builds on), **#2468** (promote mission types
-+ step contracts to full doctrine kinds — sizing **L**, carrying a *named* "reverses a
+foundational schema change everything else builds on), **#2468** (promote mission types +
+step contracts to full doctrine kinds — sizing **L**, carrying a *named* "reverses a
 tested no-silent-fallback contract" risk that requires its own decision record), the
 assets-kind / shortcodes / pack-validator kinds (parallelisable once the keystone
 lands), plus the #2216 governance-tier work. `mission-type` is deliberately **not** yet
-an `ArtifactKind` (`MissionTypeNotAnArtifactKind` is intentional); its promotion is
-#2468 territory and must **not** land as a quiet behaviour change.
+an `ArtifactKind` (`MissionTypeNotAnArtifactKind` is intentional); its promotion is #2468
+territory and must **not** land as a quiet behaviour change.
 
 ### 3.3 Activation-driven availability & the single canonical mission-type source
 
@@ -358,8 +358,8 @@ correctness traps (URN must be `glossary_pack:` underscore; the silent-invisibil
 guard; `GLOSSARY_PACK` joins the charter-activatable universe, not the `{template,
 asset}` exclusion set; three mirrored kind-lists move in lockstep).
 
-**Open issues.** The program's own ticket set — #1418, #2599 (epic #2535), #2822, #2830,
-#2823, #2727 — all pre-spec at the program's last pass. This sub-area is at
+**Open issues.** The program's own ticket set — #1418, #2599 (epic #2535), #2822, #2830, #2823, #2727
+(all pre-spec at the program's last pass). This sub-area is at
 program-planning maturity (`doc_status: draft`), ahead of its per-mission specs.
 
 ---
@@ -476,8 +476,8 @@ are open but unscheduled; #3275 has no owning epic at all — the §4 content-QA
 - [2026-05-16-1 doctrine-layer merge semantics](../adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md) — activation plan/commit seam, cascade, DRG merge verbs (§3.1, §3.2).
 - [2026-08-02-1 charter-wheel assessment](../adr/3.x/2026-08-02-1-charter-wheel-assessment.md) — the deferred `kernel → doctrine → charter` cutover (packs-extraction sibling; §3.6 precondition).
 
-**Epics:** #2519 (charter authoring & lifecycle), #2466 (extensibility & pack ecosystem),
-#2652 (specify_cli/missions retirement / activation-driven availability), #1799
+**Epics:** #2519 (charter authoring & lifecycle), #2466 (extensibility & pack ecosystem), #2652
+(specify_cli/missions retirement / activation-driven availability), #1799
 (governance configuration & docs), #2216 (governance tiers), #3259 (meta.json fail-closed
 routing), #645 (stable application API surface).
 
