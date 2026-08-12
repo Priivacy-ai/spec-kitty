@@ -11,6 +11,8 @@ from specify_cli.sync.body_queue import BodyEnqueueResult, OfflineBodyUploadQueu
 from specify_cli.sync.queue import OfflineQueue, ProjectOutboxTask
 from specify_cli.sync.project_store import ProjectSyncStore
 
+pytestmark = pytest.mark.fast
+
 
 PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
 OTHER = "bbbbbbbb-0000-0000-0000-000000000002"
@@ -51,9 +53,7 @@ def test_event_and_body_tasks_are_typed_owned_and_sequenced(
         queue = OfflineQueue(unit, store.layout_generation(), max_queue_size=10)
         body_queue = OfflineBodyUploadQueue(unit, store.layout_generation(), max_queue_size=10)
         assert queue.queue_event(event) is True
-        assert body_queue.enqueue(
-            _Namespace(PROJECT), "spec.md", "abc", "body", 4
-        ) is BodyEnqueueResult.ENQUEUED
+        assert body_queue.enqueue(_Namespace(PROJECT), "spec.md", "abc", "body", 4) is BodyEnqueueResult.ENQUEUED
         event_task = queue.drain_queue()[0]
         body_task = body_queue.drain()[0]
 
@@ -75,9 +75,7 @@ def test_outboxes_reject_foreign_owner_before_insert(
         queue = OfflineQueue(unit, store.layout_generation())
         body_queue = OfflineBodyUploadQueue(unit, store.layout_generation())
         with pytest.raises(ValueError, match="owner"):
-            queue.queue_event(
-                {"event_id": "foreign", "event_type": "x", "project_uuid": OTHER, "payload": {}}
-            )
+            queue.queue_event({"event_id": "foreign", "event_type": "x", "project_uuid": OTHER, "payload": {}})
         with pytest.raises(ValueError, match="owner"):
             body_queue.enqueue(_Namespace(OTHER), "spec.md", "abc", "body", 4)
 
@@ -92,9 +90,7 @@ def test_journal_outbox_and_body_fault_roll_back_together(
     with pytest.raises(RuntimeError, match="fault"), store.unit_of_work() as unit:
         queue = OfflineQueue(unit, store.layout_generation())
         body_queue = OfflineBodyUploadQueue(unit, store.layout_generation())
-        queue.queue_event(
-            {"event_id": "event-1", "event_type": "x", "project_uuid": PROJECT, "payload": {}}
-        )
+        queue.queue_event({"event_id": "event-1", "event_type": "x", "project_uuid": PROJECT, "payload": {}})
         body_queue.enqueue(_Namespace(PROJECT), "spec.md", "abc", "body", 4)
         raise RuntimeError("fault")
 

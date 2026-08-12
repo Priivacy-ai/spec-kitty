@@ -31,7 +31,6 @@ tests/sync/test_final_sync_diagnostics.py::CP001
 tests/sync/test_forward_compatibility.py::CP001
 tests/sync/test_issue_598_hang_fixes.py::CP001
 tests/sync/test_migrate_journal.py::CP001
-tests/sync/test_migrate_journal.py::CP002
 tests/sync/test_offline_queue.py::CP001
 tests/sync/test_offline_queue_counter.py::CP001
 tests/sync/test_offline_queue_counter.py::CP002

@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import pytest
 import hashlib
-import sqlite3
+import json
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 
@@ -24,10 +26,12 @@ from specify_cli.sync.namespace import NamespaceRef, UploadOutcome, UploadStatus
 
 pytestmark = pytest.mark.fast
 
+_PROJECT_UUID = "59800000-0000-4000-8000-000000000001"
+
 
 @pytest.fixture(autouse=True)
 def _the_fixture_project_consents(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Record hosted-sync consent for ``uuid-1``, the project every namespace here uses.
+    """Prepare current project-owned hosted-sync authority for every namespace.
 
     #3030 T025 made the body drain resolve consent per task from the task's own
     ``project_uuid``, deny-on-absence. These SC-001…SC-006 pins are about the upload
@@ -35,21 +39,107 @@ def _the_fixture_project_consents(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     consenting project is their precondition, not their subject. The refusal path has
     its own pins in ``test_body_drain_consent_3030.py``.
 
-    Written through the real ``set_project_consent`` writer into a per-test
-    ``SPEC_KITTY_HOME`` so no grant leaks into another test's default-deny.
+    The explicit opt-in and project store are both scoped to the per-test
+    ``SPEC_KITTY_HOME`` so no authority leaks into another test's default-deny.
     """
-    from specify_cli.sync.consent import set_project_consent
+    from specify_cli.sync.consent import record_project_opt_in
+    from specify_cli.sync.layout_generation import LayoutMode
+    from specify_cli.sync.project_store import ProjectSyncStore
 
     home = tmp_path / "consent-home"
     home.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
-    set_project_consent("uuid-1", True)
+    record_project_opt_in(_PROJECT_UUID, actor="body-integration-test")
+    store = ProjectSyncStore(_PROJECT_UUID)
+    authority = store.layout_generation()
+    if authority.peek_state().mode is LayoutMode.LEGACY:
+        authority.begin_cutover("body-integration-test")
+        authority.publish_project_only("body-integration-test", verify_exact=lambda: True)
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO project_target_admissions "
+            "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, binding_audience) "
+            "VALUES (?, 'https://test.example.com', 'account-1', 'teamspace-1', 1, "
+            "'admitted', '1', 'private-teamspace:teamspace-1')",
+            (_PROJECT_UUID,),
+        )
+        context = store.create_context_from_unit(unit)
+        assert context.project_uuid.storage_token == _PROJECT_UUID
+
+
+class _ProjectBodyQueue:
+    """Short-UoW adapter over the canonical project-owned body queue."""
+
+    def __init__(self) -> None:
+        from specify_cli.sync.project_store import ProjectSyncStore
+
+        self.store = ProjectSyncStore(_PROJECT_UUID)
+        self.max_queue_size = 100
+
+    def _call(self, method: str, *args: Any, **kwargs: Any) -> Any:
+        with self.store.unit_of_work() as unit:
+            queue = OfflineBodyUploadQueue(
+                unit,
+                self.store.layout_generation(),
+                max_queue_size=self.max_queue_size,
+            )
+            return getattr(queue, method)(*args, **kwargs)
+
+    def enqueue(self, *args: Any, **kwargs: Any) -> Any:
+        return self._call("enqueue", *args, **kwargs)
+
+    def drain(self, *args: Any, **kwargs: Any) -> Any:
+        return self._call("drain", *args, **kwargs)
+
+    def get_stats(self) -> Any:
+        return self._call("get_stats")
+
+    def remove_stale(self, *args: Any, **kwargs: Any) -> Any:
+        return self._call("remove_stale", *args, **kwargs)
+
+    def mark_uploaded(self, *args: Any, **kwargs: Any) -> Any:
+        return self._call("mark_uploaded", *args, **kwargs)
+
+    def mark_already_exists(self, *args: Any, **kwargs: Any) -> Any:
+        return self._call("mark_already_exists", *args, **kwargs)
+
+    def mark_failed_retryable(self, *args: Any, **kwargs: Any) -> Any:
+        return self._call("mark_failed_retryable", *args, **kwargs)
+
+    def mark_failed_permanent(self, *args: Any, **kwargs: Any) -> Any:
+        return self._call("mark_failed_permanent", *args, **kwargs)
+
+    def record_permanent_failure(self, *args: Any, **kwargs: Any) -> Any:
+        return self._call("record_permanent_failure", *args, **kwargs)
+
+    def make_due(self) -> None:
+        with self.store.unit_of_work() as unit:
+            rows = unit.execute(
+                "SELECT body_task_id, body_reference FROM body_upload_tasks WHERE project_uuid = ?",
+                (_PROJECT_UUID,),
+            ).fetchall()
+            for row in rows:
+                reference = json.loads(str(row[1]))
+                reference["next_attempt_at"] = 0
+                unit.execute(
+                    "UPDATE body_upload_tasks SET body_reference = ? WHERE project_uuid = ? AND body_task_id = ?",
+                    (
+                        json.dumps(reference, sort_keys=True, separators=(",", ":")),
+                        _PROJECT_UUID,
+                        str(row[0]),
+                    ),
+                )
+
+
+def _body_queue() -> _ProjectBodyQueue:
+    return _ProjectBodyQueue()
 
 
 def _ns(
     mission_slug: str = "047-feat",
     target_branch: str = "main",
-    project_uuid: str = "uuid-1",
+    project_uuid: str = _PROJECT_UUID,
 ) -> NamespaceRef:
     return NamespaceRef(
         project_uuid=project_uuid,
@@ -104,21 +194,19 @@ def _make_service(
     """
     from specify_cli.sync import background as bg_mod
     from specify_cli.sync.background import BackgroundSyncService
-    from specify_cli.sync.queue import OfflineQueue
 
-    db_path = tmp_path / "queue.db"
-    event_queue = OfflineQueue(db_path=db_path)
-    body_queue = OfflineBodyUploadQueue(db_path=db_path)
+    body_queue = _body_queue()
 
     mock_config = MagicMock()
     mock_config.get_server_url.return_value = "https://test.example.com"
+    mock_config.resolve_runtime_target.return_value = SimpleNamespace(resolved_server_url="https://test.example.com")
 
     # Patch the token-fetch bridge at the module level. Tests that want to
     # simulate the unauthenticated state pass ``auth_token=None``.
     bg_mod._fetch_access_token_sync = MagicMock(return_value=auth_token)
 
     service = BackgroundSyncService(
-        queue=event_queue,
+        queue=None,
         config=mock_config,
     )
     service._body_queue = body_queue
@@ -150,14 +238,14 @@ class TestSC001OnlineSync:
             _artifact("contracts/api.yaml", hash_contract, len(b"openapi: '3.0'")),
         ]
 
-        queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
+        queue = _body_queue()
         outcomes = prepare_body_uploads(artifacts, _ns(), queue, feature_dir)
 
         queued = [o for o in outcomes if o.status == UploadStatus.QUEUED]
         assert len(queued) == 6
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.body_transport.push_content")
+    @patch("specify_cli.sync.body_transport.push_content_with_transport_gate")
     def test_drain_delivers_to_saas(
         self,
         mock_push: MagicMock,
@@ -198,7 +286,7 @@ class TestSC001OnlineSync:
 class TestSC002NamespaceIsolation:
     def test_different_features_isolated(self, tmp_path: Path) -> None:
         """Two features with same artifact names produce separate queue entries."""
-        queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
+        queue = _body_queue()
 
         feature_a = tmp_path / "feat_a"
         feature_a.mkdir()
@@ -225,7 +313,7 @@ class TestSC002NamespaceIsolation:
 
     def test_different_branches_isolated(self, tmp_path: Path) -> None:
         """Same feature, different branches produce separate queue entries."""
-        queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
+        queue = _body_queue()
 
         feature_dir = tmp_path / "feat"
         feature_dir.mkdir()
@@ -250,10 +338,8 @@ class TestSC002NamespaceIsolation:
 class TestSC003OfflineReplay:
     def test_queued_uploads_persist_across_reopen(self, tmp_path: Path) -> None:
         """Tasks survive queue close and reopen (process restart simulation)."""
-        db_path = tmp_path / "q.db"
-
         # Enqueue with first queue instance
-        queue1 = OfflineBodyUploadQueue(db_path=db_path)
+        queue1 = _body_queue()
         queue1.enqueue(
             namespace=_ns(),
             artifact_path="spec.md",
@@ -264,7 +350,7 @@ class TestSC003OfflineReplay:
         del queue1
 
         # Reopen with fresh instance (simulates restart)
-        queue2 = OfflineBodyUploadQueue(db_path=db_path)
+        queue2 = _body_queue()
         tasks = queue2.drain(limit=10)
         assert len(tasks) == 1
         assert tasks[0].artifact_path == "spec.md"
@@ -272,9 +358,7 @@ class TestSC003OfflineReplay:
 
     def test_retry_state_persists(self, tmp_path: Path) -> None:
         """Retry count and backoff survive restart."""
-        db_path = tmp_path / "q.db"
-
-        queue1 = OfflineBodyUploadQueue(db_path=db_path)
+        queue1 = _body_queue()
         queue1.enqueue(
             namespace=_ns(),
             artifact_path="spec.md",
@@ -287,7 +371,7 @@ class TestSC003OfflineReplay:
         del queue1
 
         # Reopen
-        queue2 = OfflineBodyUploadQueue(db_path=db_path)
+        queue2 = _body_queue()
         stats = queue2.get_stats()
         assert stats.total_count == 1
         assert stats.max_retry_count == 1
@@ -300,7 +384,7 @@ class TestSC003OfflineReplay:
 class TestSC004Idempotent:
     def test_duplicate_enqueue_returns_already_exists(self, tmp_path: Path) -> None:
         """Second enqueue of same namespace+path+hash is deduplicated."""
-        queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
+        queue = _body_queue()
 
         feature_dir = tmp_path / "feat"
         feature_dir.mkdir()
@@ -317,7 +401,7 @@ class TestSC004Idempotent:
         assert queue.get_stats().total_count == 1
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.body_transport.push_content")
+    @patch("specify_cli.sync.body_transport.push_content_with_transport_gate")
     def test_already_exists_from_server_removes_task(
         self,
         mock_push: MagicMock,
@@ -353,7 +437,7 @@ class TestSC004Idempotent:
 
 class TestSC005RetryRecovery:
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.body_transport.push_content")
+    @patch("specify_cli.sync.body_transport.push_content_with_transport_gate")
     def test_retryable_failure_keeps_task_for_next_cycle(
         self,
         mock_push: MagicMock,
@@ -387,7 +471,7 @@ class TestSC005RetryRecovery:
         assert stats.max_retry_count == 1
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.body_transport.push_content")
+    @patch("specify_cli.sync.body_transport.push_content_with_transport_gate")
     def test_retry_then_success(
         self,
         mock_push: MagicMock,
@@ -395,7 +479,6 @@ class TestSC005RetryRecovery:
         tmp_path: Path,
     ) -> None:
         """Task fails on first attempt, succeeds on second."""
-
 
         service = _make_service(tmp_path)
         assert service._body_queue is not None
@@ -419,12 +502,7 @@ class TestSC005RetryRecovery:
         assert service._body_queue.get_stats().total_count == 1
 
         # Reset backoff so task is drainable
-        conn = sqlite3.connect(service._body_queue.db_path)
-        try:
-            conn.execute("UPDATE body_upload_queue SET next_attempt_at = 0")
-            conn.commit()
-        finally:
-            conn.close()
+        service._body_queue.make_due()
 
         # Second call: success
         mock_push.return_value = UploadOutcome(
@@ -437,7 +515,7 @@ class TestSC005RetryRecovery:
         assert service._body_queue.get_stats().total_count == 0
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.body_transport.push_content")
+    @patch("specify_cli.sync.body_transport.push_content_with_transport_gate")
     def test_auth_expiry_then_success(
         self,
         mock_push: MagicMock,
@@ -445,7 +523,6 @@ class TestSC005RetryRecovery:
         tmp_path: Path,
     ) -> None:
         """401 (retryable) → auth refresh → 201."""
-
 
         service = _make_service(tmp_path)
         assert service._body_queue is not None
@@ -469,12 +546,7 @@ class TestSC005RetryRecovery:
         assert service._body_queue.get_stats().total_count == 1
 
         # Clear backoff
-        conn = sqlite3.connect(service._body_queue.db_path)
-        try:
-            conn.execute("UPDATE body_upload_queue SET next_attempt_at = 0")
-            conn.commit()
-        finally:
-            conn.close()
+        service._body_queue.make_due()
 
         # Second: success (auth refreshed)
         mock_push.return_value = UploadOutcome(
@@ -487,7 +559,7 @@ class TestSC005RetryRecovery:
         assert service._body_queue.get_stats().total_count == 0
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.body_transport.push_content")
+    @patch("specify_cli.sync.body_transport.push_content_with_transport_gate")
     def test_rate_limit_then_success(
         self,
         mock_push: MagicMock,
@@ -495,7 +567,6 @@ class TestSC005RetryRecovery:
         tmp_path: Path,
     ) -> None:
         """429 (retryable) → backoff → 201."""
-
 
         service = _make_service(tmp_path)
         assert service._body_queue is not None
@@ -517,12 +588,7 @@ class TestSC005RetryRecovery:
         service._sync_once()
         assert service._body_queue.get_stats().total_count == 1
 
-        conn = sqlite3.connect(service._body_queue.db_path)
-        try:
-            conn.execute("UPDATE body_upload_queue SET next_attempt_at = 0")
-            conn.commit()
-        finally:
-            conn.close()
+        service._body_queue.make_due()
 
         mock_push.return_value = UploadOutcome(
             artifact_path="spec.md",
@@ -534,7 +600,7 @@ class TestSC005RetryRecovery:
         assert service._body_queue.get_stats().total_count == 0
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.body_transport.push_content")
+    @patch("specify_cli.sync.body_transport.push_content_with_transport_gate")
     def test_server_error_then_success(
         self,
         mock_push: MagicMock,
@@ -542,7 +608,6 @@ class TestSC005RetryRecovery:
         tmp_path: Path,
     ) -> None:
         """500 (retryable) → backoff → 201."""
-
 
         service = _make_service(tmp_path)
         assert service._body_queue is not None
@@ -564,12 +629,7 @@ class TestSC005RetryRecovery:
         service._sync_once()
         assert service._body_queue.get_stats().total_count == 1
 
-        conn = sqlite3.connect(service._body_queue.db_path)
-        try:
-            conn.execute("UPDATE body_upload_queue SET next_attempt_at = 0")
-            conn.commit()
-        finally:
-            conn.close()
+        service._body_queue.make_due()
 
         mock_push.return_value = UploadOutcome(
             artifact_path="spec.md",
@@ -593,7 +653,7 @@ class TestSC006UnsupportedFilesSkip:
         (feature_dir / "research" / "image.png").write_bytes(b"\x89PNG\r\n")
 
         art = _artifact("research/image.png", _DUMMY_HASH, 6)
-        queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
+        queue = _body_queue()
         outcomes = prepare_body_uploads([art], _ns(), queue, feature_dir)
 
         assert len(outcomes) == 1
@@ -609,7 +669,7 @@ class TestSC006UnsupportedFilesSkip:
         actual_hash = hashlib.sha256(binary_content).hexdigest()  # noqa: TID251 — body-upload content checksum (protocol-level integrity), not charter freshness hashing
 
         art = _artifact("spec.md", actual_hash, len(binary_content))
-        queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
+        queue = _body_queue()
         outcomes = prepare_body_uploads([art], _ns(), queue, feature_dir)
 
         assert len(outcomes) == 1
@@ -624,7 +684,7 @@ class TestSC006UnsupportedFilesSkip:
         feature_dir.mkdir()
 
         art = _artifact("spec.md", _DUMMY_HASH, MAX_INLINE_SIZE_BYTES + 1)
-        queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
+        queue = _body_queue()
         outcomes = prepare_body_uploads([art], _ns(), queue, feature_dir)
 
         assert len(outcomes) == 1
@@ -637,7 +697,7 @@ class TestSC006UnsupportedFilesSkip:
         feature_dir.mkdir()
 
         art = _artifact("meta.json", _DUMMY_HASH, 50)
-        queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
+        queue = _body_queue()
         outcomes = prepare_body_uploads([art], _ns(), queue, feature_dir)
 
         assert len(outcomes) == 1
@@ -659,7 +719,7 @@ class TestSC006UnsupportedFilesSkip:
             _artifact("meta.json", _DUMMY_HASH, 50),
         ]
 
-        queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
+        queue = _body_queue()
         outcomes = prepare_body_uploads(artifacts, _ns(), queue, feature_dir)
 
         assert len(outcomes) == 3
@@ -674,7 +734,7 @@ class TestSC006UnsupportedFilesSkip:
 
 class TestFullPipeline:
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.body_transport.push_content")
+    @patch("specify_cli.sync.body_transport.push_content_with_transport_gate")
     def test_enqueue_then_drain(
         self,
         mock_push: MagicMock,
@@ -682,7 +742,6 @@ class TestFullPipeline:
         tmp_path: Path,
     ) -> None:
         """Full pipeline: prepare_body_uploads enqueues, _sync_once drains."""
-
 
         feature_dir = tmp_path / "feat"
         feature_dir.mkdir()
@@ -699,7 +758,10 @@ class TestFullPipeline:
 
         # Enqueue via pipeline
         outcomes = prepare_body_uploads(
-            artifacts, _ns(), service._body_queue, feature_dir,
+            artifacts,
+            _ns(),
+            service._body_queue,
+            feature_dir,
         )
         assert sum(1 for o in outcomes if o.status == UploadStatus.QUEUED) == 2
 
@@ -716,7 +778,7 @@ class TestFullPipeline:
         assert service._body_queue.get_stats().total_count == 0
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.body_transport.push_content")
+    @patch("specify_cli.sync.body_transport.push_content_with_transport_gate")
     def test_permanent_failure_removed(
         self,
         mock_push: MagicMock,
@@ -724,8 +786,6 @@ class TestFullPipeline:
         tmp_path: Path,
     ) -> None:
         """Non-retryable failure (400 bad_request) permanently removes task."""
-
-
 
         service = _make_service(tmp_path)
         assert service._body_queue is not None

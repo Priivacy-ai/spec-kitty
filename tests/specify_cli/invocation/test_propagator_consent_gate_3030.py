@@ -176,7 +176,10 @@ def test_consenting_project_propagates_the_envelope(
     the declared precedence chain. If this goes red, the harness cannot transmit
     and the refusal assertions in this module are vacuous.
     """
-    root, _uuid = _project(tmp_path / "consenting", sync_enabled=True)
+    root, _uuid = _project(tmp_path / "consenting")
+    from specify_cli.sync.routing import enable_checkout_sync
+
+    enable_checkout_sync(root, actor="propagator-positive-control")
 
     _propagate_one(_started_record(), root)
 
@@ -206,9 +209,9 @@ def test_machine_index_grant_propagates_the_envelope(
     """
     root, project_uuid = _project(tmp_path / "index-granted")
 
-    from specify_cli.sync.consent import set_project_consent
+    from specify_cli.sync.consent import record_project_opt_in
 
-    set_project_consent(project_uuid, True)
+    record_project_opt_in(project_uuid, actor="propagator-explicit-opt-in")
 
     _propagate_one(_started_record(), root)
 

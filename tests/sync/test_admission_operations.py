@@ -18,6 +18,8 @@ from specify_cli.sync.admission_operations import (
 from specify_cli.sync.project_store import ProjectSyncStore
 from specify_cli.sync.target_authority import AdmissionAudience
 
+pytestmark = pytest.mark.fast
+
 PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
 KEY_A = "operation-key-00000000000000000001"
 KEY_B = "operation-key-00000000000000000002"

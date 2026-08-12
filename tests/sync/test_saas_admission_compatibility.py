@@ -15,6 +15,8 @@ from specify_cli.saas_client.admission import (
     parse_project_not_admitted,
 )
 
+pytestmark = pytest.mark.fast
+
 PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
 KEY = "operation-key-00000000000000000001"
 

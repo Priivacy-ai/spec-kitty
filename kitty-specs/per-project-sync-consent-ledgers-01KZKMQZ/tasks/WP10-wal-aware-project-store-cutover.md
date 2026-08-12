@@ -44,6 +44,9 @@ create_intent:
 - tests/cli/commands/test_sync_project_store_commands.py
 execution_mode: code_change
 owned_files:
+- .gitattributes
+- .kittify/charter/charter.yaml
+- src/specify_cli/_completion_manifest.json
 - src/specify_cli/sync/project_store_migration.py
 - src/specify_cli/sync/daemon_protocol.py
 - src/specify_cli/sync/migrate_journal.py
@@ -56,17 +59,47 @@ owned_files:
 - tests/sync/test_project_store_migration.py
 - tests/sync/test_daemon_cutover_protocol.py
 - tests/sync/test_migration_writer_barrier.py
+- tests/sync/test_body_queue_migration.py
+- tests/sync/test_queue_row_level_migration.py
 - tests/cli/commands/test_sync_project_store_commands.py
 - tests/sync/test_migrate_journal.py
+- tests/sync/test_event_emission.py
+- tests/sync/test_final_sync_diagnostics.py
+- tests/sync/test_spec_kitty_home_paths.py
 - tests/event_journal/test_identity_migration_3030.py
 - tests/delivery/test_purge_all_body_uploads_3030.py
+- tests/contract/test_identity_contract_matrix.py
+- tests/contract/test_machine_facing_canonical_fields.py
+- tests/delivery/test_batch_bisection_ordering.py
+- tests/delivery/test_config.py
+- tests/delivery/test_dispatch_honours_drain_blocked_3031.py
+- tests/delivery/test_dispatch_project_consent_3030.py
+- tests/delivery/test_dispatch_window_consent_3030.py
+- tests/delivery/test_envelope.py
+- tests/delivery/test_incident_reproduction_3030.py
+- tests/delivery/test_nfr002_loop_permanence_3030.py
+- tests/delivery/test_nfr003_predicate_cost_3030.py
+- tests/delivery/test_purge_all_events_3030.py
+- tests/dossier/test_snapshot_emit.py
+- tests/specify_cli/invocation/test_propagator_consent_gate_3030.py
 - tests/architectural/test_project_store_boundary.py
+- tests/architectural/test_patch_seam_census_control.py
 - tests/architectural/test_egress_consent_boundary.py
 - tests/architectural/_baselines.yaml
 - tests/specify_cli/cli/commands/test_sync_opt_in_converge.py
 - tests/cli/commands/test_sync_commands.py
+- tests/cli/commands/test_sync_doctor_consent_health_3030.py
+- tests/cli/commands/test_sync_doctor_per_project_3030.py
+- tests/cli/commands/test_sync_doctor_tracker_egress_3108.py
+- tests/cli/commands/test_sync_migrate_backfills_h4.py
+- tests/cli/commands/test_sync_now_empty_selection_t005.py
 - tests/cli/commands/test_sync_purge_3030.py
 - tests/cli/commands/test_sync_report_label_is_a_purge_selector_3030.py
+- tests/cli/commands/test_sync_routes.py
+- tests/cli/commands/test_sync_status_drain_blockers.py
+- tests/cli/commands/test_sync_status_per_project_3030.py
+- tests/cli/commands/test_sync_status_singleton_diagnostics.py
+- tests/specify_cli/cli/commands/test_sync_status_check_paths.py
 - tests/delivery/test_status_report.py
 - tests/sync/test_background.py
 - tests/sync/test_background_authority_convergence.py
@@ -76,6 +109,35 @@ owned_files:
 - tests/sync/test_sync_boundary_preflight.py
 - tests/sync/test_sync_doctor.py
 - tests/sync/test_sync_status_boundary_check.py
+- tests/status/test_lifecycle_events.py
+- tests/contract/test_project_sync_admission_contract.py
+- tests/delivery/test_project_store_ledger.py
+- tests/delivery/test_project_store_retention.py
+- tests/delivery/test_targets.py
+- tests/event_journal/test_project_store_journal.py
+- tests/sync/test_admission_operations.py
+- tests/sync/test_project_store.py
+- tests/sync/test_project_store_outboxes.py
+- tests/sync/test_project_store_transactions.py
+- tests/sync/test_project_sync_context.py
+- tests/sync/test_saas_admission_compatibility.py
+- tests/sync/test_target_admission_audience.py
+- tests/sync/test_transport_attempt_recovery.py
+- tests/sync/test_transport_orphan_settlement.py
+- tests/sync/test_transport_result_lease.py
+- tests/status/test_producer_conformance.py
+- tests/sync/test_batch_error_surfacing.py
+- tests/sync/test_body_diagnostics.py
+- tests/sync/test_body_upload.py
+- tests/sync/_leak_guard.py
+- tests/sync/test_lifecycle_readiness.py
+- tests/sync/test_offline_queue_counter.py
+- tests/sync/test_offline_replay.py
+- tests/sync/test_owner_record_unreadable_3030.py
+- tests/sync/test_owner_unknown_direction_3030.py
+- tests/sync/test_queue_resilience.py
+- tests/sync/test_sync_action_gate.py
+- tests/sync/test_sync_e2e_integration.py
 role: implementer
 tags: []
 tracker_refs:
@@ -213,3 +275,9 @@ writer edits in this WP, a second layout authority, or live legacy fallback.
 - 2026-08-11T19:41:32Z – codex – Final schema/duplicate/authority reroll moved duplicate poisoning ahead of schema and relation filtering, so one malformed divergent attempt poisons every same-identity copy and fixed-point reconciliation parks dependent results. Inventory now uses `table_xinfo` and fails closed on generated/hidden extensions. Attempt deadline/creation timestamps use the shared strict RFC3339 validator with lowercase `t`/`z` and numeric-offset parity. Lane-h write scope now records all seven previously authorized sequential architecture/legacy-test paths without changing other lane history. Red-first mutants pass; decisive set: 34 passed; governed owned set: 52 passed; retired-command controls: 7 passed; adjacent set: 139 passed; architecture: 51 passed, 2 intentional xfails; Ruff/format, strict mypy, JSON/diff, and ownership checks pass. Held uncommitted for independent re-review.
 - 2026-08-11T19:49:26Z – codex – Narrow exact-schema reroll changed delivery-attempt validation from subset acceptance to exact canonical key-set equality. A real visible `future_authority` extension now quarantines the attempt as incompatible before copy and its dependent result as a ledger ghost, preventing PROJECT_ONLY publication from silently dropping unknown authority. Red-first mutant: 1 passed after correction; decisive migration/barrier/daemon set: 35 passed; Ruff/format, strict mypy, diff, and lane-h ownership checks pass. Held uncommitted for independent re-review.
 - 2026-08-12T12:00:00Z – codex – Main-integration review exposed live status, retention, purge, doctor, diagnose, preflight, and background callers still constructing retired path-owned stores. The arbiter authorized sequential WP10 ownership of their exact product/test/architecture surfaces. The integration reroll routes them through an existing verified PROJECT_ONLY store and one scoped UoW, keeps filesystem/network I/O outside the UoW, fails closed on absent/corrupt/CUTOVER authority, and preserves legacy residue solely as named migration/quarantine evidence.
+- 2026-08-12T00:50:54Z – codex – CI collection exposed two remaining suites importing retired private/global queue migration helpers. Sequential WP10 ownership migrates all 18 preserved nodes to the public immutable-source inventory, project partition/quarantine, resumable copy, and PROJECT_ONLY cutover surface; no removed queue API or destructive source drain is restored.
+- 2026-08-12T01:20:00Z – codex – CI reconciliation restored the current-main charter activations lost during conflict resolution, preserving the existing membership ratchets and eliminating dangling active charter references. The remaining changes only reconcile the project-store patch-seam census, canonical issue-matrix merge-driver declaration, required pytest collection markers, and lifecycle outbox test fixture constructor shape. All test nodes remain present; no runtime delivery or cutover behavior is weakened.
+- 2026-08-12T02:05:00Z – codex – Core-misc CI reconciliation sequentially assigns the fourteen legacy delivery/contract/dossier fixtures whose removed global journal, ledger, target, or consent constructors blocked collection/execution. Their nodes now use public ProjectSyncStore/UoW and explicit opt-in/admission authority, replacing shared-machine contamination premises with physical project isolation and aggregate rollback evidence; no retired API or compatibility shim is restored.
+- 2026-08-12T02:25:00Z – codex – Fast-sync CI reconciliation sequentially assigns the 36-node event-emission fixture to WP10. Assertions now inspect ProjectOutboxTask.event and prove identity-less emissions cannot claim a foreign project store; capture-before-validation evidence remains durable. No product path or compatibility shim changed.
+- 2026-08-12T02:35:00Z – codex – Fast-sync CI reconciliation sequentially assigns the 17-node final-sync diagnostic fixture to WP10. Its queued-service helper now owns a temporary ProjectSyncStore, PROJECT_ONLY layout, and caller-scoped UoW for the service lifetime; diagnostic/retry behavior is unchanged and no path-backed queue shim is restored.
+- 2026-08-12T02:45:00Z – codex – Fast-sync CI reconciliation sequentially assigns the four legacy default-queue path cases in `test_spec_kitty_home_paths.py` to WP10. They now prove the named legacy/scoped paths remain migration inputs, `default_queue_db_path` fails closed, and authenticated state cannot override canonical ProjectSyncStore ownership. The daemon A-opt-out/B-liveness node passed both isolated and under `-n 2`, classifying the reported red as non-deterministic order/worker interference rather than a reproducible product leak.

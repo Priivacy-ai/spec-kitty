@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import errno
 import fcntl
-import sqlite3
 import threading
 import time
 from pathlib import Path
@@ -29,9 +28,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from kernel.clock import now_epoch
-
 pytestmark = pytest.mark.fast
+
+_QUEUE_PROJECT_UUID = "6a1d0c4e-0598-4c33-9f2e-000000000598"
 
 
 @pytest.fixture(autouse=True)
@@ -65,6 +64,92 @@ def _isolate_legacy_queue(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     """
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime-home"))
 
+    from specify_cli.sync.routing import resolve_checkout_sync_routing_readonly
+
+    routing = resolve_checkout_sync_routing_readonly()
+    if routing is not None and routing.project_uuid is not None:
+        _prepare_project_store(str(routing.project_uuid))
+
+
+def _prepare_project_store(project_uuid: str):
+    from specify_cli.sync.consent import record_project_opt_in
+    from specify_cli.sync.layout_generation import LayoutMode
+    from specify_cli.sync.project_store import ProjectSyncStore
+
+    record_project_opt_in(project_uuid, actor="issue-598-hang-fix-test")
+    store = ProjectSyncStore(project_uuid)
+    authority = store.layout_generation()
+    if authority.peek_state().mode is LayoutMode.LEGACY:
+        authority.begin_cutover("issue-598-hang-fix-test")
+        authority.publish_project_only("issue-598-hang-fix-test", verify_exact=lambda: True)
+    with store.unit_of_work():
+        pass
+    return store
+
+
+def _project_store():
+    return _prepare_project_store(_QUEUE_PROJECT_UUID)
+
+
+class _ProjectEventQueueFixture:
+    """Test facade that opens the canonical queue in one short UoW per call."""
+
+    def __init__(self, store, *, max_queue_size: int) -> None:
+        self.store = store
+        self.max_queue_size = max_queue_size
+
+    def queue_event(self, event: dict[str, object]) -> bool:
+        from specify_cli.sync.queue import OfflineQueue
+
+        with self.store.unit_of_work() as unit:
+            return OfflineQueue(
+                unit,
+                self.store.layout_generation(),
+                max_queue_size=self.max_queue_size,
+            ).queue_event(event)
+
+    def size(self) -> int:
+        from specify_cli.sync.queue import OfflineQueue
+
+        with self.store.unit_of_work() as unit:
+            return int(
+                OfflineQueue(
+                    unit,
+                    self.store.layout_generation(),
+                    max_queue_size=self.max_queue_size,
+                ).size()
+            )
+
+    def drain_queue(self, limit: int = 1000):
+        from specify_cli.sync.queue import OfflineQueue
+
+        with self.store.unit_of_work() as unit:
+            return OfflineQueue(
+                unit,
+                self.store.layout_generation(),
+                max_queue_size=self.max_queue_size,
+            ).drain_queue(limit=limit)
+
+
+class _ProjectBodyQueueFixture:
+    """Body-queue size view without retaining a project transaction."""
+
+    def __init__(self, store, *, max_queue_size: int) -> None:
+        self.store = store
+        self.max_queue_size = max_queue_size
+
+    def size(self) -> int:
+        from specify_cli.sync.body_queue import OfflineBodyUploadQueue
+
+        with self.store.unit_of_work() as unit:
+            return int(
+                OfflineBodyUploadQueue(
+                    unit,
+                    self.store.layout_generation(),
+                    max_queue_size=self.max_queue_size,
+                ).size()
+            )
+
 
 @pytest.fixture
 def full_queue(tmp_path: Path):
@@ -73,54 +158,61 @@ def full_queue(tmp_path: Path):
     Uses a small ``max_queue_size`` (50) so tests run in < 10 ms, but
     every "queue is full" code path fires identically to 100 k events.
     """
-    from specify_cli.sync.queue import OfflineQueue
-
     MAX = 50
-    q = OfflineQueue(db_path=tmp_path / "full_queue.db", max_queue_size=MAX)
+    q = _ProjectEventQueueFixture(_project_store(), max_queue_size=MAX)
     for i in range(MAX):
-        q.queue_event({
-            "event_id": f"EVT{i:026d}",
-            "event_type": "WPStatusChanged",
-            "payload": {"wp_id": f"WP{i % 14 + 1:02d}", "from_lane": "planned", "to_lane": "claimed"},
-        })
+        q.queue_event(
+            {
+                "event_id": f"EVT{i:026d}",
+                "event_type": "WPStatusChanged",
+                "project_uuid": _QUEUE_PROJECT_UUID,
+                "payload": {
+                    "wp_id": f"WP{i % 14 + 1:02d}",
+                    "from_lane": "planned",
+                    "to_lane": "claimed",
+                },
+            }
+        )
     assert q.size() == MAX
     return q
 
 
 @pytest.fixture
 def full_body_queue(tmp_path: Path):
-    """A body-upload queue with at least one pending task, using raw SQL."""
+    """A canonical project body queue with one pending task."""
     from specify_cli.sync.body_queue import OfflineBodyUploadQueue
+    from specify_cli.sync.namespace import NamespaceRef
 
-    bq = OfflineBodyUploadQueue(db_path=tmp_path / "full_body_queue.db")
-    # Insert a task directly via SQL since enqueue() requires a NamespaceRef
-    conn = sqlite3.connect(bq.db_path)
-    try:
-        conn.execute(
-            "INSERT INTO body_upload_queue "
-            "(project_uuid, mission_slug, target_branch, mission_type, "
-            " manifest_version, artifact_path, content_hash, hash_algorithm, "
-            " content_body, size_bytes, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (
-                "proj-uuid", "047-feat", "main", "software-dev",
-                "1", "spec.md", "a" * 64, "sha256",
-                "# spec", 6, now_epoch(),
-            ),
+    store = _project_store()
+    max_queue_size = 50
+    with store.unit_of_work() as unit:
+        bq = OfflineBodyUploadQueue(
+            unit,
+            store.layout_generation(),
+            max_queue_size=max_queue_size,
         )
-        conn.commit()
-    finally:
-        conn.close()
-    assert bq.size() > 0
-    return bq
+        bq.enqueue(
+            NamespaceRef(
+                project_uuid=_QUEUE_PROJECT_UUID,
+                mission_slug="047-feat",
+                target_branch="main",
+                mission_type="software-dev",
+                manifest_version="1",
+            ),
+            "spec.md",
+            "a" * 64,
+            "# spec",
+            6,
+        )
+    fixture = _ProjectBodyQueueFixture(store, max_queue_size=max_queue_size)
+    assert fixture.size() > 0
+    return fixture
 
 
 @pytest.fixture
 def empty_queue(tmp_path: Path):
     """An empty SQLite OfflineQueue."""
-    from specify_cli.sync.queue import OfflineQueue
-
-    return OfflineQueue(db_path=tmp_path / "empty_queue.db")
+    return _ProjectEventQueueFixture(_project_store(), max_queue_size=50)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -135,7 +227,6 @@ def _stub_dossier_resolvers(monkeypatch, tmp_path):
     at the source — not on dossier_pipeline itself.
     """
     from specify_cli.identity.project import ProjectIdentity
-    from specify_cli.sync.body_queue import OfflineBodyUploadQueue
     from uuid import UUID
 
     # #3030 FR-031 (E5): the pipeline now requires the resolved project to consent,
@@ -150,9 +241,16 @@ def _stub_dossier_resolvers(monkeypatch, tmp_path):
     home = tmp_path / "hangfix-home"
     home.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
-    from specify_cli.sync.consent import set_project_consent
+    from specify_cli.sync.consent import record_project_opt_in
+    from specify_cli.sync.project_store import ProjectSyncStore
 
-    set_project_consent(str(fixed_uuid), True)
+    record_project_opt_in(str(fixed_uuid), actor="issue-598-dossier-test")
+    store = ProjectSyncStore(str(fixed_uuid))
+    authority = store.layout_generation()
+    authority.begin_cutover("issue-598-dossier-test")
+    authority.publish_project_only("issue-598-dossier-test", verify_exact=lambda: True)
+    with store.unit_of_work():
+        pass
 
     monkeypatch.setattr(
         "specify_cli.identity.project.resolve_identity",
@@ -170,16 +268,6 @@ def _stub_dossier_resolvers(monkeypatch, tmp_path):
         "specify_cli.sync.namespace.resolve_manifest_version",
         lambda _t: "1",
     )
-    monkeypatch.setattr(
-        "specify_cli.sync.body_queue.OfflineBodyUploadQueue",
-        lambda: OfflineBodyUploadQueue.__new__(OfflineBodyUploadQueue),
-    )
-    # Pre-create the queue DB so __new__ instance has a usable db_path
-    _bq = OfflineBodyUploadQueue(db_path=tmp_path / "bq.db")
-    monkeypatch.setattr(
-        "specify_cli.sync.body_queue.OfflineBodyUploadQueue",
-        lambda: _bq,
-    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -193,7 +281,11 @@ class TestDossierPipelineNoRuntime:
     @patch("specify_cli.sync.dossier_pipeline.sync_feature_dossier")
     @patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=True)
     def test_creates_body_queue_directly(
-        self, _flag, mock_sync, tmp_path, monkeypatch,
+        self,
+        _flag,
+        mock_sync,
+        tmp_path,
+        monkeypatch,
     ):
         """Body queue is created as a plain OfflineBodyUploadQueue, not via runtime."""
         from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
@@ -213,7 +305,11 @@ class TestDossierPipelineNoRuntime:
     @patch("specify_cli.sync.dossier_pipeline.sync_feature_dossier")
     @patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=True)
     def test_get_runtime_never_called(
-        self, _flag, mock_sync, tmp_path, monkeypatch,
+        self,
+        _flag,
+        mock_sync,
+        tmp_path,
+        monkeypatch,
     ):
         """get_runtime is never called — proves zero thread/atexit side-effects."""
         from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
@@ -236,7 +332,9 @@ class TestDossierPipelineNoRuntime:
         from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
 
         result = trigger_feature_dossier_sync_if_enabled(
-            tmp_path / "feat", "047-feat", tmp_path,
+            tmp_path / "feat",
+            "047-feat",
+            tmp_path,
         )
         assert result is None
 
@@ -252,7 +350,9 @@ class TestDossierPipelineNoRuntime:
         )
 
         result = trigger_feature_dossier_sync_if_enabled(
-            tmp_path / "feat", "047-feat", tmp_path,
+            tmp_path / "feat",
+            "047-feat",
+            tmp_path,
         )
         assert result is None
 
@@ -267,7 +367,9 @@ class TestDossierPipelineNoRuntime:
         )
 
         result = trigger_feature_dossier_sync_if_enabled(
-            tmp_path / "feat", "047-feat", tmp_path,
+            tmp_path / "feat",
+            "047-feat",
+            tmp_path,
         )
         assert result is None
 
@@ -286,6 +388,11 @@ class TestBackgroundStopBounded:
         cfg = config or MagicMock()
         cfg.get_server_url.return_value = "https://test.example.com"
         svc = BackgroundSyncService(queue=queue, config=cfg, sync_interval_seconds=300)
+        # These #598 unit cases exercise only their explicitly supplied queue.
+        # Project discovery has its own integration coverage; allowing the
+        # per-test routed store to count as body work would make an empty
+        # explicit queue indistinguishable from discovered daemon work.
+        svc._has_discovered_project_candidates = MagicMock(return_value=False)
         if body_queue is not None:
             svc._body_queue = body_queue
         return svc
@@ -392,7 +499,10 @@ class TestBackgroundStopBounded:
 
     @patch("specify_cli.sync.background._fetch_access_token_sync", return_value=None)
     def test_stop_final_sync_runs_when_body_queue_has_work(
-        self, _tok, empty_queue, full_body_queue,
+        self,
+        _tok,
+        empty_queue,
+        full_body_queue,
     ):
         """stop() fires _guarded_final_sync when body_queue.size() > 0."""
         svc = self._make_service(empty_queue, body_queue=full_body_queue)
@@ -523,16 +633,16 @@ class TestBackgroundStopBounded:
 
     @patch("specify_cli.sync.background._fetch_access_token_sync", return_value="tok")
     def test_guarded_final_sync_calls_perform_sync(
-        self, _tok, full_queue,
+        self,
+        _tok,
+        full_queue,
     ):
         """_guarded_final_sync delegates to _perform_sync."""
         from specify_cli.sync.batch import BatchSyncResult
 
         svc = self._make_service(full_queue)
 
-        with patch.object(
-            svc, "_perform_sync", return_value=BatchSyncResult()
-        ) as mock_perform:
+        with patch.object(svc, "_perform_sync", return_value=BatchSyncResult()) as mock_perform:
             svc._guarded_final_sync()
             mock_perform.assert_called_once()
 
@@ -586,9 +696,7 @@ class TestBackgroundStopBounded:
         """sync_now() escalates backoff when the surviving drain raises."""
         svc = self._make_service(full_queue, body_queue=full_body_queue)
 
-        with patch.object(
-            svc, "_drain_body_queue", side_effect=RuntimeError("network down")
-        ):
+        with patch.object(svc, "_drain_body_queue", side_effect=RuntimeError("network down")):
             result = svc.sync_now()
 
         assert svc._consecutive_failures == 1
@@ -658,7 +766,8 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", tracking_flock)
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
+            config=cfg,
         )
 
         assert outcome.started is True
@@ -687,7 +796,8 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", flaky_flock)
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
+            config=cfg,
         )
 
         assert outcome.started is True
@@ -705,7 +815,8 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", always_blocked)
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
+            config=cfg,
         )
 
         assert outcome.started is False
@@ -732,7 +843,8 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", flaky_flock)
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
+            config=cfg,
         )
 
         assert outcome.started is True
@@ -752,7 +864,8 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", broken_flock)
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
+            config=cfg,
         )
 
         assert outcome.started is False
@@ -774,7 +887,8 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", tracking_flock)
 
         daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
+            config=cfg,
         )
 
         assert fcntl.LOCK_UN not in flock_ops
@@ -797,7 +911,8 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", tracking_flock)
 
         daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
+            config=cfg,
         )
 
         assert fcntl.LOCK_UN in flock_ops
@@ -807,7 +922,8 @@ class TestDaemonBoundedFlock:
         daemon, state_file, lock_file, cfg = self._daemon_env(monkeypatch, tmp_path)
 
         monkeypatch.setattr(
-            daemon, "_ensure_sync_daemon_running_locked",
+            daemon,
+            "_ensure_sync_daemon_running_locked",
             MagicMock(side_effect=RuntimeError("startup boom")),
         )
 
@@ -821,7 +937,8 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", tracking_flock)
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
+            config=cfg,
         )
 
         assert outcome.started is False
@@ -847,7 +964,8 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", always_blocked)
 
         daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
+            config=cfg,
         )
 
         assert sleep_total["s"] == pytest.approx(10.0, abs=0.01)
@@ -861,7 +979,8 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon, "_daemon_version_matches", lambda *a, **kw: True)
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
+            config=cfg,
         )
 
         assert outcome.started is True
@@ -873,19 +992,22 @@ class TestDaemonBoundedFlock:
 
         # _ensure_sync_daemon_running_locked succeeds
         monkeypatch.setattr(
-            daemon, "_ensure_sync_daemon_running_locked",
+            daemon,
+            "_ensure_sync_daemon_running_locked",
             MagicMock(return_value=("http://127.0.0.1:9400", 9400, True)),
         )
         # State file exists so the parse path is entered
         state_file.write_text("http://127.0.0.1:9400\n9400\ntok\n1234\n")
         # Force _parse_daemon_file to raise (defensive guard)
         monkeypatch.setattr(
-            daemon, "_parse_daemon_file",
+            daemon,
+            "_parse_daemon_file",
             MagicMock(side_effect=OSError("corrupt state")),
         )
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
+            config=cfg,
         )
 
         assert outcome.started is True
@@ -903,7 +1025,8 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", always_blocked)
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
+            config=cfg,
         )
 
         assert outcome.pid is None
@@ -935,7 +1058,10 @@ class TestFullQueueExpiredSessionIntegration:
 
     @patch("specify_cli.sync.background._fetch_access_token_sync", return_value=None)
     def test_stop_with_full_queue_and_body_queue(
-        self, _tok, full_queue, full_body_queue,
+        self,
+        _tok,
+        full_queue,
+        full_body_queue,
     ):
         """stop() also terminates fast when both event and body queues are full."""
         from specify_cli.sync.background import BackgroundSyncService
@@ -973,7 +1099,8 @@ class TestFullQueueExpiredSessionIntegration:
         cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.AUTO
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
+            config=cfg,
         )
 
         assert outcome.started is False
@@ -982,7 +1109,11 @@ class TestFullQueueExpiredSessionIntegration:
     @patch("specify_cli.sync.dossier_pipeline.sync_feature_dossier")
     @patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=True)
     def test_dossier_sync_no_threads_spawned(
-        self, _flag, mock_sync, tmp_path, monkeypatch,
+        self,
+        _flag,
+        mock_sync,
+        tmp_path,
+        monkeypatch,
     ):
         """After trigger_feature_dossier_sync_if_enabled, no daemon threads remain."""
         import threading

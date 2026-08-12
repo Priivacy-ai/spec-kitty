@@ -22,6 +22,7 @@ from specify_cli.delivery.receivers import (
     TeamspaceReceiver,
 )
 from specify_cli.delivery.targets import compute_target_id
+from specify_cli.migration.envelope_seam import build_teamspace_envelope
 from specify_cli.dossier.emitter_adapter import (
     fire_dossier_event,
     register_dossier_emitter,
@@ -98,12 +99,22 @@ class _RecordingIngress:
 
 
 def _envelope(event_id: str, project_uuid: str = PROJECT) -> dict[str, Any]:
-    return {
-        "event_id": event_id,
-        "event_type": "WPStatusChanged",
-        "project_uuid": project_uuid,
-        "payload": {"mission_slug": "private-engagement", "wp_id": "WP01"},
-    }
+    canonical = build_teamspace_envelope(
+        event_id=event_id,
+        event_type="WPStatusChanged",
+        aggregate_id="WP01",
+        aggregate_type="WorkPackage",
+        payload={"mission_slug": "private-engagement", "wp_id": "WP01"},
+        timestamp="2026-08-01T00:00:00+00:00",
+        build_id="interactive-transport-test",
+        node_id="interactive-transport-test",
+        lamport_clock=1,
+        project_uuid=project_uuid,
+        project_slug="private-engagement",
+        repo_slug=None,
+        correlation_id=event_id,
+    ).model_dump()
+    return {key: canonical[key] for key in ("event_id", "event_type", "project_uuid", "payload")}
 
 
 def _target(project_uuid: str = PROJECT) -> DeliveryTarget:
@@ -1265,32 +1276,34 @@ class _AckingWebSocket:
 
 
 def _event_frame(event_id: str = "01KZT032EVENTACK0000000001") -> dict[str, Any]:
-    return {
-        "event_id": event_id,
-        "event_type": "WPStatusChanged",
-        "aggregate_id": "WP01",
-        "aggregate_type": "WorkPackage",
-        "schema_version": "3.0.0",
-        "build_id": "build-1",
-        "payload": {
+    event: dict[str, Any] = build_teamspace_envelope(
+        event_id=event_id,
+        event_type="WPStatusChanged",
+        aggregate_id="WP01",
+        aggregate_type="WorkPackage",
+        build_id="build-1",
+        payload={
             "wp_id": "WP01",
             "from_lane": "planned",
             "to_lane": "in_progress",
             "actor": "agent",
         },
-        "node_id": "node-1",
-        "lamport_clock": 1,
-        "causation_id": None,
-        "correlation_id": event_id,
-        "timestamp": "2026-08-11T12:00:00+00:00",
-        "team_slug": "teamspace-1",
-        "project_uuid": PROJECT,
-        "project_slug": "private-engagement",
-        "git_branch": "develop",
-        "head_commit_sha": "a" * 40,
-        "repo_slug": "private/project",
-        "drain_blocked_reason": None,
-    }
+        node_id="node-1",
+        lamport_clock=1,
+        causation_id=None,
+        correlation_id=event_id,
+        timestamp="2026-08-11T12:00:00+00:00",
+        project_uuid=PROJECT,
+        project_slug="private-engagement",
+        repo_slug="private/project",
+    ).model_dump()
+    event.update(
+        team_slug="teamspace-1",
+        git_branch="develop",
+        head_commit_sha="a" * 40,
+        drain_blocked_reason=None,
+    )
+    return event
 
 
 @pytest.mark.parametrize(

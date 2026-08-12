@@ -115,9 +115,7 @@ def _isolate_external_calls(monkeypatch: pytest.MonkeyPatch) -> None:
 #   * Queue sections (``Active queue:``, ``Legacy queue:``) expose their
 #     canonical path under literal child key ``Path``.
 
-_PARSER_KEY_VALUE_RE = re.compile(
-    r"^\s*(?P<key>\S.*?)\s{2,}(?P<value>.+?)\s*$"
-)
+_PARSER_KEY_VALUE_RE = re.compile(r"^\s*(?P<key>\S.*?)\s{2,}(?P<value>.+?)\s*$")
 
 
 def _parser_split_rows(stdout: str) -> list[tuple[str, str]]:
@@ -139,9 +137,7 @@ def _parser_split_rows(stdout: str) -> list[tuple[str, str]]:
     return rows
 
 
-def _parser_find_section_rows(
-    rows: list[tuple[str, str]], header: str
-) -> list[tuple[str, str]]:
+def _parser_find_section_rows(rows: list[tuple[str, str]], header: str) -> list[tuple[str, str]]:
     """Replica of the sibling parser's ``_find_section_rows`` walker."""
     out: list[tuple[str, str]] = []
     in_section = False
@@ -181,9 +177,7 @@ _SECTION_PATH_MATRIX: tuple[tuple[str, str, tuple[str, ...]], ...] = (
 )
 
 
-def _extract_section_path(
-    stdout: str, header: str, key: str
-) -> str | None:
+def _extract_section_path(stdout: str, header: str, key: str) -> str | None:
     """Pull a single ``(section, key)`` value out of the rendered text.
 
     Uses the canary parser's exact walk semantics so this test fails iff
@@ -220,14 +214,9 @@ def test_non_tty_capture_shows_every_path_verbatim() -> None:
 
     for header, key, _ in _SECTION_PATH_MATRIX:
         value = _extract_section_path(result.stdout, header, key)
-        assert value is not None, (
-            f"missing parser-attributed path: {header!r} / {key!r}\n"
-            f"STDOUT:\n{result.stdout}"
-        )
+        assert value is not None, f"missing parser-attributed path: {header!r} / {key!r}\nSTDOUT:\n{result.stdout}"
         assert value, f"empty value for {header!r} / {key!r}"
-        assert "…" not in value, (
-            f"ellipsis in {header!r} / {key!r}: {value!r}"
-        )
+        assert "…" not in value, f"ellipsis in {header!r} / {key!r}: {value!r}"
 
 
 def test_long_path_renders_without_ellipsis(
@@ -242,16 +231,10 @@ def test_long_path_renders_without_ellipsis(
     AND the parser-compat attribution (the long path must surface under
     ``Active queue:`` / ``Path``, not some other key/section).
     """
-    long_path = (
-        "/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/"
-        "spec-kitty-extremely-long-path-for-regression-test/"
-        "nested/level/queue.db"
-    )
+    long_path = "/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-extremely-long-path-for-regression-test/nested/level/queue.db"
     assert len(long_path) > 100
 
-    real_compute = sync_cmd.compute_foreground_identity if hasattr(
-        sync_cmd, "compute_foreground_identity"
-    ) else None
+    real_compute = sync_cmd.compute_foreground_identity if hasattr(sync_cmd, "compute_foreground_identity") else None
     from specify_cli.sync import owner as owner_mod
 
     real_compute_fn = owner_mod.compute_foreground_identity
@@ -285,6 +268,7 @@ def test_long_path_renders_without_ellipsis(
         legacy_event_rows = real_fs.legacy_event_rows
         legacy_body_upload_rows = real_fs.legacy_body_upload_rows
         legacy_rows_for_scope = real_fs.legacy_rows_for_scope
+        project_store_diagnostic = real_fs.project_store_diagnostic
         ok = real_fs.ok
 
     monkeypatch.setattr(
@@ -297,24 +281,11 @@ def test_long_path_renders_without_ellipsis(
 
     # Parser-attributed: the long path appears under Foreground/Queue DB
     # path AND Active queue/Path.
-    fg_qdb = _extract_section_path(
-        result.stdout, "Foreground:", "Queue DB path"
-    )
-    assert fg_qdb == long_path, (
-        f"Foreground/Queue DB path mismatch: {fg_qdb!r}\n"
-        f"STDOUT:\n{result.stdout}"
-    )
-    active_path = _extract_section_path(
-        result.stdout, "Active queue:", "Path"
-    )
-    assert active_path == long_path, (
-        f"Active queue/Path mismatch: {active_path!r}\n"
-        f"STDOUT:\n{result.stdout}"
-    )
-    assert long_path in result.stdout, (
-        f"long path not present verbatim in stdout:\n"
-        f"long_path={long_path!r}\n\nSTDOUT:\n{result.stdout}"
-    )
+    fg_qdb = _extract_section_path(result.stdout, "Foreground:", "Queue DB path")
+    assert fg_qdb == long_path, f"Foreground/Queue DB path mismatch: {fg_qdb!r}\nSTDOUT:\n{result.stdout}"
+    active_path = _extract_section_path(result.stdout, "Active queue:", "Path")
+    assert active_path == long_path, f"Active queue/Path mismatch: {active_path!r}\nSTDOUT:\n{result.stdout}"
+    assert long_path in result.stdout, f"long path not present verbatim in stdout:\nlong_path={long_path!r}\n\nSTDOUT:\n{result.stdout}"
     # Sanity: no ellipsis in the boundary section itself. The earlier
     # ``Spec Kitty Sync Status`` summary Rich Table is a separate
     # surface that may still ellipsise unrelated fields (e.g.
@@ -323,9 +294,7 @@ def test_long_path_renders_without_ellipsis(
     # block before asserting no ``…``.
     boundary_start = result.stdout.index("Identity Boundary")
     boundary_block = result.stdout[boundary_start:]
-    assert "…" not in boundary_block, (
-        f"unexpected ellipsis in Identity Boundary block:\n{boundary_block}"
-    )
+    assert "…" not in boundary_block, f"unexpected ellipsis in Identity Boundary block:\n{boundary_block}"
 
     _ = real_compute
 
@@ -362,15 +331,10 @@ def test_narrow_console_does_not_wrap_path_rows() -> None:
     # section. We assert by looking for the path verbatim somewhere in
     # the rendered text and confirming the line containing it also
     # starts with the indented ``Path`` key.
-    assert long_path in rendered, (
-        f"long path absent from narrow rendering:\n{rendered}"
-    )
+    assert long_path in rendered, f"long path absent from narrow rendering:\n{rendered}"
     for line in rendered.splitlines():
         if long_path in line:
-            assert line.lstrip().startswith("Path"), (
-                f"long path line does not start with 'Path' key:\n"
-                f"LINE:{line!r}\nALL:{rendered}"
-            )
+            assert line.lstrip().startswith("Path"), f"long path line does not start with 'Path' key:\nLINE:{line!r}\nALL:{rendered}"
     assert "…" not in rendered, f"ellipsis present in narrow output:\n{rendered}"
 
 
@@ -386,15 +350,8 @@ def test_text_form_paths_match_json_form_byte_for_byte() -> None:
     for header, key, dotted in _SECTION_PATH_MATRIX:
         json_value = _read_json_path(payload, dotted)
         text_value = _extract_section_path(text_result.stdout, header, key)
-        assert text_value is not None, (
-            f"missing text-form value for {header!r}/{key!r}\n"
-            f"STDOUT:\n{text_result.stdout}"
-        )
-        assert json_value == text_value, (
-            f"JSON/text mismatch for {header}/{key}:\n"
-            f"  json={json_value!r}\n  text={text_value!r}\n"
-            f"FULL STDOUT:\n{text_result.stdout}"
-        )
+        assert text_value is not None, f"missing text-form value for {header!r}/{key!r}\nSTDOUT:\n{text_result.stdout}"
+        assert json_value == text_value, f"JSON/text mismatch for {header}/{key}:\n  json={json_value!r}\n  text={text_value!r}\nFULL STDOUT:\n{text_result.stdout}"
 
 
 def test_canary_parser_compat_smoke() -> None:
@@ -426,34 +383,23 @@ def test_canary_parser_compat_smoke() -> None:
     }
     seen_headers = {key.strip() for key, _ in rows if key.strip() in required_headers}
     missing = required_headers - seen_headers
-    assert not missing, (
-        f"required section headers missing from --check stdout: {missing}\n"
-        f"STDOUT:\n{result.stdout}"
-    )
+    assert not missing, f"required section headers missing from --check stdout: {missing}\nSTDOUT:\n{result.stdout}"
 
     # Active queue / Path attribution.
     active = _parser_find_section_rows(rows, "Active queue:")
     active_path = _parser_row_value(active, "Path")
     assert active_path is not None and active_path, (
-        "Active queue section missing 'Path' child row; canary parser "
-        "raises 'missing required string field active_queue.Path'.\n"
-        f"STDOUT:\n{result.stdout}"
+        f"Active queue section missing 'Path' child row; canary parser raises 'missing required string field active_queue.Path'.\nSTDOUT:\n{result.stdout}"
     )
 
     # Legacy queue / Path attribution.
     legacy = _parser_find_section_rows(rows, "Legacy queue:")
     legacy_path = _parser_row_value(legacy, "Path")
     assert legacy_path is not None and legacy_path, (
-        "Legacy queue section missing 'Path' child row; canary parser "
-        "raises 'missing required string field legacy_queue.Path'.\n"
-        f"STDOUT:\n{result.stdout}"
+        f"Legacy queue section missing 'Path' child row; canary parser raises 'missing required string field legacy_queue.Path'.\nSTDOUT:\n{result.stdout}"
     )
 
     # Event count is also a required parser field per the sibling
     # parser's ``_coerce_int(_row(active, "Event count"), ...)``.
-    assert _parser_row_value(active, "Event count") is not None, (
-        "Active queue section missing 'Event count' child row"
-    )
-    assert _parser_row_value(legacy, "Event count") is not None, (
-        "Legacy queue section missing 'Event count' child row"
-    )
+    assert _parser_row_value(active, "Event count") is not None, "Active queue section missing 'Event count' child row"
+    assert _parser_row_value(legacy, "Event count") is not None, "Legacy queue section missing 'Event count' child row"

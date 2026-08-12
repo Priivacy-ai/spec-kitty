@@ -25,6 +25,7 @@ from specify_cli.cli.commands import sync as sync_command
 from specify_cli.cli.commands.sync import app
 from specify_cli.delivery.config import EventSyncConfig, Mode
 from specify_cli.delivery.receivers import _TEAMSPACE_GATES
+from specify_cli.migration.envelope_seam import build_teamspace_envelope
 
 pytestmark = pytest.mark.fast
 
@@ -36,6 +37,26 @@ _APPLY_ARGS = [
     "--history-action-id",
     _CONFIRMED_ACTION_ID,
 ]
+
+
+def _stored_history_event(event_id: str, project_uuid: str) -> dict[str, object]:
+    """Serialize the legacy four-field row from the canonical envelope owner."""
+    canonical = build_teamspace_envelope(
+        event_id=event_id,
+        event_type="MissionCreated",
+        aggregate_id=event_id,
+        aggregate_type="Mission",
+        payload={},
+        timestamp="2026-08-01T00:00:00+00:00",
+        build_id="history-import-test",
+        node_id="history-import-test",
+        lamport_clock=1,
+        project_uuid=project_uuid,
+        project_slug="history-import-test",
+        repo_slug=None,
+        correlation_id=event_id,
+    ).model_dump()
+    return {key: canonical[key] for key in ("event_id", "event_type", "project_uuid", "payload")}
 
 
 # ── seam helpers ─────────────────────────────────────────────────────────────
@@ -238,12 +259,7 @@ def test_public_apply_consumes_real_store_minted_history_authority(
                 assignment.epoch_id,
                 assignment.capture_sequence,
                 json.dumps(
-                    {
-                        "event_id": "history-event-1",
-                        "event_type": "MissionCreated",
-                        "project_uuid": project_uuid,
-                        "payload": {},
-                    },
+                    _stored_history_event("history-event-1", project_uuid),
                     sort_keys=True,
                     separators=(",", ":"),
                 ),

@@ -18,6 +18,8 @@ from specify_cli.sync.project_store import (
     ProjectSyncStore,
 )
 
+pytestmark = pytest.mark.fast
+
 
 PROJECT_A = "AAAAAAAA000000000000000000000001"
 PROJECT_B = "aaaaaaaa-0000-0000-0000-000000000002"

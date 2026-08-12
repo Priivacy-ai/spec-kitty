@@ -80,7 +80,7 @@ def _loopback_base_url(value: str) -> str:
 
 def _fetch_json(request: urllib.request.Request, timeout: float) -> dict[str, object]:
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310 -- loopback URL is supplied by daemon discovery
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310  # nosec B310 -- validated loopback daemon URL only
             payload = response.read()
     except (OSError, urllib.error.URLError) as exc:
         raise DaemonUnreachableError("daemon loopback endpoint is unreachable") from exc

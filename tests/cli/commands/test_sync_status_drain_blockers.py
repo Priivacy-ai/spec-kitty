@@ -11,12 +11,13 @@ from rich.console import Console
 from specify_cli.cli.commands.sync import format_queue_health
 from specify_cli.sync.emitter import EventEmitter
 from specify_cli.sync.queue import OfflineQueue, QueueStats
+from specify_cli.sync.project_store import ProjectSyncStore
 
 
 pytestmark = pytest.mark.fast
 
 
-def test_format_queue_health_renders_drain_blocker_table(tmp_path: Path):
+def test_format_queue_health_renders_drain_blocker_table(tmp_path: Path) -> None:
     """Drain-blocker breakdown appears in the ``sync status`` panel.
 
     Operators must be able to tell why their local queue is not draining.
@@ -55,7 +56,7 @@ def test_format_queue_health_renders_drain_blocker_table(tmp_path: Path):
     assert "Private Teamspace" in output
 
 
-def test_drain_blocked_counts_zero_when_all_ready():
+def test_drain_blocked_counts_zero_when_all_ready() -> None:
     """When the queue is empty, the blocker breakdown is omitted."""
     buf = StringIO()
     console = Console(file=buf, width=120, force_terminal=False)
@@ -73,31 +74,40 @@ def test_drain_blocked_counts_zero_when_all_ready():
     assert "Drain Blockers" not in output
 
 
-def test_queue_get_drain_blocked_counts_persists_through_drain_round_trip(tmp_path: Path):
+def test_queue_get_drain_blocked_counts_persists_through_drain_round_trip(tmp_path: Path) -> None:
     """``get_drain_blocked_counts`` reflects what's currently durable on disk.
 
     Drives the real queue (not a mock) to prove the JSON scan that powers
     ``sync status`` works against the actual SQLite envelope shape that
     ``EventEmitter._emit`` writes.
     """
-    queue = OfflineQueue(db_path=tmp_path / "outbox.db")
+    store = ProjectSyncStore("aaaaaaaa-0000-0000-8000-000000000107")
+    authority = store.layout_generation()
+    authority.begin_cutover("status-drain-blockers")
+    authority.publish_project_only("status-drain-blockers", verify_exact=lambda: True)
 
     blocked_events = [
-        {"event_id": f"blocked-{i:026d}", "event_type": "WPStatusChanged", "drain_blocked_reason": reason}
+        {"event_id": f"blocked-{i:026d}", "event_type": "WPStatusChanged", "project_uuid": str(store.project_uuid.storage_token), "drain_blocked_reason": reason}
         for i, reason in enumerate(["no_team", "no_team", "sync_disabled"])
     ]
-    ready_event = {"event_id": "01" + "B" * 24, "event_type": "WPStatusChanged", "drain_blocked_reason": None}
+    ready_event = {
+        "event_id": "01" + "B" * 24,
+        "event_type": "WPStatusChanged",
+        "project_uuid": str(store.project_uuid.storage_token),
+        "drain_blocked_reason": None,
+    }
 
-    for event in [*blocked_events, ready_event]:
-        queue.queue_event(event)
-
-    counts = queue.get_drain_blocked_counts()
+    with store.unit_of_work() as unit:
+        queue = OfflineQueue(unit, authority, max_queue_size=1000)
+        for event in [*blocked_events, ready_event]:
+            queue.queue_event(event)
+        counts = queue.get_drain_blocked_counts()
     assert counts.get("no_team") == 2
     assert counts.get("sync_disabled") == 1
     assert counts.get("ready") == 1
 
 
-def test_emitter_drain_blocked_reason_enum_is_documented():
+def test_emitter_drain_blocked_reason_enum_is_documented() -> None:
     """The drain-blocked reason set is exposed for cross-component reuse.
 
     Issue #1075 / #194 of the SaaS half: the SaaS side reads

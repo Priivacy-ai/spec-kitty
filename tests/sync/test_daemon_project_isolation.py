@@ -33,6 +33,7 @@ from specify_cli.sync.deny_hints import (
     read_deny_hint,
 )
 from specify_cli.sync.layout_generation import LayoutAuthorityError
+from specify_cli.migration.envelope_seam import build_teamspace_envelope
 from specify_cli.sync.owner import compute_foreground_identity
 from specify_cli.sync.project_store import ProjectSyncStore
 from specify_cli.sync.runtime import SyncRuntime, event_project_consents_to_publish
@@ -263,32 +264,46 @@ class _AckingWebSocket:
 
 
 def _runtime_event() -> dict[str, object]:
-    return {
-        "event_id": "01KZT032DAEMONACK000000001",
-        "event_type": "WPStatusChanged",
-        "aggregate_id": "WP08",
-        "aggregate_type": "WorkPackage",
-        "schema_version": "3.0.0",
-        "build_id": "build-1",
-        "payload": {
+    event: dict[str, object] = build_teamspace_envelope(
+        event_id="01KZT032DAEMONACK000000001",
+        event_type="WPStatusChanged",
+        aggregate_id="WP08",
+        aggregate_type="WorkPackage",
+        build_id="build-1",
+        payload={
             "wp_id": "WP08",
             "from_lane": "planned",
             "to_lane": "in_progress",
             "actor": "agent",
         },
-        "node_id": "node-1",
-        "lamport_clock": 1,
-        "causation_id": None,
-        "correlation_id": "01KZT032DAEMONACK000000001",
-        "timestamp": "2026-08-11T12:00:00+00:00",
-        "team_slug": "teamspace-1",
-        "project_uuid": PROJECT_B,
-        "project_slug": "private-engagement",
-        "git_branch": "develop",
-        "head_commit_sha": "a" * 40,
-        "repo_slug": "private/project",
-        "drain_blocked_reason": None,
-    }
+        node_id="node-1",
+        lamport_clock=1,
+        causation_id=None,
+        correlation_id="01KZT032DAEMONACK000000001",
+        timestamp="2026-08-11T12:00:00+00:00",
+        project_uuid=PROJECT_B,
+        project_slug="private-engagement",
+        repo_slug="private/project",
+    ).model_dump()
+    event.update(
+        team_slug="teamspace-1",
+        git_branch="develop",
+        head_commit_sha="a" * 40,
+        drain_blocked_reason=None,
+    )
+    return event
+
+
+def _close_runtime_loop(
+    loop: asyncio.AbstractEventLoop,
+    loop_thread: threading.Thread,
+) -> None:
+    """Drain the test loop's executor before the leak guard snapshots threads."""
+    asyncio.run_coroutine_threadsafe(loop.shutdown_default_executor(), loop).result(timeout=5)
+    loop.call_soon_threadsafe(loop.stop)
+    loop_thread.join(timeout=2)
+    assert not loop_thread.is_alive()
+    loop.close()
 
 
 @pytest.mark.parametrize(
@@ -336,9 +351,7 @@ def test_runtime_publish_waits_for_exact_event_ack_and_records_full_disclosure(
     try:
         assert runtime.publish_event(event) is expected
     finally:
-        loop.call_soon_threadsafe(loop.stop)
-        loop_thread.join(timeout=2)
-        loop.close()
+        _close_runtime_loop(loop, loop_thread)
 
     assert len(websocket.frames) == 1
     wire = websocket.frames[0]
@@ -387,9 +400,7 @@ def test_runtime_publish_ack_mismatch_or_timeout_stays_unknown_without_replay(
         assert runtime.publish_event(_runtime_event()) is False
         assert runtime.publish_event(_runtime_event()) is False
     finally:
-        loop.call_soon_threadsafe(loop.stop)
-        loop_thread.join(timeout=2)
-        loop.close()
+        _close_runtime_loop(loop, loop_thread)
 
     assert len(websocket.frames) == 1
     with store.unit_of_work() as unit:

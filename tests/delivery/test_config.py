@@ -14,10 +14,12 @@ never by call order:
   Teamspace-bound discard is **refused or audit-recorded** through a durable
   source, never silently dropped (C-008); unknown families fail closed.
 """
+
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -47,12 +49,15 @@ from specify_cli.delivery.receivers import (
     StubReceiver,
     TeamspaceReceiver,
 )
+from specify_cli.event_journal import Event, EventJournal
+from specify_cli.sync.project_store import ProjectSyncStore
 from tests._support.consented_batches import deliverable
 
 pytestmark = pytest.mark.fast
 
 _TARGET_ID = "target-1"
 _BATCH_PATH = "/api/v1/events/batch/"
+_PROJECT_UUID = "aaaaaaaa-0000-0000-0000-0000000000c1"
 
 
 @dataclass(frozen=True)
@@ -75,9 +80,7 @@ class _StubFactory:
     def build_teamspace(self, *, resolved_server_url: str) -> DeliveryReceiver:
         return TeamspaceReceiver(resolved_server_url=resolved_server_url, auth_token="unused")
 
-    def build_external(
-        self, *, endpoint_url: str, auth_headers: Mapping[str, str] | None
-    ) -> DeliveryReceiver:
+    def build_external(self, *, endpoint_url: str, auth_headers: Mapping[str, str] | None) -> DeliveryReceiver:
         return self.stub
 
 
@@ -101,22 +104,41 @@ def _simulate_cycle(
 ) -> None:
     """A faithful mini drain: journal when ``retain``; post when a receiver exists."""
     if policy.retain:
-        journal.executemany(
-            "INSERT OR IGNORE INTO journal (event_id) VALUES (?)", [(eid,) for eid in event_ids]
-        )
+        journal.executemany("INSERT OR IGNORE INTO journal (event_id) VALUES (?)", [(eid,) for eid in event_ids])
         journal.commit()
     if policy.receiver is not None:
         batch = [OutboundEvent(event_id=eid, payload={"event_id": eid}) for eid in event_ids]
         for result in policy.receiver.deliver(deliverable(batch)):
-            ledger.record_result(
-                event_id=result.event_id, target_id=_TARGET_ID, result=result.outcome
+            ledger.record_result(event_id=result.event_id, target_id=_TARGET_ID, result=result.outcome)
+
+
+@contextmanager
+def _open_ledger(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    event_ids: Sequence[str] = (),
+) -> Iterator[SqliteDeliveryLedger]:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(_PROJECT_UUID)
+    authority = store.layout_generation()
+    authority.begin_cutover("delivery-config-tests")
+    authority.publish_project_only("delivery-config-tests", verify_exact=lambda: True)
+    with store.unit_of_work() as unit:
+        project_journal = EventJournal(unit, authority)
+        for event_id in event_ids:
+            project_journal.append(
+                Event(
+                    event_id=event_id,
+                    event_type="DeliveryConfigTest",
+                    payload=b"{}",
+                    occurred_at="2026-08-12T00:00:00+00:00",
+                    created_at="2026-08-12T00:00:00+00:00",
+                    project_uuid=_PROJECT_UUID,
+                )
             )
-
-
-def _make_ledger() -> SqliteDeliveryLedger:
-    ledger = SqliteDeliveryLedger()
-    init_ledger(ledger.connection)
-    return ledger
+        init_ledger(unit)
+        yield SqliteDeliveryLedger(unit, authority)
 
 
 # --------------------------------------------------------------------------- #
@@ -133,9 +155,7 @@ def _make_ledger() -> SqliteDeliveryLedger:
         ("OPT_OUT", Retention.OFF, Delivery.NONE, Mode.OPT_OUT),
     ],
 )
-def test_presets_map_to_exact_axis_points(
-    token: str, retention: Retention, delivery: Delivery, mode: Mode
-) -> None:
+def test_presets_map_to_exact_axis_points(token: str, retention: Retention, delivery: Delivery, mode: Mode) -> None:
     endpoint = "http://localhost:9000/sink/" if token == "EXTERNAL_RECEIVER" else None
     config = EventSyncConfig.from_mode(token, external_endpoint=endpoint)
     assert config.retention is retention
@@ -223,15 +243,14 @@ def test_teamspace_without_resolved_target_is_refused_not_crash() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_local_retention_journals_but_never_posts(tmp_path: Path) -> None:
+def test_local_retention_journals_but_never_posts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     config = EventSyncConfig.from_mode("LOCAL_RETENTION")
     policy = config.resolve()  # no target needed; delivery is NONE
     assert policy.retain is True
     assert policy.receiver is None
 
     journal = _open_journal(tmp_path / "journal.sqlite3")
-    ledger = _make_ledger()
-    try:
+    with _open_ledger(tmp_path, monkeypatch, event_ids=("evt-a", "evt-b")) as ledger:
         _simulate_cycle(policy, ["evt-a", "evt-b"], journal=journal, ledger=ledger)
         # Journaled on disk ...
         assert _journal_ids(journal) == ["evt-a", "evt-b"]
@@ -241,16 +260,12 @@ def test_local_retention_journals_but_never_posts(tmp_path: Path) -> None:
 
         # Drain later: select EXTERNAL delivery and the retained events flow out.
         stub = StubReceiver()
-        later = EventSyncConfig.from_mode(
-            "EXTERNAL_RECEIVER", external_endpoint="http://localhost:9000/sink/"
-        )
+        later = EventSyncConfig.from_mode("EXTERNAL_RECEIVER", external_endpoint="http://localhost:9000/sink/")
         later_policy = later.resolve(receiver_factory=_StubFactory(stub))
         _simulate_cycle(later_policy, _journal_ids(journal), journal=journal, ledger=ledger)
         assert sorted(stub.received_event_ids()) == ["evt-a", "evt-b"]
         assert ledger.get("evt-a", _TARGET_ID) is not None
-    finally:
-        journal.close()
-        ledger.close()
+    journal.close()
 
 
 # --------------------------------------------------------------------------- #
@@ -258,11 +273,9 @@ def test_local_retention_journals_but_never_posts(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_external_receiver_records_ledger_without_teamspace_credentials() -> None:
+def test_external_receiver_records_ledger_without_teamspace_credentials(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     stub = StubReceiver()
-    config = EventSyncConfig.from_mode(
-        "EXTERNAL_RECEIVER", external_endpoint="http://localhost:9000/__sink__/"
-    )
+    config = EventSyncConfig.from_mode("EXTERNAL_RECEIVER", external_endpoint="http://localhost:9000/__sink__/")
     policy = config.resolve(receiver_factory=_StubFactory(stub))
 
     assert policy.retain is True
@@ -270,26 +283,21 @@ def test_external_receiver_records_ledger_without_teamspace_credentials() -> Non
     # No Teamspace credentials leak into the external/stub path (SC-005 hygiene).
     assert policy.receiver.auth_headers() == {}
 
-    ledger = _make_ledger()
     journal = sqlite3.connect(":memory:")
     journal.execute("CREATE TABLE journal (event_id TEXT PRIMARY KEY)")
-    try:
+    with _open_ledger(tmp_path, monkeypatch, event_ids=("evt-1",)) as ledger:
         _simulate_cycle(policy, ["evt-1"], journal=journal, ledger=ledger)
         row = ledger.get("evt-1", _TARGET_ID)
         assert row is not None
         assert row.status == "success"
         assert stub.received_event_ids() == ("evt-1",)
-    finally:
-        journal.close()
-        ledger.close()
+    journal.close()
 
 
 def test_external_receiver_default_branch_yields_credential_free_receiver() -> None:
     # The *same* branch with the default factory builds a real ExternalReceiver
     # pointed at the operator endpoint — no separate stub path.
-    config = EventSyncConfig.from_mode(
-        "EXTERNAL_RECEIVER", external_endpoint="http://localhost:9000/sink/"
-    )
+    config = EventSyncConfig.from_mode("EXTERNAL_RECEIVER", external_endpoint="http://localhost:9000/sink/")
     policy = config.resolve(receiver_factory=DefaultReceiverFactory())
     assert isinstance(policy.receiver, ExternalReceiver)
     assert policy.receiver.endpoint_url == "http://localhost:9000/sink/"
@@ -297,9 +305,7 @@ def test_external_receiver_default_branch_yields_credential_free_receiver() -> N
 
 
 def test_resolve_uses_default_factory_when_none_supplied() -> None:
-    config = EventSyncConfig.from_mode(
-        "EXTERNAL_RECEIVER", external_endpoint="http://localhost:9000/sink/"
-    )
+    config = EventSyncConfig.from_mode("EXTERNAL_RECEIVER", external_endpoint="http://localhost:9000/sink/")
     policy = config.resolve()
     assert isinstance(policy.receiver, ExternalReceiver)
 
@@ -309,21 +315,18 @@ def test_resolve_uses_default_factory_when_none_supplied() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_opt_out_local_only_neither_journals_nor_posts(tmp_path: Path) -> None:
+def test_opt_out_local_only_neither_journals_nor_posts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     config = EventSyncConfig.from_mode("OPT_OUT")
     policy = config.resolve()
     assert policy.retain is False
     assert policy.receiver is None
 
     journal = _open_journal(tmp_path / "journal.sqlite3")
-    ledger = _make_ledger()
-    try:
+    with _open_ledger(tmp_path, monkeypatch) as ledger:
         _simulate_cycle(policy, ["local-1"], journal=journal, ledger=ledger)
         assert _journal_ids(journal) == []  # not journaled
         assert ledger.get("local-1", _TARGET_ID) is None  # not posted
-    finally:
-        journal.close()
-        ledger.close()
+    journal.close()
 
     decision = discard_decision("local.metric", classification=FamilyClassification.LOCAL_ONLY)
     assert decision.kind is DiscardDecisionKind.DISCARD_ALLOWED
@@ -332,9 +335,7 @@ def test_opt_out_local_only_neither_journals_nor_posts(tmp_path: Path) -> None:
 
 
 def test_opt_out_explicitly_discardable_family_is_allowed() -> None:
-    decision = discard_decision(
-        "ephemeral.cache", classification=FamilyClassification.EXPLICITLY_DISCARDABLE
-    )
+    decision = discard_decision("ephemeral.cache", classification=FamilyClassification.EXPLICITLY_DISCARDABLE)
     assert decision.kind is DiscardDecisionKind.DISCARD_ALLOWED
     assert decision.dropped is True
 
@@ -345,9 +346,7 @@ def test_opt_out_explicitly_discardable_family_is_allowed() -> None:
 
 
 def test_teamspace_bound_discard_is_refused_without_durable_sink() -> None:
-    decision = discard_decision(
-        "mission.event", classification=FamilyClassification.TEAMSPACE_BOUND
-    )
+    decision = discard_decision("mission.event", classification=FamilyClassification.TEAMSPACE_BOUND)
     assert decision.kind is DiscardDecisionKind.REFUSED
     assert decision.refused is True
     assert decision.dropped is False  # NOT silently dropped
@@ -382,9 +381,7 @@ def test_unknown_family_fails_closed_non_discardable() -> None:
 
 def test_unknown_family_with_durable_sink_is_audit_recorded(tmp_path: Path) -> None:
     sink = JsonlAuditSink(tmp_path / "audit.jsonl")
-    decision = discard_decision(
-        "mystery", classification=FamilyClassification.UNKNOWN, audit_sink=sink
-    )
+    decision = discard_decision("mystery", classification=FamilyClassification.UNKNOWN, audit_sink=sink)
     assert decision.kind is DiscardDecisionKind.AUDIT_RECORDED
     assert len(sink.records()) == 1
 

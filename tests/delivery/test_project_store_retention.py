@@ -11,6 +11,8 @@ from specify_cli.sync.body_queue import OfflineBodyUploadQueue
 from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.project_store import ProjectSyncStore
 
+pytestmark = pytest.mark.fast
+
 
 PROJECT_A = "aaaaaaaa-0000-0000-0000-000000000001"
 PROJECT_B = "bbbbbbbb-0000-0000-0000-000000000002"

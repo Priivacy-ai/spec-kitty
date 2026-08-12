@@ -4754,7 +4754,7 @@ def _migrated_history_envelopes(
     with store.unit_of_work() as unit:
         placeholders = ", ".join("?" for _ in row_ids)
         rows = unit.execute(
-            f"SELECT entry_id, payload_json FROM journal_entries WHERE project_uuid = ? AND entry_id IN ({placeholders})",  # noqa: S608 -- placeholders only; row ids remain bound values
+            f"SELECT entry_id, payload_json FROM journal_entries WHERE project_uuid = ? AND entry_id IN ({placeholders})",  # noqa: S608  # nosec B608 -- count-derived placeholders; row ids remain bound
             (store.project_uuid.storage_token, *row_ids),
         ).fetchall()
     payloads = {str(row[0]): str(row[1]) for row in rows}

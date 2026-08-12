@@ -14,6 +14,7 @@ nested under ``payload``. Capture-first durability (FR-017) is unaffected: the
 envelope is assembled before the capture write, so the durable fact still lands
 before any delivery gate.
 """
+
 from __future__ import annotations
 
 import json
@@ -25,14 +26,16 @@ from typing import TYPE_CHECKING
 import pytest
 
 from specify_cli.delivery.dispatcher import dispatch
-from specify_cli.delivery.ledger import SqliteDeliveryLedger
 from specify_cli.delivery.receivers import StubReceiver, _build_payload
-from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
+from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
 from specify_cli.event_journal import (
-    get_journal,
+    EventJournal,
     reset_coalesce_strategy,
     reset_journal_cache,
 )
+from specify_cli.sync.consent import record_project_opt_in
+from specify_cli.sync.layout_generation import LayoutMode
+from specify_cli.sync.project_store import ProjectSyncStore
 
 if TYPE_CHECKING:
     from specify_cli.sync.emitter import EventEmitter
@@ -67,10 +70,8 @@ def _stub_emitter() -> EventEmitter:
     from specify_cli.sync.git_metadata import GitMetadata
 
     em = EventEmitter()
-    em._identity = SimpleNamespace(
-        build_id="build-1", project_uuid=None, project_slug=None
-    )
-    em._get_git_metadata = lambda: GitMetadata()  # type: ignore[method-assign]
+    em._identity = SimpleNamespace(build_id="build-1", project_uuid=None, project_slug=None)
+    em._get_git_metadata = lambda: GitMetadata()
     return em
 
 
@@ -96,13 +97,23 @@ def test_journal_stores_full_envelope_so_dispatch_posts_contract_event(
     from types import SimpleNamespace
     from uuid import uuid4
 
-    from specify_cli.sync.consent import set_project_consent
-
     project_uuid = str(uuid4())
-    em._identity = SimpleNamespace(
-        build_id="build-envelope", project_uuid=project_uuid, project_slug="envelope"
-    )
-    set_project_consent(project_uuid, True)
+    store = ProjectSyncStore(project_uuid)
+    authority = store.layout_generation()
+    if authority.read_state().mode is LayoutMode.LEGACY:
+        authority.begin_cutover("envelope-test")
+        authority.publish_project_only("envelope-test", verify_exact=lambda: True)
+    em._identity = SimpleNamespace(build_id="build-envelope", project_uuid=project_uuid, project_slug="envelope")
+    record_project_opt_in(project_uuid, actor="envelope-test")
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO project_target_admissions "
+            "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, binding_audience) "
+            "VALUES (?, 'https://a.example.com', 'u@example.com', 'team', 1, "
+            "'admitted', '1', 'private-teamspace:team')",
+            (project_uuid,),
+        )
 
     # The capture gate is forced open so the row lands with
     # drain_blocked_reason=None. is_saas_sync_enabled stays patched False only to
@@ -112,9 +123,7 @@ def test_journal_stores_full_envelope_so_dispatch_posts_contract_event(
     # therefore excludes. Same instance-level override the sibling consent pins use.
     from specify_cli.event_journal import CaptureGateState
 
-    em._capture_gate_state = lambda _team, **_kwargs: CaptureGateState(
-        saas_enabled=True, checkout_enabled=True, authenticated=True, team_slug="team"
-    )
+    em._capture_gate_state = lambda _team, **_kwargs: CaptureGateState(saas_enabled=True, checkout_enabled=True, authenticated=True, team_slug="team")
 
     inner = {"error_type": "runtime", "error_message": "boom", "wp_id": "WP01"}
     envelope = em._emit(
@@ -126,15 +135,19 @@ def test_journal_stores_full_envelope_so_dispatch_posts_contract_event(
     assert envelope is not None
 
     # Drain the producer journal through the real dispatcher + a real stub receiver.
-    journal = get_journal(team_slug=None)
-    ledger = SqliteDeliveryLedger(":memory:")
-    registry = SqliteDeliveryTargetRegistry(":memory:")
-    target = registry.register(
-        url="https://a.example.com", team_slug="team", user_email="u@example.com"
-    )
+    with store.unit_of_work() as unit:
+        journal = EventJournal(unit, authority)
+        assert journal.count() == 1
+        target = ProjectDeliveryTargetRegistry(store).get_current(unit)
+    assert target is not None
     receiver = StubReceiver()
 
-    summary = dispatch(journal=journal, ledger=ledger, receiver=receiver, target=target)
+    summary = dispatch(
+        store=store,
+        receiver=receiver,
+        target=target,
+        context=store.create_context(),
+    )
     assert summary.selected == 1
     assert summary.delivered == 1
 

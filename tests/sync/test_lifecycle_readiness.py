@@ -32,14 +32,23 @@ from specify_cli.sync.clock import LamportClock
 from specify_cli.sync.emitter import EventEmitter
 from specify_cli.sync.project_identity import ProjectIdentity
 from specify_cli.sync.queue import OfflineQueue
+from specify_cli.sync.project_store import ProjectSyncStore
 
 
 pytestmark = pytest.mark.fast
 
+PROJECT = "1ab1511d-bea2-47c2-b1e2-bec8547ce55b"
+
 
 @pytest.fixture
-def fresh_queue(tmp_path: Path) -> OfflineQueue:
-    return OfflineQueue(db_path=tmp_path / "queue.db")
+def fresh_queue(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(PROJECT)
+    authority = store.layout_generation()
+    authority.begin_cutover("lifecycle-readiness-tests")
+    authority.publish_project_only("lifecycle-readiness-tests", verify_exact=lambda: True)
+    with store.unit_of_work() as unit:
+        yield OfflineQueue(unit, authority)
 
 
 @pytest.fixture
@@ -121,9 +130,7 @@ def _steer_consent(monkeypatch, *, granted: bool) -> None:
     )
 
 
-def test_event_durable_when_sync_feature_flag_disabled(
-    fresh_queue, fresh_clock, identity_with_remote, authed_token_manager, monkeypatch
-):
+def test_event_durable_when_sync_feature_flag_disabled(fresh_queue, fresh_clock, identity_with_remote, authed_token_manager, monkeypatch):
     """FR-2 / issue #1072: opted-out projects still produce locally-durable events.
 
     The remote drain skips them, but they must survive on disk so a later opt-in can
@@ -141,9 +148,7 @@ def test_event_durable_when_sync_feature_flag_disabled(
     assert fresh_queue.size() == 1
 
 
-def test_event_durable_when_unauthenticated(
-    fresh_queue, fresh_clock, identity_with_remote, monkeypatch
-):
+def test_event_durable_when_unauthenticated(fresh_queue, fresh_clock, identity_with_remote, monkeypatch):
     """FR-3 / issue #1072: unauthenticated checkouts queue events locally.
 
     The drain side will not POST (no bearer token), but the event must
@@ -166,9 +171,7 @@ def test_event_durable_when_unauthenticated(
     assert fresh_queue.size() == 1
 
 
-def test_event_durable_when_no_private_teamspace(
-    fresh_queue, fresh_clock, identity_with_remote, monkeypatch
-):
+def test_event_durable_when_no_private_teamspace(fresh_queue, fresh_clock, identity_with_remote, monkeypatch):
     """FR-4 / issue #1072: shared-only sessions queue events but never ingress.
 
     When the strict resolver returns ``None``, the emitter must queue
@@ -193,9 +196,7 @@ def test_event_durable_when_no_private_teamspace(
     assert fresh_queue.size() == 1
 
 
-def test_build_registered_succeeds_without_repo_slug(
-    fresh_queue, fresh_clock, identity_with_remote, authed_token_manager
-):
+def test_build_registered_succeeds_without_repo_slug(fresh_queue, fresh_clock, identity_with_remote, authed_token_manager):
     """FR-5 / issue #1074: BuildRegistered requires only build_id (project_uuid is enrichment).
 
     Reproduces the brand-aware-images failure: fresh project with
@@ -220,9 +221,7 @@ def test_build_registered_succeeds_without_repo_slug(
     assert fresh_queue.size() == 1
 
 
-def test_build_heartbeat_succeeds_without_repo_slug(
-    fresh_queue, fresh_clock, identity_with_remote, authed_token_manager
-):
+def test_build_heartbeat_succeeds_without_repo_slug(fresh_queue, fresh_clock, identity_with_remote, authed_token_manager):
     """FR-5 / issue #1074: BuildHeartbeat also tolerates a missing remote slug."""
     em = _make_emitter(
         fresh_queue,
@@ -238,9 +237,7 @@ def test_build_heartbeat_succeeds_without_repo_slug(
     assert event["payload"].get("repo_slug") is None
 
 
-def test_event_ready_to_drain_when_authed_and_team_resolved(
-    fresh_queue, fresh_clock, identity_with_remote, authed_token_manager, monkeypatch
-):
+def test_event_ready_to_drain_when_authed_and_team_resolved(fresh_queue, fresh_clock, identity_with_remote, authed_token_manager, monkeypatch):
     """Sanity: when all conditions are met, ``drain_blocked_reason`` is None.
 
     Establishes the positive control for the durability tests above so we
@@ -259,9 +256,7 @@ def test_event_ready_to_drain_when_authed_and_team_resolved(
     assert event["team_slug"] == "private-team-id"
 
 
-def test_drain_blocked_counts_aggregate_on_queue(
-    fresh_queue, fresh_clock, identity_with_remote, monkeypatch
-):
+def test_drain_blocked_counts_aggregate_on_queue(fresh_queue, fresh_clock, identity_with_remote, monkeypatch):
     """FR-7 / issue #1075: queue exposes a drain-blocker breakdown.
 
     Queues a synthetic mix of events with different ``drain_blocked_reason``
@@ -316,12 +311,8 @@ def test_init_emits_project_init_event_offline(tmp_path: Path, monkeypatch):
     reset_emitter()
     reset_runtime()
 
-    # Point the queue at a temp DB so we can observe events without
-    # touching the host's ~/.spec-kitty/.
-    queue_db = tmp_path / "outbox.db"
-    monkeypatch.setattr(
-        "specify_cli.sync.queue.default_queue_db_path", lambda *_a, **_kw: queue_db
-    )
+    # Keep the canonical project store inside this test's runtime root.
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
 
     # Force unauthenticated so the project-init event stays local.
     def _boom():
@@ -333,6 +324,14 @@ def test_init_emits_project_init_event_offline(tmp_path: Path, monkeypatch):
     project_path = tmp_path / "fresh-project"
     project_path.mkdir()
     (project_path / ".kittify").mkdir()
+    from specify_cli.identity.project import ensure_identity
+
+    identity = ensure_identity(project_path)
+    assert identity.project_uuid is not None
+    store = ProjectSyncStore(identity.project_uuid)
+    authority = store.layout_generation()
+    authority.begin_cutover("init-lifecycle-readiness")
+    authority.publish_project_only("init-lifecycle-readiness", verify_exact=lambda: True)
     outside_path = tmp_path / "outside"
     outside_path.mkdir()
     monkeypatch.chdir(outside_path)
@@ -345,11 +344,10 @@ def test_init_emits_project_init_event_offline(tmp_path: Path, monkeypatch):
     try:
         _emit_project_init_event(project_path)
 
-        queue = OfflineQueue(db_path=queue_db)
-        events = queue.drain_queue(limit=10)
-        assert any(e.get("event_type") == "BuildRegistered" for e in events), (
-            "expected init to queue a BuildRegistered event into the durable outbox"
-        )
+        with store.unit_of_work() as unit:
+            tasks = OfflineQueue(unit, authority).drain_queue(limit=10)
+            events = [task.event for task in tasks]
+        assert any(e.get("event_type") == "BuildRegistered" for e in events), "expected init to queue a BuildRegistered event into the durable outbox"
         build_event = next(e for e in events if e["event_type"] == "BuildRegistered")
         assert build_event.get("drain_blocked_reason") in {"no_auth", "no_team"}
         assert build_event["payload"]["build_id"]

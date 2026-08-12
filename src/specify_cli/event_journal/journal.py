@@ -247,7 +247,7 @@ class EventJournal:
             return []
         placeholders = ", ".join("?" for _ in event_ids)
         rows = self._unit.execute(
-            f"SELECT entry_id, payload_json FROM journal_entries "  # noqa: S608 - count-derived placeholders only
+            f"SELECT entry_id, payload_json FROM journal_entries "  # noqa: S608  # nosec B608 - count-derived placeholders only
             f"WHERE project_uuid = ? AND entry_id IN ({placeholders})",
             (self.project_uuid, *event_ids),
         ).fetchall()
@@ -359,14 +359,14 @@ class EventJournal:
             _require_project_destination(permit)
             if preserve_delivery_history:
                 self._unit.execute(
-                    f"UPDATE outbox_tasks SET journal_entry_id = NULL "  # noqa: S608 - count-derived placeholders only
+                    f"UPDATE outbox_tasks SET journal_entry_id = NULL "  # noqa: S608  # nosec B608 - count-derived placeholders only
                     f"WHERE project_uuid = ? AND journal_entry_id IN ({placeholders})",
                     (self.project_uuid, *ids),
                 )
             else:
                 # Explicit purge removes aggregate evidence children first.
                 attempts = self._unit.execute(
-                    f"SELECT attempt_id FROM delivery_attempts WHERE project_uuid = ? "  # noqa: S608 - count-derived placeholders only
+                    f"SELECT attempt_id FROM delivery_attempts WHERE project_uuid = ? "  # noqa: S608  # nosec B608 - count-derived placeholders only
                     f"AND outbox_task_id IN (SELECT task_id FROM outbox_tasks WHERE "
                     f"project_uuid = ? AND journal_entry_id IN ({placeholders}))",
                     (self.project_uuid, self.project_uuid, *ids),
@@ -375,22 +375,22 @@ class EventJournal:
                 if attempt_ids:
                     attempt_placeholders = ", ".join("?" for _ in attempt_ids)
                     self._unit.execute(
-                        f"DELETE FROM delivery_results WHERE project_uuid = ? "  # noqa: S608 - count-derived placeholders only
+                        f"DELETE FROM delivery_results WHERE project_uuid = ? "  # noqa: S608  # nosec B608 - count-derived placeholders only
                         f"AND attempt_id IN ({attempt_placeholders})",
                         (self.project_uuid, *attempt_ids),
                     )
                     self._unit.execute(
-                        f"DELETE FROM delivery_attempts WHERE project_uuid = ? "  # noqa: S608 - count-derived placeholders only
+                        f"DELETE FROM delivery_attempts WHERE project_uuid = ? "  # noqa: S608  # nosec B608 - count-derived placeholders only
                         f"AND attempt_id IN ({attempt_placeholders})",
                         (self.project_uuid, *attempt_ids),
                     )
                 self._unit.execute(
-                    f"DELETE FROM outbox_tasks WHERE project_uuid = ? "  # noqa: S608 - count-derived placeholders only
+                    f"DELETE FROM outbox_tasks WHERE project_uuid = ? "  # noqa: S608  # nosec B608 - count-derived placeholders only
                     f"AND journal_entry_id IN ({placeholders})",
                     (self.project_uuid, *ids),
                 )
             self._unit.execute(
-                f"DELETE FROM journal_entries WHERE project_uuid = ? "  # noqa: S608 - count-derived placeholders only
+                f"DELETE FROM journal_entries WHERE project_uuid = ? "  # noqa: S608  # nosec B608 - count-derived placeholders only
                 f"AND entry_id IN ({placeholders})",
                 (self.project_uuid, *ids),
             )

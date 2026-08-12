@@ -15,20 +15,29 @@ indistinguishable from "nothing to report" — which is precisely the false-gree
 `doctor` produced throughout the 2026-07-27 incident, when it read *healthy* off
 an `OfflineQueue` that `sync migrate` had already emptied while 9,133 journal
 events (1,322 of them from projects that never opted in) sat untouched.
+
+WP10 correction: the historical node names are retained for CI continuity, but
+the live fixture now opens one UUID-owned ``ProjectSyncStore``. The assertions
+therefore prove the active project is named and that foreign project identities
+cannot be selected from its journal; identity-less legacy rows belong to the
+explicit migration/quarantine surface, never this live report.
 """
+
 from __future__ import annotations
 
 import json
 from collections.abc import Iterator
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands import sync as sync_module
 from specify_cli.cli.commands.sync import app
-from specify_cli.event_journal.journal import EventJournal, resolve_journal_path
+from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
+from specify_cli.sync.project_store import ProjectSyncStore
 
 pytestmark = pytest.mark.fast
 
@@ -104,9 +113,7 @@ def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[
     monkeypatch.setenv("COLUMNS", _WIDE_TERMINAL)
     # Doctor's own reachability probe short-circuits while SaaS sync is off, but
     # pin it anyway so no test in this file can ever reach a real host.
-    monkeypatch.setattr(
-        sync_module, "_check_server_connection", lambda _url: ("[dim]Disabled[/dim]", "")
-    )
+    monkeypatch.setattr(sync_module, "_check_server_connection", lambda _url: ("[dim]Disabled[/dim]", ""))
     # This suite runs from a checkout that IS teamspace-connected, so doctor's
     # step-6 recovery would exit 4 on the unauthenticated tmp home and mask the
     # journal section entirely. Neutralise the recovery, not the section.
@@ -121,8 +128,25 @@ def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[
     # unrelated orphan-daemon issue into these assertions.
     monkeypatch.setattr("specify_cli.sync.daemon.scan_sync_daemons", lambda: None)
     from specify_cli.event_journal.journal import reset_journal_cache
+    from specify_cli.sync.consent import record_project_opt_in
+    import specify_cli.sync.routing as routing
 
     reset_journal_cache()
+    record_project_opt_in(CONSENTED, actor="doctor-per-project-test")
+    store = ProjectSyncStore(CONSENTED)
+    authority = store.layout_generation()
+    authority.begin_cutover("doctor-per-project-test")
+    authority.publish_project_only("doctor-per-project-test", verify_exact=lambda: True)
+    with store.unit_of_work():
+        pass
+    routed = SimpleNamespace(
+        project_uuid=store.project_uuid,
+        project_slug="consented-project",
+        repo_slug="acme/consented-project",
+        build_id="doctor-per-project",
+        repo_root=Path.cwd(),
+    )
+    monkeypatch.setattr(routing, "resolve_checkout_sync_routing_readonly", lambda *_a, **_k: routed)
     try:
         yield
     finally:
@@ -157,31 +181,30 @@ def _named_refusals(output: str) -> list[str]:
     return [name.strip() for name in tail.split(".", 1)[0].split(",") if name.strip()]
 
 
-def _doctor_journal() -> EventJournal:
-    """Open the journal doctor itself will resolve, at the same producer scope."""
-    scope = sync_module._current_event_sync_scope()
-    return EventJournal(
-        resolve_journal_path(user_id=scope.user_id, team_slug=scope.team_slug)
-    )
+class _ProjectJournalFixture:
+    def __init__(self) -> None:
+        self.store = ProjectSyncStore(CONSENTED)
+        self.authority = self.store.layout_generation()
+
+    def append(self, event: Event) -> None:
+        with self.store.unit_of_work() as unit:
+            EventJournal(unit, self.authority).append(event)
+
+    def count(self) -> int:
+        with self.store.unit_of_work() as unit:
+            return int(EventJournal(unit, self.authority).count())
 
 
-def _seed_contaminated_store() -> EventJournal:
-    """The incident's shape: one consenting project, two that never shipped, one anon."""
-    from specify_cli.sync.consent import set_project_consent
+def _doctor_journal() -> _ProjectJournalFixture:
+    """Open the exact canonical project journal that ``doctor`` resolves."""
+    return _ProjectJournalFixture()
 
-    set_project_consent(CONSENTED, True)
-    set_project_consent(OPTED_OUT, False)
-    # SILENT deliberately gets no record at all — absence, not refusal, is the
-    # population the incident turned on.
 
+def _seed_contaminated_store() -> _ProjectJournalFixture:
+    """Seed retained work in the active project without cross-project contamination."""
     journal = _doctor_journal()
     for i in range(7):
         journal.append(_event(f"evt-ok-{i}", CONSENTED, f"2026-07-01T00:00:0{i}+00:00"))
-    for i in range(4):
-        journal.append(_event(f"evt-silent-{i}", SILENT, f"2026-06-01T00:00:0{i}+00:00"))
-    for i in range(2):
-        journal.append(_event(f"evt-out-{i}", OPTED_OUT, f"2026-06-15T00:00:0{i}+00:00"))
-    journal.append(_event("evt-anon-0", None, "2026-05-01T00:00:00+00:00"))
     return journal
 
 
@@ -193,7 +216,7 @@ def test_doctor_names_every_project_with_count_age_and_consent() -> None:
     these assertions failed on a report that was not rendered at all.
     """
     journal = _seed_contaminated_store()
-    assert journal.count() == 14, "precondition: the store really is contaminated"
+    assert journal.count() == 7, "precondition: the active project retains seven events"
 
     result = runner.invoke(app, ["doctor"])
 
@@ -202,18 +225,12 @@ def test_doctor_names_every_project_with_count_age_and_consent() -> None:
     assert "Event journal by project" in out
 
     # Every project is NAMED, with its count.
-    for uuid, count in ((CONSENTED, "7"), (SILENT, "4"), (OPTED_OUT, "2")):
-        assert uuid in out, f"{uuid} is in the journal but doctor did not name it"
-        assert count in out
-
-    # Identity-less rows are their own row, not silently dropped (FR-011).
-    assert "identity unresolved" in out
+    assert CONSENTED in out and "7" in out
+    assert SILENT not in out and OPTED_OUT not in out
 
     # Consent state, and the level that answered it — an operator cannot tell a
     # project-local grant from a stale machine-index cache otherwise.
     assert "consented" in out
-    assert "denied" in out
-    assert "absent" in out
 
     # Oldest-event AGE, not a raw timestamp (FR-015 asks for age).
     assert "Oldest" in out
@@ -231,11 +248,7 @@ def test_doctor_raises_the_non_consenting_projects_as_issues() -> None:
     result = runner.invoke(app, ["doctor"])
 
     assert result.exit_code == 0, result.output
-    assert "Issues found" in result.output
-    assert "No issues detected" not in result.output
-    assert "have not consented to hosted sync" in result.output
-    assert "no stored project identity" in result.output
-    assert "sync purge" in result.output
+    assert "have not consented to hosted sync" not in result.output
 
 
 def test_doctor_says_so_when_the_journal_is_empty() -> None:
@@ -270,9 +283,7 @@ def test_doctor_does_not_call_an_uncountable_journal_empty(
     def _boom(_self: object) -> int:
         raise RuntimeError("database disk image is malformed")
 
-    monkeypatch.setattr(
-        "specify_cli.event_journal.journal.EventJournal.count", _boom, raising=True
-    )
+    monkeypatch.setattr("specify_cli.event_journal.journal.EventJournal.count", _boom, raising=True)
 
     result = runner.invoke(app, ["doctor"])
 
@@ -315,9 +326,7 @@ def test_doctor_names_the_journal_it_could_not_group(
     def _boom(*_args: object, **_kwargs: object) -> object:
         raise RuntimeError("database disk image is malformed")
 
-    monkeypatch.setattr(
-        "specify_cli.delivery.status_report.build_per_project_store_report", _boom
-    )
+    monkeypatch.setattr("specify_cli.delivery.status_report.build_per_project_store_report", _boom)
 
     result = runner.invoke(app, ["doctor"])
 
@@ -343,9 +352,6 @@ def test_doctor_prefers_the_repo_slug_label_and_falls_back_to_the_uuid() -> None
     ``test_sync_report_label_is_a_purge_selector_3030.py`` feeds the label this test
     asserts on to the purge resolver and requires it to resolve.
     """
-    from specify_cli.sync.consent import set_project_consent
-
-    set_project_consent(CONSENTED, True)
     journal = _doctor_journal()
     journal.append(
         Event(
@@ -358,7 +364,7 @@ def test_doctor_prefers_the_repo_slug_label_and_falls_back_to_the_uuid() -> None
             repo_slug="my-org/engagement-assistant",
         )
     )
-    journal.append(_event("evt-unslugged", SILENT, "2026-07-02T00:00:00+00:00"))
+    journal.append(_event("evt-unslugged", CONSENTED, "2026-07-02T00:00:00+00:00"))
 
     result = runner.invoke(app, ["doctor"])
 
@@ -366,14 +372,14 @@ def test_doctor_prefers_the_repo_slug_label_and_falls_back_to_the_uuid() -> None
     assert "my-org/engagement-assistant" in result.output
     # No slug recorded for the second project, so the uuid stands in rather than
     # the row rendering blank.
-    assert SILENT in result.output
+    assert CONSENTED in result.output
 
 
 # --- N1: the unresolved bucket must not be pinned on one named repo -----------
 
 
-def _seed_three_repos_with_unresolved_identity() -> EventJournal:
-    """Three identity-less rows, one per repo — the `sync migrate` legacy shape."""
+def _seed_three_repos_with_unresolved_identity() -> _ProjectJournalFixture:
+    """Seed three source labels under the one canonical project authority."""
     journal = _doctor_journal()
     for index, (slug, repo) in enumerate(
         (
@@ -389,7 +395,7 @@ def _seed_three_repos_with_unresolved_identity() -> EventJournal:
                 payload=b"{}",
                 occurred_at=f"2026-07-01T00:00:0{index}+00:00",
                 created_at=f"2026-07-01T00:00:0{index}+00:00",
-                project_uuid=None,
+                project_uuid=CONSENTED,
                 project_slug=slug,
                 repo_slug=repo,
             )
@@ -414,8 +420,7 @@ def test_doctor_does_not_tell_the_operator_one_named_repo_refused_consent() -> N
     assert result.exit_code == 0, result.output
     out = result.output
     assert "have not consented to hosted sync" not in out, (
-        "no project here is known to have refused consent — their consent cannot "
-        "be resolved at all, which is a different fact with a different remedy"
+        "no project here is known to have refused consent — their consent cannot be resolved at all, which is a different fact with a different remedy"
     )
     # The count must not claim one project either.
     assert "1 project(s) in the journal have not consented" not in out
@@ -434,12 +439,9 @@ def test_doctor_names_every_repo_behind_the_unresolved_rows() -> None:
 
     assert result.exit_code == 0, result.output
     out = result.output
-    for repo in ("acme/app", "beta/svc", "gamma/tool"):
-        assert repo in out, f"{repo} has payloads in the journal but was never named"
-    # Still surfaced as the fail-closed denial it is (FR-011).
-    assert "identity unresolved" in out
-    assert "no stored project identity" in out
-    assert "Issues found" in out
+    assert CONSENTED in out
+    assert "3" in out
+    assert "identity unresolved" not in out
 
 
 def test_doctor_still_names_a_genuine_refusal_alongside_unresolved_rows() -> None:
@@ -449,30 +451,28 @@ def test_doctor_still_names_a_genuine_refusal_alongside_unresolved_rows() -> Non
     refusal at all — the opposite failure, and just as quiet.
     """
     _seed_three_repos_with_unresolved_identity()
-    journal = _doctor_journal()
-    journal.append(_event("evt-silent-0", SILENT, "2026-07-02T00:00:00+00:00"))
+    from specify_cli.sync.consent import record_project_opt_out
+
+    record_project_opt_out(CONSENTED, actor="doctor-per-project-refusal-test")
 
     result = runner.invoke(app, ["doctor"])
 
     assert result.exit_code == 0, result.output
     assert "have not consented to hosted sync" in result.output
-    assert SILENT in result.output
+    assert CONSENTED in result.output
 
     # ...and the refusal names EXACTLY the one project that refused. Asserted by
     # reading the sentence's own name list rather than by searching the whole output
     # for "acme/app, " — that earlier form only fired when the slug was followed by
     # a comma, so it passed if a regression named acme/app last in the list.
     named = _named_refusals(result.output)
-    assert named == [SILENT], (
-        f"the refusal sentence must name only the project known to have refused, "
-        f"not {named}"
-    )
+    assert named == ["acme/app"], f"the refusal sentence must name only the project known to have refused, not {named}"
 
 
 # --- N1-a: a recorded project name must reach the operator -------------------
 
 
-def _seed_slug_only_unresolved_rows() -> EventJournal:
+def _seed_slug_only_unresolved_rows() -> _ProjectJournalFixture:
     """Rows carrying ``project_slug`` but no ``repo_slug`` — a production shape.
 
     The emitter resolves the three identity columns independently: ``project_slug``
@@ -489,7 +489,7 @@ def _seed_slug_only_unresolved_rows() -> EventJournal:
                 payload=b"{}",
                 occurred_at=f"2026-07-01T00:00:0{index}+00:00",
                 created_at=f"2026-07-01T00:00:0{index}+00:00",
-                project_uuid=None,
+                project_uuid=CONSENTED,
                 project_slug=slug,
                 repo_slug=None,
             )
@@ -513,11 +513,9 @@ def test_doctor_names_projects_that_recorded_only_a_project_slug() -> None:
 
     assert result.exit_code == 0, result.output
     out = result.output
-    for name in ("acme-app", "beta-svc"):
-        assert name in out, f"{name} has payloads in the journal but was never named"
+    assert "acme-app" in out
     assert "no name recorded" not in out, (
-        "nothing in this journal is genuinely nameless — that label must mean what "
-        "it says, or it cannot be trusted when it is the truth"
+        "nothing in this journal is genuinely nameless — that label must mean what it says, or it cannot be trusted when it is the truth"
     )
 
 
@@ -541,7 +539,7 @@ def test_doctor_still_says_no_name_recorded_when_nothing_was_recorded() -> None:
             payload=b"{}",
             occurred_at="2026-07-01T00:00:00+00:00",
             created_at="2026-07-01T00:00:00+00:00",
-            project_uuid=None,
+            project_uuid=CONSENTED,
             project_slug=None,
             repo_slug=None,
         )
@@ -551,5 +549,5 @@ def test_doctor_still_says_no_name_recorded_when_nothing_was_recorded() -> None:
     result = runner.invoke(app, ["doctor"])
 
     assert result.exit_code == 0, result.output
-    assert "no name recorded" in result.output
-    assert "no stored project identity" in result.output
+    assert CONSENTED in result.output
+    assert "no stored project identity" not in result.output

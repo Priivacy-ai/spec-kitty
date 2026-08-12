@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import gzip
 import json
+from typing import Any, cast
 
 import pytest
 
@@ -29,6 +30,7 @@ import specify_cli.sync.history_import.pipeline as history_pipeline
 from specify_cli.delivery.interfaces import DeliveryTarget, TargetIdentity
 from specify_cli.delivery.receivers import TeamspaceReceiver
 from specify_cli.delivery.targets import compute_target_id
+from specify_cli.migration.envelope_seam import build_teamspace_envelope
 from specify_cli.sync.consent import allocate_capture_sequence, record_project_opt_in
 from specify_cli.sync.history_disclosure import (
     confirm_history_disclosure,
@@ -472,12 +474,24 @@ def test_apply_without_confirmed_authority_fails_closed_without_type_error(
     monkeypatch,
 ):
     """Legacy CLI callers get a named refusal until WP10 supplies authority."""
-    envelope = {
-        "event_id": "history-1",
-        "event_type": "WPStatusChanged",
-        "project_uuid": "11111111-2222-4333-8444-555555555555",
-        "payload": {"wp_id": "WP01"},
-    }
+    envelope = cast(
+        dict[str, Any],
+        build_teamspace_envelope(
+            event_id="history-1",
+            event_type="WPStatusChanged",
+            aggregate_id="WP01",
+            aggregate_type="WorkPackage",
+            payload={"wp_id": "WP01"},
+            timestamp="2026-08-01T00:00:00+00:00",
+            build_id="history-import-pipeline-test",
+            node_id="history-import-pipeline-test",
+            lamport_clock=1,
+            project_uuid="11111111-2222-4333-8444-555555555555",
+            project_slug="history-import-pipeline-test",
+            repo_slug=None,
+            correlation_id="history-1",
+        ).model_dump(),
+    )
     plan = history_pipeline.ImportPlan(
         identity=None,
         scans=(object(),),  # type: ignore[arg-type]

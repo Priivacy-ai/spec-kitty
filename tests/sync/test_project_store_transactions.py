@@ -19,6 +19,8 @@ from specify_cli.sync.project_store import (
     ProjectUnitOfWork,
 )
 
+pytestmark = pytest.mark.fast
+
 
 PROJECT_UUID = "aaaaaaaa-0000-0000-0000-000000000001"
 

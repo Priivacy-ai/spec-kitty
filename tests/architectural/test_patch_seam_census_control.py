@@ -132,6 +132,10 @@ _GROUND_TRUTH_SLEEP_NODES = frozenset(
 )
 
 # Arm D: bucket counts over `tests/sync/`, pinned to the tree's live measurement.
+# The current-main project-store reconciliation removes eight stale patch seams
+# (including the retired global body/row migration helpers) and reclassifies two
+# remaining non-import targets. The census instrument is unchanged; these are
+# the hand-reviewed buckets for the reconciled test tree.
 #
 # `unresolvable` is pinned too (at 0), deliberately: classification runs through
 # import success, so a thinner environment that could not import a module under
@@ -139,10 +143,10 @@ _GROUND_TRUTH_SLEEP_NODES = frozenset(
 # weaker rather than by anything actually improving.
 _EXPECTED_BUCKETS = frozenset(
     {
-        ("own_module", 350),
-        ("reach_through", 192),
+        ("own_module", 341),
+        ("reach_through", 191),
         ("foreign", 6),
-        ("not_a_module", 15),
+        ("not_a_module", 17),
         ("unresolvable", 0),
     }
 )
@@ -166,19 +170,13 @@ def _census(*args: str) -> dict[str, Any]:
         env=env,
         check=False,
     )
-    assert proc.returncode == 0, (
-        f"census exited {proc.returncode} for args {args!r}\n"
-        f"--- stdout ---\n{proc.stdout}\n--- stderr ---\n{proc.stderr}"
-    )
+    assert proc.returncode == 0, f"census exited {proc.returncode} for args {args!r}\n--- stdout ---\n{proc.stdout}\n--- stderr ---\n{proc.stderr}"
     parsed: dict[str, Any] = json.loads(proc.stdout)
     return parsed
 
 
 def _seam_sleep_sites(payload: dict[str, Any]) -> frozenset[tuple[int, str, str]]:
-    return frozenset(
-        (int(s["line"]), str(s["attr"]), str(s["verdict"]))
-        for s in payload["sleep_seam_patch_sites"]
-    )
+    return frozenset((int(s["line"]), str(s["attr"]), str(s["verdict"])) for s in payload["sleep_seam_patch_sites"])
 
 
 def _assertion_lines(payload: dict[str, Any], key: str) -> frozenset[tuple[int, int]]:
@@ -186,16 +184,11 @@ def _assertion_lines(payload: dict[str, Any], key: str) -> frozenset[tuple[int, 
 
 
 def _sites(payload: dict[str, Any]) -> frozenset[tuple[str, int, str]]:
-    return frozenset(
-        (Path(s["file"]).name, int(s["line"]), str(s["verdict"])) for s in payload["sites"]
-    )
+    return frozenset((Path(s["file"]).name, int(s["line"]), str(s["verdict"])) for s in payload["sites"])
 
 
 def _corruptible(payload: dict[str, Any]) -> frozenset[tuple[str, int, int]]:
-    return frozenset(
-        (Path(a["file"]).name, int(a["line"]), int(a["n"]))
-        for a in payload["corruptible_assertions"]
-    )
+    return frozenset((Path(a["file"]).name, int(a["line"]), int(a["n"])) for a in payload["corruptible_assertions"])
 
 
 # --------------------------------------------------------------------------
@@ -226,9 +219,7 @@ def test_arm_a_fixture_corruptible_assertions_match_ground_truth() -> None:
 def test_arm_a_sleep_nodes_exclude_the_monotonic_only_function() -> None:
     """A monotonic-only node is reach-through but is not a *sleep* node."""
     payload = _census(str(_FIXTURE_DIR), "--json")
-    observed = frozenset(
-        (Path(n["file"]).name, str(n["node_id"])) for n in payload["nodes_with_sleep_assertions"]
-    )
+    observed = frozenset((Path(n["file"]).name, str(n["node_id"])) for n in payload["nodes_with_sleep_assertions"])
     assert observed == _GROUND_TRUTH_SLEEP_NODES, (
         "sleep-node set diverged from the hand-derived ground truth\n"
         f"  missing from census : {sorted(_GROUND_TRUTH_SLEEP_NODES - observed)}\n"
@@ -244,28 +235,16 @@ def test_arm_a_sleep_nodes_exclude_the_monotonic_only_function() -> None:
 def test_arm_b_decoys_contribute_nothing_and_grep_overcounts() -> None:
     """A docstring, a comment and a bare literal must all be inert (NFR-007)."""
     payload = _census(str(_FIXTURE_DIR), "--json")
-    decoy_lines = frozenset(
-        (Path(s["file"]).name, int(s["line"]))
-        for s in payload["sites"]
-        if Path(s["file"]).name == "seam_decoy_cases.py"
-    )
+    decoy_lines = frozenset((Path(s["file"]).name, int(s["line"])) for s in payload["sites"] if Path(s["file"]).name == "seam_decoy_cases.py")
     # Only the live decorator at :36 is real. The docstring's quoted @patch and
     # the commented-out @patch must not appear.
-    assert decoy_lines == frozenset({("seam_decoy_cases.py", 36)}), (
-        f"decoys leaked into the census: {sorted(decoy_lines)}"
-    )
+    assert decoy_lines == frozenset({("seam_decoy_cases.py", 36)}), f"decoys leaked into the census: {sorted(decoy_lines)}"
 
     # The docstring assertion at :10 must not be a corruptible assertion.
-    corruptible_decoy_lines = frozenset(
-        line for name, line, _ in _corruptible(payload) if name == "seam_decoy_cases.py"
-    )
-    assert corruptible_decoy_lines == frozenset({43}), (
-        f"docstring assertion leaked into corruptible set: {sorted(corruptible_decoy_lines)}"
-    )
+    corruptible_decoy_lines = frozenset(line for name, line, _ in _corruptible(payload) if name == "seam_decoy_cases.py")
+    assert corruptible_decoy_lines == frozenset({43}), f"docstring assertion leaked into corruptible set: {sorted(corruptible_decoy_lines)}"
 
-    grep_hits = sum(
-        path.read_text(encoding="utf-8").count("patch(") for path in _FIXTURE_DIR.glob("*.py")
-    )
+    grep_hits = sum(path.read_text(encoding="utf-8").count("patch(") for path in _FIXTURE_DIR.glob("*.py"))
     census_hits = len(payload["sites"])
     assert grep_hits > census_hits, (
         "the fixture no longer demonstrates grep over-counting: "
@@ -287,14 +266,8 @@ def test_arm_c_membership_assertion_reports_zero_cardinality() -> None:
     assertion constrains. If this reports anything but 0, SC-002 is fakeable.
     """
     observed = _corruptible(_census(str(_FIXTURE_DIR), "--json"))
-    membership = frozenset(
-        (name, line, n)
-        for name, line, n in observed
-        if (name, line) == ("seam_negative_cases.py", 41)
-    )
-    assert membership == frozenset({("seam_negative_cases.py", 41, 0)}), (
-        f"the `in` form must report n=0; census reported {sorted(membership)}"
-    )
+    membership = frozenset((name, line, n) for name, line, n in observed if (name, line) == ("seam_negative_cases.py", 41))
+    assert membership == frozenset({("seam_negative_cases.py", 41, 0)}), f"the `in` form must report n=0; census reported {sorted(membership)}"
 
 
 # --------------------------------------------------------------------------
@@ -388,12 +361,8 @@ def test_arm_f_ast_superset_of_regex_after_removing_prose_spans() -> None:
     """
     payload = _census(str(_SYNC_TREE), "--json", "--cross-check")
 
-    regex_only = frozenset(
-        (str(s["file"]), int(s["line"])) for s in payload["cross_check"]["regex_only"]
-    )
-    ast_only = frozenset(
-        (str(s["file"]), int(s["line"])) for s in payload["cross_check"]["ast_only"]
-    )
+    regex_only = frozenset((str(s["file"]), int(s["line"])) for s in payload["cross_check"]["regex_only"])
+    ast_only = frozenset((str(s["file"]), int(s["line"])) for s in payload["cross_check"]["ast_only"])
 
     # Non-vacuity: the two extractors are known to disagree in this direction on
     # every tree state seen so far. An empty set means the cross-check stopped
@@ -404,11 +373,7 @@ def test_arm_f_ast_superset_of_regex_after_removing_prose_spans() -> None:
         "seen at least the docstring-quoted targets the AST excludes."
     )
 
-    unexplained = frozenset(
-        (file, line)
-        for file, line in regex_only
-        if line not in _prose_lines(_REPO_ROOT / file)
-    )
+    unexplained = frozenset((file, line) for file, line in regex_only if line not in _prose_lines(_REPO_ROOT / file))
     assert unexplained == frozenset(), (
         "regex-only hits that are NOT inside a string-literal or comment span\n"
         f"  unexplained : {sorted(unexplained)}\n"
@@ -421,10 +386,7 @@ def test_arm_f_ast_superset_of_regex_after_removing_prose_spans() -> None:
     # content — but the arm must not be able to pass because the census forgot
     # to compute the direction at all, so the key's presence is asserted.
     print(f"[arm F] AST-only sites (reported, not a failure): {sorted(ast_only)}")
-    assert "ast_only" in payload["cross_check"], (
-        "census omitted the ast_only direction; the arm must print the "
-        "difference in BOTH directions"
-    )
+    assert "ast_only" in payload["cross_check"], "census omitted the ast_only direction; the arm must print the difference in BOTH directions"
 
 
 # --------------------------------------------------------------------------
@@ -493,14 +455,11 @@ def test_arm_g_own_module_sleep_seam_counts_but_is_not_corruptible(tmp_path: Pat
     `correct-by-alias`. This arm holds the report to that vocabulary: a sleep
     seam patched where the symbol is *defined* is read, counted, and safe.
     """
-    (tmp_path / "seam_own_module_sleep_case.py").write_text(
-        _OWN_MODULE_SLEEP_CASE.format(seam=_SEAM), encoding="utf-8"
-    )
+    (tmp_path / "seam_own_module_sleep_case.py").write_text(_OWN_MODULE_SLEEP_CASE.format(seam=_SEAM), encoding="utf-8")
     payload = _census(str(tmp_path), "--json")
 
     assert _seam_sleep_sites(payload) == _ARM_G_SITES, (
-        "the two seam sites did not resolve to the expected verdict pair\n"
-        f"  observed : {sorted(_seam_sleep_sites(payload))}"
+        f"the two seam sites did not resolve to the expected verdict pair\n  observed : {sorted(_seam_sleep_sites(payload))}"
     )
 
     sleep_assertions = _assertion_lines(payload, "sleep_assertions")

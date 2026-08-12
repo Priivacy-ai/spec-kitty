@@ -12,6 +12,8 @@ from specify_cli.sync.project_context import AdmissionState
 from specify_cli.sync.project_store import ProjectSyncStore
 from specify_cli.sync.target_authority import AdmissionAudience
 
+pytestmark = pytest.mark.fast
+
 PROJECT_A = "aaaaaaaa-0000-0000-0000-000000000001"
 PROJECT_B = "aaaaaaaa-0000-0000-0000-000000000002"
 

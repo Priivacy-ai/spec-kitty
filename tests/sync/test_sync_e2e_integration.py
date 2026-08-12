@@ -33,12 +33,14 @@ from specify_cli.sync.project_identity import (
 from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.emitter import EventEmitter
 from specify_cli.sync.runtime import SyncRuntime, reset_runtime
+from specify_cli.sync.project_store import ProjectSyncStore
 
 import pytest
 
 pytestmark = pytest.mark.git_repo
 
 # ── T027: Test Fixtures ──────────────────────────────────────────────
+
 
 @pytest.fixture
 def temp_repo(tmp_path: Path) -> Path:
@@ -66,6 +68,7 @@ def temp_repo(tmp_path: Path) -> Path:
 
     return repo
 
+
 @pytest.fixture
 def temp_repo_with_config(temp_repo: Path) -> Path:
     """Temp repo with existing config.yaml (no identity)."""
@@ -73,11 +76,20 @@ def temp_repo_with_config(temp_repo: Path) -> Path:
     config_path.write_text("vcs:\n  type: git\n")
     return temp_repo
 
+
 @pytest.fixture
-def mock_queue(tmp_path: Path) -> OfflineQueue:
+def mock_queue(temp_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Real OfflineQueue for inspecting queued events."""
-    db_path = tmp_path / "test_events.db"
-    return OfflineQueue(db_path=db_path)
+    identity = ensure_identity(temp_repo)
+    assert identity.project_uuid is not None
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(identity.project_uuid)
+    authority = store.layout_generation()
+    authority.begin_cutover("sync-e2e-tests")
+    authority.publish_project_only("sync-e2e-tests", verify_exact=lambda: True)
+    with store.unit_of_work() as unit:
+        yield OfflineQueue(unit, authority)
+
 
 @pytest.fixture
 def mock_websocket() -> MagicMock:
@@ -89,16 +101,20 @@ def mock_websocket() -> MagicMock:
     ws.disconnect = MagicMock()
     return ws
 
+
 @pytest.fixture(autouse=True)
 def reset_singletons():
     """Reset singletons before and after each test."""
     reset_runtime()
     from specify_cli.sync.events import reset_emitter
+
     reset_emitter()
     yield
     reset_runtime()
     from specify_cli.sync.events import reset_emitter
+
     reset_emitter()
+
 
 @pytest.fixture(autouse=True)
 def mock_body_queue():
@@ -118,6 +134,7 @@ def private_ingress_scope(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # ── T028: Init -> Implement Flow with Identity ───────────────────────
+
 
 class TestIdentityAwareFlow:
     """Test full flow from init to event emission with identity."""
@@ -153,9 +170,7 @@ class TestIdentityAwareFlow:
         assert identity1.project_uuid == identity2.project_uuid
         assert identity2.project_uuid == identity3.project_uuid
 
-    def test_event_contains_identity(
-        self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path
-    ) -> None:
+    def test_event_contains_identity(self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path) -> None:
         """Emitted events contain project_uuid and project_slug."""
         # Create identity first
         identity = ensure_identity(temp_repo)
@@ -192,9 +207,7 @@ class TestIdentityAwareFlow:
         # Verify it's a valid UUID string
         UUID(event["project_uuid"])  # Should not raise
 
-    def test_implement_emits_status_change(
-        self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path
-    ) -> None:
+    def test_implement_emits_status_change(self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path) -> None:
         """Implement command triggers WPStatusChanged event."""
         identity = ensure_identity(temp_repo)
 
@@ -235,14 +248,14 @@ class TestIdentityAwareFlow:
         # Event should be queued
         assert mock_queue.size() == 1
 
+
 # ── T029: Unauthenticated Graceful Degradation ───────────────────────
+
 
 class TestUnauthenticatedGracefulDegradation:
     """Test queue-only mode when not authenticated."""
 
-    def test_unauthenticated_queues_only(
-        self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path, monkeypatch
-    ) -> None:
+    def test_unauthenticated_queues_only(self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path, monkeypatch) -> None:
         """Events are queued (not sent via WS) when unauthenticated."""
         monkeypatch.chdir(temp_repo)
         identity = ensure_identity(temp_repo)
@@ -276,9 +289,7 @@ class TestUnauthenticatedGracefulDegradation:
         assert event is not None
         assert mock_queue.size() == 1
 
-    def test_runtime_no_websocket_when_unauthenticated(
-        self, temp_repo: Path, monkeypatch
-    ) -> None:
+    def test_runtime_no_websocket_when_unauthenticated(self, temp_repo: Path, monkeypatch) -> None:
         """SyncRuntime doesn't create WebSocket when not authenticated."""
         monkeypatch.chdir(temp_repo)
 
@@ -291,9 +302,7 @@ class TestUnauthenticatedGracefulDegradation:
             # force the unauthenticated branch.
             mock_tm = MagicMock()
             mock_tm.is_authenticated = False
-            with patch(
-                "specify_cli.auth.get_token_manager", return_value=mock_tm
-            ):
+            with patch("specify_cli.auth.get_token_manager", return_value=mock_tm):
                 runtime = SyncRuntime()
                 runtime.start()
 
@@ -304,7 +313,9 @@ class TestUnauthenticatedGracefulDegradation:
 
                 runtime.stop()
 
+
 # ── T030: Config Backfill on Existing Project ────────────────────────
+
 
 class TestConfigBackfill:
     """Test identity backfill for existing projects without identity."""
@@ -354,14 +365,14 @@ class TestConfigBackfill:
         assert identity.node_id is not None
         assert identity.is_complete
 
+
 # ── T031: Read-Only Repo Fallback ────────────────────────────────────
+
 
 class TestReadOnlyFallback:
     """Test in-memory identity when config is not writable."""
 
-    def test_readonly_fallback_existing_config(
-        self, temp_repo: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_readonly_fallback_existing_config(self, temp_repo: Path, caplog: pytest.LogCaptureFixture) -> None:
         """Read-only existing config uses in-memory identity with warning."""
         config_path = temp_repo / ".kittify" / "config.yaml"
 
@@ -387,9 +398,7 @@ class TestReadOnlyFallback:
             # Restore permissions for cleanup
             config_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
 
-    def test_readonly_directory_fallback(
-        self, temp_repo: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_readonly_directory_fallback(self, temp_repo: Path, caplog: pytest.LogCaptureFixture) -> None:
         """Read-only .kittify directory uses in-memory identity."""
         kittify_dir = temp_repo / ".kittify"
 
@@ -405,14 +414,14 @@ class TestReadOnlyFallback:
             # Restore permissions for cleanup
             kittify_dir.chmod(stat.S_IRWXU)
 
+
 # ── T032: No Duplicate Emissions ─────────────────────────────────────
+
 
 class TestNoDuplicateEmissions:
     """Test that each command emits exactly one status change."""
 
-    def test_single_emission_per_transition(
-        self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path
-    ) -> None:
+    def test_single_emission_per_transition(self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path) -> None:
         """Commands emit exactly one WPStatusChanged per transition."""
         identity = ensure_identity(temp_repo)
 
@@ -463,12 +472,10 @@ class TestNoDuplicateEmissions:
         assert len(events) == 3
 
         # Verify no duplicates (all unique event_id)
-        event_ids = [e["event_id"] for e in events]
+        event_ids = [task.event_id for task in events]
         assert len(set(event_ids)) == 3
 
-    def test_causation_chain_no_duplicates(
-        self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path
-    ) -> None:
+    def test_causation_chain_no_duplicates(self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path) -> None:
         """Causation chain doesn't cause duplicate emissions."""
         identity = ensure_identity(temp_repo)
 
@@ -508,7 +515,7 @@ class TestNoDuplicateEmissions:
                 wp_id=f"WP{i:02d}",
                 title=f"Work Package {i}",
                 mission_slug="032-identity-aware",
-                dependencies=[f"WP{i-1:02d}"] if i > 1 else [],
+                dependencies=[f"WP{i - 1:02d}"] if i > 1 else [],
                 causation_id=causation_id,
             )
 
@@ -519,17 +526,17 @@ class TestNoDuplicateEmissions:
         assert len(events) == 4
 
         # All share same causation_id
-        for e in events:
-            assert e["causation_id"] == causation_id
+        for task in events:
+            assert task.event["causation_id"] == causation_id
+
 
 # ── Additional E2E Scenarios ─────────────────────────────────────────
+
 
 class TestFullWorkflowIntegration:
     """Full workflow integration tests."""
 
-    def test_full_wp_lifecycle(
-        self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path
-    ) -> None:
+    def test_full_wp_lifecycle(self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path) -> None:
         """Test complete WP lifecycle: create -> implement -> review -> done."""
         identity = ensure_identity(temp_repo)
 
@@ -609,12 +616,12 @@ class TestFullWorkflowIntegration:
         assert len(events) == 7
 
         # All events have project identity
-        for e in events:
-            assert e["project_uuid"] == str(identity.project_uuid)
-            assert e["project_slug"] == identity.project_slug
+        for task in events:
+            assert task.event["project_uuid"] == str(identity.project_uuid)
+            assert task.event["project_slug"] == identity.project_slug
 
         # Verify event types in order
-        event_types = [e["event_type"] for e in events]
+        event_types = [task.event["event_type"] for task in events]
         assert event_types == [
             "MissionCreated",
             "WPCreated",
@@ -625,9 +632,7 @@ class TestFullWorkflowIntegration:
             "MissionClosed",
         ]
 
-    def test_events_queued_when_offline(
-        self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path
-    ) -> None:
+    def test_events_queued_when_offline(self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path) -> None:
         """Events are queued for later sync when offline."""
         identity = ensure_identity(temp_repo)
 
@@ -668,18 +673,17 @@ class TestFullWorkflowIntegration:
         assert mock_queue.size() == 3
 
         # Simulate successful sync by marking events as synced
-        event_ids = [e["event_id"] for e in events]
+        event_ids = [task.event_id for task in events]
         mock_queue.mark_synced(event_ids)
 
         # Queue is now empty
         assert mock_queue.size() == 0
 
+
 class TestEventPayloadValidation:
     """Test event payload structure and validation."""
 
-    def test_wp_status_changed_payload(
-        self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path
-    ) -> None:
+    def test_wp_status_changed_payload(self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path) -> None:
         """WPStatusChanged has correct payload structure."""
         identity = ensure_identity(temp_repo)
 
@@ -726,9 +730,7 @@ class TestEventPayloadValidation:
         assert payload["actor"] == "claude-opus"
         assert payload["mission_slug"] == "test-feature"
 
-    def test_event_id_is_ulid(
-        self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path
-    ) -> None:
+    def test_event_id_is_ulid(self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path) -> None:
         """Event IDs are valid ULIDs."""
         identity = ensure_identity(temp_repo)
 
@@ -759,9 +761,7 @@ class TestEventPayloadValidation:
         ulid_pattern = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
         assert ulid_pattern.match(event["event_id"]) is not None
 
-    def test_timestamp_is_iso8601(
-        self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path
-    ) -> None:
+    def test_timestamp_is_iso8601(self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path) -> None:
         """Event timestamps are ISO 8601 format."""
         identity = ensure_identity(temp_repo)
 

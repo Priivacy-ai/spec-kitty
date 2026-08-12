@@ -439,7 +439,7 @@ class SqliteDeliveryLedger:
             return []
         placeholders = ", ".join("?" for _ in wanted)
         rows = self._unit.execute(
-            f"SELECT journal_entries.entry_id FROM journal_entries "  # noqa: S608 - count-derived placeholders only
+            f"SELECT journal_entries.entry_id FROM journal_entries "  # noqa: S608  # nosec B608 - count-derived placeholders only
             "JOIN consent_epochs ON consent_epochs.project_uuid = journal_entries.project_uuid "
             "AND consent_epochs.epoch_id = journal_entries.epoch_id "
             f"WHERE journal_entries.project_uuid = ? AND journal_entries.entry_id IN ({placeholders}) "

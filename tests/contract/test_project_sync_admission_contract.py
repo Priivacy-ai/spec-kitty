@@ -14,6 +14,8 @@ from specify_cli.saas_client.admission import (
     attest_saas_contract,
 )
 
+pytestmark = [pytest.mark.contract, pytest.mark.fast]
+
 CANDIDATE_CHECKOUT = Path("/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260809-175108-qc7maU/saas-wp04-candidate-29cc20c6")
 
 

@@ -21,6 +21,8 @@ from specify_cli.sync.layout_generation import (
 )
 from specify_cli.sync.project_store import ProjectSyncStore
 
+pytestmark = pytest.mark.fast
+
 
 PROJECT_UUID = "aaaaaaaa-0000-0000-0000-000000000001"
 

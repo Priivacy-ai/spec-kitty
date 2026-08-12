@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from kernel.clock import timedelta, now_utc
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
@@ -29,9 +30,7 @@ def _disable_teamspace_mission_state_gate(monkeypatch: pytest.MonkeyPatch) -> No
 
 
 @pytest.fixture(autouse=True)
-def _isolate_home_for_preflight(
-    monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
-) -> None:
+def _isolate_home_for_preflight(monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory) -> None:
     """Isolate ``Path.home()`` so the WP03 boundary preflight (transitively
     invoked by sync share / unshare / opt-out via ``_require_daemon_owner_coherence``)
     does not refuse on the operator's real ``~/.spec-kitty/`` queue/owner
@@ -42,6 +41,27 @@ def _isolate_home_for_preflight(
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("USERPROFILE", str(home))
     monkeypatch.setenv("LOCALAPPDATA", str(home / "AppData"))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".spec-kitty"))
+    from specify_cli.sync.project_store import ProjectSyncStore
+
+    store = ProjectSyncStore("11111111-1111-1111-1111-111111111111")
+    authority = store.layout_generation()
+    authority.begin_cutover("sync-routes-test")
+    authority.publish_project_only("sync-routes-test", verify_exact=lambda: True)
+    with store.unit_of_work():
+        pass
+    import specify_cli.sync.routing as routing
+
+    monkeypatch.setattr(
+        routing,
+        "resolve_checkout_sync_routing_readonly",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            project_uuid=store.project_uuid,
+            project_slug="spec-kitty-local",
+            repo_slug="acme/spec-kitty",
+            build_id="build-123",
+        ),
+    )
 
 
 def _session() -> StoredSession:
@@ -133,7 +153,7 @@ def test_share_command_retries_after_materializing_private_source(monkeypatch: p
 
     calls = {"count": 0}
 
-    def _request_share(**_kwargs):
+    def _request_share(**_kwargs: object) -> dict[str, object]:
         calls["count"] += 1
         if calls["count"] == 1:
             from specify_cli.sync.sharing_client import RepositorySharingClientError
@@ -183,6 +203,7 @@ def test_share_command_requires_persisted_project_uuid(monkeypatch: pytest.Monke
         "specify_cli.sync.sharing_client.request_repository_share_sync",
         request_share,
     )
+    monkeypatch.setattr(sync_module, "_require_daemon_owner_coherence", lambda *_: None)
 
     with patch.object(sync_module, "_materialize_private_source_project") as mock_materialize:
         result = runner.invoke(sync_module.app, ["share", "product-team"])
@@ -243,6 +264,7 @@ def test_share_command_blocks_when_teamspace_mission_state_migration_pending(
         "specify_cli.sync.sharing_client.request_repository_share_sync",
         request_share,
     )
+    monkeypatch.setattr(sync_module, "_require_daemon_owner_coherence", lambda *_: None)
 
     result = runner.invoke(sync_module.app, ["share", "product-team"])
 
@@ -363,7 +385,7 @@ def test_opt_out_command_can_delete_private_remote_data(monkeypatch: pytest.Monk
 
 def test_now_logged_out_nonempty_queue_reports_unauthenticated_failures(
     monkeypatch: pytest.MonkeyPatch,
-    tmp_path,
+    tmp_path: Path,
 ) -> None:
     """Issue #829: a logged-out ``sync now`` with events to deliver is a
     *graceful* unauthenticated failure (exit 1), NOT a generic/teamspace-state
@@ -418,9 +440,8 @@ def test_now_logged_out_nonempty_queue_reports_unauthenticated_failures(
         "specify_cli.sync.background.get_sync_service",
         lambda: service,
     )
-    monkeypatch.setattr(
-        sync_module, "_run_event_sync_dispatch", lambda: unauthenticated_summary
-    )
+    monkeypatch.setattr(sync_module, "_run_event_sync_dispatch", lambda: unauthenticated_summary)
+    monkeypatch.setattr(sync_module, "_require_daemon_owner_coherence", lambda *_: None)
     report_path = tmp_path / "sync-report.json"
 
     result = runner.invoke(sync_module.app, ["now", "--report", str(report_path)])
@@ -473,7 +494,7 @@ def test_run_dispatch_batches_halves_on_oversized_then_drains(
     calls: list[int] = []
     remaining = {"n": 5}
 
-    def fake_dispatch(*, journal, ledger, receiver, target, limit, exclude=frozenset()):  # noqa: ANN001, ANN202
+    def fake_dispatch(*, journal, ledger, receiver, target, store, context, limit, exclude=frozenset(), recovery_event_ids=frozenset()):  # type: ignore[no-untyped-def]  # noqa: ANN001, ANN202
         calls.append(limit)
         if limit >= 4:  # too large: server 413s the whole batch
             return _oversized_summary(min(limit, remaining["n"]))
@@ -518,7 +539,7 @@ def test_run_dispatch_batches_skips_rejected_and_drains_events_behind(
     universe = poison + good
     delivered: list[str] = []
 
-    def fake_dispatch(*, journal, ledger, receiver, target, limit, exclude=frozenset()):  # noqa: ANN001, ANN202
+    def fake_dispatch(*, journal, ledger, receiver, target, store, context, limit, exclude=frozenset(), recovery_event_ids=frozenset()):  # type: ignore[no-untyped-def]  # noqa: ANN001, ANN202
         selectable = [eid for eid in universe if eid not in exclude and eid not in delivered]
         chunk = selectable[:limit]
         if not chunk:
@@ -576,12 +597,8 @@ def test_run_dispatch_batches_grows_limit_back_after_oversized_park(
     parked: set[str] = set()
     calls: list[tuple[str, ...]] = []
 
-    def fake_dispatch(*, journal, ledger, receiver, target, limit, exclude=frozenset()):  # noqa: ANN001, ANN202
-        selectable = [
-            eid
-            for eid in universe
-            if eid not in exclude and eid not in delivered and eid not in parked
-        ]
+    def fake_dispatch(*, journal, ledger, receiver, target, store, context, limit, exclude=frozenset(), recovery_event_ids=frozenset()):  # type: ignore[no-untyped-def]  # noqa: ANN001, ANN202
+        selectable = [eid for eid in universe if eid not in exclude and eid not in delivered and eid not in parked]
         chunk = selectable[:limit]
         calls.append(tuple(chunk))
         if not chunk:
@@ -638,12 +655,8 @@ def test_run_dispatch_batches_skips_pending_and_reports_each_event_once(
     delivered: set[str] = set()
     attempted: list[tuple[str, ...]] = []
 
-    def fake_dispatch(*, journal, ledger, receiver, target, limit, exclude=frozenset()):  # noqa: ANN001, ANN202
-        selectable = [
-            event_id
-            for event_id in universe
-            if event_id not in exclude and event_id not in delivered
-        ]
+    def fake_dispatch(*, journal, ledger, receiver, target, store, context, limit, exclude=frozenset(), recovery_event_ids=frozenset()):  # type: ignore[no-untyped-def]  # noqa: ANN001, ANN202
+        selectable = [event_id for event_id in universe if event_id not in exclude and event_id not in delivered]
         chunk = selectable[:limit]
         attempted.append(tuple(chunk))
         if not chunk:
@@ -680,9 +693,7 @@ def test_transient_block_message_distinguishes_cause() -> None:
     logged-out session and sent operators chasing OAuth.
     """
     oversized = _oversized_summary(3)
-    assert sync_module._transient_block_message(oversized) == (
-        sync_module._OVERSIZED_SYNC_NOW_MESSAGE
-    )
+    assert sync_module._transient_block_message(oversized) == (sync_module._OVERSIZED_SYNC_NOW_MESSAGE)
 
     unauth = DispatchSummary(
         target_id="t",
@@ -695,9 +706,7 @@ def test_transient_block_message_distinguishes_cause() -> None:
         terminal_failed=0,
         failures=(DispatchFailure(event_id="e", outcome="transient", http_status=401),),
     )
-    assert sync_module._transient_block_message(unauth) == (
-        sync_module._UNAUTHENTICATED_SYNC_NOW_MESSAGE
-    )
+    assert sync_module._transient_block_message(unauth) == (sync_module._UNAUTHENTICATED_SYNC_NOW_MESSAGE)
 
     server_err = DispatchSummary(
         target_id="t",
@@ -710,9 +719,7 @@ def test_transient_block_message_distinguishes_cause() -> None:
         terminal_failed=0,
         failures=(DispatchFailure(event_id="e", outcome="transient", http_status=503),),
     )
-    assert sync_module._transient_block_message(server_err) == (
-        sync_module._TRANSIENT_SYNC_NOW_MESSAGE
-    )
+    assert sync_module._transient_block_message(server_err) == (sync_module._TRANSIENT_SYNC_NOW_MESSAGE)
 
 
 def test_oversized_classifier_requires_wholesale_transient_rejection() -> None:

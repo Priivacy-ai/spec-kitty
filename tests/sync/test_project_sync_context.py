@@ -18,6 +18,8 @@ from specify_cli.sync.project_context import (
 )
 from specify_cli.sync.project_store import ProjectStoreError, ProjectSyncStore
 
+pytestmark = pytest.mark.fast
+
 
 PROJECT_A = "aaaaaaaa-0000-0000-0000-000000000001"
 PROJECT_B = "bbbbbbbb-0000-0000-0000-000000000002"

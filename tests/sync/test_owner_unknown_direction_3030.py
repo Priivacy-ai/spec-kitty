@@ -220,6 +220,7 @@ def test_an_unverifiable_executable_refuses_the_whole_preflight(
     )
     monkeypatch.setattr(preflight_mod, "collect_foreground_identity", lambda repo_root: foreground)  # noqa: ARG005
     monkeypatch.setattr(preflight_mod, "_count_legacy_rows_for_scope", lambda fg: (0, 0))  # noqa: ARG005
+    monkeypatch.setattr(preflight_mod, "_project_store_layout_diagnostic", lambda repo_root: None)  # noqa: ARG005
 
     failure_set = preflight_mod.build_boundary_failure_set(repo_root=Path.cwd())
 

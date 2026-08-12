@@ -15,6 +15,8 @@ from specify_cli.sync.target_authority import (
     build_admission_audience,
 )
 
+pytestmark = pytest.mark.fast
+
 PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
 
 

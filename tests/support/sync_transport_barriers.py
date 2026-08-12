@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from charter.hasher import hash_content
+from specify_cli.migration.envelope_seam import build_teamspace_envelope
 
 
 class BarrierPhase(StrEnum):
@@ -427,14 +428,13 @@ def _relay_event_id(seed: BarrierIdentity) -> str:
 
 def _relay_event(seed: BarrierIdentity) -> dict[str, Any]:
     event_id = _relay_event_id(seed)
-    return {
-        "event_id": event_id,
-        "event_type": "WPStatusChanged",
-        "aggregate_id": "WP09",
-        "aggregate_type": "WorkPackage",
-        "schema_version": "3.0.0",
-        "build_id": "build-wp09",
-        "payload": {
+    event: dict[str, Any] = build_teamspace_envelope(
+        event_id=event_id,
+        event_type="WPStatusChanged",
+        aggregate_id="WP09",
+        aggregate_type="WorkPackage",
+        build_id="build-wp09",
+        payload={
             "actor": "wp09-adapter-matrix",
             "execution_mode": "direct_repo",
             "force": False,
@@ -443,19 +443,22 @@ def _relay_event(seed: BarrierIdentity) -> dict[str, Any]:
             "to_lane": "for_review",
             "wp_id": "WP09",
         },
-        "node_id": "node-wp09",
-        "lamport_clock": 1,
-        "causation_id": None,
-        "correlation_id": event_id,
-        "timestamp": "2026-08-11T20:00:00+00:00",
-        "team_slug": "teamspace-1",
-        "project_uuid": seed.project_uuid,
-        "project_slug": "project-a",
-        "git_branch": "develop",
-        "head_commit_sha": "a" * 40,
-        "repo_slug": "private/wp09",
-        "drain_blocked_reason": None,
-    }
+        node_id="node-wp09",
+        lamport_clock=1,
+        causation_id=None,
+        correlation_id=event_id,
+        timestamp="2026-08-11T20:00:00+00:00",
+        project_uuid=seed.project_uuid,
+        project_slug="project-a",
+        repo_slug="private/wp09",
+    ).model_dump()
+    event.update(
+        team_slug="teamspace-1",
+        git_branch="develop",
+        head_commit_sha="a" * 40,
+        drain_blocked_reason=None,
+    )
+    return event
 
 
 def _history_expectation(
@@ -1056,32 +1059,34 @@ def _delivery_target(project_uuid: str) -> Any:
 
 
 def _event_frame(identity: BarrierIdentity) -> dict[str, Any]:
-    return {
-        "event_id": identity.native_identity,
-        "event_type": "WPStatusChanged",
-        "aggregate_id": "WP09",
-        "aggregate_type": "WorkPackage",
-        "schema_version": "3.0.0",
-        "build_id": "build-wp09",
-        "payload": {
+    event: dict[str, Any] = build_teamspace_envelope(
+        event_id=identity.native_identity,
+        event_type="WPStatusChanged",
+        aggregate_id="WP09",
+        aggregate_type="WorkPackage",
+        build_id="build-wp09",
+        payload={
             "wp_id": "WP09",
             "from_lane": "in_progress",
             "to_lane": "for_review",
             "actor": "wp09-adapter-matrix",
         },
-        "node_id": "node-wp09",
-        "lamport_clock": 1,
-        "causation_id": None,
-        "correlation_id": identity.native_identity,
-        "timestamp": "2026-08-11T20:00:00+00:00",
-        "team_slug": "teamspace-1",
-        "project_uuid": identity.project_uuid,
-        "project_slug": "project-a",
-        "git_branch": "develop",
-        "head_commit_sha": "a" * 40,
-        "repo_slug": "private/wp09",
-        "drain_blocked_reason": None,
-    }
+        node_id="node-wp09",
+        lamport_clock=1,
+        causation_id=None,
+        correlation_id=identity.native_identity,
+        timestamp="2026-08-11T20:00:00+00:00",
+        project_uuid=identity.project_uuid,
+        project_slug="project-a",
+        repo_slug="private/wp09",
+    ).model_dump()
+    event.update(
+        team_slug="teamspace-1",
+        git_branch="develop",
+        head_commit_sha="a" * 40,
+        drain_blocked_reason=None,
+    )
+    return event
 
 
 def _ensure_admitted_project(project_uuid: str) -> Any:
@@ -1997,6 +2002,7 @@ def _invoke_daemon(
     *,
     event: dict[str, Any] | None = None,
 ) -> bool:
+    import asyncio
     from unittest.mock import patch
 
     from specify_cli.sync.client import WebSocketClient
@@ -2068,9 +2074,12 @@ def _invoke_daemon(
         loop = runtime._async_loop
         thread = runtime._async_loop_thread
         if loop is not None:
+            asyncio.run_coroutine_threadsafe(loop.shutdown_default_executor(), loop).result(timeout=5.0)
             loop.call_soon_threadsafe(loop.stop)
         if thread is not None:
             thread.join(timeout=5.0)
+            if thread.is_alive():
+                raise AssertionError("test daemon event loop did not stop")
         if loop is not None:
             loop.close()
         runtime._async_loop = None

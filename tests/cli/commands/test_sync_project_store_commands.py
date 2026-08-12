@@ -14,12 +14,33 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.sync import app
 import specify_cli.cli.commands.sync as sync_command
+from specify_cli.migration.envelope_seam import build_teamspace_envelope
 from specify_cli.sync.project_context import ProjectSyncContext
 from specify_cli.sync.project_store import ProjectSyncStore
 
 
 pytestmark = [pytest.mark.fast]
 PROJECT = "44444444-4444-4444-8444-444444444444"
+
+
+def _stored_history_event(event_id: str) -> dict[str, object]:
+    """Serialize the legacy four-field row from the canonical envelope owner."""
+    canonical = build_teamspace_envelope(
+        event_id=event_id,
+        event_type="MissionCreated",
+        aggregate_id=event_id,
+        aggregate_type="Mission",
+        payload={},
+        timestamp="2026-08-01T00:00:00+00:00",
+        build_id="project-store-command-test",
+        node_id="project-store-command-test",
+        lamport_clock=1,
+        project_uuid=PROJECT,
+        project_slug="project-store-command-test",
+        repo_slug=None,
+        correlation_id=event_id,
+    ).model_dump()
+    return {key: canonical[key] for key in ("event_id", "event_type", "payload", "project_uuid")}
 
 
 def _seed(path: Path) -> None:
@@ -31,12 +52,7 @@ def _seed(path: Path) -> None:
         "INSERT INTO event_journal VALUES ('event-cli','mission.changed',?, '2026-08-01T00:00:00Z','2026-08-01T00:00:00Z',?)",
         (
             json.dumps(
-                {
-                    "event_id": "event-cli",
-                    "event_type": "MissionCreated",
-                    "payload": {},
-                    "project_uuid": PROJECT,
-                },
+                _stored_history_event("event-cli"),
                 sort_keys=True,
                 separators=(",", ":"),
             ),
@@ -435,14 +451,13 @@ def test_history_confirmation_then_apply_uses_exact_wp07_capability_transport(
 
     assert applied.exit_code == 0, applied.output
     assert json.loads(applied.stdout)["ok"] is True
-    assert seen["envelopes"] == [
-        {
-            "event_id": "event-cli",
-            "event_type": "MissionCreated",
-            "payload": {},
-            "project_uuid": PROJECT,
-        }
-    ]
+    assert seen["envelopes"] == [_stored_history_event("event-cli")]
+    assert set(cast(list[dict[str, object]], seen["envelopes"])[0]) == {
+        "event_id",
+        "event_type",
+        "payload",
+        "project_uuid",
+    }
     assert seen["project_context"] is context
     assert seen["target"] is target
     assert cast(Any, seen["history_capability"]).action_id == action_id

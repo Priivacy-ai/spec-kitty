@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
+from uuid import uuid4
 
 import pytest
 
@@ -36,21 +38,37 @@ def clear_dedup() -> Iterator[None]:
     reset_emitted_codes()
 
 
-def _queued_service(tmp_path: Path) -> Any:
+@contextmanager
+def _queued_service(tmp_path: Path) -> Iterator[Any]:
     from specify_cli.sync.background import BackgroundSyncService
+    from specify_cli.sync.layout_generation import LayoutMode
+    from specify_cli.sync.project_store import ProjectSyncStore
     from specify_cli.sync.queue import OfflineQueue
 
-    queue = OfflineQueue(db_path=tmp_path / "queue.db")
-    queue.queue_event(
-        {
-            "event_id": "EVT000000000000000000000001",
-            "event_type": "WPStatusChanged",
-            "payload": {"wp_id": "WP05", "from_lane": "doing", "to_lane": "for_review"},
-        }
-    )
-    cfg = MagicMock()
-    cfg.get_server_url.return_value = "https://test.example.com"
-    return BackgroundSyncService(queue=queue, config=cfg, sync_interval_seconds=300)
+    project_uuid = str(uuid4())
+    with patch.dict("os.environ", {"SPEC_KITTY_HOME": str(tmp_path / "runtime")}):
+        store = ProjectSyncStore(project_uuid)
+        authority = store.layout_generation()
+        if authority.read_state().mode is LayoutMode.LEGACY:
+            authority.begin_cutover("final-sync-diagnostics-test")
+            authority.publish_project_only("final-sync-diagnostics-test", verify_exact=lambda: True)
+        with store.unit_of_work() as unit:
+            queue = OfflineQueue(unit, authority)
+            queue.queue_event(
+                {
+                    "event_id": "EVT000000000000000000000001",
+                    "event_type": "WPStatusChanged",
+                    "project_uuid": project_uuid,
+                    "payload": {
+                        "wp_id": "WP05",
+                        "from_lane": "doing",
+                        "to_lane": "for_review",
+                    },
+                }
+            )
+            cfg = MagicMock()
+            cfg.get_server_url.return_value = "https://test.example.com"
+            yield BackgroundSyncService(queue=queue, config=cfg, sync_interval_seconds=300)
 
 
 def test_sync_diagnostic_code_contract_has_six_members() -> None:
@@ -118,12 +136,7 @@ def test_classify_lock_error() -> None:
 
 
 def test_classify_auth_refresh() -> None:
-    assert (
-        classify_sync_error(
-            "Another spec-kitty process is refreshing the auth session; retry in a moment"
-        )
-        == SyncDiagnosticCode.AUTH_REFRESH_IN_PROGRESS
-    )
+    assert classify_sync_error("Another spec-kitty process is refreshing the auth session; retry in a moment") == SyncDiagnosticCode.AUTH_REFRESH_IN_PROGRESS
 
 
 def test_classify_websocket_offline() -> None:
@@ -132,10 +145,7 @@ def test_classify_websocket_offline() -> None:
 
 
 def test_classify_event_loop_unavailable() -> None:
-    assert (
-        classify_sync_error("can't create new thread at interpreter shutdown")
-        == SyncDiagnosticCode.EVENT_LOOP_UNAVAILABLE
-    )
+    assert classify_sync_error("can't create new thread at interpreter shutdown") == SyncDiagnosticCode.EVENT_LOOP_UNAVAILABLE
 
 
 def test_classify_server_auth_failure() -> None:
@@ -151,19 +161,10 @@ def test_classify_direct_ingress_missing_private_team() -> None:
     The skip MUST surface the canonical ``direct_ingress_missing_private_team``
     category, and must be classified before the auth/catch-all branches.
     """
-    assert (
-        classify_sync_error("skipped: no Private Teamspace available for direct ingress")
-        == SyncDiagnosticCode.DIRECT_INGRESS_MISSING_PRIVATE_TEAM
-    )
+    assert classify_sync_error("skipped: no Private Teamspace available for direct ingress") == SyncDiagnosticCode.DIRECT_INGRESS_MISSING_PRIVATE_TEAM
     # Matches on the canonical signals regardless of surrounding prose.
-    assert (
-        classify_sync_error("no private teamspace")
-        == SyncDiagnosticCode.DIRECT_INGRESS_MISSING_PRIVATE_TEAM
-    )
-    assert (
-        classify_sync_error("direct ingress skipped")
-        == SyncDiagnosticCode.DIRECT_INGRESS_MISSING_PRIVATE_TEAM
-    )
+    assert classify_sync_error("no private teamspace") == SyncDiagnosticCode.DIRECT_INGRESS_MISSING_PRIVATE_TEAM
+    assert classify_sync_error("direct ingress skipped") == SyncDiagnosticCode.DIRECT_INGRESS_MISSING_PRIVATE_TEAM
 
 
 def test_final_sync_retry_backoff_exhaustion_emits_once(
@@ -251,18 +252,15 @@ def test_final_sync_failure_after_local_success_keeps_stdout_strict_json(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    service = _queued_service(tmp_path)
+    with _queued_service(tmp_path) as service:
+        print(json.dumps({"result": "success", "wp_id": "WP05"}))
+        mark_invocation_succeeded()
 
-    print(json.dumps({"result": "success", "wp_id": "WP05"}))
-    mark_invocation_succeeded()
-
-    with (
-        patch("specify_cli.sync.batch.time.sleep"),
-        patch.object(
-            service, "_perform_sync", side_effect=RuntimeError("network down")
-        ) as mock_perform,
-    ):
-        service.stop()
+        with (
+            patch("specify_cli.sync.batch.time.sleep"),
+            patch.object(service, "_perform_sync", side_effect=RuntimeError("network down")) as mock_perform,
+        ):
+            service.stop()
 
     # The no-op sleep removes the real backoff wait; assert the retry loop still
     # ran the full FINAL_SYNC_MAX_ATTEMPTS so the guard is not silently weakened.
@@ -291,18 +289,18 @@ def test_final_sync_auth_refresh_lock_retries_then_emits_once(
     from specify_cli.auth.refresh_transaction import RefreshLockTimeoutError
 
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    service = _queued_service(tmp_path)
     sleeps: list[float] = []
-    mark_invocation_succeeded()
+    with _queued_service(tmp_path) as service:
+        mark_invocation_succeeded()
 
-    with (
-        patch(
-            "specify_cli.sync.background._fetch_access_token_sync",
-            side_effect=RefreshLockTimeoutError(),
-        ) as fetch_token,
-        patch("specify_cli.sync.batch.time.sleep", side_effect=sleeps.append),
-    ):
-        service.stop()
+        with (
+            patch(
+                "specify_cli.sync.background._fetch_access_token_sync",
+                side_effect=RefreshLockTimeoutError(),
+            ) as fetch_token,
+            patch("specify_cli.sync.batch.time.sleep", side_effect=sleeps.append),
+        ):
+            service.stop()
 
     captured = capsys.readouterr()
     assert fetch_token.call_count == 3
@@ -328,12 +326,12 @@ def test_final_sync_lock_diagnostic_is_deduped_per_invocation(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    service = _queued_service(tmp_path)
-    service._lock = _NeverAcquiredLock()
-    mark_invocation_succeeded()
+    with _queued_service(tmp_path) as service:
+        service._lock = _NeverAcquiredLock()
+        mark_invocation_succeeded()
 
-    service.stop()
-    service.stop()
+        service.stop()
+        service.stop()
 
     captured = capsys.readouterr()
     assert captured.out == ""
@@ -363,12 +361,12 @@ def test_interpreter_shutdown_final_sync_diagnostic_is_deduped(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    service = _queued_service(tmp_path)
-    mark_invocation_succeeded()
+    with _queued_service(tmp_path) as service:
+        mark_invocation_succeeded()
 
-    with patch("specify_cli.sync.background.threading.Thread", _ShutdownThread):
-        service.stop()
-        service.stop()
+        with patch("specify_cli.sync.background.threading.Thread", _ShutdownThread):
+            service.stop()
+            service.stop()
 
     captured = capsys.readouterr()
     assert captured.out == ""

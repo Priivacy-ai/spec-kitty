@@ -16,12 +16,17 @@ from specify_cli.sync.body_upload import (
     prepare_body_uploads,
 )
 from specify_cli.sync.namespace import NamespaceRef, UploadOutcome, UploadStatus
+from specify_cli.sync.consent import record_project_opt_in
+from specify_cli.sync.project_store import ProjectSyncStore
 
 pytestmark = pytest.mark.fast
 
+PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
+
+
 def _ns() -> NamespaceRef:
     return NamespaceRef(
-        project_uuid="uuid-1",
+        project_uuid=PROJECT,
         mission_slug="047-feat",
         target_branch="main",
         mission_type="software-dev",
@@ -52,6 +57,25 @@ def _artifact(
         size_bytes=size_bytes,
         is_present=is_present,
         error_reason=error_reason,
+    )
+
+
+def _prepare(
+    artifacts: list[ArtifactRef],
+    namespace_ref: NamespaceRef,
+    body_queue: OfflineBodyUploadQueue,
+    feature_dir: Path,
+    project_unit,
+) -> list[UploadOutcome]:
+    store, unit, authority = project_unit
+    return prepare_body_uploads(
+        artifacts,
+        namespace_ref,
+        body_queue,
+        feature_dir,
+        project_context=store.create_context_from_unit(unit),
+        project_unit=unit,
+        project_layout=authority,
     )
 
 
@@ -240,16 +264,25 @@ class TestPrepareBodyUploads:
     ``test_body_upload_consent_3030.py``.
     """
 
-    @pytest.fixture(autouse=True)
-    def _consenting_project(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    @pytest.fixture
+    def project_unit(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         home = tmp_path / "consent-home"
         home.mkdir(parents=True, exist_ok=True)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
-        from specify_cli.sync.consent import set_project_consent
+        record_project_opt_in(PROJECT, actor="body-upload-test")
+        store = ProjectSyncStore(PROJECT)
+        authority = store.layout_generation()
+        authority.begin_cutover("body-upload-tests")
+        authority.publish_project_only("body-upload-tests", verify_exact=lambda: True)
+        with store.unit_of_work() as unit:
+            yield store, unit, authority
 
-        set_project_consent(_ns().project_uuid, True)
+    @pytest.fixture
+    def body_queue(self, project_unit) -> OfflineBodyUploadQueue:
+        _, unit, authority = project_unit
+        return OfflineBodyUploadQueue(unit, authority)
 
-    def test_full_pipeline_with_valid_artifact(self, tmp_path: Path) -> None:
+    def test_full_pipeline_with_valid_artifact(self, tmp_path: Path, body_queue: OfflineBodyUploadQueue, project_unit) -> None:
         content = "# Spec\n"
         file_path = tmp_path / "spec.md"
         file_path.write_text(content, encoding="utf-8")
@@ -261,92 +294,82 @@ class TestPrepareBodyUploads:
             size_bytes=len(file_path.read_bytes()),
         )
 
-        db = tmp_path / "queue.db"
-        queue = OfflineBodyUploadQueue(db_path=db)
-
-        outcomes = prepare_body_uploads(
+        outcomes = _prepare(
             artifacts=[artifact],
             namespace_ref=_ns(),
-            body_queue=queue,
+            body_queue=body_queue,
             feature_dir=tmp_path,
+            project_unit=project_unit,
         )
 
         assert len(outcomes) == 1
         assert outcomes[0].status == UploadStatus.QUEUED
         assert outcomes[0].artifact_path == "spec.md"
 
-    def test_non_present_artifact_skipped(self, tmp_path: Path) -> None:
+    def test_non_present_artifact_skipped(self, tmp_path: Path, body_queue: OfflineBodyUploadQueue, project_unit) -> None:
         artifact = _artifact(is_present=False, error_reason="not_found")
 
-        db = tmp_path / "queue.db"
-        queue = OfflineBodyUploadQueue(db_path=db)
-
-        outcomes = prepare_body_uploads(
+        outcomes = _prepare(
             artifacts=[artifact],
             namespace_ref=_ns(),
-            body_queue=queue,
+            body_queue=body_queue,
             feature_dir=tmp_path,
+            project_unit=project_unit,
         )
 
         assert len(outcomes) == 1
         assert outcomes[0].status == UploadStatus.SKIPPED
         assert "not_present" in outcomes[0].reason
 
-    def test_unsupported_surface_skipped(self, tmp_path: Path) -> None:
+    def test_unsupported_surface_skipped(self, tmp_path: Path, body_queue: OfflineBodyUploadQueue, project_unit) -> None:
         artifact = _artifact(relative_path="meta.json")
 
-        db = tmp_path / "queue.db"
-        queue = OfflineBodyUploadQueue(db_path=db)
-
-        outcomes = prepare_body_uploads(
+        outcomes = _prepare(
             artifacts=[artifact],
             namespace_ref=_ns(),
-            body_queue=queue,
+            body_queue=body_queue,
             feature_dir=tmp_path,
+            project_unit=project_unit,
         )
 
         assert len(outcomes) == 1
         assert outcomes[0].status == UploadStatus.SKIPPED
         assert "unsupported_surface" in outcomes[0].reason
 
-    def test_unsupported_format_skipped(self, tmp_path: Path) -> None:
+    def test_unsupported_format_skipped(self, tmp_path: Path, body_queue: OfflineBodyUploadQueue, project_unit) -> None:
         artifact = _artifact(relative_path="research/image.png")
 
-        db = tmp_path / "queue.db"
-        queue = OfflineBodyUploadQueue(db_path=db)
-
-        outcomes = prepare_body_uploads(
+        outcomes = _prepare(
             artifacts=[artifact],
             namespace_ref=_ns(),
-            body_queue=queue,
+            body_queue=body_queue,
             feature_dir=tmp_path,
+            project_unit=project_unit,
         )
 
         assert len(outcomes) == 1
         assert outcomes[0].status == UploadStatus.SKIPPED
         assert "unsupported_format" in outcomes[0].reason
 
-    def test_oversized_skipped(self, tmp_path: Path) -> None:
+    def test_oversized_skipped(self, tmp_path: Path, body_queue: OfflineBodyUploadQueue, project_unit) -> None:
         artifact = _artifact(
             relative_path="spec.md",
             size_bytes=MAX_INLINE_SIZE_BYTES + 1,
         )
 
-        db = tmp_path / "queue.db"
-        queue = OfflineBodyUploadQueue(db_path=db)
-
-        outcomes = prepare_body_uploads(
+        outcomes = _prepare(
             artifacts=[artifact],
             namespace_ref=_ns(),
-            body_queue=queue,
+            body_queue=body_queue,
             feature_dir=tmp_path,
+            project_unit=project_unit,
         )
 
         assert len(outcomes) == 1
         assert outcomes[0].status == UploadStatus.SKIPPED
         assert "oversized" in outcomes[0].reason
 
-    def test_outcome_count_matches_artifact_count(self, tmp_path: Path) -> None:
+    def test_outcome_count_matches_artifact_count(self, tmp_path: Path, body_queue: OfflineBodyUploadQueue, project_unit) -> None:
         content = "# Spec\n"
         file_path = tmp_path / "spec.md"
         file_path.write_text(content, encoding="utf-8")
@@ -362,19 +385,17 @@ class TestPrepareBodyUploads:
             _artifact(is_present=False),  # not present
         ]
 
-        db = tmp_path / "queue.db"
-        queue = OfflineBodyUploadQueue(db_path=db)
-
-        outcomes = prepare_body_uploads(
+        outcomes = _prepare(
             artifacts=artifacts,
             namespace_ref=_ns(),
-            body_queue=queue,
+            body_queue=body_queue,
             feature_dir=tmp_path,
+            project_unit=project_unit,
         )
 
         assert len(outcomes) == len(artifacts)
 
-    def test_duplicate_enqueue_returns_already_exists(self, tmp_path: Path) -> None:
+    def test_duplicate_enqueue_returns_already_exists(self, tmp_path: Path, body_queue: OfflineBodyUploadQueue, project_unit) -> None:
         content = "# Spec\n"
         file_path = tmp_path / "spec.md"
         file_path.write_text(content, encoding="utf-8")
@@ -386,19 +407,17 @@ class TestPrepareBodyUploads:
             size_bytes=len(file_path.read_bytes()),
         )
 
-        db = tmp_path / "queue.db"
-        queue = OfflineBodyUploadQueue(db_path=db)
         ns = _ns()
 
         # First call enqueues
-        outcomes1 = prepare_body_uploads([artifact], ns, queue, tmp_path)
+        outcomes1 = _prepare([artifact], ns, body_queue, tmp_path, project_unit)
         assert outcomes1[0].status == UploadStatus.QUEUED
 
         # Second call detects duplicate
-        outcomes2 = prepare_body_uploads([artifact], ns, queue, tmp_path)
+        outcomes2 = _prepare([artifact], ns, body_queue, tmp_path, project_unit)
         assert outcomes2[0].status == UploadStatus.ALREADY_EXISTS
 
-    def test_queue_full_returns_failed(self, tmp_path: Path) -> None:
+    def test_queue_full_returns_failed(self, tmp_path: Path, project_unit) -> None:
         spec_path = tmp_path / "spec.md"
         spec_path.write_text("# Spec\n", encoding="utf-8")
         spec_hash = hashlib.sha256(spec_path.read_bytes()).hexdigest()  # noqa: TID251 — file-integrity checksum over read_bytes() (HTTP/protocol-level body integrity), not charter freshness hashing
@@ -407,12 +426,10 @@ class TestPrepareBodyUploads:
         plan_path.write_text("# Plan\n", encoding="utf-8")
         plan_hash = hashlib.sha256(plan_path.read_bytes()).hexdigest()  # noqa: TID251 — file-integrity checksum over read_bytes() (HTTP/protocol-level body integrity), not charter freshness hashing
 
-        queue = OfflineBodyUploadQueue(
-            db_path=tmp_path / "queue.db",
-            max_queue_size=1,
-        )
+        _, unit, authority = project_unit
+        queue = OfflineBodyUploadQueue(unit, authority, max_queue_size=1)
 
-        first = prepare_body_uploads(
+        first = _prepare(
             [
                 _artifact(
                     relative_path="spec.md",
@@ -423,10 +440,11 @@ class TestPrepareBodyUploads:
             _ns(),
             queue,
             tmp_path,
+            project_unit,
         )
         assert first[0].status == UploadStatus.QUEUED
 
-        second = prepare_body_uploads(
+        second = _prepare(
             [
                 _artifact(
                     relative_path="plan.md",
@@ -437,11 +455,12 @@ class TestPrepareBodyUploads:
             _ns(),
             queue,
             tmp_path,
+            project_unit,
         )
         assert second[0].status == UploadStatus.FAILED
         assert second[0].reason == "queue_full"
 
-    def test_hash_mismatch_skipped(self, tmp_path: Path) -> None:
+    def test_hash_mismatch_skipped(self, tmp_path: Path, body_queue: OfflineBodyUploadQueue, project_unit) -> None:
         file_path = tmp_path / "spec.md"
         file_path.write_text("original", encoding="utf-8")
 
@@ -451,14 +470,11 @@ class TestPrepareBodyUploads:
             size_bytes=8,
         )
 
-        db = tmp_path / "queue.db"
-        queue = OfflineBodyUploadQueue(db_path=db)
-
-        outcomes = prepare_body_uploads([artifact], _ns(), queue, tmp_path)
+        outcomes = _prepare([artifact], _ns(), body_queue, tmp_path, project_unit)
         assert outcomes[0].status == UploadStatus.SKIPPED
         assert "content_hash_mismatch" in outcomes[0].reason
 
-    def test_zero_byte_artifact_skipped(self, tmp_path: Path) -> None:
+    def test_zero_byte_artifact_skipped(self, tmp_path: Path, body_queue: OfflineBodyUploadQueue, project_unit) -> None:
         file_path = tmp_path / "research.md"
         file_path.write_text("", encoding="utf-8")
         content_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()  # noqa: TID251 — file-integrity checksum over read_bytes() (HTTP/protocol-level body integrity), not charter freshness hashing
@@ -469,14 +485,13 @@ class TestPrepareBodyUploads:
             size_bytes=0,
         )
 
-        queue = OfflineBodyUploadQueue(db_path=tmp_path / "queue.db")
-        outcomes = prepare_body_uploads([artifact], _ns(), queue, tmp_path)
+        outcomes = _prepare([artifact], _ns(), body_queue, tmp_path, project_unit)
 
         assert outcomes[0].status == UploadStatus.SKIPPED
         assert outcomes[0].reason == "empty_content"
-        assert queue.size() == 0
+        assert body_queue.size() == 0
 
-    def test_wp_task_file_accepted_in_pipeline(self, tmp_path: Path) -> None:
+    def test_wp_task_file_accepted_in_pipeline(self, tmp_path: Path, body_queue: OfflineBodyUploadQueue, project_unit) -> None:
         tasks_dir = tmp_path / "tasks"
         tasks_dir.mkdir()
         content = "# WP01\n"
@@ -490,8 +505,5 @@ class TestPrepareBodyUploads:
             size_bytes=len(file_path.read_bytes()),
         )
 
-        db = tmp_path / "queue.db"
-        queue = OfflineBodyUploadQueue(db_path=db)
-
-        outcomes = prepare_body_uploads([artifact], _ns(), queue, tmp_path)
+        outcomes = _prepare([artifact], _ns(), body_queue, tmp_path, project_unit)
         assert outcomes[0].status == UploadStatus.QUEUED

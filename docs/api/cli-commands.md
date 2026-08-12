@@ -4610,6 +4610,165 @@ _Synchronization commands_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty sync project_store_history
+
+> **Reference-path note:** The five `project_store_*` section titles below use
+> the callback identifiers emitted by the CLI-reference walker. The public CLI
+> spellings are hyphenated, exactly as shown in each `Usage` line.
+
+_Preview, explicitly confirm, or disclose migrated sealed history._
+
+This is a three-step, capability-gated disclosure flow. With no confirmation
+or apply options, it previews the exact unresolved rows in sealed migration
+epochs and reports their ordered row IDs and aggregate SHA-256; it records no
+confirmation, performs no egress, and does not manufacture consent.
+
+Confirmation requires both `--confirm-by` and `--idempotency-key`. It persists
+an action for exactly the displayed cohort only when current project consent,
+target, and admission authority are all valid. Confirmation and `--apply` are
+mutually exclusive.
+
+`--apply` requires the resulting `--history-action-id`, current authentication,
+and the current admitted delivery target. Before upload, the command consumes
+and revalidates the persisted capability, exact cohort, consent generation,
+target generation, admission generation, and binding audience. Any drift fails
+closed and requires a new preview and confirmation.
+
+```
+ Usage: spec-kitty sync project-store-history [OPTIONS]
+
+ Preview, explicitly confirm, or disclose migrated sealed history.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --confirm-by                 TEXT  Explicit operator identity that confirms  │
+│                                    the displayed sealed cohort.              │
+│ --idempotency-key            TEXT  Stable identity for an explicit           │
+│                                    confirmation.                             │
+│ --apply                            Consume a confirmed capability and invoke │
+│                                    WP07 preflight/upload.                    │
+│ --history-action-id          TEXT  Persisted action ID required by --apply.  │
+│ --json                                                                       │
+│ --help               -h            Show this message and exit.               │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty sync project_store_migrate
+
+_Copy, verify, atomically cut over, and resume one migration._
+
+Runs the resumable project-store migration for the explicit, unique legacy
+SQLite sources named by repeated `--source` options. Use the same
+`--migration-id` and source set as the preview. If no preview exists, migration
+first persists the inventory; running preview explicitly is recommended so the
+partition and quarantine counts can be inspected before cutover.
+
+The migration quiesces the recognized daemon writer, captures the winning
+main/WAL state, copies only attributable compatible rows, verifies the exact
+project partitions, atomically publishes the `PROJECT_ONLY` layout, and then
+restarts the daemon. It is phase-resumable after interruption. Source changes,
+schema incompatibility, verification failure, or missing attributable rows fail
+closed. Legacy source databases are evidence: this command does not delete or
+rewrite them and does not create consent. Once the layout is project-only, a new
+legacy copy is refused; use residue diagnosis through project-store status.
+
+```
+ Usage: spec-kitty sync project-store-migrate [OPTIONS]
+
+ Copy, verify, atomically cut over, and resume one migration.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --source                PATH  Explicit legacy SQLite source. Repeat for   │
+│                                  every shared store.                         │
+│                                  [required]                                  │
+│ *  --migration-id          TEXT  [required]                                  │
+│    --json                                                                    │
+│    --help          -h            Show this message and exit.                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty sync project_store_preview
+
+_Inventory immutable legacy sources, including committed WAL content._
+
+Creates the durable inventory for one migration identity from every explicit
+legacy SQLite source, including committed WAL content. The preview records
+physical and logical fingerprints, attributable project partitions, and rows
+that must be quarantined. It leaves the source bytes unchanged and does not copy
+rows into live project stores, cut over the layout, disclose history, send data,
+or grant consent. The local migration manifest and private snapshot evidence are
+persisted so a later migrate command can resume from the reviewed inventory.
+
+Repeat `--source` for every shared store. Reusing a migration ID is idempotent
+only with the same recorded source set; a different set is refused.
+
+```
+ Usage: spec-kitty sync project-store-preview [OPTIONS]
+
+ Inventory immutable legacy sources, including committed WAL content.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --source                PATH  Explicit legacy SQLite source. Repeat for   │
+│                                  every shared store.                         │
+│                                  [required]                                  │
+│ *  --migration-id          TEXT  [required]                                  │
+│    --json                                                                    │
+│    --help          -h            Show this message and exit.                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty sync project_store_quarantine
+
+_Inspect permanently non-deliverable migration quarantine records._
+
+Reads the local quarantine evidence for a migration ID and reports each table,
+source row ID, and reason. The file contains incompatible or unattributable rows
+excluded from every project sender, plus any post-cutover residue recorded by a
+residue diagnosis. This command is inspection-only: it does not retry, copy,
+delete, disclose, or transmit quarantined content. Use `--json` for the complete
+structured records.
+
+```
+ Usage: spec-kitty sync project-store-quarantine [OPTIONS]
+
+ Inspect permanently non-deliverable migration quarantine records.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --migration-id          TEXT  [required]                                  │
+│    --json                                                                    │
+│    --help          -h            Show this message and exit.                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty sync project_store_status
+
+_Show durable migration phase without opening legacy sources._
+
+Loads the durable manifest for `--migration-id` and reports its current phase.
+The normal status path is manifest-only: it does not open a legacy source or a
+live project store and performs no migration work.
+
+`--diagnose-residue` is the explicit post-cutover exception. It opens only the
+source paths already sealed in the manifest, inventories their current logical
+rows, compares them with the winning migration inventory, and records added,
+removed, or changed legacy residue as quarantine evidence. Diagnosis never
+copies residue into a project store and never selects it for delivery. Use
+`--json` for the complete manifest, including recorded residue.
+
+```
+ Usage: spec-kitty sync project-store-status [OPTIONS]
+
+ Show durable migration phase without opening legacy sources.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --migration-id              TEXT  [required]                              │
+│    --diagnose-residue                Compare immutable inventory with        │
+│                                      current legacy logical rows after       │
+│                                      cutover.                                │
+│    --json                                                                    │
+│    --help              -h            Show this message and exit.             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty sync routes
 
 ```

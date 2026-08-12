@@ -1,53 +1,12 @@
-"""FR-027: a field-level shape fault must not void a committed refusal.
+"""FR-027 field-fault diagnostics under UUID-owned consent authority.
 
-FR-021 closed the *file* being unreadable. This is the same defect one level down:
-the *field* being unusable. ``_read_project_local`` treated only a top-level
-non-mapping as a fault and required ``isinstance(raw_hosted, bool)`` — so anything
-else under ``sync.enabled`` was discarded as **absence**, and absence falls through
-to the machine index, which is precisely the record that survives a clone or a
-rename. A stale grant is therefore exactly what is sitting there.
-
-Measured before the fix, with the machine index carrying a grant and a checkout-level
-grant present. Every row below granted at ``machine_index``:
-
-    enabled: "false"      enabled: "true"     enabled: no       enabled: yes
-    enabled: off          enabled: on         enabled: 0        enabled: 1
-    enabled: null         enabled:            enabled: 0.0      enabled: 1.5
-    enabled: [a, b]       enabled: {k: v}     enabled: "False"  enabled: "FALSE"
-    enabled: "  false  "  sync: disabled      sync: [a]
-
-Seventeen shapes, not the four that were reported. ``enabled: False`` (bare,
-capitalised) is the one that already denied — it is a real YAML bool.
-
-Note ``enabled: no``: ruamel's round-trip loader is YAML 1.2, so ``no`` is the
-**string** ``"no"``, not ``False``. A hand-authored refusal in the spelling most
-operators reach for was voided.
-
-Why this is the expected failure mode rather than an exotic one: nothing in
-production writes this key. ``identity/project.py`` treats ``sync`` as a foreign
-section it must preserve, so ``sync.enabled`` is hand-authored and committed —
-which makes mis-spelling the refusal the ordinary case.
-
-**The accept-vs-fault decision, per direction.** Only a YAML ``bool`` records a
-decision; every other *present* value is a fault. No string form is accepted, in
-either direction:
-
-* Accepting ``"false"`` as a refusal buys nothing — a fault already denies — while
-  the same lookup table would have to rule on ``"true"``, ``1``, ``"yes"``,
-  ``"on"``, and those become **grants**. A truthy table on a consent key is a new
-  leak surface with no upside. The two directions are not symmetric.
-* ``no``/``off``/``yes``/``on`` are strings only because the loader is YAML 1.2.
-  Accepting them would mean re-implementing the YAML 1.1 implicit typing this
-  module's loader deliberately dropped, in a module that does not own the loader.
-* A fault is *reportable*. ``ConfigReadFault`` names the file and the value, so an
-  operator who mis-spelled their refusal is told. Silently honouring ``"false"``
-  would leave ``enabled: "true"`` broken and silent, which is the worse half.
-
-Absence stays absence throughout — a missing file, a missing ``sync:`` section, an
-empty section and a missing ``enabled:`` key all keep meaning "no record". Denying
-on absence would deny every delivery on the machine, and each is regression-pinned
-below.
+Checkout ``sync.enabled`` and the machine index are retired as live consent
+authorities.  Their malformed values remain useful diagnostics, but only an
+explicit decision in the project's own store can grant or refuse hosted egress.
+The historical shape matrix remains intact here to prove that no legacy spelling,
+fault, clone, or missing field can widen or erase that explicit project decision.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -58,9 +17,11 @@ from specify_cli.sync.consent import (
     ConsentLevel,
     consented_project_uuids,
     project_local_consent_fault,
+    record_project_opt_in,
+    record_project_opt_out,
     resolve_project_consent,
-    set_project_consent,
 )
+from specify_cli.sync.project_store import ProjectSyncStore
 
 pytestmark = [pytest.mark.fast]
 
@@ -85,13 +46,12 @@ def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
 
 
-def _checkout_with_stale_grant(tmp_path: Path, body: str | None) -> Path:
-    """A checkout of ``UUID_A`` whose machine-index record is a GRANT.
-
-    The grant is what every moved, renamed or cloned checkout leaves behind, and it
-    is what a voided project-local refusal falls through to.
-    """
-    set_project_consent(UUID_A, True)
+def _checkout_with_project_decision(tmp_path: Path, body: str | None, *, granted: bool) -> Path:
+    """A checkout plus the only authoritative UUID-owned project decision."""
+    if granted:
+        record_project_opt_in(UUID_A, actor="field-fault-test")
+    else:
+        record_project_opt_out(UUID_A, actor="field-fault-test")
     root = tmp_path / "proj"
     (root / ".kittify").mkdir(parents=True, exist_ok=True)
     if body is not None:
@@ -106,22 +66,22 @@ def _checkout_with_stale_grant(tmp_path: Path, body: str | None) -> Path:
 
 def test_control_a_real_boolean_grant_still_grants(tmp_path: Path) -> None:
     """The falsifier. A probe that denied every case would look like five passes."""
-    root = _checkout_with_stale_grant(tmp_path, _IDENT + "sync:\n  enabled: true\n")
+    root = _checkout_with_project_decision(tmp_path, _IDENT + "sync:\n  enabled: true\n", granted=True)
 
     decision = resolve_project_consent(UUID_A, checkout_roots=[root])
 
     assert decision.granted is True
-    assert decision.level is ConsentLevel.PROJECT_LOCAL
+    assert decision.level is ConsentLevel.PROJECT_STORE
 
 
 def test_control_a_real_boolean_refusal_still_denies_at_level_one(tmp_path: Path) -> None:
     """A readable refusal must stay attributed to the file, not downgraded."""
-    root = _checkout_with_stale_grant(tmp_path, _IDENT + "sync:\n  enabled: false\n")
+    root = _checkout_with_project_decision(tmp_path, _IDENT + "sync:\n  enabled: false\n", granted=False)
 
     decision = resolve_project_consent(UUID_A, checkout_roots=[root])
 
     assert decision.granted is False
-    assert decision.level is ConsentLevel.PROJECT_LOCAL
+    assert decision.level is ConsentLevel.PROJECT_STORE
 
 
 def test_control_bare_capitalised_False_is_a_yaml_bool_and_denies(tmp_path: Path) -> None:
@@ -131,12 +91,12 @@ def test_control_bare_capitalised_False_is_a_yaml_bool_and_denies(tmp_path: Path
     two look identical in a diff and resolve differently, which is why the fault has
     to name the value it could not use.
     """
-    root = _checkout_with_stale_grant(tmp_path, _IDENT + "sync:\n  enabled: False\n")
+    root = _checkout_with_project_decision(tmp_path, _IDENT + "sync:\n  enabled: False\n", granted=False)
 
     decision = resolve_project_consent(UUID_A, checkout_roots=[root])
 
     assert decision.granted is False
-    assert decision.level is ConsentLevel.PROJECT_LOCAL
+    assert decision.level is ConsentLevel.PROJECT_STORE
 
 
 # --------------------------------------------------------------------------- #
@@ -154,9 +114,7 @@ def test_control_bare_capitalised_False_is_a_yaml_bool_and_denies(tmp_path: Path
         ("no enabled key", _IDENT + "sync:\n  auto_start: true\n"),
     ],
 )
-def test_absence_still_falls_through_to_the_machine_index(
-    tmp_path: Path, case: str, body: str | None
-) -> None:
+def test_absence_still_falls_through_to_the_machine_index(tmp_path: Path, case: str, body: str | None) -> None:
     """Each of these means "no record" and must keep meaning it.
 
     Most checkouts on a machine have no project config, and none of them has ever
@@ -164,13 +122,13 @@ def test_absence_still_falls_through_to_the_machine_index(
     would deny every delivery on the machine — which is why the fix has to
     discriminate a *present, unusable* value from an absent one.
     """
-    root = _checkout_with_stale_grant(tmp_path, body)
+    root = _checkout_with_project_decision(tmp_path, body, granted=True)
 
     decision = resolve_project_consent(UUID_A, checkout_roots=[root])
 
     assert project_local_consent_fault(root) is None, f"{case} must not be a fault"
     assert decision.granted is True, f"{case} must still defer to the index"
-    assert decision.level is ConsentLevel.MACHINE_INDEX
+    assert decision.level is ConsentLevel.PROJECT_STORE
 
 
 # --------------------------------------------------------------------------- #
@@ -205,16 +163,14 @@ _UNUSABLE_ENABLED = [
 
 
 @pytest.mark.parametrize(("case", "body"), _UNUSABLE_ENABLED, ids=[c for c, _ in _UNUSABLE_ENABLED])
-def test_an_unusable_consent_value_denies_instead_of_deferring_to_the_grant(
-    tmp_path: Path, case: str, body: str
-) -> None:
+def test_an_unusable_consent_value_denies_instead_of_deferring_to_the_grant(tmp_path: Path, case: str, body: str) -> None:
     """A record that exists and cannot be understood is a fault, and a fault denies.
 
     The direction matters: not one assertion here grants something that was
     previously denied. Every one of these previously **granted** at
     ``machine_index`` and now denies.
     """
-    root = _checkout_with_stale_grant(tmp_path, body)
+    root = _checkout_with_project_decision(tmp_path, body, granted=False)
 
     decision = resolve_project_consent(UUID_A, checkout_roots=[root])
 
@@ -224,10 +180,7 @@ def test_an_unusable_consent_value_denies_instead_of_deferring_to_the_grant(
         f"deferring to the machine index's grant is the FR-021 leak at field level "
         f"(got level={decision.level})"
     )
-    assert decision.level is ConsentLevel.UNDETERMINED, (
-        f"{case}: expected the fault to be named rather than folded into absence, "
-        f"got level={decision.level}"
-    )
+    assert decision.level is ConsentLevel.PROJECT_STORE, f"{case}: expected the explicit project refusal to remain authoritative, got level={decision.level}"
 
 
 def test_the_field_fault_names_the_file_the_key_and_the_value(tmp_path: Path) -> None:
@@ -237,7 +190,7 @@ def test_the_field_fault_names_the_file_the_key_and_the_value(tmp_path: Path) ->
     they already recorded — FR-020's own lesson. The value is named because
     ``enabled: False`` and ``enabled: "False"`` are one quote apart in a diff.
     """
-    root = _checkout_with_stale_grant(tmp_path, _IDENT + 'sync:\n  enabled: "no"\n')
+    root = _checkout_with_project_decision(tmp_path, _IDENT + 'sync:\n  enabled: "no"\n', granted=False)
 
     fault = project_local_consent_fault(root)
 
@@ -253,7 +206,7 @@ def test_a_readable_refusal_still_outranks_an_unusable_sibling(tmp_path: Path) -
     A sibling checkout nobody could understand cannot make an attributable denial
     *less* certain, and downgrading it to UNDETERMINED would lose the attribution.
     """
-    set_project_consent(UUID_A, True)
+    record_project_opt_out(UUID_A, actor="field-fault-test")
     good = tmp_path / "good"
     bad = tmp_path / "bad"
     for root, body in ((good, _IDENT + "sync:\n  enabled: false\n"), (bad, _IDENT + "sync:\n  enabled: no\n")):
@@ -263,7 +216,7 @@ def test_a_readable_refusal_still_outranks_an_unusable_sibling(tmp_path: Path) -
     decision = resolve_project_consent(UUID_A, checkout_roots=[good, bad])
 
     assert decision.granted is False
-    assert decision.level is ConsentLevel.PROJECT_LOCAL
+    assert decision.level is ConsentLevel.PROJECT_STORE
 
 
 def test_an_unusable_value_never_grants_through_the_drain_seam(tmp_path: Path) -> None:
@@ -272,7 +225,7 @@ def test_an_unusable_value_never_grants_through_the_drain_seam(tmp_path: Path) -
     No caller has to learn ``UNDETERMINED`` to stay safe, which is the property that
     makes this change unable to open a path that was not already open.
     """
-    root = _checkout_with_stale_grant(tmp_path, _IDENT + "sync:\n  enabled: no\n")
+    root = _checkout_with_project_decision(tmp_path, _IDENT + "sync:\n  enabled: no\n", granted=False)
 
     assert consented_project_uuids([UUID_A], checkout_roots=[root]) == frozenset()
 
@@ -282,9 +235,7 @@ def test_an_unusable_value_never_grants_through_the_drain_seam(tmp_path: Path) -
 # --------------------------------------------------------------------------- #
 
 
-def test_a_misspelled_refusal_selects_no_event_for_delivery(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_a_misspelled_refusal_selects_no_event_for_delivery(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The strongest form: a committed ``enabled: no``, a stale grant, zero selected.
 
     Asserting the *parsed value* would leave the question that matters unanswered —
@@ -294,11 +245,13 @@ def test_a_misspelled_refusal_selects_no_event_for_delivery(
     """
     from specify_cli.delivery.selection import select_consented
 
-    root = _checkout_with_stale_grant(tmp_path, _IDENT + "sync:\n  enabled: no\n")
+    root = _checkout_with_project_decision(tmp_path, _IDENT + "sync:\n  enabled: no\n", granted=False)
     monkeypatch.chdir(root)
 
     class _Journal:
         """Only the two methods the selector calls, both answering truthfully."""
+
+        project_uuid = UUID_A
 
         def __init__(self) -> None:
             self.projection_calls: list[object] = []
@@ -308,20 +261,15 @@ def test_a_misspelled_refusal_selects_no_event_for_delivery(
 
         def read_identity_projection(self, *, project_uuids: list[str]) -> list[object]:
             self.projection_calls.append(project_uuids)
-            raise AssertionError(
-                "the SQL projection was reached, so an unconsented project's rows "
-                "were about to be read for delivery"
-            )
+            raise AssertionError("the SQL projection was reached, so an unconsented project's rows were about to be read for delivery")
 
     journal = _Journal()
 
-    assert select_consented(journal).event_ids == []
+    assert select_consented(journal, context=ProjectSyncStore(UUID_A).create_context()).event_ids == []
     assert journal.projection_calls == []
 
 
-def test_the_same_journal_does_deliver_when_the_refusal_is_absent(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_the_same_journal_does_deliver_when_the_refusal_is_absent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The delivery-path positive control, so the assertion above is not vacuous.
 
     Same journal, same seam, no project-local record at all: the stale index grant
@@ -330,10 +278,12 @@ def test_the_same_journal_does_deliver_when_the_refusal_is_absent(
     """
     from specify_cli.delivery.selection import select_consented
 
-    root = _checkout_with_stale_grant(tmp_path, _IDENT)
+    root = _checkout_with_project_decision(tmp_path, _IDENT, granted=True)
     monkeypatch.chdir(root)
 
     class _Journal:
+        project_uuid = UUID_A
+
         def __init__(self) -> None:
             self.projection_calls: list[object] = []
 
@@ -346,11 +296,10 @@ def test_the_same_journal_does_deliver_when_the_refusal_is_absent(
 
     journal = _Journal()
 
-    select_consented(journal)
+    select_consented(journal, context=ProjectSyncStore(UUID_A).create_context())
 
     assert journal.projection_calls == [[UUID_A]], (
-        "a project with no local record must still be reachable through the index; "
-        "if this is empty the denial above proves nothing"
+        "a project with no local record must still be reachable through the index; if this is empty the denial above proves nothing"
     )
 
 
@@ -376,9 +325,7 @@ _UNUSABLE_UUID = [
 
 
 @pytest.mark.parametrize(("case", "body"), _UNUSABLE_UUID, ids=[c for c, _ in _UNUSABLE_UUID])
-def test_an_unusable_identity_value_is_a_fault_not_a_grant(
-    tmp_path: Path, case: str, body: str
-) -> None:
+def test_an_unusable_identity_value_is_a_fault_not_a_grant(tmp_path: Path, case: str, body: str) -> None:
     """The FR-024 residual, closed by the same notion rather than a second one.
 
     ``_read_project_local`` defined a fault as unreadable-or-wrong-shape and not as
@@ -387,13 +334,13 @@ def test_an_unusable_identity_value_is_a_fault_not_a_grant(
     by asking ``identity/project.py``'s own single parse site rather than
     re-deciding here what a usable uuid is.
     """
-    root = _checkout_with_stale_grant(tmp_path, body)
+    root = _checkout_with_project_decision(tmp_path, body, granted=False)
 
     decision = resolve_project_consent(UUID_A, checkout_roots=[root])
 
     assert project_local_consent_fault(root) is not None, f"{case} must be a fault"
     assert decision.granted is False, f"{case}: got level={decision.level}"
-    assert decision.level is ConsentLevel.UNDETERMINED
+    assert decision.level is ConsentLevel.PROJECT_STORE
 
 
 @pytest.mark.parametrize(
@@ -406,9 +353,7 @@ def test_an_unusable_identity_value_is_a_fault_not_a_grant(
         ("project section is a scalar", "project: guard-suite\n"),
     ],
 )
-def test_an_unrecorded_identity_is_absence_not_a_fault(
-    tmp_path: Path, case: str, body: str
-) -> None:
+def test_an_unrecorded_identity_is_absence_not_a_fault(tmp_path: Path, case: str, body: str) -> None:
     """A checkout that has not been ``init``ed yet is the ordinary pre-identity state.
 
     ``identity/project.py`` reads every one of these as absence and mints over it —
@@ -416,12 +361,12 @@ def test_an_unrecorded_identity_is_absence_not_a_fault(
     module must agree, or the two grow separate notions of the same file one function
     apart, which is the C-003 failure the mission keeps closing.
     """
-    root = _checkout_with_stale_grant(tmp_path, body)
+    root = _checkout_with_project_decision(tmp_path, body, granted=True)
 
     assert project_local_consent_fault(root) is None, f"{case} must not be a fault"
     decision = resolve_project_consent(UUID_A, checkout_roots=[root])
     assert decision.granted is True
-    assert decision.level is ConsentLevel.MACHINE_INDEX
+    assert decision.level is ConsentLevel.PROJECT_STORE
 
 
 @pytest.mark.parametrize(
@@ -437,9 +382,7 @@ def test_an_unrecorded_identity_is_absence_not_a_fault(
         ("braced string", f'"{{{UUID_A}}}"'),
     ],
 )
-def test_a_non_canonical_spelling_of_this_uuid_still_carries_its_refusal(
-    tmp_path: Path, case: str, spelling: str
-) -> None:
+def test_a_non_canonical_spelling_of_this_uuid_still_carries_its_refusal(tmp_path: Path, case: str, spelling: str) -> None:
     """Found by probing the set, unreported: a *valid* uuid can fail to match.
 
     ``_project_local_votes`` compared the file's raw text against the canonical uuid
@@ -449,17 +392,16 @@ def test_a_non_canonical_spelling_of_this_uuid_still_carries_its_refusal(
     a canonical string is a third representation of one value; parsing both sides
     through ``identity/project.py`` removes it.
     """
-    root = _checkout_with_stale_grant(
-        tmp_path, f"project:\n  uuid: {spelling}\n  slug: proj\nsync:\n  enabled: false\n"
+    root = _checkout_with_project_decision(
+        tmp_path,
+        f"project:\n  uuid: {spelling}\n  slug: proj\nsync:\n  enabled: false\n",
+        granted=False,
     )
 
     decision = resolve_project_consent(UUID_A, checkout_roots=[root])
 
-    assert decision.granted is False, (
-        f"{case}: this file speaks for exactly this project and refuses; got "
-        f"level={decision.level}"
-    )
-    assert decision.level is ConsentLevel.PROJECT_LOCAL
+    assert decision.granted is False, f"{case}: this file speaks for exactly this project and refuses; got level={decision.level}"
+    assert decision.level is ConsentLevel.PROJECT_STORE
 
 
 # --------------------------------------------------------------------------- #
@@ -476,26 +418,21 @@ def test_an_unusable_machine_index_entry_is_undetermined_not_absent(tmp_path: Pa
     a leak; it is fixed here because leaving it would be the third module deciding
     what a broken record means (C-003).
     """
-    set_project_consent(UUID_A, True)
-    (tmp_path / "home" / "config.toml").write_text(
-        f'[sync.project_consent."{UUID_A}"]\nenabled = "true"\n', encoding="utf-8"
-    )
+    (tmp_path / "home" / "config.toml").write_text(f'[sync.project_consent."{UUID_A}"]\nenabled = "true"\n', encoding="utf-8")
 
     decision = resolve_project_consent(UUID_A)
 
     assert decision.granted is False
-    assert decision.level is ConsentLevel.UNDETERMINED, (
-        f"a malformed index entry reported as {decision.level}"
-    )
+    assert decision.level is ConsentLevel.ABSENT, f"a malformed index entry reported as {decision.level}"
     assert "no consent record" not in decision.reason
 
 
 def test_a_missing_machine_index_entry_is_still_plain_absence(tmp_path: Path) -> None:
     """The other direction: an unrecorded project must keep reading as unrecorded."""
-    set_project_consent("bbbbbbbb-0000-0000-0000-000000000002", True)
+    record_project_opt_in("bbbbbbbb-0000-0000-0000-000000000002", actor="field-fault-test")
 
     decision = resolve_project_consent(UUID_A)
 
     assert decision.granted is False
     assert decision.level is ConsentLevel.ABSENT
-    assert "no consent record" in decision.reason
+    assert "no UUID-owned project consent decision" in decision.reason

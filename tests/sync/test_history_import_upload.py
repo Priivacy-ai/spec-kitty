@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 import requests
@@ -18,6 +18,7 @@ from specify_cli.core.contract_gate import ContractViolationError
 from specify_cli.delivery.interfaces import DeliveryTarget, TargetIdentity
 from specify_cli.delivery.receivers import DeliveryOutcome, DeliveryResult, StubReceiver
 from specify_cli.delivery.targets import compute_target_id
+from specify_cli.migration.envelope_seam import build_teamspace_envelope
 from specify_cli.sync.consent import allocate_capture_sequence, record_project_opt_in
 from specify_cli.sync.history_disclosure import (
     confirm_history_disclosure,
@@ -352,27 +353,32 @@ def test_rejected_outcomes_are_tallied(authority):
 # ── mission-atomic chunking (B2, #2884) ───────────────────────────────────────
 
 
+def _chunker_envelope(event_id: str, event_type: str, mission: str) -> dict[str, Any]:
+    """Build a chunker fixture through the canonical replay-envelope model."""
+    return cast(
+        dict[str, Any],
+        build_teamspace_envelope(
+            event_id=event_id,
+            event_type=event_type,
+            aggregate_id=mission,
+            aggregate_type="Mission" if event_type == "MissionCreated" else "WorkPackage",
+            payload={},
+            timestamp="2026-08-01T00:00:00+00:00",
+            build_id="history-import-upload-test",
+            node_id="history-import-upload-test",
+            lamport_clock=1,
+            project_uuid=_FIXTURE_PROJECT_UUID,
+            project_slug=mission,
+            repo_slug=None,
+            correlation_id=event_id,
+        ).model_dump(),
+    )
+
+
 def _mission_stream(mission: str, size: int) -> list[dict[str, Any]]:
     """A contiguous mission unit: MissionCreated + (size-1) trailing events."""
-    # canonical-event-exempt(exception-flow): minimal wire envelopes fed into the chunker under test
-    envs: list[dict[str, Any]] = [
-        {
-            "event_id": f"{mission}-mc",
-            "event_type": "MissionCreated",
-            "project_uuid": _FIXTURE_PROJECT_UUID,
-            "payload": {},
-        }
-    ]
-    # canonical-event-exempt(exception-flow): minimal wire envelopes fed into the chunker under test
-    envs += [
-        {
-            "event_id": f"{mission}-e{i}",
-            "event_type": "WPStatusChanged",
-            "project_uuid": _FIXTURE_PROJECT_UUID,
-            "payload": {},
-        }
-        for i in range(size - 1)
-    ]
+    envs = [_chunker_envelope(f"{mission}-mc", "MissionCreated", mission)]
+    envs += [_chunker_envelope(f"{mission}-e{i}", "WPStatusChanged", mission) for i in range(size - 1)]
     return envs
 
 

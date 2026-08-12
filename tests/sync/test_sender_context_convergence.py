@@ -18,6 +18,7 @@ from specify_cli.delivery.consent_gate import (
 )
 from specify_cli.delivery.interfaces import DeliveryTarget, TargetIdentity
 from specify_cli.delivery.targets import compute_target_id
+from specify_cli.migration.envelope_seam import build_teamspace_envelope
 from specify_cli.sync.body_queue import BodyUploadTask
 from specify_cli.sync.body_transport import push_content_with_transport_gate
 from specify_cli.sync.consent import record_project_opt_in
@@ -208,22 +209,27 @@ def test_connected_websocket_cannot_bypass_canonical_transport_gate() -> None:
     ws_client.connected = True
     emitter = EventEmitter(queue=queue)  # type: ignore[arg-type]
     emitter.ws_client = ws_client
-    event = {
-        "event_id": "01JWP07DIRECTWSBYPASS00000",
-        "event_type": "WPStatusChanged",
-        "aggregate_id": "WP01",
-        "aggregate_type": "WorkPackage",
-        "payload": {
+    event: dict[str, Any] = build_teamspace_envelope(
+        event_id="01JWP07DIRECTWSBYPASS00000",
+        event_type="WPStatusChanged",
+        aggregate_id="WP01",
+        aggregate_type="WorkPackage",
+        payload={
             "wp_id": "WP01",
             "from_lane": "planned",
             "to_lane": "in_progress",
         },
-        "node_id": "test-node-id",
-        "lamport_clock": 1,
-        "causation_id": None,
-        "timestamp": "2026-02-04T12:00:00+00:00",
-        "team_slug": "test-team",
-    }
+        timestamp="2026-02-04T12:00:00+00:00",
+        build_id="test-build-id",
+        node_id="test-node-id",
+        lamport_clock=1,
+        causation_id=None,
+        project_uuid=PROJECT,
+        project_slug="private-engagement",
+        repo_slug="private/project",
+        correlation_id="01JWP07DIRECTWSBYPASS00000",
+    ).model_dump()
+    event["team_slug"] = "test-team"
 
     assert emitter._route_event(event) is True
     queue.queue_event.assert_called_once_with(event)

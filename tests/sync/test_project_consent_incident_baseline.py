@@ -449,7 +449,12 @@ def test_spies_and_counter_observe_current_production_write_paths(
     results = receiver.deliver(batch)
     assert [result.event_id for result in results] == [event.event_id]
     assert len(byte_spy.bodies) == 1
-    assert gzip.decompress(byte_spy.bodies[0]) == json.dumps({"events": [wire_payload]}).encode()
+    assert gzip.decompress(byte_spy.bodies[0]) == json.dumps(
+        {"events": [wire_payload]},
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
 
     target_id = "target-a"
     event_ids = {

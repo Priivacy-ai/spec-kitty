@@ -27,21 +27,25 @@ Deliberately not asserted here: elapsed time. A timing assertion on this path wo
 be a flake generator on CI, and it would also pass for an implementation that read
 every row quickly.
 """
+
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, cast
+from unittest.mock import patch
+from uuid import NAMESPACE_URL, uuid5
 
 import pytest
 
 from specify_cli.delivery.dispatcher import dispatch
-from specify_cli.delivery.ledger import SqliteDeliveryLedger
 from specify_cli.delivery.receivers import StubReceiver
-from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
+from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import (
     COL_PAYLOAD,
@@ -49,6 +53,9 @@ from specify_cli.event_journal.models import (
     Event,
     select_identity_projection_sql,
 )
+from specify_cli.sync.consent import record_project_opt_in, record_project_opt_out
+from specify_cli.sync.layout_generation import LayoutMode
+from specify_cli.sync.project_store import ProjectSyncStore
 
 pytestmark = [pytest.mark.fast]
 
@@ -68,10 +75,6 @@ def _consent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
-    from specify_cli.sync.consent import set_project_consent
-
-    set_project_consent(CONSENTED_UUID, True)
-    set_project_consent(OTHER_UUID, False)
 
 
 # --------------------------------------------------------------------------- #
@@ -89,10 +92,7 @@ class JournalCost:
     sql: list[str] = field(default_factory=list)
 
     def __str__(self) -> str:  # pragma: no cover - assertion messages only
-        return (
-            f"connections={self.connections} statements={self.statements} "
-            f"vm_steps={self.vm_steps}"
-        )
+        return f"connections={self.connections} statements={self.statements} vm_steps={self.vm_steps}"
 
 
 @contextmanager
@@ -111,8 +111,12 @@ def measure(journal_path: Path) -> Iterator[JournalCost]:
         cost.vm_steps += 1
         return 0  # a non-zero return aborts the running statement
 
-    def _connect(database: object = ":memory:", *args: object, **kwargs: object):  # type: ignore[no-untyped-def]
-        conn = real_connect(database, *args, **kwargs)  # type: ignore[arg-type]
+    def _connect(
+        database: str | bytes | os.PathLike[str] | os.PathLike[bytes] = ":memory:",
+        *args: Any,
+        **kwargs: Any,
+    ) -> sqlite3.Connection:
+        conn = cast(sqlite3.Connection, real_connect(database, *args, **kwargs))
         if str(database) == target:
             cost.connections += 1
 
@@ -124,11 +128,8 @@ def measure(journal_path: Path) -> Iterator[JournalCost]:
             conn.set_progress_handler(_steps, 1)
         return conn
 
-    sqlite3.connect = _connect  # type: ignore[assignment]
-    try:
+    with patch.object(sqlite3, "connect", _connect):
         yield cost
-    finally:
-        sqlite3.connect = real_connect  # type: ignore[assignment]
 
 
 def _event(event_id: str, uuid: str, created_at: str) -> Event:
@@ -142,40 +143,77 @@ def _event(event_id: str, uuid: str, created_at: str) -> Event:
     )
 
 
-def _seed(db_path: Path, *, others: int, consented: int) -> EventJournal:
+def _initialize(store: ProjectSyncStore, *, consented: bool) -> None:
+    authority = store.layout_generation()
+    if authority.read_state().mode is LayoutMode.LEGACY:
+        authority.begin_cutover("nfr003-test")
+        authority.publish_project_only("nfr003-test", verify_exact=lambda: True)
+    if consented:
+        record_project_opt_in(str(store.project_uuid), actor="nfr003-test")
+        with store.unit_of_work() as unit:
+            unit.execute(
+                "INSERT INTO project_target_admissions "
+                "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+                "configuration_generation, admission_state, admission_generation, binding_audience) "
+                "VALUES (?, 'https://hosted.example.com', 'operator@example.com', 'team', 1, "
+                "'admitted', '1', 'private-teamspace:team')",
+                (str(store.project_uuid),),
+            )
+    else:
+        record_project_opt_out(str(store.project_uuid), actor="nfr003-test")
+
+
+def _seed(db_path: Path, *, others: int, consented: int) -> ProjectSyncStore:
     """A journal holding *others* non-consented rows and *consented* consented ones.
 
     The non-consented rows are strictly older, so FIFO order puts them first and a
     predicate applied after a limit would also be caught.
     """
-    journal = EventJournal(db_path)
-    for i in range(others):
-        journal.append(
-            _event(f"evt-other-{i:06d}", OTHER_UUID, f"2026-06-01T00:00:{i % 60:02d}.{i:06d}Z")
-        )
-    for i in range(consented):
-        journal.append(_event(f"evt-mine-{i:04d}", CONSENTED_UUID, f"2026-07-01T00:00:{i:04d}Z"))
-    return journal
+    consented_uuid = str(uuid5(NAMESPACE_URL, f"consented:{db_path}"))
+    other_uuid = str(uuid5(NAMESPACE_URL, f"other:{db_path}"))
+    store = ProjectSyncStore(consented_uuid)
+    other_store = ProjectSyncStore(other_uuid)
+    _initialize(store, consented=True)
+    _initialize(other_store, consented=False)
+    with other_store.unit_of_work() as unit:
+        journal = EventJournal(unit, other_store.layout_generation())
+        for i in range(others):
+            journal.append(
+                _event(
+                    f"evt-other-{i:06d}",
+                    other_uuid,
+                    f"2026-06-01T00:00:{i % 60:02d}.{i:06d}Z",
+                )
+            )
+    with store.unit_of_work() as unit:
+        journal = EventJournal(unit, store.layout_generation())
+        for i in range(consented):
+            journal.append(
+                _event(
+                    f"evt-mine-{i:04d}",
+                    consented_uuid,
+                    f"2026-07-01T00:00:{i:04d}Z",
+                )
+            )
+    return store
 
 
-def _drain(journal: EventJournal) -> tuple[JournalCost, int]:
-    ledger = SqliteDeliveryLedger(":memory:")
-    registry = SqliteDeliveryTargetRegistry(":memory:")
-    target = registry.register(
-        url="https://hosted.example.com",
-        team_slug="team",
-        user_email="operator@example.com",
-    )
+def _drain(store: ProjectSyncStore) -> tuple[JournalCost, int]:
+    with store.unit_of_work() as unit:
+        target = ProjectDeliveryTargetRegistry(store).get_current(unit)
+    assert target is not None
     receiver = StubReceiver()
-    with measure(journal.db_path) as cost:
-        summary = dispatch(journal=journal, ledger=ledger, receiver=receiver, target=target)
+    with measure(store.database_path) as cost:
+        summary = dispatch(
+            store=store,
+            receiver=receiver,
+            target=target,
+            context=store.create_context(),
+        )
     assert summary.selected == BATCH, (
-        "the drain under measurement must actually have selected the consented "
-        f"batch, or the cost numbers mean nothing: selected={summary.selected}"
+        f"the drain under measurement must actually have selected the consented batch, or the cost numbers mean nothing: selected={summary.selected}"
     )
-    assert set(receiver.received_event_ids()) == {
-        f"evt-mine-{i:04d}" for i in range(BATCH)
-    }, "only the consented project's rows may ship"
+    assert set(receiver.received_event_ids()) == {f"evt-mine-{i:04d}" for i in range(BATCH)}, "only the consented project's rows may ship"
     return cost, summary.selected
 
 
@@ -192,32 +230,25 @@ def test_the_universe_read_is_an_indexed_lookup_not_a_table_scan(tmp_path: Path)
     PLAN`` is the only way to assert the difference: an index the planner declines
     to use is indistinguishable, through the API, from an index that is not there.
     """
-    journal = _seed(tmp_path / "j.db", others=SMALL, consented=BATCH)
+    store = _seed(tmp_path / "j.db", others=SMALL, consented=BATCH)
 
-    conn = sqlite3.connect(str(journal.db_path))
+    conn = sqlite3.connect(str(store.database_path))
     try:
         plan = [
             row[3]
             for row in conn.execute(
                 "EXPLAIN QUERY PLAN " + select_identity_projection_sql(1),
-                (CONSENTED_UUID,),
+                (str(store.project_uuid),),
             )
         ]
-        distinct_plan = [
-            row[3] for row in conn.execute("EXPLAIN QUERY PLAN " + DISTINCT_PROJECT_UUIDS_SQL)
-        ]
+        distinct_plan = [row[3] for row in conn.execute("EXPLAIN QUERY PLAN " + DISTINCT_PROJECT_UUIDS_SQL)]
     finally:
         conn.close()
 
-    assert any("idx_event_journal_project_created" in step for step in plan), (
-        f"the filtered read must be planned through the project index: {plan}"
-    )
-    assert not any(step.startswith("SCAN event_journal") for step in plan), (
-        f"the filtered read must not be planned as a full table scan: {plan}"
-    )
+    assert any("idx_event_journal_project_created" in step for step in plan), f"the filtered read must be planned through the project index: {plan}"
+    assert not any(step.startswith("SCAN event_journal") for step in plan), f"the filtered read must not be planned as a full table scan: {plan}"
     assert not any(step.startswith("SCAN event_journal") for step in distinct_plan), (
-        "enumerating the distinct projects present must seek through the index "
-        f"rather than scan every row: {distinct_plan}"
+        f"enumerating the distinct projects present must seek through the index rather than scan every row: {distinct_plan}"
     )
 
 
@@ -238,9 +269,7 @@ def test_the_filtered_read_carries_no_limit_and_no_payload(tmp_path: Path) -> No
         "slices an already-filtered universe, so a limit here lets delivered rows "
         "fill the window and be stripped afterwards (NFR-002 starvation)"
     )
-    assert COL_PAYLOAD not in sql, (
-        f"the universe read must not select the payload BLOB: {sql}"
-    )
+    assert COL_PAYLOAD not in sql, f"the universe read must not select the payload BLOB: {sql}"
 
 
 def test_the_filtered_read_returns_only_the_requested_projects(tmp_path: Path) -> None:
@@ -250,18 +279,13 @@ def test_the_filtered_read_returns_only_the_requested_projects(tmp_path: Path) -
     ``tests/sync/test_consent_resolver_3030.py``. Both gates stand on the drain
     path, so neither is proven by an end-to-end test alone; each needs its own.
     """
-    journal = _seed(tmp_path / "j.db", others=25, consented=BATCH)
+    store = _seed(tmp_path / "j.db", others=25, consented=BATCH)
+    with store.unit_of_work() as unit:
+        rows = EventJournal(unit, store.layout_generation()).read_identity_projection(project_uuids=[str(store.project_uuid)])
 
-    rows = journal.read_identity_projection(project_uuids=[CONSENTED_UUID])
-
-    assert {row.project_uuid for row in rows} == {CONSENTED_UUID}
-    assert len(rows) == BATCH, (
-        f"expected only the consented project's {BATCH} rows, got {len(rows)} "
-        "— the read is not filtering at all"
-    )
-    assert [row.event_id for row in rows] == sorted(row.event_id for row in rows), (
-        "FIFO ordering by created_at must survive the filter"
-    )
+    assert {row.project_uuid for row in rows} == {str(store.project_uuid)}
+    assert len(rows) == BATCH, f"expected only the consented project's {BATCH} rows, got {len(rows)} — the read is not filtering at all"
+    assert [row.event_id for row in rows] == sorted(row.event_id for row in rows), "FIFO ordering by created_at must survive the filter"
 
 
 # --------------------------------------------------------------------------- #
@@ -281,12 +305,9 @@ def test_nfr003_selection_cost_does_not_scale_with_journal_size(tmp_path: Path) 
     large_cost, _ = _drain(_seed(tmp_path / "large.db", others=LARGE, consented=BATCH))
 
     assert large_cost.statements == small_cost.statements, (
-        "the number of journal statements a drain issues must be fixed by the "
-        f"batch, not by the store: {small_cost} vs {large_cost}"
+        f"the number of journal statements a drain issues must be fixed by the batch, not by the store: {small_cost} vs {large_cost}"
     )
-    assert large_cost.connections == small_cost.connections, (
-        f"connection count must not track store size: {small_cost} vs {large_cost}"
-    )
+    assert large_cost.connections == small_cost.connections, f"connection count must not track store size: {small_cost} vs {large_cost}"
     # The distinct-project probe seeks the index once per distinct project, so it
     # grows with log(rows) — a 20x row increase must stay far inside 2x work. The
     # unfiltered read that shipped grows ~20x here.
@@ -303,30 +324,28 @@ def test_payload_hydration_does_not_open_a_connection_per_event(tmp_path: Path) 
     ``sqlite3.connect`` — per event, so a 1,000-event batch opened 1,000
     connections. Connection count must be fixed by the drain, not the batch."""
     tiny = _seed(tmp_path / "tiny.db", others=10, consented=BATCH)
-    ledger = SqliteDeliveryLedger(":memory:")
-    registry = SqliteDeliveryTargetRegistry(":memory:")
-    target = registry.register(
-        url="https://hosted.example.com",
-        team_slug="team",
-        user_email="operator@example.com",
-    )
+    with tiny.unit_of_work() as unit:
+        target = ProjectDeliveryTargetRegistry(tiny).get_current(unit)
+    assert target is not None
 
-    with measure(tiny.db_path) as small_batch:
+    with measure(tiny.database_path) as small_batch:
         dispatch(
-            journal=tiny,
-            ledger=ledger,
+            store=tiny,
             receiver=StubReceiver(),
             target=target,
+            context=tiny.create_context(),
             limit=2,
         )
 
-    fresh_ledger = SqliteDeliveryLedger(":memory:")
-    with measure(tiny.db_path) as full_batch:
+    with tiny.unit_of_work() as unit:
+        unit.execute("DELETE FROM delivery_results")
+        unit.execute("DELETE FROM delivery_attempts")
+    with measure(tiny.database_path) as full_batch:
         summary = dispatch(
-            journal=tiny,
-            ledger=fresh_ledger,
+            store=tiny,
             receiver=StubReceiver(),
             target=target,
+            context=tiny.create_context(),
             limit=BATCH,
         )
 

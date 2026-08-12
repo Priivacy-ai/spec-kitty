@@ -17,6 +17,10 @@ See: kitty-specs/dossier-parity-reconciler-01KXYXVP/spec.md (FR-003, FR-008).
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from dataclasses import dataclass
+from pathlib import Path
+
 import pytest
 
 from specify_cli.dossier import (
@@ -31,17 +35,39 @@ from specify_cli.dossier.emitter_adapter import (
 from specify_cli.dossier.events import emit_snapshot_computed
 from specify_cli.dossier.models import ArtifactRef, MissionDossier
 from specify_cli.sync.emitter import _PAYLOAD_RULES, _is_canonical_snapshot_hash
+from specify_cli.sync.layout_generation import LayoutGenerationAuthority
+from specify_cli.sync.project_context import ProjectSyncContext
+from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 NAMESPACE_DICT = {
-    "project_uuid": "proj-1",
+    "project_uuid": "11111111-2222-4333-8444-555555555555",
     "mission_slug": "042-feat",
     "target_branch": "main",
     "mission_type": "software-dev",
     "manifest_version": "1",
 }
+
+
+@dataclass(frozen=True)
+class _Authority:
+    context: ProjectSyncContext
+    unit: ProjectUnitOfWork
+    layout: LayoutGenerationAuthority
+
+
+@pytest.fixture
+def project_authority(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[_Authority]:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(NAMESPACE_DICT["project_uuid"])
+    layout = store.layout_generation()
+    with store.unit_of_work() as unit:
+        yield _Authority(store.create_context(), unit, layout)
 
 
 def _artifact(key: str, path: str, content_hash: str, *, present: bool = True) -> ArtifactRef:
@@ -120,7 +146,10 @@ class TestProducerCanonicalMigration:
 class TestEmitCarriesCanonicalUnderUnchangedField:
     """T008/T009: emit carries canonical value under unchanged snapshot_hash."""
 
-    def test_emitted_snapshot_hash_is_canonical_and_field_unchanged(self) -> None:
+    def test_emitted_snapshot_hash_is_canonical_and_field_unchanged(
+        self,
+        project_authority: _Authority,
+    ) -> None:
         captured: list[dict] = []
 
         def fake_emitter(**kwargs: object) -> dict:
@@ -143,6 +172,9 @@ class TestEmitCarriesCanonicalUnderUnchangedField:
             completeness_status=snapshot.completeness_status,
             snapshot_id=snapshot.snapshot_id,
             namespace=NAMESPACE_DICT,
+            project_context=project_authority.context,
+            project_unit=project_authority.unit,
+            project_layout=project_authority.layout,
         )
 
         assert len(captured) == 1  # golden-count: cardinality-is-contract

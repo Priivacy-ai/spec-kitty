@@ -329,12 +329,12 @@ def _table_rows(connection: sqlite3.Connection, table: str) -> tuple[LegacyRow, 
     projection = ", ".join(_quoted(column) for column in columns)
     try:
         rows = connection.execute(
-            f"SELECT rowid, {projection} FROM {_quoted(table)} ORDER BY rowid"  # noqa: S608 -- identifiers are quoted source metadata
+            f"SELECT rowid, {projection} FROM {_quoted(table)} ORDER BY rowid"  # noqa: S608  # nosec B608 -- quoted source metadata identifiers
         ).fetchall()
         with_rowid = True
     except sqlite3.OperationalError:
         rows = connection.execute(
-            f"SELECT {projection} FROM {_quoted(table)}"  # noqa: S608 -- identifiers are quoted source metadata
+            f"SELECT {projection} FROM {_quoted(table)}"  # noqa: S608  # nosec B608 -- quoted source metadata identifiers
         ).fetchall()
         with_rowid = False
     result: list[LegacyRow] = []
@@ -1712,7 +1712,7 @@ def _verify_project_rows(
         actual = tuple(
             tuple(value for value in result)
             for result in unit.execute(
-                f"SELECT {projection} FROM {table} WHERE project_uuid = ? AND {identity} IN ({placeholders}) ORDER BY {identity}",  # noqa: S608 -- closed identifiers and bound-value placeholders
+                f"SELECT {projection} FROM {table} WHERE project_uuid = ? AND {identity} IN ({placeholders}) ORDER BY {identity}",  # noqa: S608  # nosec B608 -- closed identifiers and bound values
                 (project, *identifiers),
             ).fetchall()
         )

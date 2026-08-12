@@ -253,7 +253,7 @@ def purge_project_payloads(
             "body_upload_tasks",
             "journal_entries",
         ):
-            unit.execute(f"DELETE FROM {table} WHERE project_uuid = ?", (owner,))  # noqa: S608 - fixed table allowlist
+            unit.execute(f"DELETE FROM {table} WHERE project_uuid = ?", (owner,))  # noqa: S608  # nosec B608 - fixed table allowlist
 
     if not dry_run:
         authority.execute_write(authority.issue_write_permit(), write)

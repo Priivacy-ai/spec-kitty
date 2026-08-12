@@ -41,28 +41,31 @@ a named red -- on the counter, never on a wall-clock backstop -- and is
 demonstrated red-first under ``scripts/mutants/nonterminating_dispatch_3115.py``
 (a hook-level pytest plugin, not a source edit, per C-003).
 """
+
 from __future__ import annotations
 
 import json
 from collections.abc import Sequence
 from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
 from specify_cli.cli.commands import sync as sync_module
 from specify_cli.delivery import dispatcher as dispatcher_module
-from specify_cli.delivery.ledger import SqliteDeliveryLedger
 from specify_cli.delivery.receivers import (
     DeliveryOutcome,
     DeliveryResult,
     OutboundEvent,
     map_batch_response,
 )
-from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
+from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
+from specify_cli.sync.consent import record_project_opt_in, record_project_opt_out
+from specify_cli.sync.layout_generation import LayoutMode
+from specify_cli.sync.project_store import ProjectSyncStore
 
 if TYPE_CHECKING:
     from specify_cli.delivery.interfaces import DeliveryTarget
@@ -119,8 +122,9 @@ class _RecordingIngress:
         self.batches.append(tuple(event.event_id for event in events))
         if self._oversize_at is not None and len(events) >= self._oversize_at:
             self.rejected_sizes.append(len(events))
-            return map_batch_response(
-                events, http_status=_HTTP_PAYLOAD_TOO_LARGE, body=None
+            return cast(
+                list[DeliveryResult],
+                map_batch_response(events, http_status=_HTTP_PAYLOAD_TOO_LARGE, body=None),
             )
         return [
             DeliveryResult(
@@ -142,9 +146,24 @@ def _consent_records(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
-    from specify_cli.sync.consent import set_project_consent
-
-    set_project_consent(CONSENTED, True)
+    for project_uuid in (CONSENTED, NEVER_OPTED_IN):
+        store = ProjectSyncStore(project_uuid)
+        authority = store.layout_generation()
+        if authority.read_state().mode is LayoutMode.LEGACY:
+            authority.begin_cutover("dispatch-window-test")
+            authority.publish_project_only("dispatch-window-test", verify_exact=lambda: True)
+    record_project_opt_in(CONSENTED, actor="dispatch-window-test")
+    record_project_opt_out(NEVER_OPTED_IN, actor="dispatch-window-test")
+    store = ProjectSyncStore(CONSENTED)
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO project_target_admissions "
+            "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, binding_audience) "
+            "VALUES (?, 'https://hosted.example.com', 'operator@example.com', 'team', 1, "
+            "'admitted', '1', 'private-teamspace:team')",
+            (CONSENTED,),
+        )
 
 
 def _event(event_id: str, uuid: str, *, ordinal: int) -> Event:
@@ -161,21 +180,19 @@ def _event(event_id: str, uuid: str, *, ordinal: int) -> Event:
 
 
 @pytest.fixture
-def ledger() -> SqliteDeliveryLedger:
-    led = SqliteDeliveryLedger(":memory:")
-    yield led
-    led.close()
+def target() -> DeliveryTarget:
+    store = ProjectSyncStore(CONSENTED)
+    with store.unit_of_work() as unit:
+        current = ProjectDeliveryTargetRegistry(store).get_current(unit)
+    assert current is not None
+    return current
 
 
-@pytest.fixture
-def target(tmp_path: Path) -> DeliveryTarget:
-    registry = SqliteDeliveryTargetRegistry(":memory:")
-    yield registry.register(
-        url="https://hosted.example.com",
-        team_slug="team",
-        user_email="operator@example.com",
-    )
-    registry.close()
+def _append_many(store: ProjectSyncStore, events: list[Event]) -> None:
+    with store.unit_of_work() as unit:
+        journal = EventJournal(unit, store.layout_generation())
+        for event in events:
+            journal.append(event)
 
 
 @pytest.fixture
@@ -216,7 +233,6 @@ def counted_dispatch(monkeypatch: pytest.MonkeyPatch) -> list[int | None]:
 
 def test_no_non_consented_event_ever_enters_the_live_dispatch_window(
     tmp_path: Path,
-    ledger: SqliteDeliveryLedger,
     target: DeliveryTarget,
     monkeypatch: pytest.MonkeyPatch,
     counted_dispatch: list[int | None],
@@ -228,17 +244,22 @@ def test_no_non_consented_event_ever_enters_the_live_dispatch_window(
     that only appears in the second batch, or only in a re-selection after a 413
     shrank the limit, is invisible to a single-batch test.
     """
-    journal = EventJournal(tmp_path / "journal.db")
+    del tmp_path
+    store = ProjectSyncStore(CONSENTED)
+    denied_store = ProjectSyncStore(NEVER_OPTED_IN)
     consented_ids: list[str] = []
     denied_ids: list[str] = []
+    consented_events: list[Event] = []
+    denied_events: list[Event] = []
     for index in range(9):
         consented = f"evt-ok-{index}"
         denied = f"evt-leak-{index}"
-        journal.append(_event(consented, CONSENTED, ordinal=index * 2))
-        journal.append(_event(denied, NEVER_OPTED_IN, ordinal=index * 2 + 1))
+        consented_events.append(_event(consented, CONSENTED, ordinal=index * 2))
+        denied_events.append(_event(denied, NEVER_OPTED_IN, ordinal=index * 2 + 1))
         consented_ids.append(consented)
         denied_ids.append(denied)
-    assert journal.count() == 18, "precondition: one shared, contaminated journal"
+    _append_many(store, consented_events)
+    _append_many(denied_store, denied_events)
 
     # The real window, shrunk so the test spans batches in a readable number of
     # POSTs. `oversize_at=4` makes the ingress 413 any full-size batch, so the
@@ -246,20 +267,15 @@ def test_no_non_consented_event_ever_enters_the_live_dispatch_window(
     # sizes is a distinct re-selection the leak could ride.
     monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 4)
     ingress = _RecordingIngress(oversize_at=4)
-    runtime = SimpleNamespace(journal=journal, ledger=ledger)
+    runtime = SimpleNamespace(store=store, context=store.create_context())
 
     summary = sync_module._run_dispatch_batches(runtime, ingress, target)
 
     # The REAL window was exercised, not a fake advertising a limit.
     assert ingress.batches, "the ingress was never called — no window was exercised"
-    assert max(len(batch) for batch in ingress.batches) == 4, (
-        "no batch ever reached the configured window size, so the limit was not "
-        "the thing under test"
-    )
+    assert max(len(batch) for batch in ingress.batches) == 4, "no batch ever reached the configured window size, so the limit was not the thing under test"
     assert 4 in ingress.rejected_sizes, "the 413 halving path was never triggered"
-    assert min(len(batch) for batch in ingress.batches) == 2, (
-        "the halved window (4 -> 2) was never traversed"
-    )
+    assert min(len(batch) for batch in ingress.batches) == 2, "the halved window (4 -> 2) was never traversed"
 
     # THE property. Every id that ever entered the window, at any size, in any
     # re-selection, including the batches the ingress rejected.
@@ -278,7 +294,6 @@ def test_no_non_consented_event_ever_enters_the_live_dispatch_window(
 
 def test_the_window_is_filled_with_consented_events_not_wasted_on_denied_ones(
     tmp_path: Path,
-    ledger: SqliteDeliveryLedger,
     target: DeliveryTarget,
     monkeypatch: pytest.MonkeyPatch,
     counted_dispatch: list[int | None],
@@ -292,12 +307,18 @@ def test_the_window_is_filled_with_consented_events_not_wasted_on_denied_ones(
     four consented events sitting behind them. The window must instead be filled
     with the four rows that are actually deliverable.
     """
-    journal = EventJournal(tmp_path / "journal.db")
-    for index in range(8):
-        journal.append(_event(f"evt-leak-{index}", NEVER_OPTED_IN, ordinal=index))
+    del tmp_path
+    store = ProjectSyncStore(CONSENTED)
+    denied_store = ProjectSyncStore(NEVER_OPTED_IN)
+    _append_many(
+        denied_store,
+        [_event(f"evt-leak-{index}", NEVER_OPTED_IN, ordinal=index) for index in range(8)],
+    )
     consented_ids = [f"evt-ok-{index}" for index in range(4)]
-    for index, event_id in enumerate(consented_ids):
-        journal.append(_event(event_id, CONSENTED, ordinal=8 + index))
+    _append_many(
+        store,
+        [_event(event_id, CONSENTED, ordinal=8 + index) for index, event_id in enumerate(consented_ids)],
+    )
 
     # The production default (1000) would swallow the distinction: the whole
     # universe fits one window, so nothing is proven about slot occupancy. 4 makes
@@ -305,17 +326,13 @@ def test_the_window_is_filled_with_consented_events_not_wasted_on_denied_ones(
     # first batch is a detectable failure.
     monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 4)
     ingress = _RecordingIngress()
-    runtime = SimpleNamespace(journal=journal, ledger=ledger)
+    runtime = SimpleNamespace(store=store, context=store.create_context())
 
     summary = sync_module._run_dispatch_batches(runtime, ingress, target)
 
-    assert ingress.batches, (
-        "the ingress was never called: the window was filled with rows the "
-        "predicate then stripped, which is NFR-002's starvation"
-    )
+    assert ingress.batches, "the ingress was never called: the window was filled with rows the predicate then stripped, which is NFR-002's starvation"
     assert ingress.batches[0] == tuple(consented_ids), (
-        "the first window must be filled with the deliverable rows, not with the "
-        "older non-consented ones that happen to sort ahead of them"
+        "the first window must be filled with the deliverable rows, not with the older non-consented ones that happen to sort ahead of them"
     )
     assert summary.delivered == 4
     assert not ingress.every_id_seen() & {f"evt-leak-{i}" for i in range(8)}

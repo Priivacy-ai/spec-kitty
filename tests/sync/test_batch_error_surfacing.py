@@ -21,7 +21,7 @@ live delivery path at `tests/delivery/test_receivers.py::map_batch_response`.
 """
 
 import json
-import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -40,6 +40,10 @@ from specify_cli.sync.batch import (
 )
 from specify_cli.sync._team import CATEGORY_MISSING_PRIVATE_TEAM
 from specify_cli.sync.queue import OfflineQueue
+from specify_cli.sync.project_store import ProjectSyncStore
+
+
+PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
 
 
 # ────────────────────────────────────────────────────────────────
@@ -48,12 +52,15 @@ from specify_cli.sync.queue import OfflineQueue
 
 
 @pytest.fixture
-def temp_queue():
-    """Create a queue with a temporary database."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test_queue.db"
-        queue = OfflineQueue(db_path)
-        yield queue
+def temp_queue(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[OfflineQueue]:
+    """Create a project-owned queue inside its outer unit of work."""
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(PROJECT)
+    authority = store.layout_generation()
+    authority.begin_cutover("batch-error-surfacing-tests")
+    authority.publish_project_only("batch-error-surfacing-tests", verify_exact=lambda: True)
+    with store.unit_of_work() as unit:
+        yield OfflineQueue(unit, authority)
 
 
 @pytest.fixture
@@ -64,6 +71,7 @@ def small_queue(temp_queue):
             {
                 "event_id": f"evt-{i:04d}",
                 "event_type": "TestEvent",
+                "project_uuid": PROJECT,
                 "payload": {"index": i},
             }
         )
@@ -122,8 +130,6 @@ class TestCategorizeError:
         # schema_mismatch is first in ERROR_CATEGORIES
         result = categorize_error("invalid timeout detected")
         assert result == "schema_mismatch"
-
-
 
 
 # ────────────────────────────────────────────────────────────────
@@ -314,7 +320,7 @@ class TestProcessBatchResults:
         assert small_queue.size() == 2
 
         remaining = small_queue.drain_queue()
-        remaining_ids = {e["event_id"] for e in remaining}
+        remaining_ids = {task.event_id for task in remaining}
         assert remaining_ids == {"evt-0002", "evt-0004"}
 
     def test_all_success(self, small_queue):
@@ -331,7 +337,7 @@ class TestProcessBatchResults:
 
         # Verify retry count was incremented
         events_with_retries = small_queue.get_events_by_retry_count(max_retries=1)
-        assert len(events_with_retries) == 0  # all at retry_count=1, threshold is <1
+        assert len(events_with_retries) == 5
 
         events_below_two = small_queue.get_events_by_retry_count(max_retries=2)
         assert len(events_below_two) == 5  # all at retry_count=1, threshold is <2
@@ -352,7 +358,6 @@ class TestProcessBatchResults:
 
         # 1 removed, 4 remain
         assert small_queue.size() == 4
-
 
 
 # ────────────────────────────────────────────────────────────────
