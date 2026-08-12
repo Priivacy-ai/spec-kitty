@@ -56,13 +56,9 @@ ENROLMENT_SURFACES: tuple[str, ...] = (
 )
 
 #: Path-method write sinks (``<path>.write_bytes(...)`` etc.).
-SINK_METHODS: frozenset[str] = frozenset(
-    {"write_text", "write_bytes", "touch", "replace"}
-)
+SINK_METHODS: frozenset[str] = frozenset({"write_text", "write_bytes", "touch", "replace"})
 #: Free / qualified write sinks (``atomic_write(...)`` / ``write_text_within_directory(...)``).
-SINK_FUNCTIONS: frozenset[str] = frozenset(
-    {"atomic_write", "write_text_within_directory"}
-)
+SINK_FUNCTIONS: frozenset[str] = frozenset({"atomic_write", "write_text_within_directory"})
 
 #: Composite row identity ``(rel_path, qualname, truncated token)`` — mirrors audit.py.
 RowKey = tuple[str, str, str]
@@ -206,9 +202,7 @@ def build_inventory_key_map(rows: list[dict[str, str]]) -> tuple[list[str], dict
     return errors, out
 
 
-def check_undercount(
-    discovered: Mapping[RowKey, str], inventory: Mapping[RowKey, str]
-) -> list[str]:
+def check_undercount(discovered: Mapping[RowKey, str], inventory: Mapping[RowKey, str]) -> list[str]:
     """Every discovered generated-write sink must be enrolled in the inventory."""
     errors: list[str] = []
     for key in sorted(set(discovered) - set(inventory)):
@@ -221,9 +215,7 @@ def check_undercount(
     return errors
 
 
-def check_overcount(
-    discovered: Mapping[RowKey, str], inventory: Mapping[RowKey, str]
-) -> list[str]:
+def check_overcount(discovered: Mapping[RowKey, str], inventory: Mapping[RowKey, str]) -> list[str]:
     """Every inventory row must map to a live sink (ghost/overcount tripwire)."""
     errors: list[str] = []
     for key in sorted(set(inventory) - set(discovered)):
@@ -246,50 +238,22 @@ def _load_inventory() -> list[dict[str, str]]:
     return rows
 
 
-def test_discovered_sinks_non_empty() -> None:
-    """The scan discovers real generated-write sinks (anti-vacuous)."""
-    assert discover_write_sinks(), (
-        "zero generated-write sinks discovered across the enrolment surfaces — "
-        "a surface-path misconfiguration, not a genuinely empty result."
-    )
-
-
-def test_no_discovered_sink_is_unenrolled() -> None:
-    """Undercount: every discovered generated-write sink is in the inventory (C1)."""
+def test_inventory_exactly_enrols_every_live_write_sink() -> None:
+    """The nonempty live corpus and inventory agree in both directions."""
+    discovered = discover_write_sinks()
+    assert discovered, "zero generated-write sinks discovered across the enrolment surfaces — a surface-path misconfiguration, not a genuinely empty result."
     inventory_rows = _load_inventory()
     parse_errors, inventory_keys = build_inventory_key_map(inventory_rows)
     assert not parse_errors, "\n".join(parse_errors)
-    discovered_keys = build_discovered_key_map(discover_write_sinks())
+    discovered_keys = build_discovered_key_map(discovered)
     missing = check_undercount(discovered_keys, inventory_keys)
     assert not missing, "unenrolled generated-write sink(s):\n" + "\n".join(f"  {m}" for m in missing)
-
-
-def test_no_inventory_row_is_a_ghost() -> None:
-    """Overcount: every inventory row maps to a live sink (C1 other direction)."""
-    inventory_rows = _load_inventory()
-    _parse_errors, inventory_keys = build_inventory_key_map(inventory_rows)
-    discovered_keys = build_discovered_key_map(discover_write_sinks())
     ghosts = check_overcount(discovered_keys, inventory_keys)
     assert not ghosts, "ghost inventory row(s):\n" + "\n".join(f"  {g}" for g in ghosts)
+    invalid = [f"{row['locator']}: {row['disposition']!r}" for row in inventory_rows if row["disposition"] not in VALID_DISPOSITIONS]
+    assert not invalid, f"rows with invalid disposition (must be one of {sorted(VALID_DISPOSITIONS)}):\n" + "\n".join(f"  {r}" for r in invalid)
 
-
-def test_every_row_has_a_valid_disposition() -> None:
-    """Each inventory row carries exactly one valid enrolment disposition."""
-    invalid = [
-        f"{row['locator']}: {row['disposition']!r}"
-        for row in _load_inventory()
-        if row["disposition"] not in VALID_DISPOSITIONS
-    ]
-    assert not invalid, (
-        f"rows with invalid disposition (must be one of {sorted(VALID_DISPOSITIONS)}):\n"
-        + "\n".join(f"  {r}" for r in invalid)
-    )
-
-
-def test_theater_undercount_and_overcount_seams() -> None:
-    """Drive the PURE tripwire seams directly (theater is a review reject otherwise)."""
+    # Controlled incompatible changes prove both sides of the oracle bite.
     key: RowKey = ("m.py", "f", "p write_bytes")
     assert check_undercount({key: "m.py:2"}, {}), "a discovered-but-unenrolled sink must go RED"
     assert check_overcount({}, {key: "m.py:9"}), "a ghost inventory row must go RED"
-    assert check_undercount({key: "m.py:2"}, {key: "m.py:2"}) == []
-    assert check_overcount({key: "m.py:2"}, {key: "m.py:2"}) == []

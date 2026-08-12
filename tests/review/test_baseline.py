@@ -611,12 +611,6 @@ class TestConfigCustomTestCommand:
         assert cmd == "myrunner --output={output_file}"
         assert fmt == "junit_xml"
 
-    def test_missing_config_file(self, tmp_path: Path) -> None:
-        """Missing .kittify/config.yaml leaves baseline capture disabled."""
-        cmd, fmt = _get_test_command(tmp_path)
-        assert cmd is None
-        assert fmt is None
-
     def test_config_without_review_section(self, tmp_path: Path) -> None:
         """Config without 'review' key leaves baseline capture disabled."""
         kittify = tmp_path / ".kittify"

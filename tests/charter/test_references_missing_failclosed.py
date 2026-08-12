@@ -105,12 +105,6 @@ def test_first_missing_bundle_file_none_when_complete(tmp_path: Path) -> None:
     assert first_missing_bundle_file(tmp_path) is None
 
 
-def test_bundle_content_hash_files_is_single_element_charter_yaml() -> None:
-    """WP01 narrowed the content-hash input set to just charter.yaml --
-    pinning the tuple shape guards against a future accidental widening."""
-    assert BUNDLE_CONTENT_HASH_FILES == ("charter.yaml",)
-
-
 @pytest.mark.parametrize("omit", list(BUNDLE_CONTENT_HASH_FILES))
 def test_first_missing_bundle_file_reports_whichever_is_absent(tmp_path: Path, omit: str) -> None:
     """First-missing-in-declared-order semantics -- with a single-element

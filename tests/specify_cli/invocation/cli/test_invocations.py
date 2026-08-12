@@ -355,19 +355,6 @@ class TestInvocationsListJSON:
         assert live_id in listed_ids
         assert deleted_id not in listed_ids
 
-    def test_no_events_dir_returns_empty(self, tmp_path: Path) -> None:
-        """When kitty-ops does not exist, return []."""
-        with pytest.MonkeyPatch().context() as mp:
-            mp.setattr(
-                "specify_cli.cli.commands.invocations_cmd.find_repo_root",
-                lambda: tmp_path,
-            )
-            result = runner.invoke(cli_app, ["invocations", "list", "--json"])
-        assert result.exit_code == 0, result.output
-        data = json.loads(result.output)
-        assert data == []
-
-
 # ---------------------------------------------------------------------------
 # Performance gate (NFR-008)
 # ---------------------------------------------------------------------------

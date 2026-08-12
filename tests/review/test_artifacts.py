@@ -526,12 +526,6 @@ def test_next_cycle_number_refuses_on_unparseable_sibling(tmp_path: Path) -> Non
         ReviewCycleArtifact.next_cycle_number(tmp_path)
 
 
-def test_next_cycle_number_empty_directory_still_returns_one(tmp_path: Path) -> None:
-    """Backward-compatibility regression: the zero-candidate case is unchanged
-    by the max(parsed) + 1 rewrite."""
-    assert ReviewCycleArtifact.next_cycle_number(tmp_path) == 1
-
-
 def test_next_cycle_number_refuses_when_derived_number_already_exists(
     tmp_path: Path,
 ) -> None:

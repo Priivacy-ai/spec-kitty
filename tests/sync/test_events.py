@@ -101,11 +101,14 @@ class TestEventEnvelope:
         assert event is not None
         assert event["lamport_clock"] == 1
 
-    def test_node_id_present(self, emitter: EventEmitter, temp_queue):
-        """Event includes node_id from clock."""
+    def test_identity_fields_present(self, emitter: EventEmitter, temp_queue):
+        """Event includes node and team identity from their live resolvers."""
         event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
-        assert event["node_id"] == "test-node-id"
+        assert {key: event[key] for key in ("node_id", "team_slug")} == {
+            "node_id": "test-node-id",
+            "team_slug": "test-team",
+        }
 
     def test_timestamp_is_iso8601(self, emitter: EventEmitter, temp_queue):
         """Event includes ISO 8601 timestamp."""
@@ -113,12 +116,6 @@ class TestEventEnvelope:
         assert event is not None
         # Should contain T and timezone info
         assert "T" in event["timestamp"]
-
-    def test_team_slug_from_auth(self, emitter: EventEmitter, temp_queue):
-        """Event includes team_slug from AuthClient (SC-010)."""
-        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
-        assert event is not None
-        assert event["team_slug"] == "test-team"
 
     def test_team_slug_unresolvable_queues_event_locally(
         self, temp_queue, temp_clock, mock_config, monkeypatch
@@ -168,26 +165,18 @@ class TestEventEnvelope:
         assert event is not None
         assert event["causation_id"] is None
 
-    def test_git_branch_present(self, emitter: EventEmitter, temp_queue):
-        """Event includes git_branch from resolver."""
+    def test_git_metadata_values_present(self, emitter: EventEmitter, temp_queue):
+        """Event includes all values from the git metadata resolver."""
         event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
-        assert "git_branch" in event
-        assert event["git_branch"] == "test-branch"
-
-    def test_head_commit_sha_present(self, emitter: EventEmitter, temp_queue):
-        """Event includes head_commit_sha from resolver."""
-        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
-        assert event is not None
-        assert "head_commit_sha" in event
-        assert event["head_commit_sha"] == "a" * 40
-
-    def test_repo_slug_present(self, emitter: EventEmitter, temp_queue):
-        """Event includes repo_slug from resolver."""
-        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
-        assert event is not None
-        assert "repo_slug" in event
-        assert event["repo_slug"] == "test-org/test-repo"
+        assert {
+            key: event[key]
+            for key in ("git_branch", "head_commit_sha", "repo_slug")
+        } == {
+            "git_branch": "test-branch",
+            "head_commit_sha": "a" * 40,
+            "repo_slug": "test-org/test-repo",
+        }
 
     def test_git_metadata_present_across_event_types(self, emitter: EventEmitter, temp_queue):
         """All event types include git metadata fields."""
@@ -661,50 +650,20 @@ class TestDependencyResolved:
 class TestValidation:
     """Test event validation failures."""
 
-    def test_invalid_wp_id_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Invalid wp_id format causes validation failure."""
-        event = emitter.emit_wp_status_changed("INVALID", "planned", "in_progress")
-        assert event is None
-
-    def test_invalid_status_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Invalid status value causes validation failure."""
-        event = emitter.emit_wp_status_changed("WP01", "planned", "invalid")
-        assert event is None
-
-    def test_invalid_phase_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Invalid phase value causes validation failure."""
-        event = emitter.emit_wp_assigned("WP01", "agent", "invalid_phase")
-        assert event is None
-
-    def test_invalid_error_type_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Invalid error_type causes validation failure."""
-        event = emitter.emit_error_logged("bogus", "message")
-        assert event is None
-
-    def test_empty_title_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Empty title for WPCreated causes validation failure."""
-        event = emitter.emit_wp_created("WP01", "", "028-sync")
-        assert event is None
-
-    def test_invalid_mission_slug_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Invalid mission_slug format for MissionCreated causes validation failure."""
-        event = emitter.emit_mission_created("NoNumbers", 1, "main", 5)
-        assert event is None
-
-    def test_invalid_resolution_type_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Invalid resolution_type causes validation failure."""
-        event = emitter.emit_dependency_resolved("WP02", "WP01", "invalid")
-        assert event is None
-
-    def test_invalid_entry_type_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Invalid entry_type causes validation failure."""
-        event = emitter.emit_history_added("WP01", "invalid_type", "content")
-        assert event is None
-
-    def test_negative_wp_count_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Negative wp_count for MissionCreated causes validation failure."""
-        event = emitter.emit_mission_created("028-sync", 28, "main", -1)
-        assert event is None
+    def test_invalid_payload_matrix_returns_none(self, emitter: EventEmitter, temp_queue):
+        """Each event schema rejects one representative invalid field."""
+        results = {
+            "wp_id": emitter.emit_wp_status_changed("INVALID", "planned", "in_progress"),
+            "status": emitter.emit_wp_status_changed("WP01", "planned", "invalid"),
+            "phase": emitter.emit_wp_assigned("WP01", "agent", "invalid_phase"),
+            "error_type": emitter.emit_error_logged("bogus", "message"),
+            "title": emitter.emit_wp_created("WP01", "", "028-sync"),
+            "mission_slug": emitter.emit_mission_created("NoNumbers", 1, "main", 5),
+            "resolution_type": emitter.emit_dependency_resolved("WP02", "WP01", "invalid"),
+            "entry_type": emitter.emit_history_added("WP01", "invalid_type", "content"),
+            "wp_count": emitter.emit_mission_created("028-sync", 28, "main", -1),
+        }
+        assert results == dict.fromkeys(results)
 
 
 class TestConvenienceFunctions:

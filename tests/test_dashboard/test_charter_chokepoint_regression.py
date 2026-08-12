@@ -33,7 +33,7 @@ _BASELINE_SCRIPT = _BASELINE_DIR / "capture.py"
 _BASELINE_JSON = _BASELINE_DIR / "pre-wp23-dashboard-typed.json"
 
 
-def _run_capture() -> str:
+def _run_capture(cwd: Path) -> str:
     """Execute ``baseline/capture.py`` with the repo ``src/`` on sys.path.
 
     The capture script itself inserts ``src/`` onto ``sys.path``; we just
@@ -45,7 +45,7 @@ def _run_capture() -> str:
         check=True,
         capture_output=True,
         text=True,
-        cwd=str(_REPO_ROOT),
+        cwd=str(cwd),
     )
     return result.stdout
 
@@ -57,7 +57,7 @@ def _normalize(raw: str) -> str:
     return json.dumps(data, indent=2, sort_keys=True) + "\n"
 
 
-def test_dashboard_typed_contracts_are_byte_identical_to_baseline() -> None:
+def test_dashboard_typed_contracts_are_byte_identical_to_baseline(tmp_path: Path) -> None:
     """Byte-identical assertion against the committed baseline.
 
     On failure, a unified diff of the canonical JSON representation is
@@ -67,7 +67,7 @@ def test_dashboard_typed_contracts_are_byte_identical_to_baseline() -> None:
     assert _BASELINE_JSON.exists(), f"baseline JSON anchor missing: {_BASELINE_JSON}"
 
     expected = _normalize(_BASELINE_JSON.read_text(encoding="utf-8"))
-    actual = _normalize(_run_capture())
+    actual = _normalize(_run_capture(tmp_path))
 
     if expected == actual:
         return

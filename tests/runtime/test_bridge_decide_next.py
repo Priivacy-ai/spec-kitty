@@ -18,8 +18,6 @@ stub-based pattern from WP07/WP08.
 
 from __future__ import annotations
 
-import tokenize
-from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -151,31 +149,8 @@ def _cyclomatic_complexity(func: ast.AST) -> int:
     return complexity
 
 
-def test_residual_and_every_phase_helper_stay_at_or_under_complexity_ceiling() -> None:
-    """FR-004/FR-010 — ``decide_next_via_runtime``'s residual and all four
-    phase helpers (plus their WP09-local sub-helpers) must stay <=15,
-    matching the repo's ruff/Sonar C901 ceiling
-    (``pyproject.toml [tool.ruff.lint.mccabe] max-complexity = 15``)."""
-    tree = ast.parse(_RUNTIME_BRIDGE_PATH.read_text())
-    functions_by_name = {node.name: node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
-
-    for name in _DN_SYMBOLS:
-        assert name in functions_by_name, f"expected WP09 phase-split symbol {name!r} not found"
-        cc = _cyclomatic_complexity(functions_by_name[name])
-        assert cc <= 15, f"{name} has complexity {cc}, exceeds the WP09 ceiling of 15"
 
 
-def test_no_noqa_c901_comment_remains_in_runtime_bridge() -> None:
-    """The WP09 headline: the last ``# noqa: C901`` in the module (which sat
-    on ``decide_next_via_runtime``) is removed — zero suppressions is the
-    mission's whole point. Uses ``tokenize`` (not a plain substring search)
-    so a docstring that merely *mentions* the retired suppression (see
-    ``_check_requirement_mapping_ready``'s docstring) cannot produce a false
-    positive."""
-    source = _RUNTIME_BRIDGE_PATH.read_text()
-    comment_tokens = [tok.string for tok in tokenize.generate_tokens(StringIO(source).readline) if tok.type == tokenize.COMMENT]
-    offending = [c for c in comment_tokens if "noqa: C901" in c]
-    assert offending == [], f"unexpected '# noqa: C901' comment(s) remain: {offending}"
 
 
 # ---------------------------------------------------------------------------

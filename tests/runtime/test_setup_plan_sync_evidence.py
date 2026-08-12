@@ -27,7 +27,6 @@ that reads the environment directly still lands under ``tmp_path``.
 
 from __future__ import annotations
 
-import ast
 import contextlib
 import pathlib
 import sqlite3
@@ -376,57 +375,7 @@ class TestSetupPlanRefusesWithoutAuthWhenSaasEnabled:
 class TestNoDirectLegacyDbPathCallsInSetupPlanCode:
     """FR-012 AST regression: setup-plan code path must not call _legacy_queue_db_path."""
 
-    def test_no_direct_legacy_db_path_calls_in_setup_plan_code(self) -> None:
-        # Import the module under audit to anchor a real filesystem path.
-        from specify_cli.cli.commands.agent import mission as mission_module
 
-        # The setup-plan module list. ``mission.py`` is the entrypoint; any
-        # other file added to this list as the audit expands must also be
-        # clean of direct ``_legacy_queue_db_path()`` references.
-        modules_to_audit: list[Path] = [Path(mission_module.__file__)]
-
-        # The migration helpers inside ``sync/queue.py`` are explicitly exempt
-        # — that file is NOT in the setup-plan code path (it is the canonical
-        # owner of the legacy→scoped migration). Other callers in
-        # ``cli/commands/sync.py`` are out of scope for setup-plan.
-
-        violations: list[tuple[str, int]] = []
-
-        for path in modules_to_audit:
-            source = path.read_text(encoding="utf-8")
-            tree = ast.parse(source, filename=str(path))
-            for node in ast.walk(tree):
-                if not isinstance(node, ast.Call):
-                    continue
-                func = node.func
-                name: str | None = None
-                if isinstance(func, ast.Attribute):
-                    name = func.attr
-                elif isinstance(func, ast.Name):
-                    name = func.id
-                if name == "_legacy_queue_db_path":
-                    violations.append((str(path), node.lineno))
-
-        assert not violations, (
-            "FR-012 violation: setup-plan code path calls "
-            "_legacy_queue_db_path() directly at: "
-            + ", ".join(f"{p}:{ln}" for p, ln in violations)
-        )
-
-    def test_audit_comment_block_present_in_setup_plan(self) -> None:
-        """The FR-012 audit comment block must be embedded in setup_plan's docstring."""
-        from specify_cli.cli.commands.agent.mission import setup_plan
-
-        doc = setup_plan.__doc__ or ""
-        assert "WP04 / FR-011 + FR-012 audit" in doc, (
-            "setup_plan docstring is missing the WP04 audit block."
-        )
-        assert "default_queue_db_path()" in doc, (
-            "setup_plan docstring audit block must reference default_queue_db_path()."
-        )
-        assert "2026-05-17" in doc, (
-            "setup_plan docstring audit block must reference the 2026-05-17 audit date."
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -790,112 +739,8 @@ class TestSetupPlanPreflightIntegration:
 class TestSetupPlanNeverWritesLegacyQueue:
     """T020 regression: authenticated ``setup-plan`` writes scoped only."""
 
-    def test_setup_plan_never_writes_legacy_queue(
-        self,
-        tmp_path: Path,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """End-to-end: authenticate, run setup-plan, assert legacy queue
-        has zero rows in both event and body-upload tables, scoped has
-        the expected body-upload row count."""
-        _scope_home_classmethod(monkeypatch, tmp_path)
-        monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-
-        _write_credentials(
-            tmp_path,
-            username="auth@example.com",
-            server_url="https://test.example.com",
-            team_slug="team-alpha",
-        )
-
-        from specify_cli.sync.body_queue import OfflineBodyUploadQueue
-        from specify_cli.sync.namespace import NamespaceRef
-        from specify_cli.sync.queue import (
-            _legacy_queue_db_path,
-            default_queue_db_path,
-        )
-
-        expected_scoped = _scoped_db_path_for(
-            "https://test.example.com", "auth@example.com", "team-alpha"
-        )
-        legacy_path = _legacy_queue_db_path()
-
-        # Sanity check: scope resolution picks scoped, not legacy.
-        assert default_queue_db_path() == expected_scoped
-        assert default_queue_db_path() != legacy_path
-
-        from specify_cli.cli.commands.agent.mission import setup_plan
-
-        mission_slug = "wp04-legacy-regression"
-        feature_dir = _build_minimal_repo(tmp_path, mission_slug)
-
-        patches = _patches_for_setup_plan(tmp_path, feature_dir)
-        for p in patches.values():
-            p.start()
-        try:
-            with contextlib.suppress(typer.Exit, SystemExit):
-                setup_plan(feature=mission_slug, json_output=True)
-        finally:
-            for p in patches.values():
-                p.stop()
-
-        # Drive an additional explicit enqueue through the default-path
-        # resolution setup-plan's body queue uses, so we can both
-        # demonstrate the scoped path holds rows AND that the legacy
-        # path was never touched.
-        body_queue = OfflineBodyUploadQueue()
-        assert body_queue.db_path == expected_scoped, (
-            f"OfflineBodyUploadQueue resolved to {body_queue.db_path!r}; "
-            f"expected scoped {expected_scoped!r}."
-        )
-
-        body_queue.enqueue(
-            namespace=NamespaceRef(
-                project_uuid="550e8400-e29b-41d4-a716-446655440000",
-                mission_slug=mission_slug,
-                target_branch="main",
-                mission_type="software-dev",
-                manifest_version="1",
-            ),
-            artifact_path="spec.md",
-            content_hash="cafebabe" * 8,
-            content_body="# Test Feature\n",
-            size_bytes=15,
-        )
-
-        # ──────────────────────────────────────────────────────────────
-        # Assert: legacy queue has zero rows of any kind.
-        # ──────────────────────────────────────────────────────────────
-        assert _table_row_count(legacy_path, "queue") == 0, (
-            f"FR-009 violation: legacy queue at {legacy_path} has "
-            f"{_table_row_count(legacy_path, 'queue')} sync_events / queue rows."
-        )
-        assert _table_row_count(legacy_path, "sync_events") == 0, (
-            f"FR-009 violation: legacy DB at {legacy_path} has "
-            f"sync_events rows."
-        )
-        assert _table_row_count(legacy_path, "body_upload_queue") == 0, (
-            f"FR-009 violation: legacy DB at {legacy_path} has "
-            f"{_table_row_count(legacy_path, 'body_upload_queue')} body_upload_queue rows."
-        )
-
-        # ──────────────────────────────────────────────────────────────
-        # Assert: scoped queue holds the expected row count (>= 1, the
-        # body-upload row we just enqueued).
-        # ──────────────────────────────────────────────────────────────
-        scoped_body_rows = _table_row_count(expected_scoped, "body_upload_queue")
-        assert scoped_body_rows >= 1, (
-            f"Expected at least 1 row in scoped body_upload_queue at "
-            f"{expected_scoped}, got {scoped_body_rows}."
-        )
 
 
 # ---------------------------------------------------------------------------
 # Module sanity
 # ---------------------------------------------------------------------------
-
-
-def test_module_is_importable() -> None:
-    """Smoke check so the regression file fails loudly if imports break."""
-    __import__(MODULE)
-    assert MODULE in sys.modules

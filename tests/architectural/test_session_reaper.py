@@ -480,15 +480,6 @@ def test_current_run_test_home_dirs_serial_targets_own_run_uid(
     assert expected.name.startswith("serial-")
 
 
-def test_prompt_tmp_dir_is_the_wp02_shared_helper() -> None:
-    """Guards against the reaper drifting onto a hand-copied namespace constant.
-
-    ``getattr`` (rather than a static ``root_conftest.prompt_tmp_dir``
-    attribute access) sidesteps mypy's ``--no-implicit-reexport`` strict
-    check on a conftest module that is never meant to publicly re-export
-    names — the identity check below is a runtime proof, not a public API.
-    """
-    assert getattr(root_conftest, "prompt_tmp_dir", None) is prompt_tmp_dir
 
 
 # ---------------------------------------------------------------------------

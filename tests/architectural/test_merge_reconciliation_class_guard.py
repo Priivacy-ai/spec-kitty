@@ -299,8 +299,7 @@ def _canonical_artifact_file_globs() -> dict[str, MissionArtifactKind]:
 # ruling (option (a): a reconcile driver, scoped narrowly to
 # ``kitty-specs/**/tasks/*/review-cycle-*.md`` -- never the whole
 # ``tasks/*.md`` glob, which would wrongly union-merge single-writer WP task
-# files too) and why it is recorded as a cross-WP dependency
-# (``tests/architectural/census/verdict_seam_IC04.yaml``) rather than landed
+# files too) and why WP04 recorded it as a cross-WP dependency rather than landed
 # in this WP: registering it touches ``.gitattributes`` /
 # ``specify_cli.lanes.merge._MERGE_DRIVERS`` / the ``init`` seed / an upgrade
 # migration, all OUTSIDE this WP's ``owned_files``.
@@ -383,7 +382,7 @@ def test_both_sides_divergent_canonical_artifacts_carry_merge_driver() -> None:
 # FOUR surfaces (`.gitattributes`, `specify_cli.lanes.merge._MERGE_DRIVERS`,
 # the `init` command seed, an upgrade migration) that are ALL outside this
 # WP's `owned_files`. Recorded as an explicit, cited, time-critical cross-WP
-# dependency in `tests/architectural/census/verdict_seam_IC04.yaml` instead of
+# dependency in WP04's review findings instead of
 # silently expanding this WP's file ownership (mirrors T015's caller-side
 # finding).
 #
@@ -415,8 +414,7 @@ def test_review_cycle_tasks_hazard_is_ruled_and_tracked() -> None:
     """T017: REVIEW_CYCLE's tasks/ two-sided divergence hazard is ruled
     (option (a): a reconcile driver, scoped narrowly) AND LANDED (WP18,
     review-cycle-verdict-seam-rebuild-01KZ2W7W): a driver is registered in
-    root .gitattributes, closing the cross-WP dependency recorded in
-    tests/architectural/census/verdict_seam_IC04.yaml (WP04-XWP-03) rather
+    root .gitattributes, closing WP04's ``WP04-XWP-03`` cross-WP dependency rather
     than leaving a vague "downstream WPs should check this." The driver's
     exit-code class (originally refuse-fail-closed, downgraded to
     non-aborting by WP09/FR-014) is pinned separately below -- this test

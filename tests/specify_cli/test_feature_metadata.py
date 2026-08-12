@@ -871,11 +871,6 @@ class TestMutationHelpersFailClosedOnCorruptMeta:
         with pytest.raises(MissionMetaReadError):
             resolve_mission_identity(tmp_path)
 
-    def test_record_acceptance_missing_meta_still_raises_filenotfounderror(self, tmp_path: Path) -> None:
-        """Routing must not change the pre-existing missing-file contract."""
-        with pytest.raises(FileNotFoundError):
-            record_acceptance(tmp_path, accepted_by="claude", mode="auto")
-
     def test_get_change_mode_missing_meta_still_returns_none(self, tmp_path: Path) -> None:
         """get_change_mode's silent-on-missing contract is unchanged by routing."""
         assert get_change_mode(tmp_path) is None

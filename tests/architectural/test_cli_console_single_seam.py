@@ -45,7 +45,7 @@ def _raw_console_constructions(path: Path) -> list[str]:
     return hits
 
 
-def test_cli_layer_constructs_no_raw_console() -> None:
+def test_cli_layer_constructs_no_raw_console(tmp_path: Path) -> None:
     offenders: list[str] = []
     for path in sorted(_CLI_ROOT.rglob("*.py")):
         if path == _SEAM:
@@ -58,18 +58,15 @@ def test_cli_layer_constructs_no_raw_console() -> None:
         "raw rich Console(). Offending constructions:\n" + "\n".join(offenders)
     )
 
-
-def test_detector_bites_on_a_planted_raw_console(tmp_path: Path) -> None:
-    """Non-vacuity: a planted raw ``Console()`` construction must be flagged."""
+    # Controlled incompatible change: the same scanner must reject a raw
+    # constructor while accepting the supported seam and annotation forms.
     planted = tmp_path / "planted.py"
     planted.write_text("console = Console()\n", encoding="utf-8")
     assert _raw_console_constructions(planted)
 
     clean = tmp_path / "clean.py"
     clean.write_text(
-        "from specify_cli.cli.console import console\n"
-        "special = CliConsole(width=200)\n"
-        "def f(c: Console) -> None: ...\n",
+        "from specify_cli.cli.console import console\nspecial = CliConsole(width=200)\ndef f(c: Console) -> None: ...\n",
         encoding="utf-8",
     )
     assert not _raw_console_constructions(clean)

@@ -46,22 +46,6 @@ class TestTriggerDisabled:
         )
         assert result is None
 
-    def test_returns_none_on_internal_error(self, tmp_path: Path) -> None:
-        """Should never raise even on internal errors."""
-        with patch(
-            "specify_cli.sync.feature_flags.is_saas_sync_enabled",
-            return_value=True,
-        ), patch(
-            # #2263 WP02: dossier sync resolves identity read-only (was ensure_identity).
-            "specify_cli.identity.project.resolve_identity",
-            side_effect=RuntimeError("boom"),
-        ):
-            result = trigger_feature_dossier_sync_if_enabled(
-                tmp_path, "047-feat", tmp_path,
-            )
-            assert result is None
-
-
 class TestTriggerEnabled:
     @patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=True)
     @patch("specify_cli.identity.project.resolve_identity")

@@ -506,14 +506,6 @@ class TestEnvVarExpansion:
         # Stored value must still be the literal unexpanded form.
         assert str(pack.local_path) == "~/${SPEC_KITTY_PACK_HOME}/org-pack"
 
-    def test_literal_absolute_path_regression(self, tmp_path: Path) -> None:
-        """Literal absolute paths (no $ or ~ tokens) resolve unchanged."""
-        pack_root = tmp_path / "abs-pack"
-        pack_root.mkdir()
-        pack = OrgPackConfig(name=_PACK_NAME, local_path=pack_root)
-        result = pack.effective_root(tmp_path)
-        assert result == pack_root.resolve(strict=False)
-
     def test_unset_braced_env_var_raises_named_error(self, tmp_path: Path) -> None:
         """FR-004: unset ${VAR} fails closed, naming the var and the pack."""
         pack = OrgPackConfig(

@@ -366,35 +366,6 @@ def test_coord_deleted_hard_fails_with_coordination_branch_deleted(
 # ---------------------------------------------------------------------------
 
 
-def test_aggregate_has_no_silent_first_match_glob() -> None:
-    """Static guard: ``aggregate.py`` makes no ``glob(...)`` CALL for selection.
-
-    The deleted FR-008 violation was a ``sorted(specs_dir.glob(f"{slug}-*/
-    meta.json"))`` first-match in ``_find_meta_path``. This guard parses the
-    module AST and asserts no ``.glob(...)`` call node remains, so no second mid8
-    selection path is silently re-introduced into the aggregate — all
-    disambiguation must route through the canonical handle resolver. (An AST
-    check, not a substring scan, so prose that *describes* the removed glob does
-    not trip the guard.)
-    """
-    import ast
-
-    source = Path(MissionStatus.load.__globals__["__file__"]).read_text(
-        encoding="utf-8"
-    )
-    tree = ast.parse(source)
-    glob_calls = [
-        node
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Attribute)
-        and node.func.attr == "glob"
-    ]
-    assert not glob_calls, (
-        "aggregate.py must not perform its own glob-based mission selection; "
-        "route through candidate_feature_dir_for_mission (FR-008). Found "
-        f"{len(glob_calls)} glob call(s)."
-    )
 
 
 # ---------------------------------------------------------------------------

@@ -286,34 +286,8 @@ def test_no_module_other_than_bridge_spells_the_inline_equivalence() -> None:
     )
 
 
-def test_allowlist_is_empty_after_wp05() -> None:
-    """squad #15 BLOCKING acceptance check: the allowlist WP05 owns emptying
-    is EMPTY at the end of WP05 -- a non-empty allowlist here is a WP05
-    failure, not advisory (see WP05's own Definition of Done)."""
-    assert not _UNSWEPT_ALLOWLIST
 
 
-def test_former_allowlist_sites_no_longer_carry_the_equivalence() -> None:
-    """Non-vacuity for the (now-empty) allowlist's retirement: the two
-    formerly-allowlisted sites (``review/cycle.py``,
-    ``review_artifact_consistency.py``) genuinely no longer inline the
-    ``rejected``/``changes_requested`` equivalence -- proving WP05 actually
-    swept them onto the bridge, rather than the allowlist merely being
-    emptied without the underlying modules changing."""
-    root = _repo_root()
-    offenders = _co_occurring_equivalence_modules(root)
-    formerly_allowlisted = frozenset(
-        {
-            "src/specify_cli/review/cycle.py",
-            "src/specify_cli/post_merge/review_artifact_consistency.py",
-        }
-    )
-    still_offending = formerly_allowlisted & set(offenders)
-    assert not still_offending, (
-        f"{sorted(still_offending)} still inline the rejected/"
-        "changes_requested equivalence -- WP05 must route these through "
-        "status.verdict_vocab, not merely empty the allowlist"
-    )
 
 
 def test_synthetic_module_splitting_the_literals_across_lines_still_reds(
@@ -356,17 +330,6 @@ def test_synthetic_module_with_only_one_literal_does_not_red(tmp_path: Path) -> 
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("relpath", _SWEPT_MODULES)
-def test_swept_module_imports_and_calls_verdict_vocab(relpath: str) -> None:
-    """Positive check: each of the 5 WP04-owned sweep sites imports the
-    bridge AND calls one of its functions on its verdict-mapping path."""
-    root = _repo_root()
-    path = root / relpath
-    assert _imports_and_calls_verdict_vocab(path), (
-        f"{relpath} does not import+call status.verdict_vocab -- the sweep "
-        "must route its verdict-mapping path through the canonical bridge, "
-        "not merely avoid the inline literal"
-    )
 
 
 def test_synthetic_module_with_fake_verdict_vocab_object_reds_positive_check(

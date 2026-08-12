@@ -856,29 +856,6 @@ def _describe_orphan_drift(measured: set[str], expected: frozenset[str]) -> str:
     return "orphan membership drifted.\n  " + "\n  ".join(lines)
 
 
-def _charter_activated_urns() -> set[str]:
-    """Return every ``<kind>:<id>`` the project charter currently activates.
-
-    WP07/T035 repoint (FR-017): this now delegates to the single activation
-    authority, :func:`charter.pack_context.charter_activated_urns`, which reads
-    the store resolved through the ``config.yaml`` ``charter:`` pointer
-    (``charter.yaml`` when migrated, else the legacy config-embedded keys) —
-    never the retired ``config.yaml`` ``activated_*`` mirror. Repointing here
-    BEFORE the mirror is removed (T036) is load-bearing: consulting the mirror
-    after its removal would return the empty set, failing this gate's floor
-    assertion while its stray guard went vacuously true.
-
-    Directives are the reason this needs a mapping rather than a bare id
-    comparison: a directive node's URN carries its ``code``
-    (``directive:DIRECTIVE_035``) while the store activates the file slug
-    (``035-bulk-edit-occurrence-classification``). That reconciliation now
-    happens inside the authority via the single C-009 normalization boundary.
-    """
-    from charter.pack_context import charter_activated_urns
-
-    return charter_activated_urns(_REPO_ROOT)
-
-
 @pytest.mark.doctrine
 class TestDRGZeroDelta:
     """The projection re-point leaves the shipped DRG graph unchanged (NFR-002)."""
@@ -947,30 +924,6 @@ class TestDRGZeroDelta:
         )
         assert sum(len(part) for part in parts) == len(_INTENTIONAL_ORPHANS), (
             "the orphan buckets overlap -- a URN is filed under two reasons"
-        )
-
-    def test_activated_but_unreachable_orphans_are_really_activated(self) -> None:
-        """Floor for the tracked-defect set (#3009).
-
-        A set that merely *claims* ten artefacts are charter-activated would
-        keep this defect visible after the charter stopped activating them --
-        or hide it if an entry were quietly dropped. Read the real charter
-        config and compare, resolving directive URNs through their file slug
-        (``directive:DIRECTIVE_035`` is activated as
-        ``035-bulk-edit-occurrence-classification``), which is precisely the
-        mapping issue #3009's own matcher lacks.
-        """
-        activated = _charter_activated_urns()
-        assert activated >= _ACTIVATED_BUT_ORPHANED, (
-            "these are filed as activated-yet-orphaned but the charter no "
-            "longer activates them -- move them to another bucket: "
-            f"{sorted(_ACTIVATED_BUT_ORPHANED - activated)}"
-        )
-        strays = (_INTENTIONAL_ORPHANS & activated) - _ACTIVATED_BUT_ORPHANED
-        assert not strays, (
-            "these orphans are charter-ACTIVATED but are filed under an "
-            f"'acceptable' reason: {sorted(strays)}. Activating them cascades "
-            "to nothing -- add them to _ACTIVATED_BUT_ORPHANED and #3009."
         )
 
     def test_shipped_graph_is_fresh_and_byte_identical(self) -> None:

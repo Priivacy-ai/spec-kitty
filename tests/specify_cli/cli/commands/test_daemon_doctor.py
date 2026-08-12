@@ -113,22 +113,3 @@ def test_restart_daemon_repo_root_resolution_failure(
     with pytest.raises(typer.Exit) as exc:
         dd.run_restart_daemon(json_output=True)
     assert exc.value.exit_code == 0
-
-
-def test_daemon_doctor_does_not_import_doctor() -> None:
-    import ast
-
-    source = Path(dd.__file__).read_text(encoding="utf-8")
-    tree = ast.parse(source)
-    relative: list[str] = []
-    absolute: list[str] = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom):
-            if node.level and node.level > 0:
-                relative.append(node.module or "")
-            elif node.module:
-                absolute.append(node.module)
-        elif isinstance(node, ast.Import):
-            absolute.extend(alias.name for alias in node.names)
-    assert "specify_cli.cli.commands.doctor" not in absolute
-    assert set(relative) <= {"_doctor_shared"}

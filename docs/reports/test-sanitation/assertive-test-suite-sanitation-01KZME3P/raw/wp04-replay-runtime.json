@@ -1,0 +1,55 @@
+{
+  "argv": [
+    ".venv/bin/python",
+    "-m",
+    "pytest",
+    "-q",
+    "-p",
+    "no:cacheprovider",
+    "-p",
+    "wp04_fault_plugin",
+    "--junitxml=/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/wp04-replay-pj2laf1x/junit.xml",
+    "tests/runtime/test_home_unit.py::test_package_asset_root_compatibility_surface_delegates"
+  ],
+  "campaign": "runtime",
+  "configured_timeout_seconds": 300.0,
+  "elapsed_seconds": 46.606,
+  "ended_at": "2026-08-10T12:09:56.556866+00:00",
+  "environment": {
+    "PYTHONPATH_prefix": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-d/docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw",
+    "WP04_REPLAY_CAMPAIGN": "runtime",
+    "platform": "macOS-15.7.7-arm64-arm-64bit",
+    "python": "3.11.15"
+  },
+  "exit_code": 1,
+  "failed_nodeids": [
+    "None::tests.runtime.test_home_unit::test_package_asset_root_compatibility_surface_delegates"
+  ],
+  "materialized_faults": [
+    {
+      "authority": "specify_cli.runtime.home.get_package_asset_root",
+      "binding": "get_package_asset_root",
+      "contract": "fixtures=['monkeypatch', 'tmp_path']; concrete_inputs=[\"monkeypatch.setattr('specify_cli.runtime.home.kernel.paths.get_package_asset_root')\"]; asserted_observables=['assert get_package_asset_root() is expected']",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/runtime/test_home_unit.py::test_package_asset_root_compatibility_surface_delegates"
+    }
+  ],
+  "orchestrator_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-replay.py",
+  "orchestrator_sha256": "658d33bedc1c399ffc379e191c29ce7aeb6036f8b2145be1475e1e6ed1a708f4",
+  "passed_nodeids": [],
+  "runner_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py",
+  "runner_sha256": "dbb2a53398e39203d31eddf4001164b36830a67accde721107efb07d8da9c43e",
+  "schema_version": "wp04-replay-receipt/v1",
+  "selected_nodeids": [
+    "tests/runtime/test_home_unit.py::test_package_asset_root_compatibility_surface_delegates"
+  ],
+  "spec_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-replay-spec.json",
+  "spec_sha256": "d4dc56fb8d526ff0a1bc751339803c63a88de3beda258ab79b34df637f616872",
+  "started_at": "2026-08-10T12:09:09.932181+00:00",
+  "stderr": "",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n___________ test_package_asset_root_compatibility_surface_delegates ____________\ntests/runtime/test_home_unit.py:97: in test_package_asset_root_compatibility_surface_delegates\n    assert get_package_asset_root() is expected\n           ^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n=========================== short test summary info ============================\nFAILED tests/runtime/test_home_unit.py::test_package_asset_root_compatibility_surface_delegates\n1 failed in 44.83s\n",
+  "stdout_sha256": "3abbbbbfed9cd0c563619e8aa90b6cdc0a47756f7497841f61891f950187e320",
+  "timed_out": false
+}

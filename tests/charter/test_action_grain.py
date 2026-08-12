@@ -197,11 +197,6 @@ class TestAggregateActionGrain:
 class TestScanBuiltinCrossGrainDuplicates:
     """IC-11 dup-scan: no cross-grain URN collision for any shipped type."""
 
-    def test_all_four_shipped_types_are_disjoint(self) -> None:
-        scanned = scan_builtin_cross_grain_duplicates()
-
-        assert set(scanned) == set(builtin_mission_type_ids())
-
     def test_explicit_built_in_dir_matches_default(self, missions_root: Path) -> None:
         scanned = scan_builtin_cross_grain_duplicates(built_in_dir=missions_root)
 

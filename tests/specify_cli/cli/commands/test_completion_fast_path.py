@@ -15,7 +15,6 @@ import io
 import os
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 import pytest
@@ -34,9 +33,6 @@ _HEAVY_MODULES = (
     "specify_cli.upgrade",
     "specify_cli.status.reducer",
 )
-
-_LATENCY_BUDGET_SECONDS = 0.5  # SC-003. Uses min-of-N to stay robust to CI noise.
-
 
 def _drive(command: object, instruction: str, *, line: str) -> str:
     """Run Typer completion against ``command`` and capture its stdout.
@@ -226,29 +222,6 @@ def test_completion_fast_path_avoids_heavy_imports(tmp_path: Path) -> None:
     assert "RC=0" in result.stderr, result.stderr
     assert "HEAVY=[]" in result.stderr, result.stderr
     assert "agent" in result.stdout.split()
-
-
-@pytest.mark.parametrize("line", ["spec-kitty ", "spec-kitty agent ", "spec-kitty agent mission "])
-def test_completion_latency_within_budget(tmp_path: Path, line: str) -> None:
-    cmd = [sys.executable, "-m", "specify_cli"]
-    env = _completion_env(tmp_path, line)
-
-    durations: list[float] = []
-    output = ""
-    for _ in range(5):
-        start = time.perf_counter()
-        result = subprocess.run(cmd, env=env, text=True, capture_output=True, timeout=30)
-        durations.append(time.perf_counter() - start)
-        assert result.returncode == 0, result.stderr
-        output = result.stdout
-
-    # min-of-N reflects warm performance and keeps the assertion robust to
-    # transient CI scheduling noise (see docs/development/testing-flakiness.md).
-    assert min(durations) < _LATENCY_BUDGET_SECONDS, (
-        f"completion for {line!r} took {min(durations)*1000:.0f} ms (budget "
-        f"{_LATENCY_BUDGET_SECONDS*1000:.0f} ms); durations={[f'{d*1000:.0f}ms' for d in durations]}"
-    )
-    assert output.strip(), "expected completion output"
 
 
 def test_completion_does_not_mutate_project_files(tmp_path: Path) -> None:

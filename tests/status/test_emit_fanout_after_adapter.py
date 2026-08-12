@@ -163,6 +163,11 @@ class TestFanOutPreservation:
 class TestSyncBootstrapRegisters:
     """Importing specify_cli.sync registers all three handlers/emitters."""
 
+    @pytest.fixture(autouse=True)
+    def _enable_full_sync_import(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Keep bootstrap assertions independent of a worker's prior import mode."""
+        monkeypatch.delenv("SPEC_KITTY_SYNC_MINIMAL_IMPORT", raising=False)
+
     def test_sync_import_registers_all_three(self) -> None:
         """Bootstrap proof: importing sync wires up the full fan-out chain."""
         import importlib

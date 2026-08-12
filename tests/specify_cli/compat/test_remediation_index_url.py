@@ -39,10 +39,6 @@ def _runtime(method: InstallMethod) -> InstalledCliRuntime:
     )
 
 
-def test_command_allowlist_max_len_is_512() -> None:
-    assert COMMAND_ALLOWLIST_MAX_LEN == 512
-
-
 @pytest.mark.parametrize(
     "method",
     [

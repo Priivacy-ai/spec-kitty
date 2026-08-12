@@ -7,18 +7,17 @@ The authoring taxonomy (``pytest.ini`` documents ``unit`` as "the category
 default for module-scoped tests"; ``contract`` for contract tests) diverges
 from that *selection* taxonomy: **no gate selects ``-m unit`` or
 ``-m contract``**, and several test directories are touched by no gate at all.
-The result is that a large fraction of the suite is selected by **zero** gates —
-"untested-but-green": those tests never run in CI, so a regression in them is
-invisible (no red), only a silent coverage hole.
+Historically, that mismatch left tests selected by **zero** gates —
+"untested-but-green". This model now keeps that orphan surface at zero.
 
 This module is the *enforcement substrate* for that gap. It does not re-tier or
 re-shard CI (that is the maintainer's migration, against this guardrail). It
 statically:
 
-1. Parses every ``pytest`` invocation across the five workflow files that run
-   the suite (``ci-quality`` / ``ci-windows`` / ``drift-detector`` /
-   ``release`` / ``ui-e2e``), expanding the ``integration-tests-core-misc``
-   shard matrix.
+1. Parses every ``pytest`` invocation across the six workflow files that run
+   the suite (``ci-quality`` / ``ci-windows`` / ``doctrine-charter-tests`` /
+   ``drift-detector`` / ``release`` / ``ui-e2e``), expanding the
+   ``integration-tests-core-misc`` shard matrix.
 2. Models each invocation as a :class:`Gate` = ``(paths, ignores, marker_expr)``.
 3. Evaluates every collected test against every gate, using pytest's own
    marker-expression evaluator, to count how many gates select it.
@@ -27,15 +26,18 @@ A test selected by **0** gates is an *orphan* (coverage hole); a test selected
 by **>=2** gates is a *duplicate* (intentional overlap is allowed — reported,
 not enforced).
 
-The companion ratchet (``test_gate_coverage.py`` +
-``_gate_coverage_baseline.json``) freezes today's orphan surface as a visible
-worklist and fails only on a **new** ungated file — so no *new* test can leak
-into zero gates by construction, without blocking on the existing backlog.
+The companion end-to-end oracle
+(``test_ci_collection_completeness.py``) requires zero primary-push orphans.
+It runs in the PR operator path through ``arch-adversarial`` → ``quality-gate``
+and has an independent ``fast-tests-core-misc`` owner for route-affecting
+changes. GitHub branch protection currently requires only ``drift-detector``;
+this module does not misrepresent the operator gate as a required context.
 
-Run directly to refresh the baseline or check drift::
+Run directly to refresh/verify the topology census or the separate retained E3
+job-selection baselines::
 
-    uv run python -m tests.architectural._gate_coverage --update-baseline
-    uv run python -m tests.architectural._gate_coverage --check
+    uv run python -m tests.architectural._gate_coverage --emit-census
+    uv run python -m tests.architectural._gate_coverage --verify-census
     uv run python -m tests.architectural._gate_coverage --freeze-baselines
 """
 
@@ -95,7 +97,6 @@ WORKFLOW_FILES: tuple[str, ...] = (
     "ui-e2e.yml",
 )
 
-BASELINE_PATH = Path(__file__).with_name("_gate_coverage_baseline.json")
 _COLLECT_PLUGIN = "tests.architectural._gate_collect_plugin"
 _TESTS_ROOT = "tests"
 
@@ -1877,8 +1878,8 @@ def _verify_census() -> int:
 # positional path DIVERGES from the real baseline and GC-2b reds — the real
 # baseline IS the fidelity check for these three jobs. A separate scoped
 # model-fidelity anchor (modeled == a FRESH real collect) is kept for the
-# sharded ``next`` tier in ``test_gate_coverage.py`` to catch a mis-model on the
-# job most at risk of one.
+# sharded ``next`` tier in ``test_ci_collection_completeness.py`` to catch a
+# mis-model on the job most at risk of one.
 # ---------------------------------------------------------------------------
 
 BASELINES_DIR = Path(__file__).with_name("baselines")
@@ -1902,21 +1903,11 @@ class BaselineTarget:
     job: str
 
 
-# T008: the three jobs WP06 actually changes the SELECTION for (see the scope
-# note above) — the pre-WP06 (pre-change) state GC-2b protects.
+# Only the still-owned slow-tests authoring baseline remains. The two deleted
+# selection baselines had no reader and were removed by sanitation WP07.
 BASELINE_TARGETS: tuple[BaselineTarget, ...] = (
-    BaselineTarget("integration-tests-next", "ci-quality.yml", "integration-tests-next"),
     BaselineTarget("slow-tests", "ci-quality.yml", "slow-tests"),
-    BaselineTarget("fast-tests-core-misc", "ci-quality.yml", "fast-tests-core-misc"),
 )
-
-
-def target_by_slug(slug: str) -> BaselineTarget:
-    """The single :data:`BASELINE_TARGETS` entry named ``slug``."""
-    for target in BASELINE_TARGETS:
-        if target.slug == slug:
-            return target
-    raise KeyError(f"no BaselineTarget with slug {slug!r}")
 
 
 def gates_for_target(gates: Sequence[Gate], target: BaselineTarget) -> list[Gate]:
@@ -1956,16 +1947,6 @@ def _baseline_header(target: BaselineTarget) -> str:
         "comment (data-model E3) when a WP legitimately changes this job's "
         "selection: uv run python -m tests.architectural._gate_coverage "
         "--freeze-baselines"
-    )
-
-
-def load_baseline_nodeids(target: BaselineTarget) -> frozenset[str]:
-    """The committed E3 baseline node-id set for one target (``#``-comment lines skipped)."""
-    lines = _baseline_path(target).read_text(encoding="utf-8").splitlines()
-    return frozenset(
-        stripped
-        for stripped in (line.strip() for line in lines)
-        if stripped and not stripped.startswith("#")
     )
 
 
@@ -2014,101 +1995,9 @@ def freeze_baselines(repo_root: Path | None = None) -> dict[str, int]:
     return counts
 
 
-def baseline_diff(
-    current: Iterable[str],
-    baseline: Iterable[str],
-) -> tuple[frozenset[str], frozenset[str]]:
-    """Pure GC-2b comparator: ``(dropped, added)`` — the symmetric-difference halves.
-
-    ``dropped`` = in ``baseline`` but not ``current`` (a real coverage loss);
-    ``added`` = in ``current`` but not ``baseline`` (an un-provenanced
-    selection widening, or a tampered/stale baseline). Both empty ==
-    the GC-2b invariant holds. Deliberately takes plain iterables (not a
-    :class:`BaselineTarget`/gates) so the fault-injection tests can feed it a
-    synthetic pair directly, with no I/O or subprocess involved.
-    """
-    current_set, baseline_set = frozenset(current), frozenset(baseline)
-    return baseline_set - current_set, current_set - baseline_set
-
-
-def gc2b_orphaned_drift(
-    dropped: Iterable[str],
-    orphan_nodeids: Iterable[str],
-) -> frozenset[str]:
-    """The subset of a GC-2b ``dropped`` set that is a GENUINE orphan today.
-
-    Mission test-suite-friction-remediation-01KXDKBX WP15 (#2616): GC-2b used to
-    require ``dropped`` (and ``added``) to be empty outright, which fires on
-    routine test-file add/remove — this mission alone adds/removes guard files
-    4-5x, forcing a baseline refreeze every time even though nothing regressed.
-
-    Most ``dropped`` entries are exactly that noise: the file was deleted
-    (it no longer exists in today's collected universe, so it cannot be an
-    orphan) or its coverage moved to a DIFFERENT CI gate (still selected by
-    >=1 of the ~40 gates, just not this target's) — neither is a coverage
-    problem. The load-bearing GC-2b signal this ratchet must still catch is a
-    node-id that still exists in the suite AND is now selected by ZERO gates
-    (``orphan_nodeids`` — the same whole-suite orphan set :func:`analyze`
-    computes): a genuine coverage-hole regression, not membership churn.
-    Intersecting ``dropped`` with ``orphan_nodeids`` scopes the ratchet to
-    exactly that signal.
-    """
-    return frozenset(dropped) & frozenset(orphan_nodeids)
-
-
 # ---------------------------------------------------------------------------
-# Baseline I/O + CLI
+# CLI
 # ---------------------------------------------------------------------------
-
-
-def load_baseline() -> dict[str, Any]:
-    baseline: dict[str, Any] = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
-    return baseline
-
-
-def _baseline_payload(report: CoverageReport) -> dict[str, Any]:
-    return {
-        "_comment": (
-            "Gate-coverage ratchet baseline (Issue #2034 / #1933). Frozen set of "
-            "test FILES that contain >=1 test selected by zero CI gates — the "
-            "visible #1931 worklist. The ratchet (test_gate_coverage.py) fails on "
-            "any NEW orphan file not listed here. Regenerate with: "
-            "uv run python -m tests.architectural._gate_coverage --update-baseline"
-        ),
-        "total_tests": report.total,
-        "orphan_test_count": report.orphan_count,
-        "duplicate_test_count": len(report.duplicate_nodeids),
-        "orphan_files": report.orphan_files,
-    }
-
-
-def update_baseline() -> CoverageReport:
-    report = analyze(load_gates(), collect_universe())
-    BASELINE_PATH.write_text(
-        json.dumps(_baseline_payload(report), indent=2) + "\n", encoding="utf-8",
-    )
-    return report
-
-
-def _print_check(report: CoverageReport, new_files: list[str]) -> None:
-    pct = 100 * report.orphan_count / report.total if report.total else 0.0
-    print(f"total tests          : {report.total}")
-    print(f"orphans (0 gates)    : {report.orphan_count} ({pct:.1f}%)")
-    print(f"duplicates (>=2)     : {len(report.duplicate_nodeids)}")
-    print(f"orphan files         : {len(report.orphan_files)}")
-    if new_files:
-        print(f"\nNEW ungated files ({len(new_files)}):")
-        for f in new_files:
-            print(f"  {f}")
-
-
-def check() -> int:
-    """Recompute coverage and fail (1) if a new orphan file appeared."""
-    report = analyze(load_gates(), collect_universe())
-    baseline_files = set(load_baseline().get("orphan_files", []))
-    new_files = sorted(set(report.orphan_files) - baseline_files)
-    _print_check(report, new_files)
-    return 1 if new_files else 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -2117,13 +2006,6 @@ def main(argv: list[str] | None = None) -> int:
         return _emit_census()
     if "--verify-census" in args:
         return _verify_census()
-    if "--update-baseline" in args:
-        report = update_baseline()
-        print(f"baseline updated: {report.orphan_count} orphans across "
-              f"{len(report.orphan_files)} files -> {BASELINE_PATH}")
-        return 0
-    if "--check" in args:
-        return check()
     if "--freeze-baselines" in args:
         counts = freeze_baselines()
         for slug, count in counts.items():

@@ -1,0 +1,635 @@
+{
+  "schema_version": "test-sanitation-wp-results/v1",
+  "mission": "assertive-test-suite-sanitation-01KZME3P",
+  "work_package": "WP13",
+  "profile": "architect-alphonso",
+  "generated_at": "2026-08-10T18:38:55Z",
+  "implementation_cycle": 3,
+  "review_cycle_limit": 3,
+  "planning_base": "28ae75ea998c898aba57364db7a06d2088bd2af2",
+  "implementation_head_before_commit": "166616671c4cee9d06863e43ec1a4b29c8de9638",
+  "tracker": {
+    "reference": "#1931",
+    "state": "OPEN",
+    "assignee": "robertDouglass",
+    "mission_comment_author": "robertDouglass",
+    "mission_comment_verified": true
+  },
+  "environment": {
+    "platform": "Darwin 24.6.0 arm64",
+    "python": "3.11.15",
+    "pytest": "9.0.3",
+    "ruff": "0.15.12",
+    "mypy": "1.20.2",
+    "cache_provider": false,
+    "architectural_environment_id": "041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c",
+    "full_parallel_environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+  },
+  "census": {
+    "path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/base-census.json",
+    "source_branch": "kitty/mission-assertive-test-suite-sanitation-01KZME3P-lane-a",
+    "sha256": "c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b",
+    "assigned_test_paths": 42,
+    "reconciled_test_paths": 42,
+    "scanner_candidates_reconciled": 42,
+    "base_source_units": 409,
+    "base_nodes": 526,
+    "unowned": []
+  },
+  "baseline": {
+    "command": ".venv/bin/pytest --collect-only -q -p no:cacheprovider <42 owned test paths>",
+    "collected_nodes": 526,
+    "collection_seconds": 45.66,
+    "exit_code": 0,
+    "source_lines": 15590,
+    "execution_note": "No redundant pre-reduction execution; WP01 census is the immutable base authority."
+  },
+  "head": {
+    "command": ".venv/bin/pytest -q -n 4 --dist loadfile -p no:cacheprovider <26 surviving owned test paths>",
+    "collection_command": ".venv/bin/pytest --collect-only -q -p no:cacheprovider <26 surviving owned test paths>",
+    "collected_nodes": 133,
+    "collection_seconds": 43.66,
+    "wall_seconds": 69.3,
+    "pytest_summary": {
+      "passed": 133,
+      "skipped": 0,
+      "xfailed": 0,
+      "warnings": 1,
+      "exit_code": 0
+    },
+    "live_test_files": 26,
+    "live_source_lines": 7144
+  },
+  "delta": {
+    "whole_files_deleted": 16,
+    "reduced_files": 26,
+    "deleted_base_source_units": 107,
+    "deleted_base_nodes": 173,
+    "net_nodes_removed": 393,
+    "node_reduction_percent": 74.71,
+    "source_lines_removed": 8446,
+    "source_line_reduction_percent": 54.18,
+    "tracked_diff_insertions": 329,
+    "tracked_diff_deletions": 8775
+  },
+  "deleted_paths": [
+    "tests/architectural/test_activation_registry_schema.py",
+    "tests/architectural/test_charter_facades_reexport_doctrine.py",
+    "tests/architectural/test_charter_references_resolve.py",
+    "tests/architectural/test_charter_runtime_canonical_paths.py",
+    "tests/architectural/test_doctrine_artefact_layout.py",
+    "tests/architectural/test_glossary_canonical_terms.py",
+    "tests/architectural/test_glossary_pack_no_regression.py",
+    "tests/architectural/test_glossary_pack_urn.py",
+    "tests/architectural/test_resolution_activation_foundation.py",
+    "tests/architectural/test_surface_resolution_audit.py",
+    "tests/architectural/test_topology_resolution_boundary.py",
+    "tests/architectural/test_urn_resolver_scalar_fence.py",
+    "tests/charter/test_charter_ownership_invariant.py",
+    "tests/charter/test_chokepoint_coverage.py",
+    "tests/charter/test_context_decomposition_completion.py",
+    "tests/charter/test_surface_calibration.py"
+  ],
+  "reduced_paths": [
+    {
+      "path": "tests/charter/test_append_promotion_primitive.py",
+      "base_nodes": 8,
+      "head_nodes": 4,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/charter/test_mission_type_key.py",
+      "base_nodes": 11,
+      "head_nodes": 9,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/charter/test_operational_context.py",
+      "base_nodes": 14,
+      "head_nodes": 2,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/cli/test_charter_mission_type_commands.py",
+      "base_nodes": 25,
+      "head_nodes": 4,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/doctrine/drg/test_kind_mapping_totality.py",
+      "base_nodes": 10,
+      "head_nodes": 3,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/doctrine/test_activation_parity_guard.py",
+      "base_nodes": 15,
+      "head_nodes": 11,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/doctrine/test_pack_root_resolver.py",
+      "base_nodes": 13,
+      "head_nodes": 11,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_doctrine_collect.py",
+      "base_nodes": 29,
+      "head_nodes": 15,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/specify_cli/test_doctrine_service_factory.py",
+      "base_nodes": 5,
+      "head_nodes": 1,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/architectural/test_built_in_location_authority.py",
+      "base_nodes": 17,
+      "head_nodes": 3,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/architectural/test_builtin_override_policy.py",
+      "base_nodes": 6,
+      "head_nodes": 2,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/architectural/test_charter_no_specify_cli_import.py",
+      "base_nodes": 4,
+      "head_nodes": 3,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/architectural/test_charter_path_literal_authority.py",
+      "base_nodes": 41,
+      "head_nodes": 4,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/architectural/test_charter_sole_door_agent_profile_repository.py",
+      "base_nodes": 18,
+      "head_nodes": 6,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/architectural/test_charter_sole_door_doctrine_service.py",
+      "base_nodes": 23,
+      "head_nodes": 8,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/architectural/test_charter_sole_door_hardcoded_paths.py",
+      "base_nodes": 16,
+      "head_nodes": 3,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/architectural/test_charter_sole_door_inner_reacharound.py",
+      "base_nodes": 15,
+      "head_nodes": 4,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/architectural/test_charter_sole_door_resolver_imports.py",
+      "base_nodes": 17,
+      "head_nodes": 4,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/architectural/test_doctrine_wheel_closure.py",
+      "base_nodes": 6,
+      "head_nodes": 3,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/architectural/test_glossary_pack_boundary.py",
+      "base_nodes": 10,
+      "head_nodes": 9,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/architectural/test_kernel_no_doctrine_import.py",
+      "base_nodes": 6,
+      "head_nodes": 4,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/architectural/test_org_activation_seam.py",
+      "base_nodes": 12,
+      "head_nodes": 8,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/architectural/test_runtime_charter_doctrine_boundary.py",
+      "base_nodes": 1,
+      "head_nodes": 2,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/architectural/test_single_mission_surface_resolver.py",
+      "base_nodes": 24,
+      "head_nodes": 8,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/architectural/test_profile_load_resolver_guidance.py",
+      "base_nodes": 6,
+      "head_nodes": 1,
+      "verdict": "KEEP"
+    },
+    {
+      "path": "tests/architectural/test_protection_resolver_call_sites.py",
+      "base_nodes": 1,
+      "head_nodes": 1,
+      "verdict": "KEEP"
+    }
+  ],
+  "survivor_proofs": [
+    {
+      "family": "charter append promotion",
+      "path": "tests/charter/test_append_promotion_primitive.py",
+      "corpus": "temporary charter YAML",
+      "nonzero": true,
+      "fault": "repeat promotion, absent key, and conflicting defaults",
+      "control": "requested IDs preserve order and existing configuration",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 4
+    },
+    {
+      "family": "mission-type key canonicalization",
+      "path": "tests/charter/test_mission_type_key.py",
+      "corpus": "recognized/arbitrary/blank/absent values",
+      "nonzero": true,
+      "fault": "restore silent software-dev default or stop trimming",
+      "control": "explicit recognized and arbitrary keys normalize",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 9
+    },
+    {
+      "family": "operational context identity",
+      "path": "tests/charter/test_operational_context.py",
+      "corpus": "real OperationalContext model",
+      "nonzero": true,
+      "fault": "accept missing required identity",
+      "control": "complete explicit context round-trips",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 2
+    },
+    {
+      "family": "mission-type public CLI",
+      "path": "tests/cli/test_charter_mission_type_commands.py",
+      "corpus": "live catalog via Typer runner",
+      "nonzero": true,
+      "fault": "accept unknown ID or diverge alias/JSON",
+      "control": "known list/show routes succeed",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 4
+    },
+    {
+      "family": "DRG kind mapping totality",
+      "path": "tests/doctrine/drg/test_kind_mapping_totality.py",
+      "corpus": "live doctrine DRG Python package",
+      "nonzero": true,
+      "fault": "omit enum member or mix key domains",
+      "control": "complete mappings remain green",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 3
+    },
+    {
+      "family": "activation parity",
+      "path": "tests/doctrine/test_activation_parity_guard.py",
+      "corpus": "repository charter and temporary layered DRGs",
+      "nonzero": true,
+      "fault": "dangling/corrupt/missing activation input",
+      "control": "referenced built-in/org artefacts resolve",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 11
+    },
+    {
+      "family": "pack root resolution",
+      "path": "tests/doctrine/test_pack_root_resolver.py",
+      "corpus": "editable/installed/symlinked/env/tier trees",
+      "nonzero": true,
+      "fault": "missing root or unavailable filesystem",
+      "control": "valid roots resolve",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 11
+    },
+    {
+      "family": "doctrine collect output",
+      "path": "tests/specify_cli/cli/commands/test_doctrine_collect.py",
+      "corpus": "manifests, pack trees, selections, health services",
+      "nonzero": true,
+      "fault": "malformed input or collector crash",
+      "control": "valid collection data attaches",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 15
+    },
+    {
+      "family": "service factory wrapper",
+      "path": "tests/specify_cli/test_doctrine_service_factory.py",
+      "corpus": "live factory and temporary root",
+      "nonzero": true,
+      "fault": "return raw DoctrineService",
+      "control": "CharterActivationService returned",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 1
+    },
+    {
+      "family": "built-in path authority",
+      "path": "tests/architectural/test_built_in_location_authority.py",
+      "corpus": "live src plus injected joins",
+      "nonzero": true,
+      "fault": "reconstruct built-in root outside pack_paths",
+      "control": "authority and unrelated joins allowed",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 3
+    },
+    {
+      "family": "built-in override policy",
+      "path": "tests/architectural/test_builtin_override_policy.py",
+      "corpus": "live and synthetic merged DRG",
+      "nonzero": true,
+      "fault": "unsanctioned built-in override",
+      "control": "rationalized policy entry permits override",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 2
+    },
+    {
+      "family": "charter downward dependency",
+      "path": "tests/architectural/test_charter_no_specify_cli_import.py",
+      "corpus": "live src/charter plus injected imports",
+      "nonzero": true,
+      "fault": "in-function specify_cli import",
+      "control": "kernel/doctrine imports allowed",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 3
+    },
+    {
+      "family": "charter path literal authority",
+      "path": "tests/architectural/test_charter_path_literal_authority.py",
+      "corpus": "live src plus seeded allowlist",
+      "nonzero": true,
+      "fault": "plant or swap charter path literal",
+      "control": "sanctioned sites remain green",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 4
+    },
+    {
+      "family": "agent profile sole door",
+      "path": "tests/architectural/test_charter_sole_door_agent_profile_repository.py",
+      "corpus": "live source plus injected construction",
+      "nonzero": true,
+      "fault": "raw repository outside charter",
+      "control": "same-named unrelated class allowed",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 6
+    },
+    {
+      "family": "doctrine service sole door",
+      "path": "tests/architectural/test_charter_sole_door_doctrine_service.py",
+      "corpus": "live source plus raw/wrapped injections",
+      "nonzero": true,
+      "fault": "unwrapped service escapes or dropped wrap",
+      "control": "wrapper-only construction allowed",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 8
+    },
+    {
+      "family": "mission root authority",
+      "path": "tests/architectural/test_charter_sole_door_hardcoded_paths.py",
+      "corpus": "live source plus tainted roots",
+      "nonzero": true,
+      "fault": "hardcode missions root outside repository",
+      "control": "untainted root allowed",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 3
+    },
+    {
+      "family": "wrapper inner boundary",
+      "path": "tests/architectural/test_charter_sole_door_inner_reacharound.py",
+      "corpus": "live source plus direct/getattr injections",
+      "nonzero": true,
+      "fault": "reach through _inner",
+      "control": "unrelated _inner allowed",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 4
+    },
+    {
+      "family": "resolver import boundary",
+      "path": "tests/architectural/test_charter_sole_door_resolver_imports.py",
+      "corpus": "live source plus injected import",
+      "nonzero": true,
+      "fault": "direct doctrine.resolver outside owner",
+      "control": "charter facade import allowed",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 4
+    },
+    {
+      "family": "wheel dependency closure",
+      "path": "tests/architectural/test_doctrine_wheel_closure.py",
+      "corpus": "live pyprojects/build hook",
+      "nonzero": true,
+      "fault": "upward kernel dep or missing doctrine dep/hook",
+      "control": "current closure parses green",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 3
+    },
+    {
+      "family": "glossary package boundary",
+      "path": "tests/architectural/test_glossary_pack_boundary.py",
+      "corpus": "live package plus injected imports",
+      "nonzero": true,
+      "fault": "runtime glossary import",
+      "control": "sibling glossary_packs import allowed",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 9
+    },
+    {
+      "family": "kernel vocabulary boundary",
+      "path": "tests/architectural/test_kernel_no_doctrine_import.py",
+      "corpus": "live kernel plus injected executable refs",
+      "nonzero": true,
+      "fault": "doctrine/specify_cli executable reference",
+      "control": "docstrings/prose allowed",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 4
+    },
+    {
+      "family": "org activation seam",
+      "path": "tests/architectural/test_org_activation_seam.py",
+      "corpus": "three live surfaces plus injected snippets",
+      "nonzero": true,
+      "fault": "raw org directory splice",
+      "control": "activation routing allowed",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 8
+    },
+    {
+      "family": "runtime-charter-doctrine boundary",
+      "path": "tests/architectural/test_runtime_charter_doctrine_boundary.py",
+      "corpus": "live runtime plus injected imports",
+      "nonzero": true,
+      "fault": "direct doctrine import in runtime",
+      "control": "charter facade import allowed",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 2
+    },
+    {
+      "family": "single mission resolver",
+      "path": "tests/architectural/test_single_mission_surface_resolver.py",
+      "corpus": "live source audit plus injected joins/calls",
+      "nonzero": true,
+      "fault": "raw join, direct selection, or empty non-fail-closed result",
+      "control": "seam-routed source and restored tree green",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 8
+    },
+    {
+      "family": "resolver-first profile guidance",
+      "path": "tests/architectural/test_profile_load_resolver_guidance.py",
+      "corpus": "nonzero shipped doctrine/built-in guidance plus planted primary-read and bounded fallback",
+      "nonzero": true,
+      "fault": "promote a raw .agent.yaml read to primary profile-loading guidance",
+      "control": "CLI-less read-only fallback includes every divergence caveat",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 1
+    },
+    {
+      "family": "protected-branch resolver authority",
+      "path": "tests/architectural/test_protection_resolver_call_sites.py",
+      "corpus": "all live src Python modules plus planted bypass and sanctioned controls",
+      "nonzero": true,
+      "fault": "add a bare protected_branches call outside the resolver/delegate",
+      "control": "policy attribute access and sanctioned delegate remain accepted",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 1
+    }
+  ],
+  "validation": [
+    {
+      "command": ".venv/bin/pytest -q -n 4 --dist loadfile -p no:cacheprovider <26 surviving owned test paths>",
+      "outcome": "133 passed, 0 skipped, 1 expected warning",
+      "exit_code": 0,
+      "wall_seconds": 69.3
+    },
+    {
+      "command": ".venv/bin/pytest --collect-only -q -p no:cacheprovider <26 surviving owned test paths>",
+      "outcome": "133 tests collected",
+      "exit_code": 0,
+      "wall_seconds": 43.66
+    },
+    {
+      "command": ".venv/bin/ruff check $(git diff --name-only --diff-filter=AM -- '*.py')",
+      "outcome": "All checks passed",
+      "exit_code": 0
+    },
+    {
+      "command": ".venv/bin/mypy --disable-error-code no-untyped-def $(git diff --name-only --diff-filter=AM -- '*.py')",
+      "outcome": "Success: no issues found in 26 source files",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check HEAD -- <WP13 cycle-2 files>",
+      "outcome": "clean (planning-artifact whitespace outside WP13 implementation scope remains pre-existing)",
+      "exit_code": 0
+    },
+    {
+      "command": ".venv/bin/pytest -q -p no:cacheprovider tests/architectural/test_layer_rules.py",
+      "outcome": "17 passed",
+      "exit_code": 0,
+      "wall_seconds": 45.04
+    },
+    {
+      "command": "PyYAML load plus terminal/count/proof assertions for WP13.yaml",
+      "outcome": "cycle-2 legacy check: 42 terminal paths; 16 DELETE; 26 reduced families; 526 -> 133",
+      "exit_code": 0
+    },
+    {
+      "command": ".venv/bin/python <WP01 audit.py> validate <base-census.json> <base-workloads.yaml> <WP13.yaml>",
+      "outcome": "canonical test-sanitation/v1 accepted; 42 terminal families; 409 exact source identities; 526 base nodes; 526 -> 133 preserved",
+      "exit_code": 0
+    },
+    {
+      "command": ".venv/bin/python <WP01 audit.py> validate <base-census.json> <base-workloads.yaml> <WP13.yaml> <WP15.yaml>",
+      "outcome": "integrated canonical validation accepted; 54 terminal families; 510 unique exact identities; no cross-shard overlap",
+      "exit_code": 0
+    }
+  ],
+  "integration_handoff": {
+    "central_map_edited": false,
+    "renamed_architectural_paths": [],
+    "expected_arch_shard_map_removals": [
+      "tests/architectural/test_activation_registry_schema.py",
+      "tests/architectural/test_charter_facades_reexport_doctrine.py",
+      "tests/architectural/test_charter_references_resolve.py",
+      "tests/architectural/test_charter_runtime_canonical_paths.py",
+      "tests/architectural/test_surface_resolution_audit.py",
+      "tests/architectural/test_topology_resolution_boundary.py"
+    ],
+    "deleted_architectural_paths_not_in_map": [
+      "tests/architectural/test_doctrine_artefact_layout.py",
+      "tests/architectural/test_glossary_canonical_terms.py",
+      "tests/architectural/test_glossary_pack_no_regression.py",
+      "tests/architectural/test_glossary_pack_urn.py",
+      "tests/architectural/test_resolution_activation_foundation.py",
+      "tests/architectural/test_urn_resolver_scalar_fence.py"
+    ],
+    "frozen_nodeid_baseline_stale_paths": [
+      "tests/architectural/test_charter_references_resolve.py",
+      "tests/architectural/test_doctrine_artefact_layout.py",
+      "tests/architectural/test_glossary_pack_urn.py"
+    ],
+    "downstream_owner": "WP07",
+    "complete_architecture_gate_owner": "WP07"
+  },
+  "production_files_changed": [],
+  "disposition_ledger": {
+    "path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP13.yaml",
+    "sha256": "775f8f17b5c0093b0be7c3e4c14673d84f259564a009eaa063c80128d8c5ba20",
+    "terminal_rows": 42,
+    "exact_source_identities": 409,
+    "exact_base_collection_nodes": 526,
+    "canonical_schema": "test-sanitation/v1"
+  },
+  "tracked_test_diff_sha256_before_artifacts": "430b6bfabf1b12595f3fc22f0dbf01635755e644d45644bb172b60776dddb4e4",
+  "schema_normalization": {
+    "review_cycle": 3,
+    "scope": "evidence-only",
+    "legacy_verdicts_remaining": 0,
+    "file_granularity_remaining": 0,
+    "path_level_members_remaining": 0,
+    "test_files_changed": 0,
+    "production_files_changed": 0
+  }
+}

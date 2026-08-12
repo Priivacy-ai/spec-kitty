@@ -1,0 +1,12 @@
+{
+  "schema": "wp05-causal-probe/v1",
+  "base_commit": "c1c79d53937abf11b1c8435311a9eaa47f4d8d8f",
+  "mutation_ids": ["queue-drain-construction"],
+  "historical_patch_sha256": "241dddc5150e310352db7806b6faf91fcfa28511fd996ef26e5c3644b0bae570",
+  "materialize_command": ".venv/bin/python - <<'PY'\nfrom pathlib import Path\np = Path('src/specify_cli/sync/background.py')\np.write_text(p.read_text(encoding='utf-8') + '\\n\\ndef _wp05_probe_rewire(queue: object) -> object:\\n    \\\"\\\"\\\"Disposable realistic regression: reconnect the retired queue drain.\\\"\\\"\\\"\\n    from .batch import batch_sync\\n    return batch_sync(queue)\\n', encoding='utf-8')\nPY",
+  "test_command": ".venv/bin/pytest -q -p no:cacheprovider tests/sync/test_no_queue_drain_constructed_3030.py::test_no_production_module_constructs_the_queue_backed_drain",
+  "red": {"exit_code": 1, "salient_output": "background.py: imports batch_sync; background.py: calls batch_sync; 1 failed in 106.28s"},
+  "restore_command": "git restore -- src/specify_cli/sync/background.py",
+  "clean_command": "test -z \"$(git status --porcelain)\"",
+  "green": {"exit_code": 0, "salient_output": "1 passed in 43.64s"}
+}

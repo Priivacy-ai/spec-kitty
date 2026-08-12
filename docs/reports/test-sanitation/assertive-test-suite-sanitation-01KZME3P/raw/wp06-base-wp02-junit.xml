@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="12" skipped="0" tests="45" time="171.346" timestamp="2026-08-10T15:56:47.452437+02:00" hostname="Roberts-MacBook-Pro-4.local"><testcase classname="tests.charter.test_config_stem_parity" name="test_config_declares_exactly_the_expected_directive_count" time="66.697"><failure message="AssertionError: assert 31 == 25&#10; +  where 31 = len(['001-architectural-integrity-standard', '003-decision-documentation-requirement', '010-specification-fidelity-requirement', '018-doctrine-versioning-requirement', '024-locality-of-change', '025-boy-scout-rule', ...])">tests/charter/test_config_stem_parity.py:136: in test_config_declares_exactly_the_expected_directive_count
+    assert len(activated_directive_stems) == 25  # golden-count: cardinality-is-contract
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: assert 31 == 25
+E    +  where 31 = len(['001-architectural-integrity-standard', '003-decision-documentation-requirement', '010-specification-fidelity-requirement', '018-doctrine-versioning-requirement', '024-locality-of-change', '025-boy-scout-rule', ...])</failure></testcase><testcase classname="tests.charter.test_config_stem_parity" name="test_every_activated_directive_stem_round_trips_to_canonical_urn[reconcile-change-scope-tensions]" time="0.004"><failure message="AssertionError: assert False&#10; +  where False = &lt;built-in method startswith of str object at 0x10b4a5290&gt;('directive:DIRECTIVE_')&#10; +    where &lt;built-in method startswith of str object at 0x10b4a5290&gt; = 'directive:RECONCILE_CHANGE_SCOPE_TENSIONS'.startswith">tests/charter/test_config_stem_parity.py:166: in test_every_activated_directive_stem_round_trips_to_canonical_urn
+    assert urn.startswith("directive:DIRECTIVE_")
+E   AssertionError: assert False
+E    +  where False = &lt;built-in method startswith of str object at 0x10b4a5290&gt;('directive:DIRECTIVE_')
+E    +    where &lt;built-in method startswith of str object at 0x10b4a5290&gt; = 'directive:RECONCILE_CHANGE_SCOPE_TENSIONS'.startswith</failure></testcase><testcase classname="tests.charter.test_config_stem_parity" name="test_every_activated_directive_stem_round_trips_to_canonical_urn[use-c4-model-techniques]" time="0.005"><failure message="AssertionError: assert False&#10; +  where False = &lt;built-in method startswith of str object at 0x306d90690&gt;('directive:DIRECTIVE_')&#10; +    where &lt;built-in method startswith of str object at 0x306d90690&gt; = 'directive:USE_C4_MODEL_TECHNIQUES'.startswith">tests/charter/test_config_stem_parity.py:166: in test_every_activated_directive_stem_round_trips_to_canonical_urn
+    assert urn.startswith("directive:DIRECTIVE_")
+E   AssertionError: assert False
+E    +  where False = &lt;built-in method startswith of str object at 0x306d90690&gt;('directive:DIRECTIVE_')
+E    +    where &lt;built-in method startswith of str object at 0x306d90690&gt; = 'directive:USE_C4_MODEL_TECHNIQUES'.startswith</failure></testcase><testcase classname="tests.doctrine.drg.test_reachability.TestActionChannelReachability" name="test_unreachable_at_d1_is_the_pinned_membership" time="0.511"><failure message="AssertionError: _ACTION_UNREACHABLE_D1 drifted from its pinned membership.&#10;    NEWLY UNREACHABLE (measured, not pinned) — an activated artefact no traversal reaches; wire it to a reachable source or record why:&#10;      + directive:DIRECTIVE_047&#10;      + directive:DIRECTIVE_048&#10;      + directive:DIRECTIVE_049&#10;      + directive:DIRECTIVE_050&#10;      + directive:RECONCILE-CHANGE-SCOPE-TENSIONS&#10;      + directive:USE-C4-MODEL-TECHNIQUES&#10;      + procedure:glossary-maintenance-workflow&#10;      + styleguide:divio-type-discipline&#10;      + styleguide:docs-accessibility&#10;      + styleguide:docs-freshness-sla&#10;      + styleguide:plain-language&#10;      + styleguide:professional-communications&#10;      + styleguide:publication-authority&#10;      + styleguide:quadruple-a-test-format&#10;      + styleguide:research-citation-discipline&#10;      + tactic:dialectic-research&#10;      + tactic:writing-audience-catalog&#10;assert frozenset({'d...VE_048', ...}) == frozenset({'d...opment', ...})&#10;  &#10;  Extra items in the left set:&#10;  'styleguide:professional-communications'&#10;  'styleguide:docs-accessibility'&#10;  'directive:DIRECTIVE_047'&#10;  'styleguide:plain-language'&#10;  'tactic:writing-audience-catalog'...&#10;  &#10;  ...Full output truncated (13 lines hidden), use '-vv' to show">tests/doctrine/drg/test_reachability.py:625: in test_unreachable_at_d1_is_the_pinned_membership
+    assert measured == _ACTION_UNREACHABLE_D1, _describe(
+E   AssertionError: _ACTION_UNREACHABLE_D1 drifted from its pinned membership.
+E       NEWLY UNREACHABLE (measured, not pinned) — an activated artefact no traversal reaches; wire it to a reachable source or record why:
+E         + directive:DIRECTIVE_047
+E         + directive:DIRECTIVE_048
+E         + directive:DIRECTIVE_049
+E         + directive:DIRECTIVE_050
+E         + directive:RECONCILE-CHANGE-SCOPE-TENSIONS
+E         + directive:USE-C4-MODEL-TECHNIQUES
+E         + procedure:glossary-maintenance-workflow
+E         + styleguide:divio-type-discipline
+E         + styleguide:docs-accessibility
+E         + styleguide:docs-freshness-sla
+E         + styleguide:plain-language
+E         + styleguide:professional-communications
+E         + styleguide:publication-authority
+E         + styleguide:quadruple-a-test-format
+E         + styleguide:research-citation-discipline
+E         + tactic:dialectic-research
+E         + tactic:writing-audience-catalog
+E   assert frozenset({'d...VE_048', ...}) == frozenset({'d...opment', ...})
+E
+E     Extra items in the left set:
+E     'styleguide:professional-communications'
+E     'styleguide:docs-accessibility'
+E     'directive:DIRECTIVE_047'
+E     'styleguide:plain-language'
+E     'tactic:writing-audience-catalog'...
+E
+E     ...Full output truncated (13 lines hidden), use '-vv' to show</failure></testcase><testcase classname="tests.doctrine.drg.test_reachability.TestActionChannelReachability" name="test_unreachable_at_d2_is_the_pinned_membership" time="0.175"><failure message="AssertionError: _ACTION_UNREACHABLE_D2 drifted from its pinned membership.&#10;    NEWLY UNREACHABLE (measured, not pinned) — an activated artefact no traversal reaches; wire it to a reachable source or record why:&#10;      + directive:DIRECTIVE_047&#10;      + directive:DIRECTIVE_048&#10;      + directive:DIRECTIVE_049&#10;      + directive:DIRECTIVE_050&#10;      + directive:RECONCILE-CHANGE-SCOPE-TENSIONS&#10;      + directive:USE-C4-MODEL-TECHNIQUES&#10;      + procedure:glossary-maintenance-workflow&#10;      + styleguide:divio-type-discipline&#10;      + styleguide:docs-accessibility&#10;      + styleguide:docs-freshness-sla&#10;      + styleguide:plain-language&#10;      + styleguide:professional-communications&#10;      + styleguide:publication-authority&#10;      + styleguide:quadruple-a-test-format&#10;      + styleguide:research-citation-discipline&#10;      + tactic:dialectic-research&#10;      + tactic:writing-audience-catalog&#10;assert frozenset({'d...VE_048', ...}) == frozenset({'d...deling', ...})&#10;  &#10;  Extra items in the left set:&#10;  'styleguide:docs-accessibility'&#10;  'styleguide:professional-communications'&#10;  'directive:DIRECTIVE_047'&#10;  'styleguide:plain-language'&#10;  'directive:DIRECTIVE_050'...&#10;  &#10;  ...Full output truncated (13 lines hidden), use '-vv' to show">tests/doctrine/drg/test_reachability.py:632: in test_unreachable_at_d2_is_the_pinned_membership
+    assert measured == _ACTION_UNREACHABLE_D2, _describe(
+E   AssertionError: _ACTION_UNREACHABLE_D2 drifted from its pinned membership.
+E       NEWLY UNREACHABLE (measured, not pinned) — an activated artefact no traversal reaches; wire it to a reachable source or record why:
+E         + directive:DIRECTIVE_047
+E         + directive:DIRECTIVE_048
+E         + directive:DIRECTIVE_049
+E         + directive:DIRECTIVE_050
+E         + directive:RECONCILE-CHANGE-SCOPE-TENSIONS
+E         + directive:USE-C4-MODEL-TECHNIQUES
+E         + procedure:glossary-maintenance-workflow
+E         + styleguide:divio-type-discipline
+E         + styleguide:docs-accessibility
+E         + styleguide:docs-freshness-sla
+E         + styleguide:plain-language
+E         + styleguide:professional-communications
+E         + styleguide:publication-authority
+E         + styleguide:quadruple-a-test-format
+E         + styleguide:research-citation-discipline
+E         + tactic:dialectic-research
+E         + tactic:writing-audience-catalog
+E   assert frozenset({'d...VE_048', ...}) == frozenset({'d...deling', ...})
+E
+E     Extra items in the left set:
+E     'styleguide:docs-accessibility'
+E     'styleguide:professional-communications'
+E     'directive:DIRECTIVE_047'
+E     'styleguide:plain-language'
+E     'directive:DIRECTIVE_050'...
+E
+E     ...Full output truncated (13 lines hidden), use '-vv' to show</failure></testcase><testcase classname="tests.doctrine.drg.test_reachability.TestC009NormalizationSwingExcluded" name="test_normalization_delta_is_the_declared_25_swing" time="0.170"><failure message="AssertionError: assert 29 == 25&#10; +  where 29 = ActivationReachabilityPartition(not_a_node=frozenset({'directive:018-doctrine-versioning-requirement', 'directive:010-...IVE_024', 'directive:DIRECTIVE_039', 'directive:DIRECTIVE_047', 'directive:DIRECTIVE_044', 'directive:DIRECTIVE_033'})).normalization_delta">tests/doctrine/drg/test_reachability.py:869: in test_normalization_delta_is_the_declared_25_swing
+    assert partition.normalization_delta == _NORMALIZATION_DELTA
+E   AssertionError: assert 29 == 25
+E    +  where 29 = ActivationReachabilityPartition(not_a_node=frozenset({'directive:018-doctrine-versioning-requirement', 'directive:010-...IVE_024', 'directive:DIRECTIVE_039', 'directive:DIRECTIVE_047', 'directive:DIRECTIVE_044', 'directive:DIRECTIVE_033'})).normalization_delta</failure></testcase><testcase classname="tests.doctrine.drg.test_reachability.TestProfileChannelReachability" name="test_profile_unreachable_is_the_pinned_membership" time="0.167"><failure message="AssertionError: _PROFILE_UNREACHABLE drifted from its pinned membership.&#10;    NEWLY UNREACHABLE (measured, not pinned) — an activated artefact no traversal reaches; wire it to a reachable source or record why:&#10;      + directive:RECONCILE-CHANGE-SCOPE-TENSIONS&#10;      + directive:USE-C4-MODEL-TECHNIQUES&#10;      + procedure:glossary-maintenance-workflow&#10;      + styleguide:divio-type-discipline&#10;      + styleguide:docs-accessibility&#10;      + styleguide:docs-freshness-sla&#10;      + styleguide:plain-language&#10;      + styleguide:professional-communications&#10;      + styleguide:publication-authority&#10;      + styleguide:research-citation-discipline&#10;      + tactic:dialectic-research&#10;assert frozenset({'d...VE_042', ...}) == frozenset({'d...VE_042', ...})&#10;  &#10;  Extra items in the left set:&#10;  'styleguide:docs-accessibility'&#10;  'styleguide:professional-communications'&#10;  'styleguide:plain-language'&#10;  'styleguide:docs-freshness-sla'&#10;  'directive:USE-C4-MODEL-TECHNIQUES'...&#10;  &#10;  ...Full output truncated (7 lines hidden), use '-vv' to show">tests/doctrine/drg/test_reachability.py:765: in test_profile_unreachable_is_the_pinned_membership
+    assert measured == _PROFILE_UNREACHABLE, _describe(
+E   AssertionError: _PROFILE_UNREACHABLE drifted from its pinned membership.
+E       NEWLY UNREACHABLE (measured, not pinned) — an activated artefact no traversal reaches; wire it to a reachable source or record why:
+E         + directive:RECONCILE-CHANGE-SCOPE-TENSIONS
+E         + directive:USE-C4-MODEL-TECHNIQUES
+E         + procedure:glossary-maintenance-workflow
+E         + styleguide:divio-type-discipline
+E         + styleguide:docs-accessibility
+E         + styleguide:docs-freshness-sla
+E         + styleguide:plain-language
+E         + styleguide:professional-communications
+E         + styleguide:publication-authority
+E         + styleguide:research-citation-discipline
+E         + tactic:dialectic-research
+E   assert frozenset({'d...VE_042', ...}) == frozenset({'d...VE_042', ...})
+E
+E     Extra items in the left set:
+E     'styleguide:docs-accessibility'
+E     'styleguide:professional-communications'
+E     'styleguide:plain-language'
+E     'styleguide:docs-freshness-sla'
+E     'directive:USE-C4-MODEL-TECHNIQUES'...
+E
+E     ...Full output truncated (7 lines hidden), use '-vv' to show</failure></testcase><testcase classname="tests.doctrine.drg.migration.test_extractor_projection.TestDRGZeroDelta" name="test_activated_but_unreachable_orphans_are_really_activated" time="0.166"><failure message="AssertionError: these orphans are charter-ACTIVATED but are filed under an 'acceptable' reason: ['styleguide:given-when-then-authoring', 'styleguide:quadruple-a-test-format', 'toolguide:gherkin', 'toolguide:sonar']. Activating them cascades to nothing -- add them to _ACTIVATED_BUT_ORPHANED and #3009.&#10;assert not frozenset({'styleguide:given-when-then-authoring', 'styleguide:quadruple-a-test-format', 'toolguide:gherkin', 'toolguide:sonar'})">tests/doctrine/drg/migration/test_extractor_projection.py:946: in test_activated_but_unreachable_orphans_are_really_activated
+    assert not strays, (
+E   AssertionError: these orphans are charter-ACTIVATED but are filed under an 'acceptable' reason: ['styleguide:given-when-then-authoring', 'styleguide:quadruple-a-test-format', 'toolguide:gherkin', 'toolguide:sonar']. Activating them cascades to nothing -- add them to _ACTIVATED_BUT_ORPHANED and #3009.
+E   assert not frozenset({'styleguide:given-when-then-authoring', 'styleguide:quadruple-a-test-format', 'toolguide:gherkin', 'toolguide:sonar'})</failure></testcase><testcase classname="tests.specify_cli.cli.commands.test_completion_fast_path" name="test_completion_latency_within_budget[spec-kitty ]" time="1.004" /><testcase classname="tests.specify_cli.cli.commands.test_completion_fast_path" name="test_completion_latency_within_budget[spec-kitty agent ]" time="0.990" /><testcase classname="tests.specify_cli.cli.commands.test_completion_fast_path" name="test_completion_latency_within_budget[spec-kitty agent mission ]" time="0.975" /><testcase classname="tests.specify_cli.cli.commands.test_doctor_restart_daemon_timing" name="test_doctor_restart_daemon_completes_under_nfr_002_threshold" time="3.805" /><testcase classname="tests.cli.test_cli_console" name="test_set_plain_false_restores_colour" time="0.006"><failure message="AssertionError: assert '\x1b[' in 'ok\n'&#10; +  where 'ok\n' = &lt;built-in method getvalue of _io.StringIO object at 0x10b444160&gt;()&#10; +    where &lt;built-in method getvalue of _io.StringIO object at 0x10b444160&gt; = &lt;_io.StringIO object at 0x10b444160&gt;.getvalue">tests/cli/test_cli_console.py:104: in test_set_plain_false_restores_colour
+    assert _ESC in buf.getvalue()
+E   AssertionError: assert '\x1b[' in 'ok\n'
+E    +  where 'ok\n' = &lt;built-in method getvalue of _io.StringIO object at 0x10b444160&gt;()
+E    +    where &lt;built-in method getvalue of _io.StringIO object at 0x10b444160&gt; = &lt;_io.StringIO object at 0x10b444160&gt;.getvalue</failure></testcase><testcase classname="tests.cli.test_cli_console" name="test_set_plain_true_strips_colour_from_human_output" time="0.001"><failure message="AssertionError: assert '\x1b[' in 'delivered 1\n'&#10; +  where 'delivered 1\n' = &lt;built-in method getvalue of _io.StringIO object at 0x10b7e4310&gt;()&#10; +    where &lt;built-in method getvalue of _io.StringIO object at 0x10b7e4310&gt; = &lt;_io.StringIO object at 0x10b7e4310&gt;.getvalue">tests/cli/test_cli_console.py:88: in test_set_plain_true_strips_colour_from_human_output
+    assert _ESC in buf.getvalue()  # colour is on by default under force_terminal
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: assert '\x1b[' in 'delivered 1\n'
+E    +  where 'delivered 1\n' = &lt;built-in method getvalue of _io.StringIO object at 0x10b7e4310&gt;()
+E    +    where &lt;built-in method getvalue of _io.StringIO object at 0x10b7e4310&gt; = &lt;_io.StringIO object at 0x10b7e4310&gt;.getvalue</failure></testcase><testcase classname="tests.cli.test_cli_console" name="test_vanilla_console_print_json_would_leak_ansi" time="0.002"><failure message="assert '\x1b[' in '{\n  &quot;id&quot;: &quot;x&quot;\n}\n'">tests/cli/test_cli_console.py:122: in test_vanilla_console_print_json_would_leak_ansi
+    assert _ESC in out  # stock Rich leaks ANSI ...
+    ^^^^^^^^^^^^^^^^^^
+E   assert '\x1b[' in '{\n  "id": "x"\n}\n'</failure></testcase><testcase classname="tests.integration.test_mission_type_resolution_integration" name="test_documentation_mission_resolves_authored_templates" time="0.023" /><testcase classname="tests.integration.test_mission_type_resolution_integration" name="test_plan_mission_resolves_authored_templates" time="0.021" /><testcase classname="tests.integration.test_mission_type_resolution_integration" name="test_research_mission_resolves_authored_templates" time="0.020" /><testcase classname="tests.contract.test_charter_compact_includes_section_anchors" name="test_compact_view_is_meaningfully_smaller_than_charter[minimal.md]" time="0.015" /><testcase classname="tests.contract.test_charter_compact_includes_section_anchors" name="test_compact_view_is_meaningfully_smaller_than_charter[multidirective.md]" time="0.014" /><testcase classname="tests.cli.commands.test_agent_mission_commit_to_branch" name="test_commit_to_branch_treats_empty_safe_commit_shape_as_unchanged_when_dirty" time="2.374"><failure message="RuntimeError: safe_commit: git commit failed in /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/pytest-of-robert/pytest-1294/test_commit_to_branch_treats_e0 for destination_ref='mission/work'">tests/cli/commands/test_agent_mission_commit_to_branch.py:160: in test_commit_to_branch_treats_empty_safe_commit_shape_as_unchanged_when_dirty
+    result = _commit_to_branch(
+src/specify_cli/cli/commands/agent/mission_setup_plan.py:251: in _commit_to_branch
+    raise RuntimeError(router_result.diagnostic or f"commit_for_mission failed for {artifact_type}")
+E   RuntimeError: safe_commit: git commit failed in /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/pytest-of-robert/pytest-1294/test_commit_to_branch_treats_e0 for destination_ref='mission/work'</failure></testcase><testcase classname="tests.e2e.test_charter_epic_golden_path" name="test_charter_epic_golden_path" time="43.138" /><testcase classname="tests.e2e.test_upgrade_post_state" name="test_upgrade_then_branch_context_does_not_gate" time="20.562" /><testcase classname="tests.sync.test_daemon_self_retirement.TestRunSyncDaemonWiring" name="test_sigterm_exits_without_deadlocking_server_shutdown" time="1.974" /><testcase classname="tests.sync.test_sync_e2e_integration.TestIdentityAwareFlow" name="test_init_creates_identity" time="0.055" /><testcase classname="tests.sync.test_sync_e2e_integration.TestIdentityAwareFlow" name="test_identity_is_idempotent" time="0.050" /><testcase classname="tests.sync.test_sync_e2e_integration.TestIdentityAwareFlow" name="test_event_contains_identity" time="0.096" /><testcase classname="tests.sync.test_sync_e2e_integration.TestIdentityAwareFlow" name="test_implement_emits_status_change" time="0.084" /><testcase classname="tests.sync.test_sync_e2e_integration.TestUnauthenticatedGracefulDegradation" name="test_unauthenticated_queues_only" time="0.084" /><testcase classname="tests.sync.test_sync_e2e_integration.TestUnauthenticatedGracefulDegradation" name="test_runtime_no_websocket_when_unauthenticated" time="0.039" /><testcase classname="tests.sync.test_sync_e2e_integration.TestConfigBackfill" name="test_backfill_existing_config" time="0.051" /><testcase classname="tests.sync.test_sync_e2e_integration.TestConfigBackfill" name="test_backfill_partial_identity" time="0.050" /><testcase classname="tests.sync.test_sync_e2e_integration.TestReadOnlyFallback" name="test_readonly_fallback_existing_config" time="0.050" /><testcase classname="tests.sync.test_sync_e2e_integration.TestReadOnlyFallback" name="test_readonly_directory_fallback" time="0.047" /><testcase classname="tests.sync.test_sync_e2e_integration.TestNoDuplicateEmissions" name="test_single_emission_per_transition" time="0.092" /><testcase classname="tests.sync.test_sync_e2e_integration.TestNoDuplicateEmissions" name="test_causation_chain_no_duplicates" time="0.092" /><testcase classname="tests.sync.test_sync_e2e_integration.TestFullWorkflowIntegration" name="test_full_wp_lifecycle" time="0.096" /><testcase classname="tests.sync.test_sync_e2e_integration.TestFullWorkflowIntegration" name="test_events_queued_when_offline" time="0.093" /><testcase classname="tests.sync.test_sync_e2e_integration.TestEventPayloadValidation" name="test_wp_status_changed_payload" time="0.087" /><testcase classname="tests.sync.test_sync_e2e_integration.TestEventPayloadValidation" name="test_event_id_is_ulid" time="0.087" /><testcase classname="tests.sync.test_sync_e2e_integration.TestEventPayloadValidation" name="test_timestamp_is_iso8601" time="0.085" /><testcase classname="tests.sync.test_dual_write_integration.TestDualWriteEventAndFrontmatterConsistent" name="test_dual_write_event_and_frontmatter_consistent" time="0.211" /><testcase classname="tests.sync.test_dual_write_integration.TestDualWriteMultipleTransitions" name="test_dual_write_multiple_transitions" time="0.357" /><testcase classname="tests.sync.test_dual_write_integration.TestDualWriteAliasResolvedEverywhere" name="test_dual_write_alias_resolved_everywhere" time="0.234" /><testcase classname="tests.sync.test_dual_write_integration.TestDualWriteForceTransitionRecorded" name="test_dual_write_force_transition_recorded" time="0.817" /></testsuite></testsuites>

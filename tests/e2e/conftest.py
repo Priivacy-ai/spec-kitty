@@ -78,6 +78,9 @@ def _disable_saas_sync_for_e2e_tests(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 _WATCHED_ROOTS: tuple[str, ...] = ("kitty-specs", ".kittify", ".worktrees", "docs")
+_SOURCE_POLLUTION_SELF_BOOKKEEPING = frozenset(
+    {".kittify/encoding-provenance/global.jsonl"}
+)
 
 
 @dataclass(frozen=True)
@@ -102,6 +105,7 @@ def _walk_inventory(
     root: Path,
     *,
     anchor: Path | None = None,
+    excluded: frozenset[str] = frozenset(),
 ) -> dict[str, tuple[int, int]]:
     """Return a {relative_path: (size, mtime_ns)} map for every file under root.
 
@@ -114,8 +118,11 @@ def _walk_inventory(
     base = anchor if anchor is not None else root
     for path in root.rglob("*"):
         if path.is_file():
+            relative = path.relative_to(base).as_posix()
+            if relative in excluded:
+                continue
             st = path.stat()
-            inv[str(path.relative_to(base))] = (st.st_size, st.st_mtime_ns)
+            inv[relative] = (st.st_size, st.st_mtime_ns)
     return inv
 
 
@@ -137,7 +144,14 @@ def capture_source_pollution_baseline(repo_root: Path) -> SourcePollutionBaselin
     inventory: dict[str, dict[str, tuple[int, int]]] = {}
     for root_name in _WATCHED_ROOTS:
         root = repo_root / root_name
-        inventory[root_name] = _walk_inventory(root) if root.exists() else {}
+        excluded = frozenset(
+            path.removeprefix(f"{root_name}/")
+            for path in _SOURCE_POLLUTION_SELF_BOOKKEEPING
+            if path.startswith(f"{root_name}/")
+        )
+        inventory[root_name] = (
+            _walk_inventory(root, excluded=excluded) if root.exists() else {}
+        )
 
     # Aggregate every `kitty-ops` directory anywhere under repo_root.
     pi_inventory: dict[str, tuple[int, int]] = {}
@@ -155,9 +169,9 @@ def assert_no_source_pollution(baseline: SourcePollutionBaseline, repo_root: Pat
     Two-layer guard:
       * Layer 1 (FR-017): `git status --short` must be byte-identical to the
         baseline.
-      * Layer 2 (FR-018): per-watched-root inventory must be byte-identical;
-        any added / removed / modified file raises AssertionError with a
-        diagnostic listing the diff.
+      * Layer 2 (FR-018): per-watched-root inventory must be byte-identical,
+        excluding the canonical cross-worker self-bookkeeping sink; any other
+        added / removed / modified file raises with a diagnostic diff.
     """
     current = capture_source_pollution_baseline(repo_root)
 

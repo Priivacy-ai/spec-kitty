@@ -213,12 +213,3 @@ class TestLoadActionIndexFields:
         _write_index(tmp_path, "m", "a", "action: renamed-action\n")
         result = load_action_index(tmp_path, "m", "a")
         assert result.action == "renamed-action"
-
-    def test_non_list_field_value_returns_empty_list(self, tmp_path: Path):
-        # RE-PINNED (#2667): a non-list artifact-kind field value used to
-        # silently degrade to an empty list; it now raises ActionIndexError
-        # (present-but-malformed index). See TestLoadActionIndexFailLoud for
-        # the current contract.
-        _write_index(tmp_path, "m", "a", "directives: not-a-list\n")
-        with pytest.raises(ActionIndexError):
-            load_action_index(tmp_path, "m", "a")

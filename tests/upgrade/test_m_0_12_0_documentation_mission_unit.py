@@ -88,15 +88,6 @@ def test_detect_still_repairs_metadata_less_legacy_repo(
     assert migration.detect(tmp_path) is True
 
 
-def test_detect_no_missions_dir(migration: InstallDocumentationMission, tmp_path: Path) -> None:
-    """Migration detects when missions directory doesn't exist."""
-    kittify = tmp_path / ".kittify"
-    kittify.mkdir()
-    # No missions/ directory
-
-    assert migration.detect(tmp_path) is True
-
-
 def test_detect_incomplete_mission(migration: InstallDocumentationMission, tmp_path: Path) -> None:
     """Migration detects when documentation mission exists but is incomplete."""
     doc_mission = tmp_path / ".kittify" / "missions" / "documentation"

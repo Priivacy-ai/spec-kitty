@@ -41,8 +41,8 @@ Two predicates, mechanically decidable (no fragile heuristic):
 **Explicitly OUT of the ban** (enumerate-only, FR-014): ``module::Name`` /
 ``path::qualname`` name-anchors and ``occurrence`` ordinals (a scan index,
 never a lineno) are structurally never caught by either predicate above — they
-do not reach either sink shape. The two deferred ``path::qualname`` census
-allow-lists are enumerated by :data:`_FR014_DEFERRED_CENSUS_ALLOWLISTS` and
+do not reach either sink shape. The deferred ``path::qualname`` census
+allow-list is enumerated by :data:`_FR014_DEFERRED_CENSUS_ALLOWLISTS` and
 folded into this guard's failure report.
 
 **Escape hatch**: a genuinely new diagnostic int that is not a line-locator
@@ -100,16 +100,12 @@ _YAML_ALLOWLISTS: tuple[str, ...] = (
 _YAML_INT_PERMITTED_EXACT: frozenset[str] = frozenset({"line", "count"})
 _YAML_INT_PERMITTED_SUFFIX = "_baseline"
 
-# FR-014: the two deferred path::qualname census allow-lists this guard's
+# FR-014: the deferred path::qualname census allow-list this guard's
 # report MUST enumerate as known-relocation-anchored-but-out-of-scope. A
 # migrate-or-defer ruling on these lives in FR-014 (default: DEFER — low-churn
 # census, not the high-tax line-seed class); a follow-up tracker issue is
 # filed at merge time per that ruling.
 _FR014_DEFERRED_CENSUS_ALLOWLISTS: tuple[tuple[str, str], ...] = (
-    (
-        "tests/architectural/test_org_activation_seam.py",
-        "_BUILTIN_ONLY_ALLOWLIST",
-    ),
     (
         "tests/architectural/test_coord_read_residuals_closeout.py",
         "_IDENTITY_CALLSHAPE_KNOWN_RESIDUALS",
@@ -592,12 +588,12 @@ def test_no_int_field_ban_in_ratchet_allowlist_yaml() -> None:
 
 
 def test_fr014_deferred_census_allowlists_enumerated() -> None:
-    """FR-014: the guard's report enumerates the 2 deferred path::qualname
-    census allow-lists as known-relocation-anchored-but-out-of-scope, and
-    each still names a live symbol (drift guard — a rename/relocation must
+    """FR-014: the guard's report enumerates the deferred path::qualname
+    census allow-list as known-relocation-anchored-but-out-of-scope, and it
+    still names a live symbol (drift guard — a rename/relocation must
     update this enumeration too).
     """
-    assert len(_FR014_DEFERRED_CENSUS_ALLOWLISTS) == 2
+    assert len(_FR014_DEFERRED_CENSUS_ALLOWLISTS) == 1
     for relpath, name in _FR014_DEFERRED_CENSUS_ALLOWLISTS:
         target = _REPO_ROOT / relpath
         assert target.exists(), f"{relpath} moved/renamed — update the FR-014 enumeration"

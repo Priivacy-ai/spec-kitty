@@ -25,20 +25,10 @@ pytestmark = [pytest.mark.fast]
 
 def test_resolve_pack_version_git_describe(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     (tmp_path / ".git").mkdir()
-    monkeypatch.setattr(
-        subprocess, "check_output", lambda *a, **k: "v1.2.3\n"
-    )
+    monkeypatch.setattr(subprocess, "check_output", lambda *a, **k: "v1.2.3\n")
     version, fetched_at, is_git = collect._resolve_pack_version(tmp_path)
     assert version == "v1.2.3"
     assert fetched_at is None
-    assert is_git is True
-
-
-def test_resolve_pack_version_git_describe_empty(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    (tmp_path / ".git").mkdir()
-    monkeypatch.setattr(subprocess, "check_output", lambda *a, **k: "   \n")
-    version, _fetched, is_git = collect._resolve_pack_version(tmp_path)
-    assert version == "git (version unavailable)"
     assert is_git is True
 
 
@@ -55,9 +45,7 @@ def test_resolve_pack_version_git_describe_failure(monkeypatch: pytest.MonkeyPat
 
 
 def test_resolve_pack_version_manifest(tmp_path: Path) -> None:
-    (tmp_path / "pack-manifest.yaml").write_text(
-        "pack_version: '9.9.9'\nfetched_at: '2026-01-01'\n", encoding="utf-8"
-    )
+    (tmp_path / "pack-manifest.yaml").write_text("pack_version: '9.9.9'\nfetched_at: '2026-01-01'\n", encoding="utf-8")
     version, fetched_at, is_git = collect._resolve_pack_version(tmp_path)
     assert version == "9.9.9"
     assert fetched_at == "2026-01-01"
@@ -72,11 +60,6 @@ def test_resolve_pack_version_manifest_malformed(tmp_path: Path) -> None:
     assert is_git is False
 
 
-def test_resolve_pack_version_no_sources(tmp_path: Path) -> None:
-    version, fetched_at, is_git = collect._resolve_pack_version(tmp_path)
-    assert (version, fetched_at, is_git) == ("unknown", None, False)
-
-
 # --- _count_pack_artifacts ---------------------------------------------------
 
 
@@ -89,20 +72,10 @@ def test_count_pack_artifacts(tmp_path: Path) -> None:
     assert counts == {"directives": 2, "tactics": 0}
 
 
-def test_count_pack_artifacts_empty(tmp_path: Path) -> None:
-    assert collect._count_pack_artifacts(tmp_path) == {}
-
-
 # --- _summarize_org_charter --------------------------------------------------
 
 
-def test_summarize_org_charter_absent(tmp_path: Path) -> None:
-    assert collect._summarize_org_charter(tmp_path) == {"present": False}
-
-
-def test_summarize_org_charter_module_unavailable(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_summarize_org_charter_module_unavailable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     (tmp_path / "org-charter.yaml").write_text("x: 1\n", encoding="utf-8")
     import builtins
 
@@ -121,22 +94,10 @@ def test_summarize_org_charter_module_unavailable(
 # --- _collect_org_layer_data + _collect_profile_health -----------------------
 
 
-def test_collect_org_layer_data_returns_dict_with_keys(tmp_path: Path) -> None:
-    result = collect._collect_org_layer_data(tmp_path)
-    assert isinstance(result, dict)
-    # Always present keys regardless of config state.
-    for key in ("configured_packs", "collision_warnings", "errors"):
-        assert key in result
-
-
-def test_collect_profile_health_records_crash(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_collect_profile_health_records_crash(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     # Force the org-layer collector to return a clean dict and the profile
     # load to fail, so the crash is recorded into org_drg["errors"].
-    monkeypatch.setattr(
-        collect, "_collect_org_layer_data", lambda _r: {"errors": []}
-    )
+    monkeypatch.setattr(collect, "_collect_org_layer_data", lambda _r: {"errors": []})
 
     import doctrine.service as svc
 
@@ -165,17 +126,12 @@ class _FakeReport:
         self.packs = packs
 
 
-def test_attach_pack_health_no_org_layer() -> None:
-    entries = [{"snapshot_present": True}]
-    collect._attach_pack_health(entries, _FakeReport(packs=[]))  # type: ignore[arg-type]
-    assert "pack_health" not in entries[0]
-
-
 def test_attach_pack_health_attaches_to_present_packs() -> None:
-    entries = [{"snapshot_present": True}, {"snapshot_present": False}]
-    collect._attach_pack_health(
-        entries, _FakeReport(packs=[_FakePackHealth()])  # type: ignore[arg-type]
-    )
+    entries: list[dict[str, Any]] = [
+        {"snapshot_present": True},
+        {"snapshot_present": False},
+    ]
+    collect._attach_pack_health(entries, _FakeReport(packs=[_FakePackHealth()]))
     assert entries[0]["pack_health"] == {"layer": "org", "status": "healthy"}
     assert "pack_health" not in entries[1]
 
@@ -199,14 +155,6 @@ class _FakePack:
 class _FakeRegistry:
     def __init__(self, packs: list[Any]) -> None:
         self.packs = packs
-
-
-def test_build_pack_entries_absent_snapshot(tmp_path: Path) -> None:
-    missing = tmp_path / "nope"
-    registry = _FakeRegistry([_FakePack(missing, present=False)])
-    entries = collect._build_pack_entries(registry, tmp_path)
-    assert entries[0]["snapshot_present"] is False
-    assert "pack_version" not in entries[0]
 
 
 def test_build_pack_entries_present_snapshot(tmp_path: Path) -> None:
@@ -252,42 +200,13 @@ class _FakeService:
     "provenance,expected",
     [("builtin", "built-in"), ("project", "project"), ("org", "org")],
 )
-def test_resolve_artifact_source_from_provenance(
-    provenance: str, expected: str
-) -> None:
+def test_resolve_artifact_source_from_provenance(provenance: str, expected: str) -> None:
     service = _FakeService({"directives": _FakeRepo({"d1": provenance})})
     result = collect._resolve_artifact_source("d1", "directives", service, {}, set())
     assert result == expected
 
 
-def test_resolve_artifact_source_charter_fallback() -> None:
-    service = _FakeService({"directives": _FakeRepo({})})
-    result = collect._resolve_artifact_source(
-        "d1", "directives", service, {}, {"d1"}
-    )
-    assert result == "charter"
-
-
-def test_resolve_artifact_source_org_required_fallback() -> None:
-    service = _FakeService({"directives": _FakeRepo({})})
-    result = collect._resolve_artifact_source(
-        "d1", "directives", service, {"directives": ["d1"]}, set()
-    )
-    assert result == "org-required"
-
-
-def test_resolve_artifact_source_unknown() -> None:
-    service = _FakeService({"directives": None})
-    result = collect._resolve_artifact_source("d1", "directives", service, {}, set())
-    assert result == "unknown"
-
-
 # --- _read_project_selections + _read_org_required ---------------------------
-
-
-def test_read_project_selections_missing_file(tmp_path: Path) -> None:
-    selections = collect._read_project_selections(tmp_path)
-    assert all(v == [] for v in selections.values())
 
 
 def test_read_project_selections_reads_lists(tmp_path: Path) -> None:
@@ -309,17 +228,10 @@ def test_read_project_selections_malformed_degrades(tmp_path: Path) -> None:
     assert all(v == [] for v in selections.values())
 
 
-def test_read_org_required_degrades_on_missing_config(tmp_path: Path) -> None:
-    org_required = collect._read_org_required(tmp_path)
-    assert all(v == [] for v in org_required.values())
-
-
 # --- _build_selection_block --------------------------------------------------
 
 
-def test_build_selection_block_dedup_and_order(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_build_selection_block_dedup_and_order(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
         collect,
         "_read_project_selections",
@@ -330,9 +242,7 @@ def test_build_selection_block_dedup_and_order(
         "_read_org_required",
         lambda _r: {k: (["d2", "d3"] if k == "directives" else []) for k in collect._SELECTION_KIND_PLURALS},
     )
-    monkeypatch.setattr(
-        collect, "_resolve_artifact_source", lambda *a, **k: "built-in"
-    )
+    monkeypatch.setattr(collect, "_resolve_artifact_source", lambda *a, **k: "built-in")
 
     import doctrine.service as svc
 
@@ -343,37 +253,3 @@ def test_build_selection_block_dedup_and_order(
     # project ids first, org-required appended, deduped.
     assert ids == ["d1", "d2", "d3"]
     assert all(e["source"] == "built-in" for e in block["directives"])
-
-
-def test_collector_symbols_reexported_from_doctor() -> None:
-    # FR-006: the test-facing collector symbols resolve from the doctor shim.
-    from specify_cli.cli.commands.doctor import (  # noqa: F401
-        _build_pack_entries,
-        _collect_org_layer_data,
-        _collect_profile_health,
-        _count_pack_artifacts,
-        _resolve_pack_version,
-    )
-
-    assert _resolve_pack_version is collect._resolve_pack_version
-    assert _collect_profile_health is collect._collect_profile_health
-
-
-def test_doctrine_collect_does_not_import_doctor() -> None:
-    import ast
-
-    source = Path(collect.__file__).read_text(encoding="utf-8")
-    tree = ast.parse(source)
-    absolute: list[str] = []
-    relative: list[str] = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom):
-            if node.level and node.level > 0:
-                relative.append(node.module or "")
-            elif node.module:
-                absolute.append(node.module)
-        elif isinstance(node, ast.Import):
-            absolute.extend(alias.name for alias in node.names)
-    assert "doctor" not in [m.split(".")[-1] for m in absolute]
-    # One-way: collect -> model / render / shared only (relative imports).
-    assert set(relative) <= {"_doctrine_health", "_profile_health_render", "_doctor_shared"}

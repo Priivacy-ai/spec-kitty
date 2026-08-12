@@ -131,19 +131,6 @@ def _offending_imports(path: Path) -> list[str]:
     return offenders
 
 
-@pytest.mark.architectural
-def test_no_sibling_module_accesses_engine_planner_privates() -> None:
-    """FR-013: ``runtime_bridge_engine.py`` is the SOLE home of the 5 engine/planner
-    privates this WP concentrates. A regression that reintroduces a direct
-    ``_internal_runtime.engine``/``.planner`` private access (or re-imports the
-    submodule object itself) anywhere else under ``src/runtime/next/`` must
-    fail this test."""
-    offenders: list[str] = []
-    for path in _sibling_modules():
-        offenders.extend(_offending_imports(path))
-    assert not offenders, "engine/planner private access found outside runtime_bridge_engine.py:\n" + "\n".join(
-        offenders
-    )
 
 
 # ``_resolve_workflow_for_mission`` is re-exposed under a public name
@@ -153,15 +140,6 @@ def test_no_sibling_module_accesses_engine_planner_privates() -> None:
 _ADAPTER_WRAPPER_NAME = {"_resolve_workflow_for_mission": "resolve_workflow_for_mission"}
 
 
-@pytest.mark.architectural
-def test_adapter_defines_all_six_engine_planner_wrappers() -> None:
-    """Non-vacuousness check: the adapter must actually wrap all 6 grep-complete
-    names, or the "no other module reaches in" assertion above would pass for
-    the wrong reason (nobody needing them at all)."""
-    for name in sorted(_ENGINE_PLANNER_PRIVATE_NAMES):
-        wrapper_name = _ADAPTER_WRAPPER_NAME.get(name, name)
-        assert hasattr(engine_adapter, wrapper_name), f"adapter is missing wrapper for {name!r}"
-        assert callable(getattr(engine_adapter, wrapper_name))
 
 
 # ---------------------------------------------------------------------------

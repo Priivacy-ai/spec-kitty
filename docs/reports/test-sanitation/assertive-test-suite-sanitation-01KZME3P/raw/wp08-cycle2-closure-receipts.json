@@ -1,0 +1,40 @@
+{
+  "schema_version": "test-sanitation-wp08-cycle2/v1",
+  "recorded_at": "2026-08-11T06:47:00Z",
+  "runtime_state_backfill": {
+    "command": ".venv/bin/spec-kitty migrate backfill-runtime-state --mission assertive-test-suite-sanitation-01KZME3P --json",
+    "exit_code": 0,
+    "result": {"total": 1, "flipped": 1, "seeded": 0, "failed": 0, "verify_ok": true, "mismatches": []},
+    "raw_sha256": "7a48c19b6756eab266ba63dd38168aaf4c6dcc15d64c95af5061aee941987b1c"
+  },
+  "cutover_guard": {
+    "command": ".venv/bin/spec-kitty cutover-guard --base-ref origin/main --json",
+    "exit_code": 0,
+    "result": {"passed": true, "touched_slugs": ["assertive-test-suite-sanitation-01KZME3P"], "failures": []},
+    "raw_sha256": "1c0d982af7005867a5f95e64dffda736528d036aa81e16677a58dc3beb5d9393"
+  },
+  "daemon_restart": {
+    "command": ".venv/bin/spec-kitty doctor restart-daemon --json",
+    "exit_code": 0,
+    "result": {"status": "restarted", "previous_pid": 64825, "new_pid": 76920},
+    "raw_sha256": "f9c3530df66a118a64abbf904bb854061fcee7c2d33ab0bbd39ebfcf16c0679b"
+  },
+  "dependent_wp_planning_lane": {
+    "command": "SK_E2E_SPEC_KITTY_REPO=<lane-h> SPEC_KITTY_ENABLE_SAAS_SYNC=1 .venv/bin/pytest scenarios/dependent_wp_planning_lane.py::test_dependent_wp_planning_lane_lifecycle_smoke -v",
+    "exit_code": 0,
+    "result": "1 passed, 1 warning in 16.56s",
+    "log_sha256": "2ef51a03e80449fb9f7e1b7ae3f1f18ca7c551208a0f20b8098026b6ddf1dce3",
+    "junit_sha256": "c173448c5d54ee3b76c9ca68508232667396ba46d00e5b71215902c3e2fe5ecf"
+  },
+  "contract_drift_exception": {
+    "scenario": "scenarios/contract_drift_caught.py::test_contract_drift_caught",
+    "source_gate_result": "3 passed, 1 xfailed, 2 failed; this exception covers only the nested-wheel-build failure",
+    "source_log_sha256": "d0bbcba07e95cc7ff1e4a6b28691ee5b133a7dcba87079c91f400f78b05c2fae",
+    "source_junit_sha256": "b39bfe8e3ee725d7e2c4cb0913ff6f0ffeecda760607821fa5eb9eecc3417cbc",
+    "exception": "kitty-specs/assertive-test-suite-sanitation-01KZME3P/mission-exception.md"
+  },
+  "preflight_corrections": [
+    "The first backfill/guard probe failed closed because the primary tasks.md still carried prior-cycle done checkboxes while the rejected runtime snapshot reset WP08 subtasks to planned; the source was aligned before the recorded successful canonical run.",
+    "Two dependent-scenario probes used the sibling fixture's non-authoritative repository variables and correctly remained red on source mismatch; the recorded final run uses SK_E2E_SPEC_KITTY_REPO, the harness's actual foreground selector. The daemon was restarted exactly once."
+  ]
+}

@@ -8,7 +8,7 @@ was not registered in a group's explicit ``dir_assignment`` /
 which in turn failed the GC-1 completeness gate
 (``tests/architectural/test_arch_shard_marker_completeness.py``) and the
 zero-gate-orphan gate
-(``tests/architectural/test_gate_coverage.py::test_no_new_orphan_surfaces``)
+(``tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main``)
 whenever a contributor added a new ``tests/architectural/*.py`` file without
 hand-editing ``tests/_arch_shard_map.py``. This has recurred 3+ times (see
 that module's header comments).

@@ -1,0 +1,124 @@
+{
+  "schema_version": "wp02-results/v1",
+  "mission": "assertive-test-suite-sanitation-01KZME3P",
+  "work_package": "WP02",
+  "captured_at": "2026-08-10T11:59:06Z",
+  "immutable_base": "28ae75ea998c898aba57364db7a06d2088bd2af2",
+  "pre_wp_head": "3cbff4a47",
+  "implementation_commits": {
+    "bootstrap": "a779cd122",
+    "scanner": "2e6a32f8d",
+    "review_cycle_2": "8f0d24768",
+    "review_cycle_3": "83c8a3a08"
+  },
+  "environment": {
+    "os": "macOS 15.7.7 (24G720), Darwin 24.6.0 arm64",
+    "python": "CPython 3.11.15",
+    "runner": "local Apple Silicon",
+    "install": "uv sync --frozen --all-extras"
+  },
+  "pre_existing_attribution": [
+    {
+      "issue": "#3283",
+      "status": "pre-existing on immutable base",
+      "evidence": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp02-bootstrap-pre-fix.txt",
+      "probe": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp02-bootstrap-pre-fix-probe.py",
+      "sha256": "236a30ed498f08aa7694f0ac80fc5c7688880ef1e4343cf8f6b8026abd52c57c",
+      "summary": "Controlled immutable-base topology fault: a live builder held the fixed lock across a slow direct-to-final build; the waiter timed out and the incomplete final path was observable."
+    },
+    {
+      "issue": "#2645",
+      "status": "pre-existing on immutable base",
+      "summary": "Each focused collection reparsed and repeatedly rescanned the complete tests tree; ordinary result aliases amplified propagation."
+    }
+  ],
+  "red_first": {
+    "command": ".venv/bin/python docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp02-bootstrap-pre-fix-probe.py",
+    "fault": "Preserve immutable-base fixed-lock/direct-to-final topology while compressing its 60s/>90s timeout/build duration to 0.25s/1.0s; heartbeat remains absent.",
+    "act": "Two spawned OS processes; waiter starts only after the live builder enters the locked build and publishes an incomplete final directory.",
+    "intended_oracle": "The live owner completes while its waiter never errors and no incomplete final cache path is visible.",
+    "result": "exit 0 for reproduced fault; partial_final_observed=true; one published outcome and one timeout outcome; oracle_failed=true",
+    "raw_artifact": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp02-bootstrap-pre-fix.txt",
+    "raw_artifact_sha256": "236a30ed498f08aa7694f0ac80fc5c7688880ef1e4343cf8f6b8026abd52c57c"
+  },
+  "patches": {
+    "bootstrap": {
+      "path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp02-bootstrap-replay.patch",
+      "sha256": "bbf8f7c93121fd12bb37a1bfbd87f57e6a11dfb929ea69da1b4d51b7f1cf3c89"
+    },
+    "scanner": {
+      "path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp02-scanner-replay.patch",
+      "sha256": "6159cdbd4b9f6eea7ae73e814d9bca2aeb740461f918fc1ace251dd25b9e2c56"
+    },
+    "replay": {
+      "workspace": "/tmp/spec-kitty-wp02-cycle3-final.R3shCc/base",
+      "apply": "both patches applied unchanged to immutable base; all five touched files were byte-identical to HEAD",
+      "bootstrap_result": "13 passed, 2 skipped in 30.66s on the byte-identical lane",
+      "scanner_result": "113 passed in 25.42s on the byte-identical lane"
+    }
+  },
+  "verification": [
+    {
+      "command": ".venv/bin/pytest tests/test_test_venv_bootstrap.py -q --tb=short",
+      "result": "13 passed, 2 skipped in 30.66s on macOS; combined stale-lease/external-final-symlink recovery preserved the target; Windows-only cases skipped"
+    },
+    {
+      "command": ".venv/bin/pytest tests/_support/test_wall_clock_assertions.py -q --tb=short",
+      "result": "113 passed in 25.42s; erased rows with recomputed self-hash failed the external HMAC authority and rescanned; distinct spawned publisher/reader passed"
+    },
+    {
+      "command": ".venv/bin/pytest tests/integration/test_pytest_venv_concurrency.py -q --tb=short",
+      "result": "1 passed in 84.02s"
+    },
+    {
+      "command": ".venv/bin/ruff check tests/conftest.py tests/test_test_venv_bootstrap.py tests/_support/wall_clock_assertions.py tests/_support/test_wall_clock_assertions.py docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp02-bootstrap-pre-fix-probe.py",
+      "result": "All checks passed"
+    },
+    {
+      "command": "identical cached focused scanner rerun",
+      "result": "2 passed in 25.02s; recomputed self-hash adversary and spawned cross-process publication/read selected"
+    }
+  ],
+  "parallel_clean_starts": {
+    "evidence": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp02-parallel-clean-starts.txt",
+    "sha256": "29e5808e45becb085f4771e6fb89880a328ebc00d918caa7e55ac03e2d937fd4",
+    "command": "PWHEADLESS=1 .venv/bin/pytest tests/ -n auto --dist loadfile -p no:cacheprovider --deselect tests/sync/test_orphan_sweep.py",
+    "cache_reset": "Before every run, the final venv, lease state/lock, and scanner cache were moved to a run-specific recoverable /tmp directory; all four live paths began absent.",
+    "worker_topology": "10/10 xdist workers; 37,452 collected items on every run",
+    "runs": [
+      {"run": 1, "publication_seconds": 161.716, "body_proof": "progress 0% through 100%; JUnit tests=37455", "outcome": "full completion rc=1: 37314 passed, 110 skipped, 5 xfailed, 23 failed, 3 errors in 1627.18s; no bootstrap-cascade signature"},
+      {"run": 2, "publication_seconds": 126.824, "body_proof": "3553 passed JUnit cases; progress reached 5%", "outcome": "controlled operator SIGINT after body-start oracle; deliberately not a complete-suite outcome; no bootstrap-cascade signature"},
+      {"run": 3, "publication_seconds": 138.587, "body_proof": "JUnit tests=7499 with 0 failures/0 errors; progress reached 18%", "outcome": "controlled operator SIGINT after body-start oracle; deliberately not a complete-suite outcome; no bootstrap-cascade signature"}
+    ],
+    "publication_median_seconds": 138.587,
+    "publication_maximum_seconds": 161.716,
+    "result": "Three consecutive equivalent clean starts published exactly one validated final venv and began test bodies without sibling lock-timeout cascades."
+  },
+  "matched_cold_scanner_timing": {
+    "command": ".venv/bin/pytest tests/_support/test_wall_clock_assertions.py -k 'resolves_cross_file_clock_aliases or format_wall_clock' -q --tb=short",
+    "cache_policy": "remove only .pytest_cache/wall-clock-assertion-scan before each HEAD run; bootstrap-only base has no scanner cache",
+    "bootstrap_only_base_real_seconds": [117.92, 52.97, 54.42],
+    "bootstrap_only_base_median_seconds": 54.42,
+    "head_real_seconds": [44.65, 44.66, 45.07],
+    "head_median_seconds": 44.66,
+    "median_reduction_percent": 17.93,
+    "scanner_optimized_base_real_seconds": [45.01, 44.36, 44.75],
+    "scanner_optimized_base_median_seconds": 44.75,
+    "attribution": "#2645 scanner optimization only; no test sanitation deletion or CI routing savings included"
+  },
+  "platform_routes": {
+    "macos": "local results above",
+    "linux": {
+      "workflow": ".github/workflows/ci-quality.yml",
+      "job": "fast-tests-core-misc (core-misc)",
+      "selector": "-m 'fast and not windows_ci and not regression' with residual tests/ root",
+      "status": "actual PR job ID/URL deferred to WP08 integrated-commit closure"
+    },
+    "windows": {
+      "workflow": ".github/workflows/ci-windows.yml",
+      "job": "windows-critical",
+      "selector": "git grep -l '@pytest.mark.windows_ci' -- tests; pytest -m windows_ci",
+      "status": "actual PR job ID/URL deferred to WP08 integrated-commit closure"
+    }
+  }
+}

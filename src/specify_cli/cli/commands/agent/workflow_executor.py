@@ -1114,8 +1114,8 @@ def implement_try_render_fix_mode_prompt(
 
         # WP05 (verdict-seam-write-unification-01KZ9Q35, T024): routed through
         # the T058 owner function instead of a raw ``feature_dir / "tasks" /
-        # wp_slug`` join -- one of the three sites WP04's own
-        # ``verdict_seam_IC04.yaml`` fragment flagged as unrouted (alongside
+        # wp_slug`` join -- one of the three sites WP04's review flagged as
+        # unrouted (alongside
         # ``workflow_cores.py::has_prior_rejection`` and ``workflow.py::
         # review``). This function's own ``.from_file``/``.latest`` calls
         # below remain content/cycle-number loaders (squad #1 — KEPT, not

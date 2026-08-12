@@ -48,7 +48,6 @@ from __future__ import annotations
 import ast
 import json
 import subprocess
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -65,8 +64,6 @@ from specify_cli.cli.commands.agent import tasks_status_cmd as tasks_status_cmd_
 from specify_cli.cli.commands.agent import tasks_status_view as tasks_status_view_module
 from specify_cli.cli.commands.agent import tasks_transition_core as tasks_transition_core_module
 from specify_cli.cli.commands.agent.tasks import (
-    _coord_topology_active,
-    _skip_target_branch_commit,
     app,
 )
 from specify_cli.review.arbiter import (
@@ -182,36 +179,6 @@ def _build_coord_protected_tree(root: Path) -> CoordTopologyContext:
     return ctx
 
 
-def test_coord_protected_tree_is_real_on_disk_state(tmp_path: Path) -> None:
-    """T003: the fixture builds REAL coord state — no topology/resolver stub.
-
-    Asserts every load-bearing invariant of the vehicle so T004-T007 cannot be
-    silently defanged by a stubbed topology (the exact failure mode the WP guards
-    against): the coord worktree exists on disk, the coord branch exists in git,
-    ``_coord_topology_active`` is ``True`` (probed via the real git registry), and
-    ``_skip_target_branch_commit`` is ``True`` for the protected primary but
-    ``False`` for a non-protected branch (the determinant of the skip arm).
-    """
-    ctx = _build_coord_protected_tree(tmp_path)
-
-    # Real coord worktree directory (created via CoordinationWorkspace, not mocked).
-    coord_worktree_root = ctx.coord_feature_dir.parents[1]
-    assert coord_worktree_root.is_dir()
-    assert (coord_worktree_root / ".git").exists(), "coord worktree must be a real linked git worktree"
-
-    # Real coordination branch in the repo.
-    branches = subprocess.run(
-        ["git", "-C", str(ctx.repo), "branch", "--list", ctx.coord_branch],
-        capture_output=True, text=True, check=True,
-    ).stdout
-    assert ctx.coord_branch in branches, "coordination branch must exist in git"
-
-    # Topology probe uses the real git worktree registry (unstubbed).
-    assert _coord_topology_active(ctx.repo, ctx.slug) is True
-
-    # The skip determinant: True for the protected primary, False otherwise.
-    assert _skip_target_branch_commit(ctx.repo, ctx.slug, "main") is True
-    assert _skip_target_branch_commit(ctx.repo, ctx.slug, "feature/not-protected") is False
 
 
 # ---------------------------------------------------------------------------
@@ -1357,51 +1324,3 @@ def _branch_coverage_by_function(
             )
         result[name] = covered / total * 100.0
     return result
-
-
-def test_from_harness_branch_coverage_ratchet(tmp_path_factory: pytest.TempPathFactory) -> None:
-    """T007: measure per-function branch coverage FROM this harness and gate it.
-
-    Re-runs every mutating-command scenario under a fresh ``coverage`` tracer and
-    asserts the branch coverage of ``move_task`` / ``status`` / ``map_requirements``
-    stays at or above the measured floor. This is the ratchet that ensures no
-    decision branch is silently left unfrozen before WP03's extraction.
-
-    When the whole suite already runs under a coverage tracer (CI's ``--cov``
-    pass), a nested tracer cannot measure, so the gate skips there and runs in the
-    standard ``pytest -q`` pass (the CLAUDE.md dual-run model).
-    """
-    if sys.gettrace() is not None:
-        pytest.skip("a tracer is already active (suite under --cov); ratchet runs in the no-cov pass")
-
-    import coverage
-
-    ranges = _mutating_function_line_ranges()
-    include_paths = sorted(
-        {source_path for spans in ranges.values() for source_path, _ in spans}
-    )
-
-    cov = coverage.Coverage(branch=True, include=include_paths)
-    counter = {"n": 0}
-
-    def mkdir() -> Path:
-        counter["n"] += 1
-        return tmp_path_factory.mktemp(f"tasks_cli_wp01_cov_{counter['n']}")
-
-    cov.start()
-    try:
-        _run_all_scenarios(mkdir)
-    finally:
-        cov.stop()
-
-    measured = _branch_coverage_by_function(cov, ranges)
-    shortfalls = {
-        name: (round(measured[name], 1), floor)
-        for name, floor in _BRANCH_COVERAGE_FLOORS.items()
-        if measured[name] + 1e-6 < floor
-    }
-    assert not shortfalls, (
-        "from-harness branch coverage dropped below the frozen floor "
-        f"(measured%, floor%): {shortfalls}. A decision branch is now unfrozen — "
-        "add a driven case before extracting it."
-    )

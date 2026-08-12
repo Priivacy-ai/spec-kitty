@@ -1,0 +1,2994 @@
+{
+  "schema_version": "test-sanitation/v1",
+  "dispositions": [
+    {
+      "candidate": {
+        "id": "WP12-auth-module-exact",
+        "members": [
+          "tests/sync/test_auth.py::test_legacy_sync_auth_module_is_gone",
+          "tests/auth/integration/test_transport_rewired.py::test_legacy_sync_auth_module_does_not_exist"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/sync/test_auth.py",
+          "tests/auth/integration/test_transport_rewired.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/sync/auth.py"
+        ],
+        "oracle": "Importing the retired sync.auth module raises ImportError.",
+        "contract_claim": "The password-era sync.auth module stays absent.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": "5a28b0c8c88ae8418a31098284e84061d7fa319c94a538fb08063d2204cfa146",
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_auth.py::test_legacy_sync_auth_module_is_gone",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/sync/test_auth.py::test_legacy_sync_auth_module_is_gone"
+        ],
+        "retained_members": [
+          "tests/auth/integration/test_transport_rewired.py::test_legacy_sync_auth_module_does_not_exist"
+        ],
+        "replacement_survivors": [
+          "tests/auth/integration/test_transport_rewired.py::test_legacy_sync_auth_module_does_not_exist"
+        ],
+        "family_basis": "Bodies, import input, and ImportError oracle are exact; integration survivor owns the cutover.",
+        "causal_survivor": "tests/auth/integration/test_transport_rewired.py::test_legacy_sync_auth_module_does_not_exist",
+        "terminal_explanations": {
+          "tests/sync/test_auth.py::test_legacy_sync_auth_module_is_gone": "Delete same-input/same-oracle copy; retain cross-owner integration survivor."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/sync/test_auth.py::test_legacy_sync_auth_module_is_gone",
+            "right": "tests/auth/integration/test_transport_rewired.py::test_legacy_sync_auth_module_does_not_exist",
+            "result": "Bodies, import input, and ImportError oracle are exact; integration survivor owns the cutover."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Make specify_cli.sync.auth importable via sys.modules.",
+          "authority_violated": "The password-era sync.auth module stays absent.",
+          "act_reached": true,
+          "intended_oracle": "Importing the retired sync.auth module raises ImportError.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-auth-module-exact fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "CONSOLIDATE",
+      "state": "terminal",
+      "action": "Delete same-input/same-oracle copy; retain cross-owner integration survivor.",
+      "survivor": "tests/auth/integration/test_transport_rewired.py::test_legacy_sync_auth_module_does_not_exist",
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-status-store-route-split",
+        "members": [
+          "tests/status/test_store.py::test_read_nonexistent_file",
+          "tests/missions/test_mission_v1_events_unit.py::TestReadEvents.test_nonexistent_file_returns_empty"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/status/test_store.py",
+          "tests/missions/test_mission_v1_events_unit.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/status/store.py",
+          "src/specify_cli/mission_v1/events.py"
+        ],
+        "oracle": "Each persistence reader returns an empty list for its own absent event file.",
+        "contract_claim": "Status JSONL and Mission-v1 event logs retain independent absent-file semantics.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": "293a72517c20bd85078be15d833f9b6ad6a3011a469c9259ca5f8b1d5034232f",
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/status/test_store.py::test_read_nonexistent_file",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [],
+        "retained_members": [
+          "tests/status/test_store.py::test_read_nonexistent_file",
+          "tests/missions/test_mission_v1_events_unit.py::TestReadEvents.test_nonexistent_file_returns_empty"
+        ],
+        "replacement_survivors": [],
+        "family_basis": "Syntax is exact but production paths, filenames, and persistence authorities diverge.",
+        "causal_survivor": "both members",
+        "terminal_explanations": {}
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/status/test_store.py::test_read_nonexistent_file",
+            "right": "no runner-reachable behavior",
+            "result": "Syntax is exact but production paths, filenames, and persistence authorities diverge."
+          }
+        ],
+        "causal_probe": {
+          "kind": "retained-boundary-fault-campaign",
+          "fault": "Return a phantom event from each reader.",
+          "authority_violated": "Status JSONL and Mission-v1 event logs retain independent absent-file semantics.",
+          "act_reached": true,
+          "intended_oracle": "Each persistence reader returns an empty list for its own absent event file.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-status-store-route-split fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "3316178359c6af7415436e00b7ceb4d14487668e48eedf107ee9ec5aefe0651b"
+        }
+      },
+      "verdict": "KEEP",
+      "state": "terminal",
+      "action": "Keep both distinct persistence boundaries.",
+      "survivor": null,
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-doctor-orphan-exact",
+        "members": [
+          "tests/status/test_doctor.py::TestCheckOrphanWorkspaces.test_all_done_no_worktrees",
+          "tests/status/test_doctor.py::TestCheckOrphanWorkspaces.test_no_worktrees_directory"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/status/test_doctor.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/status/doctor.py"
+        ],
+        "oracle": "Absent worktrees produce no orphan findings.",
+        "contract_claim": "No-worktree input is clean regardless of irrelevant terminal snapshot setup.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": "beaf251028ddf42161524abf65c01d33eb64d41a8a8b909bfdcbb223ecc57519",
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/status/test_doctor.py::TestCheckOrphanWorkspaces::test_all_done_no_worktrees",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/status/test_doctor.py::TestCheckOrphanWorkspaces.test_all_done_no_worktrees"
+        ],
+        "retained_members": [
+          "tests/status/test_doctor.py::TestCheckOrphanWorkspaces.test_no_worktrees_directory"
+        ],
+        "replacement_survivors": [
+          "tests/status/test_doctor.py::TestCheckOrphanWorkspaces.test_no_worktrees_directory"
+        ],
+        "family_basis": "Same checker, absent-directory input, and zero-findings oracle.",
+        "causal_survivor": "tests/status/test_doctor.py::TestCheckOrphanWorkspaces.test_no_worktrees_directory",
+        "terminal_explanations": {
+          "tests/status/test_doctor.py::TestCheckOrphanWorkspaces.test_all_done_no_worktrees": "Delete snapshot-decorated copy; retain direct absent-directory survivor."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/status/test_doctor.py::TestCheckOrphanWorkspaces.test_all_done_no_worktrees",
+            "right": "tests/status/test_doctor.py::TestCheckOrphanWorkspaces.test_no_worktrees_directory",
+            "result": "Same checker, absent-directory input, and zero-findings oracle."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Return one phantom orphan finding.",
+          "authority_violated": "No-worktree input is clean regardless of irrelevant terminal snapshot setup.",
+          "act_reached": true,
+          "intended_oracle": "Absent worktrees produce no orphan findings.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-doctor-orphan-exact fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "CONSOLIDATE",
+      "state": "terminal",
+      "action": "Delete snapshot-decorated copy; retain direct absent-directory survivor.",
+      "survivor": "tests/status/test_doctor.py::TestCheckOrphanWorkspaces.test_no_worktrees_directory",
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-batch-empty-exact",
+        "members": [
+          "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_empty_string_returns_unknown",
+          "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_none_like_returns_unknown"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/sync/test_batch_error_surfacing.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/sync/batch.py"
+        ],
+        "oracle": "categorize_error('') returns unknown.",
+        "contract_claim": "Empty diagnostics remain uncategorized.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": "c284b09c56ef700a86498d84b48e138f03d418b9825500ccecf5a81c92258523",
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_batch_error_surfacing.py::TestCategorizeError::test_empty_string_returns_unknown",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_none_like_returns_unknown"
+        ],
+        "retained_members": [
+          "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_empty_string_returns_unknown"
+        ],
+        "replacement_survivors": [
+          "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_empty_string_returns_unknown"
+        ],
+        "family_basis": "Literal input, callable, and equality oracle are identical.",
+        "causal_survivor": "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_empty_string_returns_unknown",
+        "terminal_explanations": {
+          "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_none_like_returns_unknown": "Delete literal duplicate."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_empty_string_returns_unknown",
+            "right": "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_empty_string_returns_unknown",
+            "result": "Literal input, callable, and equality oracle are identical."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Return a non-unknown category for empty input.",
+          "authority_violated": "Empty diagnostics remain uncategorized.",
+          "act_reached": true,
+          "intended_oracle": "categorize_error('') returns unknown.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-batch-empty-exact fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "CONSOLIDATE",
+      "state": "terminal",
+      "action": "Delete literal duplicate.",
+      "survivor": "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_empty_string_returns_unknown",
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-dossier-route-split",
+        "members": [
+          "tests/sync/test_dossier_trigger.py::TestTriggerDisabled.test_returns_none_when_sync_disabled",
+          "tests/sync/test_dossier_trigger.py::TestTriggerEnabled.test_never_raises_on_internal_error"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/sync/test_dossier_trigger.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/sync/dossier_pipeline.py",
+          "src/specify_cli/sync/feature_flags.py",
+          "src/specify_cli/identity/project.py"
+        ],
+        "oracle": "Disabled sync and enabled internal failure both return None through their distinct routes.",
+        "contract_claim": "Feature gating and internal-error suppression remain independent early-return boundaries.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": "0bbf839bd93a72f598c8bfeac544bae532fa8483cb2c480d2d7bbf2550f7dc73",
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_dossier_trigger.py::TestTriggerDisabled::test_returns_none_when_sync_disabled",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [],
+        "retained_members": [
+          "tests/sync/test_dossier_trigger.py::TestTriggerDisabled.test_returns_none_when_sync_disabled",
+          "tests/sync/test_dossier_trigger.py::TestTriggerEnabled.test_never_raises_on_internal_error"
+        ],
+        "replacement_survivors": [],
+        "family_basis": "Bodies collide only after decorators are removed; gate input and exception route diverge.",
+        "causal_survivor": "both members",
+        "terminal_explanations": {}
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/sync/test_dossier_trigger.py::TestTriggerDisabled.test_returns_none_when_sync_disabled",
+            "right": "no runner-reachable behavior",
+            "result": "Bodies collide only after decorators are removed; gate input and exception route diverge."
+          }
+        ],
+        "causal_probe": {
+          "kind": "retained-boundary-fault-campaign",
+          "fault": "Return a non-None sentinel on each route.",
+          "authority_violated": "Feature gating and internal-error suppression remain independent early-return boundaries.",
+          "act_reached": true,
+          "intended_oracle": "Disabled sync and enabled internal failure both return None through their distinct routes.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-dossier-route-split fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "3316178359c6af7415436e00b7ceb4d14487668e48eedf107ee9ec5aefe0651b"
+        }
+      },
+      "verdict": "KEEP",
+      "state": "terminal",
+      "action": "Keep both distinct route boundaries.",
+      "survivor": null,
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-event-queue-exact",
+        "members": [
+          "tests/sync/test_event_emission.py::TestImplementEmitsWPStatusChanged.test_event_queued_for_sync",
+          "tests/sync/test_events.py::TestWPStatusChanged.test_queued_in_offline_queue"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/sync/test_event_emission.py",
+          "tests/sync/test_events.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/sync/emitter.py",
+          "src/specify_cli/sync/queue.py"
+        ],
+        "oracle": "One WP status emission adds exactly one offline queue record.",
+        "contract_claim": "WP status changes remain locally durable.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": "48b77785447988538258a97bee1d55c586745c04406cc565b8ff7a9a4d31734e",
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_event_emission.py::TestImplementEmitsWPStatusChanged::test_event_queued_for_sync",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/sync/test_event_emission.py::TestImplementEmitsWPStatusChanged.test_event_queued_for_sync"
+        ],
+        "retained_members": [
+          "tests/sync/test_events.py::TestWPStatusChanged.test_queued_in_offline_queue"
+        ],
+        "replacement_survivors": [
+          "tests/sync/test_events.py::TestWPStatusChanged.test_queued_in_offline_queue"
+        ],
+        "family_basis": "Same emitter input, queue path, and size oracle.",
+        "causal_survivor": "tests/sync/test_events.py::TestWPStatusChanged.test_queued_in_offline_queue",
+        "terminal_explanations": {
+          "tests/sync/test_event_emission.py::TestImplementEmitsWPStatusChanged.test_event_queued_for_sync": "Delete copied queue assertion; retain canonical emitter survivor."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/sync/test_event_emission.py::TestImplementEmitsWPStatusChanged.test_event_queued_for_sync",
+            "right": "tests/sync/test_events.py::TestWPStatusChanged.test_queued_in_offline_queue",
+            "result": "Same emitter input, queue path, and size oracle."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Force queue size to zero after emission.",
+          "authority_violated": "WP status changes remain locally durable.",
+          "act_reached": true,
+          "intended_oracle": "One WP status emission adds exactly one offline queue record.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-event-queue-exact fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "CONSOLIDATE",
+      "state": "terminal",
+      "action": "Delete copied queue assertion; retain canonical emitter survivor.",
+      "survivor": "tests/sync/test_events.py::TestWPStatusChanged.test_queued_in_offline_queue",
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-git-platform-failure-matrix",
+        "members": [
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_git_not_installed",
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_subprocess_timeout",
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_permission_error",
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_warning_logged_for_missing_git",
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_warning_logged_for_timeout",
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_warning_logged_for_permission_error",
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_git_not_installed_repo_slug_also_none"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/sync/test_git_metadata.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/sync/git_metadata.py"
+        ],
+        "oracle": "Missing git, timeout, and permission failures each return empty metadata and their own diagnostic.",
+        "contract_claim": "All supported platform/process failure identities degrade safely and visibly.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": "b59fe471d5f6d6404af4473ceea860a5384882d127a21dce9c1cb9051303c9db",
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_git_metadata.py::TestGracefulDegradation::test_git_not_installed",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_git_not_installed",
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_subprocess_timeout",
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_permission_error",
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_warning_logged_for_missing_git",
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_warning_logged_for_timeout",
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_warning_logged_for_permission_error",
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_git_not_installed_repo_slug_also_none"
+        ],
+        "retained_members": [],
+        "replacement_survivors": [
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_platform_failures_return_empty_metadata_and_warn"
+        ],
+        "family_basis": "Seven copied invocations are one exception-to-result matrix; exception identities and warnings remain explicit.",
+        "causal_survivor": "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_platform_failures_return_empty_metadata_and_warn",
+        "terminal_explanations": {
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_git_not_installed": "Replace seven copied invocations with one exact exception/result/diagnostic matrix.",
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_subprocess_timeout": "Replace seven copied invocations with one exact exception/result/diagnostic matrix.",
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_permission_error": "Replace seven copied invocations with one exact exception/result/diagnostic matrix.",
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_warning_logged_for_missing_git": "Replace seven copied invocations with one exact exception/result/diagnostic matrix.",
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_warning_logged_for_timeout": "Replace seven copied invocations with one exact exception/result/diagnostic matrix.",
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_warning_logged_for_permission_error": "Replace seven copied invocations with one exact exception/result/diagnostic matrix.",
+          "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_git_not_installed_repo_slug_also_none": "Replace seven copied invocations with one exact exception/result/diagnostic matrix."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_git_not_installed",
+            "right": "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_platform_failures_return_empty_metadata_and_warn",
+            "result": "Seven copied invocations are one exception-to-result matrix; exception identities and warnings remain explicit."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Return populated metadata and suppress warnings for every platform failure.",
+          "authority_violated": "All supported platform/process failure identities degrade safely and visibly.",
+          "act_reached": true,
+          "intended_oracle": "Missing git, timeout, and permission failures each return empty metadata and their own diagnostic.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-git-platform-failure-matrix fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "Replace seven copied invocations with one exact exception/result/diagnostic matrix.",
+      "survivor": "tests/sync/test_git_metadata.py::TestGracefulDegradation.test_platform_failures_return_empty_metadata_and_warn",
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-tracker-config-route-split",
+        "members": [
+          "tests/sync/tracker/test_config.py::test_is_configured_local_without_workspace",
+          "tests/sync/tracker/test_config.py::test_is_configured_saas_without_project_slug"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/sync/tracker/test_config.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/tracker/config.py"
+        ],
+        "oracle": "Local providers require workspace; SaaS providers require project_slug.",
+        "contract_claim": "Local and SaaS tracker configuration prerequisites remain provider-specific.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": "b16293833bb451d54d855b301460afad06f0a5adc04f40eb0cb3f59732475686",
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/tracker/test_config.py::test_is_configured_local_without_workspace[beads]",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [],
+        "retained_members": [
+          "tests/sync/tracker/test_config.py::test_is_configured_local_without_workspace",
+          "tests/sync/tracker/test_config.py::test_is_configured_saas_without_project_slug"
+        ],
+        "replacement_survivors": [],
+        "family_basis": "Same syntax masks provider-family and required-field divergence.",
+        "causal_survivor": "both parametrized families",
+        "terminal_explanations": {}
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/sync/tracker/test_config.py::test_is_configured_local_without_workspace",
+            "right": "no runner-reachable behavior",
+            "result": "Same syntax masks provider-family and required-field divergence."
+          }
+        ],
+        "causal_probe": {
+          "kind": "retained-boundary-fault-campaign",
+          "fault": "Force is_configured true for missing provider-specific fields.",
+          "authority_violated": "Local and SaaS tracker configuration prerequisites remain provider-specific.",
+          "act_reached": true,
+          "intended_oracle": "Local providers require workspace; SaaS providers require project_slug.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-tracker-config-route-split fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "3316178359c6af7415436e00b7ceb4d14487668e48eedf107ee9ec5aefe0651b"
+        }
+      },
+      "verdict": "KEEP",
+      "state": "terminal",
+      "action": "Keep local and SaaS provider boundaries.",
+      "survivor": null,
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-tracker-status-exact",
+        "members": [
+          "tests/sync/tracker/test_service.py::TestDelegation.test_status_delegates",
+          "tests/sync/tracker/test_service.py::TestStatusAll.test_status_without_all_delegates_normally"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/sync/tracker/test_service.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/tracker/service.py",
+          "src/specify_cli/tracker/local_service.py"
+        ],
+        "oracle": "Default status delegates once and returns backend result.",
+        "contract_claim": "TrackerService.status delegates to the resolved backend.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": "7e98c5c069e2f459e775dd86f3a9207b3be235cfd5518abbe3d4019299fbfa65",
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/tracker/test_service.py::TestDelegation::test_status_delegates",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/sync/tracker/test_service.py::TestStatusAll.test_status_without_all_delegates_normally"
+        ],
+        "retained_members": [
+          "tests/sync/tracker/test_service.py::TestDelegation.test_status_delegates"
+        ],
+        "replacement_survivors": [
+          "tests/sync/tracker/test_service.py::TestDelegation.test_status_delegates"
+        ],
+        "family_basis": "Same config, backend mock, call-count oracle, and result oracle.",
+        "causal_survivor": "tests/sync/tracker/test_service.py::TestDelegation.test_status_delegates",
+        "terminal_explanations": {
+          "tests/sync/tracker/test_service.py::TestStatusAll.test_status_without_all_delegates_normally": "Delete exact delegation copy."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/sync/tracker/test_service.py::TestDelegation.test_status_delegates",
+            "right": "tests/sync/tracker/test_service.py::TestDelegation.test_status_delegates",
+            "result": "Same config, backend mock, call-count oracle, and result oracle."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Bypass backend status delegation.",
+          "authority_violated": "TrackerService.status delegates to the resolved backend.",
+          "act_reached": true,
+          "intended_oracle": "Default status delegates once and returns backend result.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-tracker-status-exact fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "CONSOLIDATE",
+      "state": "terminal",
+      "action": "Delete exact delegation copy.",
+      "survivor": "tests/sync/tracker/test_service.py::TestDelegation.test_status_delegates",
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-upgrade-version-boundary-split",
+        "members": [
+          "tests/upgrade/test_activate_builtin_types_migration.py::test_detect_returns_false_when_no_config",
+          "tests/upgrade/test_charter_rename_migration.py::TestPartialState.test_no_kittify_dir",
+          "tests/upgrade/test_charter_template_migration.py::test_detect_always_returns_false",
+          "tests/upgrade/test_m_0_12_0_documentation_mission_unit.py::test_detect_non_kittify_project",
+          "tests/upgrade/test_migration_python_only_unit.py::test_detect_no_bash_scripts",
+          "tests/upgrade/test_op_record_schema_v2_migration.py::TestDetectMatrix.test_detect_false_without_kitty_ops"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/upgrade/test_activate_builtin_types_migration.py",
+          "tests/upgrade/test_charter_rename_migration.py",
+          "tests/upgrade/test_charter_template_migration.py",
+          "tests/upgrade/test_m_0_12_0_documentation_mission_unit.py",
+          "tests/upgrade/test_migration_python_only_unit.py",
+          "tests/upgrade/test_op_record_schema_v2_migration.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/upgrade/migrations/m_3_2_0rc35_activate_builtin_mission_types.py",
+          "src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py",
+          "src/specify_cli/upgrade/migrations/m_0_13_0_update_charter_templates.py",
+          "src/specify_cli/upgrade/migrations/m_0_12_0_documentation_mission.py",
+          "src/specify_cli/upgrade/migrations/m_0_10_0_python_only.py",
+          "src/specify_cli/upgrade/migrations/m_3_3_0_op_record_schema_v2.py"
+        ],
+        "oracle": "Each migration returns its version-specific detect result for an absent project input.",
+        "contract_claim": "Supported migration classes and versions retain distinct detection boundaries.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": "1ba12215c397534b4e2150ba6d72f062de3ee39d445dc8a4e1f11797971655e2",
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/upgrade/test_activate_builtin_types_migration.py::test_detect_returns_false_when_no_config",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [],
+        "retained_members": [
+          "tests/upgrade/test_activate_builtin_types_migration.py::test_detect_returns_false_when_no_config",
+          "tests/upgrade/test_charter_rename_migration.py::TestPartialState.test_no_kittify_dir",
+          "tests/upgrade/test_charter_template_migration.py::test_detect_always_returns_false",
+          "tests/upgrade/test_m_0_12_0_documentation_mission_unit.py::test_detect_non_kittify_project",
+          "tests/upgrade/test_migration_python_only_unit.py::test_detect_no_bash_scripts",
+          "tests/upgrade/test_op_record_schema_v2_migration.py::TestDetectMatrix.test_detect_false_without_kitty_ops"
+        ],
+        "replacement_survivors": [],
+        "family_basis": "Exact bodies invoke six different migration classes and version contracts.",
+        "causal_survivor": "all six members",
+        "terminal_explanations": {}
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/upgrade/test_activate_builtin_types_migration.py::test_detect_returns_false_when_no_config",
+            "right": "no runner-reachable behavior",
+            "result": "Exact bodies invoke six different migration classes and version contracts."
+          }
+        ],
+        "causal_probe": {
+          "kind": "retained-boundary-fault-campaign",
+          "fault": "Invert detect-false to true independently for every retained migration.",
+          "authority_violated": "Supported migration classes and versions retain distinct detection boundaries.",
+          "act_reached": true,
+          "intended_oracle": "Each migration returns its version-specific detect result for an absent project input.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-upgrade-version-boundary-split fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "3316178359c6af7415436e00b7ceb4d14487668e48eedf107ee9ec5aefe0651b"
+        }
+      },
+      "verdict": "KEEP",
+      "state": "terminal",
+      "action": "Keep all six supported version boundaries; split cleanup copy to its stronger same-version survivor.",
+      "survivor": null,
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-superseded-stub-dry-run",
+        "members": [
+          "tests/upgrade/test_charter_template_migration.py::test_apply_dry_run_returns_success",
+          "tests/upgrade/test_migration_charter_cleanup_unit.py::test_apply_dry_run_returns_success"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/upgrade/test_charter_template_migration.py",
+          "tests/upgrade/test_migration_charter_cleanup_unit.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/upgrade/runner.py"
+        ],
+        "oracle": "No dry-run apply oracle is runner-reachable after permanent detect-false.",
+        "contract_claim": "Superseded stub migrations remain inert through detect and retain metadata only.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": "26500eef9418d7c6cca7bcfdc694e23fade0e9bb7b4af8b60851124c3959ae0e",
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/upgrade/test_charter_template_migration.py::test_apply_dry_run_returns_success",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/upgrade/test_charter_template_migration.py::test_apply_dry_run_returns_success",
+          "tests/upgrade/test_migration_charter_cleanup_unit.py::test_apply_dry_run_returns_success"
+        ],
+        "retained_members": [],
+        "replacement_survivors": [],
+        "family_basis": "Both tests call methods the runner cannot reach; no unique product kill exists.",
+        "causal_survivor": null,
+        "terminal_explanations": {
+          "tests/upgrade/test_charter_template_migration.py::test_apply_dry_run_returns_success": "Delete runner-unreachable dry-run method tests; preserve both detect and metadata/version boundaries.",
+          "tests/upgrade/test_migration_charter_cleanup_unit.py::test_apply_dry_run_returns_success": "Delete runner-unreachable dry-run method tests; preserve both detect and metadata/version boundaries."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/upgrade/test_charter_template_migration.py::test_apply_dry_run_returns_success",
+            "right": "no runner-reachable behavior",
+            "result": "Both tests call methods the runner cannot reach; no unique product kill exists."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Invert retained stub detect to true; detect survivor fails before dry-run apply could be selected.",
+          "authority_violated": "Superseded stub migrations remain inert through detect and retain metadata only.",
+          "act_reached": true,
+          "intended_oracle": "No dry-run apply oracle is runner-reachable after permanent detect-false.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-superseded-stub-dry-run fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "Delete runner-unreachable dry-run method tests; preserve both detect and metadata/version boundaries.",
+      "survivor": null,
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-superseded-stub-apply",
+        "members": [
+          "tests/upgrade/test_charter_template_migration.py::test_apply_returns_success",
+          "tests/upgrade/test_migration_charter_cleanup_unit.py::test_apply_returns_success"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/upgrade/test_charter_template_migration.py",
+          "tests/upgrade/test_migration_charter_cleanup_unit.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/upgrade/runner.py"
+        ],
+        "oracle": "No apply oracle is runner-reachable after permanent detect-false.",
+        "contract_claim": "Superseded stub migrations remain inert through detect and retain metadata only.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": "9d2b160bc7a0d16a53486c058a53db8b4b1098eb7ea45a3878e33395de8f6b36",
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/upgrade/test_charter_template_migration.py::test_apply_returns_success",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/upgrade/test_charter_template_migration.py::test_apply_returns_success",
+          "tests/upgrade/test_migration_charter_cleanup_unit.py::test_apply_returns_success"
+        ],
+        "retained_members": [],
+        "replacement_survivors": [],
+        "family_basis": "Both tests call methods the runner cannot reach; no unique product kill exists.",
+        "causal_survivor": null,
+        "terminal_explanations": {
+          "tests/upgrade/test_charter_template_migration.py::test_apply_returns_success": "Delete runner-unreachable apply method tests; preserve both detect and metadata/version boundaries.",
+          "tests/upgrade/test_migration_charter_cleanup_unit.py::test_apply_returns_success": "Delete runner-unreachable apply method tests; preserve both detect and metadata/version boundaries."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/upgrade/test_charter_template_migration.py::test_apply_returns_success",
+            "right": "no runner-reachable behavior",
+            "result": "Both tests call methods the runner cannot reach; no unique product kill exists."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Invert retained stub detect to true; detect survivor fails before apply could be selected.",
+          "authority_violated": "Superseded stub migrations remain inert through detect and retain metadata only.",
+          "act_reached": true,
+          "intended_oracle": "No apply oracle is runner-reachable after permanent detect-false.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-superseded-stub-apply fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "Delete runner-unreachable apply method tests; preserve both detect and metadata/version boundaries.",
+      "survivor": null,
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-superseded-stub-can-apply",
+        "members": [
+          "tests/upgrade/test_charter_template_migration.py::test_can_apply_always_returns_false",
+          "tests/upgrade/test_migration_charter_cleanup_unit.py::test_can_apply_returns_false"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/upgrade/test_charter_template_migration.py",
+          "tests/upgrade/test_migration_charter_cleanup_unit.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/upgrade/runner.py"
+        ],
+        "oracle": "The runner stops at permanent detect-false and never asks can_apply.",
+        "contract_claim": "Superseded stub migrations remain inert through detect and retain metadata only.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": "3512e39c1801bf347c57358417f26d9e3d66ac6648a8c5c814937136420e5471",
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/upgrade/test_charter_template_migration.py::test_can_apply_always_returns_false",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/upgrade/test_charter_template_migration.py::test_can_apply_always_returns_false",
+          "tests/upgrade/test_migration_charter_cleanup_unit.py::test_can_apply_returns_false"
+        ],
+        "retained_members": [],
+        "replacement_survivors": [],
+        "family_basis": "Both can_apply assertions are downstream of an impossible runner branch.",
+        "causal_survivor": null,
+        "terminal_explanations": {
+          "tests/upgrade/test_charter_template_migration.py::test_can_apply_always_returns_false": "Delete runner-unreachable can_apply method tests.",
+          "tests/upgrade/test_migration_charter_cleanup_unit.py::test_can_apply_returns_false": "Delete runner-unreachable can_apply method tests."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/upgrade/test_charter_template_migration.py::test_can_apply_always_returns_false",
+            "right": "no runner-reachable behavior",
+            "result": "Both can_apply assertions are downstream of an impossible runner branch."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Invert retained stub detect to true; the live detection contract fails.",
+          "authority_violated": "Superseded stub migrations remain inert through detect and retain metadata only.",
+          "act_reached": true,
+          "intended_oracle": "The runner stops at permanent detect-false and never asks can_apply.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-superseded-stub-can-apply fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "Delete runner-unreachable can_apply method tests.",
+      "survivor": null,
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-documentation-detect-exact",
+        "members": [
+          "tests/upgrade/test_m_0_12_0_documentation_mission_unit.py::test_detect_missing_mission",
+          "tests/upgrade/test_m_0_12_0_documentation_mission_unit.py::test_detect_no_missions_dir"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/upgrade/test_m_0_12_0_documentation_mission_unit.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/upgrade/migrations/m_0_12_0_documentation_mission.py"
+        ],
+        "oracle": "A .kittify project without the documentation mission is detected.",
+        "contract_claim": "Documentation mission installation detects the missing mission directory.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": "14ad8ee706055c76e056f6b4389d5379e056d7a7c8e4cfb9603f287ede1fb0ec",
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/upgrade/test_m_0_12_0_documentation_mission_unit.py::test_detect_missing_mission",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/upgrade/test_m_0_12_0_documentation_mission_unit.py::test_detect_no_missions_dir"
+        ],
+        "retained_members": [
+          "tests/upgrade/test_m_0_12_0_documentation_mission_unit.py::test_detect_missing_mission"
+        ],
+        "replacement_survivors": [
+          "tests/upgrade/test_m_0_12_0_documentation_mission_unit.py::test_detect_missing_mission"
+        ],
+        "family_basis": "Same migration, same filesystem state, and same detect-true oracle.",
+        "causal_survivor": "tests/upgrade/test_m_0_12_0_documentation_mission_unit.py::test_detect_missing_mission",
+        "terminal_explanations": {
+          "tests/upgrade/test_m_0_12_0_documentation_mission_unit.py::test_detect_no_missions_dir": "Delete exact same-state detect copy."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/upgrade/test_m_0_12_0_documentation_mission_unit.py::test_detect_missing_mission",
+            "right": "tests/upgrade/test_m_0_12_0_documentation_mission_unit.py::test_detect_missing_mission",
+            "result": "Same migration, same filesystem state, and same detect-true oracle."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Force missing-mission detect false.",
+          "authority_violated": "Documentation mission installation detects the missing mission directory.",
+          "act_reached": true,
+          "intended_oracle": "A .kittify project without the documentation mission is detected.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-documentation-detect-exact fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "CONSOLIDATE",
+      "state": "terminal",
+      "action": "Delete exact same-state detect copy.",
+      "survivor": "tests/upgrade/test_m_0_12_0_documentation_mission_unit.py::test_detect_missing_mission",
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-auth-command-surface",
+        "members": [
+          "tests/sync/test_auth.py::test_typer_app_has_required_commands",
+          "tests/sync/test_auth.py::test_no_oauth_prefixed_commands"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/sync/test_auth.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/cli/commands/auth.py"
+        ],
+        "oracle": "Required login/logout/status commands exist and no oauth-prefixed alias exists.",
+        "contract_claim": "Browser authentication has one canonical CLI namespace.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_auth.py::test_typer_app_has_required_commands",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/sync/test_auth.py::test_typer_app_has_required_commands",
+          "tests/sync/test_auth.py::test_no_oauth_prefixed_commands"
+        ],
+        "retained_members": [],
+        "replacement_survivors": [
+          "tests/sync/test_auth.py::test_typer_app_exposes_required_commands_without_oauth_aliases"
+        ],
+        "family_basis": "Both tests enumerate the same live Typer registry and are one command-surface result.",
+        "causal_survivor": "tests/sync/test_auth.py::test_typer_app_exposes_required_commands_without_oauth_aliases",
+        "terminal_explanations": {
+          "tests/sync/test_auth.py::test_typer_app_has_required_commands": "Replace two registry walks with one required/forbidden set oracle.",
+          "tests/sync/test_auth.py::test_no_oauth_prefixed_commands": "Replace two registry walks with one required/forbidden set oracle."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/sync/test_auth.py::test_typer_app_has_required_commands",
+            "right": "tests/sync/test_auth.py::test_typer_app_exposes_required_commands_without_oauth_aliases",
+            "result": "Both tests enumerate the same live Typer registry and are one command-surface result."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Add oauth-login to the registered command set.",
+          "authority_violated": "Browser authentication has one canonical CLI namespace.",
+          "act_reached": true,
+          "intended_oracle": "Required login/logout/status commands exist and no oauth-prefixed alias exists.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-auth-command-surface fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "Replace two registry walks with one required/forbidden set oracle.",
+      "survivor": "tests/sync/test_auth.py::test_typer_app_exposes_required_commands_without_oauth_aliases",
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-auth-help-surface",
+        "members": [
+          "tests/sync/test_auth.py::test_login_command_no_password_in_help",
+          "tests/sync/test_auth.py::test_logout_command_no_password_in_help",
+          "tests/sync/test_auth.py::test_status_command_no_password_in_help"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/sync/test_auth.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/cli/commands/auth.py"
+        ],
+        "oracle": "Canonical browser login help exposes no username/password prompt.",
+        "contract_claim": "The user-facing authentication entrypoint stays browser-mediated.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_auth.py::test_login_command_no_password_in_help",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/sync/test_auth.py::test_logout_command_no_password_in_help",
+          "tests/sync/test_auth.py::test_status_command_no_password_in_help"
+        ],
+        "retained_members": [
+          "tests/sync/test_auth.py::test_login_command_no_password_in_help"
+        ],
+        "replacement_survivors": [
+          "tests/sync/test_auth.py::test_login_command_no_password_in_help"
+        ],
+        "family_basis": "Logout/status cannot realistically regress into credential entry independently of canonical login.",
+        "causal_survivor": "tests/sync/test_auth.py::test_login_command_no_password_in_help",
+        "terminal_explanations": {
+          "tests/sync/test_auth.py::test_logout_command_no_password_in_help": "Keep the consumed login help boundary; delete low-value logout/status copies.",
+          "tests/sync/test_auth.py::test_status_command_no_password_in_help": "Keep the consumed login help boundary; delete low-value logout/status copies."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/sync/test_auth.py::test_login_command_no_password_in_help",
+            "right": "tests/sync/test_auth.py::test_login_command_no_password_in_help",
+            "result": "Logout/status cannot realistically regress into credential entry independently of canonical login."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Inject username/password text into login help.",
+          "authority_violated": "The user-facing authentication entrypoint stays browser-mediated.",
+          "act_reached": true,
+          "intended_oracle": "Canonical browser login help exposes no username/password prompt.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-auth-help-surface fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "CONSOLIDATE",
+      "state": "terminal",
+      "action": "Keep the consumed login help boundary; delete low-value logout/status copies.",
+      "survivor": "tests/sync/test_auth.py::test_login_command_no_password_in_help",
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-auth-structural-scaffolds",
+        "members": [
+          "tests/sync/test_auth.py::test_legacy_auth_classes_not_reintroduced_in_src",
+          "tests/sync/test_auth.py::test_auth_dispatch_module_imports_cleanly",
+          "tests/sync/test_auth.py::test_auth_package_exposes_token_manager"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/sync/test_auth.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/auth",
+          "src/specify_cli/cli/commands/auth.py"
+        ],
+        "oracle": "No current behavior is uniquely guarded by whole-source scans or bare imports.",
+        "contract_claim": "Functional auth integration and CLI tests own current token and command behavior.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_auth.py::test_legacy_auth_classes_not_reintroduced_in_src",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/sync/test_auth.py::test_legacy_auth_classes_not_reintroduced_in_src",
+          "tests/sync/test_auth.py::test_auth_dispatch_module_imports_cleanly",
+          "tests/sync/test_auth.py::test_auth_package_exposes_token_manager"
+        ],
+        "retained_members": [],
+        "replacement_survivors": [
+          "tests/auth/integration/test_transport_rewired.py::test_legacy_sync_auth_module_does_not_exist"
+        ],
+        "family_basis": "Bare import smoke and whole-tree class-name scans fail on structure, not a realistic consumed bug.",
+        "causal_survivor": "tests/auth/integration/test_transport_rewired.py::test_legacy_sync_auth_module_does_not_exist",
+        "terminal_explanations": {
+          "tests/sync/test_auth.py::test_legacy_auth_classes_not_reintroduced_in_src": "Delete non-behavioral scanner/import scaffolds; functional auth suite remains.",
+          "tests/sync/test_auth.py::test_auth_dispatch_module_imports_cleanly": "Delete non-behavioral scanner/import scaffolds; functional auth suite remains.",
+          "tests/sync/test_auth.py::test_auth_package_exposes_token_manager": "Delete non-behavioral scanner/import scaffolds; functional auth suite remains."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/sync/test_auth.py::test_legacy_auth_classes_not_reintroduced_in_src",
+            "right": "tests/auth/integration/test_transport_rewired.py::test_legacy_sync_auth_module_does_not_exist",
+            "result": "Bare import smoke and whole-tree class-name scans fail on structure, not a realistic consumed bug."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Corrupt the actual auth CLI/module boundary; retained integration/CLI survivors fail.",
+          "authority_violated": "Functional auth integration and CLI tests own current token and command behavior.",
+          "act_reached": true,
+          "intended_oracle": "No current behavior is uniquely guarded by whole-source scans or bare imports.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-auth-structural-scaffolds fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "Delete non-behavioral scanner/import scaffolds; functional auth suite remains.",
+      "survivor": "tests/auth/integration/test_transport_rewired.py::test_legacy_sync_auth_module_does_not_exist",
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-doctor-stale-result-matrix",
+        "members": [
+          "tests/status/test_doctor.py::TestCheckStaleClaims.test_done_not_stale",
+          "tests/status/test_doctor.py::TestCheckStaleClaims.test_canceled_not_stale",
+          "tests/status/test_doctor.py::TestCheckStaleClaims.test_blocked_not_stale",
+          "tests/status/test_doctor.py::TestCheckStaleClaims.test_for_review_not_stale"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/status/test_doctor.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/status/doctor.py"
+        ],
+        "oracle": "done, canceled, blocked, and for_review lanes all produce zero stale findings.",
+        "contract_claim": "Only claimed/in-progress work packages participate in stale detection.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/status/test_doctor.py::TestCheckStaleClaims::test_done_not_stale",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/status/test_doctor.py::TestCheckStaleClaims.test_done_not_stale",
+          "tests/status/test_doctor.py::TestCheckStaleClaims.test_canceled_not_stale",
+          "tests/status/test_doctor.py::TestCheckStaleClaims.test_blocked_not_stale",
+          "tests/status/test_doctor.py::TestCheckStaleClaims.test_for_review_not_stale"
+        ],
+        "retained_members": [],
+        "replacement_survivors": [
+          "tests/status/test_doctor.py::TestCheckStaleClaims.test_non_active_lanes_are_never_stale"
+        ],
+        "family_basis": "Same checker/setup/oracle; lane value is the sole matrix dimension.",
+        "causal_survivor": "tests/status/test_doctor.py::TestCheckStaleClaims.test_non_active_lanes_are_never_stale",
+        "terminal_explanations": {
+          "tests/status/test_doctor.py::TestCheckStaleClaims.test_done_not_stale": "Replace four copied lane cases with one exact result matrix.",
+          "tests/status/test_doctor.py::TestCheckStaleClaims.test_canceled_not_stale": "Replace four copied lane cases with one exact result matrix.",
+          "tests/status/test_doctor.py::TestCheckStaleClaims.test_blocked_not_stale": "Replace four copied lane cases with one exact result matrix.",
+          "tests/status/test_doctor.py::TestCheckStaleClaims.test_for_review_not_stale": "Replace four copied lane cases with one exact result matrix."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/status/test_doctor.py::TestCheckStaleClaims.test_done_not_stale",
+            "right": "tests/status/test_doctor.py::TestCheckStaleClaims.test_non_active_lanes_are_never_stale",
+            "result": "Same checker/setup/oracle; lane value is the sole matrix dimension."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Return one stale finding for every non-active lane.",
+          "authority_violated": "Only claimed/in-progress work packages participate in stale detection.",
+          "act_reached": true,
+          "intended_oracle": "done, canceled, blocked, and for_review lanes all produce zero stale findings.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-doctor-stale-result-matrix fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "Replace four copied lane cases with one exact result matrix.",
+      "survivor": "tests/status/test_doctor.py::TestCheckStaleClaims.test_non_active_lanes_are_never_stale",
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-batch-category-result-matrix",
+        "members": [
+          "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_schema_mismatch_keywords",
+          "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_auth_expired_keywords",
+          "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_server_error_keywords",
+          "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_retryable_transport_keywords"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/sync/test_batch_error_surfacing.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/sync/batch.py"
+        ],
+        "oracle": "Every live keyword maps to its owning category.",
+        "contract_claim": "Schema, auth, server, and retryable transport diagnostics remain distinct.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_batch_error_surfacing.py::TestCategorizeError::test_schema_mismatch_keywords",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_schema_mismatch_keywords",
+          "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_auth_expired_keywords",
+          "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_server_error_keywords",
+          "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_retryable_transport_keywords"
+        ],
+        "retained_members": [],
+        "replacement_survivors": [
+          "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_known_keywords_map_to_their_category"
+        ],
+        "family_basis": "Same loop and equality oracle; only category key differs.",
+        "causal_survivor": "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_known_keywords_map_to_their_category",
+        "terminal_explanations": {
+          "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_schema_mismatch_keywords": "Replace four category loops with one all-keyword result matrix.",
+          "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_auth_expired_keywords": "Replace four category loops with one all-keyword result matrix.",
+          "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_server_error_keywords": "Replace four category loops with one all-keyword result matrix.",
+          "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_retryable_transport_keywords": "Replace four category loops with one all-keyword result matrix."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_schema_mismatch_keywords",
+            "right": "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_known_keywords_map_to_their_category",
+            "result": "Same loop and equality oracle; only category key differs."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Map every keyword to unknown.",
+          "authority_violated": "Schema, auth, server, and retryable transport diagnostics remain distinct.",
+          "act_reached": true,
+          "intended_oracle": "Every live keyword maps to its owning category.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-batch-category-result-matrix fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "Replace four category loops with one all-keyword result matrix.",
+      "survivor": "tests/sync/test_batch_error_surfacing.py::TestCategorizeError.test_known_keywords_map_to_their_category",
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-dossier-internal-error-copy",
+        "members": [
+          "tests/sync/test_dossier_trigger.py::TestTriggerDisabled.test_returns_none_on_internal_error"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/sync/test_dossier_trigger.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/sync/dossier_pipeline.py",
+          "src/specify_cli/identity/project.py"
+        ],
+        "oracle": "Identity resolution failure is suppressed and returns None.",
+        "contract_claim": "Dossier sync never propagates internal identity failure.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_dossier_trigger.py::TestTriggerDisabled::test_returns_none_on_internal_error",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/sync/test_dossier_trigger.py::TestTriggerDisabled.test_returns_none_on_internal_error"
+        ],
+        "retained_members": [],
+        "replacement_survivors": [
+          "tests/sync/test_dossier_trigger.py::TestTriggerEnabled.test_never_raises_on_internal_error"
+        ],
+        "family_basis": "Same enabled flag, same resolve_identity RuntimeError, same None oracle as retained enabled-route survivor.",
+        "causal_survivor": "tests/sync/test_dossier_trigger.py::TestTriggerEnabled.test_never_raises_on_internal_error",
+        "terminal_explanations": {
+          "tests/sync/test_dossier_trigger.py::TestTriggerDisabled.test_returns_none_on_internal_error": "Delete duplicate internal-error case from the misleading disabled class."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/sync/test_dossier_trigger.py::TestTriggerDisabled.test_returns_none_on_internal_error",
+            "right": "tests/sync/test_dossier_trigger.py::TestTriggerEnabled.test_never_raises_on_internal_error",
+            "result": "Same enabled flag, same resolve_identity RuntimeError, same None oracle as retained enabled-route survivor."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Return a non-None sentinel on the retained internal-error route.",
+          "authority_violated": "Dossier sync never propagates internal identity failure.",
+          "act_reached": true,
+          "intended_oracle": "Identity resolution failure is suppressed and returns None.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-dossier-internal-error-copy fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "Delete duplicate internal-error case from the misleading disabled class.",
+      "survivor": "tests/sync/test_dossier_trigger.py::TestTriggerEnabled.test_never_raises_on_internal_error",
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-event-envelope-validation-matrices",
+        "members": [
+          "tests/sync/test_events.py::TestEventEnvelope.test_node_id_present",
+          "tests/sync/test_events.py::TestEventEnvelope.test_team_slug_from_auth",
+          "tests/sync/test_events.py::TestEventEnvelope.test_git_branch_present",
+          "tests/sync/test_events.py::TestEventEnvelope.test_head_commit_sha_present",
+          "tests/sync/test_events.py::TestEventEnvelope.test_repo_slug_present",
+          "tests/sync/test_events.py::TestValidation.test_invalid_wp_id_returns_none",
+          "tests/sync/test_events.py::TestValidation.test_invalid_status_returns_none",
+          "tests/sync/test_events.py::TestValidation.test_invalid_phase_returns_none",
+          "tests/sync/test_events.py::TestValidation.test_invalid_error_type_returns_none",
+          "tests/sync/test_events.py::TestValidation.test_empty_title_returns_none",
+          "tests/sync/test_events.py::TestValidation.test_invalid_mission_slug_returns_none",
+          "tests/sync/test_events.py::TestValidation.test_invalid_resolution_type_returns_none",
+          "tests/sync/test_events.py::TestValidation.test_invalid_entry_type_returns_none",
+          "tests/sync/test_events.py::TestValidation.test_negative_wp_count_returns_none"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/sync/test_events.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/sync/emitter.py"
+        ],
+        "oracle": "Identity/git fields equal resolver outputs and every enumerated invalid payload returns None.",
+        "contract_claim": "Event envelope identity and schema validation remain exact.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_events.py::TestEventEnvelope::test_node_id_present",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/sync/test_events.py::TestEventEnvelope.test_node_id_present",
+          "tests/sync/test_events.py::TestEventEnvelope.test_team_slug_from_auth",
+          "tests/sync/test_events.py::TestEventEnvelope.test_git_branch_present",
+          "tests/sync/test_events.py::TestEventEnvelope.test_head_commit_sha_present",
+          "tests/sync/test_events.py::TestEventEnvelope.test_repo_slug_present",
+          "tests/sync/test_events.py::TestValidation.test_invalid_wp_id_returns_none",
+          "tests/sync/test_events.py::TestValidation.test_invalid_status_returns_none",
+          "tests/sync/test_events.py::TestValidation.test_invalid_phase_returns_none",
+          "tests/sync/test_events.py::TestValidation.test_invalid_error_type_returns_none",
+          "tests/sync/test_events.py::TestValidation.test_empty_title_returns_none",
+          "tests/sync/test_events.py::TestValidation.test_invalid_mission_slug_returns_none",
+          "tests/sync/test_events.py::TestValidation.test_invalid_resolution_type_returns_none",
+          "tests/sync/test_events.py::TestValidation.test_invalid_entry_type_returns_none",
+          "tests/sync/test_events.py::TestValidation.test_negative_wp_count_returns_none"
+        ],
+        "retained_members": [],
+        "replacement_survivors": [
+          "tests/sync/test_events.py::TestEventEnvelope.test_identity_fields_present",
+          "tests/sync/test_events.py::TestEventEnvelope.test_git_metadata_values_present",
+          "tests/sync/test_events.py::TestValidation.test_invalid_payload_matrix_returns_none"
+        ],
+        "family_basis": "Three single-field clusters and nine invalid-payload calls share setup/Act/oracle and retain every value in result matrices.",
+        "causal_survivor": "tests/sync/test_events.py::TestValidation.test_invalid_payload_matrix_returns_none",
+        "terminal_explanations": {
+          "tests/sync/test_events.py::TestEventEnvelope.test_node_id_present": "Replace copied field/case tests with three exact value matrices.",
+          "tests/sync/test_events.py::TestEventEnvelope.test_team_slug_from_auth": "Replace copied field/case tests with three exact value matrices.",
+          "tests/sync/test_events.py::TestEventEnvelope.test_git_branch_present": "Replace copied field/case tests with three exact value matrices.",
+          "tests/sync/test_events.py::TestEventEnvelope.test_head_commit_sha_present": "Replace copied field/case tests with three exact value matrices.",
+          "tests/sync/test_events.py::TestEventEnvelope.test_repo_slug_present": "Replace copied field/case tests with three exact value matrices.",
+          "tests/sync/test_events.py::TestValidation.test_invalid_wp_id_returns_none": "Replace copied field/case tests with three exact value matrices.",
+          "tests/sync/test_events.py::TestValidation.test_invalid_status_returns_none": "Replace copied field/case tests with three exact value matrices.",
+          "tests/sync/test_events.py::TestValidation.test_invalid_phase_returns_none": "Replace copied field/case tests with three exact value matrices.",
+          "tests/sync/test_events.py::TestValidation.test_invalid_error_type_returns_none": "Replace copied field/case tests with three exact value matrices.",
+          "tests/sync/test_events.py::TestValidation.test_empty_title_returns_none": "Replace copied field/case tests with three exact value matrices.",
+          "tests/sync/test_events.py::TestValidation.test_invalid_mission_slug_returns_none": "Replace copied field/case tests with three exact value matrices.",
+          "tests/sync/test_events.py::TestValidation.test_invalid_resolution_type_returns_none": "Replace copied field/case tests with three exact value matrices.",
+          "tests/sync/test_events.py::TestValidation.test_invalid_entry_type_returns_none": "Replace copied field/case tests with three exact value matrices.",
+          "tests/sync/test_events.py::TestValidation.test_negative_wp_count_returns_none": "Replace copied field/case tests with three exact value matrices."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/sync/test_events.py::TestEventEnvelope.test_node_id_present",
+            "right": "tests/sync/test_events.py::TestValidation.test_invalid_payload_matrix_returns_none",
+            "result": "Three single-field clusters and nine invalid-payload calls share setup/Act/oracle and retain every value in result matrices."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Corrupt identity/git values and accept invalid status/wp_id.",
+          "authority_violated": "Event envelope identity and schema validation remain exact.",
+          "act_reached": true,
+          "intended_oracle": "Identity/git fields equal resolver outputs and every enumerated invalid payload returns None.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-event-envelope-validation-matrices fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "Replace copied field/case tests with three exact value matrices.",
+      "survivor": "tests/sync/test_events.py::TestValidation.test_invalid_payload_matrix_returns_none",
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-git-remote-parser-matrix",
+        "members": [
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_ssh_standard",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_https_standard",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_ssh_no_git_suffix",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_https_no_git_suffix",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_gitlab_subgroup",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_ssh_url_format",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_ssh_url_gitlab_subgroup",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_bitbucket_ssh",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_self_hosted_https",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_https_with_trailing_slash",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_no_path_returns_none",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_https_deep_subgroup",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_ssh_deep_subgroup",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_https_self_hosted_no_git_suffix",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_empty_string",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_file_url_returns_none",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_local_filesystem_path_returns_none",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_relative_filesystem_path_returns_none"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/sync/test_git_metadata.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/sync/git_metadata.py"
+        ],
+        "oracle": "Every supported remote grammar maps exactly; every local/invalid form returns None.",
+        "contract_claim": "Hosted remote parsing retains SSH/HTTPS/provider/deep-path grammar and rejects local paths.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_git_metadata.py::TestParseRepoSlug::test_ssh_standard",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_ssh_standard",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_https_standard",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_ssh_no_git_suffix",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_https_no_git_suffix",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_gitlab_subgroup",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_ssh_url_format",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_ssh_url_gitlab_subgroup",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_bitbucket_ssh",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_self_hosted_https",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_https_with_trailing_slash",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_no_path_returns_none",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_https_deep_subgroup",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_ssh_deep_subgroup",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_https_self_hosted_no_git_suffix",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_empty_string",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_file_url_returns_none",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_local_filesystem_path_returns_none",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_relative_filesystem_path_returns_none"
+        ],
+        "retained_members": [],
+        "replacement_survivors": [
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_supported_and_rejected_remote_matrix"
+        ],
+        "family_basis": "Eighteen literal input/equality tests are one input-to-result table with no lost platform value.",
+        "causal_survivor": "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_supported_and_rejected_remote_matrix",
+        "terminal_explanations": {
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_ssh_standard": "Replace 18 literal tests with one exact remote/result map.",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_https_standard": "Replace 18 literal tests with one exact remote/result map.",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_ssh_no_git_suffix": "Replace 18 literal tests with one exact remote/result map.",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_https_no_git_suffix": "Replace 18 literal tests with one exact remote/result map.",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_gitlab_subgroup": "Replace 18 literal tests with one exact remote/result map.",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_ssh_url_format": "Replace 18 literal tests with one exact remote/result map.",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_ssh_url_gitlab_subgroup": "Replace 18 literal tests with one exact remote/result map.",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_bitbucket_ssh": "Replace 18 literal tests with one exact remote/result map.",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_self_hosted_https": "Replace 18 literal tests with one exact remote/result map.",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_https_with_trailing_slash": "Replace 18 literal tests with one exact remote/result map.",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_no_path_returns_none": "Replace 18 literal tests with one exact remote/result map.",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_https_deep_subgroup": "Replace 18 literal tests with one exact remote/result map.",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_ssh_deep_subgroup": "Replace 18 literal tests with one exact remote/result map.",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_https_self_hosted_no_git_suffix": "Replace 18 literal tests with one exact remote/result map.",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_empty_string": "Replace 18 literal tests with one exact remote/result map.",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_file_url_returns_none": "Replace 18 literal tests with one exact remote/result map.",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_local_filesystem_path_returns_none": "Replace 18 literal tests with one exact remote/result map.",
+          "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_relative_filesystem_path_returns_none": "Replace 18 literal tests with one exact remote/result map."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_ssh_standard",
+            "right": "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_supported_and_rejected_remote_matrix",
+            "result": "Eighteen literal input/equality tests are one input-to-result table with no lost platform value."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Return fault/repo for every remote input.",
+          "authority_violated": "Hosted remote parsing retains SSH/HTTPS/provider/deep-path grammar and rejects local paths.",
+          "act_reached": true,
+          "intended_oracle": "Every supported remote grammar maps exactly; every local/invalid form returns None.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-git-remote-parser-matrix fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "Replace 18 literal tests with one exact remote/result map.",
+      "survivor": "tests/sync/test_git_metadata.py::TestParseRepoSlug.test_supported_and_rejected_remote_matrix",
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-git-derive-schemes",
+        "members": [
+          "tests/sync/test_git_metadata.py::TestDeriveRepoSlug.test_from_ssh_remote",
+          "tests/sync/test_git_metadata.py::TestDeriveRepoSlug.test_from_https_remote"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/sync/test_git_metadata.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/sync/git_metadata.py"
+        ],
+        "oracle": "SSH and HTTPS subprocess remotes derive acme/spec-kitty.",
+        "contract_claim": "Remote subprocess derivation supports both canonical schemes.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_git_metadata.py::TestDeriveRepoSlug::test_from_ssh_remote",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/sync/test_git_metadata.py::TestDeriveRepoSlug.test_from_ssh_remote",
+          "tests/sync/test_git_metadata.py::TestDeriveRepoSlug.test_from_https_remote"
+        ],
+        "retained_members": [],
+        "replacement_survivors": [
+          "tests/sync/test_git_metadata.py::TestDeriveRepoSlug.test_supported_remote_schemes"
+        ],
+        "family_basis": "Same subprocess setup/parser/oracle; remote URL is the only dimension.",
+        "causal_survivor": "tests/sync/test_git_metadata.py::TestDeriveRepoSlug.test_supported_remote_schemes",
+        "terminal_explanations": {
+          "tests/sync/test_git_metadata.py::TestDeriveRepoSlug.test_from_ssh_remote": "Replace two copied subprocess tests with a scheme matrix.",
+          "tests/sync/test_git_metadata.py::TestDeriveRepoSlug.test_from_https_remote": "Replace two copied subprocess tests with a scheme matrix."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/sync/test_git_metadata.py::TestDeriveRepoSlug.test_from_ssh_remote",
+            "right": "tests/sync/test_git_metadata.py::TestDeriveRepoSlug.test_supported_remote_schemes",
+            "result": "Same subprocess setup/parser/oracle; remote URL is the only dimension."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Return fault/repo for both schemes.",
+          "authority_violated": "Remote subprocess derivation supports both canonical schemes.",
+          "act_reached": true,
+          "intended_oracle": "SSH and HTTPS subprocess remotes derive acme/spec-kitty.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-git-derive-schemes fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "Replace two copied subprocess tests with a scheme matrix.",
+      "survivor": "tests/sync/test_git_metadata.py::TestDeriveRepoSlug.test_supported_remote_schemes",
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-git-slug-validation-matrix",
+        "members": [
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_valid_owner_repo",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_valid_subgroup",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_invalid_no_slash",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_invalid_empty_segment",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_invalid_trailing_slash",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_invalid_double_slash",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_invalid_empty_string",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_valid_with_hyphens_and_underscores",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_valid_deep_path"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/sync/test_git_metadata.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/sync/git_metadata.py"
+        ],
+        "oracle": "Every valid/invalid slug shape maps to its exact Boolean.",
+        "contract_claim": "Repository slug validation preserves segment and deep-path grammar.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_git_metadata.py::TestRepoSlugValidation::test_valid_owner_repo",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_valid_owner_repo",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_valid_subgroup",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_invalid_no_slash",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_invalid_empty_segment",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_invalid_trailing_slash",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_invalid_double_slash",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_invalid_empty_string",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_valid_with_hyphens_and_underscores",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_valid_deep_path"
+        ],
+        "retained_members": [],
+        "replacement_survivors": [
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_validation_matrix"
+        ],
+        "family_basis": "Nine literal input/Boolean tests are one exact result map.",
+        "causal_survivor": "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_validation_matrix",
+        "terminal_explanations": {
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_valid_owner_repo": "Replace nine literal shape tests with one exact result map.",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_valid_subgroup": "Replace nine literal shape tests with one exact result map.",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_invalid_no_slash": "Replace nine literal shape tests with one exact result map.",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_invalid_empty_segment": "Replace nine literal shape tests with one exact result map.",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_invalid_trailing_slash": "Replace nine literal shape tests with one exact result map.",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_invalid_double_slash": "Replace nine literal shape tests with one exact result map.",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_invalid_empty_string": "Replace nine literal shape tests with one exact result map.",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_valid_with_hyphens_and_underscores": "Replace nine literal shape tests with one exact result map.",
+          "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_valid_deep_path": "Replace nine literal shape tests with one exact result map."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_valid_owner_repo",
+            "right": "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_validation_matrix",
+            "result": "Nine literal input/Boolean tests are one exact result map."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Accept every invalid slug.",
+          "authority_violated": "Repository slug validation preserves segment and deep-path grammar.",
+          "act_reached": true,
+          "intended_oracle": "Every valid/invalid slug shape maps to its exact Boolean.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-git-slug-validation-matrix fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "Replace nine literal shape tests with one exact result map.",
+      "survivor": "tests/sync/test_git_metadata.py::TestRepoSlugValidation.test_validation_matrix",
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "WP12-cleanup-empty-input-copy",
+        "members": [
+          "tests/upgrade/test_migration_charter_cleanup_unit.py::test_detect_empty_project"
+        ],
+        "granularity": "function",
+        "source_paths": [
+          "tests/upgrade/test_migration_charter_cleanup_unit.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/upgrade/migrations/m_0_10_12_charter_cleanup.py"
+        ],
+        "oracle": "Superseded cleanup detect is false even when legacy charter state exists.",
+        "contract_claim": "0.10.12 cleanup stays inert while retaining its distinct registry identity.",
+        "authority": [
+          "WP01 canonical exact/structural fingerprints",
+          "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "linux",
+          "macOS",
+          "windows"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/upgrade/test_migration_charter_cleanup_unit.py::test_detect_empty_project",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "fast"
+            },
+            "artifact_hash": "ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988"
+          }
+        ],
+        "deleted_members": [
+          "tests/upgrade/test_migration_charter_cleanup_unit.py::test_detect_empty_project"
+        ],
+        "retained_members": [],
+        "replacement_survivors": [
+          "tests/upgrade/test_migration_charter_cleanup_unit.py::test_detect_always_returns_false"
+        ],
+        "family_basis": "Empty-project input adds no kill beyond the stronger same-version legacy-state detect survivor.",
+        "causal_survivor": "tests/upgrade/test_migration_charter_cleanup_unit.py::test_detect_always_returns_false",
+        "terminal_explanations": {
+          "tests/upgrade/test_migration_charter_cleanup_unit.py::test_detect_empty_project": "Delete weaker empty-project copy; retain same-version legacy-state detect and metadata."
+        }
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/upgrade/test_migration_charter_cleanup_unit.py::test_detect_empty_project",
+            "right": "tests/upgrade/test_migration_charter_cleanup_unit.py::test_detect_always_returns_false",
+            "result": "Empty-project input adds no kill beyond the stronger same-version legacy-state detect survivor."
+          }
+        ],
+        "causal_probe": {
+          "kind": "changed-survivor-fault-campaign",
+          "fault": "Invert CharterCleanupMigration.detect to true.",
+          "authority_violated": "0.10.12 cleanup stays inert while retaining its distinct registry identity.",
+          "act_reached": true,
+          "intended_oracle": "Superseded cleanup detect is false even when legacy charter state exists.",
+          "intended_oracle_failed": true,
+          "command": "Recreate WP12-cleanup-empty-input-copy fault rule recorded in wp12-results.json; execute its exact baseline/fault pytest receipt",
+          "environment": "CPython 3.11.15, macOS 15.7.7 arm64, frozen all-extras venv, pytest cache disabled",
+          "raw_artifact_hash": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "Delete weaker empty-project copy; retain same-version legacy-state detect and metadata.",
+      "survivor": "tests/upgrade/test_migration_charter_cleanup_unit.py::test_detect_always_returns_false",
+      "issue": null,
+      "owner": null,
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "implementer-ivan/WP12",
+        "independent_reviewer": "pending-WP12-review",
+        "verdict": "implementation-complete-awaiting-review",
+        "timestamp": "2026-08-10T15:10:00Z"
+      }
+    }
+  ]
+}

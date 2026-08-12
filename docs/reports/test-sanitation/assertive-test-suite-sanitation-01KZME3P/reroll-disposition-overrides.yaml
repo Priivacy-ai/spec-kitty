@@ -1,0 +1,70 @@
+schema_version: test-sanitation-reroll-overrides/v1
+mission: assertive-test-suite-sanitation-01KZME3P
+generated_at: '2026-08-11T22:00:00+02:00'
+authority: maintainer review on Priivacy-ai/spec-kitty#3285
+rule: >-
+  These rows supersede the cited terminal dispositions for the rerolled PR.
+  Historical raw probes remain immutable; review-discovered live authority wins.
+overrides:
+  - prior_candidate: WP05-golden-count-prose-ratchet
+    prior_verdict: DELETE
+    verdict: KEEP
+    paths:
+      - tests/architectural/test_golden_count_ban.py
+      - tests/architectural/_golden_count_baseline.json
+    authority:
+      - .kittify/charter/charter.md#burn-down-policy-binding-per-hic-5a2--c-004
+      - frozen-baseline-shrink-only-ratchet
+    evidence: >-
+      The gate caught a live unannotated-convert growth on PR #3317. Restored
+      with its baseline shrunk to this branch's current counts and a one-site
+      poison; deletion was not an authority-preserving shrink.
+  - prior_candidate: WP09-gate-coverage-route-family
+    prior_verdict: DELETE
+    verdict: CONSOLIDATE
+    paths:
+      - tests/architectural/_gate_coverage.py
+      - tests/architectural/test_ci_collection_completeness.py
+      - tests/architectural/test_arch_pole_deserialized.py
+    authority:
+      - open CI-integrity epic #1931
+      - .github/workflows/ci-quality.yml#arch-adversarial
+    evidence: >-
+      The retained zero-orphan oracle keeps its planted-fault/model probes and
+      is selected by the always-on arch-adversarial matrix plus an independent
+      fast-tests-core-misc route. arch-adversarial is a direct quality-gate
+      dependency. The obsolete unenforced orphan-file baseline and its mutable
+      update/check CLI are removed. This is the repository's PR operator gate;
+      current GitHub branch protection requires only drift-detector, not
+      quality-gate.
+  - prior_candidate: WP14-absolute-event-timestamp-mixture-family
+    prior_verdict: DELETE
+    verdict: KEEP
+    paths:
+      - tests/architectural/test_no_absolute_event_timestamp_mixture.py
+    authority:
+      - issue #3157 regression class
+      - frozen-baseline-shrink-only-ratchet
+    evidence: >-
+      Restored the live-corpus determinism gate and its two-sided fault probes;
+      architectural ratchets do not require production callers.
+  - prior_candidate: WP14-d1a66c64bd66a73d
+    prior_verdict: DELETE
+    verdict: KEEP
+    paths:
+      - tests/architectural/test_safe_commit_import_boundary.py
+    authority:
+      - C-GUARD-1 single protected-branch decision authority
+    evidence: >-
+      core.commit_guard.evaluate remains live. The restored exact-importer
+      ratchet detects direct, aliased, and module-qualified third decision
+      importers while behavioral protection tests cover a different contract.
+  - prior_candidate: WP09-gate-read-support-module
+    prior_verdict: MODIFY_SUPPORT
+    verdict: CONSOLIDATE
+    paths:
+      - tests/architectural/_gate_read_callshape.py
+      - tests/architectural/test_coord_read_residuals_closeout.py
+    evidence: >-
+      Renamed the zero-test helper so pytest no longer collects a test-prefixed
+      module; the live production-corpus consumer remains blocking.

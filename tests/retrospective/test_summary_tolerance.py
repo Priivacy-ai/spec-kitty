@@ -694,14 +694,6 @@ def large_corpus(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return tmp_path
 
 
-# QUARANTINED pending #2342 (potential performance issue): two consecutive CI
-# runs on unrelated diffs (#2336, 2026-07-04) measured 5.11s / 5.10s against
-# the 5.0s NFR-003 budget.  Operator ruling: investigate (real regression vs
-# CI-runner flake) instead of another budget bump — the interim 6.5s re-tune
-# was reverted so the quarantine-visibility lane keeps reporting the honest
-# 5.0s signal.  Verdict paths and the budget-dance log live in #2342; the
-# marker comes OFF when that ticket closes.
-@pytest.mark.quarantine
 def test_200_missions_under_5s(large_corpus: Path) -> None:
     """200-mission corpus completes in < 5 s (NFR-003)."""
     start = time.monotonic()

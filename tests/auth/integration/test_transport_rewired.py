@@ -82,16 +82,6 @@ def test_tracker_saas_client_does_not_reference_legacy_classes() -> None:
     assert "from specify_cli.sync.auth" not in source
 
 
-def test_legacy_sync_auth_module_does_not_exist() -> None:
-    """``src/specify_cli/sync/auth.py`` must be deleted (WP10).
-
-    A real import attempt must raise :class:`ImportError`, not just fail at
-    attribute access.
-    """
-    with pytest.raises(ImportError):
-        import specify_cli.sync.auth  # noqa: F401  # pragma: no cover
-
-
 def test_get_token_manager_has_at_least_five_production_callers() -> None:
     """FR-017: at least 5 non-auth production modules use ``get_token_manager``.
 

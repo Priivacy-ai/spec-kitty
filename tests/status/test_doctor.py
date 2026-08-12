@@ -5,12 +5,12 @@ from __future__ import annotations
 import json
 import sys
 from types import SimpleNamespace
+from kernel.clock import now_utc, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-from kernel.clock import now_utc, timedelta
 from specify_cli.runtime.doctor import DoctorCheck
 from specify_cli.status.doctor import (
     Category,
@@ -448,65 +448,23 @@ class TestCheckStaleClaims:
         findings = check_stale_claims(tmp_path, snapshot, claimed_threshold_days=7)
         assert len(findings) == 0
 
-    def test_done_not_stale(self, tmp_path: Path):
-        """WP in done for 100 days -> no finding (terminal state)."""
+    def test_non_active_lanes_are_never_stale(self, tmp_path: Path):
+        """Only claimed/in-progress lanes participate in stale detection."""
         hundred_days_ago = (now_utc() - timedelta(days=100)).isoformat()
-        snapshot = self._make_snapshot(
-            {
-                "WP01": {
-                    "lane": "done",
-                    "actor": "reviewer",
-                    "last_transition_at": hundred_days_ago,
+        counts = {}
+        for lane in ("done", "canceled", "blocked", "for_review"):
+            snapshot = self._make_snapshot(
+                {
+                    "WP01": {
+                        "lane": lane,
+                        "actor": "agent",
+                        "last_transition_at": hundred_days_ago,
+                    }
                 }
-            }
-        )
-        findings = check_stale_claims(tmp_path, snapshot)
-        assert len(findings) == 0
+            )
+            counts[lane] = len(check_stale_claims(tmp_path, snapshot))
 
-    def test_canceled_not_stale(self, tmp_path: Path):
-        """WP in canceled for 100 days -> no finding (terminal state)."""
-        hundred_days_ago = (now_utc() - timedelta(days=100)).isoformat()
-        snapshot = self._make_snapshot(
-            {
-                "WP01": {
-                    "lane": "canceled",
-                    "actor": "user",
-                    "last_transition_at": hundred_days_ago,
-                }
-            }
-        )
-        findings = check_stale_claims(tmp_path, snapshot)
-        assert len(findings) == 0
-
-    def test_blocked_not_stale(self, tmp_path: Path):
-        """WP in blocked for 30 days -> no finding (blocking is intentional)."""
-        thirty_days_ago = (now_utc() - timedelta(days=30)).isoformat()
-        snapshot = self._make_snapshot(
-            {
-                "WP01": {
-                    "lane": "blocked",
-                    "actor": "agent",
-                    "last_transition_at": thirty_days_ago,
-                }
-            }
-        )
-        findings = check_stale_claims(tmp_path, snapshot)
-        assert len(findings) == 0
-
-    def test_for_review_not_stale(self, tmp_path: Path):
-        """WP in for_review for 30 days -> no finding."""
-        thirty_days_ago = (now_utc() - timedelta(days=30)).isoformat()
-        snapshot = self._make_snapshot(
-            {
-                "WP01": {
-                    "lane": "for_review",
-                    "actor": "agent",
-                    "last_transition_at": thirty_days_ago,
-                }
-            }
-        )
-        findings = check_stale_claims(tmp_path, snapshot)
-        assert len(findings) == 0
+        assert counts == {"done": 0, "canceled": 0, "blocked": 0, "for_review": 0}
 
     def test_custom_thresholds(self, tmp_path: Path):
         """Custom thresholds are respected."""
@@ -644,16 +602,6 @@ class TestCheckOrphanWorkspaces:
             "work_packages": {
                 "WP01": {"lane": "in_progress"},
                 "WP02": {"lane": "done"},
-            }
-        }
-        findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)
-        assert len(findings) == 0
-
-    def test_all_done_no_worktrees(self, tmp_path: Path):
-        """All WPs done + no worktrees -> no finding."""
-        snapshot = {
-            "work_packages": {
-                "WP01": {"lane": "done"},
             }
         }
         findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)

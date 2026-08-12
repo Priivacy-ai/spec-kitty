@@ -5,10 +5,8 @@ Per the doctor per-subcommand-module convention (``_cutover_doctor.py`` /
 shell in ``doctor.py`` stays a thin delegator; all detection/reporting logic
 lives here.
 
-**What this detects.** WP01's verdict-seam census
-(``tests/architectural/census/verdict_seam_IC01.yaml``) enumerates every
-review-cycle writer/resolver/reader. This WP's own fragment
-(``tests/architectural/census/verdict_seam_IC08.yaml``) marks five of those
+**What this detects.** WP01's verdict-seam review enumerated every review-cycle
+writer/resolver/reader. WP08's reviewed retirement set marks five of those
 resolvers ``status: retire`` -- locations WP10's writer-atomicity rework
 (FR-003), WP12's arbiter-override retirement (FR-009), and WP13's
 consumer-unification (FR-007) each stop resolving once landed. Between this
@@ -17,7 +15,7 @@ soon-to-be-orphaned paths must be found and reported, or the merge gate opens
 a fail-open window the moment the fan-out that used to (accidentally) find it
 is removed (FR-008). "Retired path" is WP01's/this WP's census call, not
 re-derived here -- :data:`_RETIRED_RESOLVER_SHAPES` below is a direct
-transcription of ``verdict_seam_IC08.yaml``'s rows.
+transcription of WP08's reviewed rows.
 
 **The migration shape is exception absorption, not an empty-directory check**
 (ADR ``docs/adr/3.x/2026-08-03-1-review-cycle-artifacts-are-coord-partition.md``,
@@ -46,8 +44,7 @@ retired-resolver replica and never inside the seam itself.
   is alive, and canonical ``REVIEW_CYCLE`` resolution genuinely lands on the
   coord worktree, but a record still sits on PRIMARY from before this
   mission's ADR moved review cycles onto the coord partition (the
-  create-window split WP04's own fragment,
-  ``tests/architectural/census/verdict_seam_IC04.yaml``, documents: a coord
+  create-window split documented by WP04: a coord
   mission's *first* review cycle lands PRIMARY because the coord worktree
   materialises lazily at the commit boundary).
 
@@ -146,8 +143,8 @@ def _shape_review_cycle_wp_dir(
     primary_feature_dir: Path, _wp_id: str, wp_slug: str,
 ) -> list[Path]:
     """Replicates ``review/cycle.py::_review_cycle_wp_dir`` (retired under
-    FR-003, WP10's writer-atomicity rework -- ground truth:
-    ``verdict_seam_IC04.yaml``'s ``WP04-XWP-01`` cross-WP-dependency entry
+    FR-003, WP10's writer-atomicity rework -- ground truth: WP04's
+    ``WP04-XWP-01`` cross-WP-dependency entry
     names this exact function/line as WP10's fix target).
 
     ``MissionArtifactKind.WORK_PACKAGE_TASK`` is PRIMARY for every topology
@@ -175,7 +172,7 @@ def _shape_arbiter_bare_wp_id_dir(
     return [candidate] if candidate.is_dir() else []
 
 
-#: T035 -- direct transcription of ``verdict_seam_IC08.yaml``'s five
+#: T035 -- direct transcription of WP08's five reviewed
 #: ``status: retire`` resolver rows: (resolver name, retiring FR, shape fn).
 _RETIRED_RESOLVER_SHAPES: tuple[tuple[str, str, _ShapeFn], ...] = (
     (
@@ -465,8 +462,8 @@ def run_review_cycle_reconciliation(
     """Entry point for ``doctor review-cycle-reconcile`` (FR-008, T035-T039).
 
     Reports, never silently drops, every stranded review-cycle /
-    arbiter-override record living under a path this WP's own census fragment
-    (``verdict_seam_IC08.yaml``) marks ``status: retire`` -- across both
+    arbiter-override record living under a path WP08 marks for retirement --
+    across both
     stranded classes (T037's deleted-coord-branch absorption, T039's
     live-coord-branch pre-ADR PRIMARY record), independently classified per
     finding, never conflated.

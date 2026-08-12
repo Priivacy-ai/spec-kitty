@@ -1,0 +1,94 @@
+schema_version: test-sanitation/v1
+inventory:
+  commit: 28ae75ea998c898aba57364db7a06d2088bd2af2
+  content_equivalence_command: git diff --quiet 28ae75ea998c898aba57364db7a06d2088bd2af2 -- tests .github/workflows/ci-quality.yml pyproject.toml pytest.ini tox.ini setup.cfg uv.lock
+run_environments:
+  - id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+    os: macOS-15.7.7-arm64-arm-64bit
+    runner_image: local-macos-15.7.7
+    cpu_class: Apple-Silicon-10-logical-cpu
+    python: CPython 3.11.15
+    event: local
+    env:
+      PYTHONHASHSEED: "0"
+      PWHEADLESS: "1"
+      SPEC_KITTY_ENABLE_SAAS_SYNC: "1"
+    lock_hash: 5dbf66689f0048244c6d47082992e750fa3d047385f8e113d3f25f47382bcd5c
+    install_command: [uv, sync, --frozen, --all-extras]
+    install_state: prewarmed-frozen-venv
+    workers: auto
+    cache_policy: pytest-cache-disabled-for-measured-core-routes; prewarmed-frozen-venv
+    harness_patch_hash: null
+  - id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    os: macOS-15.7.7-arm64-arm-64bit
+    runner_image: local-macos-15.7.7
+    cpu_class: Apple-Silicon-10-logical-cpu
+    python: CPython 3.11.15
+    event: local
+    env:
+      PWHEADLESS: "1"
+    lock_hash: 5dbf66689f0048244c6d47082992e750fa3d047385f8e113d3f25f47382bcd5c
+    install_command: [uv, sync, --frozen, --all-extras]
+    install_state: prewarmed-frozen-venv
+    workers: auto
+    cache_policy: pytest-cache-disabled-for-measured-core-routes; prewarmed-frozen-venv
+    harness_patch_hash: null
+  - id: 8d4b0ec6f34bf221c05bf5d67d4498ab7fdaf83798f25ec6791e836d6e4d0e09
+    os: Linux Ubuntu 24.04
+    runner_image: blacksmith-4vcpu-ubuntu-2404
+    cpu_class: 4-vCPU
+    python: CPython 3.12 workflow selector; patch version resolved in run artifact
+    event: PR
+    env: {PWHEADLESS: "1"}
+    lock_hash: 5dbf66689f0048244c6d47082992e750fa3d047385f8e113d3f25f47382bcd5c
+    install_command: ["python -m pip install --upgrade pip", "pip install -e .[test]"]
+    install_state: clean-runner-editable-test-extra
+    workers: serial
+    cache_policy: actions/setup-python pip cache; pytest cacheprovider disabled
+    harness_patch_hash: null
+  - id: d9351dc38c139f8d2c79a6716b633a068e1fa64fb58083de2779d2ff1bde7004
+    os: Linux Ubuntu 24.04
+    runner_image: blacksmith-4vcpu-ubuntu-2404
+    cpu_class: 4-vCPU
+    python: CPython 3.12 workflow selector; patch version resolved in run artifact
+    event: PR
+    env: {PWHEADLESS: "1", SPEC_KITTY_RUN_QUARANTINE: "1"}
+    lock_hash: 5dbf66689f0048244c6d47082992e750fa3d047385f8e113d3f25f47382bcd5c
+    install_command: ["python -m pip install --upgrade pip", "pip install -e .[test]"]
+    install_state: clean-runner-editable-test-extra
+    workers: serial
+    cache_policy: actions/setup-python pip cache; pytest cacheprovider disabled
+    harness_patch_hash: null
+  - id: d2e994e2d7465d82a398fbd8ee7c93fb4efb789b0724c312099488742869fb52
+    os: macOS-15.7.7-arm64-arm-64bit
+    runner_image: local-macos-15.7.7
+    cpu_class: Apple-M1-Pro-10-logical-cpu
+    python: CPython 3.13.1
+    event: manual
+    env: {SPEC_KITTY_ENABLE_SAAS_SYNC: "1"}
+    lock_hash: 20ba811570bf446830dcf474e38f8c0686c786e043252b8ecd5f74fe1d14e8a7
+    install_command: [uv, sync, --frozen]
+    install_state: uv sync --frozen completed; 16 locked distributions audited; prewarmed project venv
+    workers: serial
+    cache_policy: uv package cache warm; sibling project venv prewarmed; pytest cache default
+    harness_patch_hash: null
+frozen_workload_dag:
+  repetitions: 3
+  routes:
+    - {id: full-collection, cwd: ., env: {PWHEADLESS: "1"}, argv: [.venv/bin/pytest, tests/, --collect-only, -q, -p, no:cacheprovider, --ignore=tests/sync/test_orphan_sweep.py], environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c, base_mapping: tests/, head_mapping: tests/, memberships: [{role: owner, required: true, events: [local], selector: {paths: [tests/], markers: [], ignores: [tests/sync/test_orphan_sweep.py], environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c}}], provenance: {kind: frozen_command, repository: primary, source_commit: 28ae75ea998c898aba57364db7a06d2088bd2af2, authority_sha256: 312a09b4b9a5ff1522fe89505480e8685ef1bbe48b8cc1b890b93b547d495d76}}
+    - {id: full-parallel, cwd: ., env: {PWHEADLESS: "1"}, argv: [.venv/bin/pytest, tests/, -n, auto, --dist, loadfile, -p, no:cacheprovider, --durations=200, --ignore=tests/sync/test_orphan_sweep.py], environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849, base_mapping: tests/, head_mapping: tests/, memberships: [{role: owner, required: true, events: [local], selector: {paths: [tests/], markers: [], ignores: [tests/sync/test_orphan_sweep.py], environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849}}], provenance: {kind: frozen_command, repository: primary, source_commit: 28ae75ea998c898aba57364db7a06d2088bd2af2, authority_sha256: ede8cca1c22d153a1fbc0d0b89d765fda8bf3eef457dcd250ab63eda457f4bc0}}
+    - {id: orphan-sweep, cwd: ., env: {PWHEADLESS: "1"}, argv: [.venv/bin/pytest, tests/sync/test_orphan_sweep.py, -q, -p, no:cacheprovider], environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c, base_mapping: tests/sync/test_orphan_sweep.py, head_mapping: tests/sync/test_orphan_sweep.py, memberships: [{role: owner, required: true, events: [local], selector: {paths: [tests/sync/test_orphan_sweep.py], markers: [], ignores: [], environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c}}], provenance: {kind: frozen_command, repository: primary, source_commit: 28ae75ea998c898aba57364db7a06d2088bd2af2, authority_sha256: 51bc3f1de75f7a703cf2ba1191a87f489b262179c3dee88b3e3fa7de145a3022}}
+    - {id: regression, cwd: ., env: {PWHEADLESS: "1"}, argv: [python, -m, pytest, tests/, -m, regression, -p, no:cacheprovider, -q, --tb=short], wrapper: "exit 5 => green; exit 3 => diagnostic collect and original failure; otherwise preserve exit", environment_id: 8d4b0ec6f34bf221c05bf5d67d4498ab7fdaf83798f25ec6791e836d6e4d0e09, base_mapping: "whole tests/ marker discovery", head_mapping: "marker:regression route pending WP07", memberships: [{role: owner, required: true, events: [PR, manual, push, schedule], selector: {paths: [tests/], markers: [regression], ignores: [], environment_id: 8d4b0ec6f34bf221c05bf5d67d4498ab7fdaf83798f25ec6791e836d6e4d0e09}}], provenance: {kind: tracked_ci, source_commit: 28ae75ea998c898aba57364db7a06d2088bd2af2, source_path: .github/workflows/ci-quality.yml, source_sha256: 6488c84b3ef9c1072d7f1fe5d83a0e3196bbc89d74b3c413102c54316fe7dd12, job_id: regression-tests, step_name: "Run regression red-first reproductions (blocking — gates releases)", step_sha256: de18a4c36975039e66dda4a6dd24ea6a74fdcf0b711b8ef24a07e0cb591df65c, authority_sha256: f0cd6b5a22bb6a19d583f2bdb02cc0d5adb82f0ec6a267b58b7eb0ea8e3f6eaf}}
+    - {id: quarantine, cwd: ., env: {PWHEADLESS: "1", SPEC_KITTY_RUN_QUARANTINE: "1"}, argv: [python, -m, pytest, tests/, -m, quarantine, -p, no:cacheprovider, -q, --tb=short], wrapper: "exit 5 => green; otherwise preserve exit; non-blocking job", environment_id: d9351dc38c139f8d2c79a6716b633a068e1fa64fb58083de2779d2ff1bde7004, base_mapping: "whole tests/ marker discovery", head_mapping: "marker:quarantine route pending WP07", memberships: [{role: owner, required: false, events: [PR, manual, push, schedule], selector: {paths: [tests/], markers: [quarantine], ignores: [], environment_id: d9351dc38c139f8d2c79a6716b633a068e1fa64fb58083de2779d2ff1bde7004}}], provenance: {kind: tracked_ci, source_commit: 28ae75ea998c898aba57364db7a06d2088bd2af2, source_path: .github/workflows/ci-quality.yml, source_sha256: 6488c84b3ef9c1072d7f1fe5d83a0e3196bbc89d74b3c413102c54316fe7dd12, job_id: quarantine-visibility, step_name: "Run quarantined tests (visible, never blocks merge)", step_sha256: 498217c2c77c93f3f95d0fa2a627768748245f6b9cb6ece09c3c367f13fc8d44, authority_sha256: 5e2f1c413848f5a65723ae6e2cb72e0e9412a7d536613e0425406330c2e5dcf2}}
+    - {id: contract, cwd: ., env: {SPEC_KITTY_ENABLE_SAAS_SYNC: "1"}, argv: [.venv/bin/pytest, tests/contract/, -v], environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c, base_mapping: tests/contract/, head_mapping: tests/contract/, memberships: [{role: owner, required: true, events: [local], selector: {paths: [tests/contract/], markers: [], ignores: [], environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c}}], provenance: {kind: frozen_command, repository: primary, source_commit: 28ae75ea998c898aba57364db7a06d2088bd2af2, authority_sha256: bd7d2a3bc9b4586c4f36cbfb72a95c1775f37b953b2955ac9bcf6371d25bdf5b}}
+    - {id: architectural, cwd: ., env: {}, argv: [.venv/bin/pytest, tests/architectural/, -v], environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c, base_mapping: tests/architectural/, head_mapping: tests/architectural/, memberships: [{role: owner, required: true, events: [local], selector: {paths: [tests/architectural/], markers: [], ignores: [], environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c}}], provenance: {kind: frozen_command, repository: primary, source_commit: 28ae75ea998c898aba57364db7a06d2088bd2af2, authority_sha256: 8f4bf7d0f12e095ded2a8c044f5f4d8abcde84e18661c25816f5aa5c73a62de0}}
+    - {id: sibling-e2e, cwd: ../spec-kitty-end-to-end-testing, env: {SPEC_KITTY_ENABLE_SAAS_SYNC: "1"}, argv: [uv, run, pytest, scenarios/, -v], environment_id: d2e994e2d7465d82a398fbd8ee7c93fb4efb789b0724c312099488742869fb52, base_mapping: scenarios/, head_mapping: scenarios/, memberships: [{role: owner, required: true, events: [manual], selector: {paths: [scenarios/], markers: [], ignores: [], environment_id: d2e994e2d7465d82a398fbd8ee7c93fb4efb789b0724c312099488742869fb52}}], provenance: {kind: frozen_command, repository: sibling-e2e, source_commit: e278ad76552b954f9c7f4ea1e7a364978678b3ca, authority_sha256: d0185c8ffc5775bd68db1611de83d513ce45fcf8f537103ca4d570f41a3e41c6}}
+  edges:
+    - {from: full-collection, to: full-parallel}
+    - {from: full-collection, to: orphan-sweep}
+    - {from: full-collection, to: regression}
+    - {from: full-collection, to: quarantine}
+    - {from: full-collection, to: contract}
+    - {from: full-collection, to: architectural}
+    - {from: full-collection, to: sibling-e2e}
+  measurements: []

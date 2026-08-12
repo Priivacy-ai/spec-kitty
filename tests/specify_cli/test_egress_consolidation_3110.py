@@ -58,7 +58,7 @@ from specify_cli.tracker import saas_client as tracker_transport_module
 #: Unmarked and outside a gated path, none of that runs on the merge target:
 #: every green would be a hand-invoked local green, and the partial-consolidation
 #: state that clause 3 is the only thing in the spec able to detect would ship
-#: undetected. `tests/architectural/test_gate_coverage.py::test_no_new_orphan_surfaces`
+#: undetected. `tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main`
 #: catches it and named this file.
 #:
 #: That gate also offers `--update-baseline`. **Do not take it.** Baselining

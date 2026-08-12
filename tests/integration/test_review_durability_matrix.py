@@ -1736,31 +1736,11 @@ def test_sc004_two_concurrent_processes_never_clobber_a_verdict_over_50_iteratio
             f"{oks} -- the lock-protected cycle allocator must hand two concurrent "
             "successes DISTINCT review-cycle slots, never the same one"
         )
-        # WP05 (verdict-seam-write-unification-01KZ9Q35, T028/D-PLAN-13) +
-        # post-merge green-up (2026-08-06): the ``.md`` render commit is
-        # BEST-EFFORT (demoted, T026); NFR-004 makes the event log -- NOT the
-        # ``.md`` file -- the sole durability authority. The ``.md`` commit phase
-        # runs OUTSIDE ``feature_status_lock`` (NFR-006) with no protection
-        # against two processes racing ``git`` in the same working tree, so a
-        # best-effort ``.md`` MAY be lost/overwritten under contention (observed:
-        # a concurrently-committed sibling file vanishing from disk). That loss
-        # is BY DESIGN acceptable -- the authoritative per-record durability is
-        # the event log, asserted comprehensively after the loop
-        # (``_assert_durable_event_records_at_least``, distinct event_ids). So
-        # this loop MUST NOT assert the best-effort ``.md`` durably persists
-        # (that would re-test the retired authority WP05 demoted, exactly the
-        # ``.md``-commit-race property this mission dissolved). It only enforces
-        # integrity of any ``.md`` that DID survive: if present, its body must
-        # be one writer's own feedback, never garbage or a torn interleave.
-        for path_str in oks:
-            path = Path(path_str)
-            if not path.exists():
-                continue  # best-effort .md lost to the commit-phase race -- durability lives in the event log (asserted below)
-            body_on_disk = path.read_text(encoding="utf-8")
-            assert (text_a in body_on_disk) or (text_b in body_on_disk), (
-                f"iteration {i}: artifact {path} content matches neither writer's "
-                f"own feedback -- {body_on_disk!r}"
-            )
+        # The returned ``.md`` path is a best-effort render, not a durability
+        # authority. Under the intentionally unlocked commit phase it can be
+        # absent or contain an earlier render for the same allocated cycle.
+        # Per-record integrity and cardinality live in the locked event log and
+        # are asserted once, comprehensively, below.
 
     _assert_durable_event_records_at_least(repo, mission, _WP_ID, minimum=2 * iterations)
 

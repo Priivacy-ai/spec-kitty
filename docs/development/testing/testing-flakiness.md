@@ -2,7 +2,7 @@
 title: Test-flakiness handling policy
 description: "Spec Kitty's suite-wide flaky-test policy: how to detect a flake, what is and isn't allowed (never retry-to-green), and the disposition of each known flake surface."
 doc_status: active
-updated: '2026-06-21'
+updated: '2026-08-11'
 audience: docs/context/audience/internal/lead-developer.md
 type: explanation
 related:
@@ -46,7 +46,7 @@ single sanctioned response.
 
 | Tier | What it is | Example | Sanctioned response |
 |---|---|---|---|
-| **1. Threshold / budget gate** | A test that asserts a measurement stays under a wall-clock / size budget. CI runners are shared and noisy, so a generous gate occasionally trips with no real regression. | NFR-002 latency (`tests/architectural/test_wp_prompt_build_latency.py`), `doctor restart-daemon` timing, the `-m timing` gate. | **Tune the budget — never retry.** Widen the budget to absorb runner variance. A *real* regression adds time **consistently** and still trips a generous gate; a retry would mask exactly that. Investigate before bumping; the budget is the gate, not the regression. |
+| **1. Threshold / budget gate** | A test that asserts a measurement stays under a wall-clock / size budget. CI runners are shared and noisy, so a generous gate occasionally trips with no real regression. | NFR-002 latency (`tests/architectural/test_wp_prompt_build_latency.py`), the `-m timing` gate. | **Tune the budget — never retry.** Widen the budget to absorb runner variance. A *real* regression adds time **consistently** and still trips a generous gate; a retry would mask exactly that. Investigate before bumping; the budget is the gate, not the regression. |
 | **2. Correctness test** | A test of logical behaviour that should be 100% deterministic. If it flakes, the test (or the code) has a hidden nondeterminism — shared global state, ordering assumptions, fixture-teardown races, monkeypatch leakage, import-time side effects. | `tests/specify_cli/shims/test_registry.py` (parallel-collection nondeterminism). | **Fix the root cause — never retry.** A correctness test that needs a retry is lying. Find the nondeterminism and remove it. |
 | **3. Genuinely environmental** | A test that depends on an OS-global resource — real TCP ports, singleton daemons, the real filesystem — that cannot be fully isolated per worker. | Real-port / daemon suites (`tests/sync/test_orphan_sweep.py`, ports 9400–9449). | **Surgical handling only.** First serialise (`-n0`) and isolate (per-worker HOME) — see [testing-parallel.md](testing-parallel.md). Only if a residual, irreducible environmental flake remains do we **quarantine** (below) — never a blanket retry. |
 
@@ -108,7 +108,11 @@ It is implemented as a single, un-bypassable chokepoint:
    retried to green. The job is deliberately **excluded from the `quality-gate`
    aggregation** (and must stay out of branch-protection required checks), so it
    can never turn `main` red or block an unrelated PR. It tolerates an empty
-   quarantine set (pytest exit code 5) so "nothing quarantined" is green.
+   quarantine set (pytest exit code 5) so "nothing quarantined" is green. The
+   architectural CI guard scans every Python test for direct
+   `pytest.mark.quarantine` usage and requires the job's owner manifest to match
+   the discovered file set exactly; an empty manifest therefore cannot hide a
+   newly quarantined test elsewhere in `tests/`.
 
 **To quarantine a test:** mark it `@pytest.mark.quarantine` with a one-line
 reason **and a tracking-issue link** — every quarantined test is tech debt with
@@ -123,7 +127,7 @@ irreducible flake has a sanctioned home instead of a retry.
 | Surface | Tier | Disposition |
 |---|---|---|
 | `tests/architectural/test_wp_prompt_build_latency.py` (NFR-002 latency) | 1 | **Resolved — keep tuning.** Budget already widened 8.0 → 10.0s after a shared runner measured 8.50s with no code regression (PR #2036). The file carries inline rationale that *is* the Tier-1 policy. No further change. |
-| `doctor restart-daemon` NFR-002 timing, `-m timing` gate | 1 | **Policy-covered.** Treat as a budget gate: tune, never retry. Runs only in dedicated timing jobs (`-m timing` is excluded from the fast suite). |
+| `doctor restart-daemon` issue #1153 / NFR-002 wall-clock gate | 3 | **Retired as a portable CI performance claim in PR #3285.** The original ≤10-second end-to-end requirement depended on OS-global daemon and port state and repeatedly failed during hosted-macOS control-plane bootstrap without a corresponding product regression. The controlled Linux lane now enforces the replacement functional contract: the old daemon stops, a distinct PID starts, and the control plane becomes healthy within bounded subprocess and readiness timeouts. macOS remains supported through platform-independent tests and local smoke evidence; a future cross-platform restart performance SLO requires a controlled developer/canary harness because shared-runner wall clock is not accepted as evidence. |
 | `tests/sync/test_orphan_sweep.py` (real ports 9400–9449, daemons) | 3 | **Resolved — already serialised.** Runs in its own `-n0` serial pass, excluded from the parallel pool (CLAUDE.md / testing-parallel.md). No quarantine needed. |
 | `tests/specify_cli/shims/test_registry.py` (parallel-collection nondeterminism) | 2 | **Fixed at root cause.** Parametrising over `list(<frozenset>)` produced a `PYTHONHASHSEED`-dependent case order, so xdist workers collected different orders ("Different tests were collected between gw0 and gwN"). Changed to `sorted(<frozenset>)`, making collection order deterministic across workers. Verified: identical node-id order under different hash seeds. |
 

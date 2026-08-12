@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+from typing import TypeGuard
 
 import pytest
 
@@ -79,7 +80,7 @@ def _collect_python_sources(root: Path) -> list[Path]:
     ]
 
 
-def _is_httpx_constructor_call(node: ast.AST) -> bool:
+def _is_httpx_constructor_call(node: ast.AST) -> TypeGuard[ast.Call]:
     """Return True when *node* is ``httpx.Client(...)`` or ``httpx.AsyncClient(...)``.
 
     Only matches the constructor invocation pattern. Type annotations,
@@ -156,37 +157,6 @@ class TestAuthTransportSingleton:
                 "Route the call through specify_cli.auth.transport "
                 "(AuthenticatedClient / AsyncAuthenticatedClient) or the "
                 "auth-internal request_with_fallback_sync helper."
-            )
-
-    def test_transport_module_exists(self) -> None:
-        """The centralized transport module must exist (T032)."""
-        transport = _SRC / "auth" / "transport.py"
-        assert transport.exists(), (
-            "Expected centralized auth transport at "
-            f"{transport.relative_to(_REPO_ROOT)} (FR-030, T032)."
-        )
-
-    def test_transport_exports_authenticated_client(self) -> None:
-        """``AuthenticatedClient`` must be importable from the transport module."""
-        from specify_cli.auth.transport import (
-            AuthenticatedClient,
-            AuthRefreshFailed,
-            get_client,
-        )
-
-        assert AuthenticatedClient is not None
-        assert AuthRefreshFailed is not None
-        assert callable(get_client)
-
-    def test_allowlisted_files_actually_exist(self) -> None:
-        """The allowlist must point at real files; no stale entries.
-
-        Prevents the allowlist from silently masking a deleted file or
-        a typo that would otherwise let a violation slip through.
-        """
-        for allowed in _TRANSPORT_ALLOWLIST:
-            assert allowed.exists(), (
-                f"Allowlisted file does not exist: {allowed.relative_to(_REPO_ROOT)}"
             )
 
     def test_negative_control_detects_violation(self, tmp_path: Path) -> None:

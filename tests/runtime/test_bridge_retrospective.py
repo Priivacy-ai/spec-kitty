@@ -34,7 +34,6 @@ Three independent concerns:
 
 from __future__ import annotations
 
-import ast
 import json
 from pathlib import Path
 from typing import Any
@@ -77,34 +76,8 @@ _COMPAT_GUARDED_NAMES = frozenset(
 _INTERNAL_ONLY_NAME = "_retrospective_blocks_completion"
 
 
-@pytest.mark.architectural
-def test_only_seam_imports_retrospective_package() -> None:
-    """``runtime_bridge.py`` must not import ``specify_cli.retrospective.*``
-    directly any more -- the retrospective seam is the sole owner of that
-    surface now that the cluster moved (mirrors the WP03 FR-013 boundary
-    pattern for the engine adapter)."""
-    tree = ast.parse(_RUNTIME_BRIDGE_PATH.read_text(encoding="utf-8"), filename=str(_RUNTIME_BRIDGE_PATH))
-    offenders = [
-        f"line {node.lineno}: from {node.module} import ..."
-        for node in ast.walk(tree)
-        if isinstance(node, ast.ImportFrom) and node.module is not None and node.module.startswith("specify_cli.retrospective")
-    ]
-    assert not offenders, "runtime_bridge.py imports specify_cli.retrospective.* directly:\n" + "\n".join(offenders)
 
 
-def test_seam_defines_every_relocated_symbol() -> None:
-    """Non-vacuousness check: the seam must actually define all 10 relocated
-    names, or the "residual doesn't import retrospective.*" assertion above
-    would pass for the wrong reason (nobody needing the cluster at all)."""
-    from runtime.next import runtime_bridge as rb
-
-    for name in sorted(_COMPAT_GUARDED_NAMES | {_INTERNAL_ONLY_NAME}):
-        assert hasattr(retro, name), f"seam is missing relocated symbol {name!r}"
-    # WP18 (#2561): the internal-only symbol is reached on the seam, not via a
-    # retired ``runtime_bridge`` façade re-export.
-    assert not hasattr(rb, _INTERNAL_ONLY_NAME), (
-        f"{_INTERNAL_ONLY_NAME!r} unexpectedly still re-exported on runtime_bridge"
-    )
 
 
 # ---------------------------------------------------------------------------

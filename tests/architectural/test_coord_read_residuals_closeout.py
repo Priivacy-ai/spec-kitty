@@ -2,12 +2,10 @@
 
 WP05 / T027. Requirements: FR-006, FR-007, FR-010, SC-004, NFR-001, NFR-005.
 
-WP01 shipped the FR-007 ``callshape_violations`` arm together with *synthetic*
-self-tests (``test_gate_read_literal_ban.py`` §5) that prove the detector FLAGS the
-pre-fix shape and PASSES the routed shape on hand-written snippets. Synthetic
-non-vacuity is necessary but NOT sufficient: a gate that only ever runs against
-its own fixtures can never catch a real offender (the gate-unmask-cannot-self-
-validate trap). This module closes that gap by wiring the arm LIVE as a
+WP01 shipped the FR-007 ``callshape_violations`` arm. Its detector now lives in
+the non-collected ``_gate_read_callshape.py`` support module; synthetic self-tests
+were retired during suite sanitation. This module supplies the non-vacuous proof
+by wiring the arm LIVE as a
 production scan over the REAL in-scope ``src/`` tree — the same
 ``_iter_functions_under`` machinery the dir-read ratchet uses.
 
@@ -67,7 +65,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.architectural.test_gate_read_literal_ban import (
+from tests.architectural._gate_read_callshape import (
     _IDENTITY_READ_FUNCS,
     _LANES_READ_FUNCS,
     _PRIMARY_FOLD_CALLSHAPE_FUNCS,

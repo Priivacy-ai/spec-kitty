@@ -110,11 +110,6 @@ test_migration_chain_integrity:
   # rewrite (2.2->3.0).
   known_line_jumps: 4
 
-# tests/architectural/test_runtime_charter_doctrine_boundary.py
-# Empty allowlist today; C-004 caps this at 2 documented exceptions.
-test_runtime_charter_doctrine_boundary:
-  baseline_allowlist: 0
-
 # tests/architectural/test_auth_transport_singleton.py
 # NO CHANGE this mission per Slice F C-005 (auth-transport boundary
 # is owned by mission shared-package-boundary-cutover-01KQ22DS and
@@ -127,13 +122,6 @@ test_auth_transport_singleton:
   # next-sweep TODO. C-005 binds this value for the duration of
   # Slice F; do not edit downward in this mission.
   allowed_direct_httpx_files: 3
-
-# tests/architectural/test_compat_shims.py
-test_compat_shims:
-  # justification: 3 pure-shim adapter files under
-  # src/specify_cli/compat/_adapters/. Per C-006 this MUST shrink to
-  # 0 by 4.0 (the compat-planner mission is the burn-down owner).
-  pure_shim_files: 0  # the 3 pure-shim adapter files deleted (closed #2159/#2049)
 
 # tests/contract/test_example_round_trip.py
 # Populated by WP03 after the legacy-contract-allowlist discovery
@@ -179,14 +167,6 @@ test_example_round_trip:
   # illustrative BaselineTestResult.source_identity field-add snippet — permanent
   # non-executable exemption; the executable round-trip lives in tests/review/test_baseline.py.
   skip_marker_blocks: 13
-
-# tests/architectural/test_all_declarations_required.py
-# Populated by WP02 after the charter/kernel __all__ sweep. WP01
-# pins these at 0 so the meta-test can run; WP02 edits the values
-# (most likely keeps them at 0 as all modules are migrated).
-test_all_declarations_required:
-  charter_without_all: 0
-  kernel_without_all: 0
 
 # tests/architectural/test_no_dead_symbols.py
 # Symbol-level dead-code ratchet introduced by WP02. Two per-category
@@ -443,191 +423,3 @@ test_unfiltered_journal_read_boundary:
   # never-opted-in events on 2026-07-27: argue it in the diff, or use
   # `read_identity_projection(project_uuids=...)` instead.
   unfiltered_read_allowlist_sites: 4
-
-# tests/architectural/test_verdict_seam_census.py
-# NFR-007 / FR-020 (mission review-cycle-verdict-seam-rebuild-01KZ2W7W, WP01).
-# Not a growth-gated ratchet like the sections above -- this check's own
-# in-file comparison against tests/architectural/census/verdict_seam_IC01.yaml
-# is the live enforcement (fails on growth AND shrinkage, both directions).
-# This section is the recorded STARTING MEASUREMENT WP01's own derivation
-# produced, for later WPs (WP07/WP08/WP13/WP14) to set their reduction targets
-# against -- per NFR-007, no numeral was pinned in advance; these are exactly
-# what the AST derivation counted the first time it ran.
-#
-# Revised post-review (opus pass 1, F1-F5): the resolver predicate was
-# tightened to be ARTIFACT-anchored (review-cycle-*.md), not directory-anchored
-# (tasks/<wp>/ also holds baseline-tests.json and tasks/WP*.md, per ADR
-# 2026-08-03-1) -- F1; scope gained a second leg keyed on ReviewResult/
-# ReviewOverride construction, reaching the orchestrator_api external ingress
-# and the migration/backfill_runtime_state.py legacy reconstruction, neither of
-# which mentions review-cycle/review_cycle text -- F2; workflow.py::review's
-# independent cycle-number allocation was added as a writer -- F3; a narrow
-# cross-module try/except(ValueError, OSError) "translator" pass was added so
-# the merge gate (find_rejected_review_artifact_conflicts) gets a reader row
-# for its fail-closed polarity -- F4; and a print()-only display mention no
-# longer counts as writer evidence, dropping the false-positive
-# implement_try_render_fix_mode_prompt writer row (its reader row stays) -- F5.
-test_verdict_seam_census:
-  # justification: 16 functions matching the writer shape (builds/writes a
-  # review-cycle-*.md-shaped filename outside a print()-only display call, is a
-  # .write-shaped method on a ReviewCycle*-named class, threads an
-  # artifact-named path into a write/persist call, or constructs the
-  # event-side ReviewResult/ReviewOverride) across the UNION of the
-  # review-cycle/review_cycle token scope and the ReviewResult/ReviewOverride
-  # constructor-call scope (F2). Includes same-module one-hop call-closure
-  # promotions (e.g. persist_arbiter_decision, which delegates entirely to
-  # _persist_in_artifact) and workflow.py::review's independent cycle-number
-  # allocation (F3).
-  writer_count: 16
-  # justification: 13 functions matching the ARTIFACT-anchored resolver shape
-  # (F1): a "tasks"-literal path join, gated on a wp_id/wp_slug/task_id-shaped
-  # parameter (so a feature-level tasks/ lister does not qualify), excluding
-  # any function referencing the baseline-tests.json literal or globbing a
-  # non-review-cycle pattern (a bare {wp_id}*.md WP-file glob is a DIFFERENT,
-  # deliberately-PRIMARY artifact kind sharing the same directory).
-  resolver_count: 13
-  # justification: 18 functions matching the reader shape (ReviewCycleArtifact.
-  # from_file, extract_scalar(..., "verdict"), or a manual read_text + ---
-  # frontmatter-delimiter + YAML-load parse). Includes the fifth,
-  # easily-missed reader spec.md names explicitly:
-  # tasks_parsing_validation.py::_get_latest_review_cycle_verdict, and (F4) the
-  # narrow cross-module translator promotion for
-  # post_merge/review_artifact_consistency.py::find_rejected_review_artifact_conflicts
-  # and cli/commands/agent/workflow_cores.py::resolve_review_feedback_pointer.
-  reader_count: 18
-
-test_shared_module_object_patches:
-  # justification: pre-existing `main` reach-through debt, recorded as a frozen
-  # shrink-only baseline during the #3252 landing (dated 2026-08-08). #3252's
-  # own fix targeted a module-local alias idiom (`saas_client._sleep` etc.)
-  # that `main`'s #3187 had already superseded with an instance-scoped seam
-  # (`self._sleep`); a follow-on product commit extended that instance seam to
-  # `saas_client`'s `self._monotonic`/`self._randbelow` too, so every
-  # `saas_client` reach-through this gate's predicate would otherwise catch is
-  # now closed and correctly absent below. The 11 rows here are unrelated debt
-  # (git_metadata.subprocess.run, body_transport.requests.post,
-  # batch.time.sleep, asyncio.run_coroutine_threadsafe) that the gate's own
-  # predicate (mechanism half: reach-through/foreign; read half: a
-  # count-or-equality assertion) surfaces elsewhere in `tests/sync/`, measured
-  # directly from the gate's own `[WP05 gate] flagged: ...` output on this
-  # tree — not introduced by this PR. The per-target breakdown is deliberately
-  # NOT restated here: it would be unasserted prose about the rows directly
-  # below it, and would rot silently if the composition changed while the
-  # total did not. The `rows:` list IS the breakdown, and
-  # `test_the_baseline_equals_the_gate_flagged_set` compares it to the gate's
-  # flagged set by frozenset equality -- so a row with no corresponding flagged
-  # site fails too, which matters because the shrink-only rule would otherwise
-  # freeze such a row in forever. Growth means a NEW assertion was written
-  # against a shared module object: fix it, do not record it.
-  flagged_sites: 11
-  rows:
-    - site: "tests/sync/test_body_transport.py:262"
-      module_path: "specify_cli.sync.body_transport.requests"
-      resolved_module: "requests"
-      attr_path: "post"
-      verdict: "reach_through"
-      assertion_form: "assert_called_once"
-      binds: "mock_post"
-      node_id: "TestPushContent::test_successful_upload"
-      owner: "unassigned"
-      disposition: "assert-on-an-owned-observable"
-    - site: "tests/sync/test_body_transport.py:288"
-      module_path: "specify_cli.sync.body_transport.requests"
-      resolved_module: "requests"
-      attr_path: "post"
-      verdict: "reach_through"
-      assertion_form: "len_call_args_list"
-      binds: "mock_post"
-      node_id: "TestPushContent::test_sends_correct_payload"
-      owner: "unassigned"
-      disposition: "assert-on-an-owned-observable"
-    - site: "tests/sync/test_final_sync_diagnostics.py:303"
-      module_path: "specify_cli.sync.batch.time"
-      resolved_module: "time"
-      attr_path: "sleep"
-      verdict: "reach_through"
-      assertion_form: "whole_list_equality"
-      binds: "sleeps"
-      node_id: "test_final_sync_auth_refresh_lock_retries_then_emits_once"
-      owner: "unassigned"
-      disposition: "assert-on-an-owned-observable"
-    - site: "tests/sync/test_git_metadata.py:209"
-      module_path: "specify_cli.sync.git_metadata.subprocess"
-      resolved_module: "subprocess"
-      attr_path: "run"
-      verdict: "reach_through"
-      assertion_form: "call_count"
-      binds: "mock_run"
-      node_id: "TestTTLCache::test_cache_hit_within_ttl"
-      owner: "unassigned"
-      disposition: "assert-on-an-owned-observable"
-    - site: "tests/sync/test_git_metadata.py:231"
-      module_path: "specify_cli.sync.git_metadata.subprocess"
-      resolved_module: "subprocess"
-      attr_path: "run"
-      verdict: "reach_through"
-      assertion_form: "call_count"
-      binds: "mock_run"
-      node_id: "TestTTLCache::test_cache_miss_after_ttl"
-      owner: "unassigned"
-      disposition: "assert-on-an-owned-observable"
-    - site: "tests/sync/test_git_metadata.py:265"
-      module_path: "specify_cli.sync.git_metadata.subprocess"
-      resolved_module: "subprocess"
-      attr_path: "run"
-      verdict: "reach_through"
-      assertion_form: "call_count"
-      binds: "mock_run"
-      node_id: "TestTTLCache::test_cache_boundary_exact_ttl"
-      owner: "unassigned"
-      disposition: "assert-on-an-owned-observable"
-    - site: "tests/sync/test_git_metadata.py:392"
-      module_path: "specify_cli.sync.git_metadata.subprocess"
-      resolved_module: "subprocess"
-      attr_path: "run"
-      verdict: "reach_through"
-      assertion_form: "call_args_read"
-      binds: "mock_run"
-      node_id: "TestDeriveRepoSlug::test_cwd_passed_to_subprocess"
-      owner: "unassigned"
-      disposition: "assert-on-an-owned-observable"
-    - site: "tests/sync/test_git_metadata.py:458"
-      module_path: "specify_cli.sync.git_metadata.subprocess"
-      resolved_module: "subprocess"
-      attr_path: "run"
-      verdict: "reach_through"
-      assertion_form: "call_count"
-      binds: "mock_run"
-      node_id: "TestRepoSlugPrecedence::test_override_takes_precedence"
-      owner: "unassigned"
-      disposition: "assert-on-an-owned-observable"
-    - site: "tests/sync/test_git_metadata.py:510"
-      module_path: "specify_cli.sync.git_metadata.subprocess"
-      resolved_module: "subprocess"
-      attr_path: "run"
-      verdict: "reach_through"
-      assertion_form: "call_count"
-      binds: "mock_run"
-      node_id: "TestRepoSlugPrecedence::test_repo_slug_resolved_once"
-      owner: "unassigned"
-      disposition: "assert-on-an-owned-observable"
-    - site: "tests/sync/test_runtime.py:672"
-      module_path: "asyncio"
-      resolved_module: "asyncio"
-      attr_path: "run_coroutine_threadsafe"
-      verdict: "foreign"
-      assertion_form: "assert_called_once_with"
-      binds: "mock_run_coroutine_threadsafe"
-      node_id: "TestUnauthenticatedBehavior::test_websocket_created_when_authenticated"
-      owner: "unassigned"
-      disposition: "assert-on-an-owned-observable"
-    - site: "tests/sync/test_runtime.py:710"
-      module_path: "asyncio"
-      resolved_module: "asyncio"
-      attr_path: "run_coroutine_threadsafe"
-      verdict: "foreign"
-      assertion_form: "assert_called_once_with"
-      binds: "mock_run_coroutine_threadsafe"
-      node_id: "TestUnauthenticatedBehavior::test_websocket_connect_scheduled_on_daemon_loop"
-      owner: "unassigned"
-      disposition: "assert-on-an-owned-observable"
