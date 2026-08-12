@@ -59,10 +59,10 @@ It is probably overkill for one-off edits, tiny scripts, or teams that do not us
 ## Governance layer
 
 Spec Kitty keeps runtime governance in the repo instead of treating it as
-agent-only prompt text. The trail model in [docs/trail-model.md](docs/trail-model.md)
+agent-only prompt text. The trail model in [docs/architecture/trail-model.md](docs/architecture/trail-model.md)
 describes how `spec-kitty dispatch "<request>"` maps operator intent to
 runtime behavior, while
-[docs/host-surface-parity.md](docs/host-surface-parity.md) tracks parity across
+[docs/architecture/host-surface-parity.md](docs/architecture/host-surface-parity.md) tracks parity across
 CLI, slash-command, and hosted surfaces.
 
 The primary standalone governance command is:
