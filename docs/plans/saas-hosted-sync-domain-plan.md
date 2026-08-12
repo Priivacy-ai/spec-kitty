@@ -16,7 +16,7 @@ related:
 
 # SaaS & Hosted Sync — Domain Plan
 
-**Audience:** the project maintainer — technical, time-pressed, wants signal over ceremony.
+**Audience:** the project maintainer — technical, time-pressed, wants signal over ritual.
 
 > **Status: durable domain plan (throughline).** Unlike the release-scoped
 > `docs/plans/` working notes that follow the distil-then-retire lifecycle, this
