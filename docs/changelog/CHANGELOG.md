@@ -29,7 +29,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   caption; the Charter tour points at the governance how-tos, and the two Claude
   Code tutorials link each other for slash-command vs CLI/dashboard paths.
 - **Three #3276 Mission Kitty heroes are regenerated as decorative-only splashes
-  (missions overview, your first mission, when-to-use-modes alternate art).**
+  (missions overview, your first mission, when-to-use-modes alternate art) (`#3341`).**
   Replaces caption-mitigated board labels with abstract art; each PNG compressed
   to ≤500 KB. Memphis, four-paths, and corporate-comics assets on when-to-use-modes
   are unchanged.
