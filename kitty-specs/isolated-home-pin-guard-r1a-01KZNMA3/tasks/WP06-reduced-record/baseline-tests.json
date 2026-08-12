@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP06",
+  "captured_at": "2026-08-12T01:31:48Z",
+  "base_branch": "feat/isolated-home-pin-guard",
+  "base_commit": "94944f2c741fd6daf6b36f4cbd68e4ddbfb7e091",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<gate-coverage-junit>",
+      "error": "no JUnit XML artifact produced by the scoped run",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}
