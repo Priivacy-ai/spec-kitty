@@ -914,9 +914,9 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/adr/3.x/2026-08-07-1-a-mission-halting-instrument-is-worth-its-cost.md
+- path: docs/adr/3.x/2026-08-12-1-plantuml-schema-diagram-rendering.md
   tag: current
-  divio_type: none
+  divio_type: explanation
   owning_workstream: none
   current_target: true
   notes: null
