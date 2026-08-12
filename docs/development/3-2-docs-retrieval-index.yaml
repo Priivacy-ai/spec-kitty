@@ -2682,6 +2682,26 @@ pages:
     - {slug: "references", text: "References", level: 2}
     - {slug: "addendum-2026-08-05-3210-resolver-shape-sharpened-after-the-post-plan-review", text: "Addendum (2026-08-05) — #3210 resolver shape sharpened after the post-plan review", level: 2}
     - {slug: "addendum-2026-08-07-dr-1-silent-parity-behaviour-superseded-misconfigured-spec-kitty-packs-root-now-warns-loudly", text: "Addendum (2026-08-07) — DR-1 silent-parity behaviour superseded: misconfigured `SPEC_KITTY_PACKS_ROOT` now warns loudly", level: 2}
+  - path: "docs/adr/3.x/2026-08-07-1-a-mission-halting-instrument-is-worth-its-cost.md"
+    title: "ADR: A Mission-Halting Instrument Is Worth Its Cost — It Runs Before the Mission, and Its Verdict Is Acted On"
+    divio_type: "none"
+    abstract: "Records why a pre-mission ablation instrument that nothing consumed and nothing sequenced was worth its cost: it fired at |P| = 5, and the mission halted."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "what-the-instrument-actually-caught", text: "What the instrument actually caught", level: 3}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "1-worth-its-cost", text: "1. Worth its cost", level: 3}
+    - {slug: "2-before-any-surface-the-mission-would-edit-and-before-any-artifact-that-would-argue-for-it", text: "2. Before any surface the mission would edit, and before any artifact that would argue for it", level: 3}
+    - {slug: "3-trigger-and-consequence-fixed-in-the-spec-before-the-measurement", text: "3. Trigger and consequence fixed in the spec, before the measurement", level: 3}
+    - {slug: "4-acted-on-rather-than-argued-with", text: "4. Acted on rather than argued with", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative-accepted-trade-offs", text: "Negative / accepted trade-offs", level: 3}
+    - {slug: "neutral", text: "Neutral", level: 3}
+    - {slug: "confirmation-and-what-this-adr-does-not-prove", text: "Confirmation — and what this ADR does not prove", level: 3}
+    - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
