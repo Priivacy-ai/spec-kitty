@@ -1,0 +1,1173 @@
+# Work Package manifest — R1a, the guard half.  Revision 2, post-tasks gate (9 blockers, 16 majors).
+#
+# READ BEFORE EDITING.
+#
+# 1. `subtask_details`, `definition_of_done`, `not_done_if`, `create_intent`,
+#    `mission_dir_artifacts`, `wp_alias` and `execution_mode` are NOT in the pydantic
+#    schema (`src/specify_cli/core/wps_manifest.py` ignores unknown keys). They are
+#    BINDING PLANNING CONTENT authored and reviewed in tasks-outline. `tasks-packages`
+#    MUST materialise them verbatim — it must NOT re-derive a Definition of Done from
+#    spec.md/plan.md, and MUST NOT drop them when it rewrites this file in its Step 4.
+#
+# 2. `requirement_refs` carries `SC-###` deliberately. `_REF_FIND_PATTERN`
+#    (`requirement_mapping.py:16`) matches only `(FR|NFR|C)-\d+`, so every `SC-###` is
+#    dropped at the tasks-packages -> WP-frontmatter boundary, not by finalize-tasks
+#    (verified: finalize reports `requirement_refs_parsed: {}` and never reads this file
+#    for refs).  Upstream defect #2991 — cited, not re-filed.  Do not "clean them up".
+#
+# 3. `create_intent` lists each WP's new files.  finalize-tasks hard-errors on a literal
+#    `owned_files` path matching zero files unless it appears in the WP frontmatter's
+#    `create_intent` (`ownership/validation.py:436-448`).  Copy every entry across.
+#
+# 4. `owned_files` may not contain `kitty-specs/` paths (`mission_finalize.py:922`).
+#    Mission-directory deliverables are therefore assigned by `mission_dir_artifacts`.
+#    THAT KEY HAS NO MACHINE CHECK: the model drops it silently, so its disjointness is a
+#    REVIEWER OBLIGATION.  Today's assignments are disjoint.  Do not redesign it.
+#
+# 5. Alias map (spec §0.8 / plan §4): WP01+WP02 = WP-0 split into WP-0a/WP-0b,
+#    WP03 = WP-a, WP04 = WP-b, WP05 = WP-c, WP06 = WP-d.
+#    THE WP-0 SPLIT BUYS ZERO THROUGHPUT.  WP-0b depends on WP-0a and everything depends
+#    on WP-0b; the critical path is unchanged.  It exists for HALT HYGIENE: on
+#    `verdict: halt`, WP-0b is never moved past `for_review`, and `dependency_readiness_for_wp`
+#    (`core/dependency_graph.py:50-77`) admits only `approved`/`done`, so `implement WP03`
+#    and `implement WP04` raise.  Nobody may "optimise" the split back together.
+#
+# 6. STANDING RULE, binding on every WP — pre-existing reds (C-009 vs DIR-013).  Every WP
+#    runs the always-on architectural pole and will meet baseline reds.  Classify per
+#    CLAUDE.md's baseline-red gotcha; record command, failure summary and merge-base
+#    evidence in `record.md`; route to the OPERATOR as a TG-item.  DIR-013's GitHub issue
+#    is the OPERATOR's to open — C-013 forbids `gh issue create` here.  Do not improvise.
+
+work_packages:
+
+  # ==========================================================================
+  - id: WP01
+    wp_alias: "WP-0a"
+    title: "The shared scan module and its inert sub-form registry"
+    dependencies: []
+    execution_mode: code_change
+    task_type: code-implementation
+    agent_profile: python-pedro
+    role: implementer
+    agent: claude
+    prompt_file: "tasks/WP01-shared-scan-module.md"
+    owned_files:
+      - "tests/architectural/_home_pin_scan.py"
+      - "tests/architectural/test_home_pin_scan_limbs.py"
+    create_intent:
+      - "tests/architectural/_home_pin_scan.py"
+      - "tests/architectural/test_home_pin_scan_limbs.py"
+    mission_dir_artifacts: []
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - FR-004
+      - FR-007
+      - FR-009
+      - FR-010
+      - NFR-004
+      - C-003
+      - C-004
+      - C-006
+      - C-012
+      - C-013
+      - SC-002b
+    plan_concern_refs:
+      - IC-01
+      - IC-08
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+    subtask_details:
+      - id: T001
+        title: "`_home_pin_scan.py` — the walk, the byte pre-filter, a parse that never swallows SyntaxError, and the shared types"
+        dod: >-
+          `enumerate_py_files(root)` returns a set EQUAL to `set(Path(root).rglob("*.py"))` computed
+          inline in the test and NEVER obtained from the module under test, asserted over the real
+          `tests/` tree and over a materialised tree reached through FR-009's ROOT PARAMETER, containing an `_`-prefixed directory, a
+          `conftest.py`, a nested package and a non-`.py` file. The count is REPORTED, never asserted, and every population
+          in this WP is an AST set, never a text search (C-003).
+          `byte_prefilter` (FR-002 — mandatory, not an optimisation) over a tree with three `b"SPEC_KITTY_HOME"` files and three non-hit files
+          returns exactly the three hits — set equality naming BOTH the included and the excluded, so
+          a pass-through implementation reds. `parse_module` RAISES `SyntaxError`, and an AST
+          assertion over this module's own source proves zero `except SyntaxError` handlers, with a
+          positive control proving the matcher finds one where it exists. THIS MODULE ALSO OWNS THE
+          SHARED TYPES, because measured there is no `class Exempt` anywhere under `tests/` or `src/`
+          and three packages need it: `MemberKey`, `Member`, `Exempt` and `INERT_LIMBS` are exports of
+          `_home_pin_scan.py`, named here so WP03's `E`, WP04's mypy harness and WP05's baseline all
+          bind to ONE definition. `MemberKey` composition is fixed:
+          `MemberKey = (relpath_posix, *composite_key_from_file(path, lineno))` — the primitive
+          returns `tuple[str, str]`, so a direct comparison against a 3-tuple is a `mypy --strict`
+          TYPE ERROR, not merely a wrong assertion.
+          WHAT THIS CANNOT SEE — nothing about membership; it is the walk and the vocabulary.
+          WHY IT CANNOT BE FAKED — a walk narrowed by directory or filename fails the materialised
+          root's set equality; `except SyntaxError: continue` fails the self-AST check, which cannot
+          itself be vacuous because its positive control must return a hit.
+      - id: T002
+        title: "The binding resolver and the key-parameterised, receiver-agnostic write-site finder"
+        dod: >-
+          Over one materialised module containing exactly one instance of every write form —
+          `monkeypatch.setenv`, a BARE-NAME `setenv`, `os.environ[...] = `, `environ[...] = `,
+          `.setdefault(...)`, and `with pytest.MonkeyPatch.context() as mp:` then `mp.setenv(...)` —
+          `find_write_sites(tree, key="SPEC_KITTY_HOME")` returns a set of `(lineno, form)` pairs
+          EQUAL to the enumerated expected set. The same function with `key="HOME"` over a module
+          writing both returns exactly the `HOME` sites and none of the others: one implementation,
+          two keys, proven by the second call. `resolve_value` returns `tmp_path/"home"` for each of
+          `str(tmp_path / "home")`, `Path(tmp_path, "home")`, `os.fspath(...)`, an f-string,
+          `os.path.join(...)`, `%`-format, `.format()` and `+` concatenation, each enumerated
+          separately; and `None` for a `Name`-keyed and a dynamic form, with `None` asserted never to
+          compare equal to any target.
+          WHAT THIS CANNOT SEE — whether a site is inside a member; that is T003.
+          WHY IT CANNOT BE FAKED — and the discriminator is NOT what the plan first said. Measured by
+          removing `withitem` binding entirely: all 40 members are still found and `:1165` is STILL
+          ADMITTED. What admits `:1165` is RECEIVER-AGNOSTICISM ON THE CALL — a receiver-QUALIFIED
+          matcher is what drops it and biases `r` toward *proceed*, and the bare-name case is what
+          catches that. `withitem`-bound-receiver RESOLUTION matters only when a VALUE expression
+          references a with-bound name, whose real-tree population is 0; it is an inert sub-form
+          registered in T004, not a load-bearing limb.
+      - id: T003
+        title: "The keyer, `discover()` over both variables, and the identity/attribution separation"
+        dod: >-
+          IDENTITY AND ATTRIBUTION ARE SEPARATE AND THEY DISAGREE — C-012(1)-(4), and getting this
+          backwards fails SC-001 two packages downstream. (a) The `MemberKey` qualname component is
+          the WRITE-SITE enclosing qualname, i.e. the repository primitive's value, which is the
+          INNERMOST dotted qualname (`anchoring.py:173-176`). Measured: innermost keying gives
+          symmetric difference 0 against the C-011 anchor; outermost gives 2, both at `:1165`.
+          (b) The KEYED def — the outermost def in the chain satisfying the silhouette — determines
+          MEMBERSHIP, `kind`, and the rename signature's parameter set, and is NOT IN THE KEY.
+          (c) C-004 is therefore mechanised by the `kind` DISTRIBUTION, asserted as a mapping:
+          `{fixture: 30, test-body: 10, helper: 0}` at the keyed def against `{30, 9, 1}` at the
+          innermost — the withdrawn split. That assertion, not the key set, is what reds if an
+          implementer attributes to the innermost. (d) Keys are formed FROM THE ALREADY-PARSED TREE
+          `discover()` holds, never by re-reading: `composite_key_from_file` reaches
+          `anchoring.py:192-195`, which swallows `SyntaxError` and returns `"<module>"`, so
+          re-reading would silently degrade a broken file and leave SC-013's guarantee holding only
+          on the `parse_module` path; it is used ONLY for the independent live recomputation, where
+          the file is known-parseable. Beyond that, `discover(root=<materialised>)` returns a
+          `MemberKey` set EQUAL to an enumerated expected set containing, each named: a member in a
+          nested closure whose own parameters are neither `tmp_path` nor `monkeypatch`; a member
+          satisfying the silhouette only through the chain union; a member declaring
+          `(monkeypatch, <a fixture yielding a home root>)` with no `tmp_path`, admitted by FR-010;
+          a NON-member resolving to `tmp_path/"other"`; a NON-member whose value is unresolvable.
+          `home_partition` is produced for every member with one materialised example each of `A`,
+          `B1`, `B2` and `other` — `other` has real-tree population 0, so its example is its
+          registered positive control. The import-time exactly-one assertion RAISES on a tree
+          carrying two members with a byte-identical 3-tuple and does not raise on
+          `discover(Path("tests"))`.
+          WHAT THIS CANNOT SEE — whether the real member set is the right one; that anchor is
+          external (C-011) and asserted in WP05/T023.
+          WHY IT CANNOT BE FAKED — both discriminators for (a)/(c) currently rest on ONE real-tree
+          site, `:1165`, held in the class by an unused `monkeypatch` parameter that `ruff`'s relaxed
+          `ARG` for `tests/**` will not defend. The synthetic outermost-versus-innermost witness that
+          removes that dependency is a permanent-guard obligation and lands in WP04/T017.
+      - id: T004
+        title: "`test_home_pin_scan_limbs.py` — the inert SUB-FORM registry, its controls, and a completeness check that does not grade its own homework"
+        dod: >-
+          `_home_pin_scan.INERT_LIMBS: frozenset[str]` names every SUB-FORM whose real-tree
+          population is 0. SUB-FORM, NOT LIMB — a limb is a whole clause of the predicate, a sub-form
+          is one shape within it, and any registry entry whose real-tree population is NON-ZERO is a
+          REGISTRY DEFECT, not a matcher defect (FR-001, amended). The entries, with the populations
+          FR-007's table publishes: `setdefault` at `SPEC_KITTY_HOME` 0; BARE-NAME `setenv` 0;
+          `os.path.join` / `%`-format / `.format()` / `+` concat in a value at `SPEC_KITTY_HOME`
+          0 each; the same four at `HOME` sites 0 each; `HOME` via `setdefault` 0; explicit `scope=`
+          among the 49 pin-bearing fixtures 0; `home_partition == "other"` 0; `withitem`-bound
+          receiver referenced by a VALUE expression 0; and SC-002b's assignment-bound
+          `"SPEC_KITTY_HOME"` constant 0. THE `HOME` ENUMERATION IS NOT REGISTERED — measured it is
+          the most heavily populated limb in the classifier, 85 write sites in 50 files with 13 of
+          the 40 members re-pinning `HOME`, and registering it would mandate a FALSE empty-set
+          assertion whose cheapest repairs are both catastrophic (narrow the `HOME` matcher until it
+          returns `set()`, collapsing B1/B2 into A and surfacing only in a different WP; or delete
+          the id, keeping the equality green). Fifteen entries; SC-002b is the one not in FR-007's
+          table, named separately in the same FR-007 row, and the delta is stated so a reviewer can
+          check it. For EVERY id: (i) an empty-SET assertion over the real tree and (ii) a POSITIVE
+          CONTROL running the same production matcher over a materialised module containing the shape,
+          asserting exactly that one hit. Any control returning `set()` fails the module. THE
+          COMPLETENESS CHECK IS A TRIPLE, and the middle operand may not be the only one:
+          `inline_expected == INERT_LIMBS == {ids of shipped controls}`, where `inline_expected` is a
+          frozenset ENUMERATED LITERALLY IN THIS TEST MODULE and NEVER
+          imported from `_home_pin_scan.py`. AND THE LITERAL IS BOUND TO THE SPECIFICATION, NOT MERELY
+          TRANSCRIBED FROM IT: the test PARSES FR-007's inert sub-form table out of `spec.md` — the
+          table carrying an explicit `id` column, ONE SUB-FORM PER ROW, no four-way cells and no
+          anaphoric rows, with each id backticked in the first column — and asserts BOTH
+          `spec_table_ids | {"SC-002b"} == inline_expected` AND
+          `spec_table_ids - inline_expected == set()`. THE DELTA IS EXACTLY ONE AND IT IS NAMED:
+          the table carries the FOURTEEN classifier sub-forms, while `SC-002b`'s assignment-bound
+          constant assertion is a criterion in its own right rather than a sub-form of the
+          classifier, so it is in the control set and not in the table — and FR-007 says so in the
+          sentence under the table. An earlier form of this DoD said the parsed id set EQUALS
+          `inline_expected`; against the shipped fourteen-row table that assertion is FALSE ON DAY
+          ONE, and its cheapest repair is to drop the operand. The row count is REPORTED, never
+          asserted: asserting 14 would red on a table that legitimately grows, while the set delta
+          already reds when the table grows and the registry does not follow. So the quadruple is
+          `spec_table_ids ∪ {SC-002b} == inline_expected == INERT_LIMBS == {control ids}`. Without that fourth
+          operand the three code artefacts stay internally consistent and green while DIVERGING FROM
+          THE SPEC THAT DEFINES THE POPULATION — and a spec/code divergence is exactly the defect
+          that produced the `HOME`-limb registration in the first place, so a mechanism that only
+          watches code-versus-code guards the wrong axis of its own motivating failure. The same
+          "parse the authoritative document and assert the code matches" shape is used in WP03/T012
+          (the owner contract) and WP05/T026 (M4's TABLES.md); this is the third instance and the one
+          where the completeness argument actually lives. STATED COST: this makes an always-on
+          collected test depend on a `kitty-specs/` document. If the mission directory is ever
+          flattened or archived the test must be re-pointed, and that obligation is recorded in
+          WP06/T030 rather than discovered by whoever flattens it.
+          WHAT THIS CANNOT SEE — a shape nobody enumerated. The triple closes the gap between the
+          sub-forms production claims and the controls that exist; it cannot close the gap between
+          reality and the claim.
+          WHY IT CANNOT BE FAKED — comparing `INERT_LIMBS` only against controls the same author
+          ships proves "every id I remembered to register has a control", and can be SHRUNK TO ZERO
+          and stay green — the same circularity C-011 diagnoses for the census, relocated into the
+          registry built to prove the census's proofs were complete. The inline literal is what reds
+          when a sub-form is removed from production.
+      - id: T005
+        title: "`render_census` / `render_baseline` and the one documented regeneration entry"
+        dod: >-
+          Over a three-member materialised set, `render_census(members, sha=..., owed_to="#3121")`
+          emits YAML whose parsed row key set EQUALS the input key set, and whose HEADER key set is
+          asserted BY SET EQUALITY — `set(header) == {"generated_by", "regeneration_command",
+          "frozen_at_sha", "owed_to", "fragility_note"}`, enumerated, mirroring the row assertion.
+          A count plus a prose exclusion is the wrong shape: FR-003's whole argument is that a per-row
+          constant is a header scalar wearing row clothing, and the symmetric failure is a `reason`
+          IN THE HEADER. Row column names EQUAL `{key, lineno, kind, home_partition}`. `owed_to`
+          matches `^#[0-9]+$`. `render_baseline` is proven to hash the SORTED KEY SET and not the
+          file bytes by the only triple that construction satisfies: INVARIANT under an `owed_to`
+          re-point, INVARIANT under a header/comment edit, CHANGES when one member key is removed.
+          The baseline's header key set is likewise asserted, and IT IS THE TOMBSTONE LIST'S NAMED
+          HOME — `set(baseline) == {"generated_by", "regeneration_command", "census_key_set_sha256",
+          "exempt_set_sha256", "tombstones"}` — because FR-004(1) is "paths, named, not described"
+          and the tombstone list had none; putting it in the census header would collide with the
+          header set above. `__main__` takes `--exempt-module`, DEFAULT `None`, IMPORTED INSIDE
+          `main()` so the module-level import graph stays acyclic and WP01 never depends on WP03.
+          This subtask demonstrates it ABSENT (empty `E`); WP05/T022 passes it. A second run is
+          byte-identical.
+          WHAT THIS CANNOT SEE — whether the real census content is right; that is WP05.
+          WHY IT CANNOT BE FAKED — `sha256(path.read_bytes())` passes any "a hash exists" check and
+          fails the first two invariance assertions, which is plan §5's day-thirty failure.
+    definition_of_done:
+      - "`_home_pin_scan.py` exports `MemberKey`, `Member`, `Exempt` and `INERT_LIMBS`; no other module defines any of them. Measured precondition: `class Exempt` exists nowhere under `tests/` or `src/` today."
+      - "The registry completeness check is the QUADRUPLE `spec_table_ids ∪ {SC-002b} == inline_expected == INERT_LIMBS == {ids of shipped controls}` — four operands, named: FR-007's parsed table, the literal frozenset written in the test module, the production export, and the controls actually shipped. `inline_expected` is written LITERALLY in the test module and never imported. This WP owns the registry ENTIRELY — no downstream package edits `_home_pin_scan.py` or `test_home_pin_scan_limbs.py`, and no DoD here is completed by a downstream WP."
+      - "Every positive control parses its materialised source through `_home_pin_scan.parse_module` ONLY. Direct `ast.parse` and `ast.NodeVisitor` are banned in every module importing `_home_pin_scan`, including this one — WP02/T007's guard enforces it, and a control that calls `ast.parse` directly would red the guard it exists to serve."
+      - "`_home_pin_scan.py` contains no `subprocess`, no git surface, and no `except SyntaxError`, all AST-asserted with positive controls."
+      - "IC-08 landing, mechanically not by observation: `test_home_pin_scan_limbs.py` is TOP-LEVEL under `tests/architectural/`, declares `pytestmark = pytest.mark.architectural`, and is selected locally by `-m '(git_repo or integration or architectural) and not timing'`. The orphan ratchet `tests/architectural/test_gate_coverage.py::test_no_new_orphan_surfaces` against `_gate_coverage_baseline.json` (`orphan_files: []`, `orphan_test_count: 0`) fails on any new test file selected by zero CI gates — cite it and the obligation is self-enforcing. `tests/_arch_shard_map.py` is NOT edited: `default_fallback=True` (`:419`) plus hash-bucketing (`_shard_registry.py:181`) auto-covers by construction."
+      - "`tests/architectural/test_ratchet_positional_anchor_ban.py::test_no_int_line_sink_in_architectural_python_seeds` stays green: no int literal reaches `composite_key_from_file(path, N)`'s second positional argument from a module-level seed, anywhere under `tests/architectural/`."
+      - "Identical results under `-n0` and `-n auto --dist loadfile` (NFR-003)."
+      - "NFR-004: `ruff check` and `mypy --strict` clean on every touched file, no new suppression, never `ruff format`. C-013: nothing merged, no `gh issue create`, explicit-path `git add` only, long commands bounded with `timeout` and a timeout treated as a datum. CI runs mypy only over `src/specify_cli src/charter src/doctrine` and only as an ADVISORY step, so `tests/` has no CI backstop and this is a local obligation."
+      - "C-006 blast radius: no file under `src/` changes and no existing test module changes; this WP touches only its two owned files."
+      - "Per-subtask completion is a `spec-kitty agent tasks mark-status <Txxx> --status done` event, not a ticked checkbox."
+    not_done_if:
+      - "`INERT_LIMBS` is compared only against a set derived from `_home_pin_scan.py` — the inline literal operand is missing, or the literal is transcribed from FR-007's table without being asserted against it."
+      - "The `HOME` enumeration limb is registered as inert, or any registry entry has a non-zero real-tree population."
+      - "The `MemberKey` qualname is taken at the keyed def rather than at the write site, or C-004 is mechanised through the key set rather than through the `kind` distribution."
+      - "A positive control calls `ast.parse` directly instead of `_home_pin_scan.parse_module`."
+      - "Any population-0 assertion ships without its positive control."
+
+  # ==========================================================================
+  - id: WP02
+    wp_alias: "WP-0b"
+    title: "The gate: the seam teeth, the window measurement, and the verdict that halts the Mission"
+    dependencies:
+      - WP01
+    execution_mode: code_change
+    task_type: code-implementation
+    agent_profile: python-pedro
+    role: implementer
+    agent: claude
+    prompt_file: "tasks/WP02-gate-and-verdict.md"
+    owned_files:
+      - "tests/architectural/_home_pin_gate.py"
+      - "tests/architectural/test_home_pin_seam_no_second_copy.py"
+      - "tests/architectural/test_home_pin_gate_verdict.py"
+    create_intent:
+      - "tests/architectural/_home_pin_gate.py"
+      - "tests/architectural/test_home_pin_seam_no_second_copy.py"
+      - "tests/architectural/test_home_pin_gate_verdict.py"
+    mission_dir_artifacts:
+      - "research/home_pin_gate/verdict.yaml"
+    requirement_refs:
+      - FR-008
+      - FR-009
+      - NFR-004
+      - NFR-006
+      - C-003
+      - C-006
+      - C-011
+      - C-012
+      - C-013
+      - SC-000
+    plan_concern_refs:
+      - IC-02
+      - IC-08
+    subtasks:
+      - T006
+      - T007
+      - T008
+      - T009
+    subtask_details:
+      - id: T006
+        title: "`_home_pin_gate.py` — extraction at both SHAs, the rename detector, banding, ±1 stability, the unbounded walk"
+        dod: >-
+          AUTHORED FIRST IN THIS PACKAGE, because T007's guard asserts this module is in the
+          discovered consumer set. It extracts each SHA's `tests/` with `git archive` into a temporary
+          directory and calls `discover(root=<extracted>/tests)`, so FR-009's root parameter is
+          exercised by the gate before any consumer depends on it. `band(|R_f|, |R|)` and
+          `stability(|R_f|, |R|)` are pure exported functions. Every population it produces is an AST set difference — `git log -S` and `git diff | grep` are text search over a population and are barred (C-003). The rename detector is proven on
+          materialised departure/arrival sets: a unique mutual best match on
+          `(resolved_value, params_at_keyed_def, kind)` in the same file PAIRS; a two-way tie is
+          REFUSED and both sites retained; a candidate whose resolved value is `None` never matches.
+          The walk implements the AMENDED §0.9 schedule: backwards along `upstream/main`'s
+          FIRST-PARENT history ONE COMMIT AT A TIME — `main` is rebase-merged, so there are no merge
+          commits to step over — with NO ATTEMPT CAP, stopping at the first SHA where BOTH `|R| >= 10`
+          and ±1 consequence-class stability hold, and with the DEFINED EXIT: reaching the root of
+          first-parent history without both holding jointly stops the walk and the OPERATOR decides.
+          The stopping rule reads `|R|` and stability ONLY, NEVER `r`. The emitted document's
+          top-level key set EQUALS `data-model.md`'s enumerated `Verdict` field list. `subprocess` and
+          `git` live HERE and nowhere else.
+          WHAT THIS CANNOT SEE — whether ±1 stability is satisfiable at any window; reachability is
+          evidenced for the floor (first met ~300-600 commits back) and NOT evidenced for stability.
+          WHY IT CANNOT BE FAKED — the stopping rule's independence from `r` is the entire
+          forking-path defence and it survives the cap's removal untouched; a rule that read `r`
+          would let a walker stop at a convenient band.
+      - id: T007
+        title: "`test_home_pin_seam_no_second_copy.py` — the anti-drift teeth, over a DISCOVERED consumer set"
+        dod: >-
+          The test computes by AST the SET of modules under `tests/` importing from
+          `_home_pin_scan`, asserts that set is NON-EMPTY and CONTAINS `_home_pin_gate.py` — which
+          exists because T006 precedes this subtask, an ordering made explicit here because the
+          previous revision put this guard in a package where its own named consumer did not yet
+          exist and it was red at its own completion. The consumer set is DISCOVERED, never
+          hard-coded, so WP03/WP04/WP05's modules are covered without editing this file. Every member
+          contains ZERO `ast.parse` calls and ZERO `ast.NodeVisitor` subclasses; synthetic sources
+          anywhere in the Mission are parsed only through `_home_pin_scan.parse_module`. A second
+          limb asserts by AST that `_home_pin_scan.py` imports neither `subprocess` nor any git
+          surface. Both limbs ship a positive control over a materialised module that DOES contain
+          the banned construct.
+          WHAT THIS CANNOT SEE — a second copy of the predicate written without importing
+          `_home_pin_scan` at all.
+          WHY IT CANNOT BE FAKED — prose is exactly what failed at `_sole_door_scan.py:13-27`; a
+          hard-coded consumer list greens the day a consumer is renamed, which is why the set is
+          discovered and asserted non-empty.
+      - id: T008
+        title: "`test_home_pin_gate_verdict.py` — the COLLECTED gate, the 806-state oracle, and the keys checked against this tree"
+        dod: >-
+          A collected, `architectural`-marked, top-level module. (a) FAILS when the verdict artefact
+          is absent, demonstrated against an empty `tmp_path`; (b) FAILS when it reads `halt`,
+          demonstrated over a materialised artefact; (c) passes only for `proceed` /
+          `proceed-degraded`; (d) recomputes `band` from the published `r`, `|R|`, `|R_f|` and
+          asserts it EQUALS the published label — the SC-000(vi) limb, without which `proceed`
+          written above `r = 0.6` is undetectable; (e) asserts internal consistency AS SETS —
+          `R_f ⊆ R`, `r == |R_f| / |R|`, `|R| >= 10`, `end_sha` equal to §0.9's literal, both operand
+          sets non-empty — AND requires the `start_sha_crosscheck` key to be present with its
+          `symmetric_difference` field present WHETHER EMPTY OR NOT, and any non-empty difference to
+          carry a non-empty `explanation` sibling, so the cross-check T009 publishes is verified by
+          something rather than by nobody; (f) runs the oracle — the FULL mapping
+          `(|R|, |R_f|) -> consequence class` over `|R| in [10,40]`, `|R_f| in [0,|R|]`, compared as
+          a MAPPING against one built inline from §0.9's thresholds and clamp, reproducing §0.9's
+          independently published `380 go / 364 halt / 62 inadmissible`; (g) THE RESIDUAL IS
+          NARROWED, NOT ACCEPTED — `MemberKey` is content-addressed, so for every key in
+          `sites_at_end` whose `rel_path` still exists in the working tree the test recomputes
+          `(relpath_posix, *composite_key_from_file(path, lineno))` and asserts it equals the
+          published key — the C-012 3-tuple, composed as `(relpath_posix, *composite_key_from_file(path, lineno))` because the primitive returns a 2-tuple — with a PUBLISHED NON-ZERO FLOOR on the number of keys checked so the limb
+          cannot degrade to zero silently. No git, no subprocess; measured cost 0.19 s for 40 keys,
+          1.35 s for 191. `start_sha` is asserted equal to whatever the widening schedule selected
+          and published, not to a literal, because the window WILL move.
+          WHAT THIS CANNOT SEE — the START-SHA operands, which name content that is not in this tree.
+          Forgery cost is now "consistent numbers that are also real token lines at real line numbers
+          in this repository", not "consistent numbers"; the start half remains unprovable without
+          git, and that is stated in the record rather than papered over.
+          WHY IT CANNOT BE FAKED — a test asserting `"verdict" in artefact` passes for `halt`; (b)
+          kills that, (d) kills a mislabelled band, (g) kills a fabricated end-SHA operand set.
+      - id: T009
+        title: "Run the measurement under the amended schedule, publish the verdict, and enforce a halt through the lane machine"
+        dod: >-
+          THE STATED WINDOW IS ALREADY KNOWN VOID: measured post-tasks, `709a59534 -> 5d49d31ed`
+          gives 37 members at the start SHA and 40 at the end with 0 departures, so `|R| = 3` against
+          a floor of 10. Lowering the floor is REFUSED by the operator. This subtask therefore starts
+          from the VOID result and walks. `research/home_pin_gate/verdict.yaml` — the SOLE authority
+          for attempted windows, with no rendered duplicate — is committed and carries all six
+          SC-000 components: the site sets at BOTH SHAs as operands so the difference is recomputable
+          without re-running; every rename pair with its matching keys; every refused-ambiguous
+          candidate; every unpaired departure and arrival; `R` / `|R|` / `|R_f|` / `r`; both SHAs;
+          EVERY attempted window with its `(start_sha, |R|, |R_f|, band)` BEGINNING WITH the VOID
+          result at `709a59534` (`|R| = 3`); the exact invocation; the ±1 stability result over
+          consequence classes with the clamp; the `start_sha_crosscheck` (the checked-in independent
+          `clf.py` against a `git archive` extraction at the selected start SHA, with the symmetric
+          difference against `discover()` published whether empty or not and any non-empty difference
+          explained, never tuned away); and a machine-readable `verdict:` — which is FR-008's unconditional publication list, not a degraded-band-only one. The cross-check runs the CHECKED-IN INDEPENDENT INSTRUMENT `clf.py` from `research/spec_kitty_home_pin_evidence/` (C-011), never a re-implementation. THE RECORD MUST NAME, IN
+          SO MANY WORDS, whether §0.3's `28 -> 30` figure is RE-DERIVED at the moved SHA or
+          EXPLICITLY SUPERSEDED — one of those two words, not "addressed" — because §0.3's published
+          growth is what determined this window's fate once already. THE MEASUREMENT HAS LEAKED and
+          the record must say so: an independent lens measured `r = 100%` at candidate windows ~300,
+          ~600 and ~2000 first-parent commits back (`|R| = 9, 33, 34`), so ON PUBLISHED EVIDENCE THE
+          VERDICT IS ALREADY KNOWN TO BE `proceed`. WP-0b confirms a known answer rather than
+          discovering one; R1a must stop describing the gate as its own stopping mechanism, and what
+          is protected is only the stopping rule's independence from `r`. ON `halt`: WP-0b is NOT
+          moved to `approved` or `done` — it stays at `for_review` — and WP03..WP06 are moved with
+          `spec-kitty agent tasks move-task <WPID> --to blocked`. `dependency_readiness_for_wp`
+          (`core/dependency_graph.py:50-77`) admits ONLY `approved`/`done` and explicitly excludes
+          `blocked` and `for_review`, so `implement WP03` and `implement WP04` then RAISE. That is
+          the enforcement; the collected test is the second line, not the first. Operator sign-off is
+          requested; the implementer may not proceed on their own authority.
+          WHAT THIS CANNOT SEE — how contributors will behave, and arrivals that never became sites.
+          WHY IT CANNOT BE FAKED — the operands are published and T008(g) recomputes the surviving
+          ones from this tree; the stopping rule was pre-committed before this measurement and does
+          not read `r`.
+    definition_of_done:
+      - "The verdict artefact exists, `band(published) == published.verdict` passes, and `test_home_pin_gate_verdict.py` is COLLECTED and reds on `halt`."
+      - "HOW THE GATE REACHES EVERY PACKAGE, from the MEASURED lane graph: lane-a=[WP01] depends on nothing; lane-b=[WP02] depends on lane-a; lane-c=[WP03] and lane-d=[WP04] BOTH depend on lane-b and NOT on lane-a; lane-e=[WP05] depends on lane-c and lane-d. `_ordered_dependency_lanes` resolves DIRECT dependencies only — there is no transitive closure — so lane-a's content reaches lane-c and lane-d TRANSITIVELY, through lane-b's tip, which already carries lane-a's because lane-b was allocated first. TWO earlier statements are struck: 'WP-0b's commits are in every downstream lane's base' (false — the lane base is the mission branch) and 'lane-b and lane-c both declare depends_on_lanes=(lane-a,)' (false — that was the FIVE-lane graph measured BEFORE the WP-0a/WP-0b split renumbered the lanes, so the correction was invalidated by the split it shipped beside). The conclusion survives; the mechanism is two hops, not one, and the tip-merge path DEGRADES TO A PRINTED WARNING at `worktree_allocator.py:462-472` if a dependency branch is unresolvable — a longer chain with a soft failure at each hop is exactly why WP03's and WP04's explicit precondition is CHECKED, NOT ASSUMED. The second, independent limb — a package may not author the test that must block it — is sound and unchanged."
+      - "On `halt`: WP-0b is never moved past `for_review`, WP03..WP06 are moved to `blocked` via `move-task`, and the record carries the operator escalation. Note the command: `mark-status` takes T-ids and only `done`/`pending`; `blocked` is reachable only through `move-task`."
+      - "THE GOLDEN-COUNT RATCHET HAS ZERO HEADROOM: `tests/architectural` sits at 25/25 convert-classified sites against a frozen ceiling of 25, so ANY new `len(x) == N` assertion in this WP trips `test_golden_count_ban::test_convert_sites_do_not_exceed_frozen_baseline`. Every assertion here is a SET comparison, never a count. THE BASELINE MAY NOT BE RE-FROZEN — the fix is always to convert the assertion, never to raise the bound. C-002 already forbids a counted definition of done; this is that rule made operational at the exact point it will bite."
+      - "NFR-006: the gate run is pinned to the external `pytest>=9.0.3,<9.1` venv, the resolved interpreter path and the verbatim invocation are recorded in `verdict.yaml`'s `invocation` field. NEVER a bare `uv run` or `uv sync`; no `.venv` inside this tree."
+      - "IC-08 landing, mechanically: both new test modules are top-level, `architectural`-marked, and covered by `test_gate_coverage.py::test_no_new_orphan_surfaces` against `_gate_coverage_baseline.json`. `tests/_arch_shard_map.py` is NOT edited."
+      - "NFR-004: `ruff check` and `mypy --strict` clean, never `ruff format`. C-013: nothing merged, no `gh issue create`, explicit-path `git add` only, every long command bounded with `timeout`, and a timeout is a datum, never silently retried. C-006: only this WP's three owned files and the verdict artefact are touched; no file under `src/` changes. Identical results under `-n0` and `-n auto --dist loadfile`."
+      - "Per-subtask completion is a `spec-kitty agent tasks mark-status <Txxx> --status done` event."
+    not_done_if:
+      - "The gate is implemented as an instruction in a downstream WP's first task rather than as a collected test."
+      - "The walk stops at an attempt cap, or the stopping rule reads `r`, or a window is accepted for the band it produces."
+      - "The verdict omits either operand set, omits the VOID result at `709a59534`, or omits the `start_sha_crosscheck`."
+      - "The record fails to use the word RE-DERIVED or SUPERSEDED for §0.3's `28 -> 30` figure."
+      - "On `halt`, WP-0b is moved to `approved`, or any downstream WP is left out of `blocked`."
+      - "`_home_pin_scan.py` is edited by this WP."
+
+  # ==========================================================================
+  - id: WP03
+    wp_alias: "WP-a"
+    title: "The canonical owner, its behavioural probes, and the exemption set they define"
+    dependencies:
+      - WP02
+    execution_mode: code_change
+    task_type: code-implementation
+    agent_profile: python-pedro
+    role: implementer
+    agent: claude
+    prompt_file: "tasks/WP03-canonical-owner.md"
+    owned_files:
+      - "tests/conftest.py"
+      - "tests/architectural/_home_pin_exempt.py"
+      - "tests/architectural/test_home_owner_behaviour.py"
+      - "tests/architectural/test_home_owner_never_wins.py"
+    create_intent:
+      - "tests/architectural/_home_pin_exempt.py"
+      - "tests/architectural/test_home_owner_behaviour.py"
+      - "tests/architectural/test_home_owner_never_wins.py"
+    mission_dir_artifacts:
+      - "contracts/canonical-home-owner.md"
+    requirement_refs:
+      - FR-005
+      - FR-006
+      - FR-010
+      - FR-011
+      - NFR-003
+      - NFR-004
+      - NFR-005
+      - NFR-006
+      - C-001
+      - C-005
+      - C-006
+      - C-013
+      - C-014
+      - SC-005
+      - SC-010
+      - SC-011
+      - SC-012
+    plan_concern_refs:
+      - IC-03
+      - IC-08
+    subtasks:
+      - T010
+      - T011
+      - T012
+      - T013
+      - T014
+    subtask_details:
+      - id: T010
+        title: "`contracts/canonical-home-owner.md` — this WP's FIRST deliverable, and an ordering fact that survives a squash"
+        dod: >-
+          The contract fixes, normatively: the fixture's NAME; `autouse=False`; function scope by
+          ABSENCE of `scope=`; that it yields `None` and WHY (returning its own path invites
+          `assert os.environ[...] == owner`, which compares the environment against the fixture's own
+          report and passes for an owner that sets nothing); that it establishes the home ONLY via
+          `monkeypatch.setenv`, with no `Path.home` patch and no process-global patch; that it creates
+          the directory before the test body runs; that it never overrides a definition keeping its
+          own pin; that it is inserted STRICTLY after `tests/conftest.py:298`; and that
+          `tuple[str, str]` is the type of the owner's ENTRY IN `E`, never of the fixture; and the fixture
+          NAME, because FR-010's resolver limb treats a parameter naming this owner as `tmp_path` for both
+          the silhouette and value resolution, so the name is a scanner input and not a local detail. The DoD is
+          an ORDERING FACT, not a file: `git merge-base --is-ancestor <contract commit> <owner
+          commit>` is RUN AND ITS OUTPUT RECORDED — both SHAs and the command output — into
+          `record.md` AT AUTHORING TIME, because the ancestry itself does not survive the squash or
+          rebase a lane consolidation may perform. That recording is the durable artefact.
+          WHAT THIS CANNOT SEE — whether the owner works; nothing about a contract can.
+          WHY IT CANNOT BE FAKED — T011..T014's assertions are stated over the names this document
+          fixes, a vague contract makes them unwritable, and T012 parses this file for the declared
+          fixture name so the document is mechanically bound to the code rather than merely adjacent
+          to it.
+      - id: T011
+        title: "Add the owner fixture to `tests/conftest.py`, strictly after line 298"
+        dod: >-
+          FR-005's canonical owner: exactly one new fixture, and `git diff -U0` shows NO hunk touching any line at or below 298.
+          SC-010 IS MECHANISED AS A LIST, NOT A SCALAR: the module's ORDERED LIST of definition
+          names, WITH THE NEWLY-ADDED OWNER REMOVED, is asserted equal to the same list computed at the
+          merge-base — the whole module, not only the names preceding `_isolated_worker_home`, because
+          the narrower form cannot see a reorder below the anchor and conftest fixture resolution
+          depends on the ordering throughout. (`spec.md` SC-010 says the module's ordered list is
+          "unchanged", which is literally unsatisfiable once a fixture is added; "unchanged with the
+          new owner removed" is the satisfiable reading and is strictly stronger than preceding-only.) A scalar definition INDEX — the previous form — is invariant under
+          insert-one-above-plus-delete-one-above, and in a Mission governed by C-002 it was the last
+          surviving scalar comparand. AST assertions on the new fixture: `autouse` absent or False, no
+          `scope=` kwarg, no `monkeypatch.setattr(Path, "home", ...)` and no process-global patch, the
+          body contains a `monkeypatch.setenv("SPEC_KITTY_HOME", ...)` AND a `mkdir`, and it
+          yields/returns `None`. THAT LAST GROUP IS FR-006'S STATIC HALF — establishment by `monkeypatch.setenv`
+          ONLY, never `monkeypatch.setattr(Path, "home", ...)` and never any process-global patch — and it is
+          only half, because FR-006 requires the rule DEMONSTRATED BEHAVIOURALLY, not merely asserted from
+          source: T012 carries the establishment half and T013 the never-wins half. NFR-005 — no interference
+          with the existing home owner — is demonstrated by the ordered-list check above rather than assumed. C-005 binds unchanged: `tests/conftest.py:272-286`'s env-var-only
+          precedence decision is not altered, and it is the decision this fixture must not violate.
+          WHAT THIS CANNOT SEE — that the owner does anything. Every assertion here is SHAPE.
+          WHY IT CANNOT BE FAKED — inserting above 253 shifts the ordering while the old line range
+          shows no modification; the ordered-name-list assertion is the only limb that sees it.
+      - id: T012
+        title: "`test_home_owner_behaviour.py` — the owner's statics and the one assertion that proves it works"
+        dod: >-
+          (i) SC-012 limb 1 — a probe requesting the owner asserts
+          `os.environ["SPEC_KITTY_HOME"] == str(tmp_path / "home")` with the expected value COMPUTED
+          IN THE TEST from its own `tmp_path`, never read from the fixture's return, and asserts
+          `Path(os.environ["SPEC_KITTY_HOME"]).is_dir()` AT TEST-BODY ENTRY. (ii) C-014 limb (i) —
+          `ScopeMismatch` at setup. THE ROUTE MATTERS AND `pytester` IS NOT AVAILABLE: measured, zero
+          uses under `tests/`, it is not auto-loaded, and there is NO root `conftest.py`, so enabling
+          it needs a rootdir conftest or an `addopts` change, both outside C-006's blast radius. The
+          in-scope route is a module-scoped fixture calling `request.getfixturevalue("<owner>")`
+          inside `pytest.raises(pytest.fail.Exception)`. STATE EXPLICITLY IN THE MODULE that
+          `pytest.raises(Exception)` does NOT catch it — pytest converts `ScopeMismatch` to `Failed`,
+          a `BaseException` subclass, which escapes as a setup ERROR and costs an implementer an
+          hour. (iii) C-014 limb (ii) — a module not naming the owner never instantiates it, asserted
+          by observing the ABSENCE of the effect, never by reading source. Plus SC-005's owner limbs
+          and SC-010, AST-asserted over `tests/conftest.py`; plus the CONTRACT BINDING — this module
+          parses `contracts/canonical-home-owner.md` for the declared fixture name, autouse stance and
+          scope, and asserts the conftest fixture carries THAT name and THOSE properties, so the
+          document cannot drift from the code. AND — THE ASSERTION THAT CLOSES FR-010's CIRCULARITY —
+          the SAME parsed fixture name is asserted to be a MEMBER OF `_home_pin_scan.OWNER_PARAM_NAMES`.
+          WP01 ships that set with `canonical_home` in it, taken from FR-010's PROSE, at a moment when the
+          contract that names the owner did not yet exist; measured in review, removing or renaming
+          `canonical_home` reds only two tests and BOTH are WP01's own fixture tree — the author's string on
+          both sides of the equality. If this WP names the owner anything else, FR-010's limb goes
+          PERMANENTLY INERT with every WP01 assertion still green, and the shrink-only ratchet then greens on
+          every disappearance: exactly the failure FR-010 exists to prevent, which is that the guard goes
+          blind in proportion to R1b's adoption. This is the fourth-operand pattern the `INERT_LIMBS`
+          quadruple established — an operand outside the author's control — applied to the resolver instead
+          of the registry, and it is two assertions. Plus NFR-006: the resolved `pytest.__version__` and the
+          verbatim invocation are recorded in `record.md`; this WP is where the pytest-version
+          sensitivity actually lives (`ScopeMismatch` conversion, non-instantiation), never a bare
+          `uv run`.
+          WHAT THIS CANNOT SEE — C-014 limb (iii), which needs adopters; R1a has zero, and that
+          residual is recorded rather than discovered later.
+          WHY IT CANNOT BE FAKED — limbs (ii) and (iii) are properties of pytest's fixture machinery
+          and pass against an owner whose body is `return None`. Limb (i) carries the entire
+          behavioural load alone, and SC-011 green is not evidence the owner works.
+      - id: T013
+        title: "`test_home_owner_never_wins.py` — the exempt member, and the negative control that makes the claim bite"
+        dod: >-
+          FR-011's probe modules, and exactly one of them is exempted; this subtask is also where FR-006's
+          never-wins half is demonstrated behaviourally. TWO probes, because SC-012 limb 2 as specified cannot fail. (a) THE E-SLOT MEMBER — a
+          module-local FIXTURE (never a body-level `setenv`, which overrides the owner unconditionally
+          and proves nothing about the fixture-versus-fixture precedence decision at
+          `tests/conftest.py:272-286`) pinning `SPEC_KITTY_HOME` to `str(tmp_path / "home")`, declared
+          AFTER the owner in the requesting order stated in the module, whose body observes that
+          value. (b) THE DISCRIMINATING NEGATIVE CONTROL — a second module-local fixture pinning
+          `str(tmp_path / "probe-home")`, requesting the owner, whose body asserts it observes
+          `probe-home`. Probe (a) is a class member and spends one of `E`'s two irrevocable slots;
+          probe (b) is NOT a member, costs no slot, and is the ONLY assertion in the pair that can
+          fail — because the owner and any class member both resolve to `str(tmp_path / "home")`, the
+          SAME STRING within one test, so (a) is green whether the owner won or lost. Recorded as a
+          spec finding, not a silent repair.
+          WHAT THIS CANNOT SEE — behaviour under real adoption, which R1a has none of.
+          WHY IT CANNOT BE FAKED — remove (b) and the module greens for an owner that overwrites every
+          module's pin, which is the failure `tests/conftest.py:272-286` records having cost ~16
+          `tests/sync` cases.
+      - id: T014
+        title: "`_home_pin_exempt.py` — `E` declared where its content is determined, and content-addressed"
+        dod: >-
+          `E: tuple[Exempt, Exempt]` — fixed arity BY TYPE, using the `Exempt` exported by
+          `_home_pin_scan.py` (T001) and never a local stand-in — declaring exactly the canonical
+          owner (T011) and the retained-pin probe fixture (T013a). `E` lives here because both keys
+          are determined by this WP's own two artefacts and nothing else; WP04 tests the MECHANISM
+          over materialised exempt tuples and WP05 asserts the REAL hash and runs mypy over THIS file,
+          so no package edits another's. THE FORM IS CONSTRAINED BY AN EXISTING RATCHET nobody had
+          named: `tests/architectural/test_ratchet_positional_anchor_ban.py::test_no_int_line_sink_in_architectural_python_seeds`
+          walks every `tests/architectural/**/*.py` and flags an int literal reaching
+          `composite_key_from_file(path, N)`'s second positional argument, including (per its #2564
+          clause) a module-level seed constant of `(rel, int, ...)` rows — which is exactly the naive
+          shape of `E`. Compliant form: `E`'s keys are content-addressed 3-tuples, and any `lineno`
+          used in recomputation comes from `discover()` AT RUNTIME, never from a literal. A test
+          asserts each declared key equals `(relpath_posix, *composite_key_from_file(path, lineno))`
+          recomputed live with that runtime lineno, and asserts
+          `{e.key for e in E} ⊆ {m.key for m in discover(Path("tests"))}`.
+          WHAT THIS CANNOT SEE — whether `E` should have those two entries; that is a decision of
+          record, and `E` fails the reviewer test by construction, which §0.4 states plainly.
+          WHY IT CANNOT BE FAKED — an `E` entry naming a phantom definition would inflate
+          `census ∪ E` and be caught only in WP05; the subset assertion catches it in the package
+          that wrote it.
+    definition_of_done:
+      - "PRECONDITION, before the first subtask: `tests/architectural/test_home_pin_gate_verdict.py` is present and GREEN in this lane's worktree. The lane allocator merges lane-a's tip in, but degrades to a printed warning if the dependency branch is unresolvable (`worktree_allocator.py:462-472`), so this is checked, not assumed."
+      - "The contract is committed BEFORE the owner and the `git merge-base --is-ancestor` output is recorded in `record.md` at authoring time."
+      - "SC-012 limb 1 passes with the expected value computed by the probe; limb 2 ships with the differing-value negative control that makes it falsifiable."
+      - "`E`'s keys are content-addressed with runtime linenos, keeping `test_no_int_line_sink_in_architectural_python_seeds` green, and are a subset of `discover(Path('tests'))`."
+      - "ZERO `ast.parse` calls and ZERO `ast.NodeVisitor` subclasses in every module of this WP; AST work goes through `_home_pin_scan`'s seam, and materialised sources through `parse_module`."
+      - "IC-08 landing, mechanically: both new test modules top-level and `architectural`-marked, covered by `test_gate_coverage.py::test_no_new_orphan_surfaces`. `tests/_arch_shard_map.py` is NOT edited."
+      - "Identical results under `-n0` and `-n auto --dist loadfile` — this WP touches the root `conftest.py`, so the per-worker HOME isolation path is exercised in both."
+      - "THE GOLDEN-COUNT RATCHET HAS ZERO HEADROOM: `tests/architectural` sits at 25/25 convert-classified sites against a frozen ceiling of 25, so ANY new `len(x) == N` assertion in this WP trips `test_golden_count_ban::test_convert_sites_do_not_exceed_frozen_baseline`. Every assertion here is a SET comparison, never a count. THE BASELINE MAY NOT BE RE-FROZEN — the fix is always to convert the assertion, never to raise the bound. C-002 already forbids a counted definition of done; this is that rule made operational at the exact point it will bite."
+      - "C-001 holds: `tests/conftest.py` is the only existing file edited and no existing test module is touched. NFR-004: `ruff check` and `mypy --strict` clean, never `ruff format`. NFR-003: identical results in both parallel modes. C-013: nothing merged, no `gh issue create`, explicit-path `git add`, long commands bounded with `timeout`."
+      - "Per-subtask completion is a `spec-kitty agent tasks mark-status <Txxx> --status done` event."
+    not_done_if:
+      - "The owner returns anything other than `None`, or a probe compares the environment against the fixture's own report."
+      - "The retained-pin probe's pin lives in the test body rather than in a module-local fixture."
+      - "`test_home_owner_never_wins.py` ships without the differing-value negative control."
+      - "SC-010 is asserted as a scalar definition index rather than as the ordered list of preceding definition names."
+      - "`E` embeds a literal line number, or declares a local `Exempt` instead of importing `_home_pin_scan`'s."
+      - "The owner contract's declared fixture name is not asserted against `_home_pin_scan.OWNER_PARAM_NAMES` — without that assertion FR-010's limb can be permanently inert while every WP01 test is green."
+      - "Any hunk of the `tests/conftest.py` diff touches a line at or below 298."
+
+  # ==========================================================================
+  - id: WP04
+    wp_alias: "WP-b"
+    title: "The guard: eight transitions, the exemption mechanism, the pre-filter proof, and the budget"
+    dependencies:
+      - WP02
+    execution_mode: code_change
+    task_type: code-implementation
+    agent_profile: python-pedro
+    role: implementer
+    agent: claude
+    prompt_file: "tasks/WP04-guard-prefilter-budget.md"
+    owned_files:
+      - "tests/architectural/_home_pin_synthetic.py"
+      - "tests/architectural/test_home_pin_synthetic_trees.py"
+      - "tests/architectural/test_spec_kitty_home_pin_guard.py"
+      - "tests/architectural/test_spec_kitty_home_pin_prefilter.py"
+      - "tests/architectural/test_spec_kitty_home_pin_budget.py"
+      - "tests/architectural/_home_pin_verdict.py"
+      - "tests/architectural/test_home_pin_verdict_seam.py"
+    create_intent:
+      - "tests/architectural/_home_pin_synthetic.py"
+      - "tests/architectural/test_home_pin_synthetic_trees.py"
+      - "tests/architectural/test_spec_kitty_home_pin_guard.py"
+      - "tests/architectural/test_spec_kitty_home_pin_prefilter.py"
+      - "tests/architectural/test_spec_kitty_home_pin_budget.py"
+      - "tests/architectural/_home_pin_verdict.py"
+      - "tests/architectural/test_home_pin_verdict_seam.py"
+    mission_dir_artifacts: []
+    requirement_refs:
+      - FR-002
+      - FR-004
+      - FR-007
+      - FR-009
+      - NFR-001
+      - NFR-002
+      - NFR-003
+      - NFR-004
+      - C-002
+      - C-003
+      - C-006
+      - C-007
+      - C-013
+      - SC-002
+      - SC-002b
+      - SC-004
+      - SC-006
+      - SC-007
+      - SC-013
+    plan_concern_refs:
+      - IC-04
+      - IC-05
+      - IC-08
+    subtasks:
+      - T015
+      - T016
+      - T017
+      - T018
+      - T019
+      - T020
+      - T021
+    subtask_details:
+      - id: T015
+        title: "`_home_pin_synthetic.py` plus its COLLECTED home — materialised trees, never checked in"
+        dod: >-
+          FR-009's root parameter is what makes this possible: a materialiser writing trees into `tmp_path` from source STRINGS. Its correctness is proven,
+          not assumed, IN A COLLECTED MODULE: `pytest.ini` sets `testpaths = tests` with no
+          `python_files` override, so `_home_pin_synthetic.py` is NEVER COLLECTED and assertions
+          placed there would never run. They live in `test_home_pin_synthetic_trees.py`. For each
+          named tree, `discover(root=<materialised>)` returns a member key set EQUAL to the
+          enumerated set the tree was built to contain, so a tree that silently fails to write a file
+          reds here instead of greening a transition downstream. A counterpart assertion proves
+          `discover(Path("tests"))` finds NO member under any test-owned fixture root. NOTHING is
+          checked in under `tests/`: a checked-in tree sits inside the classifier's never-narrowed
+          walk, so its deliberate 41st members land in `discovered` and `discovered == census ∪ E`
+          can never green; and a checked-in deliberate `SyntaxError` reds `ruff check` with
+          `invalid-syntax`, which is not a rule code and cannot be per-file-ignored. All materialised
+          sources are parsed only through `_home_pin_scan.parse_module`.
+          WHAT THIS CANNOT SEE — a shape nobody wrote a tree for.
+          WHY IT CANNOT BE FAKED — every cheap repair for a checked-in tree is separately barred
+          (directory exclusion by C-003/NFR-001, a census row by C-007, a third `E` entry by fixed
+          arity), so the materialiser is the only C-001-compatible demonstration path.
+          CAUTION — do not bind the env key to a module constant (`ENV = "SPEC_KITTY_HOME"`) here for
+          convenience: that is an assignment-bound constant valued `"SPEC_KITTY_HOME"` and it reds
+          SC-002b, whose population must stay 0.
+      - id: T016
+        title: "The eight SC-006 transitions, red-first"
+        dod: >-
+          All eight over materialised trees, each demonstrated RED before the mechanism exists —
+          (1) empty census reds; (2) the census-frozen tree greens, attesting FREEZING and asserting
+          nothing about desert; (3) a 41st member anywhere reds; (4) a 41st under a name used nowhere
+          else reds; (5) a removed row with the definition still present reds; (6) a 41st that also
+          requests the owner and RESTATES the pin reds, with the witness declared
+          `(monkeypatch, <a materialised fixture that YIELDS a home root>)` and NO `tmp_path` —
+          modelled on the live population-1 `runtime_home` shape, never on the `None`-returning
+          canonical owner, because a witness that gratuitously re-declares `tmp_path` tests nothing
+          FR-010 is for; (7) a 41st member ACCOMPANIED BY a new census row still reds — additions are
+          structurally impossible, not merely discouraged; (8) removing one of a COLLIDING PAIR reds
+          — two members in DIFFERENT files whose BARE `composite_key` is byte-identical.
+          WHAT THIS CANNOT SEE — whether a member's presence is justified; R1a adjudicates nothing.
+          WHY IT CANNOT BE FAKED — transition (8) is the single cheapest test that catches the 19-key
+          collapse and the only one that keeps it caught; without it the C-012 interpretation is
+          unpinned and can be reverted with the other seven still green.
+      - id: T017
+        title: "SC-004, SC-013, and the SYNTHETIC witness that takes C-004 off a single real row"
+        dod: >-
+          SC-004 ships as a PERMANENT test over a materialised tree in which a census row is stale
+          while every member is present, and the guard reds ON THE ROW; the same subtask includes a
+          tree where `discovered ⊂ census` and requires a red, which is what proves the comparison is
+          SET EQUALITY and not containment. SC-013 ships a tree containing a deliberate `SyntaxError`
+          and asserts the guard REDS, with the error propagating out of `parse_module` and caught
+          nowhere on the guard's call path, asserted by AST as well as behaviourally. AND THE
+          PERMANENT GUARD SHIPS THE SYNTHETIC OUTERMOST-VERSUS-INNERMOST WITNESS required by
+          C-012(5): a materialised member whose keyed def and innermost def differ, asserting that the
+          `MemberKey` qualname is the INNERMOST and that `kind` is taken at the KEYED def. Without it,
+          both of C-004's discriminators rest on one real-tree site — `:1165` — held in the class by
+          an unused `monkeypatch` parameter that `ruff`'s relaxed `ARG` for `tests/**` will not
+          defend, so a routine cleanup silently disarms the mechanisation.
+          WHAT THIS CANNOT SEE — whether the row was stale for a good reason; and a file unreadable
+          for reasons other than syntax.
+          WHY IT CANNOT BE FAKED — `except SyntaxError: continue` narrows the walk with nothing firing
+          and buys budget headroom, which is NFR-001's defeat wearing an exception handler.
+      - id: T018
+        title: "The `E` mechanism — arity, hash placement, and the co-edit asymmetry, over materialised artefacts"
+        dod: >-
+          FR-004's exemption set and direction mechanism. Three limbs over MATERIALISED artefacts, so this WP is green without WP03 or WP05. (i)
+          ARITY — a test invokes mypy AT TEST TIME, as `[sys.executable, "-m", "mypy"]` and NEVER a
+          bare `mypy` from `PATH`, on a temporary module that IMPORTS THE REAL `Exempt` from
+          `_home_pin_scan` (never re-declaring it, or the limb tests mypy rather than the type) and
+          assigns a three-element tuple to a `tuple[Exempt, Exempt]` annotation; asserts a non-zero
+          exit and a diagnostic naming the tuple type; POSITIVE CONTROL asserts the same harness exits
+          zero for a two-element tuple. If mypy is unavailable the test FAILS — a skip is a fake
+          green. STATED COST: that choice reds the always-on pole on any machine without mypy, and
+          under DIR-013 such a red must be reported, not absorbed. This limb is not insurance: CI runs
+          mypy only over `src/specify_cli src/charter src/doctrine`, with `continue-on-error`, so
+          `tests/` has no mypy gate and SC-005's "a third entry is a type error" would otherwise be
+          enforced by nothing. It proves the MECHANISM; WP05 runs mypy over the REAL
+          `_home_pin_exempt.py`, which is what SC-005 needs. (ii) HASH PLACEMENT — the guard
+          RECOMPUTES the key-set hash from the census and compares; over materialised artefacts an
+          `owed_to` re-point and a header edit both PASS, a row removal without a tombstone REDS, and
+          a row removal WITH a matching tombstone PASSES. (iii) `E`'s CO-EDIT RULE — any delta to `E`
+          or its hash reds UNCONDITIONALLY with no tombstone path, because `E` never legitimately
+          changes in R1a or R1b.
+          WHAT THIS CANNOT SEE — the real `E`; WP05 asserts that.
+          WHY IT CANNOT BE FAKED — a blanket "touching both reds" rule would pass (ii) and forbid
+          R1b's entire job, so (ii) requires the legitimate-adjudication case to PASS as well as the
+          illegitimate one to red.
+      - id: T019
+        title: "`test_spec_kitty_home_pin_prefilter.py` — OD-002 form (a), with the differential, and without a contended wall clock"
+        dod: >-
+          FR-002's pre-filter proof, at NFR-002's strength. ONE classifier called TWICE — `discover(root, prefilter=True)` and
+          `discover(root, prefilter=False)` — never two implementations agreeing with each other. The
+          symmetric difference of their FULL outputs is empty: member sets AND every member's
+          `home_partition`, because the pre-filter serves both variables and extending its scope
+          without extending its proof is what §0.6 condemns the repository's two existing pre-filters
+          for. The SAME test asserts the two passes PARSED DIFFERENT FILE SETS — prefiltered strictly
+          smaller, unfiltered EQUAL to the full enumeration — as a set relation, counts reported,
+          `2737` never asserted (C-002 — no counted definition of done; the number is content, never a
+          threshold, and it is stale the moment anyone adds a file). THE 90 s FIGURE IS AN EXECUTION ENVELOPE HERE, NOT AN ASSERTION: a
+          wall-clock assertion inside the contended `arch-adversarial` pole is the anti-pattern
+          `ci-quality.yml:2157-2180` documents (#2032). If a timed limb is wanted it moves to the
+          `timing` module. WHERE ANY DURATION IS TAKEN ANYWHERE IN THIS MISSION IT IS
+          `time.perf_counter()`: `time.time()` is in `_BANNED_CALLS`
+          (`tests/_support/wall_clock_assertions.py:10-20`) and `tests/conftest.py:245-250` raises a
+          `pytest.UsageError` AT COLLECTION, taking the whole suite down. Published cost figures use
+          the measured pair — 0.684 s prefiltered / 8.36 s unfiltered — or none at all; the three
+          inconsistent figures previously quoted for one quantity are dropped, and the argument
+          survives either way.
+          WHAT THIS CANNOT SEE — key-indirection members. NEITHER form can: both passes run the same
+          classifier, so the symmetric difference is empty BY CONSTRUCTION if it cannot see them.
+          WHY IT CANNOT BE FAKED — without the differential, `prefilter` can be a parameter the body
+          ignores and the symmetric difference is empty by construction in about a second.
+      - id: T020
+        title: "SC-002b's premise, bound to the registry entry that carries it"
+        dod: >-
+          FR-007's positive-control rule is discharged for this premise in WP01. THE CONTROL AND THE EMPTY-SET ASSERTION LIVE IN WP01/T004, NOT HERE — they need only a
+          materialised module, so there is no dependency on this package, and putting them here would
+          have forced either a WP01 DoD that a downstream WP completes or an edit to a WP01-owned
+          file. What this subtask owns is the BINDING: the pre-filter module asserts that the id
+          `assignment_bound_env_key_constant` is PRESENT in `_home_pin_scan.INERT_LIMBS`, so the
+          premise on which the pre-filter's soundness rests cannot be silently removed from the
+          registry while the pre-filter still depends on it; and it PUBLISHES BOTH FIGURES in its own
+          failure message and in `record.md` — 0 assignment-bound against 229 literal `ast.Constant`
+          occurrences in 98 files. The 229 is what makes the 0 meaningful; the earlier form of this
+          criterion asserted all such constants were empty and was falsified by its own subject
+          matter. SC-002b is unconditional and is NOT substitutable by either OD-002 form.
+          WHAT THIS CANNOT SEE — a constant assembled at runtime rather than written as a literal.
+          WHY IT CANNOT BE FAKED — an over-narrow matcher returns `set()`, greens forever, and still
+          greens the day someone writes the indirection; the control in T004 is what detects that, and
+          this binding is what stops the id being dropped from the registry to make an equality green.
+      - id: T021
+        title: "`test_spec_kitty_home_pin_budget.py` — budget (a), the enumerated set, and both parallel modes"
+        dod: >-
+          SC-007's budget and enumerated-set criterion. `pytestmark = pytest.mark.timing` and NOTHING else, so it runs in `timing-nfr-serial`
+          (`-m timing -n0`, always-on, wired into `quality-gate.needs`, merge-blocking) and is
+          correctly excluded from the pole by `and not timing`. Three warm runs, every one inside 6 s
+          (NFR-001), timed with `time.perf_counter()`. In the same module the set of files the guard
+          ENUMERATED is asserted EQUAL to a `Path(root).rglob("*.py")` computed INLINE IN THE TEST,
+          never obtained from the module under test, because the seam exposes exactly one enumerator
+          and the natural assertion is a self-comparison that a narrowed walk passes. Count REPORTED,
+          never asserted (C-002). NFR-003: identical verdicts under `-n0` and `-n auto --dist loadfile`, both
+          demonstrated. OD-003 is discharged by reading the figure out of `timing-nfr-serial` on the
+          draft PR and recording it as a number; the budget may be RAISED with that evidence and the
+          contention headroom STATED, and the walk may NEVER be narrowed.
+          WHAT THIS CANNOT SEE — the guard under contention: `timing-nfr-serial` measures it
+          uncontended while `arch-adversarial` runs it under `-n auto` on 4 vCPUs, so the serial
+          figure is a FLOOR, not the worst case.
+          WHY IT CANNOT BE FAKED — the cheapest way to meet a wall-clock budget is to narrow the walk;
+          the inline `rglob` set equality makes that impossible, which is why the anti-drift rule bans
+          `ast.parse`/`NodeVisitor` in the guard modules but explicitly does NOT ban `rglob`.
+    definition_of_done:
+      - "PRECONDITION, before the first subtask: `tests/architectural/test_home_pin_gate_verdict.py` is present and GREEN in this lane's worktree (`worktree_allocator.py:462-472` degrades to a printed warning, so this is checked)."
+      - "All eight SC-006 transitions, SC-004, SC-013 and the synthetic outermost-versus-innermost witness land RED-FIRST over materialised trees, and the counterpart guard proves no member lives under any test-owned fixture root."
+      - "`discovered == census ∪ E` is proven to be SET EQUALITY, not containment, by a tree in which `discovered ⊂ census` reds."
+      - "SC-002 asserts empty symmetric difference over BOTH variables' outputs AND that the two passes parsed different file sets, with 90 s as an execution envelope rather than an in-pole wall-clock assertion."
+      - "`E`'s fixed arity is enforced by a test-time `[sys.executable, '-m', 'mypy']` invocation importing the REAL `Exempt`, with a positive control, failing rather than skipping when mypy is absent."
+      - "IC-08 landing, mechanically: THREE `architectural` modules (`test_home_pin_synthetic_trees.py`, `test_spec_kitty_home_pin_guard.py`, `test_spec_kitty_home_pin_prefilter.py`) and ONE `timing`-only module (`test_spec_kitty_home_pin_budget.py`); `_home_pin_synthetic.py` is a helper and is never collected. All four covered by `test_gate_coverage.py::test_no_new_orphan_surfaces`. `tests/_arch_shard_map.py` is NOT edited."
+      - "Zero `ast.parse` calls and zero `ast.NodeVisitor` subclasses in every module of this WP; materialised sources parsed only via `_home_pin_scan.parse_module`."
+      - "THE GOLDEN-COUNT RATCHET HAS ZERO HEADROOM: `tests/architectural` sits at 25/25 convert-classified sites against a frozen ceiling of 25, so ANY new `len(x) == N` assertion in this WP trips `test_golden_count_ban::test_convert_sites_do_not_exceed_frozen_baseline`. Every assertion here is a SET comparison, never a count. THE BASELINE MAY NOT BE RE-FROZEN — the fix is always to convert the assertion, never to raise the bound. C-002 already forbids a counted definition of done; this is that rule made operational at the exact point it will bite."
+      - "No duration anywhere uses `time.time()`. NFR-004: `ruff check` and `mypy --strict` clean, never `ruff format`. C-013: explicit-path `git add`, long commands bounded with `timeout`, nothing merged. C-006: no file under `src/` changes and no existing test module changes."
+      - "Per-subtask completion is a `spec-kitty agent tasks mark-status <Txxx> --status done` event."
+    not_done_if:
+      - "Any synthetic tree is checked in under `tests/`."
+      - "Transition (8) or the synthetic outermost-versus-innermost witness is missing."
+      - "The pre-filter proof lacks the parsed-file-set differential, or is weakened to OD-002 form (b), or asserts a wall clock inside the pole."
+      - "The budget is met by narrowing the walk, by a directory or filename filter, or by `except SyntaxError: continue`."
+      - "The budget module carries `architectural` instead of `timing`; the mypy arity test skips when mypy is absent, re-declares `Exempt` locally, or invokes bare `mypy`."
+      - "T015's assertions live in `_home_pin_synthetic.py`, where `testpaths = tests` never collects them."
+
+  # ==========================================================================
+  - id: WP05
+    wp_alias: "WP-c"
+    title: "The frozen census, its baseline, and the one assertion that proves the class is frozen"
+    dependencies:
+      - WP03
+      - WP04
+    execution_mode: code_change
+    task_type: code-implementation
+    agent_profile: python-pedro
+    role: implementer
+    agent: claude
+    prompt_file: "tasks/WP05-frozen-census.md"
+    owned_files:
+      - "tests/architectural/census/spec_kitty_home_pin_R1a.yaml"
+      - "tests/architectural/spec_kitty_home_pin_baseline.yaml"
+      - "tests/architectural/test_spec_kitty_home_pin_census.py"
+      - "tests/_arch_shard_map.py"
+    create_intent:
+      - "tests/architectural/census/spec_kitty_home_pin_R1a.yaml"
+      - "tests/architectural/spec_kitty_home_pin_baseline.yaml"
+      - "tests/architectural/test_spec_kitty_home_pin_census.py"
+    mission_dir_artifacts: []
+    requirement_refs:
+      - FR-003
+      - FR-004
+      - NFR-003
+      - NFR-004
+      - C-002
+      - C-006
+      - C-007
+      - C-011
+      - C-012
+      - C-013
+      - SC-001
+      - SC-003
+      - SC-005
+      - SC-008
+    plan_concern_refs:
+      - IC-06
+      - IC-08
+    subtasks:
+      - T022
+      - T023
+      - T024
+      - T025
+      - T026
+    subtask_details:
+      - id: T022
+        title: "Generate the census and the baseline through the single documented command"
+        dod: >-
+          FR-003's frozen census and its baseline. Both artefacts are produced by, and only by,
+          `python -m tests.architectural._home_pin_scan --regenerate --root tests --sha <freeze sha>
+          --owed-to '#3121' --exempt-module tests.architectural._home_pin_exempt` — the
+          `--exempt-module` argument is part of the documented command literal, because without it
+          nothing subtracts the owner and the retained-pin probe, which ARE in
+          `discover(root=tests)` at this point. Both carry a header naming that exact command; neither
+          is hand-edited; a re-run is byte-identical. Structural assertions, all as SETS: the census
+          HEADER key set and the census ROW column name set are each asserted by set equality
+          (`{key, lineno, kind, home_partition}` for rows), so `reason`, `frozen_at_sha` and
+          `owed_to` are absent from rows BY CONSTRUCTION and a `reason` cannot hide in the header
+          either; `owed_to` matches `^#[0-9]+$`; rows are sorted; the canonical owner's key is not
+          among them; the baseline's key set includes `tombstones`, which is its named home.
+          WHAT THIS CANNOT SEE — whether `#3121` is the right SCOPE for 40 distinct adjudications;
+          SC-003 can only check that `owed_to` is well-formed and not prose.
+          WHY IT CANNOT BE FAKED — a hand-written census fails the byte-identical re-run; a
+          `frozen_at_sha` promoted to a row fails the column-name set equality; a census generated
+          without `--exempt-module` contains the owner and fails T023.
+      - id: T023
+        title: "SC-001 and SC-003 — set equality against the external anchor, with `E` subtracted and disjointness PROVED"
+        dod: >-
+          THE ANCHOR WAS MEASURED AT `5d49d31ed`, BEFORE THE OWNER AND THE PROBE EXISTED, so at this
+          point `discover(Path("tests"))` returns 42 keys, not 40, and an assertion of
+          `discovered == anchor` is FALSE. The correct three assertions: (1)
+          `discover(Path("tests")) - {e.key for e in E} == anchor`; (2) `census == anchor`; (3)
+          `anchor ∩ {e.key for e in E} == set()` — stated EXPLICITLY as its own assertion, because
+          (1) and (2) together only imply it and a reviewer must see disjointness proved rather than
+          relied upon. The anchor is C-011's checked-in evidence artefact, derived from
+          `research/spec_kitty_home_pin_evidence/members.json` by applying
+          `(relpath_posix, *composite_key_from_file(path, lineno))` to each entry of each member's
+          `sites`: the key ENCODING comes from the repo primitive, the identification of WHICH sites
+          are members comes from the external artefact, and the key is C-012's path-qualified 3-tuple, so the anchor never passes through the
+          instrument under test. THE `tests/` PREFIX IS NAMED HERE, AT THE POINT OF COMPARISON, because that
+          is where it bites: `Member.relpath` is relative to the WALK ROOT, so `discover(Path("tests"))`
+          yields `cli/commands/foo.py` while `members.json` stores REPO-ROOT-RELATIVE paths
+          (`tests/cli/commands/foo.py`). PREFIX AT COMPARISON TIME. `data-model.md` records this normatively,
+          but an implementer meeting the mismatch mid-assertion has one cheap wrong repair — edit the anchor —
+          and `members.json` is the ONE artefact in this Mission that must never be touched to make a test
+          pass, because its whole evidential value is that the party it checks did not write it. `verify.py` exits 0. The literal `40` appears in NO assertion.
+          WHAT THIS CANNOT SEE — whether any member deserves to be a member. Entirely R1b's.
+          WHY IT CANNOT BE FAKED — the previous revision asserted `discovered == anchor` and
+          `census == anchor - E`, which is a false assertion beside a no-op subtraction that reads as
+          load-bearing; the implementer facing that red would relax to containment, in the WP whose
+          own `not_done_if` names containment as a failure. Under the bare 2-tuple the anchor has 19
+          elements and a classifier finding one member per collision class produces the same 19-element
+          set, green; the 3-tuple restores this criterion's power, and the key must be path-qualified
+          and formed at the WRITE SITE.
+      - id: T024
+        title: "The real-tree ratchet, the recomputed hashes, and mypy over the REAL `E`"
+        dod: >-
+          `discover(Path("tests")) == census ∪ E` over `MemberKey` 3-tuples — SET EQUALITY, not
+          containment. The guard RECOMPUTES `census_key_set_sha256` from the census and compares it
+          against `tests/architectural/spec_kitty_home_pin_baseline.yaml` — a DIFFERENT file from the
+          census, so the pin is never editable in the same hunk as its subject — and recomputes
+          `exempt_set_sha256` from the real `E`. Every census delta must be accounted for by a
+          tombstone; a delta plus a re-pinned hash still reds unless a tombstone explains it, while a
+          legitimate adjudication passes. AND SC-005'S ARITY LIMB IS DISCHARGED HERE ON THE REAL
+          FILE: `[sys.executable, "-m", "mypy", "--strict", "tests/architectural/_home_pin_exempt.py"]`
+          exits zero, which is what SC-005 actually asks for. WP04/T018 proves the MECHANISM over a
+          materialised module; only this limb type-checks the artefact that ships, and CI will not do
+          it — `mypy` there covers `src/` only and runs with `continue-on-error`.
+          WHAT THIS CANNOT SEE — whether a tombstone corresponds to a real adjudication. A tombstone
+          written to green a red is the entitlement C-007 forbids wearing the mechanism meant to
+          prevent it; only a reviewer catches that.
+          WHY IT CANNOT BE FAKED — this is the single assertion that proves the class is frozen and it
+          lives in the package least likely to get a hard look (plan §10). A subset-only ratchet passes
+          every WP04 tree except T017's and fails here.
+      - id: T025
+        title: "Make the `:1165` red diagnosable, and pin the fragility register as a SET"
+        dod: >-
+          For any stale row the guard re-runs the EFFECT LIMB ALONE — does a site in that file still
+          write `SPEC_KITTY_HOME` to `tmp_path/"home"`? — and emits one of two distinct messages:
+          `site still present, silhouette no longer satisfied — this is NOT an adjudication` versus
+          `site absent — deleted`. BOTH branches are exercised over materialised trees (importing
+          WP04's `_home_pin_synthetic`, never editing it), each asserting the exact message, so
+          neither branch is dead code. AND THE FRAGILITY REGISTER IS A SET EQUALITY, not the phrase
+          "the sole such case of the 40": the set of members held in the class by a silhouette
+          parameter that their keyed def declares and never references is asserted EQUAL to
+          `{the :1165 key}`. Measured true today — exactly one — and asserted by nothing until now,
+          while being the only thing that makes T026's "single known-fragile row" true. One extra walk
+          over trees the pass has already parsed.
+          WHAT THIS CANNOT SEE — the deletion itself; the polarity is a spurious red on a
+          behaviour-preserving edit, which is correct and needs no change.
+          WHY IT CANNOT BE FAKED — a count in the row whose red this subtask exists to diagnose is the
+          shape this Mission keeps catching; without the two messages the cheapest green for a confused
+          contributor is a tombstone, recording an adjudication that never happened.
+      - id: T026
+        title: "The census header's load-bearing prose, and the M4 cross-check recomputed on a named join key"
+        dod: >-
+          The census HEADER (never a `reason` column) names `:1165` as the known-fragile row, states
+          that its membership rests on an unused parameter, and instructs: if this row goes stale with
+          the site still present, the repair is neither a tombstone nor a predicate change — it is an
+          R1b adjudication. It follows `tests/architectural/census/verdict_seam_IC01.yaml`, whose
+          header carries this kind of load-bearing prose while the rows stay data, and it survives the
+          reviewer test: it entitles the definition to NOTHING and changes no check's outcome. The
+          `home_partition` cross-check is RECOMPUTED at test time: M4's per-member labels are parsed
+          from `research/m4_ablation_evidence/TABLES.md`, whose 28 rows are keyed
+          `(file, fixture_qualname)` with no lineno, so THE JOIN KEY IS
+          `(rel_path, KEYED-DEF qualname)` — measured injective over the 40, giving exactly 28 matches
+          and zero unmatched. `MemberKey[1]` is NOT that field: it is the INNERMOST qualname and
+          differs from the keyed-def `qual` at `:1165`. Do not reject the 2-tuple projection by false
+          analogy with the 19-key collapse, which was about `(qualname, token_line)` and is a different
+          hazard. The set of DISAGREEING keys is asserted EMPTY with the intersection size published,
+          and a positive control feeds the comparator a deliberately mislabelled materialised row.
+          OPERATOR RULING, RECORDED: `home_partition` appears in no key, no hash and no equality, so it
+          is REGENERABLE in a follow-up under FR-004(2) and MAY NOT HOLD THE RATCHET HOSTAGE — if this
+          column blocks the freeze, the column yields, not the ratchet.
+          WHAT THIS CANNOT SEE — whether M4's labels are right; it is a second external anchor, not an
+          oracle.
+          WHY IT CANNOT BE FAKED — copying `A=27 / B1=11 / B2=2` and `28 agreements` out of the plan
+          into a comment satisfies any prose-shaped criterion; recomputation on a named join key with
+          an empty-disagreement set and a positive control is the only form that reds when the
+          classifier drifts.
+    definition_of_done:
+      - "`discover(Path('tests')) - E == anchor`, `census == anchor`, and `anchor ∩ E == set()` as three separate assertions; and `discover(Path('tests')) == census ∪ E` as set equality with both hashes recomputed from content."
+      - "The literal `40` appears in no assertion anywhere in this WP; every comparison is against a key SET."
+      - "`mypy --strict` runs over the REAL `_home_pin_exempt.py` via `[sys.executable, '-m', 'mypy']` and exits zero — SC-005's arity limb discharged on the artefact that ships, since CI will not do it."
+      - "The M4 cross-check is recomputed on the `(rel_path, keyed-def qualname)` join key with an empty-disagreement set and a positive control, not quoted."
+      - "The fragility register is a set equality against the `:1165` key, not the phrase 'the sole such case'."
+      - "`test_no_int_line_sink_in_architectural_python_seeds` stays green: no int literal reaches `composite_key_from_file`'s second positional argument from any module-level seed in this WP's modules."
+      - "IC-08 landing, mechanically: `test_spec_kitty_home_pin_census.py` is top-level and `architectural`-marked, covered by `test_gate_coverage.py::test_no_new_orphan_surfaces`. `tests/_arch_shard_map.py` is OWNED BY THIS WP AS A RESERVATION — exactly one package may optionally pin shard balance, and this is that package — but IT NEEDS NO EDIT: `default_fallback=True` (`:419`) with hash-bucketing (`_shard_registry.py:181`) auto-covers every new file, and the module's own docstring says an explicit row is authoritative balance control, not a keep-green obligation. The default is not to edit it."
+      - "THE GOLDEN-COUNT RATCHET HAS ZERO HEADROOM: `tests/architectural` sits at 25/25 convert-classified sites against a frozen ceiling of 25, so ANY new `len(x) == N` assertion in this WP trips `test_golden_count_ban::test_convert_sites_do_not_exceed_frozen_baseline`. Every assertion here is a SET comparison, never a count. THE BASELINE MAY NOT BE RE-FROZEN — the fix is always to convert the assertion, never to raise the bound. C-002 already forbids a counted definition of done; this is that rule made operational at the exact point it will bite."
+      - "NFR-003: identical verdicts under `-n0` and `-n auto --dist loadfile`. NFR-004 / SC-008: `ruff check` and `mypy --strict` clean, no suppression added, never `ruff format`. C-002: no counted definition of done anywhere in this WP — the literal `40` is content, never a threshold. C-006: no file under `src/` changes. C-013: nothing merged, no `gh issue create`, explicit-path `git add`."
+      - "Per-subtask completion is a `spec-kitty agent tasks mark-status <Txxx> --status done` event."
+    not_done_if:
+      - "T023 asserts `discovered == anchor` without subtracting `E`, or omits the explicit `anchor ∩ E == set()` assertion."
+      - "The census holds rows keyed on the bare 2-tuple, or keyed at the definition line rather than the write site."
+      - "The comparison is containment rather than set equality."
+      - "The `tests/` prefix mismatch is resolved by editing `members.json` rather than by prefixing at comparison time."
+      - "A tombstone was written to green a red."
+      - "`E` and the census share a key, or the baseline lives in the same file as the census."
+      - "The regeneration command is run without `--exempt-module`."
+
+  # ==========================================================================
+  - id: WP06
+    wp_alias: "WP-d"
+    title: "The reduced record: the imported halt-path ADR, #3121, and the residuals R1a is honest about"
+    dependencies:
+      - WP05
+    execution_mode: planning_artifact
+    task_type: curation
+    agent_profile: curator-carla
+    role: curator
+    agent: claude
+    prompt_file: "tasks/WP06-reduced-record.md"
+    owned_files:
+      - "docs/adr/3.x/2026-08-07-1-a-mission-halting-instrument-is-worth-its-cost.md"
+    create_intent:
+      - "docs/adr/3.x/2026-08-07-1-a-mission-halting-instrument-is-worth-its-cost.md"
+    mission_dir_artifacts:
+      - "record.md"
+    requirement_refs:
+      - FR-008
+      - C-006
+      - C-008
+      - C-009
+      - C-010
+      - C-013
+      - SC-009
+    plan_concern_refs:
+      - IC-07
+    subtasks:
+      - T027
+      - T028
+      - T029
+      - T030
+    subtask_details:
+      - id: T027
+        title: "Import the halt-path ADR verbatim — do not author a second record of one halt"
+        dod: >-
+          `docs/adr/3.x/2026-08-07-1-a-mission-halting-instrument-is-worth-its-cost.md` exists on
+          `feat/isolated-home-pin-guard` and is BYTE-IDENTICAL to
+          `git show spike/isolated-home-3121:<the same path>` — both `sha256` values recorded in the
+          commit body, following the pattern the M4 evidence import already set. Verified precondition:
+          the file EXISTS on the spike branch and is ABSENT on HEAD. Extraction is by `git show` only:
+          no merge, no rebase, no cherry-pick, no branch integration of any kind (C-013), and the spike
+          branch is left untouched. `spec.md`'s header citation resolves after this subtask.
+          WHAT THIS CANNOT SEE — whether the ADR is still the right record; an imported artefact the
+          importing Mission edits stops being external evidence.
+          WHY IT CANNOT BE FAKED — authoring a new ADR produces a different `sha256`, and C-006
+          separately lists "the halt-path ADR" as something R1a writes, so without the byte-identity
+          assertion R1a lands a second, divergent record of one halt.
+      - id: T028
+        title: "Compose the #3121 update — every FR-008 item, unconditionally"
+        dod: >-
+          One comment body carrying: the THREE separately labelled reach figures (40/40 sites, 36/36
+          files, 40/191 of all pin sites), never one merged ratio; an explicit RETRACTION of the
+          struck 26.06%; the census-is-not-a-manifest distinction and its reviewer test stated over
+          anything that makes a definition acceptable to the guard, not over census rows alone;
+          §0.3's provenance correction including the authored-versus-committed distinction and the
+          explicit refusal to state a growth rate; the statement that R1a adjudicates NOTHING; and —
+          UNCONDITIONALLY, not only in the degraded band — `r`, `|R|`, `|R_f|`, both window SHAs,
+          EVERY attempted window INCLUDING the VOID result at `709a59534` (`|R| = 3`), and the
+          machine-readable band verdict. This is SC-009's item list, and a comment missing one item fails it. It also states plainly that the window MOVED and whether
+          §0.3's `28 -> 30` figure is RE-DERIVED or SUPERSEDED, in those words.
+          WHAT THIS CANNOT SEE — whether a reader will read it.
+          WHY IT CANNOT BE FAKED — the first revision made the degraded band's publication obligation
+          invisible by enumerating four items that did not include `r`; the DoD is the item list, and
+          a comment missing any one of them fails it.
+      - id: T029
+        title: "Post it, and make the posting recoverable"
+        dod: >-
+          Posted with `gh issue comment 3121` — NEVER `gh issue create`, which C-013 bars and which
+          would mint the very `owed_to` ambiguity OD-001 decided against. The returned comment URL is
+          recorded in `record.md` so the publication is recoverable from the Mission record rather
+          than only from GitHub. Nothing is merged, no PR is un-drafted, no `gh pr merge`.
+          WHAT THIS CANNOT SEE — whether #3121 is the right issue for 40 distinct adjudications;
+          OD-001 decided `#3121` and recorded the decision as reversible at zero cost, because
+          re-pointing `owed_to` is a regeneration and the baseline hash is over the key set.
+          WHY IT CANNOT BE FAKED — a comment composed but not posted leaves no URL.
+      - id: T030
+        title: "Record what R1a proved, what it did not, and what it hands to R1b"
+        dod: >-
+          `record.md` states each as a labelled item a reader can find without reading the spec —
+          C-014 limb (iii) remains VACUOUS and is R1a's recorded residual, stated over adopters R1a
+          does not have; SC-011 is PURE SHAPE and SC-012 carries the entire behavioural load alone;
+          SC-012 limb 2 is vacuous as specified and what makes it bite is the negative control in
+          WP03/T013b; THE GATE'S POWER TO HALT THIS MISSION WAS SPENT WHEN `r` LEAKED — the record
+          says so in those terms, names the leaked values (`r = 100%` at `|R| = 9, 33, 34` around
+          ~300/~600/~2000 first-parent commits back), and states that what survives is a published
+          measurement under a pre-committed rule whose stopping criterion never reads `r`; THE VERDICT
+          RESIDUAL IN ITS NARROWED HONEST FORM — a collected test proves internal consistency, the
+          band, AND that every surviving end-SHA key recomputes to real content in this tree; only the
+          START-SHA operands remain unprovable without git; the named escapes with their measured
+          populations and the explicit statement that the enumeration is NOT claimed complete; C-008 —
+          `|P| = 5` is not used, not inherited, not cited, and R1b MUST RE-RUN WP01 over the current
+          class, which is now 40 under a different predicate; C-010 — PR #3285 is R1b's coordination
+          dependency, not an R1a blocker; D-1 and D-2 deferred to R1b with the reason (both target
+          files exist only on `spike/isolated-home-3121` and C-013 bars merging); TG-1 through TG-4 for
+          the operator to route, with NO issue created; WP01'S OWN FINDINGS, WHICH LIVE ONLY IN DOCSTRINGS
+          INSIDE `_home_pin_scan.py` BECAUSE `record.md` IS THIS WP's OWNED FILE AND WP01 COULD NOT WRITE IT —
+          the `key_member` / `Attribution` contract deviation; C-012(5)'s member-level substitution, whose
+          literal form RAISES ON 11 OF 40 and which was verified independently in review; the `NEEDLE_BYTES`
+          derivation and the reason for it; `OWNER_PARAM_NAMES`'s PROVISIONAL status until WP03/T012 binds the
+          contract's declared fixture name to it; and the `_corpus` `lru_cache` staleness caveat — nothing else
+          owns carrying these forward, and a finding that lives only in a docstring is a finding the record
+          does not have; the four framework defects met in planning,
+          CITED NOT RE-FILED — `#2991` (SC-* refs dropped at the tasks-packages boundary), `#3170` (the
+          requirement scraper reading prose), `#3226` / `#2642` (the tasks_outline exit guard masking a
+          real failure); THE STANDING OBLIGATION THAT WP01/T004's REGISTRY TEST PARSES FR-007's TABLE
+          OUT OF THIS MISSION'S `spec.md`, so flattening or archiving the mission directory re-points
+          a collected, always-on test; THE RESIDUAL IN THE HALT ENFORCEMENT — the lane machine blocks
+          downstream WPs only if an implementer performs two transitions correctly (leave WP-0b at
+          `for_review`, move WP03..WP06 to `blocked`) at the moment they have just learned the
+          Mission is halting, and marking WP-0b `approved` out of habit opens the gate; the collected
+          verdict test is the defence-in-depth behind that, not the enforcement; every pre-existing red met during implementation with its command, failure
+          summary and merge-base evidence, ROUTED TO THE OPERATOR as a TG-item (C-009 — pre-existing reds are not this Mission's to fix) because DIR-013's
+          GitHub issue is the operator's to open and C-013 forbids the implementer opening it; and
+          OD-003's measured runner figure with the contention headroom stated rather than assumed.
+          WHAT THIS CANNOT SEE — the residuals nobody wrote down.
+          WHY IT CANNOT BE FAKED — every item is a claim R1a would otherwise be read as having proved;
+          the record is where the Mission states what it did not prove.
+    definition_of_done:
+      - "The ADR is byte-identical to the spike-branch original, with both `sha256` values in the commit body."
+      - "#3121 carries every FR-008 item unconditionally, including the VOID window, and the comment URL is in `record.md`."
+      - "`record.md` states each residual as a labelled item, including the two vacuous criteria, the leak, and the narrowed verdict residual; and carries the ordering evidence from WP03/T010, the pytest version from WP03/T012, and the SC-002b figures from WP04/T020."
+      - "No issue was created; nothing was merged; no PR was un-drafted; the four framework defects are CITED by number, never re-filed."
+      - "Per-subtask completion is a `spec-kitty agent tasks mark-status <Txxx> --status done` event."
+    not_done_if:
+      - "A new halt-path ADR was authored instead of imported."
+      - "The gate's outputs are published only in the degraded band, or the VOID window is omitted."
+      - "The record still describes the gate as R1a's own stopping mechanism."
+      - "`gh issue create` was run, or any branch integration occurred."

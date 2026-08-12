@@ -1,0 +1,81 @@
+{
+  "event_count": 67,
+  "last_event_id": "01KZTJG92RHQ55BS9517TCSRK0",
+  "materialized_at": "2026-08-12T08:47:56.504567+00:00",
+  "mission_number": "",
+  "mission_slug": "isolated-home-pin-guard-r1a-01KZNMA3",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KZTJG5S90T04EPS4K30TA1NE",
+      "last_transition_at": "2026-08-12T08:47:53.129592+00:00",
+      "shell_pid": 20126,
+      "shell_pid_created_at": "1786447464.73"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZTJG6JYQ92SB5CCXQSNQT0G",
+      "last_transition_at": "2026-08-12T08:47:53.950559+00:00",
+      "shell_pid": 51658,
+      "shell_pid_created_at": "1786461687.46"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KZTJG7681SQZR245HKNFH0HY",
+      "last_transition_at": "2026-08-12T08:47:54.568931+00:00",
+      "shell_pid": 127910,
+      "shell_pid_created_at": "1786470470.44"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KZTJG7TM4CS634X980572ACW",
+      "last_transition_at": "2026-08-12T08:47:55.220421+00:00",
+      "shell_pid": 127910,
+      "shell_pid_created_at": "1786470470.44"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZTJG8F49DVFRDE15V58KCER",
+      "last_transition_at": "2026-08-12T08:47:55.876126+00:00",
+      "shell_pid": 301349,
+      "shell_pid_created_at": "1786489386.99"
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZTJG92RHQ55BS9517TCSRK0",
+      "last_transition_at": "2026-08-12T08:47:56.504567+00:00",
+      "shell_pid": 407200,
+      "shell_pid_created_at": "1786498304.11"
+    }
+  }
+}
