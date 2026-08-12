@@ -118,6 +118,10 @@ class DocStatus(StrEnum):
     ACTIVE = "active"
     DEPRECATED = "deprecated"
     SUPERSEDED = "superseded"
+    # Reserved never-retire value for domain throughlines, mirroring directive
+    # 042. Authored by hand only — no version tag derives to it (absent from
+    # TAG_DOC_STATUS / derive_doc_status).
+    DURABLE = "durable"
 
 
 # T065 — the explicit, deterministic ``tag -> doc_status`` mapping.
