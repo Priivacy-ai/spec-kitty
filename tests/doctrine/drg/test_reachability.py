@@ -724,26 +724,6 @@ def _raw_activated_map() -> Mapping[str, list[str]]:
     return raw
 
 
-def _describe(name: str, measured: frozenset[str], pinned: frozenset[str]) -> str:
-    appeared = sorted(measured - pinned)
-    healed = sorted(pinned - measured)
-    lines = [f"{name} drifted from its pinned membership."]
-    if appeared:
-        lines.append(
-            "  NEWLY UNREACHABLE (measured, not pinned) — an activated artefact "
-            "no traversal reaches; wire it to a reachable source or record why:\n"
-            + "\n".join(f"    + {urn}" for urn in appeared)
-        )
-    if healed:
-        lines.append(
-            "  NO LONGER UNREACHABLE (pinned, not measured) — drop it from the "
-            "pin; if it became reachable only by C-009 normalization, that is "
-            "NOT progress (NFR-004 ledger):\n"
-            + "\n".join(f"    - {urn}" for urn in healed)
-        )
-    return "\n".join(lines)
-
-
 @pytest.fixture(scope="module")
 def graph() -> DRGGraph:
     return load_built_in_graph()
@@ -1098,118 +1078,21 @@ def _shipped_reachability_partition(
     return frozenset(measured), dead, profile_delivered
 
 
-#: Reachable from **neither** channel (the genuine, both-channel-dead residual;
-#: each member dispositioned in IC-03/data-model.md). 38 → 34 after the six
-#: edges: the four that leave are ``directive:RECONCILE_CHANGE_SCOPE_TENSIONS``
-#: and the three procedures wired by edges 5/6a/6b (``spike-timebox-policy``,
-#: ``glossary-maintenance-workflow``, ``meeting-minutes-pipeline``) — all four
-#: were reachable from neither channel pre-wiring.
-_DEAD_DOCTRINE_SHIPPED: frozenset[str] = frozenset(
-    {
-        "directive:DIRECTIVE_035",
-        "directive:DIRECTIVE_038",
-        "directive:DIRECTIVE_039",
-        "paradigm:atomic-design",
-        "paradigm:structured-prompt-driven-development",
-        "procedure:documentation-gap-prioritization",
-        "procedure:migrate-project-guidance-to-spec-kitty-charter",
-        "procedure:tracker-organisation-workflow",
-        "styleguide:deployable-skill-authoring",
-        "styleguide:divio-type-discipline",
-        "styleguide:docs-accessibility",
-        "styleguide:docs-freshness-sla",
-        "styleguide:java-conventions",
-        "styleguide:meeting-minutes-format",
-        "styleguide:plain-language",
-        "styleguide:professional-communications",
-        "styleguide:publication-authority",
-        "styleguide:research-citation-discipline",
-        "tactic:analysis-extract-before-interpret",
-        "tactic:atomic-design-review-checklist",
-        "tactic:atomic-state-ownership",
-        "tactic:chain-of-responsibility-rule-pipeline",
-        "tactic:compositional-stream-boundaries",
-        "tactic:cross-cutting-state-via-store",
-        "tactic:dialectic-research",
-        "tactic:iterative-deepening-review",
-        "tactic:moscow-scoping-lens",
-        "tactic:reasons-canvas-fill",
-        "tactic:reasons-canvas-review",
-        "tactic:reference-architectural-patterns",
-        "tactic:secure-regex-catastrophic-backtracking",
-        "toolguide:git-worktree-pr-workflow",
-        "toolguide:maven-review-checks",
-        "toolguide:powershell-syntax",
-    }
-)
+#: NOTE (softened per the operator's PR #3342 landing decision, consistent
+#: with mission ``assertive-test-suite-sanitation-01KZME3P``'s "test plausible
+#: graph behavior, not exact ever-growing membership"): the exact-membership
+#: pins that used to live here (``_DEAD_DOCTRINE_SHIPPED``,
+#: ``_PROFILE_DELIVERED_SHIPPED``, ``_ACTION_UNREACHABLE_SHIPPED``) were
+#: dropped. The companion metric is now asserted by
+#: ``TestReachabilityCompanionGuard.test_partition_is_total_and_disjoint``
+#: (live totality + disjointness of the measured action-unreachable set) and
+#: the fixed anti-gaming gate below (every ``_WIRED_THIS_MISSION`` member is
+#: independently proven action-reachable and ledger-named).
 
-#: Action-unreachable but delivered via the profile channel's
-#: ``{requires, specializes_from, suggests}`` web (by design; group-
-#: dispositioned in data-model.md — "action-unreachable, delivered via the
-#: profile channel — by design"). 50 → 41 after the six edges: nine members
-#: leave (the ``_WIRED_THIS_MISSION`` tactics/toolguides + the two directives
-#: DISCIPLINED_REFACTORING/USE_MUTATION_TESTING that were already
-#: profile-reachable, now action-reachable too via edges 1/4).
-_PROFILE_DELIVERED_SHIPPED: frozenset[str] = frozenset(
-    {
-        "directive:DIRECTIVE_044",
-        "directive:DIRECTIVE_047",
-        "directive:DIRECTIVE_048",
-        "directive:DIRECTIVE_049",
-        "directive:DIRECTIVE_050",
-        "directive:USE_C4_MODEL_TECHNIQUES",
-        "paradigm:c4-incremental-detail-modeling",
-        "paradigm:semantic-compression",
-        "procedure:drill-down-documentation",
-        "procedure:event-storming-discovery",
-        "procedure:glossary-maintenance-workflow",
-        "procedure:meeting-minutes-pipeline",
-        "procedure:onboard-external-agent-to-pack",
-        "procedure:spike-timebox-policy",
-        "styleguide:quadruple-a-test-format",
-        "styleguide:reasons-canvas-writing",
-        "tactic:architecture-diagram-review-checklist",
-        "tactic:c4-zoom-in-architecture-documentation",
-        "tactic:canonical-source-unification",
-        "tactic:code-documentation-analysis",
-        "tactic:model-task-routing",
-        "tactic:occurrence-classification-workflow",
-        "tactic:ownership-map-leeway",
-        "tactic:pr-agent-worktree-isolation",
-        "tactic:semantic-compression-abstraction-extraction",
-        "tactic:semantic-compression-behavioral-boundary-mapping",
-        "tactic:semantic-compression-dead-weight-elimination",
-        "tactic:semantic-compression-equivalence-verification",
-        "tactic:semantic-compression-redundancy-discovery",
-        "tactic:semantic-compression-semantic-consolidation",
-        "tactic:split-brain-authority-detection",
-        "tactic:terminology-extraction-mapping",
-        "tactic:test-readability-clarity-check",
-        "tactic:test-scaffolding-as-design-smell",
-        "tactic:writing-audience-catalog",
-        "tactic:zombies-tdd",
-        "toolguide:contextive",
-        "toolguide:github-tracker",
-        "toolguide:mermaid-diagramming",
-        "toolguide:plantuml-diagramming",
-        "toolguide:terminology-guard",
-    }
-)
-
-#: The primary companion pin (#3009 point 3's literal "reachable from actions"
-#: ask): action-only, whole-graph, asserted total & disjoint as the union of
-#: the two subsets above. 88 → 75 after the six curated edges (measured
-#: against the regenerated graph; see the wiring-table's companion-metric
-#: ledger section for the full per-member trace of the thirteen departures).
-_ACTION_UNREACHABLE_SHIPPED: frozenset[str] = _DEAD_DOCTRINE_SHIPPED | _PROFILE_DELIVERED_SHIPPED
-
-#: The thirteen URNs THIS mission makes action-reachable (leave
-#: ``_ACTION_UNREACHABLE_SHIPPED``): the anti-null-delta forcing pin (Debbie
-#: Item 1). A pin left at the un-wired 88 baseline would green
-#: ``test_shipped_graph_action_reachability_is_the_pinned_membership`` without
-#: any edge existing; THIS pin is asserted action-reachable independently below
-#: (``TestActionUnreachableShippedLedgerCoverage``), which reds if the edges
-#: are not genuinely authored.
+#: The thirteen URNs THIS mission makes action-reachable: the anti-null-delta
+#: forcing pin (Debbie Item 1). This pin is asserted action-reachable
+#: independently below (``TestActionUnreachableShippedLedgerCoverage``),
+#: which reds if the edges are not genuinely authored.
 _WIRED_THIS_MISSION: frozenset[str] = frozenset(
     {
         "directive:DISCIPLINED_REFACTORING",
@@ -1235,33 +1118,24 @@ assert len(_WIRED_THIS_MISSION) == 13, "the anti-null-delta pin must name all th
 class TestReachabilityCompanionGuard:
     """T006: the #3009-point-3 action-only whole-graph companion guard.
 
-    ``test_shipped_graph_action_reachability_is_the_pinned_membership`` in the
-    contract (``contracts/reachability-companion-guard.md``).
+    Softened per the operator's landing decision on PR #3342 (consistent with
+    mission ``assertive-test-suite-sanitation-01KZME3P``'s "test plausible
+    graph behavior, not exact ever-growing membership"): this class asserts
+    the live action-unreachable measured set is total and disjoint across its
+    dead/profile-delivered partition, NOT an exact-membership pin against a
+    frozen literal. The fixed anti-gaming gate
+    (``TestActionUnreachableShippedLedgerCoverage``) still forces every
+    ``_WIRED_THIS_MISSION`` member to be genuinely action-reachable and
+    ledger-named.
     """
 
-    def test_shipped_graph_action_reachability_is_the_pinned_membership(
-        self, graph: DRGGraph
-    ) -> None:
-        measured, dead, profile_delivered = _shipped_reachability_partition(graph)
-        assert measured == _ACTION_UNREACHABLE_SHIPPED, _describe(
-            "_ACTION_UNREACHABLE_SHIPPED", measured, _ACTION_UNREACHABLE_SHIPPED
-        )
-        assert dead == _DEAD_DOCTRINE_SHIPPED, _describe(
-            "_DEAD_DOCTRINE_SHIPPED", dead, _DEAD_DOCTRINE_SHIPPED
-        )
-        assert profile_delivered == _PROFILE_DELIVERED_SHIPPED, _describe(
-            "_PROFILE_DELIVERED_SHIPPED", profile_delivered, _PROFILE_DELIVERED_SHIPPED
-        )
-
     def test_partition_is_total_and_disjoint(self, graph: DRGGraph) -> None:
-        """Debbie #1 totality: the two subsets must exactly cover the primary
-        pin with no overlap, so the "which of the 75 are genuinely dead" claim
-        cannot silently drift from the partition."""
+        """Debbie #1 totality: the two subsets must exactly cover the measured
+        action-unreachable set with no overlap, so the "which members are
+        genuinely dead" claim cannot silently drift from the partition."""
         measured, dead, profile_delivered = _shipped_reachability_partition(graph)
         assert dead | profile_delivered == measured
         assert not (dead & profile_delivered)
-        assert _DEAD_DOCTRINE_SHIPPED | _PROFILE_DELIVERED_SHIPPED == _ACTION_UNREACHABLE_SHIPPED
-        assert not (_DEAD_DOCTRINE_SHIPPED & _PROFILE_DELIVERED_SHIPPED)
 
     def test_by_design_kind_is_excluded_even_though_unreachable(self, graph: DRGGraph) -> None:
         """Renata F4: proves the ``_BY_DESIGN_UNREACHABLE_KINDS`` filter branch,
@@ -1319,30 +1193,31 @@ class TestActionUnreachableShippedLedgerCoverage:
     """T007 mechanical cross-check (analog to ``TestProfileRescuesHaveLedgerCoverage``).
 
     Un-gameable as an ENSEMBLE, not in isolation (contract anti-requirements):
-    set-equality alone does not force the six edges to exist — an implementer
-    could pin the un-wired 88-baseline and go green having wired nothing. This
-    class is the anti-null-delta forcing mechanism (Debbie Item 1): it asserts
-    every ``_WIRED_THIS_MISSION`` member is BOTH genuinely action-reachable AND
-    named in a wiring-table row, so the action-side delta is CI-gated, not
-    merely review-gated.
+    the live action-unreachable measured set alone does not force the six
+    edges to exist — an implementer could otherwise claim delivery with
+    nothing genuinely wired. This class is the anti-null-delta forcing
+    mechanism (Debbie Item 1): it asserts every ``_WIRED_THIS_MISSION``
+    member is BOTH genuinely action-reachable AND named in a wiring-table
+    row, so the action-side delta is CI-gated, not merely review-gated.
     """
 
     def test_wired_this_mission_members_are_action_reachable(self, graph: DRGGraph) -> None:
         measured, _dead, _profile_delivered = _shipped_reachability_partition(graph)
         still_unreachable = sorted(_WIRED_THIS_MISSION & measured)
         assert not still_unreachable, (
-            "these _WIRED_THIS_MISSION members are still in "
-            "_ACTION_UNREACHABLE_SHIPPED -- the wiring did not take effect: "
-            f"{still_unreachable}"
+            "these _WIRED_THIS_MISSION members are still in the live "
+            "action-unreachable measured set -- the wiring did not take "
+            f"effect: {still_unreachable}"
         )
 
     def test_action_unreachable_shipped_members_have_ledger_coverage(self) -> None:
         ledger = _companion_ledger_text()
         missing = sorted(m for m in _WIRED_THIS_MISSION if f"`{m}`" not in ledger)
         assert not missing, (
-            "Every _WIRED_THIS_MISSION member (an _ACTION_UNREACHABLE_SHIPPED "
-            "departure) must be named (backtick-quoted) in the reachability "
-            f"companion-metric ledger section of {_WIRING_TABLE_PATH.name}. "
+            "Every _WIRED_THIS_MISSION member (a live action-unreachable "
+            "measured-set departure) must be named (backtick-quoted) in the "
+            f"reachability companion-metric ledger section of "
+            f"{_WIRING_TABLE_PATH.name}. "
             "Missing ledger rows for:\n" + "\n".join(f"    - {m}" for m in missing)
         )
 
