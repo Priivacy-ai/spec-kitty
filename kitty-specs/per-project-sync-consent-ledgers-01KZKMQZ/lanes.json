@@ -3,7 +3,7 @@
   "mission_slug": "per-project-sync-consent-ledgers-01KZKMQZ",
   "mission_id": "01KZKMQZPJ1DK4ZC99MWM71KGZ",
   "mission_branch": "kitty/mission-per-project-sync-consent-ledgers-01KZKMQZ",
-  "target_branch": "feat/per-project-sync-consent",
+  "target_branch": "pr/per-project-sync-consent-progress",
   "lanes": [
     {
       "lane_id": "lane-a",

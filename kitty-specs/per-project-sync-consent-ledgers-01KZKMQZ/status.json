@@ -314,10 +314,20 @@
     },
     "WP09": {
       "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "claude",
       "force_count": 0,
       "lane": "in_progress",
       "last_event_id": "01KZVVQWGQ66CEJVEQ5FY3ZGS0",
       "last_transition_at": "2026-08-12T20:48:37.399548+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Resume after unblocking: implementation already landed on active branch (commit 7ddfd660c); lifecycle regularization per program handoff"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "tracker_refs": [
         "Priivacy-ai/spec-kitty#3262",
         "Priivacy-ai/spec-kitty#3030"
