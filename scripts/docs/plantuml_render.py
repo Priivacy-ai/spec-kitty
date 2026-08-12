@@ -1,13 +1,16 @@
 """Docsite PlantUML render post-processor (WP02).
 
-Runs AFTER ``glossary_linker`` over ``docs/_site``: recovers ` ```plantuml `
-fences that DocFX rendered to ``<pre><code class="lang-plantuml">…</code></pre>``
-(markdig may emit ``lang-`` or ``language-``; both are matched), renders each to
-an inline SVG via the network-isolated :mod:`plantuml_invoke` seam (WP01), and
-replaces the fence with an accessible ``<figure>`` carrying derived alt/aria text.
+Runs AFTER ``glossary_linker`` over ``docs/_site``: recovers PlantUML code
+fences that DocFX rendered to ``<pre><code …>@start…@end</code></pre>`` — matched
+**class-agnostically and by content** (any ``<pre><code>`` whose payload is an
+``@start…@end`` block), so it is robust to whatever class the toolchain emits
+(``lang-``/``language-``/highlighter tokens) and never mistakes an inline
+``<code>`` or prose mention of ``@startyaml`` for a fence. Each is rendered to an
+inline SVG via the network-isolated :mod:`plantuml_invoke` seam (WP01) and
+replaced with an accessible ``<figure>`` carrying derived alt/aria text.
 
-Fail-closed: if a recognized ``@start*`` fence survives unrendered on a page, the
-build fails (a class-name mismatch must red the build, never ship empty diagrams).
+Fail-closed: if a ``@start*`` BLOCK fence survives unrendered on a page, the build
+fails (never ship empty diagrams).
 Stdlib-only (``docs-pages.yml`` has no ``pip install``); the only third-party work
 is ``java -jar`` inside the isolated container, owned by :mod:`plantuml_invoke`.
 """
@@ -29,14 +32,17 @@ from scripts.docs import plantuml_invoke  # noqa: E402  (sys.path bootstrap abov
 DEFAULT_SITE_DIR: Final[Path] = Path("docs/_site")
 _JAR_PATH: Final[Path] = _REPO_ROOT / "plantuml.jar"
 
-# DocFX/markdig renders a ```plantuml fence to <pre><code class="lang-plantuml">
-# (or "language-plantuml"). Match both; capture the escaped payload.
-_FENCE_RE: Final[re.Pattern[str]] = re.compile(
-    r'<pre><code class="(?:lang|language)-plantuml">(?P<body>.*?)</code></pre>',
+# A block code fence is <pre><code …>…</code></pre>. We match it CLASS-AGNOSTICALLY
+# (DocFX/markdig may emit class="lang-plantuml", "language-plantuml", or add
+# highlighter tokens like "hljs") and decide it is PlantUML by its CONTENT — the
+# recovered payload contains an @start…@end block. This is robust to whatever
+# class string the toolchain settles on, and it never matches inline <code> or
+# prose, so a doc that merely *mentions* `@startyaml` is not treated as a fence.
+_CODE_BLOCK_RE: Final[re.Pattern[str]] = re.compile(
+    r"<pre><code[^>]*>(?P<body>.*?)</code></pre>",
     re.DOTALL,
 )
-# Any surviving @start* after processing is a fence we failed to render.
-_UNRENDERED_RE: Final[re.Pattern[str]] = re.compile(r"@start\w+", re.IGNORECASE)
+_START_RE: Final[re.Pattern[str]] = re.compile(r"@start\w+", re.IGNORECASE)
 _GENERIC_CAPTIONS: Final[frozenset[str]] = frozenset({"", "yaml", "diagram", "uml"})
 
 
@@ -76,23 +82,29 @@ def _accessible_svg(svg: bytes, caption: str) -> str:
 
 
 def render_html(page_html: str, *, workdir: Path) -> str:
-    """Render every plantuml fence in one page's HTML; fail closed on leftovers."""
+    """Render every plantuml code-block in one page's HTML; fail closed on leftovers."""
     pins = plantuml_invoke.load_pins()
 
     def _replace(match: re.Match[str]) -> str:
         source = html.unescape(match.group("body"))
+        if not _START_RE.search(source):
+            return match.group(0)  # a non-PlantUML code block (bash, mermaid, …) — leave it
         caption = derive_caption(source)
         svg = plantuml_invoke.render_startyaml(
             source, workdir=workdir, jar_path=_JAR_PATH, pins=pins
         )
         return _accessible_svg(svg, caption)
 
-    rendered = _FENCE_RE.sub(_replace, page_html)
-    if _UNRENDERED_RE.search(rendered):
-        raise PlantumlRenderPageError(
-            "an @start* fence survived unrendered — the emitted code class did not match "
-            "`lang-plantuml`/`language-plantuml`; refusing to ship empty diagrams"
-        )
+    rendered = _CODE_BLOCK_RE.sub(_replace, page_html)
+    # Fail closed only on a surviving BLOCK fence carrying @start (never on inline
+    # <code> or prose that merely mentions @startyaml).
+    for block in _CODE_BLOCK_RE.finditer(rendered):
+        if _START_RE.search(html.unescape(block.group("body"))):
+            snippet = block.group(0)[:200]
+            raise PlantumlRenderPageError(
+                "an @start* block fence survived unrendered — refusing to ship empty "
+                f"diagrams. First offending block: {snippet!r}"
+            )
     return rendered
 
 
