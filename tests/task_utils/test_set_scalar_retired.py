@@ -24,7 +24,7 @@ import pytest
 
 from specify_cli.task_utils.support import TaskCliError, extract_scalar, set_scalar, split_frontmatter
 
-pytestmark = [pytest.mark.git_repo]
+pytestmark = [pytest.mark.fast, pytest.mark.unit, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------

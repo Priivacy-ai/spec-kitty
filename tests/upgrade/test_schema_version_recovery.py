@@ -35,11 +35,13 @@ from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.runner import MigrationRunner
 
-# Issue-pinned #3334 reproduction (NFR-001, ADR 2026-07-17-1). The ``fast``/
-# ``unit`` category markers keep the node collectible by the fast-tests-misc CI
-# job (path-gated on tests/upgrade/**); ``regression`` routes it into the
-# always-on blocking regression job.
-pytestmark = [pytest.mark.regression, pytest.mark.fast, pytest.mark.unit]
+# Green regression-guard coverage for WP01's runner-surface abort-restore (the
+# #3334 *erasure* class is owned by main's ProjectMetadata round-trip fix +
+# tests). ``fast``/``unit`` route the nodes into fast-tests-upgrade
+# (``tests/upgrade/ -m fast``). No ``@pytest.mark.regression``: these are green
+# permanent tests, not a red-first open-P0 reproduction, so they do not belong
+# in the ADR 2026-07-17-1 red-first regression home (``tests/regression/``).
+pytestmark = [pytest.mark.fast, pytest.mark.unit]
 
 _GET_APPLICABLE = "specify_cli.upgrade.runner.MigrationRegistry.get_applicable"
 
