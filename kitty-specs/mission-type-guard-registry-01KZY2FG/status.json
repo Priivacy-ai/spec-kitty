@@ -1,0 +1,28 @@
+{
+  "event_count": 1,
+  "last_event_id": "01KZYMZHGRTA0HP75ABVYJNFCA",
+  "materialized_at": "2026-08-13T22:48:11.544676+00:00",
+  "mission_number": "",
+  "mission_slug": "mission-type-guard-registry-01KZY2FG",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 1
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01KZYMZHGRTA0HP75ABVYJNFCA",
+      "last_transition_at": "2026-08-13T22:48:11.544676+00:00"
+    }
+  }
+}
