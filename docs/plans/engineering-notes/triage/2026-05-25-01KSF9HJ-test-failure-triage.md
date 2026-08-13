@@ -118,7 +118,8 @@ previously returned 0, and `decide_next` mocks are no longer invoked.
 - **DIR-013 issue:** **YES**. This is real `next` behaviour drift,
   separate from anything in scope.
 
-### C99-g — Status / lifecycle event drift (varies; merged into C1 above for the events package failures, but ~6 here are NOT C1):
+### C99-g — Status / lifecycle event drift (varies; merged into C1 above for the events package failures, but ~6 here are NOT C1)
+
 - `tests.git_ops.test_atomic_status_commits_unit` — status artifacts left dirty after move_task (real bug in atomic commit flow).
 - `tests.specify_cli.core.test_mission_creation_specify_started` × 2 — `SpecifyStarted` event not emitted at mission-create (#1067 regression).
 - `tests.tasks.test_move_task_git_validation_unit.test_move_for_review_from_worktree_does_not_mirror_commit_to_lane_branch` — wrong commit message bubbled up to lane branch.

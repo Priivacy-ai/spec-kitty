@@ -9,7 +9,6 @@ updated: '2026-07-25'
 
 > **Retired (deprecated).** Design shipped/superseded via merged mission `runtime-state-birth-cutover-all-paths-01KYH654` (#2917; `kitty-specs/runtime-state-birth-cutover-all-paths-01KYH654/`). Preserved as a historical record.
 
-
 **Status: pre-spec. This grounds the problem and the solution space so the operator can choose the mission's shape before speccing.** Not a spec.
 
 A 4-lens opus squad (architecture, scope/contract, failure-modes/verification, precedent/overlap) investigated on branch `research/2917-runtime-state-birth-cutover`.
@@ -89,4 +88,5 @@ A mission is "cut over" iff `meta.json status_phase="1"` **and** the determinist
 Chosen shape: retire frontmatter/`tasks.md` runtime authoring (continue #2684) so nothing accrues to reconcile, then stamp `status_phase` at birth; re-key the guard to an event-log birth invariant. **Sequenced after coord-trust #2841** (consumes its placement port). The 12-mission front-load (`migrate backfill-runtime-state` + commit) is folded in as **WP1** to clear the 3.2.6 CI red immediately. Spec to follow.
 
 ## Key files
+
 `src/specify_cli/migration/runtime_state_cutover.py:107-180` · `backfill_runtime_state.py:734-953` · `src/specify_cli/status/emit.py:375-439` · `src/specify_cli/merge/executor.py:378-425` · `merge/ordering.py:485` · `merge/bookkeeping_projection.py` · `cli/commands/agent/mission_create.py:321` · `upgrade/migrations/m_zz_runtime_state_backfill.py` · `tests/specify_cli/migration/test_dogfood_corpus_backfilled.py:120-203` · `tests/regression/test_issue_2684_subtask_completion_event_sourced.py` · `kitty-specs/runtime-state-corpus-cutover-01KXZ0AX/spec.md` · ADR `docs/adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md`.

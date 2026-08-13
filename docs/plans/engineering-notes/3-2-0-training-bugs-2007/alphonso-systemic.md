@@ -57,7 +57,7 @@ the single highest-leverage structural fix.
 
 ### 1a. The prescribed outcome is the existing object, named
 
-#2007's "Architectural Diagnosis" prescribes:
+Issue #2007's "Architectural Diagnosis" prescribes:
 
 > *"a single, typed mission-context/read-path authority shared by `next`, `agent context resolve`,
 > `setup-plan`, `finalize-tasks`, `decision open`, and `agent action implement/review`."*
@@ -147,12 +147,11 @@ corroborated by field screenshots.
 
 ### 2a. What the panel decided, and what #2007 adds
 
-The neutral panel (SCORING-SYNTHESIS) leaned **impact** (open the write-side single-resolution surface
-#1832→#1716); the operator chose **safety** (naming rider first), recorded as a *values choice, not a
+The neutral panel (SCORING-SYNTHESIS) leaned **impact** (open the write-side single-resolution surface #1832→#1716); the operator chose **safety** (naming rider first), recorded as a *values choice, not a
 data verdict*. The panel's own neutral read was: *"impact, entered through #1832 — the safety of the
 naming-first plan is available inside the impact plan."*
 
-#2007 is **field evidence for the read-side / adoption grain** of that surface — `STATUS_READ_PATH_
+Issue #2007 is **field evidence for the read-side / adoption grain** of that surface — `STATUS_READ_PATH_
 NOT_FOUND` flattening (#14/#15), wrong-authority reads (#8/#11), the implement read-path (#16) are all
 the *consumer* face of #1832's "consume the same resolved context the claim used; single resolution
 path." It **strengthens** the impact case (these are real, screenshot-reproduced, agent-cycle-wasting
@@ -254,8 +253,7 @@ wrong surface). The internal-vs-public axis needs the registry to carry the hidd
 
 **G3 (DevEx enablers) — YES, and it is the cheapest, safest, highest-coverage #2007 WP.** It is
 pure-additive (a new guard + corpus scan), carries no topology/semantics risk, directly satisfies
-acceptance criterion #1, and is the structural antidote to the entire drift class. It is the part of
-#2007 most compatible with the operator's safety lead — ship it alongside the naming rider.
+acceptance criterion #1, and is the structural antidote to the entire drift class. It is the part of #2007 most compatible with the operator's safety lead — ship it alongside the naming rider.
 
 **One DIR-001 caution:** the guard must scan **SOURCE** doctrine prompts (`src/doctrine/missions/
 mission-steps/**`), not the generated agent copies (CLAUDE.md template-source rule) — otherwise it

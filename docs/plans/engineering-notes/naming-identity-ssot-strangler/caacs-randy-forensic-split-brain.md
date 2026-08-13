@@ -83,9 +83,10 @@ live under `backup/20260615-2110/*`. **Squash caveat is load-bearing here** (see
 files — they are the **consumer commands that hand-juggle the resolvers.** That is
 the first forensic surprise: *the crime scene is the callsite, not the library.*
 
-### Recipe 4 — velocity: accelerating (754 → 723 → 1151). Project is alive.
+### Recipe 4 — velocity: accelerating (754 → 723 → 1151). Project is alive
 
 ### Recipe 5 — firefighting: `19 / 5574 = 0.3 %`. Pipeline trust is healthy
+
 (consistent with the 2026-05 CaaCS run). The split-brain is **not** a
 pipeline-trust problem; it is a *design-authority* problem.
 

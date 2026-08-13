@@ -14,7 +14,6 @@ related:
 
 > **Retired (deprecated).** Superseded via ADR `2026-07-14-2-doctrine-to-core-mission-type-resolution-unification` and canonical `docs/architecture/mission-type-resolution.md` (#883). Preserved as a historical record.
 
-
 This brief captures the intent, operator guidance, research, and adversarial
 review that shaped mission #883 **before** the spec stage, so maintainers can
 review the reasoning that produced

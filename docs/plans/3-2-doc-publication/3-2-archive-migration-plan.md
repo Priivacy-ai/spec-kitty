@@ -53,7 +53,7 @@ and reviewers can audit.
 
 ## Banner templates (literal text, banner-regex compliant)
 
-Each banner is exactly one markdown line beginning with `> `, matching the
+Each banner is exactly one markdown line beginning with `>` followed by a space, matching the
 contract regex `^>\s*(?:Archive notice|Migration note)\b`.
 
 - **Archive notice (1.x)**:

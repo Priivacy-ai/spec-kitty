@@ -38,8 +38,7 @@ Each child bug (#1615–#1618) was a *symptom of one missing abstraction* fixed 
 - #1618 → "skip the second commit in this one path".
 
 None introduced the owner. So **every new surface, or every old surface not in the fix's blast
-radius, reintroduces the class** (`02` §4 lists ~10 residual surfaces, incl. `agent/status.py` which
-#1627 never touched). #1602 and #1348 are the same disease in adjacent organs: shared mutable state
+radius, reintroduces the class** (`02` §4 lists ~10 residual surfaces, incl. `agent/status.py` which #1627 never touched). #1602 and #1348 are the same disease in adjacent organs: shared mutable state
 with no single owner (#1602 = one file, two schemas; #1348 = one branch, two bypass rules).
 
 **This is the definition of an architectural problem rather than a bug:** the cost of the next mask

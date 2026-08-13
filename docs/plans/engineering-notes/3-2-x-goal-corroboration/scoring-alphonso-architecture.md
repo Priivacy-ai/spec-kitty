@@ -68,6 +68,7 @@ move of 3.2.1 — not a generic "should we do it" (most of these should be done;
 ## 2. Architectural rationale per candidate
 
 ### #1 — #1716 (write-side coord topology coherence) — **24**
+
 The architecturally correct root. `mission create` writes `coordination_branch` into `meta.json`
 (making the coord worktree the *authority signal*) while spec/setup-plan/bootstrap can still commit
 through the primary checkout before that worktree exists (#1716 body, FR-003/005/019/024/030).
@@ -83,6 +84,7 @@ semantics-heavy; needs coord/flat/primary/husk characterization tests first. Dep
 start now; benefits from the #1993 seam but does not require it).
 
 ### #2 — #1832 (claim succeeds, "no workspace could be resolved") — **25**
+
 The highest total, and deliberately so under a neutral lens. It is a **live P1** that breaks every
 orchestrator parsing claim output, *and* its own suggested fix — "the claim's final
 workspace-resolution read should consume the **same resolved context the claim just used to
@@ -98,6 +100,7 @@ candidate that both the white team (threading has value) and red team (only at s
 hold a context — and this is exactly one) agree on.**
 
 ### #3 — #1827 (merge baseline circular, unrecoverable) — **19**
+
 Genuinely bad: validation of `baseline_merge_commit` ordered before the write
 (`merge.py:1580-1649`), unrecoverable without a manual `meta.json` edit. Should ship in 3.2.x. But
 as a **lead** slice it scores lower: it lives inside the 3341-line `merge.py` god-module (risk 3,
@@ -106,12 +109,14 @@ frees no epic chain), strategic fit 2 (it is a correctness patch, not SSOT archi
 high-value *rider*, not the architectural spine of the cycle.
 
 ### #4 — #1891 (`agent --json` broken) — **20**
+
 Cheap, safe, isolated (`CommitResult` not JSON-serializable). Slice-ability 5, risk 5,
 dep-readiness 5. But blast radius 2, unblock 2, strategic fit 1 — it advances no domain
 consolidation. **A perfect parallel-lane filler; never the lead.** Including it costs almost nothing
 and removes a CI/automation papercut.
 
 ### #5 — #1619/#1666 (unify execution context — shippable slice) — **22 (slice), epic as a whole = do-not-lead**
+
 The epics are real and pre-existing (verified OPEN P0). **But the white-team "thread the
 ExecutionContext everywhere" framing is refuted by code I re-verified:** the composite is mutable
 (`context.py:184`), its builder mutates 4 substrate fields after freezing fragments
@@ -124,11 +129,12 @@ composite is genuinely immutable (un-mutate `resolution.py:793-801`, rebuild fra
 resolution), and *(b)* adopt the context at the **2–3 sites that already hold one** (#1832 is one;
 `implement.py:386` and `agent/mission.py:772` are the others). That slice = "fix the internal
 invariant + adopt where free," which is real architecture and is **substantially the same work as
-#1832 plus a builder hardening**. Scored 22 as a slice (blast 5, unblock 5, fit 5, but risk 2 /
+issue #1832 plus a builder hardening**. Scored 22 as a slice (blast 5, unblock 5, fit 5, but risk 2 /
 slice-ability 2 because the freeze is a builder *redesign*, not a finish). **As an epic it must not
 lead** — it is too big and the "everywhere" version is the wrong abstraction at current maturity.
 
 ### #6 — #1878 write-side bounded slice — **23**
+
 Both squads converge here: the write/entry side is "the highest blast radius" (white §4) and where
 the durability bugs live (red R3/Priti §3). A *guarded, characterization-first* cut is genuinely
 shippable: route `is_committed`, setup-plan auto-commit, and the implement C-004 fallback through
@@ -139,6 +145,7 @@ this slice** — they are the same architectural surface viewed at two grains. B
 (needs characterization scaffolding first).
 
 ### #7 — Naming routing rider (#2000/#1993/#1971 + ratchet) — **22**
+
 Scored **fairly, neither inflated nor punished.** What survives every attack (white AND red concede
 it): the static `branch_naming`/`mid8()` seam is the real SSOT; routing the ~12 bare `mission_id[:8]`
 sites through `mid8()`/`resolve_mid8` is a cheap, correct, low-risk consolidation; #1993
@@ -183,7 +190,7 @@ surface. The slice exists; the discipline is *characterize-then-route*, never *r
 write-side slice, and #1832 are **not four candidates — they are one architectural surface at four
 grains.** #1832 is the smallest concrete instance (one re-derivation at one callsite); #1716 is the
 authoring root; the #1619 slice is the value-object hardening that makes single-resolution durable;
-#1878 is the umbrella. A coherent 3.2.1 lead picks the **entry-grain that is both high-impact and
+issue #1878 is the umbrella. A coherent 3.2.1 lead picks the **entry-grain that is both high-impact and
 characterizable now**, then pulls the others in dependency order.
 
 ---
@@ -211,7 +218,7 @@ Ranked:
 
 Riders to fold into open lanes regardless of lead: **#1891** (free CI/automation win) and **#1827**
 (unrecoverable durability bug — ship it, it lives in the same `merge.py` write-side surface as
-#1716/#1878).
+issues #1716/#1878).
 
 ### The single trade-off the operator must decide, stated plainly
 

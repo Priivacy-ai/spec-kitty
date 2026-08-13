@@ -8,7 +8,6 @@ updated: '2026-05-26'
 
 > **Retired (deprecated).** Design shipped/superseded via merged mission `test-stabilization-and-debt-pass-01KSF9HJ` (`kitty-specs/test-stabilization-and-debt-pass-01KSF9HJ/`). Preserved as a historical record.
 
-
 Mission-scoped triage artifacts: root-cause clustering, DIR-013 sub-issue plans,
 and post-mission delta summaries.
 

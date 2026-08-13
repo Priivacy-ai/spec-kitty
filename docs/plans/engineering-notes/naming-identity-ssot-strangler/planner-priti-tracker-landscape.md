@@ -145,8 +145,7 @@ One cohesive mission, advancing #1868 + #1619, completing #1878 items #3/#5.
 | WP4 | **#1888** | finalize-tasks: warn/fail when a non-glob `owned_files` entry matches zero existing files (typo guard; restores the parallel-WP collision guard). | S |
 
 Rationale for the bundle: all four are "one authority for *where/what is named*"
-problems on the same surface (#2000 = name compose; #1971 = project-root resolve;
-#1993 = read-path resolve; #1888 = ownership-path existence). They share reviewers,
+problems on the same surface (#2000 = name compose; #1971 = project-root resolve; #1993 = read-path resolve; #1888 = ownership-path existence). They share reviewers,
 the golden-value/seam test idiom, and the SSOT framing — high cohesion, low
 cross-coupling, parallelizable into ≥3 lanes.
 
@@ -162,8 +161,7 @@ cross-coupling, parallelizable into ≥3 lanes.
 - **#1890** (doctor stale cmd), **#1832** (workspace-resolve report): UX/doc and
   a likely-fixed read-path symptom — re-test #1832 after WP3.
 
-**Claim / assignment plan:** assign the four in-scope tickets (#2000, #1971,
-#1993, #1888) to **stijn-dejongh**; reference **#1878** (strangler umbrella),
+**Claim / assignment plan:** assign the four in-scope tickets (#2000, #1971, #1993, #1888) to **stijn-dejongh**; reference **#1878** (strangler umbrella),
 **#1868** (seam epic), and **#1619** (runtime/state root) in the mission spec's
 issue-matrix and in each tracker comment naming the mission, per the
 ticket-based-mission-hygiene standing rule.

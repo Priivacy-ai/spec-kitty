@@ -17,12 +17,14 @@ editorializing. Architectural interpretation lives in `05`.
 Labels: `workflow, release, epic, launch-blocker, reliability, git, priority:P1`
 
 ### Thesis
+
 > "Spec Kitty now has coordination-branch transactional truth, but command surfaces still resolve
 > mission state, branch destination, worktree root, and prompt locations independently. Agents are
 > becoming the reconciliation layer between main checkout, coordination worktree, lane worktree,
 > current CWD, target branch, and prompt text."
 
 ### Failure class (recurring symptoms)
+
 - Agents manually switching between main, coordination branch, and lane worktrees.
 - Dependency checks reading stale state.
 - `status.json` / `lanes.json` visibility differing by branch.
@@ -31,6 +33,7 @@ Labels: `workflow, release, epic, launch-blocker, reliability, git, priority:P1`
 - Agents bypassing normal Spec Kitty flow and dispatching implementation subagents directly.
 
 ### Root cause (as stated)
+
 > "There is no canonical `MissionExecutionContext` or `MissionOperationContext` resolved once and
 > passed through claim, implement, review, finalize, status, runtime, and orchestrator flows."
 
@@ -38,6 +41,7 @@ Split authority: writes treat the coord branch/worktree as truth; many reads and
 checkout or target branch as truth; lane worktrees intentionally lack status files; agents reconcile manually.
 
 ### Acceptance criteria (verbatim intent)
+
 1. Introduce **one explicit context object** (`MissionExecutionContext`) containing at least:
    `primary_root`, `current_cwd`, `mission_slug`, `mission_id`, `mid8`, `target_branch`,
    `coordination_branch`, `coord_worktree`, `execution_workspace`, `status_read_dir`,
@@ -48,6 +52,7 @@ checkout or target branch as truth; lane worktrees intentionally lack status fil
 5. Add an **end-to-end regression**: clean repo → modern mission with coord branch/worktree → sparse lane worktree → run `next → implement → move-task → review → status` from **both main and lane CWD** → assert same WP state everywhere → assert no dirty partial status/decision/WP artifacts remain.
 
 ### Owner notes (from comments)
+
 - Child issues #1615–#1618 were opened from the same five-paradigm "Debugger Debbie" investigation.
 - **PR #1627 merged and closed #1615–#1618.** The parent stays open for the broader structural acceptance criteria.
 - Stijn (2026-06-03): using this issue as the **main tracking point for CLI / execution-related problems** — "executions do not match intent" and "branching approach is causing issues".

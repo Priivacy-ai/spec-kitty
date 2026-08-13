@@ -12,7 +12,6 @@ related:
 
 > **Retired (deprecated).** Design shipped/superseded via merged mission `coord-write-placement-closure-01KYCF83` (#2841; `kitty-specs/coord-write-placement-closure-01KYCF83/`). Preserved as a historical record.
 
-
 **Scope:** ground a PREVENTION-first re-scope of #2841 (coord-branch drift). READ-ONLY analysis; no product code changed.
 **Thesis under test:** coord drift is a read/write split-brain — coord bookkeeping is a *second, independently-writable copy* of a truth whose authority lives elsewhere. Confirmed, with one precise refinement (below).
 

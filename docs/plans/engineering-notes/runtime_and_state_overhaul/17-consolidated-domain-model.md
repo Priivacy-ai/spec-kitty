@@ -11,6 +11,7 @@ supersedes the `14` Tier-1 sketch. Incorporates the dialectic (`15`), the codeba
 Stijn's conceptual refinements. This is the model we map onto `06` (technical concretization).
 
 ## Vocabulary corrections folded in (Stijn, 2026-06-03)
+
 1. **Context is a generic, per-domain idea** — *"relevant environmental realities and ideological
    guidance."* It is correct for a Context to exist in **several** domains: **GovernanceContext**,
    **ExecutionContext**, **InfraContext**, … Each domain has *its own* Context.
@@ -30,6 +31,7 @@ Stijn's conceptual refinements. This is the model we map onto `06` (technical co
 ---
 
 ## 1. Core principles (the keepers — code-validated, `16`)
+
 - **Mission ≠ MissionRun** — durable planning aggregate (`mission_id`, `kitty-specs/`, git) vs ephemeral
   runtime aggregate (`mission_run_id`, `.kittify/runtime/`); **1:many**; ADR `2026-04-04-2` + CI enforced.
 - **MissionType / MissionStep ∈ Governance** (doctrine artifacts).
@@ -48,12 +50,14 @@ Stijn's conceptual refinements. This is the model we map onto `06` (technical co
 | **Shared Kernel** | **code module** | cross-domain commons: path · identity · status resolvers (OHS facades) | `core/paths.py`, `workspace/root_resolver.py`, `mission_metadata`, `resolve_action_context`, `resolve_mission_read_path` |
 
 ### Context is per-domain (not one box)
+
 - **GovernanceContext** — ideological guidance: action-scoped directives/tactics + bound profile (the rules an actor must follow).
 - **ExecutionContext** — environment realities for the doing: workspace, branches, read/write dirs, projected state. **≈ the hardened `ActionContext`** (the #1619 work). Lives in Execution.
 - **InfraContext** — ambient install/repo realities: shipped roots, `~/.kittify`, `~/.spec-kitty` (cross-cutting).
 - All Contexts are **built via the Shared Kernel** (the resolver module), but each *belongs to its domain*.
 
 ### Actor ↔ Effector
+
 - **Actor** — cross-domain metamodel (*someone/something effecting change*); fragmented in code across 3
   vocabularies (`16` H3). Disambiguates into AgentProfile (LLM) / Operator (human) / External System.
 - **Effector** — the Actor **realized inside the Execution domain**: the change-effector that consumes a
@@ -107,12 +111,14 @@ graph TD
 ```
 
 ## 4. The three senses, re-expressed
+
 - **Self** ← the **Effector** identity (Actor realized in Execution), with **beliefs from GovernanceContext**.
 - **Purpose** ← **Mission/WorkPackage** intent (Mission Management) bounded by **GovernanceContext** rules.
 - **Environment** ← **ExecutionContext** (+ ambient **InfraContext**).
 - **Fusion** → the **communication artefact** (Executor Prompt) assembles all three and is consumed by the Effector.
 
 ## 5. Net-new vs existing (preview of `06`)
+
 | Concept | Status | Home |
 |---------|--------|------|
 | Governance (Charter⊕Doctrine), GovernanceContext | exists | `charter/` ⊕ `doctrine/` |
@@ -126,6 +132,7 @@ graph TD
 | **communication-artefact contract** (consolidate 3 projections) | **net-new** | TBD |
 
 ## 6. Open for the `06` mapping
+
 - Where does **Effector** live as a code type (unifying the 3 Actor vocabularies, `16` H3)?
 - Do the **three projections** (Prompt / ActionContext-DTO / OperationalContext-VO) consolidate into one communication-artefact contract?
 - Package home for `mission_runtime/` given the layer meta-guard + the bidirectional `runtime↔specify_cli` reality (`16` H6).

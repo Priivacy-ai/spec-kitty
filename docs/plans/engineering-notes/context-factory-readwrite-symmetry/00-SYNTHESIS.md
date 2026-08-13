@@ -8,7 +8,6 @@ updated: '2026-06-17'
 
 > **Retired (deprecated).** Read-side design shipped/superseded via merged mission `read-path-error-fidelity-adoption-01KV8NPC` (`kitty-specs/read-path-error-fidelity-adoption-01KV8NPC/`); write-side (#1716 / #1878) deferred. Preserved as a historical record.
 
-
 **Date:** 2026-06-16
 **Status:** design refinement (informs the read-path mission `read-path-error-fidelity-adoption-01KV8NPC`
 and the deferred write-side follow-on #1716/#1878)

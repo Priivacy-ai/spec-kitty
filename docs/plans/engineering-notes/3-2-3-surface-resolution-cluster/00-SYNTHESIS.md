@@ -8,7 +8,6 @@ updated: '2026-06-26'
 
 > **Retired (deprecated).** Design shipped/superseded via the shipped 3.2.3 release (CHANGELOG `[3.2.3]` 2026-06-29; `fix/3.2.3-coord-surface-regressions`). Preserved as a historical record.
 
-
 **Authors:** 3-lens research squad — debugger-debbie (live confirmation),
 architect-alphonso (SSOT/topology verdict), paula-patterns (cluster consolidation).
 **Branch:** `fix/3.2.3-coord-surface-regressions` @ spec-kitty 3.2.3 (research read-only; no product change in this note).
@@ -130,5 +129,4 @@ Predecessor capstones in this tree: `naming-identity-ssot-strangler/` (3.2.1 ide
 strangler), `context-factory-readwrite-symmetry/`. This cluster is the post-v3.2.2
 continuation: the read+write surface authority is in place; 3.2.3 closes the *caller
 adoption* gaps (#2122/#2120) and the *terminal-artifact* gap (#2119) the prior work left.
-Epics: #1716 (coord-topology coherence), #1868 (canonical seams / mission identity),
-#1878 (placement/identity strangler umbrella), under #1619.
+Epics: #1716 (coord-topology coherence), #1868 (canonical seams / mission identity), #1878 (placement/identity strangler umbrella), under #1619.

@@ -18,6 +18,7 @@ Neither is the single authority #1619 asks for; each re-derives the same identit
 `meta.json`.
 
 ### Read-side: `resolve_mission_read_path` — `src/specify_cli/missions/_read_path_resolver.py:94`
+
 Pure-path, topology-aware. Priority:
 1. **Coord worktree** (`:141-148`): built only when `mid8` truthy, via
    `CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8) / "kitty-specs" / <slug>-<mid8>`. Returned if it exists.
@@ -31,6 +32,7 @@ Thin wrapper consumed by the workflow command: `_canonical_status_feature_dir()`
 `src/specify_cli/cli/commands/agent/workflow.py:229` (derives `mid8` from primary `meta.json`, delegates to the resolver).
 
 ### Write-side: `BookkeepingTransaction` — `src/specify_cli/coordination/transaction.py:503`
+
 The single chokepoint for coordination-branch **writes**. `acquire()` (`:573`):
 - Normalises `destination_ref`, acquires the feature-status lock **before** worktree resolution (`:601-607`).
 - `_acquire_locked()` (`:630`) branches on `_is_legacy_mission` (`:670`): legacy → resolve the
@@ -42,6 +44,7 @@ The single chokepoint for coordination-branch **writes**. `acquire()` (`:573`):
 Invoked **only** via `emit_status_transition_transactional` / `DecisionGitLog` — **not** by raw `append_event`.
 
 ### The coordination topology primitive: `CoordinationWorkspace` — `src/specify_cli/coordination/workspace.py:113`
+
 Stateless static methods; identity passed per call:
 - `worktree_path()` (`:127`) → `repo_root / ".worktrees" / f"{<slug>-<mid8>}-coord"`
 - `branch_name()` (`:132`) → `f"kitty/mission-{<slug>-<mid8>}"`
@@ -149,6 +152,7 @@ Plus two parallel coord resolvers: `tasks.py:_coord_status_events_path:768` and
 | `prompt_source_dir` | **not centrally derived** — `find_wp_file:152`, `repo_root/"kitty-specs"/slug/"tasks"` (`workflow.py:1707,1866,1869`), runtime template via `_runtime_template_key`/`_workflow_runtime_template` (`runtime_bridge.py:2033-2036`) |
 
 ### Mechanical conclusion
+
 The read resolver and the write resolver **already independently re-derive the same identity tuple**
 (`repo_root, mission_slug, mid8, coord branch, coord worktree`) from `meta.json`, via ≥4 duplicated
 path-builders. A context object would compute this identity **once** and expose `status_read_dir`,

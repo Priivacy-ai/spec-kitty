@@ -12,7 +12,6 @@ related:
 
 > **Retired (deprecated).** Design shipped/superseded via merged mission `coord-write-placement-closure-01KYCF83` (#2841; `kitty-specs/coord-write-placement-closure-01KYCF83/`). Preserved as a historical record.
 
-
 Status: **pre-spec, for operator sign-off**. READ-ONLY analysis; no product code changed.
 Grounded in the code at the state of branch `doctrine/drg-completeness-2843` (worktree copy).
 
@@ -35,8 +34,7 @@ symptoms are facets of that one absence:
 | **Symptom B — gate blocks on own runtime state** | No *ownership contract*: the diff-compliance gate treats the mission's own `status.events.jsonl`/`status.json` as an unclassified foreign surface, forcing a hand-commit into coord to register an exception — itself an act of unreconciled coord mutation. | Friction |
 
 They compose because each one is the system failing to answer *"is this coord content trusted,
-current, and mine?"* — Gap 1 for freshness, Gap 2 for correctness, Symptom B for ownership.
-#2841 explicitly asks that Gap 1 + Gap 2 be designed as **one canonical fix on the
+current, and mine?"* — Gap 1 for freshness, Gap 2 for correctness, Symptom B for ownership. #2841 explicitly asks that Gap 1 + Gap 2 be designed as **one canonical fix on the
 `doctor coordination --fix` seam** (citing #2392's consolidation precedent), not two point patches.
 
 ---
@@ -44,6 +42,7 @@ current, and mine?"* — Gap 1 for freshness, Gap 2 for correctness, Symptom B f
 ## 2. Evidence — the real surfaces (file:line)
 
 ### 2.1 Gap 1 — bootstrap snapshot, no re-sync
+
 - `ensure_coordination_branch()` — `src/specify_cli/missions/_create.py:195-260`. On the
   happy path it does exactly `_create_branch(repo_root, branch, target_branch)` (L259): a
   one-shot branch off target at create time.
@@ -58,6 +57,7 @@ current, and mine?"* — Gap 1 for freshness, Gap 2 for correctness, Symptom B f
   #2841's claim: no surface anywhere compares coord to the branch it was forked from.
 
 ### 2.2 Gap 2 — the narrow reconciliation that already exists (the extension point)
+
 - `doctor coordination --fix` reconciles exactly **one** split-brain today: a stranded `done`
   status after a merge rollback. Driven by `pending_coord_reconcile` markers via
   `_check_stranded_coord_revert()` (`_coordination_doctor.py:780-802`) →
@@ -73,12 +73,14 @@ current, and mine?"* — Gap 1 for freshness, Gap 2 for correctness, Symptom B f
   becomes a manual-recovery hint (L749-766) — i.e. "forward when safe, fail loud otherwise."
 
 ### 2.3 The single-workspace rebase (why it does NOT cover Gap 2)
+
 - `GitVCS.sync_workspace()` — `src/specify_cli/core/vcs/git.py:362` (CLI `sync.py:1745`).
   Fetches, resolves the workspace's own tracking/upstream branch (L398-401), and rebases
   **that workspace's own commits** onto it. No sibling-branch / coord-vs-target awareness.
   It is a per-workspace freshness tool, not a cross-branch content reconciler.
 
 ### 2.4 Symptom B — diff-compliance gate blocks on the mission's own runtime state
+
 - Gate: `src/specify_cli/bulk_edit/diff_check.py`. `assess_file()` (L237) classifies each
   changed file via `classify_path()` (L118) against ordered `_PATH_RULES` (L41-110):
   - `.json` → `serialized_keys` (L77-85) — in a terminology bulk-edit this category is
@@ -97,6 +99,7 @@ current, and mine?"* — Gap 1 for freshness, Gap 2 for correctness, Symptom B f
   which is itself a coord-content mutation. **This is the auto-exemption seam.**
 
 ### 2.5 Symptom A (out of scope — composes with PR#2612)
+
 - `safe_commit()` (`git/commit_helpers.py:843`) path policy step **6a** rejects any staged
   path under `.worktrees/` → `SafeCommitPathPolicyError` (~L985-995). This is the failure
   where a status commit can't land in the coord **sub-worktree** from the primary root.
@@ -112,6 +115,7 @@ current, and mine?"* — Gap 1 for freshness, Gap 2 for correctness, Symptom B f
 ## 3. Proposed solution shape (component by component)
 
 ### C1 — Gate auto-exemption for mission-owned runtime state (Symptom B)
+
 Thread a *mission-owned runtime-state* predicate into the classifier. `check_review_diff_compliance`
 already holds `feature_dir`; pass an allowlist of runtime-state basenames anchored to the
 mission's **own** `feature_dir` into `assess_file`/`check_diff_compliance`. Add an exemption
@@ -124,6 +128,7 @@ hand-commit into coord ever needed.
 - Composes with PR#2612: independent (gate is read-side); can land first.
 
 ### C2 — Coord-vs-target freshness check + safe re-sync (Gap 1)
+
 A new `_coord_branch_stale_vs_target_finding()` in `_coordination_doctor.py` that compares the
 **coord branch tip** against **target** (reusing the `merge-base --is-ancestor` plumbing that
 `_is_ancestor` at `_create.py:268` and `_coord_worktree_stale_finding` at L338 already use):
@@ -135,6 +140,7 @@ decision, §4-D1) an optional non-blocking warn woven into `finalize-tasks`.
   sub-worktree root PR#2612 establishes.
 
 ### C3 — Generalized reconciliation engine + `mission repair` (Gap 2)
+
 Generalize the existing `_finding_for_reconcile_marker` / `_heal_one_strand` engine
 (`_coordination_doctor.py:680-942`) from "one `done`-status split-brain" to a pluggable
 *bookkeeping-artifact reconciler*: detect(coord content vs real WP commit) →
@@ -147,6 +153,7 @@ forward-when-safe → fail-loud-with-unified-diff otherwise. Expose it as
   `safe_commit` with the sub-worktree root PR#2612 threads. Hard dependency on #2612 landing.
 
 ### C4 — Cadence wiring (Gap 1 UX)
+
 A warn-only hook at `finalize-tasks` (and/or `tasks`) that calls C2's detector. Non-blocking;
 prints the suggested `doctor coordination --check-staleness`/`--fix` recovery command.
 

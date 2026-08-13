@@ -9,6 +9,7 @@ updated: '2026-06-16'
 **Date:** 2026-06-16 · **Operator authorization:** "go" (2026-06-16) · **Op type:** tracker hygiene (scoping/recording only — no implementation).
 
 ## Hard constraints honored
+
 - **CLOSE NOTHING** — zero issues closed. All 6 #2007 children + the epic remain OPEN.
 - **ASSIGN NOBODY** — no assignee added by this op. (Pre-existing assignee on #1891 = `LynnColeArt`, left untouched — not added by me.)
 - **No patch version numbers prescribed** — only the minor-cycle milestone label `3.2.x` used.
@@ -54,10 +55,12 @@ Each body captures the member bug numbers + the **pinned root cause from debbie*
 - **#2010 (C3/#7+class):** `is_committed` (`missions/_substantive.py`) has no primary-branch leg (coord-only); `_commit_to_branch` (`cli/commands/agent/mission.py:1178-1195`) silently swallows commit failures → `commit_created: None` + untracked artifact; the "single resolver" is not behavior-equivalent across input classes. **#10/#11 need live repro in Robert's monorepo/coord env.**
 
 ### Folded-in loose bugs (no inventory bug dropped)
+
 - **bug #3** (specify bootstrap `NO_BRIEF`/`NO_TICKET` typed-state) → comment on **#2008** (C1). issuecomment-4718343091
 - **bug #10** (finalize zero-match glob exit-1; distinct from #1888; needs live repro) → comment on **#2010** (C3). issuecomment-4718343238
 
 ## Task 4 — functional-epic cross-references (no double-parent)
+
 - **#2010 (C3)** body references functional epics **#1832 / #1716 / #1619** (#1716 carries `launch-blocker`) for the underlying read-path/coord-topology surface — native parent stays the #2007 umbrella.
 - **#1890/#1891** comments reference **#1801** (CLI UX epic) as the prior functional home.
 
@@ -65,7 +68,7 @@ Each body captures the member bug numbers + the **pinned root cause from debbie*
 
 ## Final state (verified via GraphQL)
 
-#2007 (OPEN, milestone 3.2.x) native sub-issues:
+Issue #2007 (OPEN, milestone 3.2.x) native sub-issues:
 
 | # | State | Type | Milestone | Labels | Assignee |
 |---|-------|------|-----------|--------|----------|

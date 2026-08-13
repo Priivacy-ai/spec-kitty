@@ -32,6 +32,7 @@ A single flat `MissionExecutionContext` (the #1619 field list) conflates informa
 **two independent axes**. Separating them is what makes decomposition natural.
 
 ### Axis A — Scope / lifetime (how long it's stable, how widely it applies)
+
 | Scope | Stable for… | Examples |
 |-------|-------------|----------|
 | **Install** | the machine/install | shipped doctrine root, `~/.kittify`, `~/.spec-kitty` |
@@ -40,6 +41,7 @@ A single flat `MissionExecutionContext` (the #1619 field list) conflates informa
 | **Operation** | one command invocation | cwd, op_kind, `destination_ref` for *this* op, flags |
 
 ### Axis B — Domain (which bounded context owns the *rules*)
+
 Infrastructure · Filesystem · Version Control · Execution Preferences · Execution State
 (+ **Identity** as the foundational zeroth domain everything keys on).
 
@@ -48,6 +50,7 @@ Mission scope*; `destination_ref` is *Version-Control domain × Operation scope*
 root` is *Infrastructure domain × Install scope*. The flat object hid both distinctions.
 
 ### A third distinction — primitive vs derived
+
 - **Primitive** = read from a source (`meta.json`, `config.yaml`, `lanes.json`, cwd, env, git).
 - **Derived** = computed by a **domain rule** combining primitives
   (`coord_worktree = f(repo_root, slug, mid8)`; `destination_ref = coordination_branch or current_branch`).
@@ -84,7 +87,7 @@ Six fragments. Five are immutable **value objects**; one (Execution State) is th
 
 **F1 — `InfrastructureEnv`** *(value object; mostly ambient)*
 - Fields: built-in/shipped doctrine root, `kittify_home` (`~/.kittify`), `global_sync` (`~/.spec-kitty`), package asset roots, org-pack roots, state-root classification.
-- Today: **already modeled** — `resolve_doctrine_root` (`charter/catalog.py:153`), `get_kittify_home` (`kernel/paths.py:24`), `StateRoot` (`state/contract.py`), `DoctrineService` roots. 
+- Today: **already modeled** — `resolve_doctrine_root` (`charter/catalog.py:153`), `get_kittify_home` (`kernel/paths.py:24`), `StateRoot` (`state/contract.py`), `DoctrineService` roots.
 - **Open question:** F1 is largely *install/repo* scoped and *cross-mission* — it may **not** belong inside the mission composite at all; it's ambient and already injected via `DoctrineService`. Likely referenced, not embedded.
 
 **F2 — `FilesystemLayout`** *(value object; the #1619 path fields)*
@@ -174,6 +177,7 @@ Three observations:
    CLI writes through. That is I-6 (#1616) by construction: the agent contract can't contradict the topology.
 
 ### Composition, not inheritance
+
 Composites are **assembled by composition** (hold fragment instances), never by subclassing. This is
 the `ProjectContext`-holds-`PackContext` precedent (`07` §1b) generalized. Fragments stay independently
 testable; composites are thin selectors.
@@ -231,8 +235,7 @@ build_mission_context(selector, *, op_kind, cwd) -> <Read|Write|Prompt|...>Conte
    ambient, already injected via `DoctrineService`. Mission composites would *reference* it, not embed it.
 2. **Do operation flags (`force`, `--no-auto-commit`, `execution_mode`) live in F4, or a 6th tiny
    `OperationPolicy` fragment?** They're op-scoped policy, not session preference.
-3. **Is `current_cwd` a Filesystem (F2) field or its own `InvocationFacts` fragment** (cwd + op_kind
-   + actor + timestamp)? Argues for a 7th micro-fragment — weigh against over-split.
+3. **Is `current_cwd` a Filesystem (F2) field or its own `InvocationFacts` fragment** (cwd + op_kind + actor + timestamp)? Argues for a 7th micro-fragment — weigh against over-split.
 4. **Composite granularity:** are `Read/Write/Prompt/Review/Integration` the right composites, or do
    we want fewer (one `OperationContext` with optional fragments) — at the cost of a larger interface?
 5. **Where does the F2×F3 kernel object live?** A dedicated `CommitTarget` value object (worktree +

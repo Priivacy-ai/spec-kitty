@@ -8,7 +8,6 @@ updated: '2026-06-16'
 
 > **Retired (deprecated).** Design shipped/superseded via the open-core delivery plan §1.2 "G2 — strangle the core domains onto SSOTs" (identity primitive moved to the lower layer; naming/identity derive once) — see `docs/plans/3-2-x-open-core-delivery-plan.md`. Preserved as a historical record.
 
-
 **Author:** Architect Alphonso (squad aggregation — capstone deliverable)
 **Branch:** `research/naming-identity-ssot-strangler` @ spec-kitty 3.2.0 (read-only; no commit/switch)
 **Date:** 2026-06-16
@@ -186,7 +185,7 @@ stands); the only residual is ensuring the ≥2-dep regression test lives in the
 shipped in #2001 (`worktree_dir_name`/`worktree_path` + the 4th ratchet). Randy/Pedro flag the
 **migration tail** — the 3 allow-listed sites + the `surface_resolver` R2 dedupe — which Priti
 explicitly **re-homed under #2000** (not orphaned). **Resolved position:** #1899 = closed (infra);
-#2000 = the live residual WP carrying the tail. No double-counting.
+issue #2000 = the live residual WP carrying the tail. No double-counting.
 
 **(d) #1888 disposition — "shipped/dup" (Pedro/Paula) vs "tagged 3.2.1 mission" (Priti).**
 **Resolved position:** the *code* is shipped (as #1886). Priti tagged #1888 into 3.2.1 to carry the
@@ -291,7 +290,7 @@ sequenced last (enforcement capstone). All four parallelize into ≥3 lanes.
 
 ### Tie to the epics (one coherent step)
 
-#1868 says "bind authority to type/owner for canonical seams"; #1619 says "the Shared Kernel
+Issue #1868 says "bind authority to type/owner for canonical seams"; #1619 says "the Shared Kernel
 resolvers (path · identity · status) build the per-domain Contexts." This slice **generalizes the
 proven branch_naming seam shape** from identity-naming (done) to project-root (B) and lanes-dir (C),
 retires the duplicate surfaces, and ratchets the closed classes shut — assembling the runtime/state

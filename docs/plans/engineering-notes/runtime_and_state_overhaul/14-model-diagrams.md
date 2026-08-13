@@ -400,6 +400,7 @@ sequenceDiagram
 ---
 
 ## Provisional / open markers carried into the diagrams
+
 1. **Context** = harden `ActionContext` (the only unsettled *implementation* area; a supporting subdomain of Execution). `[2e, Tier 1]`
 2. **phase** — derive, don't add an enum. `[2b]`
 3. **interaction policy** — resolve-and-freeze at plan time onto Mission/`lanes.json`. `[2b]`
@@ -408,6 +409,7 @@ sequenceDiagram
 6. **Shared `Actor` type** — vocabulary now; a code type only if a shared seam emerges. `[2d]`
 
 ## Next refinement candidates
+
 - Promote Tier 1 + 2 into a published `docs/architecture/` doc once the Context subdomain settles.
 - Add a **BPMN swimlane** (User / Code / Agent) over the idea→working-code flow, showing which context
   is resolved/consumed at each step — the requirements view (`10`) made executable.

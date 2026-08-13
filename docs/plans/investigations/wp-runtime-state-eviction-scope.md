@@ -28,8 +28,7 @@ already-shipped `lane` retirement (`frontmatter.py:47-49`;
 **only static design-intent**, and the WP-prompt schema work (proposal Parts 1–3)
 becomes a pure formalization with no runtime collision.
 
-This is not new construction against the milestone — it **is the charter of
-#2093 / #2400** (static intent stays canonical; dynamic runtime state retires to
+This is not new construction against the milestone — it **is the charter of #2093 / #2400** (static intent stays canonical; dynamic runtime state retires to
 event-log/invocation authority), carried to completion.
 
 ---
