@@ -34,6 +34,8 @@ if str(_DOCS_DIR) not in sys.path:
 
 import plantuml_invoke  # noqa: E402
 
+pytestmark = pytest.mark.unit
+
 _BENIGN = "@startyaml\ntitle Benign Control\nprofile_id: \"x\"\nrole: \"y\"\n@endyaml\n"
 _EXTERNAL_INCLUDE = "@startuml\n!include http://127.0.0.1:59777/leak\nBob -> Alice\n@enduml\n"
 

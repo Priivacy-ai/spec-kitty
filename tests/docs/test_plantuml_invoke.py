@@ -22,6 +22,8 @@ if str(_DOCS_DIR) not in sys.path:
 
 import plantuml_invoke  # noqa: E402  # deliberate post-bootstrap import (see above)
 
+pytestmark = pytest.mark.unit
+
 
 def _pins() -> plantuml_invoke.Pins:
     return plantuml_invoke.load_pins()
