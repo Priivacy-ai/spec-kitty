@@ -1234,9 +1234,7 @@ def _execution_has_begun(repo_root: Path, mission_slug: str) -> bool:
         StatusReadPathNotFound,
         resolve_status_surface_with_anchor,
     )
-    from specify_cli.status.lane_reader import get_all_wp_lanes, has_event_log
-    from specify_cli.status.models import Lane
-    from specify_cli.status.store import StoreError
+    from specify_cli.status import Lane, StoreError, get_all_wp_lanes, has_event_log
 
     try:
         read_dir = resolve_status_surface_with_anchor(repo_root, mission_slug).read_dir
