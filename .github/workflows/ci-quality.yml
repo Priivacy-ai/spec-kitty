@@ -3392,6 +3392,29 @@ jobs:
             --cov-report=xml:out/reports/coverage/coverage-e2e.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-e2e-${{ github.run_id }}.xml
 
+      - name: "[ENFORCED] Run distribution+e2e installed-wheel acceptance"
+        run: |
+          # Positively selects the tests/e2e/ files marked BOTH `distribution`
+          # and `e2e` — the immutable-installed-wheel acceptance suite (e.g.
+          # test_worktree_owned_root_concurrency.py, which builds and installs a
+          # real wheel and proves two linked worktrees isolate their mission
+          # state). The step above deliberately excludes `distribution`; without
+          # this complementary selection those files reach NO CI gate and red
+          # tests/architectural/test_marker_job_completeness.py (the `e2e` and
+          # `distribution` markers gain an unreachable carrier). This is the
+          # positively-selecting CI home tracked by #3343. `|| test $? -eq 5`
+          # tolerates an empty selection (mirrors slow-tests) so a future rename
+          # cannot spuriously red the job — the marker gate guards the carrier.
+          uv run python -m pytest \
+            -v \
+            tests/e2e/ \
+            -m "distribution and e2e and not windows_ci" \
+            --durations=50 \
+            --cov=specify_cli --cov=charter --cov=doctrine \
+            --cov-report=xml:out/reports/coverage/coverage-e2e-distribution.xml \
+            --junitxml=out/reports/xunit-reports/xunit-result-e2e-distribution-${{ github.run_id }}.xml \
+            || test $? -eq 5
+
       - name: "[ENFORCED] Upload e2e-cross-cutting artifacts"
         if: always()
         uses: actions/upload-artifact@v7
