@@ -11,5 +11,7 @@
   "purpose_tldr": "Все команды Mission работают в caller-owned linked worktree, не изменяя repository root checkout.",
   "slug": "linked-worktree-lifecycle-01KZXMC8",
   "target_branch": "codex/spec-kitty-worktree-mission-create",
-  "topology": "single_branch"
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-13T13:55:42.318398+00:00"
 }
