@@ -82,6 +82,13 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   superseded working notes in place (content preserved, evidence-cited) and
   gathers the domain plans under `docs/plans/domains/`.
 
+- **`spec-kitty intake` now recognises an optional v1 handoff packet so upstream
+  requirements tools can seed a mission without the agent re-inventing FR/AC
+  ids.** A packet is ordinary Markdown; YAML frontmatter with `handoff_packet: 1`
+  is additive. Unknown versions and malformed YAML degrade to today's prose
+  intake. `intake --auto` also scans `.handoff/*.md`. Contract:
+  `docs/contracts/handoff-packet-v1.md`.
+
 - **The doctrine documentation site now shows rendered schema diagrams of the
   doctrine artefacts, drawn locally with no network egress (mission
   `doctrine-schema-diagrams-01KZTQTH`; `#3366`, `#3354`).** Before, the doctrine

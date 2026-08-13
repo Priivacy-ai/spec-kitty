@@ -45,6 +45,7 @@ def write_mission_brief(
     source_file: str,
     *,
     source_agent: str | None = None,
+    packet_meta: dict[str, Any] | None = None,
 ) -> tuple[Path, Path]:
     """Write ``.kittify/mission-brief.md`` and ``.kittify/brief-source.yaml``.
 
@@ -90,7 +91,7 @@ def write_mission_brief(
     )
     brief_text = header + "\n\n" + content
 
-    source_data: dict[str, str] = {
+    source_data: dict[str, Any] = {
         # The cleaned form is what the YAML sidecar records.  Storing the
         # cleaned value (rather than the raw input) keeps the SHA-256 hash
         # the source of truth for the *content* and the YAML the source of
@@ -101,6 +102,8 @@ def write_mission_brief(
     }
     if safe_source_agent is not None:
         source_data["source_agent"] = safe_source_agent
+    if packet_meta:
+        source_data.update(packet_meta)
 
     # WP02 T010: atomic write via open + fsync + replace.  Cross-fs
     # writes are rejected unless explicitly allowed in config.yaml.

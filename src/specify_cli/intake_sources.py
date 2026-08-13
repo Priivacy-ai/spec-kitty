@@ -62,6 +62,16 @@ HARNESS_PLAN_SOURCES: list[tuple[str, str | None, list[str]]] = [
         "gemini",
         [".gemini/plans"],
     ),
+    # Generic handoff packet — Verified-docs (this repository).
+    # Tool-agnostic Markdown packets (optional YAML frontmatter `handoff_packet: 1`)
+    # dropped at the project root by any upstream requirements producer.
+    # Listed after harness-specific hidden dirs (ordering rule: generic last).
+    # Source: docs/contracts/handoff-packet-v1.md
+    (
+        "handoff",
+        None,
+        [".handoff"],
+    ),
 ]
 
 
