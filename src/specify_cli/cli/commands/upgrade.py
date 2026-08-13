@@ -492,6 +492,55 @@ def _provision_missing_mission_type_activations(
     return []
 
 
+def _mission_type_activation_provisioning_pending(project_path: Path) -> bool:
+    """Return True when a real upgrade would seed ``mission_type_activations``.
+
+    Mirrors :func:`provision_default_mission_type_activations`'s additive
+    no-op rule (FR-009 preview parity): the seed writes only when the key is
+    *entirely absent*. An authored list — including an authored empty
+    ``mission_type_activations: []`` — is a deliberate state the real run leaves
+    untouched, so it is never reported as pending. A ``--dry-run`` skips the
+    real seed, so this predicate is how the preview stays honest about it.
+
+    Args:
+        project_path: Root of the project directory (``.kittify``'s parent).
+
+    Returns:
+        True if the seed would create the key on a real run, else False.
+    """
+    config_file = project_path / ".kittify" / "config.yaml"
+    if not config_file.exists():
+        return True
+    try:
+        from ruamel.yaml import YAML
+
+        with config_file.open("r", encoding="utf-8") as fh:
+            data = YAML(typ="safe").load(fh)
+    except Exception:  # noqa: BLE001 — unreadable config: do not claim a pending seed
+        return False
+    if not isinstance(data, dict):
+        return True
+    return "mission_type_activations" not in data
+
+
+def _print_dry_run_provisioning_notice(
+    project_path: Path, *, dry_run: bool, json_output: bool
+) -> None:
+    """Print a human-readable preview line for the provisioning seed.
+
+    FR-009: a ``--dry-run`` skips the real ``mission_type_activations`` seed, so
+    the human preview must still say it would happen. No-ops outside dry-run and
+    for the ``--json`` surface (which reports ``pending_provisioning`` instead).
+    """
+    if not dry_run or json_output:
+        return
+    if _mission_type_activation_provisioning_pending(project_path):
+        console.print(
+            "[dim]Would provision missing mission_type_activations "
+            "(seeded on a real upgrade).[/dim]"
+        )
+
+
 def _check_project_not_too_new(
     project_path: Path,
     *,
@@ -686,10 +735,20 @@ def upgrade(  # noqa: C901
     # old project-upgrade JSON.  For --project mode, the planner is always
     # consulted; for default mode, the planner runs only when --json is used.
     if json_output and (project or dry_run):
-        # Emit compat-planner contract
+        # Emit compat-planner contract. FR-009: the pending set is computed
+        # against the same target the real run would use (explicit --target, or
+        # the installed CLI version) so the preview matches the applied set.
+        if target is None:
+            from specify_cli import __version__ as _installed_version
+
+            planner_target = _installed_version
+        else:
+            planner_target = target
         _run_planner_json(
             dry_run=dry_run,
             no_nag=no_nag,
+            project_path=project_path,
+            target_version=planner_target,
         )
         return  # _run_planner_json always raises typer.Exit
 
@@ -820,6 +879,9 @@ def upgrade(  # noqa: C901
         mission_type_activation_errors = _provision_missing_mission_type_activations(
             project_path, dry_run=dry_run
         )
+        _print_dry_run_provisioning_notice(
+            project_path, dry_run=dry_run, json_output=json_output
+        )
         upgrade_failed = surface_drift_failed or bool(mission_type_activation_errors)
 
         if json_output:
@@ -878,6 +940,10 @@ def upgrade(  # noqa: C901
 
         console.print(table)
         console.print()
+
+        _print_dry_run_provisioning_notice(
+            project_path, dry_run=dry_run, json_output=json_output
+        )
 
         if verbose:
             # Show detection results
@@ -1115,10 +1181,53 @@ def _display_upgrade_results(
 # ---------------------------------------------------------------------------
 
 
+def _real_pending_migrations_contract(
+    project_path: Path, target_version: str
+) -> list[dict[str, object]]:
+    """Return the contract-shaped pending-migration list the real run applies.
+
+    Drives the preview through :meth:`VersionDetector.applicable_migrations`
+    (→ :meth:`MigrationRegistry.get_applicable`) — the *same* selector the real
+    ``upgrade`` run uses — so the reported pending set can never under-report
+    the applied set (FR-009 / SC-004). The dict shape matches
+    ``compat.messages.render_json``'s ``pending_migrations`` entries.
+
+    Args:
+        project_path: Root of the project directory.
+        target_version: Version the real run would target.
+
+    Returns:
+        A list of ``{migration_id, target_schema_version, description,
+        files_modified}`` dicts, in application order.
+    """
+    from specify_cli.compat.planner import _migration_step_from
+    from specify_cli.upgrade.detector import VersionDetector
+
+    steps = [
+        _migration_step_from(m)
+        for m in VersionDetector(project_path).applicable_migrations(target_version)
+    ]
+    return [
+        {
+            "migration_id": step.migration_id,
+            "target_schema_version": int(step.target_schema_version),
+            "description": step.description,
+            "files_modified": (
+                [str(f) for f in step.files_modified]
+                if step.files_modified is not None
+                else None
+            ),
+        }
+        for step in steps
+    ]
+
+
 def _run_planner_json(
     *,
     dry_run: bool,
     no_nag: bool,
+    project_path: Path,
+    target_version: str,
     latest_version_provider: object = None,
 ) -> None:
     """Emit the compat-planner JSON contract to stdout and raise typer.Exit.
@@ -1126,9 +1235,24 @@ def _run_planner_json(
     Suppresses all human output.  Exit code follows R-08 unless ``dry_run``
     is True, in which case exit code is always 0.
 
+    FR-009: the compat planner gates its own ``pending_migrations`` on a block
+    decision, so a schema-compatible-but-stale project would preview ``[]``.
+    Here we overwrite that field with the *real* applied set (the same
+    ``MigrationRegistry.get_applicable`` selection the real run uses) so the
+    preview never under-reports the migrations a real run would apply.
+
+    The ``mission_type_activations`` provisioning seed (the second FR-009
+    divergence) is surfaced on the human ``--dry-run`` preview
+    (:func:`_print_dry_run_provisioning_notice`) rather than here: the
+    ``compat-planner.json`` contract is externally frozen
+    (``additionalProperties: false``) and owns no provisioning field, so the
+    machine surface stays contract-clean.
+
     Args:
         dry_run: When True, always exit 0.
         no_nag: Suppress nag flag passed to the Invocation.
+        project_path: Root of the project being previewed.
+        target_version: Resolved target version for the pending-set computation.
         latest_version_provider: Optional override for tests.
     """
     from specify_cli.compat.planner import Invocation, is_ci_env, plan
@@ -1158,8 +1282,13 @@ def _run_planner_json(
 
     result = plan(invocation, **kwargs)  # type: ignore[arg-type]
 
+    payload = dict(result.rendered_json)
+    payload["pending_migrations"] = _real_pending_migrations_contract(
+        project_path, target_version
+    )
+
     exit_code = 0 if dry_run else result.exit_code
-    print(json.dumps(result.rendered_json, indent=2))
+    print(json.dumps(payload, indent=2))
     raise typer.Exit(exit_code)
 
 
