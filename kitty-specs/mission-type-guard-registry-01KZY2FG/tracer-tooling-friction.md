@@ -110,3 +110,43 @@ should be. `tasks.md` and both WP prompt files were committed via raw `git add`+
 planning content, not tool-internal bookkeeping; `status.events.jsonl` / `issue-matrix.json`
 were deliberately left uncommitted so the orchestrator sees the exact partial state and decides
 how to proceed (retry with `--target-branch`, change topology, or something else).
+
+## 6. Root cause of entry 5, traced first-hand — orchestrator escalates rather than routes around
+
+**Verified first-hand** (orchestrator), same checkout/version as entry 5.
+
+Traced the contradiction entry 5 surfaced to two specific code sites, confirming it is a real
+tooling gap, not a misuse of the CLI:
+
+- `src/specify_cli/coordination/commit_router.py:437-446` (`_group_files_by_partition`
+  docstring + logic): for a topology that does not route through coordination
+  (`SINGLE_BRANCH` / `LANES` — this mission is `LANES`), **every** artifact kind's placement
+  resolves to the SAME `target_branch` — there is no separate coordination ref to target. This
+  confirms CLAUDE.md's own "route everything to primary" claim is accurate at the placement
+  layer.
+- `src/specify_cli/coordination/policy.py:202-237` (the protected-branch check inside
+  `ProtectionPolicy`/commit-guard evaluation): refuses ANY bookkeeping commit whose
+  `destination_ref` is on the protected-branch list, unconditionally — there is no
+  topology-aware exception for a `LANES`-topology mission whose OWN placement layer just
+  determined `target_branch` (here, `main`) IS the correct, only destination. The refusal
+  message's own remedy ("re-run through the coordination transaction; the coord worktree is
+  auto-resolved") presupposes a coordination worktree that this topology, by the placement
+  layer's own logic, does not have.
+
+Net: the placement layer (`commit_router.py`) and the protection layer (`policy.py`) disagree
+about whether a `LANES`-topology mission's bookkeeping commit to its own `target_branch` is
+legitimate — placement says yes (it's the only ref there is), protection says no (unconditional
+protected-branch refusal). This is the same defect CLASS as ledger **SK-11** (two
+authority-bearing checks reaching contradictory verdicts about the same commit), reached via a
+different call path (`finalize-tasks`'s bookkeeping/coordination-transaction route, not
+`safe-commit` vs `spec-commit`) — worth flagging to whoever next sweeps
+`SPEC-KITTY-LEDGER.md` as a related-but-distinct sighting, not a duplicate.
+
+**Not routed around**: the `--target-branch` flag's own `--help` text scopes it to "legacy
+missions created before WP07 persisted `target_branch` in `meta.json`" — this mission's
+`meta.json` already carries a correct, persisted `target_branch: "main"`, so that flag is not
+the documented remedy for this failure mode; using it anyway would be inventing a fix the tool
+does not actually offer for this case, which the mission brief's "never invent" instruction
+forecloses. No other documented path was found. Escalating to the operator as BLOCKED per the
+mission brief's own instruction, with the partial-mutation state (entry 5) left exactly as the
+tool wrote it.
