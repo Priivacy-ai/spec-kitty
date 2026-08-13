@@ -232,9 +232,11 @@ For each gate: whether it applies to this mission's diff, and why.
   `docs/guides/how-to/governance/create-an-org-doctrine-pack.md`, a Markdown file, and the
   `markdownlint` CI step runs `markdownlint-cli2` against changed Markdown.
 - **Architecture/docs consistency (`docs-freshness` workflow)** — Mostly does NOT apply (no new
-  CLI command, no new slash command), but **two concrete sub-checks DO fire and must be
-  satisfied, not exempted** — one from the FR-001 guide edit, one newly-applicable from IC-04's
-  `docs/changelog/CHANGELOG.md` entry:
+  CLI command, no new slash command), but the job itself already runs on this PR: FR-001's edit
+  to `docs/guides/how-to/governance/create-an-org-doctrine-pack.md` matches the workflow's PR
+  `paths:` filter entry `'docs/**'` (`.github/workflows/docs-freshness.yml:38`), which triggers
+  the whole `docs-freshness` job. **Two concrete sub-checks inside that run DO fire and must be
+  satisfied, not exempted**:
   1. **Relative body-link gate** (`scripts/docs/relative_link_fixer.py --check`,
      `.github/workflows/docs-freshness.yml`) checks that every relative Markdown link
      (`[text](path)`) in a changed doc resolves. The ADR FR-001 must cite —
@@ -248,12 +250,16 @@ For each gate: whether it applies to this mission's diff, and why.
      IC-04's changelog entry adds no relative Markdown link of its own, so it does not newly
      exercise this gate.
   2. **CHANGELOG sync check** (`scripts/docs/sync_changelog.py --check`, the "Check CHANGELOG
-     sync (canonical → root)" step, `.github/workflows/docs-freshness.yml:126-127`) — newly
-     applicable because IC-04 edits `docs/changelog/CHANGELOG.md`, and the root `CHANGELOG.md`
-     (a symlink to it) sits inside this workflow's PR `paths:` filter
-     (`.github/workflows/docs-freshness.yml:43`). Verified directly against
-     `scripts/docs/sync_changelog.py`'s own docstring: the check fails only if the root file
-     stops being a symlink to the canonical path (its stated purpose — "guard the root
+     sync (canonical → root)" step, `.github/workflows/docs-freshness.yml:126-127`) — this step
+     carries no step-level `if:`/path condition of its own, so it runs unconditionally whenever
+     the `docs-freshness` job runs, which FR-001's guide edit already causes (see above); it
+     applies here regardless of IC-04's changelog touch. IC-04's edit to
+     `docs/changelog/CHANGELOG.md` itself matches the same `'docs/**'` filter entry
+     (`.github/workflows/docs-freshness.yml:38`) — not the `'CHANGELOG.md'` entry at
+     `.github/workflows/docs-freshness.yml:43`, which matches only the literal root path and is
+     untouched by this diff (the root file remains an unmodified symlink). Verified directly
+     against `scripts/docs/sync_changelog.py`'s own docstring: the check fails only if the root
+     file stops being a symlink to the canonical path (its stated purpose — "guard the root
      `CHANGELOG.md` symlink … exit 1 unless root is the symlink") — a real risk if an
      implementer edits via a write-then-rename pattern instead of editing
      `docs/changelog/CHANGELOG.md` in place. Editing the canonical path directly, never the root
@@ -272,7 +278,7 @@ For each gate: whether it applies to this mission's diff, and why.
   CI gate, expected **no-op** — see "What Is Generated" above.
 - **Contextive glossary** — Checked directly across the full `.contextive.yml`/`.contextive/*.yml`
   file set repo-wide (verified 13 files by direct `find`, matching the `find` command below), plus
-  `docs/context/*.md` (verified to exist as a 25-file directory, including
+  `docs/context/*.md` (verified to exist as a 24-file directory, including
   `contextive-glossaries.md` and `glossary-conventions.md`, so it is plausibly glossary-relevant
   and worth searching directly rather than asserting):
 
