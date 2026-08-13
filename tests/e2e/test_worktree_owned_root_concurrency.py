@@ -124,23 +124,25 @@ def _make_project(tmp_path: Path, iteration: int) -> _WorktreeProject:
     agent_a = tmp_path / "agent-a"
     agent_b = tmp_path / "agent-b"
     branch = _git(_SOURCE_ROOT, "branch", "--show-current")
+    source_commit = _git(_SOURCE_ROOT, "rev-parse", "HEAD")
+    clone_cmd = ["git", "clone", "--local", "--no-hardlinks"]
+    if branch:
+        clone_cmd.extend(["--branch", branch])
+    clone_cmd.extend([str(_SOURCE_ROOT), str(primary)])
     subprocess.run(
-        [
-            "git",
-            "clone",
-            "--local",
-            "--no-hardlinks",
-            "--branch",
-            branch,
-            str(_SOURCE_ROOT),
-            str(primary),
-        ],
+        clone_cmd,
         check=True,
         capture_output=True,
         text=True,
     )
     for key, value in (("user.email", "wp05@example.invalid"), ("user.name", "WP05 Acceptance")):
         _git(primary, "config", key, value)
+    if not branch:
+        # CI's actions/checkout leaves the source repo in detached HEAD (a
+        # merge SHA, not a branch); pin the clone to a real branch at the
+        # exact source commit so downstream `git worktree add` calls have a
+        # branch to work from.
+        _git(primary, "checkout", "-B", "wp05-primary", source_commit)
     _git(
         primary,
         "worktree",
