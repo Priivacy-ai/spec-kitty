@@ -1,8 +1,8 @@
 ---
 title: 3.2 Version Taxonomy
 description: Source of truth for how every page under docs/, architecture/, and root README.md is classified by version relevance for the 3.2 documentation refresh.
-doc_status: draft
-updated: '2026-06-12'
+doc_status: active
+updated: '2026-08-13'
 ---
 # 3.2 Version Taxonomy
 
