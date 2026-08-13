@@ -1,8 +1,7 @@
 # review-verify/v1 — canonical format for fix-verification output.
 schema: review-verify/v1
-complete: false             # flip to true ONLY at the very end, after the yaml self-check passes
 phase: plan
-results:                    # one entry for EVERY finding being verified
+results:
   - id: PLAN-FRESH-001
     status: resolved
     reason: >
