@@ -317,11 +317,11 @@ evaluation, prompt binding, and delegation hooks. Mission step contracts are wha
 type's abstract action sequence (specify → plan → tasks → implement → review) into concrete,
 executable steps — each step can delegate to a directive, tactic, or procedure.
 
-**Location.** `src/doctrine/missions/built_in_step_contracts/*.step-contract.yaml`
+**Location.** `packs/built-in/missions/built_in_step_contracts/*.step-contract.yaml`
 (project overlay: `.kittify/doctrine/mission_step_contracts/`).
 
 **Example.** `specify` action, software-dev mission
-(`src/doctrine/missions/built_in_step_contracts/specify.step-contract.yaml`). Its `bootstrap`
+(`packs/built-in/missions/built_in_step_contracts/specify.step-contract.yaml`). Its `bootstrap`
 step loads charter context; `capture_intent` delegates to directives
 `010-specification-fidelity-requirement` and `037-living-documentation-sync`; `map_examples`
 delegates to the `example-mapping-workshop` procedure; `validate_requirements` delegates to the
