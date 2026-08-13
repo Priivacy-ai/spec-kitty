@@ -1,0 +1,36 @@
+# wp-verdict/v1 — canonical format for per-WP review verdicts.
+schema: wp-verdict/v1
+complete: true
+wp: WP01
+cycle: 1
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+verdict: approved
+gates_observed:
+  tsc: pass    # mypy --strict src/charter/_drg_helpers.py src/charter/action_doctrine_bundle.py -> clean
+  tests: pass  # tests/charter/ tests/architectural/ -n auto --dist loadfile -> 3621 passed, 6 skipped, 2 xfailed, 0 failed
+  coverage: unknown  # no coverage tool invoked; not part of this WP's declared gate set (plan.md Gate Set)
+feedback:
+  - id: WP01-C1-001
+    severity: 1
+    claim: >
+      The review brief's phrasing ("the standalone 'malformed root graph, no drg/
+      directory' case MUST have its own test asserting on a discovered COUNT rather
+      than iterating a possibly-empty set") reads as if it requires a numeric-count
+      assertion. The actual test,
+      tests/charter/test_org_root_graph_guard.py:632-652
+      (test_malformed_root_graph_no_drg_directory_raises_distinguishable_failure),
+      asserts payload["result"] != "success" and a non-empty payload["error"] via
+      _assert_distinguishable_failure (test_org_root_graph_guard.py:574-580) — not a
+      count. This is still genuinely non-vacuous: the assertion is a concrete,
+      structurally-distinguishable-failure check (matching C-004's actual wording
+      for FR-004: "a specific exception type, or a non-empty machine-checkable error
+      field"), and it is a single-fixture assertion, not an iteration over a
+      discoverable set, so it cannot pass vacuously by "finding nothing." Confirmed
+      by hand: checked out commit 729421528 (T006, RED) and it fails with
+      "assert 'success' != 'success'"; checked out 0cf5cadbb (T007, GREEN) and it
+      passes. No remediation needed — noting only so a future reviewer does not
+      misread the brief as requiring a literal len()==N assertion here.
+    remediation: >
+      None required. If a future pass wants belt-and-suspenders, it could additionally
+      assert on the exception type name via CliRunner output, but the current
+      result/error-field assertion already satisfies FR-004/C-004's actual bar.
