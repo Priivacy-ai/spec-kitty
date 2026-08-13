@@ -364,3 +364,146 @@ class TestDrgOnlyOrgPackGuard:
                 f"expected exactly the no-pack baseline {baseline_procedures}, "
                 f"got {procedures}"
             )
+
+
+# ---------------------------------------------------------------------------
+# T004 (IC-02, FR-003/FR-006; User Story 4)
+# ---------------------------------------------------------------------------
+
+_ROOT_AND_DRG_TACTIC_ID = "org-root-tactic-3384"
+_ROOT_AND_DRG_DIRECTIVE_ID = "org-drg-directive-3384"
+_ROOT_GRAPH_YAML_ROOT_AND_DRG = textwrap.dedent(
+    f"""\
+    schema_version: '1.0'
+    generated_at: '2026-08-13T00:00:00Z'
+    generated_by: test
+    nodes:
+      - {{urn: 'tactic:{_ROOT_AND_DRG_TACTIC_ID}', kind: tactic}}
+    edges:
+      - {{source: '{_ACTION_URN}', target: 'tactic:{_ROOT_AND_DRG_TACTIC_ID}', relation: scope}}
+    """
+)
+_DRG_GRAPH_YAML_ROOT_AND_DRG = textwrap.dedent(
+    f"""\
+    schema_version: '1.0'
+    generated_at: '2026-08-13T00:00:00Z'
+    generated_by: test
+    nodes:
+      - {{urn: 'directive:{_ROOT_AND_DRG_DIRECTIVE_ID}', kind: directive}}
+    edges:
+      - {{source: '{_ACTION_URN}', target: 'directive:{_ROOT_AND_DRG_DIRECTIVE_ID}', relation: scope}}
+    """
+)
+
+#: A duplicated-triple fixture: the root graph and the drg/ fragment each
+#: declare the identical ``(source, target, relation)`` edge -- root declares
+#: both endpoint nodes; the fragment only repeats the edge (single-file
+#: loading never checks dangling references -- only the merged-graph-level
+#: ``assert_valid`` does, so this is a legal standalone fragment).
+_DUP_EDGE_SOURCE_URN = "directive:org-dup-source-3384"
+_DUP_EDGE_TARGET_URN = "directive:org-dup-target-3384"
+_ROOT_GRAPH_YAML_DUP_EDGE = textwrap.dedent(
+    f"""\
+    schema_version: '1.0'
+    generated_at: '2026-08-13T00:00:00Z'
+    generated_by: test
+    nodes:
+      - {{urn: '{_DUP_EDGE_SOURCE_URN}', kind: directive}}
+      - {{urn: '{_DUP_EDGE_TARGET_URN}', kind: directive}}
+    edges:
+      - {{source: '{_DUP_EDGE_SOURCE_URN}', target: '{_DUP_EDGE_TARGET_URN}', relation: requires}}
+    """
+)
+_DRG_GRAPH_YAML_DUP_EDGE = textwrap.dedent(
+    f"""\
+    schema_version: '1.0'
+    generated_at: '2026-08-13T00:00:00Z'
+    generated_by: test
+    nodes: []
+    edges:
+      - {{source: '{_DUP_EDGE_SOURCE_URN}', target: '{_DUP_EDGE_TARGET_URN}', relation: requires}}
+    """
+)
+
+
+def _write_org_pack_root_and_drg(
+    repo_root: Path, *, root_yaml: str, drg_yaml: str, dir_name: str
+) -> Path:
+    """An org pack with content at BOTH the root and ``drg/``."""
+    pack_root = repo_root / "org-packs" / dir_name
+    drg_dir = pack_root / "drg"
+    drg_dir.mkdir(parents=True, exist_ok=True)
+    (pack_root / "graph.yaml").write_text(root_yaml, encoding="utf-8")
+    (drg_dir / "fixture.graph.yaml").write_text(drg_yaml, encoding="utf-8")
+    return pack_root
+
+
+class TestRootAndDrgMerge:
+    def test_root_and_drg_both_present_neither_node_dropped(self, tmp_path: Path) -> None:
+        """US4 AC1; FR-003/FR-006a; SC-005.
+
+        A root-level graph and a ``drg/`` fragment declaring distinct,
+        non-overlapping nodes must both contribute to the resolved bundle --
+        two independent positive-membership assertions (guards the
+        vacuity-by-empty-set hazard: "no exception while iterating a
+        possibly-empty discovered set" would pass vacuously and prove
+        nothing).
+        """
+        repo = tmp_path / "root_and_drg"
+        repo.mkdir()
+        _write_project_fixture(repo)
+        pack_root = _write_org_pack_root_and_drg(
+            repo,
+            root_yaml=_ROOT_GRAPH_YAML_ROOT_AND_DRG,
+            drg_yaml=_DRG_GRAPH_YAML_ROOT_AND_DRG,
+            dir_name="root-and-drg-fixture-pack",
+        )
+        _write_config(repo, org_pack_root=pack_root)
+
+        payload = _cli_context_json(repo)
+
+        tactic_ids = {t["id"] for t in payload["tactics"]}
+        directive_ids = {d["id"] for d in payload["directives"]}
+        assert _ROOT_AND_DRG_TACTIC_ID in tactic_ids, (
+            f"root-declared tactic {_ROOT_AND_DRG_TACTIC_ID!r} was dropped: {tactic_ids}"
+        )
+        assert _ROOT_AND_DRG_DIRECTIVE_ID in directive_ids, (
+            f"drg/-declared directive {_ROOT_AND_DRG_DIRECTIVE_ID!r} was dropped: "
+            f"{directive_ids}"
+        )
+
+    def test_identical_edge_triple_deduped_to_one_not_dropped(self, tmp_path: Path) -> None:
+        """US4 AC2; FR-003/FR-006b; SC-006.
+
+        An identical ``(source, target, relation)`` edge triple declared by
+        BOTH the root graph and its ``drg/`` sibling must collapse to exactly
+        one retained copy -- not raise (duplicate-edge validation) and not
+        silently drop both copies. Calls ``load_validated_graph`` directly
+        (not the ``--json`` CLI, which does not expose raw edge triples).
+        """
+        from charter._drg_helpers import load_validated_graph
+        from doctrine.drg.models import Relation
+
+        repo = tmp_path / "dup_edge"
+        repo.mkdir()
+        pack_root = _write_org_pack_root_and_drg(
+            repo,
+            root_yaml=_ROOT_GRAPH_YAML_DUP_EDGE,
+            drg_yaml=_DRG_GRAPH_YAML_DUP_EDGE,
+            dir_name="dup-edge-fixture-pack",
+        )
+
+        with patch("charter._drg_helpers.load_built_in_graph", side_effect=_built_in_graph):
+            merged = load_validated_graph(repo, org_root=pack_root)
+
+        matching_edges = [
+            edge
+            for edge in merged.edges
+            if edge.source == _DUP_EDGE_SOURCE_URN
+            and edge.target == _DUP_EDGE_TARGET_URN
+            and edge.relation == Relation.REQUIRES
+        ]
+        assert len(matching_edges) == 1, (
+            f"expected exactly one retained copy of the duplicated triple, "
+            f"found {len(matching_edges)}: {matching_edges}"
+        )
