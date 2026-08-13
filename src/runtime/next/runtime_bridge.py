@@ -817,6 +817,27 @@ def _occurrence_gate_failures(feature_dir: Path) -> list[str]:
     return list(ensure_occurrence_classification_ready(feature_dir).errors)
 
 
+def _log_requirement_extraction_warnings(feature_dir: Path, warnings: list[str]) -> None:
+    """#3394 F4 (severity 4) restore, Part B -- fold the #3394 F1 advisory into
+    this path's diagnostics too.
+
+    Fix round 1 wired :func:`specify_cli.requirement_mapping.
+    find_undeclared_requirement_citations` into ``finalize-tasks``/
+    ``map-requirements`` only; this path (``spec-kitty next``'s
+    requirement-mapping preflight) got nothing, so an operator hitting the
+    Part A block above (or the non-blocking undeclared-shape case Part A
+    deliberately does NOT block) had no "why" -- just a bare block, or
+    nothing at all. Logged (never appended to the returned failures list),
+    so it stays exactly as non-blocking here as it is on the two CLI
+    commands -- distinguishable from the Part A block both by content (this
+    message starts with the section/doc name and "mentions requirement-shaped
+    token(s)", the block starts with "Requirement mapping preflight
+    blocked:") and by channel (a log line, never a guard failure).
+    """
+    for warning in warnings:
+        logger.warning("[%s] %s", feature_dir.name, warning)
+
+
 def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
     """Validate requirement coverage before issuing the finalize-tasks prompt.
 
@@ -830,6 +851,14 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
     now lives in the pure :func:`runtime_bridge_cores._evaluate_requirement_
     mapping` — the ``# noqa: C901`` this function used to carry is REMOVED,
     not relocated (FR-004/NFR-002).
+
+    #3394 F4 (severity 4) restore: also gathers the pre-#3394 doc-wide raw
+    token scan (``raw_requirement_ref_tokens``) into the facts bundle, so the
+    pure core can block on the narrow zero-declared-ids-but-raw-tokens-present
+    case (Part A), and logs any :func:`find_undeclared_requirement_citations`
+    advisory as a non-blocking diagnostic (Part B) -- see
+    :func:`runtime_bridge_cores._zero_declared_requirement_block` and
+    :func:`_log_requirement_extraction_warnings` for the full rationale.
     """
     spec_md = feature_dir / SPEC_ARTIFACT
     if not spec_md.exists():
@@ -842,13 +871,19 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
     try:
         from specify_cli.core.wps_manifest import load_wps_manifest
         from specify_cli.requirement_mapping import (
+            find_undeclared_requirement_citations,
             parse_requirement_ids_from_spec_md,
+            raw_requirement_ref_tokens,
             read_all_wp_requirement_refs,
         )
 
-        spec_ids = parse_requirement_ids_from_spec_md(spec_md.read_text(encoding="utf-8"))
+        spec_content = spec_md.read_text(encoding="utf-8")
+        spec_ids = parse_requirement_ids_from_spec_md(spec_content)
         all_spec_requirement_ids = set(spec_ids["all"])
         functional_requirement_ids = set(spec_ids["functional"])
+        raw_tokens = raw_requirement_ref_tokens(spec_content)
+
+        _log_requirement_extraction_warnings(feature_dir, find_undeclared_requirement_citations(spec_content))
 
         wps_manifest = load_wps_manifest(feature_dir)
         wp_requirement_refs = read_all_wp_requirement_refs(tasks_dir)
@@ -870,6 +905,7 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
         wp_ids=wp_ids,
         wp_requirement_refs={wp_id: tuple(refs) for wp_id, refs in wp_requirement_refs.items()},
         feature_dir_name=feature_dir.name,
+        raw_requirement_ref_tokens=frozenset(raw_tokens),
     )
     return _cores._evaluate_requirement_mapping(facts)
 
