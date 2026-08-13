@@ -199,7 +199,15 @@ def next_step(
         _emit_mission_not_found_error(_exc.handle, json_output)
         raise typer.Exit(1) from _exc
     _validate_result_and_answer(result, answer, json_output)
-    answered_id = _maybe_handle_answer(agent, mission_slug, answer, decision_id, repo_root, json_output)
+    answered_id = _maybe_handle_answer(
+        agent,
+        mission_slug,
+        answer,
+        decision_id,
+        repo_root,
+        json_output,
+        effective_root=effective_root,
+    )
 
     # Query mode: bare call without --result remains read-only and does not
     # require agent identity.
@@ -729,6 +737,8 @@ def _maybe_handle_answer(
     decision_id: str | None,
     repo_root: object,
     json_output: bool,
+    *,
+    effective_root: Path | None = None,
 ) -> str | None:
     if answer is None:
         return None
@@ -742,7 +752,14 @@ def _maybe_handle_answer(
     redirect = contextlib.redirect_stderr(stderr_buffer) if stderr_buffer is not None else contextlib.nullcontext()
     try:
         with redirect:
-            return _handle_answer(agent, mission_slug, answer, decision_id, repo_root)
+            return _handle_answer(
+                agent,
+                mission_slug,
+                answer,
+                decision_id,
+                repo_root,
+                effective_root=effective_root,
+            )
     except ActionContextError as exc:
         # FR-001 / C-IC02: the decision-answer path must preserve the typed
         # read-path code IDENTICALLY to the query path — not flatten it into a
@@ -889,6 +906,8 @@ def _handle_answer(
     answer: str,
     decision_id: str | None,
     repo_root: object,
+    *,
+    effective_root: Path | None = None,
 ) -> str:
     """Handle the --answer flow for pending decisions.
 
@@ -915,9 +934,28 @@ def _handle_answer(
         # the PRIMARY dir so the type is read from the real meta.json. WP08
         # (T036): dropped the caller-side canonicalizer fold — redundant with
         # the seam's own internal fold for a PRIMARY-partition kind.
-        feature_dir = placement_seam(
-            repo_root_path, mission_slug
-        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+        #
+        # Owned-checkout note: ``placement_seam(...).read_dir(...)`` folds a
+        # linked-worktree root back to the primary checkout
+        # (``get_main_repo_root``) — the "old way" the ADR forbids for
+        # opted-in owned layers (mirrors the established idiom in
+        # ``_pair_previous_lifecycle_record`` / ``_write_issuance_lifecycle_
+        # record`` / ``_emit_mission_next_invoked`` elsewhere in this file).
+        # When ``effective_root`` is supplied, resolve against it directly via
+        # ``mission_context_for`` instead so an owned ``--answer`` reads the
+        # owned checkout's mission content, not primary's.
+        if effective_root is None:
+            feature_dir = placement_seam(
+                repo_root_path, mission_slug
+            ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+        else:
+            from mission_runtime import mission_context_for
+
+            feature_dir = mission_context_for(
+                repo_root_path,
+                mission_slug,
+                effective_root=effective_root,
+            ).artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
         mission_type = get_mission_type(feature_dir)
         run_ref = runtime_bridge.get_or_start_run(mission_slug, repo_root_path, mission_type)
 
