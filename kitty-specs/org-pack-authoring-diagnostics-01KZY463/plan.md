@@ -409,6 +409,14 @@ implementation commit that makes it green, with the reviewer verifying it was RE
 `planning_base_branch` and GREEN on the WP's final commit. The two procedures answer different
 questions and both apply.
 
+`planning_base_branch` is fixed once per mission at WP-prompt-generation time
+(`src/specify_cli/cli/commands/agent/mission_branch_context.py:97`, where `target_branch` is
+resolved and copied into `planning_base_branch`; `meta.json:12` records `target_branch: "main"`
+for this mission) — it is `main`'s tip at planning time, the **same fixed commit for every WP in
+Lane B** (FR-002, FR-003, and FR-004 alike), not a pointer that advances as Lane B's own commits
+land. Every FR's test commit below is verified red against that one fixed commit, consistently —
+not against whichever state Lane B's tip happens to be in when that FR's test commit lands.
+
 Within Lane B's existing sequencing (FR-003 → FR-002 → FR-004, per "Chokepoint" below), each FR
 lands as exactly two commits — a test commit, then an implementation commit — not one combined
 commit:
@@ -428,9 +436,13 @@ commit:
      `AgentProfileRepository` at merge time — backed by the model-layer fixture added to
      `tests/doctrine/test_agent_profile_model_field.py`, C-004's "fixture data only, no new
      runtime code" file), asserting `pack validate --json` includes a `profile_skipped`
-     `ValidationIssue`. Run against the state after FR-003's implementation commit (Lane B's
-     running tip): `pack_validator.py` does not yet call `AgentProfileRepository` or
-     `skipped_profiles()` at all, so the issue is absent — confirmed RED.
+     `ValidationIssue`. **Primary RED check (C-011)**: the new test id, run in isolation against
+     `planning_base_branch` — `pack_validator.py` at that fixed commit does not call
+     `AgentProfileRepository` or `skipped_profiles()` at all, so the assertion fails, confirmed
+     RED. **Secondary check (attribution only)**: the same test id also fails at Lane B's running
+     tip immediately after FR-003's implementation commit, for the identical reason — useful for
+     confirming FR-002's own implementation commit, not FR-003's, is what turns it green, but not
+     a substitute for the primary check above.
    - *Implementation commit (green)*: add `_check_profile_skipped_diagnostics()` and its call
      site inside `validate_pack()`. The same test now passes.
 3. **FR-004** (DRG-root-graph mismatch + the assembler's carve-out):
@@ -442,11 +454,15 @@ commit:
      `check_drg_root=True` explicitly, and (b) the new positive-fire fixture (an `org init` pack
      later given a real `drg/*.graph.yaml` fragment with no pack-root graph produces
      `drg_root_graph_missing` via `doctrine org validate`) — to `test_pack_validator.py`,
-     `test_pack_assembler.py`, and `test_doctrine_org_commands.py` respectively. Run against the
-     state after FR-002's implementation commit: `validate_pack()` has no `check_drg_root`
-     parameter and no DRG-root-graph check exists yet, so AC-1's assertion fails, AC-6/AC-7(a)'s
-     parameter-value assertions fail (the keyword argument does not exist to inspect), and
-     AC-7(b)'s positive-fire fixture fails (no diagnostic exists to fire) — confirmed RED.
+     `test_pack_assembler.py`, and `test_doctrine_org_commands.py` respectively. **Primary RED
+     check (C-011)**: each new test id, run in isolation against `planning_base_branch` —
+     `validate_pack()` at that fixed commit has no `check_drg_root` parameter and no
+     DRG-root-graph check exists yet, so AC-1's assertion fails, AC-6/AC-7(a)'s parameter-value
+     assertions fail (the keyword argument does not exist to inspect), and AC-7(b)'s
+     positive-fire fixture fails (no diagnostic exists to fire) — confirmed RED. **Secondary
+     check (attribution only)**: the same test ids also fail at Lane B's running tip immediately
+     after FR-002's implementation commit, for the identical reasons — not a substitute for the
+     primary check above.
    - *Implementation commit (green)*: add `check_drg_root: bool = True`, the
      `_check_drg_root_graph_missing()` helper and its conditional call site, the unconditional
      `check_drg_root=False` carve-out in `pack_assembler.py`, and the explicit
@@ -454,13 +470,39 @@ commit:
      same tests now pass.
 
 **Reviewer verification (red→green, per C-011's own requirement)**: for each of the three pairs
-above, the reviewer confirms the test commit's added test function(s) fail when run against the
-tree immediately before the paired implementation commit (i.e., at Lane B's running tip up to and
-including the test commit, but not the implementation commit that follows it) and pass when run
-against Lane B's final commit. This is a per-commit-pair check, not a re-run of "The Baseline"'s
-four-file aggregate — a file's overall pass/fail count can stay green throughout while still
-hiding a WP that skipped its own red-first test, which is exactly what C-011 (as opposed to
-Standing Order #4 alone) exists to catch.
+above, the reviewer confirms the test commit's added test id(s) fail when checked out against
+Lane B's `planning_base_branch` — the single, fixed comparison point C-011 specifies, identical
+for FR-002, FR-003, and FR-004 alike (`planning_base_branch` is set once per mission at
+WP-prompt-generation time, not a pointer that advances as Lane B's own commits land) — and pass
+when run against Lane B's final commit. This is the **primary, charter-satisfying check for all
+three pairs**. An earlier draft of this plan substituted "the tree immediately before the paired
+implementation commit" (Lane B's running tip) for FR-002 and FR-004's RED check — a different,
+looser checkpoint than C-011 specifies, silently inconsistent with the Charter Check gate's own
+summary line above, which already promised `planning_base_branch` (`reviews/plan-verify-4.yaml`,
+finding PLAN-V4-001). That substitution is corrected here: the intra-lane "immediately before the
+paired implementation commit" check is retained only as a **secondary, attribution-only** aid — it
+pinpoints which specific commit's diff is what actually turned the test green — but it never
+substitutes for the primary `planning_base_branch` check. This is a per-commit-pair check, not a
+re-run of "The Baseline"'s four-file aggregate — a file's overall pass/fail count can stay green
+throughout while still hiding a WP that skipped its own red-first test, which is exactly what
+C-011 (as opposed to Standing Order #4 alone) exists to catch.
+
+**Practical consequence for Lane B's sequencing**: because `planning_base_branch` is fixed and
+identical for every WP in Lane B, verifying FR-002's and FR-004's tests red against it is not the
+simple glance at the immediately-preceding commit that suffices for FR-003 (FR-003 is first in
+sequence, so Lane B's running tip and `planning_base_branch` coincide for it). For FR-002 and
+FR-004, the reviewer must check out `planning_base_branch` itself as a separate ref, apply only
+that FR's new test id(s) on top of it (not the whole targeted file — by the time FR-002's or
+FR-004's test commit lands, the file already carries the prior FR's own new test function, which
+would *also* show red against `planning_base_branch` for an unrelated reason and would muddy the
+signal), and run that test id there. This does **not** change Lane B's commit order — FR-003 →
+FR-002 → FR-004 stays, driven by "Chokepoint" below's low-risk-to-high-risk sequencing, not by
+ATDD verification needs — the consequence is an added reviewer-verification step per WP, not a
+resequencing of the lane. For this specific mission the RED result happens to be the same at both
+checkpoints (FR-002's and FR-004's new checks are functionally independent of the immediately
+preceding FR's implementation, so `planning_base_branch` and the intra-lane tip both show RED) —
+but this plan states the `planning_base_branch` check as the one that satisfies C-011, not the
+coincidence that a looser check happens to agree with it.
 
 **FR-001 (documentation-only)**: C-011 pins "the user-observable behaviour the WP delivers" with
 a failing-first test. FR-001 delivers no runtime-observable behaviour — it corrects prose in a
