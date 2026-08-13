@@ -20,6 +20,8 @@ from tests.docs.diagram_drift import binding_table, guard
 from tests.docs.diagram_drift.binding_table import DiagramBinding, ModelKind
 from doctrine.drg.models import DRGNode
 
+pytestmark = pytest.mark.unit
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 _DRGNODE_FIXTURE = """

@@ -25,6 +25,8 @@ if str(_DOCS_DIR) not in sys.path:
 import plantuml_invoke  # noqa: E402
 import plantuml_render  # noqa: E402
 
+pytestmark = pytest.mark.unit
+
 
 def _docker_available() -> bool:
     if shutil.which("docker") is None:

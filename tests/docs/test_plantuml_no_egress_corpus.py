@@ -28,6 +28,8 @@ if str(_DOCS_DIR) not in sys.path:
 
 import plantuml_invoke  # noqa: E402
 
+pytestmark = pytest.mark.unit
+
 _CORPUS_DOCS = (
     "docs/architecture/doctrine-relationships.md",
     "docs/architecture/mission-type-resolution.md",
