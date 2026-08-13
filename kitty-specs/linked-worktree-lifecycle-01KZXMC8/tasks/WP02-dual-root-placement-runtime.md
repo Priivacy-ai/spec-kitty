@@ -27,7 +27,7 @@ history:
 - at: '2026-08-13T13:39:12Z'
   actor: system
   action: Prompt generated via /spec-kitty.tasks
-agent_profile: reviewer-renata
+agent_profile: python-pedro
 authoritative_surface: src/mission_runtime/resolution.py
 create_intent:
 - tests/mission_runtime/test_dual_root_mission_placement.py
@@ -38,7 +38,7 @@ owned_files:
 - src/specify_cli/missions/_read_path_resolver.py
 - tests/architectural/test_single_mission_surface_resolver.py
 - tests/mission_runtime/test_dual_root_mission_placement.py
-role: reviewer
+role: implementer
 tags: []
 task_type: implement
 tracker_refs:
