@@ -27,7 +27,7 @@ history:
 - at: '2026-08-13T13:39:12Z'
   actor: system
   action: Prompt generated via /spec-kitty.tasks
-agent_profile: python-pedro
+agent_profile: reviewer-renata
 authoritative_surface: src/mission_runtime/resolution.py
 create_intent:
 - tests/mission_runtime/test_dual_root_mission_placement.py
@@ -36,8 +36,9 @@ model: ''
 owned_files:
 - src/mission_runtime/resolution.py
 - src/specify_cli/missions/_read_path_resolver.py
+- tests/architectural/test_single_mission_surface_resolver.py
 - tests/mission_runtime/test_dual_root_mission_placement.py
-role: implementer
+role: reviewer
 tags: []
 task_type: implement
 tracker_refs:
@@ -83,3 +84,4 @@ Targeted и relevant regression pytest, Ruff, mypy strict, mutation удален
 ## Activity Log
 
 - 2026-08-13T13:39:12Z – system – Prompt created.
+- 2026-08-13T15:26:59Z – codex – shell_pid=27296 – RED 4dc910b91: 4/4 dual-root production tests TypeError. GREEN fe14ed808 + architectural sanction 28a8b19ba: caller PRIMARY/flat STATUS остаются в mission anchor, repository_root владеет Git/topology. Проверки: 178 runtime, 51 read-path, 24 architectural, Ruff, py_compile, mypy strict, diff-check PASS. Mutation удаления anchor forwarding дал ожидаемый RED.
