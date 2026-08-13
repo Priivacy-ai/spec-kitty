@@ -1,0 +1,84 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: >
+      spec.md lines 15-19 now explicitly label the block as a paraphrase (not a verbatim
+      quotation), drop the misleading bold "Registry + plan table + doctor." lead-in, and cite
+      the exact readiness-probe bullet as the source of record ("Scope to the guard-table
+      registry + `plan` table + `doctor mission-type` only (Recommended)"), which matches the
+      probe's actual text at line 286 verbatim — the epistemic gap is closed, not just reworded.
+
+  - id: SPEC-GOV-002
+    status: resolved
+    reason: >
+      The table cell (spec.md line 46) now says "corrected figure per one direct enumeration
+      (27 sites, 15 skipping validation); direction independently re-checked by a second,
+      rougher grep (~29/17, \"close enough... to trust its direction\" per the probe)", which
+      matches the probe's actual epistemic status at lines 215-225 and drops the false
+      "independently corroborated twice" claim.
+
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: >
+      A new binding "Call-site shape" paragraph (spec.md lines 144-157) plus updated C-001,
+      C-002, FR-005, and a new Acceptance Scenario 3 / Independent-Test Part 2 (lines 165-190)
+      now explicitly require `_check_cli_guards` itself to call the strict/raising lookup and
+      `_check_composed_action_guard` itself to call the tolerant wrapper, closing the
+      isolated-unit-tested-but-unwired-helper loophole the finding identified — this is a
+      substantive new testable requirement, not a restatement.
+
+  - id: SPEC-ARCH-002
+    status: resolved
+    reason: >
+      NFR-001 (spec.md line 279) now names tests/next/test_runtime_bridge_unit.py,
+      tests/next/test_occurrence_gate_next_loop.py, and
+      tests/specify_cli/next/test_runtime_bridge_composition.py as part of the verification
+      method; confirmed by direct grep that each of these three files makes unmocked direct
+      calls to _check_cli_guards or _check_composed_action_guard, so the byte-for-byte-identical
+      claim is now backed by tests that exercise the real delegate call chains.
+
+  - id: SPEC-ARCH-003
+    status: resolved
+    reason: >
+      Both citations (User Story 3 line 130, FR-005 line 267) now read
+      runtime_bridge.py:680-698; confirmed via grep -n that `def _check_cli_guards` is on line
+      680 and the function body ends at line 698, and no stale 678-698 citation remains anywhere
+      in the file.
+
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: >
+      FR-004 (line 266) now pins "WARNING level or above" citing the existing
+      runtime_bridge.py:2239/2249/2268 logger.warning convention (verified those three lines are
+      indeed logger.warning calls), SC-002 (lines 319-323) now requires asserting the captured
+      log record's level, and FR-003/FR-004 now cross-reference FR-007 as required.
+
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: >
+      FR-002 (line 264) now names spec.md/research.md/plan.md for specify/research/plan, which
+      matches the repo's existing SPEC_ARTIFACT="spec.md"/PLAN_ARTIFACT="plan.md" naming
+      convention used by the sibling research/documentation guard tables, and a new Acceptance
+      Scenario 3 (lines 120-124) exercises the previously-untested research-step missing-artifact
+      case.
+
+  - id: SPEC-VERIFY-004
+    status: resolved
+    reason: >
+      FR-008 (line 270) now states blank/null/non-string mission_type classifies as typeless per
+      the existing _canonical_meta_mission_type convention, citing mission.py:542-556; confirmed
+      by reading that function that it is exactly _canonical_meta_mission_type and its docstring
+      states non-string and blank values are treated as absent (None/typeless), matching the
+      claim.
+
+  - id: SPEC-VERIFY-005
+    status: resolved
+    reason: >
+      NFR-001 (line 279) now frames its acceptance bar as capturing a baseline BEFORE touching
+      runtime_bridge_cores.py and requiring zero NEW reds relative to that baseline, explicitly
+      consistent with SC-004's existing diff-against-pre-mission-state framing, resolving the
+      unconditional-"all green" gap.
