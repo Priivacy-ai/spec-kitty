@@ -46,10 +46,13 @@ from specify_cli.migration.schema_version import (
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.runner import MigrationRunner
 
-# End-to-end reproduction of the wedged -> recovered sequence (#3334 + #3372).
-# ``regression`` routes it into the always-on blocking regression CI job; the
-# git-backed SC-001 case additionally carries ``git_repo`` (real ``git init``).
-pytestmark = pytest.mark.regression
+# Green end-to-end acceptance of the wedged -> recovered sequence (#3334 +
+# #3372). No ``@pytest.mark.regression``: this is a green composition proof, not
+# a red-first open-P0 reproduction, so it stays in its path suite rather than the
+# ADR 2026-07-17-1 red-first home (``tests/regression/``). The SC-001 case carries
+# ``git_repo`` (real ``git init``) -> integration-tests-upgrade; the no-VCS case
+# carries ``fast`` -> fast-tests-upgrade.
+pytestmark = pytest.mark.unit
 
 _GET_APPLICABLE = "specify_cli.upgrade.runner.MigrationRegistry.get_applicable"
 
@@ -263,6 +266,7 @@ def test_sc001_wedged_project_recovers_with_zero_manual_git_steps(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.fast
 def test_no_vcs_wedged_project_recovers_on_disk(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
