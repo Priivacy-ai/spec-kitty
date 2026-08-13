@@ -6,7 +6,7 @@
 
 ## Summary
 
-Добавить единый mission-scoped resolver рабочей поверхности. Он формирует ограниченный набор кандидатов — явно заданный root, managed coordination/lane, текущий caller-owned checkout и repository-root checkout — проверяет общую Git-identity и Mission identity, после чего возвращает один `MissionOperationContext`. Команды lifecycle используют выбранный root и уже существующий placement seam; глобальные `locate_project_root()` и `get_main_repo_root()` сохраняют прежнюю семантику.
+Добавить единый mission-scoped resolver с двумя независимыми корнями. `repository_root` остаётся общим Git/topology anchor, а `mission_anchor_root` указывает checkout, где лежат PRIMARY-метаданные и планирующие артефакты выбранной Mission. Resolver формирует ограниченный набор кандидатов — явно заданный root, managed coordination/lane, текущий caller-owned checkout и repository-root checkout — проверяет общую Git-identity и Mission identity, после чего возвращает один `MissionOperationContext`. Существующий placement seam получает оба корня и по-прежнему единолично выбирает фактические PRIMARY/STATUS surfaces; глобальные `locate_project_root()` и `get_main_repo_root()` сохраняют прежнюю семантику.
 
 ## Technical Context
 
@@ -38,8 +38,8 @@ src/specify_cli/
 ├── core/paths.py                         # классификация ближайшего checkout и Git identity
 ├── context/mission_resolver.py           # существующая Mission identity
 ├── missions/
-│   ├── operation_context.py              # новый единый mission-scoped resolver
-│   └── _read_path_resolver.py            # чтение через выбранный operation root
+│   ├── operation_context.py              # новый единый mission-scoped dual-root resolver
+│   └── _read_path_resolver.py            # PRIMARY от anchor, STATUS по topology
 └── cli/
     ├── selector_resolution.py            # единая CLI-точка разрешения
     └── commands/...                       # только прямые обходы общей boundary
@@ -49,7 +49,7 @@ tests/
 └── specify_cli/                           # конфликт, explicit root, managed topology, selector forms
 ```
 
-**Решение по структуре**: новый resolver размещается рядом с Mission read boundary, а не в Git-root helper. Команды получают готовый operation context и не принимают собственных решений по `cwd`.
+**Решение по структуре**: новый resolver размещается рядом с Mission read boundary, а не в Git-root helper. Команды получают готовый operation context и не принимают собственных решений по `cwd`. `feature_dir` не хранится как единый универсальный путь: конкретный artifact dir возвращает существующий kind-aware placement seam.
 
 ## Модель разрешения
 
@@ -61,7 +61,7 @@ tests/
    - содержит `.kittify` и выбранную Mission;
    - не классифицирован как Spec Kitty managed surface.
 4. Repository-root checkout остаётся fallback для существующих сценариев.
-5. Если один selector соответствует несовместимым `mission_id`, resolver возвращает стабильную структурированную ошибку с безопасными путями кандидатов и ничего не пишет.
+5. Если один selector или совпадающий slug соответствует несовместимым `mission_id`, resolver возвращает стабильную структурированную ошибку с безопасными путями кандидатов и ничего не пишет. Проверка выполняется и для full `mission_id`, чтобы конфликтующая slug-копия не осталась невидимой.
 6. Совпадающая Mission identity на нескольких допустимых поверхностях не считается конфликтом; порядок выбора остаётся детерминированным согласно пунктам 1–4.
 
 ## Implementation Concern Map
@@ -84,7 +84,7 @@ tests/
 
 ### IC-03 — Подключение полного lifecycle
 
-- **Назначение**: провести operation root через status, context, planning, tasks, action, next и accept, не меняя artifact partition/topology.
+- **Назначение**: провести `repository_root` и `mission_anchor_root` через status, context, planning, tasks, action, next и accept, не меняя artifact partition/topology.
 - **Требования**: FR-002, FR-003, FR-004, FR-007; C-002, C-004.
 - **Поверхности**: `cli/selector_resolution.py`, `missions/_read_path_resolver.py`, прямые вызовы `locate_project_root()` в lifecycle-командах.
 - **Зависимости**: IC-01, IC-02.
@@ -100,11 +100,11 @@ tests/
 
 ## Порядок реализации
 
-1. Зафиксировать отдельным коммитом падающий end-to-end тест текущего дефекта и узкие RED-тесты conflict/explicit/managed.
-2. Реализовать `MissionOperationContext` и чистый выбор кандидатов.
-3. Подключить общий selector/read boundary, затем заменить только подтверждённые прямые обходы.
-4. Прогнать полный lifecycle и non-regression; измерить overhead на 100 Mission.
-5. Обновить changelog/внутреннюю документацию только если observable CLI contract требует пояснения.
+1. Зафиксировать отдельным коммитом падающий production-CLI тест текущего дефекта и снимки неизменности primary checkout.
+2. Реализовать `MissionOperationContext`, Git/managed-классификацию, selector + slug conflict matrix.
+3. Провести dual-root contract через placement/read/action runtime: topology от `repository_root`, PRIMARY от `mission_anchor_root`.
+4. Подключить status/context/setup-plan/tasks/action/next/accept и branch/commit paths; добавить architectural guard против повторного root lookup после context.
+5. Прогнать полный lifecycle, explicit root, managed regressions, два caller worktree и benchmark на 100 Mission; обновить changelog/внутреннюю документацию при необходимости.
 
 ## Критерии завершения
 

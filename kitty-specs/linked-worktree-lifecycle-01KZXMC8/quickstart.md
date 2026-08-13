@@ -5,7 +5,7 @@
 1. Создать чистый временный Git-репозиторий Spec Kitty и caller-owned linked worktree вне managed `.worktrees`.
 2. Из linked worktree создать Mission.
 3. Выполнить по `mission_id`: status, context resolve, setup-plan/spec-commit, tasks finalize, action implement/review, next и accept в предусмотренных тестом состояниях.
-4. На каждом шаге проверить одинаковые `mission_id`, slug и путь внутри caller-owned worktree.
+4. На каждом шаге проверить одинаковые `mission_id`/slug, постоянные `repository_root`/`mission_anchor_root` и kind-aware пути внутри ожидаемых surfaces.
 5. Сравнить branch, HEAD и `git status --porcelain` repository-root checkout с исходным снимком.
 
 ## Отрицательные сценарии

@@ -15,16 +15,16 @@
 
 ## MissionOperationContext
 
-- `project_root: Path` — repository-root checkout для Git topology операций.
-- `operation_root: Path` — checkout, где находится primary Mission surface данного вызова.
+- `repository_root: Path` — repository-root checkout для Git и topology операций.
+- `mission_anchor_root: Path` — checkout, где находится PRIMARY Mission surface данного вызова.
 - `mission_id: str`.
 - `mission_slug: str`.
-- `feature_dir: Path`.
-- `surface_kind` — происхождение выбранного checkout.
+- `checkout_kind` — происхождение выбранного Mission anchor.
 
 Инварианты:
 
-- `feature_dir` находится внутри `operation_root/kitty-specs`;
+- PRIMARY artifact dirs находятся внутри `mission_anchor_root/kitty-specs`;
+- STATUS artifact dirs вычисляются существующим placement seam и могут отличаться от PRIMARY;
 - все lifecycle-команды одного состояния возвращают одну identity;
 - выбор контекста не пишет на диск.
 
