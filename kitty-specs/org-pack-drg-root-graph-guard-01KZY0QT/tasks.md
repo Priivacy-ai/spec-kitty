@@ -45,8 +45,22 @@ wraps the same two load call sites IC-01 establishes. Splitting them into separa
 create an artificial dependency chain (WP-per-IC, each blocked on the last) for no
 parallelization benefit — nothing in IC-02/IC-03 can start before IC-01 lands, and there is no
 second engineer this would free up. This is a **sizing decision made from the actual subtask
-count** (9 subtasks, comfortably inside the 3–10 range, not the 20+ that would force a split),
-not a shortcut — see the subtask breakdown in WP01 below.
+count** (9 subtasks — inside the outer 3–10 bound, though landing in the canonical tasks-prompt
+sizing rubric's 8–10 ⚠️ warning tier rather than the 3–7 ✓ target tier), not a shortcut — see the
+subtask breakdown in WP01 below.
+
+**Line-count dimension** (the canonical rubric's second sizing axis, checked explicitly here —
+not left silently unperformed): the realized `tasks/WP01-org-pack-drg-root-graph-guard.md` is
+728 lines (`wc -l`, re-measured after this fix round's corrections), over the canonical
+tasks-prompt's 700-line ceiling
+(`packs/built-in/missions/mission-steps/software-dev/tasks/prompt.md:209`, "MAXIMUM PROMPT SIZE:
+700 lines per WP"; sizing rubric row "Estimated lines: 700+? ❌ SPLIT"). This is accepted as a
+deliberate, measured exception rather than a silent breach: the excess is concentrated in
+genuinely load-bearing per-subtask detail (concrete file/function/primitive citations, per-test
+RED "reverted-code check" notes, and the Review Guidance checklist a single-function-evolution WP
+of this precision needs) rather than padding, and splitting IC-01/IC-02/IC-03 into per-IC WPs
+purely to shrink one file's line count would recreate the artificial WP-per-IC dependency chain
+already rejected above, for zero parallelization benefit.
 
 **Chokepoints**: none. This mission does not touch the migration chain, the runtime-state
 schema, the event contract, or add a new shared CI gate — confirmed by plan.md's Seam and
@@ -62,8 +76,8 @@ preceding cleanup commit.
 re-run the plan-phase sweep): `gh pr list --repo Priivacy-ai/spec-kitty --state open --json
 number,title,files` was re-run against all 18 currently-open PRs (#2239–#3383). None touch
 `src/charter/_drg_helpers.py`, `src/charter/action_doctrine_bundle.py`, or any path under
-`tests/charter/`. The plan-phase note about #3300/#3293 touching only
-`.kittify/charter/governance.yaml` still holds and remains irrelevant to this mission's
+`tests/charter/`. PRs #3300 and #3293 each touch `.kittify/charter/governance.yaml` among
+roughly 100–150 other files in their respective diffs; neither touches this mission's
 `owned_files`.
 
 ---

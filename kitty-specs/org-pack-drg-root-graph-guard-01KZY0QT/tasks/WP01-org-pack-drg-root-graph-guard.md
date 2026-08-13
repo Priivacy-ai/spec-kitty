@@ -241,9 +241,11 @@ full regression-test coverage:
   1. On the current branch, **before** any of this WP's commits, run:
      `pytest tests/charter/ tests/architectural/ -q` (or with `-n auto --dist loadfile` if the
      environment supports parallel execution, per AGENTS.md's convention).
-  2. Record the resulting red test IDs + failure summaries verbatim in this WP's Activity Log
-     (or a short note referenced from it) — this is the baseline for *this mission's targeted
-     surface* specifically, which may be a subset of #3284's full ~23.
+  2. Record the resulting red test IDs + failure summaries verbatim in this mission's
+     `tracer-tooling-friction.md`, under its "Baseline-capture record" section — per plan.md's
+     Baseline procedure step 5 ("committed to the mission's tracer notes"), not this WP's
+     Activity Log — this is the baseline for *this mission's targeted surface* specifically,
+     which may be a subset of #3284's full ~23.
   3. Do not attempt to fix any of these pre-existing failures.
 - **Files**: none changed; this is an observation step.
 - **Parallel?**: No — must run before T002.
@@ -428,10 +430,16 @@ full regression-test coverage:
          """
      ```
      Implementation: call `duplicate_edge_triples(graph)` to get the list of repeat-occurrence
-     edges to drop; build a new edge list that excludes those specific edge objects (by
-     identity or by the same triple-equality the primitive uses — do not drop *all* copies,
-     only the second-and-later occurrences the primitive returns); return a new `DRGGraph`
-     via `graph.model_copy(update={"edges": deduped_edges})`.
+     edge objects to drop; filter by **identity**, unambiguously — build
+     `dup_ids = {id(e) for e in duplicate_edge_triples(graph)}`, then keep
+     `deduped_edges = [e for e in graph.edges if id(e) not in dup_ids]`. Do **not** filter with
+     `e not in duplicate_edge_triples(graph)` (value/triple-equality, via `in`/`==`): `DRGEdge`
+     has no custom `__eq__`, so when `when`/`reason`/`provenance` are unset the first and second
+     occurrence of an identical triple are pydantic-value-equal to each other, and a
+     value-equality filter drops *both* copies — leaving zero retained edges instead of the
+     required exactly one (T004's `test_identical_edge_triple_deduped_to_one_not_dropped`
+     asserts length == 1). Return a new `DRGGraph` via
+     `graph.model_copy(update={"edges": deduped_edges})`.
   3. In `_load_org_layer`'s both-present branch (T003 step 6's placeholder), replace the plain
      `merge_layers(...)` call with:
      ```python
@@ -679,6 +687,11 @@ See "Risks & Mitigations" in `tasks.md`'s WP01 section — repeated here for con
 - Confirm T006.4 and T006.5 remain two separate test functions.
 - Confirm `_drg_helpers.py`'s `__all__` is unchanged (`["load_validated_graph"]`).
 - Confirm `action_doctrine_bundle.py`'s diff is comment-only (no functional-code line changed).
+- Confirm NFR-001 (byte-for-byte-unaffected output when no org pack is declared): the
+  `org_root is None`/`not org_root.exists()` branch of `load_validated_graph`'s ternary is
+  byte-identical to `planning_base_branch` — the diff should only touch the `if` side of the
+  ternary (`load_graph_or_dir(org_root)` → `_load_org_layer(org_root)`), never the surrounding
+  condition or the `else: None` fallback.
 
 ## Activity Log
 

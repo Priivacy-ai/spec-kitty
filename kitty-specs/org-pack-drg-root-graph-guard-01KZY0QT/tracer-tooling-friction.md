@@ -106,6 +106,15 @@ is the sanctioned recovery path this mission's brief names for exactly this situ
 ("`safe-commit` is the correct recovery tool ONLY if you need to commit something
 `finalize-tasks` didn't") — not a hand-rolled workaround.
 
+## Baseline-capture record (T001 / plan.md Baseline step 5)
+
+<!-- Populated once, by WP01's T001, before this mission's first RED commit lands. Per
+     plan.md's Baseline procedure step 5 ("committed to the mission's tracer notes"): run
+     `pytest tests/charter/ tests/architectural/ -q` on `planning_base_branch` before any of
+     this WP's commits, then record the resulting red test IDs + failure summaries verbatim
+     below. Distinct from — and precedes — the per-FR ATDD red-first discipline; this capture
+     happens once for the whole mission, not per WP. -->
+
 ## Entries
 
 <!-- YYYY-MM-DD — 1-3 sentences: what happened, why it slowed you down. -->
