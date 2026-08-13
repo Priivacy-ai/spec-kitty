@@ -1,7 +1,7 @@
 {
-  "event_count": 24,
-  "last_event_id": "01KZXX16HGV5T4MEEPK300GG7H",
-  "materialized_at": "2026-08-13T15:49:40.016702+00:00",
+  "event_count": 26,
+  "last_event_id": "01KZXX2X3FDTP6B9J22XVVVRHC",
+  "materialized_at": "2026-08-13T15:50:35.885820+00:00",
   "mission_number": "",
   "mission_slug": "linked-worktree-lifecycle-01KZXMC8",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -92,11 +92,14 @@
       }
     },
     "WP03": {
-      "actor": "finalize-tasks",
+      "actor": "codex",
+      "agent": "codex",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01KZXP99ZHHDD786S85ABHTJB3",
-      "last_transition_at": "2026-08-13T13:51:45.649393+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KZXX2X3FDTP6B9J22XVVVRHC",
+      "last_transition_at": "2026-08-13T15:50:35.885820+00:00",
+      "shell_pid": 20040,
+      "shell_pid_created_at": "1786636219.5653255"
     }
   }
 }
