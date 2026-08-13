@@ -19,6 +19,17 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### ✨ Added
 
+- **Documentation can now be marked `durable` — a standing reference that is
+  never flagged as stale draft (mission `docs-plans-closeout-01KZTK2J`;
+  `#3368`).** Before, a long-lived throughline doc could only be `active`, so the
+  freshness SLA eventually nagged it toward "review or retire" like any aging
+  draft. Now `durable` is a reserved `doc_status` across the whole authority
+  chain (the `042-common-docs` directive, the `DocStatus` enum, the common-docs
+  styleguide and tactics, and the never-stale freshness rule), so a deliberate
+  standing document is left alone. This closeout also retires ~60 shipped or
+  superseded working notes in place (content preserved, evidence-cited) and
+  gathers the domain plans under `docs/plans/domains/`.
+
 - **The doctrine documentation site now shows rendered schema diagrams of the
   doctrine artefacts, drawn locally with no network egress (mission
   `doctrine-schema-diagrams-01KZTQTH`; `#3366`, `#3354`).** Before, the doctrine
