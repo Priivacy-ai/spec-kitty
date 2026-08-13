@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "mission_slug": "mission-type-guard-registry-01KZY2FG",
+  "mission_id": "01KZY2FGYX2B90XXDD1DM3M95B",
+  "mission_branch": "kitty/mission-mission-type-guard-registry-01KZY2FG",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge.py",
+        "src/runtime/next/runtime_bridge_composition.py",
+        "src/runtime/next/runtime_bridge_cores.py",
+        "src/runtime/next/runtime_bridge_io.py",
+        "tests/runtime/test_bridge_composition.py",
+        "tests/runtime/test_bridge_cores.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_mission_type_audit.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py",
+        "tests/specify_cli/cli/commands/test_doctor_mission_type.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-13T22:48:11.889938+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
