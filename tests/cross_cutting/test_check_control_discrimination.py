@@ -66,9 +66,20 @@ def _live_report() -> dict[str, Any]:
     return json.loads(_LIVE_REPORT.read_text(encoding="utf-8"))
 
 
+#: The fixture's control case, pinned by IDENTITY rather than by count. A bare
+#: ``len(controls) == 1`` is satisfied by any single control, so a fixture whose
+#: control was swapped for a different (or accidentally passing) case still reads
+#: as well-formed -- the failure mode this whole module exists to detect. Naming
+#: the id makes the substitution a red.
+_CONTROL_ID = "rigged-impossible-control"
+
+
 def _control_case(report: dict[str, Any]) -> dict[str, Any]:
     controls = [c for c in report["results"] if c.get("isControl") is True]
-    assert len(controls) == 1, "fixture must carry exactly one isControl case"
+    assert [c["id"] for c in controls] == [_CONTROL_ID], (
+        f"fixture must carry exactly the control case {_CONTROL_ID!r}; "
+        f"got {[c.get('id') for c in controls]!r}"
+    )
     return controls[0]
 
 
