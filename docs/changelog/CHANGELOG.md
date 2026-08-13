@@ -146,6 +146,31 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   `planning_commit_sha`; it now preserves provenance once any work package has left
   `planned` (`#3311`).
 
+- **Six upgrade-wedge failures, where a stuck migration left no self-service way
+  out, are fixed (`#3383`; `#3335`, `#3336`, `#3337`, `#3338`, `#3339`,
+  `#3372`).** Concretely: a failed `runtime_state_backfill` aborted mid-walk with
+  no record of what it had already written, leaving the operator unable to tell
+  how far the migration got; it now enumerates every mission and file already
+  persisted before it stopped (`#3335`). `spec-kitty upgrade --dry-run` (and
+  `--json`) could report nothing pending while the real run went on to apply many
+  migrations, because the preview computed pending work through a different path
+  than the real run; the preview now drives off the same migration selector, so it
+  reports the true pending set (`#3336`). `agent mission create --json` returned a
+  bare `CHARTER_PACK_CONFIG_INVALID` error code with no fix steps, discarding the
+  human-readable remediation text a plain-text run would have shown; the `--json`
+  envelope now carries the remediation body alongside the code (`#3337`). The
+  `migrate backfill-runtime-state ... --dry-run` diagnostic a failed migration
+  told operators to run was itself blocked behind that same failed migration — a
+  catch-22 with no way out; the `--dry-run` form is now ungated (the mutating form
+  stays blocked) (`#3338`). A failed `mission create` left the operator's checkout
+  switched onto the coordination branch it had just minted, and left that orphan
+  branch behind; it now restores the original checkout and deletes the branch it
+  created (`#3339`). The review cycle could append a duplicate `review_feedback`
+  frontmatter key, producing invalid YAML that later wedged upgrades trying to
+  parse it; the writer that appended on a miss is retired (it now fails closed),
+  duplicate-key artifacts are detected and can be repaired non-destructively, and
+  the frontmatter reader names every offending key (`#3372`).
+
 ## [3.2.6rc1] - 2026-08-12
 
 > [!WARNING]
