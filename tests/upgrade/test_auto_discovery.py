@@ -164,6 +164,39 @@ class TestAutoDiscovery:
 
         assert len(MigrationRegistry.get_all()) == 0
 
+    def test_auto_discover_does_not_reload_base_module(self):
+        """clear() + auto-discover must NOT reload ``base`` (class identity).
+
+        ``base`` holds the shared migration base classes (``BaseMigration``,
+        ``MigrationResult``, ``PartialWrite``) that both the migration modules
+        and external callers hold live references to, and it registers no
+        migration. Before the fix, auto-discover always fell through the
+        "not registered -> reload" branch for ``base`` and ``importlib.reload``
+        minted fresh class objects — silently breaking ``isinstance`` across the
+        process (a reloaded ``m_zz`` constructed the new ``base.PartialWrite``
+        while a caller still held the original, so ``isinstance(write, PartialWrite)``
+        went False). This is the cross-file pollution that flaked
+        ``tests/upgrade/test_backfill_report_on_abort.py`` under ``--dist loadfile``.
+        """
+        import specify_cli.upgrade.migrations.base as base_module
+        from specify_cli.upgrade.migrations.base import PartialWrite
+
+        original_base = base_module
+        original_partial_write = PartialWrite
+
+        # The exact test scenario that used to trigger the base reload.
+        MigrationRegistry.clear()
+        auto_discover_migrations()
+
+        import specify_cli.upgrade.migrations.base as base_after
+
+        assert base_after is original_base, "auto-discover reloaded the base module"
+        assert base_after.PartialWrite is original_partial_write, (
+            "base.PartialWrite identity changed — a base reload broke isinstance()"
+        )
+        # A freshly-constructed record is an instance of the caller's imported class.
+        assert isinstance(base_after.PartialWrite(mission="m", path="/p"), PartialWrite)
+
     def test_all_migration_files_have_registration_decorator(self):
         """All m_*.py files use @MigrationRegistry.register decorator."""
         for migration_file in MIGRATIONS_DIR.glob("m_*.py"):
