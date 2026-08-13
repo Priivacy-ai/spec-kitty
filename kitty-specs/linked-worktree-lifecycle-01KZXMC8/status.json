@@ -35,7 +35,8 @@
         "Managed anchor RED/GREEN blocker закрыт; повторная передача независимому reviewer",
         "Review: добавить managed split-brain oracle и exact stable safe payload/order contract",
         "Цикл исправления review blockers без расширения production scope",
-        "Review blockers closed at lane HEAD 295555cab: managed split-brain conflict probe and exact stable safe payload contracts covered; 9+40+32 tests and quality gates pass."
+        "Review blockers closed at lane HEAD 295555cab: managed split-brain conflict probe and exact stable safe payload contracts covered; 9+40+32 tests and quality gates pass.",
+        "Independent review APPROVE at lane HEAD 295555cab; prior managed split-brain and stable payload blockers closed; parent verified 9+40+32 tests plus Ruff, py_compile, mypy and diff-check."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
