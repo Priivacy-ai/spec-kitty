@@ -56,6 +56,23 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **Direct sync ingress no longer drifts to a shared/primary team when the
+  session read transiently returns None (`#738`/spec-kitty-saas `#911`).** The
+  fan-out handler resolved the producer scope as
+  `read_queue_scope_from_session() or read_queue_scope_from_credentials()`. The
+  session path is fail-closed to the user's Private Teamspace, but the credentials
+  fallback returns whatever `team_slug` the credentials TOML last stored (often a
+  shared/primary team, e.g. `stijn` rather than `stijn-private`). During a token
+  refresh or a rehydrate miss the session read returns None and ingress silently
+  rerouted to that team — forking the producer-scoped journal (`journal-<scope>.db`)
+  and materializing the project under the wrong team server-side, so the
+  private→shared share could never find it (the Kitty Prime "I can't see the
+  team's work" symptom). Ingress is now session-only: it honours the fail-closed
+  contract and skips queueing when the Private Teamspace can't be resolved, rather
+  than attributing the event to the wrong scope. The credentials reader stays for
+  the diagnostic call sites (e.g. `sync doctor`/preflight, which compare the two
+  scopes to *detect* exactly this drift).
+
 - **Root README guide links point at the post-IA `tutorials/` and `how-to/`
   paths.** Fixes GitHub 404s from stale flat `docs/guides/*.md` hrefs after the
   guides subdivision (e.g. Your First Mission).
