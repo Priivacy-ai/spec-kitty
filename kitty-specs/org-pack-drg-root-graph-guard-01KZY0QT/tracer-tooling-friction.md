@@ -202,6 +202,35 @@ WP01's blast radius entirely — C-001 confines this WP to `src/charter/_drg_hel
 blocked a normal diagnostic step (checking charter health before proceeding) and forced falling
 back to reading `.kittify/charter/*.yaml` directly instead.
 
+## SK-17 — `move-task ... --to for_review` refuses on `kitty-specs/` commits made on the
+lane branch, with no upfront guidance steering commits there in the first place
+
+Live-verified at WP01's T009 close-out: `spec-kitty agent tasks move-task WP01 --to
+for_review` (run from the lane worktree, `.worktrees/org-pack-drg-root-graph-guard-01KZY0QT-lane-a`)
+refused with `kitty-specs/ changes are not allowed on lane branches. Planning artifacts must
+live on: main`, after this WP's T001 baseline-capture and T009 activity-log entries had been
+committed (via `safe-commit`) onto the **lane** branch
+(`kitty/mission-org-pack-drg-root-graph-guard-01KZY0QT-lane-a`) rather than the mission branch.
+Nothing in the WP prompt, this tracer file's own template instructions, or `AGENTS.md`'s
+Execution Workspace Strategy section states this branch constraint explicitly for tracer/WP-file
+edits specifically (the section documents *planning-phase* artifact placement, not
+*implementation-phase* WP-file/tracer touches) — an implementer naturally reaches for
+`safe-commit --to-branch <current-branch>` from wherever the shell happens to be, and the lane
+worktree is the working directory for the whole implementation phase. The refusal message's own
+literal remedy (`git restore --source kitty/mission-... --staged --worktree -- kitty-specs/` +
+commit) only strips the lane branch's copy back to the mission branch's version — it does not
+itself relocate the content, so the same `kitty-specs/` edit still has to be re-applied as a
+**separate** `safe-commit --to-branch kitty/mission-org-pack-drg-root-graph-guard-01KZY0QT`
+(no `-lane-a` suffix) from the **repo-root** checkout. **Recovery used**: saved the lane
+branch's `kitty-specs/` diff via `git diff kitty/mission-...-01KZY0QT -- kitty-specs/ >
+patch`, ran the tool's own restore command on the lane branch (committed as `chore: remove
+planning artifacts from lane branch`), then `git apply` the saved patch on the mission-branch
+repo-root checkout and `safe-commit --to-branch kitty/mission-org-pack-drg-root-graph-guard-01KZY0QT`
+from there. No content was lost; this cost one extra round-trip. Worth a proactive one-line
+callout in the WP prompt's "Commit after every subtask with `spec-kitty safe-commit`" guidance:
+name which branch a `kitty-specs/` touch (tracer files, Activity Log) belongs on, distinct from
+the `owned_files` source/test commits.
+
 ## Baseline-capture record (T001 / plan.md Baseline step 5)
 
 <!-- Populated once, by WP01's T001, before this mission's first RED commit lands. Per
