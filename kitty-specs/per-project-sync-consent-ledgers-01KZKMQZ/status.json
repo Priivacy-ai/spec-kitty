@@ -1,7 +1,7 @@
 {
-  "event_count": 123,
-  "last_event_id": "01KZX0YJZ6723TQSCMQ43X08Y9",
-  "materialized_at": "2026-08-13T07:38:54.310235+00:00",
+  "event_count": 124,
+  "last_event_id": "01KZX0Z2TCDRH72VKQHM39EC17",
+  "materialized_at": "2026-08-13T07:39:10.540627+00:00",
   "mission_number": "",
   "mission_slug": "per-project-sync-consent-ledgers-01KZKMQZ",
   "mission_type": "software-dev",
@@ -9,12 +9,12 @@
     "approved": 8,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 0,
+    "claimed": 1,
     "done": 0,
     "for_review": 1,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -324,7 +324,8 @@
       "last_transition_at": "2026-08-13T07:38:54.310235+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Resume after unblocking: implementation already landed on active branch (commit 7ddfd660c); lifecycle regularization per program handoff"
+        "Resume after unblocking: implementation already landed on active branch (commit 7ddfd660c); lifecycle regularization per program handoff",
+        "Implementation landed as 7ddfd660c (revocation matrix 1161 lines, crash matrix 606 lines, barrier harness 2392 lines); verified at head: 191 passed locally (test_transport_revocation_matrix.py + test_transport_crash_matrix.py); T040-T043 verified done"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
@@ -340,11 +341,16 @@
       ]
     },
     "WP10": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01KZKV25GVNBXQ3MS7CATHCBV7",
-      "last_transition_at": "2026-08-09T18:02:50.267255+00:00",
+      "lane": "claimed",
+      "last_event_id": "01KZX0Z2TCDRH72VKQHM39EC17",
+      "last_transition_at": "2026-08-13T07:39:10.540627+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "tracker_refs": [
         "Priivacy-ai/spec-kitty#3262",
         "Priivacy-ai/spec-kitty#3030"
