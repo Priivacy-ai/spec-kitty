@@ -33,7 +33,8 @@
         "Внутренний pre-review выявил нарушение dual-root инварианта: managed checkout должен сохранять mission_anchor_root=repository_root",
         "Возврат к реализации для RED/GREEN исправления managed anchor",
         "Managed anchor RED/GREEN blocker закрыт; повторная передача независимому reviewer",
-        "Review: добавить managed split-brain oracle и exact stable safe payload/order contract"
+        "Review: добавить managed split-brain oracle и exact stable safe payload/order contract",
+        "Цикл исправления review blockers без расширения production scope"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
