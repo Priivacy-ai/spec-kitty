@@ -1,17 +1,17 @@
 {
-  "event_count": 131,
-  "last_event_id": "01KZXD3F66DZFRPTG24E7MBAEK",
-  "materialized_at": "2026-08-13T11:11:17.190734+00:00",
+  "event_count": 132,
+  "last_event_id": "01KZXDHEHZEWSF0N99JFG638BT",
+  "materialized_at": "2026-08-13T11:18:55.295410+00:00",
   "mission_number": "",
   "mission_slug": "per-project-sync-consent-ledgers-01KZKMQZ",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 10,
+    "approved": 11,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
     "planned": 0
@@ -372,18 +372,19 @@
       ]
     },
     "WP11": {
-      "actor": "claude",
+      "actor": "reviewer-renata",
       "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "assignee": "claude",
-      "force_count": 0,
-      "lane": "for_review",
-      "last_event_id": "01KZXD3F66DZFRPTG24E7MBAEK",
-      "last_transition_at": "2026-08-13T11:11:17.190734+00:00",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KZXDHEHZEWSF0N99JFG638BT",
+      "last_transition_at": "2026-08-13T11:18:55.295410+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "WP11 coordinated core acceptance: starting implementation"
+        "WP11 coordinated core acceptance: starting implementation",
+        "WP11 landed as 8fcc9f66b: attestation+manifest builder (fail-closed, tested), six-project exact-byte omission proof, stale-generation parking, contract pins re-attested at SaaS 4e15aa5c, cross-platform isolation with mutant control, seeded benchmark with correctness gate, evidence workflow (workflow_dispatch, 90-day retention), docs+matrices. 42 passed/1 skipped across new suites; fast-sync 2799 green"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
