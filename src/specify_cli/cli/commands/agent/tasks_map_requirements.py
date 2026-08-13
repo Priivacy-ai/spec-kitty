@@ -116,6 +116,9 @@ class _MapReqState:
     tasks_dir: Path = field(default_factory=Path)
     all_spec_ids: set[str] = field(default_factory=set)
     functional_ids: set[str] = field(default_factory=set)
+    #: #3394 review F1 -- non-blocking signal: raw requirement-shaped tokens in
+    #: spec.md that matched none of the recognized declared shapes.
+    requirement_extraction_warnings: list[str] = field(default_factory=list)
     new_mappings: dict[str, list[str]] = field(default_factory=dict)
     # --- phase D: pure decision ---
     mapping_plan: MappingPlan | None = None
@@ -271,7 +274,10 @@ def _mr_resolve_read_dirs(st: _MapReqState, ports: TasksPorts) -> None:
     blind primitive + the C-002 fold stay co-located INSIDE that adapter method.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
-    from specify_cli.requirement_mapping import parse_requirement_ids_from_spec_md
+    from specify_cli.requirement_mapping import (
+        find_undeclared_requirement_citations,
+        parse_requirement_ids_from_spec_md,
+    )
 
     # #2064: resolve the WP ``tasks/`` dir through the SAME seam finalize uses.
     st.feature_dir = _tasks._map_requirements_feature_dir(st.main_repo_root, st.mission_slug)
@@ -297,9 +303,12 @@ def _mr_resolve_read_dirs(st: _MapReqState, ports: TasksPorts) -> None:
         _tasks._output_error(st.json_output, f"spec.md not found: {spec_md}")
         raise typer.Exit(1)
 
-    spec_ids = parse_requirement_ids_from_spec_md(spec_md.read_text(encoding="utf-8"))
+    spec_content = spec_md.read_text(encoding="utf-8")
+    spec_ids = parse_requirement_ids_from_spec_md(spec_content)
     st.all_spec_ids = set(spec_ids["all"])
     st.functional_ids = set(spec_ids["functional"])
+    # #3394 review F1: non-blocking signal, never a gate -- see _mr_emit_output.
+    st.requirement_extraction_warnings = find_undeclared_requirement_citations(spec_content)
 
     _mr_build_new_mappings(st)
 
@@ -590,6 +599,7 @@ def _mr_emit_output(st: _MapReqState) -> None:
         "committed": st.committed,
         "commit_sha": st.commit_sha,
         "commit_result": st.commit_result_payload,
+        "requirement_extraction_warnings": st.requirement_extraction_warnings,
     }
     if st.json_output:
         render = _tasks.RealRender()
@@ -603,6 +613,8 @@ def _mr_emit_output(st: _MapReqState) -> None:
             _tasks.console.print(f"  [yellow]Unmapped:[/yellow] {', '.join(coverage['unmapped_functional'])}")
         if st.committed:
             _tasks.console.print("[cyan]→ Committed mapping changes[/cyan]")
+        for warning in st.requirement_extraction_warnings:
+            _tasks.console.print(f"[yellow]Warning:[/yellow] {warning}")
 
 
 def _do_map_requirements(

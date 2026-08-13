@@ -357,6 +357,93 @@ class TestBootstrapStatsInJson:
         pytest.fail("No JSON output with 'result': 'validation_passed' found")
 
 
+def _setup_undeclared_fr_feature(tmp_path: Path, mission_slug: str) -> Path:
+    """Like :func:`_setup_feature`, but spec.md ALSO carries a "Functional
+    Requirements" section written as bare, unbulleted, unbolded sentences
+    (FR-001, FR-002) -- the #3394 review F1 declared-shape-miss scenario.
+    ``parse_requirement_ids_from_spec_md`` never counts FR-001/FR-002 (no
+    recognized declared shape), so they are invisible to the coverage gate.
+
+    A SEPARATE, properly-declared FR-100 exists (table row) and is the only
+    id both WP files reference -- reproducing the review's exact complaint:
+    finalize-tasks reaches the SUCCESS path (``unmapped_functional_requirements
+    == []``) even though the spec's own FR-001/FR-002 were never counted,
+    because ``missing_requirement_refs_wps``/``unknown_requirement_refs``
+    would otherwise hard-fail for unrelated reasons if the WPs referenced
+    nothing, or referenced the undeclared ids directly.
+    """
+    feature_dir = _setup_feature(tmp_path, mission_slug)
+    (feature_dir / "spec.md").write_text(
+        "---\ntitle: Test Feature\n---\n\n"
+        "## Functional Requirements\n\nFR-001 must hold. FR-002 too.\n\n"
+        "## Declared Functional Requirements\n\n"
+        "| ID | Requirement |\n|----|-------------|\n| FR-100 | The one WPs map to. |\n",
+        encoding="utf-8",
+    )
+    for wp_id in ("WP01", "WP02"):
+        wp_file = feature_dir / "tasks" / f"{wp_id}-test.md"
+        wp_file.write_text(
+            f'---\nwork_package_id: "{wp_id}"\ntitle: "Test {wp_id}"\nrequirement_refs:\n  - FR-100\ndependencies: []\n---\n\n# {wp_id}\n',
+            encoding="utf-8",
+        )
+    return feature_dir
+
+
+class TestRequirementExtractionWarningsInJson:
+    """#3394 review F1: finalize-tasks' SUCCESS path carries a non-blocking
+    signal when spec.md's requirements are written in none of the four
+    recognized declared shapes -- the "reports success while measuring
+    nothing" gap the review flagged. The warning must NEVER change the exit
+    code (SCOPE BOUNDARIES: non-blocking only).
+    """
+
+    def test_bare_sentence_frs_surface_a_non_blocking_warning_on_success(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        mission_slug = "060-test-feature"
+        _setup_undeclared_fr_feature(tmp_path, mission_slug)
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+
+        exit_code = 0
+        try:
+            finalize_tasks(feature=mission_slug, json_output=True, validate_only=False)
+        except typer.Exit as exc:
+            exit_code = exc.exit_code if exc.exit_code is not None else 1
+        except SystemExit as exc:
+            exit_code = exc.code if isinstance(exc.code, int) else 1
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        assert exit_code == 0, "F1's warning must be non-blocking -- exit code must stay 0"
+
+        captured = capsys.readouterr()
+        for line in captured.out.strip().splitlines():
+            try:
+                data = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if data.get("result") == "success":
+                warnings = data.get("requirement_extraction_warnings")
+                assert warnings, (
+                    "expected a non-empty requirement_extraction_warnings for a spec "
+                    "whose FRs matched none of the recognized declared shapes"
+                )
+                warning_text = " ".join(warnings)
+                assert "FR-001" in warning_text
+                assert "FR-002" in warning_text
+                return
+        pytest.fail("No JSON output with 'result': 'success' found in captured output")
+
+
 # ---------------------------------------------------------------------------
 # WP01 regression tests (T009)
 # ---------------------------------------------------------------------------

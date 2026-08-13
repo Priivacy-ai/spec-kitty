@@ -79,6 +79,7 @@ from specify_cli.cli.commands.agent.mission_feature_resolution import (
 )
 from specify_cli.cli.commands.agent.mission_parsing import (
     _extract_wp_ids_from_task_files,
+    _find_undeclared_requirement_citations,
     _invalid_mission_specs_owned_files,
     _owned_files_yaml_is_explicit_empty_list,
     _parse_requirement_ids_from_spec_md,
@@ -346,8 +347,17 @@ def _resolve_target_branch(
         raise typer.Exit(1) from exc
 
 
-def _read_spec_requirement_ids(planning_dir: Path, *, json_output: bool) -> tuple[set[str], set[str]]:
-    """Phase: parse spec.md requirement ids (all + functional)."""
+def _read_spec_requirement_ids(
+    planning_dir: Path, *, json_output: bool
+) -> tuple[set[str], set[str], list[str]]:
+    """Phase: parse spec.md requirement ids (all + functional) + #3394 F1 warnings.
+
+    The third element is a (possibly empty) list of non-blocking warning
+    messages from :func:`_find_undeclared_requirement_citations` -- surfaced
+    so a spec whose Functional Requirements section matches none of the
+    recognized declared shapes gets a loud (but never gate-failing) signal
+    instead of silently reporting zero declared FRs as full coverage.
+    """
     spec_md = planning_dir / "spec.md"
     if not spec_md.exists():
         error_msg = f"spec.md not found: {spec_md}"
@@ -356,8 +366,10 @@ def _read_spec_requirement_ids(planning_dir: Path, *, json_output: bool) -> tupl
         else:
             console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1)
-    spec_requirement_ids = _parse_requirement_ids_from_spec_md(spec_md.read_text(encoding="utf-8"))
-    return set(spec_requirement_ids["all"]), set(spec_requirement_ids["functional"])
+    spec_content = spec_md.read_text(encoding="utf-8")
+    spec_requirement_ids = _parse_requirement_ids_from_spec_md(spec_content)
+    extraction_warnings = _find_undeclared_requirement_citations(spec_content)
+    return set(spec_requirement_ids["all"]), set(spec_requirement_ids["functional"]), extraction_warnings
 
 
 def _scaffold_issue_matrix_if_present(
@@ -742,6 +754,11 @@ class _BootstrapState:
     inmemory_bodies: dict[str, str] = field(default_factory=dict)
     pending_writes: list[tuple[Path, WPMetadata, str]] = field(default_factory=list)
     ownership_warnings: list[str] = field(default_factory=list)
+    #: #3394 review F1 -- non-blocking signal, kept distinct from
+    #: ``ownership_warnings`` so the JSON payload names the concern precisely
+    #: (raw requirement tokens that matched no declared shape) rather than
+    #: folding it into an unrelated bucket.
+    requirement_extraction_warnings: list[str] = field(default_factory=list)
 
 
 def _branch_strategy_text(target_branch: str) -> str:
@@ -837,6 +854,7 @@ def _run_bootstrap_loop(
     repo_root: Path,
     target_branch: str,
     concern_coverage_warnings: list[str],
+    requirement_extraction_warnings: list[str],
     *,
     validate_only: bool,
     json_output: bool,
@@ -847,7 +865,10 @@ def _run_bootstrap_loop(
     against post-bootstrap state; disk writes are deferred to
     ``pending_writes`` and only flushed when ``not validate_only``.
     """
-    state = _BootstrapState(ownership_warnings=list(concern_coverage_warnings))
+    state = _BootstrapState(
+        ownership_warnings=list(concern_coverage_warnings),
+        requirement_extraction_warnings=list(requirement_extraction_warnings),
+    )
     wp_dependencies = dep_resolution.wp_dependencies
     wp_requirement_refs = dep_resolution.wp_requirement_refs
 
@@ -1103,6 +1124,7 @@ def _emit_validate_only_report(
                 "unchanged": state.unchanged_wps,
                 "updated_wp_count": state.updated_count,
                 "ownership_warnings": state.ownership_warnings,
+                "requirement_extraction_warnings": state.requirement_extraction_warnings,
                 "validation": {"bootstrap_preview": bootstrap_stats, "lanes_preview": lanes_stats},
                 "message": "All validations passed. Run without --validate-only to commit.",
             }
@@ -1675,6 +1697,7 @@ def _emit_success_report(
                 ),
             },
             "ownership_warnings": state.ownership_warnings,
+            "requirement_extraction_warnings": state.requirement_extraction_warnings,
         }
     )
 
@@ -1880,8 +1903,8 @@ def finalize_tasks(
         wp_files = list(tasks_dir.glob("WP*.md"))
         expected_wp_ids = _extract_wp_ids_from_task_files(wp_files)
 
-        all_spec_requirement_ids, functional_spec_requirement_ids = _read_spec_requirement_ids(
-            planning_dir, json_output=json_output
+        all_spec_requirement_ids, functional_spec_requirement_ids, requirement_extraction_warnings = (
+            _read_spec_requirement_ids(planning_dir, json_output=json_output)
         )
 
         # Snapshot pre-existing primary-side files BEFORE any finalize writer runs
@@ -1923,6 +1946,10 @@ def finalize_tasks(
             for warning in concern_coverage_warnings:
                 console.print(f"[yellow]Warning:[/yellow] {warning}")
 
+        if requirement_extraction_warnings and not json_output:
+            for warning in requirement_extraction_warnings:
+                console.print(f"[yellow]Warning:[/yellow] {warning}")
+
         state = _run_bootstrap_loop(
             wp_files,
             dep_resolution,
@@ -1931,6 +1958,7 @@ def finalize_tasks(
             repo_root,
             target_branch,
             concern_coverage_warnings,
+            requirement_extraction_warnings,
             validate_only=validate_only,
             json_output=json_output,
         )
