@@ -1,0 +1,19 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: >-
+      tasks.md now cites prompt.md:208 for "MAXIMUM PROMPT SIZE: 700 lines per WP", matching
+      a fresh `grep -n "MAXIMUM PROMPT SIZE" packs/built-in/missions/mission-steps/software-dev/tasks/prompt.md`
+      re-run against current HEAD (line 208, text verbatim-correct).
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: >-
+      tasks.md now states PRs #3300/#3293 have 344 and 975 changed files respectively, matching
+      fresh `gh api repos/Priivacy-ai/spec-kitty/pulls/{3300,3293} --jq .changed_files` run right
+      now (344, 975 — unchanged since the fix moments ago, so no drift to flag this time); the
+      sentence also carries its own hedge ("these are open PRs and the counts will move as they
+      accrue commits"), which makes the specific numbers non-self-invalidating for future readers
+      even after the live count next moves.

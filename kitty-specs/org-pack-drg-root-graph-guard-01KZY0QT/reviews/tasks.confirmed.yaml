@@ -1,0 +1,171 @@
+# review-findings/v1 — tasks.confirmed.yaml: the subset of tasks.merged.yaml findings whose
+# R3 refuter verdict (reviews/tasks-refute-1.yaml) was "confirmed". All 5 merged findings were
+# confirmed by R3 (batch 1) — none refuted — so this file is identical in content to
+# tasks.merged.yaml, filtered by the confirmed/refuted rule rather than because none were tested.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: confirmed
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+findings:
+  - id: TASKS-DECOMP-001
+    lens: mission-derived lens — single-WP sizing legitimacy
+    severity: 2
+    title: "WP01 prompt file (715 lines) breaches the canonical 700-line hard ceiling; \"Why one WP\" justifies sizing only by subtask count, never checks the line-count dimension"
+    evidence:
+      - artifact: "kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/tasks.md § Why one WP (lines 47-49)"
+      - artifact: "kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/tasks/WP01-org-pack-drg-root-graph-guard.md (whole file; `wc -l` = 715)"
+      - code: "packs/built-in/missions/mission-steps/software-dev/tasks/prompt.md:209 (\"MAXIMUM PROMPT SIZE: 700 lines per WP (10 subtasks max)\")"
+      - code: "packs/built-in/missions/mission-steps/software-dev/tasks/prompt.md:526-532 (\"1. Count lines in the prompt 2. If >700 lines: GO BACK and split the WP\"; sizing rubric table: \"Subtask count: 3-7? ✓ | 8-10? ⚠️ | 11+? ❌ SPLIT\" / \"Estimated lines: 200-500? ✓ | 500-700? ⚠️ | 700+? ❌ SPLIT\")"
+    claim: >
+      tasks.md's "Why one WP" section justifies the single-WP sizing decision exclusively via
+      subtask count — "9 subtasks, comfortably inside the 3–10 range" — and never mentions or
+      cross-checks the realized line count against the canonical tasks prompt's own sizing
+      algorithm, which the mission's own tasks-phase prompt was generated from. That algorithm
+      binds WP size on two axes, not one: subtask count AND estimated/actual prompt line count.
+      On the subtask axis, 9 lands in the template's own "8-10 ⚠️" warning tier, not the "3-7 ✓"
+      target tier tasks.md's "comfortably" language implies. On the line axis, the actual WP01
+      file is 715 lines (verified via `wc -l`) — 15 lines past the template's own explicit
+      hard-stop instruction ("If >700 lines: GO BACK and split the WP") and past the rubric's
+      "700+? ❌ SPLIT" row. Investigation of the WP content itself (subtask detail sections,
+      concrete file/function/primitive citations, Implementation Notes, Risks & Mitigations)
+      shows the length is not obviously padding — the per-subtask detail is genuinely
+      load-bearing — but the sizing write-up in tasks.md gives no indication the author ever
+      measured the realized file against the ceiling it is itself sized against, so the breach
+      is silent rather than a documented, deliberate exception.
+    remediation: >
+      Either (a) trim WP01 under 700 lines — the most compressible section is "Risks &
+      Mitigations" (WP01 lines 652-664), which restates tasks.md's WP01 Risks section
+      near-verbatim "for convenience"; collapsing it to a one-line cross-reference to tasks.md's
+      copy would recover ~10-13 lines, and similar overlap exists between the per-subtask
+      "Reverted-code check" prose and plan.md's Test Strategy table — or (b) if 715 lines is
+      judged genuinely necessary given the subtask count and detail density, say so explicitly
+      in tasks.md's "Why one WP" section (state the measured line count, note it exceeds the
+      canonical 700-line ceiling, and give the one-line rationale the sizing algorithm's own
+      documentation implicitly asks for) rather than leaving the check silently unperformed.
+
+  - id: TASKS-SEQ-001
+    lens: Write scopes disjoint / open-PR check
+    severity: 3
+    title: "Open-PR conflict check cites a non-existent \"plan-phase note\" and mischaracterizes what PRs #3300/#3293 touch"
+    evidence:
+      - artifact: "tasks.md § \"Why one WP\", Open-PR conflict check paragraph, line 65"
+      - code: "kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/plan.md (grep for '3300'/'3293' returns zero matches — no such note exists anywhere in plan.md or any other mission artifact except tasks.md itself)"
+    claim: >
+      tasks.md line 65 states: "The plan-phase note about #3300/#3293 touching only
+      `.kittify/charter/governance.yaml` still holds and remains irrelevant to this mission's
+      `owned_files`." Two problems, both verified live: (1) no such plan-phase note exists —
+      `plan.md` and every other file under `kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/`
+      contain zero mentions of PR #3300 or #3293; tasks.md is the only artifact that references
+      them, so "still holds" cites a claim that was never made. (2) The characterization itself
+      is false: `gh pr list --repo Priivacy-ai/spec-kitty --state open --json
+      number,title,files` (re-run live for this review) shows PR #3300 touches ~100 files and PR
+      #3293 touches ~150+ files (docs, `.kittify/evidence/*`, dozens of `kitty-specs/*/meta.json`
+      and `status.json`, `kitty-ops/*.jsonl`, etc.) — `.kittify/charter/governance.yaml` is one
+      file among many in each PR's diff, not the sole file. The overall open-PR-conflict
+      *conclusion* tasks.md draws (no open PR touches WP01's three write-scope paths:
+      `src/charter/_drg_helpers.py`, `src/charter/action_doctrine_bundle.py`,
+      `tests/charter/*`) is independently re-verified TRUE by this review (18 open PRs,
+      #2239–#3383, zero hits against those three paths) — so the gate itself is not compromised.
+      But the specific evidentiary claim about #3300/#3293 is fabricated/inaccurate, which is
+      exactly the class of defect the charter's Standing-Order throughline and DIRECTIVE_048
+      (cite the current canonical version, not a stale/invented one) warn against — a reader
+      trusting this citation without re-running `gh pr list` would carry forward a false belief
+      about what those two PRs' diffs contain.
+    remediation: >
+      Either (a) remove the "#3300/#3293 touching only governance.yaml" sentence entirely since
+      it does not describe any real prior note and does not affect the pass/fail conclusion, or
+      (b) if the author intended to flag that #3300/#3293 both happen to touch
+      `.kittify/charter/governance.yaml` among their many files as a drive-by observation, rewrite
+      it accurately (e.g. "PRs #3300 and #3293 each touch `.kittify/charter/governance.yaml`
+      among ~100–150 other files; neither touches WP01's write scope") and drop the false "still
+      holds" framing that implies this was already asserted and re-confirmed at plan time.
+
+  - id: TASKS-VERIFY-001
+    lens: Mission-derived lens — FR/NFR/C traceability and file-reference reality
+    severity: 3
+    title: "T005's dedup implementation guidance offers a 'triple-equality' filtering option that would drop ALL copies of a duplicated edge, not just the second-and-later ones"
+    evidence:
+      - artifact: "tasks/WP01-org-pack-drg-root-graph-guard.md § T005 step 2 (the `_dedup_org_layer_edges` Implementation note): \"Implementation: call `duplicate_edge_triples(graph)` to get the list of repeat-occurrence edges to drop; build a new edge list that excludes those specific edge objects (by identity or by the same triple-equality the primitive uses — do not drop *all* copies, only the second-and-later occurrences the primitive returns)\""
+      - code: "src/doctrine/drg/models.py:362-380 — `DRGEdge(BaseModel)` has no custom `__eq__`/`__hash__`; fields are `source`, `target`, `relation`, `when`, `reason`, `provenance` (all defaulting to `None` when unset in the source YAML)"
+      - code: "src/doctrine/drg/validator.py:264-282 — `duplicate_edge_triples` returns the actual second-and-later `DRGEdge` objects that repeat an already-seen `(source, target, relation.value)` triple; it does not tag them with any positional/identity marker beyond object identity"
+      - artifact: "tasks/WP01-org-pack-drg-root-graph-guard.md § T004 step 3 (test_identical_edge_triple_deduped_to_one_not_dropped): asserts the resolved `DRGGraph.edges` filtered to the exact triple has length **exactly 1**"
+    claim: >
+      T005's guidance presents "by identity" and "by the same triple-equality the primitive
+      uses" as interchangeable ways to build the deduped edge list. They are not
+      interchangeable, and one of them is wrong: a fixture pack where the root graph and a
+      `drg/` fragment declare the identical `(source, target, relation)` triple (T004's
+      fixture) with unset `when`/`reason`/`provenance` on both sides produces two `DRGEdge`
+      objects that are pydantic-value-`==`-equal to each other. A filter of the shape
+      `[e for e in graph.edges if e not in duplicate_edge_triples(graph)]` — the
+      "triple-equality" reading — uses Python's `in` (which dispatches to `==`), so the
+      *first* occurrence of the triple also tests `in duplicates` True (since it equals the
+      second occurrence sitting in that list) and gets dropped too. The result is zero
+      retained copies of the triple, not the "exactly one retained copy" FR-003/FR-006(b)
+      require and T004's own test explicitly checks for (length == 1). Only identity-based
+      filtering (`id(e)` comparison) is actually correct here; the "or ... triple-equality"
+      alternative named in the same sentence is a live implementation trap, not a valid
+      second option.
+    remediation: >
+      Rewrite T005's Implementation note to specify the dedup mechanism unambiguously as
+      identity-based, e.g.: "build the set of object ids to drop —
+      `dup_ids = {id(e) for e in duplicate_edge_triples(graph)}` — then filter
+      `graph.edges` by `id(e) not in dup_ids`, not by `e not in duplicate_edge_triples(graph)`
+      (the latter uses value equality; since DRGEdge has no distinguishing field beyond the
+      triple when `when`/`reason`/`provenance` are unset, value-equality filtering removes
+      BOTH the first and the duplicate occurrence, leaving zero copies instead of the
+      required one)." Strike the "or by the same triple-equality the primitive uses"
+      alternative entirely.
+
+  - id: TASKS-VERIFY-002
+    lens: Mission-derived lens — FR/NFR/C traceability and file-reference reality
+    severity: 3
+    title: "NFR-001 is listed as WP01-covered in tasks.md's Requirements Coverage Summary but has no concrete subtask or reviewer-check verifying it"
+    evidence:
+      - artifact: "tasks.md § Requirements Coverage Summary — `| NFR-001 | WP01 |`"
+      - artifact: "tasks/WP01-org-pack-drg-root-graph-guard.md frontmatter `requirement_refs:` includes `NFR-001`"
+      - artifact: "tasks/WP01-org-pack-drg-root-graph-guard.md § Review Guidance — the 7-bullet checklist covers `merge_layers()` zero-diff, `kind_vocabulary.py` zero-diff, the T005 dedup import, `__all__` unchanged, and `action_doctrine_bundle.py`'s comment-only diff, but has no bullet asking the reviewer to confirm the `org_root is None` / `not org_root.exists()` branch of `load_validated_graph`'s ternary is unchanged from `planning_base_branch`"
+      - artifact: "tasks/WP01-org-pack-drg-root-graph-guard.md § T003 step 7 Notes: \"the outer `org_root and org_root.exists()` guard is unchanged (preserves the existing, out-of-scope 'org_root itself does not exist' edge case from spec.md)\" — narrative only, not a checked subtask item"
+    claim: >
+      spec.md's NFR-001 states "For any project with no org pack declared, `charter context
+      --action <a>` output ... is byte-for-byte unaffected by this change." None of T001–T009
+      names a subtask or test whose purpose is to verify this. The nine named tests (T002/
+      T004/T006) all declare an org pack; the "no-pack baseline" `--json`/plain-text calls
+      inside T002.3 and T002.5 are used only as comparison inputs to compute a floor for the
+      with-pack run — they are never independently asserted as unaffected/unchanged in their
+      own right. The only artifact backing NFR-001 is prose in T003's Notes, and WP01's Review
+      Guidance checklist — which does enumerate several other specific diff-shape checks —
+      omits a corresponding bullet for this one. This is coverage-by-table-row, not
+      coverage-by-task-content, which the mission's own vacuity-by-empty-set discipline
+      (Standing Order #5 / C-004) exists to catch elsewhere in this same WP.
+    remediation: >
+      Add an explicit Review Guidance bullet: "Confirm the `org_root is None`/
+      `not org_root.exists()` branch of `load_validated_graph`'s ternary is byte-identical to
+      `planning_base_branch` — the diff should only touch the `if` side of the ternary
+      (`load_graph_or_dir(org_root)` → `_load_org_layer(org_root)`), never the surrounding
+      condition or the `else: None` fallback." Optionally strengthen this further by having
+      one of T002's existing no-pack-baseline calls assert on its own result (e.g. exact-match
+      against a value captured from a `planning_base_branch` run) rather than using it only as
+      an unasserted comparison input.
+
+  - id: TASKS-VERIFY-003
+    lens: Baseline captured before the first change
+    severity: 2
+    title: "T001 records the baseline in the WP's Activity Log, not in 'the mission's tracer notes' as plan.md's Baseline procedure (step 5) specifies"
+    evidence:
+      - artifact: "plan.md § Baseline: distinguishing pre-existing red from introduced red, step 5: \"This baseline-capture step happens once, is committed to the mission's tracer notes (not re-run from scratch per WP)...\""
+      - artifact: "tasks/WP01-org-pack-drg-root-graph-guard.md § T001 step 2: \"Record the resulting red test IDs + failure summaries verbatim in this WP's Activity Log (or a short note referenced from it)\""
+      - artifact: "kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/tracer-tooling-friction.md — has no placeholder section for a baseline-capture record; neither does tracer-approach.md or tracer-design-decisions.md"
+    claim: >
+      plan.md's Baseline procedure explicitly names the mission's tracer notes as the
+      commit target for the T001 baseline record. WP01's T001 instead directs the agent to
+      record it in the WP's Activity Log (with the tracer notes only as an optional
+      "referenced from it" fallback) — a different default location than the plan specifies,
+      with no acknowledgment of the deviation and no pre-seeded section in any of the three
+      tracer files to receive it if the agent does choose that route.
+    remediation: >
+      Either change T001 step 2 to record the baseline directly in
+      `tracer-tooling-friction.md` (matching plan.md's Baseline step 5 verbatim), or, if
+      Activity Log is intentionally preferred for this mission, add a one-line note in
+      tasks.md acknowledging the deviation from plan.md's stated procedure so a later reader
+      does not have to reconcile the two documents themselves.

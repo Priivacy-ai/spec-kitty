@@ -1,0 +1,42 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: seq
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+findings:
+  - id: TASKS-SEQ-001
+    lens: Write scopes disjoint / open-PR check
+    severity: 3
+    title: "Open-PR conflict check cites a non-existent \"plan-phase note\" and mischaracterizes what PRs #3300/#3293 touch"
+    evidence:
+      - artifact: "tasks.md § \"Why one WP\", Open-PR conflict check paragraph, line 65"
+      - code: "kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/plan.md (grep for '3300'/'3293' returns zero matches — no such note exists anywhere in plan.md or any other mission artifact except tasks.md itself)"
+    claim: >
+      tasks.md line 65 states: "The plan-phase note about #3300/#3293 touching only
+      `.kittify/charter/governance.yaml` still holds and remains irrelevant to this mission's
+      `owned_files`." Two problems, both verified live: (1) no such plan-phase note exists —
+      `plan.md` and every other file under `kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/`
+      contain zero mentions of PR #3300 or #3293; tasks.md is the only artifact that references
+      them, so "still holds" cites a claim that was never made. (2) The characterization itself
+      is false: `gh pr list --repo Priivacy-ai/spec-kitty --state open --json
+      number,title,files` (re-run live for this review) shows PR #3300 touches ~100 files and PR
+      #3293 touches ~150+ files (docs, `.kittify/evidence/*`, dozens of `kitty-specs/*/meta.json`
+      and `status.json`, `kitty-ops/*.jsonl`, etc.) — `.kittify/charter/governance.yaml` is one
+      file among many in each PR's diff, not the sole file. The overall open-PR-conflict
+      *conclusion* tasks.md draws (no open PR touches WP01's three write-scope paths:
+      `src/charter/_drg_helpers.py`, `src/charter/action_doctrine_bundle.py`,
+      `tests/charter/*`) is independently re-verified TRUE by this review (18 open PRs,
+      #2239–#3383, zero hits against those three paths) — so the gate itself is not compromised.
+      But the specific evidentiary claim about #3300/#3293 is fabricated/inaccurate, which is
+      exactly the class of defect the charter's Standing-Order throughline and DIRECTIVE_048
+      (cite the current canonical version, not a stale/invented one) warn against — a reader
+      trusting this citation without re-running `gh pr list` would carry forward a false belief
+      about what those two PRs' diffs contain.
+    remediation: >
+      Either (a) remove the "#3300/#3293 touching only governance.yaml" sentence entirely since
+      it does not describe any real prior note and does not affect the pass/fail conclusion, or
+      (b) if the author intended to flag that #3300/#3293 both happen to touch
+      `.kittify/charter/governance.yaml` among their many files as a drive-by observation, rewrite
+      it accurately (e.g. "PRs #3300 and #3293 each touch `.kittify/charter/governance.yaml`
+      among ~100–150 other files; neither touches WP01's write scope") and drop the false "still
+      holds" framing that implies this was already asserted and re-confirmed at plan time.

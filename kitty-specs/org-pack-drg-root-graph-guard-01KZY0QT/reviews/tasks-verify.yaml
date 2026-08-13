@@ -1,0 +1,41 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: >
+      tasks.md's "Why one WP" section now has a dedicated "Line-count dimension" paragraph
+      stating the measured 728-line count (matches current `wc -l` on WP01), naming the
+      canonical 700-line ceiling it exceeds, and giving an explicit rationale (load-bearing
+      per-subtask detail vs. padding, and why per-IC splitting was rejected) — remediation
+      option (b) from the original finding, applied verbatim rather than trimmed.
+  - id: TASKS-SEQ-001
+    status: resolved
+    reason: >
+      The fabricated "plan-phase note ... still holds" sentence is gone; tasks.md line ~78 now
+      states accurately that PRs #3300/#3293 each touch governance.yaml among ~100-150 other
+      files and neither touches this mission's owned_files, matching remediation option (b)
+      with the false "still holds" framing dropped.
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: >
+      T005's Implementation note in WP01 (current text, re-read directly) now specifies only
+      identity-based filtering (`dup_ids = {id(e) for e in duplicate_edge_triples(graph)}` /
+      `id(e) not in dup_ids`) and explicitly forbids the value-equality alternative with the
+      exact mechanism (pydantic has no custom `__eq__`, so both copies would be dropped,
+      leaving zero instead of the required one) — the "or by triple-equality" interchangeable
+      option is fully struck, not merely re-worded.
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: >
+      WP01's Review Guidance checklist now has an explicit NFR-001 bullet requiring the
+      reviewer to confirm the `org_root is None`/`not org_root.exists()` ternary branch is
+      byte-identical to `planning_base_branch`, matching the remediation text verbatim.
+  - id: TASKS-VERIFY-003
+    status: resolved
+    reason: >
+      T001 step 2 now directs the baseline record into a newly-added "Baseline-capture record"
+      section in tracer-tooling-friction.md (verified present, with a placeholder comment
+      citing plan.md's Baseline step 5), matching plan.md's stated procedure instead of
+      defaulting to the WP Activity Log.

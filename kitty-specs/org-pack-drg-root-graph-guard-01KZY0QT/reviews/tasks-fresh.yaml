@@ -1,0 +1,52 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+findings:
+  - id: TASKS-FRESH-001
+    lens: cross-reference-integrity
+    severity: 2
+    title: "Line-count-ceiling citation in tasks.md's new \"Line-count dimension\" paragraph is off by one"
+    evidence:
+      - artifact: "tasks.md:55-57 (new paragraph added in commit 456315dd9)"
+      - code: "packs/built-in/missions/mission-steps/software-dev/tasks/prompt.md:208"
+    claim: >
+      The fix round's new "Line-count dimension" paragraph cites
+      `packs/built-in/missions/mission-steps/software-dev/tasks/prompt.md:209` for the quoted
+      text "MAXIMUM PROMPT SIZE: 700 lines per WP". `grep -n "MAXIMUM PROMPT SIZE"` on that file
+      shows the line is actually 208, not 209 (verified directly against the file at current
+      HEAD). The quoted text itself is verbatim-correct and the file path is correct — only the
+      line number is one off — so this is a low-impact but real broken cross-reference
+      introduced by this fix round (the whole "Line-count dimension" paragraph is new in this
+      diff; it did not exist before commit 456315dd9).
+    remediation: >
+      Change the citation from `prompt.md:209` to `prompt.md:208` (or drop the line number and
+      cite the file + heading text only, which is more resilient to future edits of the
+      canonical template).
+  - id: TASKS-FRESH-002
+    lens: evidence-verification
+    severity: 3
+    title: "Fix round's corrected Open-PR-conflict paragraph replaces one vague claim with a new, checkably wrong file-count number"
+    evidence:
+      - artifact: "tasks.md:79-81 (paragraph rewritten in commit 456315dd9)"
+      - code: "live `gh api repos/Priivacy-ai/spec-kitty/pulls/3300` -> changed_files=344; `gh api repos/Priivacy-ai/spec-kitty/pulls/3293` -> changed_files=975 (checked 2026-08-13)"
+    claim: >
+      This fix round replaced the prior text ("the plan-phase note about #3300/#3293 touching
+      only .kittify/charter/governance.yaml still holds") with a more specific-sounding claim:
+      "PRs #3300 and #3293 each touch .kittify/charter/governance.yaml among roughly 100–150
+      other files in their respective diffs." Both PRs do touch governance.yaml (confirmed live),
+      and neither touches this mission's owned_files (confirmed live against all 18 currently-open
+      PRs, #2239-#3383, matching the stated range) — so the section's actual go/no-go conclusion
+      ("no conflict with owned_files") is correct and unaffected. But the specific "roughly
+      100-150 other files" figure does not match live data: PR #3300 has 344 changed files and
+      PR #3293 has 975 changed files (2.3x and 6.5x the claimed upper bound respectively). This
+      is exactly the kind of quantitative, checkable claim this mission's own Gate Set section
+      (plan.md) insists must be "real, literal invocations... not hand-waving" — the fix round's
+      "re-verified" framing ("re-run against all 18 currently-open PRs") makes this read as a
+      live measurement, but the specific number does not survive verification.
+    remediation: >
+      Either drop the specific file-count figure (the qualitative claim "governance.yaml among
+      many other unrelated files" is sufficient to support the conclusion) or replace it with the
+      actual verified counts (344 and 975) if a precise number is wanted. Do not leave an
+      unverified magic number in a paragraph whose stated purpose is live re-verification.

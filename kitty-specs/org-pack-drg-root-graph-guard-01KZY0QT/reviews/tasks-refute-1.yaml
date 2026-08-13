@@ -1,0 +1,50 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: >-
+      `wc -l` on the WP01 prompt file returns 715 lines, 15 over prompt.md's explicit
+      "MAXIMUM PROMPT SIZE: 700 lines" / "If >700 lines: GO BACK and split the WP" rule
+      (prompt.md lines 208-209, 526-528), and tasks.md's "Why one WP" section (lines 34-49)
+      justifies the single-WP decision purely by subtask count (9, "comfortably inside the
+      3-10 range") with no mention of the realized or estimated line count anywhere.
+  - id: TASKS-SEQ-001
+    verdict: confirmed
+    reason: >-
+      `grep -n "3300\|3293"` over plan.md returns zero matches (tasks.md is the only artifact
+      mentioning either PR), and `gh pr view` on both #3300 and #3293 shows each touching 100+
+      files (API-capped at 100) including but far from limited to `.kittify/charter/governance.yaml`,
+      so the "plan-phase note ... touching only governance.yaml ... still holds" sentence
+      references a nonexistent prior note and mischaracterizes both PRs' actual scope.
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      Live pydantic 2.13 script confirms `DRGEdge` (no custom `__eq__`) uses field-value
+      equality by default, `x in list_of_edges` dispatches to that `__eq__`, and simulating the
+      "triple-equality" filtering reading of T005's guidance (`[e for e in edges if e not in
+      duplicates]`) drops both the original and the duplicate (length 0) instead of retaining
+      exactly one, while identity-based filtering correctly retains 1 — the "or by the same
+      triple-equality" alternative is a genuine, verified implementation trap.
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      Requirement Refs and the coverage table (tasks.md:86,175) list NFR-001 for WP01, but none
+      of WP01's Review Guidance bullets (8 bullets, none naming the `org_root is None`/
+      `not org_root.exists()` branch) or T001-T009 subtask steps independently assert the
+      no-pack-declared output is unchanged; T002's no-pack "baseline" calls in
+      test_drg_only_pack_preserves_or_grows_typed_counts and
+      test_empty_org_pack_degrades_to_no_pack_baseline are used only as comparison inputs for
+      other assertions, and the only textual acknowledgment is narrative prose inside T003 step
+      7 ("the outer ... guard is unchanged"), not a checked item.
+  - id: TASKS-VERIFY-003
+    verdict: confirmed
+    reason: >-
+      plan.md line 394 states the baseline-capture step "is committed to the mission's tracer
+      notes (not re-run from scratch per WP)", but WP01's T001 step 2 instead directs "Record ...
+      in this WP's Activity Log (or a short note referenced from it)" as the default target, and
+      tracer-tooling-friction.md (read in full) has no section reserved for a baseline-capture
+      record — a location deviation from plan.md's explicit instruction, unacknowledged in
+      tasks.md or WP01.

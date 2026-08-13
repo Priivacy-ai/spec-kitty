@@ -1,0 +1,43 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: decomp
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+findings:
+  - id: TASKS-DECOMP-001
+    lens: mission-derived lens — single-WP sizing legitimacy
+    severity: 2
+    title: "WP01 prompt file (715 lines) breaches the canonical 700-line hard ceiling; \"Why one WP\" justifies sizing only by subtask count, never checks the line-count dimension"
+    evidence:
+      - artifact: "kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/tasks.md § Why one WP (lines 47-49)"
+      - artifact: "kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/tasks/WP01-org-pack-drg-root-graph-guard.md (whole file; `wc -l` = 715)"
+      - code: "packs/built-in/missions/mission-steps/software-dev/tasks/prompt.md:209 (\"MAXIMUM PROMPT SIZE: 700 lines per WP (10 subtasks max)\")"
+      - code: "packs/built-in/missions/mission-steps/software-dev/tasks/prompt.md:526-532 (\"1. Count lines in the prompt 2. If >700 lines: GO BACK and split the WP\"; sizing rubric table: \"Subtask count: 3-7? ✓ | 8-10? ⚠️ | 11+? ❌ SPLIT\" / \"Estimated lines: 200-500? ✓ | 500-700? ⚠️ | 700+? ❌ SPLIT\")"
+    claim: >
+      tasks.md's "Why one WP" section justifies the single-WP sizing decision exclusively via
+      subtask count — "9 subtasks, comfortably inside the 3–10 range" — and never mentions or
+      cross-checks the realized line count against the canonical tasks prompt's own sizing
+      algorithm, which the mission's own tasks-phase prompt was generated from. That algorithm
+      binds WP size on two axes, not one: subtask count AND estimated/actual prompt line count.
+      On the subtask axis, 9 lands in the template's own "8-10 ⚠️" warning tier, not the "3-7 ✓"
+      target tier tasks.md's "comfortably" language implies. On the line axis, the actual WP01
+      file is 715 lines (verified via `wc -l`) — 15 lines past the template's own explicit
+      hard-stop instruction ("If >700 lines: GO BACK and split the WP") and past the rubric's
+      "700+? ❌ SPLIT" row. Investigation of the WP content itself (subtask detail sections,
+      concrete file/function/primitive citations, Implementation Notes, Risks & Mitigations)
+      shows the length is not obviously padding — the per-subtask detail is genuinely
+      load-bearing (this is a strength under the decomp group's lens-3 concreteness criterion)
+      — but the sizing write-up in tasks.md gives no indication the author ever measured the
+      realized file against the ceiling it is itself sized against, so the breach is silent
+      rather than a documented, deliberate exception.
+    remediation: >
+      Either (a) trim WP01 under 700 lines — the most compressible section is "Risks &
+      Mitigations" (WP01 lines 652-664), which restates tasks.md's WP01 Risks section
+      near-verbatim "for convenience"; collapsing it to a one-line cross-reference to tasks.md's
+      copy would recover ~10-13 lines, and similar overlap exists between the per-subtask
+      "Reverted-code check" prose and plan.md's Test Strategy table — or (b) if 715 lines is
+      judged genuinely necessary given the subtask count and detail density, say so explicitly
+      in tasks.md's "Why one WP" section (state the measured line count, note it exceeds the
+      canonical 700-line ceiling, and give the one-line rationale the sizing algorithm's own
+      documentation implicitly asks for) rather than leaving the check silently unperformed.

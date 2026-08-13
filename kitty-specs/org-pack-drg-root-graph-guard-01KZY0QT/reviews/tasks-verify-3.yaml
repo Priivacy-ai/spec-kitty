@@ -1,0 +1,12 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: >-
+      The "18 currently-open PRs (#2239–#3383)" clause now carries "re-verified 2026-08-13 —
+      this count and range will also move as PRs open/close", matching the same
+      date-stamp-plus-will-move-caveat convention already used on the adjacent
+      344/975-changed-files clause, and commit 0c568fc68 touched only tasks.md (2
+      insertions, 1 deletion) with no other scope creep.

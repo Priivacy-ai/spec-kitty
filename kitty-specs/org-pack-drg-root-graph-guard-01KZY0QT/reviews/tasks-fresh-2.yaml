@@ -1,0 +1,37 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh-2
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+findings:
+  - id: TASKS-FRESH2-001
+    lens: fresh-eyes-round-2-diff
+    severity: 2
+    title: >-
+      Round-2 fix added a dated re-verification hedge to the PR file-count clause but not to
+      the adjacent, equally-volatile "18 currently-open PRs (#2239-3383)" clause in the same
+      paragraph
+    evidence:
+      - artifact: "tasks.md § Why one WP > Open-PR conflict check (lines 75-83)"
+      - code: "kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/tasks.md:76-83"
+    claim: >-
+      The round-2 fix (commit 3b3208ae5) correctly resolved the unhedged-precision defect for
+      the PR #3300/#3293 file-count sentence by adding "re-verified 2026-08-13 — these are open
+      PRs and the counts will move as they accrue commits". That is sound, self-aware phrasing
+      and remains accurate against live data (gh api confirms 344 and 975 changed_files as of
+      this review). However the immediately preceding clause in the same paragraph — "was
+      re-run against all 18 currently-open PRs (#2239-3383)" — is exactly the same class of
+      live, moving GitHub data (open-PR count and number range), sourced from the same `gh pr
+      list` command, and carries no comparable date-stamped hedge; it only says "re-verified at
+      tasks time" earlier in the sentence with no date. It happens to still be numerically
+      accurate right now (verified live: 18 open PRs, range #2239-3383, none touching this
+      mission's owned_files), but a future reader who re-verifies only the explicitly-dated
+      344/975 clause could reasonably assume the sibling 18-PR/range clause is equally current,
+      when it in fact carries no timestamp to check it against and was never touched by this
+      fix round. This is the same unhedged-precision shape the round-2 fix was written to
+      correct, just one clause over, inside the same paragraph.
+    remediation: >-
+      Add the same "re-verified 2026-08-13" (or equivalent) date stamp to the "18
+      currently-open PRs (#2239-3383)" clause, so every live-GitHub-data claim in this
+      paragraph carries the same explicit as-of date and the same "will move" caveat, rather
+      than leaving one clause dated and its sibling clause undated.
