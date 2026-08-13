@@ -98,6 +98,14 @@ Complexity Tracking table is empty by design (see below).*
   PASS.
 - **Standing Order #4 (test remediation, red-first)**: see "The Baseline" below — this mission
   classifies pre-existing red before attributing any new red to itself. PASS, procedure recorded.
+- **ATDD-First Discipline (binding per C-011, `.kittify/charter/charter.md:591-604`)**: distinct
+  from Standing Order #4's baseline classification above — C-011 requires a failing-first ATDD
+  test committed as its own commit, before the implementation commit that turns it green, per
+  code-bearing work package, with the reviewer verifying red-on-`planning_base_branch` /
+  green-on-final-commit. See "The Baseline"'s new "Per-FR ATDD Sequencing (C-011)" subsection
+  below for the concrete per-FR (FR-002, FR-003, FR-004) test-then-implementation commit pairs and
+  the reviewer's verification procedure, and for how C-011 applies to documentation-only FR-001.
+  PASS, procedure recorded.
 - **Sonar Expectations — complexity ceiling 15**: `validate_pack()` is already long
   (`pack_validator.py`'s own module docstring and `_scan_artifact_directory`'s docstring both
   record a prior extraction to stay under ruff's C901 limit). FR-002 and FR-004 each add a new,
@@ -384,6 +392,77 @@ red **before the first functional change lands**, using this concrete procedure:
 This is not "the suite is red" reported as a finding; it is the documented pre-check that makes
 later red attributable.
 
+### Per-FR ATDD Sequencing (C-011)
+
+This subsection is distinct from, and additional to, the four-file pre/post regression
+classification above: that procedure tells pre-existing red from introduced red across each
+targeted file *as a whole*; C-011 (`.kittify/charter/charter.md:591-604`, "ATDD-First
+Discipline") requires, per code-bearing work package, at least one **failing-first ATDD test**
+that pins the WP's own user-observable behaviour, committed as its own commit **before** the
+implementation commit that makes it green, with the reviewer verifying it was RED on Lane B's
+`planning_base_branch` and GREEN on the WP's final commit. The two procedures answer different
+questions and both apply.
+
+Within Lane B's existing sequencing (FR-003 → FR-002 → FR-004, per "Chokepoint" below), each FR
+lands as exactly two commits — a test commit, then an implementation commit — not one combined
+commit:
+
+1. **FR-003** (asset recursion widening):
+   - *Test commit (red)*: add the AC-1 regression test to
+     `tests/specify_cli/doctrine/test_pack_validator.py` — a pack with
+     `assets/acme-pack/logo.asset.yaml` carrying a schema violation (e.g. invalid `mime`),
+     asserting `pack validate` reports it. Run against Lane B's `planning_base_branch`: today's
+     `_scan_files` never recurses into `assets/`, so the nested file is never scanned and the
+     assertion fails — confirmed RED.
+   - *Implementation commit (green)*: widen `_scan_files`'s recursion condition to
+     `directory.name in {"styleguides", "assets"}`. The same test, unchanged, now passes.
+2. **FR-002** (profile-skip diagnostics):
+   - *Test commit (red)*: add the AC-1 regression test to `test_pack_validator.py` (synthetic
+     profile fixture that passes schema validation in isolation but is recorded skipped by
+     `AgentProfileRepository` at merge time — backed by the model-layer fixture added to
+     `tests/doctrine/test_agent_profile_model_field.py`, C-004's "fixture data only, no new
+     runtime code" file), asserting `pack validate --json` includes a `profile_skipped`
+     `ValidationIssue`. Run against the state after FR-003's implementation commit (Lane B's
+     running tip): `pack_validator.py` does not yet call `AgentProfileRepository` or
+     `skipped_profiles()` at all, so the issue is absent — confirmed RED.
+   - *Implementation commit (green)*: add `_check_profile_skipped_diagnostics()` and its call
+     site inside `validate_pack()`. The same test now passes.
+3. **FR-004** (DRG-root-graph mismatch + carve-outs):
+   - *Test commit (red)*: add AC-1's regression test (a pack with `drg/010-security.graph.yaml`
+     and no pack-root `*.graph.yaml`, asserting `ok is False`, exit code `1`, and a
+     `drg_root_graph_missing` diagnostic) plus AC-6/AC-7's parameter-value assertions (that
+     `assemble_pack()`'s internal call and `org_validate`'s call actually pass
+     `check_drg_root=False`) to `test_pack_validator.py`, `test_pack_assembler.py`, and
+     `test_doctrine_org_commands.py` respectively. Run against the state after FR-002's
+     implementation commit: `validate_pack()` has no `check_drg_root` parameter and no
+     DRG-root-graph check exists yet, so AC-1's assertion fails and AC-6/AC-7's parameter-value
+     assertions fail (the keyword argument does not exist to inspect) — confirmed RED.
+   - *Implementation commit (green)*: add `check_drg_root: bool = True`, the
+     `_check_drg_root_graph_missing()` helper and its conditional call site, and the two
+     `check_drg_root=False` carve-outs in `pack_assembler.py` and `doctrine.py`. The same tests
+     now pass — subject to the merge-order constraint on the `org_validate` carve-out's premise
+     recorded in "Chokepoint"'s "Open-PR write-scope check" and cross-referenced in IC-04's Risks.
+
+**Reviewer verification (red→green, per C-011's own requirement)**: for each of the three pairs
+above, the reviewer confirms the test commit's added test function(s) fail when run against the
+tree immediately before the paired implementation commit (i.e., at Lane B's running tip up to and
+including the test commit, but not the implementation commit that follows it) and pass when run
+against Lane B's final commit. This is a per-commit-pair check, not a re-run of "The Baseline"'s
+four-file aggregate — a file's overall pass/fail count can stay green throughout while still
+hiding a WP that skipped its own red-first test, which is exactly what C-011 (as opposed to
+Standing Order #4 alone) exists to catch.
+
+**FR-001 (documentation-only)**: C-011 pins "the user-observable behaviour the WP delivers" with
+a failing-first test. FR-001 delivers no runtime-observable behaviour — it corrects prose in a
+guide file, touches no code, and (per C-004's own annotation, restated in "The Baseline" step 4
+above) contributes no test surface at all. There is no code-level assertion C-011 could pin here:
+a Markdown correction has no red state to capture and no green transition to verify against. This
+is not an exemption invented for this mission; it follows directly from FR-001's binding,
+documentation-only scope (`reviews/spec.ruling.md`) and C-004's targeted-test-surface exclusion,
+both already established elsewhere in this plan. Lane A (FR-001) is therefore outside C-011's
+applicability, the same way it is already outside "The Baseline"'s regression-classification
+procedure.
+
 ## Campsite-Clean Scope
 
 Per Charter Standing Order #2, campsite-cleaning is scoped to **domain-matched debt** in the
@@ -455,7 +534,73 @@ with Lane B.
 explicitly forbids it, and this plan's FR-004 design (a `pack_validator.py`-only additive check)
 was chosen specifically to avoid that surface. Checked directly: no overlap exists between this
 mission's touched-file set (`pack_validator.py`, `pack_assembler.py`, `doctrine.py`, the one
-guide `.md`) and `_drg_helpers.py`. No write-scope collision.
+guide `.md`) and `_drg_helpers.py`. No write-scope collision with the one sibling mission tracked
+in spec.md.
+
+**Open-PR write-scope check (all currently-open PRs, not just the one tracked sibling mission)**:
+lanes-topology discipline requires checking this mission's touched files against every
+currently-open PR, not only the sibling mission spec.md happens to name. Re-verified directly
+(2026-08-14): `gh pr list --state open --json number,title,files` returns 18 open PRs;
+cross-referencing their file lists against this mission's touched-file set shows two overlaps
+with `src/specify_cli/cli/commands/doctrine.py`:
+
+- **PR #3166** ("feat(doctrine): ETag skip + Artifactory version for HTTPS fetch") edits `fetch()`
+  (`doctrine.py:94-160` region on this checkout). This mission's only edit to `doctrine.py` is
+  `org_validate`'s call site (`:966`) — a different function, no line range overlap. Benign
+  same-file co-edit: at worst a mechanical rebase, no architectural premise at risk.
+- **PR #2719** ("feat: doctrine org init from local/git template", open, last updated 2026-08-11)
+  is not a line-shift risk — it is an **architectural-premise risk** for IC-04. Re-verified
+  directly, not taken on trust: `gh pr diff 2719` shows `org_init` (`:899-940` on this checkout)
+  refactored into a dispatcher — `if template is not None: _run_template_render(...); return`,
+  else `_run_minimal_scaffold(pack_path, force=force)` — where `_run_template_render` calls a new
+  `src/specify_cli/doctrine/template_render/` package (`RenderRequest`, `render_org_pack`) that
+  copies an arbitrary template tree (honouring `.templateignore`) and substitutes `{{ORG_NAME}}` /
+  `{{LOCAL_PATH}}`. Without `--template`, `org_init` still writes today's minimal three-file stub;
+  **with** `--template`, the output can be any tree the template author supplied — including one
+  carrying real DRG content, with or without a pack-root `*.graph.yaml`. The template-render path
+  never calls `validate_pack()` itself (`gh pr diff 2719` shows no `validate_pack`/`check_drg_root`
+  hit in the diff; it prints a suggestion to run `doctrine org validate` separately), so a
+  template-rendered pack is exactly the kind of input `org_validate` gets asked to check once
+  `--template` ships.
+
+  This falsifies IC-04's stated premise for the **unconditional** `check_drg_root=False` carve-out
+  at `org_validate`'s call site: spec.md's FR-004 justifies that carve-out on "`org_init`'s
+  three-file scaffold ... is, by design, [never] a complete, independently-loadable pack in its
+  own right" — true of every pack `org_init` can produce *today*, false of a `--template`-rendered
+  pack the moment #2719 merges.
+
+  **Consequence under each merge ordering** (this mission ships one PR; #2719 is a separate,
+  independently-owned PR — a cross-PR sequencing question this plan's own lane structure cannot
+  absorb):
+  - *This mission's PR merges before #2719's*: the carve-out's premise is true at merge time —
+    every pack `org_validate` can check on `main` as it stands really is the fixed three-file
+    scaffold. The premise becomes false only later, when #2719 merges and adds `--template`; at
+    that point `check_drg_root=False` silently stops catching `drg_root_graph_missing` for a
+    template-rendered pack lacking a pack-root graph — a regression into this mission's own
+    silent-success domain, introduced by a different mission's merge. This plan cannot pre-fix a
+    defect in code that does not exist on `main` yet; it can only name the obligation below.
+  - *#2719 merges before this mission's PR*: IC-04's stated premise is already false by the time
+    this mission's implementer writes the carve-out — landing `check_drg_root=False`
+    unconditionally at that point would knowingly ship a carve-out whose own written
+    justification is false for `--template`-rendered packs.
+
+  **Resolution — a merge-order constraint for the operator to decide, not a design choice this
+  plan makes unilaterally**: spec.md's FR-004 (binding; out of this plan's authority to re-scope)
+  specifies the unconditional `check_drg_root=False` carve-out at `org_validate`'s call site under
+  the explicit premise that `org_init`'s output is always the minimal stub. This plan does not
+  narrow the carve-out, add a provenance check, or otherwise redesign FR-004 — the spec does not
+  ask for that, and inventing it here would be exactly the kind of unauthorized design change this
+  plan must not make. **The operator must choose one of:**
+  1. Merge this mission's PR before #2719's, and open a tracked follow-up issue (scoped to
+     whichever change next touches `org_validate` — #2719 itself, or a later mission) to
+     re-justify or narrow IC-04's carve-out once `--template` lands, so the obligation is not lost.
+  2. Hold IC-04's implementation commit until #2719's fate on `main` is known, and if `--template`
+     has landed by then, re-verify the carve-out's premise against `main`'s actual `org_init`
+     before writing it, folding a `--template`-rendered-pack fixture into AC-6/AC-7's tests
+     alongside the minimal-scaffold fixture already required.
+  This plan records the constraint explicitly rather than papering over it; it does not resolve
+  it, because resolving it would mean either editing spec.md's FR-004 (out of this plan's
+  authority) or guessing the operator's preferred merge order (not this plan's call to make).
 
 ## Project Structure
 
@@ -691,3 +836,10 @@ trade-off, which is not anticipated.
     (`tests/cli/test_doctrine_org_commands.py:108`) — both are pre-identified in the spec's
     Reflexivity finding and must be re-run as part of this IC's own validation, not assumed
     fixed by the carve-out alone.
+  - *Open-PR premise risk (PR #2719, `--template` render)*: see "Chokepoint"'s "Open-PR
+    write-scope check" above — the unconditional `check_drg_root=False` at `org_validate`'s call
+    site is premised on `org_init` always producing the fixed three-file stub, a premise open PR
+    #2719 falsifies for `--template`-rendered packs. This is a merge-order constraint for the
+    operator, not something IC-04 resolves unilaterally; before writing this carve-out, confirm
+    whether #2719 has landed on `main` and, if so, apply the Chokepoint section's resolution
+    option 2 (re-verify the premise, add a template-rendered-pack fixture).
