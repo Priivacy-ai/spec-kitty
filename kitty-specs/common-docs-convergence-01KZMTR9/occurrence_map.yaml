@@ -332,3 +332,5 @@ moves:
   - { from: ["docs/plans/next-mission-mappings/README.md"], to: "docs/plans/next-mission-mappings/index.md", reason: "#3324: subdirectory landing file standardized on index.md (README -> index)" }
   - { from: ["docs/plans/user_journey/README.md"], to: "docs/plans/user_journey/index.md", reason: "#3324: subdirectory landing file standardized on index.md (README -> index)" }
   - { from: ["docs/plans/initiatives/next-mission-mappings/README.md"], to: "RETIRE", reason: "#3324: duplicate next-mission-mappings redirect stub retired (canonical lives at docs/plans/next-mission-mappings/index.md)" }
+  - { from: ["docs/plans/saas-hosted-sync-domain-plan.md"], to: "docs/plans/domains/saas-hosted-sync-domain-plan.md", reason: "docs-plans-tier3-closeout: domain plan migrated into the docs/plans/domains/ cluster" }
+  - { from: ["docs/plans/doctrine-charter-domain-plan.md"], to: "docs/plans/domains/doctrine-charter-domain-plan.md", reason: "docs-plans-tier3-closeout: domain plan migrated into the docs/plans/domains/ cluster" }
