@@ -19,7 +19,7 @@ import json
 import os
 from kernel.clock import timedelta, now_utc_iso, now_utc
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -189,6 +189,38 @@ def _build_resolved_mission(
     )
 
 
+def _persisting_write_gen_record(
+    captured_mode: list[str] | None = None,
+) -> Any:
+    """Build a `write_gen_record` stand-in that actually persists to disk.
+
+    #3320 fix: `create_cmd` reads the record back via `read_gen_record(record_path)`
+    after writing, so a mock that returns a `Path` with nothing written there
+    (the pre-fix pattern) now raises FileNotFoundError. Delegate to the real
+    writer so the on-disk read-back has a file to load, while still letting
+    the caller observe the `mode` that was requested.
+    """
+    from specify_cli.retrospective.schema import GenRetrospectiveRecord
+    from specify_cli.retrospective.writer import write_gen_record as _real_write_gen_record
+
+    def _write(
+        record: GenRetrospectiveRecord,
+        *,
+        mode: Literal["error", "overwrite", "update"],
+        repo_root: Path,
+    ) -> Path:
+        if captured_mode is not None:
+            captured_mode.append(mode)
+        # `specify_cli.*` mypy override sets follow_imports="skip" (perf
+        # workaround for the CLI bootstrap import graph), so the writer's real
+        # `-> Path` annotation isn't visible here; the local annotation below
+        # re-anchors the type instead of masking a real error with `# type: ignore`.
+        written_path: Path = _real_write_gen_record(record, mode=mode, repo_root=repo_root)
+        return written_path
+
+    return _write
+
+
 # ---------------------------------------------------------------------------
 # TestCreateCommand
 # ---------------------------------------------------------------------------
@@ -206,7 +238,6 @@ class TestCreateCommand:
         _write_status_events_all_done(feature_dir, MISSION_SLUG_COMPLETED)
 
         gen_record = _make_minimal_gen_record()
-        record_path = missions_dir / MISSION_ID_COMPLETED / "retrospective.yaml"
 
         resolved = _build_resolved_mission(
             MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, feature_dir
@@ -222,7 +253,10 @@ class TestCreateCommand:
             patch("specify_cli.cli.commands.retrospect._check_mission_completed", return_value=[]),
             patch("specify_cli.cli.commands.retrospect.resolve_policy", return_value=(mock_policy, mock_policy_source)),
             patch("specify_cli.cli.commands.retrospect.generate_retrospective", return_value=gen_record),
-            patch("specify_cli.cli.commands.retrospect.write_gen_record", return_value=record_path),
+            patch(
+                "specify_cli.cli.commands.retrospect.write_gen_record",
+                side_effect=_persisting_write_gen_record(),
+            ),
             patch("specify_cli.cli.commands.retrospect.emit_captured", return_value=None),
             patch("specify_cli.cli.commands.retrospect._maybe_auto_commit"),
         ):
@@ -347,23 +381,18 @@ class TestCreateCommand:
 
     def test_create_overwrite_flag(self, tmp_path: Path) -> None:
         """--overwrite flag passes mode='overwrite' to write_gen_record."""
-        repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
+        repo_root, _missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
         feature_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
         _write_kitty_meta(feature_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
         _write_status_events_all_done(feature_dir, MISSION_SLUG_COMPLETED)
 
         gen_record = _make_minimal_gen_record()
-        record_path = missions_dir / MISSION_ID_COMPLETED / "retrospective.yaml"
         resolved = _build_resolved_mission(MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, feature_dir)
 
         from specify_cli.retrospective.policy import RetrospectivePolicy
         mock_policy = MagicMock(spec=RetrospectivePolicy)
         captured_mode: list[str] = []
-
-        def _fake_write(record: Any, *, mode: str, repo_root: Path) -> Path:
-            captured_mode.append(mode)
-            return record_path
 
         with (
             patch("specify_cli.cli.commands.retrospect.locate_project_root", return_value=repo_root),
@@ -371,7 +400,10 @@ class TestCreateCommand:
             patch("specify_cli.cli.commands.retrospect._check_mission_completed", return_value=[]),
             patch("specify_cli.cli.commands.retrospect.resolve_policy", return_value=(mock_policy, {})),
             patch("specify_cli.cli.commands.retrospect.generate_retrospective", return_value=gen_record),
-            patch("specify_cli.cli.commands.retrospect.write_gen_record", side_effect=_fake_write),
+            patch(
+                "specify_cli.cli.commands.retrospect.write_gen_record",
+                side_effect=_persisting_write_gen_record(captured_mode),
+            ),
             patch("specify_cli.cli.commands.retrospect.emit_captured", return_value=None),
             patch("specify_cli.cli.commands.retrospect._maybe_auto_commit"),
         ):
@@ -382,23 +414,18 @@ class TestCreateCommand:
 
     def test_create_update_flag(self, tmp_path: Path) -> None:
         """--update flag passes mode='update' to write_gen_record."""
-        repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
+        repo_root, _missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
         feature_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
         _write_kitty_meta(feature_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
         _write_status_events_all_done(feature_dir, MISSION_SLUG_COMPLETED)
 
         gen_record = _make_minimal_gen_record()
-        record_path = missions_dir / MISSION_ID_COMPLETED / "retrospective.yaml"
         resolved = _build_resolved_mission(MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, feature_dir)
 
         from specify_cli.retrospective.policy import RetrospectivePolicy
         mock_policy = MagicMock(spec=RetrospectivePolicy)
         captured_mode: list[str] = []
-
-        def _fake_write(record: Any, *, mode: str, repo_root: Path) -> Path:
-            captured_mode.append(mode)
-            return record_path
 
         with (
             patch("specify_cli.cli.commands.retrospect.locate_project_root", return_value=repo_root),
@@ -406,7 +433,10 @@ class TestCreateCommand:
             patch("specify_cli.cli.commands.retrospect._check_mission_completed", return_value=[]),
             patch("specify_cli.cli.commands.retrospect.resolve_policy", return_value=(mock_policy, {})),
             patch("specify_cli.cli.commands.retrospect.generate_retrospective", return_value=gen_record),
-            patch("specify_cli.cli.commands.retrospect.write_gen_record", side_effect=_fake_write),
+            patch(
+                "specify_cli.cli.commands.retrospect.write_gen_record",
+                side_effect=_persisting_write_gen_record(captured_mode),
+            ),
             patch("specify_cli.cli.commands.retrospect.emit_captured", return_value=None),
             patch("specify_cli.cli.commands.retrospect._maybe_auto_commit"),
         ):
@@ -429,14 +459,13 @@ class TestCreateCommand:
 
     def test_create_success_rich_output(self, tmp_path: Path) -> None:
         """Success without --json produces Rich panel output, not bare JSON."""
-        repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
+        repo_root, _missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
         feature_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
         _write_kitty_meta(feature_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
         _write_status_events_all_done(feature_dir, MISSION_SLUG_COMPLETED)
 
         gen_record = _make_minimal_gen_record()
-        record_path = missions_dir / MISSION_ID_COMPLETED / "retrospective.yaml"
         resolved = _build_resolved_mission(MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, feature_dir)
 
         from specify_cli.retrospective.policy import RetrospectivePolicy
@@ -448,7 +477,10 @@ class TestCreateCommand:
             patch("specify_cli.cli.commands.retrospect._check_mission_completed", return_value=[]),
             patch("specify_cli.cli.commands.retrospect.resolve_policy", return_value=(mock_policy, {})),
             patch("specify_cli.cli.commands.retrospect.generate_retrospective", return_value=gen_record),
-            patch("specify_cli.cli.commands.retrospect.write_gen_record", return_value=record_path),
+            patch(
+                "specify_cli.cli.commands.retrospect.write_gen_record",
+                side_effect=_persisting_write_gen_record(),
+            ),
             patch("specify_cli.cli.commands.retrospect.emit_captured", return_value=None),
             patch("specify_cli.cli.commands.retrospect._maybe_auto_commit"),
         ):
