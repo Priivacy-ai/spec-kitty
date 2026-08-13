@@ -40,6 +40,17 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   refuses with guidance.
   See [Per-Project Sync Consent](../guides/project-sync-consent.md).
 
+- **The declarative transition-gate design is now documented as architecture,
+  and two mission-doctrine docs point at the right paths again (`#3378`).**
+  Before, the settled model for how transition gates work — the declarative
+  `gate` artefact kind, where a gate executes, the trusted-publisher rule, and
+  the typed-severity outcome — lived only in scattered discussion, and
+  `mission-type-resolution.md` / `doctrine-kinds.md` still named the
+  pre-relocation `src/doctrine/missions/` source of truth. Now six Proposed
+  ADRs plus a `mission-gates.md` explanation page (with three render-verified
+  diagrams) capture the design in one place, and those two docs are retargeted
+  to the live `packs/built-in/missions/` paths.
+
 - **Documentation can now be marked `durable` — a standing reference that is
   never flagged as stale draft (mission `docs-plans-closeout-01KZTK2J`;
   `#3368`).** Before, a long-lived throughline doc could only be `active`, so the
