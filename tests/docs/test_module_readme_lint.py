@@ -30,22 +30,34 @@ _POINTER_CAP_LINES = 30
 
 # Objective covered set: modules with a drift-guard-bound code model.
 # (readme relative path, strict_pointer_only)
+#
+# `src/doctrine/missions/` is a bound-model module but is EXCLUDED: it is on the
+# pack-relocation content manifest (tests/doctrine/test_pack_relocation_guard.py),
+# which forbids a README under that path. Its schema docs live in
+# mission-type-resolution.md (linked from the code models directly).
+_RELOCATION_EXCLUDED = frozenset({"missions"})
 _COVERED: tuple[tuple[str, bool], ...] = (
     ("src/doctrine/drg/README.md", True),  # authored here (pointer-only)
-    ("src/doctrine/missions/README.md", True),  # authored here (pointer-only)
     ("src/doctrine/agent_profiles/README.md", False),  # pre-existing rich README, extended
 )
 
 
 def _bound_modules_match_covered() -> None:
-    """The covered set corresponds to the drift-guard's bound model modules."""
+    """Every drift-guard-bound subpackage is either covered or relocation-excluded."""
     sys.path.insert(0, str(_REPO_ROOT / "tests" / "docs"))
     from diagram_drift.binding_table import BINDINGS  # noqa: PLC0415
 
-    packages = {b.model.__module__.split(".")[1] for b in BINDINGS}  # doctrine.<pkg>....
-    # every covered README lives under a bound-model package (artifact_kinds is the root)
+    # doctrine.<pkg>...; artifact_kinds is a top-level module (no subpackage README).
+    bound_pkgs = {
+        parts[1]
+        for b in BINDINGS
+        if len(parts := b.model.__module__.split(".")) > 2
+    }
     covered_pkgs = {rel.split("/")[2] for rel, _ in _COVERED}
-    assert covered_pkgs <= (packages | {"agent_profiles", "drg", "missions"}), covered_pkgs
+    # No bound subpackage is silently dropped: each is covered or explicitly excluded.
+    unaccounted = bound_pkgs - covered_pkgs - _RELOCATION_EXCLUDED
+    assert not unaccounted, f"bound subpackages without a README or exclusion: {unaccounted}"
+    assert covered_pkgs <= bound_pkgs, covered_pkgs
 
 
 def _links(readme_text: str) -> list[str]:
