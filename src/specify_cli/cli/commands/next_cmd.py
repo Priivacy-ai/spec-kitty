@@ -291,14 +291,24 @@ def _commit_owned_next_mutations(effective_root: Path, mission_slug: str) -> Non
         raise RuntimeError(
             f"Owned checkout {effective_root} has no primary commit target for {mission_slug}"
         )
-    safe_commit(
-        repo_root=effective_root,
-        worktree_root=effective_root,
-        target=target,
-        message=f"chore(next): persist {mission_slug} advancement [skip ci]",
-        paths=paths,
-        capability=GuardCapability.STANDARD,
-    )
+    try:
+        safe_commit(
+            repo_root=effective_root,
+            worktree_root=effective_root,
+            target=target,
+            message=f"chore(next): persist {mission_slug} advancement [skip ci]",
+            paths=paths,
+            capability=GuardCapability.STANDARD,
+        )
+    except RuntimeError as exc:
+        # safe_commit's benign no-op sentinel: the staged tree already
+        # matches HEAD (e.g. a terminal owned advance that writes no new
+        # mission content and appends no lifecycle record). That is a
+        # successful no-op here, not a command failure. Any OTHER
+        # RuntimeError (protection refusal, HEAD mismatch, genuine commit
+        # failure, ...) must stay fail-closed and propagate unchanged.
+        if "empty changeset" not in str(exc):
+            raise
 
 
 def _pair_previous_lifecycle_record(
