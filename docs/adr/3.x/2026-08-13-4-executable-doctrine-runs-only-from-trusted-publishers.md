@@ -23,6 +23,28 @@ executing on every mission transition. That is a supply-chain surface and needs 
 
 ---
 
+## Post-dialectics revision (2026-08-13)
+
+Hardened after the dialectics pass (`work/gate-design-dialectics/03-...`, `99-COHERENCE.md`). Settled deltas:
+
+- **KEEP — built-in release signing as the architectural target** (operator decision). Note the
+  dialectic's caveat: built-in ships in the same wheel as its verifier + bundled key, so signing's
+  *near-term* threat value is low; its value is establishing the provenance chain for **fetched /
+  org** packs. Whether to *implement* signing now is a scoping decision, separate from keeping it
+  as the to-be design.
+- **CHANGE — untrusted is not a skip.** An untrusted publisher is one **severity-bearing
+  could-not-run outcome**; the operator's error-handling strategy decides the effect — see
+  [ADR 2026-08-13-6](2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md).
+  Security gates therefore **fail closed by default**. The "skip + warn, transition proceeds"
+  language below is **superseded** by that model.
+- **CHANGE — trust is keyed on the operator-config coordinate + observed content-hash**, not the
+  self-declared `pack-meta.yaml` identity (spoofable, and it fights the operator-authority
+  invariant where the loader overrides pack-side identity).
+- **KEEP — prompt at activation, never run time; CI blocks loudly on a missing trust seed** (never
+  a silent skip).
+- **STRIKE — the "one hash, three jobs" framing.** Signature + identity are sound; the cache-key
+  role is removed (deferred with the daemon — [ADR 2026-08-13-5](2026-08-13-5-local-daemon-amortizes-doctrine-parse-and-caches-gate-verdicts.md)).
+
 ## Context and Problem Statement
 
 Declarative gates execute code shipped inside a doctrine pack. Built-in gates are first-party.

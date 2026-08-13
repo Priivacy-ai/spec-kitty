@@ -24,6 +24,24 @@ Gate semantics must be re-homed onto the unified `MissionStep` model as part of 
 
 ---
 
+## Post-dialectics revision (2026-08-13)
+
+Hardened after the dialectics pass (`work/gate-design-dialectics/`, `99-COHERENCE.md`). Settled deltas:
+
+- **KEEP — gate is a first-class `ArtifactKind`** (operator decision, over the dialectic's
+  boilerplate objection). Accept the ~8 totality-map edits as the cost of a uniform kind model.
+- **CHANGE — no shell `entrypoint`.** Invocation is a **structured `interpreter` + `args` list**
+  with `{asset}` as one argv element, no shell string (removes injection + the
+  `sys.executable`-lacks-deps trap).
+- **CHANGE — outcome is a structured JSON verdict carrying a severity, not exit-code + a
+  fail-closed boolean.** Block-vs-proceed is decided by the operator's error-handling strategy
+  over the severity ladder — see [ADR 2026-08-13-6](2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md).
+  The "fail-closed by default" language below is **superseded** by that model.
+- **CLARIFY — `spec-kitty-pre-review` stays a grandfathered *code* gate** (its inputs are an
+  injected `ScopeSource` + baseline + changed-files SSOT, not cwd+exit-code). The dispatcher is
+  "one generic declarative dispatcher **plus a few code gates**," not a full collapse.
+- **ADD — determinism must be *enforced* by a sandbox** (network-denied, bounded), not asserted.
+
 ## Context and Problem Statement
 
 Today a transition gate is a **binding** in a step-contract YAML — `on_transition:

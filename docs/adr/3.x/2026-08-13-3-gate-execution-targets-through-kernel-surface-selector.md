@@ -24,6 +24,23 @@ context**. Rather than a free-form enum, this reuses the existing placement seam
 
 ---
 
+## Post-dialectics revision (2026-08-13)
+
+Hardened after the dialectics pass (`work/gate-design-dialectics/02-...`, `99-COHERENCE.md`). Settled deltas:
+
+- **CHANGE — no kernel elevation.** Doctrine only needs to validate a token **string**, so
+  **doctrine owns the surface-selector `frozenset[str]`** (it owns the gate schema anyway),
+  **specify_cli owns the resolver map**, and a **parity test** binds them. Layer directionality
+  is satisfied with **zero kernel change**. Option C below (ship `MissionTopology` into doctrine)
+  and the "elevate a vocabulary into kernel" framing are **superseded** by this.
+- **CHANGE — `execute_dir` ≠ `read_dir`.** It must **reuse the existing stamped
+  `GateExecutionContext`** (`build_gate_execution_context`, honouring `surface_cannot_hold`),
+  never return a bare `Path` — a bare workdir strips the surface stamp and reopens the
+  #2885/#1834 pass-by-default-against-empty-tree failure. `lane` additionally needs a `wp_id`
+  and the materialization-aware `resolve_workspace_for_wp` (a different resolver from reads).
+- **CLARIFY — `repo_root` is a loud, non-default escape hatch** ("judge the ambient checkout"),
+  never the default selector.
+
 ## Context and Problem Statement
 
 A gate that runs a check needs to know *where* it runs — the repo root, the mission's
