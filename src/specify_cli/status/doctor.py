@@ -37,6 +37,7 @@ class Category(StrEnum):
     ISSUE_MATRIX = "issue_matrix"
     SPARSE_CHECKOUT = "sparse_checkout"
     UNINITIALIZED_STATUS = "uninitialized_status"
+    DUPLICATE_FRONTMATTER_KEY = "duplicate_frontmatter_key"
 
 
 @dataclass
@@ -440,6 +441,40 @@ def check_issue_matrix(
     return findings
 
 
+def check_duplicate_frontmatter_keys(scan_dir: Path) -> list[Finding]:
+    """Flag legacy dual-key artifacts (FR-008, #3372) — diagnostic only.
+
+    Thin delegation to the raw-text detector in
+    :mod:`specify_cli.status.dup_key_repair`. Detection CANNOT use the canonical
+    frontmatter boundary: it fails closed on duplicate keys (ruamel
+    ``DuplicateKeyError``), so loading a dual-key artifact raises rather than
+    reporting it. This check NEVER mutates; repair is opt-in via
+    ``spec-kitty doctor mission-state --fix`` (keep-last-non-empty, batch-atomic).
+    """
+    from specify_cli.status.dup_key_repair import detect_duplicate_key_artifacts
+
+    findings: list[Finding] = []
+    for finding in detect_duplicate_key_artifacts(scan_dir):
+        line_list = ", ".join(str(number) for number in finding.line_numbers)
+        findings.append(
+            Finding(
+                severity=Severity.WARNING,
+                category=Category.DUPLICATE_FRONTMATTER_KEY,
+                wp_id=None,
+                message=(
+                    f"{finding.path.name} has a duplicate frontmatter key "
+                    f"'{finding.key}' (lines {line_list}) — invalid YAML that "
+                    f"fails closed at the frontmatter boundary and will trip an upgrade."
+                ),
+                recommended_action=(
+                    "Run 'spec-kitty doctor mission-state --fix' to repair "
+                    "duplicate-key artifacts (keep-last-non-empty, batch-atomic)."
+                ),
+            )
+        )
+    return findings
+
+
 def check_sparse_checkout(repo_root: Path) -> list[Finding]:
     """Repo-level check: legacy sparse-checkout state lingering from pre-3.x.
 
@@ -588,5 +623,9 @@ def run_doctor(
     # findings keep their position — scripts scraping doctor output rely on
     # the order of prior findings; new ones are safe to add at the tail.
     result.findings.extend(check_sparse_checkout(repo_root))
+
+    # Legacy dual-key artifact finding (FR-008, #3372). Scoped to this mission's
+    # own artifact tree; appended at the tail for the same order-stability reason.
+    result.findings.extend(check_duplicate_frontmatter_keys(feature_dir))
 
     return result
