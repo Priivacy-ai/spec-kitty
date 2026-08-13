@@ -71,7 +71,7 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   contract and skips queueing when the Private Teamspace can't be resolved, rather
   than attributing the event to the wrong scope. The credentials reader stays for
   the diagnostic call sites (e.g. `sync doctor`/preflight, which compare the two
-  scopes to *detect* exactly this drift).
+  scopes to _detect_ exactly this drift).
 
 - **Root README guide links point at the post-IA `tutorials/` and `how-to/`
   paths.** Fixes GitHub 404s from stale flat `docs/guides/*.md` hrefs after the
