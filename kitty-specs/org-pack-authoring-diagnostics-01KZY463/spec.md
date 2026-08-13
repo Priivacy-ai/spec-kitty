@@ -87,7 +87,7 @@ numbers) before being cited in a requirement.
 | DRG fragment-only validator scope | `src/specify_cli/doctrine/pack_validator.py:480-609` (`_validate_drg`) | Only inspects `drg_dir.glob("*.graph.yaml")` (`:506`) — no pack-root scan exists anywhere in the function or the file. |
 | Runtime DRG carrier | `src/charter/_drg_helpers.py:36-92` (`_resolve_org_root`, `load_validated_graph`) | `_resolve_org_root` always returns `None` (charter-layer-inert, by the `kernel <- doctrine <- charter <- specify_cli` layering); `load_validated_graph` calls `load_graph_or_dir(org_root)` — reads the pack root directly, never `org_root / "drg"`. |
 | `pack validate` CLI entry point | `src/specify_cli/cli/commands/doctrine.py:348-372` (`pack_validate`) | Thin wrapper: calls `validate_pack(pack_path)` then `render_validation_result(result, json_output=...)`; exit code `0`/`1` on `result.ok`. FR-002's, FR-003's, and FR-004's new diagnostics flow through this same `ValidationResult`/`ValidationIssue` surface — no new CLI command or flag is introduced. FR-001 is documentation-only per the binding operator ruling (`reviews/spec.ruling.md`) and adds no diagnostic to this surface. |
-| **Reflexivity: `validate_pack`'s other callers** | `src/specify_cli/doctrine/pack_assembler.py:335` (`assemble_pack`'s internal `validate_pack(output_dir)` call, rollback on `!ok`), `:475-539` (`_copy_drg_fragments`, writes DRG content only to `output_dir/drg/*.graph.yaml`, never a pack-root graph); `src/specify_cli/cli/commands/doctrine.py:966` (`org_validate`'s `validate_pack(pack_path)` call, reached via the CLI's `doctrine org init` → `doctrine org validate` onboarding flow) and `:899-940` (`org_init`'s scaffold: `org-charter.yaml` + `drg/fragment.yaml` + `README.md` — no pack-root graph) | `validate_pack` is called not only by the author-facing `pack validate` CLI above but also internally by the assembler as a round-trip check on its own freshly-built output, and by the narrower `doctrine org validate` command against a pack scaffolded by `doctrine org init`. Because `_copy_drg_fragments` never writes a pack-root graph, and `org_init`'s scaffold is, by design, an org DRG-extension-fragment stub (meant to be merged into a base/host doctrine tree elsewhere, never read standalone), both the assembler's output and every `org init`-scaffolded pack are, by construction, exactly the shape FR-004 targets — see FR-004's "Reflexivity fix" for how the new check is scoped to avoid breaking either call. `tests/specify_cli/doctrine/test_pack_assembler.py:169` `test_force_dedup_prunes_duplicate_edges_via_canonical_serializer` (the only currently-passing test that actually reaches `validate_pack` on this shape — `:151`'s `test_drg_conflict` returns via an earlier conflict-detection guard and never reaches `validate_pack` at all, so it is not cited as reflexivity evidence) and `tests/cli/test_doctrine_org_commands.py:108` `test_doctrine_org_validate_accepts_valid_pack` both continue to pass once each call site's carve-out is in place. |
+| **Reflexivity: `validate_pack`'s other callers** | `src/specify_cli/doctrine/pack_assembler.py:335` (`assemble_pack`'s internal `validate_pack(output_dir)` call, rollback on `!ok`), `:475-539` (`_copy_drg_fragments`, writes DRG content only to `output_dir/drg/*.graph.yaml`, never a pack-root graph); `src/specify_cli/cli/commands/doctrine.py:966` (`org_validate`'s `validate_pack(pack_path)` call, reached via the CLI's `doctrine org init` → `doctrine org validate` onboarding flow) and `:899-940` (`org_init`'s scaffold: `org-charter.yaml` + `drg/fragment.yaml` + `README.md` — no pack-root graph) | `validate_pack` is called not only by the author-facing `pack validate` CLI above but also internally by the assembler as a round-trip check on its own freshly-built output, and by the narrower `doctrine org validate` command against a pack scaffolded by `doctrine org init`. These two callers are reasoned about **separately, not as one shared architectural guarantee** — see FR-004's "Reflexivity fix." `pack_assembler.py`'s carve-out is structural: `_copy_drg_fragments` never writes a pack-root graph, so an assembled pack carrying DRG fragments is, by construction, always exactly the shape this check targets; that carve-out stays unconditional. `org_init`'s scaffold writes `drg/fragment.yaml` — a filename that never matches the check's `*.graph.yaml` glob — so the check never fired for the scaffold's own output *with or without* a carve-out; `org_validate`'s carve-out was never load-bearing for the shape its own justification cited, so it is dropped, and the call site passes `check_drg_root=True` explicitly instead. `tests/specify_cli/doctrine/test_pack_assembler.py:169` `test_force_dedup_prunes_duplicate_edges_via_canonical_serializer` (the only currently-passing test that actually reaches `validate_pack` on this shape — `:151`'s `test_drg_conflict` returns via an earlier conflict-detection guard and never reaches `validate_pack` at all, so it is not cited as reflexivity evidence) and `tests/cli/test_doctrine_org_commands.py:108` `test_doctrine_org_validate_accepts_valid_pack` both continue to pass — the assembler's because of its carve-out, `org_validate`'s because its scaffold never trips the check in the first place. |
 
 ---
 
@@ -387,49 +387,58 @@ authored. **Explicitly out of scope**: any change to `_drg_helpers.py`, `load_gr
 or any other runtime DRG-carrier code — this check only makes `pack validate` say something
 where it currently says nothing about this specific mismatch shape (see Clarification 3).
 
-**Reflexivity fix (resolves the assembler contradiction and the `org validate` onboarding
-contradiction — Reflexivity finding):**
+**Reflexivity fix — two other callers, reasoned about separately (Reflexivity finding;
+per binding operator ruling #2, `reviews/plan.ruling.md`):**
 `validate_pack()` is not only the author-facing entry point behind the CLI's
 `pack_validate` command (`src/specify_cli/cli/commands/doctrine.py:348-372`) — it has (at
-least) two other callers that must be independently reasoned about:
+least) two other callers. **The two are not one shared architectural guarantee; each is
+carved out, or not, for its own reason:**
 
 1. `pack_assembler.py:assemble_pack()` calls it *internally* at its own
-   `validate_pack(output_dir)` call (`pack_assembler.py:335`) as a round-trip check on output
-   the assembler just produced, rolling the assembly back on failure. `_copy_drg_fragments`
-   (`pack_assembler.py:475-539`) writes DRG content **only** to `output_dir/drg/*.graph.yaml`;
-   the assembler has no code path that ever writes a pack-root `*.graph.yaml`. So an assembled
-   pack carrying any DRG fragment is, by the assembler's own architecture, always exactly the
-   shape this check targets.
-2. `doctrine.py:org_validate` (`:966`) calls `validate_pack(pack_path)` with no override,
-   reached via the CLI's own `doctrine org init` → `doctrine org validate` onboarding flow.
-   `org_init` (`:899-940`) scaffolds exactly three files — `org-charter.yaml`,
-   `drg/fragment.yaml`, and `README.md` — and never writes a pack-root `*.graph.yaml`. An org
-   pack scaffolded this way is, by design, a DRG-*extension-fragment* stub: its `drg/`
-   content declares org-tier nodes/edges meant to be merged into a base/host doctrine tree
-   elsewhere, not a stand-alone pack expected to satisfy the pack-root-graph read path this
-   check targets. So the CLI's own onboarding output is, by construction, also always exactly
-   the shape this check targets.
+   `validate_pack(output_dir, check_drg_root=False)` call (`pack_assembler.py:335`) as a
+   round-trip check on output the assembler just produced, rolling the assembly back on
+   failure. `_copy_drg_fragments` (`pack_assembler.py:475-539`) writes DRG content **only**
+   to `output_dir/drg/*.graph.yaml`; the assembler has no code path that ever writes a
+   pack-root `*.graph.yaml`. This is a structural guarantee about the assembler's own write
+   paths, not an assumption about any caller or about `org_init`'s output shape. **This
+   carve-out stands, unconditional, unchanged.**
+2. `doctrine.py:org_validate` (`:966`) calls `validate_pack(pack_path)` against an arbitrary
+   `pack_path: Path` — a general-purpose CLI command, not scoped to freshly-`org_init`'d
+   directories. Nothing stops an author from running `org init`, then adding real
+   `agent_profiles/`, `directives/`, and a `drg/010-security.graph.yaml` fragment with no
+   pack-root graph, then running `org validate` on the now-substantial pack — precisely the
+   destructive shape this FR exists to catch. The check itself is already content-conditional
+   (it fires only when `drg/*.graph.yaml` fragments exist and the pack root has none), and
+   `org_init` (`:899-940`) scaffolds `drg/fragment.yaml` — a filename that never matches
+   `*.graph.yaml` — so the carve-out has never protected anything for the shape its own
+   justification cited (the three-file onboarding stub). **`org_validate`'s carve-out is
+   therefore dropped.** The call site passes `check_drg_root=True` **explicitly** rather than
+   relying on `validate_pack`'s own default, with a short inline comment recording why: if a
+   future refactor changes that default, an implicit reliance on it would silently change
+   `org_validate`'s behaviour and nothing would fail to flag it. Writing it explicitly makes
+   the dependency visible and lets AC-7 assert it directly.
 
-A default-error severity applied uniformly would fail both call sites on every invocation:
-`assemble_pack()`'s internal `validate_pack` call on every DRG-carrying assembly, including
-the currently-passing `test_force_dedup_prunes_duplicate_edges_via_canonical_serializer`
+**Corrected: what a uniformly-applied default-error severity would actually do.** A
+default-error severity applied uniformly would fail `assemble_pack()`'s internal
+`validate_pack` call on every DRG-carrying assembly, including the currently-passing
+`test_force_dedup_prunes_duplicate_edges_via_canonical_serializer`
 (`tests/specify_cli/doctrine/test_pack_assembler.py:169`), which asserts `result.ok is True`
-against exactly this drg/-fragments-only, no-pack-root-graph shape; and `org_validate`'s call
-on every freshly-scaffolded org pack, including the currently-passing
-`test_doctrine_org_validate_accepts_valid_pack`
-(`tests/cli/test_doctrine_org_commands.py:108-119`), which scaffolds via `org init` and then
-asserts `org validate` exits `0` on the unmodified scaffold. Neither call site is an author
-reviewing a hand-authored pack for publication — the silent-success gap this mission closes is
-at *authoring* time, before a pack is ever assembled, published, or (for the org-pack case)
-filled in past its onboarding stub — not in either of these two self-check/scaffold-check
-call sites. Accordingly: `validate_pack()` gains a keyword-only parameter,
-`check_drg_root: bool = True`. The CLI's `pack_validate` command (and any other
-full-pack-authoring caller) uses the default `True`. Both `pack_assembler.py`'s internal
-`validate_pack(output_dir)` call at `:335` and `doctrine.py`'s `org_validate`'s
-`validate_pack(pack_path)` call at `:966` pass `check_drg_root=False`, since in both cases the
-call's own architecture guarantees the shape under validation can never satisfy a pack-root
-graph and this specific diagnostic would otherwise fire unconditionally, regardless of
-authoring correctness, on every invocation of that call site.
+against exactly this drg/-fragments-only, no-pack-root-graph shape — this is why the
+assembler's carve-out is needed and kept. It would **not** fail `org_validate`'s call on a
+freshly-scaffolded org pack: `org_init`'s scaffold writes `drg/fragment.yaml`, a filename
+that never matches the check's `*.graph.yaml` glob, so `test_doctrine_org_validate_accepts_valid_pack`
+(`tests/cli/test_doctrine_org_commands.py:108-119`) would keep passing with or without a
+carve-out. (This passage previously asserted the default would fail "both call sites on
+every invocation... including... `test_doctrine_org_validate_accepts_valid_pack`" — checked
+directly against this checkout and found factually false; corrected here, not merely
+reworded, per operator ruling #2.)
+
+Accordingly: `validate_pack()` gains a keyword-only parameter, `check_drg_root: bool = True`.
+The CLI's `pack_validate` command (and any other full-pack-authoring caller) uses the
+default `True`. `pack_assembler.py`'s internal `validate_pack(output_dir,
+check_drg_root=False)` call at `:335` keeps its unconditional carve-out, for the structural
+reason in point 1 above. `doctrine.py`'s `org_validate` call at `:966` passes
+`check_drg_root=True` explicitly (see point 2 above) — it carries no carve-out.
 
 For the assembler: extending the assembler to also emit a pack-root graph, or defaulting the
 whole check to advisory, were both considered and rejected: the former is an unrelated, larger
@@ -438,29 +447,18 @@ latter would blunt the diagnostic for the author-facing case that is this missio
 target, given the destructive "zeroes the action grain" consequence documented by sibling
 mission #3384.
 
-For `org_validate`: two remediations were considered — (a) have `org_init`'s scaffold also
-write a minimal pack-root `*.graph.yaml`, so the scaffolded pack satisfies the new check by
-construction, or (b) route `org_validate`'s call with an explicit `check_drg_root=False`.
-**(b) is chosen.** `org_init`'s three-file scaffold (`org-charter.yaml` + `drg/fragment.yaml`
-+ `README.md`) writes `drg/fragment.yaml` in exactly the shape the guide's own "DRG
-extensions" section documents (`docs/guides/how-to/governance/create-an-org-doctrine-pack.md:145-173`:
-"DRG fragments are **additive only**... merge in alphabetical filename order") — additive
-content merged into a host doctrine tree, never a complete, independently-loadable pack in
-its own right. Inventing a pack-root graph for this scaffold would contradict that documented
-fragment model and would add a fourth scaffolded file with no natural authoring analog in
-this minimal onboarding command (the command's own docstring says "Creates three files").
-Routing `check_drg_root=False` for this narrower `doctrine org` command family instead
-mirrors the precedent already established for `pack_assembler.py`'s internal call: both are
-call sites whose own architecture guarantees the drg/-fragments-only shape, not author-facing
-full-pack validation this check's default targets.
-
 **Fails how**: before this fix, a pack authored exactly per the guide's `drg/` section
 passes `pack validate` cleanly and, per sibling mission #3384's finding, **zeroes the action
 grain** on adoption — a destructive silent failure with no validation-time signal at all.
 After this fix, `pack validate` names the mismatch at authoring time, before the pack is
-ever published or fetched by a consumer — while both `assemble_pack()`'s internal
-round-trip check and `org_validate`'s onboarding-scaffold check continue to pass for their
-own known drg/-fragments-only output, unaffected by this new author-facing diagnostic.
+ever published or fetched by a consumer. `assemble_pack()`'s internal round-trip check
+continues to pass for its own known drg/-fragments-only output — because of its unconditional
+carve-out, unaffected by this new author-facing diagnostic. `org_validate`'s
+onboarding-scaffold check continues to pass too, but for a different reason: not because it
+is carved out, but because `org_init`'s scaffold never produces the shape the diagnostic
+fires on. Should a pack that started as an `org_init` stub later accumulate real
+`drg/*.graph.yaml` content with no pack-root graph, `doctrine org validate` now correctly
+fires the diagnostic — this is the positive-fire case AC-7 tests.
 
 **Acceptance Criteria**:
 - AC-1: A pack with `drg/010-security.graph.yaml` and no pack-root `*.graph.yaml` produces
@@ -490,14 +488,24 @@ own known drg/-fragments-only output, unaffected by this new author-facing diagn
   `tests/specify_cli/doctrine/test_pack_assembler.py` passes unchanged, and a new test asserts
   `check_drg_root=False` is actually the parameter value used by that internal call (not
   merely that the test happens to still pass).
-- AC-7: `doctrine org validate`'s internal `validate_pack(pack_path, check_drg_root=False)`
-  call is exercised by an org pack scaffolded via `doctrine org init`
-  (`org-charter.yaml` + `drg/fragment.yaml` + `README.md`, no pack-root graph):
-  `tests/cli/test_doctrine_org_commands.py::test_doctrine_org_validate_accepts_valid_pack`
-  continues to exit `0` unmodified, and a new/updated test in that file asserts
-  `check_drg_root=False` is actually the parameter value used by `org_validate`'s call — not
-  merely that the existing test happens to still pass — mirroring AC-6's parameter-value
-  assertion for the assembler's call.
+- AC-7: `doctrine org validate`'s internal `validate_pack(pack_path, check_drg_root=True)`
+  call carries **no carve-out** — this inverts the previous version of this AC. Two cases:
+  - *(a) Negative, unmodified scaffold*: an org pack scaffolded via `doctrine org init`
+    (`org-charter.yaml` + `drg/fragment.yaml` + `README.md`, no pack-root graph) still
+    passes — `tests/cli/test_doctrine_org_commands.py::test_doctrine_org_validate_accepts_valid_pack`
+    continues to exit `0` unmodified, because `drg/fragment.yaml` never matches the
+    `*.graph.yaml` glob this check keys off, not because of any carve-out. A new/updated
+    test in that file asserts `check_drg_root=True` is actually the parameter value used at
+    `org_validate`'s call site, written explicitly rather than left to `validate_pack`'s own
+    default — mirroring AC-6's parameter-value assertion for the assembler's call, but
+    asserting the opposite value.
+  - *(b) Positive-fire, no fixture exists today*: a new test fixture — a pack scaffolded via
+    `doctrine org init`, then given a real `drg/*.graph.yaml` fragment (in addition to or
+    replacing the scaffolded `drg/fragment.yaml`) with still no pack-root graph — asserts
+    `doctrine org validate` now produces the `drg_root_graph_missing` diagnostic and exits
+    non-zero. No such fixture exists in `tests/cli/test_doctrine_org_commands.py` today; this
+    is the exact shape the dropped carve-out was suppressing, and proving it fires is the
+    whole point of dropping the carve-out.
 - **Targeted test surface**: `tests/specify_cli/doctrine/test_pack_validator.py`,
   `tests/specify_cli/doctrine/test_pack_assembler.py`, `tests/cli/test_doctrine_org_commands.py`.
 
@@ -562,9 +570,10 @@ Per Charter Standing Order #2 (campsite cleaning) and #3 (mission tracer files):
   function and `_scan_artifact_directory`'s docstring already notes it was extracted to stay
   under ruff's C901 limit; adding FR-002/004's new checks should follow the same
   extract-a-helper discipline rather than growing `validate_pack()` in place.
-  `pack_assembler.py` and `doctrine.py` are touched only for FR-004's Reflexivity fix (the
-  `check_drg_root=False` carve-outs at `assemble_pack()`'s and `org_validate`'s call sites
-  respectively) — a narrow, single-call-site edit each, not a rewrite. Per the binding
+  `pack_assembler.py` and `doctrine.py` are touched only for FR-004's Reflexivity fix — the
+  unconditional `check_drg_root=False` carve-out at `assemble_pack()`'s call site, and the
+  explicit `check_drg_root=True` (no carve-out) written out at `org_validate`'s call site —
+  a narrow, single-call-site edit each, not a rewrite. Per the binding
   operator ruling narrowing FR-001 to a documentation-only guide correction
   (`reviews/spec.ruling.md`), `snapshot.py` and `step_contracts.py` are **not** touched by
   this mission's code — the guide fix only. This is a planning-phase call, not specified
