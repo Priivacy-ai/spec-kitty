@@ -15,6 +15,12 @@ Landmine 2):
   ``charter.yaml`` cannot live *inside* ``charter.yaml`` (chicken-egg), so
   there is no meaningful upstream artifact left to compare against at this
   layer. ``charter_source`` therefore never returns ``stale``.
+  ``missing`` carries a ``detail`` (charter-preflight-remediation WP05 /
+  FR-005) distinguishing a project with no charter at all from one that
+  still carries the pre-consolidation legacy bundle (``governance.yaml`` /
+  ``directives.yaml`` / ``metadata.yaml`` / ``references.yaml``) but never
+  generated ``charter.yaml`` — both were otherwise identical ``missing``
+  states with no explanatory text.
 * ``synced_bundle.state = "missing"`` when ``charter.yaml`` (the sole entry
   in ``_BUNDLE_FILES`` / ``charter.bundle.BUNDLE_CONTENT_HASH_FILES``,
   contracts/manifest-v2.md M1/M3) is absent; ``"stale"`` when it exists but
@@ -115,7 +121,13 @@ FreshnessState = Literal["fresh", "stale", "missing", "built_in_only", "invalid"
 
 # S1192: shared remediation command strings, referenced by every sub-state
 # builder below that recommends a recovery command.
-_REMEDIATE_CHARTER_SYNC = "spec-kitty charter sync"
+#
+# ``_REMEDIATE_CHARTER_SYNC`` is deliberately gone (#2831): ``charter sync`` is a
+# pure staleness reporter (see ``cli/commands/charter/generate.py``) — it always
+# reports ``synced=False`` / ``files_written=[]``, so every state that named it
+# handed the operator a command that could not clear the check it was blocking on.
+# Each such state now emits either a command that actually changes the state, or
+# no remediation at all where none can help.
 _REMEDIATE_CHARTER_SYNTHESIZE = "spec-kitty charter synthesize"
 
 
@@ -133,7 +145,7 @@ class FreshnessSubState:
             ``invalid``.  Matches ``contracts/charter-status-json.md``.
         last_change: ISO 8601 timestamp of the most recent change to the
             tracked asset (None when missing or unknown).
-        remediation: Operator-facing hint (e.g. ``spec-kitty charter sync``)
+        remediation: Operator-facing hint (e.g. ``spec-kitty charter generate``)
             or None when no action is required.
         detail: Optional human-readable explanation surfaced for ``invalid``
             states so operators understand why an artifact is broken.
@@ -183,6 +195,82 @@ _CHARTER_DIR = Path(".kittify") / "charter"
 #: M1/M3). ``test_bundle_file_lists_stay_in_sync`` pins the two tuples equal.
 _CHARTER_YAML_FILENAME = "charter.yaml"
 _BUNDLE_FILES = (_CHARTER_YAML_FILENAME,)
+
+#: The four legacy bundle files a pre-consolidation project may still carry
+#: (charter-preflight-remediation WP05 / FR-005). Mirrors — does NOT import —
+#: ``specify_cli.upgrade.migrations.m_unify_charter_activation_finalize.
+#: LEGACY_BUNDLE_FILENAMES``: that migration module keeps the name and its
+#: sibling ``legacy_bundle_present`` helper as unexported internals (its own
+#: dead-symbol-gate rationale, see that module's trailing comment), and this
+#: module already mirrors rather than imports migration/charter-layer
+#: constants across the runtime/migration boundary (see
+#: ``_CHARTER_YAML_FILENAME`` above, which mirrors
+#: ``charter.bundle.BUNDLE_CONTENT_HASH_FILES`` the same way) — importing a
+#: migration-internal symbol here would also pull the migration registry
+#: onto this module's hot import path (NFR-003). Used only to distinguish
+#: "no charter at all" (F1) from "legacy bundle present, not yet folded into
+#: charter.yaml" (F2) when ``charter_source``/``synced_bundle`` report
+#: ``missing`` — the two states are otherwise identical (FR-005 Edge Cases).
+_LEGACY_BUNDLE_FILENAMES: tuple[str, ...] = (
+    "governance.yaml",
+    "directives.yaml",
+    "metadata.yaml",
+    "references.yaml",
+)
+
+
+def _legacy_bundle_files_present(repo_root: Path) -> tuple[str, ...]:
+    """Return the subset of ``_LEGACY_BUNDLE_FILENAMES`` that actually exist
+    on disk, in canonical order.
+
+    A pre-consolidation project may carry any subset of the four legacy
+    files (a stray leftover from a partial migration, a hand-edit, or a
+    project mid-upgrade) — never assume all four are present just because
+    one is (WP05 cycle 2 / review-cycle-1.md Issue 1).
+    """
+    charter_dir = repo_root / _CHARTER_DIR
+    return tuple(name for name in _LEGACY_BUNDLE_FILENAMES if (charter_dir / name).exists())
+
+
+def _legacy_bundle_present(repo_root: Path) -> bool:
+    """Return True when any of the four legacy bundle files exist on disk."""
+    return bool(_legacy_bundle_files_present(repo_root))
+
+
+def _missing_charter_source_detail(repo_root: Path) -> str:
+    """Distinguish F1 ("no charter at all") from F2 (legacy bundle present,
+    not yet folded into ``charter.yaml``) for the ``missing`` state (FR-005).
+
+    Both fixture shapes previously produced identical output — ``state=
+    "missing"`` with no ``detail`` — because nothing here inspected the
+    legacy bundle files. F2 is not "no charter"; the project has a charter,
+    just not in the form the gate requires.
+
+    The rendered text names only the legacy files actually found on disk
+    (WP05 cycle 2 / review-cycle-1.md Issue 1): ``_legacy_bundle_present``
+    returns True when ANY of the four files exist, so a fixed four-file
+    claim overclaims for every partial bundle (e.g. a lone stray
+    ``references.yaml``) — a confidently-wrong inventory of the operator's
+    own ``.kittify/charter/`` directory is strictly worse than the generic
+    filler it replaced. Building the list from the same presence check used
+    to decide F1-vs-F2 keeps the claim true for any subset, from one file up
+    to all four.
+    """
+    present = _legacy_bundle_files_present(repo_root)
+    if present:
+        file_list = "/".join(present)
+        if len(present) == 1:
+            return (
+                f"no charter.yaml, but a legacy charter bundle file ({file_list}) "
+                "is present; this project has a charter, just not in the "
+                "required form"
+            )
+        return (
+            f"no charter.yaml, but legacy charter bundle files ({file_list}) "
+            "are present; this project has a charter, just not in the "
+            "required form"
+        )
+    return "no charter.yaml and no legacy charter bundle files; this project has no charter at all"
 
 
 def _synthesis_manifest_path(repo_root: Path) -> Path:
@@ -304,6 +392,26 @@ def _compute_charter_source(repo_root: Path) -> FreshnessSubState:
     self-referential hash to compute here. This sub-state can therefore only
     ever be ``missing``, ``invalid``, or ``fresh`` — never ``stale`` (the
     content-drift question is answered downstream by ``synthesized_drg``).
+
+    ``invalid`` has no effective self-service remediation (WP03 / mission
+    ``charter-preflight-remediation-01KYG9WK``): every write path in the
+    codebase (``charter generate`` bare/``--force``/``--no-from-interview``,
+    ``spec-kitty upgrade --yes``, ``charter synthesize``, ``charter
+    resynthesize``, ``charter interview --defaults`` then generate) merges
+    into the existing ``charter.yaml`` via a round-trip YAML parse
+    (``charter_yaml_io.update_charter_yaml_section``, the sole writer path
+    — INV-9), so all of them require the file to already parse. None
+    repairs broken YAML. This state is declared exempt
+    (``tests/architectural/test_remediation_effectiveness.py::_EXEMPT_STATES``,
+    C-EFF-2) and emits ``remediation=None`` rather than a command it cannot
+    make effective (R-006).
+
+    ``missing`` carries a ``detail`` (charter-preflight-remediation WP05 /
+    FR-005) distinguishing F1 ("no charter at all") from F2 (a legacy bundle
+    present, not yet folded into ``charter.yaml``) — see
+    ``_missing_charter_source_detail``. Without it the two fixture shapes
+    were indistinguishable to an operator: same state, same remediation, no
+    explanatory text.
     """
     charter_yaml_path = repo_root / _CHARTER_DIR / _CHARTER_YAML_FILENAME
 
@@ -311,7 +419,8 @@ def _compute_charter_source(repo_root: Path) -> FreshnessSubState:
         return FreshnessSubState(
             state="missing",
             last_change=None,
-            remediation=_REMEDIATE_CHARTER_SYNC,
+            remediation="spec-kitty charter generate --no-from-interview",
+            detail=_missing_charter_source_detail(repo_root),
         )
 
     last_change = _mtime_iso(charter_yaml_path)
@@ -320,8 +429,8 @@ def _compute_charter_source(repo_root: Path) -> FreshnessSubState:
         return FreshnessSubState(
             state="invalid",
             last_change=last_change,
-            remediation=_REMEDIATE_CHARTER_SYNC,
-            detail="charter.yaml exists but cannot be parsed",
+            remediation=None,
+            detail="charter.yaml exists but cannot be parsed; `charter generate` needs it to already parse — restore from VCS or hand-repair, then re-run",
         )
 
     return FreshnessSubState(state="fresh", last_change=last_change, remediation=None)
@@ -343,6 +452,19 @@ def _compute_synced_bundle(
     only non-``fresh``, non-``missing`` state ``charter_source`` can report
     once the file exists, since the ``charter.md``-hash ``"stale"`` branch
     is retired); ``fresh`` otherwise.
+
+    The cascading ``stale`` branch (reached when ``charter_source`` is
+    ``invalid``) has no effective self-service remediation, for the same
+    reason ``_compute_charter_source``'s ``invalid`` state does not: this
+    layer mirrors ``charter_source``, and every write path requires
+    ``charter.yaml`` to already parse. Declared exempt alongside it
+    (C-EFF-2) and emits ``remediation=None`` (R-006).
+
+    ``missing`` echoes ``charter_source.detail`` (WP05 / FR-005) rather than
+    recomputing the F1-vs-F2 distinction a second time: this branch is only
+    reached when ``charter.yaml`` — the same file ``charter_source``
+    inspects — is absent, so ``charter_source`` is always ``"missing"``
+    too, with the same F1/F2 answer already computed.
     """
     bundle_paths = [repo_root / _CHARTER_DIR / name for name in _BUNDLE_FILES]
     existing = [p for p in bundle_paths if p.exists()]
@@ -350,7 +472,8 @@ def _compute_synced_bundle(
         return FreshnessSubState(
             state="missing",
             last_change=None,
-            remediation=_REMEDIATE_CHARTER_SYNC,
+            remediation="spec-kitty charter generate --no-from-interview",
+            detail=charter_source.detail,
         )
 
     last_change = _latest_mtime(existing)
@@ -359,7 +482,12 @@ def _compute_synced_bundle(
         return FreshnessSubState(
             state="stale",
             last_change=last_change,
-            remediation=_REMEDIATE_CHARTER_SYNC,
+            remediation=None,
+            detail=(
+                "synced bundle mirrors charter_source, which is unparseable; "
+                "the parse error must be fixed there first — restore "
+                "charter.yaml from VCS or hand-repair, then re-run"
+            ),
         )
 
     return FreshnessSubState(state="fresh", last_change=last_change, remediation=None)

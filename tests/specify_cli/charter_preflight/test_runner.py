@@ -360,13 +360,17 @@ def test_missing_drg_blocks_with_remediation(tmp_path: Path) -> None:
 
 
 def test_invalid_charter_yaml_blocks(tmp_path: Path) -> None:
-    """An unparseable ``charter.yaml`` blocks with the sync remediation.
+    """An unparseable ``charter.yaml`` blocks, naming the check and state.
 
     consolidate-charter-bundle WP06 (Landmine 2) re-pins this test: the
     retired charter.md-hash-mismatch mechanism (formerly ``"stale"``) is
     replaced by ``charter.yaml`` being present but unparseable
     (``"invalid"``) — the only non-``fresh``, non-``missing`` state
     ``charter_source`` can report post-retirement.
+
+    WP03: ``invalid`` has no effective self-service remediation (WP02's
+    exhaustive census) and is now a declared exemption (C-EFF-2) —
+    ``remediation`` is ``None``, not a fabricated command.
     """
     init_git_repo(tmp_path)
     charter_path, metadata_path = seed_charter(tmp_path)
@@ -378,9 +382,53 @@ def test_invalid_charter_yaml_blocks(tmp_path: Path) -> None:
     result = run_charter_preflight(tmp_path)
     assert result.passed is False
     assert result.blocked_reason is not None
-    assert "sync" in result.blocked_reason
+    assert "charter_source invalid" in result.blocked_reason
     source = next(c for c in result.checks if c.name == "charter_source")
     assert source.state == "invalid"
+    assert source.remediation is None
+
+
+def test_exempt_check_blocks_without_naming_a_command(tmp_path: Path) -> None:
+    """WP03 (R-006 / C-EFF-2 / C-EFF-3, spec US1 Acceptance Scenario 3): a
+    check with no effective self-service remediation must still be reported
+    — name, state, and *why* — but the runner must not fabricate a command
+    in place of the missing remediation.
+
+    ``charter_source: invalid`` and its cascading ``synced_bundle: stale``
+    are the two states WP02's exhaustive census proved unfixable by any
+    write path in the codebase (every one requires ``charter.yaml`` to
+    already parse). Both are declared exempt.
+    """
+    init_git_repo(tmp_path)
+    seed_charter_yaml(tmp_path, valid=False)
+    # Manifest declares built_in_only so synthesized_drg passes and does not
+    # contribute its own (legitimate, non-exempt) remediation line — this
+    # test isolates the two exempt checks.
+    seed_manifest(tmp_path, built_in_only=True)
+
+    result = run_charter_preflight(tmp_path, auto_refresh=False)
+
+    assert result.passed is False
+    assert result.blocked_reason is not None
+
+    source = next(c for c in result.checks if c.name == "charter_source")
+    bundle = next(c for c in result.checks if c.name == "synced_bundle")
+    assert source.state == "invalid"
+    assert source.remediation is None
+    assert bundle.state == "stale"
+    assert bundle.remediation is None
+
+    # No fabricated instruction on either exempt line — the runner must not
+    # substitute a default command (e.g. `spec-kitty charter status`) for a
+    # `None` remediation.
+    for line in result.blocked_reason.splitlines():
+        assert "run `" not in line, f"exempt check line still names a command: {line!r}"
+    assert "charter status" not in result.blocked_reason
+
+    # Still informative — the check and its state are named, not silence.
+    assert "charter_source invalid" in result.blocked_reason
+    assert "synced_bundle stale" in result.blocked_reason
+    assert "parse" in result.blocked_reason.lower()
 
 
 # ---------------------------------------------------------------------------
