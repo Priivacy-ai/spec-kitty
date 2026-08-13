@@ -321,6 +321,49 @@ def test_charter_source_missing_reads_as_legacy_bundle_present_for_f2(
     assert result.synced_bundle.detail == result.charter_source.detail
 
 
+def test_charter_source_missing_detail_names_charter_md_for_the_2831_shape(
+    tmp_path: Path,
+) -> None:
+    """#2831's ACTUAL reported shape: ``charter.md`` present, nothing else.
+
+    The issue reads *"despite it existing at .kittify/charter/charter.md"*, and
+    its central complaint is that every diagnostic reported healthy while the
+    gate refused. Before this, that operator got the F1 text — "this project has
+    no charter at all" — because ``charter.md`` was absent from
+    ``_LEGACY_BUNDLE_FILENAMES``, so the most common legacy shape of all was
+    misclassified as *no charter*.
+
+    Pinned as its own case rather than folded into the four-file F2 test: those
+    fixtures seed only the ``.yaml`` files, so they stayed green throughout and
+    could never have caught this. The gate's *verdict* is deliberately unchanged
+    — still ``missing``, still remediable by ``charter generate`` — because
+    charter.yaml remains the required form. Only the sentence changes, from a
+    false one to a true one.
+    """
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    (charter_dir / "charter.md").write_text("# Project Charter\n", encoding="utf-8")
+
+    result = compute_freshness(tmp_path)
+
+    assert result.charter_source.state == "missing"
+    detail = result.charter_source.detail
+    assert detail is not None
+    assert "no charter at all" not in detail, (
+        "charter.md is present — telling the operator they have no charter is the "
+        "diagnostic-vs-reality contradiction #2831 reported"
+    )
+    assert detail == (
+        "no charter.yaml, but a legacy charter bundle file (charter.md) "
+        "is present; this project has a charter, just not in the "
+        "required form"
+    )
+    # The exit stays open: naming the shape correctly must not cost the operator
+    # the remediation that provably clears it.
+    assert result.charter_source.remediation == "spec-kitty charter generate --no-from-interview"
+    assert result.synced_bundle.detail == detail
+
+
 def test_charter_source_missing_detail_true_for_single_stray_legacy_file(
     tmp_path: Path,
 ) -> None:
