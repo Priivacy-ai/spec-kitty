@@ -116,3 +116,29 @@ def test_non_mission_created_does_not_fire_daemon_or_dashboard(tmp_path: Path, e
 
     assert publish_spy.call_count == 0, f"daemon publish must not fire for {event_type}"
     assert dashboard_spy.call_count == 0, f"dashboard sync must not fire for {event_type}"
+
+
+def test_ingress_does_not_fall_back_to_credentials_scope(tmp_path: Path) -> None:
+    """Fail-closed ingress: no drift to the credentials file's team_slug (#738/#911).
+
+    When ``read_queue_scope_from_session`` cannot resolve the Private Teamspace it
+    returns None. The handler must then skip — never reroute to
+    ``read_queue_scope_from_credentials`` (which returns whatever team_slug the
+    credentials TOML last stored, often a shared/primary team). Reaching that
+    fallback is what forked the producer journal and materialized the project
+    under the wrong team on the server.
+    """
+    publish_spy = MagicMock(name="_publish_event_via_sync_daemon")
+    with (
+        patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=True),
+        patch("specify_cli.sync.queue.read_queue_scope_from_session", return_value=None),
+        patch("specify_cli.sync.queue.read_queue_scope_from_credentials") as creds_fallback,
+        patch("specify_cli.sync.events._publish_event_via_sync_daemon", publish_spy),
+    ):
+        _lifecycle_saas_fanout_handler(
+            envelope=_envelope("MissionCreated"),
+            log_path=tmp_path / "status.events.jsonl",
+        )
+
+    creds_fallback.assert_not_called()  # the fail-open fallback is gone
+    publish_spy.assert_not_called()  # nothing published under a drifted scope
