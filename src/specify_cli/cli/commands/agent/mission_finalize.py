@@ -1202,6 +1202,118 @@ def _capture_target_branch_tip(repo_root: Path, target_branch: str) -> str | Non
     return sha or None
 
 
+def _execution_has_begun(repo_root: Path, mission_slug: str) -> bool:
+    """#3311 T014: read-only "has execution begun" signal for the finalize gate.
+
+    MANDATORY reader recipe: resolve the coord-aware status read dir via
+    :func:`resolve_status_surface_with_anchor` (the same authority
+    ``implement.py`` uses, ``implement.py:1668-1680``), then read lanes
+    read-only through :func:`get_all_wp_lanes`. **Never calls
+    ``reducer.materialize()``** — that WRITES ``status.json`` to disk, which a
+    "read" helper for a gate check must never do (C-005 / the
+    read-does-not-write invariant this WP is guarded against).
+
+    ``has_event_log`` gates first: an absent event log means the mission has
+    never been finalized/bootstrapped, so execution categorically has not
+    begun (a fresh mission, or the very first finalize run).
+
+    Returns:
+        ``True`` iff any WP's current lane is something other than
+        ``planned`` (claimed, in_progress, for_review, ..., done, blocked,
+        canceled). ``False`` when the event log is absent, empty, every
+        seeded WP is still ``planned``, or the surface/event log cannot be
+        read at all (degrades gracefully like this module's sibling
+        ``_capture_target_branch_tip`` — a signal-computation helper must
+        never crash the whole ``finalize-tasks`` command over an unreadable
+        read-only surface; a corrupted event log is a pre-existing store
+        problem `status doctor` surfaces separately, not something this gate
+        should newly turn into a hard finalize failure).
+    """
+    from specify_cli.coordination.surface_resolver import (
+        CoordinationBranchDeleted,
+        StatusReadPathNotFound,
+        resolve_status_surface_with_anchor,
+    )
+    from specify_cli.status import Lane, StoreError, get_all_wp_lanes, has_event_log
+
+    try:
+        read_dir = resolve_status_surface_with_anchor(repo_root, mission_slug).read_dir
+    except (FileNotFoundError, ValueError, StatusReadPathNotFound, CoordinationBranchDeleted):
+        # Surface resolution failed closed (no meta.json / malformed meta / an
+        # unresolvable coord surface). No event log can be read from an
+        # unresolvable surface either, so this degrades to the same
+        # "not begun" answer ``has_event_log``'s absence produces below.
+        return False
+    if not has_event_log(read_dir):
+        return False
+    try:
+        lanes = get_all_wp_lanes(read_dir)
+    except StoreError:
+        # Corrupted/malformed event log content. Degrade to "not begun"
+        # rather than raise — see the docstring's graceful-degradation note.
+        return False
+    return any(lane != Lane.PLANNED for lane in lanes.values())
+
+
+def _preserve_or_capture_planning_commit_sha(
+    planning_dir: Path,
+    repo_root: Path,
+    mission_slug: str,
+    target_branch: str,
+    *,
+    json_output: bool,
+) -> str | None:
+    """#3311 T015: gate the ``planning_commit_sha`` capture on execution-begun.
+
+    ADR ``2026-07-29-1`` / FR-009 freezes the recorded planning-artifact SHA
+    into the SAME write ``_compute_and_write_lanes`` performs — no second
+    commit, no re-read at lane-allocation time. #3311: once execution has
+    begun (:func:`_execution_has_begun` — any WP past ``planned``), a
+    re-finalize triggered by an ownership-only amendment must PRESERVE that
+    frozen SHA instead of silently re-capturing the CURRENT branch tip, which
+    would clobber the established planning provenance a lane worktree may
+    already carry a merge-base against. Before execution begins, the
+    historical recompute + re-capture behavior is unchanged — every
+    pre-execution re-finalize keeps regenerating freely (C-005).
+
+    Preserve is the default resolution. Refuse (raise ``typer.Exit(1)`` before
+    writing any bytes) only in the one case preservation cannot be done
+    safely: execution has begun yet no on-disk ``lanes.json`` exists to read
+    the recorded SHA from — an inconsistent state finalize should never
+    reach, since bootstrapping the event log itself requires a prior
+    successful finalize run that already wrote ``lanes.json``.
+    """
+    if not _execution_has_begun(repo_root, mission_slug):
+        return _capture_target_branch_tip(repo_root, target_branch)
+
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    existing: LanesManifest | None = read_lanes_json(planning_dir)
+    if existing is None:
+        error_msg = (
+            f"Cannot re-finalize mission {mission_slug!r}: execution has begun "
+            "(a WP is past 'planned') but no lanes.json exists on disk to "
+            "preserve planning provenance from. Refusing to write a new "
+            "lanes.json rather than guess a planning_commit_sha."
+        )
+        if json_output:
+            _emit_json({"error": error_msg})
+        else:
+            console.print(f"[red]Error:[/red] {error_msg}")
+        raise typer.Exit(1)
+    # Suppression rationale (not a real type error): this module's
+    # [[tool.mypy.overrides]] sets ``follow_imports = "skip"`` for all
+    # ``specify_cli.*`` modules (to avoid walking the CLI bootstrap graph), so
+    # a single-file mypy invocation loses ``LanesManifest``'s real field types
+    # across that import boundary and reports a spurious no-any-return here —
+    # the SAME pre-existing pattern already present at 6 other return sites in
+    # this file (e.g. lines 136, 145). ``planning_commit_sha`` is genuinely
+    # ``str | None`` (specify_cli/lanes/models.py); `mypy
+    # src/specify_cli/lanes/models.py src/specify_cli/lanes/persistence.py` in
+    # isolation reports zero issues.
+    return existing.planning_commit_sha  # type: ignore[no-any-return]
+
+
 def _compute_and_write_lanes(
     planning_dir: Path,
     repo_root: Path,
@@ -1248,7 +1360,12 @@ def _compute_and_write_lanes(
     # FR-009 / ADR 2026-07-29-1 (T002): freeze the recorded planning-artifact SHA
     # into the SAME write as the rest of lanes.json — no second commit, no
     # chicken-and-egg with this invocation's own finalize commit hash.
-    lanes_manifest.planning_commit_sha = _capture_target_branch_tip(repo_root, target_branch)
+    # #3311 T015: once execution has begun, PRESERVE the previously-recorded
+    # SHA instead of re-capturing the current branch tip (see
+    # ``_preserve_or_capture_planning_commit_sha``).
+    lanes_manifest.planning_commit_sha = _preserve_or_capture_planning_commit_sha(
+        planning_dir, repo_root, mission_slug, target_branch, json_output=json_output
+    )
     lanes_path = write_lanes_json(planning_dir, lanes_manifest)
     if not json_output:
         console.print(f"[green]✓[/green] Computed {len(lanes_manifest.lanes)} execution lane(s)")

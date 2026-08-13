@@ -50,6 +50,7 @@ from specify_cli.retrospective import (
     RecordExistsError,
     PolicyResolutionError,
 )
+from specify_cli.retrospective.reader import read_gen_record
 from specify_cli.retrospective.writer import resolve_existing_record_path
 from specify_cli.retrospective.schema import GenActor, GenProvenance, ProvenanceKind
 from specify_cli.retrospective.summary import classify_mission_record
@@ -400,10 +401,18 @@ def create_cmd(
         _err_console.print(f"[red]Error:[/red] Failed to write record: {exc}")
         raise typer.Exit(1) from exc
 
+    # Read back the persisted record: write_gen_record(mode="update") merges
+    # the freshly-generated record with the existing on-disk record and
+    # recomputes findings_status from the union, but only returns a Path
+    # (C-002). Reporting/emitting must reflect what is ACTUALLY on disk, not
+    # the pre-merge `record` (#3320). This read-back is a no-op for
+    # --overwrite / mode="error" / backfill, where persisted == new.
+    persisted = read_gen_record(record_path)
+
     # Emit lifecycle event (non-fatal — record write already succeeded)
     with contextlib.suppress(Exception):
         emit_captured(
-            record,
+            persisted,
             repo_root,
             provenance_kind="explicit_create",
             actor=_cli_actor(),
@@ -411,21 +420,21 @@ def create_cmd(
 
     # Auto-commit if enabled. FR-006 (#1735/#1771): stage the canonical status
     # surface (coord-aware), not the primary-checkout-only path.
-    events_path = _canonical_events_path(repo_root, record.mission_slug)
+    events_path = _canonical_events_path(repo_root, persisted.mission_slug)
     _maybe_auto_commit(
         repo_root,
         [record_path, events_path],
-        f"chore(retrospective): author retrospective for {record.mission_slug}",
+        f"chore(retrospective): author retrospective for {persisted.mission_slug}",
     )
 
     # Build output
     policy_source_out = _policy_source_dict(source_map)
     counts = {
-        "helped": len(record.helped),
-        "not_helpful": len(record.not_helpful),
-        "gaps": len(record.gaps),
-        "proposals": len(record.proposals),
-        "evidence_refs": len(record.evidence_refs),
+        "helped": len(persisted.helped),
+        "not_helpful": len(persisted.not_helpful),
+        "gaps": len(persisted.gaps),
+        "proposals": len(persisted.proposals),
+        "evidence_refs": len(persisted.evidence_refs),
     }
     next_step = (
         f"Run `spec-kitty agent retrospect synthesize --mission {resolved.mission_slug}` "
@@ -439,7 +448,7 @@ def create_cmd(
                 "mission_id": resolved.mission_id,
                 "mission_slug": resolved.mission_slug,
                 "record_path": str(record_path),
-                "findings_status": record.findings_status,
+                "findings_status": persisted.findings_status,
                 "counts": counts,
                 "provenance_kind": "explicit_create",
                 "policy_source": policy_source_out,
@@ -452,7 +461,7 @@ def create_cmd(
                 f"[bold green]Retrospective authored[/bold green]\n\n"
                 f"[bold]Mission:[/bold] {resolved.mission_slug}\n"
                 f"[bold]Record path:[/bold] {record_path}\n"
-                f"[bold]Findings status:[/bold] {record.findings_status}\n"
+                f"[bold]Findings status:[/bold] {persisted.findings_status}\n"
                 f"[bold]Counts:[/bold] "
                 f"helped={counts['helped']} not_helpful={counts['not_helpful']} "
                 f"gaps={counts['gaps']} proposals={counts['proposals']}\n\n"

@@ -749,9 +749,11 @@ def test_lifecycle_saas_outbox_queues_when_scoped(
         "specify_cli.sync.feature_flags.is_saas_sync_enabled",
         lambda: True,
     )
-    monkeypatch.setattr("specify_cli.sync.queue.read_queue_scope_from_session", lambda: None)
+    # Ingress scope is session-only and fail-closed (#738/#3380): the outbox
+    # queues when the session resolves the Private Teamspace scope. The removed
+    # credentials fallback is no longer part of this path, so scope via session.
     monkeypatch.setattr(
-        "specify_cli.sync.queue.read_queue_scope_from_credentials",
+        "specify_cli.sync.queue.read_queue_scope_from_session",
         lambda: "https://example.test|user@example.test|team-a",
     )
     monkeypatch.setattr("specify_cli.sync.queue.OfflineQueue", _Queue)

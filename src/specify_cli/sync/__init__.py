@@ -241,14 +241,25 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
     from specify_cli.sync.feature_flags import is_saas_sync_enabled
     from specify_cli.sync.queue import (
         OfflineQueue,
-        read_queue_scope_from_credentials,
         read_queue_scope_from_session,
     )
     from specify_cli.sync.project_store import ProjectSyncStore
 
     if not is_saas_sync_enabled():
         return
-    scope = read_queue_scope_from_session() or read_queue_scope_from_credentials()
+    # Direct sync ingress is fail-closed to the Private Teamspace. Do NOT fall
+    # back to the credentials file's team_slug: it stores whatever team was last
+    # written (often a shared/primary team, e.g. `stijn`, not `stijn-private`),
+    # so when the session read transiently returns None (a token refresh in
+    # flight, a rehydrate miss) the old `session() or credentials()` silently
+    # rerouted ingress to that team. That forks the producer-scoped journal
+    # (`journal-<scope>.db`) and materializes the project under the wrong team on
+    # the server, so the private->shared share can never find it (#738/#911).
+    # `read_queue_scope_from_session` already fails closed (returns None rather
+    # than a shared team, per `require_private_team_id`); honour that here and
+    # skip queueing when the Private Teamspace can't be resolved, rather than
+    # attribute the event to the wrong scope.
+    scope = read_queue_scope_from_session()
     if not scope:
         return
 

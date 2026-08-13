@@ -1,0 +1,172 @@
+schema_version: 1
+mission_id: 01KZWHY1R99Z8EV2ZATBNSCKWK
+mission_slug: mission-a-p0-consistency-01KZWHY1
+mission_number:
+friendly_name: Mission A — P0 Read/Write Consistency
+mission_type: software-dev
+target_branch: fix/mission-a-p0-consistency
+created_at: '2026-08-13T05:35:05.712546+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-08-13T05:35:05.712546+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-009
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-009
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-009
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-009
+not_helpful:
+- id: n-001
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-010
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented
+    issues and decisions.
+- id: n-003
+  category: tooling
+  summary: 'Tracer: Operator-contributed:'
+  evidence_refs:
+  - e-011
+  details: "2. **Operator-contributed:** during \"commit & push\" I committed the primary\n   working tree's **`status.json`
+    + `status.events.jsonl`** to the fix branch\n   (commit `10747bea`) to get a clean tree, over-generalizing the \"362 missions\n\
+    \   track `status.events.jsonl`\" convention. Those 362 are mostly **non-coord**\n   (SINGLE_BRANCH / LANES) missions
+    where the primary IS the status surface;\n   under **coord topology** `status.*` are **coord-authority** and must not
+    live\n   on the primary branch. `status.json` has **no merge driver**, so it became\n   the first add/add conflict layer.
+    (finalize-tasks *also* listed `status.*` in\n   its `files_committed` to the primary — see \"Upstream gap\" below.)\n\n\
+    ## Recovery that worked (operator-approved)\n\n- Removed primary-committed `status.{json,events.jsonl}` (coord-authority).\n\
+    - Removed the stale `lanes.json` from coord (primary artifact)."
+- id: n-006
+  category: tooling
+  summary: 'Tracer: Prompt/skill guidance gap:'
+  evidence_refs:
+  - e-011
+  details: "4. **Prompt/skill guidance gap:** neither the commit guidance nor the\n   implement-review skill warns against
+    committing `status.*` to primary under\n   coord topology, nor surfaces the `SPEC_KITTY_SYNC_DISABLE` need for slow\n\
+    \   claims.\n\n## Lesson for next mission\n\n- Do **not** `git add` `status.*` on the primary branch of a coord-topology\n\
+    \  mission. Check topology (`meta.json` / `lanes.json`) before treating status\n  files as trackable.\n- Seed tracer files
+    at **planning**, not retroactively (this file is late)."
+- id: n-004
+  category: tooling
+  summary: 'Tracer: Reconcile coord←primary:'
+  evidence_refs:
+  - e-011
+  details: "- **Reconcile coord←primary:** `git merge fix/mission-a-p0-consistency` in the\n  coord worktree. spec-kitty **union
+    merge-drivers** auto-reconciled\n  `status.events.jsonl` / `issue-matrix.json` / `meta.json`; `lanes.json`\n  auto-merged;
+    the 7-row issue-matrix was preserved. Coord now **contains** the\n  planning commit → lane seeding is a **no-op merge**
+    → allocation succeeds.\n\nSync fan-out also hung the CLI (needed `SPEC_KITTY_SYNC_DISABLE=1` on every\n`implement`/`finalize`
+    call; claims still took 60–120 s each).\n\n## Upstream gaps to consider filing"
+- id: n-002
+  category: tooling
+  summary: 'Tracer: Structural (tooling):'
+  evidence_refs:
+  - e-011
+  details: "1. **Structural (tooling):** this mission was created with `--start-branch\n   fix/mission-a-p0-consistency` (pr-bound
+    feature branch) **and** got **coord\n   topology**. The coord branch (`kitty/mission-…`) was branched from the old\n \
+    \  base (`b7c080c`) and given its **own** planning-artifact snapshot, while the\n   real planning (spec/plan/tasks/**lanes.json**)
+    landed on the **fix** branch.\n   Result: **coord never contained the primary `planning_commit_sha`.** Lanes\n   seed
+    from coord and merge the primary planning commit → `lanes.json`\n   (which embeds `planning_commit_sha`) is an add/add
+    conflict every time.\n   This is the #3311 chicken-and-egg (FR-009 / ADR 2026-07-29-1) the mission\n   itself exists to
+    fix, surfacing in the allocator."
+- id: n-005
+  category: tooling
+  summary: 'Tracer: pr-bound feature-branch + coord topology should not diverge at create'
+  evidence_refs:
+  - e-011
+  details: "1. **pr-bound feature-branch + coord topology should not diverge at create** —\n   the coord branch must be created
+    so it contains (or fast-forwards to) the\n   primary planning commit; otherwise every lane-seed conflicts. (Adjacent to\n\
+    \   #3311 / FR-009 provenance.)\n2. **finalize-tasks commits `status.{json,events.jsonl}` onto the PRIMARY branch\n  \
+    \ under coord topology** (`files_committed` includes them) — that is the\n   split-brain seed; status should be coord-only
+    under coord topology.\n3. **`re-finalize` re-captures `planning_commit_sha` to the tip-*before* its own\n   commit**,
+    so the recorded SHA references a commit whose embedded `lanes.json`\n   points at a different SHA (self-inconsistent)
+    — the exact #3311 defect."
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/mission-a-p0-consistency-01KZWHY1/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/mission-a-p0-consistency-01KZWHY1/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/mission-a-p0-consistency-01KZWHY1/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/mission-a-p0-consistency-01KZWHY1/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/mission-a-p0-consistency-01KZWHY1/tasks/WP01-retrospect-update-persisted.md
+- id: e-006
+  kind: file
+  path: kitty-specs/mission-a-p0-consistency-01KZWHY1/tasks/WP02-acceptance-verdict-scaffold.md
+- id: e-007
+  kind: file
+  path: kitty-specs/mission-a-p0-consistency-01KZWHY1/tasks/WP03-upgrade-schema-roundtrip.md
+- id: e-008
+  kind: file
+  path: kitty-specs/mission-a-p0-consistency-01KZWHY1/tasks/WP04-finalize-provenance-guard.md
+- id: e-009
+  kind: file
+  path: kitty-specs/mission-a-p0-consistency-01KZWHY1/status.events.jsonl
+- id: e-010
+  kind: file
+  path: kitty-specs/mission-a-p0-consistency-01KZWHY1/analysis-report.md
+- id: e-011
+  kind: file
+  path: kitty-specs/mission-a-p0-consistency-01KZWHY1/traces/topology-recovery-friction.md
+generator_version: '1.0'
+provenance_history: []

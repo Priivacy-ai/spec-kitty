@@ -72,14 +72,47 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   content-addressed census — pinned as debt at a frozen SHA — plus a canonical
   `canonical_home` owner fixture, a falsifiability probe, and a halt gate red the
   build if the pinned set grows. Contributor-facing test infrastructure only (no
-  `src/` change); this lands the *instrument* ahead of the follow-on adoption
+  `src/` change); this lands the _instrument_ ahead of the follow-on adoption
   (R1b), so `Refs #3121` rather than `Closes`.
 
 ### 🐛 Fixed
 
+- **Direct sync ingress no longer drifts to a shared/primary team when the
+  session read transiently returns None (`#738`/spec-kitty-saas `#911`).** The
+  fan-out handler resolved the producer scope as
+  `read_queue_scope_from_session() or read_queue_scope_from_credentials()`. The
+  session path is fail-closed to the user's Private Teamspace, but the credentials
+  fallback returns whatever `team_slug` the credentials TOML last stored (often a
+  shared/primary team, e.g. `stijn` rather than `stijn-private`). During a token
+  refresh or a rehydrate miss the session read returns None and ingress silently
+  rerouted to that team — forking the producer-scoped journal (`journal-<scope>.db`)
+  and materializing the project under the wrong team server-side, so the
+  private→shared share could never find it (the Kitty Prime "I can't see the
+  team's work" symptom). Ingress is now session-only: it honours the fail-closed
+  contract and skips queueing when the Private Teamspace can't be resolved, rather
+  than attributing the event to the wrong scope. The credentials reader stays for
+  the diagnostic call sites (e.g. `sync doctor`/preflight, which compare the two
+  scopes to _detect_ exactly this drift).
+
 - **Root README guide links point at the post-IA `tutorials/` and `how-to/`
   paths.** Fixes GitHub 404s from stale flat `docs/guides/*.md` hrefs after the
   guides subdivision (e.g. Your First Mission).
+
+- **Four operator-visible read/write-consistency defects, where a step trusted a
+  partial, pre-merge, or recomputed-from-scratch view of persisted state, are
+  fixed (mission `mission-a-p0-consistency`; `#3320`, `#3231`, `#3334`, `#3311`).**
+  Concretely: `retrospect create --update` reported and emitted the _pre-merge_
+  record — the counts, JSON `findings_status`, and `RetrospectiveCaptured` event
+  disagreed with what was written to disk; now they read the persisted record back
+  (`#3320`). A leftover `finalize-tasks` scaffold placeholder blocked acceptance
+  for a mission whose real criteria all passed; the verdict now exempts _only_ the
+  empty placeholder row, so a real still-pending criterion still blocks as before
+  (`#3231`). A failed `spec-kitty upgrade` stripped `schema_version` from
+  `meta.json` and wedged the project as unrecoverable `LEGACY`; project metadata
+  now round-trips the stamp so a failed migration stays recoverable (`#3334`).
+  Re-running `finalize-tasks` after implementation had begun clobbered the recorded
+  `planning_commit_sha`; it now preserves provenance once any work package has left
+  `planned` (`#3311`).
 
 ## [3.2.6rc1] - 2026-08-12
 

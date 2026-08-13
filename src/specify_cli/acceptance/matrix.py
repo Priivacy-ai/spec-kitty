@@ -63,6 +63,46 @@ VERDICT_PASS_PENDING_CONSOLIDATION = "pass_pending_consolidation"  # noqa: S105 
 # so the matrix serialises without importing the phase enum into its storage.
 POST_CONSOLIDATION_PHASE_NAME = "POST_CONSOLIDATION"
 
+# Marker dropped into scaffolded criteria so operators (and reviewers) can
+# tell a placeholder row apart from a real, authored acceptance criterion.
+# Load-bearing in two directions (#3231): the scaffold writer
+# (``scaffold_acceptance_matrix``) stamps it into an empty placeholder
+# criterion's ``description``, and ``overall_verdict`` reads it back via
+# :func:`_is_empty_scaffold` to exempt ONLY that contentless placeholder from
+# the pending-dominates rule. A future rename must touch both call sites.
+SCAFFOLD_TODO_MARKER = "TODO: replace with a real acceptance criterion"
+
+
+def _is_empty_scaffold(criterion: AcceptanceCriterion) -> bool:
+    """True iff ``criterion`` is the empty ``finalize-tasks`` placeholder row.
+
+    C-003: the discriminator is ``description`` — and ONLY ``description`` —
+    because that is the sole field unique to the empty placeholder written by
+    ``scaffold_acceptance_matrix`` (:data:`SCAFFOLD_TODO_MARKER` docstring).
+    Seeded-but-unauthored per-requirement rows carry a REAL ``description``
+    (e.g. ``"Verify FR-001 is satisfied"``) and only put the marker in
+    ``notes`` — discriminating on ``notes`` would false-accept those rows
+    through the gate. Discriminating on ``criterion_id == "AC-001"`` would
+    false-accept a genuine, still-pending, hand-authored ``AC-001``.
+    """
+    return criterion.description == SCAFFOLD_TODO_MARKER
+
+
+def _pending_dominant_criterion_results(criteria: list[AcceptanceCriterion]) -> list[str]:
+    """Criterion ``pass_fail`` values that participate in the pending-dominates check.
+
+    An empty scaffold placeholder (:func:`_is_empty_scaffold`) is excluded
+    from pending-dominates ONLY when at least one non-scaffold criterion also
+    exists — a real criterion has been authored, so the leftover placeholder
+    should not block acceptance. If every criterion is an empty placeholder
+    (or the matrix has none), there is nothing real to accept yet, so the
+    verdict must stay ``pending``: fall back to the unfiltered results.
+    """
+    non_scaffold = [c.pass_fail for c in criteria if not _is_empty_scaffold(c)]
+    if non_scaffold:
+        return non_scaffold
+    return [c.pass_fail for c in criteria]
+
 
 class AcceptanceMatrixParseError(ValueError):
     """Raised by :meth:`AcceptanceMatrix.from_dict` on a malformed item (T021).
@@ -260,7 +300,8 @@ class AcceptanceMatrix:
             return "fail"
         if any(v in {"still_present", "verification_error"} for v in invariant_results):
             return "fail"
-        if any(v == "pending" for v in criterion_results + invariant_results):
+        pending_dominant_results = _pending_dominant_criterion_results(self.criteria)
+        if any(v == "pending" for v in pending_dominant_results + invariant_results):
             return "pending"
         # NI-5: a deferred invariant is neither a failure nor a silent pass. It
         # yields the fourth verdict — acceptance is NOT blocked (C5), but the
@@ -415,11 +456,6 @@ def read_acceptance_matrix(feature_dir: Path) -> AcceptanceMatrix | None:
         return None
     data = json.loads(path.read_text(encoding="utf-8"))
     return AcceptanceMatrix.from_dict(data)
-
-
-# Marker dropped into scaffolded criteria so operators (and reviewers) can
-# tell a placeholder row apart from a real, authored acceptance criterion.
-SCAFFOLD_TODO_MARKER = "TODO: replace with a real acceptance criterion"
 
 
 def scaffold_acceptance_matrix(
