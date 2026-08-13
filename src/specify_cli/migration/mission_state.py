@@ -631,7 +631,7 @@ def _plan_duplicate_key_batch(
     One un-repairable artifact raises ``DuplicateKeyRepairError`` here, before
     the caller has mutated a single file — the batch-atomic abort.
     """
-    from specify_cli.status.dup_key_repair import plan_artifact_repair
+    from specify_cli.status import plan_artifact_repair
 
     plans: list[ArtifactRepairPlan] = []
     seen: set[Path] = set()
@@ -733,7 +733,7 @@ def repair_duplicate_key_artifacts(
     Opt-in — reached only from ``doctor mission-state --fix`` (``doctor`` itself
     is unconditionally SAFE).
     """
-    from specify_cli.status.dup_key_repair import detect_duplicate_key_artifacts
+    from specify_cli.status import detect_duplicate_key_artifacts
 
     resolved_repo_root = _anchor_repair_root(repo_root, scan_root=scan_root)
     scan_dir = _dup_key_scan_dir(resolved_repo_root, scan_root)

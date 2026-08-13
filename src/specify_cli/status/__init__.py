@@ -273,6 +273,12 @@ from .doctor_husks import (
     registered_worktree_paths,
     scan_workspace_husks,
 )
+from .dup_key_repair import (
+    DuplicateKeyRepairError,
+    detect_duplicate_key_artifacts,
+    find_duplicate_keys_in_text,
+    plan_artifact_repair,
+)
 # WP03/WP04 (runtime-state-birth-cutover-all-paths-01KYH654): the cut-over
 # predicate reaches its src/ consumer (``cli.commands.cutover_guard``) through
 # this package surface, not by importing the submodule directly -- the status
@@ -391,6 +397,10 @@ __all__ = [
     "materialize_snapshot",
     "repo_root_for_lifecycle_log",
     "run_doctor",
+    "DuplicateKeyRepairError",
+    "detect_duplicate_key_artifacts",
+    "find_duplicate_keys_in_text",
+    "plan_artifact_repair",
     "start_implementation_status",
     "start_review_status",
     "CanonicalStatusNotFoundError",

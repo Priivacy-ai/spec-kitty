@@ -228,7 +228,7 @@ def _heal_duplicate_key_artifacts(
         MissionStateRepairError,
         repair_duplicate_key_artifacts,
     )
-    from specify_cli.status.dup_key_repair import DuplicateKeyRepairError
+    from specify_cli.status import DuplicateKeyRepairError
 
     try:
         report = repair_duplicate_key_artifacts(

@@ -170,8 +170,11 @@ class FrontmatterManager:
         scanner does not enumerate (e.g. a *nested* duplicate key), so the key
         stays named in every case.
         """
-        # Deferred import (cycle break): see docstring.
-        from specify_cli.status.dup_key_repair import find_duplicate_keys_in_text
+        # Deferred import (cycle break): see docstring. Routed through the
+        # ``status`` facade (SR-2 module-boundary rule) — safe here because this
+        # is a function-scoped import, so the facade is fully initialized by the
+        # time this read path runs.
+        from specify_cli.status import find_duplicate_keys_in_text
 
         duplicates = find_duplicate_keys_in_text(content)
         if duplicates:
