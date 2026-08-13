@@ -248,73 +248,6 @@ class RequirementMappingFacts:
     wp_ids: tuple[str, ...]
     wp_requirement_refs: Mapping[str, tuple[str, ...]]
     feature_dir_name: str
-    # #3394 F4 restore (severity 4): the pre-#3394 doc-wide FR-/NFR-/C-NNN
-    # token scan (``requirement_mapping.raw_requirement_ref_tokens``), NOT
-    # scoped to declared shapes. Defaulted so every pre-existing call site
-    # that never had a reason to think about raw citations keeps working
-    # unchanged; only ``_zero_declared_requirement_block`` reads this field.
-    raw_requirement_ref_tokens: frozenset[str] = frozenset()
-
-
-_ZERO_DECLARED_RAW_TOKENS_MESSAGE_TEMPLATE = (
-    "Requirement mapping preflight blocked: spec.md contains requirement-shaped "
-    "token(s) ({tokens}) but declares zero of them in a recognized shape (table "
-    "row / id-naming heading / bulleted item / bold-led paragraph) -- restoring "
-    "pre-#3394 behavior for this all-undeclared case, since none of them can be "
-    "verified as covered by any work package. Rewrite them in a recognized "
-    "declared shape, then re-run `spec-kitty next`."
-)
-
-
-def _zero_declared_requirement_block(facts: RequirementMappingFacts) -> list[str]:
-    """#3394 F4 (severity 4) restore, Part A -- the ONE new blocking condition.
-
-    Pre-``dfec9d7e2`` behavior scanned spec.md doc-wide for every
-    ``FR-``/``NFR-``/``C-NNN`` token (``findall``, no declared-shape check),
-    so a spec whose requirements were bare, unbulleted, unbolded sentences
-    still got counted and, if unmapped, correctly blocked. ``dfec9d7e2``
-    narrowed extraction to four declared shapes (#3394's actual fix -- a
-    foreign citation like "see FR-021's default-pack materialization" no
-    longer counts as a requirement THIS spec must map), but that narrowing
-    left THIS caller (``_check_requirement_mapping_ready`` ->
-    ``evaluate_guards`` -> ``spec-kitty next``'s advance-vs-stay decision)
-    with no fallback when a spec declares NOTHING recognizable at all:
-    ``spec_requirement_ids`` comes back empty, the missing/unknown/unmapped
-    checks below all vacuously pass (there is nothing to compare against),
-    and ``spec-kitty next`` reported the mission ready to advance with a
-    real, unmapped functional requirement never counted anywhere. Fix round 1
-    wired a non-blocking warning (``find_undeclared_requirement_citations``)
-    into ``finalize-tasks``/``map-requirements`` for this same shape, but
-    deliberately left this path silent; the re-review (F4) confirmed the gap
-    by direct execution.
-
-    This restores the pre-#3394 blocking behavior, but ONLY for the narrow
-    all-undeclared case: ``facts.spec_requirement_ids`` (every declared id,
-    doc-wide) is empty AND ``facts.raw_requirement_ref_tokens`` (the
-    pre-#3394 doc-wide scan) is non-empty. This provably cannot reintroduce
-    #3394: #3394's own repro spec DECLARES three FRs in a table (so
-    ``spec_requirement_ids`` is non-empty there) and merely CITES a foreign
-    FR-021 in prose -- this branch never fires on it (pinned by
-    ``tests/next/test_runtime_bridge_unit.py::TestAtomicTaskSteps::
-    test_requirement_mapping_3394_repro_shape_does_not_block``). A spec with
-    zero declared ids AND zero raw tokens (no formal requirements at all,
-    e.g. a docs-only mission) also does not block here -- there is nothing to
-    be missing, so the second half of the condition alone filters that case
-    out.
-
-    Deliberately NOT the same rule as the F4 finding's own repro fixture (a
-    spec that declares one id, e.g. ``NFR-001``, elsewhere while its
-    Functional Requirements section is all bare sentences): that spec's
-    ``spec_requirement_ids`` is non-empty, so this branch does not fire for
-    it either -- it stays advisory-only (Part B), exactly matching
-    ``finalize-tasks``/``map-requirements``'s behavior for identical content,
-    per the Op brief's scope boundary (the ONLY new blocking condition is
-    this one, zero-declared, exact rule).
-    """
-    if facts.spec_requirement_ids or not facts.raw_requirement_ref_tokens:
-        return []
-    tokens = ", ".join(sorted(facts.raw_requirement_ref_tokens))
-    return [_ZERO_DECLARED_RAW_TOKENS_MESSAGE_TEMPLATE.format(tokens=tokens)]
 
 
 def _evaluate_requirement_mapping(facts: RequirementMappingFacts) -> list[str]:
@@ -323,16 +256,8 @@ def _evaluate_requirement_mapping(facts: RequirementMappingFacts) -> list[str]:
     Verbatim port of the original function's logic from its
     ``wp_ids = sorted(...)`` line onward — only the source of ``wp_ids`` /
     ``wp_requirement_refs`` / the two requirement-id sets changed (now facts,
-    gathered by the residual instead of read here) -- plus the #3394 F4
-    zero-declared block (:func:`_zero_declared_requirement_block`), checked
-    FIRST and short-circuiting: with zero declared ids the missing/unknown/
-    unmapped checks below are all vacuous noise around the real cause, so
-    when the block fires it is the only message returned.
+    gathered by the residual instead of read here).
     """
-    zero_declared_block = _zero_declared_requirement_block(facts)
-    if zero_declared_block:
-        return zero_declared_block
-
     missing_requirement_refs_wps: list[str] = []
     unknown_requirement_refs: dict[str, list[str]] = {}
     mapped_requirement_ids: set[str] = set()
