@@ -12,6 +12,7 @@ import contextlib
 import logging
 import re
 import shutil
+import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -50,6 +51,12 @@ logger = logging.getLogger(__name__)
 # reads) hoisted to named constants rather than restated as literals.
 _META_KEY_MISSION_TYPE = "mission_type"
 _META_KEY_CREATED_AT = "created_at"
+
+# WP12 (FR-011 / #3339): coordination branches are the only branch refs a
+# mission-create mints, and their names are all ``kitty/mission-<slug>-<mid8>``.
+# The glob lets the failure-atomic rollback diff pre- vs post-create refs so it
+# deletes exactly the orphan branch an aborted create left behind.
+_COORDINATION_BRANCH_GLOB = "kitty/mission-*"
 
 
 class MissionCreationError(RuntimeError):
@@ -223,6 +230,80 @@ def _commit_feature_file(
 
 
 # ---------------------------------------------------------------------------
+# Failure-atomic git rollback (WP12 / FR-011 / #3339)
+# ---------------------------------------------------------------------------
+
+
+def _list_coordination_branches(repo_root: Path) -> frozenset[str]:
+    """Return the local ``kitty/mission-*`` branch names in ``repo_root``.
+
+    Used to diff the coordination branches present before vs after a
+    mission-create so the rollback deletes exactly the ref an aborted create
+    minted, never a pre-existing one. A non-git or failing ``git`` invocation
+    yields an empty set (nothing to roll back).
+    """
+    result = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo_root),
+            "branch",
+            "--list",
+            _COORDINATION_BRANCH_GLOB,
+            "--format=%(refname:short)",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return frozenset()
+    return frozenset(line.strip() for line in result.stdout.splitlines() if line.strip())
+
+
+def _restore_git_state_after_failed_create(
+    repo_root: Path,
+    *,
+    original_branch: str | None,
+    pre_existing_coordination_branches: frozenset[str],
+) -> None:
+    """Best-effort rollback of a failed mission-create's git side-effects.
+
+    Restores the operator's original checkout and deletes any coordination
+    branch this create-run minted (FR-011, #3339), so a failed create leaves
+    the operator on their original branch with no orphan branch.
+
+    Rollback is best-effort and never raises — it must not mask the original
+    creation failure. The checkout is restored *before* any branch delete
+    because git refuses to delete a branch that is currently checked out.
+
+    Single-writer assumption: mission-create is an operator action, so the
+    coordination-branch diff (present now minus present before) identifies
+    exactly the ref this call minted.
+    """
+    # 1. Restore the operator's checkout first (a checked-out branch cannot be
+    #    deleted).
+    if original_branch is not None:
+        current = get_current_branch(repo_root)
+        if current is not None and current != original_branch:
+            subprocess.run(
+                ["git", "-C", str(repo_root), "checkout", original_branch],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+    # 2. Delete only the coordination branches that appeared during this create.
+    orphaned = _list_coordination_branches(repo_root) - pre_existing_coordination_branches
+    for branch in sorted(orphaned):
+        subprocess.run(
+            ["git", "-C", str(repo_root), "branch", "-D", branch],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -240,6 +321,59 @@ def create_mission_core(
     force_recreate_coordination_branch: bool = False,
     allow_worktree_context: bool = False,
     owned_checkout: Path | None = None,
+) -> MissionCreationResult:
+    """Create a new mission, restoring git state if creation fails (FR-011).
+
+    Failure-atomic wrapper around :func:`_create_mission_core_impl`. It captures
+    the operator's branch/checkout and the pre-existing coordination branches
+    *before* any git mutation, and on ANY failure restores the original checkout
+    and deletes the orphan coordination branch the aborted run minted (#3339).
+    See :func:`_create_mission_core_impl` for the full parameter contract.
+    """
+    rollback_root = repo_root if repo_root is not None else locate_project_root()
+    original_branch: str | None = None
+    pre_existing_coordination_branches: frozenset[str] = frozenset()
+    if rollback_root is not None and is_git_repo(rollback_root):
+        original_branch = get_current_branch(rollback_root)
+        pre_existing_coordination_branches = _list_coordination_branches(rollback_root)
+
+    try:
+        return _create_mission_core_impl(
+            repo_root,
+            mission_slug,
+            mission=mission,
+            target_branch=target_branch,
+            friendly_name=friendly_name,
+            purpose_tldr=purpose_tldr,
+            purpose_context=purpose_context,
+            topology=topology,
+            force_recreate_coordination_branch=force_recreate_coordination_branch,
+            allow_worktree_context=allow_worktree_context,
+        )
+    except BaseException:
+        # Re-raised below; the rollback is pure cleanup and must not swallow or
+        # replace the original failure (that is why we re-raise unconditionally).
+        if rollback_root is not None:
+            _restore_git_state_after_failed_create(
+                rollback_root,
+                original_branch=original_branch,
+                pre_existing_coordination_branches=pre_existing_coordination_branches,
+            )
+        raise
+
+
+def _create_mission_core_impl(
+    repo_root: Path | None,
+    mission_slug: str,
+    *,
+    mission: str | None = None,
+    target_branch: str | None = None,
+    friendly_name: str | None = None,
+    purpose_tldr: str | None = None,
+    purpose_context: str | None = None,
+    topology: MissionTopology = MissionTopology.COORD,
+    force_recreate_coordination_branch: bool = False,
+    allow_worktree_context: bool = False,
 ) -> MissionCreationResult:
     """Create a new feature with all scaffolding.
 
