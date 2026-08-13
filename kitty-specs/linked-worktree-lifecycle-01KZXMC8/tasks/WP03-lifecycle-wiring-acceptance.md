@@ -42,6 +42,13 @@ create_intent:
 execution_mode: code_change
 model: ''
 owned_files:
+- docs/changelog/CHANGELOG.md
+- docs/codemap/codemap.html
+- docs/codemap/codemap.json
+- docs/codemap/codemap.lock
+- src/specify_cli/acceptance/__init__.py
+- src/specify_cli/acceptance/execution_context.py
+- src/specify_cli/acceptance/gates_core.py
 - src/specify_cli/cli/selector_resolution.py
 - src/specify_cli/cli/commands/agent/context.py
 - src/specify_cli/cli/commands/agent/status.py
@@ -50,12 +57,17 @@ owned_files:
 - src/specify_cli/cli/commands/agent/mission_branch_context.py
 - src/specify_cli/cli/commands/agent/tasks_shared.py
 - src/specify_cli/cli/commands/agent/tasks_finalize.py
+- src/specify_cli/cli/commands/agent/tasks_status_cmd.py
 - src/specify_cli/cli/commands/agent/workflow.py
+- src/specify_cli/cli/commands/agent/workflow_executor.py
 - src/specify_cli/cli/commands/accept.py
 - src/specify_cli/cli/commands/next_cmd.py
+- src/specify_cli/coordination/commit_router.py
+- src/specify_cli/status/aggregate.py
+- src/specify_cli/task_utils/support.py
+- src/specify_cli/workspace/context.py
 - tests/integration/test_caller_owned_worktree_lifecycle.py
 - tests/architectural/test_mission_operation_root_boundary.py
-- CHANGELOG.md
 role: implementer
 tags: []
 task_type: implement
