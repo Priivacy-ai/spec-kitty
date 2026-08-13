@@ -323,7 +323,7 @@ _RAW_JOIN_SITES: tuple[ContentDescriptor, ...] = (
     # name — not a raw slug bypass.
     ContentDescriptor(
         rel_path="specify_cli/core/mission_creation.py",
-        qualname="create_mission_core",
+        qualname="_create_mission_core_impl",
         token_substring="feature_dir = effective_root / KITTY_SPECS_DIR / mission_slug_formatted",
         occurrence=None,
         rationale=(
@@ -332,7 +332,9 @@ _RAW_JOIN_SITES: tuple[ContentDescriptor, ...] = (
             "input); seam is defined in lanes/branch_naming.py (FR-032/FR-044). "
             "Create-time-canonical: the mission dir is being created here "
             "(feature_dir.mkdir follows immediately), so there is no prior surface "
-            "to resolve through."
+            "to resolve through. Re-pinned 2026-08-13 (#3339/WP12): create_mission_core "
+            "is now a thin failure-atomic wrapper delegating to _create_mission_core_impl, "
+            "which owns this join line."
         ),
     ),
     # ----- DRAINED by mission retrospective-durable-home-01KVYM1W (#2136/#2164):
