@@ -12,7 +12,7 @@ from mission_runtime import (
     resolve_create_time_write_target,
 )
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def test_create_time_target_preserves_explicit_short_branch() -> None:

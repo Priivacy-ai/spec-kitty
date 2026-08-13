@@ -389,3 +389,88 @@ def test_retrospective_generator_reads_traces_from_materialized_coord_surface(
         f"tracer finding not present -- traces/ was not read from the coord "
         f"surface (helped={summaries!r})"
     )
+
+
+# ---------------------------------------------------------------------------
+# Owned-checkout (``effective_root``) threading — checkout-ownership landing
+# branch (#3328). ``mission_context_for(..., effective_root=...)`` folds the
+# VALIDATED owned checkout as the primary root instead of
+# ``get_main_repo_root(repo_root)`` (C-002: never silently cross-read a
+# sibling checkout). Every fixture below reuses the SAME ``_build_mission_*``
+# helpers the non-owned tests above already exercise, so the only variable is
+# the ``effective_root`` fork through ``mission_context_for`` ->
+# ``_assemble_core_fragments`` -> ``_resolve_mission_id`` /
+# ``_resolve_coordination_branch`` / ``_resolve_status_surface_dir`` (and
+# ``mission_context_for``'s own ``primary_read_dir`` / ``target_branch``
+# forks) -- the exact branches the checkout-ownership landing PR's e2e
+# (subprocess, invisible to pytest-cov) exercises only end-to-end.
+# ``decoy_repo_root`` is deliberately a never-created, unrelated path: since
+# ``effective_root`` is supplied, ``repo_root`` must never be read (a
+# regression that folded it back through ``get_main_repo_root`` would try to
+# touch this path and fail loud).
+# ---------------------------------------------------------------------------
+
+
+def test_mission_context_for_owned_checkout_flat_topology_resolves_primary(
+    repo: Path, tmp_path: Path
+) -> None:
+    """Owned checkout, coord-less topology: every artifact resolves off the
+    validated owned checkout's own primary dir (FR-004/FR-005 owned branches:
+    ``_resolve_status_surface_dir``'s ``not routes_through_coordination(...)``
+    early return)."""
+    feature_dir = _build_mission_flat(repo, topology=MissionTopology.SINGLE_BRANCH)
+    decoy_repo_root = tmp_path / "decoy-primary-never-read"
+
+    ctx = mission_context_for(decoy_repo_root, _MISSION_SLUG, effective_root=repo)
+
+    assert ctx.mission_slug == _MISSION_SLUG
+    assert ctx.topology is MissionTopology.SINGLE_BRANCH
+    status_artifact = ctx.artifact(MissionArtifactKind.STATUS_STATE)
+    assert status_artifact.read_dir == feature_dir
+    assert status_artifact.write_dir == feature_dir
+
+
+def test_mission_context_for_owned_checkout_materialized_coord_resolves_coord_dir(
+    repo: Path, tmp_path: Path
+) -> None:
+    """Owned checkout, materialized coord surface: resolves the coord dir
+    (the ``CoordState.MATERIALIZED`` -> ``return coord_dir`` owned tail)."""
+    _feature_dir, coord_dir = _build_mission_materialized(repo)
+    decoy_repo_root = tmp_path / "decoy-primary-never-read"
+
+    ctx = mission_context_for(decoy_repo_root, _MISSION_SLUG, effective_root=repo)
+
+    assert ctx.topology is MissionTopology.COORD
+    status_artifact = ctx.artifact(MissionArtifactKind.STATUS_STATE)
+    assert status_artifact.read_dir == coord_dir
+
+
+def test_mission_context_for_owned_checkout_empty_coord_root_falls_back_to_primary(
+    repo: Path, tmp_path: Path
+) -> None:
+    """Owned checkout, coord root materialized but this mission's subdir is
+    not (``CoordState.EMPTY``): the owned branch degrades to the primary dir,
+    never raises (FR-006 fail-closed is reserved for DELETED, not EMPTY)."""
+    feature_dir = _build_mission_empty_coord_root(repo)
+    decoy_repo_root = tmp_path / "decoy-primary-never-read"
+
+    ctx = mission_context_for(decoy_repo_root, _MISSION_SLUG, effective_root=repo)
+
+    status_artifact = ctx.artifact(MissionArtifactKind.STATUS_STATE)
+    assert status_artifact.read_dir == feature_dir
+
+
+def test_mission_context_for_owned_checkout_deleted_branch_fails_loud(
+    repo: Path, tmp_path: Path
+) -> None:
+    """Owned checkout, declared coordination branch deleted from git
+    (``CoordState.DELETED``): fails loud with ``CoordinationBranchDeleted``
+    instead of silently substituting the primary checkout (#1889/#1848)."""
+    _build_mission_deleted_branch(repo)
+    decoy_repo_root = tmp_path / "decoy-primary-never-read"
+
+    with pytest.raises(CoordinationBranchDeleted) as excinfo:
+        mission_context_for(decoy_repo_root, _MISSION_SLUG, effective_root=repo)
+
+    assert excinfo.value.mission_slug == _MISSION_SLUG
+    assert excinfo.value.coordination_branch == _COORD_BRANCH
