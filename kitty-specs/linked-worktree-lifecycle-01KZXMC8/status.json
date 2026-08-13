@@ -65,6 +65,9 @@
       "last_event_id": "01KZXVS46F58HYZPYQEH0F2JM8",
       "last_transition_at": "2026-08-13T15:27:46.895050+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Dual-root runtime ready at lane-b HEAD 28a8b19ba; RED/GREEN and 178+51+24 tests, Ruff, py_compile, mypy strict and mutation evidence pass."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 27296,
