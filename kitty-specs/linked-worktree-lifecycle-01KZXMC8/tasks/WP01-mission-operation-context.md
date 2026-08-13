@@ -15,6 +15,9 @@ requirement_refs:
 planning_base_branch: codex/spec-kitty-worktree-mission-create
 merge_target_branch: codex/spec-kitty-worktree-mission-create
 branch_strategy: Planning artifacts for this mission were generated on codex/spec-kitty-worktree-mission-create. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/spec-kitty-worktree-mission-create unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-linked-worktree-lifecycle-01KZXMC8
+base_commit: a2752629e21668e5e75b58f4078186dd6e10a6ef
+created_at: '2026-08-13T13:56:49.963804+00:00'
 subtasks:
 - T001
 - T002
