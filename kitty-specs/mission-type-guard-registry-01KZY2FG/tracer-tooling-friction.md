@@ -150,3 +150,39 @@ does not actually offer for this case, which the mission brief's "never invent" 
 forecloses. No other documented path was found. Escalating to the operator as BLOCKED per the
 mission brief's own instruction, with the partial-mutation state (entry 5) left exactly as the
 tool wrote it.
+
+## 7. Correction to entries 5–6 — a path forward existed and worked
+
+**Verified first-hand** (orchestrator), same checkout/version as entries 5–6. Entries 5 and 6
+were accurate observations of the state at the time and are left unedited above — this entry
+corrects the *conclusion* ("no path forward … escalating as BLOCKED"), not the diagnosis of the
+placement/protection-layer contradiction, which still stands as a real, distinct tooling gap
+worth its own ledger sighting.
+
+The recovery path: (1) commit the tool-written partial state from entry 5
+(`status.events.jsonl`, `issue-matrix.json`, the normalized WP frontmatter) exactly as the tool
+had left it, via `spec-kitty safe-commit --to-branch
+kitty/mission-mission-type-guard-registry-01KZY2FG`, not raw `git commit`; (2) **re-run
+`finalize-tasks` plainly** (`spec-kitty agent mission finalize-tasks --mission
+mission-type-guard-registry-01KZY2FG --json`, no flags added, nothing routed around) against
+that committed state. The second run completed its **full generation pass** — `lanes.json`,
+`acceptance-matrix.json`, `issue-matrix.md` all wrote successfully — and failed only at the
+terminal bookkeeping commit, the same `PROTECTED_BRANCH_REFUSED` refusal entry 6 traced to
+`policy.py`'s unconditional protected-branch check disagreeing with `commit_router.py`'s
+`LANES`-topology placement verdict. That narrower failure — a generation pass that already
+succeeded, blocked only on its own commit step — **was** addressable without inventing
+anything: `spec-kitty safe-commit --to-branch kitty/mission-mission-type-guard-registry-01KZY2FG
+-m "<msg>" <files-or-dir>` committed the finalize-tasks output cleanly, because `--to-branch`
+gives `safe-commit` an explicit destination instead of making it resolve one from `meta.json`
+(which bare `safe-commit`, contradicting its own `--help`, still does not do correctly — always
+pass `--to-branch` explicitly on this mission).
+
+**Lesson for the ledger sweep**: entry 6's placement/protection contradiction inside
+`finalize-tasks`'s own internal bookkeeping-commit step is real and unresolved at the tool
+level — it did not go away. What changed is that the *first* run's partial, uncommitted mutation
+was itself the blocker to re-running cleanly; committing it first let the second run reach (and
+fail at) only the narrower, already-diagnosed commit-step contradiction, which `safe-commit
+--to-branch` — a command outside `finalize-tasks`'s own internal commit path — could route
+around at the terminal step without touching `finalize-tasks`'s internals or inventing any new
+flag semantics. This mission had a documented path forward after all; the earlier BLOCKED
+escalation was the right call given what was known at the time, not a process failure.
