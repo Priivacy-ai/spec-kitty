@@ -1,0 +1,34 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: false             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: plan
+results:                    # one entry for EVERY finding being verified
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: >
+      `ls -la CHANGELOG.md` confirms it is a symlink to `docs/changelog/CHANGELOG.md`; plan.md
+      now names the canonical path and the symlink risk consistently in Scale/Scope (:72-78),
+      Project Structure (:536-547), and IC-04 (:656-670), and the Gate Set's docs-freshness
+      bullet (:234-260) replaced the stale "no new doc cross-reference beyond the one guide
+      edit" claim with two enumerated sub-checks (relative-link gate and the newly-applicable
+      CHANGELOG sync check), correctly tying the sync check to IC-04's changelog edit.
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: >
+      Scale/Scope (:77-78) now reads "no new files: every touched surface, including the
+      changelog, is an edit to an existing file" instead of the old "no new files beyond the
+      changelog entry" framing that implied an exception; IC-04 (:658-663) now names a concrete
+      target ("### 💥 Breaking Changes" heading inside the current "## [Unreleased] - 3.2.6rc2"
+      section) and its claim is accurate — `grep -n "^### " docs/changelog/CHANGELOG.md` confirms
+      the Unreleased section (lines 16-95) currently has only "### ✨ Added" and "### 🐛 Fixed",
+      no Breaking Changes heading, and the heading does recur at :1761, :2145, :2206, :2450 as
+      claimed, so the instruction to create it is sound guidance.
+  - id: PLAN-FRESH-003
+    status: resolved
+    reason: >
+      plan.md's Contextive-glossary bullet (:279-282) now shows two commands, the original
+      find|xargs grep over the 13 contextive files and a separate
+      `grep -n ... docs/context/*.md`; independently re-running both against the live repo
+      returns zero hits for each (contextive-file grep exits 123/no-match via xargs, docs/context
+      grep exits 1/no-match), matching the plan's "zero hits" claim for both halves.
+complete: true

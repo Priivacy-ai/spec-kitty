@@ -1,0 +1,134 @@
+# review-findings/v1 — merged, deduplicated R1 output (R2, orchestrator bookkeeping only).
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: merged
+mission: org-pack-authoring-diagnostics-01KZY463
+source_files:
+  - reviews/plan-gov.findings.yaml
+  - reviews/plan-arch.findings.yaml
+  - reviews/plan-verify.findings.yaml
+dedup_note: >
+  No duplicates found across the three lens files — each of the 5 findings cites a distinct
+  artifact section and claim. Ids and severities kept exactly as reported by their lens
+  session; nothing renumbered.
+findings:
+  - id: PLAN-GOV-001
+    lens: Terminology (Contextive glossary claim verification)
+    severity: 2
+    title: "The Gate Set's Contextive-glossary grep command under-covers the repo's actual .contextive.yml file set, though its stated conclusion still holds"
+    evidence:
+      - artifact: "plan.md § The Gate Set, 'Contextive glossary' bullet"
+      - code: "src/specify_cli/cli/.contextive.yml, src/specify_cli/missions/.contextive.yml, src/specify_cli/dossier/.contextive.yml, src/specify_cli/merge/.contextive.yml, src/specify_cli/status/.contextive.yml"
+    claim: >
+      Plan.md states the glossary check was "Checked directly:
+      grep -rn \"schema_invalid|duplicate_id|asset_path_escape|drg_dangling_edge\" across
+      src/specify_cli/.contextive/*.yml, src/glossary/.contextive.yml, and docs/context/*.md
+      returns zero hits" and concludes no glossary entry is needed for the two new category
+      values. Re-running that exact command confirms zero hits, but the repo also carries five
+      more per-subpackage .contextive.yml files this command does not touch. Running the same
+      four search terms plus the plan's own new category values (profile_skipped,
+      drg_root_graph_missing) across the full 13-file set still returns zero hits, so the
+      plan's bottom-line conclusion is correct — but the check as documented is not the
+      exhaustive sweep it presents itself as.
+    remediation: >
+      Widen the documented grep to the full glossary file set, e.g.
+      `find . -iname "*.contextive.yml" -o -path "*/.contextive/*.yml" | xargs grep -n <terms>`,
+      or state "the full .contextive.yml file set repo-wide" rather than the two partial paths.
+
+  - id: PLAN-ARCH-001
+    lens: Blast radius
+    severity: 3
+    title: Plan carries no CHANGELOG/release-note work item for the exit-code-breaking behavior change spec.md itself flags
+    evidence:
+      - artifact: "plan.md § The Gate Set (18-item CI-gate inventory) and § Project Structure (Scale/Scope touched-file list)"
+      - artifact: "spec.md § Reflexivity: what happens to missions and packs mid-flight, line 539: \"CI jobs that gate on `pack validate`'s exit code ... will newly fail for packs exhibiting FR-002/003/004's three shapes ... should be called out in the mission's changelog entry / release note at merge time, not just in this spec.\""
+      - code: ".kittify/charter/charter.md:401 (\"Breaking changes documented in CHANGELOG.md\", binding Code Review Checklist item)"
+    claim: >
+      spec.md's own Reflexivity section explicitly names an obligation that a pack which
+      validated clean before this mission can newly fail `pack validate` after it, and states
+      this "should be called out in the mission's changelog entry / release note at merge
+      time." Grepping plan.md for "changelog", "CHANGELOG", "release note", "team-kitty",
+      "muster", "downstream", "blast radius" returns zero hits outside one unrelated use in
+      spec.md's own User Story 3 framing. No IC, no gate entry, and no Project Structure row
+      assigns CHANGELOG.md as a touched surface or the changelog/release-note obligation as a
+      work item for any FR.
+    remediation: >
+      Add CHANGELOG.md to the plan's Scale/Scope / Project Structure touched-file list, and add
+      an explicit note (e.g. as a fifth line in FR-004's IC-04, the FR with the destructive
+      "zeroes the action grain" framing that most needs advance warning) that the mission's PR
+      must include a CHANGELOG.md entry documenting that `pack validate` now fails (exit code 1)
+      for three previously-passing pack shapes: merge-time-skipped agent profiles, nested
+      `assets/<pack>/x.asset.yaml` manifests with schema violations, and DRG content living only
+      under `drg/` with no pack-root `*.graph.yaml`.
+
+  - id: PLAN-VERIFY-001
+    lens: Gates
+    severity: 2
+    title: "fast-tests-doctrine mischaracterized as unconditionally-running; it is actually triggered by this mission's own test-file edit via a path filter"
+    evidence:
+      - artifact: "plan.md § The Gate Set, `fast-tests-doctrine` bullet"
+      - code: ".github/workflows/ci-quality.yml:1138-1143"
+    claim: >
+      The plan states `fast-tests-doctrine` "Applies as a standing CI job (it always runs)."
+      Read directly, the job's `if:` condition is
+      `needs.changes.outputs.doctrine == 'true' || github.event_name == 'push'`
+      (ci-quality.yml:1141-1143) — on a `pull_request` event it runs only when the `doctrine`
+      dorny path filter fires, not unconditionally. This mission's own Project Structure lists
+      `tests/doctrine/test_agent_profile_model_field.py` as touched (under `tests/doctrine/**`),
+      so the filter genuinely fires for this diff, but because of the mission's own test edit,
+      not because the job is unconditional. The plan's stated mechanism is wrong even though
+      its practical conclusion (the job runs, contributes no coverage delta) is not.
+    remediation: >
+      Replace "Applies as a standing CI job (it always runs)" with "Applies: this mission's own
+      edit to tests/doctrine/test_agent_profile_model_field.py (FR-002) falls under the
+      `doctrine` dorny path filter (`tests/doctrine/**`, ci-quality.yml:446), which gates
+      `fast-tests-doctrine`'s `if:` condition (ci-quality.yml:1141-1143) on `pull_request`
+      events — the job is not unconditional, it is triggered by this mission's own diff." Keep
+      the existing "expected zero new-code coverage delta" conclusion.
+
+  - id: PLAN-VERIFY-002
+    lens: "Mission-specific — The Baseline procedure's concreteness"
+    severity: 3
+    title: "The Baseline's step 4 ('once per FR' vs 'once for the combined lane') is internally ambiguous about run cadence inside Lane B, undermining its own stated reviewer-traceability goal"
+    evidence:
+      - artifact: "plan.md § The Baseline, step 4"
+      - artifact: "plan.md § Chokepoint"
+      - artifact: "plan.md § Implementation Concern Map, IC-02/IC-03/IC-04 'Sequencing/depends-on' bullets"
+    claim: >
+      Step 4 frames the combined-lane treatment as a contingency ("if implemented as a single
+      lane"), but "Chokepoint" already firmly decides FR-002+FR-003+FR-004 land as one lane
+      (Lane B), sequenced FR-003 -> FR-002 -> FR-004 — the "once per FR" branch of the "or" is
+      not actually available. More materially: "once for the combined lane" reads as a single
+      pre/post check around all three FRs, but IC-02/03/04 describe them as separate ordered
+      steps within Lane B with no baseline re-run named between them — so if a post-lane test
+      goes red, nothing in the procedure as written lets a reviewer determine which of the
+      three FR commits is responsible, directly contradicting the same sentence's traceability
+      claim.
+    remediation: >
+      Rewrite step 4 to state, without hedging, that Lane B's three internal FR commits each get
+      their own before/after run of the four C-004-targeted files — captured once at Lane B's
+      start and re-captured after each of the three sequenced commits — so a delta is
+      attributable to the specific commit that produced it. Alternatively, if a single pre/post
+      pair for the whole lane is intentional, say so explicitly and drop the traceability claim,
+      replacing it with an honest statement that intra-lane attribution falls back to
+      `git bisect`/manual inspection if a post-lane regression appears.
+
+  - id: PLAN-VERIFY-003
+    lens: "Mission-specific — The Baseline procedure's concreteness"
+    severity: 2
+    title: "Step 1's pytest command is one inline-code span broken across four markdown lines with no line-continuation, so a literal copy-paste runs four separate (mostly invalid) commands instead of one four-file invocation"
+    evidence:
+      - artifact: "plan.md § The Baseline, step 1 (lines 302-305 of the source markdown)"
+    claim: >
+      Step 1's command is written as a single backtick-delimited span spanning four raw markdown
+      lines with no trailing backslash line-continuation on any of the first three lines.
+      CommonMark renders this as one space-joined command, but an implementer who copies the raw
+      markdown source gets four separate shell invocations — the first runs only 1 of the 4
+      targeted files as "the baseline," the other three are bare invalid path strings. The four
+      file paths themselves are correct and match spec's C-004 list exactly.
+    remediation: >
+      Reformat step 1's command as a fenced code block (triple backtick, bash) with explicit
+      trailing backslashes for continuation, or as one unbroken line, so both the rendered
+      output and the raw markdown source agree on a single, directly copy-pasteable four-file
+      invocation.
