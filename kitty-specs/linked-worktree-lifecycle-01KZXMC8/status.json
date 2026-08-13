@@ -69,7 +69,8 @@
       "notes": [
         "Dual-root runtime ready at lane-b HEAD 28a8b19ba; RED/GREEN and 178+51+24 tests, Ruff, py_compile, mypy strict and mutation evidence pass.",
         "Independent review: fix anchor lifecycle phase and strict return type",
-        "Review cycle 2: bounded fixes only"
+        "Review cycle 2: bounded fixes only",
+        "Review blockers closed at lane-b HEAD f4471752b; anchor lifecycle phase and strict type fixed; all focused gates pass."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
