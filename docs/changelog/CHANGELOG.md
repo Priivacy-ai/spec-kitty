@@ -17,6 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land here as missions merge._
 
+### ✨ Added
+
+- **A shrink-only census gate now guards the 40 test sites that pin
+  `SPEC_KITTY_HOME`, so the collision can only get smaller from here (mission
+  `isolated-home-pin-guard-r1a-01KZNMA3`; `#3121`).** Before, nothing stopped a
+  41st ad-hoc home pin from landing, and a naive "converge them all" cleanup
+  would silently delete the load-bearing isolation those fixtures carry. Now a
+  content-addressed census — pinned as debt at a frozen SHA — plus a canonical
+  `canonical_home` owner fixture, a falsifiability probe, and a halt gate red the
+  build if the pinned set grows. Contributor-facing test infrastructure only (no
+  `src/` change); this lands the *instrument* ahead of the follow-on adoption
+  (R1b), so `Refs #3121` rather than `Closes`.
+
 ### 🐛 Fixed
 
 - **Root README guide links point at the post-IA `tutorials/` and `how-to/`
