@@ -1,0 +1,220 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: mission-type-guard-registry-01KZY2FG
+findings:
+  - id: PLAN-VERIFY-001
+    lens: gate-set / coverage-floors
+    severity: 4
+    title: Gate Set table omits the enforced diff-coverage critical-path 90% gate that directly covers src/runtime/next/*, the mission's most heavily touched module
+    evidence:
+      - artifact: "plan.md § Gate Set, row 'Kernel coverage ≥90% / mission-loader coverage ≥90%' (line 518)"
+      - code: ".github/workflows/ci-quality.yml:3468-3489 — `critical_paths` array for the 'diff-coverage (critical-path, enforced)' step includes `'src/runtime/next/*'` (line 3489) with `--fail-under=90` (line 3517: `uv run diff-cover ... --fail-under=90 --include \"${critical_paths[@]}\"`)"
+      - code: ".github/workflows/ci-quality.yml:2919-2927 — `integration-tests-next` job runs `tests/next tests/specify_cli/next tests/runtime` with `--cov=src/runtime/next`, uploads `coverage-integration-next-*.xml`, which the `diff-coverage` job (needs: integration-tests-next, line ~3390) consumes"
+      - code: "src/runtime/next/runtime_bridge_cores.py, runtime_bridge_composition.py, runtime_bridge.py, runtime_bridge_io.py — all four production files this mission's IC-01 through IC-04 change live under `src/runtime/next/`"
+    claim: >
+      Plan.md's Gate Set table has one row addressing per-package coverage floors
+      ("Kernel coverage ≥90% / mission-loader coverage ≥90%: Not a distinct gate
+      for this mission ... This mission's touched files are not under the
+      src/kernel/ coverage-gated boundary or the mission-loader package"). That
+      claim is TRUE for those two specific named gates, but it is not the only
+      per-package coverage floor in this repo's CI. A third, separately-enforced
+      gate — the PR-only "diff-coverage (critical-path, enforced)" job — runs
+      `diff-cover --fail-under=90 --include 'src/runtime/next/*' ...` against
+      changed lines, fed by `integration-tests-next`'s `--cov=src/runtime/next`
+      report. Every one of the four production files this mission's core
+      functional change (IC-01–IC-04) touches lives under `src/runtime/next/`,
+      i.e. inside that gate's scope. Plan.md's Gate Set table — whose stated
+      purpose is "an explicit reason for every listed gate NOT included" — never
+      mentions this gate at all, so a reader relying on the table would
+      reasonably (and wrongly) conclude no per-package coverage floor applies to
+      this mission's runtime-seam changes.
+    remediation: >
+      Add a Gate Set row for the diff-coverage critical-path gate, e.g.: "PR
+      diff-coverage (critical-path, 90%, `src/runtime/next/*`) | Enforced |
+      Every IC-01–IC-04 production file lives under src/runtime/next/, inside
+      this gate's `critical_paths` include list (.github/workflows/ci-quality.yml
+      line 3489); the ATDD-First Sequencing's Commit 2 (unregistered-family raise
+      / catch-and-log / propagation tests) and IC-02's plan-guard-table tests are
+      expected to satisfy the 90% floor on the new/changed lines, but this should
+      be verified locally with `uv run diff-cover` against the base branch before
+      push, not assumed." Optionally also verify locally with a targeted
+      `--cov=src/runtime/next` + `diff-cover` run during implementation.
+
+  - id: PLAN-VERIFY-002
+    lens: revert-discipline (ATDD-First Sequencing)
+    severity: 4
+    title: "ATDD-First Sequencing Commit 1 (FR-010) is labeled 'RED' while plan.md's own text describes it as a currently-passing test, and its DIRECTIVE_034 citation does not support that framing"
+    evidence:
+      - artifact: "plan.md § ATDD-First Sequencing, item 1 'Commit 1 (RED, FR-010)' (lines 447-459)"
+      - artifact: "packs/built-in/directives/034-test-first-development.directive.yaml lines 16-18, 20-22, 24-25"
+      - artifact: ".kittify/charter/charter.md § 'ATDD-First Discipline (binding per C-011)' (lines 591-604)"
+    claim: >
+      Plan.md's Commit 1 is described as "a test driving ... a plan-family
+      snapshot at step_id='review' ... asserting today's actual output ...
+      is what comes back before any fix. This test is RED in the sense that it
+      currently passes by asserting the BUG's own output; the tasks phase will
+      additionally add a second, target-shape assertion (asserting []) that is
+      genuinely RED until the fix lands — both forms are acceptable per
+      DIRECTIVE_034." Three concrete problems: (1) the sentence "RED in the
+      sense that it currently passes" is self-contradictory — a passing test is
+      by definition not red; labeling the commit "(RED, FR-010)" while admitting
+      it passes at the base commit misstates the commit's own state. (2) The
+      genuinely-red assertion is explicitly deferred to "the tasks phase" — a
+      later, unspecified point outside this plan — rather than being part of
+      Commit 1 as this plan pins it, so Commit 1 as literally specified here does
+      not itself satisfy charter C-011's binding requirement ("at least one
+      failing-first ATDD test ... committed as a separate commit ... BEFORE any
+      implementation commits", "the reviewer verifies red→green: the test was
+      RED on the WP's planning_base_branch"). (3) DIRECTIVE_034, cited as
+      license for "both forms," actually requires the opposite: "Prove
+      red-first — run the reproduction test against the unfixed code and confirm
+      it fails for the right reason" and explicitly invalidates a test that
+      "can only run AFTER the fix exists" — nothing in the directive endorses a
+      passing characterization-of-the-bug's-output as an acceptable substitute
+      for a failing reproduction test. Plan.md also never states what happens to
+      the first ("today's actual output") assertion once the fix lands — if left
+      in the same test it becomes false/red post-fix (breaking "GREEN on the
+      final commit"); if removed, plan.md doesn't say when or by whom, undermining
+      the "committed as a separate commit BEFORE implementation" pinning C-011
+      requires.
+    remediation: >
+      Rewrite Commit 1 so the RED-labeled commit itself contains a test that is
+      genuinely failing against the base commit — e.g. assert the target/fixed
+      shape (empty guard-failure list for plan/review) directly, which fails
+      today because the guard actually returns the WP-iteration message. Either
+      drop the "asserting today's actual output" pin entirely (it is not needed
+      to prove the fix — the target-shape assertion alone proves the flip) or, if
+      kept for documentation value, explicitly land it in the SAME commit as the
+      genuinely-red assertion (not deferred to "the tasks phase") and state what
+      happens to it once the fix lands (removed, or converted to a comment) so
+      the commit's own red→green story is unambiguous and directly verifiable by
+      the reviewer per C-011's own verification method.
+
+  - id: PLAN-VERIFY-003
+    lens: mission-derived (known-unverified numbers not laundered)
+    severity: 3
+    title: "Scale/Scope's '_identity_audit.py's ~150-line shape' claim contradicts the plan's own other citation of the same file (44-254, ~210 lines) and the actual file (346 lines total)"
+    evidence:
+      - artifact: "plan.md § Technical Context, 'Scale/Scope' (line 47): \"...1 new sibling module (`_mission_type_audit.py`, mirroring `_identity_audit.py`'s ~150-line shape)...\""
+      - artifact: "plan.md § Charter Check, 'Canonical sources, never improvise' (line 65): \"`_identity_audit.py:44-254`\" — a self-cited range of ~210 lines"
+      - code: "src/specify_cli/cli/commands/_identity_audit.py — `wc -l` = 346 total lines; the identity-only portion this mission actually mirrors (module header through `run_identity_audit`, before the '# --- topology helpers ---' section) spans roughly lines 41-254, i.e. ~213 lines, not ~150"
+    claim: >
+      Plan.md's Scale/Scope line states the new `_mission_type_audit.py` mirrors
+      "`_identity_audit.py`'s ~150-line shape" and frames the whole Scale/Scope
+      section as "a verified, first-hand-derived scope statement, not a size
+      estimate" — explicitly contrasted with the issue's own unverified LOC
+      figure. But the ~150-line number for `_identity_audit.py` does not match:
+      (a) the plan's own other citation of the same file 22 lines earlier in the
+      same document (`_identity_audit.py:44-254`, ~210 lines), or (b) the actual
+      file, which is 346 lines total and whose identity-only section (the part
+      actually being mirrored, excluding the topology-audit cluster the same
+      file also contains) is ~213 lines. This is a concrete, checkable factual
+      error inside the one section of the plan whose entire stated purpose is to
+      be more rigorous than the issue's unverified figures — undermining that
+      section's own credibility claim.
+    remediation: >
+      Correct the Scale/Scope line to cite the actual, verified line count for
+      the portion of `_identity_audit.py` being mirrored (~210-215 lines for the
+      identity-only section, consistent with the plan's own 44-254 citation), or
+      simply drop the specific line-count figure and describe the shape
+      qualitatively ("mirrors _identity_audit.py's dataclass + classifier +
+      audit-walker + summarizer + entry-point structure") to avoid a
+      false-precision number that contradicts the plan's own other citation.
+
+  - id: PLAN-VERIFY-004
+    lens: gate-set
+    severity: 2
+    title: Two Gate Set rows label CI checks "Not applicable" / "covered only at merge time" when the underlying CI steps actually execute on every push of this mission's PR (and merely pass trivially)
+    evidence:
+      - artifact: "plan.md § Gate Set, row 'Doctrine schema freshness / Contextive glossary' (line 517): \"Not applicable\""
+      - artifact: "plan.md § Gate Set, row 'tests/architectural/test_shared_package_boundary.py / test_pyproject_shape.py' (line 516): \"Not run as a dedicated pass ... covered incidentally by any full-suite run at merge time, not re-justified here\""
+      - code: ".github/workflows/ci-quality.yml:848-869 — the 'Check Contextive glossary files are up-to-date' step is gated on changes under `'glossary/**' 'src/specify_cli/**' 'src/charter/**' '.kittify/traceability/**'`; this mission changes `src/specify_cli/cli/commands/doctor.py` and adds `src/specify_cli/cli/commands/_mission_type_audit.py`, both under `src/specify_cli/**`, so the step WILL run on this PR (and will pass, since no glossary markdown/traceability-map content changes)"
+      - code: ".github/workflows/ci-quality.yml:653-656 — the 'Verify generated doctrine schemas are up to date' step (`scripts/generate_schemas.py --check`) lives in the always-on `lint` job (`if: always()` at line ~615), deliberately placed there per its own comment ('a freshness gate behind a paths filter is the same silence #2957 is about') so it is NOT path-gated and runs on every PR"
+      - code: ".github/workflows/ci-quality.yml:2144-2147 — `arch-adversarial` (which runs `tests/architectural`, including `test_shared_package_boundary.py`) is `if: always()`, i.e. runs on every non-docs-only PR push, not only 'at merge time'"
+    claim: >
+      Both rows' underlying substantive conclusion is correct (nothing this
+      mission touches makes either check fail), but the stated reason
+      mischaracterizes WHEN/WHETHER the check runs. "Not applicable" for the
+      doctrine-schema/Contextive-glossary row implies the check is skipped; in
+      fact the Contextive-glossary step is triggered by this mission's own
+      `src/specify_cli/**` changes and the doctrine-schema-freshness step is
+      always-on — both execute on this PR's CI run and pass trivially, they are
+      not skipped. Likewise, "covered incidentally by any full-suite run at
+      merge time" for the shared-package-boundary/pyproject-shape row implies
+      these architectural tests only run in a separate post-merge full-suite
+      pass; in fact `arch-adversarial` runs them on every CI-gated push of this
+      mission's own PR via an always-on job, unrelated to any merge-time full
+      run. This is the same class of imprecision Lens 1 was asked to hunt for —
+      plan.md elsewhere is careful to distinguish "runs in CI job X, not job Y"
+      (e.g. the terminology-guard row explicitly notes it "runs only in CI's
+      integration-tests-core-misc job, NOT in the fast-tests shards"), making the
+      looser treatment here inconsistent with the plan's own established
+      standard of precision.
+    remediation: >
+      Reword both rows to state that the checks DO run on this PR (Contextive
+      glossary via the src/specify_cli/** path trigger; doctrine-schema-freshness
+      because it is always-on) and are expected to pass because this mission
+      changes no glossary markdown/traceability content and no doctrine Pydantic
+      model — rather than labeling them "Not applicable" / "covered ... at merge
+      time," which reads as "this gate does not fire for this PR."
+
+  - id: PLAN-VERIFY-005
+    lens: silent-success
+    severity: 2
+    title: The tolerant evaluate_guards() wrapper stays public with no in-code guidance steering future callers toward evaluate_guards_strict
+    evidence:
+      - artifact: "plan.md § Seam & Module Placement, runtime_bridge_cores.py bullet (lines 118-126): \"Change evaluate_guards(snapshot) -> list[str] (the existing public name...) to a tolerant, still-pure wrapper: try: return evaluate_guards_strict(snapshot) except UnregisteredMissionFamilyError: return []\""
+      - code: "src/runtime/next/runtime_bridge.py:162 and runtime_bridge_composition.py:88 — the only two production modules that import `runtime_bridge_cores` today (grep confirmed no other production caller exists); both are changed by this mission's IC-03/IC-04 to call `evaluate_guards_strict` directly instead of the tolerant `evaluate_guards`"
+    claim: >
+      After this mission both production call sites bypass the tolerant
+      `evaluate_guards()` wrapper in favor of `evaluate_guards_strict()`, so no
+      LIVE silent-success risk is reintroduced today (verified directly — grep
+      finds no other production importer of `runtime_bridge_cores`). But
+      `evaluate_guards()` remains a public, unprefixed, still-exported name kept
+      alive solely for `tests/runtime/test_bridge_cores.py`'s existing direct
+      calls (per SC-004's unmodified-test requirement). Nothing in the plan adds
+      a docstring/comment on `evaluate_guards()` warning a future maintainer that
+      it silently swallows `UnregisteredMissionFamilyError` and that any NEW
+      production call site should use `evaluate_guards_strict` instead — exactly
+      the kind of footgun this mission exists to close for the two known call
+      sites, left undocumented for hypothetical future ones.
+    remediation: >
+      Add one sentence to `evaluate_guards()`'s docstring (or a `# ` comment) in
+      the implementation, e.g. "Kept tolerant/public only for existing direct
+      test callers; new production call sites should use
+      `evaluate_guards_strict` instead so an unregistered family is never
+      silently swallowed." This is a one-line addition, not a scope change, and
+      the plan should call it out under IC-01's own scope.
+
+  - id: PLAN-VERIFY-006
+    lens: baseline-honesty
+    severity: 3
+    title: "Baseline & Reflexivity's #3284 citation claims CLAUDE.md and spec.md 'both already reference' it, but neither file does"
+    evidence:
+      - artifact: "plan.md § Baseline & Reflexivity, 'Verification method' paragraph (lines 362-365): \"cite #3284 (the known-red-main tracking issue CLAUDE.md and spec.md both already reference) rather than filing a duplicate\""
+      - code: "CLAUDE.md — grep for '3284' and '3283' finds zero matches; the actual known-P0-reds list at CLAUDE.md line 237 is \"e.g. #2736, #2772, #1834\""
+      - artifact: "kitty-specs/mission-type-guard-registry-01KZY2FG/spec.md — grep for '3284' finds zero matches; the only GitHub issue number spec.md references is #3386 (this mission's own issue)"
+      - artifact: "gh issue view 3284 --repo Priivacy-ai/spec-kitty confirms #3284 IS a real, open issue ('main full suite has 23 untracked failures and 2 errors after bootstrap prewarm') — the substantive pointer is plausible, only the stated provenance is wrong"
+    claim: >
+      Plan.md asserts a specific cross-reference fact ("CLAUDE.md and spec.md
+      both already reference" #3284) that is directly falsifiable and false —
+      neither document contains any reference to #3284. #3284 is a real, open,
+      on-topic red-main tracking issue, so the underlying pointer is not
+      fabricated, but the claim that two OTHER canonical documents already
+      establish this cross-reference is inaccurate. This matters specifically
+      because Lens 4 exists to check exactly this kind of provenance claim in a
+      Baseline & Reflexivity section whose entire purpose is to replace hedged/
+      assumed claims with verified ones — a false "already referenced elsewhere"
+      claim is the same class of unverified-claim-presented-as-verified this
+      mission (and this review) is built to catch, even though in this instance
+      it does not affect the mission's own scope or correctness.
+    remediation: >
+      Either drop the "CLAUDE.md and spec.md both already reference" clause (the
+      instruction to "cite #3284 ... rather than filing a duplicate" stands fine
+      on its own without the false provenance claim), or verify and correct it —
+      e.g. "#3284, a real open red-main tracking issue independently confirmed
+      via `gh issue view 3284`, not yet cross-referenced from CLAUDE.md or
+      spec.md."
