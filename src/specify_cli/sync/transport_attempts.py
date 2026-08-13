@@ -2387,9 +2387,7 @@ def _now() -> str:
 
 
 __all__ = [
-    "DeliveryAttemptRecord",
     "DeliveryAttemptProjection",
-    "DeliveryRecoveryDecision",
     "DeliveryAttemptSpec",
     "DeliveryAttemptState",
     "DeliveryOutcome",
@@ -2399,12 +2397,9 @@ __all__ = [
     "LogicalOperationDisposition",
     "LogicalOperationRepeatability",
     "LogicalOperationRequest",
-    "OptOutSettlement",
-    "ReconciliationPolicy",
     "RecoveryAction",
     "allocate_logical_delivery_operation",
     "attach_remote_operation_id",
-    "execute_remote_operation_query",
     "execute_remote_operation_query_under_lease",
     "mark_transport_started",
     "mark_delivery_result_unknown",
@@ -2413,10 +2408,8 @@ __all__ = [
     "list_delivery_attempt_projections",
     "plan_delivery_attempt_recovery",
     "prepare_delivery_attempt",
-    "read_remote_operation_id",
     "record_delivery_result",
     "record_logical_operation_result",
-    "recover_delivery_attempts",
     "restart_delivery_attempt",
     "settle_attempts_for_opt_out",
     "settle_attempts_for_opt_out_under_lease",

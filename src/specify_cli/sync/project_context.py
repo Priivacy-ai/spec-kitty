@@ -339,8 +339,6 @@ def validate_project_sync_context_authority(context: ProjectSyncContext) -> None
 __all__ = [
     "AdmissionState",
     "ConsentState",
-    "ProjectCaptureCapability",
-    "ProjectStoreMaintenanceCapability",
     "ProjectSyncContext",
     "TargetAudience",
     "VerifiedProjectStoreIdentity",

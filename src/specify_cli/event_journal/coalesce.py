@@ -60,9 +60,7 @@ def install(ledger: DeliveredAnywhereQuery) -> CoalescingStrategy:
 
 
 __all__ = [
-    "CoalescingStrategy",
     "DeliveredAnywhereQuery",
     "SupersedeMarker",
     "install",
-    "read_supersede_markers",
 ]

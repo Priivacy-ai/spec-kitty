@@ -314,7 +314,7 @@
     },
     "WP09": {
       "actor": "reviewer-renata",
-      "agent": "claude",
+      "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "assignee": "claude",
@@ -325,7 +325,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Resume after unblocking: implementation already landed on active branch (commit 7ddfd660c); lifecycle regularization per program handoff",
-        "Implementation landed as 7ddfd660c (revocation matrix 1161 lines, crash matrix 606 lines, barrier harness 2392 lines); verified at head: 191 passed locally (test_transport_revocation_matrix.py + test_transport_crash_matrix.py); T040-T043 verified done"
+        "Implementation landed as 7ddfd660c (revocation matrix 1161 lines, crash matrix 606 lines, barrier harness 2392 lines); verified at head: 191 passed locally (test_transport_revocation_matrix.py + test_transport_crash_matrix.py); T040-T043 verified done",
+        "Independent adversarial review of commit 7ddfd660c. T040: five barrier phases are real file-based rendezvous barriers bound to project/attempt/native-correlation/family with cross-identity marker rejection (no sleep-based races; sleeps are only bounded polling on marker files); censuses updated with per-symbol sink classification of every discovered sink into the ten matrix families, final owners corrected to WP07/WP08, and the daemon-publish 3030 regression migrated to the admitted-project canonical protocol. T041: both revoke orderings proven for all ten families; started-ordering crossed with delivered/duplicate/refused/timeout, exact-byte closed wire envelopes, durable attempt/result generation assertions, project-B physical isolation via ProjectSyncStore open-tracking, and late-success fencing after terminal_unknown. T042: real subprocess kills (SIGKILL, negative returncode asserted) at all five windows x ten families with truthful outcomes, native-identity-preserving recovery plans, no-resend on uncertainty, and fail-closed target/admission generation change while queued. T043: the compound pause-during-response -> kill -> immediate opt-out -> terminal_unknown -> late-recovery sequence runs as one test per family with no resend (poisoned sink), no success promotion, no old-generation rewrite, and project B live. Reviewer mutants (13 forgery oracles, poisoned sinks, partial-byte rejection) make the assertions non-fakeable. Gates: 191/191 matrix tests pass, 67 passed + 2 pre-existing xfails on the other owned suites, ruff and mypy clean. Non-blocking notes: account/team authority change is represented only via admission-row generations in the queued fail-closed test (delegated WP06 control), and pause-before-start ordering is not crossed with outcomes (structurally no transport occurs)."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",

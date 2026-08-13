@@ -1734,16 +1734,5 @@ def _verify_project_rows(
 
 __all__ = [
     "LegacyProjectStoreMigration",
-    "LegacyRow",
-    "MIGRATION_PROTOCOL_VERSION",
-    "MigrationError",
-    "MigrationManifest",
-    "MigrationPhase",
-    "MigrationTestHooks",
     "migration_artifact_path",
-    "QuarantineReason",
-    "QuarantineRecord",
-    "SidecarFingerprint",
-    "SourceChangedError",
-    "SourceFingerprint",
 ]

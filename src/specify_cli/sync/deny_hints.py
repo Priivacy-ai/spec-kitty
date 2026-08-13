@@ -286,12 +286,7 @@ def enumerate_deny_hint_project_uuids() -> tuple[CanonicalProjectUUID, ...]:
 
 
 __all__ = [
-    "DaemonDenyHint",
     "DenyHintAction",
-    "DenyHintProbe",
-    "DenyHintStatus",
-    "deny_hint_directory",
-    "deny_hint_path",
     "enumerate_deny_hint_project_uuids",
     "publish_deny_hint",
     "read_deny_hint",

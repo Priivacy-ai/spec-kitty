@@ -519,25 +519,15 @@ class OfflineQueue:
 
 
 __all__ = [
-    "COALESCEABLE_EVENT_TYPES",
     "DEFAULT_MAX_QUEUE_SIZE",
-    "DEFAULT_STRICT_CAP_SIZE",
-    "LegacyQueueMigrationRequiredError",
-    "LegacyRowCounts",
     "OfflineQueue",
-    "OfflineQueueFull",
     "ProjectOutboxTask",
     "QueueStats",
     "_legacy_queue_db_path",
     "build_queue_scope",
-    "default_queue_db_path",
-    "detect_legacy_rows_for_scope",
     "get_max_queue_size",
-    "pending_events_for_scope",
     "read_active_scope",
     "read_queue_scope_from_credentials",
     "read_queue_scope_from_session",
-    "resolved_scope_db_path",
     "scope_db_path",
-    "write_active_scope",
 ]

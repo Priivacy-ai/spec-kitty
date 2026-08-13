@@ -706,11 +706,8 @@ class ProjectSyncStore:
 
 
 __all__ = [
-    "ProjectStoreCorruptError",
     "ProjectStoreError",
     "ProjectStoreLockedError",
-    "ProjectStoreOwnerMismatchError",
-    "ProjectTransactionControlError",
     "ProjectStoreVersionError",
     "ProjectSyncStore",
     "ProjectUnitOfWork",

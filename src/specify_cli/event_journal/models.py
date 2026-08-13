@@ -409,19 +409,6 @@ def row_to_event(row: tuple[Any, ...]) -> Event:
 
 
 __all__ = [
-    "COUNT_MISSING_IDENTITY_SQL",
-    "CREATE_COALESCE_INDEX_SQL",
-    "CREATE_PROJECT_INDEX_SQL",
-    "CREATE_TABLE_SQL",
-    "CREATE_TYPE_INDEX_SQL",
-    "COUNT_SQL",
-    "DISTINCT_PROJECT_UUIDS_SQL",
-    "IDENTITY_COLUMNS",
-    "SELECT_MISSING_IDENTITY_SQL",
-    "SET_IDENTITY_SQL",
-    "TABLE_NAME",
-    "select_by_ids_sql",
-    "select_identity_projection_sql",
     "DRAIN_BLOCKED_DAEMON_LOCK",
     "DRAIN_BLOCKED_MISSING_AUTH",
     "DRAIN_BLOCKED_MISSING_TEAM",
@@ -430,9 +417,6 @@ __all__ = [
     "DRAIN_BLOCKED_REASONS",
     "DRAIN_BLOCKED_SAAS_DISABLED",
     "Event",
-    "INSERT_SQL",
-    "MARK_ARCHIVED_SQL",
-    "OLDEST_CREATED_AT_SQL",
     # ORDERED_COLUMNS stays exported: the allowlist grant in
     # tests/architectural/test_no_dead_symbols.py records the reason (the
     # journal's canonical column-order contract, consumed inside this module by
@@ -441,9 +425,6 @@ __all__ = [
     # surfaced it as an offender; the key is refreshed there rather than the
     # export being revoked. ``TABLE_NAME`` was listed twice — duplicate dropped.
     "ORDERED_COLUMNS",
-    "SELECT_ALL_SQL",
-    "SELECT_BLOCKED_SQL",
-    "SELECT_BY_ID_SQL",
     "event_to_params",
     "row_to_event",
 ]

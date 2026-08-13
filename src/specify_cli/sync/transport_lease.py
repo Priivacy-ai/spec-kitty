@@ -228,5 +228,4 @@ __all__ = [
     "acquire_project_transport_lease",
     "transport_lease_context_is_live",
     "transport_lease_identity_is_live_for_project",
-    "transport_lease_is_live",
 ]

@@ -187,5 +187,4 @@ __all__ = [
     "canonicalize_url",
     "compute_target_id",
     "compute_url_hash",
-    "target_id_for_audience",
 ]

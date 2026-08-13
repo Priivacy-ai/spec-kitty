@@ -1118,20 +1118,12 @@ def backfill_uuid_consent_index() -> ConsentBackfillResult:
 # which still cannot tell an operator their consent index is unreadable. The name
 # stays importable and unadvertised until that consumer lands.
 __all__ = [
-    "CaptureAssignment",
-    "ConsentAction",
-    "ConsentAuthorityDiagnostic",
-    "ConsentAuthorityStatus",
     "LegacyConsentMigrationRequiredError",
     "ProjectConsentRecord",
     "allocate_capture_sequence",
     "consented_project_uuids",
-    "import_legacy_refusal",
     "project_local_consent_fault",
-    "read_project_local_consent",
-    "read_project_consent_decision",
     "record_project_opt_in",
     "record_project_opt_out",
     "resolve_project_consent",
-    "set_project_consent",
 ]

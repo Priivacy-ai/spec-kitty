@@ -234,6 +234,11 @@ def isolated_machine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".spec-kitty"))
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    # Pin the resolved hosted target to the admitted target row these tests
+    # write. Without this the resolved URL is whatever the developer's shell
+    # (or DEFAULT_SERVER_URL) says, and the WP05 target-authority check
+    # refuses with target_authority_mismatch on machines/CI where they differ.
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://app.spec-kitty.ai")
     monkeypatch.chdir(repo_root)
     return repo_root
 

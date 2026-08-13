@@ -690,7 +690,6 @@ __all__ = [
     "UnresolvedIdentityCandidate",
     "TERMINAL_FAILURES_KEY",
     "build_per_project_store_report",
-    "build_project_store_status",
     "build_status_report",
     "default_status_sections",
     "evaluate_gc_suggestion",

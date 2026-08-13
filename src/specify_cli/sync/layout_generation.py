@@ -410,14 +410,8 @@ def _new_layout_generation_authority(
 
 
 __all__ = [
-    "LayoutAuthorityCorruptError",
-    "LayoutAuthorityError",
-    "LayoutAuthorityLockedError",
     "LayoutDestination",
-    "LayoutGenerationState",
     "LayoutMode",
     "LayoutTestHooks",
-    "LayoutVerificationError",
     "LayoutWritePermit",
-    "StaleLayoutWritePermitError",
 ]

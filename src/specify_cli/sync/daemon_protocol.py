@@ -244,12 +244,6 @@ def discover_daemon_cutover_protocol() -> DaemonCutoverProtocol | None:
 
 
 __all__ = [
-    "DaemonCutoverError",
     "DaemonCutoverProtocol",
-    "DaemonProtocolMismatchError",
-    "DaemonUnreachableError",
     "discover_daemon_cutover_protocol",
-    "MIGRATION_DAEMON_PROTOCOL_VERSION",
-    "QuiesceAcknowledgement",
-    "RestartAcknowledgement",
 ]

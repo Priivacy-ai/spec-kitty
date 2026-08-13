@@ -401,8 +401,6 @@ class OfflineBodyUploadQueue:
 __all__ = [
     "BodyEnqueueResult",
     "BodyQueueStats",
-    "BodyUploadFailureRecord",
     "BodyUploadTask",
-    "DEFAULT_BODY_QUEUE_SIZE",
     "OfflineBodyUploadQueue",
 ]
