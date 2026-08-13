@@ -1,0 +1,111 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: RULING2-SPEC
+    status: resolved
+    reason: >
+      Verified d84ccd561's spec.md changes against plan.ruling.md's five-item verifier
+      instruction, line by line. (1) Separate reasoning: spec.md:90 and :394 both now read
+      "not one shared architectural guarantee" / "reasoned about separately, not as one shared
+      architectural guarantee" — the assembler's carve-out is justified purely structurally
+      (`_copy_drg_fragments` never writes a pack-root graph), `org_validate`'s dropped-carve-out
+      is justified by the glob mismatch; no remaining prose funds both from one claim (grep for
+      "shared architectural" returns only the two negation instances). (2) Explicit
+      `check_drg_root=True`: spec.md's FR-004 body states the call site "passes
+      `check_drg_root=True` explicitly rather than relying on `validate_pack`'s own default,
+      with a short inline comment recording why" — reason given (future-default-change safety,
+      AC-7 assertability). Confirmed live at doctrine.py:966 today: `result =
+      validate_pack(pack_path)` (pre-implementation baseline; the explicit True is this
+      mission's own future edit, correctly described as prospective). (3) False passage
+      corrected, not reworded: spec.md now has a dedicated "Corrected: what a
+      uniformly-applied default-error severity would actually do" passage that states the old
+      claim, marks it "checked directly against this checkout and found factually false;
+      corrected here, not merely reworded," and gives the true account (org_init's
+      `drg/fragment.yaml` never matches `*.graph.yaml`, so
+      `test_doctrine_org_validate_accepts_valid_pack` was never at risk). Verified independently:
+      `org_init` (doctrine.py:899-940) writes exactly `org-charter.yaml`, `drg/fragment.yaml`,
+      `README.md`; `_validate_drg` (pack_validator.py:506) globs `drg_dir.glob("*.graph.yaml")`
+      — `fragment.yaml` cannot match that pattern, so the corrected text is true against this
+      checkout. (4) AC-7 inverts and gains the positive-fire case: spec.md's AC-7 now reads
+      "`check_drg_root=True` call carries no carve-out" with case (a) the unmodified-scaffold
+      negative (asserts True is the actual parameter value, mirroring AC-6's assertion style)
+      and case (b) "no fixture exists in the suite today" — pack scaffolded via org init, then
+      given a real `drg/*.graph.yaml` fragment with no pack-root graph, asserting
+      `drg_root_graph_missing` fires through `doctrine org validate`. This matches the ruling's
+      #5 requirement verbatim. (5) pack_assembler.py's carve-out survives unconditional: spec.md
+      states "carve-out stands, unconditional, unchanged," cites
+      `test_pack_assembler.py:184-188` as load-bearing. Read those exact lines: `_add_drg_fragment(a,
+      "010.graph.yaml", ...)` / `_add_drg_fragment(b, "010.graph.yaml", ...)` inside
+      `test_force_dedup_prunes_duplicate_edges_via_canonical_serializer`, followed at :193 by
+      `assert result.ok is True` — fragment names genuinely match `*.graph.yaml`, confirming the
+      carve-out really is load-bearing for that test as claimed.
+
+  - id: RULING2-PLAN
+    status: resolved
+    reason: >
+      Verified fd6338a42's plan.md changes. The "Resolution — a merge-order constraint for the
+      operator to decide" block (previously plan.md:571-583 per plan-verify-4.yaml) is gone —
+      `grep -n -i "merge-order" plan.md` returns exactly one hit, at the new prose stating
+      "There is no operator merge-order decision to make here" (plan.md:612), not a residual
+      constraint block. IC-04's "Open-PR premise risk" bullet is gone; the equivalent bullet at
+      plan.md's IC-04 Risks section now reads "org_validate's onboarding check carries no
+      equivalent risk... its carve-out is dropped, and
+      test_doctrine_org_validate_accepts_valid_pack... keeps passing regardless" — a short,
+      accurate statement, not a hedge, matching the ruling's #4 requirement. The open-PR
+      write-scope check itself survives intact: `grep -n "18 open PR"` still finds
+      plan.md:596's "`gh pr list --state open ...` returns 18 open PRs" sentence, and the
+      "Chokepoint" section heading (plan.md:572) and its #3166/doctrine.py:966 no-line-overlap
+      analysis (plan.md:~605-611, unchanged by this commit's diff) are present and untouched —
+      confirmed this content was not part of fd6338a42's diff hunks at all, i.e., genuinely
+      preserved rather than incidentally surviving a rewrite. The remaining #2719 material
+      (plan.md:605-612) is exactly the short accurate statement the ruling calls for: it states
+      what #2719 does (adds `--template`, confirmed never calls `validate_pack`), then "per
+      operator ruling #2 ... this is no longer a premise risk ... #2719 landing before or after
+      this mission's PR has no effect."
+
+  - id: PLAN-FRESH3-002
+    status: resolved
+    reason: >
+      Read charter.md:591-604 (C-011) first-hand: "The reviewer verifies red→green: the test
+      was RED on the WP's `planning_base_branch` AND GREEN on the WP's final commit." Confirmed
+      `planning_base_branch` is a real, fixed-per-mission field: mission_branch_context.py:97
+      is exactly `planning_base_branch = target_branch` (set once at contract-injection time,
+      not a moving pointer), and meta.json:12 records `"target_branch": "main"` for this
+      mission, matching plan.md's own citation of both. f45483afb's "Per-FR ATDD Sequencing
+      (C-011)" subsection now states one checkpoint consistently for all three FRs: FR-003
+      (plan.md:428, "Run against Lane B's `planning_base_branch`"), FR-002 (plan.md:439-445,
+      "**Primary RED check (C-011)**... against `planning_base_branch`" with the old
+      running-tip check demoted to "**Secondary check (attribution only)**... not a substitute
+      for the primary check above"), and FR-004 (plan.md:457-465, identical primary/secondary
+      structure). The Reviewer-verification paragraph (plan.md:472-488) now names
+      `planning_base_branch` as "the single, fixed comparison point C-011 specifies, identical
+      for FR-002, FR-003, and FR-004 alike," explicitly narrates the prior draft's substitution
+      and PLAN-V4-001's finding, and states the correction in place. A new "Practical
+      consequence for Lane B's sequencing" paragraph (plan.md:490-505) gives a concrete
+      procedure: check out `planning_base_branch` as a separate ref, apply only that FR's new
+      test id(s) on top of it (explicitly not the whole targeted file, to avoid a prior FR's
+      already-added test also showing red for an unrelated reason), run that test id there —
+      executable, not hand-wavy. The secondary running-tip check is unambiguously subordinate:
+      labeled "(attribution only)" at both use sites and reiterated three separate times as "not
+      a substitute for the primary check." This closes PLAN-FRESH3-002's letter-vs-substance
+      gap in substance, not merely in wording.
+
+  - id: PLAN-V4-001
+    status: resolved
+    reason: >
+      The specific contradiction PLAN-V4-001 recorded — Charter Check gate summary line
+      (plan.md:104-108, unchanged text, still "red-on-`planning_base_branch` /
+      green-on-final-commit") vs. the detailed ATDD subsection specifying a different
+      checkpoint for FR-002/FR-004 — is resolved by making the detailed subsection agree with
+      the summary line rather than by softening the summary line. Confirmed no residual
+      disagreement: FR-002 and FR-004 now both name `planning_base_branch` as their primary RED
+      check (plan.md:439-445, :457-465), matching plan.md:107's promise exactly, with the
+      previously-substituted running-tip check kept only as an explicitly labeled secondary
+      attribution aid. The fix itself narrates PLAN-V4-001 by finding ID
+      (plan.md:481, "reviews/plan-verify-4.yaml, finding PLAN-V4-001") and states what was wrong
+      and what changed, rather than leaving the reconciliation implicit.
+
+new_findings: []
+
+verdict: pass
