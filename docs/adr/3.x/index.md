@@ -174,3 +174,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-08-07 | [A Mission-Halting Instrument Is Worth Its Cost — It Runs Before the Mission, and Its Verdict Is Acted On](2026-08-07-1-a-mission-halting-instrument-is-worth-its-cost.md) |
 | 2026-08-12 | [Local, No-Egress PlantUML Rendering for Code-Grounded Doctrine Schema Diagrams](2026-08-12-1-plantuml-schema-diagram-rendering.md) |
 | 2026-08-12 | [Explicit Checkout Ownership for Mission Create and Next](2026-08-12-1-checkout-ownership-for-mission-create-and-next.md) |
+| 2026-08-13 | [The built-in mission subtree stays nested and self-contained; retire the legacy step-contract surface](2026-08-13-1-built-in-mission-subtree-stays-nested-retire-legacy-step-contracts.md) |
