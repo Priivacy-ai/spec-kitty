@@ -106,6 +106,39 @@ is the sanctioned recovery path this mission's brief names for exactly this situ
 ("`safe-commit` is the correct recovery tool ONLY if you need to commit something
 `finalize-tasks` didn't") — not a hand-rolled workaround.
 
+## SK-06-adjacent — `record-analysis` returns `success: true` and silently records `verdict:
+unknown` when the input body is missing its leading `---` fence, distinct trigger from SK-06
+
+Live-verified during this analyze phase, not a re-file of SK-06 (ledger SK-06 is specifically
+the legacy `schema_version`/`artifact_type` carrier shape). The analyze subagent's first
+`record-analysis` call used an input file whose first line was `schema: analysis-findings/v1`
+directly — the correct schema key, but with **no opening `---` fence** before it. `_split_carrier`
+(`src/specify_cli/analysis_report.py:243`) requires `body.startswith("---")` before it will even
+attempt to parse a carrier; without it, it returns `(None, body)` unconditionally, so
+`parse_structured_findings` (line 358) returns `None` and `write_analysis_report` falls to the
+`verdict = VERDICT_UNKNOWN` branch (line 411) — the exact same silent-fallback branch SK-06
+documents, reached by a different proximate cause (missing fence vs. wrong schema key). The CLI
+call still returned `{"success": true, ...}`; nothing in that JSON response distinguished a fully
+parsed `analysis-findings/v1` carrier from the silent legacy fallback. Persisted
+`analysis-report.md` carried `verdict: unknown`, `issue_counts` all `null`, `findings: []` in its
+outer frontmatter, while the correctly-formed inner carrier (`verdict: ready`, `findings: []`)
+survived intact in the document body below it — because `_split_carrier` never touched it, it
+was never stripped out either.
+
+**Recovery**: re-wrote the same content with a leading `---` line added, removed the stray
+untracked `analysis-report.md` from the first attempt (required — `record-analysis` refuses with
+`DIRTY_WORKTREE` on a pre-existing untracked report at the same path), and re-ran
+`record-analysis` with the fenced input. Read back the result directly (not the command's exit
+status): `verdict: ready`, `issue_counts` all `0`, `findings: []` — confirmed correct. No mission
+artifact content was changed; this was a carrier-formatting correction only, not a fix to spec,
+plan, tasks, or WP01.
+
+**Class-level note for the operator**: this confirms the failure mode SK-06 names — "an analyze
+agent can appear to record a verdict while recording nothing usable" — is not limited to the one
+malformed-shape trigger SK-06 documents. Any input body that does not open with a literal `---`
+on line 1 hits the identical silent fallback, with `success: true` giving no signal either way.
+Worth folding into SK-06 as a second trigger, or filing as its own sibling entry — operator's call.
+
 ## Baseline-capture record (T001 / plan.md Baseline step 5)
 
 <!-- Populated once, by WP01's T001, before this mission's first RED commit lands. Per
