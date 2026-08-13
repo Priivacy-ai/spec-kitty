@@ -80,6 +80,32 @@ shape: SK-10's fields are wrong (HEAD-derived); here the raw `target_branch` val
 the derived boolean comparing it against the working branch is wrong for `lanes` topology
 mid-mission.
 
+## SK-13 — `finalize-tasks`'s own auto-commit refuses on the resolved placement ref, same shape as SK-09b
+
+Live-verified during this tasks phase: `spec-kitty agent mission finalize-tasks --mission
+org-pack-drg-root-graph-guard-01KZY0QT --json` (the mutating command, run only after
+`--validate-only` passed cleanly) performed all of its file-writing work correctly — WP01
+frontmatter normalized with `requirement_refs`/`dependencies`/`planning_base_branch` etc.,
+`lanes.json` computed (1 lane, disjoint write-scope), `issue-matrix.md` and
+`acceptance-matrix.json` generated, and even a separate `status.events.jsonl` bootstrap commit
+(`chore(spec-kitty): status transition WP01`) landed successfully — but then failed with exit
+code 1 on its own commit of `tasks.md`/the WP file/`lanes.json`/etc.:
+`{"error": "Git commit failed: Refusing to commit planning artifacts to the protected branch
+'main'. ..."}`. HEAD at the time was `kitty/mission-org-pack-drg-root-graph-guard-01KZY0QT` (the
+correct, unprotected mission branch), not `main` — confirmed via `git branch --show-current`
+immediately after the failure. This is the exact SK-09b shape (`spec-commit` refusing on
+`meta.json`'s resolved *placement* ref, `target_branch=main`, rather than on the branch actually
+checked out, `HEAD`) now confirmed to also affect `finalize-tasks`'s internal auto-commit call,
+not just the standalone `spec-commit` command SK-09b originally documented. **Recovery used**:
+per this mission's own tasks-phase brief, `spec-kitty safe-commit <files> --to-branch
+kitty/mission-org-pack-drg-root-graph-guard-01KZY0QT --message "..."` committed the six
+already-written files finalize-tasks left staged-but-uncommitted; a follow-up
+`finalize-tasks --validate-only` afterward returned `"would_modify": [], "unchanged": ["WP01"]`,
+confirming the recovery fully captured finalize-tasks's intended output with no drift. This
+is the sanctioned recovery path this mission's brief names for exactly this situation
+("`safe-commit` is the correct recovery tool ONLY if you need to commit something
+`finalize-tasks` didn't") — not a hand-rolled workaround.
+
 ## Entries
 
 <!-- YYYY-MM-DD — 1-3 sentences: what happened, why it slowed you down. -->
