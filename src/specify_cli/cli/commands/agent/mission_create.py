@@ -299,7 +299,17 @@ def _run_create_core_phase(
     except CheckoutOwnershipError as exc:
         error_msg = str(exc)
         if json_output:
-            _emit_json({"success": False, "error": error_msg, **exc.to_dict()})
+            # Shared ownership refusal contract (mirrors
+            # next_cmd._emit_checkout_ownership_error): exactly
+            # {success, error_code, error} — no redundant `message` key from
+            # StructuredError.to_dict().
+            _emit_json(
+                {
+                    "success": False,
+                    "error_code": exc.error_code,
+                    "error": error_msg,
+                }
+            )
         else:
             console.print(f"[bold red]Error:[/bold red] {error_msg}")
         raise typer.Exit(1) from exc
