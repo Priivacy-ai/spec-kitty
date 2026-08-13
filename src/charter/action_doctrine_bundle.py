@@ -176,6 +176,14 @@ def _load_action_doctrine_bundle(
     # A project authoring a doctrine artifact without a sibling ``*.graph.yaml``
     # raises ``DRGLoadError``; that is orthogonal to charter-level selection
     # rendering, so we collapse it to an empty bundle and log a WARNING (WP04).
+    # This catch's reach narrowed in mission org-pack-drg-root-graph-guard-
+    # 01KZY0QT (#3384): it still fires for project-layer (``.kittify/doctrine``)
+    # malformed content, unchanged, but malformed org-layer content -- whether
+    # the root-level graph or a ``drg/`` fragment -- no longer reaches it.
+    # ``charter._drg_helpers._load_org_layer`` now raises the new, module-
+    # private ``OrgDRGFragmentError`` for either shape, which is deliberately
+    # NOT a ``DRGLoadError`` subclass and so propagates uncaught to the CLI's
+    # generic exception boundary instead of being silently swallowed here.
     ids_by_slot: Mapping[str, tuple[str, ...]] = {}
     merged_graph: DRGGraph | None = None
     roots: tuple[str, ...] = ()
