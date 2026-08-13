@@ -1,6 +1,6 @@
 ---
 title: Mission transition gates — declarative, asset-backed, trust-gated
-description: How transition gates work under the declarative model — a first-class gate artefact kind whose check ships as an asset, is invoked via an entrypoint at a topology-resolved surface, runs only from trusted publishers, and is fail-closed by default.
+description: The declarative model for transition gates — a first-class gate artefact whose check ships as an asset, runs at a topology-resolved surface, fail-closed by default.
 doc_status: active
 updated: '2026-08-13'
 type: explanation

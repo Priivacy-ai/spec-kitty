@@ -1,6 +1,6 @@
 ---
 title: 'ADR: A local loopback daemon amortizes doctrine parse and caches deterministic gate verdicts (direction)'
-description: 'Direction-setting ADR: a local loopback-only daemon holds parsed doctrine and a deterministic gate-verdict cache keyed on pack content-hash, so gate execution becomes a warm API call instead of a cold CLI subprocess. Follow-on to the gate design, not a prerequisite.'
+description: 'Direction-setting ADR: a local loopback daemon holds parsed doctrine and a content-hash-keyed verdict cache, making gate execution a warm API call rather than a cold subprocess.'
 status: Proposed
 date: '2026-08-13'
 related:

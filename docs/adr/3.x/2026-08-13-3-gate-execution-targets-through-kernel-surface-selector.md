@@ -1,6 +1,6 @@
 ---
 title: 'ADR: Gate execution targets a surface through a kernel selector and the topology placement seam'
-description: 'A gate declares an executionTarget from a kernel-owned surface-selector vocabulary; the topology-aware placement seam gains an execute verb that resolves it to a physical workdir, unifying where artifacts are read, written, and run.'
+description: 'A gate declares an executionTarget from a kernel-owned surface-selector vocabulary; the placement seam gains an execute verb that resolves it to a physical workdir.'
 status: Proposed
 date: '2026-08-13'
 related:
