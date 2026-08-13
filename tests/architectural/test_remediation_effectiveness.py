@@ -157,6 +157,26 @@ def _discover_remediation_emitting_states_full() -> tuple[tuple[int, str, str], 
     """
     source = inspect.getsource(_computer_module)
     tree = ast.parse(source)
+    # Module-level ``NAME = "literal"`` bindings, so a remediation command that
+    # has been hoisted to a named constant stays visible to this enforcement.
+    #
+    # This is not hypothetical tidiness. ``computer.py`` carries an S1192
+    # de-duplication constant (``_REMEDIATE_CHARTER_SYNTHESIZE``) for the
+    # command its three ``synthesized_drg`` branches share. A literal-only
+    # walk does not see an ``ast.Name``, so those three states vanish from
+    # discovery -- and a guard that silently stops covering three of five
+    # states while still reporting green is the exact shape of defect this
+    # module exists to prevent. Resolving the constant keeps enforcement
+    # keyed on the emitted *command*, not on how it happens to be spelled.
+    module_string_constants: dict[str, str] = {
+        target.id: node.value.value
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and isinstance(node.value, ast.Constant)
+        and isinstance(node.value.value, str)
+        for target in node.targets
+        if isinstance(target, ast.Name)
+    }
     results: list[tuple[int, str, str]] = []
     for func_node in tree.body:
         if not isinstance(func_node, ast.FunctionDef):
@@ -169,10 +189,12 @@ def _discover_remediation_emitting_states_full() -> tuple[tuple[int, str, str], 
             remediation_lineno: int | None = None
             state_value: str | None = None
             for kw in node.keywords:
-                if (
-                    kw.arg == "remediation"
-                    and isinstance(kw.value, ast.Constant)
-                    and kw.value.value is not None
+                if kw.arg == "remediation" and (
+                    (isinstance(kw.value, ast.Constant) and kw.value.value is not None)
+                    or (
+                        isinstance(kw.value, ast.Name)
+                        and kw.value.id in module_string_constants
+                    )
                 ):
                     # ``kw.value.lineno`` (not ``node.lineno``, which is the
                     # call's opening line) so the reported line matches
@@ -524,12 +546,17 @@ class _EffectivenessCase:
 #: line down. Re-derived by running
 #: ``_discover_remediation_emitting_states_full()`` against the current
 #: file, not by hand-counting.
+#: Re-pinned again at the #2831 rebase onto current ``main``: upstream's own
+#: edits to ``computer.py`` shifted every one of these down (411 -> 422,
+#: 464 -> 475, 569 -> 580, 600 -> 611, 613 -> 624). Re-derived by running
+#: ``_discover_remediation_emitting_states_full()`` against the current file,
+#: never by hand-counting. The producer/state identities are unchanged.
 _CASES: tuple[_EffectivenessCase, ...] = (
-    _EffectivenessCase("charter_source", 411, _fixture_charter_source_missing),
-    _EffectivenessCase("synced_bundle", 464, _fixture_charter_source_missing),
-    _EffectivenessCase("synthesized_drg", 569, _fixture_drg_missing),
-    _EffectivenessCase("synthesized_drg", 600, _fixture_drg_stale_bundle_not_fresh),
-    _EffectivenessCase("synthesized_drg", 613, _fixture_drg_stale_hash_mismatch),
+    _EffectivenessCase("charter_source", 422, _fixture_charter_source_missing),
+    _EffectivenessCase("synced_bundle", 475, _fixture_charter_source_missing),
+    _EffectivenessCase("synthesized_drg", 580, _fixture_drg_missing),
+    _EffectivenessCase("synthesized_drg", 611, _fixture_drg_stale_bundle_not_fresh),
+    _EffectivenessCase("synthesized_drg", 624, _fixture_drg_stale_hash_mismatch),
 )
 
 
