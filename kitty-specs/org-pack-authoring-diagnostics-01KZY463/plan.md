@@ -70,10 +70,12 @@ pass over files already being read.
 `src/charter/_drg_helpers.py` change), C-003 (no fifth surface — exactly the four FRs), C-004
 (targeted test packages, not the full suite).
 **Scale/Scope**: Three source files touched for code (`pack_validator.py`, `pack_assembler.py`,
-`doctrine.py`), one doc file for FR-001, four existing test files extended, one `CHANGELOG.md`
-entry (documenting the FR-002/003/004 exit-code-breaking behavior change per spec.md's
-Reflexivity-section obligation, line ~539) — no new files beyond the changelog entry, no new
-package.
+`doctrine.py`), one doc file for FR-001, four existing test files extended, one changelog entry
+added inside `docs/changelog/CHANGELOG.md` (the canonical file; the root `CHANGELOG.md` is a
+symlink to it, enforced by the docs-freshness `sync_changelog.py --check` gate), documenting the
+FR-002/003/004 exit-code-breaking behavior change per spec.md's Reflexivity-section obligation,
+line ~539 — no new files: every touched surface, including the changelog, is an edit to an
+existing file, no new package.
 
 ## Charter Check
 
@@ -230,36 +232,60 @@ For each gate: whether it applies to this mission's diff, and why.
   `docs/guides/how-to/governance/create-an-org-doctrine-pack.md`, a Markdown file, and the
   `markdownlint` CI step runs `markdownlint-cli2` against changed Markdown.
 - **Architecture/docs consistency (`docs-freshness` workflow)** — Mostly does NOT apply (no new
-  CLI command, no new slash command, no new doc cross-reference beyond the one guide edit), with
-  **one concrete sub-check that DOES fire and must be satisfied, not exempted**: the
-  **Relative body-link gate** (`scripts/docs/relative_link_fixer.py --check`,
-  `.github/workflows/docs-freshness.yml`) checks that every relative Markdown link
-  (`[text](path)`) in a changed doc resolves. The ADR FR-001 must cite —
-  `docs/adr/3.x/2026-08-13-1-built-in-mission-subtree-stays-nested-retire-legacy-step-contracts.md`
-  — **does not exist on this branch**: it ships only inside unmerged PR #3378 (verified: `find
-  docs/adr/3.x -iname "*retire-legacy-step-contract*"` returns nothing on this checkout).
-  **Decision**: FR-001 cites the ADR by ID and title in **plain prose** (e.g. "see ADR
-  `2026-08-13-1`, *Built-in mission subtree stays nested; retire legacy step contracts*
-  (Accepted)"), not as a Markdown relative link, so the link-resolution gate has nothing to
-  resolve and cannot red on a target that will legitimately land later via a different PR. The
-  **Structural docs lint** and **description-length gate** also apply mechanically to the
-  touched file but require no content change beyond bumping the existing `updated:` frontmatter
-  field (currently `'2026-07-21'`) to `2026-08-13` per the charter's `docs-freshness-sla`
-  styleguide ("pages without a freshness date are treated as stale").
+  CLI command, no new slash command), but **two concrete sub-checks DO fire and must be
+  satisfied, not exempted** — one from the FR-001 guide edit, one newly-applicable from IC-04's
+  `docs/changelog/CHANGELOG.md` entry:
+  1. **Relative body-link gate** (`scripts/docs/relative_link_fixer.py --check`,
+     `.github/workflows/docs-freshness.yml`) checks that every relative Markdown link
+     (`[text](path)`) in a changed doc resolves. The ADR FR-001 must cite —
+     `docs/adr/3.x/2026-08-13-1-built-in-mission-subtree-stays-nested-retire-legacy-step-contracts.md`
+     — **does not exist on this branch**: it ships only inside unmerged PR #3378 (verified: `find
+     docs/adr/3.x -iname "*retire-legacy-step-contract*"` returns nothing on this checkout).
+     **Decision**: FR-001 cites the ADR by ID and title in **plain prose** (e.g. "see ADR
+     `2026-08-13-1`, *Built-in mission subtree stays nested; retire legacy step contracts*
+     (Accepted)"), not as a Markdown relative link, so the link-resolution gate has nothing to
+     resolve and cannot red on a target that will legitimately land later via a different PR.
+     IC-04's changelog entry adds no relative Markdown link of its own, so it does not newly
+     exercise this gate.
+  2. **CHANGELOG sync check** (`scripts/docs/sync_changelog.py --check`, the "Check CHANGELOG
+     sync (canonical → root)" step, `.github/workflows/docs-freshness.yml:126-127`) — newly
+     applicable because IC-04 edits `docs/changelog/CHANGELOG.md`, and the root `CHANGELOG.md`
+     (a symlink to it) sits inside this workflow's PR `paths:` filter
+     (`.github/workflows/docs-freshness.yml:43`). Verified directly against
+     `scripts/docs/sync_changelog.py`'s own docstring: the check fails only if the root file
+     stops being a symlink to the canonical path (its stated purpose — "guard the root
+     `CHANGELOG.md` symlink … exit 1 unless root is the symlink") — a real risk if an
+     implementer edits via a write-then-rename pattern instead of editing
+     `docs/changelog/CHANGELOG.md` in place. Editing the canonical path directly, never the root
+     symlink path, keeps this check green.
+
+  The **Structural docs lint** and **description-length gate** also apply mechanically to
+  FR-001's touched guide file but require no content change beyond bumping the existing
+  `updated:` frontmatter field (currently `'2026-07-21'`) to `2026-08-13` per the charter's
+  `docs-freshness-sla` styleguide ("pages without a freshness date are treated as stale").
+  `docs/changelog/CHANGELOG.md` is separately verified already in-scope for Structural docs
+  lint's frontmatter contract (`doc_status`, `updated` required — `changelog` is a sanctioned
+  content section, not exempted) and already carries both fields (`doc_status: active`,
+  `updated: '2026-08-12'`); IC-04's entry needs no frontmatter change to satisfy that check, only
+  the CHANGELOG sync check above.
 - **Doctrine schema freshness (`scripts/generate_schemas.py --check`)** — Applies as a standing
   CI gate, expected **no-op** — see "What Is Generated" above.
 - **Contextive glossary** — Checked directly across the full `.contextive.yml`/`.contextive/*.yml`
-  file set repo-wide (all 13 files), plus `docs/context/*.md`:
+  file set repo-wide (verified 13 files by direct `find`, matching the `find` command below), plus
+  `docs/context/*.md` (verified to exist as a 25-file directory, including
+  `contextive-glossaries.md` and `glossary-conventions.md`, so it is plausibly glossary-relevant
+  and worth searching directly rather than asserting):
 
   ```bash
   find . -iname "*.contextive.yml" -o -path "*/.contextive/*.yml" | xargs grep -n "schema_invalid\|duplicate_id\|asset_path_escape\|drg_dangling_edge\|profile_skipped\|drg_root_graph_missing"
+  grep -n "schema_invalid\|duplicate_id\|asset_path_escape\|drg_dangling_edge\|profile_skipped\|drg_root_graph_missing" docs/context/*.md
   ```
 
-  Returns **zero hits** — none of the *existing* `ValidationIssue.category` string values are
-  glossary-tracked terms. This mission's two new category values (`profile_skipped`,
-  `drg_root_graph_missing`) follow the same established precedent: **no glossary entry is
-  needed**, consistent with how every prior category value was introduced, not a new exemption
-  invented for this mission.
+  Both commands return **zero hits** — none of the *existing* `ValidationIssue.category` string
+  values are glossary-tracked terms, in either the 13 contextive files or `docs/context/*.md`.
+  This mission's two new category values (`profile_skipped`, `drg_root_graph_missing`) follow the
+  same established precedent: **no glossary entry is needed**, consistent with how every prior
+  category value was introduced, not a new exemption invented for this mission.
 - **TID251 banned-API lint** — Applies, standard Python lint gate
   (`.github/workflows/ci-quality.yml:883-894`, `ruff check src tests --select TID251`); no known
   banned import is introduced by this diff (only stdlib `pathlib`, existing `doctrine.*` package
@@ -507,8 +533,13 @@ tests/
     └── test_doctrine_org_commands.py       # FR-004 AC-7 — assert check_drg_root=False is the
                                               #   actual parameter value at org_validate's call
 
-CHANGELOG.md                                 # Repo root — entry documenting that `pack validate`
-                                              #   now fails (exit code 1) for three previously-
+CHANGELOG.md                                 # Repo root — SYMLINK to docs/changelog/CHANGELOG.md,
+                                              #   enforced by the docs-freshness
+                                              #   `sync_changelog.py --check` gate (see "The Gate
+                                              #   Set"). Edit docs/changelog/CHANGELOG.md directly
+                                              #   — the canonical file — not this symlink path.
+                                              #   New entry documents that `pack validate` now
+                                              #   fails (exit code 1) for three previously-
                                               #   passing pack shapes (FR-002/003/004), per
                                               #   spec.md's Reflexivity-section obligation
                                               #   (:539) and charter.md:401's binding "Breaking
@@ -622,13 +653,20 @@ trade-off, which is not anticipated.
   - `doctrine.py` — `org_validate`'s `validate_pack(pack_path)` call (`:966`) becomes
     `validate_pack(pack_path, check_drg_root=False)`. `pack_validate`'s call (`:370`) is
     unchanged — it gets the default `True`.
-  - `CHANGELOG.md` — new entry documenting that `pack validate` now fails (exit code 1) for
-    three previously-passing pack shapes: merge-time-skipped agent profiles (FR-002), nested
-    `assets/<pack>/x.asset.yaml` manifests with schema violations (FR-003), and DRG content
-    living only under `drg/` with no pack-root `*.graph.yaml` (FR-004). This is required by
-    spec.md's own Reflexivity-section obligation ("should be called out in the mission's
-    changelog entry / release note at merge time, not just in this spec," `spec.md:539`) and
-    the charter's binding Code Review Checklist item ("Breaking changes documented in
+  - `docs/changelog/CHANGELOG.md` (the canonical file; the root `CHANGELOG.md` is a symlink to
+    it, enforced by the docs-freshness `sync_changelog.py --check` gate — edit the canonical
+    path directly, do not replace the symlink; see "The Gate Set") — new entry, added under a
+    `### 💥 Breaking Changes` heading inside the current `## [Unreleased] - 3.2.6rc2` section.
+    Verified directly: that heading does not yet exist under `## [Unreleased]` (which currently
+    has only `### ✨ Added` and `### 🐛 Fixed`), so the implementer creates it; the taxonomy
+    itself is established elsewhere in the file (`### 💥 Breaking Changes` recurs at, e.g.,
+    `:1761`, `:2145`, `:2206`, `:2450`). The entry documents that `pack validate` now fails (exit
+    code 1) for three previously-passing pack shapes: merge-time-skipped agent profiles
+    (FR-002), nested `assets/<pack>/x.asset.yaml` manifests with schema violations (FR-003), and
+    DRG content living only under `drg/` with no pack-root `*.graph.yaml` (FR-004). This is
+    required by spec.md's own Reflexivity-section obligation ("should be called out in the
+    mission's changelog entry / release note at merge time, not just in this spec," `spec.md:539`)
+    and the charter's binding Code Review Checklist item ("Breaking changes documented in
     CHANGELOG.md," `charter.md:401`). Part of this mission's PR, not deferred.
 - **Sequencing/depends-on**: Lane B, sequenced third/last within the lane (touches the most
   surfaces: new helper, signature change, two carve-out call sites in the other two files).
