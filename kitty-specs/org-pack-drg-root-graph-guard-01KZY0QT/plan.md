@@ -44,6 +44,23 @@ Entire change is confined to `src/charter/_drg_helpers.py`, a docstring/comment 
 explicitly out of scope — see Non-Goals in spec.md; this mission's PR description must state
 that plainly so nobody closes #3385 believing this fix covers it.
 
+**Mid-flight rollout note — a third outcome beyond spec.md's binary.** spec.md's mid-flight
+Edge Case names two outcomes for a project mid-mission when this fix lands: unaffected (no org
+pack declared) or counts increase (pack declared, previously-unloaded `drg/` content now loads
+correctly). That binary omits a third, more disruptive outcome, stated here explicitly: an
+*existing* root+`drg/` org pack whose `drg/` content was previously dormant — never even
+inspected, because `load_graph_or_dir` on a directory prefers a root-level `graph.yaml` and never
+looks at `drg/` when one is present — and happens to be malformed (invalid YAML or schema-invalid,
+never validated before because never loaded) will, once this fix lands, have that dormant content
+loaded for the first time; IC-03 then makes that failure surface as an uncaught
+`OrgDRGFragmentError` instead of silently swallowing it. A `charter context` call that worked
+(root-only, `drg/` never consulted) before this fix will **hard-fail** after it, for exactly this
+pack shape, until an operator repairs or removes the malformed `drg/` fragment. This is intended
+(IC-03 doing exactly what FR-004 requires) but is a genuine rollout risk for any downstream
+spec-kitty-driven workspace (e.g. team-kitty-missions, muster-missions) that may carry this
+root+`drg/` shape today with a never-validated `drg/` fragment. This mission's PR description
+must state this plainly as a pre-upgrade audit note, mirroring the #3385 disclosure above.
+
 ## Technical Context
 
 **Language/Version**: Python 3.11+
@@ -84,7 +101,8 @@ kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/
 ├── plan.md                      # This file
 ├── spec.md                      # Passed, 4 review rounds + operator ruling
 ├── reviews/spec.ruling.md       # Binding: --json 4-count split, procedures via plain-text
-├── tracer-tooling-friction.md   # Seeded this phase (SK-09, SK-09b, SK-10)
+├── tracer-tooling-friction.md   # Seeded this phase (SK-09, SK-09b, SK-10); SK-11 added during
+│                                 #   the R4 fix round (PLAN-GOV-002)
 ├── tracer-approach.md           # Seeded this phase
 ├── tracer-design-decisions.md   # Seeded this phase
 └── tasks.md                     # Phase 2 (/spec-kitty.tasks — NOT created here)
@@ -144,7 +162,32 @@ No Charter Check violations — table intentionally empty.
 - **Relevant requirements**: FR-001, FR-002; NFR-001 (byte-parity when `org_root` is `None`); Edge Case "org_root itself does not exist" (unchanged `.exists()` outer guard preserved).
 - **Affected surfaces**: `src/charter/_drg_helpers.py` — new `_load_org_layer(org_root: Path) -> DRGGraph | None` module-private function; `load_validated_graph`'s org-layer line changes from a `load_graph_or_dir(...)` call to `_load_org_layer(org_root) if org_root and org_root.exists() else None`.
 - **Sequencing/depends-on**: none — lands first; IC-02 and IC-03 both extend this same function's body.
-- **Risks**: `has_graph_files` only checks for the *presence* of a recognisably-named graph file, not its validity — a root-level `graph.yaml` that exists but is malformed still causes `has_root_graph=True`, and the subsequent `load_graph_or_dir(org_root)` call still raises plain `DRGLoadError` on it, which is **intentionally** left uncaught by this concern (propagates to the existing wide catch exactly as pre-fix — root-level malformed content is out of scope per Non-Goals/FR-004's `drg/`-only narrowing; only IC-03 changes visibility, and only for `drg/`).
+- **Risks**: `has_graph_files` only checks for the *presence* of a recognisably-named graph file, not its validity — a root-level `graph.yaml` that exists but is malformed still causes `has_root_graph=True`, and the subsequent `load_graph_or_dir(org_root)` call still raises plain `DRGLoadError` on it, which is **intentionally** left uncaught by this concern (propagates to the existing wide catch exactly as pre-fix).
+  **Named residual scope boundary (plan-stated, not a spec.md Non-Goal — see below):** when this
+  happens *and* a valid, loadable `drg/` fragment sits alongside the malformed root graph in the
+  same org pack, the existing wide `except DRGLoadError` in `_load_action_doctrine_bundle`
+  collapses the *entire* org layer — including that perfectly valid `drg/` content — to an
+  empty-but-reported-success bundle. This is a variant of #3384's own defect shape one directory
+  over, and it is **not** actually covered by spec.md's existing Non-Goals text: the
+  project-layer `DRGLoadError` bullet there is scoped to `.kittify/doctrine` content, not the org
+  root, and FR-004's own narrowing text is scoped to "a malformed or invalid `drg/` fragment," not
+  a malformed root graph with a valid `drg/` sibling. Closing this gap for real would require
+  `_load_org_layer`'s control flow to attempt the `drg/` load independently of the root load's
+  outcome (so a malformed root graph raises `OrgDRGFragmentError` — IC-03's distinguishable
+  failure — instead of silently taking the valid `drg/` content down with it) — that is an
+  implementation-architecture decision this plan-phase fix round does not have standing to make
+  unilaterally (spec.md already carries 4 review rounds + a binding operator ruling; widening
+  `_load_org_layer`'s shape is a new scope decision, not an artifact fix). **This plan therefore
+  leaves the combination unaddressed by construction, explicitly and by name** — deliberately
+  scoped out here in `plan.md` rather than silently inherited — and flags it for a future mission
+  or a fresh operator/spec-level clarification round to close, per IC-03's own
+  `OrgDRGFragmentError` mechanism, which is already the right shape to extend. **spec.md itself
+  was intentionally NOT edited for this** — its Non-Goals language does not already cover this
+  combination unambiguously, and expanding it is judged to be a spec-level scope decision outside
+  this fix round's authority; if the orchestrator judges this plan-level statement insufficient,
+  escalate to a fresh spec-level clarification rather than editing spec.md's Non-Goals directly
+  from here. See the paired Test Strategy row below (`test_malformed_root_graph_with_valid_drg_sibling_still_silently_zeroed`)
+  that pins this as today's deliberately-accepted residual behavior.
 
 ### IC-02 — Root+`drg/` merge, `drg/`-authoritative precedence, identical-edge-triple dedup (FR-003; User Story 4)
 
@@ -385,12 +428,13 @@ decision). Per C-003/ATDD-first, each test is committed RED against `planning_ba
 | User Story / AC | FR / SC | Test (illustrative name) | Fixture shape | Assertion (concrete, non-vacuous) | Reverted-code check |
 |---|---|---|---|---|---|
 | US1 AC1 — `drg/`-only pack keeps counts ≥ baseline | FR-001, FR-002, FR-005; SC-001 | `test_drg_only_pack_preserves_or_grows_typed_counts` | tmp repo; `.kittify/config.yaml` declares a pack whose root has **only** `drg/fixture.graph.yaml` (no root `graph.yaml`) | Compute the **no-pack baseline** in the same test (same action, no org pack declared) via `--json`, then assert the with-pack run's `directives`/`tactics`/`styleguides`/`toolguides` counts are each `>=` that dynamically-computed baseline — never a hardcoded magic number, so the test doesn't rot as built-in doctrine grows — **and**, via the plain-text render of the same action, the Procedures section's count is likewise `>=` the plain-text baseline (per the spec ruling's binding split). | Revert IC-01: `load_validated_graph` raises `DRGLoadError` on the drg/-only pack (today's bug) → the `--json` call's typed counts collapse to the swallowed-empty-bundle shape (all four `<` baseline, in fact `== 0`) → test goes RED. |
-| US1 AC2 — pack's `drg/`-declared node is actually loaded | FR-002; SC-002 | `test_drg_fragment_node_reaches_resolved_bundle` | same fixture; `drg/fixture.graph.yaml` declares a node reachable from the resolved action (an edge from the action URN) | Assert the fixture's specific artifact ID is a **member of** the `--json` payload's per-kind ID list (positive membership, not "no error") | Revert IC-01: org load raises, node never loads → membership assertion fails (ID absent) → RED. |
+| US1 AC2 — pack's `drg/`-declared node is actually loaded | FR-002; SC-002 | `test_drg_fragment_node_reaches_resolved_bundle` | same fixture; `drg/fixture.graph.yaml` declares a **`tactic`-kind** node reachable from the resolved action (an edge from the action URN) — pinned to `tactic` specifically, one of the four kinds `--json`'s typed arrays actually expose (directive/tactic/styleguide/toolguide), never `procedure` (per the spec ruling's binding split, `--json` never surfaces a typed `procedures` array to check membership against) | Assert the fixture's specific tactic-kind artifact ID is a **member of** the `--json` payload's `tactics` typed ID list (positive membership, not "no error") | Revert IC-01: org load raises, node never loads → membership assertion fails (ID absent from `tactics`) → RED. |
 | US2 AC1+AC2 — genuinely empty pack degrades to exact baseline, indistinguishable from no-pack | FR-001; SC-003 | `test_empty_org_pack_degrades_to_no_pack_baseline` | tmp repo; declared pack directory exists but has no `graph.yaml`/`*.graph.yaml` anywhere (root or `drg/`, and an **empty** `drg/` variant too) | Assert the with-pack run's counts are `==` (not merely `>=`) the no-pack baseline, across all five kinds (four via `--json`, procedures via plain-text) — proves "degrade-to-empty-org-layer, not degrade-to-empty-everything" **and** that empty-drg/-directory and no-drg/-directory-at-all behave identically. No exception raised. | Revert IC-01: `org_root.exists()` alone (today's guard) makes `load_graph_or_dir(org_root)` raise `DRGLoadError` on an empty dir → today's bug (zeroed bundle) → equality-to-baseline assertion fails (counts drop to 0, not equal to baseline) → RED. |
 | US3 AC1 — invalid-YAML `drg/` fragment surfaces distinguishably | FR-004; SC-007 | `test_malformed_yaml_drg_fragment_raises_distinguishable_failure` | tmp repo; `drg/broken.graph.yaml` contains invalid YAML syntax | Invoke the `charter context --action <a> --json` CLI entry point (not the internal function) and assert the JSON output has `result != "success"` **and** a non-empty `error` field — a shape User Story 2's genuinely-empty case never produces (that case reports `"result": "success"`) | Revert IC-03: the malformed fragment's `DRGLoadError` is caught by the existing wide catch and silently collapses the bundle → CLI reports `"result": "success"` with zeroed counts, indistinguishable from US2 → assertion (`result != "success"`) fails → RED. |
 | US3 AC2 — schema-invalid-but-valid-YAML `drg/` fragment: same distinguishable shape | FR-004; SC-007 | `test_schema_invalid_drg_fragment_raises_same_distinguishable_shape` | tmp repo; `drg/broken.graph.yaml` is valid YAML but violates `DRGGraph`'s schema (e.g. a stray top-level key, or a node missing a required field) | Same assertion shape as AC1 — proves the failure signal is identical regardless of whether the cause was a parse error or a schema violation | Same revert argument as AC1. |
-| US4 AC1 — root+`drg/` both present, no conflict: both nodes present | FR-003; FR-006(a); SC-005 | `test_root_and_drg_both_present_neither_node_dropped` | tmp repo; root `graph.yaml` declares node A, `drg/fixture.graph.yaml` declares node B (distinct URNs, no overlap) | Assert **both** A's and B's artifact IDs are members of the `--json` payload's resolved bundle — two independent positive-membership assertions, not "no exception while iterating a possibly-empty discovered set" (guards against the named vacuity-by-empty-set risk) | Revert IC-02 (imagine a naive "prefer one source" implementation instead of merging): one of A/B is absent → membership assertion for that ID fails → RED. |
+| US4 AC1 — root+`drg/` both present, no conflict: both nodes present | FR-003; FR-006(a); SC-005 | `test_root_and_drg_both_present_neither_node_dropped` | tmp repo; root `graph.yaml` declares node A (kind: **`tactic`**), `drg/fixture.graph.yaml` declares node B (kind: **`directive`**) — distinct URNs, no overlap; both kinds pinned to ones `--json`'s typed arrays actually expose (directive/tactic/styleguide/toolguide), never `procedure` (per the spec ruling's binding split) | Assert A's artifact ID is a **member of** the `--json` payload's `tactics` typed ID list **and** B's artifact ID is a **member of** the `--json` payload's `directives` typed ID list — two independent positive-membership assertions against named typed arrays, not "no exception while iterating a possibly-empty discovered set" (guards against the named vacuity-by-empty-set risk) | Revert IC-02 (imagine a naive "prefer one source" implementation instead of merging): one of A/B is absent → its typed-array membership assertion fails → RED. |
 | US4 AC2 — identical edge triple across root+`drg/`: deduped to exactly one, not dropped, no raise | FR-003; FR-006(b); SC-006 | `test_identical_edge_triple_deduped_to_one_not_dropped` | tmp repo; root `graph.yaml` and `drg/fixture.graph.yaml` both declare the exact same `(source, target, relation)` edge triple | Call `_load_org_layer`/`load_validated_graph` directly (not `--json` — the payload doesn't expose raw edges, per the spec's own methodology note) and assert: (a) no `DRGValidationError` raised, **and** (b) the resolved `DRGGraph.edges` filtered to that exact triple has **length exactly 1** — not "no exception" alone (vacuity guard) | Revert IC-02: without dedup, the org-internal merge carries both copies through to the final `assert_valid` → either `DRGValidationError` raises (test's "no raise" assertion fails) or, if the caller special-cased tolerance, the length-1 assertion fails (finds 2) → RED either way. |
+| **Residual (deliberately out-of-scope) — malformed root graph + valid `drg/` sibling: entire org layer still silently zeroed** | N/A — explicitly deferred, not an FR/SC this mission closes; see IC-01 Risks | `test_malformed_root_graph_with_valid_drg_sibling_still_silently_zeroed` (pins TODAY's pre-existing behavior — not a new-fix test) | tmp repo; root `graph.yaml` is malformed (invalid YAML or schema-invalid) **and** `drg/fixture.graph.yaml` alongside it is valid and declares a loadable, reachable node | Assert `charter context --action <a> --json` still reports `"result": "success"` with the org layer's contribution collapsed to zero — the typed counts fall back to the bare-project baseline and the valid `drg/` node's artifact ID is **absent** from every typed ID list — pinning the deliberately-accepted residual instance of this defect class so a future implementer/reviewer sees it was considered and explicitly scoped out, not missed (see IC-01 Risks' named residual scope boundary). A passing test here is **not** license to leave this open indefinitely; it is a tracked, named gap. | N/A — this is not a revert-of-this-mission's-fix check; it asserts the residual pre-fix-shaped behavior remains after this mission's fix lands. If a future mission closes this gap (per IC-01 Risks' `OrgDRGFragmentError`-widening path), this test must be updated/deleted in that mission, not treated as a regression here. |
 
 **Vacuity-by-empty-set guard, stated explicitly (Standing Order #5 / C-004):** every assertion
 above is a **positive membership or exact-count check against a concrete, non-zero or

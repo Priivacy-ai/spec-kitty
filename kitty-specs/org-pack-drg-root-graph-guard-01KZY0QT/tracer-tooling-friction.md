@@ -38,6 +38,20 @@ branch field from whatever is currently checked out rather than reading `meta.js
 reading `meta.json` directly instead of trusting this command's branch fields, precisely
 because of this defect.
 
+## SK-11 — canonical `plan-template.md` still carries the prohibited "Feature specification" wording
+
+Live-verified during the plan-phase R4 fix round: `plan.md:4`'s "**Input**: Feature
+specification from ..." line is verbatim canonical-template boilerplate —
+`packs/built-in/missions/software-dev/templates/plan-template.md:4` carries the identical
+phrase, character-for-character. The Terminology Canon prohibits `Feature`/`Features` in
+canonical, operator, and user-facing language ("Mission specification" is correct here), but
+the defect is upstream, in the template itself, not in this mission's copy: hand-editing only
+this plan's instance would create non-canonical drift from the template every other mission
+inherits. Left unfixed in `plan.md` deliberately (not silently ignored — recorded here) pending
+an upstream doctrine fix to `plan-template.md` (and any sibling mission-type templates using
+the same phrase) that replaces "Feature specification" with "Mission specification" at the
+source.
+
 ## Entries
 
 <!-- YYYY-MM-DD — 1-3 sentences: what happened, why it slowed you down. -->
