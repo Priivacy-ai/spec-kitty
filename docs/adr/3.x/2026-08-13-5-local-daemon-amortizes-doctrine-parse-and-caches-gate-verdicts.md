@@ -53,17 +53,17 @@ model for such a surface.
 
 ## Decision Drivers
 
-* Amortize doctrine/DRG/gate parse across invocations.
-* Exploit gate determinism: identical inputs ⇒ identical verdict ⇒ cache hit.
-* Do not couple the gate design to a daemon that does not exist yet.
+- Amortize doctrine/DRG/gate parse across invocations.
+- Exploit gate determinism: identical inputs ⇒ identical verdict ⇒ cache hit.
+- Do not couple the gate design to a daemon that does not exist yet.
 
 ## Decision Outcome
 
 **Direction (not yet a committed build):** a **local, loopback-only daemon** may host doctrine
 resolution and gate execution behind an API. It holds:
 
-* **Parsed doctrine / DRG**, loaded once and reused across calls.
-* **A deterministic gate-verdict cache**, keyed on `(gate id, gate/pack version, hash of the
+- **Parsed doctrine / DRG**, loaded once and reused across calls.
+- **A deterministic gate-verdict cache**, keyed on `(gate id, gate/pack version, hash of the
   inputs the gate reads)`. The **pack `pack-meta.yaml` content-hash** is the natural
   invalidation key — the same hash that is signed for trust (ADR 2026-08-13-4). Three
   concerns converge on one hash: **integrity (signature), identity (version), and cache-key**.
@@ -75,20 +75,24 @@ the daemon is an optimization, not a dependency.
 ### Consequences
 
 #### Positive
-* Repeated transitions collapse to cache hits; parse cost is paid once.
-* Reuses existing loopback-daemon precedent and security posture.
+
+- Repeated transitions collapse to cache hits; parse cost is paid once.
+- Reuses existing loopback-daemon precedent and security posture.
 
 #### Negative
-* A daemon that executes shipped code is a **persistent execution surface** with a real
+
+- A daemon that executes shipped code is a **persistent execution surface** with a real
   lifecycle (start/stop/staleness) and security story — deserves its own ADR + threat model
   before it is built.
-* Cache correctness depends entirely on the input-hash being complete; a gate that reads an
+- Cache correctness depends entirely on the input-hash being complete; a gate that reads an
   un-hashed input would return a stale verdict.
 
 #### Neutral
-* Whether this extends the existing dashboard daemon or is a new process is unresolved.
+
+- Whether this extends the existing dashboard daemon or is a new process is unresolved.
 
 ### Open questions (for the dialectics squad)
+
 1. Extend the dashboard daemon, or a separate gate/doctrine daemon?
 2. How is "the inputs the gate reads" captured completely enough to be a safe cache key?
 3. Is verdict caching even worth it before the daemon exists (cold CLI has no persistent cache)?

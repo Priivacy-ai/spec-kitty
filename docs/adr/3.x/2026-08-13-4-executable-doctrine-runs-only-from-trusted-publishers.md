@@ -59,56 +59,60 @@ by construction.
 
 ## Decision Drivers
 
-* Never execute unreviewed third-party code silently.
-* Never hang or block a mission on a trust decision — gates fire in CI and (later) under a
+- Never execute unreviewed third-party code silently.
+- Never hang or block a mission on a trust decision — gates fire in CI and (later) under a
   daemon, where no operator is present to prompt.
-* Reuse the `pack-meta.yaml` identity/version/content-hash already proposed for the pack
+- Reuse the `pack-meta.yaml` identity/version/content-hash already proposed for the pack
   restructure rather than invent a parallel identity.
 
 ## Considered Options
 
-* **A — Trust everything** (execute any pack's gate). Rejected: supply-chain hole.
-* **B — Trust nothing but built-in** (never run org/project gates). Rejected: kills the ecosystem value.
-* **C — Trust-on-first-use (TOFU), SSH-`known_hosts` style**, keyed on publisher identity.
+- **A — Trust everything** (execute any pack's gate). Rejected: supply-chain hole.
+- **B — Trust nothing but built-in** (never run org/project gates). Rejected: kills the ecosystem value.
+- **C — Trust-on-first-use (TOFU), SSH-`known_hosts` style**, keyed on publisher identity.
 
 ## Decision Outcome
 
 **Chosen option: "C".**
 
-* **Built-in / spec-kitty-signed = trusted by default.** Built-in ships a signature over its
+- **Built-in / spec-kitty-signed = trusted by default.** Built-in ships a signature over its
   `pack-meta.yaml` **content-hash**, verifiable against a bundled public release key. This
   gives the content-hash a second job (it is signed) alongside its cache-invalidation role.
-* **Org/project packs = TOFU.** On first encounter of a pack that ships executable gates, the
+- **Org/project packs = TOFU.** On first encounter of a pack that ships executable gates, the
   operator is asked, once, whether they trust the publisher (identity from `pack-meta.yaml`).
   The decision persists in a `known_hosts`-equivalent trust store in the spec-kitty home,
   keyed on publisher identity + the signed/observed content-hash.
-* **The trust prompt happens at pack activation/install time, never mid-transition.** At run
+- **The trust prompt happens at pack activation/install time, never mid-transition.** At run
   time the decision is looked up non-interactively.
-* **Low-trust ⇒ skip + warn, transition proceeds.** An untrusted gate is **not run**; a loud
+- **Low-trust ⇒ skip + warn, transition proceeds.** An untrusted gate is **not run**; a loud
   warning records that a transition guard was skipped due to low trust, and the transition is
   **not blocked**. Consequence stated explicitly: a fail-closed gate from an *untrusted* pack
   provides **zero protection** — gate protection is only ever as strong as the trust decision.
-* **CI / non-interactive is the governing constraint.** Unknown publisher at run time defaults
+- **CI / non-interactive is the governing constraint.** Unknown publisher at run time defaults
   to skip+warn — never a prompt, never a hang. Trust must be **pre-seedable** (config/flag) so
   CI and the daemon can run trusted gates without interaction.
 
 ### Consequences
 
 #### Positive
-* Third-party code never runs unreviewed; the operator's trust decision is explicit and persisted.
-* CI and automation never block or hang on trust; the safe default is "don't run untrusted code".
+
+- Third-party code never runs unreviewed; the operator's trust decision is explicit and persisted.
+- CI and automation never block or hang on trust; the safe default is "don't run untrusted code".
 
 #### Negative
-* Signing infrastructure (release key, signature in `pack-meta.yaml`, verification path) is
+
+- Signing infrastructure (release key, signature in `pack-meta.yaml`, verification path) is
   net-new and must be got right (key rotation, offline verification).
-* "Skip + proceed" means an untrusted security gate silently protects nothing — this must be
+- "Skip + proceed" means an untrusted security gate silently protects nothing — this must be
   surfaced loudly, or an operator may believe a gate is guarding a transition that it is not.
 
 #### Neutral
-* Trust is orthogonal to gate correctness — a trusted gate can still be a bad check; a rejected
+
+- Trust is orthogonal to gate correctness — a trusted gate can still be a bad check; a rejected
   gate can still be a good one that simply won't run.
 
 ### Open questions (for the dialectics squad)
+
 1. Prompt at activation vs first-execution (TOFU-faithful but interrupts a transition)?
 2. Is "skip + proceed" the right low-trust default, or should certain gate classes be able to
    declare "block if I cannot run" (turning untrust into a hard stop)?

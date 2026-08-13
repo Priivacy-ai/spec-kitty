@@ -61,31 +61,31 @@ violation.
 
 ## Decision Drivers
 
-* One mechanism for "where to look / write / run" — do not fork a second workdir resolver.
-* Respect layer directionality (doctrine must not import upward into `mission_runtime`).
-* Keep the doctrine schema's dependency footprint minimal.
+- One mechanism for "where to look / write / run" — do not fork a second workdir resolver.
+- Respect layer directionality (doctrine must not import upward into `mission_runtime`).
+- Keep the doctrine schema's dependency footprint minimal.
 
 ## Considered Options
 
-* **A — Free-form workdir enum on the gate** (`repo_root` | `mission_dossier` | `wp_worktree`), resolved by a new gate-local helper.
-* **B — Surface selector routed through the placement seam.** The gate declares an
+- **A — Free-form workdir enum on the gate** (`repo_root` | `mission_dossier` | `wp_worktree`), resolved by a new gate-local helper.
+- **B — Surface selector routed through the placement seam.** The gate declares an
   `executionTarget` from a small **kernel-owned** surface-selector vocabulary; the
   topology-aware seam gains an `execute_dir` verb that resolves it.
-* **C — Ship the whole `MissionTopology` enum down into `doctrine`** so the gate schema types the field against it directly.
+- **C — Ship the whole `MissionTopology` enum down into `doctrine`** so the gate schema types the field against it directly.
 
 ## Decision Outcome
 
 **Chosen option: "B".**
 
-* A gate carries `executionTarget: <selector>` where the selector comes from a **small
+- A gate carries `executionTarget: <selector>` where the selector comes from a **small
   surface-selector vocabulary elevated into `kernel`** (e.g. `primary` | `coord` | `lane` |
   `repo_root`). Kernel is the root layer, so `doctrine` may import it without violating
   directionality. `src/kernel/` already hosts this class of shared primitive (`paths.py`,
   `clock.py`).
-* The placement seam gains a **third verb, `execute_dir`**, over the same
+- The placement seam gains a **third verb, `execute_dir`**, over the same
   `(surface, topology, materialization)` inputs it already uses for `read_dir`/`write_target`.
   The topology *math* stays in `mission_runtime`; doctrine only names a selector.
-* Option C is rejected — it drags a runtime-shaped enum into the doctrine layer. Option A is
+- Option C is rejected — it drags a runtime-shaped enum into the doctrine layer. Option A is
   rejected — it forks a second "where" resolver the placement seam already owns.
 
 This subsumes the gate's working-directory question into the one partition decision every
@@ -95,20 +95,24 @@ primary; in `LANES_WITH_COORD` `coord` and `lane` diverge, exactly as reads/writ
 ### Consequences
 
 #### Positive
-* Gate execution location is topology-correct for free, and consistent with read/write placement.
-* Elevating the selector strengthens the seam (the placement doc notes callers that still bypass it).
+
+- Gate execution location is topology-correct for free, and consistent with read/write placement.
+- Elevating the selector strengthens the seam (the placement doc notes callers that still bypass it).
 
 #### Negative
-* Elevating a vocabulary into `kernel` + adding a seam verb is cross-cutting (touches kernel,
+
+- Elevating a vocabulary into `kernel` + adding a seam verb is cross-cutting (touches kernel,
   the placement seam, and the gate schema) — larger than a gate-local field.
-* The selector vocabulary and `MissionTopology`/`TopologySurface` must be kept in sync; a
+- The selector vocabulary and `MissionTopology`/`TopologySurface` must be kept in sync; a
   contract test is required to prevent drift.
 
 #### Neutral
-* Whether the elevated vocabulary is a brand-new selector enum or a subset of the existing
+
+- Whether the elevated vocabulary is a brand-new selector enum or a subset of the existing
   `TopologySurface` is a design detail (open Q).
 
 ### Open questions (for the dialectics squad)
+
 1. New kernel selector enum, or elevate/reuse `TopologySurface` itself?
 2. Is `execute_dir` truly the same resolution as `read_dir`, or does execution need a distinct
    materialization rule (e.g. must the lane worktree already exist)?
