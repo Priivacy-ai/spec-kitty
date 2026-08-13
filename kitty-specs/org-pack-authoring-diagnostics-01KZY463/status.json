@@ -1,7 +1,7 @@
 {
-  "event_count": 2,
-  "last_event_id": "01KZYPJKDT8KWC6R1Q399772D3",
-  "materialized_at": "2026-08-13T23:16:04.666133+00:00",
+  "event_count": 3,
+  "last_event_id": "01KZYPJKKZN18J68YVY2JWJ066",
+  "materialized_at": "2026-08-13T23:16:04.863651+00:00",
   "mission_number": "",
   "mission_slug": "org-pack-authoring-diagnostics-01KZY463",
   "mission_type": "software-dev",
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 2
+    "planned": 3
   },
   "work_packages": {
     "WP01": {
@@ -30,6 +30,13 @@
       "lane": "planned",
       "last_event_id": "01KZYPJKDT8KWC6R1Q399772D3",
       "last_transition_at": "2026-08-13T23:16:04.666133+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01KZYPJKKZN18J68YVY2JWJ066",
+      "last_transition_at": "2026-08-13T23:16:04.863651+00:00"
     }
   }
 }
