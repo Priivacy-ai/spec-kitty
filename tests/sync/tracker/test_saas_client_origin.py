@@ -207,7 +207,7 @@ class TestSearchIssues:
     def test_429_retries_then_raises(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         """#3187 fold: patches ``client._sleep`` (instance-scoped seam), not
         the process-wide ``time.sleep`` -- see saas_client.py's ``__init__``
-        and ``TestPolling.test_exponential_backoff_intervals``'s docstring
+        and ``the retired TestPolling.test_exponential_backoff_intervals (superseded by test_saas_client_poll_timing.py)``'s docstring
         in test_saas_client.py for the full attribution this test used to be
         a documented victim of (CI job 91126025663, `Called 556 times`)."""
         mock_sleep = MagicMock()

@@ -490,7 +490,7 @@ class TestRetryBehaviors:
         issue body's own wording. It is **not** one of the tests CI actually
         failed on: the live CI log (`fast-tests-sync`, job 91126025663, run
         30621215287, base `bb2020fea9`) shows two different real victims --
-        ``TestPolling.test_exponential_backoff_intervals`` in *this* file
+        ``test_saas_client_poll_timing.py`` (the seam-based successor of the retired ``TestPolling`` suite)
         (see its docstring below, `:497` class / the test a few lines above
         this one in file order) and
         ``TestSearchIssues.test_429_retries_then_raises`` in
