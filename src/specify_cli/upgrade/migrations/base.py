@@ -7,6 +7,23 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
+@dataclass(frozen=True)
+class PartialWrite:
+    """A single file a migration persisted before a non-atomic abort (FR-005).
+
+    A migration that walks a corpus mission-by-mission (e.g. the runtime-state
+    backfill) is intentionally *not* transactional across missions — there is no
+    cross-mission rollback primitive — so an abort mid-walk leaves the missions
+    already processed on disk. This record is the machine-readable account of
+    one such write: the mission it belongs to and the absolute path written, so
+    an operator (or a caller) can enumerate the on-disk residue instead of
+    guessing at it. See :attr:`MigrationResult.partial_writes`.
+    """
+
+    mission: str
+    path: str
+
+
 @dataclass
 class MigrationResult:
     """Result of a migration operation."""
@@ -17,6 +34,10 @@ class MigrationResult:
     warnings: list[str] = field(default_factory=list)
     manual_review_required: bool = False
     preserved_paths: list[str] = field(default_factory=list)
+    #: Files already persisted when a non-atomic migration aborted mid-walk
+    #: (FR-005). Empty on a clean run; populated on abort so the partial write is
+    #: never silent. Each entry names one mission and one absolute file path.
+    partial_writes: list[PartialWrite] = field(default_factory=list)
 
 
 class BaseMigration(ABC):
