@@ -1,7 +1,7 @@
 {
-  "event_count": 18,
-  "last_event_id": "01KZXVT4F0BQS5G97GXPPZRWRW",
-  "materialized_at": "2026-08-13T15:28:19.936529+00:00",
+  "event_count": 19,
+  "last_event_id": "01KZXW6CM6EYE0MR3EVT8A7C9P",
+  "materialized_at": "2026-08-13T15:35:01.510964+00:00",
   "mission_number": "",
   "mission_slug": "linked-worktree-lifecycle-01KZXMC8",
   "mission_type": "software-dev",
@@ -13,8 +13,8 @@
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
-    "planned": 1
+    "in_review": 0,
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -61,14 +61,20 @@
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "in_review",
-      "last_event_id": "01KZXVT4F0BQS5G97GXPPZRWRW",
-      "last_transition_at": "2026-08-13T15:28:19.936529+00:00",
+      "lane": "planned",
+      "last_event_id": "01KZXW6CM6EYE0MR3EVT8A7C9P",
+      "last_transition_at": "2026-08-13T15:35:01.510964+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Dual-root runtime ready at lane-b HEAD 28a8b19ba; RED/GREEN and 178+51+24 tests, Ruff, py_compile, mypy strict and mutation evidence pass."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "C:\\codex-scratch\\spklw-planning\\kitty-specs\\linked-worktree-lifecycle-01KZXMC8\\tasks\\WP02-dual-root-placement-runtime\\review-cycle-2.md",
+        "reference": "review-cycle://linked-worktree-lifecycle-01KZXMC8/WP02-dual-root-placement-runtime/review-cycle-2.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "changes_requested"
+      },
       "role": "reviewer",
       "shell_pid": 4428,
       "shell_pid_created_at": "1786634895.2930596",
