@@ -70,3 +70,20 @@ sanctioned path currently available.
 **See**: `SPEC-KITTY-LEDGER.md` SK-12, SK-13 (this entry corroborates both; a fourth
 consecutive mission-family sighting of the same class after SK-09/SK-10/SK-11 established
 the "branch check is blind to live HEAD" pattern more broadly).
+
+## 2026-08-13 — plan phase — same defect class reproduces on `spec-kitty plan --json`
+
+Running the plan-phase tooling check as instructed (`spec-kitty plan --mission
+org-pack-authoring-diagnostics-01KZY463 --json`), after `plan.md`, `tracer-approach.md`, and
+`tracer-design-decisions.md` were already written with real content: the command correctly
+reported `"plan_substantive": true` (confirming the plan is real, not template placeholders) but
+`"commit_created": false"`, `"commit_status": "no_op_wrong_surface"`, with the byte-identical
+diagnostic text SK-12 documents: `"Refusing to commit planning artifacts to the protected branch
+'main'... placement_ref` sourced from stale `meta.json.target_branch` (`"main"`), while every
+`branch_context` field in the same JSON payload correctly resolves `current_branch`,
+`target_branch`, and `base_branch` to `feat/org-pack-authoring-diagnostics-3387` and
+`branch_matches_target: true`. Same root cause as the spec-phase entry above: the auto-commit
+path trusts stale `meta.json` over the CLI's own live branch resolution. No `spec-kitty
+spec-commit`/auto-commit path was used to land the plan artifacts — per the mission brief's
+explicit instruction, `safe-commit --to-branch <branch>` is used instead (the documented working
+escape hatch). Fifth consecutive sighting of the same defect class in this mission family.
