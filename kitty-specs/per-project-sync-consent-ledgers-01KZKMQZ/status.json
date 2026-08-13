@@ -1,7 +1,7 @@
 {
-  "event_count": 128,
-  "last_event_id": "01KZX6NCK3B4AVJ9AZTS6258P0",
-  "materialized_at": "2026-08-13T09:18:44.323328+00:00",
+  "event_count": 129,
+  "last_event_id": "01KZX7PM5X9DB8V32C52T6K2FE",
+  "materialized_at": "2026-08-13T09:36:53.437970+00:00",
   "mission_number": "",
   "mission_slug": "per-project-sync-consent-ledgers-01KZKMQZ",
   "mission_type": "software-dev",
@@ -9,12 +9,12 @@
     "approved": 10,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 0,
+    "claimed": 1,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -343,7 +343,7 @@
     },
     "WP10": {
       "actor": "reviewer-renata",
-      "agent": "claude",
+      "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "assignee": "claude",
@@ -354,7 +354,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "implementation already landed (94dff4366 WAL-aware cutover); lifecycle regularization",
-        "Implementation landed as 94dff4366 (project_store_migration.py 1749 lines, daemon_protocol.py, CLI cutover commands); verified at head: 71 passed across the 7 WP10-owned migration/cutover/command test modules; full fast-sync 2788 green includes them"
+        "Implementation landed as 94dff4366 (project_store_migration.py 1749 lines, daemon_protocol.py, CLI cutover commands); verified at head: 71 passed across the 7 WP10-owned migration/cutover/command test modules; full fast-sync 2788 green includes them",
+        "Independent adversarial review of WP10 (commit 94dff4366). T044: inventory copies main/WAL/SHM bytes into a 0700/0600 private staging area with pre/post fingerprint equality, opens only the copy read-only, materializes committed WAL state via SQLite backup, and fails closed on locked/changed/generated-column/incompatible sources; verification identity is the logical snapshot digest, not inode bytes. T045: canonical UUID attribution with payload/column conflict detection, divergent-duplicate poisoning ahead of schema/relation filtering, sealed migration epochs, named quarantine with a closed reason vocabulary and no sender API, migrated_refusal only for refusals and no grant promotion. T046: cutover runs copy+exact-verify inside publish_project_only under the sole machine layout lock; WP04 writers unmodified; both orderings proven (writer-commit-wins captured once via quiesced re-snapshot; cutover-wins redirects the blocked writer exactly once, including a live-thread test through the lock). T047: versioned authenticated loopback quiesce/restart handshake failing closed on identity drift; durable monotonic phases with idempotent resume; post-cutover writes surfaced only as post_cutover_residue diagnosis. T048: preview/migrate/status/doctor/quarantine/history commands wired; retired shared migrate refuses before consent access; history disclosure requires explicit actor+idempotency confirmation and a persisted capability before WP07 transport. Gates: owned suites 71 passed; ruff and strict mypy clean on all three owned source files. Non-blocking: hard-kill test mutates os.environ SPEC_KITTY_HOME without restore; DaemonCutoverProtocol.restart without an injected seam returns a daemon_protocol=0 acknowledgement (unreachable via discovery); non-UTF8 legacy payloads are wrapped as JSON legacy_bytes (identity hashes preserved). --force used only because assignee metadata records the implementing agent 'claude'."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
@@ -371,11 +372,16 @@
       ]
     },
     "WP11": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01KZKV261HP4M4CRSMMX2APCA2",
-      "last_transition_at": "2026-08-09T18:02:50.802016+00:00",
+      "lane": "claimed",
+      "last_event_id": "01KZX7PM5X9DB8V32C52T6K2FE",
+      "last_transition_at": "2026-08-13T09:36:53.437970+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "tracker_refs": [
         "Priivacy-ai/spec-kitty#3262",
         "Priivacy-ai/spec-kitty-saas#585",
