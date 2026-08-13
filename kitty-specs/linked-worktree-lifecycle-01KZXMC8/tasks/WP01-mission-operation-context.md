@@ -29,7 +29,7 @@ history:
 - at: '2026-08-13T13:39:12Z'
   actor: system
   action: Prompt generated via /spec-kitty.tasks
-agent_profile: python-pedro
+agent_profile: reviewer-renata
 authoritative_surface: src/specify_cli/missions/operation_context.py
 create_intent:
 - src/specify_cli/missions/operation_context.py
@@ -40,7 +40,7 @@ owned_files:
 - src/specify_cli/core/paths.py
 - src/specify_cli/missions/operation_context.py
 - tests/specify_cli/missions/test_operation_context.py
-role: implementer
+role: reviewer
 tags: []
 task_type: implement
 tracker_refs:
