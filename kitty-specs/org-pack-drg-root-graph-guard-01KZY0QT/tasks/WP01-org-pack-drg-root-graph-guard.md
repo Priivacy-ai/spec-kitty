@@ -753,3 +753,6 @@ state. If entries are out of order, acceptance will fail even when the work is c
 Status is managed via `status.events.jsonl`. Use
 `spec-kitty agent tasks move-task WP01 --to <status>` to change WP status.
 - 2026-08-13T22:31:21Z – claude – shell_pid=381232 – Assigned agent via action command
+- 2026-08-13T23:43:46Z – claude – shell_pid=381232 – Moved to for_review
+- 2026-08-13T23:44:06Z – user – shell_pid=381232 – Moved to in_review
+- 2026-08-13T23:45:38Z – user – shell_pid=381232 – Moved to approved
