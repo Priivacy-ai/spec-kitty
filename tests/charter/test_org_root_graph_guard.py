@@ -503,7 +503,7 @@ class TestRootAndDrgMerge:
             and edge.target == _DUP_EDGE_TARGET_URN
             and edge.relation == Relation.REQUIRES
         ]
-        assert len(matching_edges) == 1, (
+        assert len(matching_edges) == 1, (  # golden-count: cardinality-is-contract
             f"expected exactly one retained copy of the duplicated triple, "
             f"found {len(matching_edges)}: {matching_edges}"
         )

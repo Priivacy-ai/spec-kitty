@@ -33,7 +33,27 @@ from doctrine.drg.loader import (
     merge_layers,
 )
 from doctrine.drg.models import DRGGraph
-from doctrine.drg.validator import assert_valid
+from doctrine.drg.validator import assert_valid, duplicate_edge_triples
+
+
+def _dedup_org_layer_edges(graph: DRGGraph) -> DRGGraph:
+    """Collapse identically-repeated (source, target, relation) triples to one.
+
+    Scoped strictly to the org-internal root+drg/ sub-merge (FR-003) -- a
+    duplicate between the org layer and the built-in/project layers is a
+    different scope and continues to raise at the final ``assert_valid``.
+    Reuses the canonical :func:`duplicate_edge_triples` definition of
+    "duplicate" (C-001) rather than reimplementing the comparison.
+
+    Filters by object identity (``id(e)``), not value/triple equality:
+    ``DRGEdge`` has no custom ``__eq__``, so two identical-triple edges with
+    unset ``when``/``reason``/``provenance`` are pydantic-value-equal to each
+    other -- a value-equality filter would drop *both* copies, leaving zero
+    retained edges instead of the required exactly one.
+    """
+    duplicate_ids = {id(edge) for edge in duplicate_edge_triples(graph)}
+    deduped_edges = [edge for edge in graph.edges if id(edge) not in duplicate_ids]
+    return graph.model_copy(update={"edges": deduped_edges})
 
 
 def _load_org_layer(org_root: Path) -> DRGGraph | None:
@@ -47,9 +67,10 @@ def _load_org_layer(org_root: Path) -> DRGGraph | None:
 
     When both a root-level graph and a ``drg/`` fragment are present, they
     are merged via :func:`merge_layers` (root as ``built_in``, ``drg/`` as
-    ``project`` -- ``drg/`` wins on same-URN node-label conflicts). This is
-    IC-02's territory; IC-01 lands this branch as a plain merge with no
-    dedup, and IC-03 wraps a malformed load on either side in
+    ``project`` -- ``drg/`` wins on same-URN node-label conflicts) and any
+    edge triple duplicated identically across the two sources is collapsed
+    to exactly one retained copy via :func:`_dedup_org_layer_edges` (FR-003,
+    IC-02). IC-03 wraps a malformed load on either side in
     ``OrgDRGFragmentError``.
     """
     drg_dir = org_root / "drg"
@@ -62,7 +83,8 @@ def _load_org_layer(org_root: Path) -> DRGGraph | None:
         return load_graph_or_dir(org_root)
     if not has_root_graph:
         return load_graph_or_dir(drg_dir)
-    return merge_layers(load_graph_or_dir(org_root), load_graph_or_dir(drg_dir))
+    merged_org = merge_layers(load_graph_or_dir(org_root), load_graph_or_dir(drg_dir))
+    return _dedup_org_layer_edges(merged_org)
 
 
 def _resolve_org_root(_repo_root: Path) -> Path | None:
