@@ -415,6 +415,8 @@ def decide_next(
     mission_slug: str,
     result: str,
     repo_root: Path,
+    *,
+    effective_root: Path | None = None,
 ) -> Decision:
     """Decide the next action for an agent in the mission loop.
 
@@ -432,7 +434,11 @@ def decide_next(
     """
     from runtime.next.runtime_bridge import decide_next_via_runtime
 
-    return decide_next_via_runtime(agent, mission_slug, result, repo_root)
+    if effective_root is None:
+        return decide_next_via_runtime(agent, mission_slug, result, repo_root)
+    return decide_next_via_runtime(
+        agent, mission_slug, result, repo_root, effective_root=effective_root
+    )
 
 
 # ---------------------------------------------------------------------------

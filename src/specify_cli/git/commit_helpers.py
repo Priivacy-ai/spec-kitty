@@ -618,9 +618,12 @@ def _is_worktree_of(repo_root: Path, worktree_root: Path) -> bool:
     toplevel = _run_git_text(worktree_root, ["rev-parse", "--show-toplevel"])
     if toplevel is None:
         return False
+    resolved_worktree_root = worktree_root.resolve()
+    if Path(toplevel).resolve() != resolved_worktree_root:
+        return False
     # If worktree_root and repo_root resolve to the same directory, they are
     # trivially "the same" worktree.
-    if Path(toplevel).resolve() == repo_root.resolve() == worktree_root.resolve():
+    if resolved_worktree_root == repo_root.resolve():
         return True
     # Otherwise, they must share the same common git dir.
     wt_common = _run_git_text(worktree_root, ["rev-parse", "--git-common-dir"])
@@ -632,6 +635,16 @@ def _is_worktree_of(repo_root: Path, worktree_root: Path) -> bool:
     wt_common_path = (worktree_root / wt_common).resolve()
     repo_common_path = (repo_root / repo_common).resolve()
     return wt_common_path == repo_common_path
+
+
+def is_worktree_of(repo_root: Path, worktree_root: Path) -> bool:
+    """Return whether ``worktree_root`` belongs to ``repo_root``'s repository.
+
+    This public wrapper preserves the fail-closed comparator used internally by
+    :func:`safe_commit` while allowing preflight validation to reuse the same
+    git-topology authority.
+    """
+    return _is_worktree_of(repo_root, worktree_root)
 
 
 def _destination_ref_exists(worktree_root: Path, destination_ref: str) -> bool:
