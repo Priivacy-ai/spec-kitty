@@ -1,0 +1,298 @@
+header:
+  generated_by: tests/architectural/_home_pin_scan.py
+  regeneration_command: python -m tests.architectural._home_pin_scan --root tests
+    --frozen-at-sha <sha> --owed-to '#3121' --exempt-module tests.architectural._home_pin_exempt
+  frozen_at_sha: f6b90d34ef07f959fb6f6365dde884bf9bbf2474
+  owed_to: '#3121'
+  fragility_note: 'Generated, never hand-edited. `frozen_at_sha` and `owed_to` are
+    HEADER SCALARS, not row columns, and there is no `reason` column: rationale that
+    would be a per-row reason belongs here. Direction is mechanised by the separate
+    baseline artefact, never by this file. Rows exempted by `E` are NOT rows of this
+    census -- they are hashed into the baseline''s `exempt_set_sha256`, because with
+    `E` inside the census `census u E` is a no-op union and `discovered == census
+    u E` degenerates to `discovered == census`. KNOWN-FRAGILE ROWS, named by the generator:
+    sync/tracker/test_tracker_egress_refusal_3108.py:1165 (held by unused monkeypatch;
+    MemberKey qualname is the INNERMOST scope and differs from the keyed def `test_bind_counter_wrapper_changes_no_outcome_committed_red`,
+    so this row is also C-004''s only real-tree witness). Removing the unused parameter
+    drops the row from the class with nothing red.'
+rows:
+- key:
+  - cli/commands/test_sync_commands.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  lineno: 55
+  kind: fixture
+  home_partition: B1
+- key:
+  - cli/commands/test_sync_doctor_consent_health_3030.py
+  - checkout
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 109
+  kind: fixture
+  home_partition: B1
+- key:
+  - cli/commands/test_sync_doctor_per_project_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 99
+  kind: fixture
+  home_partition: B1
+- key:
+  - cli/commands/test_sync_doctor_tracker_egress_3108.py
+  - doctor_environment
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 129
+  kind: fixture
+  home_partition: B1
+- key:
+  - cli/commands/test_sync_migrate_backfills_h4.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 94
+  kind: fixture
+  home_partition: B2
+- key:
+  - cli/commands/test_sync_now_empty_selection_t005.py
+  - _now_machinery
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 82
+  kind: fixture
+  home_partition: B2
+- key:
+  - cli/commands/test_sync_purge_3030.py
+  - checkout
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 129
+  kind: fixture
+  home_partition: B1
+- key:
+  - cli/commands/test_sync_report_label_is_a_purge_selector_3030.py
+  - checkout
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 84
+  kind: fixture
+  home_partition: B1
+- key:
+  - cli/commands/test_sync_status_per_project_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 108
+  kind: fixture
+  home_partition: B1
+- key:
+  - delivery/test_body_queue_purge_differential_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  lineno: 45
+  kind: fixture
+  home_partition: A
+- key:
+  - delivery/test_dispatch_window_consent_3030.py
+  - _consent_records
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 143
+  kind: fixture
+  home_partition: A
+- key:
+  - delivery/test_liveness_predicate_before_limit_3030.py
+  - _consent
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 70
+  kind: fixture
+  home_partition: A
+- key:
+  - delivery/test_nfr002_loop_permanence_3030.py
+  - _consent_records
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 103
+  kind: fixture
+  home_partition: A
+- key:
+  - delivery/test_nfr003_predicate_cost_3030.py
+  - _consent
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 69
+  kind: fixture
+  home_partition: A
+- key:
+  - delivery/test_per_project_report_3030.py
+  - _home
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 36
+  kind: fixture
+  home_partition: A
+- key:
+  - delivery/test_purge_all_body_uploads_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  lineno: 51
+  kind: fixture
+  home_partition: A
+- key:
+  - delivery/test_purge_all_events_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  lineno: 51
+  kind: fixture
+  home_partition: A
+- key:
+  - specify_cli/identity/test_identity_value_faults_3030.py
+  - TestThePolicyGateAnswersInsteadOfCrashing._isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  lineno: 297
+  kind: fixture
+  home_partition: A
+- key:
+  - specify_cli/sync/test_local_commit_consent_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  lineno: 84
+  kind: fixture
+  home_partition: A
+- key:
+  - specify_cli/sync/test_local_commit_purge_3030.py
+  - test_the_flush_does_not_delete_the_frames_it_withholds
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  lineno: 434
+  kind: test-body
+  home_partition: A
+- key:
+  - sync/test_body_drain_consent_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  lineno: 49
+  kind: fixture
+  home_partition: A
+- key:
+  - sync/test_body_upload_consent_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 62
+  kind: fixture
+  home_partition: A
+- key:
+  - sync/test_capture_gate_project_identity_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  lineno: 59
+  kind: fixture
+  home_partition: A
+- key:
+  - sync/test_consent_fault_vocabulary_3030.py
+  - home
+  - monkeypatch . setenv ( , str ( root ) )
+  lineno: 62
+  kind: fixture
+  home_partition: B1
+- key:
+  - sync/test_consent_field_fault_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  lineno: 82
+  kind: fixture
+  home_partition: B1
+- key:
+  - sync/test_consent_read_fault_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  lineno: 66
+  kind: fixture
+  home_partition: A
+- key:
+  - sync/test_consent_resolver_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  lineno: 43
+  kind: fixture
+  home_partition: A
+- key:
+  - sync/test_consent_write_refusal_3030.py
+  - home
+  - monkeypatch . setenv ( , str ( root ) )
+  lineno: 75
+  kind: fixture
+  home_partition: B1
+- key:
+  - sync/test_daemon_publish_consent_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 78
+  kind: fixture
+  home_partition: A
+- key:
+  - sync/test_legacy_queue_precondition_3030.py
+  - test_a_credentials_read_failure_is_not_evidence
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  lineno: 162
+  kind: test-body
+  home_partition: A
+- key:
+  - sync/test_routing.py
+  - test_opt_out_purge_targets_the_same_stores_the_drain_reads
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  lineno: 303
+  kind: test-body
+  home_partition: A
+- key:
+  - sync/test_ws_publish_consent_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  lineno: 64
+  kind: fixture
+  home_partition: A
+- key:
+  - sync/tracker/test_tracker_egress_refusal_3108.py
+  - _isolated_home_and_arming
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 194
+  kind: fixture
+  home_partition: B1
+- key:
+  - sync/tracker/test_tracker_egress_refusal_3108.py
+  - test_bind_counter_wrapper_changes_no_outcome_committed_red._run_once
+  - mp . setenv ( , str ( tmp_path / ) )
+  lineno: 1165
+  kind: test-body
+  home_partition: A
+- key:
+  - upgrade/migrations/test_m_0_6_7_ensure_missions.py
+  - test_detect_skips_when_global_runtime_is_configured
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 27
+  kind: test-body
+  home_partition: A
+- key:
+  - upgrade/migrations/test_m_0_6_7_ensure_missions.py
+  - test_detect_still_repairs_metadata_less_legacy_repo
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 58
+  kind: test-body
+  home_partition: A
+- key:
+  - upgrade/test_compat.py
+  - test_uses_centralized_runtime_does_not_assume_metadata_less_repo_is_2x
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 23
+  kind: test-body
+  home_partition: A
+- key:
+  - upgrade/test_compat.py
+  - test_uses_centralized_runtime_treats_metadata_less_worktree_as_runtime_managed
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 48
+  kind: test-body
+  home_partition: A
+- key:
+  - upgrade/test_m_0_12_0_documentation_mission_unit.py
+  - test_detect_skips_when_global_runtime_is_configured
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 61
+  kind: test-body
+  home_partition: A
+- key:
+  - upgrade/test_m_0_12_0_documentation_mission_unit.py
+  - test_detect_still_repairs_metadata_less_legacy_repo
+  - monkeypatch . setenv ( , str ( home ) )
+  lineno: 83
+  kind: test-body
+  home_partition: A

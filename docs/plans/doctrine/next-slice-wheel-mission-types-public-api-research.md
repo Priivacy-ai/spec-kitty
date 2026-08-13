@@ -1,11 +1,13 @@
 ---
 title: '2026-08-04 — Next doctrine slice: wheel cutover, mission-type relocation, public API surface'
 description: 'Preliminary research on the post-#3176 scope: kernel/doctrine/charter wheel packaging, the missions/ tree relocation, and a stable public API for the doctrine & charter modules.'
-doc_status: active
+doc_status: deprecated
 updated: '2026-08-04'
 ---
 
 # Next doctrine slice — preliminary research
+
+> **Retired (deprecated).** Design shipped via merged mission `doctrine-public-api-surface-01KZPDSR` (#3179). Preserved as a historical record.
 
 Branch: `research/doctrine-wheel-mission-types-public-api` (off `upstream/main` @ `abca7ec9`).
 No mission created yet — this is pre-spec research only, gathered by reading the tracker, the
@@ -120,8 +122,8 @@ contract" risk that wants its own decision record before implementation.
 
 ## (c) Public API on doctrine & charter — filed as [#3179](https://github.com/Priivacy-ai/spec-kitty/issues/3179)
 
-This was the thread with no existing tracker coverage when this research started — filed as
-#3179 (`Feature`, `priority:P2`, milestone `3.2.x`, parented under #2466) once the gap below was
+This was the thread with no existing tracker coverage when this research started — filed as #3179
+(`Feature`, `priority:P2`, milestone `3.2.x`, parented under #2466) once the gap below was
 confirmed.
 
 **The analogy the user drew is precise.** [#645](https://github.com/Priivacy-ai/spec-kitty/issues/645)
@@ -160,7 +162,7 @@ settled — this is a **precondition for (a), not a parallel, unrelated effort**
 a wheel with a credible external contract if 79 internal call sites are already reaching past the
 declared `__all__`.
 
-#3179 now owns this explicitly, with a tracker home the way (a) and (b) already do.
+Issue #3179 now owns this explicitly, with a tracker home the way (a) and (b) already do.
 
 ## How the three threads interlock
 

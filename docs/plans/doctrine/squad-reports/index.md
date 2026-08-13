@@ -1,12 +1,14 @@
 ---
 title: Squad reports — creed and FoundationalValues hardening
 description: "Raw four-lens squad reports behind the hardened creed/FoundationalValues design: architect, doctrine-curator, reviewer, and implementer."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-07-26'
 related:
 - docs/plans/doctrine/creed-and-values-design-hardened.md
 ---
 # Squad reports — creed and FoundationalValues hardening
+
+> **Retired (deprecated).** Superseded by the canonical creed AUTHORITY doc [foundational-values-and-creed.md](../foundational-values-and-creed.md). Preserved as a historical record.
 
 Raw, profile-loaded, read-only squad reports from 2026-07-26. These are the evidence base for
 [`creed-and-values-design-hardened.md`](../creed-and-values-design-hardened.md); the hardened

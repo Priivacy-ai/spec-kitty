@@ -1,7 +1,7 @@
 ---
 title: Creed and FoundationalValues — hardened design
 description: "Hardened design after a four-lens squad: the structure needs no new kind, relation, or node, but the numeric layer is gated because the sign channel is measurably noisy."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-07-26'
 related:
 - docs/plans/doctrine/creed-and-values-design-as-proposed.md
@@ -9,6 +9,8 @@ related:
 - docs/plans/doctrine/index.md
 ---
 # Creed and FoundationalValues — hardened design
+
+> **Retired (deprecated).** Superseded by the canonical creed AUTHORITY doc [foundational-values-and-creed.md](foundational-values-and-creed.md). Preserved as a historical record.
 
 > ⚠️ **RECORD — superseded by [`foundational-values-and-creed.md`](foundational-values-and-creed.md).**
 > Known-stale figures a direct reader must not carry forward: "5 components for 80%" (canonical:

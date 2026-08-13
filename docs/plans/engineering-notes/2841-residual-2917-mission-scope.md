@@ -1,11 +1,13 @@
 ---
 title: "Coord-Trust Residual + Runtime-State Birth-Cutover — Mission Scope"
 description: "Pre-spec scope: close #2841's write-placement residual (Part A) so the split-brain write is unrepresentable, plus #2917's runtime-state birth-cutover as Part B on the settled port."
-doc_status: active
+doc_status: deprecated
 updated: '2026-07-25'
 ---
 
 # Coord-Trust Residual + Runtime-State Birth-Cutover — Mission Scope
+
+> **Retired (deprecated).** Design shipped/superseded via merged mission `runtime-state-birth-cutover-all-paths-01KYH654` (#2917; `kitty-specs/runtime-state-birth-cutover-all-paths-01KYH654/`). Preserved as a historical record.
 
 **Pre-spec. One mission, two ordered phases. Not a spec.** Grounded by a 2-lens residual squad (architecture + patterns) on top of the earlier 4-lens #2917 grounding ([`2917-runtime-state-birth-cutover-research.md`](2917-runtime-state-birth-cutover-research.md)).
 
@@ -27,6 +29,7 @@ Coord-trust PR **#2874 (MERGED 2026-07-23**, dossier `kitty-specs/coord-commit-i
 ## Proposed mission — Part A (close the parallel write) → Part B (#2917)
 
 ### Part A — coord-trust write-placement residual closure
+
 - **A1 (core, in):** whole-tree write-placement enforcement — generalize the AST grammar to scan all of `src/` with an explicit sanctioned-primitive exclusion list (or a `write_meta`/`safe_commit` seam-derivation whole-tree gate). Makes split-brain genuinely unrepresentable, not allowlist-bounded.
 - **A2 (in):** route `PRIMARY_METADATA` / meta.json writes through the port (partition-aware), enabling the two-partition write. Prereq for B3.
 - **A3 (in):** close the `emit` primary-default fork (#1716) and bring `bookkeeping_projection` / `bookkeeping_commit` / `decision_log` into scope; classify `decisions.events.jsonl`.
@@ -35,6 +38,7 @@ Coord-trust PR **#2874 (MERGED 2026-07-23**, dossier `kitty-specs/coord-commit-i
 - **A6 (small, in/optional):** fix `traces/` partition classification.
 
 ### Part B — #2917 runtime-state birth-cutover (Option C), rides the settled port
+
 - **B1 (WP1):** front-load `migrate backfill-runtime-state` over the 12 + commit → clears the 3.2.6 CI red (independent, early).
 - **B2:** retire the runtime-authoring dual-write (event-source claim + subtask completion) — only what's needed to make a birth-stamp valid (the rest stays #1619).
 - **B3:** birth-stamp `status_phase` routed through A2's port (meta→PRIMARY, seed events→COORD via `commit_for_mission`), at the `_bake_mission_number` hook (`merge/ordering.py:485`).
@@ -43,10 +47,13 @@ Coord-trust PR **#2874 (MERGED 2026-07-23**, dossier `kitty-specs/coord-commit-i
 **Sequence A→B; do not interleave** (B's two-partition birth-write depends on A2's routing). WP1 front-load is independent and lands first.
 
 ## Scope boundary vs #1619 (do NOT creep)
+
 OUT: retiring *all* frontmatter/tasks.md dual-writes beyond B2; re-architecting `MissionArtifactHome`/topology; growing `doctor coordination --fix` into arbitrary-drift repair (C-003 — a *new* Gap-2 command is fine, `--fix` growth is not); loop-friction siblings #2803/#2853.
 
 ## Operator decision (2026-07-25): **maximal residual closure**
+
 Scope = Core (A1 whole-tree write enforcement + A2 meta.json routing + A3 emit-fork/unscanned writers + A6 traces) **+ A4 read-side symmetry + A5 Gap-2 cure command**, then **Part B = #2917 Option C**. Full read/write placement symmetry, plus a distinct `agent mission repair` command for pre-existing content drift (kept out of `doctor coordination --fix` per C-003). One mission, phases A→B; WP1 front-load lands first to clear 3.2.6 CI. Proceeding to `/spec-kitty.specify`.
 
 ## Key files
+
 `src/mission_runtime/{artifacts.py,resolution.py}` · `src/specify_cli/coordination/{commit_router.py,status_transition.py}` · `src/specify_cli/status/{emit.py,bootstrap.py}` · `src/specify_cli/migration/runtime_state_cutover.py` · `src/specify_cli/merge/{ordering.py,bookkeeping_projection.py}` · `src/specify_cli/mission_metadata.py` · `tests/architectural/{test_no_write_side_rederivation.py,test_safe_commit_import_boundary.py,test_write_surface_placement_guard.py}` · `kitty-specs/coord-commit-integrity-01KY5JS8/spec.md`.

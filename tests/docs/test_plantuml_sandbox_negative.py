@@ -1,0 +1,89 @@
+"""SANDBOX behavioral negative test (WP03, NFR-002(a)).
+
+The discriminating, non-fakeable signal is *selective refusal*: the same
+network-isolated + SANDBOX pipeline renders a benign diagram fine but **refuses**
+(fails closed on) a diagram that references an EXTERNAL resource via ``!include``.
+It is therefore not the weak "the build always fails" disjunct — benign diagrams
+pass; only egress-attempting ones are rejected, and the external content never
+reaches the output.
+
+Note on the classic listener control: PlantUML 1.2025.4 rejects remote includes
+at preprocessing under its default/SANDBOX profiles (a local listener is never
+contacted even before SANDBOX is considered), so a "listener is hit without
+SANDBOX" positive control is not reproducible here. The primary, discriminating
+no-egress proof is the network-isolation corpus test
+(``test_plantuml_no_egress_corpus.py``): the whole corpus renders under
+``--network=none``, so no egress is even possible.
+"""
+
+from __future__ import annotations
+
+import shutil
+import subprocess
+import time
+import sys
+import urllib.request
+from pathlib import Path
+
+import pytest
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_DOCS_DIR = _REPO_ROOT / "scripts" / "docs"
+if str(_DOCS_DIR) not in sys.path:
+    sys.path.insert(0, str(_DOCS_DIR))
+
+import plantuml_invoke  # noqa: E402
+
+pytestmark = pytest.mark.unit
+
+_BENIGN = "@startyaml\ntitle Benign Control\nprofile_id: \"x\"\nrole: \"y\"\n@endyaml\n"
+_EXTERNAL_INCLUDE = "@startuml\n!include http://127.0.0.1:59777/leak\nBob -> Alice\n@enduml\n"
+
+
+def _docker_available() -> bool:
+    if shutil.which("docker") is None:
+        return False
+    return subprocess.run(["docker", "info"], capture_output=True, check=False).returncode == 0
+
+
+def _ensure_jar() -> Path:
+    jar = _REPO_ROOT / "plantuml.jar"
+    pins = plantuml_invoke.load_pins()
+    if not jar.exists():
+        last: Exception | None = None
+        for attempt in range(5):  # GitHub release downloads flake with RemoteDisconnected
+            try:
+                urllib.request.urlretrieve(pins.plantuml_jar_url, jar)  # noqa: S310 - pinned https URL
+                last = None
+                break
+            except Exception as exc:  # noqa: BLE001 - retry any transient download error
+                last = exc
+                time.sleep(2 * (attempt + 1))
+        if last is not None:
+            raise last
+    plantuml_invoke.verify_jar_sha256(jar, pins.plantuml_jar_sha256)
+    return jar
+
+
+_docker = pytest.mark.skipif(not _docker_available(), reason="docker unavailable")
+
+
+@_docker
+def test_benign_diagram_renders_under_sandbox_isolation(tmp_path: Path) -> None:
+    """Control: a benign diagram renders fine — so refusal below is selective, not blanket."""
+    jar = _ensure_jar()
+    pins = plantuml_invoke.load_pins()
+    svg = plantuml_invoke.render_startyaml(_BENIGN, workdir=tmp_path, jar_path=jar, pins=pins)
+    assert svg.strip() and not plantuml_invoke.svg_is_error(svg)
+    assert b"Benign Control" in svg
+
+
+@_docker
+def test_external_include_is_refused_under_sandbox_isolation(tmp_path: Path) -> None:
+    """A diagram referencing an EXTERNAL resource fails closed — external content never emitted."""
+    jar = _ensure_jar()
+    pins = plantuml_invoke.load_pins()
+    with pytest.raises(plantuml_invoke.PlantumlRenderError):
+        plantuml_invoke.render_startyaml(
+            _EXTERNAL_INCLUDE, workdir=tmp_path, jar_path=jar, pins=pins
+        )

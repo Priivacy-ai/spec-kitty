@@ -1,13 +1,15 @@
 ---
 title: Reviewer lens — adversarial pass and the 39% verdict
 description: "Adversarial review of the creed design: the sign channel is measurably noisy, five of seven axes carry no cost signal, and creed-weighted ranking collapses to magnitude."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-07-26'
 related:
 - docs/plans/doctrine/creed-and-values-design-hardened.md
 - docs/plans/doctrine/creed-and-values-design-as-proposed.md
 ---
 # Reviewer lens — adversarial pass and the 39% verdict
+
+> **Retired (deprecated).** Superseded by the canonical creed AUTHORITY doc [foundational-values-and-creed.md](../foundational-values-and-creed.md). Preserved as a historical record.
 
 > ⚠️ **EVIDENCE — figures here predate the authority.** "The 39% verdict" is canonically **35% (12/34)**;
 > "five of seven axes carry no cost signal" is canonically **two never-negative, six with ≤3 negatives**.

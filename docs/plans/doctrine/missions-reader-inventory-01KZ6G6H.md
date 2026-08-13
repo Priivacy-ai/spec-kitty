@@ -1,11 +1,13 @@
 ---
 title: 'Cross-Layer missions/ Reader Inventory (WP03)'
 description: 'Committed move/stay/repoint inventory of every reader of the built-in missions/ data — the authority WP05 consumed for the atomic relocation to packs/built-in/missions.'
-doc_status: active
+doc_status: deprecated
 updated: '2026-08-05'
 ---
 
 # Cross-layer `missions/` reader inventory
+
+> **Retired (deprecated).** Design shipped via merged mission `doctrine-consumer-surface-missions-extraction-01KZ6G6H`. Preserved as a historical record.
 
 **Mission**: `doctrine-consumer-surface-missions-extraction-01KZ6G6H` (WP03, FR-003, SC-007)
 **Produced**: 2026-08-04, against `research/doctrine-wheel-mission-types-public-api` (primary checkout).

@@ -16,21 +16,29 @@ def test_readme_has_governance_layer_section() -> None:
     assert "## Governance layer" in content, "README.md must contain a '## Governance layer' subsection (WP03 / FR-005)."
 
 
-def test_governance_section_links_to_trail_model() -> None:
+def _governance_section() -> str:
     content = README.read_text()
     gov_idx = content.index("## Governance layer")
     # Next top-level section or EOF
     next_h2 = content.find("\n## ", gov_idx + 1)
-    section = content[gov_idx : next_h2 if next_h2 != -1 else len(content)]
-    assert "docs/architecture/trail-model.md" in section, "Governance layer subsection must link to docs/architecture/trail-model.md."
+    return content[gov_idx : next_h2 if next_h2 != -1 else len(content)]
+
+
+def test_governance_section_links_to_trail_model() -> None:
+    # The Common Docs convergence (54108a7c9) moved the trail model under
+    # docs/architecture/; assert the README links the canonical path AND that it
+    # resolves, so a future move can't silently re-break this the same way.
+    section = _governance_section()
+    rel = "docs/architecture/trail-model.md"
+    assert rel in section, f"Governance layer subsection must link to {rel}."
+    assert (REPO_ROOT / rel).is_file(), f"{rel} linked from README must exist."
 
 
 def test_governance_section_links_to_host_surface_parity() -> None:
-    content = README.read_text()
-    gov_idx = content.index("## Governance layer")
-    next_h2 = content.find("\n## ", gov_idx + 1)
-    section = content[gov_idx : next_h2 if next_h2 != -1 else len(content)]
-    assert "docs/architecture/host-surface-parity.md" in section, "Governance layer subsection must link to docs/architecture/host-surface-parity.md."
+    section = _governance_section()
+    rel = "docs/architecture/host-surface-parity.md"
+    assert rel in section, f"Governance layer subsection must link to {rel}."
+    assert (REPO_ROOT / rel).is_file(), f"{rel} linked from README must exist."
 
 
 def test_governance_section_mentions_dispatch_only() -> None:

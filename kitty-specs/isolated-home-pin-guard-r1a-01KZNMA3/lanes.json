@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "mission_slug": "isolated-home-pin-guard-r1a-01KZNMA3",
+  "mission_id": "01KZNMA3ME8T2NTAHWZH2S3VX0",
+  "mission_branch": "kitty/mission-isolated-home-pin-guard-r1a-01KZNMA3",
+  "target_branch": "feat/isolated-home-pin-guard",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/_home_pin_scan.py",
+        "tests/architectural/test_home_pin_scan_limbs.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/architectural/_home_pin_gate.py",
+        "tests/architectural/test_home_pin_gate_verdict.py",
+        "tests/architectural/test_home_pin_seam_no_second_copy.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/architectural/_home_pin_exempt.py",
+        "tests/architectural/test_home_owner_behaviour.py",
+        "tests/architectural/test_home_owner_never_wins.py",
+        "tests/conftest.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/architectural/_home_pin_synthetic.py",
+        "tests/architectural/test_home_pin_synthetic_trees.py",
+        "tests/architectural/test_spec_kitty_home_pin_budget.py",
+        "tests/architectural/test_spec_kitty_home_pin_guard.py",
+        "tests/architectural/test_spec_kitty_home_pin_prefilter.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "tests/_arch_shard_map.py",
+        "tests/architectural/census/spec_kitty_home_pin_R1a.yaml",
+        "tests/architectural/spec_kitty_home_pin_baseline.yaml",
+        "tests/architectural/test_spec_kitty_home_pin_census.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-08-07-1-a-mission-halting-instrument-is-worth-its-cost.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-08-10T22:25:32.483786+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP06"
+  ],
+  "planning_commit_sha": "9117219081c1f88cf0b90937b9cb46723ceebcd2"
+}

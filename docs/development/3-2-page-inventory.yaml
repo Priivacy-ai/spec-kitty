@@ -914,9 +914,21 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-08-07-1-a-mission-halting-instrument-is-worth-its-cost.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/2026-08-09-1-project-sync-store-boundary.md
   tag: current
   divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-08-12-1-plantuml-schema-diagram-rendering.md
+  tag: current
+  divio_type: explanation
   owning_workstream: none
   current_target: true
   notes: null
@@ -2972,12 +2984,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/doctrine-charter-domain-plan.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/plans/doctrine/3179-public-api-surface-scoping.md
   tag: current
   divio_type: none
@@ -3177,6 +3183,36 @@
   current_target: true
   notes: null
 - path: docs/plans/doctrine/wp-prompt-governance-atdd-findings.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/domains/api-dashboard-domain-plan.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/domains/doctrine-charter-domain-plan.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/domains/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/domains/packs-extraction-domain-plan.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/domains/saas-hosted-sync-domain-plan.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -4233,12 +4269,6 @@
   current_target: true
   notes: null
 - path: docs/plans/reviews/test-plan-pr305.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/saas-hosted-sync-domain-plan.md
   tag: current
   divio_type: none
   owning_workstream: none

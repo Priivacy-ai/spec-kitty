@@ -1,9 +1,13 @@
 ---
 title: 'Mission Review Report: windows-compatibility-hardening-01KP5R6K'
 description: "Post-merge mission review for windows-compatibility-hardening-01KP5R6K: the reviewer's spec-to-code fidelity, coverage, and risk findings (2026-04-14)."
-doc_status: draft
-updated: '2026-04-15'
+doc_status: deprecated
+updated: '2026-08-12'
 ---
+> **RETIRED (shipped)** — this review covered mission `windows-compatibility-hardening-01KP5R6K`,
+> which squash-merged as `89bab26e5`. Retained as a historical mission-review snapshot;
+> do not consult for current behavior.
+
 # Mission Review Report: windows-compatibility-hardening-01KP5R6K
 
 **Reviewer**: claude:opus-4.6:mission-reviewer

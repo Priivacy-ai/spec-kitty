@@ -41,7 +41,8 @@ steps:
     description: >
       Use lowercase kebab-case file and directory names (ADR filenames keep their
       dated prefix), carry the namespaced doc_status (draft | active | deprecated |
-      superseded) rather than a bare status key, and refresh updated: YYYY-MM-DD
+      superseded | durable — durable is the reserved never-retire value for domain
+      throughlines) rather than a bare status key, and refresh updated: YYYY-MM-DD
       whenever the body changes. Apply the styleguide rather than improvising; each
       of these rules maps to a named live check in its rule-to-check table.
     examples:

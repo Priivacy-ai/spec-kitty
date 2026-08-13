@@ -1,0 +1,6 @@
+generated_by: tests/architectural/_home_pin_scan.py
+regeneration_command: python -m tests.architectural._home_pin_scan --root tests --frozen-at-sha
+  <sha> --owed-to '#3121' --exempt-module tests.architectural._home_pin_exempt
+census_key_set_sha256: e2604836e22c59476a83adcddab655fc970f6802a15b2835ea6c7fe35129efdd
+exempt_set_sha256: b205baff23d0b77f15c61a5427734476b34d8e946326fc396fcf90ce17e14f9c
+tombstones: []

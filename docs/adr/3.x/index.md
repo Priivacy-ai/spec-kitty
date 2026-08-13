@@ -171,3 +171,5 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-08-03 | [Review-Cycle Artifacts Are COORD-Partition Per-WP Bookkeeping](2026-08-03-1-review-cycle-artifacts-are-coord-partition.md) |
 | 2026-08-04 | [The Egress-Consent Boundary — Consent Is Keyed on the Record Being Sent, Never on Ambient Context](2026-08-04-1-egress-consent-boundary.md) |
 | 2026-08-05 | [Sequence Charter-Activation-Driven Mission-Type Availability Ahead of Mission-Type-as-ArtifactKind; Land It With Mission-Tree Resolution Unification as One Slice](2026-08-05-1-mission-type-availability-before-kind-promotion.md) |
+| 2026-08-07 | [A Mission-Halting Instrument Is Worth Its Cost — It Runs Before the Mission, and Its Verdict Is Acted On](2026-08-07-1-a-mission-halting-instrument-is-worth-its-cost.md) |
+| 2026-08-12 | [Local, No-Egress PlantUML Rendering for Code-Grounded Doctrine Schema Diagrams](2026-08-12-1-plantuml-schema-diagram-rendering.md) |

@@ -1,7 +1,7 @@
 ---
 title: '10 — Context Needs: Requirements Capture (idea → working code)'
 description: Requirements capture (Phase 2, intuition pass) of what each context needs in the runtime and state overhaul; some claims later revised by note 11.
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-15'
 related:
 - docs/plans/engineering-notes/runtime_and_state_overhaul/11-dialectic-and-revised-claims.md
@@ -32,11 +32,13 @@ Every claim is tagged: **[I]** intuition · **[D]** docs · **[C]** code · **[�
 ≥2 lenses. This pass is almost entirely **[I]**; later passes promote cells to **[✓]** or flag conflicts.
 
 ## Actors
+
 - **Code** — the CLI/runtime; what it must *resolve* to execute correctly.
 - **User** — the human operator; what they must *know or decide*.
 - **Agent** — the AI coding agent(s); what they're *told* (via prompts/skills/profiles) and must obey.
 
 ## Steps (idea → working code)
+
 | Phase | Steps | One-line |
 |-------|-------|----------|
 | **P0 Govern** | charter, constitution, doctrine activation | project-level rules (once) |
@@ -49,6 +51,7 @@ Every claim is tagged: **[I]** intuition · **[D]** docs · **[C]** code · **[�
 | **P7 Learn** | retrospect | capture learning |
 
 ## Dimension ↔ fragment map (continuity with `09`)
+
 The six dimensions are the *requirements view*; the `09` fragments are the *structural view*. They line up:
 
 | Dimension | `09` fragment(s) |
@@ -220,6 +223,7 @@ resolution chain. Reality today:
 > without fighting a settled contract.
 
 ## Planned outputs (once corroborated)
+
 - **Needs matrix** — D1–D6 × {Code/User/Agent} × P0–P7, promoted to **[✓]**.
 - **BPMN** — the idea→working-code flow with swimlanes (User / Code / Agent) and the context
   resolved/consumed at each gateway.

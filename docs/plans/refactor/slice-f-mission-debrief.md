@@ -1,9 +1,12 @@
 ---
 title: Slice F Mission Debrief
 description: 'Debrief for the slice-f-multi-context-extensibility mission (121) on the org-doctrine-layer branch: what shipped and the lessons carried forward.'
-doc_status: draft
-updated: '2026-05-19'
+doc_status: deprecated
+updated: '2026-08-12'
 ---
+
+> ⚠ **Retired 2026-08-12 (`doc_status: deprecated`).** Slice-F working note; the Slice-F mission `slice-f-multi-context-extensibility-01KRX5C8` merged (commit `2623a22db`, Epic #1111). Content preserved as an audit-trail record.
+
 # Slice F Mission Debrief
 
 **Mission:** `slice-f-multi-context-extensibility-01KRX5C8` (mission_number=121)

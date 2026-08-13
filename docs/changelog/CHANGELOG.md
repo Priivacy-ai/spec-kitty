@@ -17,6 +17,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land here as missions merge._
 
+### ✨ Added
+
+- **Documentation can now be marked `durable` — a standing reference that is
+  never flagged as stale draft (mission `docs-plans-closeout-01KZTK2J`;
+  `#3368`).** Before, a long-lived throughline doc could only be `active`, so the
+  freshness SLA eventually nagged it toward "review or retire" like any aging
+  draft. Now `durable` is a reserved `doc_status` across the whole authority
+  chain (the `042-common-docs` directive, the `DocStatus` enum, the common-docs
+  styleguide and tactics, and the never-stale freshness rule), so a deliberate
+  standing document is left alone. This closeout also retires ~60 shipped or
+  superseded working notes in place (content preserved, evidence-cited) and
+  gathers the domain plans under `docs/plans/domains/`.
+
+- **The doctrine documentation site now shows rendered schema diagrams of the
+  doctrine artefacts, drawn locally with no network egress (mission
+  `doctrine-schema-diagrams-01KZTQTH`; `#3366`, `#3354`).** Before, the doctrine
+  layer's shape — the relationship graph, the mission-step contract and action
+  index, the cross-kind overview and the full agent-profile schema — lived only
+  in prose, and the docsite had no way to render PlantUML at all. Now
+  code-grounded `@startyaml` diagrams are authored for each and **drift-guarded
+  against the live frozen models** (a diagram that falls out of sync with the
+  code reds the build), then rendered offline by a version+sha256-pinned
+  PlantUML running inside a network-isolated container — so building the docs
+  sends nothing off-machine. Each rendered figure carries derived alt/aria text
+  for accessibility.
+
+- **A shrink-only census gate now guards the 40 test sites that pin
+  `SPEC_KITTY_HOME`, so the collision can only get smaller from here (mission
+  `isolated-home-pin-guard-r1a-01KZNMA3`; `#3121`).** Before, nothing stopped a
+  41st ad-hoc home pin from landing, and a naive "converge them all" cleanup
+  would silently delete the load-bearing isolation those fixtures carry. Now a
+  content-addressed census — pinned as debt at a frozen SHA — plus a canonical
+  `canonical_home` owner fixture, a falsifiability probe, and a halt gate red the
+  build if the pinned set grows. Contributor-facing test infrastructure only (no
+  `src/` change); this lands the *instrument* ahead of the follow-on adoption
+  (R1b), so `Refs #3121` rather than `Closes`.
+
 ### 🐛 Fixed
 
 - **Root README guide links point at the post-IA `tutorials/` and `how-to/`

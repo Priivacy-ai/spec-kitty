@@ -1,13 +1,18 @@
 ---
 title: WP Runtime-State Eviction — Prerequisite Mission Scope
 description: 'Scope for evicting runtime-mutable state (shell_pid, history, subtask-checkbox, review) from tasks/WP##.md into the event log — prerequisite for the WP-prompt flip.'
-doc_status: proposal
-updated: '2026-07-16'
+doc_status: deprecated
+updated: '2026-08-12'
 related:
 - docs/plans/investigations/wp-op-schema-proposal.md
 - docs/plans/investigations/wp-op-schema-model.md
 - docs/plans/investigations/wp-op-schema-related-tickets.md
 ---
+> **RETIRED (shipped)** — this prerequisite eviction mission was ratified in ADR
+> [`2026-07-19-1`](../../adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md)
+> and shipped by mission `wp-runtime-state-eviction-01KXWN13` (impl `dfe6b2ead`). Evidence: #2684
+> (+ #2093/#2816). Retained for historical reference; do not consult for current behavior.
+
 # WP Runtime-State Eviction — Prerequisite Mission Scope
 
 The squad pressure-test ([wp-op-schema-proposal.md](wp-op-schema-proposal.md) Part 4,
@@ -23,8 +28,7 @@ already-shipped `lane` retirement (`frontmatter.py:47-49`;
 **only static design-intent**, and the WP-prompt schema work (proposal Parts 1–3)
 becomes a pure formalization with no runtime collision.
 
-This is not new construction against the milestone — it **is the charter of
-#2093 / #2400** (static intent stays canonical; dynamic runtime state retires to
+This is not new construction against the milestone — it **is the charter of #2093 / #2400** (static intent stays canonical; dynamic runtime state retires to
 event-log/invocation authority), carried to completion.
 
 ---

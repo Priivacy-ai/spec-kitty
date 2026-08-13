@@ -1,6 +1,6 @@
 # Implementation Plan: Doctrine Schema Diagrams and PlantUML Rendering (Scope B)
 
-**Branch**: `feat/doctrine-schema-diagrams` | **Date**: 2026-08-12 | **Spec**: [spec.md](spec.md)
+**Branch**: `feat/doctrine-schema-diagrams-impl` (planning PR #3354 for `feat/doctrine-schema-diagrams` merged to `main`; implementation lands as a new PR from `-impl`) | **Date**: 2026-08-12 | **Spec**: [spec.md](spec.md)
 **Input**: Scope B of the split. Adds local PlantUML docsite rendering + code-grounded schema diagrams + per-module READMEs. Post-spec squad findings are folded in.
 
 ## Summary
@@ -32,7 +32,9 @@ No violations requiring Complexity Tracking.
 ## Project Structure
 
 ```
-scripts/docs/plantuml_render.py        # NEW — recover ```plantuml fences from _site (html.unescape), render via pinned jar (SANDBOX), inject SVG + alt
+scripts/docs/plantuml_invoke.py        # NEW (WP01-owned) — the shared invocation seam: sha256-verify jar + `docker run --network=none` digest-pinned JRE `java -jar … SANDBOX -failfast2`; consumed (not re-implemented) by WP02/WP03
+scripts/docs/plantuml_pins.json        # NEW (WP01-owned) — version+sha256 jar pin + digest-pinned JRE image
+scripts/docs/plantuml_render.py        # NEW (WP02-owned) — recover ```plantuml fences from _site (html.unescape; match lang-/language-plantuml), render via plantuml_invoke, inject SVG + alt
 .github/workflows/docs-build-pr.yml    # EDIT — add render step AFTER glossary_linker; setup-java + pinned jar (sha256)
 .github/workflows/docs-pages.yml       # EDIT — same; also extend the paths: allowlist to include the new script
 docs/architecture/doctrine-kinds.md            # EDIT — cross-kind overview diagram; fill glossary-pack + anti-pattern; sweep "eight" heading
@@ -81,7 +83,7 @@ src/doctrine/** models                 # READ-ONLY — source of truth for diagr
 - **Requirements**: FR-004, NFR-001, C-003
 - **Affected surfaces**: a new guard test; the `file:class` binding table; read-only models
 - **Plan specifics**: both sides pinned — **diagram-side parse** (top-level `@startyaml` keys, recursing into nested sub-maps, = declared field set) AND model introspection (`FieldInfo.alias or name` + transitive recursion; dataclass `fields()`; StrEnum `list()`). Non-fakeable tests: **completeness over ALL `ArtifactKind`** (a synthetic new member FAILS until dispositioned — not just the 4 priority kinds); **omit-a-field** (a diagram missing a model field FAILS); **nested depth-2** pinned to `AgentProfileSchema → AgentSpecialization` (DRG is FLAT — not usable for the depth test). ATDD red-first.
-- **Sequencing/depends-on**: **parallel with IC-01** — it is a pytest parsing `@startyaml` text + introspecting models; it does NOT need the render pipeline. Only IC-03's render-acceptance serializes behind IC-01.
+- **Sequencing/depends-on**: the guard **engine** can be built in parallel with IC-01 (it is a pytest parsing `@startyaml` text + introspecting models; it does NOT need the render pipeline). The guard **run** validates the authored diagrams, so it waits on IC-03 (WP05–WP07). Only IC-03's render-acceptance serializes behind IC-01. **[Post-tasks squad]** the guard's alias/nested path is forced by a *shipped* aliased+nested diagram — the agent-profile schema (`AgentProfileSchema`→`AgentSpecialization`, WP05/T035), FR-003's 4th priority artefact, not merely a fixture.
 
 ### IC-05 — Per-module code→docs READMEs
 
@@ -105,3 +107,5 @@ Post-spec squad (3 lenses) applied: no-egress mechanism (docker `--network=none`
 **Post-plan squad (3 lenses) applied** (this revision): IC-01 execution-locus pinned (Python host-native stdlib-only + `java -jar` in `docker --network=none` with a digest-pinned JRE, drop `setup-java`); egress spike is a **blocking WP01**, runnability **UNPROVEN**; render slot pinned after `glossary_linker` before redirect-stub/`seo_verify`; drift guard's diagram-side parse pinned + completeness-over-all-`ArtifactKind` + omit-a-field + depth-2-on-a-real-nested-model; SANDBOX negative test uses a local listener (not "build fails"); alt-text made a concrete distinct-caption predicate; IC-04 parallel to IC-01; **IC-05 made independently-landable** (in-mission fallback links; last/abandonable), diagram count reconciled to FR-003's 4+overview; hard single-WP ownership of `doctrine-kinds.md` and `doctrine-relationships.md`.
 
 **Tracker (DIR-012/DIR-013)**: this mission edits `.github/workflows/docs-*.yml` and pins an external `plantuml.jar` — capture/assign a backing tracking issue to the HiC before `implement`, and pre-declare the DIR-013 baseline-red attribution posture for the `tests/docs/` touch.
+
+**Post-tasks squad (4 lenses: reviewer-renata, planner-priti, python-pedro, architect-alphonso) applied** — see [checklists/post-tasks-squad-findings.md](checklists/post-tasks-squad-findings.md). Folded: added the missing FR-003 agent-profile schema diagram (WP05/T035, the shipped aliased+nested diagram that forces the drift guard); hardened the SVG success predicate against PlantUML error images (`-failfast2` + error-signature check, WP01/WP03); fence class matches BOTH `lang-`/`language-plantuml` + fail-closed on unrendered fences (WP02); StrEnum synthetic-member injection replaced with a patchable seam + delete-a-disposition test (WP08); SANDBOX proof uses `@startuml` + a hard control (WP03); alt-text asserts the exact literal title (WP02); README lint given an objective covered-set + fixed cap + fenced-code-echo guard (WP09); "no *unjustified* suppressions" for the `glossary_linker` mirror (WP02); serialize lane integration under single_branch; documented the `plantuml_invoke` seam here. All model claims verified correct against source (`AgentProfileSchema`+`AgentSpecialization`, `NodeKind`=16/`Relation`=15/`ArtifactKind`=12, `ActionIndex` frozen dataclass).

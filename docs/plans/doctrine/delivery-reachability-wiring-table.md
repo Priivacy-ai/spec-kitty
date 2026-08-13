@@ -1,7 +1,7 @@
 ---
 title: "Delivery-reachability wiring table (FR-015)"
 description: "Per candidate artefact: proposed inbound source, its measured action-reachability (WP08 helper), and the C-007 wire/defer disposition; the deferred set is the decision surface."
-doc_status: active
+doc_status: deprecated
 updated: '2026-07-29'
 related:
   - kitty-specs/doctrine-delivery-reachability-01KYMXD6/spec.md
@@ -10,6 +10,8 @@ related:
 ---
 
 # Delivery-reachability wiring table (FR-015, WP09)
+
+> **Retired (deprecated).** Design shipped via merged mission `doctrine-delivery-reachability-01KYMXD6` (15 WPs). Preserved as a historical record.
 
 This is the enumerated wiring table FR-015 requires. Its purpose is to make
 "obvious" a **computation** rather than a judgement, so this work package does
@@ -70,8 +72,8 @@ Rows 8–10 are the re-adjudication of PR #3007's three still-inert wirings: eac
 already carries an inbound edge, but its source is itself action-unreachable
 (measured **False**), so the target reaches nobody. That is precisely the
 incidence-vs-reachability gap this mission exists to close — an inbound edge is
-**not** reachability (R-6). They are **not** re-wired (that would repeat the
-#3007 error); they are recorded here and deferred.
+**not** reachability (R-6). They are **not** re-wired (that would repeat the #3007
+error); they are recorded here and deferred.
 
 ### Why only ONE edge is authored
 
@@ -291,56 +293,56 @@ edge is upgraded and no walk is deepened here.
 
 ### Full deferred set (50), by kind — directive 4 · paradigm 3 · procedure 4 · styleguide 3 · tactic 28 · toolguide 8
 
-  - `directive:DIRECTIVE_035`
-  - `directive:DIRECTIVE_038`
-  - `directive:DIRECTIVE_039`
-  - `directive:DIRECTIVE_044`
-  - `paradigm:atomic-design`
-  - `paradigm:c4-incremental-detail-modeling` — Family C: topology authored, delivery pending
-  - `paradigm:structured-prompt-driven-development`
-  - `procedure:documentation-gap-prioritization` — Family C candidate EXCLUDED as non-attested (see Family C section)
-  - `procedure:drill-down-documentation` — Family C: topology authored, delivery pending
-  - `procedure:event-storming-discovery`
-  - `procedure:migrate-project-guidance-to-spec-kitty-charter`
-  - `styleguide:deployable-skill-authoring`
-  - `styleguide:java-conventions`
-  - `styleguide:reasons-canvas-writing`
-  - `tactic:analysis-extract-before-interpret`
-  - `tactic:architecture-diagram-review-checklist` — Family C: topology authored, delivery pending
-  - `tactic:atomic-design-review-checklist`
-  - `tactic:atomic-state-ownership`
-  - `tactic:c4-zoom-in-architecture-documentation` — Family C: topology authored, delivery pending
-  - `tactic:canonical-source-unification`
-  - `tactic:chain-of-responsibility-rule-pipeline`
-  - `tactic:code-documentation-analysis` — Family C: topology authored, delivery pending
-  - `tactic:compositional-stream-boundaries`
-  - `tactic:cross-cutting-state-via-store`
-  - `tactic:mutation-testing-workflow`
-  - `tactic:occurrence-classification-workflow`
-  - `tactic:ownership-map-leeway`
-  - `tactic:pr-agent-worktree-isolation`
-  - `tactic:reasons-canvas-fill`
-  - `tactic:reasons-canvas-review`
-  - `tactic:refactoring-encapsulate-record` — Family B: topology authored, delivery pending
-  - `tactic:refactoring-encapsulate-variable` — Family B: topology authored, delivery pending
-  - `tactic:refactoring-extract-first-order-concept` — Family B: topology authored, delivery pending
-  - `tactic:refactoring-move-field` — Family B: topology authored, delivery pending
-  - `tactic:refactoring-move-method` — Family B: topology authored, delivery pending
-  - `tactic:refactoring-state-pattern-for-behavior` — Family B: topology authored, delivery pending
-  - `tactic:refactoring-strangler-fig` — Family B: topology authored, delivery pending
-  - `tactic:reference-architectural-patterns`
-  - `tactic:secure-regex-catastrophic-backtracking`
-  - `tactic:terminology-extraction-mapping`
-  - `tactic:test-readability-clarity-check`
-  - `tactic:zombies-tdd`
-  - `toolguide:contextive`
-  - `toolguide:github-tracker`
-  - `toolguide:maven-review-checks`
-  - `toolguide:mermaid-diagramming` — Family C: topology authored, delivery pending
-  - `toolguide:plantuml-diagramming` — Family C: topology authored, delivery pending
-  - `toolguide:python-mutation-tools`
-  - `toolguide:terminology-guard`
-  - `toolguide:typescript-mutation-tools`
+- `directive:DIRECTIVE_035`
+- `directive:DIRECTIVE_038`
+- `directive:DIRECTIVE_039`
+- `directive:DIRECTIVE_044`
+- `paradigm:atomic-design`
+- `paradigm:c4-incremental-detail-modeling` — Family C: topology authored, delivery pending
+- `paradigm:structured-prompt-driven-development`
+- `procedure:documentation-gap-prioritization` — Family C candidate EXCLUDED as non-attested (see Family C section)
+- `procedure:drill-down-documentation` — Family C: topology authored, delivery pending
+- `procedure:event-storming-discovery`
+- `procedure:migrate-project-guidance-to-spec-kitty-charter`
+- `styleguide:deployable-skill-authoring`
+- `styleguide:java-conventions`
+- `styleguide:reasons-canvas-writing`
+- `tactic:analysis-extract-before-interpret`
+- `tactic:architecture-diagram-review-checklist` — Family C: topology authored, delivery pending
+- `tactic:atomic-design-review-checklist`
+- `tactic:atomic-state-ownership`
+- `tactic:c4-zoom-in-architecture-documentation` — Family C: topology authored, delivery pending
+- `tactic:canonical-source-unification`
+- `tactic:chain-of-responsibility-rule-pipeline`
+- `tactic:code-documentation-analysis` — Family C: topology authored, delivery pending
+- `tactic:compositional-stream-boundaries`
+- `tactic:cross-cutting-state-via-store`
+- `tactic:mutation-testing-workflow`
+- `tactic:occurrence-classification-workflow`
+- `tactic:ownership-map-leeway`
+- `tactic:pr-agent-worktree-isolation`
+- `tactic:reasons-canvas-fill`
+- `tactic:reasons-canvas-review`
+- `tactic:refactoring-encapsulate-record` — Family B: topology authored, delivery pending
+- `tactic:refactoring-encapsulate-variable` — Family B: topology authored, delivery pending
+- `tactic:refactoring-extract-first-order-concept` — Family B: topology authored, delivery pending
+- `tactic:refactoring-move-field` — Family B: topology authored, delivery pending
+- `tactic:refactoring-move-method` — Family B: topology authored, delivery pending
+- `tactic:refactoring-state-pattern-for-behavior` — Family B: topology authored, delivery pending
+- `tactic:refactoring-strangler-fig` — Family B: topology authored, delivery pending
+- `tactic:reference-architectural-patterns`
+- `tactic:secure-regex-catastrophic-backtracking`
+- `tactic:terminology-extraction-mapping`
+- `tactic:test-readability-clarity-check`
+- `tactic:zombies-tdd`
+- `toolguide:contextive`
+- `toolguide:github-tracker`
+- `toolguide:maven-review-checks`
+- `toolguide:mermaid-diagramming` — Family C: topology authored, delivery pending
+- `toolguide:plantuml-diagramming` — Family C: topology authored, delivery pending
+- `toolguide:python-mutation-tools`
+- `toolguide:terminology-guard`
+- `toolguide:typescript-mutation-tools`
 
 ## Composition ledger (NFR-002) — profile-channel walk-activation (mission `doctrine-delivery-activation-01KYQVQK`, WP01 + WP03)
 
@@ -415,26 +417,26 @@ mission the profile channel rescued only 2 of the 50, so the neither-channel set
 was 48. After WP01 it rescues 30, so the neither-channel deferred set drops to
 **20**:
 
-  - `directive:DIRECTIVE_035`
-  - `directive:DIRECTIVE_038`
-  - `directive:DIRECTIVE_039`
-  - `paradigm:atomic-design`
-  - `paradigm:structured-prompt-driven-development`
-  - `procedure:documentation-gap-prioritization`
-  - `procedure:migrate-project-guidance-to-spec-kitty-charter`
-  - `styleguide:deployable-skill-authoring`
-  - `styleguide:java-conventions`
-  - `tactic:analysis-extract-before-interpret`
-  - `tactic:atomic-design-review-checklist`
-  - `tactic:atomic-state-ownership`
-  - `tactic:chain-of-responsibility-rule-pipeline`
-  - `tactic:compositional-stream-boundaries`
-  - `tactic:cross-cutting-state-via-store`
-  - `tactic:reasons-canvas-fill`
-  - `tactic:reasons-canvas-review`
-  - `tactic:reference-architectural-patterns`
-  - `tactic:secure-regex-catastrophic-backtracking`
-  - `toolguide:maven-review-checks`
+- `directive:DIRECTIVE_035`
+- `directive:DIRECTIVE_038`
+- `directive:DIRECTIVE_039`
+- `paradigm:atomic-design`
+- `paradigm:structured-prompt-driven-development`
+- `procedure:documentation-gap-prioritization`
+- `procedure:migrate-project-guidance-to-spec-kitty-charter`
+- `styleguide:deployable-skill-authoring`
+- `styleguide:java-conventions`
+- `tactic:analysis-extract-before-interpret`
+- `tactic:atomic-design-review-checklist`
+- `tactic:atomic-state-ownership`
+- `tactic:chain-of-responsibility-rule-pipeline`
+- `tactic:compositional-stream-boundaries`
+- `tactic:cross-cutting-state-via-store`
+- `tactic:reasons-canvas-fill`
+- `tactic:reasons-canvas-review`
+- `tactic:reference-architectural-patterns`
+- `tactic:secure-regex-catastrophic-backtracking`
+- `toolguide:maven-review-checks`
 
 ### Reconciliation note — the "50 vs 60" / "39→39" stale prose (WP03, D19)
 
@@ -1091,8 +1093,8 @@ record the disposition here (2026-07-29):
 | `DIRECTIVE_044` canonical-sources-and-unification | **genuinely universal → always-on candidate** | applies to *"whenever an agent selects a template/skill/command… whenever a split-brain is discovered"* — i.e. ~all agent work — yet no action scopes it | **DEFER to #3064** — the universal engineering-hygiene rule belongs in the default `charter.yml` / empty-charter always-on set; the always-on **activation-model** decision is #3064's, not edge-authoring. |
 
 **No graph change.** Family F authors zero edges and moves zero counts; the four
-directives stay in the deferred set (now understood as intentionally-gated /
-#3064-owned, not defects). This closes the #3063 operator interview: Families A–E
+directives stay in the deferred set (now understood as intentionally-gated / #3064-owned,
+not defects). This closes the #3063 operator interview: Families A–E
 authored, F accepted, and the four depth-gated artefacts accepted (see the
 depth-gated note above). All residual delivery/activation work is owned by the
 fast-follow walk-update mission and #3064.

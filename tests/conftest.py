@@ -368,6 +368,46 @@ def _isolated_worker_home(
     return home_base
 
 
+@pytest.fixture
+def canonical_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """R1a (#3121): the ONE canonical ``SPEC_KITTY_HOME`` owner.
+
+    Binding contract:
+    ``kitty-specs/isolated-home-pin-guard-r1a-01KZNMA3/contracts/canonical-home-owner.md``.
+    Every property below is fixed there and asserted by
+    ``tests/architectural/test_home_owner_behaviour.py``, which PARSES that document for this
+    fixture's name rather than repeating it.
+
+    **The name is a scanner input, not a local detail.**
+    ``tests/architectural/_home_pin_scan.py``'s ``OWNER_PARAM_NAMES`` treats a parameter naming
+    this owner as ``tmp_path`` for both the silhouette and value resolution (FR-010). Renaming
+    this fixture without renaming it there makes that resolver limb permanently inert while every
+    assertion about it stays green.
+
+    **Non-autouse and function-scoped by ABSENCE**, never ``scope="function"``: an explicit
+    ``scope=`` on a pin-bearing fixture is a shape ``_home_pin_scan.INERT_LIMBS`` registers with a
+    measured population of zero.
+
+    **Returns ``None`` deliberately, and this must not be "improved".** A fixture that returned
+    its own path would invite ``assert os.environ["SPEC_KITTY_HOME"] == canonical_home``, which
+    compares the environment against this fixture's OWN report and passes for an owner whose body
+    sets nothing. Returning ``None`` forces a probe to compute ``str(tmp_path / "home")`` itself.
+
+    **Establishes the home only via ``monkeypatch.setenv``** — no ``monkeypatch.setattr(Path,
+    "home", ...)``, no process-global patch — for the reason recorded at ``:342-356`` above: the
+    ``setattr`` form pinned ``Path.home()`` regardless of any later in-test ``setenv`` and silently
+    won over ~16 ``tests/sync`` cases. Because this fixture only sets an env var during its own
+    setup, a fixture that REQUESTS it and then keeps its own pin still wins; the owner never
+    overrides a definition managing its own home.
+
+    The directory is created before the test body runs, so a consumer may read the variable and
+    find the path already present.
+    """
+    home = tmp_path / "home"
+    home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+
+
 @pytest.fixture(autouse=True)
 def _enable_saas_sync_feature_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep legacy sync/auth tests enabled unless a test opts out explicitly."""

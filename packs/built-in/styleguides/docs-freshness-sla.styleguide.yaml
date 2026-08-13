@@ -12,6 +12,7 @@ principles:
   - "A stale page is triaged, not silently left live. When a page trips its threshold it enters a review: verify it against current behaviour and bump `updated`, or distil-and-retire it if the behaviour is gone. Prioritise the triage by reader impact — a stale tutorial for a core workflow blocks more users than a stale explanation of an edge case — using the gap-prioritization procedure. A tripped threshold is a work item, not a warning to ignore."
   - "Review cadence is scheduled, not incidental. Documentation is reviewed for freshness on a recurring cadence (for example, a periodic audit sweep), independent of whether anyone happened to edit it. The cadence is what surfaces the pages that no behaviour change touched but that reality has quietly outgrown."
   - "Deprecation and retirement are freshness outcomes, not clutter. The result of a freshness triage may be to mark a page `doc_status: deprecated | superseded` and schedule its retirement. Freshness is not only 'update the date' — it includes deciding a page should no longer be live."
+  - "Durable throughlines are never aged out. A page marked `doc_status: durable` is a reserved, never-retire domain throughline: it is exempt from the staleness sweep and is never flagged stale or scheduled for retirement by the SLA. Its freshness is maintained by re-verification on domain change (the behaviour-change-resets-the-clock rule still applies), not by the tiered ageing thresholds."
 
 patterns:
   - name: Verified-content freshness date

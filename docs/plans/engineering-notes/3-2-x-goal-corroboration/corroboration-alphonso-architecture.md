@@ -1,7 +1,7 @@
 ---
 title: 3.2.x Goal Corroboration — Architectural POV (Architect Alphonso)
 description: Architect Alphonso's architectural corroboration of the 3.2.x goals across the v3.1.10..v3.2.0 range via targeted git queries and the ADRs/audits added in range.
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # 3.2.x Goal Corroboration — Architectural POV (Architect Alphonso)
