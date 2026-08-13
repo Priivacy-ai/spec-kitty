@@ -218,6 +218,23 @@ _LEGACY_BUNDLE_FILENAMES: tuple[str, ...] = (
     "references.yaml",
 )
 
+#: The readable charter. Deliberately NOT a member of
+#: :data:`_LEGACY_BUNDLE_FILENAMES` above: that tuple mirrors the
+#: migration-owned constant naming the four files the unify migration *folds and
+#: retires*, and ``charter.md`` is neither folded nor retired — it survives as
+#: the prose companion. Listing it there would both break that mirror (pinned by
+#: ``test_legacy_bundle_file_lists_stay_in_sync``) and assert something false
+#: about the migration.
+#:
+#: It is tracked separately because it is #2831's ACTUAL reported shape, and the
+#: most common legacy one: a project carrying the readable charter and nothing
+#: else. Counting it nowhere sent exactly that operator the F1 text — "this
+#: project has no charter at all" — while ``.kittify/charter/charter.md`` sat in
+#: front of them and ``charter context`` rendered it happily. The issue's own
+#: complaint is that every diagnostic reported healthy; a gate that denies a
+#: charter the operator is looking at is the same defect in different clothes.
+_READABLE_CHARTER_FILENAME = "charter.md"
+
 
 def _legacy_bundle_files_present(repo_root: Path) -> tuple[str, ...]:
     """Return the subset of ``_LEGACY_BUNDLE_FILENAMES`` that actually exist
@@ -256,7 +273,13 @@ def _missing_charter_source_detail(repo_root: Path) -> str:
     to decide F1-vs-F2 keeps the claim true for any subset, from one file up
     to all four.
     """
-    present = _legacy_bundle_files_present(repo_root)
+    present = list(_legacy_bundle_files_present(repo_root))
+    # The readable charter counts as "you have a charter" even though the
+    # migration never folds it — see :data:`_READABLE_CHARTER_FILENAME`. Named
+    # first so a mixed project reads "charter.md/references.yaml" rather than
+    # burying the file the operator actually recognises.
+    if (repo_root / _CHARTER_DIR / _READABLE_CHARTER_FILENAME).exists():
+        present.insert(0, _READABLE_CHARTER_FILENAME)
     if present:
         file_list = "/".join(present)
         if len(present) == 1:

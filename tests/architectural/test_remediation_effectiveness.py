@@ -546,17 +546,20 @@ class _EffectivenessCase:
 #: line down. Re-derived by running
 #: ``_discover_remediation_emitting_states_full()`` against the current
 #: file, not by hand-counting.
-#: Re-pinned again at the #2831 rebase onto current ``main``: upstream's own
-#: edits to ``computer.py`` shifted every one of these down (411 -> 422,
-#: 464 -> 475, 569 -> 580, 600 -> 611, 613 -> 624). Re-derived by running
+#: Re-pinned twice during the #2831 landing: first by upstream's own edits to
+#: ``computer.py`` (411 -> 422, 464 -> 475, 569 -> 580, 600 -> 611, 613 -> 624),
+#: then again by this mission's charter.md F1/F2 fix (422 -> 445, 475 -> 498,
+#: 580 -> 603, 611 -> 634, 624 -> 647). Two re-pins in one landing is the cost
+#: of a positional key; it is tolerable only because a stale lineno here fails
+#: LOUDLY in the parity test below rather than silently dropping a state. Re-derived by running
 #: ``_discover_remediation_emitting_states_full()`` against the current file,
 #: never by hand-counting. The producer/state identities are unchanged.
 _CASES: tuple[_EffectivenessCase, ...] = (
-    _EffectivenessCase("charter_source", 422, _fixture_charter_source_missing),
-    _EffectivenessCase("synced_bundle", 475, _fixture_charter_source_missing),
-    _EffectivenessCase("synthesized_drg", 580, _fixture_drg_missing),
-    _EffectivenessCase("synthesized_drg", 611, _fixture_drg_stale_bundle_not_fresh),
-    _EffectivenessCase("synthesized_drg", 624, _fixture_drg_stale_hash_mismatch),
+    _EffectivenessCase("charter_source", 445, _fixture_charter_source_missing),
+    _EffectivenessCase("synced_bundle", 498, _fixture_charter_source_missing),
+    _EffectivenessCase("synthesized_drg", 603, _fixture_drg_missing),
+    _EffectivenessCase("synthesized_drg", 634, _fixture_drg_stale_bundle_not_fresh),
+    _EffectivenessCase("synthesized_drg", 647, _fixture_drg_stale_hash_mismatch),
 )
 
 
