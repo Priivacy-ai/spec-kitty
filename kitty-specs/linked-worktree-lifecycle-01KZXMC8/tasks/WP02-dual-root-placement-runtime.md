@@ -27,18 +27,19 @@ history:
 - at: '2026-08-13T13:39:12Z'
   actor: system
   action: Prompt generated via /spec-kitty.tasks
-agent_profile: python-pedro
+agent_profile: reviewer-renata
 authoritative_surface: src/mission_runtime/resolution.py
 create_intent:
 - tests/mission_runtime/test_dual_root_mission_placement.py
 execution_mode: code_change
 model: ''
 owned_files:
+- src/mission_runtime/lifecycle_phase.py
 - src/mission_runtime/resolution.py
 - src/specify_cli/missions/_read_path_resolver.py
 - tests/architectural/test_single_mission_surface_resolver.py
 - tests/mission_runtime/test_dual_root_mission_placement.py
-role: implementer
+role: reviewer
 tags: []
 task_type: implement
 tracker_refs:
@@ -85,3 +86,4 @@ Targeted и relevant regression pytest, Ruff, mypy strict, mutation удален
 
 - 2026-08-13T13:39:12Z – system – Prompt created.
 - 2026-08-13T15:26:59Z – codex – shell_pid=27296 – RED 4dc910b91: 4/4 dual-root production tests TypeError. GREEN fe14ed808 + architectural sanction 28a8b19ba: caller PRIMARY/flat STATUS остаются в mission anchor, repository_root владеет Git/topology. Проверки: 178 runtime, 51 read-path, 24 architectural, Ruff, py_compile, mypy strict, diff-check PASS. Mutation удаления anchor forwarding дал ожидаемый RED.
+- 2026-08-13T15:40:53Z – codex – shell_pid=0 – Review cycle 2 closed at f4471752b. RED 2a2c3a3a2 proved lifecycle phase omitted anchor. Fix threads resolved PRIMARY feature_dir into the single phase authority while Git/branch probes stay on repository_root; strict Path annotation closes mypy blocker. Gates: 165 runtime + 23 action/status + 51 read-path + 24 architecture, Ruff, py_compile, mypy strict, diff-check PASS.
