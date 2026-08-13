@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import hashlib
 
 import pytest
 import typer
@@ -305,3 +306,37 @@ def test_auto_tty_zero_input_exits_1(
 
     assert result.exit_code == 1
     assert not (tmp_path / ".kittify" / MISSION_BRIEF_FILENAME).exists()
+
+
+def test_manual_intake_of_packet_writes_sidecar_overlay(
+    intake_app: typer.Typer, tmp_path: Path
+) -> None:
+    """A v1 packet overlays provenance fields; hash remains SHA-256 of raw content."""
+    packet = (
+        "---\n"
+        "handoff_packet: 1\n"
+        "source_tool: example-tool\n"
+        "source_mission: widget-booking\n"
+        "source_ref: abc123\n"
+        "requirements:\n"
+        "  - id: FR-001\n"
+        "    statement: Book a widget.\n"
+        "---\n\n"
+        "# widget-booking\n"
+    )
+    plan = _make_plan_file(tmp_path, "packet.md", content=packet)
+
+    with patched_intake_command_environment(tmp_path, patch_cwd=False):
+        result = runner.invoke(intake_app, [str(plan)], catch_exceptions=False)
+
+    assert result.exit_code == 0, f"output: {result.output}"
+    source_path = tmp_path / ".kittify" / BRIEF_SOURCE_FILENAME
+    source_data = yaml.safe_load(source_path.read_text(encoding="utf-8"))
+    assert source_data["source_tool"] == "example-tool"
+    assert source_data["source_mission"] == "widget-booking"
+    assert source_data["source_ref"] == "abc123"
+    assert source_data["packet_version"] == 1
+    assert source_data["requirement_count"] == 1
+    assert source_data["source_agent"] == "example-tool"
+    expected_hash = hashlib.sha256(packet.encode()).hexdigest()  # noqa: TID251 — mission-brief content fingerprint
+    assert source_data["brief_hash"] == expected_hash

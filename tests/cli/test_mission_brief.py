@@ -176,3 +176,26 @@ def test_write_twice_overwrites(tmp_path: Path) -> None:
     assert brief_text is not None
     assert new_content in brief_text
     assert RAW_CONTENT not in brief_text
+
+
+def test_write_packet_meta_lands_in_sidecar_without_changing_content_hash(
+    tmp_path: Path,
+) -> None:
+    """Packet overlay fields are sidecar-only; brief_hash stays SHA-256 of raw content."""
+    packet_meta = {
+        "packet_version": 1,
+        "source_tool": "example-tool",
+        "source_mission": "widget-booking",
+        "requirement_count": 2,
+    }
+    write_mission_brief(
+        tmp_path, RAW_CONTENT, "packet.md", packet_meta=packet_meta
+    )
+    expected_hash = hashlib.sha256(RAW_CONTENT.encode()).hexdigest()  # noqa: TID251 — mission-brief content fingerprint, not charter freshness hashing
+    source = read_brief_source(tmp_path)
+    assert source is not None
+    assert source["brief_hash"] == expected_hash
+    assert source["source_tool"] == "example-tool"
+    assert source["source_mission"] == "widget-booking"
+    assert source["requirement_count"] == 2
+    assert source["packet_version"] == 1

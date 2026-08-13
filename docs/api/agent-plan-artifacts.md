@@ -2,7 +2,7 @@
 title: Agent Plan Artifacts Reference
 description: Reference for agent plan artifacts generated during missions. Learn the role of spec.md, plan.md, tasks.md, and checklists/requirements.md.
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-08-13'
 ---
 # Agent Plan Artifacts Reference
 
@@ -12,7 +12,7 @@ saves plan files to disk, and the confidence level of that information.
 Used by `spec-kitty intake --auto` via `src/specify_cli/intake_sources.py` to
 scan for pre-existing agent-generated plans that can serve as intake context.
 
-Last updated: 2026-04-20
+Last updated: 2026-08-13
 
 ---
 
@@ -311,6 +311,7 @@ configured harness key.
 | Amazon Q / Kiro | `q` / `kiro` | `amazon-q` |
 | Google Antigravity | `antigravity` | `antigravity` |
 | Mistral Vibe | `vibe` | `vibe` |
+| Generic handoff packet | `handoff` | omitted (`source_agent` taken from packet `source_tool` when present) |
 
 ---
 
@@ -335,6 +336,7 @@ project-level (or configurable) path are included as active tuples in `HARNESS_P
 | Kiro | Yes | `.kiro/specs/<slug>/requirements.md`, `design.md`, `tasks.md` are the verified spec artifacts. |
 | Antigravity | No | No confirmed project-level plan file path. |
 | Mistral Vibe | No | No confirmed plan file output on disk. |
+| Generic handoff packet | Yes | `.handoff/*.md` is the project-local drop directory for tool-agnostic handoff packets (`docs/contracts/handoff-packet-v1.md`). |
 
 ---
 
