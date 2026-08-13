@@ -252,13 +252,20 @@ def test_a3_control_scaffold_only_drops_the_handle() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_a4_disjoint_add_add_admits_pending_alongside_filled_row() -> None:
+def test_a4_disjoint_add_add_admits_pass_alongside_scaffold_row() -> None:
     """Genuine disjoint union: ``ours`` adds a filled AC-001 (pass), ``theirs``
-    independently adds a scaffold AC-002 (pending). Both rows survive and the
-    recomputed verdict lands on the admissible ``pending`` -- NOT ``fail`` --
-    because a still-scaffolded sibling criterion does not, by itself, fail the
-    matrix (C-002: this deliberately admits ``pending``; #3231 stays
-    out of scope)."""
+    independently adds an empty scaffold AC-002. Both rows survive and the
+    recomputed verdict lands on the admissible ``pass`` -- NOT ``fail`` and NOT
+    silently reset -- which is the merge-driver invariant this A4/FR-004 case
+    pins.
+
+    The concrete value is ``pass`` (not ``pending``) since #3231 landed on
+    2026-08-13: ``overall_verdict`` now exempts an empty scaffold placeholder
+    (``description == SCAFFOLD_TODO_MARKER``) from the pending-dominates rule
+    once at least one real criterion exists. AC-002 is exactly that contentless
+    placeholder and AC-001 is a real pass, so the leftover scaffold no longer
+    blocks acceptance. Before #3231 this asserted ``pending`` on the stated
+    assumption that #3231 was out of scope; that assumption is now false."""
     base: dict[str, Any] = {}
     ours = {"criteria": [_filled_criterion(criterion_id="AC-001", pass_fail="pass")]}
     theirs = {"criteria": [_scaffold_criterion(criterion_id="AC-002")]}
@@ -268,7 +275,7 @@ def test_a4_disjoint_add_add_admits_pending_alongside_filled_row() -> None:
     criterion_ids = {c["criterion_id"] for c in merged["criteria"]}
     assert criterion_ids == {"AC-001", "AC-002"}
     assert ACCEPTED_EVIDENCE_HANDLE in json.dumps(merged)
-    assert merged["overall_verdict"] == "pending"
+    assert merged["overall_verdict"] == "pass"
     assert merged["overall_verdict"] in ADMISSIBLE_MERGED_VERDICTS
     assert merged["overall_verdict"] != "fail"
 
