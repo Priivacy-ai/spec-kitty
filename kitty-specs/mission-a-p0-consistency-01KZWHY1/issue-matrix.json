@@ -1,0 +1,101 @@
+{
+  "rows": {
+    "#2743": {
+      "evidence_ref": "Adjacent to #3231 (shares overall_verdict surface) but different root cause; explicitly OUT OF SCOPE per plan IC-02. Tracked as #2743.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3231": {
+      "evidence_ref": "WP02 approved: overall_verdict exempts only empty scaffold placeholder (description==MARKER); commit 3ec3d924",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#3307": {
+      "evidence_ref": "Follow-up: #3307 tracked in Mission B (contract conformance); OUT OF SCOPE here per C-007.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3311": {
+      "evidence_ref": "WP04 approved: finalize gates recompute on execution-begun (coord-aware read); commit 8d7f1f27",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP04"
+    },
+    "#3320": {
+      "evidence_ref": "WP01 approved: retrospect --update reads back persisted record (counts+JSON+emit); commit daa881cf",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#3334": {
+      "evidence_ref": "WP03 approved: ProjectMetadata round-trips schema_version (root fix); commit 118f3da5",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#3347": {
+      "evidence_ref": "Partially closed by this mission (durable save() round-trip). Epic remains OPEN for migration/runner.py:193 consistency + broader atomicity. See #3347 comment 5275734966.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3371": {
+      "evidence_ref": "orchestration infra bug found during this mission; out of scope; tracked as #3371",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
