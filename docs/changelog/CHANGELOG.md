@@ -19,6 +19,19 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### ✨ Added
 
+- **The doctrine documentation site now shows rendered schema diagrams of the
+  doctrine artefacts, drawn locally with no network egress (mission
+  `doctrine-schema-diagrams-01KZTQTH`; `#3366`, `#3354`).** Before, the doctrine
+  layer's shape — the relationship graph, the mission-step contract and action
+  index, the cross-kind overview and the full agent-profile schema — lived only
+  in prose, and the docsite had no way to render PlantUML at all. Now
+  code-grounded `@startyaml` diagrams are authored for each and **drift-guarded
+  against the live frozen models** (a diagram that falls out of sync with the
+  code reds the build), then rendered offline by a version+sha256-pinned
+  PlantUML running inside a network-isolated container — so building the docs
+  sends nothing off-machine. Each rendered figure carries derived alt/aria text
+  for accessibility.
+
 - **A shrink-only census gate now guards the 40 test sites that pin
   `SPEC_KITTY_HOME`, so the collision can only get smaller from here (mission
   `isolated-home-pin-guard-r1a-01KZNMA3`; `#3121`).** Before, nothing stopped a
