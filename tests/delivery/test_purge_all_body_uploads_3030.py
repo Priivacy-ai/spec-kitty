@@ -25,6 +25,11 @@ pytestmark = [pytest.mark.fast]
 PROJECT_X = "91919191-9191-4191-8191-919191919191"
 PROJECT_Y = "92929292-9292-4292-8292-929292929292"
 
+@pytest.fixture(autouse=True)
+def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
+
+
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()  # noqa: TID251 -- source-evidence integrity
@@ -92,8 +97,7 @@ def test_preview_accounts_for_whole_store_without_purging_source(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    runtime = tmp_path / "runtime"
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime))
+    runtime = tmp_path / "home"
     source = tmp_path / "queue.db"
     _seed_shared_queue(source)
     before_hash = _sha256(source)
@@ -121,8 +125,7 @@ def test_migrate_partitions_bodies_and_leaves_unknown_rows_as_evidence(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    runtime = tmp_path / "runtime"
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime))
+    runtime = tmp_path / "home"
     source = tmp_path / "queue.db"
     _seed_shared_queue(source)
     before_hash = _sha256(source)
@@ -149,8 +152,7 @@ def test_rerun_has_complete_disposition_without_duplicate_or_cleanup(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    runtime = tmp_path / "runtime"
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime))
+    runtime = tmp_path / "home"
     source = tmp_path / "queue.db"
     _seed_shared_queue(source)
     migration = LegacyProjectStoreMigration(runtime, (source,))

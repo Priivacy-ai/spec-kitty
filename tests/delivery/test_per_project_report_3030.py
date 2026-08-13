@@ -41,9 +41,14 @@ def _event(
     )
 
 
+@pytest.fixture(autouse=True)
+def _home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home = tmp_path / "home"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+
+
 @pytest.fixture
-def store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+def store() -> ProjectSyncStore:
     value = ProjectSyncStore(PROJECT)
     authority = value.layout_generation()
     authority.begin_cutover("per-project-report-tests")

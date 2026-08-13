@@ -86,6 +86,7 @@ def test_an_unexpected_error_type_propagates_instead_of_being_swallowed(tmp_path
 
 
 def test_a_credentials_read_failure_is_not_evidence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
     _project_only(tmp_path, monkeypatch)
     with patch("specify_cli.sync.queue.read_queue_scope_from_credentials", side_effect=OSError("unused")):
         _service()._assert_legacy_queue_converged()
@@ -94,7 +95,7 @@ def test_a_credentials_read_failure_is_not_evidence(tmp_path: Path, monkeypatch:
 def test_counter_reads_a_real_legacy_queue_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     store = _project_only(tmp_path, monkeypatch)
     store.verify_existing_readonly()
-    assert not (tmp_path / "runtime" / "queue.db").exists()
+    assert not (tmp_path / "home" / "queue.db").exists()
 
 
 def test_start_refuses_while_legacy_rows_are_stranded(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

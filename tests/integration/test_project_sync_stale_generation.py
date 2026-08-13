@@ -30,7 +30,6 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
@@ -134,11 +133,9 @@ def _append(store: ProjectSyncStore, event: Event) -> None:
 
 
 @pytest.fixture
-def admitted_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
+def admitted_store(canonical_home: None, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
     """Admit project A at generation g=1 with a real consent + admission row."""
-    home = tmp_path / "home"
-    home.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    del canonical_home  # the ONE SPEC_KITTY_HOME owner (R1a #3121) pins the home
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     store = ProjectSyncStore(PROJECT_A)
     authority = store.layout_generation()

@@ -181,9 +181,9 @@ sites_at_end:
 - key:
   - cli/commands/test_sync_migrate_backfills_h4.py
   - _isolated_home
-  - monkeypatch . setenv ( , str ( runtime ) )
+  - monkeypatch . setenv ( , str ( home ) )
   relpath: cli/commands/test_sync_migrate_backfills_h4.py
-  lineno: 32
+  lineno: 94
   kind: fixture
   params:
   - monkeypatch
@@ -240,10 +240,10 @@ sites_at_end:
   is_member: true
 - key:
   - delivery/test_body_queue_purge_differential_3030.py
-  - test_purge_is_dry_run_by_default
+  - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
   relpath: delivery/test_body_queue_purge_differential_3030.py
-  lineno: 63
+  lineno: 45
   kind: fixture
   params:
   - monkeypatch
@@ -300,10 +300,10 @@ sites_at_end:
   is_member: true
 - key:
   - delivery/test_per_project_report_3030.py
-  - store
-  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  - _home
+  - monkeypatch . setenv ( , str ( home ) )
   relpath: delivery/test_per_project_report_3030.py
-  lineno: 46
+  lineno: 36
   kind: fixture
   params:
   - monkeypatch
@@ -312,10 +312,10 @@ sites_at_end:
   is_member: true
 - key:
   - delivery/test_purge_all_body_uploads_3030.py
-  - test_preview_accounts_for_whole_store_without_purging_source
-  - monkeypatch . setenv ( , str ( runtime ) )
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
   relpath: delivery/test_purge_all_body_uploads_3030.py
-  lineno: 96
+  lineno: 51
   kind: fixture
   params:
   - monkeypatch
@@ -324,10 +324,10 @@ sites_at_end:
   is_member: true
 - key:
   - delivery/test_purge_all_events_3030.py
-  - store
+  - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
   relpath: delivery/test_purge_all_events_3030.py
-  lineno: 43
+  lineno: 51
   kind: fixture
   params:
   - monkeypatch
@@ -480,10 +480,10 @@ sites_at_end:
   is_member: true
 - key:
   - sync/test_legacy_queue_precondition_3030.py
-  - _route_project
+  - test_a_credentials_read_failure_is_not_evidence
   - monkeypatch . setenv ( , str ( tmp_path / ) )
   relpath: sync/test_legacy_queue_precondition_3030.py
-  lineno: 26
+  lineno: 162
   kind: test-body
   params:
   - monkeypatch
@@ -628,7 +628,7 @@ unpaired_arrivals:
   - monkeypatch . setenv ( , str ( home ) )
 - - cli/commands/test_sync_migrate_backfills_h4.py
   - _isolated_home
-  - monkeypatch . setenv ( , str ( runtime ) )
+  - monkeypatch . setenv ( , str ( home ) )
 - - cli/commands/test_sync_now_empty_selection_t005.py
   - _now_machinery
   - monkeypatch . setenv ( , str ( home ) )
@@ -642,7 +642,7 @@ unpaired_arrivals:
   - _isolated_home
   - monkeypatch . setenv ( , str ( home ) )
 - - delivery/test_body_queue_purge_differential_3030.py
-  - test_purge_is_dry_run_by_default
+  - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
 - - delivery/test_dispatch_window_consent_3030.py
   - _consent_records
@@ -657,13 +657,13 @@ unpaired_arrivals:
   - _consent
   - monkeypatch . setenv ( , str ( home ) )
 - - delivery/test_per_project_report_3030.py
-  - store
-  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  - _home
+  - monkeypatch . setenv ( , str ( home ) )
 - - delivery/test_purge_all_body_uploads_3030.py
-  - test_preview_accounts_for_whole_store_without_purging_source
-  - monkeypatch . setenv ( , str ( runtime ) )
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
 - - delivery/test_purge_all_events_3030.py
-  - store
+  - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
 - - specify_cli/identity/test_identity_value_faults_3030.py
   - TestThePolicyGateAnswersInsteadOfCrashing._isolated_home
@@ -702,7 +702,7 @@ unpaired_arrivals:
   - _isolated_home
   - monkeypatch . setenv ( , str ( home ) )
 - - sync/test_legacy_queue_precondition_3030.py
-  - _route_project
+  - test_a_credentials_read_failure_is_not_evidence
   - monkeypatch . setenv ( , str ( tmp_path / ) )
 - - sync/test_routing.py
   - test_opt_out_purge_targets_the_same_stores_the_drain_reads
@@ -728,7 +728,7 @@ R:
   - monkeypatch . setenv ( , str ( home ) )
 - - cli/commands/test_sync_migrate_backfills_h4.py
   - _isolated_home
-  - monkeypatch . setenv ( , str ( runtime ) )
+  - monkeypatch . setenv ( , str ( home ) )
 - - cli/commands/test_sync_now_empty_selection_t005.py
   - _now_machinery
   - monkeypatch . setenv ( , str ( home ) )
@@ -742,7 +742,7 @@ R:
   - _isolated_home
   - monkeypatch . setenv ( , str ( home ) )
 - - delivery/test_body_queue_purge_differential_3030.py
-  - test_purge_is_dry_run_by_default
+  - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
 - - delivery/test_dispatch_window_consent_3030.py
   - _consent_records
@@ -757,13 +757,13 @@ R:
   - _consent
   - monkeypatch . setenv ( , str ( home ) )
 - - delivery/test_per_project_report_3030.py
-  - store
-  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  - _home
+  - monkeypatch . setenv ( , str ( home ) )
 - - delivery/test_purge_all_body_uploads_3030.py
-  - test_preview_accounts_for_whole_store_without_purging_source
-  - monkeypatch . setenv ( , str ( runtime ) )
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
 - - delivery/test_purge_all_events_3030.py
-  - store
+  - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
 - - specify_cli/identity/test_identity_value_faults_3030.py
   - TestThePolicyGateAnswersInsteadOfCrashing._isolated_home
@@ -802,7 +802,7 @@ R:
   - _isolated_home
   - monkeypatch . setenv ( , str ( home ) )
 - - sync/test_legacy_queue_precondition_3030.py
-  - _route_project
+  - test_a_credentials_read_failure_is_not_evidence
   - monkeypatch . setenv ( , str ( tmp_path / ) )
 - - sync/test_routing.py
   - test_opt_out_purge_targets_the_same_stores_the_drain_reads
@@ -828,7 +828,7 @@ R_f:
   - monkeypatch . setenv ( , str ( home ) )
 - - cli/commands/test_sync_migrate_backfills_h4.py
   - _isolated_home
-  - monkeypatch . setenv ( , str ( runtime ) )
+  - monkeypatch . setenv ( , str ( home ) )
 - - cli/commands/test_sync_now_empty_selection_t005.py
   - _now_machinery
   - monkeypatch . setenv ( , str ( home ) )
@@ -842,7 +842,7 @@ R_f:
   - _isolated_home
   - monkeypatch . setenv ( , str ( home ) )
 - - delivery/test_body_queue_purge_differential_3030.py
-  - test_purge_is_dry_run_by_default
+  - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
 - - delivery/test_dispatch_window_consent_3030.py
   - _consent_records
@@ -857,13 +857,13 @@ R_f:
   - _consent
   - monkeypatch . setenv ( , str ( home ) )
 - - delivery/test_per_project_report_3030.py
-  - store
-  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  - _home
+  - monkeypatch . setenv ( , str ( home ) )
 - - delivery/test_purge_all_body_uploads_3030.py
-  - test_preview_accounts_for_whole_store_without_purging_source
-  - monkeypatch . setenv ( , str ( runtime ) )
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
 - - delivery/test_purge_all_events_3030.py
-  - store
+  - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
 - - specify_cli/identity/test_identity_value_faults_3030.py
   - TestThePolicyGateAnswersInsteadOfCrashing._isolated_home
@@ -902,7 +902,7 @@ R_f:
   - _isolated_home
   - monkeypatch . setenv ( , str ( home ) )
 - - sync/test_legacy_queue_precondition_3030.py
-  - _route_project
+  - test_a_credentials_read_failure_is_not_evidence
   - monkeypatch . setenv ( , str ( tmp_path / ) )
 - - sync/test_routing.py
   - test_opt_out_purge_targets_the_same_stores_the_drain_reads

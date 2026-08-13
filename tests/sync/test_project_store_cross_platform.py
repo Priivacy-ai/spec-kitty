@@ -105,13 +105,11 @@ PLATFORM_UUID_SPELLINGS = (
 
 
 @pytest.fixture(autouse=True)
-def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+def home(canonical_home: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Isolated runtime root; arming env set (arming is NOT consent — #3030)."""
-    root = tmp_path / "home"
-    root.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(root))
+    del canonical_home  # the ONE SPEC_KITTY_HOME owner (R1a #3121) pins the home
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    return root
+    return tmp_path / "home"
 
 
 # --------------------------------------------------------------------------- #

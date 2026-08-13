@@ -38,9 +38,13 @@ def _event(event_id: str, *, archived: str | None = None) -> Event:
     )
 
 
-@pytest.fixture
-def store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
+@pytest.fixture(autouse=True)
+def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
+
+
+@pytest.fixture
+def store() -> ProjectSyncStore:
     project_store = ProjectSyncStore(PROJECT_UUID)
     authority = project_store.layout_generation()
     if authority.read_state().mode is LayoutMode.LEGACY:

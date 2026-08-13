@@ -37,7 +37,6 @@ import gzip
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
@@ -236,10 +235,8 @@ def websocket_frames(monkeypatch: pytest.MonkeyPatch) -> list[bytes]:
 
 
 @pytest.fixture
-def six_projects(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, ProjectSyncStore]:
-    home = tmp_path / "home"
-    home.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+def six_projects(canonical_home: None, monkeypatch: pytest.MonkeyPatch) -> dict[str, ProjectSyncStore]:
+    del canonical_home  # the ONE SPEC_KITTY_HOME owner (R1a #3121) pins the home
     # The WP06 transport lease binds egress eligibility only while the machine
     # kill switch is armed (arming is NOT consent — #3030; the per-project rows
     # built above still decide what ships).

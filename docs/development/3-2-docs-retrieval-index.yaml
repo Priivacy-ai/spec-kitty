@@ -8054,7 +8054,7 @@ pages:
   - path: "docs/guides/project-sync-consent.md"
     title: "Per-Project Sync Consent"
     divio_type: "how-to"
-    abstract: "How per-project hosted-sync consent works in Spec Kitty 3.2: opt a project in or out, what the deny-only kill switch does and does not do, how local consent pairs with SaaS admission, and how operators migrate legacy shared sync state."
+    abstract: "Per-project hosted-sync consent in Spec Kitty 3.2: opting in and out, the deny-only kill switch, SaaS admission pairing, and migrating legacy shared sync state."
     anchors:
     - {slug: "the-model-in-one-table", text: "The model in one table", level: 2}
     - {slug: "opt-a-project-in", text: "Opt a project in", level: 2}

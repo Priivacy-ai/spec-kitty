@@ -48,6 +48,12 @@ from specify_cli.tracker.saas_client import SaaSTrackerClient, SaaSTrackerClient
 
 pytestmark = pytest.mark.fast
 
+@pytest.fixture(autouse=True)
+def _canonical_home(canonical_home: None) -> None:
+    """R1a #3121: route this module's home through the ONE canonical owner."""
+    del canonical_home
+
+
 _REAL_GENERIC_AUTHORITY = generic_module._authenticated_authority_for_token
 _REAL_TRACKER_AUTHORITY = tracker_module._hosted_authority_for_token
 
@@ -193,7 +199,6 @@ def _seed_project(
     *,
     admitted: bool = True,
 ) -> tuple[Path, ProjectSyncStore]:
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     root = tmp_path / "checkout"
     root.mkdir()

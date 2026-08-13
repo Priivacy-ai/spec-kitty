@@ -136,6 +136,7 @@ def _patched_token_manager(
 
 @respx.mock
 def test_queue_scope_reads_recorded_scope_without_ingress(
+    canonical_home: None,
     token_manager_with_shared_only_session: TokenManager,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
@@ -165,7 +166,6 @@ def test_queue_scope_reads_recorded_scope_without_ingress(
     )
 
     _patched_token_manager(monkeypatch, token_manager_with_shared_only_session)
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
     from specify_cli.sync.queue import write_active_scope
 
     write_active_scope("scope-recorded-by-login")
@@ -245,6 +245,7 @@ def test_default_queue_db_path_local_only_skips_rehydrate(
 
 @respx.mock
 def test_queue_ingress_skipped_on_no_private_team(
+    canonical_home: None,
     token_manager_with_shared_only_session: TokenManager,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
@@ -275,7 +276,6 @@ def test_queue_ingress_skipped_on_no_private_team(
     )
 
     _patched_token_manager(monkeypatch, token_manager_with_shared_only_session)
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
 
     scope = read_queue_scope_from_session()
 

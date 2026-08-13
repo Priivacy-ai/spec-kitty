@@ -28,9 +28,11 @@ CONSENTED = "aaaaaaaa-0000-0000-0000-00000000000a"
 
 @pytest.fixture(autouse=True)
 def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    runtime = tmp_path / "runtime"
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime))
-    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    # The census key (R1a #3121) pins this site as `str ( home )` resolving
+    # to `<tmp_path>/home`.
+    home = tmp_path / "home"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    monkeypatch.setenv("HOME", str(tmp_path / "user-home"))
 
 
 def _canonical_store(*, opt_in: bool = False) -> ProjectSyncStore:

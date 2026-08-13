@@ -31,6 +31,12 @@ from specify_cli.sync.transport_attempts import DeliveryAttemptState, DeliveryOu
 
 pytestmark = pytest.mark.fast
 
+@pytest.fixture(autouse=True)
+def _canonical_home(canonical_home: None) -> None:
+    """R1a #3121: route this module's home through the ONE canonical owner."""
+    del canonical_home
+
+
 PROJECT = "aaaaaaaa-0000-0000-0000-0000000000aa"
 OTHER = "bbbbbbbb-0000-0000-0000-0000000000bb"
 
@@ -60,7 +66,6 @@ def _target(project_uuid: str = PROJECT) -> DeliveryTarget:
 
 
 def _seed_admitted_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, project_uuid: str = PROJECT) -> ProjectSyncStore:
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     record_project_opt_in(project_uuid, actor="tester")
     store = ProjectSyncStore(project_uuid)

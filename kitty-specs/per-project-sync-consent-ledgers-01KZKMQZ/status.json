@@ -373,7 +373,7 @@
     },
     "WP11": {
       "actor": "reviewer-renata",
-      "agent": "claude",
+      "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "assignee": "claude",
@@ -384,7 +384,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "WP11 coordinated core acceptance: starting implementation",
-        "WP11 landed as 8fcc9f66b: attestation+manifest builder (fail-closed, tested), six-project exact-byte omission proof, stale-generation parking, contract pins re-attested at SaaS 4e15aa5c, cross-platform isolation with mutant control, seeded benchmark with correctness gate, evidence workflow (workflow_dispatch, 90-day retention), docs+matrices. 42 passed/1 skipped across new suites; fast-sync 2799 green"
+        "WP11 landed as 8fcc9f66b: attestation+manifest builder (fail-closed, tested), six-project exact-byte omission proof, stale-generation parking, contract pins re-attested at SaaS 4e15aa5c, cross-platform isolation with mutant control, seeded benchmark with correctness gate, evidence workflow (workflow_dispatch, 90-day retention), docs+matrices. 42 passed/1 skipped across new suites; fast-sync 2799 green",
+        "Independent review cycle 1: approve (--force solely to override assignee metadata: WP11 assigned to 'claude', reviewer is reviewer-renata; no gate bypassed). Manifest builder fail-closed (floating refs, dirty checkouts, digest drift, mocked tombstones, duplicate ownership, missing/expired retention refused; one-byte tamper, byte-determinism, immutability proven via real CLI subprocess tests). SaaS pin 4e15aa5c/57e66b0f verified against sibling; contract byte-identical at sibling HEAD 15ad3463. Six-project omission proof at the real _HttpReceiver poster boundary, positive controls, omission-only. Stale-generation parking terminal/correlated/no-revival with acceptance control. T052 census with genuine failing mutant control; KNOWN_NO_EFFECT retry pin matches production WP06 mapping. Benchmark: raw samples + runtime metadata, trip-tested zero-denied-payload gate, no wall-clock test assertions. Workflow dispatch-only, pinned inputs, 90-day retention. Gates: 42 passed/1 legitimately-skipped; ruff + mypy --strict clean. Non-blocking: acceptance-matrix pending-row notes say WP11 modules 'not yet present in this checkout' though this commit adds them."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",

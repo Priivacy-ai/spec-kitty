@@ -64,14 +64,13 @@ def bench() -> ModuleType:
 @pytest.fixture
 def scaled_report(
     bench: ModuleType,
+    canonical_home: None,
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> dict[str, Any]:
     """Run the scaled-down benchmark once; reuse the report across tests."""
+    del canonical_home  # the ONE SPEC_KITTY_HOME owner (R1a #3121) pins the home
     if "report" not in _REPORT_CACHE:
         home = tmp_path / "home"
-        home.mkdir(parents=True)
-        monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
         _REPORT_CACHE["report"] = cast(
             "dict[str, Any]",
             bench.run_benchmark(
@@ -108,13 +107,12 @@ def test_project_specs_are_deterministic_for_a_seed(bench: ModuleType) -> None:
 
 def test_generated_stores_match_the_specs_on_disk(
     bench: ModuleType,
+    canonical_home: None,
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Materialization must produce exactly the seeded stores and deny hints."""
+    del canonical_home  # the ONE SPEC_KITTY_HOME owner (R1a #3121) pins the home
     home = tmp_path / "home"
-    home.mkdir(parents=True)
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
 
     specs = bench.build_project_specs(seed=11, store_count=3, authority_read_count=1)
     denied_paths = bench.generate_stores(specs)
@@ -209,13 +207,11 @@ def test_scaled_run_passes_the_zero_denied_payload_open_gate(
 
 def test_correctness_gate_trips_on_a_real_denied_payload_read(
     bench: ModuleType,
+    canonical_home: None,
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A genuine payload-table read against a denied store must fail the run."""
-    home = tmp_path / "home"
-    home.mkdir(parents=True)
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    del canonical_home, tmp_path  # the ONE SPEC_KITTY_HOME owner (R1a #3121) pins the home
 
     specs = bench.build_project_specs(seed=13, store_count=2, authority_read_count=0)
     denied_paths = bench.generate_stores(specs)
@@ -236,13 +232,11 @@ def test_correctness_gate_trips_on_a_real_denied_payload_read(
 
 def test_guard_ignores_authority_reads_on_denied_stores(
     bench: ModuleType,
+    canonical_home: None,
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """FR-011 allows authority re-reads on denied stores; only payload is banned."""
-    home = tmp_path / "home"
-    home.mkdir(parents=True)
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    del canonical_home, tmp_path  # the ONE SPEC_KITTY_HOME owner (R1a #3121) pins the home
 
     specs = bench.build_project_specs(seed=17, store_count=1, authority_read_count=0)
     denied_paths = bench.generate_stores(specs)

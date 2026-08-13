@@ -14,6 +14,11 @@ from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork
 
 pytestmark = pytest.mark.fast
 
+@pytest.fixture(autouse=True)
+def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
+
+
 PROJECT_A = "aaaaaaaa-0000-0000-0000-000000000001"
 PROJECT_B = "bbbbbbbb-0000-0000-0000-000000000002"
 
@@ -60,7 +65,6 @@ class _ReadCountingQueue(OfflineBodyUploadQueue):
 
 
 def test_purge_is_dry_run_by_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
     store = ProjectSyncStore(PROJECT_A)
     _project_only(store)
     with store.unit_of_work() as unit:
@@ -77,7 +81,6 @@ def test_purge_physically_deletes_a_and_leaves_b_byte_exact(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
     store_a = ProjectSyncStore(PROJECT_A)
     store_b = ProjectSyncStore(PROJECT_B)
     _project_only(store_a)
@@ -126,7 +129,6 @@ def test_purge_rejects_queue_owner_mismatch_before_reading_it(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
     store_b = ProjectSyncStore(PROJECT_B)
     _project_only(store_b)
     with store_b.unit_of_work() as unit_b:

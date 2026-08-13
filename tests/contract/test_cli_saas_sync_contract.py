@@ -25,6 +25,7 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -49,10 +50,11 @@ from tests.delivery.test_envelope import _REQUIRED_ENVELOPE_FIELDS
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast]
 
-#: Explicit, named candidate checkout (never ambient ``../spec-kitty-saas``
-#: discovery): the WP11 SaaS candidate this mission run pairs with. The live
-#: attestation test below is skipped when the checkout is not retained.
-SAAS_CANDIDATE_CHECKOUT = Path("/Users/robert/spec-kitty-dev/repos_2026-08-12_21-41-32/spec-kitty-saas")
+#: Explicit, named candidate checkout — supplied by the operator/CI via env,
+#: never ambient ``../spec-kitty-saas`` discovery and never a committed
+#: machine-specific literal. The live attestation test below is skipped when
+#: no candidate checkout is provided or retained.
+SAAS_CANDIDATE_CHECKOUT = Path(os.environ.get("SPEC_KITTY_SAAS_CANDIDATE_CHECKOUT", "/nonexistent/saas-candidate-checkout"))
 
 _CONTRACT_RELPATH = Path("contracts") / "cli-saas-current-api.yaml"
 
@@ -250,9 +252,7 @@ def test_dispatcher_batch_event_carries_every_contract_required_field(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """capture -> dispatch -> receiver yields the full contract wire envelope."""
-    home = tmp_path / "home"
-    home.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    del tmp_path  # the ONE SPEC_KITTY_HOME owner (R1a #3121) pins the home
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
     store = ProjectSyncStore(PROJECT_UUID)
