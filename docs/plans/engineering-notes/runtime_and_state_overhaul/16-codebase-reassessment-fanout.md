@@ -29,6 +29,7 @@ real code-paths. This is the **evidence base** for the consolidated model and th
 ## Per-hypothesis evidence
 
 ### H1 — Context is a Shared Kernel fronted by two OHS facades
+
 Shared Kernel = `core/paths.py` + `workspace/root_resolver.py` + `mission_metadata.resolve_mission_identity`;
 OHS facades = `resolve_action_context` (`core/execution_context.py:220`) + `resolve_mission_read_path`
 (`missions/_read_path_resolver.py:94`). Consumed by Governance-read (`doctrine.py:98`, `context.py:263`),
@@ -39,6 +40,7 @@ execution; `resolve_action_context` fuses `implement`/`review` with `tasks*`/`ac
 (`execution_context.py:23-32`). **→ Context = Shared Kernel + OHS; Execution is a consumer, never owner.**
 
 ### H2 — Status/kanban is a shared context (and the integration seam)
+
 70 consumer files, balanced ~24 execution / ~27 planning, on the same five primitives
 (`read_events`, `reduce`, `materialize`, `get_wp_lane`, `Lane`/`StatusEvent`). The `runtime.next` loop
 imports *nothing* else from the planning side — **the status event log is literally the contract by
@@ -49,6 +51,7 @@ reaching non-exported internals (`lifecycle_events`, `locking`, `adapters`, `wor
 import-boundary enforcement test (mirroring `tests/architectural/test_shared_package_boundary.py`) is the action item.
 
 ### H3 — Actor is cross-domain *and* fragmented
+
 Human/operator effects change in Governance (`charter/interview.py`, `generator.py`, `activation_engine`
 → `config.yaml`) and Mission Mgmt (`merge.py:160` `_resolve_merge_actor`; **RACI `accountable`-must-be-human
 P0 invariant** `runtime/next/_internal_runtime/schema.py:78-85`; HiC gate `retrospective/gate.py:305`).
@@ -59,6 +62,7 @@ type** — three vocabularies across packages (`human|llm|service` in runtime/de
 in retrospective; free-form `str` in `status/emit`). Any "Actor domain" claim must name which metamodel.
 
 ### H4 — Prompt is a Published Language; there are *three* projections
+
 `_build_wp_prompt` (`prompt_builder.py:142-289`) splices **4 domains** (Mission Mgmt template+WP, Governance
 charter+profile directives, Context workspace/branch, Actor identity) into flat text → temp file → returns
 only the path. Not a DTO. **The three projections of one governed invocation, previously conflated:**
@@ -68,6 +72,7 @@ only the path. Not a DTO. **The three projections of one governed invocation, pr
 **→ Consolidating these three is a design target in its own right.**
 
 ### H5 — MissionRun degeneracy (contained fix)
+
 `MissionRunSnapshot` (`schema.py:523-536`) and `MissionRunRef` (`engine.py:92-97`) store `run_id`(uuid) +
 `mission_key`(**type**) only — no `mission_id`/`mission_slug`. `start_mission_run` mints `uuid4().hex`
 (`engine.py:196`); the only run↔mission link is the external forward index `feature-runs.json`
@@ -77,6 +82,7 @@ sites + `feature-runs.json` + additive legacy migration — **contained to `runt
 `MissionRunStartedPayload` event is out of scope. Separable from #1619.
 
 ### H6 — Package-graph corrections (important for `06`)
+
 - **Layer order** (`tests/architectural/test_layer_rules.py`, `conftest.py:33-54`): `kernel ← doctrine ←
   charter ← specify_cli` is the **spine**; **`runtime/` and `glossary/` are siblings at the charter
   level**, not a single chain.
@@ -93,6 +99,7 @@ sites + `feature-runs.json` + additive legacy migration — **contained to `runt
 - Aside: **`dashboard/` is not layer-registered** (would flag the meta-test) — separate follow-up.
 
 ## Emergent findings (beyond the original hypotheses)
+
 1. **Status/kanban is a first-class shared context** — surface it explicitly; add import-boundary enforcement (H2). **Filed: [#1664](https://github.com/Priivacy-ai/spec-kitty/issues/1664).**
 2. **Actor metamodel is fragmented** across 3 vocabularies — a unification candidate (answers the `12 §7` "shared Actor type?" question) (H3).
 3. **Three parallel context projections** (Prompt PL / ActionContext DTO / OperationalContext VO) — consolidation target (H4).
@@ -101,6 +108,7 @@ sites + `feature-runs.json` + additive legacy migration — **contained to `runt
    and `MissionStatus` are net-new and constrained by the layer meta-guard (H6). **CLAUDE.md stale runtime path: fixed in this branch.**
 
 ## Implications for the consolidated model + `06` mapping
+
 - **Confirm**: Mission≠MissionRun; MissionType ∈ Governance(doctrine); the execution spine.
 - **Reclassify**: Context → Shared Kernel + OHS; **Status/kanban → its own shared context** (the planning↔execution seam); Actor → cross-domain (+ fragmented); Prompt → Published Language (+ two sibling projections).
 - **Re-home**: anchor Execution on `runtime/next/_internal_runtime/`; treat `mission_runtime/` + `MissionStatus` as **net-new** subject to layer registration; respect the bidirectional runtime↔specify_cli reality.

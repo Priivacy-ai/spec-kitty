@@ -122,8 +122,8 @@ contract" risk that wants its own decision record before implementation.
 
 ## (c) Public API on doctrine & charter — filed as [#3179](https://github.com/Priivacy-ai/spec-kitty/issues/3179)
 
-This was the thread with no existing tracker coverage when this research started — filed as
-#3179 (`Feature`, `priority:P2`, milestone `3.2.x`, parented under #2466) once the gap below was
+This was the thread with no existing tracker coverage when this research started — filed as #3179
+(`Feature`, `priority:P2`, milestone `3.2.x`, parented under #2466) once the gap below was
 confirmed.
 
 **The analogy the user drew is precise.** [#645](https://github.com/Priivacy-ai/spec-kitty/issues/645)
@@ -162,7 +162,7 @@ settled — this is a **precondition for (a), not a parallel, unrelated effort**
 a wheel with a credible external contract if 79 internal call sites are already reaching past the
 declared `__all__`.
 
-#3179 now owns this explicitly, with a tracker home the way (a) and (b) already do.
+Issue #3179 now owns this explicitly, with a tracker home the way (a) and (b) already do.
 
 ## How the three threads interlock
 

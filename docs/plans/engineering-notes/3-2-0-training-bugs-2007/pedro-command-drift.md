@@ -127,7 +127,7 @@ import, the SaaS-gated path handling) is solved and battle-tested.
    Exclude `docs/plans/engineering-notes/**` (archaeology/notes, not prescriptive) and all generated agent
    dirs (`.claude/`, `.amazonq/`, …).
 2. **Snippet capture:** extract fenced ```` ```bash ```` blocks, then within them match lines
-   beginning (after optional `uv run `, `$ `, `#`-prefixed comments stripped) with `spec-kitty `.
+   beginning (after optional `uv run`, `$`, `#`-prefixed comments stripped) with `spec-kitty`.
    Tokenize the command path greedily over leading lower-case/hyphen words until the first token that
    is a flag (`-`/`--`), a placeholder, an argument value, or end-of-line.
 3. **Path validation:** resolve the longest token-prefix that matches a registered `CommandPathEntry.path`

@@ -23,6 +23,7 @@ Spec Kitty already implements a clean, layered, "config-bundled-into-an-immutabl
 roots-passed-as-data" pattern. It is the template for `MissionExecutionContext` / `MissionStatus`.
 
 ### 1a. Layered roots as data — `DoctrineService`
+
 `src/doctrine/service.py:22-33` takes **roots as inputs**, not config to read:
 ```python
 def __init__(self, built_in_root=None, project_root=None,
@@ -33,6 +34,7 @@ def __init__(self, built_in_root=None, project_root=None,
 - **Reusable shape:** *service bundles roots; repositories apply precedence.*
 
 ### 1b. Frozen context snapshots + guard methods — `PackContext` / `ProjectContext`
+
 - `PackContext` (`src/charter/pack_context.py:74`) — frozen; bundles activation state + `pack_roots`
   (built-in first, then org). Constructed **only** via `PackContext.from_config(repo_root)` (`:151`),
   which reads `.kittify/config.yaml` **once**. **Hard invariant C-005:** the doctrine resolver
@@ -43,6 +45,7 @@ def __init__(self, built_in_root=None, project_root=None,
   typed `ContextPreconditionError` (`:36`) with actionable hints — not `ValueError`.
 
 ### 1c. Two-stage construction (pure assembler + root-resolving builder)
+
 - **Pure assembler** reads nothing, just packages caller-supplied data.
 - **Root-resolving builder** lives one layer up, calls the canonical root helpers, reads state/config.
 - Canonical root helpers (roots-as-data, **C-008: doctrine never reaches into `.kittify`**):
@@ -59,6 +62,7 @@ def __init__(self, built_in_root=None, project_root=None,
   `check_state_roots` (`state/doctor.py:233`), `get_kittify_home` (`src/kernel/paths.py:24`).
 
 ### 1d. Guidance-location resolution (two systems)
+
 - **5-tier template chain** — `src/doctrine/resolver.py:133-213`: OVERRIDE → LEGACY → GLOBAL_MISSION →
   GLOBAL → PACKAGE_DEFAULT, returning frozen `ResolutionResult(path, tier, mission)`. Tier roots
   supplied **as data** by the caller (`TierRoot`, `template_catalog.py:69`).
@@ -70,6 +74,7 @@ def __init__(self, built_in_root=None, project_root=None,
   computed once and bundled.
 
 ### 1e. The dependency-direction law (hard constraint on placement)
+
 `kernel ← doctrine ← charter ← specify_cli`, pinned by `tests/architectural/test_layer_rules.py`.
 → A context **dataclass** must live in the lowest layer that can own it (charter); its
 **state-reading builder** lives in `specify_cli`/`runtime`. Mirror this split exactly.
@@ -126,6 +131,7 @@ There is **no DI container**; construction is per-command but de-duplicated thro
 **Verdict: feasible, and `status/` is unusually close** because it is already event-sourced.
 
 ### What's already aggregate-shaped
+
 - `reduce(events) -> StatusSnapshot` (`reducer.py:117`) is a **pure deterministic fold = aggregate hydration**.
 - `validate_transition(from, to, ctx)` (`transitions.py:266`) is a **pure invariant check**.
 - `emit_status_transition_transactional` (`coordination/status_transition.py:378`) **already does the
@@ -133,6 +139,7 @@ There is **no DI container**; construction is per-command but de-duplicated thro
   (`BookkeepingTransaction.acquire`), append, fan out.
 
 ### The problem it would fix (the sprawl)
+
 ~**130 `read_events`/`materialize`/`get_wp_lane` references across ~24 files** and **14
 `emit_status_transition*` callers**, each doing the same triad: `feature_dir = repo_root /
 "kitty-specs" / mission_slug` → call primitive. Duplicated literal at `workspace/context.py:357,553,
@@ -140,6 +147,7 @@ There is **no DI container**; construction is per-command but de-duplicated thro
 triad is exactly what the aggregate absorbs.*
 
 ### Proposed interface (collapses the 20-param `emit_status_transition`)
+
 ```
 status = MissionStatus.load(context)              # context carries mission_id + read/write roots
 status.claim(wp_id, actor)                         # internal: validate_transition + guard + in-mem append
@@ -150,12 +158,14 @@ status.save()                                      # atomic append under lock + 
 ```
 
 ### Invariants it owns (today scattered or single-path)
+
 legal-edge-only transitions (`transitions.py:266`), per-transition guards (`transitions.py:60-78`),
 claim-conflict detection (`transitions.py:99-117`), per-transition evidence (`emit.py:211-239`),
 one-writer/atomic-batch lifecycle (lock + `append_events_atomic_verified`, `store.py:286`),
 rollback-aware hydration (`reducer.py:33-114`).
 
 ### Stays OUTSIDE (application services that *query* the aggregate by identity)
+
 - **Dependency gating** (`core/dependency_graph.py:50`) — reads *sibling* WP state; crosses the WP
   boundary, so it must consume the snapshot, not live inside (small-aggregate rule, `04`).
 - **Phase resolution** (`phase.py`) — write policy; comes from context.
@@ -163,6 +173,7 @@ rollback-aware hydration (`reducer.py:33-114`).
 - **Path resolution / canonicalization** — belongs in the injected context.
 
 ### Seams to cut (3)
+
 1. **Repository over `store.py`** — wrap `read_events`/`append_event*` behind
    `StatusEventRepository(context)`; all path use is already isolated to `_events_path` (`store.py:94`).
 2. **Move path resolution to context** — `_events_path`, `_SlugResolver` (`store.py:99`),
@@ -183,6 +194,7 @@ rollback-aware hydration (`reducer.py:33-114`).
 net-new design work.**
 
 ### What's already pure (no fs/git/cli imports)
+
 - `ALLOWED_TRANSITIONS` (30 edges, `transitions.py:20-57`) + guard fns (`:92-220`) + `validate_transition` (`:266`).
 - The **WP State Pattern**: `WPState` ABC + 9 frozen state classes, `wp_state_for()`
   (`wp_state.py`), `TransitionContext` (`transition_context.py`). ADR `2026-04-06-1` proves the two
@@ -190,6 +202,7 @@ net-new design work.**
 - Pure gate logic: `dependency_readiness_for_wp` (`core/dependency_graph.py:50`), graph algorithms.
 
 ### The gap that makes "MissionFlow" net-new
+
 The lane graph + gates are **100% hardcoded module constants and identical across all 4 mission
 types.** `mission_type` flows through the status layer as **display/identity metadata only** — it
 **never** parameterizes `ALLOWED_TRANSITIONS` or guards (`transitions.py`/`wp_state.py` contain zero
@@ -202,12 +215,14 @@ defines `states + transitions + guards + required_artifacts` — but it is schem
 nothing in `status/` consumes it.
 
 ### Purity violations to invert (guard inputs gathered via I/O)
+
 `emit.py` reads disk to populate guard inputs: `_derive_from_lane` → `read_events`+`reduce`
 (`emit.py:196-200`), `_infer_subtasks_complete` reads `tasks.md` (`:243-265`),
 `_infer_implementation_evidence` reads the event log (`:268-270`). `merge_gates.py` evaluators
 (`:141-276`) and `work_package_lifecycle.py:84-242` similarly fuse decision with I/O.
 
 ### Seams to cut (5)
+
 - **A — Lift the FSM definition out of constants.** Make `ALLOWED_TRANSITIONS`/`_GUARDED_TRANSITIONS`
   (and `_STATE_MAP`) into a `MissionFlowDefinition` value object **constructed from** a
   `MissionType`/`MissionOrchestration` descriptor. The string-name guard dispatch is already a

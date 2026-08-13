@@ -8,7 +8,6 @@ updated: '2026-06-16'
 
 > **Retired (deprecated).** Design shipped/superseded via the shipped 3.2.0 release (CHANGELOG `[3.2.0]` 2026-06-16; training-bug epic #2007). Preserved as a historical record.
 
-
 **Date:** 2026-06-16. **Squad:** debugger-debbie (repro-on-HEAD) · planner-priti (ticket map + sequencing)
 · architect-alphonso (systemic) · python-pedro (command-drift + guard). All opus, profile-loaded. Inputs:
 `debbie-repro-triage.md`, `priti-ticket-mapping.md`, `alphonso-systemic.md`, `pedro-command-drift.md`.
@@ -18,7 +17,7 @@ updated: '2026-06-16'
 
 ## Headline (four-way convergence)
 
-#2007's 16 field-observed bugs collapse into the **exact two classes the epic named**, and both are
+Issue #2007's 16 field-observed bugs collapse into the **exact two classes the epic named**, and both are
 **non-adoption of authorities that already exist** — the same disease this whole effort targets:
 
 1. **Command-contract drift** — prompts/skills/docs reference CLI surfaces that don't exist or are
@@ -93,6 +92,7 @@ panel's #1832-shape "safe entry")*
 the SSOT — `resolution.py:793-801`). #2007 does not pull these forward.
 
 ## Tracker reality (priti)
+
 - **Net-new: 14/16.** **Existing: 2** — **#1890** (bug 13 coord-worktree repair, OPEN) and **#1891**
   (bug 16 `agent action implement --json`, OPEN). Both unmilestoned.
 - **5 bugs already fixed on HEAD** → close-with-evidence (claim-exempt per the standing rule).
@@ -102,6 +102,7 @@ the SSOT — `resolution.py:793-801`). #2007 does not pull these forward.
   loop — still real, the read-side of launch-blocker #1716).
 
 ## Recommendation (focus/sequencing — PO assigns versions later)
+
 1. **Keep the naming routing rider as the opener** (unchanged; don't balloon it).
 2. **Fold Focus A (command-drift guard) in as a bounded sibling** — it's an architectural-consistency
    guard exactly like the rider's ratchet, low-risk, and fixes the SOURCE drift that mis-steers agents

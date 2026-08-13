@@ -164,6 +164,7 @@ greenfield context family. This *lowers* risk and aligns with a standing accepte
 `05` invariant I-1/I-2 are achieved by **hardening + enforcing an existing resolver**, not building a new one.
 
 ## What still stands (un-refuted)
+
 - The **root cause** (`05`): unowned/bypassed topology resolution — *strengthened*, since the owner
   (`ActionContext`) exists but is bypassed.
 - The **invariants** I-1…I-10 (`05`) — all survive; they're now satisfied by hardening `ActionContext`.
@@ -172,6 +173,7 @@ greenfield context family. This *lowers* risk and aligns with a standing accepte
 - **MissionStatus aggregate** (`07` §4) — un-refuted; event-sourcing makes it near-free.
 
 ## Next
+
 1. Re-baseline `09`/`10` against these revisions (ActionContext as the spine; policy frozen-at-plan; behaviour single-owner; phase derived-not-added).
 2. Take the **hardened-`ActionContext`** shape + the **plan-time `MissionInteractionPolicy`** into the BPMN/interaction diagrams.
 3. Open question for Stijn: do we **harden `ActionContext` in place** or **supersede it** with a new immutable resolver that absorbs it (Strangler)? The dialectic favors *harden in place* (least churn, honors ADR 2026-03-09-1).

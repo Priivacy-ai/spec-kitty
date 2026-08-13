@@ -27,7 +27,6 @@ related:
 
 > **Retired (deprecated).** Design shipped/superseded via the open-core delivery plan §1.2 "G2 — strangle the core domains onto SSOTs" (execution-context unification, epic #1619) — see `docs/plans/3-2-x-open-core-delivery-plan.md`. Preserved as a historical record.
 
-
 **Status:** Design exploration complete; handed to @robertDouglass for ADR finalization
 **Owner:** Architecture (Architect Alphonso persona) + Stijn Dejongh
 **Parent epic:** [Priivacy-ai/spec-kitty#992](https://github.com/Priivacy-ai/spec-kitty/issues/992) — *Epic: drain the bug queue by repairing domain boundaries* (this is its execution-state / context-ownership slice)

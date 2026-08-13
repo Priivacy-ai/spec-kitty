@@ -23,6 +23,7 @@ I did **not** inherit the red-team's priority verdict; I re-derived each from co
 ## Verification notes (the evidence behind each score)
 
 ### #1716 — coordination topology coherent from create→planning (P0, write-side) — VERIFIED REAL, OPEN
+
 - `mission create` writes the topology-activation signal immediately:
   `src/specify_cli/core/mission_creation.py:411` (`meta["coordination_branch"] = …`).
 - The coord **worktree** is NOT materialised at create — the read resolver itself documents the gap:
@@ -39,6 +40,7 @@ I did **not** inherit the red-team's priority verdict; I re-derived each from co
   while the authoritative surface does not yet exist. Highest blast radius of the candidate set.
 
 ### #1832 — implement claim succeeds but "no workspace could be resolved" (P1, read-path) — VERIFIED REAL, OPEN
+
 - Logic path: `src/specify_cli/cli/commands/agent/workflow.py:1336` (first resolve) → on
   `not workspace.exists`, `top_level_implement(...)` creates the worktree (`:1357`) → **re-resolve**
   `:1372` → if still `not workspace.exists`, the exact reported error fires `:1375`.
@@ -56,6 +58,7 @@ I did **not** inherit the red-team's priority verdict; I re-derived each from co
   missions — that elevates it above cosmetic.
 
 ### #1827 — merge baseline validation before baseline_merge_commit written (P1) — **OVERSTATED / LIKELY ALREADY FIXED**
+
 - The issue claims a *circular* ordering: assert-before-write. **Current code orders it correctly:**
   1. `_record_baseline_merge_commit` writes the field into the **target-checkout** meta.json
      (`src/specify_cli/cli/commands/merge.py:2574`, writing to `target_feature_dir`).
@@ -73,6 +76,7 @@ I did **not** inherit the red-team's priority verdict; I re-derived each from co
   shown. Do NOT lead 3.2.1 with this.
 
 ### #1891 — agent --json broken — PARTIALLY FIXED; one verified residual
+
 - Part 1 (`map-requirements --json` "CommitResult is not JSON serializable"): **FIXED** —
   `4c492aa85`/`bc927ef80` (present on this branch; `committed` is now a bool + `commit_sha`).
 - Part 2 (`agent action implement --json` rejected): **STILL REAL** — the command signature
@@ -84,6 +88,7 @@ I did **not** inherit the red-team's priority verdict; I re-derived each from co
 - **Severity tempering:** affects orchestration/automation, not data integrity; human output works.
 
 ### #1619 / #1666 — execution-context / domain-boundary epics (P0 epics)
+
 - The *problem* (coord/main/lane split-brain authoring identity in ≥2 surfaces) is exactly what
   #1716/#1832 are concrete instances of — high severity at the class level. But the synthesis +
   red-team (corroborated here) refute "thread the ExecutionContext everywhere" as the *fix*: the
@@ -93,12 +98,14 @@ I did **not** inherit the red-team's priority verdict; I re-derived each from co
   consistent. Score reflects the *problem* severity, not the (refuted) full-epic framing.
 
 ### #1878 write-side slice (P2 umbrella)
+
 - The coordination-stabilization mission already consumed the read-surface/ff-merge portions of
   #1878. The *remaining* bounded write/entry slice is essentially the #1716 root cause re-framed.
   Severity inherits from #1716; as a standalone P2 umbrella its incremental value is the structural
   guard, not a distinct new bug.
 
 ### Naming routing rider (#2000/#1971/#1993/#1888/#1900)
+
 - The authority exists (`mid8`/`resolve_mid8` at `src/specify_cli/lanes/branch_naming.py:122,169`);
   **20** bare `mission_id[:8]`/`[0:8]` sites remain in `src/specify_cli/` (grep-verified). Routing
   them is cheap and real (I conceded C1 in the red-team pass). **But:** the ratchet
@@ -141,6 +148,7 @@ I did **not** inherit the red-team's priority verdict; I re-derived each from co
 severity; keep as a cheap opportunistic rider + honest tripwire, never the lead).
 
 ## Newly-surfaced item (not in the candidate list)
+
 - **No new HIGH-severity *bug* outside the set.** The open-P0 list is #1716/#1666/#1619 plus
   meta-trackers (#1599/#1601) and known-debt (#1766 ownership leeway). The synthesis-cited
   **god-modules** (`merge.py` / `agent/mission.py` high CC) are a *maintainability* risk that
@@ -148,6 +156,7 @@ severity; keep as a cheap opportunistic rider + honest tripwire, never the lead)
   standalone launch bug — fold extraction into whichever of #1716/#1827 touches those files.
 
 ## Persisted hypotheses (D-003 — so they are not re-litigated)
+
 - **H-VERIFY-1:** #1827's circular-ordering body does **not** reproduce on HEAD (record→commit→assert
   is ordered correctly, resume-convergent). Re-test on current build; close if green.
 - **H-SURVIVES-1:** #1716's write-side root cause survives the 01KTZVQ2 mission (which fixed

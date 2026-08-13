@@ -75,7 +75,7 @@ This dissolves the apparent debbie (#1716-first) vs priti (#1832-first) disagree
 ## Synthesized recommendation
 
 **3.2.1 LEAD = the write-side / single-resolution authority surface — opened through #1832, driving to
-#1716.** Concretely:
+issue #1716.** Concretely:
 - **WP1 — #1832 + #1993** (must pair): single-resolution read-path fix. Safest first WP, lands a live
   P1, proves "consume the resolved context, don't re-derive," and supplies the `resolve_lanes_dir` seam.
 - **WP-next — #1716**: the write-side coord/topology authority root (P0 launch-blocker, keystone of

@@ -12,7 +12,7 @@ updated: '2026-06-16'
 `docs/plans/engineering-notes/3-2-x-goal-corroboration/SCORING-SYNTHESIS.md`, and the in-flight naming rider
 `kitty-specs/naming-identity-routing-rider-01KV7SFD/` (branch `feat/naming-rider-3-2-1`).
 
-#2007 itself: **OPEN**, labels `bug` + `epic` + `3.2.0`, **milestone = none** (the `3.2.0` *label* is
+Issue #2007 itself: **OPEN**, labels `bug` + `epic` + `3.2.0`, **milestone = none** (the `3.2.0` *label* is
 a category tag, not the milestone — the epic is currently unmilestoned). Evidence = Robert's screenshots
 2026-06-16 09:47–12:05 against a fresh `spec-kitty-monorepo-prep` workspace + Debugger Debbie read-only
 investigations. No screenshots uploaded; the failure inventory in the body is the artifact.
@@ -43,6 +43,7 @@ Verified states/milestones (live `gh`, 2026-06-16). "Milestone" = GitHub milesto
 | 16 | `implement` command surface mismatch — `--json` on internal allocator, rejected by `agent action implement` | **#1891** (residual: "action implement rejects --json") | **OPEN** | **no** | **existing** — #1891 already names this exact residual |
 
 ### Net-new vs existing count
+
 - **Existing tickets:** **2** of 16 — **#1890** (bug 13) and **#1891** (bug 16, the documented residual).
 - **Adjacent-but-distinct existing tickets** (same family, do NOT collapse): **#1888** (bug 10 is a
   *different* finalize defect than #1888's phantom-path existence check); **#1832/#1716/#1619**
@@ -75,6 +76,7 @@ is precisely the read-path/single-resolution surface the neutral panel ranked **
 (`#1832 → #1716`), now corroborated by live training evidence.
 
 ### Overlaps with the naming rider (`feat/naming-rider-3-2-1`)
+
 The rider's spec (read directly) addresses **#2000, #1971-tail, #1888** and *explicitly defers* the
 read-path/coord class to 3.2.2. Cross-referencing #2007:
 
@@ -96,6 +98,7 @@ does not close #2007; #2007 does not block the rider.**
 ## 3. The decision question — does #2007 change the 3.2.1 lead?
 
 ### What the prior decision was
+
 The neutral panel (all three scorers) leaned **impact-first**: open the write-side/single-resolution
 surface via **#1832 → #1716**, demote naming to a parallel rider. The **operator overrode** to
 **safety-first** — naming rider as the 3.2.1 opener — recorded explicitly as a *values choice, not a data
@@ -103,16 +106,15 @@ verdict*, trading "lowest-risk momentum + establish the ratchet/routing pattern"
 parks the highest-blast-radius surface."
 
 ### What #2007 adds
-#2007 is **live training evidence** (a real operator workflow run) that the **command-drift + read-path
+
+Issue #2007 is **live training evidence** (a real operator workflow run) that the **command-drift + read-path
 authority class** — the exact surface the panel wanted to lead with — is **causing observable workflow
 failures right now**, including at least one **launch-blocker-class** symptom (see §4). 7 of 16 bugs are
 the C3 read-path/resolver-flattening defect; 4 more are command-surface drift. This is no longer a
 predicted ROI; it is reproduced field failure on a fresh workspace.
 
 Critically, #2007 evidence arrived **after** the safety-first call. The panel's de-bias note already
-conceded "leading with naming forfeits impact, the safety is available *inside* the impact plan (because
-#1832 is the safest first WP)." #2007 strengthens the impact side of that exact trade-off with empirical
-weight the panel did not have.
+conceded "leading with naming forfeits impact, the safety is available *inside* the impact plan (because #1832 is the safest first WP)." Issue #2007 strengthens the impact side of that exact trade-off with empirical weight the panel did not have.
 
 ### Options assessed
 
@@ -125,8 +127,7 @@ weight the panel did not have.
 ### Recommendation — **(ii), trending toward (iii) for 3.2.2**
 
 **Keep the naming rider as the 3.2.1 opener (honor the operator's deliberate safety-first call — it is
-already in flight, severable, and the panel confirmed its safety is real), BUT fold a bounded, low-risk
-#2007 slice into 3.2.1: #1890 (C4 worktree-repair command — net-new, independent, fixes a recovery dead
+already in flight, severable, and the panel confirmed its safety is real), BUT fold a bounded, low-risk #2007 slice into 3.2.1: #1890 (C4 worktree-repair command — net-new, independent, fixes a recovery dead
 end Robert hit) and the C1 command-surface CI guard (bug 1/5/9 — a regression *tripwire*, the same
 pattern-establishing move the rider's ratchet already embodies, so it fits the safety-first thesis
 perfectly). Then make #2007's C3 read-path resolver unification the explicit 3.2.2 headline — which is
@@ -144,8 +145,8 @@ Rationale, tracker-grounded:
   #1832→#1716 lead, with the 6 sub-issues opened as its children and milestoned onto 3.2.x.
 
 ### Tracker hygiene this surfaces (do regardless)
-Both the panel and this analysis confirm the **milestone inversion persists**: #1716, #1832, #1827,
-#1891, #1619/#1666, **and #1890** are all **unmilestoned**, while only #2000/#1971/#1993/#1900/#1888 sit
+
+Both the panel and this analysis confirm the **milestone inversion persists**: #1716, #1832, #1827, #1891, #1619/#1666, **and #1890** are all **unmilestoned**, while only #2000/#1971/#1993/#1900/#1888 sit
 on 3.2.x. #2007 itself is unmilestoned. Milestone #2007 + its read-path children onto 3.2.x so the
 burndown reflects the real cycle. (Recommendation only — this op is read-only.)
 

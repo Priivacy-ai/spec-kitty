@@ -105,8 +105,9 @@ layer the single, stable entry point that external adopters build against.
 The plan (see the [open-core delivery plan](3-2-x-open-core-delivery-plan.md)) is an
 **open-core breaking-change window**: get the remaining breaking/design changes out **as
 fast as possible** to our small set of consenting early-adopter customers, **without ever
-stalling bug fixes for them**, and make each change cheap to absorb (automated migrations
-+ backward-compatible shims + advance notice). After this window, the external surface
+stalling bug fixes for them**, and make each change cheap to absorb (automated
+migrations + backward-compatible shims + advance notice).
+After this window, the external surface
 stabilizes and stops disrupting customers.
 
 **Decisions that need product ownership:**

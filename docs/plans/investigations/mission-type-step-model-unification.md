@@ -41,12 +41,14 @@ mission-type-resolution ADR §"bundle shaped to grow".)
 **Reserve "template" for doctrine example-artefacts, and make *steps* the building block of mission types.**
 
 ### 2a. `template` (narrowed, canonical)
+
 A **template** is a *doctrine artefact that is an example* — referenced *by* tactics, directives, procedures,
 etc. (e.g. a C4 context diagram skeleton, a glossary example, an analysis-canvas exemplar). This is exactly the
 existing `template:` DRG artefact kind (`NodeKind.TEMPLATE`). "Template" stops being a mission-type structural
 term; it is one doctrine artefact kind among directive/tactic/procedure/paradigm/styleguide/toolguide/asset.
 
 ### 2b. `step` — the mission-type building block (the unification)
+
 A **mission type is an ordered tree of steps.** Each **step** carries:
 
 | Field | Optional? | Meaning |
@@ -135,6 +137,7 @@ carries several design decisions and one unfixed bug that must be settled/sliced
 - **reviewer-renata (adversarial) → SOUND-WITH-CAVEATS.** Rename correct; unification over-claims on 6 points.
 
 ### 6a. The decisive discovery — the step already ships (promote, don't invent)
+
 `src/doctrine/missions/mission-steps/<type>/<step>/step.yaml` already parses into the `MissionStep` model
 (`doctrine/missions/models.py:87-125`) and is **live-consumed by the runtime** (`runtime_bridge*`, planner).
 It already carries `prompt_template` (= proposal `prompt`), `agent_profile` (= `recommended_role`),
@@ -146,6 +149,7 @@ authority + retire the parallel flat surface*, not a greenfield build. Net-new f
 `recommended_model_tier` (authored nowhere today), `template` (step→`template:` edge), `substeps` (recursion).
 
 ### 6b. Decisions the squad settled (fold into the eventual spec)
+
 1. **"step" = the existing `ACTION`/`MissionStep`, ENRICHED — NOT a new `STEP` kind.** Action nodes already
    ARE the steps (24 nodes, 21 `requires` in-edges, 157 `scope` out-edges). A parallel `STEP` kind would
    double-model and orphan 178 edges. The `action→step` rename buys zero modelling value — defer it
@@ -171,6 +175,7 @@ authority + retire the parallel flat surface*, not a greenfield build. Net-new f
    field-bundle on the step or a `step→mission_step_contract` edge (lean: edge, so contracts stay reusable).
 
 ### 6c. Two things the unification does NOT fix (state plainly)
+
 - **The #2689 "3-of-4 default types uncreatable" bug is RELOCATED, not fixed.** Swapping `template_set: null`
   for a null `step.template` still fail-closes at `resolver.py:395`. Closing it requires **populating**
   `documentation`/`research`/`plan` with their own step templates — an authoring task the schema change
@@ -182,6 +187,7 @@ authority + retire the parallel flat surface*, not a greenfield build. Net-new f
   mission-emitted/dynamic** — a substep is authored decomposition, a WP is a runtime work unit; never both.
 
 ### 6d. Revised slice roadmap (Risk-1-first — inverts §2/§4's order per paula + alphonso)
+
 - **Slice 1 (smallest coherent; closes #2712/#883): graph-back `template_set` as `step→template` `instantiates`
   edges.** Mint `template:spec-skeleton`/`plan-skeleton`, teach the resolver URN resolution, wire the
   `ResolvedMissionType.template_set` slot to read the edge. **Zero new NodeKind/Relation/validator change** —
@@ -196,6 +202,7 @@ authority + retire the parallel flat surface*, not a greenfield build. Net-new f
   preserve the #2660 meta-less/fail-closed path at every slice (do NOT reopen software-dev inference).
 
 ### 6e. Recommendation
+
 **Split the proposal.** Land the **rename** (template→artefact, step→structure) as the framing win; treat the
 **merges** (template-population unification, role/model relocation, substep decomposition, guards) as
 separately-justified slices, each with an explicit override/lifecycle answer, sequenced Risk-1-first. This is a

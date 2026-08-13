@@ -123,7 +123,7 @@ consult V1 at all.** Activation influences what is *compiled* and what can be
 
 ## 4. Why this reframes #3009
 
-#3009's remedy 2 says each of the nine orphans needs *"either an inbound edge from
+Issue #3009's remedy 2 says each of the nine orphans needs *"either an inbound edge from
 whatever should reach it, or an explicit 'reachable by direct activation only, by
 design' note."*
 
@@ -209,7 +209,7 @@ Operator rulings taken 2026-07-28:
 
 ### R5 — Measure reachability, not incidence
 
-#3009's third point stands and is the most important thing to do before B2. The
+Issue #3009's third point stands and is the most important thing to do before B2. The
 pinned orphan metric counts *incidence* (nodes touching no edge, currently 30).
 The operationally meaningful numbers are worse and unpinned:
 

@@ -20,6 +20,7 @@ execution-context redesign would touch. Sources: `docs/adr/3.x/*`,
 ## A. What the architecture already commits to (binding precedents)
 
 ### A1 — Lanes own git; WPs own accounting
+
 ADR `2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches`:
 - `ExecutionLane` is the **branch + worktree** unit; `WorkPackage` is the **planning / review /
   accounting** unit (`:61-66`). One integration branch per mission; only it merges to `main`.
@@ -33,6 +34,7 @@ ADR `2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches`:
 > Both axes must be first-class. It must *consume* `lanes.json` (including `dependencies`).
 
 ### A2 — Lane behavior is a polymorphic State Pattern over an event log
+
 ADR `2026-04-06-1-wp-state-pattern-for-lane-behavior`:
 - Replaced lane logic scattered across **46 files / 358 string literals / 3 duplicated `LANES`
   tuples** with an ABC + frozen-dataclass State Pattern; each of the **9 lanes** owns its
@@ -45,6 +47,7 @@ ADR `2026-04-06-1-wp-state-pattern-for-lane-behavior`:
 > log — do **not** re-scatter string literals. The status domain is already bounded; consume it.
 
 ### A3 — Lifecycle starts are service-owned and atomic
+
 ADR `2026-05-01-1-atomic-work-package-start-lifecycle`:
 - Start is **semantic** = two events (`planned→claimed`, `claimed→in_progress`). Pre-ADR each
   surface emitted independently → crash strands at `claimed`; retry semantics varied by surface (`:28-44`).
@@ -59,6 +62,7 @@ ADR `2026-05-01-1-atomic-work-package-start-lifecycle`:
 > A `MissionExecutionContext` should **extend, not bypass** this service.
 
 ### A4 — Identity is a ULID (`mission_id`), not a number
+
 ADR `2026-04-09-1-mission-identity-uses-ulid-not-sequential-prefix` (+ `2026-05-10-1` deterministic
 historical repair):
 - `mission_id` (creation-time ULID) is the **canonical machine identity** for every selector, state
@@ -69,6 +73,7 @@ historical repair):
 > **Consequence:** the context object keys identity on `mission_id` for lookup/locking/event routing — never `mission_number`/`feature_slug`.
 
 ### A5 — `done` ≠ `approved`; acceptance runs on the integration branch
+
 ADRs `2026-04-03-2` (review/approval distinct) + `2026-04-03-3` (feature acceptance on the
 integrated mission branch):
 - `for_review` = ready to inspect; `approved` = review granted; `done` = integrated + acceptance
@@ -80,6 +85,7 @@ integrated mission branch):
 > `done`/acceptance is a **mission-branch** fact, not an aggregate of lane approvals.
 
 ### A6 — The Mission Type / Mission / Mission Run ontology (critical noun boundary)
+
 ADR `2026-04-04-2-mission-type-mission-and-mission-run-terminology-boundary`:
 - **Mission Type** = reusable blueprint (lifecycle actions, guards, templates, action indices, doctrine bindings).
 - **Mission** = concrete tracked item under `kitty-specs/<mission-slug>/`, canonical id `mission_slug` / `mission_id`.
@@ -91,6 +97,7 @@ ADR `2026-04-04-2-mission-type-mission-and-mission-run-terminology-boundary`:
 > exact failure this ADR exists to prevent. **Name and layer the new object accordingly.**
 
 ### A7 — Runtime is CLI-internal; events/tracker are public-import-only
+
 ADR `2026-04-25-1-shared-package-boundary`: runtime surface lives under
 `src/specify_cli/next/_internal_runtime/`; `spec-kitty-runtime` is retired; events/tracker consumed
 only via `spec_kitty_events.*` / `spec_kitty_tracker.*`; enforced by architectural import tests + clean-install CI.
@@ -98,6 +105,7 @@ only via `spec_kitty_events.*` / `spec_kitty_tracker.*`; enforced by architectur
 > **Consequence:** keep the redesign's runtime home CLI-internal and the events/tracker access on the public-import boundary.
 
 ### A8 — Layered doctrine config is field-merge + visible collisions
+
 ADR `2026-05-16-1-doctrine-layer-merge-semantics`: layered config resolution is field-level merge
 with explicit `DoctrineLayerCollisionWarning`. Peripheral, but relevant if the context assembles layered mission/doctrine config.
 
@@ -138,6 +146,7 @@ scattered mission-lifecycle concerns should land under a `mission_runtime/`-styl
 
 - **Bus factor ≈ 1** (≈89.5% src single-author) — highest knowledge-concentration risk in the repo (`:141-146`).
 - **F2 = the execution/state hotspot cluster** (all DDD=**core**):
+
   | File | SLOC | Worst fn (CC) |
   |------|------|---------------|
   | `cli/commands/agent/tasks.py` | 3746 | `finalize_tasks` **CC=160**, `move_task` CC=139 |
@@ -148,6 +157,7 @@ scattered mission-lifecycle concerns should land under a `mission_runtime/`-styl
   | `status/emit.py` | 656 | `batch` CC=40 |
   | `core/worktree.py` | 681 | git worktree mgmt |
   | `orchestrator_api/commands.py` | 1097 | external orchestration API |
+
 - **Densest temporal coupling** is exactly the mission-state ↔ git-worktree transaction:
   `agent/{tasks,workflow}.py` ↔ `implement.py` ↔ `merge.py` ↔ `core/worktree.py` — **22 of the top-30
   coupled pairs** involve one of these six files (`:289-330`). ~**70% of changes** there ship without
