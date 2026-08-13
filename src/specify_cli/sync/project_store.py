@@ -65,7 +65,12 @@ _LEADING_SQL_TRIVIA = re.compile(
     flags=re.ASCII | re.DOTALL,
 )
 _SQL_KEYWORD = re.compile(r"[A-Za-z]+", flags=re.ASCII)
-_TRANSACTION_CONTROL_KEYWORDS: Final[frozenset[str]] = frozenset({"BEGIN", "COMMIT", "END", "RELEASE", "ROLLBACK", "SAVEPOINT"})
+# ATTACH/DETACH are rejected alongside transaction control: `ATTACH DATABASE
+# '<other-project>/sync.db'` through a live unit would open another project's
+# store on this connection without a new sqlite3.connect call — invisible to
+# the SC-011 connection instrumentation and an in-process escape from the
+# FR-002 physical-isolation boundary.
+_TRANSACTION_CONTROL_KEYWORDS: Final[frozenset[str]] = frozenset({"BEGIN", "COMMIT", "END", "RELEASE", "ROLLBACK", "SAVEPOINT", "ATTACH", "DETACH"})
 
 
 class ProjectQueryResult:

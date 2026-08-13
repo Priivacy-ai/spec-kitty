@@ -26,7 +26,13 @@ from specify_cli.sync.project_context import (
     TargetAudience,
     _new_project_sync_context,
 )
-from specify_cli.sync.project_store import ProjectStoreError, ProjectStoreLockedError, ProjectSyncStore, ProjectUnitOfWork
+from specify_cli.sync.project_store import (
+    ProjectStoreError,
+    ProjectStoreLockedError,
+    ProjectSyncStore,
+    ProjectUnitOfWork,
+    _stored_positive_int,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,7 +184,10 @@ def _lease_bound_context(unit: ProjectUnitOfWork, lease_identity: str) -> Projec
     ).fetchone()
     if consent_row is not None:
         consent_state = ConsentState(str(consent_row[0]))
-        consent_generation = int(consent_row[1])
+        # Fail closed identically to create_context_from_unit: a corrupt
+        # generation (0, negative, bool) must not pass validation only on the
+        # egress-authorizing path.
+        consent_generation = _stored_positive_int(consent_row[1], "consent generation")
 
     if consent_state is ConsentState.GRANTED and consent_generation is not None:
         epoch_row = unit.execute(
@@ -186,7 +195,7 @@ def _lease_bound_context(unit: ProjectUnitOfWork, lease_identity: str) -> Projec
             (project_uuid, consent_generation),
         ).fetchone()
         if epoch_row is not None:
-            epoch_id = int(epoch_row[0])
+            epoch_id = _stored_positive_int(epoch_row[0], "consent epoch id")
 
     admission_row = unit.execute(
         "SELECT target_identity, account_identity, private_teamspace_id, "
@@ -200,7 +209,7 @@ def _lease_bound_context(unit: ProjectUnitOfWork, lease_identity: str) -> Projec
             target_identity=str(admission_row[0]),
             account_identity=str(admission_row[1]),
             private_teamspace_id=str(admission_row[2]),
-            configuration_generation=int(admission_row[3]),
+            configuration_generation=_stored_positive_int(admission_row[3], "configuration generation"),
         )
         admission_state = AdmissionState(str(admission_row[4]))
         admission_generation = str(admission_row[5]) if admission_row[5] is not None else None

@@ -5899,7 +5899,9 @@ def diagnose(
             console.print("[green]No pending events in queue.[/green]")
         return
 
-    results = diagnose_events(pending)
+    # drain_queue returns ProjectOutboxTask rows; the validator consumes the
+    # envelope dict each task carries.
+    results = diagnose_events([task.event for task in pending])
 
     valid_count = sum(1 for r in results if r.valid)
     invalid_count = sum(1 for r in results if not r.valid)
