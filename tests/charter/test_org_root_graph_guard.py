@@ -507,3 +507,146 @@ class TestRootAndDrgMerge:
             f"expected exactly one retained copy of the duplicated triple, "
             f"found {len(matching_edges)}: {matching_edges}"
         )
+
+
+# ---------------------------------------------------------------------------
+# T006 (IC-03, FR-004; User Story 3 + root-level defect-class broadening)
+# ---------------------------------------------------------------------------
+
+#: Invalid YAML syntax (unterminated flow sequence) -- a parser error, not a
+#: schema-validation error.
+_MALFORMED_YAML_TEXT = "schema_version: '1.0'\nnodes: [unterminated\n"
+
+#: Valid YAML, but schema-invalid: a node missing the required ``kind`` field.
+_SCHEMA_INVALID_YAML_TEXT = textwrap.dedent(
+    """\
+    schema_version: '1.0'
+    generated_at: '2026-08-13T00:00:00Z'
+    generated_by: test
+    nodes:
+      - {urn: 'directive:missing-kind-3384'}
+    edges: []
+    """
+)
+
+_VALID_SIBLING_DIRECTIVE_ID = "org-valid-sibling-directive-3384"
+_VALID_DRG_SIBLING_YAML = textwrap.dedent(
+    f"""\
+    schema_version: '1.0'
+    generated_at: '2026-08-13T00:00:00Z'
+    generated_by: test
+    nodes:
+      - {{urn: 'directive:{_VALID_SIBLING_DIRECTIVE_ID}', kind: directive}}
+    edges:
+      - {{source: '{_ACTION_URN}', target: 'directive:{_VALID_SIBLING_DIRECTIVE_ID}', relation: scope}}
+    """
+)
+
+
+def _write_org_pack_malformed_drg(repo_root: Path, *, fragment_text: str) -> Path:
+    """An org pack with NO root graph and a malformed ``drg/`` fragment."""
+    pack_root = repo_root / "org-packs" / "malformed-drg-fixture-pack"
+    drg_dir = pack_root / "drg"
+    drg_dir.mkdir(parents=True, exist_ok=True)
+    (drg_dir / "broken.graph.yaml").write_text(fragment_text, encoding="utf-8")
+    return pack_root
+
+
+def _write_org_pack_malformed_root(repo_root: Path, *, with_valid_drg_sibling: bool) -> Path:
+    """An org pack with a malformed root-level ``graph.yaml``.
+
+    ``with_valid_drg_sibling=True`` also writes a valid, loadable
+    ``drg/fixture.graph.yaml`` alongside it (the combined case,
+    T006.4). ``with_valid_drg_sibling=False`` writes no ``drg/`` directory at
+    all -- the standalone case, T006.5, load-bearing per PLAN-FRESH2-003 and
+    kept as its own test rather than folded into the combined case.
+    """
+    pack_root = repo_root / "org-packs" / "malformed-root-fixture-pack"
+    pack_root.mkdir(parents=True, exist_ok=True)
+    (pack_root / "graph.yaml").write_text(_MALFORMED_YAML_TEXT, encoding="utf-8")
+    if with_valid_drg_sibling:
+        drg_dir = pack_root / "drg"
+        drg_dir.mkdir(parents=True, exist_ok=True)
+        (drg_dir / "fixture.graph.yaml").write_text(_VALID_DRG_SIBLING_YAML, encoding="utf-8")
+    return pack_root
+
+
+def _assert_distinguishable_failure(payload: dict[str, Any]) -> None:
+    """A malformed-content failure must be a real, reported failure -- never
+    ``"result": "success"`` with a silently-zeroed bundle (the shape US2's
+    genuinely-empty-pack case produces).
+    """
+    assert payload["result"] != "success", payload
+    assert payload.get("error"), f"expected a non-empty error field, got: {payload}"
+
+
+class TestMalformedOrgLayerContentVisibility:
+    def test_malformed_yaml_drg_fragment_raises_distinguishable_failure(
+        self, tmp_path: Path
+    ) -> None:
+        """US3 AC1; FR-004; SC-007."""
+        repo = tmp_path / "malformed_drg_yaml"
+        repo.mkdir()
+        _write_project_fixture(repo)
+        pack_root = _write_org_pack_malformed_drg(repo, fragment_text=_MALFORMED_YAML_TEXT)
+        _write_config(repo, org_pack_root=pack_root)
+
+        payload = _cli_context_json_raw(repo, json_output=True)
+
+        _assert_distinguishable_failure(payload)
+
+    def test_schema_invalid_drg_fragment_raises_same_distinguishable_shape(
+        self, tmp_path: Path
+    ) -> None:
+        """US3 AC2; FR-004; SC-007 -- same failure shape, parse-error vs.
+        schema-violation cause."""
+        repo = tmp_path / "malformed_drg_schema"
+        repo.mkdir()
+        _write_project_fixture(repo)
+        pack_root = _write_org_pack_malformed_drg(repo, fragment_text=_SCHEMA_INVALID_YAML_TEXT)
+        _write_config(repo, org_pack_root=pack_root)
+
+        payload = _cli_context_json_raw(repo, json_output=True)
+
+        _assert_distinguishable_failure(payload)
+
+    def test_malformed_root_graph_with_valid_drg_sibling_raises_distinguishable_failure(
+        self, tmp_path: Path
+    ) -> None:
+        """FR-001/FR-004; the plan ruling's defect-class-closure rationale.
+
+        A valid, loadable sibling ``drg/`` fragment must NOT rescue a
+        malformed root graph into a silent, zeroed "success" -- it must
+        raise the same distinguishable failure shape.
+        """
+        repo = tmp_path / "malformed_root_with_sibling"
+        repo.mkdir()
+        _write_project_fixture(repo)
+        pack_root = _write_org_pack_malformed_root(repo, with_valid_drg_sibling=True)
+        _write_config(repo, org_pack_root=pack_root)
+
+        payload = _cli_context_json_raw(repo, json_output=True)
+
+        _assert_distinguishable_failure(payload)
+
+    def test_malformed_root_graph_no_drg_directory_raises_distinguishable_failure(
+        self, tmp_path: Path
+    ) -> None:
+        """FR-001/FR-004 -- the load-bearing test per PLAN-FRESH2-003.
+
+        Deliberately its OWN test function, distinct from the combined
+        malformed-root+valid-drg-sibling case above: this fixture's org pack
+        has NO ``drg/`` content whatsoever, so it is the only test that goes
+        RED against a conforming-but-incomplete implementation that only
+        fires the root-level wrap when ``drg/`` also happens to exist
+        alongside it. Do not collapse this into the combined-case test.
+        """
+        repo = tmp_path / "malformed_root_no_drg"
+        repo.mkdir()
+        _write_project_fixture(repo)
+        pack_root = _write_org_pack_malformed_root(repo, with_valid_drg_sibling=False)
+        _write_config(repo, org_pack_root=pack_root)
+
+        payload = _cli_context_json_raw(repo, json_output=True)
+
+        _assert_distinguishable_failure(payload)
