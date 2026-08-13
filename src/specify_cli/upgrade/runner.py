@@ -15,7 +15,10 @@ from packaging.version import InvalidVersion, Version
 from rich.console import Console
 
 from specify_cli.core.constants import KITTIFY_DIR, WORKTREES_DIR
-from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
+from specify_cli.migration.schema_version import (
+    REQUIRED_SCHEMA_VERSION,
+    get_project_schema_version,
+)
 
 from . import autocommit
 from .detector import VersionDetector
@@ -154,6 +157,17 @@ class MigrationRunner:
             norm_changes = metadata.normalize_and_save_legacy_ids(self.kittify_dir)
             result.warnings.extend(norm_changes)
 
+        # FR-002 (#3334): capture the on-disk schema_version BEFORE the loop.
+        # A failed migration's _record_migration_result -> save() rewrites
+        # metadata.yaml from a fixed dict and, on the mid-loop break, the
+        # success-guarded stamp below never runs -- so without this capture the
+        # value is lost and a re-run re-detects the project as legacy and
+        # re-hits the same failing migration. We restore this CAPTURED value on
+        # failure, never REQUIRED_SCHEMA_VERSION: re-stamping the target onto a
+        # half-migrated project would open the gate on a corpus the migration
+        # never finished (the exact dishonest-state bug this mission closes).
+        pre_run_schema_version = get_project_schema_version(self.project_path)
+
         # Apply each migration to main project
         for migration in migrations:
             migration_result, status = self._apply_migration(migration, metadata, dry_run)
@@ -178,16 +192,10 @@ class MigrationRunner:
                 break
 
         # Update and save metadata for main project
-        if not dry_run and result.success:
-            metadata.version = target_version
-            metadata.last_upgraded_at = now_utc()
-            metadata.save(self.kittify_dir)
-            # Why: MUST run after metadata.save(). ProjectMetadata.save() reconstructs
-            # the YAML from a fixed three-key dict and does not preserve unknown keys,
-            # so stamping schema_version before save() would silently clobber it.
-            # See FR-002 / #705.
-            if REQUIRED_SCHEMA_VERSION is not None:
-                self._stamp_schema_version(self.kittify_dir, REQUIRED_SCHEMA_VERSION)
+        if not dry_run:
+            self._finalize_main_metadata(
+                metadata, target_version, result, pre_run_schema_version
+            )
 
         # Handle worktrees
         if include_worktrees:
@@ -488,6 +496,35 @@ class MigrationRunner:
         if recorded:
             metadata.save(metadata_dir)
         return recorded
+
+    def _finalize_main_metadata(
+        self,
+        metadata: ProjectMetadata,
+        target_version: str,
+        result: UpgradeResult,
+        pre_run_schema_version: int | None,
+    ) -> None:
+        """Persist metadata and settle ``schema_version`` after the loop.
+
+        On **success**: bump ``version`` + stamp ``REQUIRED_SCHEMA_VERSION`` (the
+        target). The stamp MUST run after ``metadata.save()`` because
+        ``ProjectMetadata.save()`` reconstructs the YAML from a fixed dict, so a
+        stamp written first would be clobbered (FR-002 / #705).
+
+        On **failure** (FR-002 / #3334): restore the captured pre-run
+        ``schema_version`` so a failed migration NEVER advances -- or erases --
+        the schema the project actually satisfies. A legacy project (captured
+        value ``None``) is intentionally left unstamped so it is never advanced
+        to the target.
+        """
+        if result.success:
+            metadata.version = target_version
+            metadata.last_upgraded_at = now_utc()
+            metadata.save(self.kittify_dir)
+            if REQUIRED_SCHEMA_VERSION is not None:
+                self._stamp_schema_version(self.kittify_dir, REQUIRED_SCHEMA_VERSION)
+        elif pre_run_schema_version is not None:
+            self._stamp_schema_version(self.kittify_dir, pre_run_schema_version)
 
     @staticmethod
     def _stamp_schema_version(kittify_dir: Path, schema_version: int) -> None:
