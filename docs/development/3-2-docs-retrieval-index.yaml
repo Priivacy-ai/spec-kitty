@@ -4678,6 +4678,10 @@ pages:
     abstract: "How transition gates work under the declarative model — a first-class gate artefact kind whose check ships as an asset, is invoked via an entrypoint at a topology-resolved surface, runs only from trusted publishers, and is fail-closed by default."
     anchors:
     - {slug: "the-moving-parts", text: "The moving parts", level: 2}
+    - {slug: "diagrams", text: "Diagrams", level: 2}
+    - {slug: "distribution-consumer-value-archimate", text: "Distribution & consumer value (ArchiMate)", level: 3}
+    - {slug: "bounded-contexts-by-layer-component", text: "Bounded contexts by layer (component)", level: 3}
+    - {slug: "runtime-flow-internal-resolution-sequence", text: "Runtime flow + internal resolution (sequence)", level: 3}
     - {slug: "definition-vs-binding", text: "Definition vs binding", level: 2}
     - {slug: "execution-model", text: "Execution model", level: 2}
     - {slug: "invariants", text: "Invariants", level: 2}
