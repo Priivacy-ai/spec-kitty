@@ -24,7 +24,7 @@ the `_GUARD_TABLES` registry (FR-001/FR-006), `plan`'s own guard table plus the 
 the above (FR-010, FR-011). **Out of scope, and no WP below touches any of it**: the
 project-wide doctrine-override hatch (`_project_has_doctrine_overrides`,
 `src/charter/mission_type_profiles.py:1041`), the two divergent meta readers
-(`mission_type_profiles.py:681` vs `mission.py:551`), the dashboard's silent
+(`mission_type_profiles.py:681` vs `mission.py:542`), the dashboard's silent
 `"software-dev"` default (`dashboard/handlers/features.py:68`), the unverified wider ~22-site
 census, any roster/validation check inside `validate_meta`/`write_meta` (C-004), and modeling
 guards as DRG graph primitives. A follow-up tracking issue naming the four deferred sites is

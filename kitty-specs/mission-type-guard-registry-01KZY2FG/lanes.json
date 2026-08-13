@@ -16,7 +16,8 @@
         "src/runtime/next/runtime_bridge_cores.py",
         "src/runtime/next/runtime_bridge_io.py",
         "tests/runtime/test_bridge_composition.py",
-        "tests/runtime/test_bridge_cores.py"
+        "tests/runtime/test_bridge_cores.py",
+        "tests/runtime/test_bridge_io.py"
       ],
       "predicted_surfaces": [
         "api",
@@ -43,13 +44,15 @@
         "api",
         "artifact-rendering",
         "legacy-cleanup",
+        "tests",
         "workspace"
       ],
       "depends_on_lanes": [],
       "parallel_group": 0
     }
   ],
-  "computed_at": "2026-08-13T22:48:11.889938+00:00",
+  "computed_at": "2026-08-13T23:43:58.769814+00:00",
   "computed_from": "dependency_graph+ownership",
-  "planning_artifact_wps": []
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "ab0a0b9b5b5e6803775e45bebd66d1cc8d3b68dc"
 }
