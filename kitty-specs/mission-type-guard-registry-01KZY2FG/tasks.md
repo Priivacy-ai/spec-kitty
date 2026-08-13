@@ -194,7 +194,7 @@ the orchestrator/operator to make, not something this tasks.md pre-decides.
 
 | ID | Description | WP | RED/impl | Parallel? |
 |----|--------------|----|----------|-----------|
-| T001 | RED: FR-010 ATDD pin — `plan`/`review` target-shape assertion (`[]`), genuinely RED against base; plus the FR-002/User-Story-2-AC3 `plan`/`research` tightening pin, the `plan`/`specify`+`plan`/`plan`+fail-closed-else 5-way branch pins (User Story 2 AC2), and a disk-backed `gather_artifact_presence` pin for the `research.md` presence tag | WP01 | RED | No |
+| T001 | RED: FR-010 ATDD pin — `plan`/`review` target-shape assertion (`[]`), genuinely RED against base; plus the FR-002/User-Story-2-AC3 `plan`/`research` tightening pin, the `plan`/`specify` branch pin (User Story 2 AC2) plus `plan`/`plan` and fail-closed-else branch pins (hardening beyond spec.md's literal Acceptance Scenarios), and a disk-backed `gather_artifact_presence` pin for the `research.md` presence tag | WP01 | RED | No |
 | T002 | RED: FR-011 ATDD pin — unregistered-family fall-through, 3 assertions (`evaluate_guards_strict` raises; `_check_cli_guards` propagates via injection seam; `_check_composed_action_guard` returns `[]` + WARNING log) | WP01 | RED | No |
 | T003 | Add `_GUARD_TABLES`, `UnregisteredMissionFamilyError`, `evaluate_guards_strict`, tolerant `evaluate_guards` wrapper, `_evaluate_plan_guards` in `runtime_bridge_cores.py` | WP01 | impl | No |
 | T004 | Add `"research.md"` to `_PRESENCE_FILE_TAGS` in `runtime_bridge_io.py`; update module docstring "three"→"four" | WP01 | impl | Yes (with T005/T006) |

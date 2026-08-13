@@ -148,14 +148,16 @@ reason (e.g. a typo in the assertion that happens to also fail).
 
 ## Subtasks & Detailed Guidance
 
-### T001 — RED: FR-010 ATDD pin (`plan`/`review` target-shape) + User Story 2 AC2/AC3 (`_evaluate_plan_guards`'s full 5-way branch set) + revert-discipline pin for the `research.md` presence tag
+### T001 — RED: FR-010 ATDD pin (`plan`/`review` target-shape) + User Story 2 AC2/AC3 (`specify`/`research` branches) + hardening for `_evaluate_plan_guards`'s `plan`-step and fail-closed-else branches (beyond spec.md's literal Acceptance Scenarios) + revert-discipline pin for the `research.md` presence tag
 
 - **Purpose**: Pin the mission's core, live defect (issue #3386's title) as a genuinely failing
   test before any fix lands; pin `_evaluate_plan_guards`'s full 5-way branch set
-  (`specify`/`research`/`plan`/`review`/fail-closed-else — User Story 2 Acceptance Scenarios
-  1-3), not only the two branches (`review`, `research`) that happen to differ from today's
-  fallthrough output; and give the `research.md` presence-tag fix (T004) real, disk-backed test
-  coverage so reverting it is detectable (Test Strategy's "Revert discipline" bullet, below).
+  (`specify`/`research`/`plan`/`review`/fail-closed-else — the `specify`/`research`/`review`
+  branches map to User Story 2's Acceptance Scenarios 2/3/1 respectively, while the `plan`-step
+  and fail-closed-else branches are hardening coverage beyond what spec.md's Acceptance Scenarios
+  literally mandate), not only the two branches (`review`, `research`) that happen to differ from
+  today's fallthrough output; and give the `research.md` presence-tag fix (T004) real, disk-backed
+  test coverage so reverting it is detectable (Test Strategy's "Revert discipline" bullet, below).
   **Every RED claim below was empirically re-run against this session's checkout, not reasoned
   from prose alone** — this WP was itself the subject of a confirmed review finding
   (TASKS-VERIFY-001) showing prose reasoning about RED status can be wrong; do not repeat that
@@ -188,9 +190,11 @@ reason (e.g. a typo in the assertion that happens to also fail).
      both assertions in the same test (the present-case one is a legitimate companion
      target-shape assertion, just not itself a RED pin) — do not present the present-case
      assertion as proof of RED in the Activity Log or PR description.
-  3. **5-way branch completeness for `_evaluate_plan_guards`** (TASKS-VERIFY-003 fix — User Story
-     2 Acceptance Scenario 2, the `specify`/`plan` artifact-presence branches and the fail-closed
-     else branch, previously uncovered by any T001/T002 step). Empirically verified this session:
+  3. **5-way branch completeness for `_evaluate_plan_guards`** (TASKS-VERIFY-003 fix — direct-
+     dispatch coverage for the `specify` artifact-presence branch (User Story 2 Acceptance
+     Scenario 2) plus hardening coverage, beyond spec.md's literal Acceptance Scenarios, for the
+     `plan` artifact-presence branch and the fail-closed else branch, previously uncovered by any
+     T001/T002 step). Empirically verified this session:
      unlike `review`/`research` above, `evaluate_guards(_snapshot(mission_family="plan",
      step_id="specify"))` and `...step_id="plan"` **already return the correct post-fix values
      at the base commit** (`["Required artifact missing: spec.md"]` / `[]`, and
