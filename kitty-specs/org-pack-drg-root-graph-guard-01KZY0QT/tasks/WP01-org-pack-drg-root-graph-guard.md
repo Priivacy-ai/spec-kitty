@@ -32,7 +32,8 @@ subtasks:
 - T009
 phase: Phase 1 - Full functional change (single WP)
 assignee: ''
-agent: claude
+agent: "claude"
+shell_pid: "381232"
 history:
 - at: '2026-08-13T21:17:50Z'
   actor: system
@@ -726,3 +727,4 @@ state. If entries are out of order, acceptance will fail even when the work is c
 
 Status is managed via `status.events.jsonl`. Use
 `spec-kitty agent tasks move-task WP01 --to <status>` to change WP status.
+- 2026-08-13T22:31:21Z – claude – shell_pid=381232 – Assigned agent via action command

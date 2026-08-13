@@ -10,5 +10,7 @@
   "purpose_tldr": "org pack drg root graph guard",
   "slug": "org-pack-drg-root-graph-guard-01KZY0QT",
   "target_branch": "main",
-  "topology": "lanes"
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-13T22:31:19.832931+00:00"
 }
