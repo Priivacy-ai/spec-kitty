@@ -36,6 +36,112 @@ named-Python-handler registry.
 | **What its outcome does** | The outcome carries a typed severity (`BLOCKING`/`RECOVERABLE`/`WARN`/`INFO`); the operator's error-handling strategy (`block_above(threshold)` in `.kittify`) decides the CLI effect. | [-6](../adr/3.x/2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md) |
 | **How fast (later)** | *Open.* Parse-amortization is sound (content-addressed parse cache, no daemon); a deterministic *verdict* cache is contested and held open. | [-5](../adr/3.x/2026-08-13-5-local-daemon-amortizes-doctrine-parse-and-caches-gate-verdicts.md) |
 
+## Diagrams
+
+> Rendered locally by the no-egress PlantUML pipeline (`scripts/docs/plantuml_render.py`,
+> `--network=none`, SANDBOX profile). The distribution view uses PlantUML's **native ArchiMate**
+> (bundled in the pinned jar — no `!include`, no egress).
+
+### Distribution & consumer value (ArchiMate)
+
+```plantuml
+@startuml
+title Gate distribution & consumer value (ArchiMate)
+archimate #Business "Operator" as op <<business-role>>
+archimate #Technology "built-in pack\n(signed - trusted)" as builtin <<technology-artifact>>
+archimate #Technology "org / project pack\n(TOFU)" as orgpack <<technology-artifact>>
+archimate #Technology "gate defs + assets" as gates <<technology-artifact>>
+archimate #Technology "Operator machine\n(CLI - optional daemon)" as machine <<node>>
+archimate #Application "Declarative gate engine" as engine <<application-component>>
+archimate #Business "Mission transition" as mission <<business-process>>
+archimate #Motivation "Deterministic governed checks" as value <<motivation-value>>
+builtin --> gates : ships
+orgpack --> gates : ships
+gates --> machine : resolved on
+machine *-- engine
+op --> machine : configures strategy (.kittify)
+engine --> mission : guards
+mission --> value : realizes
+@enduml
+```
+
+### Bounded contexts by layer (component)
+
+```plantuml
+@startuml
+title Gate subsystem - bounded contexts by layer
+skinparam componentStyle rectangle
+package "kernel" {
+  [ERROR_SEVERITY ladder] as sev
+}
+package "doctrine" {
+  [gate ArtifactKind - BC1] as gatekind
+  [MissionStep.gates - BC2] as binding
+  [executionTarget token set] as token
+  [asset - inert blob] as asset
+}
+package "charter" {
+  [activation and trust prompt] as charteract
+}
+package "mission_runtime" {
+  [placement seam + execute_dir - BC4] as seam
+}
+package "specify_cli" {
+  [declarative-gate dispatcher - BC3] as dispatch
+  [stamped GateExecutionContext] as stamp
+  [trust TOFU - BC5] as trust
+  [error-handling policy] as policy
+}
+gatekind --> asset : references
+binding --> gatekind : binds by id
+dispatch --> binding : reads
+dispatch --> stamp : runs in
+stamp --> seam : resolves via
+seam ..> token : parity ACL
+dispatch --> trust : checks
+dispatch --> policy : outcome to effect
+policy --> sev : uses
+trust ..> charteract : prompt at activation
+@enduml
+```
+
+### Runtime flow + internal resolution (sequence)
+
+```plantuml
+@startuml
+title Gate flows - runtime-charter-gate and internal resolution
+actor Runtime
+participant Charter
+participant "Dispatcher" as D
+participant "Doctrine" as Doc
+participant "Placement seam" as Seam
+participant "Trust" as Trust
+participant "Asset runner" as Run
+participant "Policy" as Pol
+== 1. Runtime calls gates through the charter ==
+Runtime -> Charter : transition WP on_transition
+Charter -> D : dispatch bound gates
+D -> Doc : gate id to definition and asset
+D -> Trust : trusted publisher?
+alt untrusted
+  Trust --> D : could-not-run severity
+else trusted
+  D -> Seam : executionTarget to execute_dir
+  Seam --> D : stamped GateExecutionContext
+  D -> Run : interpreter args, network=none
+  Run --> D : exit or JSON outcome
+end
+D -> Pol : outcome and severity
+Pol --> Charter : effect via block_above strategy
+Charter --> Runtime : allowed or blocked or degraded
+== 2. Internal resolution and files ==
+note over Doc: packs/built-in/gates/ID.gate.yaml then asset blob then executionTarget token
+note over Seam: token + MissionTopology then surface then workdir (stamped)
+note over Trust: .kittify trust store: operator coord + content-hash
+note over Pol: .kittify strategy then ERROR_SEVERITY ladder (kernel)
+@enduml
+```
+
 ## Definition vs binding
 
 Two separated concerns:
