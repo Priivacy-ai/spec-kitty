@@ -29,8 +29,9 @@ doctrine (offers)  →  charter (activates & customises)  →  core FSM (consume
 ```
 
 - **Doctrine offers.** The canonical catalogue of mission types lives in
-  `src/doctrine/missions/<type>/`. It *offers* a mission type's governance,
-  action indices, step contracts, and templates.
+  `packs/built-in/missions/<type>/` (relocated from `src/doctrine/missions/<type>/`
+  by mission `doctrine-consumer-surface-missions-extraction`). It *offers* a
+  mission type's governance, action indices, step contracts, and templates.
 - **Charter activates and customises.** The charter layer selects a mission type
   and overlays project-specific customisation onto it, exactly as it overlays any
   other doctrine artifact (see [the per-type override](#the-charter-customise-layer)).
@@ -48,7 +49,8 @@ property of any one state (see [Governance is a sibling, not a property](#govern
 Before this decision, per-mission-type behaviour resolved through **two parallel
 mission trees and three competing governance surfaces**:
 
-- `src/doctrine/missions/<type>/` — the canonical catalogue (the source of truth).
+- `packs/built-in/missions/<type>/` — the canonical catalogue (the source of truth;
+  relocated from `src/doctrine/missions/<type>/`).
 - `src/specify_cli/missions/<type>/` — **derived copies** that several core
   readers still bind to directly. The two trees drifted with no parity guard.
 - Three governance surfaces per type: an inert-and-dangling `governance_refs`
@@ -120,8 +122,8 @@ Governance is authored at two grains, and the resolver unions and de-dupes them:
 
 | Grain | Canonical source | What it carries |
 |-------|------------------|-----------------|
-| **Action-grain** | `missions/<type>/actions/<action>/index.yaml` | Per-action `scope` edges (already live; generate DRG scope edges consumed by `charter context --action`) |
-| **Type-grain** | `missions/<type>/governance-profile.yaml` (`selected_*`) | The type-wide directive/tactic/styleguide/paradigm selections, and the project-override target |
+| **Action-grain** | `packs/built-in/missions/<type>/actions/<action>/index.yaml` | Per-action `scope` edges (already live; generate DRG scope edges consumed by `charter context --action`) |
+| **Type-grain** | `packs/built-in/missions/<type>/governance-profile.yaml` (`selected_*`) | The type-wide directive/tactic/styleguide/paradigm selections, and the project-override target |
 
 Neither grain is a generated rollup of the other — a rollup would incur a
 freshness gate and erase the grain distinction. An enforcement test forbids the
