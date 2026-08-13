@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
+import time
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager, suppress
 from contextvars import ContextVar
@@ -71,6 +72,10 @@ _SQL_KEYWORD = re.compile(r"[A-Za-z]+", flags=re.ASCII)
 # the SC-011 connection instrumentation and an in-process escape from the
 # FR-002 physical-isolation boundary.
 _TRANSACTION_CONTROL_KEYWORDS: Final[frozenset[str]] = frozenset({"BEGIN", "COMMIT", "END", "RELEASE", "ROLLBACK", "SAVEPOINT", "ATTACH", "DETACH"})
+# Default outer-transaction lock wait, mirrored into `PRAGMA busy_timeout` (ms)
+# below so concurrent writers block-and-retry instead of racing `BEGIN
+# IMMEDIATE`/reads against a committing writer (see unit_of_work).
+_DEFAULT_LOCK_TIMEOUT_SECONDS: Final[float] = 5.0
 
 
 class ProjectQueryResult:
@@ -106,6 +111,51 @@ def _reject_transaction_control(statement: str) -> None:
     keyword = keyword_match.group(0).upper() if keyword_match is not None else ""
     if keyword in _TRANSACTION_CONTROL_KEYWORDS:
         raise ProjectTransactionControlError(f"SQL transaction control {keyword} is owned by ProjectSyncStore")
+
+
+def _ensure_wal_journal_mode(connection: sqlite3.Connection, deadline_seconds: float) -> None:
+    """Idempotently put ``connection`` into WAL mode, tolerating the switch race.
+
+    Switching *into* WAL briefly needs an exclusive schema lock that is a
+    distinct SQLite lock class from the ordinary write lock ``PRAGMA
+    busy_timeout`` governs -- concurrent first-time initializers of a brand
+    new store can each raise ``OperationalError: database is locked`` on this
+    specific pragma even with busy_timeout already set, because that lock
+    class is not retried by the driver's busy handler. Once any connection
+    has completed the switch this is a fast no-op read for everyone else, so
+    only the initial race needs the bounded self-retry below.
+    """
+    deadline = time.monotonic() + deadline_seconds
+    while True:
+        try:
+            mode = connection.execute("PRAGMA journal_mode").fetchone()[0]
+            if str(mode).lower() == "wal":
+                return
+            connection.execute("PRAGMA journal_mode = WAL")
+            return
+        except sqlite3.OperationalError as exc:
+            if "locked" not in str(exc).lower() or time.monotonic() >= deadline:
+                raise
+            time.sleep(0.005)
+
+
+def _database_has_foreign_content(connection: sqlite3.Connection) -> bool:
+    """True if the file holds pages beyond the empty-database baseline.
+
+    Must only be called while the caller already holds ``BEGIN IMMEDIATE``,
+    so it is a lock-consistent read. A brand-new store created by
+    ``sqlite3.connect`` (and switched to WAL) reports ``page_count <= 1``
+    -- just the WAL header page -- before any schema is written, regardless
+    of whether a *sibling* connection's own ``connect()`` call raced to
+    create the same on-disk stub moments earlier. That makes this immune to
+    the ``Path.exists()`` TOCTOU it replaces: under concurrent first-time
+    bootstrap, every racing thread's pre-lock existence check could observe
+    a sibling's already-created (but still schema-empty) file and wrongly
+    treat it as a pre-existing corrupt store, even though nobody had
+    written anything yet (see unit_of_work).
+    """
+    page_count = connection.execute("PRAGMA page_count").fetchone()[0]
+    return bool(page_count > 1)
 
 
 def _stored_positive_int(value: object, field: str) -> int:
@@ -513,6 +563,13 @@ class ProjectSyncStore:
                 uri=True,
                 isolation_level=None,
             )
+            # A read-only connection cannot itself flip journal_mode (that
+            # requires a write lock on the DB header) — WAL is established by
+            # writers in unit_of_work and this connection simply reads
+            # whatever mode is on disk. busy_timeout is safe to set here and
+            # keeps a concurrent-writer race from surfacing as an immediate
+            # "locked"/"not initialized" misread instead of a bounded wait.
+            connection.execute(f"PRAGMA busy_timeout = {int(_DEFAULT_LOCK_TIMEOUT_SECONDS * 1000)}")
             if not self._metadata_table_exists(connection):
                 raise ProjectStoreCorruptError("existing sync.db is not an initialized project store")
             self._verify_owner(connection)
@@ -539,7 +596,7 @@ class ProjectSyncStore:
     def unit_of_work(
         self,
         *,
-        lock_timeout_seconds: float = 5.0,
+        lock_timeout_seconds: float = _DEFAULT_LOCK_TIMEOUT_SECONDS,
     ) -> Iterator[ProjectUnitOfWork]:
         """Own one live connection and outer transaction for a project action."""
         active = self._active_unit.get()
@@ -549,7 +606,6 @@ class ProjectSyncStore:
         if lock_timeout_seconds < 0:
             raise ValueError("lock timeout cannot be negative")
 
-        database_existed = self.database_path.exists()
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
         connection: sqlite3.Connection | None = None
         unit: ProjectUnitOfWork | None = None
@@ -561,11 +617,23 @@ class ProjectSyncStore:
                 timeout=lock_timeout_seconds,
                 isolation_level=None,
             )
+            # WAL gives one writer + concurrent snapshot-isolated readers, so
+            # a reader opened mid-commit can no longer observe a transiently
+            # missing metadata table (the "not an initialized project store"
+            # false corruption). busy_timeout makes a competing `BEGIN
+            # IMMEDIATE` wait for the lock instead of raising immediately
+            # (translated to ProjectStoreLockedError) under contention. Both
+            # MUST be set before BEGIN IMMEDIATE — journal_mode cannot be
+            # changed from inside a transaction. The WAL switch itself is
+            # done through _ensure_wal_journal_mode, not a bare PRAGMA: it
+            # needs a lock class busy_timeout does not cover (see there).
+            connection.execute(f"PRAGMA busy_timeout = {int(lock_timeout_seconds * 1000)}")
+            _ensure_wal_journal_mode(connection, lock_timeout_seconds)
             connection.execute("PRAGMA foreign_keys = ON")
             connection.execute("BEGIN IMMEDIATE")
             initialized = not self._metadata_table_exists(connection)
             if initialized:
-                if database_existed:
+                if _database_has_foreign_content(connection):
                     raise ProjectStoreCorruptError("existing sync.db is not an initialized project store")
                 for statement in _SCHEMA_STATEMENTS:
                     connection.execute(statement)
