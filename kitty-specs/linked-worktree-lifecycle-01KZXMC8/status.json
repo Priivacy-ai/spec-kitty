@@ -34,7 +34,8 @@
         "Возврат к реализации для RED/GREEN исправления managed anchor",
         "Managed anchor RED/GREEN blocker закрыт; повторная передача независимому reviewer",
         "Review: добавить managed split-brain oracle и exact stable safe payload/order contract",
-        "Цикл исправления review blockers без расширения production scope"
+        "Цикл исправления review blockers без расширения production scope",
+        "Review blockers closed at lane HEAD 295555cab: managed split-brain conflict probe and exact stable safe payload contracts covered; 9+40+32 tests and quality gates pass."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
