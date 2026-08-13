@@ -59,6 +59,7 @@ boundary rule and layout).
 - [Git workflow: who does what](git-workflow.md) — infrastructure git vs content git.
 - [Multi-agent orchestration](multi-agent-orchestration.md) — coordinating work across agents.
 - [Kanban workflow](kanban-workflow.md) — the nine lanes and their transitions.
+- [Mission transition gates](mission-gates.md) — the declarative, asset-backed, trust-gated model for the checks that guard lane transitions.
 - [The runtime loop](runtime-loop.md) — how `spec-kitty next` inverts control.
 - [AI agent architecture](ai-agent-architecture.md) — how Spec Kitty stays agent-agnostic across agents.
 - [Why the Divio documentation system?](divio-documentation.md) — tutorials/how-to/reference/explanation mapping.
