@@ -25,10 +25,13 @@ reports clean, and part of the pack is inert or destructive at runtime:
 - **FR-004**: `validate_pack` gains a keyword-only `check_drg_root: bool = True` parameter and a
   new check: a pack with `drg/*.graph.yaml` fragments and no pack-root `*.graph.yaml` gets a
   `category="drg_root_graph_missing"` error, because the runtime
-  (`src/charter/_drg_helpers.py:load_validated_graph`) reads the pack root, not `drg/`. The
-  assembler's internal round-trip check and `doctrine org validate`'s onboarding-scaffold check
-  both pass `check_drg_root=False`, since their own architecture guarantees the drg/-fragments-
-  only shape regardless of authoring correctness.
+  (`src/charter/_drg_helpers.py:load_validated_graph`) reads the pack root, not `drg/`. Per
+  operator ruling #2 (`reviews/plan.ruling.md`), the two other `validate_pack()` callers are
+  carved out, or not, separately: `pack_assembler.py`'s internal round-trip check keeps its
+  unconditional `check_drg_root=False`, a structural guarantee about its own write paths.
+  `doctrine org validate`'s call passes `check_drg_root=True` explicitly instead — its carve-out
+  was never load-bearing (`org_init`'s scaffold never produces the shape the check fires on) and
+  is dropped.
 
 The entire change lands inside the CLI layer (`src/specify_cli/doctrine/`); it reads from, but
 never modifies, the doctrine-model layer (`src/doctrine/agent_profiles/repository.py`,
@@ -123,9 +126,11 @@ This mission's entire code diff lands in the CLI layer:
 - `src/specify_cli/doctrine/pack_validator.py` — FR-002, FR-003, FR-004's new checks; the
   `check_drg_root` parameter.
 - `src/specify_cli/doctrine/pack_assembler.py` — one call-site edit (`validate_pack(output_dir,
-  check_drg_root=False)` at the existing `:335` call).
-- `src/specify_cli/cli/commands/doctrine.py` — one call-site edit (`validate_pack(pack_path,
-  check_drg_root=False)` at `org_validate`'s existing `:966` call).
+  check_drg_root=False)` at the existing `:335` call) — unconditional, structural (per operator
+  ruling #2, `reviews/plan.ruling.md`).
+- `src/specify_cli/cli/commands/doctrine.py` — one call-site edit at `org_validate`'s existing
+  `:966` call: `validate_pack(pack_path, check_drg_root=True)`, written explicitly rather than
+  left to `validate_pack`'s own default, per operator ruling #2 — this call carries no carve-out.
 
 It is **not** a kernel change and **not** a `src/doctrine/` (doctrine-model layer) change. FR-002
 and FR-004 **read from** `src/doctrine/agent_profiles/repository.py`
@@ -218,7 +223,8 @@ For each gate: whether it applies to this mission's diff, and why.
   behavior), `tests/doctrine/test_agent_profile_model_field.py` (model-layer fixtures backing
   FR-002's synthetic skip scenario — no new runtime code there, per C-004's own annotation),
   `tests/specify_cli/doctrine/test_pack_assembler.py` (FR-004 AC-6, the assembler carve-out),
-  `tests/cli/test_doctrine_org_commands.py` (FR-004 AC-7, the `org_validate` carve-out).
+  `tests/cli/test_doctrine_org_commands.py` (FR-004 AC-7, `org_validate`'s explicit
+  `check_drg_root=True` write-out and the new positive-fire fixture, per operator ruling #2).
 - **Kernel coverage ≥90% (`kernel-tests` CI job, `.github/workflows/ci-quality.yml:1077`, `--cov=src/kernel`)**
   — Does NOT apply. Nothing in `tests/kernel/` or `src/kernel/` is touched by any FR.
 - **Mission-loader coverage ≥90% (`mission-loader-coverage` CI job, `:1522`, covers
@@ -427,21 +433,25 @@ commit:
      `skipped_profiles()` at all, so the issue is absent — confirmed RED.
    - *Implementation commit (green)*: add `_check_profile_skipped_diagnostics()` and its call
      site inside `validate_pack()`. The same test now passes.
-3. **FR-004** (DRG-root-graph mismatch + carve-outs):
+3. **FR-004** (DRG-root-graph mismatch + the assembler's carve-out):
    - *Test commit (red)*: add AC-1's regression test (a pack with `drg/010-security.graph.yaml`
      and no pack-root `*.graph.yaml`, asserting `ok is False`, exit code `1`, and a
-     `drg_root_graph_missing` diagnostic) plus AC-6/AC-7's parameter-value assertions (that
-     `assemble_pack()`'s internal call and `org_validate`'s call actually pass
-     `check_drg_root=False`) to `test_pack_validator.py`, `test_pack_assembler.py`, and
-     `test_doctrine_org_commands.py` respectively. Run against the state after FR-002's
-     implementation commit: `validate_pack()` has no `check_drg_root` parameter and no
-     DRG-root-graph check exists yet, so AC-1's assertion fails and AC-6/AC-7's parameter-value
-     assertions fail (the keyword argument does not exist to inspect) — confirmed RED.
+     `drg_root_graph_missing` diagnostic); AC-6's parameter-value assertion (that
+     `assemble_pack()`'s internal call actually passes `check_drg_root=False`); and AC-7's two
+     cases — (a) a parameter-value assertion that `org_validate`'s call actually passes
+     `check_drg_root=True` explicitly, and (b) the new positive-fire fixture (an `org init` pack
+     later given a real `drg/*.graph.yaml` fragment with no pack-root graph produces
+     `drg_root_graph_missing` via `doctrine org validate`) — to `test_pack_validator.py`,
+     `test_pack_assembler.py`, and `test_doctrine_org_commands.py` respectively. Run against the
+     state after FR-002's implementation commit: `validate_pack()` has no `check_drg_root`
+     parameter and no DRG-root-graph check exists yet, so AC-1's assertion fails, AC-6/AC-7(a)'s
+     parameter-value assertions fail (the keyword argument does not exist to inspect), and
+     AC-7(b)'s positive-fire fixture fails (no diagnostic exists to fire) — confirmed RED.
    - *Implementation commit (green)*: add `check_drg_root: bool = True`, the
-     `_check_drg_root_graph_missing()` helper and its conditional call site, and the two
-     `check_drg_root=False` carve-outs in `pack_assembler.py` and `doctrine.py`. The same tests
-     now pass — subject to the merge-order constraint on the `org_validate` carve-out's premise
-     recorded in "Chokepoint"'s "Open-PR write-scope check" and cross-referenced in IC-04's Risks.
+     `_check_drg_root_graph_missing()` helper and its conditional call site, the unconditional
+     `check_drg_root=False` carve-out in `pack_assembler.py`, and the explicit
+     `check_drg_root=True` write-out (no carve-out) in `doctrine.py`'s `org_validate` call. The
+     same tests now pass.
 
 **Reviewer verification (red→green, per C-011's own requirement)**: for each of the three pairs
 above, the reviewer confirms the test commit's added test function(s) fail when run against the
@@ -475,10 +485,11 @@ commit per file, before the functional edit in that file:
   the complexity-15 ceiling once instrumented, a preparatory extraction (in the same style as the
   existing `_validate_drg`/`_validate_asset_manifests` split) is in-scope campsite work,
   independent of and preceding FR-002/004's own new helpers.
-- **`pack_assembler.py`** and **`doctrine.py`**: touched only for FR-004's Reflexivity carve-outs
-  — a single-call-site keyword-argument addition each
-  (`validate_pack(output_dir, check_drg_root=False)` and
-  `validate_pack(pack_path, check_drg_root=False)`). This is too narrow a touch surface to expect
+- **`pack_assembler.py`** and **`doctrine.py`**: touched only for FR-004's Reflexivity fix — a
+  single-call-site keyword-argument addition each (`validate_pack(output_dir,
+  check_drg_root=False)`, the assembler's unconditional carve-out, and `validate_pack(pack_path,
+  check_drg_root=True)`, `org_validate`'s explicit no-carve-out write-out — per operator ruling
+  #2, `reviews/plan.ruling.md`). This is too narrow a touch surface to expect
   meaningful pre-existing debt at exactly that line; no campsite work is anticipated here beyond
   the one-line edit itself, and none should be manufactured to satisfy the standing order —
   Locality of Change (`DIRECTIVE_024`) is the brake on inventing scope.
@@ -549,58 +560,14 @@ with `src/specify_cli/cli/commands/doctrine.py`:
   `org_validate`'s call site (`:966`) — a different function, no line range overlap. Benign
   same-file co-edit: at worst a mechanical rebase, no architectural premise at risk.
 - **PR #2719** ("feat: doctrine org init from local/git template", open, last updated 2026-08-11)
-  is not a line-shift risk — it is an **architectural-premise risk** for IC-04. Re-verified
-  directly, not taken on trust: `gh pr diff 2719` shows `org_init` (`:899-940` on this checkout)
-  refactored into a dispatcher — `if template is not None: _run_template_render(...); return`,
-  else `_run_minimal_scaffold(pack_path, force=force)` — where `_run_template_render` calls a new
-  `src/specify_cli/doctrine/template_render/` package (`RenderRequest`, `render_org_pack`) that
-  copies an arbitrary template tree (honouring `.templateignore`) and substitutes `{{ORG_NAME}}` /
-  `{{LOCAL_PATH}}`. Without `--template`, `org_init` still writes today's minimal three-file stub;
-  **with** `--template`, the output can be any tree the template author supplied — including one
-  carrying real DRG content, with or without a pack-root `*.graph.yaml`. The template-render path
-  never calls `validate_pack()` itself (`gh pr diff 2719` shows no `validate_pack`/`check_drg_root`
-  hit in the diff; it prints a suggestion to run `doctrine org validate` separately), so a
-  template-rendered pack is exactly the kind of input `org_validate` gets asked to check once
-  `--template` ships.
-
-  This falsifies IC-04's stated premise for the **unconditional** `check_drg_root=False` carve-out
-  at `org_validate`'s call site: spec.md's FR-004 justifies that carve-out on "`org_init`'s
-  three-file scaffold ... is, by design, [never] a complete, independently-loadable pack in its
-  own right" — true of every pack `org_init` can produce *today*, false of a `--template`-rendered
-  pack the moment #2719 merges.
-
-  **Consequence under each merge ordering** (this mission ships one PR; #2719 is a separate,
-  independently-owned PR — a cross-PR sequencing question this plan's own lane structure cannot
-  absorb):
-  - *This mission's PR merges before #2719's*: the carve-out's premise is true at merge time —
-    every pack `org_validate` can check on `main` as it stands really is the fixed three-file
-    scaffold. The premise becomes false only later, when #2719 merges and adds `--template`; at
-    that point `check_drg_root=False` silently stops catching `drg_root_graph_missing` for a
-    template-rendered pack lacking a pack-root graph — a regression into this mission's own
-    silent-success domain, introduced by a different mission's merge. This plan cannot pre-fix a
-    defect in code that does not exist on `main` yet; it can only name the obligation below.
-  - *#2719 merges before this mission's PR*: IC-04's stated premise is already false by the time
-    this mission's implementer writes the carve-out — landing `check_drg_root=False`
-    unconditionally at that point would knowingly ship a carve-out whose own written
-    justification is false for `--template`-rendered packs.
-
-  **Resolution — a merge-order constraint for the operator to decide, not a design choice this
-  plan makes unilaterally**: spec.md's FR-004 (binding; out of this plan's authority to re-scope)
-  specifies the unconditional `check_drg_root=False` carve-out at `org_validate`'s call site under
-  the explicit premise that `org_init`'s output is always the minimal stub. This plan does not
-  narrow the carve-out, add a provenance check, or otherwise redesign FR-004 — the spec does not
-  ask for that, and inventing it here would be exactly the kind of unauthorized design change this
-  plan must not make. **The operator must choose one of:**
-  1. Merge this mission's PR before #2719's, and open a tracked follow-up issue (scoped to
-     whichever change next touches `org_validate` — #2719 itself, or a later mission) to
-     re-justify or narrow IC-04's carve-out once `--template` lands, so the obligation is not lost.
-  2. Hold IC-04's implementation commit until #2719's fate on `main` is known, and if `--template`
-     has landed by then, re-verify the carve-out's premise against `main`'s actual `org_init`
-     before writing it, folding a `--template`-rendered-pack fixture into AC-6/AC-7's tests
-     alongside the minimal-scaffold fixture already required.
-  This plan records the constraint explicitly rather than papering over it; it does not resolve
-  it, because resolving it would mean either editing spec.md's FR-004 (out of this plan's
-  authority) or guessing the operator's preferred merge order (not this plan's call to make).
+  touches `doctrine.py`'s `org_init` (`gh pr diff 2719`: adds a `--template` path via a new
+  `src/specify_cli/doctrine/template_render/` package, confirmed to never call
+  `validate_pack()`/`check_drg_root` itself). **Per operator ruling #2** (`reviews/plan.ruling.md`),
+  this is no longer a premise risk: FR-004 no longer carves `org_validate`'s call out at all — the
+  call site passes `check_drg_root=True` explicitly, the same default every other
+  full-pack-authoring caller gets, so its correctness never depended on `org_init`'s output shape
+  in the first place. #2719 landing before or after this mission's PR has no effect on FR-004's
+  correctness at this call site. There is no operator merge-order decision to make here.
 
 ## Project Structure
 
@@ -681,8 +648,10 @@ tests/
 │                                             #   synthetic post-merge-skip scenario (no new
 │                                             #   runtime code here, fixture data only)
 └── cli/
-    └── test_doctrine_org_commands.py       # FR-004 AC-7 — assert check_drg_root=False is the
-                                              #   actual parameter value at org_validate's call
+    └── test_doctrine_org_commands.py       # FR-004 AC-7 — assert check_drg_root=True is the
+                                              #   explicit parameter value at org_validate's call
+                                              #   (no carve-out), plus the new positive-fire
+                                              #   fixture (grown pack -> drg_root_graph_missing)
 
 CHANGELOG.md                                 # Repo root — SYMLINK to docs/changelog/CHANGELOG.md,
                                               #   enforced by the docs-freshness
@@ -802,8 +771,10 @@ trade-off, which is not anticipated.
   - `pack_assembler.py` — `assemble_pack()`'s internal `validate_pack(output_dir)` call (`:335`)
     becomes `validate_pack(output_dir, check_drg_root=False)`.
   - `doctrine.py` — `org_validate`'s `validate_pack(pack_path)` call (`:966`) becomes
-    `validate_pack(pack_path, check_drg_root=False)`. `pack_validate`'s call (`:370`) is
-    unchanged — it gets the default `True`.
+    `validate_pack(pack_path, check_drg_root=True)`, written explicitly (per operator ruling #2,
+    `reviews/plan.ruling.md`) rather than left to `validate_pack`'s own default — this call
+    carries no carve-out. `pack_validate`'s call (`:370`) is unchanged — it gets the same
+    default `True` implicitly.
   - `docs/changelog/CHANGELOG.md` (the canonical file; the root `CHANGELOG.md` is a symlink to
     it, enforced by the docs-freshness `sync_changelog.py --check` gate — edit the canonical
     path directly, do not replace the symlink; see "The Gate Set") — new entry, added under a
@@ -829,17 +800,21 @@ trade-off, which is not anticipated.
     satisfying pack-root graph — `Path.glob("*.graph.yaml")` does not match a `.bak`-suffixed
     name, so this is correct by construction, not a new pattern to get subtly wrong (spec's own
     framing, confirmed against the exact glob used).
-  - *Regression on the two known call sites*: without the carve-out, `assemble_pack()`'s
-    round-trip check would newly fail `test_force_dedup_prunes_duplicate_edges_via_canonical_serializer`
-    (`tests/specify_cli/doctrine/test_pack_assembler.py:169`) and `org_validate`'s onboarding
-    check would newly fail `test_doctrine_org_validate_accepts_valid_pack`
-    (`tests/cli/test_doctrine_org_commands.py:108`) — both are pre-identified in the spec's
-    Reflexivity finding and must be re-run as part of this IC's own validation, not assumed
-    fixed by the carve-out alone.
-  - *Open-PR premise risk (PR #2719, `--template` render)*: see "Chokepoint"'s "Open-PR
-    write-scope check" above — the unconditional `check_drg_root=False` at `org_validate`'s call
-    site is premised on `org_init` always producing the fixed three-file stub, a premise open PR
-    #2719 falsifies for `--template`-rendered packs. This is a merge-order constraint for the
-    operator, not something IC-04 resolves unilaterally; before writing this carve-out, confirm
-    whether #2719 has landed on `main` and, if so, apply the Chokepoint section's resolution
-    option 2 (re-verify the premise, add a template-rendered-pack fixture).
+  - *Regression on the assembler's known call site*: without its carve-out, `assemble_pack()`'s
+    round-trip check would newly fail
+    `test_force_dedup_prunes_duplicate_edges_via_canonical_serializer`
+    (`tests/specify_cli/doctrine/test_pack_assembler.py:169`) — pre-identified in the spec's
+    Reflexivity finding and must be re-run as part of this IC's own validation, not assumed fixed
+    by the carve-out alone. `org_validate`'s onboarding check carries no equivalent risk: per
+    operator ruling #2 (`reviews/plan.ruling.md`), its carve-out is dropped, and
+    `test_doctrine_org_validate_accepts_valid_pack`
+    (`tests/cli/test_doctrine_org_commands.py:108`) keeps passing regardless, because
+    `org_init`'s scaffold never produces the shape the check fires on — a property of the
+    scaffold's own output, not of any carve-out. (The premise risk PR #2719 raised against the
+    old, unconditional carve-out is eliminated by dropping the carve-out, not by conditioning it
+    on `org_init`'s output shape.)
+  - *New positive-fire fixture required (AC-7b)*: dropping `org_validate`'s carve-out means the
+    check is now live for that call site; AC-7's positive-fire case — a pack scaffolded via
+    `doctrine org init`, then given a real `drg/*.graph.yaml` fragment with no pack-root graph —
+    has no fixture in `tests/cli/test_doctrine_org_commands.py` today and must be added as part
+    of this IC, not assumed to fall out of the existing scaffold test.
