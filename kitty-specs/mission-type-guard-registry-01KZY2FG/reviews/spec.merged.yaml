@@ -1,0 +1,243 @@
+# review-merged/v1 — R2 mechanical merge+dedup of all R1 lens findings files.
+# Produced by the orchestrator (R2 is bookkeeping only, no session). Source files:
+# spec.gov.findings.yaml (2), spec.arch.findings.yaml (3), spec.verify.findings.yaml (5).
+# Dedup check performed: compared every finding's artifact-section/file:line citations and
+# claim substance pairwise across the three source files. No two findings cite the same
+# artifact section or file:line while making substantially the same claim — all 10 are
+# distinct concerns. Nothing was dropped or merged; ids and content are copied verbatim from
+# source files, group provenance added via `source_group`.
+schema: review-merged/v1
+phase: spec
+mission: mission-type-guard-registry-01KZY2FG
+source_files:
+  - reviews/spec.gov.findings.yaml
+  - reviews/spec.arch.findings.yaml
+  - reviews/spec.verify.findings.yaml
+findings:
+  - id: SPEC-GOV-001
+    source_group: gov
+    lens: "directive (DIRECTIVE_048 version-governance) / verbatim-quote verification"
+    severity: 3
+    title: "The 'operator scope decision' blockquote is labeled 'quoted verbatim' but does not match verbatim any accessible antecedent source"
+    evidence:
+      - artifact: "spec.md § Clarifications, Session 2026-08-13 — operator scope decision, lines 12-24 (the blockquote is attributed 'to the operator, dated 2026-08-13' and introduced as 'quoted verbatim below')"
+      - artifact: "/home/jeroennouws/dev/SK-missions/_readiness/3386-mission-type-guard-registry.md, Open Question 1, Option A recommendation text, lines 286-295 — the only accessible written antecedent for this decision"
+    claim: >
+      The spec explicitly asserts this is a verbatim quotation of a binding operator decision.
+      The only accessible written record of the underlying options is the readiness probe's
+      "Open Question 1" Option A recommendation. Comparing word-for-word, the spec's blockquote
+      is a paraphrase/compression of that text, not an identical copy. The decision's substance
+      is faithfully preserved, but the "quoted verbatim" framing makes a precision claim that
+      cannot currently be checked against any recorded source — doubly so because C-003 leans on
+      this exact blockquote as the sole cited authority bounding the mission's entire scope.
+    remediation: >
+      Either (a) attach or reference the actual primary-source artifact that substantiates the
+      verbatim claim, or (b) reword the Clarifications heading/lead-in to say the decision is
+      "paraphrased from the operator's Option-A selection" and cite the readiness probe's Option
+      A text as the substantive source of record instead of implying an independently-authored
+      operator quotation.
+
+  - id: SPEC-GOV-002
+    source_group: gov
+    lens: "directive (canonical-source accuracy) / verified-figures table"
+    severity: 2
+    title: "'independently corroborated twice in the probe' overstates how the 15-of-27 write_meta figure was actually checked"
+    evidence:
+      - artifact: "spec.md § Clarifications, 'Numbers corrected from the source GitHub issue' table, row 5"
+      - artifact: "/home/jeroennouws/dev/SK-missions/_readiness/3386-mission-type-guard-registry.md, Resolved ambiguity #4, lines 215-225"
+    claim: >
+      The spec's table states the 15-of-27 (56%) figure is "corrected figure, independently
+      corroborated twice in the probe." The probe itself shows only one precise enumeration of
+      that exact figure; the author's own independent recheck produced a different count
+      (~29/17), explicitly qualified in the probe as "close enough... to trust its direction" —
+      not a second, matching corroboration of the exact 15/27 figure.
+    remediation: >
+      Reword the table cell to match the probe's own epistemic status, e.g. "corrected figure
+      per one direct enumeration (27 sites, 15 skipping validation), direction independently
+      re-checked by a second, rougher grep (~29/17)" — or drop "independently corroborated
+      twice" and say "verified by direct enumeration; direction cross-checked independently."
+
+  - id: SPEC-ARCH-001
+    source_group: arch
+    lens: "New-fallback-inside-the-fix risk (mission-derived) / Contracts"
+    severity: 4
+    title: "C-001 (composed path must never raise) and C-002 (legacy path must raise) bind the SAME shared function today; the spec never specifies the call-site restructuring needed to make both true at once"
+    evidence:
+      - artifact: "spec.md § C-001, C-002, FR-005, User Story 3"
+      - code: "src/runtime/next/runtime_bridge.py:680-698 (_check_cli_guards)"
+      - code: "src/runtime/next/runtime_bridge_composition.py:427-486 (_check_composed_action_guard)"
+    claim: >
+      Both `_check_cli_guards` and `_check_composed_action_guard` end with the identical
+      `return _cores.evaluate_guards(snapshot)` — both delegates forward to the same shared
+      function with no path-identifying parameter. FR-005's own Independent Test only requires
+      unit-testing "the registry lookup function used by the legacy path," not that
+      `_check_cli_guards` itself calls it. A compliant-but-lazy implementation can satisfy every
+      literal FR/AC by adding an isolated, unit-tested raising helper never wired into
+      `_check_cli_guards`'s real call chain, leaving it delegating to the tolerant,
+      neutral-degrading `evaluate_guards` exactly as today — passing FR-005's literal AC while
+      silently failing C-002's own stated subject.
+    remediation: >
+      Add an FR/AC (or amend FR-005) naming the concrete call-site shape: split the shared
+      dispatch into a strict lookup (raises for a missing key) used directly by
+      `_check_cli_guards`, and a tolerant wrapper (catches, logs, returns `[]`) used by
+      `_check_composed_action_guard` — and state explicitly that `_check_cli_guards` itself must
+      be the caller of the strict path.
+
+  - id: SPEC-ARCH-002
+    source_group: arch
+    lens: Reflexivity
+    severity: 4
+    title: "NFR-001's named verification method (two test files) does not include the tests that actually exercise the legacy and composed call paths end-to-end; it only exercises evaluate_guards directly"
+    evidence:
+      - artifact: "spec.md § NFR-001, § C-005"
+      - code: "tests/next/test_runtime_bridge_unit.py:656-1409 (direct _check_cli_guards(...) calls)"
+      - code: "tests/next/test_occurrence_gate_next_loop.py:187-350 (direct _check_cli_guards(...) calls)"
+      - code: "tests/specify_cli/next/test_runtime_bridge_composition.py:505-531 (unmocked _check_composed_action_guard(...) calls)"
+      - code: "tests/runtime/test_bridge_composition.py:583-649 (monkeypatches cores_seam.evaluate_guards to a stub — does not exercise real family dispatch)"
+    claim: >
+      NFR-001 states its byte-for-byte-identical guarantee is verified by running the two named
+      `tests/runtime/` files. `test_bridge_cores.py` calls `evaluate_guards` directly (bypassing
+      both real delegate functions), and `test_bridge_composition.py`'s guard-dispatch tests
+      monkeypatch `evaluate_guards` itself to a stub. Neither NFR-001-named file exercises the
+      real, unmocked `_check_cli_guards` or `_check_composed_action_guard` call chains
+      end-to-end. The tests that DO exercise those real call chains are not named in NFR-001,
+      only incidentally swept in by C-005's broader directory buckets.
+    remediation: >
+      Expand NFR-001's named verification-method file list to explicitly include
+      `tests/next/test_runtime_bridge_unit.py`, `tests/next/test_occurrence_gate_next_loop.py`,
+      and `tests/specify_cli/next/test_runtime_bridge_composition.py` (or restate the method as
+      "run the full tests/next/ and tests/specify_cli/next/ directories"), so the
+      byte-for-byte-identical claim is backed by tests that call the real, unmocked delegates.
+
+  - id: SPEC-ARCH-003
+    source_group: arch
+    lens: Canonical source
+    severity: 1
+    title: "Stale-by-2-lines citation for _check_cli_guards's start line"
+    evidence:
+      - artifact: "spec.md § User Story 3, § FR-005"
+      - code: "src/runtime/next/runtime_bridge.py:678-680 (def _check_cli_guards is on line 680, not 678)"
+    claim: >
+      Both User Story 3 and FR-005 cite `_check_cli_guards` at
+      `src/runtime/next/runtime_bridge.py:678-698`. The function's `def` line is actually at
+      line 680 (678-679 are blank). The end of the range and the load-bearing line-692 citation
+      are exact — a 2-line drift at the start only.
+    remediation: >
+      Update the citation to `runtime_bridge.py:680-698` in both User Story 3 and FR-005; no
+      functional change needed.
+
+  - id: SPEC-VERIFY-001
+    source_group: verify
+    lens: silent-success
+    severity: 4
+    title: "doctor mission-type's 'unknown' state, if built on the cited UnknownMissionTypeError precedent, is blind in exactly the governed projects (like this repo) most likely to run it"
+    evidence:
+      - artifact: "spec.md § FR-008 (cites UnknownMissionTypeError FR-006/SC-003 distinction at src/charter/mission_type_profiles.py:193-210)"
+      - artifact: "spec.md § User Story 4, Acceptance Scenario 1"
+      - artifact: "spec.md § Out of Scope, item 1 (the doctrine-override hatch)"
+      - code: "src/charter/mission_type_profiles.py:737-738 — raise UnknownMissionTypeError only when has_override is False"
+      - code: "src/charter/mission_type_profiles.py:788-789 — _resolve_action_slot never raises regardless of override"
+      - code: "src/charter/mission_type_profiles.py:1041 — _project_has_doctrine_overrides True whenever charter.yaml has any governance selection"
+      - code: "src/charter/mission_type_profiles.py:582-583 — override-hatch-independent membership check"
+    claim: >
+      Tracing the actual raise site confirms UnknownMissionTypeError is raised only when
+      has_override is False. This repo's own charter documents 15 activated doctrine artifacts —
+      i.e. has_override is True here and in any comparably mature spec-kitty project. If `doctor
+      mission-type`'s unknown-state classification is implemented by catching
+      UnknownMissionTypeError — the natural reading of FR-008's own citation — the audit would
+      silently fail to detect unknown mission types in every governed project, exactly the class
+      of project the command exists to protect. The one given acceptance scenario doesn't specify
+      whether its fixture carries governance selections, so a naive implementation could pass the
+      stated AC while being silently broken in real, governed usage.
+    remediation: >
+      Add an explicit implementation note to FR-008 stating that unknown/activated-unresolvable
+      classification MUST use the override-hatch-independent membership check
+      (`type_key in existing_mission_types(repo_root)`), not `resolve_mission_type_context` +
+      catch UnknownMissionTypeError. Add a second acceptance scenario to User Story 4 running the
+      fixture tree WITH a charter governance selection present.
+
+  - id: SPEC-VERIFY-002
+    source_group: verify
+    lens: silent-success
+    severity: 3
+    title: "Composed-path neutral degrade (FR-003/FR-004) is interface-indistinguishable from a genuine guard pass, and FR-004 pins no log level"
+    evidence:
+      - artifact: "spec.md § Key Entities — guard evaluation result unchanged in shape (list[str], empty = all guards pass)"
+      - artifact: "spec.md § FR-003 / FR-004 / User Story 1 AC2 (no log level specified)"
+      - artifact: "spec.md § SC-002 (log record presence only, no level/visibility assertion)"
+      - code: "src/runtime/next/runtime_bridge_composition.py:570-573 — existing precedent for a different failure mode returns a non-empty, visible message rather than an empty list"
+      - code: "src/runtime/next/runtime_bridge.py:2239, 2249, 2268 — existing degrade-and-continue paths use logger.warning"
+    claim: >
+      Because Key Entities pins the return type as unchanged, FR-003's neutral result must be
+      `[]` — the same value a genuinely passing mission returns. The log line (FR-004) is
+      therefore the ONLY differentiator, and FR-004 specifies no minimum log level. A
+      technically-compliant DEBUG-level implementation satisfies the letter of FR-004/SC-002
+      while being operationally silent — the exact SK-06-class defect this mission exists to
+      close, reintroduced in its own new surface.
+    remediation: >
+      Add a minimum log level to FR-004 (e.g. WARNING, matching runtime_bridge.py:2239/2249/2268)
+      and state it as part of SC-002's acceptance bar. Add an explicit cross-reference from
+      FR-003/FR-004 to FR-007 so the design's answer to discoverability is stated where the
+      requirement lives.
+
+  - id: SPEC-VERIFY-003
+    source_group: verify
+    lens: falsifiability
+    severity: 3
+    title: "plan's guard table (FR-002) doesn't name the artifact filenames for the research/plan steps, and no acceptance scenario exercises them"
+    evidence:
+      - artifact: "spec.md § FR-002 (no filenames given for research/plan steps)"
+      - artifact: "spec.md § User Story 2 Acceptance Scenarios (only review and specify steps covered)"
+      - code: "packs/built-in/missions/plan/mission-runtime.yaml:9-33 — confirms step sequence, no artifact tags"
+      - code: "packs/built-in/missions/plan/templates/plan-plan-skeleton.md:4 — only place naming research.md, not cross-referenced in spec.md"
+    claim: >
+      Every other guard-table description in this spec names exact artifact filenames. FR-002
+      alone describes its three artifact-presence checks generically. research.md is discoverable
+      only by cross-referencing a template file not cited in the spec, and the plan step's own
+      guard is not tested by any acceptance scenario at all.
+    remediation: >
+      Add explicit filenames to FR-002 (specify→spec.md, research→research.md, plan→plan.md) and
+      add at least one acceptance scenario exercising the research step's missing-artifact case.
+
+  - id: SPEC-VERIFY-004
+    source_group: verify
+    lens: taxonomy-exhaustiveness
+    severity: 3
+    title: "FR-008's typeless/unknown boundary is undefined for a mission_type key present but blank, null, or non-string"
+    evidence:
+      - artifact: "spec.md § FR-008 — typeless/unknown defined only for key-absent vs. key-present-as-a-string"
+      - code: "src/specify_cli/mission.py:547-553 — _canonical_meta_mission_type already treats blank/non-string values as absent"
+    claim: >
+      FR-008 does not say how `{"mission_type": ""}`, `null`, or a non-string value should
+      classify. A literal structural key-presence check would call it unknown; an implementation
+      reusing the existing canonicalization convention would call it typeless. The two readings
+      produce different classifications for the identical input, despite FR-008's claim of being
+      "exhaustive by construction."
+    remediation: >
+      Add one sentence to FR-008 stating whether doctor mission-type uses the same
+      blank/null/non-string-treated-as-absent canonicalization as the existing runtime resolver,
+      and add a boundary test case to the test_doctor_mission_type.py suite.
+
+  - id: SPEC-VERIFY-005
+    source_group: verify
+    lens: baseline-honesty
+    severity: 3
+    title: "NFR-001/SC-004's 'all green' acceptance bar is not conditioned on a captured pre-mission baseline"
+    evidence:
+      - artifact: "spec.md § NFR-001 — '...plus the ~16-estimate typeless-preservation tests, all green.'"
+      - artifact: "spec.md § SC-004 — frames its own check as a diff against pre-mission state"
+      - artifact: "spec.md § Clarifications, Numbers-corrected table — the ~16-estimate typeless tests explicitly labeled 'directionally confirmed only'"
+      - artifact: "CLAUDE.md § Test-run baseline-red gotcha; charter.md Standing Order #9"
+    claim: >
+      Running tests/runtime/test_bridge_cores.py and tests/runtime/test_bridge_composition.py
+      today: 71 passed, 0 failed — NFR-001's core claim is currently achievable for those two
+      named files. But NFR-001 also folds in the ~16-estimate typeless-preservation set, never
+      independently confirmed to currently be green, and states the bar as an unconditional "all
+      green" rather than a diff against a captured baseline. If any of that set is already red on
+      main for an unrelated reason, NFR-001's bar becomes unsatisfiable through no fault of this
+      mission, with no stated fallback.
+    remediation: >
+      Reword NFR-001's acceptance bar to a diff-against-captured-baseline formulation: capture
+      pass/fail state of the named suites (including the typeless-preservation set, once
+      enumerated) BEFORE touching runtime_bridge_cores.py, and require zero NEW reds relative to
+      that baseline — consistent with how SC-004 already frames its own check.

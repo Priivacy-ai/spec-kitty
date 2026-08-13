@@ -1,0 +1,53 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true               # flip to true ONLY at the very end, after the yaml self-check passes
+phase: spec
+batch: 2
+verdicts:                   # one entry for EVERY finding in your batch — no omissions
+  - id: SPEC-VERIFY-001
+    verdict: refuted
+    reason: >-
+      The finding's central grounding claim — "this repo's own charter documents 15 activated
+      doctrine artifacts, i.e. has_override is True here" — is falsified by the live
+      .kittify/charter/charter.yaml: _project_has_doctrine_overrides() (mission_type_profiles.py:1055-1073)
+      reads only governance.doctrine.selected_* keys, which are ALL empty lists in this checkout
+      (lines 20-27); the populated "15 activated artifacts" the finding points to live under a
+      separate, differently-named top-level activated_directives/activated_tactics/etc. section
+      that this function never consults, so has_override is actually False here, contradicting
+      the finding's flagship evidence for severity 4.
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      Verified directly against spec.md: Key Entities pins the guard-evaluation result "unchanged
+      in shape" (implying [] for the neutral case), FR-004/User Story 1 AC2/SC-002 all describe
+      the log line with no minimum level, and runtime_bridge.py:2239/2249/2268 confirm existing
+      degrade-and-continue paths in this codebase do use logger.warning, so the gap (a
+      DEBUG-level implementation would technically satisfy FR-004 while being operationally
+      silent) is real and unaddressed elsewhere in the spec.
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: >-
+      Confirmed FR-002 names no filenames, "research.md" appears nowhere in spec.md (only in the
+      template plan-plan-skeleton.md:4, and mission-runtime.yaml:9-33 carries no artifact tags),
+      and neither acceptance scenario in User Story 2 exercises the research or plan steps'
+      own artifact-presence guards (AC1 exercises review, AC2 exercises specify) — the claim
+      holds against the actual file contents.
+  - id: SPEC-VERIFY-004
+    verdict: confirmed
+    reason: >-
+      FR-008 defines typeless strictly as "no mission_type key at all" and unknown as "mission_type
+      string present but not registered/activated anywhere," leaving blank/null/non-string values
+      genuinely unaddressed by either bucket, while _canonical_meta_mission_type
+      (mission.py:541-555, verified) treats blank/non-string as absent/typeless — a real reading
+      conflict the spec does not resolve, so the taxonomy is not exhaustive by construction as
+      claimed.
+  - id: SPEC-VERIFY-005
+    verdict: confirmed
+    reason: >-
+      Ran tests/runtime/test_bridge_cores.py and tests/runtime/test_bridge_composition.py locally
+      and got the exact figure cited (71 passed, 0 failed); NFR-001 states an unconditional "all
+      green" bar folding in the ~16-estimate typeless-preservation set that Clarifications itself
+      labels "directionally confirmed only, not a pinned count," unlike SC-004 which explicitly
+      frames its own two-file check as a diff against pre-mission state — the asymmetry is real
+      and CLAUDE.md's baseline-red gotcha plus charter.md Standing Order #9 (verified present)
+      both support treating this as a legitimate baseline-honesty gap.
