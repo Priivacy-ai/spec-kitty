@@ -58,7 +58,7 @@ def _checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 @pytest.mark.parametrize(
     ("legacy_input", "seed"),
     [
-        ("checkout override", lambda config: config._save({"sync": {"checkout_overrides": {"/tmp/project": {"enabled": True}}}})),
+        ("checkout override", lambda config: config._save({"sync": {"checkout_overrides": {"/no-such-checkout/project": {"enabled": True}}}})),
         ("repository default", lambda config: config._save({"sync": {"repo_defaults": {"acme/project": {"enabled": True}}}})),
         ("machine UUID index", lambda config: config._save({"sync": {"project_consent": {PROJECT_UUID: {"enabled": True}}}})),
         ("login and target", lambda config: config._save({"sync": {"server_url": "https://app.spec-kitty.ai"}, "auth": {"logged_in": True}})),

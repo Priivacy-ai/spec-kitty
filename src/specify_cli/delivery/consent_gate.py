@@ -295,10 +295,17 @@ def execute_project_transport_batch(  # noqa: C901 - four explicit transport pha
                 f"delivery disclosed bytes but result correlation failed; recover original attempts: {', '.join(d.attempt_id for d in disclosures)}"
             ) from exc
 
-        for disclosure in disclosures:
-            try:
-                outcome_value, category = outcomes[disclosure.attempt_id]
-                with lease.unit_of_work() as (unit, context):
+        # One unit for the whole batch's result fence (NFR-003: recording N
+        # results must not open N connections). The fence is all-or-nothing:
+        # a failure rolls back every result in the batch, and every original
+        # attempt is marked unknown for recovery — never a partial fence that
+        # claims some results while losing the one that failed.
+        failed_attempt_id: str | None = None
+        try:
+            with lease.unit_of_work() as (unit, context):
+                for disclosure in disclosures:
+                    failed_attempt_id = disclosure.attempt_id
+                    outcome_value, category = outcomes[disclosure.attempt_id]
                     _assert_expected_transport_authority(disclosure, context)
                     record_delivery_result(
                         unit,
@@ -308,11 +315,11 @@ def execute_project_transport_batch(  # noqa: C901 - four explicit transport pha
                         outcome=DeliveryOutcome(outcome_value),
                         terminal_refusal_category=category,
                     )
-            except (KeyError, ProjectStoreError, ValueError) as exc:
-                _mark_unknown([disclosure], lease=lease, reason=f"result persistence failed: {exc}")
-                raise ProjectTransportResultError(
-                    f"delivery disclosed bytes but the durable result fence could not be recorded; recover original attempt {disclosure.attempt_id}: {exc}"
-                ) from exc
+        except (KeyError, ProjectStoreError, ValueError) as exc:
+            _mark_unknown(disclosures, lease=lease, reason=f"result persistence failed: {exc}")
+            raise ProjectTransportResultError(
+                f"delivery disclosed bytes but the durable result fence could not be recorded; recover original attempt {failed_attempt_id}: {exc}"
+            ) from exc
         return value
 
 

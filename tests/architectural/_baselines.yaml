@@ -100,7 +100,10 @@ test_no_dead_modules:
   # migration.verdict_provenance_backfill is no longer an orphan and its Cat-7
   # entry was removed. Shrink -- reverses the post-merge green-up bump, mirrors
   # the #2816 backfill_runtime_state re-shrink-when-wired precedent.
-  category_7_grandfathered_orphans: 2
+  # 2 -> 3 (#3262 consent program reconciliation, 2026-08-13):
+  # sync.admission_operations is WP05's deferred admission-operation record
+  # library; wiring tracked as a WP11 TODO(triage) in the allowlist entry.
+  category_7_grandfathered_orphans: 3
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:
@@ -416,16 +419,17 @@ test_egress_consent_boundary:
 # Registered here for the same reason the egress allowlist is — the allowlist is
 # itself the surface an author would edit to silence the gate.
 test_unfiltered_journal_read_boundary:
-  # justification: 4 functions name an unfiltered-read symbol, and the module's
+  # justification: 4 functions name the unfiltered-read symbol, and the module's
   # own test_removing_any_entry_reds_exactly_its_own_key proves all 4 are live
-  # (0 inert): 2 in the owning module (event_journal/journal.py — the module-scope
-  # import of the SQL constant, and the implementation that executes it), 1
-  # operator report (delivery/status_report.py::build_per_project_store_report,
-  # FR-015/SC-004 — it must name projects NOT known to consent and surface the
-  # FR-011 NULL-identity rows, neither of which the filtered read can answer),
-  # and 1 operator selector (cli/commands/sync.py::_purge_resolve_project, the
-  # `sync purge --project <name>` resolver — the precedent that motivated the
-  # gate, added six hours after the method was documented "REPORTING only").
+  # (0 inert). Since the #3262 per-project cutover the machine-global SQL
+  # constant is retired and the owning module holds no counted reference, so
+  # the owner entries are gone; the live consumers are 1 operator report
+  # (delivery/status_report.py::build_per_project_store_report, FR-015/SC-004),
+  # 1 operator selector (cli/commands/sync.py::_purge_resolve_project — the
+  # precedent that motivated the gate), and 2 purge measurement reads
+  # (cli/commands/sync.py::_purge_journal_census / _purge_journal_ids, WP10
+  # cutover tooling: verbatim identity census incl. FR-011 NULL rows,
+  # measurement-only, one explicit operator command).
   # Growth here means a NEW consumer can reach the read that shipped 1,322
   # never-opted-in events on 2026-07-27: argue it in the diff, or use
   # `read_identity_projection(project_uuids=...)` instead.

@@ -52,7 +52,7 @@ def test_legacy_grant_records_are_read_only_diagnostics_not_authority() -> None:
     config._save(
         {
             "sync": {
-                "checkout_overrides": {"/tmp/project": {"enabled": True}},
+                "checkout_overrides": {"/no-such-checkout/project": {"enabled": True}},
                 "repo_defaults": {"acme/project": {"enabled": True}},
                 "project_consent": {PROJECT_UUID: {"enabled": True}},
             }

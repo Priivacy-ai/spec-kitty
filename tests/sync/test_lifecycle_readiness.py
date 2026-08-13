@@ -143,7 +143,7 @@ def test_event_durable_when_sync_feature_flag_disabled(fresh_queue, fresh_clock,
     event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
 
     assert event is not None
-    assert event["drain_blocked_reason"] == "sync_disabled"
+    assert event["drain_blocked_reason"] == "saas_disabled"
     assert fresh_queue.size() == 1
 
 
@@ -163,9 +163,9 @@ def test_event_durable_when_unauthenticated(fresh_queue, fresh_clock, identity_w
     event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
 
     assert event is not None
-    # Either "no_auth" (auth check ran cleanly) or "no_team" (auth raised
+    # Either "missing_auth" (auth check ran cleanly) or "missing_team" (auth raised
     # and the strict resolver returned None) — both preserve durability.
-    assert event["drain_blocked_reason"] in {"no_auth", "no_team"}
+    assert event["drain_blocked_reason"] in {"missing_auth", "missing_team"}
     assert event["team_slug"] is None
     assert fresh_queue.size() == 1
 
@@ -174,7 +174,7 @@ def test_event_durable_when_no_private_teamspace(fresh_queue, fresh_clock, ident
     """FR-4 / issue #1072: shared-only sessions queue events but never ingress.
 
     When the strict resolver returns ``None``, the emitter must queue
-    with ``team_slug = None`` and ``drain_blocked_reason = "no_team"`` —
+    with ``team_slug = None`` and ``drain_blocked_reason = "missing_team"`` —
     no remote ingress, no shared-team fallback.
     """
     tm = MagicMock()
@@ -191,7 +191,7 @@ def test_event_durable_when_no_private_teamspace(fresh_queue, fresh_clock, ident
 
     assert event is not None
     assert event["team_slug"] is None
-    assert event["drain_blocked_reason"] == "no_team"
+    assert event["drain_blocked_reason"] == "missing_team"
     assert fresh_queue.size() == 1
 
 
@@ -291,8 +291,8 @@ def test_drain_blocked_counts_aggregate_on_queue(fresh_queue, fresh_clock, ident
 
     counts = fresh_queue.get_drain_blocked_counts()
     assert counts.get("ready") == 1
-    assert counts.get("sync_disabled") == 2
-    assert counts.get("no_team") == 1
+    assert counts.get("saas_disabled") == 2
+    assert counts.get("missing_team") == 1
 
 
 def test_init_emits_project_init_event_offline(tmp_path: Path, monkeypatch):
@@ -300,7 +300,7 @@ def test_init_emits_project_init_event_offline(tmp_path: Path, monkeypatch):
 
     Drives the real init command via CliRunner. Authentication is forced
     to "unauthenticated" so the project-init event must be queued locally
-    (``drain_blocked_reason == "no_auth"`` or ``"no_team"``).
+    (``drain_blocked_reason == "missing_auth"`` or ``"missing_team"``).
     """
     # Isolate the emitter without starting the process-global runtime. Runtime
     # attachment is incidental to this oracle; its subject is the durable
@@ -351,7 +351,7 @@ def test_init_emits_project_init_event_offline(tmp_path: Path, monkeypatch):
             events = [task.event for task in tasks]
         assert any(e.get("event_type") == "BuildRegistered" for e in events), "expected init to queue a BuildRegistered event into the durable outbox"
         build_event = next(e for e in events if e["event_type"] == "BuildRegistered")
-        assert build_event.get("drain_blocked_reason") in {"no_auth", "no_team"}
+        assert build_event.get("drain_blocked_reason") in {"missing_auth", "missing_team"}
         assert build_event["payload"]["build_id"]
         assert build_event["payload"]["project_uuid"]
     finally:

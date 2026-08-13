@@ -55,7 +55,7 @@ def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ``SPEC_KITTY_ENABLE_SAAS_SYNC`` is machine-global arming and never a grant, so a
     developer's own export must not decide anything here. ``is_saas_sync_enabled``
     is patched True because a machine with SaaS sync off short-circuits every
-    drain classification to ``sync_disabled`` and the per-project question is never
+    drain classification to ``saas_disabled`` and the per-project question is never
     reached.
 
     The machine layout authority is published ``project_only`` once (it is a
@@ -433,7 +433,7 @@ def test_route_event_still_honours_an_upstream_drain_blocked_reason(
 ) -> None:
     """The advisory field must keep narrowing, even for a consenting project.
 
-    A ``no_team`` envelope is retained for the drain to re-evaluate; it must never
+    A ``missing_team`` envelope is retained for the drain to re-evaluate; it must never
     become an inline publish, consent or no consent.
     """
     from specify_cli.sync.consent import record_project_opt_in
@@ -444,7 +444,7 @@ def test_route_event_still_honours_an_upstream_drain_blocked_reason(
     monkeypatch.chdir(consenting_a)
     emitter = _emitter(tmp_path, project_uuid=UUID_A, ws_client=ws)
 
-    emitter._route_event(_envelope(UUID_A, blocked="no_team"))
+    emitter._route_event(_envelope(UUID_A, blocked="missing_team"))
 
     assert ws.sent == [], "a no_team envelope must never be published opportunistically"
 

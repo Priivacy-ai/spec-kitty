@@ -145,7 +145,10 @@ def _consent_records(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home = tmp_path / "home"
     home.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    # The WP06 transport lease binds egress eligibility only while the machine
+    # kill switch is armed (arming is NOT consent — #3030; the per-project
+    # consent rows below still decide what ships).
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     for project_uuid in (CONSENTED, NEVER_OPTED_IN):
         store = ProjectSyncStore(project_uuid)
         authority = store.layout_generation()

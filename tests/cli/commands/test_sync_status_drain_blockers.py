@@ -35,7 +35,7 @@ def test_format_queue_health_renders_drain_blocker_table(tmp_path: Path) -> None
         oldest_event_age=None,
         retry_distribution={"0 retries": 5},
         top_event_types=[("WPStatusChanged", 5)],
-        drain_blocked_counts={"ready": 1, "no_team": 3, "no_auth": 1},
+        drain_blocked_counts={"ready": 1, "missing_team": 3, "missing_auth": 1},
     )
 
     format_queue_health(stats, console)
@@ -48,8 +48,8 @@ def test_format_queue_health_renders_drain_blocker_table(tmp_path: Path) -> None
 
     # Per-blocker breakdown with remediation hints.
     assert "Drain Blockers" in output
-    assert "no_team" in output
-    assert "no_auth" in output
+    assert "missing_team" in output
+    assert "missing_auth" in output
     # Remediation hints reference the canonical recovery commands so the
     # operator can act without guessing.
     assert "spec-kitty auth login" in output
@@ -88,7 +88,7 @@ def test_queue_get_drain_blocked_counts_persists_through_drain_round_trip(tmp_pa
 
     blocked_events = [
         {"event_id": f"blocked-{i:026d}", "event_type": "WPStatusChanged", "project_uuid": str(store.project_uuid.storage_token), "drain_blocked_reason": reason}
-        for i, reason in enumerate(["no_team", "no_team", "sync_disabled"])
+        for i, reason in enumerate(["missing_team", "missing_team", "saas_disabled"])
     ]
     ready_event = {
         "event_id": "01" + "B" * 24,
@@ -102,8 +102,8 @@ def test_queue_get_drain_blocked_counts_persists_through_drain_round_trip(tmp_pa
         for event in [*blocked_events, ready_event]:
             queue.queue_event(event)
         counts = queue.get_drain_blocked_counts()
-    assert counts.get("no_team") == 2
-    assert counts.get("sync_disabled") == 1
+    assert counts.get("missing_team") == 2
+    assert counts.get("saas_disabled") == 1
     assert counts.get("ready") == 1
 
 
@@ -116,6 +116,6 @@ def test_emitter_drain_blocked_reason_enum_is_documented() -> None:
     string set on the emitter class lets downstream tests assert the
     same vocabulary without sync-time string drift.
     """
-    assert "sync_disabled" in EventEmitter.DRAIN_BLOCKED_REASONS
-    assert "no_auth" in EventEmitter.DRAIN_BLOCKED_REASONS
-    assert "no_team" in EventEmitter.DRAIN_BLOCKED_REASONS
+    assert "saas_disabled" in EventEmitter.DRAIN_BLOCKED_REASONS
+    assert "missing_auth" in EventEmitter.DRAIN_BLOCKED_REASONS
+    assert "missing_team" in EventEmitter.DRAIN_BLOCKED_REASONS

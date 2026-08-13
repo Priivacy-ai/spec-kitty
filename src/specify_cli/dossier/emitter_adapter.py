@@ -29,12 +29,13 @@ Production wiring of the registration lives in WP02 (sync init).
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import Any, Protocol
 
-if TYPE_CHECKING:
-    from specify_cli.sync.layout_generation import LayoutGenerationAuthority
-    from specify_cli.sync.project_context import ProjectSyncContext
-    from specify_cli.sync.project_store import ProjectUnitOfWork
+# The sync-owned types (ProjectSyncContext, ProjectUnitOfWork,
+# LayoutGenerationAuthority) are deliberately NOT imported, even under
+# TYPE_CHECKING: this module exists to invert the dossier->sync edge
+# (tests/architectural/test_dossier_sync_boundary.py), so the seam is typed
+# structurally and the sync-registered callable owns validation.
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +50,9 @@ class DossierEmitterCallable(Protocol):
         aggregate_id: str,
         aggregate_type: str,
         payload: dict[str, Any],
-        project_context: ProjectSyncContext,
-        project_unit: ProjectUnitOfWork,
-        project_layout: LayoutGenerationAuthority,
+        project_context: Any,
+        project_unit: Any,
+        project_layout: Any,
     ) -> dict[str, Any]: ...
 
 
@@ -80,9 +81,9 @@ def fire_dossier_event(
     aggregate_id: str,
     aggregate_type: str,
     payload: dict[str, Any],
-    project_context: ProjectSyncContext | None = None,
-    project_unit: ProjectUnitOfWork | None = None,
-    project_layout: LayoutGenerationAuthority | None = None,
+    project_context: Any | None = None,
+    project_unit: Any | None = None,
+    project_layout: Any | None = None,
 ) -> dict[str, Any] | None:
     """Emit a dossier event via the registered emitter.
 
@@ -96,15 +97,13 @@ def fire_dossier_event(
             event_type,
         )
         return None
-    from specify_cli.sync.project_context import (
-        validate_project_sync_context_authority,
-    )
-
+    # Authority validation is owned by the sync-registered callable
+    # (EventEmitter._emit_for_project_context revalidates and fails to None);
+    # only the import-free identity pairing check stays on this side.
     try:
-        validate_project_sync_context_authority(project_context)
         if project_unit.store_identity is not project_context.store_identity:
             raise ValueError("dossier project unit does not match the explicit project context")
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, AttributeError):
         logger.warning(
             "Dossier event %s withheld: project context authority is invalid",
             event_type,

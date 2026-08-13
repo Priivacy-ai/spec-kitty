@@ -177,8 +177,10 @@ _SRC = _REPO_ROOT / "src"
 #: run instead, bypassing the method entirely.
 _TARGET_SYMBOLS: frozenset[str] = frozenset(
     {
+        # ``SELECT_IDENTITY_PROJECTION_ALL_SQL`` was retired with the #3262
+        # per-project store cutover — the machine-global statement no longer
+        # exists in src/, so the method is the one remaining spelling.
         "read_identity_projection_for_report",
-        "SELECT_IDENTITY_PROJECTION_ALL_SQL",
     }
 )
 
@@ -329,27 +331,11 @@ class Allowance:
 #: why the key is per-symbol rather than per-file or per-package.
 _UNFILTERED_READ_ALLOWLIST: dict[str, Allowance] = {
     # -- The owning module ----------------------------------------------------
-    # Listed rather than excluded by path, so both entries stay live and provably
-    # non-inert: if the implementation is deleted or moved, the stale/inert checks
-    # red instead of the module keeping a standing silent exemption.
-    "specify_cli/event_journal/journal.py::<module>": Allowance(
-        kind=ConsumerKind.OWNER,
-        note=(
-            "The module-scope `from .models import SELECT_IDENTITY_PROJECTION_ALL_SQL` "
-            "that the implementation below executes. Import sites are scanned on "
-            "purpose (limit 3): an aliased import is how a consumer would otherwise "
-            "reach the symbol under a name this gate does not know."
-        ),
-    ),
-    "specify_cli/event_journal/journal.py::EventJournal.read_identity_projection_for_report": Allowance(
-        kind=ConsumerKind.OWNER,
-        note=(
-            "The implementation itself — the one place the unfiltered statement is "
-            "meant to be executed. Its `def` line is a definition and is not counted; "
-            "this entry covers the SQL constant it runs, so deleting the body reds the "
-            "inert check rather than leaving the owner permanently exempt."
-        ),
-    ),
+    # No owner entries: since the #3262 per-project cutover the implementation
+    # (`EventJournal.read_identity_projection_for_report`) holds no counted
+    # reference — its `def` line is a definition and the per-store SQL it runs
+    # is inline (the retired machine-global constant is gone from src/), so an
+    # owner allowance here would be inert and the inert check would red it.
     # -- The intended consumer: FR-015/SC-004's operator report ---------------
     "specify_cli/delivery/status_report.py::build_per_project_store_report": Allowance(
         kind=ConsumerKind.OPERATOR_REPORT,
@@ -388,6 +374,29 @@ _UNFILTERED_READ_ALLOWLIST: dict[str, Allowance] = {
             "82db736899 (07:36) introduced the method as 'operator REPORTING only'."
         ),
     ),
+    # -- The purge measurement reads (#3262 WP10 cutover tooling) -------------
+    "specify_cli/cli/commands/sync.py::_purge_journal_census": Allowance(
+        kind=ConsumerKind.OPERATOR_REPORT,
+        note=(
+            "`sync purge`'s pre/post differential census. It needs the stored "
+            "identity values VERBATIM — blank and whitespace uuids each as their "
+            "own bucket, plus the FR-011 NULL rows — which the filtered read drops "
+            "by construction and retention._journal_census (which filters falsy "
+            "uuids) cannot supply. Measurement only: the deletion itself still "
+            "selects through the primitives. Bounded to one explicit operator "
+            "command, never a drain tick."
+        ),
+    ),
+    "specify_cli/cli/commands/sync.py::_purge_journal_ids": Allowance(
+        kind=ConsumerKind.OPERATOR_REPORT,
+        note=(
+            "`sync purge`'s ledger-half measurement: the ids the operator's "
+            "selector covers, including `project_uuid IS NULL` (FR-011) which the "
+            "filtered read cannot name. Read-only measurement of what WOULD be "
+            "purged — the destructive path selects through the primitives, not "
+            "through this read. Bounded to one explicit operator command."
+        ),
+    ),
 }
 
 #: Ratcheted in ``_baselines.yaml`` as
@@ -417,10 +426,13 @@ def _collect_offenders(root: Path, allowed: frozenset[str]) -> list[ReadSite]:
 def _vacuity_problems(sites: list[ReadSite]) -> list[str]:
     """Ways a scan result proves the scanner never ran rather than the tree is clean.
 
-    A zero-site scan of ``src/`` is not a clean repo — the journal module defines
-    and executes the statement, so at minimum the owner's sites must be present.
-    Without this, deleting the symbol names from :data:`_TARGET_SYMBOLS` (or a
-    typo in one) would turn every assertion below green.
+    A zero-site scan of ``src/`` is not a clean repo — the operator report and
+    the purge tooling call the method by name, so at minimum those consumer
+    sites must be present. Without this, deleting the symbol name from
+    :data:`_TARGET_SYMBOLS` (or a typo in it) would turn every assertion below
+    green. (The owning module itself holds no *counted* reference since the
+    #3262 cutover: the method's ``def`` line is a definition, and the retired
+    machine-global SQL constant it used to execute is gone from src/.)
     """
     problems: list[str] = []
     if not sites:
@@ -429,9 +441,6 @@ def _vacuity_problems(sites: list[ReadSite]) -> list[str]:
     found_symbols = {site.symbol for site in sites}
     for symbol in sorted(_TARGET_SYMBOLS - found_symbols):
         problems.append(f"no site references {symbol} — it was renamed or removed from src/, so this gate no longer guards it")
-    owner = "specify_cli/event_journal/journal.py"
-    if owner not in {site.relpath for site in sites}:
-        problems.append(f"{owner} holds no reference — the module that executes the unfiltered statement must, or the scan is not reaching src/")
     return problems
 
 
@@ -573,22 +582,10 @@ class TestGuardBites:
                 id="attribute-call-in-method",
             ),
             pytest.param(
-                "from specify_cli.event_journal.models import SELECT_IDENTITY_PROJECTION_ALL_SQL\n",
-                "SELECT_IDENTITY_PROJECTION_ALL_SQL",
-                "<module>",
-                id="import-of-the-sql",
-            ),
-            pytest.param(
                 "from specify_cli.event_journal.journal import read_identity_projection_for_report as _read\n",
                 "read_identity_projection_for_report",
                 "<module>",
                 id="aliased-import-reds-at-the-import",
-            ),
-            pytest.param(
-                "from specify_cli.event_journal.models import SELECT_IDENTITY_PROJECTION_ALL_SQL as S\ndef drain(conn):\n    return conn.execute(S)\n",
-                "SELECT_IDENTITY_PROJECTION_ALL_SQL",
-                "<module>",
-                id="own-connection-running-the-sql",
             ),
         ],
     )
@@ -706,15 +703,17 @@ class TestGuardBites:
         assert _vacuity_problems([]) == [
             "the scan found no reference to any unfiltered-read symbol anywhere under src/ — the scanner is broken, not the tree clean"
         ]
+        # A non-empty scan whose sites cover none of the target symbols must
+        # still red per missing symbol (e.g. after a rename the scanner keeps
+        # finding an old spelling somewhere while the guarded name goes dark).
         partial = [
             ReadSite(
                 relpath="specify_cli/delivery/status_report.py",
                 qualname="build_per_project_store_report",
-                symbol="read_identity_projection_for_report",
+                symbol="a_renamed_spelling_the_gate_does_not_guard",
                 lineno=1,
             )
         ]
         assert _vacuity_problems(partial) == [
-            "no site references SELECT_IDENTITY_PROJECTION_ALL_SQL — it was renamed or removed from src/, so this gate no longer guards it",
-            "specify_cli/event_journal/journal.py holds no reference — the module that executes the unfiltered statement must, or the scan is not reaching src/",
+            "no site references read_identity_projection_for_report — it was renamed or removed from src/, so this gate no longer guards it",
         ]

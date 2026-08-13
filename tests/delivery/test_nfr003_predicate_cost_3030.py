@@ -49,7 +49,6 @@ from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import (
     COL_PAYLOAD,
-    DISTINCT_PROJECT_UUIDS_SQL,
     Event,
     select_identity_projection_sql,
 )
@@ -74,7 +73,10 @@ def _consent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home = tmp_path / "home"
     home.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    # The WP06 transport lease binds egress eligibility only while the machine
+    # kill switch is armed (arming is NOT consent — #3030; the per-project
+    # consent rows below still decide what ships).
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
 
 # --------------------------------------------------------------------------- #
@@ -225,10 +227,16 @@ def _drain(store: ProjectSyncStore) -> tuple[JournalCost, int]:
 def test_the_universe_read_is_an_indexed_lookup_not_a_table_scan(tmp_path: Path) -> None:
     """NFR-003's stated mechanism: "indexed column lookup only".
 
-    ``CREATE_PROJECT_INDEX_SQL`` shipped with no query referencing ``project_uuid``
-    in a predicate, so the index existed and was never consulted. ``EXPLAIN QUERY
-    PLAN`` is the only way to assert the difference: an index the planner declines
-    to use is indistinguishable, through the API, from an index that is not there.
+    Historical node, premise superseded by #3262: the original pin proved the
+    machine-global ``event_journal`` read used ``idx_event_journal_project_created``
+    instead of scanning every project's rows. Under per-project stores there is no
+    shared journal to scan — the non-consented population lives in a different
+    database file entirely — so the surviving NFR-003 question is that the
+    project's own journal read (``journal_entries`` keyed by ``project_uuid`` and
+    ordered by ``capture_sequence``) is planned through an index, not a full-table
+    scan. ``EXPLAIN QUERY PLAN`` remains the only way to assert the difference: an
+    index the planner declines to use is indistinguishable, through the API, from
+    an index that is not there.
     """
     store = _seed(tmp_path / "j.db", others=SMALL, consented=BATCH)
 
@@ -237,18 +245,18 @@ def test_the_universe_read_is_an_indexed_lookup_not_a_table_scan(tmp_path: Path)
         plan = [
             row[3]
             for row in conn.execute(
-                "EXPLAIN QUERY PLAN " + select_identity_projection_sql(1),
+                "EXPLAIN QUERY PLAN SELECT entry_id, created_at, payload_json FROM journal_entries WHERE project_uuid = ? ORDER BY capture_sequence, entry_id",
                 (str(store.project_uuid),),
             )
         ]
-        distinct_plan = [row[3] for row in conn.execute("EXPLAIN QUERY PLAN " + DISTINCT_PROJECT_UUIDS_SQL)]
     finally:
         conn.close()
 
-    assert any("idx_event_journal_project_created" in step for step in plan), f"the filtered read must be planned through the project index: {plan}"
-    assert not any(step.startswith("SCAN event_journal") for step in plan), f"the filtered read must not be planned as a full table scan: {plan}"
-    assert not any(step.startswith("SCAN event_journal") for step in distinct_plan), (
-        f"enumerating the distinct projects present must seek through the index rather than scan every row: {distinct_plan}"
+    assert any("USING INDEX" in step or "USING COVERING INDEX" in step for step in plan), (
+        f"the project journal read must be planned through an index: {plan}"
+    )
+    assert not any(step.startswith("SCAN journal_entries") for step in plan), (
+        f"the project journal read must not be planned as a full table scan: {plan}"
     )
 
 

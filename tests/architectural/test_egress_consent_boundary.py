@@ -1542,7 +1542,11 @@ _WP09_INTEGRATION_ROWS = (
     _WP09IntegrationRow("dossier snapshot", _SymbolRef("specify_cli/dossier/events.py", "emit_snapshot_computed"), "fire_dossier_event", "WP07"),
     _WP09IntegrationRow("dossier parity drift", _SymbolRef("specify_cli/dossier/events.py", "emit_parity_drift_detected"), "fire_dossier_event", "WP07"),
     _WP09IntegrationRow("dossier adapter", _SymbolRef("specify_cli/dossier/emitter_adapter.py", "fire_dossier_event"), "_emitter", "WP07"),
-    _WP09IntegrationRow("body enqueue", _SymbolRef("specify_cli/sync/body_upload.py", "prepare_body_uploads"), "enqueue", "WP07"),
+    # Anchored at _enqueue_artifact since main's S107/S3776 decomposition of
+    # prepare_body_uploads (prepare_body_uploads -> _process_artifact ->
+    # _enqueue_artifact); the terminal body_queue.enqueue delegation this row
+    # proves is unchanged, one extracted helper deeper.
+    _WP09IntegrationRow("body enqueue", _SymbolRef("specify_cli/sync/body_upload.py", "_enqueue_artifact"), "enqueue", "WP07"),
     _WP09IntegrationRow(
         "background project discovery",
         _SymbolRef("specify_cli/sync/background.py", "BackgroundSyncService._drain_discovered_body_queues"),

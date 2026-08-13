@@ -169,9 +169,9 @@ def humanize_timedelta(td: timedelta) -> str:
 
 _DRAIN_BLOCKED_HELP = {
     "ready": "Ready to drain.",
-    "sync_disabled": "SaaS sync disabled for this checkout — run `spec-kitty sync opt-in`.",
-    "no_auth": "Not authenticated — run `spec-kitty auth login`.",
-    "no_team": "No Private Teamspace available — refresh membership in dashboard.",
+    "saas_disabled": "SaaS sync disabled for this checkout — run `spec-kitty sync opt-in`.",
+    "missing_auth": "Not authenticated — run `spec-kitty auth login`.",
+    "missing_team": "No Private Teamspace available — refresh membership in dashboard.",
 }
 
 

@@ -82,6 +82,12 @@ def test_journal_stores_full_envelope_so_dispatch_posts_contract_event(
     from specify_cli.sync import emitter as emitter_mod
 
     monkeypatch.setattr(emitter_mod, "is_saas_sync_enabled", lambda: False)
+    # The WP06 transport lease reads the machine kill switch through
+    # ``feature_flags`` directly (not the emitter's patched name); dispatch's
+    # egress eligibility requires it armed. Arming is NOT consent (#3030) —
+    # the explicit opt-in below still decides. The receiver is a stub, so no
+    # network is reachable either way.
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     # #3030 T006: capture is gated on per-project consent, and WP01 made an unrecorded
     # checkout a denial. This test is about envelope shape surviving capture→drain, so
     # it consents explicitly — via the real ``set_project_consent`` record below. The

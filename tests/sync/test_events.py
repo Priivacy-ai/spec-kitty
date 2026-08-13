@@ -124,7 +124,7 @@ class TestEventEnvelope:
         durability is unconditional. When the strict ingress resolver returns
         ``None``, the emitter MUST still produce the event and append it to
         the durable offline queue — but with ``team_slug = None`` and
-        ``drain_blocked_reason = "no_team"`` so the drain side knows not to
+        ``drain_blocked_reason = "missing_team"`` so the drain side knows not to
         ship it remotely.
 
         Ingress safety from FR-002/FR-007 of the private-teamspace-ingress
@@ -148,7 +148,7 @@ class TestEventEnvelope:
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         assert event["team_slug"] is None
-        assert event["drain_blocked_reason"] in {"no_auth", "no_team"}
+        assert event["drain_blocked_reason"] in {"missing_auth", "missing_team"}
         assert temp_queue.size() == 1
 
     def test_causation_id_included_when_provided(self, emitter: EventEmitter, temp_queue):

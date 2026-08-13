@@ -36,6 +36,10 @@ EVENTS_PER_PROJECT = 3
 @pytest.fixture(autouse=True)
 def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path))
+    # The WP06 transport lease binds egress eligibility only while the machine
+    # kill switch is armed (arming is NOT consent — #3030; the per-project
+    # consent records still decide what ships).
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     yield
 
 
@@ -89,7 +93,7 @@ def _emit_batch(emitter: EventEmitter) -> set[str]:
             event_type="ErrorLogged",
             aggregate_id=f"WP{index:02d}",
             aggregate_type="WorkPackage",
-            payload={"error_type": "runtime", "wp_id": f"WP{index:02d}"},
+            payload={"error_type": "runtime", "error_message": f"boom {index}", "wp_id": f"WP{index:02d}"},
         )
         assert envelope is not None
         ids.add(str(envelope["event_id"]))

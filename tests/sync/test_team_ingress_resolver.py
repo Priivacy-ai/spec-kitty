@@ -380,8 +380,8 @@ def test_emitter_emit_queues_event_when_no_private_team_no_remote_ingress(
     When the strict resolver returns ``None``:
 
     1. The public emit method now RETURNS the event (it is locally durable),
-       with ``team_slug = None`` and ``drain_blocked_reason in {"no_team",
-       "no_auth"}`` so the drain side knows not to ship it remotely.
+       with ``team_slug = None`` and ``drain_blocked_reason in {"missing_team",
+       "missing_auth"}`` so the drain side knows not to ship it remotely.
     2. The event IS appended to the durable ``OfflineQueue`` — it would
        otherwise be lost if auth/team conditions never resolve in this
        process.
@@ -439,7 +439,7 @@ def test_emitter_emit_queues_event_when_no_private_team_no_remote_ingress(
     # 1. Locally durable: event is produced and queued for later drain.
     assert event is not None
     assert event["team_slug"] is None
-    assert event["drain_blocked_reason"] in {"no_team", "no_auth"}
+    assert event["drain_blocked_reason"] in {"missing_team", "missing_auth"}
 
     # 2. Persisted on disk.
     assert temp_queue.size() == 1

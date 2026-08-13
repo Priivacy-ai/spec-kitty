@@ -457,7 +457,7 @@ class TestNonBlockingEmission:
         Issue #1072 (teamspace-local-first-outbox): when ``get_token_manager``
         raises, the strict ingress resolver returns ``None``. The emitter
         must NOT drop the event — instead it queues with ``team_slug =
-        None`` and ``drain_blocked_reason in {"no_auth", "no_team"}``. The
+        None`` and ``drain_blocked_reason in {"missing_auth", "missing_team"}``. The
         drain layer re-checks on every tick and only POSTs when a Private
         Teamspace is resolvable, preserving FR-002/FR-007 of the
         private-teamspace-ingress-safeguards mission.
@@ -482,5 +482,5 @@ class TestNonBlockingEmission:
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         assert event["team_slug"] is None
-        assert event["drain_blocked_reason"] in {"no_auth", "no_team"}
+        assert event["drain_blocked_reason"] in {"missing_auth", "missing_team"}
         assert queue.size() == 1

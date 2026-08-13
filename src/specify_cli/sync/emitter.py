@@ -40,7 +40,11 @@ from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.core.payload_shaping import apply_keep_none_fields
 from kernel.clock import now_utc_iso, parse_iso
 from specify_cli.event_journal import (
+    DRAIN_BLOCKED_MISSING_AUTH,
+    DRAIN_BLOCKED_MISSING_TEAM,
+    DRAIN_BLOCKED_SAAS_DISABLED,
     CaptureGateState,
+    classify_drain_blocked_reason,
 )
 from specify_cli.mission_metadata import mission_number_from_slug
 from specify_cli.proof.events import (
@@ -1901,29 +1905,39 @@ class EventEmitter:
 
     # Drain blocked reason taxonomy — see issue #1072.
     #
-    # ``None``            event is ready to drain to SaaS.
-    # ``"sync_disabled"`` SaaS sync is off machine-wide, or **this event's own
-    #                     project** has not consented to hosted sync (#3030 M1-1;
-    #                     it used to mean "the checkout cwd happens to be in").
-    # ``"no_auth"``       no authenticated session; drain cannot ship.
-    # ``"no_team"``       authenticated but the strict Private Teamspace
-    #                     resolver returned None (ingress safety).
+    # Tokens are the canonical closed vocabulary from
+    # ``specify_cli.event_journal.models`` — delivery selection
+    # (``specify_cli.delivery.selection``) fail-closes on any token it does
+    # not recognise, so a private spelling here would strand every stamped
+    # row as terminally blocked.
+    #
+    # ``None``               event is ready to drain to SaaS.
+    # ``"saas_disabled"``    SaaS sync is off machine-wide, or **this event's
+    #                        own project** has not consented to hosted sync
+    #                        (#3030 M1-1; it used to mean "the checkout cwd
+    #                        happens to be in"). Terminal for selection:
+    #                        consent refusal must not ship.
+    # ``"missing_auth"``     no authenticated session; drain cannot ship.
+    # ``"missing_team"``     authenticated but the strict Private Teamspace
+    #                        resolver returned None (ingress safety).
     #
     # The flag is captured at emit time as a diagnostic. The drain loop
     # re-resolves on every tick, so a previously-blocked event becomes
     # eligible once the underlying condition clears (login, opt-in,
-    # private team materialized). Ingress safety is preserved: ``no_team``
-    # events are never shipped via direct ingress because the drain side
-    # re-checks the resolver and skips the batch when it still returns
-    # None.
-    DRAIN_BLOCKED_REASONS = frozenset({"sync_disabled", "no_auth", "no_team"})
+    # private team materialized). Ingress safety is preserved:
+    # ``missing_team`` events are never shipped via direct ingress because
+    # the drain side re-checks the resolver and skips the batch when it
+    # still returns None.
+    DRAIN_BLOCKED_REASONS = frozenset(
+        {DRAIN_BLOCKED_SAAS_DISABLED, DRAIN_BLOCKED_MISSING_AUTH, DRAIN_BLOCKED_MISSING_TEAM}
+    )
 
     def _classify_drain_blocked_reason(self, team_slug: str | None, *, project_uuid: str | None = None) -> str | None:
         """Return a drain-blocked reason for the current emission context.
 
         Order matters: the most coarse-grained gate (sync feature flag)
         wins so operators see "the checkout is opted out" rather than a
-        downstream symptom like "no_team".
+        downstream symptom like "missing_team".
 
         **M1's recorded exclusion for this method was wrong and is withdrawn
         (#3030 M1-1).** It claimed this field is the legacy offline queue's advisory
@@ -1952,23 +1966,23 @@ class EventEmitter:
         """
         try:
             if not is_saas_sync_enabled():
-                return "sync_disabled"
+                return DRAIN_BLOCKED_SAAS_DISABLED
             if not self._project_consents_to_capture(project_uuid):
-                return "sync_disabled"
+                return DRAIN_BLOCKED_SAAS_DISABLED
         except Exception:
             # Routing config errors should not destroy event durability;
             # treat as drain-blocked so the operator can re-evaluate
             # later via ``sync status --check``.
-            return "sync_disabled"
+            return DRAIN_BLOCKED_SAAS_DISABLED
 
         try:
             if not self._is_authenticated():
-                return "no_auth"
+                return DRAIN_BLOCKED_MISSING_AUTH
         except Exception:
-            return "no_auth"
+            return DRAIN_BLOCKED_MISSING_AUTH
 
         if team_slug is None:
-            return "no_team"
+            return DRAIN_BLOCKED_MISSING_TEAM
 
         return None
 
@@ -2166,10 +2180,14 @@ class EventEmitter:
             # Classify the drain blocker (None means ready to ship). Keyed on the
             # identity this event is about to be stamped with, not on cwd (#3030
             # M1-1) — ``_route_event`` turns a ``None`` here into a WebSocket publish.
-            drain_blocked_reason = self._classify_drain_blocked_reason(
+            # Snapshot the gates once (T017) and classify through the journal's
+            # canonical classifier so the stamped token is always a member of the
+            # closed vocabulary delivery selection recognises.
+            gate_state = self._capture_gate_state(
                 team_slug,
                 project_uuid=str(identity.project_uuid) if identity.project_uuid else None,
             )
+            drain_blocked_reason = classify_drain_blocked_reason(gate_state)
 
             event_id = _generate_ulid()
 

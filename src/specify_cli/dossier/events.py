@@ -35,17 +35,17 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
 from kernel.clock import now_utc_iso
 from specify_cli.dossier.emitter_adapter import fire_dossier_event
 
-if TYPE_CHECKING:
-    from specify_cli.sync.layout_generation import LayoutGenerationAuthority
-    from specify_cli.sync.project_context import ProjectSyncContext
-    from specify_cli.sync.project_store import ProjectUnitOfWork
+# Sync-owned types are deliberately not imported (even under TYPE_CHECKING):
+# the dossier->sync edge is inverted through emitter_adapter
+# (tests/architectural/test_dossier_sync_boundary.py), so the explicit-context
+# parameters are typed structurally.
 
 logger = logging.getLogger(__name__)
 
@@ -350,9 +350,9 @@ def emit_artifact_indexed(
     indexed_at: str | None = None,
     context_diagnostics: dict[str, str] | None = None,
     provenance: dict[str, Any] | None = None,
-    project_context: ProjectSyncContext | None = None,
-    project_unit: ProjectUnitOfWork | None = None,
-    project_layout: LayoutGenerationAuthority | None = None,
+    project_context: Any | None = None,
+    project_unit: Any | None = None,
+    project_layout: Any | None = None,
     **kwargs: Any,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierArtifactIndexed`` in the namespaced envelope.
@@ -435,9 +435,9 @@ def emit_artifact_missing(
     last_known_content_hash_sha256: str | None = None,
     last_known_size_bytes: int | None = None,
     context_diagnostics: dict[str, str] | None = None,
-    project_context: ProjectSyncContext | None = None,
-    project_unit: ProjectUnitOfWork | None = None,
-    project_layout: LayoutGenerationAuthority | None = None,
+    project_context: Any | None = None,
+    project_unit: Any | None = None,
+    project_layout: Any | None = None,
     **kwargs: Any,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierArtifactMissing`` in the namespaced envelope.
@@ -520,9 +520,9 @@ def emit_snapshot_computed(
     computed_at: str | None = None,
     anomaly_count: int | None = None,
     context_diagnostics: dict[str, str] | None = None,
-    project_context: ProjectSyncContext | None = None,
-    project_unit: ProjectUnitOfWork | None = None,
-    project_layout: LayoutGenerationAuthority | None = None,
+    project_context: Any | None = None,
+    project_unit: Any | None = None,
+    project_layout: Any | None = None,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierSnapshotComputed`` in the namespaced envelope.
 
@@ -588,9 +588,9 @@ def emit_parity_drift_detected(
     detected_at: str | None = None,
     rebuild_hint: str | None = None,
     context_diagnostics: dict[str, str] | None = None,
-    project_context: ProjectSyncContext | None = None,
-    project_unit: ProjectUnitOfWork | None = None,
-    project_layout: LayoutGenerationAuthority | None = None,
+    project_context: Any | None = None,
+    project_unit: Any | None = None,
+    project_layout: Any | None = None,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierParityDriftDetected`` in the namespaced envelope.
 
