@@ -30,7 +30,8 @@
       "notes": [
         "Блокер выделения worktree устранён: в локальном planning clone включён core.longpaths; повтор штатной реализации",
         "RED-first Mission checkout resolver готов; targeted gates пройдены; передача независимому reviewer",
-        "Внутренний pre-review выявил нарушение dual-root инварианта: managed checkout должен сохранять mission_anchor_root=repository_root"
+        "Внутренний pre-review выявил нарушение dual-root инварианта: managed checkout должен сохранять mission_anchor_root=repository_root",
+        "Возврат к реализации для RED/GREEN исправления managed anchor"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",

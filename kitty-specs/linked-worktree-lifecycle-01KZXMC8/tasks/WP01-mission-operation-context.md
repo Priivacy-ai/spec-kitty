@@ -87,3 +87,4 @@ Targeted pytest, Ruff, mypy strict, determinism 100 повторов и `git dif
 
 - 2026-08-13T13:39:12Z – system – Prompt created.
 - 2026-08-13T14:20:18Z – codex – shell_pid=28380 – Реализован read-only MissionOperationContext: отдельные RED-коммиты 3deb1c89a/a8dd239ef, production 1ba7e16f4; 71 targeted tests, Ruff и py_compile PASS; mypy нового модуля PASS, два baseline diagnostics core/paths без delta.
+- 2026-08-13T14:33:03Z – codex – shell_pid=28380 – Исправлен pre-review blocker managed anchor: RED commit 53cbbb67e, GREEN ce5e94286; managed lane теперь сохраняет repository_root как PRIMARY anchor, current managed surface остаётся conflict-only probe; 71 targeted tests PASS.
