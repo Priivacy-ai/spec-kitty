@@ -44,6 +44,7 @@ owned_files:
 - src/runtime/next/runtime_bridge_io.py
 - tests/runtime/test_bridge_cores.py
 - tests/runtime/test_bridge_composition.py
+- tests/runtime/test_bridge_io.py
 role: implementer
 tags: []
 task_type: implement
@@ -147,12 +148,18 @@ reason (e.g. a typo in the assertion that happens to also fail).
 
 ## Subtasks & Detailed Guidance
 
-### T001 — RED: FR-010 ATDD pin (`plan`/`review` target-shape) + User Story 2 AC3 (`plan`/`research` tightening)
+### T001 — RED: FR-010 ATDD pin (`plan`/`review` target-shape) + User Story 2 AC2/AC3 (`_evaluate_plan_guards`'s full 5-way branch set) + revert-discipline pin for the `research.md` presence tag
 
 - **Purpose**: Pin the mission's core, live defect (issue #3386's title) as a genuinely failing
-  test before any fix lands, and pin the second, smaller behavior change plan.md's own
-  Baseline & Reflexivity section flags (`plan`'s `research` step goes from "always passes,
-  checks nothing" to "checks `research.md`").
+  test before any fix lands; pin `_evaluate_plan_guards`'s full 5-way branch set
+  (`specify`/`research`/`plan`/`review`/fail-closed-else — User Story 2 Acceptance Scenarios
+  1-3), not only the two branches (`review`, `research`) that happen to differ from today's
+  fallthrough output; and give the `research.md` presence-tag fix (T004) real, disk-backed test
+  coverage so reverting it is detectable (Test Strategy's "Revert discipline" bullet, below).
+  **Every RED claim below was empirically re-run against this session's checkout, not reasoned
+  from prose alone** — this WP was itself the subject of a confirmed review finding
+  (TASKS-VERIFY-001) showing prose reasoning about RED status can be wrong; do not repeat that
+  mistake when implementing.
 - **Steps**:
   1. In `tests/runtime/test_bridge_cores.py`, add a test using the file's existing `_snapshot(...)`
      helper (defined at line ~190; reuse it, do not duplicate it) with
@@ -161,21 +168,90 @@ reason (e.g. a typo in the assertion that happens to also fail).
      **Confirm this is genuinely RED before writing anything else**: run
      `.venv/bin/python -m pytest tests/runtime/test_bridge_cores.py -k plan_review -q` against
      the WP's base commit and observe it fail with the actual current output —
-     `["Not all work packages are approved or done"]` — not a false-red from a typo.
-  2. In the same file, add a test for `mission_family="plan", step_id="research"` covering both
-     branches: `research.md` absent → `["Required artifact missing: research.md"]`;
-     `research.md` present (`present_artifacts=frozenset({"research.md"})`) → `[]`. **Both
-     assertions must be RED today**: `evaluate_guards` currently returns `[]` unconditionally
-     for this snapshot (falls through to `_evaluate_software_dev_guards`'s bare `return []`
-     default, since `"research"` is not one of software-dev's own step ids) — so the
-     absent-artifact assertion is the one that proves RED (today it wrongly returns `[]` instead
-     of the missing-artifact message).
-  3. Do **not** add a companion "assert today's actual output" pin — the target-shape assertion
-     alone is sufficient proof of the flip (this is the exact PLAN-VERIFY-002 fix: no
-     passing-at-base assertion is committed as part of a "RED" commit).
-- **Files**: `tests/runtime/test_bridge_cores.py`.
-- **Validation**: both new tests fail at the WP's base commit for the stated reason; both pass
-  once T003 lands.
+     `["Not all work packages are approved or done"]` — not a false-red from a typo. Name the
+     test with `plan_review` in it so the `-k plan_review` filter (used above, and in Review
+     Guidance) keeps matching it.
+  2. In the same file, add a test (name it with `plan_research_guard` in it, e.g.
+     `test_plan_research_guard_absent_and_present`) for `mission_family="plan",
+     step_id="research"` covering both branches: `research.md` absent →
+     `["Required artifact missing: research.md"]`; `research.md` present
+     (`present_artifacts=frozenset({"research.md"})`) → `[]`. **Only the absent-artifact
+     assertion is a genuine RED pin at the base commit** (TASKS-VERIFY-001 fix — corrected from
+     an earlier draft of this WP that claimed both assertions were RED): `evaluate_guards`
+     currently returns `[]` unconditionally for `mission_family="plan", step_id="research"`
+     regardless of `research.md`'s presence (falls through to `_evaluate_software_dev_guards`'s
+     bare `return []` default, since `"research"` is not one of software-dev's own step ids) —
+     so the absent-artifact assertion proves RED (today it wrongly returns `[]` instead of the
+     missing-artifact message), while the present-artifact assertion **already passes at the base
+     commit**, for the wrong reason (the unconditional fallthrough, not real
+     artifact-presence logic), and only becomes a meaningful assertion once T003/T004 land. Keep
+     both assertions in the same test (the present-case one is a legitimate companion
+     target-shape assertion, just not itself a RED pin) — do not present the present-case
+     assertion as proof of RED in the Activity Log or PR description.
+  3. **5-way branch completeness for `_evaluate_plan_guards`** (TASKS-VERIFY-003 fix — User Story
+     2 Acceptance Scenario 2, the `specify`/`plan` artifact-presence branches and the fail-closed
+     else branch, previously uncovered by any T001/T002 step). Empirically verified this session:
+     unlike `review`/`research` above, `evaluate_guards(_snapshot(mission_family="plan",
+     step_id="specify"))` and `...step_id="plan"` **already return the correct post-fix values
+     at the base commit** (`["Required artifact missing: spec.md"]` / `[]`, and
+     `["Required artifact missing: plan.md"]` / `[]`, respectively) — `mission_family="plan"`
+     isn't special-cased in today's `evaluate_guards`, so it falls through to
+     `_evaluate_software_dev_guards`, whose own `specify`/`plan` branches happen to run the exact
+     same `_check_artifact_present` check `_evaluate_plan_guards` will run. **Do not add a
+     full-dispatch `evaluate_guards(...)` assertion for `specify`/`plan` here** — it would be
+     exactly the coincidental-pass defect TASKS-VERIFY-001 found for `research`'s present-case,
+     just for two more branches. Instead, pin these two branches (plus the fail-closed else
+     branch) by calling the new `_evaluate_plan_guards` function **directly**, mirroring T002
+     step 1's own idiom for a symbol that doesn't exist yet:
+     - Add `test_plan_guard_specify_and_plan_branches_direct_dispatch`: call
+       `cores._evaluate_plan_guards(_snapshot(mission_family="plan", step_id="specify"))` and the
+       `step_id="plan"` equivalent, both absent- and present-artifact cases. **RED today via
+       `AttributeError`** — `_evaluate_plan_guards` does not exist until T003 lands (empirically
+       confirmed: `hasattr(cores, "_evaluate_plan_guards")` is `False` at base). Once T003 lands,
+       assert `== ["Required artifact missing: spec.md"]` / `== []` for `specify`, and
+       `== ["Required artifact missing: plan.md"]` / `== []` for `plan`. This is what actually
+       catches an implementer swapping `SPEC_ARTIFACT`/`PLAN_ARTIFACT` between the two branches —
+       the exact slip plan.md's Seam & Module Placement section names as a risk — which a
+       full-dispatch assertion alone would NOT catch (both branches produce the same shape of
+       output via two independent code paths, pre- and post-fix).
+     - Add `test_plan_guard_fail_closed_else_branch`: call
+       `cores._evaluate_plan_guards(_snapshot(mission_family="plan",
+       step_id="not-a-real-plan-action"))`. **RED today via `AttributeError`** (same reason).
+       Once T003 lands, assert `== ["No guard registered for plan action:
+       not-a-real-plan-action"]`. In the same test, add one companion **full-dispatch**
+       assertion: `cores.evaluate_guards(_snapshot(mission_family="plan",
+       step_id="not-a-real-plan-action")) == []` at the base commit (falls through to
+       `_evaluate_software_dev_guards`'s own catch-all `return []` — empirically confirmed) —
+       **this one IS genuinely RED via full dispatch** once T003 lands (target is the fail-closed
+       message, not `[]`), and its purpose is different from the direct-call assertion above: it
+       confirms `_evaluate_plan_guards` is actually **registered** in `_GUARD_TABLES` under
+       `"plan"` (a correct-in-isolation-but-unwired function would pass the direct-call assertion
+       and fail this one — the same "isolated, unwired helper" loophole T002 step 2 closes for
+       `evaluate_guards_strict`).
+  4. **Disk-backed revert-discipline pin for the `research.md` presence tag** (TASKS-VERIFY-002
+     fix). None of steps 1-3 above, nor T002, exercise the real
+     `gather_artifact_presence(...)` function that actually reads `_PRESENCE_FILE_TAGS` — they
+     all construct `ArtifactPresenceSnapshot` by hand via `_snapshot(...)`, so T004's one-line
+     addition (`"research.md"` to `_PRESENCE_FILE_TAGS`) would be undetectable if reverted. In
+     `tests/runtime/test_bridge_io.py`, add `test_gather_artifact_presence_reads_research_md_presence`,
+     mirroring the existing `test_gather_artifact_presence_reads_file_presence` pattern exactly
+     (same file, same `_stub_guard_helpers(monkeypatch)` helper): write a real `research.md` file
+     to `tmp_path`, call `io_seam.gather_artifact_presence(tmp_path, mission_family="plan",
+     step_id="research")`, and assert `"research.md" in snapshot.present_artifacts`. **RED today**
+     — empirically confirmed this session: the file exists on disk, but
+     `_PRESENCE_FILE_TAGS` does not include `"research.md"` yet, so `present_artifacts` comes back
+     empty. This assertion is what T004's own Validation bullet (below) actually points at.
+  5. Do **not** add a companion "assert today's actual output" pin anywhere in steps 1-4 above —
+     each genuinely-RED assertion's target-shape alone is sufficient proof of the flip (this is
+     the exact PLAN-VERIFY-002 fix: no passing-at-base assertion is committed AS THE PROOF of a
+     "RED" commit; a passing-at-base companion assertion may still appear alongside a genuine RED
+     pin — as in step 2's present-case — but must be labeled as a companion, never as the RED
+     evidence itself).
+- **Files**: `tests/runtime/test_bridge_cores.py`, `tests/runtime/test_bridge_io.py`.
+- **Validation**: every RED assertion named above fails at the WP's base commit for the stated
+  reason (steps 1, 3's `AttributeError`s, 3's fail-closed full-dispatch case, and 4); every
+  companion passing-at-base assertion (step 2's present-case) is not treated as RED evidence; all
+  assertions pass once T003/T004 land.
 
 ### T002 — RED: FR-011 ATDD pin (unregistered-family fall-through, 3 assertions)
 
@@ -183,12 +259,16 @@ reason (e.g. a typo in the assertion that happens to also fail).
   spec.md FR-011's own grep-verified claim) that feed an unregistered `mission_family` to either
   call path.
 - **Steps**:
-  1. **Strict lookup raises** — in `tests/runtime/test_bridge_cores.py`, add a test calling
+  1. **Strict lookup raises** — in `tests/runtime/test_bridge_cores.py`, add a test (name it
+     with `unregistered_mission_family_raises` in it, e.g.
+     `test_evaluate_guards_strict_raises_for_unregistered_mission_family`) calling
      `cores.evaluate_guards_strict(_snapshot(mission_family="totally-unregistered-family",
      step_id="review"))` inside `pytest.raises(cores.UnregisteredMissionFamilyError)`. RED today
      because neither the function nor the exception class exists yet (`AttributeError` — a
      genuine failure for the right reason).
-  2. **`_check_cli_guards` propagates via an injection seam** — `_check_cli_guards` hardcodes
+  2. **`_check_cli_guards` propagates via an injection seam** (name the test with
+     `unregistered_mission_family_propagates` in it, e.g.
+     `test_check_cli_guards_propagates_unregistered_mission_family_error`) — `_check_cli_guards` hardcodes
      `mission_family="software-dev"` (line 692), so no real caller can reach this state today
      (User Story 3's own framing: "defensive correctness... currently unreachable"). Use
      `monkeypatch` to make `rb._io_seam.gather_artifact_presence` return an
@@ -201,7 +281,10 @@ reason (e.g. a typo in the assertion that happens to also fail).
      for only testing the strict function in isolation. RED today: `_check_cli_guards` ends with
      `return _cores.evaluate_guards(snapshot)` (the *tolerant* function), which currently exists
      but returns the software-dev misfire (or `[]`), never raises.
-  3. **Composed path returns `[]` + WARNING log** — in `tests/runtime/test_bridge_composition.py`,
+  3. **Composed path returns `[]` + WARNING log** (name the test with
+     `unregistered_mission_family_warns` in it, e.g.
+     `test_check_composed_action_guard_warns_for_unregistered_mission_family`) — in
+     `tests/runtime/test_bridge_composition.py`,
      call `_check_composed_action_guard("review", tmp_path,
      mission="totally-unregistered-family")` directly (the `mission` keyword param already
      exists) with `caplog.at_level(logging.WARNING)`. Assert the return value is `[]` (not the
@@ -257,9 +340,10 @@ reason (e.g. a typo in the assertion that happens to also fail).
      test callers; any **new** production call site should use `evaluate_guards_strict` instead
      so an unregistered family is never silently swallowed.
 - **Files**: `src/runtime/next/runtime_bridge_cores.py`.
-- **Validation**: T001's `plan`/`review` and `plan`/`research` assertions and T002's strict-raise
-  assertion all go GREEN. `ruff check` complexity ≤15 on every new/changed function (NFR-003 —
-  `_evaluate_plan_guards`'s 5-way flat chain is far under the ceiling).
+- **Validation**: T001's `plan`/`review`, `plan`/`research` (step 2), `plan`/`specify` +
+  `plan`/`plan` + fail-closed-else (step 3, both the direct-call and full-dispatch assertions),
+  and T002's strict-raise assertion all go GREEN. `ruff check` complexity ≤15 on every new/changed
+  function (NFR-003 — `_evaluate_plan_guards`'s 5-way flat chain is far under the ceiling).
 
 ### T004 — `_PRESENCE_FILE_TAGS`: add `"research.md"`
 
@@ -272,11 +356,15 @@ reason (e.g. a typo in the assertion that happens to also fail).
   module docstring claim ("mirrors the exact set of ... reads ... across all three mission
   families") to say "all four" once `plan` is registered.
 - **Files**: `src/runtime/next/runtime_bridge_io.py`.
-- **Validation**: T001's `research.md`-present branch (`[]` when `research.md` is in
-  `present_artifacts`) goes GREEN. Confirm no existing per-family evaluator function reads the
-  `"research.md"` tag (grep for the literal string in `runtime_bridge_cores.py` — it must appear
-  nowhere except your new T003 code), so this addition is provably additive and does not affect
-  NFR-001's zero-behavior-change guarantee for the three already-registered families.
+- **Validation**: T001 step 2's `research.md`-present branch (`[]` when `research.md` is in
+  `present_artifacts`) goes GREEN, AND — this is the assertion that actually detects a revert of
+  this change (TASKS-VERIFY-002 fix) — T001 step 4's disk-backed
+  `test_gather_artifact_presence_reads_research_md_presence` in `tests/runtime/test_bridge_io.py`
+  goes GREEN too; do not consider T004 done on step 2 alone. Confirm no existing per-family
+  evaluator function reads the `"research.md"` tag (grep for the literal string in
+  `runtime_bridge_cores.py` — it must appear nowhere except your new T003 code), so this addition
+  is provably additive and does not affect NFR-001's zero-behavior-change guarantee for the three
+  already-registered families.
 - **Parallel?**: Yes, alongside T005/T006 (disjoint files).
 
 ### T005 — Composed path: strict call + WARNING-logging catch
@@ -328,8 +416,9 @@ reason (e.g. a typo in the assertion that happens to also fail).
   plan.md's Gate Set.
 - **Steps**:
   1. Run `.venv/bin/python -m pytest tests/runtime/test_bridge_cores.py
-     tests/runtime/test_bridge_composition.py -q` — confirm all pass, including T001/T002's
-     tests now GREEN, and confirm **zero** existing assertion had to change value (SC-004).
+     tests/runtime/test_bridge_composition.py tests/runtime/test_bridge_io.py -q` — confirm all
+     pass, including T001/T002's tests now GREEN, and confirm **zero** existing assertion had to
+     change value (SC-004).
   2. Run `.venv/bin/python -m pytest tests/next/ tests/specify_cli/next/
      tests/integration/test_custom_mission_runtime_walk.py -q` — confirm zero new reds against
      the 784-passed/0-failed baseline (`7deadff0a4f3dfd2744b5e1e35680c0d70f4565e`). If a red
@@ -350,15 +439,21 @@ reason (e.g. a typo in the assertion that happens to also fail).
 ## Test Strategy
 
 - **Targeted surface only** (charter C-005 / plan.md Gate Set): `tests/runtime/test_bridge_cores.py`,
-  `tests/runtime/test_bridge_composition.py` (primary, this WP's own tests), plus
-  `tests/next/`, `tests/specify_cli/next/`, `tests/integration/test_custom_mission_runtime_walk.py`
-  (regression surface — NFR-001/NFR-002). Do **not** run the full `pytest tests/` suite.
+  `tests/runtime/test_bridge_composition.py`, `tests/runtime/test_bridge_io.py` (primary, this
+  WP's own tests), plus `tests/next/`, `tests/specify_cli/next/`,
+  `tests/integration/test_custom_mission_runtime_walk.py` (regression surface —
+  NFR-001/NFR-002). Do **not** run the full `pytest tests/` suite.
 - **Baseline**: 784 passed / 0 failed at `7deadff0a4f3dfd2744b5e1e35680c0d70f4565e` (cited, not
   re-run from scratch — re-run only the same four commands to compare).
 - **Revert discipline**: every behavior change in this WP (registry dispatch, the strict/tolerant
   split, `plan`'s guard table, the `research.md` presence tag) has a test added in T001/T002 that
   fails if that specific change is reverted — this is a stated acceptance requirement for this
-  WP, not an aspiration.
+  WP, not an aspiration. This includes the `research.md` presence tag specifically: T001 step 4
+  adds a disk-backed test against the real `gather_artifact_presence` function (not a
+  hand-constructed `_snapshot(...)` value) in `tests/runtime/test_bridge_io.py` — a
+  hand-constructed snapshot never reads `_PRESENCE_FILE_TAGS`, so it cannot prove this tag's
+  addition is covered (TASKS-VERIFY-002 fix; a prior draft of this WP asserted this coverage
+  existed when it did not).
 
 ## Risks & Mitigations
 
@@ -379,13 +474,44 @@ reason (e.g. a typo in the assertion that happens to also fail).
 
 ## Review Guidance
 
-- Confirm RED→GREEN on this WP's own base→final commit for every T001/T002 assertion (C-011).
+- Confirm RED→GREEN on this WP's own base→final commit for every T001/T002 assertion (C-011) —
+  do not accept prose reasoning alone (TASKS-VERIFY-001 showed this WP's own prose reasoning
+  about RED status was wrong once); use the concrete recipe below.
+- **Concrete RED-on-base re-verification recipe** (TASKS-VERIFY-005 fix — mechanical, not prose):
+  ```
+  git worktree add /tmp/review-wp01 kitty/mission-mission-type-guard-registry-01KZY2FG
+  cd /tmp/review-wp01
+  # Pull in the WP's RED-commit test files (Commit 2, i.e. after T001+T002 land) while leaving
+  # production code at the WP's base commit (before Commit 3):
+  git checkout <WP01-commit-2-sha> -- tests/runtime/test_bridge_cores.py \
+      tests/runtime/test_bridge_composition.py tests/runtime/test_bridge_io.py
+  .venv/bin/python -m pytest tests/runtime/test_bridge_cores.py \
+      tests/runtime/test_bridge_composition.py tests/runtime/test_bridge_io.py \
+      -k "plan_review or plan_research_guard or plan_guard_specify_and_plan_branches or \
+plan_guard_fail_closed or research_md_presence or unregistered_mission_family" -q
+  # EXPECT: every matched test FAILS. If any of them passes here, it is not a genuine RED pin —
+  # do not accept it as one (this is exactly the class of mistake TASKS-VERIFY-001 found).
+  # Then re-check the same files at the WP's final commit:
+  git checkout <WP01-final-commit-sha> -- .
+  .venv/bin/python -m pytest tests/runtime/test_bridge_cores.py \
+      tests/runtime/test_bridge_composition.py tests/runtime/test_bridge_io.py \
+      -k "plan_review or plan_research_guard or plan_guard_specify_and_plan_branches or \
+plan_guard_fail_closed or research_md_presence or unregistered_mission_family" -q
+  # EXPECT: every matched test PASSES.
+  ```
+  (Substitute the WP's actual Commit-2 and final-commit SHAs. The `-k` pattern matches the test
+  names mandated in T001/T002's steps above — if the implementer used different names, adapt the
+  pattern or run the two files in full and diff the pass/fail set against T001/T002's steps.)
 - Confirm the `UnregisteredMissionFamilyError` docstring carries the cross-reference comment
   (PLAN-ARCH-002) and `evaluate_guards`'s docstring carries the tolerant-wrapper guidance note
   (PLAN-VERIFY-005) — both are one-line additions the plan already designed in; their absence is
   a real (if small) finding, not nitpicking.
 - Confirm `_check_composed_action_guard` and `_check_cli_guards` are the **direct** callers of
   `evaluate_guards_strict` (grep the diff, don't just read the test names).
+- Confirm T001 step 2's present-artifact assertion is documented as a companion, not RED,
+  assertion — and confirm T001 step 4's disk-backed `gather_artifact_presence` test for
+  `research.md` actually exists and actually calls the real function (not another
+  hand-constructed `_snapshot(...)`).
 - Confirm no file outside `owned_files` was touched.
 
 ## Activity Log

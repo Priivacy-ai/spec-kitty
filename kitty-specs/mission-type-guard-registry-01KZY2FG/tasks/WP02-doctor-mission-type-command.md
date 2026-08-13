@@ -127,10 +127,16 @@ and the command completes in under 2 seconds for a typical `kitty-specs/` tree (
 
 ## Subtasks & Detailed Guidance
 
-### T008 — RED: FR-008/SC-005/SC-006 ATDD pin
+### T008 — RED: FR-008/SC-005/SC-006 ATDD pin + NFR-004 timing regression test
 
 - **Purpose**: Pin the command's classification and exit-code behavior as a failing-first test
-  before the command exists.
+  before the command exists, AND give NFR-004 (the <2s performance budget) an automated
+  regression test, not only a one-off manual measurement (TASKS-VERIFY-004 fix). The precedent
+  this WP is modeled on, `doctor identity`, backs its own analogous budget (NFR-002) with exactly
+  this shape of test — `tests/doctor/test_identity_audit.py::test_nfr_002_timing_200_missions`
+  (read it before writing this step's test; it is the template) — and this WP's own Context &
+  Constraints section already instructs reading the precedent modules "in full," which extends to
+  their test suites, not only their production code.
 - **Steps**:
   1. Create `tests/specify_cli/cli/commands/test_doctor_mission_type.py`. Build a fixture
      `kitty-specs/` tree (via `tmp_path` + a minimal `.kittify/` scaffold, following
@@ -165,9 +171,20 @@ and the command completes in under 2 seconds for a typical `kitty-specs/` tree (
      findings (SC-006, matching `doctor identity`'s `--fail-on` contract).
   5. Confirm this whole file is RED against the WP's base commit — there is no `mission-type`
      Typer command registered yet, so every assertion fails at the CLI-invocation boundary.
+  6. **NFR-004 automated timing regression test** (TASKS-VERIFY-004 fix): add
+     `test_nfr_004_timing_200_missions`, mirroring
+     `test_nfr_002_timing_200_missions`'s shape exactly — build a synthetic 200-mission
+     `kitty-specs/` fixture tree (a sibling helper to that test's own `_build_200_mission_repo`,
+     adapted for this command's fixture shape; reuse the pattern, not the literal function),
+     invoke the mission-type audit (either `audit_mission_types(repo_root)` directly once T009
+     exists, or the full CLI command — match whichever this WP's own `run_mission_type_audit`
+     shape makes most direct to time), and assert `elapsed < 2.0` (NFR-004's stated budget, vs.
+     the precedent's 3.0s for its own NFR-002). This is trivially RED today for the same reason
+     as the rest of the file (no command/module exists yet) — no separate RED-verification step
+     needed beyond step 5's file-level confirmation.
 - **Files**: `tests/specify_cli/cli/commands/test_doctor_mission_type.py` (new).
 - **Validation**: file fails to collect/run meaningfully against the base commit (no such
-  command); passes once T009/T010 land.
+  command); passes once T009/T010 land, including `test_nfr_004_timing_200_missions`.
 
 ### T009 — `_mission_type_audit.py` (new sibling module)
 
@@ -259,10 +276,13 @@ and the command completes in under 2 seconds for a typical `kitty-specs/` tree (
 - **Steps**:
   1. Run `.venv/bin/python -m pytest tests/specify_cli/cli/commands/test_doctor_mission_type.py
      tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py -q` — confirm all pass,
-     including T008's tests now GREEN.
-  2. Time `spec-kitty doctor mission-type --json` against a fixture tree of realistic size and
-     confirm it completes in under 2 seconds (NFR-004) — record the actual measured time in the
-     Activity Log, not an assumption.
+     including T008's tests now GREEN, in particular `test_nfr_004_timing_200_missions`
+     (TASKS-VERIFY-004 fix — this is the real, CI-enforced NFR-004 regression gate, not the
+     manual spot-check below).
+  2. As a belt-and-suspenders manual spot-check (not the primary evidence — step 1's automated
+     test is): time `spec-kitty doctor mission-type --json` against a fixture tree of realistic
+     size and confirm it completes in under 2 seconds (NFR-004) — record the actual measured time
+     in the Activity Log, not an assumption.
   3. Run `mypy --strict` and `ruff check` on both new/changed production files; both clean.
   4. Run `pytest tests/architectural/test_no_legacy_terminology.py` locally before push (this
      command's new `--help` text is new user-facing prose; this gate runs only in CI's
@@ -277,8 +297,9 @@ and the command completes in under 2 seconds for a typical `kitty-specs/` tree (
 - **Targeted surface only**: `tests/specify_cli/cli/commands/test_doctor_mission_type.py` (new,
   this WP's own primary test), `tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py`
   (frozen-contract, this WP's mechanical update). Do **not** run the full `pytest tests/` suite.
-- **Revert discipline**: T008's tests fail if the command, the classifier, or the `--fail-on`
-  exit-code behavior is reverted — this is a stated acceptance requirement, not an aspiration.
+- **Revert discipline**: T008's tests fail if the command, the classifier, the `--fail-on`
+  exit-code behavior, or the NFR-004 timing budget is reverted or regressed — this is a stated
+  acceptance requirement, not an aspiration.
 
 ## Risks & Mitigations
 
@@ -289,16 +310,41 @@ and the command completes in under 2 seconds for a typical `kitty-specs/` tree (
 - **NFR-004 performance risk**: computing `existing_mission_types` / `MissionTypeRepository`
   per-mission instead of once per audit run would scale badly across a large `kitty-specs/`
   tree. Mitigation: T009's `audit_mission_types` computes both once before the loop, matching
-  `identity_audit.audit_repo`'s own established pattern.
+  `identity_audit.audit_repo`'s own established pattern, AND T008's `test_nfr_004_timing_200_missions`
+  is an automated regression gate for this, not only a design intention (TASKS-VERIFY-004 fix —
+  a future change that reintroduces per-mission repository reads now fails CI, not just a manual
+  spot-check).
 - **Golden-contract miss**: forgetting T011 fails CI deterministically the moment `mission-type`
   is registered. Mitigation: land T011 in the same commit as T010 (see ATDD Commit Sequence).
 
 ## Review Guidance
 
-- Confirm RED→GREEN on this WP's own base→final commit for T008's assertions (C-011).
+- Confirm RED→GREEN on this WP's own base→final commit for T008's assertions (C-011) — use the
+  concrete recipe below rather than accepting prose reasoning alone (TASKS-VERIFY-005 fix; see
+  WP01's own Review Guidance for why prose-only RED claims are not trustworthy on their own).
+- **Concrete RED-on-base re-verification recipe** (TASKS-VERIFY-005 fix): T008 is a single,
+  trivially-RED commit (the whole file fails because no `mission-type` command exists yet), so
+  file-level re-verification is sufficient here — no per-assertion node-ids needed, unlike WP01:
+  ```
+  git worktree add /tmp/review-wp02 kitty/mission-mission-type-guard-registry-01KZY2FG
+  cd /tmp/review-wp02
+  git checkout <WP02-commit-1-sha> -- tests/specify_cli/cli/commands/test_doctor_mission_type.py
+  .venv/bin/python -m pytest tests/specify_cli/cli/commands/test_doctor_mission_type.py -q
+  # EXPECT: collection/run failure for every test in the file — no `mission-type` command is
+  # registered at this commit's production code (still the WP's base commit).
+  git checkout <WP02-final-commit-sha> -- .
+  .venv/bin/python -m pytest tests/specify_cli/cli/commands/test_doctor_mission_type.py \
+      tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py -q
+  # EXPECT: all pass, including test_nfr_004_timing_200_missions (TASKS-VERIFY-004's automated
+  # regression gate) and the FR-008 boundary-case assertion below.
+  ```
+  (Substitute the WP's actual Commit-1 and final-commit SHAs.)
 - Confirm the FR-008 boundary case (blank `mission_type` + real legacy `mission` value → still
   `typeless`) is actually exercised and actually passes — this is the single easiest place for
   an implementer to silently pick the more-intuitive-but-wrong reading.
+- Confirm `test_nfr_004_timing_200_missions` exists, actually invokes the mission-type audit
+  against a synthetic ~200-mission fixture, and actually asserts `elapsed < 2.0` — not only that
+  T012's manual spot-check note is present (TASKS-VERIFY-004 fix).
 - Confirm `doctor.py` stayed a thin shell — no classification logic leaked into it.
 - Confirm the golden contract test's `EXPECTED_HELP["mission-type"]` matches the command's real
   `--help` output byte-for-byte (whitespace-normalized), not aspirational text.

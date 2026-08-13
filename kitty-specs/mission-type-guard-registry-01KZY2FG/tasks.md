@@ -72,14 +72,15 @@ mission, not the 'fix' half"). Both are marked concurrently claimable below.
 
 | WP | Owned files |
 |----|-------------|
-| WP01 | `src/runtime/next/runtime_bridge_cores.py`, `src/runtime/next/runtime_bridge_composition.py`, `src/runtime/next/runtime_bridge.py`, `src/runtime/next/runtime_bridge_io.py`, `tests/runtime/test_bridge_cores.py`, `tests/runtime/test_bridge_composition.py` |
+| WP01 | `src/runtime/next/runtime_bridge_cores.py`, `src/runtime/next/runtime_bridge_composition.py`, `src/runtime/next/runtime_bridge.py`, `src/runtime/next/runtime_bridge_io.py`, `tests/runtime/test_bridge_cores.py`, `tests/runtime/test_bridge_composition.py`, `tests/runtime/test_bridge_io.py` |
 | WP02 | `src/specify_cli/cli/commands/doctor.py`, `src/specify_cli/cli/commands/_mission_type_audit.py` (new), `tests/specify_cli/cli/commands/test_doctor_mission_type.py` (new), `tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py` |
 
 Zero file overlap between WP01 and WP02 — confirmed disjoint, both may be claimed and
 implemented in parallel lanes. This is the full production+test file manifest for the mission
-(6 production files + 4 test files, matching plan.md's PR Shape count exactly); no file outside
-this list is touched by either WP. The orchestrator has independently confirmed zero collisions
-against the 18 other currently-open PRs' file sets against this same manifest.
+(6 production files + 5 test files — `tests/runtime/test_bridge_io.py` added per the
+TASKS-VERIFY-002 fix below, alongside WP01's other owned test files); no file outside this list
+is touched by either WP. The orchestrator has independently confirmed zero collisions against the
+18 other currently-open PRs' file sets against this same manifest.
 
 ## Chokepoints (shared CI gates — not optional to skip, per plan.md's Gate Set)
 
@@ -124,20 +125,39 @@ generally not code-mapped elsewhere in this repo's missions).
 ## PR Shape — carried forward from plan.md, re-verified against this WP slicing
 
 **One PR for the whole mission**, per plan.md's own decision. Re-verified here against the
-actual 2-WP slice, not just repeated: the full touched-file set is 6 production files + 4 test
+actual 2-WP slice, not just repeated: the full touched-file set is 6 production files + 5 test
 files (see Write-scope disjointness above), the behavior change is one conceptual unit (close
 one silent-fallback defect class across two call paths, plus one diagnostic command reading the
 same underlying facts), and splitting into 2 WPs did not surface any migration-chain touch,
 contract move, or cross-repo coordination trigger that plan.md's own split-it checklist would
-flag. Both WPs are small enough to review in one sitting individually, and their combined diff
-(a ~10-line production change in 4 files plus one new ~5-way guard function, and one new CLI
-command + one new ~300-line sibling module) is still small enough to review in one sitting as a
-whole. **This tasks author's conclusion: one PR remains correct.** If a reviewer disagrees after
-seeing the actual diff size once WP02's `_mission_type_audit.py` is drafted (plan.md's own
-PR Shape section already flags this exact risk — "if the golden-contract update turns out to
-ripple into other doctor-surface tests not identified here" — as a stop-and-rescope signal),
-that is a decision for the orchestrator/operator to make, not something this tasks.md
-pre-decides.
+flag. Both WPs are small enough to review in one sitting individually. Sizing the combined diff
+precisely rather than folding it into one undifferentiated figure (TASKS-DECOMP-001/002 fix):
+WP01's Commit 3 (T003-T006) is **two different sizes in two different places** — T004-T006 are
+genuinely small, ~10 lines total across 3 files (`runtime_bridge_io.py`,
+`runtime_bridge_composition.py`, `runtime_bridge.py`), each a one-call-site change; T003 alone,
+in `runtime_bridge_cores.py`, adds a new `_GUARD_TABLES` dict, a new
+`UnregisteredMissionFamilyError` exception class (carrying a mandated cross-reference docstring —
+this codebase's own analogous exception, `charter.mission_type_profiles.UnknownMissionTypeError`,
+runs 13 lines, a concrete size anchor), a new `evaluate_guards_strict` function, the new ~5-way
+`_evaluate_plan_guards` function, and a rewritten `evaluate_guards` — five new/changed symbols in
+one file, realistically 40-60 new/changed lines, not "~10 lines." WP02's `_mission_type_audit.py`
+is sized per WP02's own Context & Constraints guidance rather than as an independent target: it
+combines the domain-classifier and CLI-glue roles of two precedent modules
+(`src/specify_cli/status/identity_audit.py`, 361 lines; `src/specify_cli/cli/commands/_identity_audit.py`,
+346 lines — 707 lines combined, `wc -l` verified), and WP02's own prompt explicitly instructs the
+implementer not to treat either single precedent's line count as a target — so the new sibling
+module should be expected to land at the two precedents' **combined LOC order of magnitude,
+roughly 600-700 lines**, not the smaller "~300-line" figure this section previously stated.
+With both figures corrected (WP01: ~10 lines in 3 files, plus ~40-60 lines / 5 symbols in one
+file; WP02: one new CLI command + one new ~600-700-line sibling module), the combined diff is
+still small enough to review in one sitting as a whole — a review budget of one sitting for a
+handful of new symbols in one existing runtime file, three tiny call-site edits, and one new
+sibling module of that scale is realistic for this codebase's typical review cadence. **This
+tasks author's conclusion: one PR remains correct.** If a reviewer disagrees after seeing the
+actual diff size once WP02's `_mission_type_audit.py` is drafted (plan.md's own PR Shape section
+already flags this exact risk — "if the golden-contract update turns out to ripple into other
+doctor-surface tests not identified here" — as a stop-and-rescope signal), that is a decision for
+the orchestrator/operator to make, not something this tasks.md pre-decides.
 
 ## Work Package Sections
 
@@ -174,18 +194,18 @@ pre-decides.
 
 | ID | Description | WP | RED/impl | Parallel? |
 |----|--------------|----|----------|-----------|
-| T001 | RED: FR-010 ATDD pin — `plan`/`review` target-shape assertion (`[]`), genuinely RED against base; plus the FR-002/User-Story-2-AC3 `plan`/`research` tightening pin | WP01 | RED | No |
+| T001 | RED: FR-010 ATDD pin — `plan`/`review` target-shape assertion (`[]`), genuinely RED against base; plus the FR-002/User-Story-2-AC3 `plan`/`research` tightening pin, the `plan`/`specify`+`plan`/`plan`+fail-closed-else 5-way branch pins (User Story 2 AC2), and a disk-backed `gather_artifact_presence` pin for the `research.md` presence tag | WP01 | RED | No |
 | T002 | RED: FR-011 ATDD pin — unregistered-family fall-through, 3 assertions (`evaluate_guards_strict` raises; `_check_cli_guards` propagates via injection seam; `_check_composed_action_guard` returns `[]` + WARNING log) | WP01 | RED | No |
 | T003 | Add `_GUARD_TABLES`, `UnregisteredMissionFamilyError`, `evaluate_guards_strict`, tolerant `evaluate_guards` wrapper, `_evaluate_plan_guards` in `runtime_bridge_cores.py` | WP01 | impl | No |
 | T004 | Add `"research.md"` to `_PRESENCE_FILE_TAGS` in `runtime_bridge_io.py`; update module docstring "three"→"four" | WP01 | impl | Yes (with T005/T006) |
 | T005 | `_check_composed_action_guard` in `runtime_bridge_composition.py`: call `evaluate_guards_strict` directly, catch, WARNING-log, return `[]` | WP01 | impl | Yes (with T004/T006) |
 | T006 | `_check_cli_guards` in `runtime_bridge.py`: call `evaluate_guards_strict` directly, no catch | WP01 | impl | Yes (with T004/T005) |
 | T007 | Verify T001/T002 GREEN; zero new reds vs. 784-baseline; local `diff-cover` check against `src/runtime/next/*` | WP01 | impl | No |
-| T008 | RED: FR-008/SC-005/SC-006 ATDD pin — `test_doctor_mission_type.py`, fixture tree with one mission per taxonomy state + FR-008 boundary case + `--fail-on` behavior | WP02 | RED | No |
+| T008 | RED: FR-008/SC-005/SC-006 ATDD pin — `test_doctor_mission_type.py`, fixture tree with one mission per taxonomy state + FR-008 boundary case + `--fail-on` behavior + an automated NFR-004 timing regression test (synthetic 200-mission fixture, `elapsed < 2.0`) | WP02 | RED | No |
 | T009 | Implement `_mission_type_audit.py` — `MissionTypeState`, `classify_mission_type`, `audit_mission_types`, `summarize_mission_types`, `run_mission_type_audit` | WP02 | impl | No |
 | T010 | Implement `doctor.py` `mission-type` thin `@app.command` shell | WP02 | impl | Yes (with T011) |
 | T011 | Update golden contract test: `FROZEN_SUBCOMMANDS`, `EXPECTED_OPTIONS["mission-type"]`, `EXPECTED_HELP["mission-type"]`, 19→20 count comment | WP02 | impl | Yes (with T010) |
-| T012 | Verify T008 GREEN; NFR-004 perf budget (<2s); targeted test surface green | WP02 | impl | No |
+| T012 | Verify T008 GREEN, including the automated NFR-004 timing test; manual timing spot-check as a belt-and-suspenders confirmation; targeted test surface green | WP02 | impl | No |
 
 ---
 
