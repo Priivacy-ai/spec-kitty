@@ -39,17 +39,21 @@ for every mission"
 > **`--json` usage convention (applies uniformly to all four User Stories below):**
 > `charter context --action <a>` is invoked with `--json` whenever a scenario's
 > assertion depends on structured data the plain-text render omits — specific
-> directive/tactic/procedure counts, count comparisons against the no-pack
-> baseline, or artifact IDs — because without `--json` the command only prints
-> `result.text` (a rendered text block); the per-artifact `id` fields and the
-> `directives`/`tactics`/`styleguides`/`toolguides` lists exist only in the
+> directive/tactic/styleguide/toolguide counts, count comparisons against the
+> no-pack baseline, or artifact IDs — because without `--json` the command only
+> prints `result.text` (a rendered text block); the per-artifact `id` fields and
+> the `directives`/`tactics`/`styleguides`/`toolguides` lists exist only in the
 > `--json` payload (`src/specify_cli/cli/commands/charter/context.py`,
-> `json_output` branch). `--json` is **not** added where the assertion checks
-> internal graph structure that payload does not expose — e.g. a specific edge
-> triple's multiplicity — those scenarios verify by inspecting the resolved
-> `DRGGraph` directly instead. `--json` may be omitted where a scenario asserts
-> only that an exception did or did not propagate, with no numeric or ID
-> comparison.
+> `json_output` branch). **Procedure counts are the one doctrine kind excluded
+> from that payload**: `--json` never exposes a typed `procedures` array or
+> count — a procedure ID is only folded, unlabeled, into the generic
+> `references` link set — so every scenario below that asserts a procedure
+> count does so against the **plain-text render**'s Procedures section
+> (`src/charter/context_renderers/bootstrap_text.py`) instead of `--json`.
+> `--json` is **not** added where the assertion checks internal graph structure
+> that payload does not expose — e.g. a specific edge triple's multiplicity —
+> those scenarios verify by inspecting the resolved `DRGGraph` directly
+> instead.
 
 ### User Story 1 - Guide-compliant org pack keeps its DRG edges after declaration (Priority: P1)
 
@@ -70,17 +74,20 @@ project's action-scoped doctrine on adoption, with no operator-visible failure.
 
 **Independent Test**: Build a fixture org pack containing only `drg/fixture.graph.yaml`
 (no root `*.graph.yaml`), declare it, and assert `charter context --action <a> --json`
-reports non-zero directive/tactic/procedure counts at least equal to the no-pack
-baseline, and that any node declared in the pack's `drg/` fragment is present in the
-resolved bundle.
+reports non-zero directive/tactic/styleguide/toolguide counts at least equal to the
+no-pack baseline; separately, using the plain-text render of the same action, assert a
+non-zero procedure count at least equal to the no-pack baseline; and assert that any node
+declared in the pack's `drg/` fragment is present in the resolved bundle.
 
 **Acceptance Scenarios**:
 
 1. **Given** an org pack directory containing only `drg/*.graph.yaml` fragments (no
    root-level `*.graph.yaml`, no `graph.yaml`), **When** the pack is declared and
    `charter context --action <a> --json` is run, **Then** the action-scoped
-   directive/tactic/styleguide/toolguide/procedure counts are **not lower** than the
-   bare-project baseline (no pack declared).
+   directive/tactic/styleguide/toolguide counts reported by the `--json` payload's typed
+   arrays are **not lower** than the bare-project baseline (no pack declared), **and**,
+   when the same action is rendered without `--json`, the plain-text render's Procedures
+   section count is likewise **not lower** than the bare-project baseline.
 2. **Given** the same fixture pack, **When** `charter context --action <a> --json` is run
    and the pack's `drg/` fragment declares a node reachable from the resolved action,
    **Then** that node's artifact ID appears in the resolved doctrine bundle (the pack's
@@ -108,19 +115,25 @@ same bug under a different directory layout.
 
 **Independent Test**: Declare a pack directory that exists but contains no recognisable
 graph file anywhere (root or `drg/`), run `charter context --action <a> --json`, and
-assert the built-in + project doctrine baseline is preserved exactly (no zeroing) with no
-exception raised and no reduction below the no-pack baseline.
+assert the resolved directive/tactic/styleguide/toolguide counts are preserved exactly at
+the no-pack baseline (no zeroing) with no exception raised; separately, using the
+plain-text render of the same action, assert the resolved procedure count is likewise
+preserved exactly at the no-pack baseline with no reduction below it.
 
 **Acceptance Scenarios**:
 
 1. **Given** an org pack directory that exists but has no `graph.yaml`, no
    `*.graph.yaml` at its root, and no `drg/` directory (or an empty `drg/`), **When**
-   `charter context --action <a> --json` is run, **Then** the built-in + project doctrine
-   resolves at the bare-project baseline (no reduction, no exception propagating past
-   the resolver as an unhandled failure).
+   `charter context --action <a> --json` is run, **Then** the resolved
+   directive/tactic/styleguide/toolguide counts reported by the `--json` payload equal
+   the bare-project baseline (no reduction, no exception propagating past the resolver
+   as an unhandled failure), **and**, via the plain-text render of the same action, the
+   resolved procedure count equally equals the bare-project baseline.
 2. **Given** the same "nothing to load" pack, **When** the same `charter context
-   --action <a> --json` invocation from Scenario 1 completes, **Then** the outcome is
-   indistinguishable in doctrine counts from declaring no org pack at all —
+   --action <a> --json` invocation from Scenario 1 completes (together with its
+   plain-text-render procedure-count check), **Then** the outcome across all five
+   doctrine kinds — directives/tactics/styleguides/toolguides via `--json`, procedures
+   via the plain-text render — is indistinguishable from declaring no org pack at all —
    degrade-to-empty-org-layer, not degrade-to-empty-everything.
 
 ---
@@ -287,7 +300,7 @@ FR-003).
 | FR-002 | Load DRG content from `<org_root>/drg/` | As a governance maintainer, I want my guide-compliant pack's `drg/*.graph.yaml` fragments to actually be loaded, so that the DRG edges I authored per the documented layout take effect. | High | Open |
 | FR-003 | Merge root-level and `drg/`-level org graph content when both are present | As a governance maintainer, I want a pack with both a root graph and `drg/` fragments to have both loaded and merged, so that no authored content is silently dropped based on which location it lives in. On a same-URN node-label conflict between the root graph and `drg/` fragments, **`drg/` fragments are authoritative**: the org-layer sub-merge calls `merge_layers(root_graph, drg_graph)` — the root graph as the first (`built_in`) positional argument, `drg/` content as the second (`project`) positional argument — mirroring the override-wins convention `merge_layers` already applies to its second argument when the org layer overrides built-in. (This second parameter happens to be named `project` in `merge_layers`' own signature — a pre-existing overload baked into the function itself, not something this spec invented; confusingly, that name is normally used for the outer built-in-vs-project-layer merge, but here it is being reused for the org-internal `drg/`-vs-root composition, not the document's own "project layer" [`.kittify/doctrine`] concept.) `merge_layers()` itself (`src/doctrine/drg/loader.py`) is **not modified** by this fix and keeps its additive-only, no-removal semantics unchanged; the dedup step below is new logic local to `_drg_helpers.py` that runs on the org-internal root+`drg/` sub-merge result *before* that result is fed into the existing, unmodified `merge_layers(built_in, org)` call used elsewhere in `load_validated_graph`. When the root graph and `drg/` fragments declare an **identical edge triple** (same source, target, and relation), the org-layer sub-merge **deduplicates the triple before the final `assert_valid` validation pass** (see C-001 for the required implementation mechanism) — an exact duplicate across the two sources is treated as redundant authoring, not a conflict, collapsed to exactly one retained copy of the triple, and must not raise `DRGValidationError`. | Medium | Open |
 | FR-004 | Preserve genuine load-failure visibility | As a governance maintainer, I want a malformed or invalid `drg/` fragment to still surface as a real, non-swallowed failure (not silently collapsed into an empty bundle the same way "nothing to load" is), so that authoring mistakes are diagnosable rather than mistaken for an empty pack. This narrowing is **scoped to the org-pack branch only**: the existing wide `except DRGLoadError` catch in `_load_action_doctrine_bundle` continues to catch and collapse malformed PROJECT-layer (`.kittify/doctrine`) graph content exactly as it does today — that behavior is unchanged and explicitly out of scope for this mission (see Non-Goals). This requirement is verified by an automated regression test (see User Story 3) that exercises both an invalid-YAML `drg/` fragment fixture and a valid-YAML-but-schema-invalid fragment fixture, and asserts the failure outcome is structurally distinguishable from User Story 2's genuinely-empty success path. | High | Open |
-| FR-005 | Non-vacuous regression test: doctrine counts survive org-pack declaration | As a maintainer of this codebase, I want an automated regression test that declares a `drg/`-only fixture org pack and asserts the resolved directive/tactic/procedure counts for `charter context --action <a> --json` are not lower than the no-pack baseline (mirroring the issue's own probe: 21 directives / 69 tactics / 10 procedures on this checkout), so that this defect class cannot silently reopen without a test going red first. | High | Open |
+| FR-005 | Non-vacuous regression test: doctrine counts survive org-pack declaration | As a maintainer of this codebase, I want an automated regression test that declares a `drg/`-only fixture org pack and asserts, via `charter context --action <a> --json`, that the resolved directive/tactic/styleguide/toolguide counts are not lower than the no-pack baseline, and, via the plain-text render of the same action, that the resolved procedure count is not lower than the no-pack baseline (mirroring the issue's own probe: 21 directives / 69 tactics / 10 procedures on this checkout), so that this defect class cannot silently reopen without a test going red first for any of the five doctrine kinds. | High | Open |
 | FR-006 | Non-vacuous regression test: root+`drg/` merge and conflict handling | As a maintainer of this codebase, I want automated regression tests that (a) declare a fixture org pack with a root-level graph declaring node A and a `drg/` fragment declaring node B and assert **both** A's and B's artifact IDs are present in the resolved doctrine bundle, and (b) declare a fixture org pack where the root graph and a `drg/` fragment declare an identical edge triple and assert **both** that the org-layer sub-merge deduplicates it without raising `DRGValidationError` **and** that the resolved graph contains **exactly one** instance of that (source, target, relation) triple afterward — not merely that no exception was raised — so that FR-003's merge and conflict-precedence behavior cannot silently regress into either a false conflict or a silently dropped edge. (Which internal comparison the dedup step uses is a code-review-time constraint, not something this test asserts — see C-001.) | Medium | Open |
 
 ### Non-Functional Requirements
@@ -326,9 +339,11 @@ FR-003).
 ### Measurable Outcomes
 
 - **SC-001**: A `drg/`-only fixture org pack (no root-level graph file), once declared,
-  yields `charter context --action <a> --json` directive/tactic/procedure counts that are
-  **not lower** than the bare-project (no-pack) baseline on the same checkout — verified
-  by the regression test required by FR-005.
+  yields, via `charter context --action <a> --json`, directive/tactic/styleguide/toolguide
+  counts that are **not lower** than the bare-project (no-pack) baseline on the same
+  checkout, and, via the plain-text render of the same action, a procedure count that is
+  likewise **not lower** than the bare-project baseline — verified by the regression test
+  required by FR-005.
 - **SC-002**: The same fixture pack's `drg/`-declared node is present in the resolved
   action doctrine bundle's artifact IDs, demonstrating the pack's content is loaded, not
   merely tolerated.
