@@ -95,20 +95,6 @@ def _raw_ref_tokens(text: str) -> set[str]:
     return {token.upper() for token in _REF_FIND_PATTERN.findall(text)}
 
 
-def raw_requirement_ref_tokens(text: str) -> set[str]:
-    """Public accessor for the pre-#3394 doc-wide ``FR-``/``NFR-``/``C-`` token scan.
-
-    #3394 F4 restore (severity 4): ``runtime.next.runtime_bridge.
-    _check_requirement_mapping_ready`` needs this raw scan -- alongside
-    :func:`parse_requirement_ids_from_spec_md`'s *declared* count -- to detect
-    the narrow "spec.md declares NOTHING recognizable yet contains
-    requirement-shaped tokens" case and block on it (restoring pre-#3394
-    behavior for that one caller only). See that function's docstring for the
-    exact rule and why it cannot reintroduce #3394.
-    """
-    return _raw_ref_tokens(text)
-
-
 def _is_requirement_heading(line: str) -> bool:
     """True for a markdown heading whose text mentions "requirement" (any case)."""
     stripped = line.lstrip()
