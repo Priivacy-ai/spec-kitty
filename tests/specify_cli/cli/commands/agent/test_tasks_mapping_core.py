@@ -356,3 +356,40 @@ def test_sentinel_to_write_drives_the_written_refs_and_coverage(
     # The written frontmatter itself follows the sentinel ``to_write``.
     body = (fd / "tasks" / "WP01-fixture.md").read_text(encoding="utf-8")
     assert "FR-002" in body and "FR-001" not in body
+
+
+# ---------------------------------------------------------------------------
+# #3394 review F1: non-blocking requirement-extraction-warning signal
+# ---------------------------------------------------------------------------
+
+
+def test_map_requirements_surfaces_undeclared_requirement_citations_without_failing(
+    tmp_path: Path,
+) -> None:
+    """A spec whose Functional Requirements section is written as bare,
+    unbulleted, unbolded sentences (FR-001, FR-002) yields zero declared ids
+    for THOSE tokens -- ``map-requirements`` must still succeed (exit 0) when
+    the operator maps WP01 against a SEPARATE, properly-declared FR-100, but
+    the JSON payload must name the undeclared tokens instead of staying
+    silent about them (review F1).
+    """
+    fd = _mapping_mission(tmp_path, f"undeclared-fr-warn-{_MID8}")
+    (fd / "spec.md").write_text(
+        "# Spec\n\n"
+        "## Functional Requirements\n\nFR-001 must hold. FR-002 too.\n\n"
+        "## Declared Functional Requirements\n\n- FR-100: The declared one.\n",
+        encoding="utf-8",
+    )
+    with setup_mocked_env(fd.parent.parent, mission_slug=fd.name):
+        result = CliRunner().invoke(
+            app,
+            ["map-requirements", "--wp", "WP01", "--refs", "FR-100",
+             "--mission", fd.name, "--no-auto-commit", "--json"],
+        )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    warnings = payload["requirement_extraction_warnings"]
+    assert warnings, "expected a non-empty requirement_extraction_warnings"
+    warning_text = " ".join(warnings)
+    assert "FR-001" in warning_text
+    assert "FR-002" in warning_text

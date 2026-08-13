@@ -137,6 +137,20 @@ def _parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str
     return parse_requirement_ids_from_spec_md(spec_content)
 
 
+def _find_undeclared_requirement_citations(spec_content: str) -> list[str]:
+    """#3394 review F1: soft, non-blocking diagnostic for the declared-shape-miss case.
+
+    Returns human-readable warning message(s) when spec.md contains raw
+    FR-/NFR-/C-NNN-shaped tokens that matched none of the four recognized
+    declared shapes (see ``requirement_mapping._declared_ids``) -- empty when
+    there is nothing to warn about. Never raises, never blocks; callers
+    surface the result as a console warning + a JSON field, not a gate.
+    """
+    from specify_cli.requirement_mapping import find_undeclared_requirement_citations
+
+    return find_undeclared_requirement_citations(spec_content)
+
+
 # ---------------------------------------------------------------------------
 # Owned-files validators
 # ---------------------------------------------------------------------------

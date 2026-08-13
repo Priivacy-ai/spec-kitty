@@ -7,6 +7,7 @@ from pathlib import Path
 from specify_cli.requirement_mapping import (
     classify_stale_refs,
     compute_coverage,
+    find_undeclared_requirement_citations,
     normalize_requirement_refs_value,
     parse_requirement_ids_from_spec_md,
     read_all_wp_raw_requirement_refs,
@@ -226,6 +227,92 @@ class TestDeclaredVsCitedRequirements:
         content = "## Functional Requirements\n\nFR-001 must hold. FR-002 too.\n"
         result = parse_requirement_ids_from_spec_md(content)
         assert result == {"all": [], "functional": []}
+
+    def test_prose_citation_of_foreign_nfr_and_c_is_excluded_from_all(self):
+        """#3394 review F3: the four declared-shape patterns are genuinely
+        prefix-agnostic, but every prior citation-exclusion test only
+        exercised a cited FR- id. Pin the NFR-/C- behaviour explicitly: a
+        cited foreign C-009 and NFR-014 in prose, alongside DECLARED ids of a
+        different prefix, must not appear in "all".
+        """
+        content = (
+            "## Background\n\n"
+            "This mirrors the approach from C-009 (see the sibling mission's "
+            "constraint) and NFR-014's latency budget, cited here only as prior art.\n\n"
+            "### Functional Requirements\n\n"
+            "| ID | Requirement |\n"
+            "|----|-------------|\n"
+            "| FR-001 | First requirement. |\n"
+        )
+        result = parse_requirement_ids_from_spec_md(content)
+        assert result["all"] == ["FR-001"]
+        assert "C-009" not in result["all"]
+        assert "NFR-014" not in result["all"]
+
+
+class TestFindUndeclaredRequirementCitations:
+    """#3394 review F1: a soft, non-blocking signal for the declared-shape-miss
+    case -- a spec whose requirements are written in NONE of the four
+    recognized declared shapes yields zero declared ids silently from
+    ``parse_requirement_ids_from_spec_md``. ``find_undeclared_requirement_citations``
+    is the accompanying non-blocking diagnostic that flags this, without
+    changing what counts as declared or gating anything.
+    """
+
+    def test_whole_document_bare_sentences_yield_a_warning(self):
+        """The exact F1 scenario: a spec with no declared shape ANYWHERE
+        still names its raw tokens in a warning instead of staying silent."""
+        content = "## Functional Requirements\n\nFR-001 must hold. FR-002 too.\n"
+        warnings = find_undeclared_requirement_citations(content)
+        assert len(warnings) == 1
+        assert "FR-001" in warnings[0]
+        assert "FR-002" in warnings[0]
+
+    def test_fully_declared_document_yields_no_warning(self):
+        """No false positive: a spec whose requirements are declared in a
+        recognized shape produces zero warnings."""
+        content = "### Functional Requirements\n\n| ID | Requirement |\n|---|---|\n| FR-007 | Do the thing. |\n"
+        assert find_undeclared_requirement_citations(content) == []
+
+    def test_no_ref_tokens_at_all_yields_no_warning(self):
+        """A spec with no FR/NFR/C tokens anywhere never warns."""
+        assert find_undeclared_requirement_citations("# Spec\n\nJust prose, no requirements.\n") == []
+
+    def test_requirements_heading_with_bare_sentences_warns_even_when_other_ids_are_declared(self):
+        """The scoped case F1 explicitly calls out: a doc-wide declared-id
+        check alone would MISS this, because the document as a whole has
+        declared ids elsewhere (so the whole-document branch does not fire).
+        The heading-scoped check still catches the "Functional Requirements"
+        section that opens with plain, undeclared prose.
+        """
+        content = (
+            "## Non-Functional Requirements\n\n"
+            "- **NFR-001**: Some constraint.\n\n"
+            "## Functional Requirements\n\n"
+            "FR-001 must hold. FR-002 too.\n"
+        )
+        warnings = find_undeclared_requirement_citations(content)
+        assert len(warnings) == 1
+        assert "FR-001" in warnings[0]
+        assert "FR-002" in warnings[0]
+        assert "Functional Requirements" in warnings[0]
+
+    def test_prose_citation_with_no_requirements_heading_and_other_declared_ids_does_not_warn(self):
+        """The #3394 base-case citation scenario (foreign FR cited in a
+        Background section, this spec's own FRs declared in a table)
+        produces no warning -- the citation sentence is not itself inside a
+        heading naming "requirement", and the document as a whole has
+        declared ids, so neither warning branch fires.
+        """
+        content = (
+            "## Background\n\n"
+            "This bug is easy to miss -- see FR-021's default-pack materialization.\n\n"
+            "### Functional Requirements\n\n"
+            "| ID | Requirement |\n"
+            "|----|-------------|\n"
+            "| FR-001 | First requirement. |\n"
+        )
+        assert find_undeclared_requirement_citations(content) == []
 
 
 class TestNormalizeRequirementRefsValue:

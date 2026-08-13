@@ -39,6 +39,18 @@ _REF_FIND_PATTERN = re.compile(r"\b(?:FR|NFR|C)-\d+\b", re.IGNORECASE)
 # across kitty-specs/) or struck through to mark a retired requirement
 # (``| ~~FR-006~~ | ...``, e.g. mission retrospective-durable-home-01KVYM1W) --
 # optional leading/trailing ``**``/``~~`` around the id, either or both.
+#
+# Corpus-validation note (#3394 review F2): the four shapes above and the
+# decision NOT to hard-fail when a document matches none of them were
+# validated against the 366-spec ``kitty-specs/`` corpus during the #3394 Op
+# (``01KZYBXE5G1Y8J4C5FAYV1FKN1``). A stricter, hard-failing prototype (refuse
+# whenever raw ``FR``/``NFR``/``C`` tokens are present but none match a
+# declared shape) was measured at roughly a 6% false-positive rate against
+# that corpus and rejected for that reason; the prototype and its measurement
+# were not preserved outside the Op transcript, so this sentence is the
+# durable record of the number and the rationale. See
+# :func:`find_undeclared_requirement_citations` below for the soft,
+# non-blocking warning shipped instead of that rejected hard-fail layer.
 _TABLE_ROW_ID_PATTERN = re.compile(r"^\s*\|\s*(?:\*\*|~~){0,2}((?:FR|NFR|C)-\d+)(?:\*\*|~~){0,2}\s*\|", re.IGNORECASE)
 _HEADING_ID_PATTERN = re.compile(r"^#{1,6}\s*((?:FR|NFR|C)-\d+)\b", re.IGNORECASE)
 # A leading bullet/number marker is itself the "this is a list item, not a
@@ -76,6 +88,88 @@ def _declared_ids(spec_content: str) -> set[str]:
                 found.add(match.group(1).upper())
                 break
     return found
+
+
+def _raw_ref_tokens(text: str) -> set[str]:
+    """Every ``FR-``/``NFR-``/``C-`` token anywhere in ``text`` (pre-#3394 scan)."""
+    return {token.upper() for token in _REF_FIND_PATTERN.findall(text)}
+
+
+def _is_requirement_heading(line: str) -> bool:
+    """True for a markdown heading whose text mentions "requirement" (any case)."""
+    stripped = line.lstrip()
+    return stripped.startswith("#") and "requirement" in stripped.lower()
+
+
+def _requirement_named_sections(spec_content: str) -> list[tuple[str, str]]:
+    """``(heading_text, body)`` for every heading section naming "requirement".
+
+    A section's body runs from immediately after its heading line to the next
+    heading line (any level) or end of document -- mirrors how a human reader
+    would scope "the Functional Requirements section".
+    """
+    lines = spec_content.splitlines()
+    heading_idxs = [i for i, line in enumerate(lines) if line.lstrip().startswith("#")]
+    sections: list[tuple[str, str]] = []
+    for pos, idx in enumerate(heading_idxs):
+        heading_line = lines[idx]
+        if not _is_requirement_heading(heading_line):
+            continue
+        end = heading_idxs[pos + 1] if pos + 1 < len(heading_idxs) else len(lines)
+        heading_text = heading_line.lstrip("#").strip()
+        sections.append((heading_text, "\n".join(lines[idx + 1 : end])))
+    return sections
+
+
+def _undeclared_citation_warning(tokens: list[str], *, scope: str) -> str:
+    joined = ", ".join(tokens)
+    return (
+        f"{scope} mentions requirement-shaped token(s) ({joined}) that matched none of the "
+        "recognized declared shapes (table row / id-naming heading / bulleted item / bold-led "
+        "paragraph) -- none of them count toward FR coverage. If these ARE this spec's own "
+        "requirements, rewrite them in one of the recognized shapes; if they are citations of "
+        "another mission's requirement, no action is needed."
+    )
+
+
+def find_undeclared_requirement_citations(spec_content: str) -> list[str]:
+    """#3394 review F1: soft, non-blocking signal for the declared-shape-miss case.
+
+    ``_declared_ids`` recognizes four declaration shapes (table row, heading,
+    bullet, bold paragraph) and that scoping is deliberately NOT widened here
+    (#3394 is settled). But a spec whose requirements are written in NONE of
+    those shapes -- e.g. bare, unbulleted, unbolded sentences like "FR-001
+    must hold. FR-002 too." -- now silently yields zero declared ids, and
+    ``finalize-tasks``/``map-requirements`` then report full coverage with
+    nothing to show for it (the same "reports success while measuring
+    nothing" shape the project's ledger flags elsewhere).
+
+    This detector does not change what counts as *declared*; it only flags,
+    non-blockingly, when raw ref-shaped tokens (the pre-#3394
+    ``_REF_FIND_PATTERN`` scan) are present but produced zero declared ids --
+    either across the WHOLE document, or within a heading section whose title
+    mentions "requirement" (e.g. "Functional Requirements", "Non-Functional
+    Requirements").
+
+    Returns:
+        Human-readable warning message(s) -- empty when every raw token
+        matched a declared shape, or when there were no raw tokens at all.
+        Callers surface these as a non-blocking warning (console + a JSON
+        field), never as a gate failure.
+    """
+    declared = _declared_ids(spec_content)
+    doc_raw_tokens = _raw_ref_tokens(spec_content)
+    if doc_raw_tokens and not declared:
+        return [_undeclared_citation_warning(sorted(doc_raw_tokens), scope="spec.md")]
+
+    warnings: list[str] = []
+    for heading_text, section in _requirement_named_sections(spec_content):
+        section_raw_tokens = _raw_ref_tokens(section)
+        if section_raw_tokens and not _declared_ids(section):
+            warnings.append(
+                _undeclared_citation_warning(sorted(section_raw_tokens), scope=f"The {heading_text!r} section")
+            )
+    return warnings
 
 
 class CoverageSummary(TypedDict):
