@@ -8,7 +8,10 @@ pinned here; the *actual* network-isolated render is proven by the
 
 from __future__ import annotations
 
+import concurrent.futures
+import hashlib
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -86,3 +89,63 @@ def test_extract_title_reads_plantuml_title() -> None:
     src = "@startyaml\ntitle Agent Profile Schema\nprofile_id: x\n@endyaml\n"
     assert plantuml_invoke.extract_title(src) == "Agent Profile Schema"
     assert plantuml_invoke.extract_title("@startyaml\nprofile_id: x\n@endyaml") is None
+
+
+# ---- ensure_jar concurrency safety (fixes the unit-contract-residual flake) ---
+#
+# Root cause: the three test files that consumed this module each carried a
+# verbatim-duplicated `_ensure_jar()` that downloaded to the SAME shared
+# `plantuml.jar` path guarded only by `if not jar.exists()` — a check-then-act
+# race. Under `pytest -n auto --dist loadfile`, those three files land on
+# DIFFERENT xdist WORKER PROCESSES that can call `_ensure_jar()` concurrently:
+# one worker's in-progress (truncated/empty) write is observed by another
+# worker's `exists()` check, which then skips its own download and verifies a
+# still-empty or partial file — `PlantumlRenderError: plantuml.jar sha256
+# mismatch`, with a DIFFERENT "got" hash per worker (the CI signature).
+#
+# `ensure_jar` closes this by serializing the whole check-download-verify
+# sequence behind a cross-process `fcntl.flock`, and by verifying a freshly
+# downloaded file on a private temp path BEFORE atomically publishing it —
+# so no caller can ever observe a partial file. This test proves that under
+# real concurrent callers (no network — a monkeypatched slow, chunked
+# "downloader" deterministically forces the same interleaving that exposed
+# the bug in CI).
+
+_RACE_PAYLOAD = b"race-safe-plantuml-jar-payload-" * 8192  # ~256KB, chunked to force interleaving
+_RACE_PAYLOAD_SHA256 = hashlib.sha256(_RACE_PAYLOAD).hexdigest()  # noqa: TID251 - file-integrity checksum under test
+
+
+def _slow_chunked_download(_url: str, dest: Path) -> None:
+    """Stand-in for the real ``urlretrieve``: writes ``_RACE_PAYLOAD`` in small
+    chunks with a short sleep between each, so concurrent, unsynchronized
+    writers to the SAME destination path would genuinely interleave/truncate
+    each other — reproducing the CI race deterministically, with no network."""
+    chunk_size = 4096
+    with open(dest, "wb") as fh:
+        for offset in range(0, len(_RACE_PAYLOAD), chunk_size):
+            fh.write(_RACE_PAYLOAD[offset : offset + chunk_size])
+            time.sleep(0.001)
+
+
+def test_ensure_jar_is_race_safe_under_concurrent_callers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(plantuml_invoke, "_download_once", _slow_chunked_download)
+    pins = plantuml_invoke.Pins(
+        plantuml_version="race-test",
+        plantuml_jar_sha256=_RACE_PAYLOAD_SHA256,
+        plantuml_jar_url="unused://patched-downloader",
+        jre_image="n/a",
+        jre_image_digest="n/a",
+    )
+    dest = tmp_path / "plantuml.jar"
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        jars = list(pool.map(lambda _: plantuml_invoke.ensure_jar(pins, dest), range(8)))
+
+    # Every concurrent caller must get back a fully-provisioned, verified jar —
+    # never a partial/empty one, and never a PlantumlRenderError.
+    for jar in jars:
+        assert jar == dest
+        plantuml_invoke.verify_jar_sha256(jar, _RACE_PAYLOAD_SHA256)
+    assert dest.read_bytes() == _RACE_PAYLOAD

@@ -19,11 +19,15 @@ Design invariants (see kitty-specs/doctrine-schema-diagrams-01KZTQTH):
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
+import os
 import re
 import subprocess
 import tempfile
+import time
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -31,11 +35,16 @@ __all__ = [
     "Pins",
     "PlantumlRenderError",
     "build_docker_argv",
+    "ensure_jar",
     "load_pins",
     "render_startyaml",
     "svg_is_error",
     "verify_jar_sha256",
 ]
+
+# GitHub release downloads flake with RemoteDisconnected; retry a bounded
+# number of times with linear backoff before giving up.
+_DOWNLOAD_ATTEMPTS = 5
 
 # PlantUML renders a failed diagram (bad font, refused include, syntax error
 # without -failfast) as a *valid* SVG carrying one of these signatures. The
@@ -89,6 +98,74 @@ def verify_jar_sha256(jar_path: Path, expected_sha256: str) -> None:
         raise PlantumlRenderError(
             f"plantuml.jar sha256 mismatch: expected {expected_sha256}, got {digest}"
         )
+
+
+def _download_once(url: str, dest: Path) -> None:
+    """Download ``url`` to ``dest``, retrying transient failures with backoff."""
+    last: Exception | None = None
+    for attempt in range(_DOWNLOAD_ATTEMPTS):
+        try:
+            urllib.request.urlretrieve(url, dest)  # noqa: S310 - pinned https URL
+            return
+        except Exception as exc:  # noqa: BLE001 - retry any transient download error
+            last = exc
+            time.sleep(2 * (attempt + 1))
+    assert last is not None  # loop always sets `last` before exhausting attempts
+    raise last
+
+
+def ensure_jar(pins: Pins, dest: Path) -> Path:
+    """Provision ``dest`` with a sha256-verified plantuml.jar, safe for concurrent callers.
+
+    Multiple pytest-xdist workers (or any concurrent processes) may call this
+    against the *same* ``dest`` path at once. A cross-process ``fcntl.flock``
+    (stdlib, POSIX — matches this module's stdlib-only invariant: it is
+    imported via bare ``python3`` with no ``pip install`` in ``docs-pages.yml``
+    and ``plantuml-egress-spike.yml``, so a third-party lock library is not an
+    option here) on a sidecar lock path serializes the whole
+    check-download-verify sequence so no reader ever observes a file that is
+    still being written. The download itself lands on a unique per-process
+    temp path and is sha256-verified *before* being published to ``dest`` via
+    an atomic ``os.replace`` — a truncated or interleaved download can
+    therefore never be mistaken for a valid jar, and a mismatch on the temp
+    file simply triggers a fresh download attempt rather than corrupting the
+    shared file.
+    """
+    lock_path = dest.with_suffix(dest.suffix + ".lock")
+    with open(lock_path, "w", encoding="utf-8") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            return _provision_locked(pins, dest)
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+
+def _provision_locked(pins: Pins, dest: Path) -> Path:
+    """Download-and-publish ``dest``, assuming the caller already holds the lock."""
+    if dest.exists():
+        try:
+            verify_jar_sha256(dest, pins.plantuml_jar_sha256)
+            return dest
+        except PlantumlRenderError:
+            pass  # existing file is stale/corrupt — fall through and re-provision
+    tmp = dest.parent / f".{dest.name}.{os.getpid()}.tmp"
+    try:
+        for _ in range(_DOWNLOAD_ATTEMPTS):
+            _download_once(pins.plantuml_jar_url, tmp)
+            try:
+                verify_jar_sha256(tmp, pins.plantuml_jar_sha256)
+                break
+            except PlantumlRenderError:
+                continue  # sha mismatch on a fresh download — retry
+        else:
+            raise PlantumlRenderError(
+                f"plantuml.jar download repeatedly failed sha256 verification "
+                f"after {_DOWNLOAD_ATTEMPTS} attempts"
+            )
+        os.replace(tmp, dest)
+    finally:
+        tmp.unlink(missing_ok=True)
+    return dest
 
 
 def build_docker_argv(
