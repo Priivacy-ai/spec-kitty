@@ -136,17 +136,17 @@ never populates).
 **Acceptance Scenarios**:
 
 1. **Given** an org pack whose `drg/` directory contains a fragment file with invalid
-   YAML syntax, **When** `charter context --action <a>` is run, **Then** the call does
-   not report success with an empty-looking bundle; it produces a structurally
+   YAML syntax, **When** `charter context --action <a> --json` is run, **Then** the call
+   does not report success with an empty-looking bundle; it produces a structurally
    distinguishable failure signal (a specific exception type, or a non-empty
-   machine-checkable error field), never silently collapsing to the same shape as User
-   Story 2's genuinely-empty case.
+   machine-checkable error field in the JSON output), never silently collapsing to the
+   same shape as User Story 2's genuinely-empty case.
 2. **Given** an org pack whose `drg/` directory contains a fragment file that is valid
-   YAML but fails `DRGGraph` schema validation, **When** `charter context --action <a>`
-   is run, **Then** the same distinguishable-failure outcome as Scenario 1 occurs — the
-   failure signal for "content existed and failed to parse/validate" has the same shape
-   whether the cause was a YAML syntax error or a schema violation, and remains distinct
-   from User Story 2's "nothing to load" success path.
+   YAML but fails `DRGGraph` schema validation, **When** `charter context --action <a>
+   --json` is run, **Then** the same distinguishable-failure outcome as Scenario 1
+   occurs — the failure signal for "content existed and failed to parse/validate" has the
+   same shape whether the cause was a YAML syntax error or a schema violation, and
+   remains distinct from User Story 2's "nothing to load" success path.
 
 ---
 
@@ -168,8 +168,9 @@ node A and a `drg/fixture.graph.yaml` declaring node B (no conflict), declare it
 assert both A's and B's artifact IDs are present in the resolved doctrine bundle. Build a
 second fixture where the root graph and a `drg/` fragment declare the identical edge
 triple (same source, target, relation), declare it, and assert `charter context` succeeds
-without raising `DRGValidationError` (the org-layer sub-merge dedupes the triple per
-FR-003).
+without raising `DRGValidationError` **and** that the resolved graph contains exactly one
+instance of that (source, target, relation) triple afterward (the org-layer sub-merge
+dedupes the triple to one copy — it does not drop it — per FR-003).
 
 **Acceptance Scenarios**:
 
@@ -182,7 +183,9 @@ FR-003).
    declare the identical edge triple (same source, target, relation), **When** the pack
    is declared and `charter context --action <a>` is run, **Then** the org-layer
    sub-merge deduplicates the identical triple before validation and the call succeeds
-   (no `DRGValidationError` propagates), consistent with FR-003's dedup rule.
+   (no `DRGValidationError` propagates) **and** the resolved graph contains **exactly
+   one** instance of the (source, target, relation) triple afterward — deduplicated to
+   one retained copy, not dropped entirely — consistent with FR-003's dedup rule.
 
 ---
 
@@ -261,10 +264,10 @@ FR-003).
 |----|-------|------------|----------|--------|
 | FR-001 | Guard the org DRG root load with a graph-files check | As a governance maintainer, I want an org pack root with no loadable graph to degrade to "no org DRG layer" instead of raising `DRGLoadError`, so that declaring a pack never reduces available doctrine below the bare-project baseline. | High | Open |
 | FR-002 | Load DRG content from `<org_root>/drg/` | As a governance maintainer, I want my guide-compliant pack's `drg/*.graph.yaml` fragments to actually be loaded, so that the DRG edges I authored per the documented layout take effect. | High | Open |
-| FR-003 | Merge root-level and `drg/`-level org graph content when both are present | As a governance maintainer, I want a pack with both a root graph and `drg/` fragments to have both loaded and merged, so that no authored content is silently dropped based on which location it lives in. On a same-URN node-label conflict between the root graph and `drg/` fragments, **`drg/` fragments are authoritative**: the org-layer sub-merge treats `drg/` as the "project" role and the root graph as the "built-in" role fed into `merge_layers`, mirroring `merge_layers`' existing project-overrides-built-in convention. When the root graph and `drg/` fragments declare an **identical edge triple** (same source, target, and relation), the org-layer sub-merge **deduplicates the triple before the final `assert_valid` validation pass** — an exact duplicate across the two sources is treated as redundant authoring, not a conflict, and must not raise `DRGValidationError`. | Medium | Open |
+| FR-003 | Merge root-level and `drg/`-level org graph content when both are present | As a governance maintainer, I want a pack with both a root graph and `drg/` fragments to have both loaded and merged, so that no authored content is silently dropped based on which location it lives in. On a same-URN node-label conflict between the root graph and `drg/` fragments, **`drg/` fragments are authoritative**: the org-layer sub-merge feeds the root graph as `merge_layers`' base argument and `drg/` as `merge_layers`' override argument, mirroring `merge_layers`' existing override-wins convention (the same convention `merge_layers` already applies when the org layer overrides built-in). `merge_layers()` itself (`src/doctrine/drg/loader.py`) is **not modified** by this fix and keeps its additive-only, no-removal semantics unchanged; the dedup step below is new logic local to `_drg_helpers.py` that runs on the org-internal root+`drg/` sub-merge result *before* that result is fed into the existing, unmodified `merge_layers(built_in, org)` call used elsewhere in `load_validated_graph`. When the root graph and `drg/` fragments declare an **identical edge triple** (same source, target, and relation), the org-layer sub-merge **deduplicates the triple, using the existing canonical `doctrine.drg.validator.duplicate_edge_triples` primitive as the single definition of "duplicate" (no independently-written comparison), before the final `assert_valid` validation pass** — an exact duplicate across the two sources is treated as redundant authoring, not a conflict, collapsed to exactly one retained copy of the triple, and must not raise `DRGValidationError`. | Medium | Open |
 | FR-004 | Preserve genuine load-failure visibility | As a governance maintainer, I want a malformed or invalid `drg/` fragment to still surface as a real, non-swallowed failure (not silently collapsed into an empty bundle the same way "nothing to load" is), so that authoring mistakes are diagnosable rather than mistaken for an empty pack. This narrowing is **scoped to the org-pack branch only**: the existing wide `except DRGLoadError` catch in `_load_action_doctrine_bundle` continues to catch and collapse malformed PROJECT-layer (`.kittify/doctrine`) graph content exactly as it does today — that behavior is unchanged and explicitly out of scope for this mission (see Non-Goals). This requirement is verified by an automated regression test (see User Story 3) that exercises both an invalid-YAML `drg/` fragment fixture and a valid-YAML-but-schema-invalid fragment fixture, and asserts the failure outcome is structurally distinguishable from User Story 2's genuinely-empty success path. | High | Open |
 | FR-005 | Non-vacuous regression test: doctrine counts survive org-pack declaration | As a maintainer of this codebase, I want an automated regression test that declares a `drg/`-only fixture org pack and asserts the resolved directive/tactic/procedure counts for `charter context --action <a>` are not lower than the no-pack baseline (mirroring the issue's own probe: 21 directives / 69 tactics / 10 procedures on this checkout), so that this defect class cannot silently reopen without a test going red first. | High | Open |
-| FR-006 | Non-vacuous regression test: root+`drg/` merge and conflict handling | As a maintainer of this codebase, I want automated regression tests that (a) declare a fixture org pack with a root-level graph declaring node A and a `drg/` fragment declaring node B and assert **both** A's and B's artifact IDs are present in the resolved doctrine bundle, and (b) declare a fixture org pack where the root graph and a `drg/` fragment declare an identical edge triple and assert the org-layer sub-merge deduplicates it without raising `DRGValidationError`, so that FR-003's merge and conflict-precedence behavior cannot silently regress. | Medium | Open |
+| FR-006 | Non-vacuous regression test: root+`drg/` merge and conflict handling | As a maintainer of this codebase, I want automated regression tests that (a) declare a fixture org pack with a root-level graph declaring node A and a `drg/` fragment declaring node B and assert **both** A's and B's artifact IDs are present in the resolved doctrine bundle, and (b) declare a fixture org pack where the root graph and a `drg/` fragment declare an identical edge triple (detected via the canonical `doctrine.drg.validator.duplicate_edge_triples` primitive) and assert **both** that the org-layer sub-merge deduplicates it without raising `DRGValidationError` **and** that the resolved graph contains **exactly one** instance of that (source, target, relation) triple afterward — not merely that no exception was raised — so that FR-003's merge and conflict-precedence behavior cannot silently regress into either a false conflict or a silently dropped edge. | Medium | Open |
 
 ### Non-Functional Requirements
 
@@ -277,9 +280,9 @@ FR-003).
 
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|----------|--------|
-| C-001 | Blast radius | Changes are confined to `src/charter/_drg_helpers.py`, `src/charter/action_doctrine_bundle.py`, and new regression fixtures/tests under `tests/charter/`. No change to `src/charter/kind_vocabulary.py`, `src/doctrine/drg/loader.py`'s public signatures, or the org-pack authoring guide's documented layout. | Technical | High | Open |
+| C-001 | Blast radius | Changes are confined to `src/charter/_drg_helpers.py`, `src/charter/action_doctrine_bundle.py`, and new regression fixtures/tests under `tests/charter/`. No change to `src/charter/kind_vocabulary.py`, `src/doctrine/drg/loader.py`'s public signatures, **or `merge_layers()`'s implementation** (its additive-only, no-removal semantics must remain byte-for-byte unchanged — the root+`drg/` dedup required by FR-003/FR-006 is new logic in `_drg_helpers.py`, not a modification to `merge_layers`), or the org-pack authoring guide's documented layout. | Technical | High | Open |
 | C-002 | `__all__` export discipline (charter C-007) | Any new module-level helper function introduced in `src/charter/_drg_helpers.py` in service of this fix must either be added to that module's `__all__` (if it becomes an external export with real callers) or kept module-private (no leading-underscore-free name added to `__all__` without a caller in `src/`) — `tests/architectural/test_no_dead_symbols.py` enforces this. | Technical | High | Open |
-| C-003 | ATDD-first (charter C-011) | A failing-first ATDD test pinning FR-005's observable behavior (non-zero doctrine counts survive org-pack declaration) is committed as a separate commit before any implementation commit; the test must be RED on the WP's `planning_base_branch` and GREEN on the WP's final commit. | Process | High | Open |
+| C-003 | ATDD-first (charter C-011) | Failing-first ATDD tests pinning FR-004's, FR-005's, and FR-006's observable behavior — respectively: a structurally distinguishable failure signal for a malformed `drg/` fragment (FR-004); non-zero doctrine counts surviving org-pack declaration (FR-005); and the root+`drg/` both-present merge and identical-edge-triple dedup outcomes (FR-006) — are each committed as a separate commit before any implementation commit; each test must be RED on the WP's `planning_base_branch` and GREEN on the WP's final commit. | Process | High | Open |
 | C-004 | Non-vacuous architectural gate discipline (Standing Order #5) | The regression tests required by FR-004, FR-005, and FR-006 must each assert a concrete, checkable outcome, not merely "no exception raised" or "a log line changed": FR-005's test asserts a non-zero floor (the baseline counts); FR-004's test asserts a structurally distinguishable failure signal (a specific exception type, or a non-empty machine-checkable error field) for the malformed-fragment case, distinct in shape from User Story 2's genuinely-empty success path; FR-006's tests assert both the both-present node-presence outcome and the identical-edge-triple dedup outcome. A test that only checks for the absence of an exception, or only that a log line changed, would be vacuous against the actual reported defect (empty bundle reported as success). | Technical | High | Open |
 | C-005 | Pre-existing red-main exclusion | Issue #3284's known-red baseline on `main` is pre-existing and unrelated to this defect; this mission does not attempt to fix it and does not file a duplicate issue for it. Any failure attributable to #3284 encountered while running `tests/charter/` or `tests/architectural/` is reported as pre-existing, not folded into this mission's scope. | Process | Medium | Open |
 
@@ -321,8 +324,11 @@ FR-003).
   **both** A's and B's artifact IDs — verified by the regression test required by FR-006.
 - **SC-006**: A fixture org pack where the root graph and a `drg/` fragment declare an
   identical edge triple (same source, target, relation), once declared, resolves without
-  raising `DRGValidationError` — the org-layer sub-merge deduplicates the triple before
-  validation, per FR-003 — verified by the regression test required by FR-006.
+  raising `DRGValidationError`, **and** the resolved graph contains **exactly one**
+  instance of that (source, target, relation) triple — the org-layer sub-merge
+  deduplicates the triple (collapses two authored copies to one), it does not drop it
+  entirely, before validation, per FR-003 — verified by the regression test required by
+  FR-006.
 - **SC-007**: A fixture `drg/` fragment that is invalid YAML, and a second fixture that
   is valid YAML but fails `DRGGraph` schema validation, each produce a failure outcome
   from `charter context --action <a>` that is structurally distinguishable from User
