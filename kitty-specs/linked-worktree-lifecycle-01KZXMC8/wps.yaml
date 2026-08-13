@@ -1,0 +1,79 @@
+work_packages:
+  - id: WP01
+    title: Mission-scoped checkout resolver
+    dependencies: []
+    owned_files:
+      - src/specify_cli/core/paths.py
+      - src/specify_cli/missions/operation_context.py
+      - tests/specify_cli/missions/test_operation_context.py
+    requirement_refs:
+      - FR-001
+      - FR-005
+      - FR-006
+      - FR-007
+      - FR-008
+      - NFR-001
+      - NFR-003
+      - C-001
+      - C-002
+    subtasks: [T001, T002, T003, T004, T005]
+    prompt_file: tasks/WP01-mission-operation-context.md
+    plan_concern_refs: [IC-01, IC-02]
+  - id: WP02
+    title: Dual-root placement runtime
+    dependencies: [WP01]
+    owned_files:
+      - src/mission_runtime/resolution.py
+      - src/specify_cli/missions/_read_path_resolver.py
+      - tests/mission_runtime/test_dual_root_mission_placement.py
+    requirement_refs:
+      - FR-002
+      - FR-003
+      - FR-004
+      - FR-007
+      - NFR-001
+      - NFR-003
+      - C-002
+      - C-003
+      - C-004
+    subtasks: [T006, T007, T008, T009, T010]
+    prompt_file: tasks/WP02-dual-root-placement-runtime.md
+    plan_concern_refs: [IC-03]
+  - id: WP03
+    title: Full lifecycle wiring and acceptance
+    dependencies: [WP02]
+    owned_files:
+      - src/specify_cli/cli/selector_resolution.py
+      - src/specify_cli/cli/commands/agent/context.py
+      - src/specify_cli/cli/commands/agent/status.py
+      - src/specify_cli/cli/commands/agent/mission_feature_resolution.py
+      - src/specify_cli/cli/commands/agent/mission_setup_plan.py
+      - src/specify_cli/cli/commands/agent/mission_branch_context.py
+      - src/specify_cli/cli/commands/agent/tasks_shared.py
+      - src/specify_cli/cli/commands/agent/tasks_finalize.py
+      - src/specify_cli/cli/commands/agent/workflow.py
+      - src/specify_cli/cli/commands/accept.py
+      - src/specify_cli/cli/commands/next_cmd.py
+      - tests/integration/test_caller_owned_worktree_lifecycle.py
+      - tests/architectural/test_mission_operation_root_boundary.py
+      - CHANGELOG.md
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - FR-004
+      - FR-005
+      - FR-006
+      - FR-007
+      - FR-008
+      - NFR-001
+      - NFR-002
+      - NFR-003
+      - NFR-004
+      - C-001
+      - C-002
+      - C-003
+      - C-004
+    subtasks: [T011, T012, T013, T014, T015]
+    prompt_file: tasks/WP03-lifecycle-wiring-acceptance.md
+    plan_concern_refs: [IC-03, IC-04]
