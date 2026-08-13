@@ -1,31 +1,30 @@
-"""Red-first reproduction of #3231 — a leftover finalize-tasks scaffold row
-makes the acceptance aggregate ``pending`` and blocks acceptance.
+"""Permanent guard for #3231 (FIXED) — a leftover finalize-tasks scaffold row
+must not make the acceptance aggregate ``pending`` and block acceptance.
 
-Open P0: https://github.com/Priivacy-ai/spec-kitty/issues/3231
+Fixed: https://github.com/Priivacy-ai/spec-kitty/issues/3231
 
-Root cause (both lines verified against current source):
+Root cause and fix (``src/specify_cli/acceptance/matrix.py``):
 
-* ``AcceptanceMatrix.overall_verdict`` (``src/specify_cli/acceptance/matrix.py``)
-  makes ``pending`` DOMINATE — one ``pending`` row outvotes any number of
-  ``pass`` rows (``if any(v == "pending" ...): return "pending"``).
+* ``AcceptanceMatrix.overall_verdict`` used to let ``pending`` DOMINATE — one
+  ``pending`` row outvoted any number of ``pass`` rows.
 * The row-union reconciler ``reconcile_acceptance_matrix_documents``
   (``src/specify_cli/cli/commands/merge_driver.py``) admits BOTH sides' rows on
   an add/add divergence (``#3076`` FR-008), so after a mission→target squash
   merge the merged document legitimately contains the ``finalize-tasks``
-  placeholder row (``AC-001``, ``pass_fail="pending"``, ``notes=SCAFFOLD_TODO_MARKER``)
-  alongside the real, all-``pass`` criteria — and that one scaffold row poisons
-  the whole verdict, blocking acceptance even though every real criterion passes.
+  placeholder row (``AC-001``, ``pass_fail="pending"``, ``description`` AND
+  ``notes`` both ``SCAFFOLD_TODO_MARKER``) alongside the real, all-``pass``
+  criteria.
+* The fix: ``overall_verdict`` now exempts a criterion from pending-dominates
+  iff ``description == SCAFFOLD_TODO_MARKER`` (the discriminator unique to the
+  empty placeholder — see ``_is_empty_scaffold``/C-003), and only when at
+  least one non-scaffold criterion also exists. See
+  ``tests/acceptance/test_overall_verdict_scaffold.py`` for the direct
+  unit-level guard cases (partial authoring, all-scaffold, real ``AC-001``).
 
 This drives the REAL production reconciler exactly as the issue measured it
-(FILLED as *ours*, the scaffold PLACEHOLDER as *theirs*, empty base — the add/add
-divergence).
-
-Desired post-fix outcome (either resolution turns this green): a mission whose
-real acceptance criteria all ``pass`` must NOT be blocked by a leftover
-``finalize-tasks`` scaffold placeholder — the aggregate is admissible (not
-``pending``). Whether the reconciler suppresses the scaffold row or the verdict
-computation becomes scaffold-aware is a product decision (issue #3231); this test
-pins the observable behavioural contract, not the mechanism.
+(FILLED as *ours*, the scaffold PLACEHOLDER as *theirs*, empty base — the
+add/add divergence) — pinning the fix at the integration seam where #3231 was
+originally observed, not just at the ``overall_verdict`` unit level.
 """
 
 from __future__ import annotations
@@ -35,7 +34,7 @@ import pytest
 from specify_cli.acceptance.matrix import SCAFFOLD_TODO_MARKER
 from specify_cli.cli.commands.merge_driver import reconcile_acceptance_matrix_documents
 
-pytestmark = pytest.mark.regression
+pytestmark = pytest.mark.unit
 
 
 def _pass_criterion(criterion_id: str) -> dict[str, object]:
@@ -78,8 +77,9 @@ def test_scaffold_pending_row_does_not_poison_acceptance_verdict() -> None:
         "sanity: every real criterion is 'pass'; only the scaffold placeholder is 'pending'"
     )
 
-    # RED today: a single admitted scaffold placeholder makes the aggregate
-    # 'pending', blocking acceptance despite every real criterion passing.
+    # Guard: a single admitted scaffold placeholder must not make the
+    # aggregate 'pending' and block acceptance despite every real criterion
+    # passing (defect #3231, fixed in AcceptanceMatrix.overall_verdict).
     assert merged["overall_verdict"] != "pending", (
         "a leftover finalize-tasks scaffold placeholder row must not poison the "
         f"acceptance aggregate; got overall_verdict={merged['overall_verdict']!r} "
