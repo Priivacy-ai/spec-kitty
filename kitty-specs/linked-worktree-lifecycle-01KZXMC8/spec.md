@@ -1,8 +1,8 @@
 # Mission Specification: Полный lifecycle Mission в пользовательском worktree
 
-**Mission Branch**: `codex/spec-kitty-worktree-mission-create`  
-**Created**: 2026-08-13  
-**Status**: Утверждено  
+**Mission Branch**: `codex/spec-kitty-worktree-mission-create`
+**Created**: 2026-08-13
+**Status**: Утверждено
 **Input**: После создания Mission в caller-owned linked worktree весь её lifecycle должен продолжаться в том же checkout, не затрагивая repository root checkout.
 
 ## User Scenarios & Testing

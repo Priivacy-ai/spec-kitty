@@ -1,7 +1,7 @@
 # Specification Quality Checklist: Полный lifecycle Mission в пользовательском worktree
 
-**Purpose**: Проверить полноту спецификации перед техническим планированием  
-**Created**: 2026-08-13  
+**Purpose**: Проверить полноту спецификации перед техническим планированием
+**Created**: 2026-08-13
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
