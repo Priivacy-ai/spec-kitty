@@ -18,7 +18,19 @@ from typing import Any
 
 from ulid import ULID
 
-from mission_runtime import MissionArtifactKind, MissionTopology, placement_seam
+from mission_runtime import (
+    CommitTarget,
+    MissionArtifactKind,
+    MissionTopology,
+    placement_seam,
+    resolve_create_time_write_target,
+)
+from specify_cli.core.checkout_ownership import (
+    OwnershipClaim,
+    OwnershipValidationResult,
+    error_for_claim,
+    resolve_ownership_claim,
+)
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.git_ops import get_current_branch, is_git_repo
 from specify_cli.core.mission_payload import (
@@ -64,6 +76,8 @@ class MissionCreationResult:
     # freshly-minted branch from an idempotent reuse on re-run.
     coordination_branch: str | None = None
     coordination_branch_created: bool = False
+    owned_checkout: Path | None = None
+    canonical_repo_root: Path | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -157,6 +171,9 @@ def _commit_feature_file(
     mission_slug: str,
     artifact_type: str,
     repo_root: Path,
+    *,
+    worktree_root: Path | None = None,
+    create_time_target: CommitTarget | None = None,
 ) -> None:
     """Commit a single planning artifact to its seam-resolved primary home.
 
@@ -187,10 +204,17 @@ def _commit_feature_file(
     # plans on a protected branch, WP05's placement projection routes the
     # commit; this caller does not duplicate that decision (T010).
     commit_msg = f"Add {artifact_type} for feature {mission_slug}"
-    seam_target = placement_seam(repo_root, mission_slug).write_target(MissionArtifactKind.SPEC)
+    effective_worktree = worktree_root or repo_root
+    seam_target = (
+        create_time_target
+        if create_time_target is not None
+        else placement_seam(repo_root, mission_slug).write_target(
+            MissionArtifactKind.SPEC
+        )
+    )
     safe_commit(
         repo_root=repo_root,
-        worktree_root=repo_root,
+        worktree_root=effective_worktree,
         target=seam_target,
         message=commit_msg,
         paths=(file_path,),
@@ -215,6 +239,7 @@ def create_mission_core(
     topology: MissionTopology = MissionTopology.COORD,
     force_recreate_coordination_branch: bool = False,
     allow_worktree_context: bool = False,
+    owned_checkout: Path | None = None,
 ) -> MissionCreationResult:
     """Create a new feature with all scaffolding.
 
@@ -264,6 +289,11 @@ def create_mission_core(
         isolated (often temporary) repository while the test process itself
         happens to be running from within a lane worktree checkout, which is
         this project's normal execution context for its own test suite.
+    owned_checkout:
+        Explicit checkout root owned by this invocation. The path is validated
+        against the independently resolved primary checkout before the existing
+        worktree-context guard can be bypassed. ``None`` preserves the existing
+        guard and write-root behavior exactly.
 
     Returns
     -------
@@ -310,19 +340,41 @@ def create_mission_core(
     # 2. Context guards
     # ------------------------------------------------------------------
     cwd = Path.cwd().resolve()
-    if not allow_worktree_context and is_worktree_context(cwd):
-        raise MissionCreationError("Cannot create missions from inside a worktree. Run from the project root checkout.")
-
+    ownership_claim: OwnershipClaim | None = None
     resolved_root = repo_root
-    if resolved_root is None:
-        resolved_root = locate_project_root()
+
+    if owned_checkout is None:
+        if not allow_worktree_context and is_worktree_context(cwd):
+            raise MissionCreationError("Cannot create missions from inside a worktree. Run from the project root checkout.")
+        if resolved_root is None:
+            resolved_root = locate_project_root()
+    else:
+        if resolved_root is None:
+            resolved_root = locate_project_root()
+        if resolved_root is not None:
+            resolved_root = resolved_root.resolve()
+            ownership_claim = resolve_ownership_claim(
+                owned_checkout.resolve(),
+                resolved_primary=resolved_root,
+            )
+            ownership_error = error_for_claim(ownership_claim)
+            if ownership_error is not None:
+                raise ownership_error
+
     if resolved_root is None:
         raise MissionCreationError("Could not locate project root. Run from within spec-kitty repository.")
+
+    effective_root = (
+        ownership_claim.claimed_checkout
+        if ownership_claim is not None
+        and ownership_claim.validation_result is OwnershipValidationResult.OWNED
+        else resolved_root
+    )
 
     if not is_git_repo(resolved_root):
         raise MissionCreationError("Not in a git repository. Mission creation requires git.")
 
-    current_branch = get_current_branch(resolved_root)
+    current_branch = get_current_branch(effective_root)
     if not current_branch or current_branch == "HEAD":
         raise MissionCreationError("Must be on a branch to create missions (detached HEAD detected).")
 
@@ -330,6 +382,12 @@ def create_mission_core(
     # 3. Resolve planning branch
     # ------------------------------------------------------------------
     planning_branch = target_branch if target_branch else current_branch
+    create_time_target = (
+        resolve_create_time_write_target(planning_branch)
+        if ownership_claim is not None
+        and ownership_claim.validation_result is OwnershipValidationResult.OWNED
+        else None
+    )
     if not normalized_friendly_name:
         normalized_friendly_name = default_mission_display_name(mission_slug)
 
@@ -403,7 +461,7 @@ def create_mission_core(
         mid8=resolve_mid8("", mission_id=mission_id),
     )
 
-    feature_dir = resolved_root / KITTY_SPECS_DIR / mission_slug_formatted
+    feature_dir = effective_root / KITTY_SPECS_DIR / mission_slug_formatted
     feature_dir.mkdir(parents=True, exist_ok=True)
 
     (feature_dir / "checklists").mkdir(exist_ok=True)
@@ -518,7 +576,14 @@ def create_mission_core(
 
     write_meta(feature_dir, meta)
     with contextlib.suppress(Exception):
-        _commit_feature_file(meta_file, mission_slug_formatted, "meta", resolved_root)
+        _commit_feature_file(
+            meta_file,
+            mission_slug_formatted,
+            "meta",
+            resolved_root,
+            worktree_root=effective_root,
+            create_time_target=create_time_target,
+        )
 
     # ------------------------------------------------------------------
     # 7. Documentation state (if applicable)
@@ -536,7 +601,14 @@ def create_mission_core(
             }
             set_documentation_state(feature_dir, doc_state)
         with contextlib.suppress(Exception):
-            _commit_feature_file(meta_file, mission_slug_formatted, "meta", resolved_root)
+            _commit_feature_file(
+                meta_file,
+                mission_slug_formatted,
+                "meta",
+                resolved_root,
+                worktree_root=effective_root,
+                create_time_target=create_time_target,
+            )
 
     # ------------------------------------------------------------------
     # 8. Event emission
@@ -591,8 +663,8 @@ def create_mission_core(
             event_type=SPECIFY_STARTED,
             mission_slug=mission_slug_formatted,
             actor="spec-kitty mission create",
-            artifact_path=str(spec_file.relative_to(resolved_root))
-            if spec_file.is_relative_to(resolved_root)
+            artifact_path=str(spec_file.relative_to(effective_root))
+            if spec_file.is_relative_to(effective_root)
             else "spec.md",
         )
     except Exception as _phase_evt_exc:  # noqa: BLE001
@@ -643,6 +715,13 @@ def create_mission_core(
         origin_binding_error=origin_binding_error,
         coordination_branch=coordination_branch_value,
         coordination_branch_created=coordination_branch_created_flag,
+        owned_checkout=(
+            ownership_claim.claimed_checkout
+            if ownership_claim is not None
+            and ownership_claim.validation_result is OwnershipValidationResult.OWNED
+            else None
+        ),
+        canonical_repo_root=resolved_root,
     )
 
 

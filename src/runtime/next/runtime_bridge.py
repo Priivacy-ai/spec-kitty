@@ -230,7 +230,12 @@ def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str | None:
     return _identity_seam._resolve_mission_ulid(mission_slug, repo_root)
 
 
-def _mission_routes_through_coordination(mission_slug: str, repo_root: Path) -> bool:
+def _mission_routes_through_coordination(
+    mission_slug: str,
+    repo_root: Path,
+    *,
+    effective_root: Path | None = None,
+) -> bool:
     """Return True when the mission's STORED topology routes through coordination.
 
     Reads the WP02 stored :class:`MissionTopology` (FR-004) from ``meta.json`` via
@@ -260,9 +265,21 @@ def _mission_routes_through_coordination(mission_slug: str, repo_root: Path) -> 
     # layer short-circuits to the primary anchor for EVERY topology and coord
     # state, before any coord probe (read-side-seam-primary-primitive-closure-
     # 01KYKMMT WP07, T032 — FR-004/FR-015).
-    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.PRIMARY_METADATA
-    )
+    if effective_root is None:
+        feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.PRIMARY_METADATA
+        )
+    else:
+        from mission_runtime import mission_context_for
+
+        mission_context = mission_context_for(
+            repo_root,
+            mission_slug,
+            effective_root=effective_root,
+        )
+        feature_dir = mission_context.artifact(
+            MissionArtifactKind.PRIMARY_METADATA
+        ).read_dir
     try:
         topology = read_topology(feature_dir)
     except (FileNotFoundError, ValueError, OSError, MissionMetaReadError):
@@ -274,6 +291,8 @@ def _wrap_with_decision_git_log(
     emitter: SyncRuntimeEventEmitter,
     mission_slug: str,
     repo_root: Path,
+    *,
+    effective_root: Path | None = None,
 ) -> Any:
     """Wrap ``emitter`` with DecisionGitLog for durable decision recording.
 
@@ -281,15 +300,39 @@ def _wrap_with_decision_git_log(
     the original emitter is returned unchanged so mission execution is not
     blocked.
     """
-    coord_routing_topology = _mission_routes_through_coordination(
-        mission_slug, repo_root,
-    )
+    if effective_root is None:
+        coord_routing_topology = _mission_routes_through_coordination(
+            mission_slug, repo_root
+        )
+    else:
+        coord_routing_topology = _mission_routes_through_coordination(
+            mission_slug,
+            repo_root,
+            effective_root=effective_root,
+        )
     try:
         from specify_cli.coordination.workspace import CoordinationWorkspace
         from specify_cli.events.decision_log import DecisionGitLog
 
-        coordination_branch = _resolve_coordination_branch(mission_slug, repo_root)
-        mission_id = _resolve_mission_ulid(mission_slug, repo_root)  # str | None
+        if effective_root is None:
+            coordination_branch = _resolve_coordination_branch(mission_slug, repo_root)
+            mission_id = _resolve_mission_ulid(mission_slug, repo_root)  # str | None
+        else:
+            from mission_runtime import MissionArtifactKind, mission_context_for
+            from specify_cli.mission_metadata import resolve_mission_identity
+
+            mission_context = mission_context_for(
+                repo_root,
+                mission_slug,
+                effective_root=effective_root,
+            )
+            coordination_branch = mission_context.artifact(
+                MissionArtifactKind.STATUS_STATE
+            ).commit_target.ref
+            primary_metadata_dir = mission_context.artifact(
+                MissionArtifactKind.PRIMARY_METADATA
+            ).read_dir
+            mission_id = resolve_mission_identity(primary_metadata_dir).mission_id
 
         # T019 (#2531 WP05): mid8 derivation + the fail-closed mid8-required
         # validation + CommitTarget/worktree_root-candidate selection is the
@@ -318,11 +361,19 @@ def _wrap_with_decision_git_log(
             # C-011 risk site: the worktree_root selection is preserved EXACTLY —
             # keyed off the stored-topology coord-routing decision and the C-006
             # transient on-disk materialization check, never ``.kind``.
-            worktree_root = (
-                worktree_root_candidate
-                if worktree_root_candidate.exists()
-                else CoordinationWorkspace.resolve(repo_root, mission_slug, _mid8)
-            )
+            if worktree_root_candidate.exists():
+                worktree_root = worktree_root_candidate
+            elif effective_root is None:
+                worktree_root = CoordinationWorkspace.resolve(
+                    repo_root, mission_slug, _mid8
+                )
+            else:
+                worktree_root = _resolve_owned_coordination_workspace(
+                    CoordinationWorkspace,
+                    repo_root,
+                    mission_slug,
+                    _mid8,
+                )
         else:
             # Coord-less topology: decisions land on the primary checkout's
             # current branch (a lane/mission branch); landing == coordination ==
@@ -352,6 +403,60 @@ def _wrap_with_decision_git_log(
             exc_info=True,
         )
         return emitter
+
+
+def _resolve_owned_coordination_workspace(
+    workspace_type: Any,
+    repo_root: Path,
+    mission_slug: str,
+    mid8: str,
+) -> Path:
+    """Materialize after transient shared git-worktree registry contention.
+
+    Two distinct owned missions may reach ``git worktree add`` concurrently.
+    Their filesystem destinations do not overlap, but git serializes updates to
+    the shared worktree registry.  Retry only that subprocess failure; durable
+    failures still surface unchanged after a short bounded window.  This avoids
+    a second persistent lock file and therefore cannot leak ownership locks.
+    """
+    import subprocess
+    import time
+
+    attempts = 20
+    for attempt in range(attempts):
+        try:
+            resolved: Path = workspace_type.resolve(
+                repo_root, mission_slug, mid8
+            )
+            return resolved
+        except subprocess.CalledProcessError as exc:
+            if not _is_transient_git_worktree_contention(exc):
+                raise
+            if attempt == attempts - 1:
+                raise
+            time.sleep(0.05 * (attempt + 1))
+    raise AssertionError("unreachable coordination workspace retry tail")
+
+
+def _is_transient_git_worktree_contention(
+    exc: Any,
+) -> bool:
+    """Recognize only Git's shared lock-contention diagnostics."""
+    if getattr(exc, "returncode", None) != 128:
+        return False
+    output = "\n".join(
+        str(value)
+        for value in (getattr(exc, "stderr", ""), getattr(exc, "stdout", ""))
+        if value
+    ).casefold()
+    lock_exists = "file exists" in output and (
+        "config.lock" in output or ("unable to create" in output and ".lock" in output)
+    )
+    return lock_exists or (
+        "could not lock config file" in output and "file exists" in output
+    ) or (
+        "another git process" in output and "lock" in output
+    )
 
 
 # FR-001 / C-IC02: the typed read-path codes whose fidelity MUST be preserved
@@ -1203,6 +1308,8 @@ def _dn_bootstrap(
     mission_slug: str,
     result: str,
     repo_root: Path,
+    *,
+    effective_root: Path | None = None,
 ) -> tuple[DecideNextContext | None, Decision | None]:
     """Phase 1/4 of ``decide_next_via_runtime`` (FR-010) — resolve
     feature/mission/run and build the shared :class:`DecideNextContext`.
@@ -1215,7 +1322,26 @@ def _dn_bootstrap(
     start) and the caller must return it immediately without running the
     remaining phases.
     """
-    feature_dir = _resolve_runtime_feature_dir(repo_root, mission_slug)
+    if effective_root is None:
+        feature_dir = _resolve_runtime_feature_dir(repo_root, mission_slug)
+        primary_metadata_dir: Path | None = None
+    else:
+        from mission_runtime import MissionArtifactKind, mission_context_for
+
+        mission_context = mission_context_for(
+            repo_root,
+            mission_slug,
+            effective_root=effective_root,
+        )
+        status_dir = mission_context.artifact(
+            MissionArtifactKind.STATUS_STATE
+        ).read_dir
+        primary_metadata_dir = mission_context.artifact(
+            MissionArtifactKind.PRIMARY_METADATA
+        ).read_dir
+        feature_dir = (
+            status_dir if status_dir.is_dir() else primary_metadata_dir
+        )
     now = now_utc_iso()
 
     if not feature_dir.is_dir():
@@ -1243,6 +1369,8 @@ def _dn_bootstrap(
         placement_seam(repo_root, mission_slug).read_dir(
             MissionArtifactKind.PRIMARY_METADATA
         )
+        if primary_metadata_dir is None
+        else primary_metadata_dir
     )
     sync_emitter = SyncRuntimeEventEmitter.for_feature(
         feature_dir=feature_dir,
@@ -1251,9 +1379,17 @@ def _dn_bootstrap(
     )
     # Wrap with DecisionGitLog so decision events are durably committed to
     # the coordination branch (spec-kitty #1546, FR-001–FR-005).
-    emitter_for_engine: Any = _wrap_with_decision_git_log(
-        sync_emitter, mission_slug, repo_root
-    )
+    if effective_root is None:
+        emitter_for_engine: Any = _wrap_with_decision_git_log(
+            sync_emitter, mission_slug, repo_root
+        )
+    else:
+        emitter_for_engine = _wrap_with_decision_git_log(
+            sync_emitter,
+            mission_slug,
+            repo_root,
+            effective_root=effective_root,
+        )
 
     # Resolve origin info
     origin: dict[str, Any] = {}
@@ -1871,6 +2007,8 @@ def decide_next_via_runtime(
     mission_slug: str,
     result: str,
     repo_root: Path,
+    *,
+    effective_root: Path | None = None,
 ) -> Decision:
     """Main entry point replacing old decide_next().
 
@@ -1890,7 +2028,18 @@ def decide_next_via_runtime(
     4. For non-WP steps: call next_step(run_ref, agent, result) directly
     5. Map NextDecision -> Decision (preserving JSON contract)
     """
-    ctx, early_decision = _dn_bootstrap(agent, mission_slug, result, repo_root)
+    if effective_root is None:
+        ctx, early_decision = _dn_bootstrap(
+            agent, mission_slug, result, repo_root
+        )
+    else:
+        ctx, early_decision = _dn_bootstrap(
+            agent,
+            mission_slug,
+            result,
+            repo_root,
+            effective_root=effective_root,
+        )
     if early_decision is not None:
         return early_decision
     assert ctx is not None  # _dn_bootstrap always pairs a ctx with None (or vice versa)
@@ -1915,6 +2064,7 @@ def _build_finalized_override_query_decision(
     emitted_run_id: str | None,
     repo_root: Path,
     finalized_override: str,
+    effective_root: Path | None = None,
 ) -> Decision:
     override_wp_id: str | None = None
     if finalized_override == "done":
@@ -1933,7 +2083,11 @@ def _build_finalized_override_query_decision(
             from mission_runtime import MissionArtifactKind, mission_context_for
             from runtime.next.discovery import preview_claimable_wp
 
-            mission_context = mission_context_for(repo_root, mission_slug)
+            mission_context = mission_context_for(
+                repo_root,
+                mission_slug,
+                effective_root=effective_root,
+            )
             preview = preview_claimable_wp(
                 mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK).read_dir,
                 status_dir=mission_context.artifact(MissionArtifactKind.STATUS_STATE).read_dir,
@@ -2053,6 +2207,8 @@ def query_current_state(
     agent: str | None,
     mission_slug: str,
     repo_root: Path,
+    *,
+    effective_root: Path | None = None,
 ) -> Decision:
     """Return current mission state without advancing the DAG.
 
@@ -2068,7 +2224,11 @@ def query_current_state(
 
     now = now_utc_iso()
     try:
-        mission_context = mission_context_for(repo_root, mission_slug)
+        mission_context = mission_context_for(
+            repo_root,
+            mission_slug,
+            effective_root=effective_root,
+        )
         mission_slug = mission_context.mission_slug
     except ActionContextError as exc:
         # FR-001 / C-IC02: pass a typed *read-path* error through VERBATIM. The
@@ -2160,6 +2320,7 @@ def query_current_state(
                 emitted_run_id=emitted_run_id,
                 repo_root=repo_root,
                 finalized_override=finalized_override,
+                effective_root=effective_root,
             )
 
         if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:

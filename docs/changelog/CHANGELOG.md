@@ -56,6 +56,27 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **Mission `create` and `next` now run correctly from a caller-owned linked
+  git worktree, and each worktree's mission state stays isolated (mission
+  `worktree-owned-root-3328-01KZRG01`; `#3346`, closes `#3328`).** Before,
+  invoking `create` or `next` from an explicit linked checkout followed the
+  worktree's `.git` pointer back to the primary checkout and tried to drive the
+  mission there — failing with `START_BRANCH_FAILED` when that branch was
+  already checked out, and risking one worktree reading or writing another
+  worktree's mission state. Now the invoking checkout root is validated with
+  fail-closed git-topology ownership checks and threaded through creation,
+  resolution, `next`, runtime state, refs, and commits, so two linked worktrees
+  can create and advance distinct missions concurrently with no
+  cross-contamination while the primary checkout is left untouched. Managed
+  Spec Kitty coordination and lane worktrees remain refused.
+
+- **The ADR inventory freshener now targets the canonical `3.x` era index
+  instead of the redirect README, so newly added ADRs are actually indexed
+  (`#3346`, closes `#3345`).** Before, the freshener pointed at the redirect
+  README and left the canonical era index stale, so a new ADR could pass docs
+  freshness without appearing in the index maintainers browse. Now it writes the
+  canonical era index directly.
+
 - **Direct sync ingress no longer drifts to a shared/primary team when the
   session read transiently returns None (`#738`/spec-kitty-saas `#911`).** The
   fan-out handler resolved the producer scope as

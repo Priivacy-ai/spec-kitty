@@ -413,6 +413,7 @@ def test_agent_mission_create_canonical_succeeds(tmp_path: Path) -> None:
             origin_binding_attempted=False,
             origin_binding_succeeded=False,
             origin_binding_error=None,
+            owned_checkout=None,
         )
 
     with (
@@ -453,6 +454,7 @@ def test_agent_mission_create_alias_succeeds_with_warning(
             origin_binding_attempted=False,
             origin_binding_succeeded=False,
             origin_binding_error=None,
+            owned_checkout=None,
         )
 
     with (

@@ -1,0 +1,148 @@
+work_packages:
+  - id: WP01
+    title: "Checkout-ownership validation primitive"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/core/checkout_ownership.py"
+      - "tests/core/test_checkout_ownership.py"
+      - "src/specify_cli/git/commit_helpers.py"
+    requirement_refs:
+      - FR-003
+      - FR-005
+      - FR-006
+      - FR-011
+      - NFR-004
+      - C-006
+    plan_concern_refs:
+      - IC-01
+      - IC-07
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+    prompt_file: "tasks/WP01-checkout-ownership-primitive.md"
+
+  - id: WP02
+    title: "mission create explicit-ownership integration"
+    dependencies:
+      - WP01
+    owned_files:
+      - "src/specify_cli/core/mission_creation.py"
+      - "src/mission_runtime/__init__.py"
+      - "tests/agent/test_agent_feature.py"
+      - "tests/architectural/test_mission_runtime_surface.py"
+      - "tests/mission_runtime/test_create_time_write_target.py"
+    create_intent:
+      - "tests/mission_runtime/test_create_time_write_target.py"
+    requirement_refs:
+      - FR-001
+      - FR-004
+      - FR-008
+      - FR-009
+      - FR-010
+      - C-001
+      - C-002
+    plan_concern_refs:
+      - IC-02
+    subtasks:
+      - T006
+      - T007
+      - T008
+      - T009
+    prompt_file: "tasks/WP02-mission-create-integration.md"
+
+  - id: WP03
+    title: "next explicit-ownership integration and per-checkout runtime state"
+    dependencies:
+      - WP01
+    owned_files:
+      - "tests/agent/test_context_validation_unit.py"
+    requirement_refs:
+      - FR-002
+      - FR-004
+      - FR-007
+      - C-001
+      - C-002
+    plan_concern_refs:
+      - IC-03
+    subtasks:
+      - T010
+      - T011
+      - T012
+    prompt_file: "tasks/WP03-next-integration.md"
+
+  - id: WP04
+    title: "Structured refusal errors, --json contract, and architectural fence reconciliation"
+    dependencies:
+      - WP02
+      - WP03
+    owned_files:
+      - "src/specify_cli/cli/commands/agent/mission_create.py"
+      - "tests/architectural/test_no_production_worktree_guard_bypass.py"
+    requirement_refs:
+      - FR-011
+      - NFR-003
+    plan_concern_refs:
+      - IC-04
+      - IC-05
+    subtasks:
+      - T013
+      - T014
+      - T015
+    prompt_file: "tasks/WP04-error-contract-and-fence.md"
+
+  - id: WP05
+    title: "Real installed-CLI two-worktree concurrency ATDD and adversarial coverage"
+    dependencies:
+      - WP02
+      - WP03
+      - WP04
+    owned_files:
+      - "src/specify_cli/cli/commands/next_cmd.py"
+      - "src/mission_runtime/resolution.py"
+      - "src/runtime/next/decision.py"
+      - "src/runtime/next/runtime_bridge.py"
+      - "tests/e2e/test_worktree_owned_root_concurrency.py"
+      - "tests/architectural/surface_resolution_audit/inventory.md"
+      - "tests/architectural/test_single_mission_surface_resolver.py"
+    requirement_refs:
+      - FR-008
+      - FR-009
+      - FR-012
+      - FR-013
+      - NFR-001
+      - NFR-002
+      - C-004
+      - C-002
+    plan_concern_refs:
+      - IC-06
+      - IC-07
+    subtasks:
+      - T016
+      - T017
+      - T018
+      - T019
+    prompt_file: "tasks/WP05-concurrency-atdd.md"
+
+  - id: WP06
+    title: "ADR: checkout ownership for mission create and next"
+    dependencies:
+      - WP01
+    owned_files:
+      - "docs/adr/3.x/*-checkout-ownership-for-mission-create-and-next.md"
+      - "scripts/docs/freshen_adr_inventory.py"
+      - "tests/docs/test_freshen_adr_inventory.py"
+      - "docs/adr/3.x/index.md"
+      - "docs/development/3-2-page-inventory.yaml"
+      - "docs/development/3-2-docs-retrieval-index.yaml"
+    requirement_refs:
+      - FR-011
+      - NFR-004
+      - C-002
+    cross_cutting: true
+    subtasks:
+      - T020
+      - T021
+    prompt_file: "tasks/WP06-adr.md"

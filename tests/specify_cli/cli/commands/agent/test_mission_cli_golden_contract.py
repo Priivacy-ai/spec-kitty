@@ -115,6 +115,7 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
             "--start-branch",
             "--force-recreate-coordination-branch",
             "--topology",
+            "--owned-checkout",  # added for the #3328 owned-checkout ownership fix (2026-08-13)
         }
     ),
     "check-prerequisites": frozenset(
