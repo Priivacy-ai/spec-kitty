@@ -15,6 +15,68 @@ from typing import Any, TypedDict
 _REF_PATTERN = re.compile(r"^(?:FR|NFR|C)-\d+$", re.IGNORECASE)
 _REF_FIND_PATTERN = re.compile(r"\b(?:FR|NFR|C)-\d+\b", re.IGNORECASE)
 
+# --- #3394: declared-requirement scoping -----------------------------------
+#
+# A spec.md may legitimately CITE a foreign requirement id in prose (e.g.
+# "...easy to miss, see FR-021's default-pack materialization") without that
+# citation being a requirement THIS spec declares. ``_REF_FIND_PATTERN``
+# alone can't distinguish a citation from a declaration -- it matches both,
+# which is #3394: a WP-coverage-eligible spec's own three requirements pass,
+# but a mid-sentence citation of another mission's already-shipped FR gets
+# treated as an FR this spec must also route to a work package.
+#
+# A requirement is "declared" (not merely cited) when it opens the line as
+# one of four canonical shapes seen across the spec-template corpus
+# (kitty-specs/) and the test-fixture corpus alike: the id column of a
+# markdown table row (``| FR-001 | ... |``), a heading naming the id
+# (``### FR-001`` / ``### FR-001: Title``), a bulleted/numbered list item
+# (``- FR-001: ...``, ``- **FR-001**: ...``, ``1. FR-001 ...``), or a bold id
+# leading a bare paragraph (``**FR-001 — Title.** body...``). A prose sentence
+# that merely *mentions* an id in passing -- not at the start of a table
+# cell, heading, bullet, or bold span -- matches none of the four and is
+# correctly excluded.
+# The id cell itself is sometimes bold (``| **FR-001** | ... |``, common
+# across kitty-specs/) or struck through to mark a retired requirement
+# (``| ~~FR-006~~ | ...``, e.g. mission retrospective-durable-home-01KVYM1W) --
+# optional leading/trailing ``**``/``~~`` around the id, either or both.
+_TABLE_ROW_ID_PATTERN = re.compile(r"^\s*\|\s*(?:\*\*|~~){0,2}((?:FR|NFR|C)-\d+)(?:\*\*|~~){0,2}\s*\|", re.IGNORECASE)
+_HEADING_ID_PATTERN = re.compile(r"^#{1,6}\s*((?:FR|NFR|C)-\d+)\b", re.IGNORECASE)
+# A leading bullet/number marker is itself the "this is a list item, not a
+# sentence" signal, so bold is OPTIONAL once that marker is present
+# (``- FR-001: ...`` and ``- **FR-001**: ...`` both declare FR-001).
+_BULLET_LEAD_ID_PATTERN = re.compile(r"^\s*(?:[-*]|\d+\.)\s*\*{0,2}((?:FR|NFR|C)-\d+)\b", re.IGNORECASE)
+# With NO bullet marker, bold is REQUIRED -- a bare, un-bulleted, un-bolded
+# line opening with an id (``FR-001 must hold...``) is indistinguishable from
+# a citation sentence and must NOT count as declared (that's the #3394 bug).
+# The bold span need not close right after the id -- ``**FR-001**: text`` and
+# ``**FR-001 — Title.** body text`` (bold id+title, common across
+# kitty-specs/) both declare FR-001.
+_BOLD_PARAGRAPH_LEAD_ID_PATTERN = re.compile(r"^\s*\*\*((?:FR|NFR|C)-\d+)\b", re.IGNORECASE)
+_DECLARED_ID_PATTERNS = (
+    _TABLE_ROW_ID_PATTERN,
+    _HEADING_ID_PATTERN,
+    _BULLET_LEAD_ID_PATTERN,
+    _BOLD_PARAGRAPH_LEAD_ID_PATTERN,
+)
+
+
+def _declared_ids(spec_content: str) -> set[str]:
+    """Ids written as a table row, an id-naming heading, or a bold-led definition.
+
+    Doc-wide (not scoped to a ``Functional Requirements``-style heading):
+    real specs also declare requirements with no enclosing section heading at
+    all (e.g. a bare ``- **FR-001**: ...`` directly under the spec title), so
+    scoping extraction to a heading boundary would silently drop those.
+    """
+    found: set[str] = set()
+    for line in spec_content.splitlines():
+        for pattern in _DECLARED_ID_PATTERNS:
+            match = pattern.match(line)
+            if match is not None:
+                found.add(match.group(1).upper())
+                break
+    return found
+
 
 class CoverageSummary(TypedDict):
     """Coverage summary returned by :func:`compute_coverage`."""
@@ -102,17 +164,28 @@ def compute_coverage(mappings: dict[str, list[str]], functional_ids: set[str]) -
 
 
 def parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str]]:
-    """Parse requirement IDs from spec.md content.
+    """Parse DECLARED requirement IDs from spec.md content.
 
     Shared between map-requirements and finalize-tasks.
 
+    Scoped to ids the spec genuinely *declares* -- a markdown table row
+    (``| FR-001 | ... |``), a heading naming the id (``### FR-001``), or a
+    bold-led definition (``- **FR-001**: ...``) -- not every
+    ``FR-NNN``/``NFR-NNN``/``C-NNN`` token anywhere in the document (#3394).
+    A spec's prose may cite another mission's already-shipped requirement as
+    background context (e.g. "...easy to miss, see FR-021's default-pack
+    materialization"); that citation is not a requirement THIS spec's work
+    packages must cover, so it is excluded from both keys below.
+
     Returns:
-        {"all": [...], "functional": [...]}
+        {"all": [...], "functional": [...]} -- "all" is every declared FR/
+        NFR/C id (used to check a WP-declared ref is *known*); "functional"
+        is the FR-prefixed subset (used for FR coverage gating).
     """
-    all_ids = {req_id.upper() for req_id in _REF_FIND_PATTERN.findall(spec_content)}
-    functional_ids = {req_id for req_id in all_ids if req_id.startswith("FR-")}
+    declared = _declared_ids(spec_content)
+    functional_ids = {req_id for req_id in declared if req_id.startswith("FR-")}
     return {
-        "all": sorted(all_ids),
+        "all": sorted(declared),
         "functional": sorted(functional_ids),
     }
 

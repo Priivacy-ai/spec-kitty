@@ -125,10 +125,107 @@ class TestParseRequirementIdsFromSpecMd:
         assert result["functional"] == ["FR-001", "FR-002"]
 
     def test_case_insensitive(self):
-        content = "fr-001 and nfr-002"
+        # Case-insensitivity of a DECLARED id (table row) -- a bare prose
+        # mention like "fr-001 and nfr-002" is a citation, not a declaration
+        # (see TestDeclaredVsCitedRequirements below), so this fixture uses
+        # the same declared shape as test_extracts_fr_nfr_c.
+        content = "| fr-001 | First req |\n| nfr-002 | Second req |\n"
         result = parse_requirement_ids_from_spec_md(content)
         assert "FR-001" in result["all"]
         assert "NFR-002" in result["all"]
+
+
+class TestDeclaredVsCitedRequirements:
+    """#3394: a spec.md may CITE a foreign mission's requirement id in prose
+    (background/rationale text) without that citation being a requirement
+    THIS spec declares and its work packages must therefore cover.
+
+    Regression for the real-world repro (issue #3385, mission
+    ``org-activation-scan-dirs-01KZY1PT``): the spec's prose cited
+    ``CharterPackManager.activate``'s FR-021 default-pack materialization as
+    background evidence for why the bug being fixed is easy to miss. FR-021
+    belongs to a different, already-shipped part of the codebase; the citing
+    mission does not implement it and never should have been forced to route
+    it to a work package. ``finalize-tasks`` refused with
+    ``"unmapped_functional_requirements": ["FR-021"]`` even though the
+    spec's own 3 requirements were correctly mapped.
+    """
+
+    def test_prose_citation_of_foreign_fr_is_excluded_from_functional(self):
+        """The reported defect, reproduced directly: a spec that declares its
+        own FR-001..FR-003 in a table, and separately CITES a foreign FR-021
+        in prose as background context, must not report FR-021 as declared.
+        """
+        content = (
+            "## Background\n\n"
+            "This bug is easy to miss -- see CharterPackManager.activate's "
+            "FR-021 default-pack materialization for related prior art.\n\n"
+            "### Functional Requirements\n\n"
+            "| ID | Requirement | Status |\n"
+            "|----|-------------|--------|\n"
+            "| FR-001 | First requirement. | Open |\n"
+            "| FR-002 | Second requirement. | Open |\n"
+            "| FR-003 | Third requirement. | Open |\n"
+        )
+        result = parse_requirement_ids_from_spec_md(content)
+        assert result["functional"] == ["FR-001", "FR-002", "FR-003"]
+        assert "FR-021" not in result["functional"]
+        assert "FR-021" not in result["all"]
+
+    def test_mid_sentence_citation_excluded_even_without_any_table(self):
+        """A bare prose mention, with no declaration shape anywhere, yields
+        nothing declared -- it never promotes a citation to a requirement.
+        """
+        content = "# Spec\n\nAs established by FR-019 in another mission, this holds.\n"
+        result = parse_requirement_ids_from_spec_md(content)
+        assert result == {"all": [], "functional": []}
+
+    def test_declared_table_row_shape(self):
+        content = "### Functional Requirements\n\n| ID | Requirement |\n|---|---|\n| FR-007 | Do the thing. |\n"
+        result = parse_requirement_ids_from_spec_md(content)
+        assert result["functional"] == ["FR-007"]
+
+    def test_declared_bold_table_cell_shape(self):
+        """The id cell itself may be bold (``| **FR-016** | ... |``) -- common
+        across the kitty-specs/ corpus."""
+        content = "### Functional Requirements\n\n| ID | Requirement |\n|---|---|\n| **FR-016** | Do the thing. |\n"
+        result = parse_requirement_ids_from_spec_md(content)
+        assert result["functional"] == ["FR-016"]
+
+    def test_declared_bullet_shape(self):
+        content = "### Functional Requirements\n\n- **FR-008**: Do the thing.\n"
+        result = parse_requirement_ids_from_spec_md(content)
+        assert result["functional"] == ["FR-008"]
+
+    def test_declared_bold_title_bullet_shape(self):
+        """The bold span may wrap an id+title, not just the bare id
+        (``- **NFR-001 -- complexity ceiling.** body...``)."""
+        content = "### Non-Functional Requirements\n\n- **NFR-001 -- complexity ceiling.** Every function ...\n"
+        result = parse_requirement_ids_from_spec_md(content)
+        assert "NFR-001" in result["all"]
+
+    def test_declared_heading_shape(self):
+        """An id may itself open a subsection heading (``### FR-001: Title``)."""
+        content = "## Functional Requirements\n\n### FR-001: Some Title\n\nBody text.\n"
+        result = parse_requirement_ids_from_spec_md(content)
+        assert result["functional"] == ["FR-001"]
+
+    def test_declared_bold_paragraph_lead_without_bullet(self):
+        """A bold id may lead a plain paragraph with no bullet marker at all
+        (``**FR-019 -- title.** body...``)."""
+        content = "## Functional Requirements\n\n**FR-019 -- consent lives in the project.** Today ...\n"
+        result = parse_requirement_ids_from_spec_md(content)
+        assert result["functional"] == ["FR-019"]
+
+    def test_no_declared_shape_returns_empty_not_a_crash(self):
+        """A Requirements section whose shape matches none of the three
+        recognized declaration forms yields zero declared ids for that
+        section (silent, not a hard failure) -- see the accompanying report
+        for why a hard-fail-on-unparsed-section layer was prototyped and
+        deliberately NOT shipped in this Op (real-corpus false-positive rate)."""
+        content = "## Functional Requirements\n\nFR-001 must hold. FR-002 too.\n"
+        result = parse_requirement_ids_from_spec_md(content)
+        assert result == {"all": [], "functional": []}
 
 
 class TestNormalizeRequirementRefsValue:
