@@ -280,7 +280,9 @@ def _mapping_mission(root: Path, slug: str) -> Path:
         "# Work Packages\n\n## WP01 - fixture\n- [ ] T001 do a thing\n", encoding="utf-8"
     )
     (feature_dir / "spec.md").write_text(
-        "# Spec\n\nFR-001 do a thing.\nFR-002 do another.\n", encoding="utf-8"
+        "# Spec\n\n## Functional Requirements\n\n"
+        "- FR-001: do a thing.\n- FR-002: do another.\n",
+        encoding="utf-8",
     )
     return feature_dir
 
