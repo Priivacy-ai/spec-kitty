@@ -10,6 +10,7 @@ from specify_cli.requirement_mapping import (
     find_undeclared_requirement_citations,
     normalize_requirement_refs_value,
     parse_requirement_ids_from_spec_md,
+    raw_requirement_ref_tokens,
     read_all_wp_raw_requirement_refs,
     read_all_wp_requirement_refs,
     validate_ref_format,
@@ -313,6 +314,26 @@ class TestFindUndeclaredRequirementCitations:
             "| FR-001 | First requirement. |\n"
         )
         assert find_undeclared_requirement_citations(content) == []
+
+
+class TestRawRequirementRefTokens:
+    """#3394 F4 (severity 4) restore: the public accessor
+    ``runtime.next.runtime_bridge._check_requirement_mapping_ready`` uses
+    (alongside ``parse_requirement_ids_from_spec_md``'s declared count) to
+    detect the narrow "declares nothing, but contains raw tokens" case. Thin
+    wrapper over ``_raw_ref_tokens`` -- these tests pin the public contract
+    directly (uppercased, doc-wide, no declared-shape awareness), matching
+    the pre-#3394 ``findall`` scan's own semantics."""
+
+    def test_finds_tokens_anywhere_regardless_of_declared_shape(self):
+        content = "FR-001 must hold. FR-002 too. See also NFR-003 and C-004."
+        assert raw_requirement_ref_tokens(content) == {"FR-001", "FR-002", "NFR-003", "C-004"}
+
+    def test_uppercases_tokens(self):
+        assert raw_requirement_ref_tokens("fr-001 must hold.") == {"FR-001"}
+
+    def test_no_tokens_yields_empty_set(self):
+        assert raw_requirement_ref_tokens("# Spec\n\nJust prose, no requirements.\n") == set()
 
 
 class TestNormalizeRequirementRefsValue:

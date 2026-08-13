@@ -1359,6 +1359,235 @@ class TestAtomicTaskSteps:
         assert "Requirement mapping preflight failed" in failures[0]
         assert "simulated preflight crash" in failures[0]
 
+    # -----------------------------------------------------------------
+    # #3394 F4 (severity 4) restore — Part A block + Part B advisory,
+    # exercised end-to-end through the real spec.md/tasks parse path
+    # (not just RequirementMappingFacts construction — see
+    # tests/runtime/test_bridge_cores.py for the pure-core equivalents).
+    # -----------------------------------------------------------------
+
+    @pytest.mark.git_repo
+    def test_requirement_mapping_zero_declared_with_raw_tokens_restores_protection_before_wps_exist(
+        self, tmp_path: Path
+    ) -> None:
+        """Part A's cleanest "restored lost protection" pin: spec.md declares
+        NOTHING recognizable (bare, unbulleted, unbolded FR-001/FR-002
+        sentences, no other declared id anywhere) and tasks/ has NO WP files
+        yet. Before this round, ``_check_requirement_mapping_ready`` returned
+        ``[]`` here unconditionally (``wp_ids`` empty -> the missing/unknown/
+        unmapped loop never runs, and ``functional_requirement_ids`` is also
+        empty -- so there was nothing to compare against, exactly the silent
+        pass F4 identified). It now blocks."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "FR-001 must hold. FR-002 too.\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)  # exists, but deliberately no WP*.md files yet
+
+        from runtime.next.runtime_bridge import _check_requirement_mapping_ready
+
+        failures = _check_requirement_mapping_ready(feature_dir)
+        assert len(failures) == 1
+        assert failures[0].startswith("Requirement mapping preflight blocked: ")
+        assert "FR-001, FR-002" in failures[0]
+
+    @pytest.mark.git_repo
+    def test_requirement_mapping_zero_declared_with_raw_tokens_replaces_coincidental_message(
+        self, tmp_path: Path
+    ) -> None:
+        """Once at least one WP file exists, the pre-existing missing/unknown
+        checks ALREADY happen to block a zero-declared spec (every WP ref is
+        trivially "unknown" against an empty declared-id set, and a WP with
+        no refs is "missing") -- so this scenario was never a silent pass at
+        the full ``spec-kitty next`` guard level. What Part A changes here is
+        message ACCURACY: before this round the guard blocked with a
+        coincidental, confusing "missing refs for WPs: WP01" message that
+        does not name the real cause (the spec's own declaration syntax);
+        now it blocks with the accurate "declares zero of them in a
+        recognized shape" diagnostic, at both the function and the full
+        `spec-kitty next` guard-decision level."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "FR-001 must hold. FR-002 too.\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from runtime.next.runtime_bridge import _check_cli_guards, _check_requirement_mapping_ready
+
+        failures = _check_requirement_mapping_ready(feature_dir)
+        assert len(failures) == 1
+        assert failures[0].startswith("Requirement mapping preflight blocked: ")
+        assert "FR-001, FR-002" in failures[0]
+        assert "missing refs for WPs" not in failures[0]
+
+        guard_failures = _check_cli_guards("tasks_packages", feature_dir)
+        assert len(guard_failures) == 1
+        assert guard_failures[0].startswith("Requirement mapping preflight blocked: ")
+
+    @pytest.mark.git_repo
+    def test_requirement_mapping_zero_declared_with_raw_tokens_logs_advisory(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Part B: the same spec.md as above also logs the non-blocking F1
+        advisory -- distinguishable from the Part A block by content (starts
+        with the spec.md/section name + "mentions requirement-shaped
+        token(s)", not "Requirement mapping preflight blocked:") and by
+        channel (a log record, never appended to the returned failures)."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "FR-001 must hold. FR-002 too.\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from runtime.next.runtime_bridge import _check_requirement_mapping_ready
+
+        caplog.set_level("WARNING")
+        failures = _check_requirement_mapping_ready(feature_dir)
+
+        assert len(failures) == 1
+        assert failures[0].startswith("Requirement mapping preflight blocked: ")
+
+        advisory_records = [r for r in caplog.records if "mentions requirement-shaped token(s)" in r.message]
+        assert len(advisory_records) == 1
+        assert "spec.md mentions requirement-shaped token(s)" in advisory_records[0].message
+        assert not advisory_records[0].message.startswith("Requirement mapping preflight blocked:")
+
+    @pytest.mark.git_repo
+    def test_requirement_mapping_zero_declared_zero_raw_tokens_does_not_block(self, tmp_path: Path) -> None:
+        """The genuinely empty case: a spec with no formal requirements at
+        all (zero declared ids AND zero raw FR-/NFR-/C-NNN tokens anywhere)
+        must NOT block -- there is nothing to be missing."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Overview\n\n"
+            "This mission has no formal functional requirements; it is a small "
+            "documentation-only change.\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)  # exists, but deliberately no WP*.md files
+
+        from runtime.next.runtime_bridge import _check_requirement_mapping_ready
+
+        assert _check_requirement_mapping_ready(feature_dir) == []
+
+    @pytest.mark.git_repo
+    def test_requirement_mapping_3394_repro_shape_does_not_block(self, tmp_path: Path) -> None:
+        """THE regression pin (most important test in this round): #3394's
+        actual repro shape -- spec.md DECLARES three FRs in a Requirements
+        table and merely CITES a foreign, already-shipped FR-021 in prose --
+        must NOT trip the new Part A block. declared_count == 3 (non-empty),
+        so the zero-declared rule never fires; #3394 stays fixed."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "| ID | Requirement | Acceptance Criteria | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| FR-001 | First | Covered by WP01. | proposed |\n"
+            "| FR-002 | Second | Covered by WP01. | proposed |\n"
+            "| FR-003 | Third | Covered by WP01. | proposed |\n\n"
+            "This mission is easy to miss without prior art -- see FR-021's "
+            "default-pack materialization for the pattern this follows.\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\n"
+            "work_package_id: WP01\n"
+            "title: WP01\n"
+            "requirement_refs:\n"
+            "  - FR-001\n"
+            "  - FR-002\n"
+            "  - FR-003\n"
+            "---\n"
+            "# WP01\n",
+            encoding="utf-8",
+        )
+
+        from runtime.next.runtime_bridge import _check_cli_guards, _check_requirement_mapping_ready
+
+        assert _check_requirement_mapping_ready(feature_dir) == []
+        # Full `spec-kitty next` guard path also reports ready to advance:
+        assert _check_cli_guards("tasks_packages", feature_dir) == []
+
+    @pytest.mark.git_repo
+    def test_requirement_mapping_f4_repro_shape_stays_non_blocking_but_logs_advisory(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """The F4 finding's own repro fixture (bare FR-001/FR-002 alongside a
+        properly DECLARED NFR-001, WP mapping only NFR-001): declared_count
+        == 1 (non-empty), so Part A's block does NOT fire for this shape --
+        by design, this is narrower than the finding's fixture (see the Op
+        brief's scope boundary: the ONLY new blocking condition is the
+        zero-declared rule). It now logs the Part B advisory instead, where
+        before this round it surfaced nothing at all on this path."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "FR-001 must hold. FR-002 too.\n\n"
+            "## Non-Functional Requirements\n\n"
+            "| ID | Requirement | Status |\n"
+            "| --- | --- | --- |\n"
+            "| NFR-001 | Latency under 200ms. | proposed |\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\n"
+            "work_package_id: WP01\n"
+            "title: WP01\n"
+            "requirement_refs:\n"
+            "  - NFR-001\n"
+            "---\n"
+            "# WP01\n",
+            encoding="utf-8",
+        )
+
+        from runtime.next.runtime_bridge import _check_cli_guards, _check_requirement_mapping_ready
+
+        caplog.set_level("WARNING")
+        assert _check_requirement_mapping_ready(feature_dir) == []
+        # `_check_cli_guards` re-gathers artifact presence, which calls
+        # `_check_requirement_mapping_ready` again -- so the advisory below
+        # logs once per call (>=1, not necessarily exactly 1).
+        assert _check_cli_guards("tasks_packages", feature_dir) == []
+
+        advisory_records = [r for r in caplog.records if "mentions requirement-shaped token(s)" in r.message]
+        assert len(advisory_records) >= 1
+        assert "Functional Requirements" in advisory_records[0].message
+        assert "FR-001, FR-002" in advisory_records[0].message
+
     @pytest.mark.git_repo
     def test_tasks_finalize_guard_blocks_without_raw_dependencies(self, tmp_path: Path) -> None:
         """WP files exist but no explicit dependencies: in raw frontmatter."""

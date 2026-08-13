@@ -183,6 +183,89 @@ def test_evaluate_requirement_mapping_reports_missing_unknown_and_unmapped_in_or
 
 
 # ---------------------------------------------------------------------------
+# 3b. #3394 F4 (severity 4) restore — _zero_declared_requirement_block
+# ---------------------------------------------------------------------------
+
+
+def test_evaluate_requirement_mapping_zero_declared_with_raw_tokens_blocks() -> None:
+    """Part A: spec.md declares NOTHING recognizable but contains raw
+    FR-/NFR-/C-NNN tokens -- restores pre-#3394 blocking behavior for this
+    caller. The block message is the ONLY failure returned (short-circuits
+    the normal missing/unknown/unmapped checks, which would otherwise be
+    noise around the real cause)."""
+    facts = cores.RequirementMappingFacts(
+        spec_requirement_ids=frozenset(),
+        functional_requirement_ids=frozenset(),
+        wp_ids=("WP01",),
+        wp_requirement_refs={},  # would also trigger "missing refs" if not short-circuited
+        feature_dir_name="042-zero-declared",
+        raw_requirement_ref_tokens=frozenset({"FR-001", "FR-002"}),
+    )
+    [message] = cores._evaluate_requirement_mapping(facts)
+    assert message.startswith("Requirement mapping preflight blocked: ")
+    assert "FR-001, FR-002" in message
+    assert "declares zero of them in a recognized shape" in message
+    # Distinguishable from the ordinary "incomplete" message format:
+    assert "Requirement mapping incomplete before finalize-tasks" not in message
+
+
+def test_evaluate_requirement_mapping_zero_declared_zero_raw_tokens_does_not_block() -> None:
+    """The genuinely empty case (no formal requirements at all -- zero
+    declared ids AND zero raw tokens) must NOT block: there is nothing to be
+    missing."""
+    facts = cores.RequirementMappingFacts(
+        spec_requirement_ids=frozenset(),
+        functional_requirement_ids=frozenset(),
+        wp_ids=(),
+        wp_requirement_refs={},
+        feature_dir_name="042-no-requirements",
+        raw_requirement_ref_tokens=frozenset(),
+    )
+    assert cores._evaluate_requirement_mapping(facts) == []
+
+
+def test_evaluate_requirement_mapping_3394_repro_shape_does_not_block() -> None:
+    """THE regression pin: #3394's actual repro shape -- three FRs DECLARED
+    in a Requirements table, plus a mid-sentence CITATION of a foreign
+    FR-021 (present in the doc-wide raw-token scan, never declared) -- must
+    NOT trip the new Part A block. declared_count == 3 (non-empty), so
+    ``_zero_declared_requirement_block`` never fires; full FR coverage means
+    the ordinary missing/unknown/unmapped checks are also silent."""
+    facts = cores.RequirementMappingFacts(
+        spec_requirement_ids=frozenset({"FR-001", "FR-002", "FR-003"}),
+        functional_requirement_ids=frozenset({"FR-001", "FR-002", "FR-003"}),
+        wp_ids=("WP01",),
+        wp_requirement_refs={"WP01": ("FR-001", "FR-002", "FR-003")},
+        feature_dir_name="3394-repro",
+        # The doc-wide raw scan also picks up the foreign FR-021 citation --
+        # present here exactly as it would be from a real spec.md, to prove
+        # the block's condition (declared_ids empty) is what matters, not
+        # whether extra raw tokens exist.
+        raw_requirement_ref_tokens=frozenset({"FR-001", "FR-002", "FR-003", "FR-021"}),
+    )
+    assert cores._evaluate_requirement_mapping(facts) == []
+
+
+def test_evaluate_requirement_mapping_partial_declared_does_not_block() -> None:
+    """One declared id anywhere in the doc (e.g. a properly-declared NFR-001)
+    is enough to keep Part A's block from firing, even if a DIFFERENT part of
+    the same spec (e.g. its Functional Requirements section) is all bare,
+    undeclared sentences -- this is the F4 finding's own repro fixture shape.
+    It stays advisory-only (Part B, surfaced by the caller via logging, not
+    by this pure core), matching finalize-tasks/map-requirements behavior for
+    identical content."""
+    facts = cores.RequirementMappingFacts(
+        spec_requirement_ids=frozenset({"NFR-001"}),
+        functional_requirement_ids=frozenset(),  # FR-001/FR-002 were bare sentences -> undeclared
+        wp_ids=("WP01",),
+        wp_requirement_refs={"WP01": ("NFR-001",)},
+        feature_dir_name="042-f4-repro",
+        raw_requirement_ref_tokens=frozenset({"FR-001", "FR-002", "NFR-001"}),
+    )
+    assert cores._evaluate_requirement_mapping(facts) == []
+
+
+# ---------------------------------------------------------------------------
 # 4. evaluate_guards — software-dev family (CLI-native vocabulary)
 # ---------------------------------------------------------------------------
 
