@@ -1,0 +1,113 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+findings:
+  - id: PLAN-FRESH-001
+    lens: Silent Success Discipline / code-vs-artifact fact-check
+    severity: 4
+    title: "New residual Test Strategy row asserts the malformed-root+valid-drg/ case 'falls back to the bare-project baseline' — actual code zeroes the entire action bundle, not just the org layer"
+    evidence:
+      - artifact: "plan.md:437 — residual Test Strategy row: 'the typed counts fall back to the bare-project baseline and the valid `drg/` node's artifact ID is absent from every typed ID list'"
+      - artifact: "plan.md:166-169 — IC-01 Risks: 'the existing wide except DRGLoadError ... collapses the entire org layer ... to an empty-but-reported-success bundle'"
+      - code: "src/charter/_drg_helpers.py:83-97 — load_validated_graph runs built_in load, then the org-layer call, then the project-layer call, then merge_layers/assert_valid, all inside one function body with no partial-result path; an exception from the org-layer call aborts the function before the project-layer line ever executes."
+      - code: "src/charter/action_doctrine_bundle.py:158-215 — `ids_by_slot: Mapping[str, tuple[str, ...]] = {}` is initialized before the try block; `merged = load_validated_graph(...)` is the first statement inside try; on `except DRGLoadError`, only a WARNING is logged and `ids_by_slot` is never reassigned, so it stays `{}`. The return statement does `list(ids_by_slot.get(\"directives\", ()))` etc. for all five kinds — every one resolves to an empty list, not the bare-project baseline count."
+    claim: >
+      For the residual fixture (malformed root graph.yaml + valid drg/fixture.graph.yaml),
+      `_load_org_layer`'s DRGLoadError (per IC-01's own Risks bullet) propagates uncaught out of
+      `load_validated_graph` before the project-layer load or the built-in/project merge ever run.
+      `_load_action_doctrine_bundle`'s except-clause then returns an `_ActionDoctrineBundle` built
+      from an `ids_by_slot` that was never populated — i.e. `directive_ids`/`tactic_ids`/
+      `styleguide_ids`/`toolguide_ids`/`procedure_ids` are all empty lists (counts of 0), not the
+      bare-project (no-org-pack) baseline of ~21/69/10 the rest of this document's Test Strategy
+      rows compute dynamically and compare against. This is exactly today's #3384 defect shape
+      (total zeroing of the whole action bundle, not merely "the org layer's contribution"), and
+      it is unchanged by this mission's fix for this specific malformed-root path (IC-01's own
+      text concedes the DRGLoadError "propagates ... exactly as pre-fix"). The new row's own
+      phrase "falls back to the bare-project baseline" appears to be copy-pasted from the
+      genuinely-different US2 "empty pack" row (where `_load_org_layer` returns `None` cleanly,
+      no exception, so the project layer *does* load and the bare-project baseline *is* the
+      correct expectation) without re-deriving it for this exception-raising case. If an
+      implementer writes the test literally as specified (assert counts == bare-project baseline),
+      it will fail against real code (actual counts are 0); if written to match reality, it
+      contradicts its own written description — either way this is not implementable as stated,
+      and the "node ID absent from every typed list" half of the assertion is trivially/vacuously
+      true once the whole dict is empty (a weaker signal than the vacuity guard this document
+      otherwise insists on).
+    remediation: >
+      Correct plan.md:437's assertion text to state the actual outcome: all five typed/procedure
+      counts collapse to zero (not the bare-project baseline) because the org-layer exception
+      aborts `load_validated_graph` before the project layer loads at all. If the intent was
+      genuinely to pin "org layer only drops, project/built-in survive," that requires an actual
+      code-shape decision (partial-result handling in `_load_org_layer`/`load_validated_graph`)
+      that IC-01 explicitly declines to make — so the row must either assert the real
+      zero-everything outcome, or the IC-01 Risks bullet and this row both need to be revised
+      together so the plan's own characterization of the residual bug's blast radius is accurate
+      (it is worse than "just the org layer," matching #3384's original "ALL action-scoped
+      doctrine" framing).
+
+  - id: PLAN-FRESH-002
+    lens: Charter compliance / Standing Order #5 ("close the defect class, not just the reported instance")
+    severity: 4
+    title: "PLAN-ARCH-001's confirmed remediation demanded an operator-ruled spec.md Non-Goal OR a code fix; the fix round shipped neither — a plan-only carve-out with a self-authorized escape hatch instead"
+    evidence:
+      - artifact: "reviews/plan-arch.findings.yaml — PLAN-ARCH-001 remediation: 'Either (a) make this an explicit, operator-ruled Non-Goal in spec.md ... or (b) close the gap: have `_load_org_layer` attempt the `drg/` load independently of the root load's outcome...'"
+      - artifact: "plan.md:184-189 — 'spec.md itself was intentionally NOT edited for this ... if the orchestrator judges this plan-level statement insufficient, escalate to a fresh spec-level clarification rather than editing spec.md's Non-Goals directly from here.'"
+      - artifact: "git diff d3b317a71 135da622f -- kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/spec.md — empty; spec.md was not touched by the fix round."
+      - artifact: "spec.md § User Story 2 rationale: 'the fix must close the defect *class*, not just the one reported instance, so the next \"pack with no loadable graph\" shape doesn't reopen the same bug under a different directory layout.'"
+    claim: >
+      The confirmed PLAN-ARCH-001 finding gave two concrete remediation paths: (a) an
+      operator-ruled Non-Goal added to spec.md naming this exact combination, or (b) closing the
+      gap in `_load_org_layer`'s control flow. The fix round did neither: it added prose to
+      plan.md only, explicitly declined to touch spec.md, and did not obtain or record an actual
+      operator ruling on the carve-out — instead it wrote its own permission slip ("if the
+      orchestrator judges this plan-level statement insufficient, escalate"), which inverts the
+      finding's requirement (operator ruling *before* accepting the carve-out) into an
+      after-the-fact opt-out that the next reader has to actively invoke. The plan elsewhere
+      exercises exactly this kind of authority routinely (choosing merge_layers argument order,
+      dedup mechanism, exception hierarchy, etc.) without treating those as needing operator
+      escalation, so the claim that closing this specific gap is "an implementation-architecture
+      decision this plan-phase fix round does not have standing to make unilaterally" reads as
+      inconsistent with how the rest of the document already exercises plan-phase authority — and
+      the practical effect is that a real, currently-known instance of the mission's own named
+      defect class (silent success on a loadable, valid `drg/` fragment) ships as permanently
+      regression-guarded "intended" behavior (see PLAN-FRESH-001's test row) without the
+      operator-level sign-off the confirmed finding required.
+    remediation: >
+      Either obtain and record an actual operator ruling (mirroring reviews/spec.ruling.md's
+      pattern) endorsing the plan-only carve-out and add the corresponding Non-Goal language to
+      spec.md, or fold IC-01's fix so `_load_org_layer` attempts the `drg/` load independently of
+      the root load's outcome (closing the gap per remediation option (b)) rather than leaving a
+      self-authorized "escalate later, if someone happens to disagree" clause standing in for
+      operator sign-off.
+
+  - id: PLAN-FRESH-003
+    lens: Terminology canon / Gate Set accuracy
+    severity: 2
+    title: "Charter Check and Gate Set rows cite tests/architectural/test_no_legacy_terminology.py as the terminology-canon enforcement gate, but that test only checks two unrelated legacy terms ('ceremony', 'status-writing') and explicitly excludes kitty-specs/ from its scan — it does not and cannot catch 'Feature'"
+    evidence:
+      - artifact: "plan.md:86 — 'No `feature`/`--feature` surface touched ... `tests/architectural/test_no_legacy_terminology.py` runs as part of the `tests/architectural/` gate.'"
+      - artifact: "plan.md:301-304 — Gate Set: 'tests/architectural/test_no_legacy_terminology.py — terminology canon guard (repo-wide gate ...) ... since this touches src/charter/ prose'"
+      - code: "tests/architectural/test_no_legacy_terminology.py:1-9,28-32 — docstring: 'Locks in the rename performed by mission 01KSPN6C ... If either forbidden term reappears...'; `_FORBIDDEN_TERMS = (\"cere\"+\"mony\", \"status\"+\"-writing\")` — no reference to 'Feature'/'Features' anywhere in the module."
+      - code: "tests/architectural/test_no_legacy_terminology.py:37-40 — `_EXCLUDED_PATH_FRAGMENTS` includes `\"kitty-specs/\"`, explicitly excluding plan.md's own directory from the scan even if the forbidden-terms list were extended."
+    claim: >
+      This same fix round dealt directly with a Terminology Canon violation in this very document
+      (PLAN-GOV-002 / the new SK-11 tracer entry, both about plan.md:4's prohibited "Feature
+      specification" wording) but left standing two nearby, unchanged claims that this specific
+      architectural test enforces the Terminology Canon broadly enough to matter for this fix's
+      own "no feature/--feature surface touched" self-certification. In fact the test enforces
+      exactly two unrelated legacy terms from a different, already-completed rename mission
+      (01KSPN6C), never checks for "Feature"/"Features", and would not fire on kitty-specs/
+      content even if it did. An implementer relying on plan.md's own Gate Set framing could
+      believe this gate protects against reintroducing "Feature" language in the touched files
+      during implementation; it does not — nothing in the stated Gate Set actually guards the
+      Terminology Canon's Feature/Features prohibition for this mission's diff.
+    remediation: >
+      Correct plan.md:86 and the Gate Set row at plan.md:301-304 to stop citing
+      test_no_legacy_terminology.py as terminology-canon coverage for the Feature/Features
+      prohibition; either name the actual (currently nonexistent) enforcement mechanism for that
+      specific rule, or state plainly that Feature/Features avoidance in the touched files is
+      verified by manual review only, consistent with how SK-11 already treats the pre-existing
+      instance.

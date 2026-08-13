@@ -1,0 +1,45 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: >-
+      plan.md's US1 AC2 row (line 431) now pins the fixture node to "tactic"-kind and US4 AC1
+      row (line 435) pins node A to "tactic"/node B to "directive", both explicitly excluding
+      procedure and naming the four --json-typed kinds; independently re-checked the other four
+      rows (US1 AC1, US2 AC1+AC2 count-shaped baseline comparisons; US3 AC1/AC2 assert
+      result!=success/error-field shape, not kind-dependent membership; US4 AC2 inspects
+      DRGGraph.edges directly, not a --json typed array) and none carry the same kind ambiguity,
+      confirming the fixer's claim.
+  - id: PLAN-GOV-002
+    status: resolved
+    reason: >-
+      plan.md:4 is verbatim unchanged ("Feature specification from ..."), matching
+      packs/built-in/missions/software-dev/templates/plan-template.md:4 character-for-character
+      (verified directly), and a new "## SK-11" entry was added to tracer-tooling-friction.md
+      in the same title+paragraph format as SK-09/SK-09b/SK-10, correctly recording the gap as
+      upstream-template rather than plan.md-local.
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: >-
+      IC-01's Risks section (plan.md:166-190) now names the "malformed root graph + valid
+      drg/ sibling" combination explicitly and precisely, explains why spec.md's existing
+      Non-Goals/FR-004 text does not already cover it, and states the plan deliberately scopes
+      it out at the plan level (spec.md verified genuinely untouched via `git diff d3b317a71
+      135da622f -- spec.md`, which is empty); a new, concrete, non-vacuous Test Strategy row
+      (plan.md:437, test_malformed_root_graph_with_valid_drg_sibling_still_silently_zeroed)
+      pins today's residual silent-collapse as deliberately-accepted behavior with specific
+      positive/absence assertions, not a vague restatement; code reading of
+      src/doctrine/drg/loader.py's load_graph_or_dir (root-preferred, drg/ never globbed when
+      a root graph.yaml exists) and action_doctrine_bundle.py's wide except DRGLoadError
+      confirms the underlying claims still hold.
+  - id: PLAN-ARCH-002
+    status: resolved
+    reason: >-
+      plan.md's Summary section (lines 47-62) now carries a concrete third mid-flight bucket —
+      an existing root+drg/ pack whose previously-dormant, malformed drg/ content will newly
+      hard-fail post-fix via OrgDRGFragmentError — placed immediately after and explicitly
+      mirroring the existing #3385 PR-description disclosure pattern (lines 43-45), not a
+      hedge-word restatement of the prior binary framing.

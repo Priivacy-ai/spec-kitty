@@ -1,0 +1,17 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: plan
+results:                    # one entry for EVERY finding
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: IC-01's Risks bullet now describes the correct interim state (root-level DRGLoadError still propagates to the existing wide catch while IC-01 lands alone, no wrap), IC-03 is stated as sole owner of both wraps with its Risks bullet updated to match, and every "IC-01/IC-03" cross-reference (Summary x2, Design-choice note) was changed to "IC-03, sole owner of both wraps" with no remaining ownership ambiguity anywhere in the file (grep for "IC-01/IC-03" returns nothing).
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: Both occurrences flagged (IC-01's Risks bullet and the combined-case Test Strategy row's Reverted-code-check column) now state the correct blast radius — "the entire resolved action bundle to empty across all five doctrine kinds ... not merely the org layer's own contribution" — and the literal "entire org layer" phrase no longer appears anywhere in plan.md; the two other "org layer" occurrences left untouched (IC-02's dedup-scope Risks bullet, and US2 AC1+AC2's "degrade-to-empty-org-layer" phrasing) are genuinely unrelated (dedup scope and a no-exception baseline-equality case respectively), not instances of the mischaracterization.
+  - id: PLAN-FRESH2-003
+    status: resolved
+    reason: A new, standalone Test Strategy row for "malformed root-level graph.yaml, no drg/ directory/content at all" was added with its own distinct fixture ("no drg/ directory exists at all — not even an empty one") and its own test name (test_malformed_root_graph_no_drg_directory_raises_distinguishable_failure), separate from the pre-existing combined-case row; the row's own prose states it is "deliberately its own test, not a restatement of the combined-case row," and its assertion is concrete (JSON result != "success" and non-empty error field), not a vacuous iterate-only check.
+  - id: PLAN-FRESH2-004
+    status: resolved
+    reason: IC-03's heading and the Silent Success Discipline heading now both qualify the citation as "User Story 3 for the drg/-fragment case, the defect-class-closure rationale in reviews/plan.ruling.md for the root-level broadening," no longer bare-citing User Story 3 as backing for the broadened root-level scope; git diff d3b317a71..9027de731 -- spec.md is empty, confirming spec.md was not touched.

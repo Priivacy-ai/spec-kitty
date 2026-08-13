@@ -1,0 +1,63 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+findings:
+  - id: PLAN-GOV-001
+    lens: Ruling compliance (SPEC-FRESH4-001 split)
+    severity: 3
+    title: "Test Strategy membership rows (US1 AC2, US4 AC1) don't constrain fixture node kind to a --json-typed kind, so a procedure-kind fixture would be unverifiable by the stated method"
+    evidence:
+      - artifact: "plan.md § Test Strategy per Acceptance Criterion, row 'US1 AC2 — pack's `drg/`-declared node is actually loaded' and row 'US4 AC1 — root+`drg/` both present, no conflict: both nodes present'"
+      - artifact: "reviews/spec.ruling.md § 'The replacement acceptance bar' — binding split: four typed counts via `--json`, procedure count via plain-text render, because '--json never exposes a typed procedures array or count'"
+      - code: "src/charter/progressive_disclosure.py:317-322 (`_ARRAY_BY_KIND` maps only directive/tactic/styleguide/toolguide to `--json` typed arrays; `build_disclosure_payload`'s own docstring says procedure/asset are 'delivered but not surfaced as their own arrays', only folded into the generic `references` link set)"
+    claim: >
+      The spec ruling SPEC-FRESH4-001 establishes a hard, binding fact: `charter context --json`
+      exposes typed per-kind ID arrays for exactly four kinds (directives/tactics/styleguides/
+      toolguides); procedures are never surfaced as a typed array or per-kind ID list in `--json`,
+      only via the plain-text Procedures section. Plan.md's Test Strategy table correctly applies
+      this split everywhere it asserts *counts* (US1 AC1, US2 AC1+AC2). But two rows assert
+      *membership* of a specific fixture node's artifact ID against "the `--json` payload's
+      per-kind ID list" (US1 AC2, row `test_drg_fragment_node_reaches_resolved_bundle`) or
+      "the `--json` payload's resolved bundle" (US4 AC1, row
+      `test_root_and_drg_both_present_neither_node_dropped`) without stating what *kind* the
+      fixture's node(s) must be. Neither spec.md (User Story 1 Scenario 2, User Story 4 Scenario 1)
+      nor plan.md constrains this. If a tasks/implementation-phase author follows the illustrative
+      fixture shape literally and picks a `procedure`-kind node — plausible, since procedures are
+      exactly the kind this whole mission and the ruling are focused on getting right — the
+      "member of the `--json` payload's per-kind ID list" assertion is unimplementable as
+      written: procedures have no typed per-kind array in `--json` to check membership against
+      (only `references`, which the plan never names as the fallback surface for this case). This
+      is precisely the ambiguity class the ruling exists to close off, left open in the plan's own
+      table for exactly the two rows that aren't count-shaped.
+    remediation: >
+      In the Test Strategy table, either (a) explicitly pin the fixture node kind for
+      US1 AC2 and US4 AC1's nodes to one of directive/tactic/styleguide/toolguide (a kind
+      `--json`'s typed arrays actually expose), or (b) if a procedure-kind node is intentionally
+      in scope for either row, state the fallback verification surface explicitly (the plain-text
+      render's Procedures section membership, or the `references` link set) mirroring the same
+      json/plain-text split already applied correctly to the count rows.
+  - id: PLAN-GOV-002
+    lens: Terminology canon
+    severity: 1
+    title: "plan.md's own header line uses the prohibited term 'Feature specification', inherited unchanged from the canonical plan template"
+    evidence:
+      - artifact: "plan.md:4 — \"**Input**: Feature specification from `kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/spec.md`\""
+      - code: "packs/built-in/missions/software-dev/templates/plan-template.md:4 — \"**Input**: Feature specification from `/kitty-specs/[###-mission-name]/spec.md`\" (identical wording, confirming this is verbatim canonical-template boilerplate, not an authoring choice)"
+    claim: >
+      CLAUDE.md's Terminology Canon prohibits `Feature`/`Features` in canonical, operator, and
+      user-facing language for active systems ("Mission specification" is the correct term here).
+      plan.md line 4 reads "Feature specification from `.../spec.md`" verbatim. This is template-
+      inherited (the canonical `plan-template.md` itself carries the same wording), so it is not a
+      defect this plan's author introduced by choice, and hand-editing only this plan's copy would
+      create drift from the canonical template rather than fix the underlying problem. Filed at nit
+      severity because it has zero effect on implementation and the correct fix is upstream at the
+      template, not in this mission's plan.md.
+    remediation: >
+      No change to this plan.md (editing only this instance would create non-canonical drift).
+      File an upstream doctrine gap against `packs/built-in/missions/software-dev/templates/plan-template.md`
+      (and its sibling mission-type templates using the same phrase) to replace "Feature
+      specification" with "Mission specification", per the canonical-sources standing order
+      (trace the source, file the gap, don't silently work around it in one instance).

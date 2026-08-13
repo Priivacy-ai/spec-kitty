@@ -1,0 +1,191 @@
+# review-findings/v1 (confirmed) — merged findings whose R3 verdict is confirmed.
+# Refuted findings stay in plan.merged.yaml / plan-refute-1.yaml for the audit trail and are
+# never sent to the fixer. All 4 merged findings were confirmed in batch 1 — none refuted.
+schema: review-findings/v1
+complete: true
+phase: plan
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+source_refute_files:
+  - reviews/plan-refute-1.yaml
+findings:
+  - id: PLAN-GOV-001
+    lens_group: gov
+    lens: Ruling compliance (SPEC-FRESH4-001 split)
+    severity: 3
+    title: "Test Strategy membership rows (US1 AC2, US4 AC1) don't constrain fixture node kind to a --json-typed kind, so a procedure-kind fixture would be unverifiable by the stated method"
+    evidence:
+      - artifact: "plan.md § Test Strategy per Acceptance Criterion, row 'US1 AC2 — pack's `drg/`-declared node is actually loaded' and row 'US4 AC1 — root+`drg/` both present, no conflict: both nodes present'"
+      - artifact: "reviews/spec.ruling.md § 'The replacement acceptance bar' — binding split: four typed counts via `--json`, procedure count via plain-text render, because '--json never exposes a typed procedures array or count'"
+      - code: "src/charter/progressive_disclosure.py:317-322 (`_ARRAY_BY_KIND` maps only directive/tactic/styleguide/toolguide to `--json` typed arrays; `build_disclosure_payload`'s own docstring says procedure/asset are 'delivered but not surfaced as their own arrays', only folded into the generic `references` link set)"
+    claim: >
+      The spec ruling SPEC-FRESH4-001 establishes a hard, binding fact: `charter context --json`
+      exposes typed per-kind ID arrays for exactly four kinds (directives/tactics/styleguides/
+      toolguides); procedures are never surfaced as a typed array or per-kind ID list in `--json`,
+      only via the plain-text Procedures section. Plan.md's Test Strategy table correctly applies
+      this split everywhere it asserts *counts* (US1 AC1, US2 AC1+AC2). But two rows assert
+      *membership* of a specific fixture node's artifact ID against "the `--json` payload's
+      per-kind ID list" (US1 AC2, row `test_drg_fragment_node_reaches_resolved_bundle`) or
+      "the `--json` payload's resolved bundle" (US4 AC1, row
+      `test_root_and_drg_both_present_neither_node_dropped`) without stating what *kind* the
+      fixture's node(s) must be. Neither spec.md (User Story 1 Scenario 2, User Story 4 Scenario 1)
+      nor plan.md constrains this. If a tasks/implementation-phase author follows the illustrative
+      fixture shape literally and picks a `procedure`-kind node — plausible, since procedures are
+      exactly the kind this whole mission and the ruling are focused on getting right — the
+      "member of the `--json` payload's per-kind ID list" assertion is unimplementable as
+      written: procedures have no typed per-kind array in `--json` to check membership against
+      (only `references`, which the plan never names as the fallback surface for this case). This
+      is precisely the ambiguity class the ruling exists to close off, left open in the plan's own
+      table for exactly the two rows that aren't count-shaped.
+    remediation: >
+      In the Test Strategy table, either (a) explicitly pin the fixture node kind for
+      US1 AC2 and US4 AC1's nodes to one of directive/tactic/styleguide/toolguide (a kind
+      `--json`'s typed arrays actually expose), or (b) if a procedure-kind node is intentionally
+      in scope for either row, state the fallback verification surface explicitly (the plain-text
+      render's Procedures section membership, or the `references` link set) mirroring the same
+      json/plain-text split already applied correctly to the count rows.
+    refute_verdict: confirmed
+    refute_reason: >-
+      plan.md's US1 AC2 (line 388) and US4 AC1 (line 392) rows genuinely leave the fixture
+      node's kind unpinned, mirroring spec.md's own US1 Scenario 2 / US4 Scenario 1 text
+      (also unpinned), and progressive_disclosure.py:340 confirms procedure/asset kinds are
+      "delivered but not surfaced as their own arrays" in --json, so a procedure-kind fixture
+      node would make "member of the --json payload's per-kind ID list" unimplementable.
+
+  - id: PLAN-GOV-002
+    lens_group: gov
+    lens: Terminology canon
+    severity: 1
+    title: "plan.md's own header line uses the prohibited term 'Feature specification', inherited unchanged from the canonical plan template"
+    evidence:
+      - artifact: "plan.md:4 — \"**Input**: Feature specification from `kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/spec.md`\""
+      - code: "packs/built-in/missions/software-dev/templates/plan-template.md:4 — \"**Input**: Feature specification from `/kitty-specs/[###-mission-name]/spec.md`\" (identical wording, confirming this is verbatim canonical-template boilerplate, not an authoring choice)"
+    claim: >
+      CLAUDE.md's Terminology Canon prohibits `Feature`/`Features` in canonical, operator, and
+      user-facing language for active systems ("Mission specification" is the correct term here).
+      plan.md line 4 reads "Feature specification from `.../spec.md`" verbatim. This is template-
+      inherited (the canonical `plan-template.md` itself carries the same wording), so it is not a
+      defect this plan's author introduced by choice, and hand-editing only this plan's copy would
+      create drift from the canonical template rather than fix the underlying problem. Filed at nit
+      severity because it has zero effect on implementation and the correct fix is upstream at the
+      template, not in this mission's plan.md.
+    remediation: >
+      No change to this plan.md (editing only this instance would create non-canonical drift).
+      File an upstream doctrine gap against `packs/built-in/missions/software-dev/templates/plan-template.md`
+      (and its sibling mission-type templates using the same phrase) to replace "Feature
+      specification" with "Mission specification", per the canonical-sources standing order
+      (trace the source, file the gap, don't silently work around it in one instance).
+    refute_verdict: confirmed
+    refute_reason: >-
+      plan.md:4 reads "Feature specification from ..." verbatim identical to
+      packs/built-in/missions/software-dev/templates/plan-template.md:4's boilerplate,
+      confirming the finding's claim that this is inherited template wording, not an
+      authoring choice, correctly diagnosed with a no-op remediation.
+
+  - id: PLAN-ARCH-001
+    lens_group: arch
+    lens: Silent Success Discipline / Non-Vacuous Gate for the Defect Class
+    severity: 4
+    title: A malformed root-level org graph combined with valid drg/ content still silently zeroes the entire org layer — an untreated instance of the exact defect class this mission exists to close
+    evidence:
+      - artifact: "plan.md § IC-01 (Risks bullet)"
+      - artifact: "plan.md § Non-Vacuous Gate for the Defect Class"
+      - artifact: "spec.md § Non-Goals (project-layer DRGLoadError bullet); spec.md § Edge Cases (only discusses malformed drg/, not malformed root)"
+      - code: "src/charter/_drg_helpers.py:86-87 (org load call site)"
+      - code: "src/charter/action_doctrine_bundle.py:152-207 (wide `except DRGLoadError` collapses the whole bundle)"
+      - code: "src/doctrine/drg/loader.py:81-112 (`load_graph_or_dir` on a directory prefers a root `graph.yaml` and raises `DRGLoadError` on a parse/schema failure before ever looking at `drg/`)"
+    claim: >
+      IC-01's own Risks paragraph states plainly that a root-level `graph.yaml` that exists
+      but is malformed still makes `has_root_graph=True`, so `_load_org_layer` still attempts
+      `load_graph_or_dir(org_root)` and lets the resulting `DRGLoadError` propagate uncaught
+      "exactly as pre-fix." Per `action_doctrine_bundle.py`'s existing wide
+      `except DRGLoadError`, that means the *entire* org layer — including a perfectly valid
+      `drg/` fragment sitting right next to the malformed root file in the same pack — is
+      silently dropped and the CLI still reports success (a WARNING log line only), exactly
+      the shape #3384 reports and exactly the shape this mission's own "Non-Vacuous Gate for
+      the Defect Class" section defines the target defect class by ("a code path composes an
+      optional graph-content source without first checking whether that source has anything
+      loadable, so 'nothing to load' and 'content exists' both hit the same unconditional
+      loader call"). Here "content exists" in `drg/` and is perfectly loadable, yet it is
+      still dropped because the *sibling* root source failed, which is a variant of the same
+      shape one directory over — precisely the "next instance of this defect class" the plan's
+      own Non-Vacuous Gate section says its regression test would catch, except no test in the
+      plan's Test Strategy table exercises this combination (US3's fixtures test a malformed
+      `drg/` fragment; none test a malformed root graph alongside a valid `drg/`). IC-01
+      justifies leaving this open by citing "Non-Goals/FR-004's drg/-only narrowing," but that
+      citation does not hold up: spec.md's actual Non-Goals bullet on this topic is scoped to
+      "project-layer (`.kittify/doctrine`) graph content," not to an org-root-level malformed
+      graph, and FR-004's own text narrows only to "a malformed or invalid `drg/` fragment" —
+      neither passage explicitly authorizes silently swallowing a *valid* `drg/` fragment
+      because a *different* file (the root graph) in the same org layer failed to parse. This
+      also cuts against FR-001's own stated rationale ("declaring a pack never reduces
+      available doctrine below the bare-project baseline") — for this specific combination,
+      declaring the pack *does* reduce doctrine to zero, silently, after the fix ships.
+    remediation: >
+      Either (a) make this an explicit, operator-ruled Non-Goal in spec.md — naming the
+      "malformed root-level org graph + valid drg/ content" combination specifically (not
+      inferred from the project-layer bullet) — and add a regression test that pins today's
+      residual silent-collapse as the deliberately-accepted behavior, or (b) close the gap:
+      have `_load_org_layer` attempt the `drg/` load independently of the root load's outcome,
+      so a malformed root graph raises `OrgDRGFragmentError` (IC-03's distinguishable failure)
+      rather than silently vanishing behind the wide `DRGLoadError` catch, and/or so a valid
+      `drg/` fragment is not lost just because the sibling root file failed. Whichever is
+      chosen, add the missing test case (malformed root graph.yaml + valid drg/fixture.graph.yaml)
+      so the decision is pinned, not inherited silently.
+    refute_verdict: confirmed
+    refute_reason: >-
+      Direct code reading confirms load_graph_or_dir raises DRGLoadError on a malformed
+      root-level graph.yaml before/independent of any drg/ load, the plan's own IC-01 Risks
+      bullet concedes this is left intentionally uncaught, and
+      action_doctrine_bundle.py:200's wide except DRGLoadError collapses the entire bundle
+      (not just the org layer) to a WARNING-only empty success; spec.md's cited Non-Goals
+      bullet is scoped to project-layer content and FR-004's worked Edge Case is scoped to
+      drg/-fragment malformation only, so neither actually rules on this
+      malformed-root-plus-valid-drg/-sibling combination, and no Test Strategy row exercises
+      it.
+
+  - id: PLAN-ARCH-002
+    lens_group: arch
+    lens: Reflexivity
+    severity: 3
+    title: "Mid-flight impact claim (\"counts increase\" or \"unaffected\") omits a third, more disruptive outcome for existing root+drg/ org packs whose dormant drg/ content is malformed"
+    evidence:
+      - artifact: "spec.md § Edge Cases (\"What happens to a mission that is mid-flight...\")"
+      - artifact: "plan.md — mirrors spec's Edge Case verbatim in framing; no Blast Radius / PR Shape counter-note added"
+      - code: "src/doctrine/drg/loader.py:101-112 (`load_graph_or_dir` on a directory: a root `graph.yaml`, if present, is preferred and `drg/*.graph.yaml` is never consulted — today's silent-drop precedent for a root+drg/ pack)"
+      - code: "src/charter/_drg_helpers.py:83-97 (`load_validated_graph`, the function whose org-layer branch this mission rewrites)"
+    claim: >
+      Both spec.md's Edge Cases and plan.md state the mid-flight impact of this fix as a
+      binary: a project with no org pack declared is unaffected, and a project with an org
+      pack declared "sees its action-scoped doctrine counts increase (correctly)." This
+      binary is incomplete. Today, per `load_graph_or_dir`'s own documented precedence (a
+      directory's root `graph.yaml` is preferred over its `*.graph.yaml` fragments), any
+      existing org pack that already has a root-level graph AND a `drg/` directory has its
+      `drg/` content silently ignored — the org layer loads successfully from the root file
+      alone. After this fix (IC-02), that pack's `drg/` content is scanned and merged
+      (correctly, per FR-003/User Story 4) — but if that previously-dormant `drg/` content
+      happens to be malformed (invalid YAML or schema-invalid — never validated before
+      because never loaded), IC-03 now raises `OrgDRGFragmentError` uncaught, turning what was
+      a working (root-only) `charter context` call into a hard CLI failure on every subsequent
+      invocation for that project, until an operator repairs or removes the bad fragment. That
+      outcome is neither "unaffected" nor "counts increase" — it is a new, previously-absent
+      failure mode introduced by this fix's own correct behavior (IC-03 is doing exactly what
+      FR-004 wants), but the plan nowhere states this as a rollout/blast-radius consideration
+      for downstream spec-kitty-driven workspaces (e.g. team-kitty-missions, muster-missions)
+      that may carry exactly this shape today. This is the same class of disclosure the plan
+      already does well for #3385 (a plain PR-description callout) but omits here.
+    remediation: >
+      Add a third bucket to the mid-flight Edge Case / Blast Radius narrative: "A project with
+      an existing root+drg/ org pack whose drg/ content was previously dormant (root-preferred,
+      never loaded) and is malformed will begin hard-failing charter context calls once this
+      fix lands — this is intended (IC-03), but state it explicitly in the mission's PR
+      description as a pre-upgrade audit note," mirroring the #3385 non-goal disclosure
+      already present elsewhere in this plan.
+    refute_verdict: confirmed
+    refute_reason: >-
+      spec.md's mid-flight Edge Case text literally presents only two outcomes
+      ("unaffected" / "counts increase correctly"), plan.md adds no third bucket anywhere,
+      and IC-03's design (only the drg_dir load is wrapped to raise OrgDRGFragmentError)
+      confirms a previously-dormant (root-preferred, per load_graph_or_dir's single-file
+      precedence) malformed drg/ fragment in an existing root+drg/ pack will newly hard-fail
+      charter context post-fix — an undisclosed rollout risk, unlike the #3385 non-goal
+      which plan.md does disclose explicitly at lines 43-45.

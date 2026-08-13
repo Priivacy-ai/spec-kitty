@@ -1,0 +1,130 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: plan
+lens_group: fresh-2
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+findings:
+  - id: PLAN-FRESH2-001
+    lens: Plan-concern sequencing / ownership consistency
+    severity: 3
+    title: IC-01 and IC-03 both claim ownership of implementing the root-level OrgDRGFragmentError wrap, creating a circular dependency against IC-01's own "lands first, no dependencies" framing
+    evidence:
+      - artifact: "plan.md § IC-01 (Risks) — 'This concern's `_load_org_layer` wraps that root-level load in the same `try/except DRGLoadError as exc: raise OrgDRGFragmentError(...) from exc` shape IC-03 already uses for the `drg/` load (see IC-03)'"
+      - artifact: "plan.md § IC-01 (Sequencing/depends-on) — 'none — lands first; IC-02 and IC-03 both extend this same function's body.' (unchanged by this round)"
+      - artifact: "plan.md § IC-01 (Affected surfaces) — omits `OrgDRGFragmentError` and the try/except entirely (unchanged by this round)"
+      - artifact: "plan.md § IC-03 (Affected surfaces) — '`_load_org_layer`'s root-level `load_graph_or_dir(org_root)` call **and** its `drg_graph = load_graph_or_dir(drg_dir)` call each wrapped independently ... new `OrgDRGFragmentError(Exception)`'"
+    claim: >
+      IC-01's Risks paragraph (rewritten this round) asserts that IC-01's own `_load_org_layer`
+      implements the root-level exception wrap using `OrgDRGFragmentError` — a class IC-03's
+      Affected Surfaces bullet declares as new and also claims to implement (for BOTH the root and
+      drg/ loads). IC-01's own Affected Surfaces bullet (left untouched this round) does not
+      mention the exception type or the try/except at all, and IC-01's Sequencing bullet still
+      asserts "none — lands first," i.e. no dependency on IC-03. This is internally contradictory:
+      IC-01 cannot both "land first with no dependencies" and rely on a symbol
+      (`OrgDRGFragmentError`) that IC-03 (sequenced strictly after IC-01) is the one formally
+      declaring and claiming as its own surface. Because `/spec-kitty.tasks` derives work packages
+      from these concerns and the plan explicitly leaves WP-splitting undecided ("plausibly even a
+      single WP ... that WP-count decision belongs to the tasks phase, not this plan"), if IC-01
+      and IC-03 land as separate WPs this ambiguity risks either duplicate implementation of the
+      same wrap, or — worse — neither WP actually implementing the root-level wrap because each
+      assumes the other owns it, silently leaving the malformed-root-alone case unguarded.
+    remediation: >
+      Pick one owner for the root-level wrap and make both concerns agree: either (a) keep
+      `OrgDRGFragmentError` and both try/except wraps entirely in IC-03's scope, and rewrite
+      IC-01's Risks bullet to describe the correct interim/pre-IC-03 state (a malformed root graph
+      still propagates a plain `DRGLoadError` into the existing wide catch until IC-03 lands,
+      consistent with IC-01's own "lands first, no deps" framing) — deferring the
+      "closes-the-gap" language to IC-03 only; or (b) make IC-01 formally own the root-level wrap
+      (add `OrgDRGFragmentError` and the try/except to IC-01's Affected Surfaces, and update IC-01's
+      Sequencing to note the exception type must exist before IC-01 completes), and have IC-03's
+      Affected Surfaces claim only the `drg/`-level wrap, not both.
+
+  - id: PLAN-FRESH2-002
+    lens: Fact-check / blast-radius accuracy
+    severity: 3
+    title: New round-2 prose (IC-01 Risks and the new Test Strategy row) mischaracterizes the malformed-root-with-valid-drg/-sibling revert scenario as zeroing only "the entire org layer," reintroducing the exact org-layer-vs-whole-bundle imprecision PLAN-FRESH-001 already established as wrong elsewhere in this same document
+    evidence:
+      - artifact: "plan.md § IC-01 (Risks) — 'previously the *entire* org layer — including that perfectly valid `drg/` content — collapsed to an empty-but-reported-success bundle'"
+      - artifact: "plan.md § Test Strategy table, row 'Malformed root-level `graph.yaml` + valid `drg/` sibling' (Reverted-code check column) — 'silently collapses the *entire* org layer — including the valid `drg/` content — to a zeroed-but-reported-success bundle (today's pre-fix shape)'"
+      - code: "src/charter/action_doctrine_bundle.py:158-160,200-207 — `ids_by_slot: Mapping[str, tuple[str, ...]] = {}` initialized before the try block; on `except DRGLoadError`, `ids_by_slot` is never reassigned, so ALL five doctrine-kind ID lists (directive/tactic/styleguide/toolguide/procedure) return empty, not merely the org layer's contribution."
+      - code: "src/charter/_drg_helpers.py:83-97 — `load_validated_graph` calls the org-layer load, then the project-layer load, then merges/asserts, all in one function body with no partial-result path; an uncaught exception from the org-layer load aborts the function before the project-layer load or the built-in/project merge ever runs."
+      - artifact: "reviews/plan-fresh.yaml — PLAN-FRESH-001 (confirmed, this same mission): 'This is exactly today's #3384 defect shape (total zeroing of the whole action bundle, not merely \"the org layer's contribution\")'"
+    claim: >
+      When the root-level load raises an unwrapped `DRGLoadError` (the hypothetical "revert IC-03's
+      root-level wrap only" scenario the new Test Strategy row's own Reverted-code-check column
+      describes), the exception propagates out of `_load_org_layer` and `load_validated_graph`
+      before the project-layer load ever executes, and `_load_action_doctrine_bundle`'s wide
+      `except DRGLoadError` returns a bundle built from an `ids_by_slot` that was never populated —
+      i.e. ALL FIVE doctrine kinds (built-in and project layers included, not merely the org
+      layer's contribution) collapse to zero. This is exactly the mechanism this same mission's own
+      prior confirmed finding, PLAN-FRESH-001, established and required correcting for a
+      structurally identical scenario. The round-2 fix correctly rewrote the specific Test Strategy
+      row PLAN-FRESH-001 flagged, but reintroduced the identical "entire org layer" (rather than
+      "entire action bundle") mischaracterization in two new pieces of prose authored this same
+      round (IC-01's Risks paragraph and the new Test Strategy row's own Reverted-code-check
+      column), understating the actual blast radius of the pre-IC-03 failure mode within the very
+      document that already established the correct characterization elsewhere.
+    remediation: >
+      In both locations, replace "collapses the entire org layer ... to a zeroed-but-reported-success
+      bundle" with language matching PLAN-FRESH-001's established fact — the entire action bundle
+      (built-in + org + project, all five doctrine kinds) zeroes, not merely the org layer's
+      contribution — so the plan's own characterization of blast radius stays internally
+      consistent with its own prior corrected finding.
+
+  - id: PLAN-FRESH2-003
+    lens: Non-vacuous test coverage / C-003 ATDD-first / C-004
+    severity: 4
+    title: "The broadened design's unconditional claim — ANY malformed root-level org graph raises OrgDRGFragmentError, with or without a drg/ sibling — has no dedicated regression test; only the combined (root-malformed + valid-drg/-sibling) case is pinned"
+    evidence:
+      - artifact: "plan.md § Silent Success Discipline — 'org-layer content, whether the root-level graph or a `drg/` fragment, that is invalid YAML or fails `DRGGraph` schema validation ... raises `OrgDRGFragmentError`' (unconditional, not qualified by drg/ presence)"
+      - artifact: "plan.md § Summary (mid-flight rollout note) — 'a pre-existing pack whose **root-level** graph is malformed: ... after this fix it raises `OrgDRGFragmentError` and hard-fails instead' (unconditional)"
+      - artifact: "plan.md § IC-03 (Purpose) — '`_load_org_layer` wraps **both** the root-level load and the `drg/`-level load, each independently ... so either source's malformed content re-raises as the same new exception' (unconditional, independent wraps)"
+      - artifact: "plan.md § Test Strategy table — the only row touching root-level malformed content is 'Malformed root-level `graph.yaml` + valid `drg/` sibling ...'; no row exists for a malformed root-level graph with no `drg/` directory/content at all."
+      - artifact: "plan.md § Charter Check — 'Each of FR-001+FR-002, FR-003, FR-004 lands a red-first test ... see Test Strategy below.'"
+    claim: >
+      Three separate sections newly written or reaffirmed this round (Silent Success Discipline,
+      the Summary's mid-flight rollout note, and IC-03's Purpose) all assert, without
+      qualification, that a malformed root-level org graph raises `OrgDRGFragmentError` regardless
+      of whether a `drg/` sibling exists. The plan's own Design-choice note argues this broadening
+      "still fully satisfies FR-004," and the Charter Check row commits FR-004 to red-first test
+      coverage. But the only Test Strategy row exercising root-level malformed content requires a
+      valid `drg/` sibling to also be present
+      (`test_malformed_root_graph_with_valid_drg_sibling_raises_distinguishable_failure`). A
+      conforming implementation could pass this single test while still special-casing the wrap to
+      fire only when a `drg/` sibling also exists (e.g. attempting the `drg/` load first and only
+      wrapping the root exception when `drg/` succeeds), silently leaving "malformed root graph
+      alone, no `drg/` present" swallowed by the pre-existing wide catch — reopening exactly the
+      silent-success shape (Standing Order #5 / C-004) this mission exists to close, with zero
+      regression coverage to catch that regression.
+    remediation: >
+      Add a Test Strategy row (and matching fixture) for "malformed root-level graph.yaml, no
+      `drg/` content at all" asserting the same `result != "success"` / non-empty `error` shape as
+      the combined-case row, so FR-004's full broadened scope — as the plan itself now states it —
+      is red-first pinned per C-003, not just the combined sub-case.
+
+  - id: PLAN-FRESH2-004
+    lens: Requirement traceability / spec-plan fidelity
+    severity: 2
+    title: IC-03's heading cites "User Story 3" as backing for the now-broadened root-level-malformed behavior, but spec.md's User Story 3 text and both its Acceptance Scenarios are scoped exclusively to a malformed drg/ fragment
+    evidence:
+      - artifact: "plan.md § IC-03 heading — 'IC-03 — Malformed org-layer content (root graph or `drg/` fragment) surfaces as a real, distinguishable failure (FR-004; User Story 3; PLAN-ARCH-001/PLAN-FRESH-002 remediation option (b))'"
+      - artifact: "spec.md § User Story 3 — 'Malformed `drg/` fragment surfaces as a real, diagnosable failure'; both Acceptance Scenarios (1 and 2) test only 'an org pack whose `drg/` directory contains a fragment file...' — neither scenario mentions a root-level graph."
+      - artifact: "spec.md § Edge Cases — the malformed-graph edge case bullet is scoped to '`<org_root>/drg/` exists but contains a malformed or invalid `*.graph.yaml` fragment'; there is no edge case anywhere in spec.md discussing a malformed root-level graph."
+    claim: >
+      spec.md was deliberately not edited this round (per the Design-choice note). Its User
+      Story 3 — the story IC-03's heading cites as one of its backing requirements — only
+      describes and tests a malformed `drg/` fragment; it says nothing about a malformed
+      root-level graph. IC-03's heading, by citing "User Story 3" unqualified alongside the newly
+      broadened root-level scope, implies User Story 3 already covers or was written with the
+      root-level case in mind, which it was not. This is a plan-authored citation, not a spec
+      change, so it does not by itself alter behavior, but it could mislead an implementer or
+      reviewer who checks spec.md's User Story 3 Acceptance Scenarios expecting to find (or
+      cross-check against) the root-level case there — it is not there; only the separately named
+      Test Strategy row (correctly NOT tied to User Story 3 in its own FR/SC column) covers it.
+    remediation: >
+      Qualify IC-03's heading citation, e.g. "(FR-004; User Story 3 for the drg/-fragment case;
+      PLAN-ARCH-001/PLAN-FRESH-002 remediation option (b) for the root-level broadening)" — or
+      drop "User Story 3" from the heading's citation list entirely and rely on the "Relevant
+      requirements" bullet's more precise FR-004-only framing, so the heading does not imply
+      spec-level Acceptance-Scenario coverage that does not exist for the root-level case.

@@ -1,0 +1,43 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: >-
+      plan.md's US1 AC2 (line 388) and US4 AC1 (line 392) rows genuinely leave the fixture
+      node's kind unpinned, mirroring spec.md's own US1 Scenario 2 / US4 Scenario 1 text
+      (also unpinned), and progressive_disclosure.py:340 confirms procedure/asset kinds are
+      "delivered but not surfaced as their own arrays" in --json, so a procedure-kind fixture
+      node would make "member of the --json payload's per-kind ID list" unimplementable.
+  - id: PLAN-GOV-002
+    verdict: confirmed
+    reason: >-
+      plan.md:4 reads "Feature specification from ..." verbatim identical to
+      packs/built-in/missions/software-dev/templates/plan-template.md:4's boilerplate,
+      confirming the finding's claim that this is inherited template wording, not an
+      authoring choice, correctly diagnosed with a no-op remediation.
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: >-
+      Direct code reading confirms load_graph_or_dir raises DRGLoadError on a malformed
+      root-level graph.yaml before/independent of any drg/ load, the plan's own IC-01 Risks
+      bullet concedes this is left intentionally uncaught, and
+      action_doctrine_bundle.py:200's wide except DRGLoadError collapses the entire bundle
+      (not just the org layer) to a WARNING-only empty success; spec.md's cited Non-Goals
+      bullet is scoped to project-layer content and FR-004's worked Edge Case is scoped to
+      drg/-fragment malformation only, so neither actually rules on this
+      malformed-root-plus-valid-drg/-sibling combination, and no Test Strategy row exercises
+      it.
+  - id: PLAN-ARCH-002
+    verdict: confirmed
+    reason: >-
+      spec.md's mid-flight Edge Case text literally presents only two outcomes
+      ("unaffected" / "counts increase correctly"), plan.md adds no third bucket anywhere,
+      and IC-03's design (only the drg_dir load is wrapped to raise OrgDRGFragmentError)
+      confirms a previously-dormant (root-preferred, per load_graph_or_dir's single-file
+      precedence) malformed drg/ fragment in an existing root+drg/ pack will newly hard-fail
+      charter context post-fix — an undisclosed rollout risk, unlike the #3385 non-goal
+      which plan.md does disclose explicitly at lines 43-45.

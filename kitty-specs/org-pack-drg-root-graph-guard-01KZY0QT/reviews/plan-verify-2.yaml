@@ -1,0 +1,56 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: plan
+results:                    # one entry for EVERY finding
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: >-
+      The old "falls back to the bare-project baseline" row is gone; plan.md's Test Strategy
+      table now has a row titled "Malformed root-level graph.yaml + valid drg/ sibling:
+      distinguishable failure, not silent zeroing" (near line 439) asserting the CLI --json
+      entry point returns result != "success" with a non-empty error field, mirroring US3's
+      shape — this matches what IC-01/IC-03's current design (wrapping both the root and
+      drg/ loads in OrgDRGFragmentError) would actually produce, and is no longer
+      differently-wrong: verified against the real pre-fix code path
+      (load_validated_graph has no try/except of its own, so an org-load DRGLoadError
+      propagates to _load_action_doctrine_bundle's wide except and zeroes ids_by_slot
+      entirely, i.e. all five kinds, not a "baseline" fallback).
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: >-
+      This is a real design closure, not re-worded prose: IC-01's Risks section (plan.md
+      ~166-190) and IC-03 (retitled "Malformed org-layer content (root graph or drg/
+      fragment)...", ~188-194) now both concretely describe _load_org_layer wrapping BOTH
+      the root-level load and the drg/-level load independently, each in its own
+      try/except DRGLoadError as exc: raise OrgDRGFragmentError(...) from exc — no
+      remaining "intentionally left uncaught... escalate to a fresh spec-level
+      clarification" language survives (grepped clean). A concrete new Test Strategy row
+      (~line 439) pins the CLI-observable distinguishable-failure outcome mirroring US3's
+      shape via the --json entry point. The new design-choice note (near Contract Movement,
+      ~273-281) argues FR-004 is a floor not a ceiling; independently re-reading spec.md's
+      FR-004 text ("a malformed or invalid drg/ fragment") and both relevant Non-Goals
+      bullets (project-layer-DRGLoadError bullet, scoped explicitly to
+      ".kittify/doctrine"/project-layer, not root-vs-drg/ within the org branch) confirms
+      neither passage forbids also covering root-level org content — this matches the
+      original PLAN-ARCH-001 finding's own analysis verbatim. Traced the mechanism itself:
+      a malformed root graph now raises OrgDRGFragmentError, a type the existing
+      "except DRGLoadError" in _load_action_doctrine_bundle does not match, so it propagates
+      uncaught to the CLI's real "except Exception as e: _emit_error(..., unexpected=True)"
+      catch-all (confirmed present in src/specify_cli/cli/commands/charter/context.py) —
+      converting today's silent zeroed-but-success outcome into a real, distinguishable
+      error, which is exactly what closes the confirmed gap (remediation option (b) from
+      plan-arch.findings.yaml). `git diff d3b317a71 5ce015bff -- spec.md` is confirmed
+      empty — spec.md untouched across both rounds, consistent with the "no spec.md edit
+      needed" conclusion.
+  - id: PLAN-FRESH-003
+    status: resolved
+    reason: >-
+      Both citations (Charter Check Terminology-canon row, ~line 97; Gate Set item 2,
+      ~lines 298-306) now explicitly state test_no_legacy_terminology.py does not cover the
+      Feature/Features prohibition (only guards two unrelated legacy terms and excludes
+      kitty-specs/) and that this mission's own feature/--feature avoidance is verified by
+      manual review only, consistent with SK-11's treatment — independently confirmed
+      against the actual test file (tests/architectural/test_no_legacy_terminology.py:
+      _FORBIDDEN_TERMS = "ceremony", "status-writing"; _EXCLUDED_PATH_FRAGMENTS includes
+      "kitty-specs/"). No remaining false claim of automated Feature/Features coverage.
