@@ -1,7 +1,7 @@
 {
-  "event_count": 130,
-  "last_event_id": "01KZX7PN2QY7B2NJVY8ASNAKVW",
-  "materialized_at": "2026-08-13T09:36:54.359095+00:00",
+  "event_count": 131,
+  "last_event_id": "01KZXD3F66DZFRPTG24E7MBAEK",
+  "materialized_at": "2026-08-13T11:11:17.190734+00:00",
   "mission_number": "",
   "mission_slug": "per-project-sync-consent-ledgers-01KZKMQZ",
   "mission_type": "software-dev",
@@ -11,8 +11,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
@@ -378,15 +378,23 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "assignee": "claude",
       "force_count": 0,
-      "lane": "in_progress",
-      "last_event_id": "01KZX7PN2QY7B2NJVY8ASNAKVW",
-      "last_transition_at": "2026-08-13T09:36:54.359095+00:00",
+      "lane": "for_review",
+      "last_event_id": "01KZXD3F66DZFRPTG24E7MBAEK",
+      "last_transition_at": "2026-08-13T11:11:17.190734+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "WP11 coordinated core acceptance: starting implementation"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
+      "subtasks": {
+        "T049": "done",
+        "T050": "done",
+        "T051": "done",
+        "T052": "done",
+        "T053": "done",
+        "T054": "done"
+      },
       "tracker_refs": [
         "Priivacy-ai/spec-kitty#3262",
         "Priivacy-ai/spec-kitty-saas#585",
