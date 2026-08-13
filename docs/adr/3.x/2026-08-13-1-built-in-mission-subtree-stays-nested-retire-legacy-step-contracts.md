@@ -1,6 +1,6 @@
 ---
 title: 'ADR: The built-in mission subtree stays nested and self-contained; retire the legacy step-contract surface'
-description: 'Rejects flattening packs/built-in/missions/ into top-level dirs; fixes the nested per-type bundle as canonical and retires built_in_step_contracts (MissionStepContract) in favour of the unified MissionStep model.'
+description: 'Keeps the nested per-type packs/built-in/missions/ bundle canonical (no flattening) and retires built_in_step_contracts in favour of the unified MissionStep model.'
 status: Accepted
 date: '2026-08-13'
 related:

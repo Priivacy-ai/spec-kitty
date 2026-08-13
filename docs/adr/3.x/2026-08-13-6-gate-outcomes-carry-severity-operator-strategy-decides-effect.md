@@ -1,6 +1,6 @@
 ---
 title: 'ADR: Gate outcomes carry a typed severity; an operator-configured error-handling strategy decides the CLI effect'
-description: 'Gate verdicts (and could-not-run conditions like untrusted/crash/timeout) emit a typed severity — BLOCKING / RECOVERABLE / WARN / INFO; the operator selects an error-handling strategy in .kittify (e.g. block_above(threshold)) that maps severities to CLI effect, reconciling the existing fragmented Severity enums onto one canonical ladder.'
+description: 'Gate outcomes emit a typed severity (BLOCKING / RECOVERABLE / WARN / INFO); an operator-configured error-handling strategy in .kittify maps severities to the CLI effect.'
 status: Proposed
 date: '2026-08-13'
 related:

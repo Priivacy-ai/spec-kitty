@@ -1,6 +1,6 @@
 ---
 title: 'ADR: Executable doctrine runs only from trusted publishers (signed built-in; TOFU for the rest)'
-description: 'Shipped doctrine code (gate assets) executes only from trusted publishers: built-in is release-signed and trusted by default; org/project packs use trust-on-first-use keyed on pack-meta identity; untrusted gates are skipped with a warning and never block or prompt at run time.'
+description: 'Gate assets execute only from trusted publishers: built-in is release-signed and trusted; org/project packs use trust-on-first-use; untrusted gates are skipped with a warning.'
 status: Proposed
 date: '2026-08-13'
 related:

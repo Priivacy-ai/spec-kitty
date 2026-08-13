@@ -1,6 +1,6 @@
 ---
 title: 'ADR: Transition gates are declarative, asset-backed, first-class doctrine artefacts'
-description: 'Replaces the named-Python-handler gate registry with a first-class declarative `gate` doctrine kind whose check logic ships as an asset invoked through an entrypoint, fail-closed by default, dispatched by one generic handler.'
+description: 'Replaces the named-Python-handler gate registry with a first-class declarative `gate` kind whose check ships as an asset invoked via an entrypoint, fail-closed by default.'
 status: Proposed
 date: '2026-08-13'
 related:
