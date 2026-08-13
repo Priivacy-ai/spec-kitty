@@ -70,8 +70,10 @@ pass over files already being read.
 `src/charter/_drg_helpers.py` change), C-003 (no fifth surface — exactly the four FRs), C-004
 (targeted test packages, not the full suite).
 **Scale/Scope**: Three source files touched for code (`pack_validator.py`, `pack_assembler.py`,
-`doctrine.py`), one doc file for FR-001, four existing test files extended — no new files, no
-new package.
+`doctrine.py`), one doc file for FR-001, four existing test files extended, one `CHANGELOG.md`
+entry (documenting the FR-002/003/004 exit-code-breaking behavior change per spec.md's
+Reflexivity-section obligation, line ~539) — no new files beyond the changelog entry, no new
+package.
 
 ## Charter Check
 
@@ -212,12 +214,16 @@ For each gate: whether it applies to this mission's diff, and why.
 - **Mission-loader coverage ≥90% (`mission-loader-coverage` CI job, `:1522`, covers
   `src/specify_cli/mission_loader/**`, `events/**`, `paths/**`, `saas_client/**`, `identity/**`,
   `task_utils/**`)** — Does NOT apply. None of those paths are touched by any FR.
-- **`fast-tests-doctrine` (`--cov=doctrine --cov=charter`, `:1138`)** — Applies as a standing CI
-  job (it always runs), but expected to show **zero new-code delta** attributable to this
-  mission: this mission reads `src/doctrine/agent_profiles/repository.py` and
-  `src/doctrine/assets/repository.py` but adds/edits no line inside `src/doctrine/` or
-  `src/charter/`, so it contributes no new coverage obligation to that job even though the job
-  itself is unconditional.
+- **`fast-tests-doctrine` (`--cov=doctrine --cov=charter`, `:1138`)** — Applies, but not because
+  the job is unconditional: its `if:` condition (`needs.changes.outputs.doctrine == 'true' ||
+  github.event_name == 'push'`, `ci-quality.yml:1141-1143`) only runs unconditionally on `push`;
+  on `pull_request` events it is gated by the `doctrine` dorny path filter (`tests/doctrine/**`,
+  `ci-quality.yml:446`). This mission's own edit to `tests/doctrine/test_agent_profile_model_field.py`
+  (FR-002) falls under that filter, which is what actually triggers the job here — not job-level
+  unconditionality. Expected to show **zero new-code delta** attributable to this mission: this
+  mission reads `src/doctrine/agent_profiles/repository.py` and `src/doctrine/assets/repository.py`
+  but adds/edits no line inside `src/doctrine/` or `src/charter/`, so it contributes no new
+  coverage obligation to that job.
 - **Commitlint** — Applies to every commit (conventional commits, imperative subject, ≤72 chars
   on the summary line) — enforced by `.github/workflows/ci-quality.yml`'s `commitlint` step.
 - **Markdown lint (`markdownlint-cli2`)** — Applies: FR-001 edits
@@ -242,7 +248,18 @@ For each gate: whether it applies to this mission's diff, and why.
   styleguide ("pages without a freshness date are treated as stale").
 - **Doctrine schema freshness (`scripts/generate_schemas.py --check`)** — Applies as a standing
   CI gate, expected **no-op** — see "What Is Generated" above.
-- **Contextive glossary** — Checked directly: `grep -rn "schema_invalid\|duplicate_id\|asset_path_escape\|drg_dangling_edge"` across `src/specify_cli/.contextive/*.yml`, `src/glossary/.contextive.yml`, and `docs/context/*.md` returns **zero hits** — none of the *existing* `ValidationIssue.category` string values are glossary-tracked terms. This mission's two new category values (`profile_skipped`, `drg_root_graph_missing`) follow the same established precedent: **no glossary entry is needed**, consistent with how every prior category value was introduced, not a new exemption invented for this mission.
+- **Contextive glossary** — Checked directly across the full `.contextive.yml`/`.contextive/*.yml`
+  file set repo-wide (all 13 files), plus `docs/context/*.md`:
+
+  ```bash
+  find . -iname "*.contextive.yml" -o -path "*/.contextive/*.yml" | xargs grep -n "schema_invalid\|duplicate_id\|asset_path_escape\|drg_dangling_edge\|profile_skipped\|drg_root_graph_missing"
+  ```
+
+  Returns **zero hits** — none of the *existing* `ValidationIssue.category` string values are
+  glossary-tracked terms. This mission's two new category values (`profile_skipped`,
+  `drg_root_graph_missing`) follow the same established precedent: **no glossary entry is
+  needed**, consistent with how every prior category value was introduced, not a new exemption
+  invented for this mission.
 - **TID251 banned-API lint** — Applies, standard Python lint gate
   (`.github/workflows/ci-quality.yml:883-894`, `ruff check src tests --select TID251`); no known
   banned import is introduced by this diff (only stdlib `pathlib`, existing `doctrine.*` package
@@ -281,12 +298,19 @@ For each gate: whether it applies to this mission's diff, and why.
   `pyproject.toml` edit), so expected no-op.
 - **`uv.lock` freshness (`uv-lock-check` CI job, `:4025`)** — Applies as a standing gate;
   expected no-op, no dependency changes anywhere in this mission.
-- **SonarCloud Quality Gate** — Applies; new-code coverage is the dominant factor given the
-  mccabe/complexity-15 ceiling and the charter's "every new branch/helper needs tests" rule.
-  `_check_profile_skipped_diagnostics` and `_check_drg_root_graph_missing` are each pure,
-  testable extractions (deterministic inputs — a pack directory — deterministic outputs — a
-  list of `ValidationIssue`), and each acceptance criterion in FR-002/FR-003/FR-004 maps to a
-  narrow test exercising that exact helper's branch, per the Sonar Expectations charter section.
+- **SonarCloud Quality Gate** — Checked directly: the `sonarcloud` job's `if:` condition
+  (`always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')`,
+  `ci-quality.yml:3625`) restricts it to scheduled/manual runs — it does **not** run inside this
+  mission's own `pull_request`-triggered CI-quality workflow run, and it is not a member of
+  `quality-gate`'s blocking `needs:` list (`ci-quality.yml:4338-4392`), so it is not a per-PR
+  merge gate either. The charter's Sonar Expectations remain a binding **code-shaping**
+  constraint regardless (CLAUDE.md: "treat these as code-shaping constraints, not post-hoc
+  cleanup"), so this plan still designs to them: `_check_profile_skipped_diagnostics` and
+  `_check_drg_root_graph_missing` are each pure, testable extractions (deterministic inputs — a
+  pack directory — deterministic outputs — a list of `ValidationIssue`), and each acceptance
+  criterion in FR-002/FR-003/FR-004 maps to a narrow test exercising that exact helper's branch —
+  the same design outcome the charter section calls for, just not enforced by a per-PR CI job for
+  this mission's diff.
 
 ## The Baseline
 
@@ -299,10 +323,14 @@ red **before the first functional change lands**, using this concrete procedure:
 1. Before any FR-002/003/004 code edit, run the four C-004-targeted files against the current
    pre-change HEAD (this branch's tip, which carries only the reviewed spec + this plan, no
    functional diff yet):
-   `uv run pytest tests/specify_cli/doctrine/test_pack_validator.py
-   tests/doctrine/test_agent_profile_model_field.py
-   tests/specify_cli/doctrine/test_pack_assembler.py
-   tests/cli/test_doctrine_org_commands.py -q`
+
+   ```bash
+   uv run pytest tests/specify_cli/doctrine/test_pack_validator.py \
+     tests/doctrine/test_agent_profile_model_field.py \
+     tests/specify_cli/doctrine/test_pack_assembler.py \
+     tests/cli/test_doctrine_org_commands.py -q
+   ```
+
 2. Record the pass/fail/error set from step 1 as the mission's **local baseline** (distinct from
    and narrower than the repo-wide ~23/2 figure above — the baseline that matters here is scoped
    to exactly the four targeted files, since that is the only surface this mission's acceptance
@@ -312,9 +340,14 @@ red **before the first functional change lands**, using this concrete procedure:
    pre-existing and is not "fixed" as part of this mission's scope (per C-003, no fifth surface)
    unless it is directly one of the acceptance-criteria regression tests this mission is adding
    (in which case it is red-by-design until the corresponding FR lands, not a baseline red).
-4. This procedure is run once per FR (or once for the FR-002+003+004 combined lane, if
-   implemented as a single lane per "Chokepoint" below) — not once globally — so a reviewer can
-   trace exactly which FR's change flipped which test.
+4. "Chokepoint" below firmly commits FR-002+FR-003+FR-004 to one lane (Lane B), sequenced
+   internally FR-003 → FR-002 → FR-004 — this is not a contingency, so this step is not either.
+   Within Lane B, this procedure runs **once at Lane B's start (step 1's baseline) and once more
+   after each of the three sequenced commits** — three re-captures, not one combined-lane
+   re-capture — so a regression is attributable to the specific commit (FR-003's, FR-002's, or
+   FR-004's) that produced it, matching IC-02/IC-03/IC-04's own sequencing order above. FR-001
+   (Lane A, documentation-only) carries no test surface (per C-004's own annotation) and is
+   outside this procedure entirely.
 
 This is not "the suite is red" reported as a finding; it is the documented pre-check that makes
 later red attributable.
@@ -473,6 +506,14 @@ tests/
 └── cli/
     └── test_doctrine_org_commands.py       # FR-004 AC-7 — assert check_drg_root=False is the
                                               #   actual parameter value at org_validate's call
+
+CHANGELOG.md                                 # Repo root — entry documenting that `pack validate`
+                                              #   now fails (exit code 1) for three previously-
+                                              #   passing pack shapes (FR-002/003/004), per
+                                              #   spec.md's Reflexivity-section obligation
+                                              #   (:539) and charter.md:401's binding "Breaking
+                                              #   changes documented in CHANGELOG.md" checklist
+                                              #   item. See FR-004's IC-04 for the work item.
 ```
 
 **Structure Decision**: Single project (Python CLI package), no frontend/mobile/web split. All
@@ -581,6 +622,14 @@ trade-off, which is not anticipated.
   - `doctrine.py` — `org_validate`'s `validate_pack(pack_path)` call (`:966`) becomes
     `validate_pack(pack_path, check_drg_root=False)`. `pack_validate`'s call (`:370`) is
     unchanged — it gets the default `True`.
+  - `CHANGELOG.md` — new entry documenting that `pack validate` now fails (exit code 1) for
+    three previously-passing pack shapes: merge-time-skipped agent profiles (FR-002), nested
+    `assets/<pack>/x.asset.yaml` manifests with schema violations (FR-003), and DRG content
+    living only under `drg/` with no pack-root `*.graph.yaml` (FR-004). This is required by
+    spec.md's own Reflexivity-section obligation ("should be called out in the mission's
+    changelog entry / release note at merge time, not just in this spec," `spec.md:539`) and
+    the charter's binding Code Review Checklist item ("Breaking changes documented in
+    CHANGELOG.md," `charter.md:401`). Part of this mission's PR, not deferred.
 - **Sequencing/depends-on**: Lane B, sequenced third/last within the lane (touches the most
   surfaces: new helper, signature change, two carve-out call sites in the other two files).
   Cannot start meaningfully before FR-002 lands in the same lane only in the sense that both
