@@ -210,6 +210,45 @@ def _emit_mission_state(report: object, *, json_output: bool, pretty_renderer: C
         pretty_renderer(report)
 
 
+def _heal_duplicate_key_artifacts(
+    repo_root: Path,
+    fixture_dir: Path | None,
+    allow_dirty: bool,
+    json_output: bool,
+) -> None:
+    """Opt-in FR-008 heal: repair legacy dual-key ``review_feedback`` artifacts.
+
+    Runs as part of ``--fix`` (``doctor`` itself is unconditionally SAFE), before
+    the mission-state canonicalization, so a project is healed *before* an
+    upgrade trips over the invalid YAML. Batch-atomic + non-destructive; an
+    un-repairable artifact aborts with a non-zero exit and leaves the corpus
+    untouched.
+    """
+    from specify_cli.migration.mission_state import (
+        MissionStateRepairError,
+        repair_duplicate_key_artifacts,
+    )
+    from specify_cli.status.dup_key_repair import DuplicateKeyRepairError
+
+    try:
+        report = repair_duplicate_key_artifacts(
+            repo_root, scan_root=fixture_dir, allow_dirty=allow_dirty
+        )
+    except (DuplicateKeyRepairError, MissionStateRepairError) as exc:
+        if json_output:
+            _emit_json_error("DUPLICATE_KEY_REPAIR_FAILED", message=str(exc))
+        else:
+            typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+    healed = sum(len(result.file_changes) for result in report.missions)
+    if healed and not json_output:
+        console.print(
+            f"[green]Healed {healed} duplicate-key artifact(s)[/green] "
+            f"(keep-last-non-empty). Manifest: {report.manifest_path}"
+        )
+
+
 def _run_mission_repair(
     repo_root: Path,
     fixture_dir: Path | None,
@@ -220,6 +259,9 @@ def _run_mission_repair(
 ) -> None:
     """Execute the --fix dispatch arm: repair repo and emit the manifest."""
     from specify_cli.migration.mission_state import MissionStateRepairError, repair_repo
+
+    # FR-008: heal legacy dual-key artifacts before mission-state canonicalization.
+    _heal_duplicate_key_artifacts(repo_root, fixture_dir, allow_dirty, json_output)
 
     try:
         report = repair_repo(
