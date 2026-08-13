@@ -14,6 +14,7 @@
 - **Q1 (Defect #1 — step-contract glob/suffix mismatch, and whether to fix it on the legacy `MissionStepContract` surface given the accepted-but-not-yet-implemented retirement ADR):** Should this mission fix the `*.contract.yaml` vs `*.step-contract.yaml` mismatch on the legacy `step_contracts.py` surface now, or defer to PR #3378's `MissionStep` unification?
   **A1 — Decision: fix it now, on the current legacy `MissionStepContract` / `step_contracts.py` surface.** Scope: a shared suffix constant consumed by `step_contracts.py`, `pack_validator.py`, and the snapshot bucket table (see correction below); the guide correction at `docs/guides/how-to/governance/create-an-org-doctrine-pack.md:65` and `:140` (currently document `*.contract.yaml`, must match the loader's actual `*.step-contract.yaml`); and a regression test proving that a contract file authored with the guide's old, incorrect suffix now produces a named diagnostic instead of silent non-loading.
   **Rationale:** this closes a live, guide-matching authoring trap that every pack author following the *currently published* guide hits today. Open PR #3378 carries ADR `docs/adr/3.x/2026-08-13-1-built-in-mission-subtree-stays-nested-retire-legacy-step-contracts.md`, which decides to retire the entire `MissionStepContract` / `step_contracts.py` surface in favor of a unified `MissionStep` model. Re-verified directly against PR #3378's current head commit (`37a38274…`; `gh pr view 3378` confirms `state: OPEN`, unmerged) rather than trusting an earlier read: this specific ADR's frontmatter and body both read `status: Accepted`, `**Status:** Accepted`, `**Date:** 2026-08-13`, `**Deciders:** Operator (ATDD)` — **the retirement decision is ratified**, unlike the other five ADRs bundled into the same PR (`2026-08-13-2` through `-6`, the gate ADRs), which genuinely remain `Proposed`. What has **not** happened is the *implementation*: PR #3378 is a docs-only design-review PR (no code changes) and is unmerged, so `step_contracts.py` / `MissionStepContract` still exist on `main`, unchanged, today; the ADR's own "Confirmation" section names a large, not-yet-started cross-cutting migration (~45 src files + ~40 test files) as the precondition for actually deleting the surface. **This mission deliberately proceeds on the legacy surface because the retirement, while decided, has not been executed.** When that migration lands and `step_contracts.py` is deleted, this fix (a handful of lines plus one test file) is deleted with it at negligible sunk cost — named here so a reviewer does not discover the tension unaided and file it as scope drift.
+  **Superseded by binding operator ruling (2026-08-13, `reviews/spec.ruling.md`):** the code-change scope described in this A1 (shared suffix constant, validator mismatch diagnostic, `_ARTIFACT_BUCKETS` removal) is dropped. FR-001 below is narrowed to the guide correction only, documentation-only, per that ruling and ADR `2026-08-13-1`. This A1 is preserved verbatim as the historical record of the 2026-08-13 clarification session; it no longer states FR-001's current scope — see the ruling and FR-001's requirement text for the binding scope.
 
 - **Q2 (Defect #2 — misfielded agent profiles silently skipped; is the issue's "`pack validate` passes" claim still true?):** Is it still true, on this checkout, that `pack validate` passes silently for a misfielded (extra-key) agent-profile YAML, as the issue claims?
   **A2 — Decision: the claim is FALSE on this checkout; corrected scope below.** `src/doctrine/agent_profiles/profile.py:258` (`AgentProfile.model_config = ConfigDict(extra="forbid", populate_by_name=True)`) was added by commit `f732e10d6` ("feat(WP04): GREEN — forbid undeclared fields, derive the writers from the model"), dated 2026-07-27 — an ANCESTOR of `4a2367539` (`git merge-base --is-ancestor f732e10d6 4a2367539` succeeds; re-verified directly on this checkout, not merely asserted). `pack validate` today correctly emits a `schema_invalid` error for a misfielded profile YAML (Pydantic's `extra inputs are not permitted`) via `pack_validator.py`'s generic per-file schema scan (`_scan_artifact_directory`, using the `AgentProfile` model directly). **That acute half of the issue's claim was already closed before the issue was filed and this spec does NOT re-specify it as broken.**
@@ -73,45 +74,51 @@ numbers) before being cited in a requirement.
 | Step-contract loader glob | `src/doctrine/missions/step_contracts.py:174` | `GLOB = "*.step-contract.yaml"`, consumed by `MissionStepContractRepository` (built-in `rglob`, org/project `glob` via the shared `BaseDoctrineRepository`). |
 | Step-contract validator glob | `src/specify_cli/doctrine/pack_validator.py:181` | `_artifact_schema_registry()` already maps `"mission_step_contracts": ("*.step-contract.yaml", MissionStepContract)` — the validator's glob is **already correct** and therefore silently matches nothing against a `*.contract.yaml` file, exactly like the loader. |
 | Guide's documented suffix | `docs/guides/how-to/governance/create-an-org-doctrine-pack.md:65` and `:140` | Both instances document `*.contract.yaml` (layout tree + namespace table), unchanged from the issue's citation — no drift. |
-| **Corrected: snapshot bucket-counting mechanism** | `src/specify_cli/doctrine/snapshot.py:53-65` vs `:195-212` | The issue cites `snapshot.py:53-65` with `endswith("contract.yaml")` semantics as the counter that "counts" a mis-suffixed contract. On this checkout, `_ARTIFACT_BUCKETS` (`:53-65`) is defined but **never referenced by any other code in the file or the repo** (`grep -rn "_ARTIFACT_BUCKETS" src/ tests/` returns only its own definition) — it is dead code. The function that actually populates `pack-manifest.yaml`'s `artifact_counts` is `_count_artifacts` (`:195-212`), which counts by **directory membership**, not filename suffix: for the `mission_step_contracts/` directory it runs `entry.rglob("*.yaml")` and counts *every* `.yaml` file inside, regardless of suffix. The net effect the issue describes (a mis-suffixed contract is counted by the snapshot but never loaded) **still holds**, but through `_count_artifacts`'s directory-glob, not the dead `_ARTIFACT_BUCKETS`/`endswith` path the issue names. FR-001 unifies both: it **removes** the dead `_ARTIFACT_BUCKETS` table (the default action, since it has zero consumers), falling back to wiring it to the same shared suffix constant only if a concrete future consumer is identified at plan/implementation time, and leaves `_count_artifacts`'s directory-based counting behavior alone (it is not suffix-discriminating by design and is not the defect). |
+| **Corrected: snapshot bucket-counting mechanism** | `src/specify_cli/doctrine/snapshot.py:53-65` vs `:195-212` | The issue cites `snapshot.py:53-65` with `endswith("contract.yaml")` semantics as the counter that "counts" a mis-suffixed contract. On this checkout, `_ARTIFACT_BUCKETS` (`:53-65`) is defined but **never referenced by any other code in the file or the repo** (`grep -rn "_ARTIFACT_BUCKETS" src/ tests/` returns only its own definition) — it is dead code. The function that actually populates `pack-manifest.yaml`'s `artifact_counts` is `_count_artifacts` (`:195-212`), which counts by **directory membership**, not filename suffix: for the `mission_step_contracts/` directory it runs `entry.rglob("*.yaml")` and counts *every* `.yaml` file inside, regardless of suffix. The net effect the issue describes (a mis-suffixed contract is counted by the snapshot but never loaded) **still holds**, but through `_count_artifacts`'s directory-glob, not the dead `_ARTIFACT_BUCKETS`/`endswith` path the issue names. Per the binding operator ruling narrowing FR-001 to a documentation-only guide correction (`reviews/spec.ruling.md`), this mission does **not** remove `_ARTIFACT_BUCKETS` — its removal is deferred to ADR `2026-08-13-1`'s retirement of the legacy step-contract surface, since it is domain-matched debt on the surface being deleted wholesale, not on this mission's org-pack-authoring-diagnostics domain. `_count_artifacts`'s directory-based counting behavior is unchanged by this mission (it is not suffix-discriminating by design and is not the defect FR-001 now addresses). |
 | Asset repository recursion + rationale | `src/doctrine/assets/repository.py:18-22` (docstring), `:130-132` (`_project_scan`) | Docstring point 2 ("Recursive overlay discovery (A-3)") states the rationale verbatim: a non-recursive `glob` would never find `assets/<pack>/x.asset.yaml`. `_project_scan` overrides the base with `project_dir.rglob(self._glob)`. |
 | Validator's non-recursive asset scan | `src/specify_cli/doctrine/pack_validator.py:202-206` | `_scan_files` recurses (`rglob`) only for `directory.name == "styleguides"`; all other kinds, `"assets"` included, get `directory.glob(glob)`. |
 | Agent-profile skip machinery | `src/doctrine/agent_profiles/repository.py:293-309` (`_record_skip`), `:311-320` (`skipped_profiles`) | Both exist and are populated today at load time; nothing in `pack_validator.py` calls either. |
 | Agent-profile closed schema | `src/doctrine/agent_profiles/profile.py:258` | `model_config = ConfigDict(extra="forbid", populate_by_name=True)`, added by `f732e10d6` (2026-07-27), an ancestor of the issue's cited verification commit `4a2367539`. |
 | DRG fragment-only validator scope | `src/specify_cli/doctrine/pack_validator.py:480-609` (`_validate_drg`) | Only inspects `drg_dir.glob("*.graph.yaml")` (`:506`) — no pack-root scan exists anywhere in the function or the file. |
 | Runtime DRG carrier | `src/charter/_drg_helpers.py:36-92` (`_resolve_org_root`, `load_validated_graph`) | `_resolve_org_root` always returns `None` (charter-layer-inert, by the `kernel <- doctrine <- charter <- specify_cli` layering); `load_validated_graph` calls `load_graph_or_dir(org_root)` — reads the pack root directly, never `org_root / "drg"`. |
-| `pack validate` CLI entry point | `src/specify_cli/cli/commands/doctrine.py:348-372` (`pack_validate`) | Thin wrapper: calls `validate_pack(pack_path)` then `render_validation_result(result, json_output=...)`; exit code `0`/`1` on `result.ok`. Both FR-001's and FR-002's new diagnostics flow through this same `ValidationResult`/`ValidationIssue` surface — no new CLI command or flag is introduced. |
+| `pack validate` CLI entry point | `src/specify_cli/cli/commands/doctrine.py:348-372` (`pack_validate`) | Thin wrapper: calls `validate_pack(pack_path)` then `render_validation_result(result, json_output=...)`; exit code `0`/`1` on `result.ok`. FR-002's, FR-003's, and FR-004's new diagnostics flow through this same `ValidationResult`/`ValidationIssue` surface — no new CLI command or flag is introduced. FR-001 is documentation-only per the binding operator ruling (`reviews/spec.ruling.md`) and adds no diagnostic to this surface. |
 | **Reflexivity: `validate_pack`'s other callers** | `src/specify_cli/doctrine/pack_assembler.py:335` (`assemble_pack`'s internal `validate_pack(output_dir)` call, rollback on `!ok`), `:475-539` (`_copy_drg_fragments`, writes DRG content only to `output_dir/drg/*.graph.yaml`, never a pack-root graph); `src/specify_cli/cli/commands/doctrine.py:966` (`org_validate`'s `validate_pack(pack_path)` call, reached via the CLI's `doctrine org init` → `doctrine org validate` onboarding flow) and `:899-940` (`org_init`'s scaffold: `org-charter.yaml` + `drg/fragment.yaml` + `README.md` — no pack-root graph) | `validate_pack` is called not only by the author-facing `pack validate` CLI above but also internally by the assembler as a round-trip check on its own freshly-built output, and by the narrower `doctrine org validate` command against a pack scaffolded by `doctrine org init`. Because `_copy_drg_fragments` never writes a pack-root graph, and `org_init`'s scaffold is, by design, an org DRG-extension-fragment stub (meant to be merged into a base/host doctrine tree elsewhere, never read standalone), both the assembler's output and every `org init`-scaffolded pack are, by construction, exactly the shape FR-004 targets — see FR-004's "Reflexivity fix" for how the new check is scoped to avoid breaking either call. `tests/specify_cli/doctrine/test_pack_assembler.py:169` `test_force_dedup_prunes_duplicate_edges_via_canonical_serializer` (the only currently-passing test that actually reaches `validate_pack` on this shape — `:151`'s `test_drg_conflict` returns via an earlier conflict-detection guard and never reaches `validate_pack` at all, so it is not cited as reflexivity evidence) and `tests/cli/test_doctrine_org_commands.py:108` `test_doctrine_org_validate_accepts_valid_pack` both continue to pass once each call site's carve-out is in place. |
 
 ---
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Author gets caught immediately when a step contract uses the guide's documented suffix (Priority: P1)
+### User Story 1 - Author reads the corrected guide and never hits the suffix trap (Priority: P1)
 
-An org-pack author follows the published guide, names a file
-`mission_step_contracts/acme-msc-001.contract.yaml` (the guide's current, incorrect
-suffix), and runs `spec-kitty doctrine pack validate ./my-pack`.
+An org-pack author opens the published guide
+(`docs/guides/how-to/governance/create-an-org-doctrine-pack.md`) before authoring a step
+contract, reads the layout tree (`:65`) and the namespace table (`:140`), and names their
+file per the guide's documented suffix.
 
-**Why this priority**: this is the exact trap every pack author following the *current*
-guide hits on their first contract. It currently produces total silence — the highest-harm
-defect in the issue.
+**Why this priority**: per the binding operator ruling narrowing FR-001 to a
+documentation-only requirement (`reviews/spec.ruling.md`), the guide text itself was the
+trap — every pack author following the *previously published* guide named their file
+`*.contract.yaml`, a suffix neither the loader nor the validator has ever matched, and got
+silence. Correcting the guide is the highest-leverage, lowest-risk fix available given that
+the surface the guide describes is itself slated for retirement under ADR `2026-08-13-1`
+(Accepted) — this mission does not invest further implementation effort in a surface an
+Accepted ADR retires wholesale.
 
-**Independent Test**: author a pack with only a `mission_step_contracts/` directory
-containing a single `*.contract.yaml` file (no `*.step-contract.yaml` sibling); run `pack
-validate --json`; assert the JSON payload names the offending file and states the expected
-suffix, and the process exits `1`.
+**Independent Test**: read
+`docs/guides/how-to/governance/create-an-org-doctrine-pack.md` at `:65` and `:140`; assert
+both cite `*.step-contract.yaml`, not `*.contract.yaml`; assert the same guide section
+cites ADR `2026-08-13-1` and states the surface's retirement trajectory.
 
 **Acceptance Scenarios**:
 
-1. **Given** a pack whose `mission_step_contracts/` directory contains only
-   `foo.contract.yaml`, **When** `pack validate` runs, **Then** it reports one error whose
-   `category` names the suffix mismatch, whose `file` is the offending path, and whose
-   `message` states the expected suffix (`*.step-contract.yaml`) — not a silent `0
-   mission_step_contracts` scan with no diagnostic.
-2. **Given** the same pack, **When** an author instead names the file
-   `foo.step-contract.yaml` (the corrected guide's suffix), **Then** `pack validate`
-   reports no error for that file and the loader (`MissionStepContractRepository`) loads it.
+1. **Given** the corrected guide, **When** an author reads the layout tree at `:65` and the
+   namespace table at `:140`, **Then** both instruct `*.step-contract.yaml` — the suffix
+   the loader (`step_contracts.py`) and `pack_validator.py`'s own registry already require
+   — not the guide's previous, incorrect `*.contract.yaml`.
+2. **Given** the corrected guide, **When** an author reads the same section, **Then** it
+   names ADR `2026-08-13-1` and states that this step-contract surface is slated for
+   retirement in its entirety, so the author does not treat the corrected suffix as a
+   durable authoring target.
 
 ---
 
@@ -208,10 +215,6 @@ mismatch and points at the pack-root carrier the runtime actually reads.
 
 ### Edge Cases
 
-- A pack with **both** `foo.contract.yaml` and `foo.step-contract.yaml` for what is clearly
-  the same intended contract (same stem before the suffix): FR-001's diagnostic still fires
-  for the stray `*.contract.yaml` file; it is a distinct file from the validator's
-  perspective and the author needs to know it is dead weight, not a working duplicate.
 - An org-pack whose `agent_profiles/` directory is entirely absent: FR-002's new check must
   not attempt to instantiate `AgentProfileRepository` in a way that raises for a missing
   directory — absent directory means zero skips, not an error.
@@ -231,62 +234,52 @@ mismatch and points at the pack-root carrier the runtime actually reads.
 
 | ID | Title | User Story | Priority | Status |
 |----|-------|------------|----------|--------|
-| FR-001 | Shared step-contract suffix constant + validator mismatch diagnostic + guide correction | User Story 1 | High | Open |
+| FR-001 | Guide correction for the step-contract suffix (documentation-only) | User Story 1 | High | Open |
 | FR-002 | `pack validate` surfaces `skipped_profiles` inline (residual gap only) | User Story 2 | High | Open |
 | FR-003 | `pack validate` recurses into `assets/` matching `AssetRepository` | User Story 3 | Medium | Open |
 | FR-004 | `pack validate` advisory/error for DRG-only-under-`drg/` with no pack-root graph | User Story 4 | Medium | Open |
 
-#### FR-001 — Shared step-contract suffix constant + validator mismatch diagnostic + guide correction
+#### FR-001 — Guide correction for the step-contract suffix (documentation-only)
 
-**Requirement**: Introduce one shared suffix constant for the mission-step-contract glob,
-consumed by `step_contracts.py`'s `MissionStepContractRepository.GLOB` and
-`pack_validator.py`'s `_artifact_schema_registry()` entry for `"mission_step_contracts"`
-(both already agree on `"*.step-contract.yaml"` today — this step is de-duplication, not a
-behavior change, and closes the drift risk that let the two definitions diverge from the
-guide in the first place). **Remove `snapshot.py`'s dead `_ARTIFACT_BUCKETS` table** — it is
-proven dead code (`grep -rn "_ARTIFACT_BUCKETS" src/ tests/` returns only its own
-definition; see "Verified Code Surfaces" correction) and deleting it is strictly simpler than
-wiring a second, unused table to the shared constant. Only if a concrete future consumer for
-`_ARTIFACT_BUCKETS` is identified during plan/implementation should it instead be extended to
-consume the same constant rather than removed; absent that, removal is the default so no
-third hand-maintained suffix string exists anywhere in the pack authoring pipeline. Add a new
-`pack_validator.py` diagnostic: when a recognized artifact
-directory (starting with `mission_step_contracts/`) contains a file that does not match the
-directory's expected glob but *looks like* a near-miss for that artifact kind (i.e., a
-`*.contract.yaml` file with no matching `*.step-contract.yaml`), emit a named error instead
-of the current silent zero-match. Correct the guide
-(`docs/guides/how-to/governance/create-an-org-doctrine-pack.md:65` and `:140`) from
-`*.contract.yaml` to `*.step-contract.yaml` in both the layout tree and the namespace table.
+**Requirement**: Documentation-only, per the binding operator ruling
+(`reviews/spec.ruling.md`) that replaces the acceptance bar for FR-001 and C-001. Correct
+`docs/guides/how-to/governance/create-an-org-doctrine-pack.md` at `:65` (the layout tree)
+and `:140` (the namespace table) from `*.contract.yaml` to `*.step-contract.yaml`, so the
+guide stops instructing authors to create files the loader can never read. In the same
+guide, point authors at ADR `2026-08-13-1`
+(`docs/adr/3.x/2026-08-13-1-built-in-mission-subtree-stays-nested-retire-legacy-step-contracts.md`,
+status `Accepted`) so a reader learns that this entire step-contract surface —
+`step_contracts.py`, the `MissionStepContract` model, and this suffix — is slated for
+retirement in its entirety, and does not treat the corrected suffix as a durable authoring
+target. FR-001 changes **no code**: it does not introduce a shared suffix constant, does
+not add a `pack_validator.py` near-miss mismatch diagnostic for `*.contract.yaml` files,
+and does not remove `snapshot.py`'s `_ARTIFACT_BUCKETS` table — all three were dropped from
+this mission's scope by the ruling, which found each to be work that would land on a
+surface an Accepted ADR retires wholesale (see C-001).
 
-**Fails how**: before this fix, a mis-suffixed contract file produces **zero** diagnostics
-from `pack validate` (empty glob match, no error path) and **zero** loaded contracts from
-the runtime, while the doctrine snapshot's `artifact_counts` (via `_count_artifacts`'s
-directory-based `*.yaml` glob) counts it as present — an author sees "1 contract" in the
-snapshot and a clean `pack validate`, and gets zero working contracts. After this fix,
-`pack validate` names the specific file and the expected suffix; it does not guess at
-intent or attempt to auto-rename the file.
+**Fails how**: before this fix, the guide instructs authors to name step-contract files
+`*.contract.yaml`, a suffix neither the loader (`step_contracts.py`) nor
+`pack_validator.py`'s own registry has ever matched — every author following the
+currently published guide produces files that silently never load, and `pack validate`
+silently reports nothing. After this fix, the guide documents the suffix the loader and
+validator actually use, and directs the author to ADR `2026-08-13-1` for the surface's
+retirement trajectory. This requirement corrects the guide's instruction only; it does not
+add any new runtime or validator behavior. A pack authored with the stale
+`*.contract.yaml` suffix still passes `pack validate` silently after this mission — that
+residual gap is an accepted consequence of deferring the whole surface to ADR
+`2026-08-13-1`'s retirement, not a defect this mission closes.
 
 **Acceptance Criteria**:
-- AC-1: A pack with only `mission_step_contracts/foo.contract.yaml` fails `pack validate`
-  with a new, named diagnostic category identifying the file and stating the expected
-  `*.step-contract.yaml` suffix. Exit code is `1`.
-- AC-2: The same pack, with the file renamed to `foo.step-contract.yaml`, passes `pack
-  validate` for that file and is loaded successfully by
-  `MissionStepContractRepository.get_by_action` in a round-trip test.
-- AC-3: `docs/guides/how-to/governance/create-an-org-doctrine-pack.md` documents
-  `*.step-contract.yaml` at both cited locations; no remaining reference to
-  `*.contract.yaml` as the mission-step-contract suffix exists in that guide.
-- AC-4: A regression test in `tests/doctrine/mission_step_contracts/` or
-  `tests/specify_cli/doctrine/test_pack_validator.py` authors a contract file using the
-  guide's old, now-corrected-away-from suffix and asserts the new diagnostic fires — proving
-  the exact authoring mistake the guide used to lead authors into is now caught, not silent.
-- AC-5: A pack with **both** `mission_step_contracts/foo.contract.yaml` and
-  `mission_step_contracts/foo.step-contract.yaml` present simultaneously (same stem before
-  the suffix) still produces the AC-1 diagnostic for `foo.contract.yaml` — the presence of a
-  correctly-suffixed sibling does not suppress the near-miss diagnostic for the stray file
-  (Edge Cases bullet 1).
-- **Targeted test surface**: `tests/specify_cli/doctrine/test_pack_validator.py`,
-  `tests/specify_cli/doctrine/test_snapshot.py`, `tests/doctrine/mission_step_contracts/`.
+- AC-1: `docs/guides/how-to/governance/create-an-org-doctrine-pack.md` documents
+  `*.step-contract.yaml` at both `:65` (layout tree) and `:140` (namespace table); no
+  remaining reference to `*.contract.yaml` as the mission-step-contract suffix exists in
+  that guide.
+- AC-2: The same guide section cites ADR `2026-08-13-1` and states that the step-contract
+  surface it documents is slated for retirement in its entirety, so a reader does not treat
+  the corrected suffix as a durable authoring target.
+- **Targeted test surface**: None. This FR is documentation-only per the binding operator
+  ruling (`reviews/spec.ruling.md`); it touches no code, adds no validator diagnostic, and
+  contributes no entry to C-004's targeted test list.
 
 #### FR-002 — `pack validate` surfaces `skipped_profiles` inline (residual gap only)
 
@@ -507,10 +500,10 @@ own known drg/-fragments-only output, unaffected by this new author-facing diagn
 
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|----------|--------|
-| C-001 | Legacy surface only | FR-001 touches `step_contracts.py` / the legacy `MissionStepContract` model only; it must not touch, extend, or begin migrating toward the unified `MissionStep` model targeted by ADR `2026-08-13-1` (PR #3378) — that ADR is `Accepted` (ratified as a design decision) but its retirement of `step_contracts.py` has not yet been implemented; PR #3378 is docs-only and unmerged. | Technical | High | Open |
+| C-001 | Documentation-only; no code touched | Per the binding operator ruling (`reviews/spec.ruling.md`), FR-001 changes **no code at all**: it corrects `docs/guides/how-to/governance/create-an-org-doctrine-pack.md`'s documented step-contract suffix and points authors at ADR `2026-08-13-1`. It must not touch, extend, or de-duplicate `step_contracts.py`, `pack_validator.py`'s `_artifact_schema_registry()`, `snapshot.py`'s `_ARTIFACT_BUCKETS`, or any other code on the legacy `MissionStepContract` surface — ADR `2026-08-13-1` is `Accepted` and retires that entire legacy step-contract surface (PR #3378 unmerged, docs-only) in favor of the unified `MissionStep` model; investing implementation effort in a surface an Accepted ADR retires wholesale is work that lands and is then deleted. | Technical | High | Open |
 | C-002 | No runtime DRG-carrier change | FR-004 must not modify `src/charter/_drg_helpers.py`, `load_graph_or_dir`, or `load_validated_graph` — that surface belongs to sibling mission #3384 (`org-pack-drg-root-graph-guard-01KZY0QT`), in spec phase concurrently. | Technical | High | Open |
 | C-003 | No fifth surface | This mission's scope is bounded to exactly the four FRs above. No additional pack-authoring defect surfaced during implementation should be folded in without a scope amendment. | Process | Medium | Open |
-| C-004 | Targeted test packages, not full suite | Per the charter's binding Testing Requirements section, validation runs only the test packages named per FR (`tests/specify_cli/doctrine/test_pack_validator.py`, `tests/specify_cli/doctrine/test_snapshot.py`, `tests/doctrine/mission_step_contracts/`, `tests/doctrine/test_agent_profile_model_field.py`, `tests/specify_cli/doctrine/test_pack_assembler.py`, `tests/cli/test_doctrine_org_commands.py`), not a full `pytest tests/` gate. | Process | High | Open |
+| C-004 | Targeted test packages, not full suite | Per the charter's binding Testing Requirements section, validation runs only the test packages named per FR (`tests/specify_cli/doctrine/test_pack_validator.py`, `tests/doctrine/test_agent_profile_model_field.py`, `tests/specify_cli/doctrine/test_pack_assembler.py`, `tests/cli/test_doctrine_org_commands.py`), not a full `pytest tests/` gate. FR-001 is documentation-only per the binding operator ruling (`reviews/spec.ruling.md`) and contributes no test surface of its own. | Process | High | Open |
 
 ---
 
@@ -520,19 +513,29 @@ This change alters `pack validate`, a surface other running missions and CI jobs
 Per the charter's reflexivity expectation, the following consequences are explicit and
 intended:
 
-- **A pack that validated clean yesterday can start failing today.** All four FRs are new
-  *diagnostics for pre-existing defects*, not new restrictions on previously-correct
-  content. A pack with a `*.contract.yaml` stray file, a profile with a merge-time skip, a
-  nested asset manifest, or `drg/`-only content was **already broken at runtime** before
-  this mission — `pack validate`'s silence was itself the defect. This mission does not
-  regress any pack that was genuinely working; it removes false-positive "healthy" reports
-  from packs that were already delivering nothing for the affected artifact.
+- **A pack that validated clean yesterday can start failing today for FR-002/003/004's
+  shapes.** Three of the four FRs — FR-002, FR-003, and FR-004 — are new *diagnostics for
+  pre-existing defects*, not new restrictions on previously-correct content. A profile with
+  a merge-time skip, a nested asset manifest, or `drg/`-only content was **already broken at
+  runtime** before this mission — `pack validate`'s silence was itself the defect. This
+  mission does not regress any pack that was genuinely working; it removes false-positive
+  "healthy" reports from packs that were already delivering nothing for the affected
+  artifact. **FR-001 is the exception**: per the binding operator ruling narrowing it to a
+  documentation-only guide correction (`reviews/spec.ruling.md`), it adds no new `pack
+  validate` diagnostic — a pack with a stray `*.contract.yaml` file continues to pass `pack
+  validate` silently after this mission, exactly as before. That residual gap is accepted
+  as a consequence of deferring the whole surface to ADR `2026-08-13-1`'s retirement, not
+  closed by this mission.
 - **CI jobs that gate on `pack validate`'s exit code** (e.g. an org's own pack-repo CI
   calling `spec-kitty doctrine pack validate --json` per the guide's Step 5) will newly fail
-  for packs exhibiting any of these four shapes. This is the intended effect — it is the
-  entire point of the mission — but it is a real, visible behavior change for any pack in
-  the wild today and should be called out in the mission's changelog entry / release note
-  at merge time, not just in this spec.
+  for packs exhibiting FR-002/003/004's three shapes (a profile merge-time skip, a nested
+  asset manifest, or `drg/`-only content). This is the intended effect — it is the entire
+  point of the mission for those three FRs — but it is a real, visible behavior change for
+  any pack in the wild today and should be called out in the mission's changelog entry /
+  release note at merge time, not just in this spec. FR-001's shape (a stray
+  `*.contract.yaml` step-contract file) is unaffected: no new diagnostic is added for it, so
+  `pack validate`'s exit code does not change for that shape — only the guide's documented
+  suffix changes.
 - **`spec-kitty doctor doctrine --json`'s existing `skipped_profiles` reporting is
   unaffected** — FR-002 adds a second surface for the same underlying data; it does not
   remove or change the `doctor doctrine` command.
@@ -548,16 +551,18 @@ intended:
 
 Per Charter Standing Order #2 (campsite cleaning) and #3 (mission tracer files):
 
-- The five touched files (`pack_validator.py`, `snapshot.py`, `step_contracts.py`,
-  `pack_assembler.py`, `doctrine.py`) carry pre-existing Sonar/complexity debt worth a look
-  before or alongside the functional change — in particular `pack_validator.py`'s
-  `validate_pack()` is already a long orchestration function and
-  `_scan_artifact_directory`'s docstring already notes it was extracted to stay under ruff's
-  C901 limit; adding FR-001/002/004's new checks should follow the same extract-a-helper
-  discipline rather than growing `validate_pack()` in place. `pack_assembler.py` and
-  `doctrine.py` are touched only for FR-004's Reflexivity fix (the `check_drg_root=False`
-  carve-outs at `assemble_pack()`'s and `org_validate`'s call sites respectively) — a narrow,
-  single-call-site edit each, not a rewrite. This is a planning-phase call, not specified
+- The three touched files (`pack_validator.py`, `pack_assembler.py`, `doctrine.py`) carry
+  pre-existing Sonar/complexity debt worth a look before or alongside the functional change
+  — in particular `pack_validator.py`'s `validate_pack()` is already a long orchestration
+  function and `_scan_artifact_directory`'s docstring already notes it was extracted to stay
+  under ruff's C901 limit; adding FR-002/004's new checks should follow the same
+  extract-a-helper discipline rather than growing `validate_pack()` in place.
+  `pack_assembler.py` and `doctrine.py` are touched only for FR-004's Reflexivity fix (the
+  `check_drg_root=False` carve-outs at `assemble_pack()`'s and `org_validate`'s call sites
+  respectively) — a narrow, single-call-site edit each, not a rewrite. Per the binding
+  operator ruling narrowing FR-001 to a documentation-only guide correction
+  (`reviews/spec.ruling.md`), `snapshot.py` and `step_contracts.py` are **not** touched by
+  this mission's code — the guide fix only. This is a planning-phase call, not specified
   further here — campsite-cleaning is scoped to domain-matched debt in files this mission
   touches, not a grab-bag.
 - Mission tracer files (tooling-friction, approach, design-decisions) are seeded at planning
@@ -585,10 +590,14 @@ by the time the mission closes.
 
 ### Measurable Outcomes
 
-- **SC-001**: A pack authored with the guide's pre-fix step-contract suffix
-  (`*.contract.yaml`) fails `pack validate` with a named, per-file diagnostic; the identical
-  pack authored with the corrected suffix (`*.step-contract.yaml`) passes validation and the
-  contract loads via `MissionStepContractRepository`.
+- **SC-001**: `docs/guides/how-to/governance/create-an-org-doctrine-pack.md` documents
+  `*.step-contract.yaml` (not `*.contract.yaml`) at both `:65` and `:140`, and cites ADR
+  `2026-08-13-1` so an author learns the surface is slated for retirement. Per the binding
+  operator ruling (`reviews/spec.ruling.md`), FR-001 is documentation-only: it does not add
+  a `pack validate` diagnostic, so a pack authored with the stale `*.contract.yaml` suffix
+  still passes `pack validate` silently — that residual gap is accepted as a consequence of
+  deferring the whole surface to ADR `2026-08-13-1`'s retirement, not left for this mission
+  to close.
 - **SC-002**: A profile that individually passes schema validation but is recorded as
   skipped by `AgentProfileRepository` at load time appears in `pack validate --json`'s
   output without any separate `doctor doctrine --json` invocation.
@@ -597,11 +606,12 @@ by the time the mission closes.
 - **SC-004**: A pack with DRG content only under `drg/` and no pack-root `*.graph.yaml`
   produces a `pack validate` diagnostic naming the actual runtime carrier — zero such
   diagnostic exists today for this exact shape.
-- **SC-005**: All six targeted test surfaces
+- **SC-005**: All four targeted test surfaces
   (`tests/specify_cli/doctrine/test_pack_validator.py`,
-  `tests/specify_cli/doctrine/test_snapshot.py`, `tests/doctrine/mission_step_contracts/`,
   `tests/doctrine/test_agent_profile_model_field.py`,
   `tests/specify_cli/doctrine/test_pack_assembler.py`,
   `tests/cli/test_doctrine_org_commands.py`) pass for the new/changed tests
   specifically — this criterion does not assume or require a green full-suite baseline
-  (`main` carries ~23 known-red tests and 2 errors per issue #3284).
+  (`main` carries ~23 known-red tests and 2 errors per issue #3284). FR-001 is
+  documentation-only per the binding operator ruling (`reviews/spec.ruling.md`) and
+  contributes no test surface here.
