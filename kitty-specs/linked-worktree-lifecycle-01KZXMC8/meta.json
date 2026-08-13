@@ -6,6 +6,7 @@
   "mission_number": null,
   "mission_slug": "linked-worktree-lifecycle-01KZXMC8",
   "mission_type": "software-dev",
+  "pr_bound": true,
   "purpose_context": "Исправить неполную поддержку linked worktree: после создания Mission команды статуса, планирования, реализации и приёмки должны разрешать ту же Mission в текущем пользовательском worktree, сохраняя служебную topology Spec Kitty и fail-closed семантику.",
   "purpose_tldr": "Все команды Mission работают в caller-owned linked worktree, не изменяя repository root checkout.",
   "slug": "linked-worktree-lifecycle-01KZXMC8",
