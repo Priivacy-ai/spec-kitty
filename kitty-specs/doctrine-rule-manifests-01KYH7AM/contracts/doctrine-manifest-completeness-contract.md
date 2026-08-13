@@ -109,6 +109,7 @@ node conformance/scripts/check-doctrine-manifest-completeness.mjs
 Step 3 of 3 in the new `sop-doctrine-conformance` job:
 
 ```yaml
+# round-trip: skip: GitHub Actions workflow-step fragment showing how the completeness check is wired into conformance.yml — CI wiring, not a Pydantic payload; the executable coverage is the workflow file itself
 - name: Verify doctrine manifest rule-count completeness (absence guard)
   run: node conformance/scripts/check-doctrine-manifest-completeness.mjs
 ```

@@ -13,6 +13,7 @@ proceed without either reading the other's source.
 ## File shape
 
 ```yaml
+# round-trip: skip: manifest shape sketch with <placeholder> tokens and a 'binary' | 'judge' enum alternation — deliberately not a valid instance, so there is nothing to round-trip; the executable shape check is conformance/scripts/check-doctrine-manifest-completeness.mjs
 version: "1.0.0"                      # required, non-empty string
 sopFile: "../../src/doctrine/directives/built-in/<directive-file>"  # required, path relative to THIS file's directory
 rules:

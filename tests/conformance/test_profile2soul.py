@@ -40,7 +40,13 @@ pytestmark = pytest.mark.unit
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SCRIPT_PATH = _REPO_ROOT / "conformance" / "tools" / "profile2soul.py"
 _PROJECTION_MD = _REPO_ROOT / "conformance" / "tools" / "PROJECTION.md"
-_ARCHITECT_PROFILE = _REPO_ROOT / "src" / "doctrine" / "agent_profiles" / "built-in" / "architect-alphonso.agent.yaml"
+#: Built-in agent profiles live under ``packs/built-in/`` since the doctrine-pack
+#: layout move; the old ``src/doctrine/agent_profiles/built-in/`` path no longer
+#: exists. This mission's own final commit repointed the PROJECTION.md path
+#: labels at ``packs/built-in`` but missed this constant, so the test read a
+#: path that is simply absent and died on FileNotFoundError rather than on
+#: anything about the projection it exists to check.
+_ARCHITECT_PROFILE = _REPO_ROOT / "packs" / "built-in" / "agent_profiles" / "architect-alphonso.agent.yaml"
 
 _GENERATED_HEADER_PATTERN = re.compile(r"^#.*generated:\s*true")
 

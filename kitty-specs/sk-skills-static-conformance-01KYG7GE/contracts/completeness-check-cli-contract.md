@@ -63,6 +63,7 @@ node conformance/scripts/check-manifest-completeness.mjs
 `.github/workflows/conformance.yml` adds exactly one step:
 
 ```yaml
+# round-trip: skip: GitHub Actions workflow-step fragment showing the single step conformance.yml adds — CI wiring, not a Pydantic payload; the executable coverage is the workflow file itself
 - name: Verify manifest completeness (FR-007)
   run: node conformance/scripts/check-manifest-completeness.mjs
 ```

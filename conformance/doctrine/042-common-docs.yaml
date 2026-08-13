@@ -41,3 +41,13 @@ rules:
     source:
       normative: "docs/rubric/sop-rule-taxonomy.md#5-output-format"
       supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/44cabfcabc619e0cb120587b483e917c277f54e5/src/doctrine/directives/built-in/042-common-docs.directive.yaml"
+  - ruleId: "042-r5"
+    ruleText: "Every `audience:` entry on a touched page must resolve to an existing\n    persona file under `docs/context/audience/`; a dangling audience reference\n    is a red-line violation on that page. `audience:` is required on touched\n    pages only and is never added to `frontmatter_required_fields` (C-012)."
+    probeIds: []
+    gradingClass: "binary"
+    aggregation: "pass-k"
+    k: 3
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#5-output-format"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/44cabfcabc619e0cb120587b483e917c277f54e5/src/doctrine/directives/built-in/042-common-docs.directive.yaml"

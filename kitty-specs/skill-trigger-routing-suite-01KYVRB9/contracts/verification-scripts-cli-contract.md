@@ -180,6 +180,7 @@ a graded-failure meaning (`research.md` §5).
 ## CI wiring (lane-b's workflow step order)
 
 ```yaml
+# round-trip: skip: GitHub Actions step-order sketch containing <placeholder> run lines — CI wiring illustration, deliberately not a valid instance, so there is nothing to round-trip
 - run: node conformance/scripts/check-trigger-queryset-shape.mjs conformance/skills/trigger-queries/*.yaml
 - run: node conformance/scripts/check-twin-phrasing.mjs conformance/skills/trigger-queries/
 - run: npx --offline @garrison-hq/muster@1.2.1 skills run conformance/skills/behavioral-manifest.yaml --json > /tmp/report.json

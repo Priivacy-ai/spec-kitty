@@ -184,6 +184,7 @@ New job `sop-doctrine-conformance` in `.github/workflows/conformance.yml`
 (research.md §9), step 2 of 3:
 
 ```yaml
+# round-trip: skip: GitHub Actions workflow-step fragment showing how the drift gate is wired into conformance.yml — CI wiring, not a Pydantic payload; the executable coverage is the workflow file itself
 - name: Run doctrine rule-manifest drift gate (FR-004/FR-005)
   run: bash conformance/scripts/check-doctrine-drift-gate.sh
 ```
