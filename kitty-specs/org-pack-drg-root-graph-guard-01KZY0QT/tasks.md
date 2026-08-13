@@ -53,7 +53,7 @@ subtask breakdown in WP01 below.
 not left silently unperformed): the realized `tasks/WP01-org-pack-drg-root-graph-guard.md` is
 728 lines (`wc -l`, re-measured after this fix round's corrections), over the canonical
 tasks-prompt's 700-line ceiling
-(`packs/built-in/missions/mission-steps/software-dev/tasks/prompt.md:209`, "MAXIMUM PROMPT SIZE:
+(`packs/built-in/missions/mission-steps/software-dev/tasks/prompt.md:208`, "MAXIMUM PROMPT SIZE:
 700 lines per WP"; sizing rubric row "Estimated lines: 700+? ❌ SPLIT"). This is accepted as a
 deliberate, measured exception rather than a silent breach: the excess is concentrated in
 genuinely load-bearing per-subtask detail (concrete file/function/primitive citations, per-test
@@ -76,9 +76,11 @@ preceding cleanup commit.
 re-run the plan-phase sweep): `gh pr list --repo Priivacy-ai/spec-kitty --state open --json
 number,title,files` was re-run against all 18 currently-open PRs (#2239–#3383). None touch
 `src/charter/_drg_helpers.py`, `src/charter/action_doctrine_bundle.py`, or any path under
-`tests/charter/`. PRs #3300 and #3293 each touch `.kittify/charter/governance.yaml` among
-roughly 100–150 other files in their respective diffs; neither touches this mission's
-`owned_files`.
+`tests/charter/`. PRs #3300 and #3293 each touch `.kittify/charter/governance.yaml` among many
+other unrelated files in their respective diffs (344 and 975 changed files respectively, per
+live `gh api repos/Priivacy-ai/spec-kitty/pulls/<n> --jq .changed_files`, re-verified
+2026-08-13 — these are open PRs and the counts will move as they accrue commits); neither
+touches this mission's `owned_files`.
 
 ---
 
