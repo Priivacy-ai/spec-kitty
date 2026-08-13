@@ -460,9 +460,9 @@ full-pack validation this check's default targets.
 passes `pack validate` cleanly and, per sibling mission #3384's finding, **zeroes the action
 grain** on adoption — a destructive silent failure with no validation-time signal at all.
 After this fix, `pack validate` names the mismatch at authoring time, before the pack is
-ever published or fetched by a consumer — while `assemble_pack()`'s internal round-trip
-check continues to pass for its own known drg/-fragments-only output, unaffected by this new
-author-facing diagnostic.
+ever published or fetched by a consumer — while both `assemble_pack()`'s internal
+round-trip check and `org_validate`'s onboarding-scaffold check continue to pass for their
+own known drg/-fragments-only output, unaffected by this new author-facing diagnostic.
 
 **Acceptance Criteria**:
 - AC-1: A pack with `drg/010-security.graph.yaml` and no pack-root `*.graph.yaml` produces
