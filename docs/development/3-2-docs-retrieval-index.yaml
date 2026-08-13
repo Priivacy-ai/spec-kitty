@@ -10201,7 +10201,7 @@ pages:
     - {slug: "2-roi-ranking-impact-effort-my-specialty", text: "2. ROI ranking (impact ÷ effort — my specialty)", level: 2}
     - {slug: "3-dependency-sequencing-graph-what-must-precede-what", text: "3. Dependency / sequencing graph (what must precede what)", level: 2}
     - {slug: "4-final-ranked-recommendation-for-the-3-2-1-lead-slice", text: "4. FINAL ranked recommendation for the 3.2.1 LEAD slice", level: 2}
-    - {slug: "recommended-lead-1832-implement-read-path-no-workspace-resolved-paired-with-1993-as-its-enabling-seam", text: "Recommended LEAD: **#1832 (implement read-path \"no workspace resolved\")** — paired with **#1993** as its enabling seam.", level: 3}
+    - {slug: "recommended-lead-1832-implement-read-path-no-workspace-resolved-paired-with-1993-as-its-enabling-seam", text: "Recommended LEAD: **#1832 (implement read-path \"no workspace resolved\")** — paired with **#1993** as its enabling seam", level: 3}
     - {slug: "runner-up-1827-merge-baseline-circular-failure", text: "Runner-up: **#1827 (merge baseline circular failure)**", level: 3}
     - {slug: "the-neutral-cycle-shape-lead-parallel-tracks-since-3-2-x-ships-emergent-patches", text: "The neutral cycle shape (lead + parallel tracks, since 3.2.x ships emergent patches)", level: 3}
     - {slug: "5-top-3-dependency-note-single-recommendation-the-message-back", text: "5. Top-3 + dependency note + single recommendation (the message back)", level: 2}
@@ -10738,7 +10738,7 @@ pages:
     - {slug: "1-the-five-recipes-src-only-exclusions-applied", text: "1. The five recipes (src/ only, exclusions applied)", level: 2}
     - {slug: "recipe-1-churn-hotspots-6-month-window", text: "Recipe 1 — churn hotspots (6-month window)", level: 3}
     - {slug: "recipe-3-bug-hotspots-fix-bug-broken-regress-full-history", text: "Recipe 3 — bug hotspots (`fix|bug|broken|regress`, full history)", level: 3}
-    - {slug: "recipe-4-velocity-accelerating-754-723-1151-project-is-alive", text: "Recipe 4 — velocity: accelerating (754 → 723 → 1151). Project is alive.", level: 3}
+    - {slug: "recipe-4-velocity-accelerating-754-723-1151-project-is-alive", text: "Recipe 4 — velocity: accelerating (754 → 723 → 1151). Project is alive", level: 3}
     - {slug: "recipe-5-firefighting-19-5574-0-3-pipeline-trust-is-healthy", text: "Recipe 5 — firefighting: `19 / 5574 = 0.3 %`. Pipeline trust is healthy", level: 3}
     - {slug: "2-the-killer-recipe-change-coupling-the-empirical-split-brain-signal", text: "2. The killer recipe — change-coupling (the empirical split-brain signal)", level: 2}
     - {slug: "3-recurring-fix-concentration-the-resolver-surface-is-made-of-defects", text: "3. Recurring-fix concentration — the resolver surface is *made of* defects", level: 2}
@@ -10775,7 +10775,7 @@ pages:
     - {slug: "1b-the-contract-in-code-the-smoking-gun", text: "1b. The contract, IN CODE (the smoking gun)", level: 3}
     - {slug: "1c-the-builder-in-code-compute-once-thread-through", text: "1c. The builder, IN CODE (compute-once, thread-through)", level: 3}
     - {slug: "2-reconcile-with-the-caacs-finding-non-adoption-is-the-precise-mechanism", text: "2. Reconcile with the CaaCS finding — **non-adoption IS the precise mechanism.**", level: 2}
-    - {slug: "3-the-consolidated-api-dashboard-too-intended-single-api-exists-current-pair-is", text: "3. The consolidated API (dashboard too) — **intended single API exists; current pair is", level: 2}
+    - {slug: "3-the-consolidated-api-dashboard-too-intended-single-api-exists-current-pair-is-necessary-but-not-the-whole-of-it", text: "3. The consolidated API (dashboard too) — **intended single API exists; current pair is necessary but not the whole of it.**", level: 2}
     - {slug: "4-the-reframe-correct-with-two-binding-guardrails", text: "4. The reframe — **correct, with two binding guardrails.**", level: 2}
     - {slug: "bounded-context-guardrails-dir-031-do-not-over-thread", text: "Bounded-context guardrails (DIR-031) — do NOT over-thread", level: 3}
     - {slug: "5-final-verdict-supported-with-two-precise-caveats", text: "5. Final verdict — **SUPPORTED** (with two precise caveats)", level: 2}
@@ -11261,7 +11261,7 @@ pages:
     - {slug: "c99-d-charter-synthesizer-hash-mismatch-5-failures", text: "C99-d — Charter synthesizer hash mismatch (5 failures)", level: 3}
     - {slug: "c99-e-doctrine-glossary-integrity-4-failures", text: "C99-e — Doctrine / glossary integrity (4 failures)", level: 3}
     - {slug: "c99-f-next-command-exit-code-regressions-4-failures", text: "C99-f — `next` command exit-code regressions (4 failures)", level: 3}
-    - {slug: "c99-g-status-lifecycle-event-drift-varies-merged-into-c1-above-for-the-events-package-failures-but-6-here-are-not-c1", text: "C99-g — Status / lifecycle event drift (varies; merged into C1 above for the events package failures, but ~6 here are NOT C1):", level: 3}
+    - {slug: "c99-g-status-lifecycle-event-drift-varies-merged-into-c1-above-for-the-events-package-failures-but-6-here-are-not-c1", text: "C99-g — Status / lifecycle event drift (varies; merged into C1 above for the events package failures, but ~6 here are NOT C1)", level: 3}
     - {slug: "c99-h-charter-integration-runtime-walk-6-failures", text: "C99-h — Charter integration / runtime walk (6 failures)", level: 3}
     - {slug: "c99-i-sync-daemon-origin-contract-8-failures", text: "C99-i — Sync daemon / origin / contract (8 failures)", level: 3}
     - {slug: "c99-j-auth-invocation-docs-minor-30-failures", text: "C99-j — Auth / invocation / docs / minor (30 failures)", level: 3}
