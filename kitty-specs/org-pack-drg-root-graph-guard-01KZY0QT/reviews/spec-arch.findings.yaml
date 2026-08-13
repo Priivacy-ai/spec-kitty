@@ -1,0 +1,75 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: spec
+lens_group: arch
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+findings:
+  - id: SPEC-ARCH-001
+    lens: "drg/-scan + three-layer merge fidelity"
+    severity: 4
+    title: "FR-003's root+drg/ merge has no specified conflict/precedence semantics and no test coverage, and a genuine overlap crashes charter context instead of degrading"
+    evidence:
+      - artifact: "spec.md § Edge Cases (\"What happens when the org pack root has both a root-level *.graph.yaml/graph.yaml and a drg/ directory with fragments?\")"
+      - artifact: "spec.md § FR-003 (Merge root-level and drg/-level org graph content when both are present)"
+      - artifact: "spec.md § FR-005 / Acceptance Scenarios (User Story 1 and 2) — both only cover drg/-only and nothing-anywhere fixtures"
+      - code: "src/doctrine/drg/loader.py:155-197 (merge_layers: node-label override keyed on argument order — first arg's kind/precedence wins on conflict; edges combined purely additively, no dedup)"
+      - code: "src/doctrine/drg/validator.py:264-291 (duplicate_edge_triples / _validate_duplicate_edges: identical source+target+relation triples are rejected)"
+      - code: "src/doctrine/drg/validator.py:27-32,360-364 (DRGValidationError is an independent Exception subclass, not a DRGLoadError subclass)"
+      - code: "src/charter/action_doctrine_bundle.py:200-207 (except DRGLoadError as exc: ... catches only DRGLoadError)"
+      - code: "src/charter/_drg_helpers.py:95-96 (assert_valid(merged) runs once, on the fully three-layer-merged graph, after any org-layer sub-merge)"
+    claim: >
+      FR-003 requires that when an org pack has both a root-level graph and drg/
+      fragments, both are loaded and merged rather than one being picked; the Edge
+      Cases section repeats this commitment. To implement this, the org layer must
+      itself become a two-way sub-merge (root graph + drg/ fragments) composed via
+      the existing merge_layers(built_in, project) primitive before that combined
+      org layer enters the built-in→org→project chain. merge_layers is asymmetric
+      (first argument's node kind/precedence wins on a same-URN label conflict) and
+      additive-only on edges (no dedup) — but the spec never states which of
+      {root graph, drg/ fragments} plays which role, so node-label-conflict
+      precedence is left to whichever call order an implementer happens to choose,
+      undocumented and untested. Worse: if root and drg/ ever declare the identical
+      edge triple (source+target+relation) — a plausible authoring accident when a
+      pack's content is split between a root file and drg/ fragments — the resulting
+      duplicate is only caught when the single, final assert_valid(merged) call runs
+      at the end of load_validated_graph, raising DRGValidationError. That exception
+      class is NOT a DRGLoadError subclass, so the existing `except DRGLoadError`
+      catch in action_doctrine_bundle.py:200-207 does not catch it: the error
+      propagates unhandled, crashing `charter context --action <a>` outright for
+      exactly the "both present" scenario FR-003 commits to supporting. This is a
+      strictly worse failure mode than the #3384 bug this mission fixes (silent
+      empty bundle vs. hard crash), and nothing in the spec's Acceptance Scenarios or
+      FR-005's mandated regression test (which only covers a drg/-only fixture and a
+      nothing-anywhere fixture) exercises the both-present path, so an implementation
+      that gets this wrong — in either direction (silently wrong precedence, or an
+      unhandled crash) — would pass every AC/test the spec requires. This is an FR
+      (FR-003) with no test coverage for its actual behavior, and a real,
+      demonstrable contradiction with existing code (assert_valid's duplicate-edge
+      rejection combined with the narrower except-clause) that the spec does not
+      acknowledge.
+    remediation: >
+      Before this mission is tasked out, amend FR-003 (and add a matching Acceptance
+      Scenario / fixture, since FR-005's mandated test currently only covers the
+      drg/-only and nothing-anywhere cases) to pin down: (1) which source is
+      authoritative on a same-URN node-label conflict between the root graph and
+      drg/ fragments when composing the org-layer sub-merge — state it explicitly
+      (e.g. "drg/ fragments are treated as the project role and override the root
+      graph's labels, mirroring merge_layers' existing project-overrides-built-in
+      convention") rather than leaving it to implementer discretion; and (2) the
+      intended behavior when root and drg/ declare an identical edge triple — either
+      require the org sub-merge to dedupe identical triples before the final
+      assert_valid so overlapping-but-consistent authoring is tolerated, or
+      explicitly accept that this is a genuine authoring conflict that must raise
+      (consistent with FR-004's "must surface as a real failure" framing) and add a
+      regression fixture with deliberately overlapping root+drg/ content so the
+      chosen behavior is pinned by a test rather than left to whichever merge_layers
+      call order the implementer picks. Note for context (not a separate defect):
+      docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md governs a sibling
+      but distinct merge mechanism (BaseDoctrineRepository field-level artifact
+      overlay merge with explicit UserWarning collision surfacing); it does not bind
+      doctrine.drg.loader.merge_layers (which has no collision-warning behavior
+      today), so it does not resolve this gap on its own, but its "warn on
+      collision" precedent is a reasonable model for whichever choice FR-003 ends up
+      pinning.
+# If you have no findings, write: findings: []

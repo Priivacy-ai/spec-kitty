@@ -1,0 +1,85 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh3
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+findings:
+  - id: SPEC-FRESH-001
+    lens: internal-consistency
+    severity: 3
+    title: >-
+      User Story 1's Acceptance Scenarios now require --json but FR-005/SC-001,
+      which are the requirement/success-criterion this scenario is supposed to
+      verify, still describe the identical check without --json
+    evidence:
+      - artifact: "spec.md lines 64-72 (User Story 1, Acceptance Scenarios 1-2, and Independent Test line 57)"
+      - artifact: "spec.md line 269 (FR-005 row)"
+      - artifact: "spec.md lines 307-309 (SC-001)"
+      - code: "src/specify_cli/cli/commands/charter/context.py:121-181 — without --json, `context` prints only `result.text` (a rendered text block) via `console.print`; the structured per-artifact directive/tactic/procedure `counts`/IDs are only emitted inside the `--json` payload (json_output branch, lines 121-181)."
+    claim: >-
+      Round 3's fix commit (2c0caef21) added `--json` to User Story 1's Independent
+      Test and both Acceptance Scenarios (spec.md diff hunk touching lines 57-72),
+      per its own commit message "align User Story 1 --json usage." But FR-005 —
+      the functional requirement whose regression test is explicitly the
+      verification vehicle for this exact scenario ("an automated regression test
+      that declares a drg/-only fixture org pack and asserts the resolved
+      directive/tactic/procedure counts for `charter context --action <a>` are not
+      lower than the no-pack baseline") — was left unchanged and still omits
+      --json. SC-001, which states it is "verified by the regression test required
+      by FR-005," also omits --json. This produces a direct wording contradiction
+      inside one requirement chain: the Acceptance Scenario that is the source of
+      truth for FR-005's test says --json is required to make the counts
+      machine-checkable; FR-005 and SC-001, describing the same check, say it is
+      not. A WP author implementing FR-005's regression test has no way to tell
+      from the spec alone whether the ATDD test must invoke the CLI with --json
+      and parse JSON, or may assert against the plain-text render, or should
+      bypass the CLI entirely and call the underlying Python bundle-resolution
+      function directly — three materially different test shapes the current text
+      supports simultaneously.
+    remediation: >-
+      Either add `--json` to FR-005's and SC-001's CLI-invocation wording so they
+      match User Story 1's now-updated Acceptance Scenarios, or (if --json is not
+      actually required for FR-005's test — e.g. because it will call
+      `_load_action_doctrine_bundle` directly rather than shelling out to the CLI)
+      strike `--json` from User Story 1's Acceptance Scenarios/Independent Test
+      and state explicitly in FR-005 what interface the regression test uses to
+      obtain machine-checkable counts. Pick one and make the whole FR-005
+      verification chain (User Story 1 AC1/AC2 → FR-005 → SC-001) use it
+      consistently.
+
+  - id: SPEC-FRESH-002
+    lens: terminology
+    severity: 2
+    title: >-
+      --json usage is inconsistent across the four User Stories despite them
+      making structurally identical "counts/artifact-IDs are observable in the
+      resolved bundle" claims
+    evidence:
+      - artifact: "spec.md lines 64-72 (User Story 1 AC1/AC2 — use --json)"
+      - artifact: "spec.md lines 101-108 (User Story 2 AC1/AC2 — no --json, same 'counts not reduced' claim shape as US1 AC1)"
+      - artifact: "spec.md lines 177-188 (User Story 4 AC1/AC2 — no --json, same 'artifact IDs present in resolved bundle' claim shape as US1 AC2)"
+      - artifact: "spec.md lines 138-149 (User Story 3 AC1/AC2 — already use --json, unchanged by this round)"
+    claim: >-
+      Round 3 scoped its "--json alignment" fix to User Story 1 only (per the
+      commit message and the diff, which touches only lines 57-72). User Story 2's
+      Acceptance Scenarios assert the same class of thing User Story 1 AC1 asserts
+      — action-scoped doctrine counts are not reduced — via a bare
+      `charter context --action <a>` with no --json. User Story 4's Acceptance
+      Scenarios assert the same class of thing User Story 1 AC2 asserts —
+      specific artifact IDs are present in the resolved bundle — also via a bare
+      `charter context --action <a>`. Only User Story 3 (unrelated to this round's
+      diff) already used --json throughout. The result is that four User Stories
+      making parallel claims about the same underlying resolved-bundle data use
+      two different, un-reconciled CLI invocation shapes, with no stated reason
+      why US1 and US3 need --json but US2 and US4 do not. This is exactly the kind
+      of implicit convention drift that turns into rework once WP authors start
+      writing the FR-005/FR-006 regression tests and have to guess which stories'
+      wording is binding.
+    remediation: >-
+      Do a single pass over all four User Stories' Acceptance Scenarios and
+      Independent Test paragraphs and apply one consistent rule for when --json is
+      required (e.g. "any scenario that asserts specific counts or artifact IDs
+      must specify --json; scenarios that only assert 'no exception, output
+      unchanged' may omit it") — then apply that rule uniformly to User Story 2
+      and User Story 4, not just User Story 1.

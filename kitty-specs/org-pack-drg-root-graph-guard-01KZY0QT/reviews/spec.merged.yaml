@@ -1,0 +1,224 @@
+# review-merged/v1 — mechanical R2 merge/dedup of spec-gov.findings.yaml,
+# spec-arch.findings.yaml, spec-verify.findings.yaml. No judgment applied here beyond
+# duplicate detection (same artifact section / file:line making substantially the same
+# claim); severity and content are carried forward from the source findings, not re-assessed.
+schema: review-merged/v1
+complete: true
+phase: spec
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+source_files:
+  - reviews/spec-gov.findings.yaml
+  - reviews/spec-arch.findings.yaml
+  - reviews/spec-verify.findings.yaml
+raw_count: 5
+merged_count: 4
+findings:
+  - id: SPEC-ARCH-001
+    lens: "drg/-scan + three-layer merge fidelity"
+    source_group: arch
+    severity: 4
+    title: "FR-003's root+drg/ merge has no specified conflict/precedence semantics and no test coverage, and a genuine overlap crashes charter context instead of degrading"
+    evidence:
+      - artifact: "spec.md § Edge Cases (\"What happens when the org pack root has both a root-level *.graph.yaml/graph.yaml and a drg/ directory with fragments?\")"
+      - artifact: "spec.md § FR-003 (Merge root-level and drg/-level org graph content when both are present)"
+      - artifact: "spec.md § FR-005 / Acceptance Scenarios (User Story 1 and 2) — both only cover drg/-only and nothing-anywhere fixtures"
+      - code: "src/doctrine/drg/loader.py:155-197 (merge_layers: node-label override keyed on argument order — first arg's kind/precedence wins on conflict; edges combined purely additively, no dedup)"
+      - code: "src/doctrine/drg/validator.py:264-291 (duplicate_edge_triples / _validate_duplicate_edges: identical source+target+relation triples are rejected)"
+      - code: "src/doctrine/drg/validator.py:27-32,360-364 (DRGValidationError is an independent Exception subclass, not a DRGLoadError subclass)"
+      - code: "src/charter/action_doctrine_bundle.py:200-207 (except DRGLoadError as exc: ... catches only DRGLoadError)"
+      - code: "src/charter/_drg_helpers.py:95-96 (assert_valid(merged) runs once, on the fully three-layer-merged graph, after any org-layer sub-merge)"
+    claim: >
+      FR-003 requires that when an org pack has both a root-level graph and drg/
+      fragments, both are loaded and merged rather than one being picked; the Edge
+      Cases section repeats this commitment. To implement this, the org layer must
+      itself become a two-way sub-merge (root graph + drg/ fragments) composed via
+      the existing merge_layers(built_in, project) primitive before that combined
+      org layer enters the built-in→org→project chain. merge_layers is asymmetric
+      (first argument's node kind/precedence wins on a same-URN label conflict) and
+      additive-only on edges (no dedup) — but the spec never states which of
+      {root graph, drg/ fragments} plays which role, so node-label-conflict
+      precedence is left to whichever call order an implementer happens to choose,
+      undocumented and untested. Worse: if root and drg/ ever declare the identical
+      edge triple (source+target+relation) — a plausible authoring accident when a
+      pack's content is split between a root file and drg/ fragments — the resulting
+      duplicate is only caught when the single, final assert_valid(merged) call runs
+      at the end of load_validated_graph, raising DRGValidationError. That exception
+      class is NOT a DRGLoadError subclass, so the existing `except DRGLoadError`
+      catch in action_doctrine_bundle.py:200-207 does not catch it: the error
+      propagates unhandled, crashing `charter context --action <a>` outright for
+      exactly the "both present" scenario FR-003 commits to supporting. This is a
+      strictly worse failure mode than the #3384 bug this mission fixes (silent
+      empty bundle vs. hard crash), and nothing in the spec's Acceptance Scenarios or
+      FR-005's mandated regression test (which only covers a drg/-only fixture and a
+      nothing-anywhere fixture) exercises the both-present path, so an implementation
+      that gets this wrong — in either direction (silently wrong precedence, or an
+      unhandled crash) — would pass every AC/test the spec requires.
+    remediation: >
+      Before this mission is tasked out, amend FR-003 (and add a matching Acceptance
+      Scenario / fixture, since FR-005's mandated test currently only covers the
+      drg/-only and nothing-anywhere cases) to pin down: (1) which source is
+      authoritative on a same-URN node-label conflict between the root graph and
+      drg/ fragments when composing the org-layer sub-merge — state it explicitly
+      (e.g. "drg/ fragments are treated as the project role and override the root
+      graph's labels, mirroring merge_layers' existing project-overrides-built-in
+      convention") rather than leaving it to implementer discretion; and (2) the
+      intended behavior when root and drg/ declare an identical edge triple — either
+      require the org sub-merge to dedupe identical triples before the final
+      assert_valid so overlapping-but-consistent authoring is tolerated, or
+      explicitly accept that this is a genuine authoring conflict that must raise
+      (consistent with FR-004's "must surface as a real failure" framing) and add a
+      regression fixture with deliberately overlapping root+drg/ content so the
+      chosen behavior is pinned by a test rather than left to whichever merge_layers
+      call order the implementer picks. docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
+      governs a sibling but distinct merge mechanism (field-level artifact overlay
+      with explicit UserWarning collision surfacing) and does not bind
+      doctrine.drg.loader.merge_layers directly, but its "warn on collision"
+      precedent is a reasonable model for whichever choice FR-003 ends up pinning.
+
+  - id: SPEC-GOV-001
+    lens: "directive (merged with verify/FR-004 failure-visibility falsifiability — SPEC-VERIFY-001)"
+    source_group: "gov + verify"
+    merged_from: [SPEC-GOV-001, SPEC-VERIFY-001]
+    severity: 4
+    title: "FR-004 (genuine load-failure visibility) has zero acceptance/test coverage and no pinned mechanism — an implementer could satisfy its letter with a vacuous log-level bump while the shared catch block keeps swallowing the failure"
+    evidence:
+      - artifact: "spec.md § Functional Requirements (FR-004)"
+      - artifact: "spec.md § Edge Cases (malformed/invalid drg/ fragment paragraph, lines 119-125)"
+      - artifact: "spec.md § Success Criteria (SC-001..SC-004) — none reference FR-004"
+      - artifact: "spec.md § Constraints (C-004) — ties non-vacuous-floor discipline to FR-005 only, not FR-004"
+      - artifact: "spec.md § User Story 1 / User Story 2 Acceptance Scenarios — neither covers the malformed-fragment case"
+      - code: "src/charter/action_doctrine_bundle.py:163-207 (_load_action_doctrine_bundle's single try/except DRGLoadError wraps load_validated_graph, filter_graph_by_activation and resolve_context together, and collapses ANY DRGLoadError from that block to a WARNING + empty bundle, reporting success)"
+      - code: "src/charter/_drg_helpers.py:83-97 (load_validated_graph — the function FR-001/002/003 change; a guard here only decides whether load_graph_or_dir(org_root) is called at all, it does not change what happens to a DRGLoadError that call raises)"
+      - code: "src/doctrine/drg/loader.py:50-79 (load_graph) — this is what a malformed drg/ fragment actually raises: DRGLoadError on YAML parse error (line 62-63) or Pydantic ValidationError (line 75-78), i.e. exactly the exception type the existing catch already swallows"
+    claim: >
+      FR-004 ("a malformed or invalid drg/ fragment must still surface as a real,
+      non-swallowed failure") is the only High-priority FR in this spec with no
+      Acceptance Scenario, no Independent Test, and no Success-Criteria entry
+      anywhere in the document — unlike FR-001/002/003 (User Story 1) and FR-005
+      (its own regression-test FR plus C-004's explicit non-vacuous-floor
+      requirement, which is applied to FR-005 but never extended to FR-004). This
+      is more than a documentation gap. The only mechanism today that turns a
+      DRGLoadError into a silent WARNING+empty-bundle is the single try/except in
+      `_load_action_doctrine_bundle` (action_doctrine_bundle.py:163-207), which
+      wraps the *entire* load-and-resolve sequence, not just the org-root load.
+      Adding a has_graph_files-style guard inside `load_validated_graph` (the
+      FR-001 fix) stops the "nothing to load" case from ever raising, but a
+      genuinely malformed `drg/*.graph.yaml` fragment still raises DRGLoadError
+      from `load_graph_or_dir(org_root)`, which still propagates straight into the
+      same outer except block and gets caught the same way it is today — the guard
+      alone does not satisfy FR-004; the except-block's granularity in
+      action_doctrine_bundle.py also has to change to distinguish "guard said
+      nothing to load" from "content existed and failed to parse/validate,"
+      without disturbing the project-layer's structurally identical (and
+      out-of-scope per this spec) DRGLoadError swallow a few lines below it.
+      "Surface as a real, non-swallowed failure" is also never pinned to a
+      concrete mechanism — raise unhandled past the resolver, raise a distinct/
+      typed exception excluded from the existing catch, or a structured error
+      field distinguishable from the success path in `charter context --action
+      <a> --json` output are all still open. Because the existing catch is one
+      wide `except DRGLoadError` around the entire chain, an implementer can
+      satisfy the letter of FR-004 by merely bumping that log call from WARNING to
+      ERROR while leaving the catch-and-collapse-to-empty-bundle behavior
+      otherwise unchanged — the CLI still exits 0, still returns a bundle, and the
+      caller still cannot programmatically distinguish "malformed" from "nothing
+      to load." That is the same silent-success shape the mission exists to
+      close, now wearing FR-004's compliance stamp — and with no acceptance
+      scenario forcing otherwise, C-004's own logic ("a test that only checks for
+      the absence of an exception would be vacuous") is honored for FR-005 but not
+      applied to FR-004 in the same document, exactly the pattern Standing Order
+      #5 and the spec's own User Story 2 rationale (SK-02/04/06 family) warn
+      against — left unguarded for the one FR that is specifically about failure
+      visibility.
+    remediation: >
+      Add an Acceptance Scenario (or a third User Story) and a Success-Criteria
+      entry for FR-004 (mirroring FR-005's C-004 treatment) that pins a concrete,
+      checkable outcome for the malformed-fragment case: construct a fixture drg/
+      fragment that is invalid YAML AND a second fixture that is valid YAML but
+      fails DRGGraph schema validation (mirroring load_graph's two DRGLoadError
+      sources), run `charter context --action <a>` against each, and assert the
+      outcome is structurally distinguishable from the empty-org-layer success
+      path in User Story 2 — e.g. the call raises a specific exception type (not a
+      bare DRGLoadError already caught upstream) or the JSON output carries a
+      non-empty, machine-checkable error field that US2's genuinely-empty case
+      never populates. Add a corresponding SC (e.g. SC-005) stating that
+      assertion, and extend C-004's non-vacuous-floor language to cover FR-004 as
+      well as FR-005. This will also force plan/tasks to explicitly decide how
+      `_load_action_doctrine_bundle`'s except-block differentiates a
+      guard-determined "no org layer" from a genuine DRGLoadError, and how that
+      differentiation stays clear of the project-layer's own unaffected
+      catch-and-collapse a few lines away, rather than leaving that call to
+      accidental implementation and untested behavior.
+
+  - id: SPEC-VERIFY-002
+    lens: Falsifiability
+    source_group: verify
+    severity: 4
+    title: "FR-003 (merge root-level + drg/ content when present) has no Acceptance Scenario, SC, or mandated regression test — only Edge Cases prose"
+    evidence:
+      - artifact: "spec.md § FR-003 (Requirements table)"
+      - artifact: "spec.md § Edge Cases, first bullet (both root graph.yaml and drg/ present)"
+      - artifact: "spec.md § User Story 1 Acceptance Scenarios 1–2, User Story 2 Acceptance Scenarios 1–2 (neither covers the both-present case)"
+      - artifact: "spec.md § FR-005 (\"declares a drg/-only fixture org pack\" — explicitly the drg/-only shape, not the both-present shape)"
+      - artifact: "spec.md § SC-001 through SC-004 (none reference a both-present fixture)"
+    claim: >
+      FR-003 requires that a pack with both a root-level graph file and drg/
+      fragments have both loaded and merged, not one silently dropped in favor of
+      the other. This is exactly the class of defect the mission exists to close
+      (per US1/US2's framing: picking one source and silently dropping the other
+      would itself be "a new instance of this defect class"), yet it is the one FR
+      in this mission with zero Acceptance Scenario, zero Success Criterion, and
+      no FR-005-style mandated regression test — it appears only as one Edge Cases
+      prose bullet. An implementation could satisfy FR-001/FR-002/FR-005/SC-001/
+      SC-002 (the drg/-only path, which is the only path with a concrete numeric
+      floor) while silently preferring the root graph and dropping drg/ content
+      (or vice versa) whenever both are present, and nothing in the spec's
+      testable surface would catch it. Related to, but distinct from, SPEC-ARCH-001:
+      that finding shows a genuine crash-path contradiction in the both-present
+      case; this finding is the broader coverage gap that the both-present case
+      has no test surface at all, independent of which specific bug an
+      implementation ships.
+    remediation: >
+      Add an Acceptance Scenario to User Story 1 (or a new short User Story) and a
+      corresponding SC (e.g. SC-005/SC-006) for the both-present case: build a
+      fixture pack with both a root `*.graph.yaml` declaring node A and a
+      `drg/fixture.graph.yaml` declaring node B, declare the pack, and assert both
+      A's and B's artifact IDs are present in the resolved doctrine bundle. Extend
+      FR-005 (or add a sibling FR) to mandate this as part of the required
+      regression-test set, so the merge behavior is locked by a red-then-green
+      test rather than only described in prose. Coordinate with SPEC-ARCH-001's
+      remediation so the same fixture also exercises the precedence/conflict
+      decision that finding requires be pinned.
+
+  - id: SPEC-VERIFY-003
+    lens: "FR-004 failure-visibility falsifiability (mission-derived)"
+    source_group: verify
+    severity: 3
+    title: "The catch block FR-004 must narrow also currently swallows malformed PROJECT-layer graph content identically — spec's C-001 blast radius and FRs are silent on whether that shared behavior changes too"
+    evidence:
+      - code: "src/charter/action_doctrine_bundle.py:163-207 — the single `try`/`except DRGLoadError` wraps the entire `load_validated_graph(...)` call, which itself loads built-in, org, AND project (`.kittify/doctrine`) layers inside one function (src/charter/_drg_helpers.py:86-93)"
+      - code: "src/charter/_drg_helpers.py:88-93 — the project branch already guards with `has_graph_files(project_dir)` before calling `load_graph_or_dir(project_dir)`, exactly the pattern FR-001 asks be applied to the org branch — but `has_graph_files` only checks file existence, not validity, so a malformed `.kittify/doctrine/*.graph.yaml` today raises `DRGLoadError` from inside `load_graph`, which propagates out of `load_validated_graph` uncaught, into the same wide `except DRGLoadError` at action_doctrine_bundle.py:200, and is silently collapsed to an empty bundle + WARNING — the same failure mode #3384 reports, just via the project path instead of the org path"
+      - artifact: "spec.md § C-001 (Blast radius) — lists only `src/charter/_drg_helpers.py`, `src/charter/action_doctrine_bundle.py`, and new fixtures; does not distinguish org-path vs project-path behavior within those files"
+    claim: >
+      FR-004's fix necessarily touches the shared catch block at
+      action_doctrine_bundle.py:200, because that is the only place a raised
+      DRGLoadError from the org branch is currently caught. But that same catch
+      also currently swallows malformed PROJECT-layer content identically
+      (verified by reading `_drg_helpers.py:88-93`: the project guard checks
+      existence via `has_graph_files`, not validity, so a schema-invalid project
+      overlay fragment raises `DRGLoadError` from inside `load_graph` and is
+      caught by the same line-200 handler). The spec's C-001 blast radius and
+      FR-004's text are both silent on whether narrowing the catch to make
+      org-content failures visible also changes visibility for project-content
+      failures — a real design fork (same catch site, same exception type, two
+      call sites feeding it) the implementing WP will have to resolve unguided.
+    remediation: >
+      Add a one-line disposition to FR-004 or a Constraint: state explicitly
+      whether narrowing the catch is scoped to the org-branch DRGLoadError only
+      (e.g. by having the org loader raise a distinct exception subtype, or by
+      moving the org load out of the single try block) — in which case
+      project-layer malformed-content visibility is explicitly out of scope and
+      unchanged (a Non-Goal line would do it) — or whether project-layer
+      visibility changes identically as an intentional, in-scope side effect (in
+      which case it needs its own Acceptance Scenario/SC, since it changes
+      behavior for a case #3384 never reported). Either answer is acceptable;
+      leaving it undecided is not.

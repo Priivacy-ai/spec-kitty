@@ -1,0 +1,43 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >
+      C-003 now names FR-004, FR-005, and FR-006 explicitly with per-FR red-first
+      commit language mirroring C-004's structure, closing the gap where only FR-005
+      was under ATDD red-first discipline.
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: >
+      FR-003 now states merge_layers() is not modified and keeps its additive-only,
+      no-removal semantics, with the dedup step named as new logic local to
+      _drg_helpers.py that runs before the unmodified merge_layers(built_in, org) call;
+      C-001's blast radius explicitly protects merge_layers()'s implementation, matching
+      the remediation and clearly separating new dedup logic from the existing primitive.
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: >
+      Positive "exactly one instance ... survives" assertions were added consistently to
+      FR-006(b), SC-006, User Story 4 Scenario 2, and its Independent Test — all four
+      loci checked, none left with only the absence-of-error phrasing.
+  - id: SPEC-FRESH-004
+    status: resolved
+    reason: >
+      FR-003 and FR-006(b) now both name doctrine.drg.validator.duplicate_edge_triples
+      explicitly as the required detection primitive for "duplicate," closing the
+      drifted-second-definition risk.
+  - id: SPEC-FRESH-005
+    status: resolved
+    reason: >
+      FR-003's merge_layers role language was rephrased to "base argument"/"override
+      argument" with no remaining "project role" phrasing; a full-document grep confirms
+      every other "project" occurrence refers to the correct canonical project layer,
+      not the merge_layers role-parameter overload.
+  - id: SPEC-FRESH-006
+    status: resolved
+    reason: >
+      Both User Story 3 Acceptance Scenarios now specify --json, aligning with the
+      Independent Test's invocation mode.

@@ -1,0 +1,31 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >-
+      Current spec.md now uses `charter context --action <a> --json` consistently across
+      the whole FR-005 verification chain — User Story 1 Independent Test/AC1/AC2 (lines
+      64-77), FR-005 (line 290), and SC-001 (line 328) all state --json — and the code
+      claim behind the fix (context.py without --json prints only `console.print(result.text)`
+      at lines 107/185, while per-artifact directives/tactics/styleguides/toolguides lists
+      only exist in the json_output branch, lines 121-181) was independently verified
+      against src/specify_cli/cli/commands/charter/context.py.
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: >-
+      A single stated rule for when --json is required was added as a blockquote directly
+      under "User Scenarios & Testing" (spec.md lines 38-51: --json required whenever an
+      assertion needs structured counts/IDs the plain-text render omits, omitted for
+      exception-only assertions or internal graph-structure checks the JSON payload doesn't
+      expose) and applied uniformly: User Story 2's Independent Test/AC1/AC2 (lines
+      109-124, previously bare `charter context --action <a>` per round-3 content) and User
+      Story 4's Independent Test/AC1 (lines 182-206) now use --json for the count/artifact-ID
+      claims, while User Story 4's AC2 dedup case correctly omits --json with an explicit
+      rationale (the JSON payload has no `edges` key, confirmed against
+      src/charter/context.py:build_charter_context_json, which only emits
+      directives/tactics/styleguides/toolguides/references/project_charter/org_charter/
+      governance_references) — matching the stated rule rather than reintroducing
+      inconsistency.

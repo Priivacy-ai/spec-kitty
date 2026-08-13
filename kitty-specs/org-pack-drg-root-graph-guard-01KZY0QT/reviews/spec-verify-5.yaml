@@ -1,0 +1,30 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH4-001
+    status: resolved
+    reason: >-
+      Verified against the operator's replacement bar, not the original finding text:
+      FR-005, SC-001, and User Story 1 AC1 now state the split explicitly (four typed
+      counts via `--json`, procedure count via the plain-text render's Procedures
+      section), User Story 2's Independent Test and both Acceptance Scenarios were
+      swept and updated identically (the ruling's flagged parity-language risk spot), no
+      requirement anywhere in spec.md (checked FR-001-006, all SC-001-007, User Stories
+      1-4, Key Entities, Non-Goals) claims --json exposes a procedure count/array, and
+      independent code inspection confirms the factual basis: context.py's json_output
+      dict and progressive_disclosure.py's `_ARRAY_BY_KIND`/CONTEXT_CONTRACT_TOP_LEVEL_KEYS
+      carry no procedures key while bootstrap_text.py:106 does render a Procedures
+      section; none of the three rejected alternatives were implemented (no procedures[]
+      array added to the --json payload/contract ledger, no references-link-set
+      counting, assertion not dropped).
+  - id: SPEC-FRESH4-002
+    status: resolved
+    reason: >-
+      The vestigial third carve-out ("--json may be omitted where a scenario asserts
+      only that an exception did or did not propagate, with no numeric or ID
+      comparison") was removed outright from the convention blockquote in commit
+      1318ce7a1 — confirmed absent via full-document grep for "propagat"/"omitted"/"no
+      numeric", leaving only the two load-bearing carve-outs (procedure-count-via-text,
+      internal-graph-structure-via-DRGGraph) both of which are exercised by the stories.

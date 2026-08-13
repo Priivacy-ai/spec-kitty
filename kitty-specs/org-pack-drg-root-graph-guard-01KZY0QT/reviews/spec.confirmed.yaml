@@ -1,0 +1,37 @@
+# review-confirmed/v1 — merged findings whose R3 verdict is `confirmed`. Cites
+# reviews/spec.merged.yaml (full evidence/claim/remediation) and
+# reviews/spec-refute-1.yaml (the refuter's per-finding reason) as evidence; not
+# re-derived here. All 4 merged findings were confirmed — none refuted this round.
+schema: review-confirmed/v1
+complete: true
+phase: spec
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+source:
+  merged: reviews/spec.merged.yaml
+  refute: [reviews/spec-refute-1.yaml]
+confirmed_count: 4
+refuted_count: 0
+findings:
+  - id: SPEC-ARCH-001
+    severity: 4
+    title: "FR-003's root+drg/ merge has no specified conflict/precedence semantics and no test coverage, and a genuine overlap crashes charter context instead of degrading"
+    refute_reason: "Confirmed live against code: merge_layers (loader.py:155-197) is asymmetric/additive-no-dedup, DRGValidationError (validator.py:27-32) is an independent Exception subclass not caught by the sole `except DRGLoadError` at action_doctrine_bundle.py:200-207, assert_valid runs once post-merge (_drg_helpers.py:95-96), and spec.md's FR-003/Edge Cases/User Stories/FR-005 as quoted contain no both-present conflict semantics or test coverage."
+    remediation_summary: "Pin merge precedence and duplicate-edge handling explicitly in FR-003; add a both-present fixture and Acceptance Scenario."
+
+  - id: SPEC-GOV-001
+    severity: 4
+    title: "FR-004 (genuine load-failure visibility) has zero acceptance/test coverage and no pinned mechanism — an implementer could satisfy its letter with a vacuous log-level bump while the shared catch block keeps swallowing the failure"
+    refute_reason: "Confirmed: FR-004 is the only High-priority FR with no matching Acceptance Scenario or SC anywhere in spec.md, C-004 textually ties its non-vacuous-floor language to FR-005 only, and the cited code (action_doctrine_bundle.py:163-207, _drg_helpers.py:83-97, loader.py:50-79) shows the single wide `except DRGLoadError` genuinely collapses any load failure (including malformed-fragment ValidationError/YAMLError) to WARNING+empty-bundle exactly as claimed."
+    remediation_summary: "Add an Acceptance Scenario + SC-005 for FR-004 pinning a concrete, structurally distinguishable outcome for malformed-fragment content; extend C-004 to cover FR-004."
+
+  - id: SPEC-VERIFY-002
+    severity: 4
+    title: "FR-003 (merge root-level + drg/ content when present) has no Acceptance Scenario, SC, or mandated regression test — only Edge Cases prose"
+    refute_reason: "Confirmed: FR-003 appears only in the requirements table and one Edge Cases prose bullet (lines 114-118); neither User Story's Acceptance Scenarios, FR-005's fixture (drg/-only), nor SC-001..SC-004 reference a both-present fixture, matching the finding's claim verbatim."
+    remediation_summary: "Add an Acceptance Scenario + SC for the both-present case with a two-source fixture (node A at root, node B in drg/); extend FR-005's mandated test set. Coordinate with SPEC-ARCH-001."
+
+  - id: SPEC-VERIFY-003
+    severity: 3
+    title: "The catch block FR-004 must narrow also currently swallows malformed PROJECT-layer graph content identically — spec's C-001 blast radius and FRs are silent on whether that shared behavior changes too"
+    refute_reason: "Confirmed: load_validated_graph (_drg_helpers.py:86-93) loads built-in/org/project inside one function that action_doctrine_bundle.py:163-207 wraps in a single try/except DRGLoadError, so a malformed project-layer *.graph.yaml (past has_graph_files' existence-only guard) is swallowed identically to the org-path bug today, and spec.md's C-001 blast-radius text is silent on org-vs-project disposition as claimed."
+    remediation_summary: "Add a one-line disposition to FR-004/a Constraint stating whether narrowing the catch is scoped to org-only or also changes project-layer visibility, with an AC/SC either way."

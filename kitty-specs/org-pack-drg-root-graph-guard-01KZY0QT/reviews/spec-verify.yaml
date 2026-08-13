@@ -1,0 +1,44 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: >
+      FR-003's text now pins an explicit, decidable precedence rule for a same-URN
+      node-label conflict (drg/ fragments play the "project" role and override the root
+      graph's "built-in" role, mirroring merge_layers' existing call-order convention)
+      and an explicit dedupe-before-assert_valid rule for an identical edge triple, both
+      backed by new User Story 4 (Independent Test + 2 Acceptance Scenarios), SC-005
+      (node presence), SC-006 (edge-triple dedup), and FR-006's mandated regression-test
+      set — the crash risk that made this severity-4 (identical edge triple raising an
+      uncaught DRGValidationError) is now both pinned and test-covered; the sole residual
+      gap is that no fixture exercises a genuine same-URN label conflict (only the
+      no-conflict node-presence and edge-dedup cases are tested), but the rule itself is
+      stated unambiguously with call-order specificity, not left to implementer
+      discretion.
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: >
+      New User Story 3 (Independent Test + 2 Acceptance Scenarios covering invalid-YAML
+      and schema-invalid drg/ fragments) plus SC-007 and the extended FR-004/C-004 text
+      require a failure outcome "structurally distinguishable" from User Story 2's
+      genuinely-empty success path — a specific exception type not already caught
+      upstream, or a non-empty machine-checkable error field never populated on the
+      success path — which a vacuous log-level bump could not satisfy since it would
+      leave the CLI's JSON output and exception shape identical to today's silent
+      success.
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: >
+      New User Story 4's Acceptance Scenario 1, SC-005, and FR-006(a) add a concrete
+      fixture (root-level node A + drg/ node B) and regression-test mandate for the
+      both-present case, closing what was previously a zero-coverage gap (only Edge
+      Cases prose, no AC/SC/test).
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: >
+      FR-004's text and the new Non-Goals bullet both state unambiguously that the
+      catch-narrowing is scoped to the org branch only and that project-layer
+      DRGLoadError handling is explicitly unchanged and out of scope for this mission.

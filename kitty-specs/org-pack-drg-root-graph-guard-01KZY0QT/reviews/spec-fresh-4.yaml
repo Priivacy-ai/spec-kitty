@@ -1,0 +1,107 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh4
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+findings:
+  - id: SPEC-FRESH4-001
+    lens: testability
+    severity: 4
+    title: >-
+      New --json convention paragraph claims procedure counts are exposed via
+      `--json`, but the CLI's JSON payload never surfaces a per-kind procedure
+      array or count — FR-005/SC-001/User-Story-1-AC1 mandate an assertion the
+      stated mechanism cannot produce.
+    evidence:
+      - artifact: "spec.md lines 39-52 (new '--json usage convention' blockquote, added in 77d1a9d72)"
+      - artifact: "spec.md lines 79-83 (User Story 1, Acceptance Scenario 1: '...directive/tactic/styleguide/toolguide/procedure counts are not lower than the bare-project baseline')"
+      - artifact: "spec.md line 290 (FR-005: '...asserts the resolved directive/tactic/procedure counts for `charter context --action <a> --json` are not lower than the no-pack baseline (mirroring the issue's own probe: 21 directives / 69 tactics / 10 procedures...)')"
+      - artifact: "spec.md lines 328-331 (SC-001, same claim)"
+      - code: "src/specify_cli/cli/commands/charter/context.py:136-172 — the `json_output` branch's printed dict has exactly these typed keys: `directives`, `all_directives`, `tactics`, `styleguides`, `toolguides`, `references`, `governance_references`, `project_charter`, `org_charter`. There is no `procedures` key."
+      - code: "src/charter/context.py:381-460 (`build_charter_context_json`) — payload dict literal (lines 429-443) initializes only `directives`/`tactics`/`styleguides`/`toolguides` as typed arrays; `bundle.procedure_ids` is passed into `extra_delivered={\"procedure\": bundle.procedure_ids, ...}` (line 490) which only feeds the generic `references` link set, never its own array."
+      - code: "src/charter/progressive_disclosure.py:325-350 (`build_disclosure_payload` docstring, lines 337-341): 'the top-level references link set that names every delivered artefact (including the procedure/asset kinds in extra_delivered, which are delivered but not surfaced as their own arrays).'"
+      - code: "src/charter/progressive_disclosure.py:53-69 (`edge_to_reference`) — each entry in the generic `references` list is `{id, relation, when, reason}`; there is no `kind` field, so even a `procedure` reference cannot be filtered out of the mixed list by kind."
+      - code: "src/charter/context_renderers/bootstrap_text.py:106 (`_ActionRenderRow(\"Procedures\", \"procedure_ids\", \"procedures\", \"name\", \"purpose\")`) — the *plain-text* (non-`--json`) bootstrap render actually names every procedure under a 'Procedures:' heading, which is the opposite of what the new convention paragraph claims ('without --json the command only prints result.text... the directives/tactics/styleguides/toolguides lists exist only in the --json payload')."
+      - code: "tests/charter/test_every_load_delivery.py:263 and surrounding assertions — this repo's own existing SC-001/002-style regression test (for a *different*, earlier mission) asserts zero counts for directives/tactics/styleguides/toolguides via the `--json` payload's typed arrays but conspicuously never asserts a procedure count, corroborating that procedure counts are not obtainable from that payload."
+    claim: >-
+      Round 4's stated rationale for requiring `--json` is: "the per-artifact
+      id fields and the directives/tactics/styleguides/toolguides lists exist
+      only in the --json payload" and this is offered as justification for
+      why FR-005/SC-001/User Story 1's directive/tactic/PROCEDURE count
+      assertions must invoke `charter context --action <a> --json`. This is
+      only true for four of the five doctrine kinds. `procedure` is
+      deliberately excluded from the JSON payload's typed arrays (confirmed
+      in `build_disclosure_payload`'s own docstring: "delivered but not
+      surfaced as their own arrays") and only appears, unlabeled by kind,
+      inside the generic `references` link list alongside every other
+      delivered kind — so it cannot be counted in isolation from that
+      payload at all. Ironically, the *plain-text* render (the one the new
+      convention paragraph says to avoid) does emit a distinct "Procedures:"
+      section naming every procedure. FR-005 is the mission's flagship
+      non-vacuous regression test (explicitly invoked by C-004/Standing
+      Order #5 to prove the reported defect class — an empty bundle reported
+      as success — cannot recur) and it literally mirrors the issue's own
+      reproduction numbers "21 directives / 69 tactics / 10 procedures." As
+      written, an implementer following FR-005's/SC-001's/User Story 1 AC1's
+      literal text (assert procedure counts via `charter context --action <a>
+      --json`) cannot do so with the shipped payload; they must either (a)
+      silently drop the procedure-count assertion (weakening the very AC this
+      mission depends on to prove non-vacuousness), or (b) fall back to an
+      internal Python call (e.g. `bundle.procedure_ids`) that contradicts the
+      CLI invocation the requirement's own wording mandates and that this
+      repo's established test-writing convention (see
+      `tests/charter/test_every_load_delivery.py`'s own docstring: "asserted
+      through the shipped command surface... not by calling
+      build_charter_context directly — a test that supplies the grain itself
+      proves nothing about the CLI") discourages.
+    remediation: >-
+      Amend the `--json` convention blockquote (spec.md lines 39-52) to state
+      explicitly that `procedure` counts/IDs are NOT exposed as a typed array
+      in the `--json` payload (only folded, unlabeled, into the generic
+      `references` list) and are instead verified either (a) via the internal
+      `_load_action_doctrine_bundle`/`bundle.procedure_ids` call directly, with
+      an explicit carve-out noting this is the one doctrine kind checked
+      off-CLI, or (b) by dropping the procedure-count leg of the assertion and
+      scoping FR-005/SC-001/User Story 1 AC1 to directive/tactic/styleguide/
+      toolguide counts only (which the payload does support), moving the
+      procedure-count check to a narrower, separately-stated test. Update
+      FR-005, SC-001, and User Story 1 Acceptance Scenario 1 (and User Story
+      2's Independent Test, which also implies "preserved exactly" parity
+      across all counts including procedures) to match whichever mechanism is
+      chosen, so the ATDD test required by C-003 is actually writable against
+      the shipped surface as literally described.
+
+  - id: SPEC-FRESH4-002
+    lens: internal-consistency
+    severity: 2
+    title: >-
+      The new `--json` convention's third carve-out ("may be omitted where a
+      scenario asserts only that an exception did or did not propagate, with
+      no numeric or ID comparison") is never actually exercised by any of the
+      four User Stories it governs.
+    evidence:
+      - artifact: "spec.md lines 39-52 (the convention blockquote, third sentence: '`--json` may be omitted where a scenario asserts only that an exception did or did not propagate, with no numeric or ID comparison.')"
+      - artifact: "spec.md lines 71-209 (User Stories 1-4, Independent Tests + Acceptance Scenarios) — every instance where `--json` is omitted (User Story 4's second Independent Test fixture and its Acceptance Scenario 2) is justified instead by the *first* carve-out ('internal graph structure that payload does not expose... verify by inspecting the resolved DRGGraph directly'), and every other scenario across all four stories both retains `--json` and asserts a numeric/ID comparison of some kind (counts, artifact-ID presence, or a non-empty error field)."
+    claim: >-
+      The convention paragraph enumerates two independent conditions under
+      which `--json` may be dropped: (1) the assertion targets internal graph
+      structure not exposed by the payload (edge-triple multiplicity), or (2)
+      the assertion is purely "exception propagated or not," with no
+      numeric/ID check at all. Reading all four User Stories end to end, only
+      condition (1) is ever actually used (User Story 4's duplicate-edge-
+      triple scenario) — no scenario in any of the four stories matches
+      condition (2)'s description (every scenario that checks "did an
+      exception propagate" also checks a count, an artifact ID, or a
+      structured error field alongside it). This isn't a functional defect,
+      but it means the convention note bakes in a rule its own stated
+      scenarios never illustrate or need, which is a minor sign the
+      reconciliation pass wrote the rule to a broader spec than the four
+      stories actually require, and leaves a future scenario author with an
+      unverified carve-out to lean on.
+    remediation: >-
+      Either drop the third carve-out clause from the convention paragraph (if
+      no current or near-term scenario needs it), or add a concrete
+      illustrative case to Edge Cases or one of the User Stories that
+      exercises it, so every clause in the convention is demonstrably load-
+      bearing rather than speculative.

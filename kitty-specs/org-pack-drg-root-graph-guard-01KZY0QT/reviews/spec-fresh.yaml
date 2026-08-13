@@ -1,0 +1,168 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+findings:
+  - id: SPEC-FRESH-001
+    lens: charter-alignment
+    severity: 4
+    title: "C-003 ATDD-first still names only FR-005; C-004 was widened to cover FR-004/FR-006 but C-003 was not"
+    evidence:
+      - artifact: "spec.md § C-003 (unchanged by this fix round)"
+      - artifact: "spec.md § C-004 (changed by this fix round, now covers FR-004, FR-005, FR-006)"
+    claim: >
+      The fix round widened C-004 ("Non-vacuous architectural gate discipline") to explicitly
+      require concrete, checkable assertions from all three regression tests — FR-004's,
+      FR-005's, and FR-006's. C-003 ("ATDD-first"), directly above it, was left untouched and
+      still reads "A failing-first ATDD test pinning FR-005's observable behavior... is
+      committed as a separate commit before any implementation commit; the test must be RED
+      on the WP's planning_base_branch and GREEN on the WP's final commit" — naming FR-005
+      only. Nothing in the spec requires the FR-004 (malformed-fragment) or FR-006
+      (merge/dedup) regression tests to be written red-first as a separate commit before
+      implementation. Since FR-004 and FR-006 are the two requirements this exact fix round
+      added specifically to close previously-confirmed gaps, leaving them outside the
+      red-first discipline reopens the same "implementation-first, retrofit a passing test"
+      risk C-003/C-004 exist to prevent — for the newest, least-verified requirements in the
+      document.
+    remediation: >
+      Either broaden C-003 to name FR-004 and FR-006 alongside FR-005 (mirroring how C-004
+      was widened), or add a parallel constraint requiring red-first ATDD discipline for all
+      three regression-test families.
+
+  - id: SPEC-FRESH-002
+    lens: architectural-integrity
+    severity: 4
+    title: "FR-003's dedup mechanism is ambiguous about whether it modifies the shared merge_layers() primitive, risking a regression to NFR-001's no-org-pack baseline"
+    evidence:
+      - artifact: "spec.md § FR-003: \"the org-layer sub-merge treats drg/ as the 'project' role and the root graph as the 'built-in' role fed into merge_layers... deduplicates the triple before the final assert_valid validation pass\""
+      - code: "src/doctrine/drg/loader.py:155 merge_layers() docstring: \"Semantics (additive only)... All edges from both layers are combined (additive, no removal).\""
+      - code: "src/charter/_drg_helpers.py:95 load_validated_graph(): merged = merge_layers(merge_layers(built_in, org), project)"
+      - artifact: "spec.md § NFR-001: \"For any project with no org pack declared, charter context --action <a> output... is byte-for-byte unaffected by this change\""
+    claim: >
+      merge_layers() (src/doctrine/drg/loader.py) is documented as purely additive for edges
+      — "no removal" — and is reused directly, unmodified, twice more inside the same
+      load_validated_graph() call chain (built_in+org, then that result+project), and by five
+      other callers (validation_gate.py, project_drg.py, drg.py, reconcile.py,
+      calibration/walker.py). FR-003 names merge_layers as the function the org-internal
+      root/drg/ sub-merge is "fed into," and separately requires edge-triple dedup before
+      assert_valid — but merge_layers itself has no dedup capability today, so satisfying
+      FR-003 literally as described requires either (a) new dedup logic scoped locally inside
+      _drg_helpers.py around an unmodified merge_layers call, or (b) adding dedup logic
+      inside merge_layers itself. The spec doesn't rule out (b). If an implementer takes the
+      natural reading that merge_layers is "the" merge primitive being extended, and modifies
+      it in src/doctrine/drg/loader.py, that changes the OTHER two merge_layers calls in the
+      same function too — including merge_layers(built_in, project) at line 95, which fires
+      unconditionally even when org_root is None. A project overlay that duplicates a
+      built-in edge today raises DRGValidationError; under a merge_layers-level fix it would
+      silently dedupe instead — a behavior change in the zero-org-pack path that NFR-001
+      explicitly promises is byte-for-byte unaffected. C-001's blast-radius list also doesn't
+      name src/doctrine/drg/loader.py or protect merge_layers's "no removal" contract the way
+      it names load_graph_or_dir/has_graph_files as untouched.
+    remediation: >
+      State explicitly in FR-003 (or C-001) that merge_layers() itself must not be modified —
+      the root/drg/ dedup is new logic local to _drg_helpers.py that runs on the org-internal
+      DRGGraph before it is fed into the existing, unmodified merge_layers(built_in, org)
+      call.
+
+  - id: SPEC-FRESH-003
+    lens: silent-success
+    severity: 4
+    title: "FR-006(b)/SC-006's dedup acceptance criterion only asserts absence of DRGValidationError, never that the deduplicated edge survives — an implementation that drops the edge entirely would pass"
+    evidence:
+      - artifact: "spec.md § FR-006(b): \"assert the org-layer sub-merge deduplicates it without raising DRGValidationError\""
+      - artifact: "spec.md § SC-006: \"resolves without raising DRGValidationError — the org-layer sub-merge deduplicates the triple before validation\""
+      - artifact: "spec.md § User Story 4 Acceptance Scenario 2: \"the org-layer sub-merge deduplicates the identical triple before validation and the call succeeds (no DRGValidationError propagates)\""
+      - artifact: "spec.md § FR-003: \"no authored content is silently dropped based on which location it lives in\""
+    claim: >
+      Every version of the identical-edge-triple acceptance criterion (FR-006(b), SC-006,
+      User Story 4 Scenario 2) asserts only that DRGValidationError is NOT raised. None of
+      them assert that exactly one copy of the deduped edge is actually present in the
+      resolved graph. Contrast with FR-006(a)/SC-005 (the node case), which correctly asserts
+      positive presence of both node IDs. An implementation that drops BOTH copies of a
+      duplicate edge (over-aggressive removal, or a bug that discards the whole conflicting
+      edge instead of collapsing it to one) would also raise no DRGValidationError and would
+      pass this AC/SC as worded — while directly violating FR-003's own stated intent that "no
+      authored content is silently dropped." This is the exact vacuous-fix shape C-004 was
+      strengthened this round to rule out ("a test that only checks for the absence of an
+      exception... would be vacuous"), reproduced inside the very FR/SC pair that C-004 cites
+      as its own example of non-vacuous coverage.
+    remediation: >
+      Add a positive assertion to FR-006(b)/SC-006/User Story 4 Scenario 2: after dedup, the
+      resolved graph contains exactly one instance of the (source, target, relation) triple —
+      not merely that no exception was raised.
+
+  - id: SPEC-FRESH-004
+    lens: architectural-integrity
+    severity: 3
+    title: "FR-003's new edge-dedup requirement doesn't reference the codebase's existing canonical duplicate-triple definition, risking a second, drifted definition of \"duplicate\""
+    evidence:
+      - code: "src/doctrine/drg/validator.py:268 duplicate_edge_triples() docstring: \"Both _validate_duplicate_edges... and charter.synthesizer.reconcile... consume this so 'duplicate' has exactly one definition.\""
+      - artifact: "spec.md § FR-003: \"the org-layer sub-merge deduplicates the triple before the final assert_valid validation pass\" (no reference to duplicate_edge_triples)"
+    claim: >
+      The codebase already has a single canonical function, duplicate_edge_triples() in
+      src/doctrine/drg/validator.py, whose own docstring states it exists specifically so that
+      "duplicate" (source, target, relation) has exactly one definition shared between
+      validate_graph's error-producing path and charter.synthesizer.reconcile's
+      provenance-classification path. FR-003/FR-006 introduce a third consumer of "duplicate
+      edge triple" (the org-internal root/drg/ sub-merge) without naming or requiring reuse of
+      this existing primitive. An implementer following the spec's prose alone could
+      reasonably hand-roll a second (source, target, relation) comparison inline in
+      _drg_helpers.py, which — being independently written — could drift from
+      duplicate_edge_triples's exact tie-breaking/ordering semantics over time, undermining
+      the "exactly one definition" invariant the codebase deliberately built.
+    remediation: >
+      Name doctrine.drg.validator.duplicate_edge_triples (or an equivalent explicit reuse
+      instruction) in FR-003/FR-006 as the required detection primitive for the org-internal
+      dedup step, consistent with the existing single-definition invariant.
+
+  - id: SPEC-FRESH-005
+    lens: terminology-drift
+    severity: 3
+    title: "FR-003 overloads the term \"project\" (merge_layers' role parameter) inside a document where \"project\" already names a distinct, canonical DRG layer"
+    evidence:
+      - artifact: "spec.md § FR-003: \"the org-layer sub-merge treats drg/ as the 'project' role and the root graph as the 'built-in' role fed into merge_layers\""
+      - artifact: "spec.md § Non-Goals: \"malformed PROJECT-layer (.kittify/doctrine) graph content\""
+      - code: "src/charter/_drg_helpers.py:9 \"perform three-layer (built-in → org → project) DRG merging\"; :66 \"3. project — optional per-project overlay at <repo_root>/.kittify/doctrine\""
+    claim: >
+      Throughout this spec and the underlying code, "project" (layer) is an established,
+      distinct term meaning the per-project overlay at .kittify/doctrine — the third of the
+      three built-in → org → project layers, called out explicitly in this same document's
+      Non-Goals bullet and Key Entities. FR-003's new text reuses the bare word "project" for
+      a completely different thing: the *parameter name* merge_layers happens to use for its
+      override-wins argument, applied here to label drg/ fragments within the org layer's own
+      internal sub-merge (which has nothing to do with the .kittify/doctrine project layer).
+      A reader or implementer skimming FR-003 could easily misread "drg/ [plays] the 'project'
+      role" as implying drg/ content is somehow promoted to interact with the actual
+      project-layer merge, rather than being an org-internal-only role-parameter analogy.
+    remediation: >
+      Rephrase FR-003 to avoid reusing "project" for the merge_layers role parameter — e.g.
+      "the org-layer sub-merge feeds drg/ as merge_layers' override argument and the root
+      graph as merge_layers' base argument (the same override-wins convention merge_layers
+      already applies when the org layer overrides built-in)" — without invoking the word
+      "project," which this document reserves for the .kittify/doctrine layer.
+
+  - id: SPEC-FRESH-006
+    lens: cross-reference-consistency
+    severity: 3
+    title: "User Story 3's Independent Test specifies --json but its Acceptance Scenarios drop the flag, leaving the required distinguishable-failure channel unpinned for the plain (non-JSON) invocation"
+    evidence:
+      - artifact: "spec.md § User Story 3 Independent Test: \"run charter context --action <a> --json, and assert the outcome is structurally distinguishable... (e.g. a specific raised exception type... or a non-empty, machine-checkable error field in the JSON output...)\""
+      - artifact: "spec.md § User Story 3 Acceptance Scenario 1: \"When charter context --action <a> is run, Then... it produces a structurally distinguishable failure signal (a specific exception type, or a non-empty machine-checkable error field)\" (no --json)"
+    claim: >
+      FR-004 allows two different compliance mechanisms — a distinguishable raised exception,
+      or a machine-checkable JSON error field — but these are two different failure
+      experiences at the CLI (one is a process-level exception/crash, the other is well-formed
+      JSON output with an error field). The Independent Test pins the JSON-field path by
+      explicitly invoking --json; the Acceptance Scenarios describe the same two options but
+      drop --json entirely, leaving it undefined which invocation mode (plain vs --json) is
+      actually exercised by the scenario, and therefore undefined whether an implementation
+      that only surfaces the machine-checkable field under --json (and does nothing
+      distinguishable in plain-text mode) satisfies the Acceptance Scenario as literally
+      written.
+    remediation: >
+      Align the Acceptance Scenarios with the Independent Test by specifying --json explicitly
+      (or, if the exception-type path is meant to cover the non---json case, say so
+      explicitly: "the exception-type option applies to plain invocation; the JSON-field
+      option applies to --json invocation").

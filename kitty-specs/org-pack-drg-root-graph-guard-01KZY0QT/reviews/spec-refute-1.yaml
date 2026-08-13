@@ -1,0 +1,18 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: "Confirmed live against code: merge_layers (loader.py:155-197) is asymmetric/additive-no-dedup, DRGValidationError (validator.py:27-32) is an independent Exception subclass not caught by the sole `except DRGLoadError` at action_doctrine_bundle.py:200-207, assert_valid runs once post-merge (_drg_helpers.py:95-96), and spec.md's FR-003/Edge Cases/User Stories/FR-005 as quoted contain no both-present conflict semantics or test coverage."
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: "Confirmed: FR-004 is the only High-priority FR with no matching Acceptance Scenario or SC anywhere in spec.md, C-004 textually ties its non-vacuous-floor language to FR-005 only, and the cited code (action_doctrine_bundle.py:163-207, _drg_helpers.py:83-97, loader.py:50-79) shows the single wide `except DRGLoadError` genuinely collapses any load failure (including malformed-fragment ValidationError/YAMLError) to WARNING+empty-bundle exactly as claimed."
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: "Confirmed: FR-003 appears only in the requirements table and one Edge Cases prose bullet (lines 114-118); neither User Story's Acceptance Scenarios, FR-005's fixture (drg/-only), nor SC-001..SC-004 reference a both-present fixture, matching the finding's claim verbatim."
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: "Confirmed: load_validated_graph (_drg_helpers.py:86-93) loads built-in/org/project inside one function that action_doctrine_bundle.py:163-207 wraps in a single try/except DRGLoadError, so a malformed project-layer *.graph.yaml (past has_graph_files' existence-only guard) is swallowed identically to the org-path bug today, and spec.md's C-001 blast-radius text is silent on org-vs-project disposition as claimed."

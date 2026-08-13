@@ -1,0 +1,61 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: spec
+lens_group: gov
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+findings:
+  - id: SPEC-GOV-001
+    lens: directive
+    severity: 4
+    title: "FR-004 (genuine load-failure visibility) has zero acceptance-scenario or test coverage, and the outer except-block that currently swallows it is out of FR-004's stated reach"
+    evidence:
+      - artifact: "spec.md § Functional Requirements (FR-004)"
+      - artifact: "spec.md § Edge Cases (malformed/invalid drg/ fragment paragraph, lines 119-125)"
+      - artifact: "spec.md § Success Criteria (SC-001..SC-004) — none reference FR-004"
+      - artifact: "spec.md § Constraints (C-004) — ties non-vacuous-floor discipline to FR-005 only"
+      - code: "src/charter/action_doctrine_bundle.py:163-207 (_load_action_doctrine_bundle's single try/except DRGLoadError wraps load_validated_graph, filter_graph_by_activation and resolve_context together, and collapses ANY DRGLoadError from that block to a WARNING + empty bundle, reporting success)"
+      - code: "src/charter/_drg_helpers.py:83-97 (load_validated_graph — the function FR-001/002/003 change; a guard here only decides whether load_graph_or_dir(org_root) is called at all, it does not change what happens to a DRGLoadError that call raises)"
+    claim: >
+      FR-004 ("a malformed or invalid drg/ fragment must still surface as a real,
+      non-swallowed failure") is the only High-priority FR in this spec with no
+      Acceptance Scenario, no Independent Test, and no Success-Criteria entry anywhere
+      in the document. User Story 1 covers FR-001/002/003 with numbered Given/When/Then
+      scenarios; User Story 2 covers the "genuinely nothing to load" half of FR-001; FR-005
+      gets its own regression-test FR plus C-004's explicit non-vacuous-floor requirement.
+      FR-004 gets only prose in the Edge Cases section. This matters concretely here,
+      not just as a documentation nicety: the only mechanism today that turns a
+      DRGLoadError into a silent WARNING+empty-bundle is the single try/except in
+      `_load_action_doctrine_bundle` (action_doctrine_bundle.py:163-207), which wraps
+      the *entire* load-and-resolve sequence, not just the org-root load. Adding a
+      has_graph_files-style guard inside `load_validated_graph` (the FR-001 fix) stops
+      the "nothing to load" case from ever raising, but a genuinely malformed
+      `drg/*.graph.yaml` fragment will still raise DRGLoadError from
+      `load_graph_or_dir(org_root)`, which still propagates straight into the same
+      outer except block and gets caught the same way it is today — i.e. the guard
+      alone does not satisfy FR-004; the except-block's granularity in
+      action_doctrine_bundle.py also has to change to distinguish "guard said nothing
+      to load" from "content existed and failed to parse/validate," and NFR-001's
+      byte-for-byte-unaffected requirement means that differentiation has to be done
+      without touching the project-layer's own (structurally identical, unaffected)
+      has_graph_files-guarded DRGLoadError swallow a few lines below it. Nothing in
+      the spec tells a planner this distinction is required, and with no acceptance
+      scenario forcing it, C-004's own logic ("a test that only checks for the absence
+      of an exception would be vacuous") is honored for FR-005 but not applied to
+      FR-004 in the same document — exactly the silent-success failure mode Standing
+      Order #5 and the spec's own User Story 2 rationale (SK-02/04/06 family) warn
+      against, left unguarded for the one FR that is specifically about failure
+      visibility.
+    remediation: >
+      Add an Acceptance Scenario (or a third User Story) and a Success-Criteria entry
+      for FR-004 that pins an observable outcome for the malformed-fragment case —
+      e.g. "Given an org pack with a `drg/*.graph.yaml` fragment that fails YAML
+      parse/schema validation, when `charter context --action <a>` is run, then the
+      command surfaces a non-zero-exit / raised error (not a WARNING-only log line
+      with a success result and an empty-or-reduced bundle)" — and reference the test
+      that will pin it (mirroring FR-005's C-004 treatment). This will force plan/tasks
+      to explicitly decide how `_load_action_doctrine_bundle`'s except-block
+      differentiates a guard-determined "no org layer" from a genuine DRGLoadError, and
+      how that differentiation stays clear of the project-layer's own unaffected
+      catch-and-collapse a few lines away, rather than leaving that call to accidental
+      implementation and untested behavior.

@@ -1,0 +1,31 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: >-
+      FR-003 now describes the org-layer sub-merge as calling
+      merge_layers(root_graph, drg_graph) and explicitly labels the first
+      positional argument as built_in and the second as project, matching
+      the real signature merge_layers(built_in, project) confirmed at
+      src/doctrine/drg/loader.py:155-157, with no invented base/override
+      parameter names.
+  - id: SPEC-FRESH2-002
+    status: resolved
+    reason: >-
+      C-001 now states the duplicate_edge_triples-reuse requirement is a
+      code-review-time/architectural-conformance constraint rather than a
+      black-box-testable FR commitment, and FR-006(b) adds a matching
+      parenthetical that the mandated regression test verifies only the
+      observable outcome, not which comparison code path produced it —
+      exactly remediation option (a) (move to C-001, drop the
+      must-be-verified framing from FR-003/FR-006).
+  - id: SPEC-FRESH2-003
+    status: resolved
+    reason: >-
+      User Story 1's two Acceptance Scenarios now both invoke
+      `charter context --action <a> --json`, matching its Independent Test's
+      --json usage and eliminating the asymmetry with User Story 3 that the
+      finding identified.

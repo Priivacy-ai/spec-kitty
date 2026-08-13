@@ -1,0 +1,115 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh2
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+findings:
+  - id: SPEC-FRESH2-001
+    lens: technical-accuracy
+    severity: 3
+    title: >-
+      FR-003's new "base argument" / "override argument" naming for
+      merge_layers() does not match the function's real parameter names
+    evidence:
+      - artifact: "spec.md § FR-003 (Functional Requirements table)"
+      - code: "src/doctrine/drg/loader.py:155-157"
+    claim: >-
+      Round 2's fix for FRESH-005 (the "project" terminology collision)
+      replaced the old "project role" wording with: "the org-layer sub-merge
+      feeds the root graph as `merge_layers`' base argument and `drg/` as
+      `merge_layers`' override argument, mirroring `merge_layers`' existing
+      override-wins convention." This reads as naming the actual keyword
+      parameters of `merge_layers`, but the real signature is
+      `merge_layers(built_in: DRGGraph, project: DRGGraph | None)` — there is
+      no parameter named `base` or `override` anywhere in
+      src/doctrine/drg/loader.py. The fix solved the old collision (reusing
+      "project" for two different roles) by introducing a new, equally
+      inaccurate pair of names that don't exist in the code it's describing.
+      An implementer or reviewer who checks the FR text against the actual
+      function signature will find a mismatch; someone who tries to call
+      `merge_layers(base=..., override=...)` as literally described would hit
+      a TypeError.
+    remediation: >-
+      Describe the roles without implying they are the literal parameter
+      names, e.g. "the org-layer sub-merge calls `merge_layers(root_graph,
+      drg_graph)` — root graph as the first (`built_in`) positional argument,
+      `drg/` content as the second (`project`) positional argument — mirroring
+      the override-wins convention `merge_layers` already applies to its
+      `project` argument when org overrides built-in." Keep the actual
+      parameter names (`built_in`, `project`) rather than inventing new ones.
+
+  - id: SPEC-FRESH2-002
+    lens: testability
+    severity: 3
+    title: >-
+      FR-003's "must use duplicate_edge_triples, no independently-written
+      comparison" clause has no AC/SC that can actually verify it
+    evidence:
+      - artifact: "spec.md § FR-003 (Functional Requirements table)"
+      - artifact: "spec.md § FR-006(b) (Functional Requirements table)"
+      - artifact: "spec.md § C-004 (Constraints table)"
+      - code: "src/doctrine/drg/validator.py:264-283"
+    claim: >-
+      Round 2's fix for FRESH-004 added a specific implementation-provenance
+      commitment to FR-003: the org-layer dedup step must use "the existing
+      canonical `doctrine.drg.validator.duplicate_edge_triples` primitive as
+      the single definition of 'duplicate' (no independently-written
+      comparison)." FR-006(b) was correspondingly updated to require a test
+      that asserts "the resolved graph contains exactly one instance of that
+      ... triple afterward." That assertion is purely behavioral/black-box —
+      it checks the surviving edge count, not which code path produced it.
+      An implementation that hand-rolls its own `(source, target, relation)`
+      set-comparison instead of calling `duplicate_edge_triples` would pass
+      every AC/SC in this spec (FR-006(b), SC-006, User Story 4 Scenario 2)
+      identically to one that reuses the canonical primitive — nothing in the
+      spec's testable surface can distinguish the two. C-004 (non-vacuous
+      gate discipline) only requires FR-004/005/006's tests to assert
+      "a concrete, checkable outcome," which this outcome is — but it's the
+      wrong outcome to catch a violation of the "no independently-written
+      comparison" clause specifically. That clause is enforceable only by
+      manual code review, which the spec neither states nor gates on.
+    remediation: >-
+      Either (a) explicitly scope this as a code-review-time constraint (move
+      it to C-001's blast-radius list, alongside the existing "merge_layers()
+      not modified" clause, and drop the "must be verified" framing from
+      FR-003/FR-006), or (b) if it must be test-enforced, describe a concrete
+      mechanism that can check it (e.g. a static/architectural test asserting
+      `_drg_helpers.py` imports and calls `duplicate_edge_triples`, similar in
+      spirit to `test_no_dead_symbols.py` for C-002). As written, it reads as
+      a testable FR commitment but has no test that can actually fail on
+      violation.
+
+  - id: SPEC-FRESH2-003
+    lens: internal-consistency
+    severity: 2
+    title: >-
+      User Story 1 has the same Independent-Test-vs-Acceptance-Scenarios
+      --json mismatch that round 2 just fixed in User Story 3, but it was
+      left unaddressed
+    evidence:
+      - artifact: "spec.md § User Story 1, Independent Test (line ~56-60)"
+      - artifact: "spec.md § User Story 1, Acceptance Scenarios 1-2 (line ~62-73)"
+      - artifact: "spec.md § User Story 3, Independent Test and Acceptance Scenarios (post round-2 fix)"
+    claim: >-
+      Round 2 fixed FRESH-006 by adding `--json` to User Story 3's two
+      Acceptance Scenarios so they'd match its Independent Test, which already
+      specified `charter context --action <a> --json`. The identical-shaped
+      gap exists in User Story 1: its Independent Test says "assert `charter
+      context --action <a> --json` reports non-zero directive/tactic/procedure
+      counts," but both of its Acceptance Scenarios say "`charter context
+      --action <a>` is run" with no `--json`, and give no reason for the
+      difference. Round 2's own fix elsewhere in the same document establishes
+      that Independent Test and Acceptance Scenarios are expected to agree on
+      the CLI invocation shape when `--json` is load-bearing for the
+      assertion (machine-checkable counts/fields) — User Story 1 now looks
+      like the odd one out by comparison, with nothing in the text explaining
+      why User Story 1's scenarios can be verified without `--json` while its
+      own Independent Test needs it.
+    remediation: >-
+      Apply the same fix used for User Story 3: either add `--json` to User
+      Story 1's two Acceptance Scenarios to match its Independent Test, or
+      state explicitly why User Story 1's Acceptance Scenarios don't need
+      `--json` (e.g. if they're meant to be checkable via a non-CLI/internal
+      API path) so the asymmetry with User Story 3 is intentional rather than
+      an oversight.
