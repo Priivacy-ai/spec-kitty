@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KZRVDSHFMFY9N2H92TMMM89N",
+  "completed_at": "2026-08-11T17:13:43.107444+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "/tmp/core-3328-wp02-implement-final.md"
+}

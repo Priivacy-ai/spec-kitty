@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KZSJYXVRX26ASTRDVJZJSTQN",
+  "completed_at": "2026-08-12T00:02:00.528058+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "/tmp/core-3328-wp05-prime-kimi-cycle2.jsonl"
+}

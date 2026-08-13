@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KZSN8TCMWFQFMKS6ED2GGKDX",
+  "completed_at": "2026-08-12T00:24:26.239974+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "kitty-specs/worktree-owned-root-3328-01KZRG01/analysis-report.md"
+}

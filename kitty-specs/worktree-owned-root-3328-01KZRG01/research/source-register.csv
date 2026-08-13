@@ -1,0 +1,24 @@
+source_id,source_type,reference,accessed,notes
+S-01,github_issue,https://github.com/Priivacy-ai/spec-kitty/issues/3328,2026-08-11,Core issue this mission implements.
+S-02,github_issue,https://github.com/Priivacy-ai/spec-kitty/issues/3129,2026-08-11,Parent design issue; shadow-workspace sketch explicitly out of scope for #3328.
+S-03,github_issue,https://github.com/Priivacy-ai/spec-kitty/issues/3128,2026-08-11,Sibling issue; post-ownership caller-vs-declared-workspace fail-closed guard.
+S-04,github_issue,https://github.com/Priivacy-ai/spec-kitty/issues/1907,2026-08-11,Dev-tooling stale-worktree-base + editable-install repoint hazard; informs C-004/FR-012.
+S-05,github_issue,https://github.com/Priivacy-ai/spec-kitty-saas/issues/836,2026-08-11,Downstream SaaS acceptance blocked on this mission; CONFIG-12 governance runtime isolation.
+S-06,github_pr,https://github.com/Priivacy-ai/spec-kitty-saas/pull/864,2026-08-11,Draft PR; body documents remaining #836 scope not claimed (real worktree creation still refused by core 3.2.6).
+S-07,source_code,src/specify_cli/core/mission_creation.py,2026-08-11,create_mission_core() worktree-context guard and allow_worktree_context parameter.
+S-08,source_code,src/specify_cli/core/paths.py,2026-08-11,locate_project_root/get_main_repo_root/resolve_canonical_root/is_worktree_context/get_status_read_root/assert_worktree_supported.
+S-09,source_code,src/specify_cli/core/context_validation.py,2026-08-11,detect_execution_context/require_main_repo (.worktrees-literal detector).
+S-10,source_code,src/specify_cli/git/commit_helpers.py,2026-08-11,safe_commit() and _is_worktree_of() git-topology comparator.
+S-11,source_code,src/specify_cli/coordination/transaction.py,2026-08-11,BookkeepingTransaction — existing repo_root != worktree_root production pattern.
+S-12,source_code,src/specify_cli/coordination/surface_resolver.py,2026-08-11,classify_worktree_topology/_enclosing_worktree_root (.worktrees-literal) and read_worktree_registry (generic, fail-closed).
+S-13,source_code,src/specify_cli/status/locking.py,2026-08-11,Cross-worktree status lock at shared git-common-dir (intentionally NOT per-checkout).
+S-14,source_code,src/runtime/next/runtime_bridge_io.py,2026-08-11,feature-runs.json path keyed by caller-supplied repo_root.
+S-15,source_code,src/specify_cli/merge/workspace.py,2026-08-11,Merge runtime lock directory keyed by caller-supplied repo_root.
+S-16,source_code,src/specify_cli/charter/resolution.py,2026-08-11,resolve_canonical_repo_root() — 4th independent common-dir resolver.
+S-17,test_code,tests/architectural/test_no_production_worktree_guard_bypass.py,2026-08-11,AST fence forbidding production allow_worktree_context=True; documents intended resolution-based replacement.
+S-18,test_code,tests/contract/test_canonical_root_when_in_worktree.py,2026-08-11,Regression net for correct read-side ambient collapse — must not regress.
+S-19,test_code,tests/unit/workspace/test_root_resolver.py,2026-08-11,Regression net for resolve_canonical_root read-side behavior — must not regress.
+S-20,test_code,tests/runtime/test_paths_unit.py,2026-08-11,Exhaustive is_worktree_context/locate_project_root unit coverage.
+S-21,docs,docs/architecture/git-workflow.md,2026-08-11,Infrastructure-git vs content-git split; no invoking-checkout ownership content.
+S-22,docs,docs/architecture/git-worktrees.md,2026-08-11,General worktree mechanics; no ownership-validation content.
+S-23,tool_output,zeitgeist_presence(spec-kitty),2026-08-11,Confirmed concurrent multi-session activity on this repo during research.
