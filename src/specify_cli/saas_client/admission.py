@@ -52,9 +52,9 @@ class SaasContractPin:
 
 PINNED_SAAS_WP04_CONTRACT = SaasContractPin(
     producer_gate="SaaS WP04",
-    commit="29cc20c6ca5d61784af6f8b973a36131e69103af",
-    sha256="fe3a9f8d2563e3a9df386cd911ea858fd6a48913eb14c5b39d579b26bf3a4b35",
-    checkout_label="saas-wp04-candidate-29cc20c6",
+    commit="4e15aa5cf263d857f6e10541d3f19cc4c993e5c5",
+    sha256="57e66b0f3f234c663eb00dffbe04cbcbed3375d8f283875f42e6ff5481022b7b",
+    checkout_label="saas-wp04-candidate-4e15aa5c",
 )
 
 

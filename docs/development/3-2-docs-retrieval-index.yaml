@@ -8051,6 +8051,19 @@ pages:
     abstract: "End-user Spec Kitty guides: learning-oriented tutorials and task-oriented how-tos for installing, running, governing, and monitoring your missions."
     anchors:
     - {slug: "how-to-concerns", text: "How-To concerns", level: 2}
+  - path: "docs/guides/project-sync-consent.md"
+    title: "Per-Project Sync Consent"
+    divio_type: "how-to"
+    abstract: "How per-project hosted-sync consent works in Spec Kitty 3.2: opt a project in or out, what the deny-only kill switch does and does not do, how local consent pairs with SaaS admission, and how operators migrate legacy shared sync state."
+    anchors:
+    - {slug: "the-model-in-one-table", text: "The model in one table", level: 2}
+    - {slug: "opt-a-project-in", text: "Opt a project in", level: 2}
+    - {slug: "opt-a-project-out", text: "Opt a project out", level: 2}
+    - {slug: "what-the-kill-switch-does-and-does-not-do", text: "What the kill switch does — and does not do", level: 2}
+    - {slug: "how-admission-pairs-with-the-saas-boundary", text: "How admission pairs with the SaaS boundary", level: 2}
+    - {slug: "migrating-legacy-shared-state-operators", text: "Migrating legacy shared state (operators)", level: 2}
+    - {slug: "where-the-evidence-lives", text: "Where the evidence lives", level: 2}
+    - {slug: "related-reading", text: "Related reading", level: 2}
   - path: "docs/guides/tutorials/charter-governed-workflow.md"
     title: "Tutorial: Governed Charter Workflow End-to-End"
     divio_type: "tutorial"

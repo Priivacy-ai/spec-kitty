@@ -16,14 +16,14 @@ from specify_cli.saas_client.admission import (
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast]
 
-CANDIDATE_CHECKOUT = Path("/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260809-175108-qc7maU/saas-wp04-candidate-29cc20c6")
+CANDIDATE_CHECKOUT = Path("/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260809-175108-qc7maU/saas-wp04-candidate-4e15aa5c")
 
 
 def test_pinned_authority_identifies_saas_wp04_not_a_version_or_branch() -> None:
     assert PINNED_SAAS_WP04_CONTRACT.producer_gate == "SaaS WP04"
-    assert PINNED_SAAS_WP04_CONTRACT.commit == "29cc20c6ca5d61784af6f8b973a36131e69103af"
-    assert PINNED_SAAS_WP04_CONTRACT.sha256 == "fe3a9f8d2563e3a9df386cd911ea858fd6a48913eb14c5b39d579b26bf3a4b35"
-    assert PINNED_SAAS_WP04_CONTRACT.checkout_label == "saas-wp04-candidate-29cc20c6"
+    assert PINNED_SAAS_WP04_CONTRACT.commit == "4e15aa5cf263d857f6e10541d3f19cc4c993e5c5"
+    assert PINNED_SAAS_WP04_CONTRACT.sha256 == "57e66b0f3f234c663eb00dffbe04cbcbed3375d8f283875f42e6ff5481022b7b"
+    assert PINNED_SAAS_WP04_CONTRACT.checkout_label == "saas-wp04-candidate-4e15aa5c"
 
 
 @pytest.mark.skipif(not CANDIDATE_CHECKOUT.exists(), reason="mission candidate checkout retained only for review")

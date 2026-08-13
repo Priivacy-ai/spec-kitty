@@ -373,13 +373,18 @@
     },
     "WP11": {
       "actor": "claude",
+      "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "claude",
       "force_count": 0,
       "lane": "in_progress",
       "last_event_id": "01KZX7PN2QY7B2NJVY8ASNAKVW",
       "last_transition_at": "2026-08-13T09:36:54.359095+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "WP11 coordinated core acceptance: starting implementation"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "tracker_refs": [

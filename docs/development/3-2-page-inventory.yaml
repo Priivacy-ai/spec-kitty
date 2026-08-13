@@ -2642,6 +2642,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/guides/project-sync-consent.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/guides/tutorials/charter-governed-workflow.md
   tag: current
   divio_type: tutorial

@@ -85,7 +85,7 @@
       "wp": "WP01,WP02"
     },
     "#3262": {
-      "evidence_ref": "Mission per-project-sync-consent-ledgers-01KZKMQZ; implementation evidence pending.",
+      "evidence_ref": "Core recurrence prevention landed and reviewed across WP01-WP10: sole UUID-keyed store/consent authority (tests/sync/test_project_store.py, tests/sync/test_project_consent_authority.py, tests/architectural/test_project_store_boundary.py), default-deny + deny-only kill switch (tests/sync/test_sync_consent_default_deny.py), consent epochs/sealed history (tests/sync/test_consent_epochs.py, tests/sync/test_history_disclosure.py), target-scoped admission + terminal project_not_admitted parking (tests/sync/test_admission_operations.py, tests/sync/test_target_admission_audience.py, tests/sync/test_saas_refusal_parking.py), revocation/crash matrices (tests/sync/test_transport_revocation_matrix.py, tests/sync/test_transport_crash_matrix.py), and WAL-aware copy-only cutover (tests/sync/test_project_store_migration.py, tests/sync/test_migration_writer_barrier.py). WP11 owns the remaining closure evidence: six-project exact-byte run, candidate attestation, benchmark raw samples, and the immutable checksum manifest with >=90-day retention; see acceptance-matrix.json.",
       "fr": "FR-001,FR-002,FR-003,FR-004,FR-005,FR-006,FR-007,FR-008,FR-009,FR-010,FR-011,FR-012,FR-013,FR-014,FR-015,FR-016,FR-017,FR-018,FR-019,FR-020,FR-021,FR-022,FR-023,FR-024,FR-025,FR-026,FR-027,FR-028,FR-029,FR-030,FR-031,FR-032,FR-033,FR-034",
       "nfr": "NFR-001,NFR-002,NFR-003,NFR-004,NFR-005,NFR-006,NFR-007",
       "repo": "Priivacy-ai/spec-kitty",
@@ -169,7 +169,7 @@
       "wp": "WP05,WP11"
     },
     "#585": {
-      "evidence_ref": "Companion SaaS mission project-sync-admission-boundary-01KZKMQ7. Historical 1,322-event disposition remains a Human-in-Charge gate.",
+      "evidence_ref": "Companion SaaS mission project-sync-admission-boundary-01KZKMQ7 (candidate checkout spec-kitty-saas @ 4e15aa5cf263d857f6e10541d3f19cc4c993e5c5, branch pr/project-sync-admission-boundary-progress). SaaS-owned admission evidence — bypass/legacy refusal of B-F and zero durable/readable/audit/broadcast server side effects — is referenced by core WP11, never regenerated or claimed by this repository; core evidence cannot close #585. Historical disposition of the 1,322 already-ingested events is explicitly out of program scope per operator decision 2026-08-13 and remains a separate Human-in-Charge gate.",
       "fr": "FR-004,FR-009,FR-016,FR-019,FR-020",
       "nfr": "NFR-003,NFR-004,NFR-007",
       "repo": "Priivacy-ai/spec-kitty-saas",
