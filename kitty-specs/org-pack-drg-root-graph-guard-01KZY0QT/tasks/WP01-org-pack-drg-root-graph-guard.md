@@ -720,6 +720,31 @@ state. If entries are out of order, acceptance will fail even when the work is c
 **Initial entry**:
 
 - 2026-08-13T21:17:50Z – system – Prompt created.
+- 2026-08-13T23:11:00Z – claude-sonnet-5 – T001-T009 complete. Lane worktree
+  `.worktrees/org-pack-drg-root-graph-guard-01KZY0QT-lane-a`, branch
+  `kitty/mission-org-pack-drg-root-graph-guard-01KZY0QT-lane-a`. RED/GREEN
+  commit pairs: T002(RED 1d08725ba)/T003(GREEN 56838a6ac) for IC-01;
+  T004(RED 2d0d9b824)/T005(GREEN 329e1539b) for IC-02;
+  T006(RED c5775e512)/T007(GREEN aac4a9b26) for IC-03; T008(docs d93b96b6d)
+  comment-only. All 9 tests in `tests/charter/test_org_root_graph_guard.py`
+  pass. Full targeted suite (`tests/charter/ tests/architectural/`) green:
+  parallel (`-n auto --dist loadfile`) 3621 passed/6 skipped/2 xfailed/0
+  failed; serial `-n0` pass on `tests/charter/` (timing-gate honesty check)
+  2210 passed/4 skipped/0 failed. `mypy --strict` and `ruff check` clean on
+  both touched source files and the new test file; `make lint` clean.
+  Named gates confirmed individually: `test_no_dead_symbols.py`,
+  `test_no_legacy_terminology.py`, `test_layer_rules.py` — all pass.
+  Blast radius confirmed exactly per C-001: `src/doctrine/drg/loader.py`
+  and `src/charter/kind_vocabulary.py` have zero diff vs
+  `planning_base_branch`; `_drg_helpers.py`'s `__all__` unchanged
+  (`["load_validated_graph"]`); `action_doctrine_bundle.py`'s diff is
+  comment-only. One unplanned fix folded in during T005: the new
+  `assert len(matching_edges) == 1` triggered
+  `tests/architectural/test_golden_count_ban.py`'s frozen-baseline ratchet
+  (tests/charter ceiling 1, this test file already had T004's assertion
+  making it 2) — resolved via that gate's own documented escape hatch
+  (`# golden-count: cardinality-is-contract` inline comment), not by
+  loosening the ratchet. Ready for review.
 
 ---
 

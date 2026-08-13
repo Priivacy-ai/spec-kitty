@@ -139,6 +139,69 @@ malformed-shape trigger SK-06 documents. Any input body that does not open with 
 on line 1 hits the identical silent fallback, with `success: true` giving no signal either way.
 Worth folding into SK-06 as a second trigger, or filing as its own sibling entry — operator's call.
 
+## SK-14 — `implement WP01` preflight demands `charter sync` + `charter synthesize` before
+workspace creation, and `synthesize`'s "fresh project" detector misfires on a real project
+
+Live-verified during WP01's `implement` invocation, before any of this WP's own code changed.
+`spec-kitty agent action implement WP01 --agent claude --mission
+org-pack-drg-root-graph-guard-01KZY0QT` refused workspace creation twice in sequence, on two
+different preflight checks, neither related to WP01's own change:
+
+1. First refusal: `Error: charter_source stale; run \`spec-kitty charter sync\`` — resolved by
+   running that exact command, which rewrote `.kittify/charter/metadata.yaml`'s
+   `extracted_at`/`charter_hash`/`sections_parsed` fields (no `charter.md` content had actually
+   changed since the last sync; the cache was simply stale).
+2. Second refusal, immediately after: `Error: synthesized_drg missing; run \`spec-kitty charter
+   synthesize\`` — resolved by running that command, which reported "Charter synthesis (fresh
+   project): minimal .kittify/doctrine/ materialized" and rewrote
+   `.kittify/charter/synthesis-manifest.yaml`.
+
+The second command's own "fresh project" framing is a misdiagnosis on this checkout:
+`.kittify/doctrine/` already contains real, populated `directive/`, `overlays/`, `procedure/`,
+`tactic/` subdirectories (this is the live spec-kitty dev repo, not an empty scaffold), yet the
+synthesize command took the fresh-project short-circuit path anyway. Its rewrite of
+`synthesis-manifest.yaml` **regressed** `adapter_version`/`synthesizer_version` from `3.2.6` to
+`3.2.5` and **dropped** the `bundle_content_hash` key entirely — a downgrade, not a refresh,
+suggesting the fresh-project seed template itself is pinned to a stale synthesizer version.
+Neither rewritten file (`metadata.yaml`, `synthesis-manifest.yaml`) is in WP01's own blast
+radius (C-001); both were committed separately via `spec-kitty safe-commit` (see SK-15) as
+tool-driven administrative state, not hand-edited.
+
+## SK-15 — same SK-09b/SK-13 branch-mismatch shape, now hit inside `implement`'s own
+auto-commit of the WP claim/status-transition
+
+Live-verified immediately after SK-14's two preflight fixes: `implement WP01` proceeded to
+create the lane worktree successfully (`.worktrees/org-pack-drg-root-graph-guard-01KZY0QT-lane-a`,
+HEAD `eeb027b50`, matching the captured baseline) and appended the `planned`→`claimed`→
+`in_progress` events to `status.events.jsonl` on disk, but then failed its own follow-up commit
+of that status change with: `Failed to commit workflow status update for WP01: safe_commit:
+worktree /home/jeroennouws/dev/SK-missions/3384 HEAD is
+'kitty/mission-org-pack-drg-root-graph-guard-01KZY0QT', expected 'main'.` — reported as "Event
+log rolled back to pre-emit state" even though the JSONL events were, in fact, still present on
+disk afterward (verified by re-reading `status.events.jsonl` directly). Same root family as
+SK-09b/SK-13: the auto-commit path checks the mission's resolved *placement* ref
+(`meta.json.target_branch = "main"`) rather than the branch actually checked out
+(`kitty/mission-org-pack-drg-root-graph-guard-01KZY0QT`, the correct mission branch for a
+mid-flight `lanes`-topology mission). **Recovery**: `spec-kitty safe-commit
+.kittify/charter/metadata.yaml .kittify/charter/synthesis-manifest.yaml
+kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/meta.json
+kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/tasks/WP01-org-pack-drg-root-graph-guard.md
+--to-branch kitty/mission-org-pack-drg-root-graph-guard-01KZY0QT -m "..."` from the repo-root
+checkout committed all four pending tool-written files cleanly; a subsequent
+`implement WP01` re-invocation then proceeded past workspace creation with no further error.
+
+## SK-16 — `spec-kitty charter status --json` throws a raw Python `AttributeError`, unrelated
+to WP01's change
+
+Live-verified while investigating SK-14: `spec-kitty charter status --json` (no other flags)
+returned `{"error": "'str' object has no attribute 'get'", "result": "error", "success":
+false}` both before and after the SK-14 fixes — an internal `AttributeError` leaking through the
+CLI's error envelope rather than a structured diagnostic. Not investigated further (out of
+WP01's blast radius entirely — C-001 confines this WP to `src/charter/_drg_helpers.py`,
+`src/charter/action_doctrine_bundle.py`, and the new test file), but recorded here since it
+blocked a normal diagnostic step (checking charter health before proceeding) and forced falling
+back to reading `.kittify/charter/*.yaml` directly instead.
+
 ## Baseline-capture record (T001 / plan.md Baseline step 5)
 
 <!-- Populated once, by WP01's T001, before this mission's first RED commit lands. Per
@@ -147,6 +210,22 @@ Worth folding into SK-06 as a second trigger, or filing as its own sibling entry
      this WP's commits, then record the resulting red test IDs + failure summaries verbatim
      below. Distinct from — and precedes — the per-FR ATDD red-first discipline; this capture
      happens once for the whole mission, not per WP. -->
+
+WP01's T001, run in the lane worktree (`.worktrees/org-pack-drg-root-graph-guard-01KZY0QT-lane-a`,
+HEAD `eeb027b50`, matching the orchestrator-captured baseline exactly) before any of this WP's
+commits:
+
+```
+uv run --extra test --extra lint pytest tests/charter/ tests/architectural/ \
+  -q -p no:cacheprovider -n auto --dist loadfile
+→ 3612 passed, 6 skipped, 2 xfailed, 24 warnings in 128.99s (0:02:08)
+```
+
+**Zero failures.** (One more `passed` than the orchestrator brief's stated `3611` — collection-count
+variance only, not a red; both runs report 0 failed / 0 errors.) There is no pre-existing red
+test on this WP's targeted surface (`tests/charter/`, `tests/architectural/`) to exclude —
+every red this WP's own gate runs subsequently show is therefore introduced by this WP, with no
+baseline to diff against.
 
 ## Entries
 
