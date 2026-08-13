@@ -51,10 +51,31 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   content-addressed census — pinned as debt at a frozen SHA — plus a canonical
   `canonical_home` owner fixture, a falsifiability probe, and a halt gate red the
   build if the pinned set grows. Contributor-facing test infrastructure only (no
-  `src/` change); this lands the *instrument* ahead of the follow-on adoption
+  `src/` change); this lands the _instrument_ ahead of the follow-on adoption
   (R1b), so `Refs #3121` rather than `Closes`.
 
 ### 🐛 Fixed
+
+- **Mission `create` and `next` now run correctly from a caller-owned linked
+  git worktree, and each worktree's mission state stays isolated (mission
+  `worktree-owned-root-3328-01KZRG01`; `#3346`, closes `#3328`).** Before,
+  invoking `create` or `next` from an explicit linked checkout followed the
+  worktree's `.git` pointer back to the primary checkout and tried to drive the
+  mission there — failing with `START_BRANCH_FAILED` when that branch was
+  already checked out, and risking one worktree reading or writing another
+  worktree's mission state. Now the invoking checkout root is validated with
+  fail-closed git-topology ownership checks and threaded through creation,
+  resolution, `next`, runtime state, refs, and commits, so two linked worktrees
+  can create and advance distinct missions concurrently with no
+  cross-contamination while the primary checkout is left untouched. Managed
+  Spec Kitty coordination and lane worktrees remain refused.
+
+- **The ADR inventory freshener now targets the canonical `3.x` era index
+  instead of the redirect README, so newly added ADRs are actually indexed
+  (`#3346`, closes `#3345`).** Before, the freshener pointed at the redirect
+  README and left the canonical era index stale, so a new ADR could pass docs
+  freshness without appearing in the index maintainers browse. Now it writes the
+  canonical era index directly.
 
 - **Root README guide links point at the post-IA `tutorials/` and `how-to/`
   paths.** Fixes GitHub 404s from stale flat `docs/guides/*.md` hrefs after the
