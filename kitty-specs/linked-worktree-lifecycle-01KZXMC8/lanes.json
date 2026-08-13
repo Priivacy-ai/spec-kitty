@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "mission_slug": "linked-worktree-lifecycle-01KZXMC8",
+  "mission_id": "01KZXMC8ZT2V62ZZNQD3M4WEM3",
+  "mission_branch": "kitty/mission-linked-worktree-lifecycle-01KZXMC8",
+  "target_branch": "codex/spec-kitty-worktree-mission-create",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/core/paths.py",
+        "src/specify_cli/missions/operation_context.py",
+        "tests/specify_cli/missions/test_operation_context.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/mission_runtime/resolution.py",
+        "src/specify_cli/missions/_read_path_resolver.py",
+        "tests/mission_runtime/test_dual_root_mission_placement.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "src/specify_cli/cli/commands/accept.py",
+        "src/specify_cli/cli/commands/agent/context.py",
+        "src/specify_cli/cli/commands/agent/mission_branch_context.py",
+        "src/specify_cli/cli/commands/agent/mission_feature_resolution.py",
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py",
+        "src/specify_cli/cli/commands/agent/status.py",
+        "src/specify_cli/cli/commands/agent/tasks_finalize.py",
+        "src/specify_cli/cli/commands/agent/tasks_shared.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "src/specify_cli/cli/selector_resolution.py",
+        "tests/architectural/test_mission_operation_root_boundary.py",
+        "tests/integration/test_caller_owned_worktree_lifecycle.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-08-13T13:51:46.553042+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "6323479e4aded98f6e67a56095ff74bbe4798598"
+}
