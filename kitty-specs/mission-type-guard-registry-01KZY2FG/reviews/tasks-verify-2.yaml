@@ -1,0 +1,19 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: >
+      Commit 648d9fe16 reworded T001's heading, Purpose, and step 3 in
+      WP01-guard-table-registry-and-plan-guards.md plus tasks.md's Subtask Index T001 row so the
+      `plan`-step and fail-closed-else branches are now labeled "hardening coverage beyond
+      spec.md's literal Acceptance Scenarios" rather than AC-mandated, while the `specify`
+      and `research` branches remain correctly attributed to AC2 and AC3 respectively
+      (verified against spec.md:109-124: AC1=review, AC2=specify, AC3=research); the diff
+      touches only citation prose (headings, Purpose text, one step-3 intro sentence) with no
+      assertions, steps, or test-coverage content removed or weakened; and the fixer's
+      separately-checked citation at T002 step 2 ("User Story 3 Acceptance Scenario 3") is
+      independently confirmed accurate against spec.md:186-190, which describes exactly the
+      injection-seam propagation-out-of-`_check_cli_guards` scenario that step 2 implements.
