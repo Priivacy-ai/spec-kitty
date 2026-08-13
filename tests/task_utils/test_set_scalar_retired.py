@@ -24,7 +24,14 @@ import pytest
 
 from specify_cli.task_utils.support import TaskCliError, extract_scalar, set_scalar, split_frontmatter
 
-pytestmark = [pytest.mark.fast, pytest.mark.unit, pytest.mark.git_repo]
+# [fast, unit] (not git_repo): the one review-cycle case does a light, isolated
+# `git init` in tmp_path (<1s, parallel-safe), so these belong in the fast lane.
+# tests/task_utils/ is a new top-level dir that only the fast-tests-core-misc
+# catch-all covers; a git_repo marker would pull it into the legacy integration
+# core-misc selector that the live integration lane does not scope for this dir
+# (dropping it from the #3284 replacement-union guard), so git_repo is the wrong
+# route here.
+pytestmark = [pytest.mark.fast, pytest.mark.unit]
 
 
 # ---------------------------------------------------------------------------
