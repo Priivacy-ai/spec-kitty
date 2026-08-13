@@ -76,12 +76,14 @@ effect.**
 ### Consequences
 
 #### Positive
+
 * One knob for strictness; the fail-closed/skip contradiction dissolves — the *operator's*
   threshold decides, uniformly, regardless of why a gate didn't pass.
 * Consolidates five drifting Severity definitions onto one ladder (a debt-reduction win).
 * `RECOVERABLE` expresses "proceed degraded," which no boolean could.
 
 #### Negative
+
 * Consolidating the existing Severity enums is a cross-cutting refactor with its own blast radius
   (audit, status/doctor, charter-lint, glossary) — must be sequenced carefully or scoped as a
   precursor.
@@ -89,10 +91,12 @@ effect.**
   the effective strategy should be surfaced (so "why did this pass?" is answerable).
 
 #### Neutral
+
 * The strategy grammar (`block_above(threshold)` vs a per-severity action map) is a config-schema
   detail (open Q).
 
 ### Open questions (for scoping / a later pass)
+
 1. Extend/rename `kernel.glossary_types.Severity`, or mint a new canonical `ERROR_SEVERITY` and
    migrate the others onto it?
 2. Strategy grammar: single `block_above(threshold)`, or a per-severity action map

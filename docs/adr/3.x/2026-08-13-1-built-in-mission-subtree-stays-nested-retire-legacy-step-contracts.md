@@ -62,21 +62,21 @@ legacy vs `mission-steps/` unified), which are a live drift hazard.
 
 ## Decision Drivers
 
-* **Single canonical authority** — two step surfaces (`MissionStepContract` vs `MissionStep`)
+- **Single canonical authority** — two step surfaces (`MissionStepContract` vs `MissionStep`)
   for "a mission's steps" violate it and must collapse to one.
-* **Self-containment / legibility** — a per-mission-type directory that carries everything
+- **Self-containment / legibility** — a per-mission-type directory that carries everything
   that type needs is easier to reason about, override, and extend than a flat collapse.
-* **Do not break Accepted ADRs or kernel-floor invariants without cause.**
-* **Avoid speculative convergence** — matching the org-pack shape is only worthwhile if it is
+- **Do not break Accepted ADRs or kernel-floor invariants without cause.**
+- **Avoid speculative convergence** — matching the org-pack shape is only worthwhile if it is
   actually reached; a half-flatten that still differs from org packs buys nothing.
 
 ## Considered Options
 
-* **Option A — Flatten** to top-level `mission-types/` + `step-contracts/`, deprecate
+- **Option A — Flatten** to top-level `mission-types/` + `step-contracts/`, deprecate
   `missions/`.
-* **Option B — Keep the nested subtree canonical; retire the legacy step-contract surface**
+- **Option B — Keep the nested subtree canonical; retire the legacy step-contract surface**
   so the remaining structure is unambiguous.
-* **Option C — Keep everything as-is**, including both step surfaces (status quo).
+- **Option C — Keep everything as-is**, including both step surfaces (status quo).
 
 ## Decision Outcome
 
@@ -122,26 +122,26 @@ completes FR-011.
 
 #### Positive
 
-* One step model (`MissionStep`), one step surface (`mission-steps/`) — the drift hazard is
+- One step model (`MissionStep`), one step surface (`mission-steps/`) — the drift hazard is
   gone.
-* The per-type bundle stays legible and self-contained; overrides and new mission types have
+- The per-type bundle stays legible and self-contained; overrides and new mission types have
   an obvious home.
-* No churn against the kernel-floor `missions` leaf, the missions-root authority, or the
+- No churn against the kernel-floor `missions` leaf, the missions-root authority, or the
   ~23 `default_missions_root()` consumers (nothing moves).
 
 #### Negative
 
-* Removing the legacy surface is a **large, cross-cutting migration** (~45 src files + ~40
+- Removing the legacy surface is a **large, cross-cutting migration** (~45 src files + ~40
   test files reference it; the runtime contract registry, contract synthesis, and review
   gate bindings must move to `MissionStep` first). It is breaking and must land behind the
   unified model being feature-complete for gates.
-* Deleting the `mission_step_contract` DRG fragment changes the built-in graph identity
+- Deleting the `mission_step_contract` DRG fragment changes the built-in graph identity
   (node/edge cardinality drops by 34 nodes); the parity fixture/golden must be re-baselined
   in the same change, not silently.
 
 #### Neutral
 
-* Built-in stays asymmetric to org packs by design; the separate pack-meta / README /
+- Built-in stays asymmetric to org packs by design; the separate pack-meta / README /
   built-in-validator work (see the pack-restructure research) is orthogonal and unaffected.
 
 ### Confirmation
@@ -155,8 +155,8 @@ healthy.
 
 ## More Information
 
-* Grounding research: `work/doctrine-pack-restructure-research/` (`01`–`05`, `99-SYNTHESIS.md`).
-* Supersedes point 5 of [ADR 2026-07-26-2](2026-07-26-2-doctrine-artefact-pack-layout-convention.md)
+- Grounding research: `work/doctrine-pack-restructure-research/` (`01`–`05`, `99-SYNTHESIS.md`).
+- Supersedes point 5 of [ADR 2026-07-26-2](2026-07-26-2-doctrine-artefact-pack-layout-convention.md)
   (which pins step-contracts at `missions/built_in_step_contracts/`) — that path is removed.
-* Does not contradict [ADR 2026-05-16-1](2026-05-16-1-doctrine-layer-merge-semantics.md)
+- Does not contradict [ADR 2026-05-16-1](2026-05-16-1-doctrine-layer-merge-semantics.md)
   (merge semantics) or the shared-package-boundary ADR (packaging).

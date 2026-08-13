@@ -62,36 +62,36 @@ declared as data and shipped in the pack rather than compiled into the CLI.
 
 ## Decision Drivers
 
-* Gates should ship *with* the mission-type doctrine that needs them, per-type where relevant.
-* Single canonical authority — one step model (`MissionStep`), one gate mechanism.
-* Reuse the existing `asset` kind (the sanctioned way to ship executable logic downstream)
+- Gates should ship *with* the mission-type doctrine that needs them, per-type where relevant.
+- Single canonical authority — one step model (`MissionStep`), one gate mechanism.
+- Reuse the existing `asset` kind (the sanctioned way to ship executable logic downstream)
   rather than invent a second code-shipping mechanism.
-* Determinism must be preserved and enforced (gates are pure checks, never mutate state).
+- Determinism must be preserved and enforced (gates are pure checks, never mutate state).
 
 ## Considered Options
 
-* **A — Keep the Python handler registry**, add handlers as needed (status quo, code-deploy per gate).
-* **B — Declarative `gate` artefact kind**, check logic referenced from an `asset`, invoked via an entrypoint.
-* **C — Inline command strings** in the gate/step YAML (no asset), executed directly.
+- **A — Keep the Python handler registry**, add handlers as needed (status quo, code-deploy per gate).
+- **B — Declarative `gate` artefact kind**, check logic referenced from an `asset`, invoked via an entrypoint.
+- **C — Inline command strings** in the gate/step YAML (no asset), executed directly.
 
 ## Decision Outcome
 
 **Chosen option: "B".** A gate is a **first-class doctrine `ArtifactKind`** (`gate`), tiered
 and DRG-participating like every other kind, reusable by id.
 
-* **Code ships as an `asset`** (unchanged loose-contract inert blob, `mime` + `path`,
+- **Code ships as an `asset`** (unchanged loose-contract inert blob, `mime` + `path`,
   resolved to a path, never auto-executed). The gate *references* the asset by id.
-* **The gate declares how to run it** via an `entrypoint` (a Docker-style oneliner, e.g.
+- **The gate declares how to run it** via an `entrypoint` (a Docker-style oneliner, e.g.
   `python {asset} --strict`, where `{asset}` resolves to the asset path). Option C (inline
   command strings) is **rejected**: it creates an unsandboxed arbitrary-shell surface inside
   the pack for negligible convenience over an asset.
-* **Fail-closed by default** (`disposition: fail_closed`) — a flip from today's lone
+- **Fail-closed by default** (`disposition: fail_closed`) — a flip from today's lone
   fail-open gate. Exit `0` = pass; non-zero = fail; captured stderr becomes the
   `GateVerdict` reason.
-* **Binding lives on the `MissionStep`** (`gates: [{on_transition, gate: <id>, ...}]`) —
+- **Binding lives on the `MissionStep`** (`gates: [{on_transition, gate: <id>, ...}]`) —
   definition (what the check is) and binding (when it fires) are cleanly separated. This
   keeps the edge-scoped transition model and `TransitionGateContext`.
-* **`GATE_REGISTRY` collapses to one generic dispatcher** (`declarative-gate`) that reads the
+- **`GATE_REGISTRY` collapses to one generic dispatcher** (`declarative-gate`) that reads the
   gate, runs the entrypoint against the referenced asset, and returns a `GateVerdict`. Named
   per-gate Python handlers are retired; the existing `spec-kitty-pre-review` gate is
   re-expressed declaratively (or kept as a single grandfathered code gate — see open Q).
@@ -99,23 +99,27 @@ and DRG-participating like every other kind, reusable by id.
 ### Consequences
 
 #### Positive
-* Adding/changing a gate is a doctrine edit, shippable per mission-type in the pack.
-* One code-shipping mechanism (assets); the asset kind keeps its inert loose contract.
-* Determinism is enforceable (pure check, exit-code contract).
+
+- Adding/changing a gate is a doctrine edit, shippable per mission-type in the pack.
+- One code-shipping mechanism (assets); the asset kind keeps its inert loose contract.
+- Determinism is enforceable (pure check, exit-code contract).
 
 #### Negative
-* "Execute an asset" is **net-new machinery** — assets are resolved to a path today and
+
+- "Execute an asset" is **net-new machinery** — assets are resolved to a path today and
   never executed (see [ADR 2026-08-13-3](2026-08-13-3-gate-execution-targets-through-kernel-surface-selector.md)
   for *where* it runs and [ADR 2026-08-13-4](2026-08-13-4-executable-doctrine-runs-only-from-trusted-publishers.md)
   for *whether* it may run).
-* Fail-closed-by-default is a behaviour change; existing flows must be audited for gates that
+- Fail-closed-by-default is a behaviour change; existing flows must be audited for gates that
   were relying on fail-open.
 
 #### Neutral
-* A new `gate` `ArtifactKind` is added shortly after `mission_step_contract` is removed — net
+
+- A new `gate` `ArtifactKind` is added shortly after `mission_step_contract` is removed — net
   kind count roughly unchanged, but the new kind is declarative-data, not a code registry.
 
 ### Open questions (for the dialectics squad)
+
 1. Does `spec-kitty-pre-review` become a declarative gate, or stay a single grandfathered code gate?
 2. One asset per gate, or may a gate carry its own blob (collapsing asset+gate for non-reused checks)?
 3. Gate→asset DRG edge: reuse `requires`, or a dedicated relation?
