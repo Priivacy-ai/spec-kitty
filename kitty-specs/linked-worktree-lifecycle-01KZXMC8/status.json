@@ -93,7 +93,7 @@
     },
     "WP03": {
       "actor": "user",
-      "agent": "codex",
+      "agent": "",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
@@ -102,9 +102,11 @@
       "last_transition_at": "2026-08-13T18:41:15.044510+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Единый caller-owned lifecycle root реализован и подтверждён 301 профильной проверкой; primary checkout не мутируется, conflict fail-closed."
+        "Единый caller-owned lifecycle root реализован и подтверждён 301 профильной проверкой; primary checkout не мутируется, conflict fail-closed.",
+        "REQUEST_CHANGES: полный lifecycle RED/GREEN oracle и repo-wide architectural guard."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "C:\\codex-scratch\\spklw-planning\\kitty-specs\\linked-worktree-lifecycle-01KZXMC8\\tasks\\WP03-lifecycle-wiring-acceptance\\review-cycle-2.md",
         "reference": "review-cycle://linked-worktree-lifecycle-01KZXMC8/WP03-lifecycle-wiring-acceptance/review-cycle-2.md",
@@ -112,14 +114,14 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 27224,
+      "shell_pid": 0,
       "shell_pid_created_at": "1786645616.4649937",
       "subtasks": {
-        "T011": "done",
-        "T012": "done",
-        "T013": "done",
-        "T014": "done",
-        "T015": "done"
+        "T011": "planned",
+        "T012": "planned",
+        "T013": "planned",
+        "T014": "planned",
+        "T015": "planned"
       }
     }
   }

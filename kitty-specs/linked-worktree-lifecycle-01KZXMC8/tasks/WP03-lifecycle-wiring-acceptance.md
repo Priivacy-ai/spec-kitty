@@ -34,7 +34,7 @@ history:
 - at: '2026-08-13T13:39:12Z'
   actor: system
   action: Prompt generated via /spec-kitty.tasks
-agent_profile: reviewer-renata
+agent_profile: python-pedro
 authoritative_surface: src/specify_cli/cli/selector_resolution.py
 create_intent:
 - tests/integration/test_caller_owned_worktree_lifecycle.py
@@ -68,7 +68,7 @@ owned_files:
 - src/specify_cli/workspace/context.py
 - tests/integration/test_caller_owned_worktree_lifecycle.py
 - tests/architectural/test_mission_operation_root_boundary.py
-role: reviewer
+role: implementer
 tags: []
 task_type: implement
 tracker_refs:
