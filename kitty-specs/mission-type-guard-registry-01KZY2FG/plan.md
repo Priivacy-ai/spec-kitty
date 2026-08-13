@@ -44,7 +44,7 @@ Contracts below).
 **Project Type**: single (Python CLI/library)
 **Performance Goals**: `doctor mission-type --json` under 2s for a typical `kitty-specs/` tree (NFR-004, matches `doctor identity`'s existing budget — `identity_audit.py`'s own docstring commits to <3s for 200 missions with a synchronous, subprocess-free walk; this mission reuses the identical walk shape)
 **Constraints**: zero behavior change for `software-dev`/`research`/`documentation`/typeless (NFR-001); composed path must never raise for an unregistered family (C-001); legacy path must never silently degrade or fall through (C-002); no roster check added to `validate_meta`/`write_meta` (C-004); targeted test surface only, not the full suite (C-005); complexity ceiling 15 for every new/changed function (NFR-003)
-**Scale/Scope**: 2 new small functions + 1 new exception class in `runtime_bridge_cores.py`; ~10-line change split across `runtime_bridge.py` (1 line) and `runtime_bridge_composition.py` (~6 lines); 1-line addition to `runtime_bridge_io.py`'s `_PRESENCE_FILE_TAGS`; 1 new CLI command (thin shell in `doctor.py`) + 1 new sibling module (`_mission_type_audit.py`, mirroring `_identity_audit.py`'s ~150-line shape); 1 frozen-contract test file updated (golden CLI surface); new test file(s) for the above. No LOC target is asserted as a commitment — the issue's own "~145 LOC src + ~245 test" figure is explicitly not restated as a target anywhere in spec.md and is not restated here either; the component list above is a verified, first-hand-derived scope statement, not a size estimate.
+**Scale/Scope**: 2 new small functions + 1 new exception class in `runtime_bridge_cores.py`; ~10-line change split across `runtime_bridge.py` (1 line) and `runtime_bridge_composition.py` (~6 lines); 1-line addition to `runtime_bridge_io.py`'s `_PRESENCE_FILE_TAGS`; 1 new CLI command (thin shell in `doctor.py`) + 1 new sibling module (`_mission_type_audit.py`, combining the roles of both `doctor identity` precedent modules into one file — `specify_cli/status/identity_audit.py` (361 lines: the `IdentityState`/classifier/audit-walk/summarize shape) and `cli/commands/_identity_audit.py` (346 lines: the CLI-glue/report-builder shape) — rather than mirroring either single file's LOC); 1 frozen-contract test file updated (golden CLI surface); new test file(s) for the above. No LOC target is asserted as a commitment — the issue's own "~145 LOC src + ~245 test" figure is explicitly not restated as a target anywhere in spec.md and is not restated here either; the component list above is a verified, first-hand-derived scope statement, not a size estimate.
 
 ## Charter Check
 
@@ -61,8 +61,11 @@ Contracts below).
   here... New subcommand logic belongs in a sibling").
 - **ATDD-first (C-011)** — see ATDD-First Sequencing below.
 - **Canonical sources, never improvise** — `doctor mission-type` is modeled
-  directly on the verified `doctor identity` shape (`doctor.py:396-444`,
-  `_identity_audit.py:44-254`), not invented from scratch.
+  directly on the verified `doctor identity` shape: `doctor.py:396-444` for the
+  thin CLI shell, `specify_cli/status/identity_audit.py` (361 lines) for the
+  classifier/audit-walk/summarize shape, and `cli/commands/_identity_audit.py`
+  (346 lines) for the CLI-glue/report-builder shape — not invented from
+  scratch.
 - **Campsite cleaning (Standing Order #2)** — see Campsite-Clean Scope below;
   determination made explicitly, not silently skipped.
 - **Locality of change / smallest-viable-diff** — the file set is bounded to the
@@ -111,7 +114,17 @@ noted explicitly):
     runtime layer. They rhyme in shape (both carry the offending string) but
     are not the same concept, and collapsing them would create exactly the
     kind of cross-layer coupling the module docstring's "in particular NEVER"
-    list exists to prevent.
+    list exists to prevent. Because the two exception classes "rhyme in shape"
+    (both `ValueError` subclasses carrying the offending string) but live at
+    different layers with no other code-level link between them, the
+    implementation's docstring for `UnregisteredMissionFamilyError` must
+    include a one-line cross-reference comment naming the sibling explicitly —
+    e.g. "Sibling concept: `charter.mission_type_profiles.UnknownMissionTypeError`
+    — same shape (ValueError carrying the offending string), different layer
+    (runtime guard-family dispatch vs charter mission-type resolution);
+    intentionally not unified, see plan.md's Seam & Module Placement for the
+    two-independent-reasons rationale" — so a future maintainer touching one
+    taxonomy has an in-code signal to check the other.
   - Add `def evaluate_guards_strict(snapshot) -> list[str]:` — looks up
     `_GUARD_TABLES.get(snapshot.mission_family)`; calls it if found; raises
     `UnregisteredMissionFamilyError(snapshot.mission_family)` if not.
@@ -123,7 +136,15 @@ noted explicitly):
     UnregisteredMissionFamilyError: return []`. No logging call is added here —
     logging stays out of this module deliberately (see next bullet) so the
     "every function here is pure" invariant is not broken by a new I/O side
-    effect.
+    effect. After this mission both production call sites (`runtime_bridge.py`
+    and `runtime_bridge_composition.py`) bypass this tolerant wrapper in favor
+    of `evaluate_guards_strict` directly (IC-03/IC-04) — `evaluate_guards()`
+    stays public only for `tests/runtime/test_bridge_cores.py`'s existing
+    direct callers (SC-004's unmodified-test requirement). Its docstring must
+    say so explicitly: a one-line note that it is kept tolerant/public only
+    for existing direct test callers, and that any new production call site
+    should use `evaluate_guards_strict` instead so an unregistered family is
+    never silently swallowed.
   - Add `def _evaluate_plan_guards(snapshot) -> list[str]:` (FR-002) — a 5-way
     `if`/`elif` chain (`specify` → `spec.md` via the existing `SPEC_ARTIFACT`
     constant; `research` → the literal `"research.md"`, a **new** one-off
@@ -207,11 +228,17 @@ directly on the verified `doctor identity` shape:
   file stays a thin shim of command shells." Import line mirrors line 97-98's
   exact pattern: `from ._mission_type_audit import (  # noqa: E402\n
   run_mission_type_audit,\n)`.
-- `_mission_type_audit.py` (**new sibling module**, mirrors `_identity_audit.py`'s
-  structure 1:1 — same file, not the `specify_cli/status/identity_audit.py`
-  domain-layer split, because mission-type resolution logic already lives
-  entirely in `charter`/`doctrine` and does not need a second domain-layer
-  home; this is the smallest-viable-diff shape):
+- `_mission_type_audit.py` (**new sibling module**, combines the roles of
+  BOTH `doctor identity` precedent modules into one file: the domain-layer
+  shape of `specify_cli/status/identity_audit.py` (361 lines —
+  `IdentityState`, `classify_mission`, `audit_repo`, `summarize`) and the
+  CLI-glue/report-builder shape of `cli/commands/_identity_audit.py` (346
+  lines — `run_identity_audit`, `_build_identity_json`, `_compute_fail_on`) —
+  rather than splitting into that same two-module shape, because mission-type
+  resolution logic already lives entirely in `charter`/`doctrine` and does not
+  need a second domain-layer home; this is the smallest-viable-diff shape, at
+  the real combined-precedent LOC scale, not a 1:1 mirror of either single
+  file):
   - `MissionTypeState` dataclass — `path`, `slug`, `mission_type_raw:
     str | None`, `resolved_key: str | None`, `state` (the FR-008 6-value
     `Literal`), `error: str | None`. `to_dict()` mirrors `IdentityState.to_dict()`.
@@ -361,9 +388,11 @@ above** — not "all green" unconditionally, and not a claim that any test's
 `test_bridge_composition.py` pass **unmodified**, zero assertion-value edits).
 If a red appears that is NOT attributable to this mission's diff, classify it
 per CLAUDE.md's baseline-red gotcha (pre-existing known-P0 / CI-environment /
-stale-install) before treating it as introduced — cite #3284 (the known-red-main
-tracking issue CLAUDE.md and spec.md both already reference) rather than filing
-a duplicate. None of the 784 tests captured above were red at baseline, so any
+stale-install) before treating it as introduced — cite #3284 (a real, open
+red-main tracking issue — "main full suite has 23 untracked failures and 2
+errors after bootstrap prewarm" — independently confirmed via `gh issue view
+3284`; not yet cross-referenced from CLAUDE.md or spec.md, so name it fresh
+rather than pointing at an existing reference) rather than filing a duplicate. None of the 784 tests captured above were red at baseline, so any
 red appearing in this specific set during implementation is, by construction,
 this mission's own regression to fix before proceeding — the "which category"
 question only has real teeth for tests outside this targeted set (i.e., if a
@@ -446,14 +475,17 @@ baseline above) and GREEN on the final commit:
 
 1. **Commit 1 (RED, FR-010)** — the live `plan`-type defect's ATDD pin: a test
    driving (or directly constructing) a `plan`-family snapshot at `step_id="review"`
-   with no `tasks/` directory, asserting today's actual output —
-   `["Not all work packages are approved or done"]` — is what comes back
-   *before* any fix. This test is RED in the sense that it currently passes by
-   asserting the BUG's own output; the tasks phase will additionally add a
-   second, target-shape assertion (asserting `[]`) that is genuinely RED until
-   the fix lands — both forms are acceptable per DIRECTIVE_034 as long as the
-   reviewer can observe the flip from "bug reproduced" to "bug fixed" across
-   this commit and the implementation commit. Location: extends
+   with no `tasks/` directory, asserting the target/fixed shape directly — an
+   empty guard-failure list, `[]`. This assertion is genuinely RED against the
+   base commit: today `evaluate_guards` returns `["Not all work packages are
+   approved or done"]` for this exact snapshot (the bug's own output), so
+   asserting `[]` fails for the right reason until the fix lands, satisfying
+   DIRECTIVE_034's "prove red-first" requirement directly. No separate
+   "asserting today's actual output" pin is added and none is deferred to a
+   later phase — the target-shape assertion alone proves the flip, is
+   committed whole in this one commit before any implementation commit (C-011),
+   and turns GREEN in the implementation commit that follows, with nothing
+   left over to remove or convert once the fix lands. Location: extends
    `tests/runtime/test_bridge_cores.py` (or a new file under
    `tests/runtime/` if the reviewer squad prefers a dedicated FR-010 file —
    left to tasks-phase judgment, not fixed here).
@@ -489,8 +521,9 @@ baseline above) and GREEN on the final commit:
 ## PR Shape
 
 **One PR for the whole mission** — the spec-kitty default (not Team Kitty's
-per-WP convention). Rationale: the touched-file set is small and coherent (5
-production files + 2 test files + the golden-contract test), the behavior
+per-WP convention). Rationale: the touched-file set is small and coherent (6
+production files + 4 test files, including the golden-contract test — see
+Project Structure below for the full manifest), the behavior
 change is a single conceptual unit (close one silent-fallback defect class
 across two call paths, plus one diagnostic command that reads the same
 underlying facts), and none of the charter's "split it" triggers apply — no
@@ -513,9 +546,10 @@ included:
 | `mypy --strict` | **Enforced** | Charter Testing Requirements, binding. New code: the registry dict, the new exception class, `_evaluate_plan_guards`, `_mission_type_audit.py`. |
 | `ruff check` (incl. C901 complexity ≤15) | **Enforced** | Charter Sonar Expectations. NFR-003 restates this for the guard functions specifically; `_evaluate_plan_guards` and the `_mission_type_audit.py` classifier are both flat, low-branch-count functions well under the ceiling. |
 | `pytest tests/architectural/test_no_legacy_terminology.py` | **Enforced, pre-push** | `doctor mission-type`'s `--help` text is new user-facing prose (charter's own "Pre-push" rule names this exact scenario); this gate runs only in CI's `integration-tests-core-misc` job, not the fast-tests shards, so it must be run locally before push, not assumed from local fast-test green. |
-| `tests/architectural/test_shared_package_boundary.py` / `test_pyproject_shape.py` | **Not run as a dedicated pass** | No dependency, `pyproject.toml`, or `spec-kitty-events`/`spec-kitty-tracker` import is touched by this mission; these gates are unaffected by this diff and are covered incidentally by any full-suite run at merge time, not re-justified here. |
-| Doctrine schema freshness / Contextive glossary | **Not applicable** | No doctrine YAML, mission-step contract, or glossary term is added or changed — `plan`'s `mission-runtime.yaml` action sequence is unchanged; only the guard *evaluated at* its existing steps changes, entirely inside `runtime_bridge_cores.py`. |
-| Kernel coverage ≥90% / mission-loader coverage ≥90% | **Not a distinct gate for this mission** | This mission's touched files are not under the `src/kernel/` coverage-gated boundary or the mission-loader package; new-code coverage is instead driven by the "every new branch/helper gets tests in the same PR" rule (charter Sonar Expectations), satisfied by the ATDD sequencing above covering every new branch in `_GUARD_TABLES`'s dispatch, both split call sites, `_evaluate_plan_guards`'s 5 branches, and the FR-008 classifier's 6 states. |
+| `tests/architectural/test_shared_package_boundary.py` / `test_pyproject_shape.py` | **Runs on this PR (`arch-adversarial`, always-on), expected to pass** | `arch-adversarial` runs `tests/architectural` (including these two files) on every non-docs-only push of this PR via an always-on job (`.github/workflows/ci-quality.yml:2144-2147`, `if: always()`) — not only incidentally at a separate merge-time full-suite run. No dependency, `pyproject.toml`, or `spec-kitty-events`/`spec-kitty-tracker` import is touched by this mission, so both are expected to pass. |
+| Doctrine schema freshness / Contextive glossary | **Runs on this PR, expected to pass** | Not skipped: the Contextive-glossary step is triggered by this mission's own `src/specify_cli/**` changes (`ci-quality.yml:848-869`'s path filter includes `src/specify_cli/**`, and this mission changes/adds files under it), and the doctrine-schema-freshness step (`ci-quality.yml:653`) is not path-gated at all — it runs whenever the always-invoked `lint` job runs, deliberately placed there per its own comment ("a freshness gate behind a paths filter is the same silence #2957 is about"). Both execute on this PR's CI run and are expected to pass because this mission changes no glossary markdown/traceability content and no doctrine Pydantic model. |
+| PR diff-coverage (critical-path, 90%, `src/runtime/next/*`) | **Enforced** | Every IC-01–IC-04 production file lives under `src/runtime/next/`, inside this gate's `critical_paths` include list (`ci-quality.yml:3489`, fed by `integration-tests-next`'s `--cov=src/runtime/next` report, `ci-quality.yml:2927`, consumed by the `diff-coverage` job via `--fail-under=90 --include "${critical_paths[@]}"` at `ci-quality.yml:3515-3517`). ATDD Commit 1/2 and IC-02's plan-guard-table tests are expected to satisfy the 90% floor on new/changed lines, but this should be verified locally with `uv run diff-cover` against the base branch before push, not assumed. |
+| Kernel coverage ≥90% / mission-loader coverage ≥90% | **Not a distinct gate for this mission** | This mission's touched files are not under the `src/kernel/` coverage-gated boundary or the mission-loader package (distinct from the diff-coverage critical-path gate above, which does apply); new-code coverage is instead driven by the "every new branch/helper gets tests in the same PR" rule (charter Sonar Expectations), satisfied by the ATDD sequencing above covering every new branch in `_GUARD_TABLES`'s dispatch, both split call sites, `_evaluate_plan_guards`'s 5 branches, and the FR-008 classifier's 6 states. |
 | `make lint` | **Advisory only** | Per charter/design-pipeline convention, `make lint` is advisory in CI for this repo, not a hard gate; `ruff check` above is the enforced equivalent. |
 | commitlint / markdown lint / TID251 banned-API / Typer JSON error surface / `patch()` target validation / Bandit / pip-audit / `uv.lock` freshness / SonarCloud Quality Gate | **Unaffected, run incidentally by CI** | None of this mission's changes introduce a new dependency, a new banned-API usage, a new `patch()` target, a security-sensitive code path, or a lockfile change; these CI-wide gates run automatically on the PR regardless of this plan's own scoping and are not called out with a per-gate rationale beyond "this diff does not touch what they check." |
 | Full `pytest tests/` (~17,000 tests) | **Deliberately deferred to post-merge** | Per charter Testing Requirements and C-005: reserved for post-merge mission-level validation against the merged branch, not mid-implementation. |
@@ -678,5 +712,6 @@ that group's own binding "thin shell + sibling module" convention.
 *No entries.* No Charter Check violation requires justification — every new or
 modified function stays well under the complexity ceiling of 15 (NFR-003), no
 new architectural layer or module is introduced beyond one CLI-sibling module
-(the smallest-viable shape, matching an existing precedent 1:1), and no gate
-listed in Gate Set is skipped without a stated reason.
+(the smallest-viable shape, combining rather than 1:1-mirroring the two
+`doctor identity` precedent modules' roles — see Seam & Module Placement), and
+no gate listed in Gate Set is skipped without a stated reason.

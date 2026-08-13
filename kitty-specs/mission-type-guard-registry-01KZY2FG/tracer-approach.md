@@ -38,12 +38,16 @@ citation directly against the actual checkout before writing a single line of pl
   confirmed accurate — no corrections were needed there (see
   `tracer-design-decisions.md` for the one genuine finding this verification pass
   DID surface, which is not a citation error but a missing implementation detail).
-- Confirmed `doctor identity`'s command shape (`doctor.py:396-444`) and
-  `_identity_audit.py`'s report-builder pattern (`run_identity_audit`,
-  `_build_identity_json`, `_compute_fail_on`, `classify_mission`, `audit_repo`) by
-  reading the full ~260-line implementation, not just the docstring — this is what
-  let the plan specify `doctor mission-type`'s design as a 1:1 structural mirror
-  instead of a vague "model it on identity" gesture.
+- Confirmed `doctor identity`'s command shape (`doctor.py:396-444`) by reading
+  the shell itself, and confirmed the report-builder pattern is split across
+  two modules by reading both in full, not just their docstrings:
+  `cli/commands/_identity_audit.py` (346 lines — the CLI report-builder:
+  `run_identity_audit`, `_build_identity_json`, `_compute_fail_on`) and its
+  domain-layer collaborator `specify_cli/status/identity_audit.py` (361
+  lines — `classify_mission`, `audit_repo`, `IdentityState`, `summarize`).
+  This two-module split is what let the plan specify `doctor mission-type`'s
+  design as combining both precedent shapes into one sibling module, instead
+  of a vague "model it on identity" gesture.
 - Confirmed `_canonical_meta_mission_type` (`specify_cli/mission.py:542-556`) and
   the shared `canonical_mission_type_key` primitive it calls
   (`charter/mission_type_key.py:24-49`) by reading both functions in full, which is
@@ -87,5 +91,5 @@ golden-CLI-surface-contract update, folded into the `doctor` commit because it i
 a mechanical, not independently-motivated, consequence of that command existing.
 
 One PR for the whole mission (spec-kitty's own default, not Team Kitty's per-WP
-convention) — the touched-file set is small (5 production files, 2 new/updated
-test files, 1 frozen-contract test file) and the change is one conceptual unit.
+convention) — the touched-file set is small (6 production files, 4 test files
+including the golden-contract test) and the change is one conceptual unit.
