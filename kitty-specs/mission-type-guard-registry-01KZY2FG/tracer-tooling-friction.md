@@ -63,3 +63,50 @@ left as written rather than renamed by the orchestrator: squad artifacts are not
 orchestrator's to edit. The resumed spec phase agent must correct the name and use the
 contract spelling for the remaining groups, so R2 merge and downstream families stay
 comparable across missions.
+
+## 5. `finalize-tasks` (real run) refuses on a NEW, coherent ground — protected-branch
+   bookkeeping commit, no coordination branch for this mission's `lanes` topology
+
+**Verified first-hand** (tasks-phase subagent), spec-kitty 3.2.6rc2.
+
+Sequence: `spec-kitty agent tasks map-requirements --batch ...` succeeded (11/11 FRs mapped,
+`unmapped_functional: []`). `spec-kitty agent mission finalize-tasks --validate-only --json`
+passed cleanly — zero ownership warnings, zero dependency cycles, `validation_passed`. It
+previewed correcting both WPs' `planning_base_branch`/`merge_target_branch` from my
+hand-authored guess (`kitty/mission-mission-type-guard-registry-01KZY2FG`, taken from
+`spec-kitty agent mission branch-context --json`, which resolves differently) to `main` (read
+from `meta.json`'s `target_branch` field) — a legitimate correction, not a defect.
+
+The real run then failed:
+
+```
+$ .venv/bin/spec-kitty agent mission finalize-tasks --mission mission-type-guard-registry-01KZY2FG --json
+{"error": "Bookkeeping refused: PROTECTED_BRANCH_REFUSED: Refusing to record 'status transition
+WP01': destination ref 'main' is on this project's protected branch list. Bookkeeping commits
+must target the coordination branch.", "spec_kitty_version": "3.2.6rc2"}
+```
+
+`meta.json` carries `"topology": "lanes"` and `"target_branch": "main"` — a `lanes` topology has
+no coordination branch by design (per CLAUDE.md's own Execution Workspace Strategy section:
+"Missions with no coordination topology (`SINGLE_BRANCH` / `LANES`) route everything to
+primary"), yet this bookkeeping step demands one. This is a **different, single, internally
+coherent** refusal (unlike SK-11's two commands refusing for *contradictory* reasons) — but it
+still leaves a `lanes`-topology, `target_branch: main` mission unable to complete
+`finalize-tasks` end-to-end via any documented path found so far (a `--target-branch` override
+flag exists but was not used — deliberately not attempted here, since routing around a
+BLOCKED condition is explicitly out of scope for this subagent's mandate; left for the
+orchestrator to resolve or escalate).
+
+**Partial-mutation side effect, left as-is (not reverted, not hand-fixed)**: before refusing,
+the run already wrote local (uncommitted) state: appended `TasksStarted` / two `WPCreated` /
+`TasksCompleted` events to `status.events.jsonl`, created
+`kitty-specs/mission-type-guard-registry-01KZY2FG/issue-matrix.json` (a scaffold row for
+`#3386`), and normalized both WP files' frontmatter (branch fields → `main`, dependency
+parsing applied). None of this was committed (the refusal happens before the commit step).
+This subagent did not revert or hand-edit any of it — reverting would itself be a form of
+routing around the block by deciding, on this subagent's own authority, what the "clean" state
+should be. `tasks.md` and both WP prompt files were committed via raw `git add`+`git commit`
+(same SK-11-authorized pattern as entry 2) since they are this subagent's own authored
+planning content, not tool-internal bookkeeping; `status.events.jsonl` / `issue-matrix.json`
+were deliberately left uncommitted so the orchestrator sees the exact partial state and decides
+how to proceed (retry with `--target-branch`, change topology, or something else).
