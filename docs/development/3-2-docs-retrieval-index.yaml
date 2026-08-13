@@ -2729,6 +2729,27 @@ pages:
     - {slug: "dual-read-old-and-new-stores-during-a-compatibility-window", text: "Dual-read old and new stores during a compatibility window", level: 3}
     - {slug: "scope-exclusions", text: "Scope Exclusions", level: 2}
     - {slug: "verification-and-enforcement", text: "Verification and Enforcement", level: 2}
+  - path: "docs/adr/3.x/2026-08-12-1-checkout-ownership-for-mission-create-and-next.md"
+    title: "ADR: Explicit Checkout Ownership for Mission Create and Next"
+    divio_type: "none"
+    abstract: "Introduces a fail-closed, Git-topology-validated ownership claim so mission create and next can use an exact linked-checkout root without ambient primary fallback."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "one-explicit-ownership-primitive", text: "One explicit ownership primitive", level: 3}
+    - {slug: "a-narrow-cli-affordance", text: "A narrow CLI affordance", level: 3}
+    - {slug: "isolation-and-contention-boundaries", text: "Isolation and contention boundaries", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative-and-accepted-trade-offs", text: "Negative and accepted trade-offs", level: 3}
+    - {slug: "verification-and-ci-follow-up", text: "Verification and CI follow-up", level: 3}
+    - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
+    - {slug: "reuse-or-loosen-allow-worktree-context", text: "Reuse or loosen `allow_worktree_context`", level: 3}
+    - {slug: "extend-the-worktrees-literal-execution-context-guard", text: "Extend the `.worktrees`-literal execution-context guard", level: 3}
+    - {slug: "infer-the-owned-root-from-ambient-project-discovery", text: "Infer the owned root from ambient project discovery", level: 3}
+    - {slug: "adopt-scoped-shadow-workspaces-now", text: "Adopt scoped shadow workspaces now", level: 3}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/2026-08-12-1-plantuml-schema-diagram-rendering.md"
     title: "ADR: Local, No-Egress PlantUML Rendering for Code-Grounded Doctrine Schema Diagrams — a New Genre Beside the Hand-Authored C4 Lane"
     divio_type: "explanation"

@@ -1,0 +1,34 @@
+{
+  "accept_commit": "34e8a1697422229deba0d261bb726f2b9b3452c9",
+  "acceptance_history": [
+    {
+      "accept_commit": "34e8a1697422229deba0d261bb726f2b9b3452c9",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-08-12T02:22:57.879946+00:00",
+      "accepted_by": "codex",
+      "accepted_from_commit": "bf95e3203eae6962d8aaec28957322b12f3672c4"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-08-12T02:22:57.879946+00:00",
+  "accepted_by": "codex",
+  "accepted_from_commit": "bf95e3203eae6962d8aaec28957322b12f3672c4",
+  "baseline_merge_commit": "e729153a12fe40d70427ac925f06214d650c9b72",
+  "coordination_branch": "kitty/mission-worktree-owned-root-3328-01KZRG01",
+  "created_at": "2026-08-11T13:25:37.964332+00:00",
+  "flattened": false,
+  "friendly_name": "worktree owned root 3328",
+  "mission_id": "01KZRG011AR66KDMYJHGGDEJ1V",
+  "mission_number": 193,
+  "mission_slug": "worktree-owned-root-3328-01KZRG01",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "This mission advances worktree owned root 3328 on fix/worktree-owned-root-3328-v2 so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "worktree owned root 3328",
+  "slug": "worktree-owned-root-3328-01KZRG01",
+  "status_phase": "1",
+  "target_branch": "fix/worktree-owned-root-3328-v2",
+  "topology": "lanes_with_coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-11T13:57:47.824470+00:00"
+}

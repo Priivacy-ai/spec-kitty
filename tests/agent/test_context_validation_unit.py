@@ -9,10 +9,12 @@ Verifies Phase 3 implementation:
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
 import typer
+from typer.testing import CliRunner
 
 from specify_cli.core.context_validation import (
     CurrentContext,
@@ -31,6 +33,167 @@ from specify_cli.core.context_validation import (
 #         which breaks the "not a worktree" negative assertion. Structural
 #         sandbox incompatibility; not a regression of production behaviour.
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.fast]
+
+
+def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    """Run a deterministic git command for real-worktree ownership tests."""
+    return subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+
+
+def _real_primary_and_linked_checkout(tmp_path: Path, *, under_dot_worktrees: bool) -> tuple[Path, Path]:
+    """Create a primary checkout and a registered linked checkout."""
+    primary = tmp_path / "primary"
+    primary.mkdir()
+    _git(primary, "init", "-b", "main")
+    _git(primary, "config", "user.email", "spec-kitty-tests@example.invalid")
+    _git(primary, "config", "user.name", "Spec Kitty Tests")
+    (primary / "tracked.txt").write_text("baseline\n", encoding="utf-8")
+    _git(primary, "add", "tracked.txt")
+    _git(primary, "commit", "-m", "baseline")
+
+    linked = primary / ".worktrees" / "owned-lane" if under_dot_worktrees else tmp_path / "generic-linked"
+    linked.parent.mkdir(parents=True, exist_ok=True)
+    _git(primary, "worktree", "add", "-b", "owned-lane", str(linked), "HEAD")
+    return primary.resolve(), linked.resolve()
+
+
+def _capture_next_query_root(monkeypatch: pytest.MonkeyPatch, primary: Path) -> list[Path]:
+    """Patch mutation-free next internals and capture their effective root."""
+    from specify_cli.cli.commands import next_cmd
+
+    captured: list[Path] = []
+    monkeypatch.setattr(next_cmd, "locate_project_root", lambda: primary)
+    monkeypatch.setattr(next_cmd, "_maybe_emit_runtime_notice", lambda *_: None)
+    monkeypatch.setattr(next_cmd, "_run_charter_preflight_for_next", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        next_cmd,
+        "_resolve_mission_slug",
+        lambda mission, _root, *, effective_root=None: mission,
+    )
+    monkeypatch.setattr(next_cmd, "_validate_result_and_answer", lambda *_a, **_k: None)
+    monkeypatch.setattr(next_cmd, "_maybe_handle_answer", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        next_cmd,
+        "_run_query_mode",
+        lambda _agent, _mission, repo_root, *_a, effective_root=None: captured.append(effective_root or repo_root),
+    )
+    return captured
+
+
+def test_next_cli_accepts_explicit_owned_checkout_option(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The stable CLI surface must parse the explicit ownership affordance."""
+    from specify_cli import app as main_app
+
+    (tmp_path / ".git").mkdir()
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        main_app,
+        [
+            "next",
+            "--mission",
+            "owned-mission",
+            "--owned-checkout",
+            str(tmp_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code != 2, result.output
+    assert "No such option" not in result.output
+
+
+@pytest.mark.real_worktree_detection
+def test_next_explicit_owned_checkout_bypasses_literal_guard_and_routes_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Validated opt-in routes next state to an owned `.worktrees` checkout."""
+    from specify_cli.cli.commands import next_cmd
+
+    primary, linked = _real_primary_and_linked_checkout(tmp_path, under_dot_worktrees=True)
+    captured = _capture_next_query_root(monkeypatch, primary)
+    monkeypatch.chdir(linked)
+
+    next_cmd.next_step(
+        mission="owned-mission",
+        json_output=True,
+        owned_checkout=linked,
+    )
+
+    assert captured == [linked]
+    assert captured[0] != primary
+
+
+@pytest.mark.real_worktree_detection
+def test_next_generic_linked_checkout_without_opt_in_keeps_primary_routing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The pre-existing generic-linked ambient-to-primary behavior is unchanged."""
+    from specify_cli.cli.commands import next_cmd
+
+    primary, linked = _real_primary_and_linked_checkout(tmp_path, under_dot_worktrees=False)
+    captured = _capture_next_query_root(monkeypatch, primary)
+    monkeypatch.chdir(linked)
+
+    next_cmd.next_step(mission="legacy-mission", json_output=True)
+
+    assert captured == [primary]
+
+
+@pytest.mark.real_worktree_detection
+def test_next_literal_worktree_without_opt_in_remains_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No flag leaves the historical `.worktrees` guard fully intact."""
+    from specify_cli.cli.commands import next_cmd
+
+    primary, linked = _real_primary_and_linked_checkout(tmp_path, under_dot_worktrees=True)
+    captured = _capture_next_query_root(monkeypatch, primary)
+    monkeypatch.chdir(linked)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        next_cmd.next_step(mission="legacy-mission", json_output=True)
+
+    assert exc_info.value.exit_code == 1
+    assert captured == []
+
+
+@pytest.mark.real_worktree_detection
+def test_next_explicit_checkout_subdirectory_is_refused_before_routing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An explicit scope must name a checkout root, never its subdirectory."""
+    from specify_cli.cli.commands import next_cmd
+
+    primary, linked = _real_primary_and_linked_checkout(tmp_path, under_dot_worktrees=True)
+    nested = linked / "src"
+    nested.mkdir()
+    captured = _capture_next_query_root(monkeypatch, primary)
+    monkeypatch.chdir(linked)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        next_cmd.next_step(
+            mission="owned-mission",
+            json_output=True,
+            owned_checkout=nested,
+        )
+
+    assert exc_info.value.exit_code == 1
+    assert captured == []
+
+
+@pytest.mark.real_worktree_detection
+def test_owned_checkout_keeps_status_lock_in_shared_git_common_dir(
+    tmp_path: Path,
+) -> None:
+    """Per-checkout state routing must not relocate the shared status lock."""
+    from specify_cli.status.locking import feature_status_lock_path
+
+    primary, linked = _real_primary_and_linked_checkout(tmp_path, under_dot_worktrees=True)
+
+    assert feature_status_lock_path(linked, "owned-mission") == feature_status_lock_path(primary, "owned-mission")
+
+
 def _hide_ambient_repo_markers(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Hide .kittify/.git markers above tmp_path for negative detection tests."""
     original_exists = Path.exists
@@ -174,6 +337,7 @@ class TestRequireMainRepo:
             test_command()
 
         assert exc_info.value.exit_code == 1
+
 
 @pytest.mark.real_worktree_detection
 class TestRequireWorktree:

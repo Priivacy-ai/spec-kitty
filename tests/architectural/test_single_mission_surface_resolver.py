@@ -324,7 +324,7 @@ _RAW_JOIN_SITES: tuple[ContentDescriptor, ...] = (
     ContentDescriptor(
         rel_path="specify_cli/core/mission_creation.py",
         qualname="create_mission_core",
-        token_substring="feature_dir = resolved_root / KITTY_SPECS_DIR / mission_slug_formatted",
+        token_substring="feature_dir = effective_root / KITTY_SPECS_DIR / mission_slug_formatted",
         occurrence=None,
         rationale=(
             "TBYD — join uses mission_slug_formatted, the OUTPUT of the canonical "

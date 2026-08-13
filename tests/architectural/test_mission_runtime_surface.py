@@ -127,6 +127,10 @@ _PUBLIC_SURFACE = sorted(
         # WP02: the affirmative, stamped surface→filesystem seam (the true schema
         # root) + its total member→path translation.
         "resolve_artifact_surface",
+        # worktree-owned-root-3328 WP02: explicit target carrier for mission
+        # creation's pre-readable-identity window. Kept on the package root so
+        # mission_creation never imports the internal resolution submodule.
+        "resolve_create_time_write_target",
         "resolve_mid8",
         "resolve_placement_only",
         "resolve_topology",

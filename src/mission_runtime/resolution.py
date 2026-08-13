@@ -83,6 +83,7 @@ __all__ = [
     "placement_seam",
     "resolve_action_context",
     "resolve_artifact_surface",
+    "resolve_create_time_write_target",
     # resolve_context_for_mission: demoted — no cross-module src/ from-import
     # callers (WP01 harden-dead-symbol-gate-01KW0RJR).
     "resolve_placement_only",
@@ -820,7 +821,11 @@ def _resolve_wp_id(
 
 
 def _resolve_coordination_branch(
-    primary_root: Path, mission_slug: str, *, resolver: MissionResolver | None = None
+    primary_root: Path,
+    mission_slug: str,
+    *,
+    resolver: MissionResolver | None = None,
+    effective_root: Path | None = None,
 ) -> str | None:
     """Read the mission ``coordination_branch`` from meta (canonical anchor).
 
@@ -864,10 +869,16 @@ def _resolve_coordination_branch(
     # the raw ``coordination_branch`` meta field that PRODUCES a routing
     # signal — it never itself re-enters ``declared_read_surface`` /
     # ``_classify_artifact_surface``, so there is no cycle.
-    primary_dir = _compose_primary_feature_dir(
-        primary_root,
-        _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
-    )
+    primary_dir: Path
+    if effective_root is None:
+        primary_dir = _compose_primary_feature_dir(
+            primary_root,
+            _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
+        )
+    else:
+        from specify_cli.missions._read_path_resolver import compose_meta_json_path
+
+        primary_dir = compose_meta_json_path(effective_root, mission_slug).parent
     # FR-006: canonical reader contract (a) — None on missing, ValueError on
     # malformed (defaults stated explicitly to document the chosen arm).
     try:
@@ -883,7 +894,11 @@ def _resolve_coordination_branch(
 
 
 def _resolve_topology(
-    primary_root: Path, mission_slug: str, *, resolver: MissionResolver | None = None
+    primary_root: Path,
+    mission_slug: str,
+    *,
+    resolver: MissionResolver | None = None,
+    effective_root: Path | None = None,
 ) -> MissionTopology:
     """Read the WP02 **stored** :class:`MissionTopology` from meta (PURE shell read).
 
@@ -917,10 +932,16 @@ def _resolve_topology(
     # ``resolve_topology``) to produce the PRIMARY/COORD signal for a
     # coord-partition kind — it precedes and feeds that decision rather than
     # routing through it, so there is no cycle.
-    primary_dir = _compose_primary_feature_dir(
-        primary_root,
-        _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
-    )
+    primary_dir: Path
+    if effective_root is None:
+        primary_dir = _compose_primary_feature_dir(
+            primary_root,
+            _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
+        )
+    else:
+        from specify_cli.missions._read_path_resolver import compose_meta_json_path
+
+        primary_dir = compose_meta_json_path(effective_root, mission_slug).parent
     try:
         stored: MissionTopology = read_topology(primary_dir)
         return stored
@@ -929,7 +950,10 @@ def _resolve_topology(
         # coordination-branch value-read with no lanes signal. This is the same
         # degraded-but-stable shape the surface resolver reports for the window.
         coordination_branch = _resolve_coordination_branch(
-            primary_root, mission_slug, resolver=resolver
+            primary_root,
+            mission_slug,
+            resolver=resolver,
+            effective_root=effective_root,
         )
         return classify_topology(coordination_branch, has_lanes=False)
 
@@ -984,6 +1008,7 @@ def mission_context_for(
     topology: MissionTopology | None = None,
     *,
     resolver: MissionResolver | None = None,
+    effective_root: Path | None = None,
 ) -> MissionContext:
     """Resolve mission artifact context by mission + topology.
 
@@ -1014,7 +1039,15 @@ def mission_context_for(
             "mission_context_for requires an explicit mission handle.",
         )
 
-    primary_root = get_main_repo_root(repo_root)
+    # The default path retains the historical primary-checkout fold exactly.
+    # An owned-checkout caller instead threads the root already validated by
+    # ``resolve_ownership_claim``. Folding it through ``get_main_repo_root``
+    # would silently cross-read a sibling checkout (#3328 / C-002).
+    primary_root = (
+        get_main_repo_root(repo_root)
+        if effective_root is None
+        else effective_root.resolve()
+    )
     try:
         candidate_dir = candidate_feature_dir_for_mission(
             primary_root, mission_handle, resolver=resolver
@@ -1026,9 +1059,33 @@ def mission_context_for(
 
     mission_slug = candidate_dir.name if candidate_dir.exists() else mission_handle
     resolved_topology = topology or _resolve_topology(
-        primary_root, mission_slug, resolver=resolver
+        primary_root,
+        mission_slug,
+        resolver=resolver,
+        effective_root=effective_root,
     )
-    target_branch = get_feature_target_branch(primary_root, mission_slug)
+    if effective_root is None:
+        primary_read_dir = resolve_planning_read_dir(
+            primary_root,
+            mission_slug,
+            kind=MissionArtifactKind.PRIMARY_METADATA,
+            resolver=resolver,
+        )
+    else:
+        from specify_cli.missions._read_path_resolver import compose_meta_json_path
+
+        primary_read_dir = compose_meta_json_path(primary_root, mission_slug).parent
+    if effective_root is None:
+        target_branch = get_feature_target_branch(primary_root, mission_slug)
+    else:
+        # The legacy helper deliberately folds a generic worktree to the
+        # ambient primary checkout. The opted-in path reads only the validated
+        # checkout's meta and derives its fallback branch from that checkout.
+        from specify_cli.core.git_ops import resolve_primary_branch
+        from specify_cli.core.paths import read_target_branch_from_meta
+
+        stored_target = read_target_branch_from_meta(primary_read_dir)
+        target_branch = stored_target or str(resolve_primary_branch(primary_root))
     _identity, branch_ref, status_surface, _workspace = _assemble_core_fragments(
         primary_root,
         mission_slug=mission_slug,
@@ -1036,12 +1093,7 @@ def mission_context_for(
         topology=resolved_topology,
         cwd=None,
         resolver=resolver,
-    )
-    primary_read_dir = resolve_planning_read_dir(
-        primary_root,
-        mission_slug,
-        kind=MissionArtifactKind.PRIMARY_METADATA,
-        resolver=resolver,
+        effective_root=effective_root,
     )
     artifacts: list[MissionArtifactContext] = []
     for kind in MissionArtifactKind:
@@ -1078,7 +1130,11 @@ def mission_context_for(
 
 
 def _resolve_mission_id(
-    primary_root: Path, mission_slug: str, *, resolver: MissionResolver | None = None
+    primary_root: Path,
+    mission_slug: str,
+    *,
+    resolver: MissionResolver | None = None,
+    effective_root: Path | None = None,
 ) -> str:
     """Resolve the canonical ``mission_id`` for the mission.
 
@@ -1119,10 +1175,15 @@ def _resolve_mission_id(
     # into it (the ``legacy-<slug>`` sentinel carve-out below is unaffected:
     # it fires on a malformed/absent meta read, before any classification
     # decision is even in play).
-    primary_dir = _compose_primary_feature_dir(
-        primary_root,
-        _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
-    )
+    if effective_root is None:
+        primary_dir = _compose_primary_feature_dir(
+            primary_root,
+            _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
+        )
+    else:
+        from specify_cli.missions._read_path_resolver import compose_meta_json_path
+
+        primary_dir = compose_meta_json_path(effective_root, mission_slug).parent
     # FR-006: canonical reader contract (a) — None on missing, ValueError on
     # malformed; the malformed arm degrades to the ``legacy-`` sentinel below.
     try:
@@ -1142,6 +1203,7 @@ def _resolve_status_surface_dir(
     topology: MissionTopology,
     *,
     resolver: MissionResolver | None = None,
+    effective_root: Path | None = None,
 ) -> Path:
     """Resolve the canonical status-surface DIRECTORY via WP02's resolver.
 
@@ -1168,6 +1230,53 @@ def _resolve_status_surface_dir(
         StatusReadPathNotFound,
         candidate_feature_dir_for_mission,
     )
+
+    if effective_root is not None:
+        from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+        from specify_cli.mission_metadata import load_meta
+        from specify_cli.missions._read_path_resolver import (
+            CoordState,
+            compose_meta_json_path,
+            coord_feature_dir,
+            probe_coord_state,
+        )
+
+        primary_dir: Path = compose_meta_json_path(
+            effective_root, mission_slug
+        ).parent
+        meta = load_meta(primary_dir, allow_missing=True, on_malformed="raise") or {}
+        raw_coordination_branch = meta.get("coordination_branch")
+        coordination_branch = (
+            str(raw_coordination_branch) if raw_coordination_branch else None
+        )
+        if not routes_through_coordination(topology) or coordination_branch is None:
+            return primary_dir
+        mission_id = _resolve_mission_id(
+            effective_root,
+            mission_slug,
+            resolver=resolver,
+            effective_root=effective_root,
+        )
+        mid8 = resolve_mid8(mission_slug, mission_id=mission_id)
+        coord_dir: Path = coord_feature_dir(effective_root, mission_slug, mid8)
+        coord_state = probe_coord_state(
+            effective_root,
+            mission_slug,
+            mid8,
+            coordination_branch=coordination_branch,
+        )
+        if coord_state is CoordState.DELETED:
+            raise CoordinationBranchDeleted(
+                repo_root=effective_root,
+                mission_slug=mission_slug,
+                mid8=mid8,
+                coordination_branch=coordination_branch,
+                coord_candidate=coord_dir,
+                primary_candidate=primary_dir,
+            )
+        if coord_state in {CoordState.EMPTY, CoordState.NONE}:
+            return primary_dir
+        return coord_dir
 
     try:
         surface = resolve_status_surface(primary_root, mission_slug, topology)
@@ -1240,6 +1349,7 @@ def _assemble_core_fragments(
     topology: MissionTopology,
     cwd: Path | None,
     resolver: MissionResolver | None = None,
+    effective_root: Path | None = None,
 ) -> tuple[IdentityFragment, BranchRefFragment, StatusSurfaceFragment, WorkspaceFragment]:
     """Assemble the WP02/WP03/WP05-owned fragments of the op-composite (IC-02).
 
@@ -1281,9 +1391,18 @@ def _assemble_core_fragments(
     """
     from specify_cli.core.paths import get_main_repo_root
 
-    primary_root = get_main_repo_root(repo_root)
+    primary_root = (
+        get_main_repo_root(repo_root)
+        if effective_root is None
+        else effective_root.resolve()
+    )
 
-    mission_id = _resolve_mission_id(primary_root, mission_slug, resolver=resolver)
+    mission_id = _resolve_mission_id(
+        primary_root,
+        mission_slug,
+        resolver=resolver,
+        effective_root=effective_root,
+    )
     identity = IdentityFragment.derive(
         mission_id=mission_id, mission_slug=mission_slug
     )
@@ -1294,7 +1413,10 @@ def _assemble_core_fragments(
     # topology: the placement ``kind`` is now classified from ``topology`` (FR-004
     # / SC-001), never inferred from the branch value's presence.
     coordination_branch = _resolve_coordination_branch(
-        primary_root, mission_slug, resolver=resolver
+        primary_root,
+        mission_slug,
+        resolver=resolver,
+        effective_root=effective_root,
     )
     # The coord-routing DECISION reads the STORED topology via the SINGLE predicate
     # (FR-005 / WP04 drain) — never a re-derived per-ref enum. ``CommitTarget`` is a
@@ -1314,7 +1436,11 @@ def _assemble_core_fragments(
     )
 
     surface_dir = _resolve_status_surface_dir(
-        primary_root, mission_slug, topology, resolver=resolver
+        primary_root,
+        mission_slug,
+        topology,
+        resolver=resolver,
+        effective_root=effective_root,
     )
     status_surface = StatusSurfaceFragment(
         status_read_dir=surface_dir,
@@ -2008,6 +2134,28 @@ def coord_read_dir_for(
     if resolved.surface_kind is not TopologySurface.COORD:
         return None
     return resolved.path
+
+
+def resolve_create_time_write_target(planning_branch: str) -> CommitTarget:
+    """Return the explicit target used before mission identity is readable.
+
+    Mission creation derives ``planning_branch`` only after exact-checkout
+    ownership validation.  During that narrow bootstrap interval no mission
+    metadata exists for :func:`placement_seam` to inspect, so this pure seam
+    carries the already-authoritative short branch into commit routing without
+    consulting CWD, environment, topology, or a fallback repository root.
+    """
+    if (
+        not planning_branch
+        or planning_branch != planning_branch.strip()
+        or planning_branch.startswith("refs/heads/")
+    ):
+        raise ActionContextError(
+            "CREATE_TIME_TARGET_INVALID",
+            "Create-time planning branch must be a non-empty short branch name "
+            "without the 'refs/heads/' prefix.",
+        )
+    return CommitTarget(ref=planning_branch)
 
 
 def placement_seam(repo_root: Path, mission_slug: str) -> PlacementSeam:

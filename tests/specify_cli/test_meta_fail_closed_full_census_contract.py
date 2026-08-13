@@ -198,6 +198,7 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/mission_runtime/resolution.py", "_mid8_from_primary_meta"): (1, "pending-batch-a"),
     ("src/mission_runtime/resolution.py", "_resolve_coordination_branch"): (1, "pending-batch-a"),
     ("src/mission_runtime/resolution.py", "_resolve_mission_id"): (1, "pending-batch-a"),
+    ("src/mission_runtime/resolution.py", "_resolve_status_surface_dir"): (1, "pending-batch-a"),
     ("src/runtime/next/_internal_runtime/planner.py", "_resolve_workflow_for_mission"): (1, "pending-batch-a"),
     ("src/runtime/next/runtime_bridge_io.py", "_workflow_runtime_template"): (1, "pending-batch-a"),
     ("src/specify_cli/bulk_edit/gate.py", "_is_bulk_edit_mission"): (1, "pending-batch-a"),

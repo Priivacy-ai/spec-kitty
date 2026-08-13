@@ -59,6 +59,53 @@ SUBSTANTIVE_PLAN_TEMPLATE = """# Implementation Plan Template
 """
 
 
+def _init_owned_checkout_pair(tmp_path: Path) -> tuple[Path, Path]:
+    """Create a configured primary repository and real generic linked worktree."""
+    primary = tmp_path / "primary"
+    linked = tmp_path / "linked-checkout"
+    (primary / ".kittify" / "templates").mkdir(parents=True)
+    (primary / ".kittify" / "templates" / "spec-template.md").write_text(
+        "# Spec Template\n",
+        encoding="utf-8",
+    )
+    (primary / ".kittify" / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n",
+        encoding="utf-8",
+    )
+    (primary / "kitty-specs").mkdir()
+    (primary / "kitty-specs" / ".gitkeep").touch()
+    subprocess.run(
+        ["git", "init", "--initial-branch=main"],
+        cwd=primary,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Spec Kitty Tests"],
+        cwd=primary,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "spec-kitty-tests@example.invalid"],
+        cwd=primary,
+        check=True,
+    )
+    subprocess.run(["git", "add", "."], cwd=primary, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Initial project"],
+        cwd=primary,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "worktree", "add", "-b", "owned-mission", str(linked)],
+        cwd=primary,
+        check=True,
+        capture_output=True,
+    )
+    return primary, linked
+
+
 def _write_committed_substantive_spec(repo_root: Path, feature_dir: Path) -> None:
     """Create a committed spec.md that satisfies setup-plan's entry gate."""
     subprocess.run(
@@ -524,6 +571,142 @@ class TestCreateFeatureCommand:
         first_line = result.stdout.strip().split('\n')[0]
         output = json.loads(first_line)
         assert output["result"] == "success"
+
+    def test_owned_checkout_creates_mission_in_real_linked_worktree(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """An explicit validated checkout owns mission scaffolding and commit routing."""
+        primary, linked = _init_owned_checkout_pair(tmp_path)
+
+        with (
+            patch(
+                "specify_cli.cli.commands.agent.mission.locate_project_root",
+                return_value=primary,
+            ),
+            patch(
+                "specify_cli.core.mission_creation.Path.cwd",
+                return_value=linked,
+            ),
+            patch("specify_cli.status.fire_dossier_sync"),
+            patch("specify_cli.core.mission_creation.safe_commit") as safe_commit,
+            patch(
+                "specify_cli.core.mission_creation.ULID",
+                return_value=ULID.from_str(TEST_MISSION_ID),
+            ),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "create",
+                    "owned-feature",
+                    "--owned-checkout",
+                    str(linked),
+                    "--topology",
+                    "single_branch",
+                    "--json",
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.stdout)
+        mission_slug = f"owned-feature-{TEST_MISSION_MID8}"
+        mission_dir = linked / "kitty-specs" / mission_slug
+        assert payload["owned_checkout"] == str(linked.resolve())
+        assert payload["canonical_repo_root"] == str(primary.resolve())
+        assert payload["feature_dir"] == str(mission_dir)
+        assert mission_dir.is_dir()
+        assert (mission_dir / "meta.json").is_file()
+        assert not (primary / "kitty-specs" / mission_slug).exists()
+        assert (
+            subprocess.run(
+                ["git", "status", "--short"],
+                cwd=primary,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+            == ""
+        )
+        safe_commit.assert_called_once()
+        assert safe_commit.call_args.kwargs["repo_root"] == primary.resolve()
+        assert safe_commit.call_args.kwargs["worktree_root"] == linked.resolve()
+        assert safe_commit.call_args.kwargs["target"].ref == "owned-mission"
+
+    def test_owned_checkout_foreign_refusal_is_structured_json(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """A foreign explicit checkout fails before scaffolding with stable code."""
+        primary, _linked = _init_owned_checkout_pair(tmp_path)
+        foreign = tmp_path / "foreign"
+        foreign.mkdir()
+        subprocess.run(
+            ["git", "init", "--initial-branch=foreign"],
+            cwd=foreign,
+            check=True,
+            capture_output=True,
+        )
+
+        with patch(
+            "specify_cli.cli.commands.agent.mission.locate_project_root",
+            return_value=primary,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "create",
+                    "foreign-feature",
+                    "--owned-checkout",
+                    str(foreign),
+                    "--json",
+                ],
+            )
+
+        assert result.exit_code == 1
+        payload = json.loads(result.stdout.strip().splitlines()[0])
+        assert payload["error_code"] == "OWNERSHIP_FOREIGN"
+        assert str(foreign.resolve()) in payload["error"]
+        assert str(primary.resolve()) in payload["error"]
+        assert not any((primary / "kitty-specs").glob("foreign-feature-*"))
+        # Shared ownership refusal contract: same core JSON shape as
+        # next_cmd._emit_checkout_ownership_error — success/error_code/error
+        # present, and no redundant `message` key from the previous
+        # `**exc.to_dict()` spread (StructuredError.to_dict() would add it).
+        assert payload["success"] is False
+        assert "message" not in payload
+        assert {"success", "error_code", "error"} <= payload.keys()
+
+    def test_owned_checkout_subdirectory_refusal_is_structured_json(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """A subdirectory cannot masquerade as a linked checkout root."""
+        primary, linked = _init_owned_checkout_pair(tmp_path)
+        nested = linked / "nested"
+        nested.mkdir()
+
+        with patch(
+            "specify_cli.cli.commands.agent.mission.locate_project_root",
+            return_value=primary,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "create",
+                    "nested-feature",
+                    "--owned-checkout",
+                    str(nested),
+                    "--json",
+                ],
+            )
+
+        assert result.exit_code == 1
+        payload = json.loads(result.stdout.strip().splitlines()[0])
+        assert payload["error_code"] == "OWNERSHIP_NESTED"
+        assert str(nested.resolve()) in payload["error"]
+        assert str(linked.resolve()) in payload["error"]
+        assert not any((linked / "kitty-specs").glob("nested-feature-*"))
 
 
 class TestCheckPrerequisitesCommand:
