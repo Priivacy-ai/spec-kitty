@@ -23,6 +23,23 @@ Captured now so the gate design is daemon-ready, but scoped as a follow-on.
 
 ---
 
+## Post-dialectics revision (2026-08-13) — DECISION HELD OPEN
+
+Per operator: **this decision is held open for further discussion**; the rest of the gate
+architecture proceeds without it. Recorded from the dialectics pass
+(`work/gate-design-dialectics/04-...`, `99-COHERENCE.md`), not yet settled:
+
+- **The verdict cache keyed on pack content-hash is contested as unsound.** The pack hash omits
+  the **working tree**, which is the dominant input of both the incumbent `spec-kitty-pre-review`
+  gate (scoped tests at head) and the `docs-structural-lint` example (lints the tree). Editing a
+  tracked file leaves the pack hash unchanged → a stale **PASS** could cross a blocking gate.
+  Capturing "everything a subprocess reads" is not feasible without tracing infra that dwarfs the
+  daemon.
+- **Parse-amortization is sound and daemon-independent** — the parse is a pure function of pack
+  bytes and can be a content-addressed on-disk cache with no daemon.
+- No decision is folded here yet. The daemon-as-warm-API and the verdict-cache question remain
+  **open** pending further discussion.
+
 ## Context and Problem Statement
 
 The CLI parses doctrine + DRG (and, with declarative gates, gate definitions) on **every

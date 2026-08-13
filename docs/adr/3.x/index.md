@@ -179,3 +179,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-08-13 | [Gate execution targets a surface through a kernel selector and the topology placement seam](2026-08-13-3-gate-execution-targets-through-kernel-surface-selector.md) |
 | 2026-08-13 | [Executable doctrine runs only from trusted publishers (signed built-in; TOFU for the rest)](2026-08-13-4-executable-doctrine-runs-only-from-trusted-publishers.md) |
 | 2026-08-13 | [A local loopback daemon amortizes doctrine parse and caches deterministic gate verdicts (direction)](2026-08-13-5-local-daemon-amortizes-doctrine-parse-and-caches-gate-verdicts.md) |
+| 2026-08-13 | [Gate outcomes carry a typed severity; an operator-configured error-handling strategy decides the CLI effect](2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md) |
