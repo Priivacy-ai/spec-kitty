@@ -74,7 +74,8 @@ preceding cleanup commit.
 
 **Open-PR conflict check** (re-verified at tasks time, per the mission brief's requirement to
 re-run the plan-phase sweep): `gh pr list --repo Priivacy-ai/spec-kitty --state open --json
-number,title,files` was re-run against all 18 currently-open PRs (#2239–#3383). None touch
+number,title,files` was re-run against all 18 currently-open PRs (#2239–#3383, re-verified
+2026-08-13 — this count and range will also move as PRs open/close). None touch
 `src/charter/_drg_helpers.py`, `src/charter/action_doctrine_bundle.py`, or any path under
 `tests/charter/`. PRs #3300 and #3293 each touch `.kittify/charter/governance.yaml` among many
 other unrelated files in their respective diffs (344 and 975 changed files respectively, per
