@@ -237,14 +237,14 @@ def test_stale_generation_write_parks_terminally_and_never_revives(
     assert summary.delivered == 0 and summary.duplicate == 0
     assert summary.rejected == 0 and summary.transient == 0 and summary.pending == 0
     assert summary.retryable_event_ids == ()
-    assert len(summary.failures) == 1
+    assert len(summary.failures) == 1  # golden-count: cardinality-is-contract
     failure = summary.failures[0]
     assert failure.event_id == STALE_EVENT_ID
     assert failure.outcome == "terminal_failed"
     assert failure.error is not None and "stale" in failure.error
 
     rows = _attempt_rows(store)
-    assert len(rows) == 1, "exactly one durable attempt row may exist for the stale write"
+    assert len(rows) == 1, "exactly one durable attempt row may exist for the stale write"  # golden-count: cardinality-is-contract
     attempt_id, state, admission_generation, result_id, outcome, category = rows[0]
     assert attempt_id == expected_attempt_id
     assert state == DeliveryAttemptState.REFUSED.value
@@ -289,7 +289,7 @@ def test_stale_generation_write_parks_terminally_and_never_revives(
     assert server.accepted_event_ids == [FRESH_EVENT_ID]
 
     rows_after = _attempt_rows(store)
-    assert len(rows_after) == 2, "fresh admission must mint a fresh attempt row, never reuse the parked one"
+    assert len(rows_after) == 2, "fresh admission must mint a fresh attempt row, never reuse the parked one"  # golden-count: cardinality-is-contract
     by_id = {row[0]: row for row in rows_after}
     parked = by_id[expected_attempt_id]
     assert parked[1] == DeliveryAttemptState.REFUSED.value
@@ -322,5 +322,5 @@ def test_readmitted_generation_write_is_accepted_by_the_same_authority(
     assert server.accepted_event_ids == ["evt-current-g1"]
     assert server.refused_event_ids == []
     rows = _attempt_rows(store)
-    assert len(rows) == 1
+    assert len(rows) == 1  # golden-count: cardinality-is-contract
     assert rows[0][1] == DeliveryAttemptState.SUCCEEDED.value

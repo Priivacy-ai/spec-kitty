@@ -110,9 +110,9 @@ def _hermetic_candidate(tmp_path: Path) -> tuple[Path, str, str]:
 def test_pinned_wp04_authority_is_an_exact_commit_and_digest_not_a_ref() -> None:
     """The pin names one commit and one digest — nothing floating, no branch."""
     assert PINNED_SAAS_WP04_CONTRACT.producer_gate == "SaaS WP04"
-    assert len(PINNED_SAAS_WP04_CONTRACT.commit) == 40
+    assert len(PINNED_SAAS_WP04_CONTRACT.commit) == 40  # golden-count: cardinality-is-contract
     assert set(PINNED_SAAS_WP04_CONTRACT.commit) <= set("0123456789abcdef")
-    assert len(PINNED_SAAS_WP04_CONTRACT.sha256) == 64
+    assert len(PINNED_SAAS_WP04_CONTRACT.sha256) == 64  # golden-count: cardinality-is-contract
     assert set(PINNED_SAAS_WP04_CONTRACT.sha256) <= set("0123456789abcdef")
 
 
@@ -293,7 +293,7 @@ def test_dispatcher_batch_event_carries_every_contract_required_field(
     assert summary.delivered == 1
 
     received = receiver.received_events()
-    assert len(received) == 1
+    assert len(received) == 1  # golden-count: cardinality-is-contract
     wire = dict(received[0].payload)
 
     missing_envelope = _REQUIRED_ENVELOPE_FIELDS - wire.keys()

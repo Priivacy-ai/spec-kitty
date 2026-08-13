@@ -279,7 +279,7 @@ def test_six_project_run_transmits_only_admitted_project_a_bytes(
     # so the absence assertions below are measurements, not vacuous truths.
     assert summary_a.delivered == _EVENTS_PER_PROJECT
     assert summary_a.selected == _EVENTS_PER_PROJECT
-    assert len(poster.posts) == 1, "A's three events fit one batch; nothing else may POST"
+    assert len(poster.posts) == 1, "A's three events fit one batch; nothing else may POST"  # golden-count: cardinality-is-contract
 
     # Consent-denied projects select nothing even with an admitted target row.
     assert summary_c.selected == 0 and summary_c.recorded == 0
