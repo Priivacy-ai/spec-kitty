@@ -12,8 +12,10 @@ that:
    validate``) when the caller passes ``auto_refresh=True`` AND the
    worktree has no uncommitted generated artifacts (FR-008).
 4. Returns a frozen :class:`CharterPreflightResult` whose
-   ``blocked_reason`` always points the operator at one exact recovery
-   command.
+   ``blocked_reason`` names one exact recovery command for every check that
+   has one — and, for a check on the declared exemption set (no effective
+   self-service remediation, C-EFF-2), names the check and explains why
+   instead of fabricating a command it cannot act on (R-006).
 
 Boundary heal semantics (WP04, charter-synthesize-reconciliation-01KZJQN6):
 the ``charter synthesize`` call inside the refresh sequence is invoked
@@ -335,21 +337,39 @@ def _derive_blocked_reason(checks: list[CharterPreflightCheck]) -> str:
     ``checks`` order so a single pass surfaces the whole remediation list.
 
     Per-check formatting is unchanged from the prior single-check behaviour
-    (``"<name> <state>; run `<remediation>`"``) — for exactly one
-    non-passing check this still returns that identical single-line string;
-    for multiple, the lines are joined with a newline into one string (the
-    ``blocked_reason`` field stays a single ``str`` — see the output-shape
-    pin in ``result.py``).
+    for a check that names a remediation (``"<name> <state>; run
+    `<remediation>`"``) — for exactly one non-passing check this still
+    returns that identical single-line string; for multiple, the lines are
+    joined with a newline into one string (the ``blocked_reason`` field
+    stays a single ``str`` — see the output-shape pin in ``result.py``).
+
+    R-006 / C-EFF-2: a check with ``remediation is None`` used to have a
+    default command (``spec-kitty charter status``, itself a pure reporter
+    that cannot change any check's state) fabricated in its place — the
+    same defect class as BC-2, sitting on the default path. That backfill is
+    gone: see :func:`_blocked_reason_line`.
     """
-    lines = [
-        f"{check.name} {check.state}; run `{check.remediation or 'spec-kitty charter status'}`"
-        for check in checks
-        if check.state not in _PASS_STATES
-    ]
+    lines = [_blocked_reason_line(check) for check in checks if check.state not in _PASS_STATES]
     if not lines:
         # Should not happen — callers only enter this path when passed=False.
-        return "charter preflight failed; run `spec-kitty charter status`"
+        return "charter preflight failed; no non-passing check found (internal inconsistency)"
     return "\n".join(lines)
+
+
+def _blocked_reason_line(check: CharterPreflightCheck) -> str:
+    """Compose one ``blocked_reason`` line for a single non-passing check.
+
+    When the check names a remediation, the operator is shown the exact
+    command (unchanged from prior behaviour). When ``remediation`` is
+    ``None`` the check is a declared exemption (C-EFF-2) — the operator
+    still learns which check failed, its state, and why (``check.detail``),
+    but no command is manufactured in its place (R-006). This must not
+    degrade to a silent or empty line — the diagnostic stays, only the
+    fabricated command goes.
+    """
+    if check.remediation:
+        return f"{check.name} {check.state}; run `{check.remediation}`"
+    return f"{check.name} {check.state}: {check.detail}"
 
 
 # ---------------------------------------------------------------------------
