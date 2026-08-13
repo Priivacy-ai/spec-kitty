@@ -12,10 +12,13 @@
 The operator (human-in-command, via the orchestrating agent) selected the mission's scope
 from three options presented in the pre-spec readiness probe
 (`/home/jeroennouws/dev/SK-missions/_readiness/3386-mission-type-guard-registry.md`, Open
-Question 1). The decision is binding and quoted verbatim below, attributed to **the operator,
-dated 2026-08-13**:
+Question 1). The decision is binding, attributed to **the operator, dated 2026-08-13**. The
+summary below is a **paraphrase of the operator's Option-A selection, not a verbatim
+quotation** — the substantive source of record is the readiness probe's own Option A text
+under "Open questions → Question 1" (the bullet beginning "Scope to the guard-table registry +
+`plan` table + `doctor mission-type` only (Recommended)"):
 
-> **Registry + plan table + doctor.** Builds: the `_GUARD_TABLES` registry replacing the
+> Registry + plan table + doctor. Builds: the `_GUARD_TABLES` registry replacing the
 > fall-through, `plan`'s guard table (empty `review`, artifact-checks elsewhere), the
 > loud-block-vs-neutral-degrade split between legacy and composed paths, `doctor mission-type
 > --json [--fail-on ...]` modeled on `doctor identity`, and tests for exactly those. The
@@ -40,7 +43,7 @@ only the corrected figures, never the issue's original ones:
 | "nine tests" pin the custom-mission-type extension point | Undercount | **≥24 tests** across three files: `tests/integration/test_custom_mission_runtime_walk.py` (5), `tests/next/test_composition_gate_widening.py` (14 of that file's tests exercise this predicate), `tests/runtime/test_bridge_composition.py` (6 more) |
 | "six tests" pin `_should_dispatch_via_composition` degrading rather than raising | Overcount, not independently re-verified to an exact number | **At least 4** unambiguous direct hits (named in NFR-002 below) |
 | "~16 tests" pin typeless-mission behavior | Directionally confirmed only, not a pinned count | Treated as an estimate; this spec does not assert a specific count, only that the behavior is preserved (see NFR-001) |
-| "12 of 30 `write_meta` callers pass `validate=False`" | Wrong and inverted | **15 of 27 (56%)** call sites skip validation — corrected figure, independently corroborated twice in the probe. This spec cites the corrected fraction only where relevant (C-004) |
+| "12 of 30 `write_meta` callers pass `validate=False`" | Wrong and inverted | **15 of 27 (56%)** call sites skip validation — corrected figure per one direct enumeration (27 sites, 15 skipping validation); direction independently re-checked by a second, rougher grep (~29/17, "close enough... to trust its direction" per the probe). This spec cites the corrected fraction only where relevant (C-004) |
 | "~145 LOC src + ~245 test" sizing | The issue's own rough estimate, not a commitment | Not restated as a target in this spec; left to the plan phase |
 
 ## User Scenarios & Testing *(mandatory)*
@@ -114,12 +117,17 @@ assert the `review` step never blocks on a work-package-related guard message.
    list names the missing artifact (mirroring the research/documentation pattern) — the guard
    table is not empty across the board; only the terminal `review` step is intentionally
    empty.
+3. **Given** a `plan`-type mission that has produced `spec.md` but has NOT yet produced
+   `research.md` at the `research` step, **When** `evaluate_guards` is invoked for
+   `step_id="research"`, **Then** the guard failure list names the missing `research.md`
+   artifact (mirroring the `specify`/`plan` artifact-presence pattern) — the `research` step's
+   guard is exercised by an acceptance scenario, not left implicit.
 
 ---
 
 ### User Story 3 - The legacy CLI-native guard path fails loudly, never silently, on an unrecognized family (Priority: P2)
 
-`_check_cli_guards` (`src/runtime/next/runtime_bridge.py:678-698`) is the legacy/CLI-native
+`_check_cli_guards` (`src/runtime/next/runtime_bridge.py:680-698`) is the legacy/CLI-native
 guard entry point. It currently hardcodes `mission_family="software-dev"` unconditionally
 (line 692), so no custom mission type can reach it today by construction — the custom-type
 extension point is exclusively a composed-path capability (pinned by ≥24 tests; see
@@ -133,15 +141,36 @@ never neutrally degrade the way the composed path does. The two paths are delibe
 asymmetric: composed = tolerant (custom mission types are supported there), legacy = strict
 (no custom mission type can legitimately reach it).
 
+**Call-site shape (binding, not cosmetic)**: today both `_check_cli_guards` and
+`_check_composed_action_guard` end with the identical `return _cores.evaluate_guards(snapshot)`
+— both delegate to the same shared function with no path-identifying parameter distinguishing
+them. Without more, a compliant-but-lazy implementation could add an isolated, unit-tested
+raising helper that is never actually wired into `_check_cli_guards`'s real call chain, leaving
+`_check_cli_guards` still delegating to the tolerant, neutral-degrading path exactly as today —
+satisfying a literal unit-test assertion while silently failing this story's actual subject. To
+close that loophole, this mission MUST split the shared dispatch into two concrete call sites: a
+**strict lookup** (raises a structured, typed exception for an unregistered family) that
+`_check_cli_guards` itself calls directly, and a **tolerant wrapper** (catches that same
+exception, logs it, and returns `[]`) that `_check_composed_action_guard` itself calls directly.
+`_check_cli_guards` being the direct caller of the strict lookup — not merely a
+unit-tested-but-unwired helper existing somewhere in the module — is part of this story's
+acceptance bar (see Acceptance Scenario 3, FR-005, and C-002).
+
 **Why this priority**: Defensive correctness for the registry's shape, not a live defect today
 (the legacy path's own hardcoding already prevents an unregistered family from reaching it in
 current code) — but the issue explicitly calls for this split as part of the registry's design,
 and an untested asymmetry is exactly the kind of silent-misbehavior seam this mission exists to
 close.
 
-**Independent Test**: Directly unit-test the registry lookup function used by the legacy path
-with a family string that has no `_GUARD_TABLES` entry and confirm it raises (does not return a
-list, does not log-and-neutral-degrade the way the composed path does).
+**Independent Test**: Two parts. (1) Directly unit-test the strict lookup function with a
+family string that has no `_GUARD_TABLES` entry and confirm it raises (does not return a list,
+does not log-and-neutral-degrade the way the composed path does). (2) Confirm `_check_cli_guards`
+itself is the caller of that strict lookup — e.g. via a spy/mock on the strict-lookup function
+asserting it is invoked when `_check_cli_guards` runs, or by injecting an unregistered family
+through a test seam and asserting the raised exception is observed to propagate out of
+`_check_cli_guards` itself. Part (2) exists specifically so an isolated, unit-tested-but-unwired
+raising helper cannot satisfy this story while `_check_cli_guards`'s real call chain keeps
+delegating to the tolerant path.
 
 **Acceptance Scenarios**:
 
@@ -154,6 +183,11 @@ list, does not log-and-neutral-degrade the way the composed path does).
    end-to-end, **Then** behavior is byte-for-byte unchanged from pre-mission `main` (see
    NFR-001) — the loud-block path is unreachable under current callers and must stay that way
    without regressing the reachable ones.
+3. **Given** `_check_cli_guards`'s internal dispatch is exercised with an unregistered
+   `mission_family` (via a test double/injection seam, since no current caller can reach this
+   state), **When** the call executes, **Then** the raised exception is observed to propagate
+   from `_check_cli_guards` itself — confirming `_check_cli_guards` is wired directly to the
+   strict lookup, not to an isolated helper that its real call chain never invokes.
 
 ---
 
@@ -227,13 +261,13 @@ containing an unknown-type mission and assert non-zero exit.
 | ID | Title | User Story | Priority | Status |
 |----|-------|------------|----------|--------|
 | FR-001 | Replace the `evaluate_guards` if/if/fall-through with an explicit `_GUARD_TABLES` registry | As a maintainer, I want `evaluate_guards` (`src/runtime/next/runtime_bridge_cores.py:351-374`) dispatched via an explicit per-family registry (e.g. a `dict[str, Callable]`) instead of the current `if research / if documentation / else software-dev` chain, so that a family with no entry is a distinguishable case rather than an implicit software-dev alias. | High | Open |
-| FR-002 | Author `plan`'s own guard table | As a maintainer, I want a `_evaluate_plan_guards` function registered for `mission_family="plan"` that returns `[]` for the terminal `review` step (by direct analogy to `_evaluate_documentation_guards`'s existing `accept` case) and artifact-presence checks for `specify`/`research`/`plan`, so that `plan`-type missions are evaluated against rules that match what they actually produce. | High | Open |
-| FR-003 | Composed-path unregistered family → explicit neutral degrade, never a crash, never a software-dev misfire | As an operator running a mission of a custom, composed-path-only mission type not present in `_GUARD_TABLES`, I want `evaluate_guards` to return an explicit neutral result (not the software-dev table's verdict, not a raised exception) so my mission is not blocked by rules that don't apply to it. | High | Open |
-| FR-004 | Composed-path neutral degrade logs the unregistered family | As an operator debugging why a custom mission type's guards behave neutrally, I want a log line recording the specific unregistered `mission_family` value at the moment of the degrade, so the condition is discoverable without reading source. | High | Open |
-| FR-005 | Legacy/CLI-native path raises loudly on an unregistered family | As a maintainer, I want the guard-table lookup used by the legacy/CLI-native path (`_check_cli_guards`, `src/runtime/next/runtime_bridge.py:678-698`) to raise a structured, typed exception if it is ever asked to resolve a family with no `_GUARD_TABLES` entry, rather than falling through or neutrally degrading, because no custom mission type can legitimately reach this path by construction. | Medium | Open |
+| FR-002 | Author `plan`'s own guard table | As a maintainer, I want a `_evaluate_plan_guards` function registered for `mission_family="plan"` that returns `[]` for the terminal `review` step (by direct analogy to `_evaluate_documentation_guards`'s existing `accept` case) and artifact-presence checks for `specify` (`spec.md`), `research` (`research.md`), and `plan` (`plan.md`), so that `plan`-type missions are evaluated against rules that match what they actually produce. | High | Open |
+| FR-003 | Composed-path unregistered family → explicit neutral degrade, never a crash, never a software-dev misfire | As an operator running a mission of a custom, composed-path-only mission type not present in `_GUARD_TABLES`, I want `evaluate_guards` to return an explicit neutral result (not the software-dev table's verdict, not a raised exception) so my mission is not blocked by rules that don't apply to it. Because the returned `list[str]` shape is unchanged (Key Entities), this neutral result is interface-indistinguishable from a genuine guard pass — FR-004's log line is the only differentiator, and FR-007's `doctor mission-type` command is the operator-facing, non-log-dependent answer for the same discoverability need; see FR-004 and FR-007. | High | Open |
+| FR-004 | Composed-path neutral degrade logs the unregistered family at WARNING level or above | As an operator debugging why a custom mission type's guards behave neutrally, I want a log line recording the specific unregistered `mission_family` value at the moment of the degrade, emitted at **WARNING level or above** (matching the existing degrade-logging convention at `runtime_bridge.py:2239/2249/2268`, not DEBUG or lower), so the condition is discoverable in default-configured logs without reading source. Cross-reference: FR-003 (this is the sole interface differentiator for that neutral result) and FR-007 (`doctor mission-type` gives operators a proactive, non-log-dependent way to discover the same unregistered/unresolved state). | High | Open |
+| FR-005 | Legacy/CLI-native path raises loudly on an unregistered family, via a strict lookup that `_check_cli_guards` itself calls directly | As a maintainer, I want the shared guard-table dispatch split into a **strict lookup** (raises a structured, typed exception for a family with no `_GUARD_TABLES` entry) called directly by `_check_cli_guards` (`src/runtime/next/runtime_bridge.py:680-698`), and a separate **tolerant wrapper** (catches that exception, logs, returns `[]`) called directly by `_check_composed_action_guard` — not an isolated, unit-tested-but-unwired raising helper that `_check_cli_guards`'s real call chain never invokes — so the legacy path raises loudly in its actual, exercised call chain, not only in an unreachable helper. See User Story 3 (Acceptance Scenario 3) and C-002 for the same call-site requirement. | Medium | Open |
 | FR-006 | Registered-family behavior is unchanged through the registry refactor | As a maintainer, I want the guard-failure output for every currently-registered family (`software-dev`, `research`, `documentation`) and every `step_id` to be identical before and after the `_GUARD_TABLES` refactor, so existing in-flight missions on those families see zero behavior change. | High | Open |
 | FR-007 | `spec-kitty doctor mission-type --json` command | As an operator, I want a `spec-kitty doctor mission-type` CLI command, modeled directly on `spec-kitty doctor identity` (`src/specify_cli/cli/commands/doctor.py:396-444`), accepting `--json` and a mission-scoping option, so I can audit mission-type resolution health across `kitty-specs/`. | High | Open |
-| FR-008 | `doctor mission-type` enumerated state taxonomy | As an operator, I want every mission classified into exactly one of a fixed, documented state: `resolved` (mission_type present and loadable), `activated-unresolvable` (mission_type is activated in project charter but has no loadable profile/definition on disk — matches the `UnknownMissionTypeError` FR-006/SC-003 distinction already made at `src/charter/mission_type_profiles.py:193-210`), `unknown` (mission_type string present but not registered/activated anywhere), `typeless` (no `mission_type` key at all — the pre-existing neutral case), `legacy-key-only` (only the retired `mission` key is present, no `mission_type` key), or `error` (meta.json unreadable/malformed), so the report is exhaustive and non-ambiguous — no mission is silently omitted from every bucket. | High | Open |
+| FR-008 | `doctor mission-type` enumerated state taxonomy | As an operator, I want every mission classified into exactly one of a fixed, documented state: `resolved` (mission_type present and loadable), `activated-unresolvable` (mission_type is activated in project charter but has no loadable profile/definition on disk — matches the `UnknownMissionTypeError` FR-006/SC-003 distinction already made at `src/charter/mission_type_profiles.py:193-210`), `unknown` (mission_type string present but not registered/activated anywhere), `typeless` (no `mission_type` key at all — the pre-existing neutral case), `legacy-key-only` (only the retired `mission` key is present, no `mission_type` key), or `error` (meta.json unreadable/malformed), so the report is exhaustive and non-ambiguous — no mission is silently omitted from every bucket. A `mission_type` key that is present but blank (`""`), `null`, or a non-string value MUST classify as `typeless`, matching the existing canonicalization convention already used by `_canonical_meta_mission_type` (`src/specify_cli/mission.py:542-556`), which treats blank/null/non-string values as absent rather than as a distinguishable `unknown` — stated explicitly here so the taxonomy is exhaustive-by-construction rather than left to each implementer's own key-presence-vs-canonicalization reading. A boundary test case covering this (blank/null/non-string `mission_type` classified as `typeless`) is to be added to `test_doctor_mission_type.py` at implementation/tasks time. | High | Open |
 | FR-009 | `doctor mission-type --fail-on <states>` | As an operator wiring this into CI, I want `--fail-on <comma-separated-states>` (e.g. `--fail-on unknown,activated-unresolvable`) to make the command exit non-zero when any mission matches a listed state, and exit zero with no flag regardless of findings, mirroring `doctor identity`'s `--fail-on` contract exactly. | Medium | Open |
 | FR-010 | ATDD red-first pin for the live `plan`-type defect | As a reviewer, I want a failing-first test that reproduces the `plan`-mission `review`-step misfire (asserting the software-dev WP-iteration message is emitted) committed and RED against pre-mission `main`, before any fix lands, per charter C-011 / Standing Order #4. | High | Open |
 | FR-011 | Test coverage for the previously-uncovered fall-through itself | As a reviewer, I want at least one test that feeds an unregistered/synthetic `mission_family` value to `evaluate_guards` on both the legacy and composed call paths (zero such tests exist today — verified by direct grep of `tests/runtime/test_bridge_cores.py`, `tests/runtime/test_bridge_composition.py`, `tests/next/test_decision_unit.py`), so this defect class cannot silently regress. | High | Open |
@@ -242,7 +276,7 @@ containing an unknown-type mission and assert non-zero exit.
 
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
-| NFR-001 | Zero behavior change for already-registered families and typeless missions | For every `mission_family` in `{"software-dev", "research", "documentation"}` and for `mission_family=None` (typeless), the guard-failure list returned by `evaluate_guards` for every `step_id` and every `snapshot` shape must be identical (list contents and order) before and after this mission's changes land — verified by running the full existing `tests/runtime/test_bridge_cores.py` and `tests/runtime/test_bridge_composition.py` suites unmodified (no test in those files may need to change its expected assertion value as a result of this mission) plus the ~16-estimate typeless-preservation tests, all green. | Reliability | High | Open |
+| NFR-001 | Zero behavior change for already-registered families and typeless missions | For every `mission_family` in `{"software-dev", "research", "documentation"}` and for `mission_family=None` (typeless), the guard-failure list returned by `evaluate_guards` for every `step_id` and every `snapshot` shape must be identical (list contents and order) before and after this mission's changes land. Verification method: capture the pass/fail state of `tests/runtime/test_bridge_cores.py`, `tests/runtime/test_bridge_composition.py`, `tests/next/test_runtime_bridge_unit.py`, `tests/next/test_occurrence_gate_next_loop.py`, `tests/specify_cli/next/test_runtime_bridge_composition.py`, and the ~16-estimate typeless-preservation test set as a **captured baseline BEFORE touching `runtime_bridge_cores.py`**, then require **zero NEW reds relative to that baseline** after the change lands (no test in those files may need to change its expected assertion value as a result of this mission), consistent with how SC-004 already frames its own check. The three added files are named explicitly because `test_bridge_cores.py` alone calls `evaluate_guards` directly (bypassing both real delegate functions) and `test_bridge_composition.py`'s guard-dispatch tests monkeypatch `evaluate_guards` to a stub — neither exercises the real, unmocked `_check_cli_guards` / `_check_composed_action_guard` call chains end-to-end on its own, so the byte-for-byte-identical claim needs the added files to be backed by tests that do. | Reliability | High | Open |
 | NFR-002 | Custom-mission-type composed-path tolerance is preserved | The ≥24 tests across `tests/integration/test_custom_mission_runtime_walk.py`, `tests/next/test_composition_gate_widening.py`, and `tests/runtime/test_bridge_composition.py` that pin the composed path's tolerant degrade behavior for custom mission types, and the at-least-4 tests that pin `_should_dispatch_via_composition` degrading rather than raising (`tests/specify_cli/next/test_runtime_bridge_dispatch.py::TestGracefulDegradation::test_unknown_mission_type_returns_false`, `tests/specify_cli/next/test_runtime_bridge_composition.py::test_should_dispatch_falls_through_for_unknown_mission_helper`, `::test_dispatch_falls_through_for_unknown_mission`, `tests/runtime/test_bridge_composition.py::test_should_dispatch_via_composition_both_branches_via_charter_lookup`), must all remain green, unmodified, after this mission. | Reliability | High | Open |
 | NFR-003 | Complexity ceiling | Every new or modified function introduced by the `_GUARD_TABLES` registry and the `doctor mission-type` report builder must stay at or under the repo's `ruff C901` / Sonar `S3776` complexity ceiling of 15 (per charter Sonar Expectations); none of the existing per-family guard functions (`_evaluate_research_guards`, `_evaluate_documentation_guards`, `_evaluate_software_dev_guards`) are close to that limit today, so the registry entries should follow the same shape. | Maintainability | Medium | Open |
 | NFR-004 | `doctor mission-type` completes within CLI performance budget | `spec-kitty doctor mission-type --json` must complete in under 2 seconds for a typical `kitty-specs/` tree (charter Performance and Scale standard), matching `doctor identity`'s existing budget. | Performance | Medium | Open |
@@ -251,8 +285,8 @@ containing an unknown-type mission and assert non-zero exit.
 
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|----------|--------|
-| C-001 | Composed path stays tolerant by design, never raises for an unregistered family | The composed path (`_check_composed_action_guard` → `evaluate_guards`) MUST NOT raise a Python exception for an unregistered `mission_family`. Raising would break the custom-mission-type extension point contract pinned by ≥24 tests (NFR-002) and the six/four-plus tests pinning `_should_dispatch_via_composition`'s degrade-not-raise behavior. This is a hard boundary, not a design preference. | Technical | High | Open |
-| C-002 | Legacy path stays strict by design, never silently falls through | The legacy/CLI-native path (`_check_cli_guards`) MUST NOT silently degrade an unregistered family to the software-dev table (today's defect) or to a neutral empty-list result (the composed path's new behavior). It must raise. This is the deliberate asymmetry requested by the operator's Option A scope decision and the issue's own suggested design. | Technical | High | Open |
+| C-001 | Composed path stays tolerant by design, never raises for an unregistered family | The composed path (`_check_composed_action_guard`) MUST NOT raise a Python exception for an unregistered `mission_family`. Raising would break the custom-mission-type extension point contract pinned by ≥24 tests (NFR-002) and the six/four-plus tests pinning `_should_dispatch_via_composition`'s degrade-not-raise behavior. This is a hard boundary, not a design preference. `_check_composed_action_guard` must itself be the direct caller of the tolerant wrapper (catches the strict lookup's exception, logs it, returns `[]`) described in C-002 / FR-005 — post-mission, the two paths no longer both terminate in the identical shared `evaluate_guards` call for the unregistered-family case; each calls its own wrapper directly. | Technical | High | Open |
+| C-002 | Legacy path stays strict by design, never silently falls through | The legacy/CLI-native path (`_check_cli_guards`) MUST NOT silently degrade an unregistered family to the software-dev table (today's defect) or to a neutral empty-list result (the composed path's new behavior). It must raise — and it must do so via `_check_cli_guards` itself directly calling a strict, raising lookup, not via an isolated, unit-tested-but-unwired helper that `_check_cli_guards`'s real call chain never invokes (see FR-005 and User Story 3, Acceptance Scenario 3). This is the deliberate asymmetry requested by the operator's Option A scope decision and the issue's own suggested design. | Technical | High | Open |
 | C-003 | Mission scope bounded to registry + `plan` table + doctor command + their tests only | This mission implements exactly: (1) the `_GUARD_TABLES` registry, (2) `plan`'s guard table, (3) the loud-block/neutral-degrade split, (4) `spec-kitty doctor mission-type`, and (5) tests for those four. It does not touch any of the four sites listed in Out of Scope below, per the operator's binding Option A decision (see Clarifications). | Business | High | Open |
 | C-004 | No roster/validation check added to `validate_meta` or `write_meta` | Per the issue's own reasoning (strengthened by the corrected figure: 15 of 27 — 56% — of `write_meta` call sites pass `validate=False` and would silently bypass any such check), this mission MUST NOT add a mission-type roster/registration check inside `validate_meta`. Diagnosability for unregistered types is delivered exclusively through `doctor mission-type` (FR-007–FR-009), which audits after the fact rather than gating at every write site. | Technical | High | Open |
 | C-005 | Targeted test surface, not the full suite | Per charter Testing Requirements, this mission's own validation runs target `tests/runtime/test_bridge_cores.py`, `tests/runtime/test_bridge_composition.py`, `tests/next/`, `tests/integration/test_custom_mission_runtime_walk.py`, `tests/specify_cli/next/`, and a new `tests/specify_cli/cli/commands/test_doctor_mission_type.py` (or equivalent) — not a full `pytest tests/` run mid-implementation. A full-suite run is reserved for post-merge mission-level validation. | Technical | Medium | Open |
@@ -284,8 +318,9 @@ containing an unknown-type mission and assert non-zero exit.
   (post-mission).
 - **SC-002**: Feeding an unregistered/synthetic `mission_family` to `evaluate_guards` via the
   composed call path returns a neutral result with zero elements resembling the software-dev
-  table's messages, and a log record is emitted naming the family — verified by the new test
-  from FR-011.
+  table's messages, and a log record is emitted at **WARNING level or above** (per FR-004)
+  naming the family — verified by the new test from FR-011 asserting both the returned list and
+  the captured log record's level.
 - **SC-003**: Feeding the same unregistered `mission_family` to the legacy/CLI-native lookup
   function raises a structured exception — verified by the new test from FR-011 / User Story 3.
 - **SC-004**: `tests/runtime/test_bridge_cores.py` and `tests/runtime/test_bridge_composition.py`
