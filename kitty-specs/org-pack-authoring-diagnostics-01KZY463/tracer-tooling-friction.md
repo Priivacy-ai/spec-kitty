@@ -87,3 +87,56 @@ path trusts stale `meta.json` over the CLI's own live branch resolution. No `spe
 spec-commit`/auto-commit path was used to land the plan artifacts — per the mission brief's
 explicit instruction, `safe-commit --to-branch <branch>` is used instead (the documented working
 escape hatch). Fifth consecutive sighting of the same defect class in this mission family.
+
+## 2026-08-14 — tasks phase — same defect class reproduces on `spec-kitty tasks --json`
+   (`finalize_tasks`); PLUS a new, distinct silent-data-loss defect discovered as a byproduct
+
+**Sixth sighting, same class**: `spec-kitty tasks --mission org-pack-authoring-diagnostics-01KZY463
+--json` was run, as instructed, after `wps.yaml` and `tasks/WP01..WP04-*.md` were hand-authored.
+Its help text ("Finalize tasks metadata after task generation") and a source read confirm this
+top-level command and `spec-kitty agent mission finalize-tasks --json` are the **same underlying
+function**, `finalize_tasks()` (`src/specify_cli/cli/commands/agent/mission_finalize.py:1783`).
+Output:
+
+```json
+{"error": "Git commit failed: Refusing to commit planning artifacts to the protected branch
+'main'. Start a non-protected feature branch and commit there: 'spec-kitty mission create
+--start-branch <feature-branch>' (or check out an existing feature branch). Planning artifacts
+must land on a feature branch."}
+```
+
+Byte-identical diagnostic family to SK-12/13 and this file's two prior entries; same root cause
+(`_resolve_mission_target_branch` reads `meta.json`'s `target_branch: "main"` directly —
+`src/specify_cli/core/paths.py:717`, whose own docstring at `:738-740` names this "the
+finalize-tasks / implement-loop refusal-to-main bug, WP00 / FR-004" — so the defect is already
+self-documented in the source, not merely inferred by this tracer). No workaround flag was used;
+per the mission brief this is absolute. All planning artifacts were committed afterward via
+`spec-kitty safe-commit --to-branch feat/org-pack-authoring-diagnostics-3387`.
+
+**New finding, distinct defect — silent requirement-ref truncation**: `finalize_tasks` writes
+several artifacts to disk *before* the commit attempt (confirmed by call-order trace:
+frontmatter flush at `mission_finalize.py:1926`, `tasks.md` regeneration at `:1931`, dependency +
+requirement-mapping validation at `:1937-1946`, `lanes.json` write inside `_run_commit_pipeline`
+at `:1963`/`:1737-1748` — all strictly before the commit call that then fails). Comparing
+`wps.yaml` (hand-authored, untouched by the run — still lists `requirement_refs: [FR-001, C-001,
+SC-001]` for WP01, and the equivalent `SC-00x` entry for WP02/WP03/WP04) against each
+`tasks/WP*.md`'s frontmatter *after* the run: every `SC-00x` reference was **silently dropped** —
+WP01's flushed frontmatter reads `requirement_refs: [FR-001, C-001]` only, WP02 lost `SC-003`,
+WP03 lost `SC-002`, WP04 lost `SC-004`. No warning, error, or log line reports this — the JSON
+output contains only the unrelated commit-refusal message above; the dependency/requirement-ref
+validation that runs at `mission_finalize.py:1937-1946` (before the commit attempt) apparently
+completed without complaint, silently filtering `SC-*`-prefixed refs rather than accepting or
+rejecting them explicitly. This is a live instance of this repo's own named dominant defect class
+("silent success" — #3133, #3212, #3282, #3336, the class this very mission's FR-002/003/004 are
+about) inside the tooling that authors missions like this one. **Not fixed here** — out of this
+mission's scope (C-003, no fifth surface; this is a `mission_finalize.py` defect, not a
+`pack_validator.py`/`pack_assembler.py`/`doctrine.py` one) and not something a tasks-phase agent
+is chartered to patch. `wps.yaml` (the authoritative source per `tasks-outline.md`) retains the
+full `SC-00x` refs; only the derived, machine-flushed WP frontmatter lost them. Every WP's prose
+body still cites its `SC-00x` explicitly, so human/reviewer traceability is intact — only the
+machine-readable frontmatter field is incomplete. Recommend a follow-up issue against
+`mission_finalize.py`'s requirement-ref parser to either accept `SC-*` as a recognized prefix or
+explicitly warn when dropping an unrecognized one, rather than silently truncating.
+
+Seventh consecutive sighting (across spec/plan/tasks phases) of the commit-refusal class in this
+mission family, plus one newly discovered sibling defect in the same subsystem.

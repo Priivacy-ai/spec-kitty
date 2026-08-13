@@ -1,0 +1,78 @@
+work_packages:
+  - id: WP01
+    title: "Guide correction — step-contract suffix (FR-001, documentation-only)"
+    dependencies: []
+    owned_files:
+      - "docs/guides/how-to/governance/create-an-org-doctrine-pack.md"
+    requirement_refs:
+      - FR-001
+      - C-001
+      - SC-001
+    subtasks:
+      - T001
+      - T002
+    prompt_file: "tasks/WP01-guide-correction-fr001.md"
+
+  - id: WP02
+    title: "Asset directory recursion widening (FR-003)"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/doctrine/pack_validator.py"
+      - "tests/specify_cli/doctrine/test_pack_validator.py"
+    requirement_refs:
+      - FR-003
+      - SC-003
+      - C-004
+    subtasks:
+      - T003
+      - T004
+      - T005
+      - T006
+      - T007
+    prompt_file: "tasks/WP02-asset-recursion-fr003.md"
+
+  - id: WP03
+    title: "Profile-skip diagnostics wired into pack validate (FR-002)"
+    dependencies:
+      - WP02
+    owned_files:
+      - "src/specify_cli/doctrine/pack_validator.py"
+      - "tests/specify_cli/doctrine/test_pack_validator.py"
+      - "tests/doctrine/test_agent_profile_model_field.py"
+    requirement_refs:
+      - FR-002
+      - SC-002
+      - C-004
+    subtasks:
+      - T008
+      - T009
+      - T010
+      - T011
+      - T012
+      - T013
+    prompt_file: "tasks/WP03-profile-skip-diagnostics-fr002.md"
+
+  - id: WP04
+    title: "DRG-root-graph mismatch diagnostic + reflexivity carve-outs (FR-004)"
+    dependencies:
+      - WP03
+    owned_files:
+      - "src/specify_cli/doctrine/pack_validator.py"
+      - "src/specify_cli/doctrine/pack_assembler.py"
+      - "src/specify_cli/cli/commands/doctrine.py"
+      - "tests/specify_cli/doctrine/test_pack_validator.py"
+      - "tests/specify_cli/doctrine/test_pack_assembler.py"
+      - "tests/cli/test_doctrine_org_commands.py"
+      - "docs/changelog/CHANGELOG.md"
+    requirement_refs:
+      - FR-004
+      - C-002
+      - SC-004
+    subtasks:
+      - T014
+      - T015
+      - T016
+      - T017
+      - T018
+      - T019
+    prompt_file: "tasks/WP04-drg-root-graph-diagnostic-fr004.md"
