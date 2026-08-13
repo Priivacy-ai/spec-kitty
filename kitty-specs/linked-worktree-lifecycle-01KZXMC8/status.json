@@ -28,7 +28,8 @@
       "last_transition_at": "2026-08-13T14:24:23.571767+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Блокер выделения worktree устранён: в локальном planning clone включён core.longpaths; повтор штатной реализации"
+        "Блокер выделения worktree устранён: в локальном planning clone включён core.longpaths; повтор штатной реализации",
+        "RED-first Mission checkout resolver готов; targeted gates пройдены; передача независимому reviewer"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
