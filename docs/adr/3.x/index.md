@@ -175,3 +175,7 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-08-12 | [Local, No-Egress PlantUML Rendering for Code-Grounded Doctrine Schema Diagrams](2026-08-12-1-plantuml-schema-diagram-rendering.md) |
 | 2026-08-12 | [Explicit Checkout Ownership for Mission Create and Next](2026-08-12-1-checkout-ownership-for-mission-create-and-next.md) |
 | 2026-08-13 | [The built-in mission subtree stays nested and self-contained; retire the legacy step-contract surface](2026-08-13-1-built-in-mission-subtree-stays-nested-retire-legacy-step-contracts.md) |
+| 2026-08-13 | [Transition gates are declarative, asset-backed, first-class doctrine artefacts](2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md) |
+| 2026-08-13 | [Gate execution targets a surface through a kernel selector and the topology placement seam](2026-08-13-3-gate-execution-targets-through-kernel-surface-selector.md) |
+| 2026-08-13 | [Executable doctrine runs only from trusted publishers (signed built-in; TOFU for the rest)](2026-08-13-4-executable-doctrine-runs-only-from-trusted-publishers.md) |
+| 2026-08-13 | [A local loopback daemon amortizes doctrine parse and caches deterministic gate verdicts (direction)](2026-08-13-5-local-daemon-amortizes-doctrine-parse-and-caches-gate-verdicts.md) |
