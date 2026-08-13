@@ -30,10 +30,15 @@
 Several org-pack authoring mistakes today produce **no error anywhere** — the pack loads,
 `pack validate` reports clean, and parts of the pack are silently inert at runtime. Silent
 success is this repository's dominant tooling-defect class (see #3133, #3212, #3282, #3336
-and the ledger note below) and this mission's literal subject. Each functional requirement
-below states not just what the new check detects, but what it does when it detects nothing
+and the ledger note below) and this mission's literal subject. FR-002, FR-003 and FR-004 below
+each state not just what the new check detects, but what it does when it detects nothing
 wrong (passes silently, by design) and what it does when it detects the defect (a named,
-per-file diagnostic — never a bare `0` count or a swallowed exception).
+per-file diagnostic — never a bare `0` count or a swallowed exception). FR-001 is the
+exception: per the binding operator ruling (`reviews/spec.ruling.md`), it is
+documentation-only and adds no check of its own, so it leaves a residual gap rather than
+closing one — an author who follows the corrected guide still gets no runtime signal for a
+mis-suffixed contract, because ADR `2026-08-13-1` retires that surface wholesale rather than
+hardening it.
 
 Four authoring-time gaps are in scope, each independently verified against this checkout
 (see "Verified Code Surfaces"):
