@@ -52,6 +52,34 @@ an upstream doctrine fix to `plan-template.md` (and any sibling mission-type tem
 the same phrase) that replaces "Feature specification" with "Mission specification" at the
 source.
 
+## SK-12 — `check-prerequisites`'s `branch_matches_target` is a false positive on a mid-flight `lanes`-topology mission
+
+Live-verified during this tasks phase: `spec-kitty agent mission check-prerequisites --json
+--paths-only --include-tasks --mission org-pack-drg-root-graph-guard-01KZY0QT` reported
+`branch_matches_target: false` while HEAD was `762f6f362` on
+`kitty/mission-org-pack-drg-root-graph-guard-01KZY0QT` — the exact, correct branch this
+mission's spec and plan phases already committed to. `target_branch`/`planning_base_branch`/
+`merge_target_branch` were all reported as `"main"` (correctly read from `meta.json`'s own
+`target_branch` field, unlike SK-10's HEAD-derived defect), but the command then compares the
+*current checked-out branch* against that literal value to compute `branch_matches_target`,
+with no allowance for `lanes` topology's actual planning model: per `meta.json`
+(`"topology": "lanes"`) and AGENTS.md's Execution Workspace Strategy, a mid-flight mission's
+planning artifacts (spec.md, plan.md, and now tasks.md) land on the mission branch itself, not
+literal `main` — `main` is only the eventual PR merge target, reached at mission close, not the
+branch planning commands should be checked out on mid-mission. Verified by checking that `main`
+does not contain this mission's `kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/spec.md` at
+all (`git show main:kitty-specs/.../spec.md` → `fatal: ... exists on disk, but not in 'main'`),
+while the mission branch already carries four committed spec/plan-phase commits. Following the
+canonical prompt's literal instruction ("if `branch_matches_target` is false, stop") would have
+incorrectly halted valid, already-in-progress work on the one correct branch. Not worked around
+by switching branches (there is nowhere correct to switch *to* — `main` lacks this mission's
+own planning artifacts); tasks authoring proceeded on the verified-correct mission branch
+instead, with this entry recording the false-positive field rather than silently ignoring it.
+Same root family as SK-10 (branch-field/topology confusion), but the opposite failure
+shape: SK-10's fields are wrong (HEAD-derived); here the raw `target_branch` value is right, but
+the derived boolean comparing it against the working branch is wrong for `lanes` topology
+mid-mission.
+
 ## Entries
 
 <!-- YYYY-MM-DD — 1-3 sentences: what happened, why it slowed you down. -->

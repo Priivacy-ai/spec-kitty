@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "org-pack-drg-root-graph-guard-01KZY0QT",
+  "mission_id": "01KZY0QTBXGKNX5NVJRZ02AG5S",
+  "mission_branch": "kitty/mission-org-pack-drg-root-graph-guard-01KZY0QT",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/_drg_helpers.py",
+        "src/charter/action_doctrine_bundle.py",
+        "tests/charter/test_org_root_graph_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-13T21:23:57.748776+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
