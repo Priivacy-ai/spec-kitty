@@ -27,6 +27,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from doctrine.drg.loader import (
+    DRGLoadError,
     has_graph_files,
     load_built_in_graph,
     load_graph_or_dir,
@@ -34,6 +35,45 @@ from doctrine.drg.loader import (
 )
 from doctrine.drg.models import DRGGraph
 from doctrine.drg.validator import assert_valid, duplicate_edge_triples
+
+
+class OrgDRGFragmentError(Exception):
+    """Raised when org-layer DRG content (root graph or drg/ fragment) is
+    malformed.
+
+    Deliberately NOT a ``DRGLoadError`` subclass, so it is left uncaught by
+    the existing wide ``except DRGLoadError`` in
+    ``charter.action_doctrine_bundle._load_action_doctrine_bundle`` and
+    propagates to the CLI's generic exception boundary (``charter context``'s
+    ``except Exception``), which already reports it as a structurally
+    distinguishable failure. Scoped strictly to the org branch (root graph or
+    ``drg/`` fragment, loaded by :func:`_load_org_layer`) -- the project-layer
+    ``.kittify/doctrine`` load elsewhere in :func:`load_validated_graph` is
+    unaffected and continues to raise (and be swallowed as) plain
+    ``DRGLoadError``.
+    """
+
+
+def _load_org_root_graph(org_root: Path) -> DRGGraph:
+    """Load the root-level org graph, wrapping a malformed load in
+    :class:`OrgDRGFragmentError` (IC-03)."""
+    try:
+        return load_graph_or_dir(org_root)
+    except DRGLoadError as exc:
+        raise OrgDRGFragmentError(
+            f"Malformed org DRG root graph at {org_root}: {exc}"
+        ) from exc
+
+
+def _load_org_drg_fragment(drg_dir: Path) -> DRGGraph:
+    """Load the ``drg/`` org fragment, wrapping a malformed load in
+    :class:`OrgDRGFragmentError` (IC-03)."""
+    try:
+        return load_graph_or_dir(drg_dir)
+    except DRGLoadError as exc:
+        raise OrgDRGFragmentError(
+            f"Malformed org DRG drg/ fragment at {drg_dir}: {exc}"
+        ) from exc
 
 
 def _dedup_org_layer_edges(graph: DRGGraph) -> DRGGraph:
@@ -70,8 +110,14 @@ def _load_org_layer(org_root: Path) -> DRGGraph | None:
     ``project`` -- ``drg/`` wins on same-URN node-label conflicts) and any
     edge triple duplicated identically across the two sources is collapsed
     to exactly one retained copy via :func:`_dedup_org_layer_edges` (FR-003,
-    IC-02). IC-03 wraps a malformed load on either side in
-    ``OrgDRGFragmentError``.
+    IC-02).
+
+    Malformed content (invalid YAML or schema-invalid) at either location
+    raises :class:`OrgDRGFragmentError` (FR-004, IC-03). The root-level load
+    and the ``drg/``-level load are each wrapped *independently* -- via the
+    two single-purpose helpers below, never a shared ``try`` block -- so a
+    malformed root graph does not take a valid, loadable sibling ``drg/``
+    fragment down with it.
     """
     drg_dir = org_root / "drg"
     has_root_graph = has_graph_files(org_root)
@@ -80,10 +126,10 @@ def _load_org_layer(org_root: Path) -> DRGGraph | None:
     if not has_root_graph and not has_drg_layer:
         return None
     if not has_drg_layer:
-        return load_graph_or_dir(org_root)
+        return _load_org_root_graph(org_root)
     if not has_root_graph:
-        return load_graph_or_dir(drg_dir)
-    merged_org = merge_layers(load_graph_or_dir(org_root), load_graph_or_dir(drg_dir))
+        return _load_org_drg_fragment(drg_dir)
+    merged_org = merge_layers(_load_org_root_graph(org_root), _load_org_drg_fragment(drg_dir))
     return _dedup_org_layer_edges(merged_org)
 
 
