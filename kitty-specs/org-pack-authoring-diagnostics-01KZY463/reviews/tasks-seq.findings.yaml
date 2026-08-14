@@ -1,0 +1,42 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: seq
+mission: org-pack-authoring-diagnostics-01KZY463
+findings:
+  - id: TASKS-SEQ-001
+    lens: write-scope-vs-open-prs
+    severity: 3
+    title: "plan.md/WP04's open-PR write-scope check is stale: understates PR #2719's overlap and omits 7 CHANGELOG.md overlaps"
+    evidence:
+      - artifact: "plan.md § Chokepoint, 'Open-PR write-scope check' subsection (lines ~593-612)"
+      - artifact: "tasks/WP04-drg-root-graph-diagnostic-fr004.md § Risks, 'Open-PR collision — doctrine.py' bullet (lines ~434-449)"
+      - code: "gh pr list --state open --json number,title,files (run 2026-08-14 against this checkout) — PR #2719 entry: {\"path\": \"tests/cli/test_doctrine_org_commands.py\", \"additions\": 206, \"deletions\": 0, \"changeType\": \"MODIFIED\"} alongside {\"path\": \"src/specify_cli/cli/commands/doctrine.py\", \"additions\": 93, \"deletions\": 6, \"changeType\": \"MODIFIED\"}"
+      - code: "same gh pr list output — docs/changelog/CHANGELOG.md is touched (all additive, 0 deletions) by PR #3383 (+25), #3379 (+7), #3378 (+11), #3332 (+5), #3293 (+21), #2890 (+1), #2492 (+14), #2239 (+1), in addition to #2719's two files"
+    claim: >
+      plan.md states the open-PR check was "re-verified directly (2026-08-14)" and concludes
+      "cross-referencing their file lists against this mission's touched-file set shows two
+      overlaps with src/specify_cli/cli/commands/doctrine.py" (PR #3166, PR #2719), and WP04's
+      Risks section repeats this, closing with "No other WP's owned_files in this mission
+      overlaps any of the 18 currently-open PRs." A fresh `gh pr list --state open
+      --json number,title,files` run against this checkout today contradicts both claims in two
+      ways: (1) PR #2719 also touches tests/cli/test_doctrine_org_commands.py (+206 lines,
+      0 deletions) — a WP04-owned file that WP04's own T017/AC-7(a)/AC-7(b) subtasks add new
+      test functions to — a materially different, higher-risk overlap than the doctrine.py
+      call-site edit the plan discusses, and it is not mentioned anywhere; (2)
+      docs/changelog/CHANGELOG.md, a WP04-owned file (IC-04/T019's changelog entry), is
+      concurrently touched by eight other open PRs, none enumerated. The core structural claim
+      — "no open PR touches pack_validator.py or pack_assembler.py" — does hold up under the
+      fresh check, so the chokepoint-file risk assessment itself is not undermined, but the
+      "two overlaps, both only doctrine.py" / "no other overlap" framing that a reviewer would
+      rely on to gauge WP04's merge-conflict exposure is inaccurate as written.
+    remediation: >
+      Update plan.md's "Open-PR write-scope check" subsection and WP04's Risks "Open-PR
+      collision — doctrine.py" bullet to: (a) add PR #2719's second touched file
+      (tests/cli/test_doctrine_org_commands.py, +206/-0) as a distinct co-edit risk — since
+      WP04 adds its own new test functions to that same file (AC-7a/AC-7b), flag that landing
+      order with #2719 may require a rebase inside that file, not just doctrine.py; (b) enumerate
+      the docs/changelog/CHANGELOG.md overlaps with PRs #3383, #3379, #3378, #3332, #3293,
+      #2890, #2492, #2239 (all purely additive, low-conflict-risk, but currently undisclosed) so
+      the "re-verified" claim is actually accurate; (c) keep the existing, still-correct
+      statement that no open PR touches pack_validator.py or pack_assembler.py.

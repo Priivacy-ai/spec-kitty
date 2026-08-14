@@ -1,0 +1,34 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: >-
+      WP04 T017(a) step 1 now states explicitly that validate_pack is not bound at module scope
+      in doctrine.py (confirmed against doctrine.py:963-966's lazy function-local import inside
+      org_validate) and directs the patch target to the source location
+      specify_cli.doctrine.pack_validator.validate_pack, replacing the old nonexistent
+      doctrine.py-local binding.
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: >-
+      All three locations (plan.md:516, WP03:415, WP04:544) now carry `git worktree remove
+      --force /tmp/pbb-check 2>/dev/null || true` immediately before each `git worktree add
+      /tmp/pbb-check main`, giving idempotent cleanup so a failed prior iteration cannot block
+      the next.
+  - id: TASKS-FRESH-003
+    status: resolved
+    reason: >-
+      plan.md:617-628 no longer presents the PR count as a stable fact — it now reads "18 open
+      PRs at first verification time ... a later live re-check ... returned 19", explains the
+      extra PR (#3395) doesn't touch mission-owned files, and states the enumerated overlaps
+      (not the total count) are load-bearing; a live re-run of `gh pr list --state open --json
+      number` just now returned 19 PRs including #3395, matching the currently-stated figure.
+  - id: TASKS-FRESH-004
+    status: resolved
+    reason: >-
+      WP04 T018 step 7 now gives a concrete numeric trigger (record in plan.md's Complexity
+      Tracking section if reported C901 complexity is >= 12, i.e. 80% of the ceiling-15) and
+      requires the actual numeric reading be recorded in implementation notes either way, closing
+      the qualitative-only judgment gap.

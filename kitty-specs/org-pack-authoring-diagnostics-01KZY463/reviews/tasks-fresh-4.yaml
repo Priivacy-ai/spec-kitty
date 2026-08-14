@@ -1,0 +1,30 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: org-pack-authoring-diagnostics-01KZY463
+findings:
+  - id: TASKS-FRESH4-001
+    lens: fresh-eyes
+    severity: 2
+    title: WP04 Risks section's PR-count paragraph contradicts its own re-check figure
+    evidence:
+      - artifact: "tasks/WP04-drg-root-graph-diagnostic-fr004.md, Risks section, 'Open-PR collision — doctrine.py' bullet"
+      - code: "kitty-specs/org-pack-authoring-diagnostics-01KZY463/tasks/WP04-drg-root-graph-diagnostic-fr004.md:517 and :545"
+    claim: >
+      This round's edit to the paragraph's opening sentence correctly acknowledges the PR
+      count moved (line 517: "first verification found 18 open PRs, a later same-day re-check
+      during this fix round found 19"), and even adds the caveat "PR counts drift continuously;
+      the enumerated overlaps below, not the raw count, are the load-bearing claims". But the
+      same paragraph's closing sentence (line 545) still asserts "No other WP's owned_files in
+      this mission overlaps any of the 18 currently-open PRs beyond what's enumerated above" —
+      reverting to the stale pre-recheck figure the opening sentence just superseded, and
+      attributing it to plan.md ("verified fact from plan.md's Chokepoint section — cited here,
+      not re-derived") even though plan.md's own parallel passage (plan.md's "Open-PR
+      write-scope check" section) was edited this same round to drop exactly this kind of
+      raw-count restatement in favor of the enumerated-overlaps framing. This is a visible seam
+      from the paragraph having been edited at its start but not at its end.
+    remediation: >
+      Either drop the number entirely ("beyond what's enumerated above") to match plan.md's own
+      now-cleaner phrasing, or update it to 19 for consistency with the opening sentence of the
+      same paragraph.

@@ -1,0 +1,80 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: org-pack-authoring-diagnostics-01KZY463
+findings:
+  - id: TASKS-FRESH2-001
+    lens: instruction-verifiability
+    severity: 3
+    title: "WP04 T018 step 7's complexity re-measurement command cannot produce a number when compliant"
+    evidence:
+      - artifact: "tasks/WP04-drg-root-graph-diagnostic-fr004.md, Subtask T018 step 7 and Definition of Done ('T018 step 7's validate_pack() complexity re-measurement...')"
+      - artifact: "plan.md, 'Complexity Tracking' ('this would be recorded here retroactively only if it required a genuine, non-mechanical design trade-off, which is not anticipated')"
+      - code: "pyproject.toml:306 (max-complexity = 15)"
+    claim: >-
+      T018 step 7 (new this round) instructs: "Record the actual numeric complexity `ruff
+      --statistics` reports for `validate_pack()` in your implementation notes regardless of
+      outcome... Use a concrete numeric trigger... if the reported complexity is >= 12
+      ... also record it in `plan.md`'s 'Complexity Tracking' section." Empirically re-running
+      the exact specified command (`ruff check src/specify_cli/doctrine/pack_validator.py
+      --select C901 --statistics`) against this checkout with the project's real
+      `pyproject.toml` config (`max-complexity = 15`) produces **zero output** — `ruff`'s
+      mccabe/C901 check only ever reports a violation (and only then does its message embed
+      the actual number, e.g. "is too complex (9 > 1)" when I forced the threshold down to 1
+      to observe it) when the function *exceeds* the configured ceiling. It never reports a
+      passing function's actual complexity number via `--statistics` or otherwise. Since
+      `validate_pack()`'s current measured complexity is 9 (confirmed by temporarily forcing
+      `max-complexity=1`), and this mission's two new call sites add at most one new branch
+      (FR-004's `if check_drg_root:`; FR-002's call is unconditional, per WP03 IC-03, adding no
+      branch), the post-implementation complexity will almost certainly stay under 15 — meaning
+      the specified command will produce exactly the empty output I observed, with **no number
+      to record**, directly contradicting "regardless of outcome" and leaving the DoD checklist
+      item ("the actual numeric... reading recorded in implementation notes... either way")
+      unsatisfiable as literally specified. No alternative tool (radon, mccabe CLI) is
+      referenced anywhere in the repo's toolchain for this. Separately, even if a number were
+      obtained, citing the `>=12` mechanical threshold as satisfying plan.md's own quoted
+      commitment — recording only "if it required a genuine, non-mechanical design
+      trade-off" — is a rationale mismatch: a numeric-threshold check is definitionally
+      mechanical, the opposite of the qualifier it is offered in support of. This is a
+      round-2-introduced step (absent from round 1's WP04, confirmed by the diff); round 1's
+      own fresh-sweep finding (`tasks-fresh.yaml` TASKS-FRESH-004) proposed almost exactly this
+      `>=12` remediation without either round catching that `ruff --statistics` cannot supply
+      the number it asks for in the compliant case.
+    remediation: >-
+      Replace the `ruff check --select C901 --statistics` instruction with a method that
+      actually reports a function's complexity regardless of pass/fail — e.g., temporarily
+      overriding `max-complexity` to a very low value (1) in a scratch config to force the
+      per-violation message (which does embed the real number, as observed:
+      "is too complex (N > 1)"), or adopting a dedicated complexity tool (`radon cc -s
+      src/specify_cli/doctrine/pack_validator.py`) that reports a score unconditionally. Either
+      fix the command or drop "regardless of outcome" and accept that the DoD item is
+      vacuously satisfied when no violation exists. Also either drop the "per that section's
+      own stated commitment" framing or restate plan.md's Complexity Tracking language so a
+      mechanical numeric trigger is what it actually commits to, rather than citing a
+      "non-mechanical design trade-off" qualifier as supporting a mechanical rule.
+  - id: TASKS-FRESH2-002
+    lens: cross-reference-verification
+    severity: 2
+    title: "WP04 T017's org_validate import citation (:963-966) is off by two lines from the real import location"
+    evidence:
+      - artifact: "tasks/WP04-drg-root-graph-diagnostic-fr004.md, Subtask T017 step 1 (round-2 addition)"
+      - code: "src/specify_cli/cli/commands/doctrine.py:961-964 (the actual `from specify_cli.doctrine.pack_validator import (render_validation_result, validate_pack)` block) vs :966 (the call site, `result = validate_pack(pack_path)`)"
+    claim: >-
+      T017 step 1 (new this round) cites the lazy import as living "at
+      `src/specify_cli/cli/commands/doctrine.py:963-966`." Reading the live file: the import
+      statement actually spans lines 961-964 (`from ... import (` at 961, `render_validation_result,`
+      at 962, `validate_pack,` at 963, `)` at 964), a blank line at 965, and the call site
+      `result = validate_pack(pack_path)` at 966. The cited range `:963-966` starts mid-import
+      (at the `validate_pack,` argument line) and skips the blank line, rather than spanning
+      the whole import statement it is meant to describe. This is a minor drift, not a
+      correctness blocker — the surrounding prose already tells the implementer to find the
+      import "inside the command function" structurally, and the call-site citation `:966` is
+      exactly correct — but per this WP's own stated discipline elsewhere (T018 explicitly
+      warns line citations "will be stale" and tells the reader to "locate it structurally, not
+      by absolute line number"), this one citation was not held to that same standard.
+    remediation: >-
+      Correct the citation to `:961-966` (covering the full import statement through the call
+      site) or `:961-964` (the import statement alone, with `:966` cited separately for the
+      call site, as spec.md and plan.md's Reflexivity/Source-Code sections already do
+      correctly elsewhere).
