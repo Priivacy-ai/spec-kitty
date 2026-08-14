@@ -81,16 +81,33 @@ independent of whether their write-scope happens to be file-disjoint from other 
 `src/specify_cli/requirement_mapping.py` (WP03 — also #3395's own primary file — **and
 WP07**, which appends to that same file's module docstring, T036), also
 `src/specify_cli/cli/commands/agent/mission_finalize.py` (WP02, WP06 — also on #3395's
-list), and `src/runtime/next/runtime_bridge.py` (WP05 — also on #3395's list). This is
-the accepted rebase risk plan.md's "#3395 Churn Risk" section already documents — a
-*sequential-base* relationship (this mission builds ON TOP of #3395's tip), not a
-same-base collision between concurrent branches. It does not change this mission's own
-internal parallel/sequential scheduling above. One nuance worth recording: WP06 touches
-`tasks_mapping_core.py` directly, a file #3395's stated touched-file list does **not**
-literally name (#3395 names its CLI-facing sibling, `tasks_map_requirements.py`,
-confirmed by direct read: `tasks_map_requirements.py` imports `plan_mapping` from
-`tasks_mapping_core.py` at line 52) — so WP06's primary edit surface is one file removed
-from #3395's own named list, though still within the same call chain.
+list), `src/specify_cli/cli/commands/agent/tasks_map_requirements.py` (WP06/T032a —
+also on #3395's list: `git diff --stat
+main...origin/op/3394-requirement-citation-scope --
+src/specify_cli/cli/commands/agent/tasks_map_requirements.py` shows a 16-line #3395 diff
+to that exact file), and `src/runtime/next/runtime_bridge.py` (WP05 — also on #3395's
+list). This is the accepted rebase risk plan.md's "#3395 Churn Risk" section already
+documents — a *sequential-base* relationship (this mission builds ON TOP of #3395's
+tip), not a same-base collision between concurrent branches. It does not change this
+mission's own internal parallel/sequential scheduling above. One nuance worth recording:
+WP06 also touches `tasks_mapping_core.py` directly, a file #3395's stated touched-file
+list does **not** literally name (#3395 names its CLI-facing sibling,
+`tasks_map_requirements.py` — confirmed above to be directly touched by both #3395 and
+WP06/T032a — which itself imports `plan_mapping` from `tasks_mapping_core.py` at line
+52) — so `tasks_mapping_core.py` is one file removed from #3395's own named list via
+that same call chain, even though `tasks_map_requirements.py` itself is not.
+
+**A sharper collision: the byte-frozen `map_requirements_success` fixture case.**
+WP06/T030a re-freezes
+`tests/specify_cli/cli/commands/agent/fixtures/tasks_cli/json/byte_contracts.json`'s
+`map_requirements_success` case (to add `bare_prose_requirement_ids`) after T032 lands
+— and #3395's own diff already modifies that exact same `expected_stdout` string (to
+add `"requirement_extraction_warnings": []`; confirmed via `git diff
+main...origin/op/3394-requirement-citation-scope --
+tests/specify_cli/cli/commands/agent/fixtures/tasks_cli/json/byte_contracts.json`).
+Whoever executes T030a MUST preserve the `requirement_extraction_warnings` field when
+re-freezing this case after rebasing onto #3395's tip — do not silently overwrite or
+drop it while adding `bare_prose_requirement_ids`.
 
 **The same overlap also extends to test files, with substantially higher content
 churn than the additive source-file edits above** — confirmed via
@@ -346,6 +363,13 @@ stdlib + `runtime.next.decision`).
   It is safe to land before, during, or after WP05 (which does edit that file); landing
   it first (as scheduled) means WP05's own new imports are checked by construction as
   they are added, not after the fact.
+- **ATDD/C-011 applicability (mirrors WP02's and WP08's own disclosure)**: this WP ships
+  a new architectural test with no accompanying production behaviour change, so charter
+  C-011's literal failing-first-separate-commit form does not apply — there is no
+  user-observable behaviour to pin RED against. The test's own negative-case
+  verification (a synthetic bad import manually confirmed, once during development, to
+  fail the test, then reverted — see Test Strategy) is the substitute regression
+  evidence.
 
 ### Parallel Opportunities
 
@@ -547,13 +571,22 @@ T031, structurally more consequential.** `MappingRequest` (`tasks_mapping_core.p
 `class MappingRequest`) carries no `spec_content`/bare-prose field, and `plan_mapping`
 (`tasks_mapping_core.py`, `def plan_mapping(req: MappingRequest) -> MappingPlan`) is
 documented pure/no-I/O (INV-4) — raw spec text must never be passed into it. Extend
-`MappingRequest` with a new `bare_prose_requirement_ids: frozenset[str]` field. Update
-its construction site in `tasks_map_requirements.py` (`_mr_plan`, the
-`MappingRequest(...)` call) to call `find_bare_prose_requirement_ids(spec_content)` —
-using the `spec_content` the shell already reads earlier in the same function — and pass
-the resulting ids into the new field. Wrap that call fail-loud (IC-04) at the shell call
-site, same pattern as T031/WP05-T023 — the wrapper lives in the shell, not inside
-`plan_mapping`.
+`MappingRequest` with a new `bare_prose_requirement_ids: frozenset[str]` field.
+**Correcting an earlier drafting error in this subtask**: `spec_content` is NOT read
+"earlier in the same function" as the `MappingRequest(...)` construction — it is read
+as a local variable inside `_mr_resolve_read_dirs` (`tasks_map_requirements.py`,
+Phase C, around line 306), a *different* function from `_mr_plan` (Phase D, line 328)
+where `MappingRequest(...)` is actually constructed. Confirmed by direct read: the
+shared `_MapReqState` object the two phases thread through today stores only
+`spec_content`'s *derived products* (`all_spec_ids`, `functional_ids`,
+`requirement_extraction_warnings`) — it does not currently carry the raw `spec_content`
+string itself, so `_mr_plan` has no existing access to it. Before calling
+`find_bare_prose_requirement_ids(spec_content)` at the `MappingRequest(...)`
+construction site, add a new field to `_MapReqState` (e.g. `spec_content: str = ""`),
+set it in `_mr_resolve_read_dirs` (Phase C) alongside the existing derived fields, and
+read it back in `_mr_plan` (Phase D) — mirroring T031's own plumbing fix for
+`mission_finalize.py`. Wrap that call fail-loud (IC-04) at the shell call site, same
+pattern as T031/WP05-T023 — the wrapper lives in the shell, not inside `plan_mapping`.
 T032 Wire the same predicate's result into `plan_mapping`/`compute_coverage`
 (`tasks_mapping_core.py`): read `req.bare_prose_requirement_ids` (populated by T032a) and
 add it under the same field name, `bare_prose_requirement_ids`, to the returned
@@ -842,7 +875,7 @@ WP01 (baseline, sequential, first)
 | T013–T018 | New `find_bare_prose_requirement_ids` predicate, ATDD-first | WP03 | P0 | Yes (WP-level) |
 | T019 | Architectural import-boundary test for `runtime_bridge_cores.py` | WP04 | P1 | Yes (WP-level) |
 | T020–T028 | `spec-kitty next` guard wiring + per-guard teeth tests, ATDD-first | WP05 | P0 | No (chokepoint) |
-| T029–T033 | `finalize-tasks`/`map-requirements` CLI wiring, ATDD-first | WP06 | P0 | Yes (WP-level, with WP07) |
+| T029, T030, T030a, T031, T032a, T032, T033 | `finalize-tasks`/`map-requirements` CLI wiring, ATDD-first | WP06 | P0 | Yes (WP-level, with WP07) |
 | T034–T036 | False-negative sample + broadened-predicate re-verification | WP07 | P2 | Yes (WP-level, with WP06) |
 | T037–T040 | Frozen corpus fixture + non-vacuous ratchet | WP08 | P0 | No (chokepoint) |
 | T041–T044 | Reflexivity census + PR description + final close-out | WP09 | P2 | No |

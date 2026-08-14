@@ -121,6 +121,11 @@ coverage report) naming FR-001 and FR-002 explicitly, not merely appending to
   `tests/specify_cli/cli/commands/agent/fixtures/tasks_cli/json/byte_contracts.json`);
   deliberately re-freeze the fixture for that one case only — do not touch any other
   pinned case in the same file.
+- **#3395 collision warning**: #3395's own diff already modifies this exact
+  `map_requirements_success` `expected_stdout` string (adding
+  `"requirement_extraction_warnings": []`). When rebasing onto #3395's tip and
+  re-freezing this case, PRESERVE the `requirement_extraction_warnings` field —
+  add `bare_prose_requirement_ids` alongside it, do not overwrite or drop it.
 
 ### Subtask T031 – Wire `_validate_requirement_mapping`
 
@@ -149,11 +154,22 @@ coverage report) naming FR-001 and FR-002 explicitly, not merely appending to
 - **Purpose**: `plan_mapping` has the identical unscoped gap as T031, structurally more
   consequential since `plan_mapping` (`tasks_mapping_core.py::plan_mapping`, line 123)
   is documented pure/no-I/O (INV-4) — raw spec text must never be passed into it.
+- **Correcting an earlier drafting error in this subtask**: `spec_content` is NOT read
+  "earlier in the same function" as the `MappingRequest(...)` construction — it is read
+  as a local variable inside `_mr_resolve_read_dirs` (`tasks_map_requirements.py`,
+  Phase C, around line 306), a *different* function from `_mr_plan` (Phase D, line 328)
+  where `MappingRequest(...)` is actually constructed. Confirmed by direct read: the
+  shared `_MapReqState` object the two phases thread through today stores only
+  `spec_content`'s *derived products* (`all_spec_ids`, `functional_ids`,
+  `requirement_extraction_warnings`) — it does not currently carry the raw
+  `spec_content` string itself, so `_mr_plan` has no existing access to it.
 - **Steps**: Extend `MappingRequest` (`tasks_mapping_core.py`, `class MappingRequest`)
-  with a new `bare_prose_requirement_ids: frozenset[str]` field. Update its construction
-  site in `tasks_map_requirements.py` (`_mr_plan`, the `MappingRequest(...)` call) to
-  call `find_bare_prose_requirement_ids(spec_content)` — using the `spec_content` the
-  shell already reads earlier in the same function — and pass the resulting ids into the
+  with a new `bare_prose_requirement_ids: frozenset[str]` field. Add a new field to
+  `_MapReqState` (e.g. `spec_content: str = ""`), set it in `_mr_resolve_read_dirs`
+  (Phase C) alongside the existing derived fields, and read it back in `_mr_plan`
+  (Phase D) — mirroring T031's own plumbing fix for `mission_finalize.py`. Update the
+  `MappingRequest(...)` construction site in `_mr_plan` to call
+  `find_bare_prose_requirement_ids(st.spec_content)` and pass the resulting ids into the
   new field. Wrap that call fail-loud at the shell call site, same pattern as
   T031/WP05-T023 — the wrapper lives in the shell, never inside `plan_mapping`.
 
