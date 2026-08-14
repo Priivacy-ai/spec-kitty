@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-08-14T05:51:18.055515+00:00",
+  "flattened": false,
+  "friendly_name": "Mission-Artifact Write-Path Integrity",
+  "mission_id": "01KZZD6916PW6XD20W3CMQS3WW",
+  "mission_number": null,
+  "mission_slug": "write-path-integrity-01KZZD69",
+  "mission_type": "software-dev",
+  "purpose_context": "Three P0-P2 defects share one disease: a write path emits a latent-malformed mission artifact that a later bulk consumer detonates on (coord add/add at lane allocation; duplicate-key YAML crashing upgrade; drifting duplicated topology primitives). This mission enforces partition-correct commits, fail-closed artifact boundaries, and a checkout-identity guard, converging with the #2160 coord-authority strangler and #3128 rather than duct-taping symptoms.",
+  "purpose_tldr": "Close the write-path boundary gaps behind #3371/#3372/#3373/#3128 so mission artifacts can't be silently emitted malformed.",
+  "slug": "write-path-integrity-01KZZD69",
+  "target_branch": "mission/write-path-integrity",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-14T13:04:49.128573+00:00"
+}

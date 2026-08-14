@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "mission_slug": "write-path-integrity-01KZZD69",
+  "mission_id": "01KZZD6916PW6XD20W3CMQS3WW",
+  "mission_branch": "kitty/mission-write-path-integrity-01KZZD69",
+  "target_branch": "mission/write-path-integrity",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/resolution.py",
+        "src/specify_cli/core/checkout_ownership.py",
+        "src/specify_cli/git/commit_helpers.py",
+        "src/specify_cli/git/git_topology.py",
+        "src/specify_cli/workspace/context.py",
+        "tests/git/test_git_topology.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/coordination/coherence.py",
+        "src/specify_cli/coordination/commit_router.py",
+        "src/specify_cli/coordination/transaction.py",
+        "src/specify_cli/lanes/worktree_allocator.py",
+        "tests/integration/test_wp_integrity_cross_partition_scan.py",
+        "tests/integration/test_wp_integrity_p0_repro.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/mission_runtime/resolution.py",
+        "src/specify_cli/cli/commands/agent/mission_record_analysis.py",
+        "src/specify_cli/cli/commands/implement_cores.py",
+        "tests/integration/test_wp_integrity_checkout_identity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/architectural/test_wp_integrity_partition_call_shape.py",
+        "tests/integration/test_wp_integrity_crash_recovery.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-08-14T13:05:54.666130+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "ffbb02cd90b0194fbb21ff7bd431e9289975fd80"
+}

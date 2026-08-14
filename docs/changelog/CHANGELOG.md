@@ -108,6 +108,31 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **Coordination-topology missions no longer wedge lane allocation by
+  committing PRIMARY planning artifacts onto the coordination branch (mission
+  `write-path-integrity-01KZZD69`; `#3371` P0, `#2549`, `#3128`, `#3373`;
+  advances `#2160`/`#1878`).** Before, `implement`'s planning auto-commit routed
+  the whole batch verbatim to the coordination branch under coord topology, so a
+  PRIMARY `lanes.json` landed on coord and the lane allocator's recorded-planning
+  merge hit an add/add conflict — blocking every work-package claim on a
+  PR-bound `--start-branch` + coord mission with no self-service recovery. Root
+  cause was one layer deeper than the commit site: `BookkeepingTransaction.acquire`
+  *unconditionally* redirected writes to the coordination worktree, so this fix
+  adds an opt-in `commit_to_primary_target` that PRIMARY planning commits use to
+  land on the mission's own target branch (every status/coord caller keeps the
+  default — zero regression to coord routing). A partition guard at the
+  planning-commit seam now fails loud on any PRIMARY→coord / COORD→lane
+  mis-route (excluding self-bookkeeping `meta.json` co-travel), closing the same
+  class for `move-task --force` (`#2549`). Separately, mission-mutating
+  `implement`/`review` now **fail closed** when invoked from a checkout the
+  mission does not own (`#3128`): a `write_intent`-gated `CheckoutIdentityError`
+  at the real workspace chokepoint (`workspace/context.py::resolve_workspace_for_wp`)
+  refuses foreign-checkout writes without ever refusing reads or planning. The
+  four re-implementations of the git-common-dir/toplevel probe are unified behind
+  one primitive (`#3373`), and a static `tests/architectural/` gate plus a
+  cross-partition repo scan keep the P0 class from silently regressing. The
+  frontmatter/upgrade-wedge slice (`#3372`) and `#2702` were confirmed already
+  closed (by mission `#3383` and prior work) and left out of scope.
 - **Activating a charter directive no longer silently drops every org-pack
   artifact from the doctrine graph (mission `org-activation-scan-dirs-01KZY1PT`;
   `#3399`, closes `#3385`).** Before, the charter activation allow-list scanned
