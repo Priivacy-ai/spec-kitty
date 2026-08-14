@@ -6,83 +6,83 @@
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Caller-owned linked worktree является Mission anchor для lifecycle-команд",
+      "description": "Caller-owned linked worktree \u044f\u0432\u043b\u044f\u0435\u0442\u0441\u044f Mission anchor \u0434\u043b\u044f lifecycle-\u043a\u043e\u043c\u0430\u043d\u0434",
       "proof_type": "automated_test",
-      "evidence": "WP01 и WP03 одобрены независимым reviewer-renata; test_caller_owned_worktree_is_the_mission_anchor; test_context_cli_resolves_caller_owned_mission_without_touching_primary; reviewer slice 62/62",
+      "evidence": "WP01 \u0438 WP03 \u043e\u0434\u043e\u0431\u0440\u0435\u043d\u044b \u043d\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043c\u044b\u043c reviewer-renata; test_caller_owned_worktree_is_the_mission_anchor; test_context_cli_resolves_caller_owned_mission_without_touching_primary; reviewer slice 62/62",
       "pass_fail": "pass",
       "verified_by": "reviewer-renata + orchestrator",
       "verified_at": "2026-08-14T06:56:23Z",
-      "notes": "Canonical MissionOperationContext сохраняет repository_root и отдельный mission_anchor_root."
+      "notes": "Canonical MissionOperationContext \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u0435\u0442 repository_root \u0438 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0439 mission_anchor_root."
     },
     {
       "criterion_id": "FR-002",
-      "description": "Status, context, planning, tasks, action, next и accept используют одну Mission",
+      "description": "Status, context, planning, tasks, action, next \u0438 accept \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u044e\u0442 \u043e\u0434\u043d\u0443 Mission",
       "proof_type": "automated_test",
-      "evidence": "WP03 одобрен независимо; test_complete_caller_owned_cli_lifecycle_keeps_primary_unchanged и весь tests/integration/test_caller_owned_worktree_lifecycle.py: 14/14",
+      "evidence": "WP03 \u043e\u0434\u043e\u0431\u0440\u0435\u043d \u043d\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e; test_complete_caller_owned_cli_lifecycle_keeps_primary_unchanged \u0438 \u0432\u0435\u0441\u044c tests/integration/test_caller_owned_worktree_lifecycle.py: 14/14",
       "pass_fail": "pass",
       "verified_by": "reviewer-renata + orchestrator",
       "verified_at": "2026-08-14T06:56:23Z",
-      "notes": "Сквозной тест вызывает реальные mark-status, move-task, review, next и accept, без synthetic append_event для проверяемых переходов."
+      "notes": "\u0421\u043a\u0432\u043e\u0437\u043d\u043e\u0439 \u0442\u0435\u0441\u0442 \u0432\u044b\u0437\u044b\u0432\u0430\u0435\u0442 \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0435 mark-status, move-task, review, next \u0438 accept, \u0431\u0435\u0437 synthetic append_event \u0434\u043b\u044f \u043f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u043c\u044b\u0445 \u043f\u0435\u0440\u0435\u0445\u043e\u0434\u043e\u0432."
     },
     {
       "criterion_id": "FR-003",
-      "description": "Полный lifecycle не изменяет tracked-состояние и ветку repository root checkout",
+      "description": "\u041f\u043e\u043b\u043d\u044b\u0439 lifecycle \u043d\u0435 \u0438\u0437\u043c\u0435\u043d\u044f\u0435\u0442 tracked-\u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 \u0438 \u0432\u0435\u0442\u043a\u0443 repository root checkout",
       "proof_type": "automated_test",
-      "evidence": "test_status_cli_reads_caller_surface_and_keeps_primary_clean; test_next_query_uses_caller_anchor_and_keeps_primary_clean; test_accept_diagnose_and_no_commit_use_caller_without_touching_primary; полный lifecycle 14/14",
+      "evidence": "test_status_cli_reads_caller_surface_and_keeps_primary_clean; test_next_query_uses_caller_anchor_and_keeps_primary_clean; test_accept_diagnose_and_no_commit_use_caller_without_touching_primary; \u043f\u043e\u043b\u043d\u044b\u0439 lifecycle 14/14",
       "pass_fail": "pass",
       "verified_by": "reviewer-renata + orchestrator",
       "verified_at": "2026-08-14T06:56:23Z",
-      "notes": "Интеграционные тесты сравнивают branch, HEAD и tracked status primary до и после сценария."
+      "notes": "\u0418\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u043e\u043d\u043d\u044b\u0435 \u0442\u0435\u0441\u0442\u044b \u0441\u0440\u0430\u0432\u043d\u0438\u0432\u0430\u044e\u0442 branch, HEAD \u0438 tracked status primary \u0434\u043e \u0438 \u043f\u043e\u0441\u043b\u0435 \u0441\u0446\u0435\u043d\u0430\u0440\u0438\u044f."
     },
     {
       "criterion_id": "FR-004",
-      "description": "Managed coordination/lane topology сохраняет существующие canonical read/write rules",
+      "description": "Managed coordination/lane topology \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u0435\u0442 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044e\u0449\u0438\u0435 canonical read/write rules",
       "proof_type": "automated_test",
-      "evidence": "WP02 одобрен независимо; test_managed_lane_preserves_repository_root_anchor; test_placement_threads_anchor_metadata_to_lifecycle_phase; reviewer compatibility slice 62/62",
+      "evidence": "WP02 \u043e\u0434\u043e\u0431\u0440\u0435\u043d \u043d\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e; test_managed_lane_preserves_repository_root_anchor; test_placement_threads_anchor_metadata_to_lifecycle_phase; reviewer compatibility slice 62/62",
       "pass_fail": "pass",
       "verified_by": "reviewer-renata + orchestrator",
       "verified_at": "2026-08-14T06:56:23Z",
-      "notes": "Placement seam использует repository_root для topology и mission_anchor_root только для Mission artifacts."
+      "notes": "Placement seam \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442 repository_root \u0434\u043b\u044f topology \u0438 mission_anchor_root \u0442\u043e\u043b\u044c\u043a\u043e \u0434\u043b\u044f Mission artifacts."
     },
     {
       "criterion_id": "FR-005",
-      "description": "Несовместимые Mission-кандидаты завершаются fail-closed без записи",
+      "description": "\u041d\u0435\u0441\u043e\u0432\u043c\u0435\u0441\u0442\u0438\u043c\u044b\u0435 Mission-\u043a\u0430\u043d\u0434\u0438\u0434\u0430\u0442\u044b \u0437\u0430\u0432\u0435\u0440\u0448\u0430\u044e\u0442\u0441\u044f fail-closed \u0431\u0435\u0437 \u0437\u0430\u043f\u0438\u0441\u0438",
       "proof_type": "automated_test",
       "evidence": "test_context_cli_fails_closed_on_caller_primary_identity_conflict; test_slug_or_full_id_split_brain_fails_closed; architecture pair 28/28",
       "pass_fail": "pass",
       "verified_by": "reviewer-renata + orchestrator",
       "verified_at": "2026-08-14T06:56:23Z",
-      "notes": "Legacy fallback перехватывает только canonical MissionNotFound; conflict, ambiguity и другие ошибки остаются fail-loud."
+      "notes": "Legacy fallback \u043f\u0435\u0440\u0435\u0445\u0432\u0430\u0442\u044b\u0432\u0430\u0435\u0442 \u0442\u043e\u043b\u044c\u043a\u043e canonical MissionNotFound; conflict, ambiguity \u0438 \u0434\u0440\u0443\u0433\u0438\u0435 \u043e\u0448\u0438\u0431\u043a\u0438 \u043e\u0441\u0442\u0430\u044e\u0442\u0441\u044f fail-loud."
     },
     {
       "criterion_id": "FR-006",
-      "description": "Явно переданный repository root не подменяется текущим каталогом",
+      "description": "\u042f\u0432\u043d\u043e \u043f\u0435\u0440\u0435\u0434\u0430\u043d\u043d\u044b\u0439 repository root \u043d\u0435 \u043f\u043e\u0434\u043c\u0435\u043d\u044f\u0435\u0442\u0441\u044f \u0442\u0435\u043a\u0443\u0449\u0438\u043c \u043a\u0430\u0442\u0430\u043b\u043e\u0433\u043e\u043c",
       "proof_type": "automated_test",
       "evidence": "test_explicit_root_does_not_expand_candidates_through_cwd; test_foreign_git_common_directory_is_not_a_candidate; reviewer slice 62/62",
       "pass_fail": "pass",
       "verified_by": "reviewer-renata + orchestrator",
       "verified_at": "2026-08-14T06:56:23Z",
-      "notes": "Candidate expansion ограничена общей Git identity и explicit-root contract."
+      "notes": "Candidate expansion \u043e\u0433\u0440\u0430\u043d\u0438\u0447\u0435\u043d\u0430 \u043e\u0431\u0449\u0435\u0439 Git identity \u0438 explicit-root contract."
     },
     {
       "criterion_id": "FR-007",
-      "description": "Все lifecycle-команды сохраняют единую Mission identity и canonical path",
+      "description": "\u0412\u0441\u0435 lifecycle-\u043a\u043e\u043c\u0430\u043d\u0434\u044b \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u044e\u0442 \u0435\u0434\u0438\u043d\u0443\u044e Mission identity \u0438 canonical path",
       "proof_type": "automated_test",
       "evidence": "test_context_cli_resolves_caller_owned_mission_without_touching_primary; test_tasks_status_reads_caller_planning_and_status_surfaces; test_complete_caller_owned_cli_lifecycle_keeps_primary_unchanged; production lifecycle 14/14",
       "pass_fail": "pass",
       "verified_by": "reviewer-renata + orchestrator",
       "verified_at": "2026-08-14T06:56:23Z",
-      "notes": "Operation context и placement передаются через production command boundaries без повторного выбора Mission surface."
+      "notes": "Operation context \u0438 placement \u043f\u0435\u0440\u0435\u0434\u0430\u044e\u0442\u0441\u044f \u0447\u0435\u0440\u0435\u0437 production command boundaries \u0431\u0435\u0437 \u043f\u043e\u0432\u0442\u043e\u0440\u043d\u043e\u0433\u043e \u0432\u044b\u0431\u043e\u0440\u0430 Mission surface."
     },
     {
       "criterion_id": "FR-008",
-      "description": "Параллельные caller-owned worktree независимо разрешают собственные Mission",
+      "description": "\u041f\u0430\u0440\u0430\u043b\u043b\u0435\u043b\u044c\u043d\u044b\u0435 caller-owned worktree \u043d\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e \u0440\u0430\u0437\u0440\u0435\u0448\u0430\u044e\u0442 \u0441\u043e\u0431\u0441\u0442\u0432\u0435\u043d\u043d\u044b\u0435 Mission",
       "proof_type": "automated_test",
       "evidence": "test_two_caller_worktrees_resolve_only_their_own_missions; test_parallel_caller_worktrees_resolve_only_their_own_mission; test_resolution_is_deterministic_across_one_hundred_calls",
       "pass_fail": "pass",
       "verified_by": "reviewer-renata + orchestrator",
       "verified_at": "2026-08-14T06:56:23Z",
-      "notes": "Два linked worktree одного common Git repository не смешивают Mission candidates."
+      "notes": "\u0414\u0432\u0430 linked worktree \u043e\u0434\u043d\u043e\u0433\u043e common Git repository \u043d\u0435 \u0441\u043c\u0435\u0448\u0438\u0432\u0430\u044e\u0442 Mission candidates."
     }
   ],
   "negative_invariants": []
