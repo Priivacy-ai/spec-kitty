@@ -48,6 +48,12 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.dependency_graph import detect_cycles, validate_dependencies
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.missions._resolve_planning_branch import PlanningBranchResolutionFailed
+from specify_cli.missions.operation_context import (
+    MissionOperationContext,
+    MissionSurfaceConflictError,
+    resolve_mission_operation_context,
+)
+from specify_cli.context.mission_resolver import MissionNotFoundError
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.ownership import infer_ownership
 from specify_cli.ownership.audit_targets import validate_audit_coverage
@@ -311,6 +317,28 @@ def _resolve_mission_slug(repo_root: Path, feature: str | None, *, json_output: 
                 console.print(f"  {payload['example_command']}")
         raise typer.Exit(1) from None
     return feature_dir.name
+
+
+def _resolve_mission_operation_context(
+    repo_root: Path,
+    feature: str | None,
+) -> MissionOperationContext | None:
+    """Resolve the mission operation context when an explicit selector exists.
+
+    The legacy path remains available for selector-less and synthetic test
+    invocations that have no indexed mission. A real indexed mission always
+    goes through the shared resolver so an owned linked checkout cannot be
+    silently folded back to the primary checkout.
+    """
+    if not feature:
+        return None
+    try:
+        return resolve_mission_operation_context(repo_root, feature, cwd=Path.cwd())
+    except MissionNotFoundError:
+        # Preserve the existing structured FEATURE_CONTEXT_UNRESOLVED path for
+        # missing/legacy scaffolds; the operation context has no identity to
+        # anchor and therefore cannot make a safer selection.
+        return None
 
 
 def _resolve_target_branch(
@@ -1202,7 +1230,12 @@ def _capture_target_branch_tip(repo_root: Path, target_branch: str) -> str | Non
     return sha or None
 
 
-def _execution_has_begun(repo_root: Path, mission_slug: str) -> bool:
+def _execution_has_begun(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    effective_root: Path | None = None,
+) -> bool:
     """#3311 T014: read-only "has execution begun" signal for the finalize gate.
 
     MANDATORY reader recipe: resolve the coord-aware status read dir via
@@ -1237,7 +1270,16 @@ def _execution_has_begun(repo_root: Path, mission_slug: str) -> bool:
     from specify_cli.status import Lane, StoreError, get_all_wp_lanes, has_event_log
 
     try:
-        read_dir = resolve_status_surface_with_anchor(repo_root, mission_slug).read_dir
+        if effective_root is not None:
+            from mission_runtime import placement_seam
+
+            read_dir = placement_seam(
+                repo_root,
+                mission_slug,
+                effective_root=effective_root,
+            ).read_dir(MissionArtifactKind.STATUS_STATE)
+        else:
+            read_dir = resolve_status_surface_with_anchor(repo_root, mission_slug).read_dir
     except (FileNotFoundError, ValueError, StatusReadPathNotFound, CoordinationBranchDeleted):
         # Surface resolution failed closed (no meta.json / malformed meta / an
         # unresolvable coord surface). No event log can be read from an
@@ -1262,6 +1304,7 @@ def _preserve_or_capture_planning_commit_sha(
     target_branch: str,
     *,
     json_output: bool,
+    effective_root: Path | None = None,
 ) -> str | None:
     """#3311 T015: gate the ``planning_commit_sha`` capture on execution-begun.
 
@@ -1283,7 +1326,7 @@ def _preserve_or_capture_planning_commit_sha(
     reach, since bootstrapping the event log itself requires a prior
     successful finalize run that already wrote ``lanes.json``.
     """
-    if not _execution_has_begun(repo_root, mission_slug):
+    if not _execution_has_begun(repo_root, mission_slug, effective_root=effective_root):
         return _capture_target_branch_tip(repo_root, target_branch)
 
     from specify_cli.lanes.persistence import read_lanes_json
@@ -1326,6 +1369,7 @@ def _compute_and_write_lanes(
     target_branch: str,
     *,
     json_output: bool,
+    effective_root: Path | None = None,
 ) -> tuple[Path | None, LanesManifest | None]:
     """Phase: compute execution lanes + write lanes.json + risk report."""
     if not (wp_manifests and wp_dependencies):
@@ -1364,7 +1408,12 @@ def _compute_and_write_lanes(
     # SHA instead of re-capturing the current branch tip (see
     # ``_preserve_or_capture_planning_commit_sha``).
     lanes_manifest.planning_commit_sha = _preserve_or_capture_planning_commit_sha(
-        planning_dir, repo_root, mission_slug, target_branch, json_output=json_output
+        planning_dir,
+        repo_root,
+        mission_slug,
+        target_branch,
+        json_output=json_output,
+        effective_root=effective_root,
     )
     lanes_path = write_lanes_json(planning_dir, lanes_manifest)
     if not json_output:
@@ -1514,6 +1563,7 @@ def _commit_finalize_artifacts(
     *,
     json_output: bool,
     updated_count: int,
+    effective_root: Path | None = None,
 ) -> _CommitOutcome:
     """Phase: commit finalize artifacts through commit_for_mission.
 
@@ -1527,7 +1577,8 @@ def _commit_finalize_artifacts(
     outcome = _CommitOutcome()
     try:
         files_to_commit = _collect_finalize_artifacts(planning_dir, tasks_dir, mission_slug, lanes_path=lanes_path)
-        files_to_commit_rel = [str(path.relative_to(repo_root)) for path in files_to_commit]
+        file_root = effective_root or repo_root
+        files_to_commit_rel = [str(path.relative_to(file_root)) for path in files_to_commit]
         outcome.files_committed = list(files_to_commit_rel)
 
         has_relevant_changes = False
@@ -1536,7 +1587,7 @@ def _commit_finalize_artifacts(
                 ["git", "status", "--porcelain", "--", *files_to_commit_rel],
                 check_return=True,
                 capture=True,
-                cwd=repo_root,
+                cwd=file_root,
             )
             has_relevant_changes = bool(status_out.strip())
 
@@ -1559,6 +1610,7 @@ def _commit_finalize_artifacts(
             kind=MissionArtifactKind.TASKS_INDEX,
             primary_paths_created_this_invocation=primary_created,
             target_branch=target_branch,
+            effective_root=effective_root,
         )
 
         if router_result.status == "committed":
@@ -1717,6 +1769,7 @@ def _run_commit_pipeline(
     *,
     validate_only: bool,
     json_output: bool,
+    effective_root: Path | None = None,
 ) -> None:
     """Phase: the post-validate-only commit pipeline.
 
@@ -1745,6 +1798,7 @@ def _run_commit_pipeline(
         meta,
         target_branch,
         json_output=json_output,
+        effective_root=effective_root,
     )
 
     _scaffold_acceptance_matrix_if_lane_based(
@@ -1772,6 +1826,7 @@ def _run_commit_pipeline(
         preexisting_primary_files,
         json_output=json_output,
         updated_count=state.updated_count,
+        effective_root=effective_root,
     )
 
     _emit_saas_wp_created(state.work_packages, mission_slug, json_output=json_output)
@@ -1825,7 +1880,15 @@ def finalize_tasks(
     try:
         repo_root = _resolve_repo_root(json_output)
         _run_saas_boundary_preflight(repo_root, json_output=json_output, validate_only=validate_only)
-        mission_slug = _resolve_mission_slug(repo_root, feature, json_output=json_output)
+        operation_context = _resolve_mission_operation_context(repo_root, feature)
+        mission_anchor_root = (
+            operation_context.mission_anchor_root if operation_context is not None else None
+        )
+        mission_slug = (
+            operation_context.mission_slug
+            if operation_context is not None
+            else _resolve_mission_slug(repo_root, feature, json_output=json_output)
+        )
 
         from mission_runtime import placement_seam
 
@@ -1838,9 +1901,17 @@ def finalize_tasks(
         # the retiring ``primary_feature_dir_for_mission`` wrapper onto the seam
         # directly — WORK_PACKAGE_TASK, since this finalize-tasks flow reads/writes
         # the ``tasks/`` WP files, ``wps.yaml``, and ``tasks.md`` under this dir.
-        primary_dir = placement_seam(repo_root, mission_slug).read_dir(
-            MissionArtifactKind.WORK_PACKAGE_TASK
-        )
+        if mission_anchor_root is None:
+            primary_dir = placement_seam(
+                repo_root,
+                mission_slug,
+            ).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+        else:
+            primary_dir = placement_seam(
+                repo_root,
+                mission_slug,
+                effective_root=mission_anchor_root,
+            ).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
         planning_dir = primary_dir
 
         # Bulk edit occurrence-map gate (FR-001/002/003/004): fail-fast, before
@@ -1976,8 +2047,15 @@ def finalize_tasks(
             preexisting_primary_files,
             validate_only=validate_only,
             json_output=json_output,
+            effective_root=mission_anchor_root,
         )
 
+    except MissionSurfaceConflictError as e:
+        if json_output:
+            _emit_json(e.to_dict())
+        else:
+            console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from None
     except typer.Exit:
         raise
     except Exception as e:

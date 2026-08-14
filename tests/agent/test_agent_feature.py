@@ -1255,6 +1255,130 @@ requirement_refs:
         assert 'merge_target_branch: main' in updated
         assert 'branch_strategy: Planning artifacts for this mission were generated on main.' in updated
 
+    def test_finalize_tasks_uses_caller_owned_mission_anchor(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """An explicit finalize request reads the caller-owned linked checkout.
+
+        ``locate_project_root`` intentionally returns the main repository, which
+        is the historical split-brain trigger.  The mission exists only in the
+        generic linked checkout, so a correct resolver must validate that tree
+        and leave the main checkout byte-for-byte unchanged.
+        """
+        primary, linked = _init_owned_checkout_pair(tmp_path)
+        mission_slug = "owned-finalize"
+        feature_dir = linked / "kitty-specs" / mission_slug
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text(
+            json.dumps(
+                {
+                    "mission_id": TEST_MISSION_ID,
+                    "mission_slug": mission_slug,
+                    "mission_type": "software-dev",
+                    "target_branch": "owned-mission",
+                    "topology": "single_branch",
+                    "vcs": "git",
+                    "created_at": "2026-08-14T00:00:00Z",
+                }
+            ),
+            encoding="utf-8",
+        )
+        (feature_dir / "spec.md").write_text(
+            """# Owned finalize spec
+
+## Functional Requirements
+
+| ID | Requirement | Acceptance Criteria | Status |
+| --- | --- | --- | --- |
+| FR-001 | Validate an owned mission. | finalize-tasks reads the linked checkout. | proposed |
+""",
+            encoding="utf-8",
+        )
+        (feature_dir / "tasks.md").write_text(
+            """# Work Packages
+
+## Work Package WP01: Owned finalize
+**Dependencies**: None
+**Requirement Refs**: FR-001
+
+### Included Subtasks
+- T001 Validate the owned mission
+""",
+            encoding="utf-8",
+        )
+        (tasks_dir / "WP01-owned-finalize.md").write_text(
+            """---
+work_package_id: "WP01"
+title: "Owned finalize"
+subtasks:
+  - "T001"
+phase: "Phase 1"
+assignee: ""
+agent: ""
+shell_pid: ""
+review_status: ""
+reviewed_by: ""
+history: []
+---
+
+# Work Package Prompt: WP01 -- Owned finalize
+
+Validate the owned mission.
+""",
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "add", "."], cwd=linked, check=True, capture_output=True)
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "user.name=Spec Kitty Tests",
+                "-c",
+                "user.email=spec-kitty-tests@example.invalid",
+                "commit",
+                "-m",
+                "Seed owned finalize mission",
+            ],
+            cwd=linked,
+            check=True,
+            capture_output=True,
+        )
+
+        primary_before = {
+            path.relative_to(primary): path.read_bytes()
+            for path in primary.rglob("*")
+            if path.is_file()
+            and ".git" not in path.relative_to(primary).parts
+            and path.relative_to(primary) != Path(".kittify/sync-state.json")
+        }
+        monkeypatch.chdir(linked)
+        with patch(
+            "specify_cli.cli.commands.agent.mission.locate_project_root",
+            return_value=primary,
+        ):
+            result = runner.invoke(
+                app,
+                ["finalize-tasks", "--mission", mission_slug, "--validate-only", "--json"],
+            )
+
+        assert result.exit_code == 0, f"finalize-tasks failed:\n{result.stdout}\n{result.stderr}"
+        assert "FEATURE_CONTEXT_UNRESOLVED" not in result.stdout
+
+        result = runner.invoke(
+            app,
+            ["finalize-tasks", "--mission", mission_slug, "--json"],
+        )
+        assert result.exit_code == 0, f"normal finalize-tasks failed:\n{result.stdout}\n{result.stderr}"
+        assert "FEATURE_CONTEXT_UNRESOLVED" not in result.stdout
+        primary_after = {
+            path.relative_to(primary): path.read_bytes()
+            for path in primary.rglob("*")
+            if path.is_file()
+            and ".git" not in path.relative_to(primary).parts
+            and path.relative_to(primary) != Path(".kittify/sync-state.json")
+        }
+        assert primary_after == primary_before
+        assert not (primary / "kitty-specs" / mission_slug).exists()
+
 class TestSetupPlanCommand:
     """Tests for setup-plan command."""
 

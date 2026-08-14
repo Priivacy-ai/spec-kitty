@@ -959,7 +959,11 @@ def _resolve_topology(
 
 
 def resolve_topology(
-    repo_root: Path, mission_handle: str, *, resolver: MissionResolver | None = None
+    repo_root: Path,
+    mission_handle: str,
+    *,
+    resolver: MissionResolver | None = None,
+    effective_root: Path | None = None,
 ) -> MissionTopology:
     """Public seam: read the WP02 **stored** :class:`MissionTopology` for a mission.
 
@@ -986,11 +990,11 @@ def resolve_topology(
         candidate_feature_dir_for_mission,
     )
 
-    primary_root = get_main_repo_root(repo_root)
+    primary_root = get_main_repo_root(repo_root) if effective_root is None else effective_root.resolve()
     mission_slug = mission_handle
     try:
         candidate_dir = candidate_feature_dir_for_mission(
-            repo_root, mission_handle, resolver=resolver
+            primary_root, mission_handle, resolver=resolver
         )
     except (StatusReadPathNotFound, MissionSelectorAmbiguous):
         # Unresolvable / ambiguous handle: pass the raw handle through so the
@@ -999,7 +1003,12 @@ def resolve_topology(
         candidate_dir = None
     if candidate_dir is not None and candidate_dir.exists():
         mission_slug = candidate_dir.name
-    return _resolve_topology(primary_root, mission_slug, resolver=resolver)
+    return _resolve_topology(
+        primary_root,
+        mission_slug,
+        resolver=resolver,
+        effective_root=effective_root,
+    )
 
 
 def mission_context_for(
@@ -1484,6 +1493,7 @@ def resolve_placement_only(
     *,
     kind: MissionArtifactKind,
     resolver: MissionResolver | None = None,
+    effective_root: Path | None = None,
 ) -> CommitTarget:
     """Resolve the placement :class:`CommitTarget` for a mission artifact ``kind``.
 
@@ -1554,6 +1564,7 @@ def resolve_placement_only(
         MissionSelectorAmbiguous,
         StatusReadPathNotFound,
         candidate_feature_dir_for_mission,
+        compose_meta_json_path,
     )
 
     if not mission_slug or not mission_slug.strip():
@@ -1569,9 +1580,10 @@ def resolve_placement_only(
     # (the #1784 class). When nothing resolves, the raw slug passes through and
     # the builder degrades exactly as before (no behaviour change for missing
     # missions).
+    placement_root = repo_root if effective_root is None else effective_root.resolve()
     try:
         candidate_dir = candidate_feature_dir_for_mission(
-            repo_root, mission_slug, resolver=resolver
+            placement_root, mission_slug, resolver=resolver
         )
     except StatusReadPathNotFound as exc:
         # Fail-closed surface refusal at entry canonicalization: translate to
@@ -1600,28 +1612,38 @@ def resolve_placement_only(
     # through completely UNCHANGED (#3076 regression floor, T012) — including
     # for ``STATUS_STATE`` / ``DECISION_LOG``, which are never in the E2
     # in-scope set (SC-005 non-regression).
-    phase = resolve_lifecycle_phase(mission_slug, repo_root, resolver=resolver)
+    phase = resolve_lifecycle_phase(mission_slug, placement_root, resolver=resolver)
     if phase is LifecyclePhase.PUBLISHED and kind in _E2_CONSOLIDATED_ELIGIBLE_KINDS:
-        return _resolve_consolidated_e2_target(repo_root, mission_slug, resolver=resolver)
+        return _resolve_consolidated_e2_target(placement_root, mission_slug, resolver=resolver)
 
     # FR-012 / C-CTX-3: ``target_branch`` is resolved exactly once here, exactly
     # as ``resolve_action_context`` does, and threaded into the shared builder.
     # The WP02 stored ``topology`` is read once alongside it (the shell read) and
     # threaded in so the placement ``kind`` is classified from the stored shape,
     # never re-inferred from ``coordination_branch`` (FR-004).
-    from specify_cli.core.paths import get_main_repo_root
+    if effective_root is None:
+        target_branch = get_feature_target_branch(repo_root, mission_slug)
+    else:
+        from specify_cli.core.git_ops import resolve_primary_branch
+        from specify_cli.core.paths import read_target_branch_from_meta
 
-    target_branch = get_feature_target_branch(repo_root, mission_slug)
+        meta_dir = compose_meta_json_path(placement_root, mission_slug).parent
+        stored_target = read_target_branch_from_meta(meta_dir)
+        target_branch = stored_target or str(resolve_primary_branch(placement_root))
     topology = _resolve_topology(
-        get_main_repo_root(repo_root), mission_slug, resolver=resolver
+        placement_root,
+        mission_slug,
+        resolver=resolver,
+        effective_root=effective_root,
     )
     _identity, branch_ref, _status_surface, _workspace = _assemble_core_fragments(
-        repo_root,
+        placement_root,
         mission_slug=mission_slug,
         target_branch=target_branch,
         topology=topology,
         cwd=None,
         resolver=resolver,
+        effective_root=effective_root,
     )
     # FR-002 / FR-004 (write-surface-coherence WP01): the projection is
     # kind-aware. A ``_PRIMARY_ARTIFACT_KINDS`` member routes to the primary
@@ -1673,6 +1695,7 @@ class PlacementSeam:
 
     repo_root: Path
     mission_slug: str
+    effective_root: Path | None = None
 
     def write_target(self, kind: MissionArtifactKind) -> CommitTarget:
         """Return the :class:`CommitTarget` a write of ``kind`` must commit to.
@@ -1681,7 +1704,12 @@ class PlacementSeam:
         docstring. Never constructs ``CommitTarget(ref=<current_checkout>)``
         (the forbidden-for-callers grammar, contracts/seam-api.md).
         """
-        return resolve_placement_only(self.repo_root, self.mission_slug, kind=kind)
+        return resolve_placement_only(
+            self.repo_root,
+            self.mission_slug,
+            kind=kind,
+            effective_root=self.effective_root,
+        )
 
     def read_dir(self, kind: MissionArtifactKind) -> Path:
         """Return the directory a read of ``kind`` resolves to.
@@ -1729,11 +1757,17 @@ class PlacementSeam:
             # annotation re-narrows it (the function IS typed ``-> Path``) —
             # matching the sibling ``_planning_read_dir`` chokepoint pattern.
             retrospective_dir: Path = resolve_retrospective_home(
-                self.repo_root, self.mission_slug
+                self.effective_root or self.repo_root,
+                self.mission_slug,
             )
             return retrospective_dir
 
-        return resolve_artifact_surface(self.repo_root, self.mission_slug, kind).path
+        return resolve_artifact_surface(
+            self.repo_root,
+            self.mission_slug,
+            kind,
+            effective_root=self.effective_root,
+        ).path
 
 
 @dataclass(frozen=True)
@@ -1817,6 +1851,7 @@ def declared_read_surface(
     kind: MissionArtifactKind,
     *,
     resolver: MissionResolver | None = None,
+    effective_root: Path | None = None,
 ) -> TopologySurface:
     """The intrinsic, materialization-BLIND declared home for a read of ``kind``.
 
@@ -1848,7 +1883,12 @@ def declared_read_surface(
     """
     if is_primary_artifact_kind(kind):
         return TopologySurface.PRIMARY
-    topology = resolve_topology(repo_root, mission_slug, resolver=resolver)
+    topology = resolve_topology(
+        repo_root,
+        mission_slug,
+        resolver=resolver,
+        effective_root=effective_root,
+    )
     if routes_through_coordination(topology):
         return TopologySurface.COORD
     return TopologySurface.PRIMARY
@@ -1861,6 +1901,7 @@ def _classify_artifact_surface(
     *,
     primary_dir: Path,
     resolver: MissionResolver | None,
+    effective_root: Path | None = None,
 ) -> tuple[TopologySurface, Path | None]:
     """Classify the affirmative surface for ``kind`` (the four-CoordState answer).
 
@@ -1877,7 +1918,13 @@ def _classify_artifact_surface(
     primary, not a fallback); only a ``COORD`` declared answer proceeds to
     the materialization-aware four-state classifier below.
     """
-    declared = declared_read_surface(primary_root, canonical_slug, kind, resolver=resolver)
+    declared = declared_read_surface(
+        primary_root,
+        canonical_slug,
+        kind,
+        resolver=resolver,
+        effective_root=effective_root,
+    )
     if declared is TopologySurface.PRIMARY:
         return TopologySurface.PRIMARY, None
 
@@ -1893,9 +1940,17 @@ def _classify_artifact_surface(
     )
 
     coordination_branch = _resolve_coordination_branch(
-        primary_root, canonical_slug, resolver=resolver
+        primary_root,
+        canonical_slug,
+        resolver=resolver,
+        effective_root=effective_root,
     )
-    mission_id = _resolve_mission_id(primary_root, canonical_slug, resolver=resolver)
+    mission_id = _resolve_mission_id(
+        primary_root,
+        canonical_slug,
+        resolver=resolver,
+        effective_root=effective_root,
+    )
     mid8 = resolve_mid8(canonical_slug, mission_id=mission_id)
     coord_state = probe_coord_state(
         primary_root, canonical_slug, mid8, coordination_branch=coordination_branch
@@ -1990,6 +2045,7 @@ def resolve_artifact_surface(
     kind: MissionArtifactKind,
     *,
     resolver: MissionResolver | None = None,
+    effective_root: Path | None = None,
 ) -> ResolvedSurface:
     """Resolve the affirmative read/write surface for a mission artifact ``kind``.
 
@@ -2023,18 +2079,25 @@ def resolve_artifact_surface(
             (propagated from handle canonicalization — no silent pick).
     """
     from specify_cli.core.paths import get_main_repo_root
-    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+    from specify_cli.missions._read_path_resolver import (
+        _compose_mission_anchor_feature_dir,
+        resolve_planning_read_dir,
+    )
 
-    primary_root = get_main_repo_root(repo_root)
+    primary_root = get_main_repo_root(repo_root) if effective_root is None else effective_root.resolve()
     # The affirmative PRIMARY home (canonicalized handle → ``<slug>-<mid8>`` dir).
     # ``resolve_planning_read_dir`` is typed ``-> Path`` but the
     # ``follow_imports=skip`` boundary on ``specify_cli.*`` widens it to ``Any``;
     # bind explicitly so the declared return narrows back.
-    primary_dir: Path = resolve_planning_read_dir(
-        primary_root,
-        mission_slug,
-        kind=MissionArtifactKind.PRIMARY_METADATA,
-        resolver=resolver,
+    primary_dir: Path = (
+        resolve_planning_read_dir(
+            primary_root,
+            mission_slug,
+            kind=MissionArtifactKind.PRIMARY_METADATA,
+            resolver=resolver,
+        )
+        if effective_root is None
+        else _compose_mission_anchor_feature_dir(primary_root, mission_slug)
     )
     # Idempotence under our own output (the #3012 backfilled-mission regression):
     # when the literal-composed ``<slug>-<mid8>`` primary dir does NOT exist but the
@@ -2043,8 +2106,10 @@ def resolve_artifact_surface(
     # through the double-suffix-safe ``_compose_mission_dir``, so correcting the
     # slug here is sufficient — and ``declared_read_surface`` can then actually read
     # the mission's ``meta.json`` and reach ``probe_coord_state``.
-    recovered = _backfilled_primary_dir(
-        primary_root, mission_slug, primary_dir, resolver=resolver
+    recovered = (
+        _backfilled_primary_dir(primary_root, mission_slug, primary_dir, resolver=resolver)
+        if effective_root is None
+        else None
     )
     if recovered is not None:
         primary_dir = recovered
@@ -2055,6 +2120,7 @@ def resolve_artifact_surface(
         kind,
         primary_dir=primary_dir,
         resolver=resolver,
+        effective_root=effective_root,
     )
     # T010 / renata M1: populate the previously-always-``None``
     # ``SurfaceLocations.consolidated`` field. This is the SAME phase
@@ -2158,7 +2224,12 @@ def resolve_create_time_write_target(planning_branch: str) -> CommitTarget:
     return CommitTarget(ref=planning_branch)
 
 
-def placement_seam(repo_root: Path, mission_slug: str) -> PlacementSeam:
+def placement_seam(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    effective_root: Path | None = None,
+) -> PlacementSeam:
     """Construct the placement seam for one mission operation (T001 entry point).
 
     Asserts the P-1 partition invariant (T002) before returning the seam: the
@@ -2171,7 +2242,11 @@ def placement_seam(repo_root: Path, mission_slug: str) -> PlacementSeam:
     :func:`~mission_runtime.artifacts.artifact_home_for`.
     """
     assert_partition_invariant()
-    return PlacementSeam(repo_root=repo_root, mission_slug=mission_slug)
+    return PlacementSeam(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        effective_root=effective_root.resolve() if effective_root is not None else None,
+    )
 
 
 def resolve_action_context(

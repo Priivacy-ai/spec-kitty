@@ -1309,6 +1309,22 @@ def _compose_primary_feature_dir(repo_root: Path, mission_slug: str) -> Path:
     return primary_dir
 
 
+def _compose_mission_anchor_feature_dir(anchor_root: Path, mission_slug: str) -> Path:
+    """Compose a mission directory without folding an owned checkout to main.
+
+    ``_compose_primary_feature_dir`` is intentionally topology-blind and folds
+    generic worktrees to the repository root.  A caller-owned operation has
+    already validated its anchor, so folding at this point would reintroduce the
+    split-brain this module is meant to prevent.
+    """
+    from specify_cli.core.paths import assert_safe_path_segment
+
+    assert_safe_path_segment(mission_slug)
+    resolved_anchor: Path = anchor_root.resolve()
+    anchor_feature_dir: Path = resolved_anchor / KITTY_SPECS_DIR / mission_slug
+    return anchor_feature_dir
+
+
 def _canonicalize_primary_read_handle(
     repo_root: Path, handle: str, *, resolver: MissionResolver | None = None
 ) -> str:

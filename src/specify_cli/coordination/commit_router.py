@@ -33,6 +33,7 @@ from typing import Final, Literal, Protocol, runtime_checkable
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
+    MissionTopology,
     is_primary_artifact_kind,
     kind_for_mission_file,
     resolve_placement_only,
@@ -119,6 +120,38 @@ class CommitRouterResult:
     diagnostic: str | None = None
 
 
+def _resolve_placement(
+    repo_root: Path,
+    mission_slug: str,
+    kind: MissionArtifactKind,
+    effective_root: Path | None,
+) -> CommitTarget:
+    """Resolve placement against the operation anchor when one is supplied."""
+    if effective_root is None:
+        return resolve_placement_only(repo_root, mission_slug, kind=kind)
+    return resolve_placement_only(
+        repo_root,
+        mission_slug,
+        kind=kind,
+        effective_root=effective_root,
+    )
+
+
+def _resolve_mission_topology(
+    repo_root: Path,
+    mission_slug: str,
+    effective_root: Path | None,
+) -> MissionTopology:
+    """Resolve topology against the operation anchor when one is supplied."""
+    if effective_root is None:
+        return resolve_topology(repo_root, mission_slug)
+    return resolve_topology(
+        repo_root,
+        mission_slug,
+        effective_root=effective_root,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
@@ -134,6 +167,7 @@ def commit_for_mission(
     kind: MissionArtifactKind,
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
     target_branch: str | None = None,
+    effective_root: Path | None = None,
 ) -> CommitRouterResult:
     """Commit a mission artifact to its kind-aware resolved placement.
 
@@ -178,7 +212,13 @@ def commit_for_mission(
     single-partition batch (the common case) still resolves placement exactly
     once and issues exactly one commit (INV: no fast-path regression).
     """
-    groups = _group_files_by_partition(repo_root, files, mission_slug, kind=kind)
+    groups = _group_files_by_partition(
+        repo_root,
+        files,
+        mission_slug,
+        kind=kind,
+        effective_root=effective_root,
+    )
 
     if len(groups) <= 1:
         effective_kind, effective_files = groups[0] if groups else (kind, files)
@@ -191,6 +231,7 @@ def commit_for_mission(
             kind=effective_kind,
             primary_paths_created_this_invocation=primary_paths_created_this_invocation,
             target_branch=target_branch,
+            effective_root=effective_root,
         )
 
     # Split-and-commit (contract (a), pinned by T004): a mixed-partition batch
@@ -207,6 +248,7 @@ def commit_for_mission(
             kind=group_kind,
             primary_paths_created_this_invocation=primary_paths_created_this_invocation,
             target_branch=target_branch,
+            effective_root=effective_root,
         )
         for group_kind, group_files in groups
     ]
@@ -223,6 +265,7 @@ def _commit_partition_group(
     kind: MissionArtifactKind,
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
     target_branch: str | None = None,
+    effective_root: Path | None = None,
 ) -> CommitRouterResult:
     """Commit ONE single-partition file group to its resolved placement.
 
@@ -232,7 +275,7 @@ def _commit_partition_group(
     ``kind`` — :func:`_group_files_by_partition` guarantees this; this helper
     does not re-validate it (single responsibility: resolve + commit one group).
     """
-    placement: CommitTarget = resolve_placement_only(repo_root, mission_slug, kind=kind)
+    placement = _resolve_placement(repo_root, mission_slug, kind, effective_root)
 
     # FR-003 / C-005 / NFR-004: derive coord-vs-primary routing from the ONE
     # kind-aware ``placement`` (the single authority), not a second predicate.
@@ -244,9 +287,15 @@ def _commit_partition_group(
     # branch — i.e. only coordination kinds materialise the coord worktree (C-001).
     # A primary kind therefore NEVER routes to coordination even under coord
     # topology — this removes the planning→coord arm (write-surface-coherence WP02).
-    primary_target = _resolve_mission_target_branch(repo_root, mission_slug)
+    primary_target = _resolve_mission_target_branch(
+        repo_root,
+        mission_slug,
+        effective_root=effective_root,
+    )
     use_coord = (
-        routes_through_coordination(resolve_topology(repo_root, mission_slug))
+        routes_through_coordination(
+            _resolve_mission_topology(repo_root, mission_slug, effective_root)
+        )
         and placement.ref != primary_target
     )
 
@@ -281,7 +330,7 @@ def _commit_partition_group(
         )
     else:
         # Flattened or unprotected primary: commit directly.
-        worktree_root, commit_paths = repo_root, files
+        worktree_root, commit_paths = effective_root or repo_root, files
 
     if not commit_paths:
         # All artifacts already committed (or none present) — genuine no-op.
@@ -408,6 +457,7 @@ def _group_files_by_partition(
     mission_slug: str,
     *,
     kind: MissionArtifactKind,
+    effective_root: Path | None = None,
 ) -> list[tuple[MissionArtifactKind, tuple[Path, ...]]]:
     """Group ``files`` by PARTITION (PRIMARY vs COORD), not by exact kind (T023).
 
@@ -497,8 +547,18 @@ def _group_files_by_partition(
     )
 
     if primary_files and coord_files:
-        primary_ref = resolve_placement_only(repo_root, mission_slug, kind=primary_kind).ref
-        coord_ref = resolve_placement_only(repo_root, mission_slug, kind=coord_kind).ref
+        primary_ref = _resolve_placement(
+            repo_root,
+            mission_slug,
+            primary_kind,
+            effective_root,
+        ).ref
+        coord_ref = _resolve_placement(
+            repo_root,
+            mission_slug,
+            coord_kind,
+            effective_root,
+        ).ref
         if primary_ref == coord_ref:
             # No real routing divergence (coordless topology) — keep the
             # historical single-commit fast path instead of a gratuitous
@@ -558,7 +618,12 @@ def _merge_group_results(
     return replace(results[0], commit_hashes=all_commit_hashes)
 
 
-def _resolve_mission_target_branch(repo_root: Path, mission_slug: str) -> str:
+def _resolve_mission_target_branch(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    effective_root: Path | None = None,
+) -> str:
     """Resolve the mission's PRIMARY ``target_branch`` ref.
 
     This is the SAME ref ``resolve_placement_only`` returns for a primary kind
@@ -570,7 +635,10 @@ def _resolve_mission_target_branch(repo_root: Path, mission_slug: str) -> str:
     """
     from specify_cli.core.paths import get_feature_target_branch
 
-    primary_target: str = get_feature_target_branch(repo_root, mission_slug)
+    primary_target: str = get_feature_target_branch(
+        effective_root or repo_root,
+        mission_slug,
+    )
     return primary_target
 
 
