@@ -1,0 +1,94 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: up-mission-type-seam-01KZY1JB
+findings:
+  - id: SPEC-ARCH-001
+    lens: Architectural-gate citation accuracy (mission-derived)
+    severity: 3
+    title: >-
+      CL-001's "reds two independent assertions" claim about
+      test_no_inert_schema_slots.py overstates the gate — only one live
+      assertion would fire
+    evidence:
+      - artifact: "spec.md § CL-001 (Rejected alternatives, Option (b))"
+      - code: "tests/architectural/test_no_inert_schema_slots.py:62-75 (test_live_tree_has_no_new_inert_slots — the only test in the file that walks the live tree)"
+      - code: "tests/architectural/_inert_slots.py:770-786 (code_only_drift), :374-399 (find_code_only_suppressions), :402-414 (code_producer_writes) — defined but not called by any test"
+      - code: "tests/architectural/_inert_slots_baseline.yaml:437-442 (the action_sequence code_only_suppressions row, verdict: genuine-producer)"
+    claim: >-
+      CL-001 justifies rejecting "move the action_sequence projection out of
+      src/doctrine/missions/mission_type_repository.py into the charter
+      layer" by asserting the move "reds two independent assertions in that
+      architectural gate (a 'new' unaccounted-for inert slot, and a 'stale'
+      baseline row with no matching producer)." Verification confirms the
+      first assertion is real: action_sequence's only current producer in the
+      scanned tree (src/doctrine/ + packs/built-in/) is the single line
+      `payload["action_sequence"] = projected_sequence or raw.get(...)` in
+      mission_type_repository.py (confirmed by grep — no built-in
+      mission-type YAML under packs/built-in/missions/mission_types/*.yaml
+      authors an `action_sequence:` key), so removing it would make
+      `test_live_tree_has_no_new_inert_slots`'s `assert new == []` fail.
+      The second assertion does not exist as a live gate today: a
+      repo-wide grep for `code_only_drift`, `find_code_only_suppressions`,
+      `code_producer_writes`, `MAX_MASKING_SUPPRESSIONS`,
+      `test_every_recorded_code_producer_actually_writes_the_slot`, and
+      `test_every_named_owner_resolves` (all named in _inert_slots.py's own
+      docstrings/comments as guarding the code_only_suppressions ledger)
+      finds zero matches outside `_inert_slots.py` and
+      `_inert_slots_baseline.yaml` — no pytest test currently calls this
+      machinery. The `action_sequence` row does exist in the baseline's
+      `code_only_suppressions:` block (verdict: genuine-producer,
+      citing mission_type_repository.py as producer), but nothing
+      re-derives or checks that verdict today, so a move that falsified it
+      would not currently red anything on that second front. CL-001's
+      first-order conclusion (reject Option (b)) still holds because the
+      one real assertion is sufficient, but the rationale as written
+      overstates the gate's coverage — a risk if WP01's ADR (CL-002)
+      repeats the "two independent assertions" framing verbatim into a
+      permanent decision record.
+    remediation: >-
+      In the plan/tasks-phase ADR (WP01, CL-002) and/or a spec correction,
+      restate CL-001's rejected-alternative rationale to cite only the one
+      live assertion (test_no_inert_schema_slots.py::test_live_tree_has_no_new_inert_slots's
+      `assert new == []`). If the code_only_suppressions drift-detection
+      (code_only_drift/code_producer_writes) is meant to be a second,
+      independently enforced backstop, note in the ADR that it is currently
+      unwired to any test and file that as separate follow-up debt rather
+      than presenting it as already-enforced protection.
+
+  - id: SPEC-ARCH-002
+    lens: Architectural-gate citation accuracy (mission-derived)
+    severity: 2
+    title: >-
+      CL-004's corroborating citation at mission_type_profiles.py:859-860
+      is inside _resolve_template_set_slot, not the action-sequence resolver
+    evidence:
+      - artifact: "spec.md § CL-004 (docstring correction, 'Corroborating' sentence)"
+      - code: "src/charter/mission_type_profiles.py:762 (def _resolve_action_slot, spans 762-807)"
+      - code: "src/charter/mission_type_profiles.py:841 (def _resolve_template_set_slot, spans 841-886)"
+      - code: "src/charter/mission_type_profiles.py:858-860 (the pack_context=None / 'pre-cutover parity contract' text, inside _resolve_template_set_slot's docstring)"
+    claim: >-
+      CL-004 states, as corroboration for the docstring fix, that
+      "mission_type_profiles.py:859-860 states action-sequence resolution
+      today uses pack_context=None ... (builtin-only, matching the
+      pre-cutover parity contract)." The quoted text at lines 858-860 is
+      inside `_resolve_template_set_slot`'s docstring (def at line 841,
+      next def _resolve_step_contracts_slot at line 887) and literally
+      describes **template_set** resolution
+      (`MissionStepRepository.resolve_all_for_mission_type(mission_type,
+      pack_context=None)`), not action-sequence resolution.
+      `_resolve_action_slot` is a distinct function spanning lines
+      762-807. Both slots happen to be builtin-only today, so the
+      underlying point (WP06 is not an org/project seam) survives via the
+      still-accurate primary corroboration one sentence earlier
+      (`_resolve_action_slot` calling `MissionTypeRepository.default()`),
+      but the specific line citation misattributes a template_set-slot
+      docstring sentence to action-sequence resolution.
+    remediation: >-
+      Correct CL-004's "Corroborating" sentence to either drop the
+      859-860 citation or relabel it accurately as evidence about
+      template_set resolution (a sibling, similarly builtin-only
+      projection), not action-sequence resolution — before it is copied
+      into the WP01 ADR or any implementer-facing doc.
