@@ -1,7 +1,7 @@
 {
   "rows": {
     "#3133": {
-      "evidence_ref": "Open issue; cited in spec.md/plan.md as a prior example of this repo's silent-success defect class, to motivate design. Context only; not addressed by this mission.",
+      "evidence_ref": "Open issue; cited in spec.md/plan.md as a prior example of this repo's silent-success defect class, to motivate design. Context only; not addressed by this mission. Follow-up: #3133 (tracked in its own open issue).",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -13,7 +13,7 @@
       "wp": null
     },
     "#3212": {
-      "evidence_ref": "Open issue; cited in spec.md/plan.md as a prior example of this repo's silent-success defect class, to motivate design. Context only; not addressed by this mission.",
+      "evidence_ref": "Open issue; cited in spec.md/plan.md as a prior example of this repo's silent-success defect class, to motivate design. Context only; not addressed by this mission. Follow-up: #3212 (tracked in its own open issue).",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -25,7 +25,7 @@
       "wp": null
     },
     "#3282": {
-      "evidence_ref": "Open issue; cited in spec.md/plan.md as a prior example of this repo's silent-success defect class, to motivate design. Context only; not addressed by this mission.",
+      "evidence_ref": "Open issue; cited in spec.md/plan.md as a prior example of this repo's silent-success defect class, to motivate design. Context only; not addressed by this mission. Follow-up: #3282 (tracked in its own open issue).",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -46,6 +46,18 @@
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
       "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3311": {
+      "evidence_ref": "Closed issue. Cited in tasks.md/WP02/WP06 only to disambiguate an unrelated same-repo provenance-preservation guard test from this mission's own tests. Not addressed by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
       "wp": null
     },
     "#3336": {
@@ -95,6 +107,18 @@
       "title": "<fill at WP-implementation time>",
       "verdict": "in-mission",
       "wp": "WP04"
+    },
+    "#394": {
+      "evidence_ref": "Closed issue. Cited in plan.md as prior art for an already-enforced patch()-target-string validation gate ('[ENFORCED] Validate patch() target strings (closes #394)'). Context only; not addressed by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
     }
   },
   "schema_version": 1
