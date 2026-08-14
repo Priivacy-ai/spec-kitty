@@ -105,7 +105,8 @@
         "Единый caller-owned lifecycle root реализован и подтверждён 301 профильной проверкой; primary checkout не мутируется, conflict fail-closed.",
         "REQUEST_CHANGES: полный lifecycle RED/GREEN oracle и repo-wide architectural guard.",
         "Полный caller-owned lifecycle, repo-wide guard и status transaction dual-root исправлены; 195 тестов, Ruff, py_compile, strict mypy helper и codemap gates прошли.",
-        "Cycle 4 fixes production task transitions and repo-wide root guard"
+        "Cycle 4 fixes production task transitions and repo-wide root guard",
+        "Cycle 4: production mark-status and move-task e2e; dynamic src-wide root authority guard"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
