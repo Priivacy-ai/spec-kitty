@@ -27,7 +27,6 @@ that reads the environment directly still lands under ``tmp_path``.
 
 from __future__ import annotations
 
-import contextlib
 import pathlib
 import sqlite3
 import sys
@@ -121,166 +120,14 @@ def _build_minimal_repo(tmp_path: Path, mission_slug: str) -> Path:
 # ---------------------------------------------------------------------------
 # Test A — authenticated setup-plan lands queue writes in scoped DB
 # ---------------------------------------------------------------------------
-
-
-class TestAuthenticatedSetupPlanLandsInScoped:
-    """FR-012 evidence: authenticated setup-plan writes scoped, never legacy."""
-
-    def test_authenticated_setup_plan_lands_in_scoped(
-        self,
-        tmp_path: Path,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        # NFR-001: redirect HOME so any queue DB lands under tmp_path.
-        home = tmp_path / "home"
-        home.mkdir()
-        monkeypatch.setenv("HOME", str(home))
-
-        # Authenticate via credentials file (the credentials path is the
-        # documented fallback for ``read_queue_scope_from_credentials``).
-        _write_credentials(
-            home,
-            username="auth@example.com",
-            server_url="https://test.example.com",
-            team_slug="team-alpha",
-        )
-
-        # Eagerly resolve the expected scoped DB path so we can assert on it
-        # after setup-plan runs.
-        from specify_cli.sync.queue import (
-            _legacy_queue_db_path,
-            build_queue_scope,
-            default_queue_db_path,
-            scope_db_path,
-        )
-
-        expected_scope = build_queue_scope(
-            server_url="https://test.example.com",
-            username="auth@example.com",
-            team_slug="team-alpha",
-        )
-        expected_scoped_path = scope_db_path(expected_scope)
-        legacy_path = _legacy_queue_db_path()
-
-        # Sanity check: the resolution chain picks scoped for our fake creds
-        # before we ever call setup-plan.
-        assert default_queue_db_path() == expected_scoped_path
-        assert default_queue_db_path() != legacy_path
-
-        # Build minimal project root + mission directory.
-        mission_slug = "test-mvp-sync-evidence"
-        feature_dir = _build_minimal_repo(tmp_path, mission_slug)
-
-        # Stub out the heavy moving parts so setup-plan executes its real
-        # queue-write call site (``trigger_feature_dossier_sync_if_enabled``
-        # → ``OfflineBodyUploadQueue()`` → ``default_queue_db_path()``)
-        # without needing a real indexer/manifest/git history.
-        from specify_cli.sync.body_queue import OfflineBodyUploadQueue
-        from specify_cli.cli.commands.agent.mission import setup_plan
-
-        # Surface the body queue the dossier helper instantiated so we can
-        # both verify its db_path AND drive a real enqueue against it to
-        # prove the row lands in the scoped DB.
-        created_queues: list[OfflineBodyUploadQueue] = []
-
-        original_init = OfflineBodyUploadQueue.__init__
-
-        def _record_init(self: OfflineBodyUploadQueue, *args: Any, **kwargs: Any) -> None:
-            original_init(self, *args, **kwargs)
-            created_queues.append(self)
-
-        patches = {
-            f"{MODULE}.locate_project_root": patch(
-                f"{MODULE}.locate_project_root", return_value=tmp_path
-            ),
-            f"{MODULE}._enforce_git_preflight": patch(
-                f"{MODULE}._enforce_git_preflight"
-            ),
-            f"{MODULE}._find_feature_directory": patch(
-                f"{MODULE}._find_feature_directory", return_value=feature_dir
-            ),
-            f"{MODULE}._show_branch_context": patch(
-                f"{MODULE}._show_branch_context", return_value=(tmp_path, "main")
-            ),
-            f"{MODULE}.get_current_branch": patch(
-                f"{MODULE}.get_current_branch", return_value="main"
-            ),
-            # Spec must be flagged as committed + substantive without git.
-            "specify_cli.missions._substantive.is_committed": patch(
-                "specify_cli.missions._substantive.is_committed", return_value=True
-            ),
-            "specify_cli.missions._substantive.is_substantive": patch(
-                "specify_cli.missions._substantive.is_substantive", return_value=True
-            ),
-            # Plan commit path: stub git-side _commit_to_branch.
-            f"{MODULE}._commit_to_branch": patch(
-                f"{MODULE}._commit_to_branch"
-            ),
-            # Record every body-queue creation so we can assert the path.
-            "specify_cli.sync.body_queue.OfflineBodyUploadQueue.__init__": patch(
-                "specify_cli.sync.body_queue.OfflineBodyUploadQueue.__init__",
-                autospec=True,
-                side_effect=_record_init,
-            ),
-        }
-
-        for p in patches.values():
-            p.start()
-        try:
-            with contextlib.suppress(typer.Exit, SystemExit):
-                setup_plan(feature=mission_slug, json_output=True)
-        finally:
-            for p in patches.values():
-                p.stop()
-
-        # If the dossier helper ran, it created an OfflineBodyUploadQueue
-        # without a db_path argument; that constructor must resolve to the
-        # scoped path. Some test environments will skip the dossier helper
-        # (SaaS sync disabled / no project UUID), so we additionally exercise
-        # the explicit default-path queue instantiation below.
-        for q in created_queues:
-            assert q.db_path == expected_scoped_path, (
-                f"OfflineBodyUploadQueue resolved to {q.db_path!r}, "
-                f"expected scoped {expected_scoped_path!r} — FR-012 violation."
-            )
-
-        # Drive a real enqueue through the same default-path resolution
-        # setup-plan's body queue uses, to produce a row we can count.
-        from specify_cli.sync.namespace import NamespaceRef
-
-        body_queue = OfflineBodyUploadQueue()
-        assert body_queue.db_path == expected_scoped_path
-
-        body_queue.enqueue(
-            namespace=NamespaceRef(
-                project_uuid="550e8400-e29b-41d4-a716-446655440000",
-                mission_slug=mission_slug,
-                target_branch="main",
-                mission_type="software-dev",
-                manifest_version="1",
-            ),
-            artifact_path="spec.md",
-            content_hash="cafebabe" * 8,
-            content_body="# Test Feature\n",
-            size_bytes=15,
-        )
-
-        # Scoped DB should have rows; legacy must be untouched.
-        scoped_rows = _table_row_count(expected_scoped_path, "body_upload_queue")
-        legacy_body_rows = _table_row_count(legacy_path, "body_upload_queue")
-        legacy_event_rows = _table_row_count(legacy_path, "queue")
-
-        assert scoped_rows > 0, (
-            f"Expected scoped body_upload_queue rows > 0, got {scoped_rows}."
-        )
-        assert legacy_body_rows == 0, (
-            f"FR-012 violation: legacy DB at {legacy_path} has "
-            f"{legacy_body_rows} body_upload_queue rows."
-        )
-        assert legacy_event_rows == 0, (
-            f"FR-012 violation: legacy DB at {legacy_path} has "
-            f"{legacy_event_rows} queue rows."
-        )
+#
+# ``TestAuthenticatedSetupPlanLandsInScoped::test_authenticated_setup_plan_lands_in_scoped``
+# was extracted to
+# ``tests/regression/test_issue_3425_setup_plan_legacy_layout_silent_capture.py``
+# (2026-08-14 landing fold) — it is a red-first reproduction of open bug #3425
+# (un-migrated hosts raise ``LegacyQueueMigrationRequiredError`` before any
+# queue write is attempted), not a stale test of this module. See that
+# module's docstring for the mechanism.
 
 
 # ---------------------------------------------------------------------------
@@ -485,80 +332,16 @@ def _patches_for_setup_plan(
 
 
 class TestSetupPlanPreflightIntegration:
-    """WP04 T019: setup-plan refuses on boundary failure before any enqueue."""
+    """WP04 T019: setup-plan refuses on boundary failure before any enqueue.
 
-    def test_setup_plan_refuses_on_daemon_owner_mismatch(
-        self,
-        tmp_path: Path,
-        monkeypatch: pytest.MonkeyPatch,
-        capsys: pytest.CaptureFixture[str],
-    ) -> None:
-        """A daemon owner record with a mismatched ``package_version``
-        must cause ``setup-plan`` to refuse with exit code 2 — and no
-        scoped / legacy queue rows may exist after refusal."""
-        _scope_home_classmethod(monkeypatch, tmp_path)
-        monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-
-        # Authenticate so the FR-011 auth refusal does NOT short-circuit;
-        # this isolates the boundary preflight as the load-bearing gate.
-        _write_credentials(
-            tmp_path,
-            username="auth@example.com",
-            server_url="https://test.example.com",
-            team_slug="team-alpha",
-        )
-
-        # Write a daemon owner record with a mismatched package_version
-        # so the boundary preflight surfaces a ``daemon_package_version``
-        # mismatch against whatever ``_get_package_version()`` resolves
-        # in the foreground.
-        _write_daemon_owner_record(
-            package_version="0.0.0-mismatched-sentinel-version",
-            server_url="https://test.example.com",
-            auth_principal="auth@example.com",
-            auth_team="team-alpha",
-        )
-
-        from specify_cli.cli.commands.agent.mission import setup_plan
-
-        mission_slug = "wp04-mismatch-test"
-        feature_dir = _build_minimal_repo(tmp_path, mission_slug)
-
-        expected_scoped = _scoped_db_path_for(
-            "https://test.example.com", "auth@example.com", "team-alpha"
-        )
-        from specify_cli.sync.queue import _legacy_queue_db_path
-        legacy_path = _legacy_queue_db_path()
-
-        patches = _patches_for_setup_plan(tmp_path, feature_dir)
-        for p in patches.values():
-            p.start()
-        try:
-            with pytest.raises((typer.Exit, SystemExit)) as exc_info:
-                setup_plan(feature=mission_slug, json_output=False)
-        finally:
-            for p in patches.values():
-                p.stop()
-
-        exit_code = getattr(exc_info.value, "exit_code", None) or getattr(
-            exc_info.value, "code", None
-        )
-        assert exit_code == 2, (
-            f"Expected exit 2 on daemon-owner mismatch, got {exit_code!r}."
-        )
-
-        captured = capsys.readouterr()
-        combined = captured.out + captured.err
-        # Refusal banner + mismatch row should appear in the diagnostic.
-        assert "Refusing" in combined, (
-            f"Expected refusal banner in output, got:\n{combined!r}"
-        )
-
-        # No queue writes — neither scoped nor legacy DB rows exist.
-        assert _table_row_count(expected_scoped, "body_upload_queue") == 0
-        assert _table_row_count(expected_scoped, "queue") == 0
-        assert _table_row_count(legacy_path, "body_upload_queue") == 0
-        assert _table_row_count(legacy_path, "queue") == 0
+    ``test_setup_plan_refuses_on_daemon_owner_mismatch`` and
+    ``test_setup_plan_authenticated_coherent_succeeds`` were extracted to
+    ``tests/regression/test_issue_3425_setup_plan_legacy_layout_silent_capture.py``
+    (2026-08-14 landing fold) — both are red-first reproductions of open bug
+    #3425 (the FR-011 auth-refusal gate fires before the boundary preflight
+    can be exercised on an un-migrated host), not stale tests of this class.
+    See that module's docstring for the mechanism.
+    """
 
     def test_setup_plan_refuses_on_orphan_owner_record(
         self,
@@ -677,58 +460,6 @@ class TestSetupPlanPreflightIntegration:
         assert "SaaS sync cannot be guaranteed" in combined, (
             f"Expected FR-011 phrase (auth gate fired first), got:\n{combined!r}"
         )
-
-    def test_setup_plan_authenticated_coherent_succeeds(
-        self,
-        tmp_path: Path,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """Positive case: coherent host (no owner record, no legacy rows,
-        valid auth) — ``setup-plan`` runs through the preflight and
-        reaches the queue-write call sites successfully."""
-        _scope_home_classmethod(monkeypatch, tmp_path)
-        monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-
-        _write_credentials(
-            tmp_path,
-            username="auth@example.com",
-            server_url="https://test.example.com",
-            team_slug="team-alpha",
-        )
-
-        # No daemon owner record on disk and no legacy queue rows means
-        # the preflight is structurally ok and the auth check passes.
-
-        from specify_cli.cli.commands.agent.mission import setup_plan
-
-        mission_slug = "wp04-coherent-test"
-        feature_dir = _build_minimal_repo(tmp_path, mission_slug)
-
-        patches = _patches_for_setup_plan(tmp_path, feature_dir)
-        # Additionally suppress the dossier helper so we don't depend
-        # on its full call graph; the preflight ran BEFORE it would
-        # be called, and that's what we're proving.
-        patches[f"{MODULE}.logger"] = patch(f"{MODULE}.logger")
-        for p in patches.values():
-            p.start()
-        try:
-            # The function may still raise typer.Exit for downstream
-            # reasons (no real plan template installed in tmp_path);
-            # we only care that the boundary preflight DID NOT refuse.
-            try:
-                setup_plan(feature=mission_slug, json_output=True)
-            except (typer.Exit, SystemExit) as exc:
-                # Exit 2 means preflight refused; that must not happen
-                # here. Any other exit code is acceptable for the
-                # purposes of this test (we just want past the gate).
-                code = getattr(exc, "exit_code", None) or getattr(exc, "code", None)
-                assert code != 2, (
-                    "Coherent host should pass preflight; got exit 2 "
-                    "(preflight refusal) instead."
-                )
-        finally:
-            for p in patches.values():
-                p.stop()
 
 
 # ---------------------------------------------------------------------------
