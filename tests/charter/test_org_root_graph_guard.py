@@ -580,6 +580,43 @@ _DRG_GRAPH_YAML_MIXED_2R1D = textwrap.dedent(
 )
 
 
+#: PR-FRESH2-002 regression fixture: a triple duplicated 3x WITHIN the drg/
+#: fragment alongside a single root occurrence (1x root + 3x drg/) -- pins
+#: the GENERAL rule ("collapse only when each source has exactly one
+#: occurrence") rather than the count=2 boundary the PR-FRESH-001 fixtures
+#: above happen to exercise (1x root + 2x drg/, 2x root + 1x drg/). A future
+#: rewrite that special-cased "total occurrences == 3" (matching only those
+#: two pinned shapes) instead of implementing the general per-source-count
+#: rule would pass every existing test in this module while still mishandling
+#: this 4-occurrence case.
+_MIXED_1R3D_SOURCE_URN = "directive:org-mixed-1r3d-source-3384"
+_MIXED_1R3D_TARGET_URN = "directive:org-mixed-1r3d-target-3384"
+_ROOT_GRAPH_YAML_MIXED_1R3D = textwrap.dedent(
+    f"""\
+    schema_version: '1.0'
+    generated_at: '2026-08-13T00:00:00Z'
+    generated_by: test
+    nodes:
+      - {{urn: '{_MIXED_1R3D_SOURCE_URN}', kind: directive}}
+      - {{urn: '{_MIXED_1R3D_TARGET_URN}', kind: directive}}
+    edges:
+      - {{source: '{_MIXED_1R3D_SOURCE_URN}', target: '{_MIXED_1R3D_TARGET_URN}', relation: requires}}
+    """
+)
+_DRG_GRAPH_YAML_MIXED_1R3D = textwrap.dedent(
+    f"""\
+    schema_version: '1.0'
+    generated_at: '2026-08-13T00:00:00Z'
+    generated_by: test
+    nodes: []
+    edges:
+      - {{source: '{_MIXED_1R3D_SOURCE_URN}', target: '{_MIXED_1R3D_TARGET_URN}', relation: requires}}
+      - {{source: '{_MIXED_1R3D_SOURCE_URN}', target: '{_MIXED_1R3D_TARGET_URN}', relation: requires}}
+      - {{source: '{_MIXED_1R3D_SOURCE_URN}', target: '{_MIXED_1R3D_TARGET_URN}', relation: requires}}
+    """
+)
+
+
 def _write_org_pack_root_and_drg(
     repo_root: Path, *, root_yaml: str, drg_yaml: str, dir_name: str
 ) -> Path:
@@ -748,6 +785,41 @@ class TestRootAndDrgMerge:
             root_yaml=_ROOT_GRAPH_YAML_MIXED_2R1D,
             drg_yaml=_DRG_GRAPH_YAML_MIXED_2R1D,
             dir_name="mixed-2r1d-fixture-pack",
+        )
+
+        with (
+            patch("charter._drg_helpers.load_built_in_graph", side_effect=_built_in_graph),
+            pytest.raises(DRGValidationError),
+        ):
+            load_validated_graph(repo, org_root=pack_root)
+
+    def test_mixed_one_root_three_drg_duplicate_edge_triple_still_raises(
+        self, tmp_path: Path
+    ) -> None:
+        """PR-FRESH2-002 regression (severity 2, fresh-sweep confirmed).
+
+        Generalises the PR-FRESH-001 mixed-count regression tests above
+        (which pin only the count=2 boundary per source: 1x root + 2x drg/
+        and its 2x root + 1x drg/ mirror) to a 3+-occurrence shape (1x root +
+        3x drg/). The current implementation already handles this correctly
+        -- ``_dedup_org_layer_edges`` only collapses a triple when EACH
+        source has exactly one occurrence, which generalises to any
+        occurrence count -- but a future edit that special-cased the tested
+        count=2/count=3-total boundary instead of implementing the general
+        per-source rule would pass every other test in this module while
+        silently absorbing this 4-occurrence authoring bug. Must still
+        reach the final ``assert_valid`` and raise ``DRGValidationError``.
+        """
+        from charter._drg_helpers import load_validated_graph
+        from doctrine.drg.validator import DRGValidationError
+
+        repo = tmp_path / "mixed_1r_3d"
+        repo.mkdir()
+        pack_root = _write_org_pack_root_and_drg(
+            repo,
+            root_yaml=_ROOT_GRAPH_YAML_MIXED_1R3D,
+            drg_yaml=_DRG_GRAPH_YAML_MIXED_1R3D,
+            dir_name="mixed-1r3d-fixture-pack",
         )
 
         with (
