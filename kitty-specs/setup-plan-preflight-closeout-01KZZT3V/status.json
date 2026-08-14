@@ -20,34 +20,17 @@
     "WP01": {
       "actor": "merge",
       "agent": "codex",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M00A83F3F620CBBQ46Y9CM2Y",
       "last_transition_at": "2026-08-14T14:19:06.595203+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Готово к review: отдельные RED/GREEN commits, caller-owned integration, mutation kills и static/codemap gates подтверждены."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: блокеров нет; RED воспроизведён, GREEN 14/14, Ruff, strict mypy, py_compile, diff-check и codemap fingerprints зелёные; exact scope 8 owned files, lane clean.",
         "reviewer": "rusliksu",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 22252,
-      "shell_pid_created_at": "1786714241.0462925",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done",
-        "T006": "done",
-        "T007": "done"
-      }
+      "shell_pid": 24124,
+      "shell_pid_created_at": "1786711336.3739336"
     }
   }
 }
