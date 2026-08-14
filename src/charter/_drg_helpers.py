@@ -24,6 +24,7 @@ to :func:`load_validated_graph`.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 
 from doctrine.drg.loader import (
@@ -33,7 +34,7 @@ from doctrine.drg.loader import (
     load_graph_or_dir,
     merge_layers,
 )
-from doctrine.drg.models import DRGGraph
+from doctrine.drg.models import DRGEdge, DRGGraph
 from doctrine.drg.validator import assert_valid, duplicate_edge_triples
 
 
@@ -76,14 +77,37 @@ def _load_org_drg_fragment(drg_dir: Path) -> DRGGraph:
         ) from exc
 
 
-def _dedup_org_layer_edges(graph: DRGGraph) -> DRGGraph:
-    """Collapse identically-repeated (source, target, relation) triples to one.
+def _dedup_org_layer_edges(
+    graph: DRGGraph,
+    *,
+    root_edges: Sequence[DRGEdge],
+    drg_edges: Sequence[DRGEdge],
+) -> DRGGraph:
+    """Collapse identically-repeated (source, target, relation) triples to one
+    -- but ONLY when the retained and dropped occurrences come from
+    DIFFERENT org-layer sources (the root graph vs. the ``drg/`` fragment).
 
-    Scoped strictly to the org-internal root+drg/ sub-merge (FR-003) -- a
-    duplicate between the org layer and the built-in/project layers is a
-    different scope and continues to raise at the final ``assert_valid``.
+    Scoped strictly to genuinely cross-source duplicates within the
+    org-internal root+drg/ sub-merge (FR-003): a triple repeated twice
+    within the SAME source (both occurrences in the root graph, or both in
+    the ``drg/`` fragment) is a plain authoring bug unrelated to the merge
+    and must keep reaching the final ``assert_valid``/``DRGValidationError``
+    exactly as it did before this mission -- collapsing it here would
+    silently absorb a real defect. A duplicate between the org layer and the
+    built-in/project layers is a different scope again and, likewise,
+    continues to raise at the final ``assert_valid``.
+
+    *root_edges*/*drg_edges* are the edge lists of the two pre-merge source
+    graphs. :func:`~doctrine.drg.loader.merge_layers` combines edges via
+    plain list concatenation (no copying), so every edge object in *graph*
+    is identity-preserved from one of these two lists -- used here only to
+    classify which source a given edge came from, not to redefine what
+    counts as a duplicate triple.
+
     Reuses the canonical :func:`duplicate_edge_triples` definition of
-    "duplicate" (C-001) rather than reimplementing the comparison.
+    "duplicate" (C-001) to find every 2nd+ occurrence of a triple; the
+    same-source-vs-cross-source classification is a provenance check layered
+    on top of that result.
 
     Filters by object identity (``id(e)``), not value/triple equality:
     ``DRGEdge`` has no custom ``__eq__``, so two identical-triple edges with
@@ -91,8 +115,32 @@ def _dedup_org_layer_edges(graph: DRGGraph) -> DRGGraph:
     other -- a value-equality filter would drop *both* copies, leaving zero
     retained edges instead of the required exactly one.
     """
-    duplicate_ids = {id(edge) for edge in duplicate_edge_triples(graph)}
-    deduped_edges = [edge for edge in graph.edges if id(edge) not in duplicate_ids]
+    root_ids = frozenset(id(edge) for edge in root_edges)
+    drg_ids = frozenset(id(edge) for edge in drg_edges)
+
+    def _source_of(edge: DRGEdge) -> str:
+        if id(edge) in root_ids:
+            return "root"
+        if id(edge) in drg_ids:
+            return "drg"
+        raise AssertionError(  # pragma: no cover -- see docstring: unreachable
+            f"edge {edge!r} is not identity-present in either org-layer source"
+        )
+
+    retained_source_by_triple: dict[tuple[str, str, str], str] = {}
+    for edge in graph.edges:
+        triple = (edge.source, edge.target, edge.relation.value)
+        retained_source_by_triple.setdefault(triple, _source_of(edge))
+
+    cross_source_duplicate_ids = {
+        id(edge)
+        for edge in duplicate_edge_triples(graph)
+        if _source_of(edge)
+        != retained_source_by_triple[(edge.source, edge.target, edge.relation.value)]
+    }
+    deduped_edges = [
+        edge for edge in graph.edges if id(edge) not in cross_source_duplicate_ids
+    ]
     return graph.model_copy(update={"edges": deduped_edges})
 
 
@@ -108,9 +156,14 @@ def _load_org_layer(org_root: Path) -> DRGGraph | None:
     When both a root-level graph and a ``drg/`` fragment are present, they
     are merged via :func:`merge_layers` (root as ``built_in``, ``drg/`` as
     ``project`` -- ``drg/`` wins on same-URN node-label conflicts) and any
-    edge triple duplicated identically across the two sources is collapsed
+    edge triple duplicated identically across the two sources (one
+    occurrence in the root graph, one in the ``drg/`` fragment) is collapsed
     to exactly one retained copy via :func:`_dedup_org_layer_edges` (FR-003,
-    IC-02).
+    IC-02). A triple duplicated within a single source is a same-file
+    authoring bug, not a cross-source merge artifact -- it is left alone
+    here and still raises ``DRGValidationError`` at the final
+    ``assert_valid`` in :func:`load_validated_graph`, exactly as it did
+    before this mission.
 
     Malformed content (invalid YAML or schema-invalid) at either location
     raises :class:`OrgDRGFragmentError` (FR-004, IC-03). The root-level load
@@ -129,8 +182,12 @@ def _load_org_layer(org_root: Path) -> DRGGraph | None:
         return _load_org_root_graph(org_root)
     if not has_root_graph:
         return _load_org_drg_fragment(drg_dir)
-    merged_org = merge_layers(_load_org_root_graph(org_root), _load_org_drg_fragment(drg_dir))
-    return _dedup_org_layer_edges(merged_org)
+    root_graph = _load_org_root_graph(org_root)
+    drg_graph = _load_org_drg_fragment(drg_dir)
+    merged_org = merge_layers(root_graph, drg_graph)
+    return _dedup_org_layer_edges(
+        merged_org, root_edges=root_graph.edges, drg_edges=drg_graph.edges
+    )
 
 
 def _resolve_org_root(_repo_root: Path) -> Path | None:
