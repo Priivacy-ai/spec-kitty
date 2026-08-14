@@ -1,0 +1,18 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 1
+verdicts:
+  - id: PR-BOUNDARY-001
+    verdict: confirmed
+    reason: "mission_type.py:106 does `from charter.mission_type_profiles import _resolve_action_sequence_layer` (defined at mission_type_profiles.py:827, underscore-prefixed, absent from __all__ at lines 73-83) while the line above (84) reaches the equivalent roster only via the `charter.missions` facade, which re-exports `resolve_layered_mission_types` but never `_resolve_action_sequence_layer` — confirmed by grep of src/charter/missions.py."
+  - id: PR-BOUNDARY-002
+    verdict: confirmed
+    reason: "`class MissionTypeEmptyActionSequenceError(ValueError)` is defined at mission_type_profiles.py:259, is imported by explicit name at mission_type.py:32 and referenced in a comment at charter/activate.py:184, yet __all__ (mission_type_profiles.py:73-83) lists only UnknownMissionTypeError and 8 other names, omitting it."
+  - id: PR-CONTRACT-001
+    verdict: confirmed
+    reason: "Direct inspection confirms `class UnknownMissionTypeError(ValueError)` (line 194) and `class MissionTypeEmptyActionSequenceError(ValueError)` (line 259) are both direct ValueError subclasses with no relationship; show_mission_type's try/except (mission_type.py:1450-1458) catches only UnknownMissionTypeError, and resolve_mission_type_context (called at line 1451, inside the try) eagerly calls _resolve_action_slot which raises MissionTypeEmptyActionSequenceError (mission_type_profiles.py:934-950) for a registered type with an empty own+inherited action sequence, so the exception is genuinely uncaught; charter_mission_type_list (charter/mission_type.py:155-160) does catch it, confirming the intent-but-missed pattern."
+  - id: PR-CONTRACT-002
+    verdict: confirmed
+    reason: "_declared_id (pack_manager.py:361-377) catches exactly (OSError, YAMLError, TypeError) and returns None causing list_available_detailed (pack_manager.py:826-836) to silently skip the file via scan_dir.rglob(glob); empirically reproduced in /tmp that Path.rglob silently swallows PermissionError on an unreadable subdirectory and returns [] while Path.iterdir() raises it (also documented in mission_type_repository.py:376-382's own comment), and _scan_mission_types_dir (mission_type_repository.py:358-394, used by resolve_layered_mission_types, the post-activation path) deliberately uses iterdir() to raise ValueError instead, confirming the asymmetry the finding describes."

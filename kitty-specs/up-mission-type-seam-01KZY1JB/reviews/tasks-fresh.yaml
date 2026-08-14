@@ -1,0 +1,53 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: up-mission-type-seam-01KZY1JB
+findings:
+  - id: TASKS-FRESH-001
+    lens: canonical-sources-and-workspace-resolution
+    severity: 4
+    title: WP07's new lanes.json-cycle mitigation authorizes bypassing the canonical `spec-kitty implement` workspace path, contradicting CLAUDE.md's binding rule, and is based on an overstated risk the allocator already self-heals
+    evidence:
+      - artifact: "tasks/WP07-cli-surface-fixes.md § Branch Strategy (new paragraph: \"Known `lanes.json` cycle — verify before trusting automatic worktree allocation\")"
+      - artifact: "wps.yaml header comment (new WARNING block, ~20 lines) pointing to the same mitigation"
+      - artifact: "tracer-tooling-friction.md § \"Friction discovered during the TASKS-phase adversarial fix round\" (new entry)"
+      - code: "src/specify_cli/lanes/worktree_allocator.py:194-207 (reuse-path: `_merge_recorded_planning_commit` then `_merge_dependency_lane_tips`, comment: \"#1684 reuse-path catch-up: a dependency lane may have been approved *after* this worktree was created. Merge any newly-approved dep tips... Idempotent: already-merged tips are ancestors and skip.\")"
+      - code: "src/specify_cli/lanes/worktree_allocator.py:456-467 (\"Missing branch → warn + skip... we emit a warning and fall back to the existing base rather than crashing\")"
+      - code: "src/specify_cli/lanes/worktree_allocator.py:154-159 docstring: \"re-entering a lane after a dependency was approved late (the WP05/WP09 double-hit on 01KTYGTE) picks up the newly-approved tip\" — this is a documented, previously-hit, already-fixed scenario of exactly this shape"
+      - artifact: "CLAUDE.md § Execution Workspace Strategy (2.x): \"Implementation: `spec-kitty implement WP##` is the only supported way to prepare a workspace. Agent commands must consume the resolved workspace path, not reconstruct it.\""
+      - artifact: "CLAUDE.md § \"⚠️ CRITICAL: Use Canonical Sources, Never Improvise\": \"Workflows run through the documented `spec-kitty` CLI commands... do not hand-roll equivalents or reconstruct paths the resolver should provide.\""
+    claim: >
+      The fix round added a new WP07 Branch Strategy paragraph and a matching wps.yaml header
+      warning instructing the operator/implementer that, if lane-a's worktree doesn't already
+      contain lane-b's/lane-c's merged tips before WP07 starts, they may "bypass automatic
+      lane-based allocation for WP07 and construct its workspace directly against the mission
+      coordination branch... instead of trusting lanes.json's lane-a allocation path." This
+      directly authorizes exactly what CLAUDE.md's Execution Workspace Strategy section calls
+      CRITICAL and forbids: hand-constructing a workspace instead of using
+      `spec-kitty implement WP##`, the only supported preparation path. It is also solving a
+      problem the allocator already solves safely by design: `allocate_lane_worktree`'s reuse
+      path (worktree_allocator.py:194-207) explicitly re-runs `_merge_dependency_lane_tips` on
+      every reuse specifically to catch up a dependency lane "approved *after* this worktree was
+      created" (comment cites a prior real incident, "the WP05/WP09 double-hit on 01KTYGTE"), and
+      a not-yet-existing dependency branch is handled as "warn + skip... fall back to the existing
+      base rather than crashing" (worktree_allocator.py:456-467) — never a merge of "content that
+      does not exist yet" as the tracer entry characterizes it. Since WP07's own WP-level
+      `dependencies: [WP05, WP06]` already gates its claim/start until those WPs are
+      approved/done (per CLAUDE.md's Status Model Patterns dependency-gating rule), by the time
+      WP07 can actually be claimed, lane-b's and lane-c's branches are guaranteed to exist and the
+      idempotent catch-up merge will succeed cleanly on the ordinary `spec-kitty implement WP07`
+      path — the manual-verify-or-bypass instruction is unnecessary defensive guidance whose
+      "bypass" branch is an active doctrine violation if an implementer actually follows it.
+    remediation: >
+      Remove the "or bypass automatic lane-based allocation... construct its workspace directly
+      against the mission coordination branch" sentence from WP07's Branch Strategy section and
+      from wps.yaml's header warning — it authorizes a documented CRITICAL violation. If residual
+      caution is wanted, replace it with a verification-only instruction (confirm
+      `git merge-base --is-ancestor <lane-b tip> HEAD` inside the lane-a worktree that
+      `spec-kitty implement WP07` produces) and drop the reconstruct-the-workspace fallback
+      entirely; note in tracer-tooling-friction.md that the reuse-path catch-up
+      (`_merge_dependency_lane_tips`, `worktree_allocator.py:194-207`) is a documented, precedented
+      (#1684, the WP05/WP09 01KTYGTE incident) self-healing mechanism for exactly this
+      write-scope-overlap-induced lane cycle, not an unmitigated landmine.
