@@ -12,9 +12,7 @@ title: "Baseline Capture & Pre-Existing Failure Audit"
 task_type: "implement"
 phase: "Phase 0 - Baseline"
 execution_mode: "planning_artifact"
-owned_files:
-  - "kitty-specs/bare-prose-requirements-uncounted-01KZYV3C/tracer-tooling-friction.md"
-  - "kitty-specs/bare-prose-requirements-uncounted-01KZYV3C/tracer-approach.md"
+owned_files: []
 authoritative_surface: "kitty-specs/bare-prose-requirements-uncounted-01KZYV3C/"
 create_intent: []
 agent_profile: ""

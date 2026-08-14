@@ -1,7 +1,7 @@
 # Implementation Plan: Bare-Prose Requirements Are Silently Uncounted by the Coverage Gate
 
 **Branch**: `pr/bare-prose-requirements-uncounted` | **Date**: 2026-08-14 | **Spec**: `kitty-specs/bare-prose-requirements-uncounted-01KZYV3C/spec.md`
-**Input**: Feature specification from `kitty-specs/bare-prose-requirements-uncounted-01KZYV3C/spec.md`
+**Input**: Mission specification from `kitty-specs/bare-prose-requirements-uncounted-01KZYV3C/spec.md`
 
 **Note**: This template is filled in by the `/spec-kitty.plan` command. See `src/doctrine/missions/software-dev/command-templates/plan.md` for the execution workflow.
 
