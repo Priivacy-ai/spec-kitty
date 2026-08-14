@@ -415,6 +415,9 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     # #2335: the for_review deliverable-recovery pair (lane porcelain parser +
     # pre-guard auto-commit) joins the family surface like every other def.
     _lane_deliverable_paths as _lane_deliverable_paths,
+    # write-path-integrity WP02 (#2549, FR-003): the Seam-A residue filter for
+    # the raw lane-deliverable commit joins the family surface like every other def.
+    _drop_lane_coord_residue as _drop_lane_coord_residue,
     _mt_approval_facts as _mt_approval_facts,
     _mt_build_request as _mt_build_request,
     # WP06 (wp-runtime-state-eviction, FR-006/FR-008, T023): the god-write cut

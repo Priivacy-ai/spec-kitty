@@ -226,6 +226,12 @@ _ARCH_SHARD_2_FILES: tuple[str, ...] = (
     # tied lightest by file count (38 vs 38/45, before the sibling above's
     # shard_1 append) when this file landed, so it lands here to keep the two
     # new siblings balanced across shards rather than both on one leg.
+    # Added 2026-08-14 (PR #3437 landing pass, mission
+    # write-path-integrity-01KZZD69 WP01 -- the git_topology one-copy gate,
+    # SC-007/SC-008). New file left unregistered by the mission; joins shard_2
+    # (its WP04 sibling test_wp_integrity_partition_call_shape.py lands in
+    # shard_3 to keep the split even).
+    "tests/architectural/test_git_topology_one_copy.py",
 )
 
 _ARCH_SHARD_3_FILES: tuple[str, ...] = (
@@ -315,6 +321,12 @@ _ARCH_SHARD_3_FILES: tuple[str, ...] = (
     # verdict-seam census check). Measured at implementation time by `def
     # test_` count: shard_1=288, shard_2=312, shard_3=286 -- shard_3 was the
     # lightest, so this 18-test file lands here.
+    # Added 2026-08-14 (PR #3437 landing pass, mission
+    # write-path-integrity-01KZZD69 WP04 -- the FR-011 partition call-shape
+    # gate). New file left unregistered by the mission; lands in shard_3 (its
+    # WP01 sibling test_git_topology_one_copy.py lands in shard_2 to keep the
+    # split even).
+    "tests/architectural/test_wp_integrity_partition_call_shape.py",
 )
 
 # ``relpath -> shard`` for exact-file (architectural) units.
