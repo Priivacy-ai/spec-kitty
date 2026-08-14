@@ -1,0 +1,24 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: >-
+      T005's "Flat-only" case now embeds a direct resolve_artifact_urn call against a
+      flat-only fixture (no built-in/ directory) asserting no-raise, and the "Which test
+      proves which scenario" note explicitly attributes this case to User Story 1
+      Acceptance Scenario 2, distinct from the "Same-config-stem precedence" case's proof
+      of Acceptance Scenario 4.
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: >-
+      T001 step 6 now names load_validated_graph(repo_root, org_root=<org_root>) (or the
+      merge_layers equivalent) as the required mechanism, explains that the no-op
+      _resolve_org_root fallback silently drops the org node if org_root is omitted, and
+      the Risks section adds the "graph-merge never wired to org_root" failure mode
+      alongside the pre-existing "wrong exception type" risk; verified against the live
+      codebase that action_doctrine_bundle.py:165 is the sole call site anywhere in src/
+      passing a non-None org_root= into load_validated_graph, that _resolve_org_root
+      (_drg_helpers.py:39-50) is a hardcoded no-op, and that test_merged_graph_on_live_path.py
+      demonstrates the cited patch("charter._drg_helpers.load_built_in_graph", ...) style.

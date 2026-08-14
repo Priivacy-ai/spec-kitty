@@ -1,0 +1,22 @@
+work_packages:
+  - id: WP01
+    title: "_org_scan_dirs flat-layout fix, red-first"
+    dependencies: []
+    owned_files:
+      - "src/charter/kind_vocabulary.py"
+      - "tests/charter/test_kind_vocabulary_scan_roots.py"
+      - "tests/charter/test_org_scan_dirs_activation_regression.py"
+    create_intent:
+      - "tests/charter/test_org_scan_dirs_activation_regression.py"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+      - T006
+    prompt_file: "tasks/WP01-org-scan-dirs-flat-layout-fix.md"
