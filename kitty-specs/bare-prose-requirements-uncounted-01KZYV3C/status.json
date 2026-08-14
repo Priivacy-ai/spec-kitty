@@ -85,6 +85,9 @@
       "lane": "approved",
       "last_event_id": "01M001X406SBJQAD9J1C1HWSC3",
       "last_transition_at": "2026-08-14T11:53:18.086837+00:00",
+      "notes": [
+        "First pass, no rejections. RED-first ATDD (T020) + wiring (T021-T025) + re-pin (T020 supersede). Detector untouched; WP04 import boundary intact; 789 passed on targeted surface; ruff clean incl C901. Non-blocking notes: (a) 1b5b86e0f commit msg attributes re-pin authority to operator ruling covering only F4 shape -- correct authority is plan.md:209-264 PLAN-GOV-002; (b) status_facts.get default is defensive-only, could use a comment."
+      ],
       "review_result": {
         "reference": "reviewer-renata: approved, no findings >=4; empirically proved wiring via zero-WP-file case across all four guards",
         "reviewer": "reviewer-renata",
