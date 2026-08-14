@@ -222,9 +222,11 @@ specs) using this plan's own documented algorithm ("Architecture" above), with
 `_is_requirement_heading` broadened to also match `"constraint"` — the same corpus-scan
 approach IC-07 already describes for the false-negative sample, reused here rather than
 inventing a new method. **Result: only 5 of 368 specs (1.36%) are newly flagged beyond
-the narrow-heading candidate set (7 candidate tokens total), and manual review of every
-one of those 7 tokens found zero true positives** — the same "foreign-id citation, not a
-lost requirement of this spec" class the settled 9/368 figure already establishes. Two of
+the narrow-heading candidate set (8 candidate tokens total — raw per-occurrence count,
+no dedup step, matching the Architecture section's own algorithm as literally described),
+and manual review of every one of those 8 tokens found zero true positives** — the same
+"foreign-id citation, not a lost requirement of this spec" class the settled 9/368 figure
+already establishes. Two of
 the 5 (`C-009` in
 `coord-read-residuals-merge-lanes-and-identity-routing-01KW2M8V/spec.md`; `C-007` in
 `doctrine-public-api-surface-01KZPDSR/spec.md`) are citations, from inside a genuine
