@@ -3,7 +3,6 @@ work_package_id: WP07
 title: False-Negative Sample + Broadened-Predicate Re-Verification
 dependencies:
 - WP03
-- WP05
 requirement_refs:
 - C-008
 - FR-005

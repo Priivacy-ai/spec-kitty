@@ -695,12 +695,24 @@ FP rate WP03/T015 already recorded, so both figures live in one place.
 
 ### Dependencies
 
-- Depends on WP03 (needs the finalized detector/heading logic to sample against) and
-  WP05 (the chokepoint-serialization note above — this WP is scheduled after WP05
-  alongside WP06, per "Parallelism & Chokepoints"; issue #3396 fixer pass (F2) corrected
-  the frontmatter `dependencies` field from `[WP03]` to `[WP03, WP05]` to make the
-  WP-level dependency gate enforce this edge mechanically instead of relying on prose
-  convention — see tracer-tooling-friction.md).
+- **Depends on WP03 only** (needs the finalized detector/heading logic to sample
+  against) — WP07's frontmatter `dependencies` is `[WP03]`.
+- **Is not dependent on WP05.** WP05's chokepoint status ("no other WP is scheduled
+  concurrently with it") is a *scheduling* constraint the orchestrator honours at
+  dispatch time — it governs when WP07 may start, not what WP07's task list needs.
+  WP07 has no data dependency on WP05: it never reads WP05's outputs and needs none of
+  the `runtime_bridge*` wiring. These are two different ideas and must not be
+  conflated: "scheduled after WP05" (a dispatch-order fact, satisfied by the
+  orchestrator running WP05 to completion before starting WP06/WP07) is not the same
+  claim as "depends on WP05" (a frontmatter `dependencies` edge asserting a data need).
+- Issue #3396 fixer pass (F2) **reverted** an earlier mistake: a prior fixer pass had
+  added `WP05` to this WP's frontmatter `dependencies` (`[WP03]` → `[WP03, WP05]`) to
+  encode the chokepoint mechanically. That encoding was wrong — because WP07 shares
+  lane-b with WP03 (both write `requirement_mapping.py`, collapsed by `compute_lanes`),
+  the borrowed WP05 edge became lane-b's edge too, and since lane-d (WP05) already
+  depends on lane-b (via WP05's real dependency on WP03), the result was a cyclic lane
+  graph: `lane-d → lane-b → lane-d`. The chokepoint is still real and still binding —
+  it is just not a dependency edge. See tracer-tooling-friction.md.
 
 ### Risks & Mitigations
 
