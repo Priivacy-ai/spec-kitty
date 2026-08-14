@@ -2,87 +2,87 @@
   "mission_slug": "linked-worktree-lifecycle-01KZXMC8",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
+      "description": "Caller-owned linked worktree является Mission anchor для lifecycle-команд",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "WP01 и WP03 одобрены независимым reviewer-renata; test_caller_owned_worktree_is_the_mission_anchor; test_context_cli_resolves_caller_owned_mission_without_touching_primary; reviewer slice 62/62",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata + orchestrator",
+      "verified_at": "2026-08-14T06:56:23Z",
+      "notes": "Canonical MissionOperationContext сохраняет repository_root и отдельный mission_anchor_root."
     },
     {
       "criterion_id": "FR-002",
-      "description": "Verify FR-002 is satisfied",
+      "description": "Status, context, planning, tasks, action, next и accept используют одну Mission",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "WP03 одобрен независимо; test_complete_caller_owned_cli_lifecycle_keeps_primary_unchanged и весь tests/integration/test_caller_owned_worktree_lifecycle.py: 14/14",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata + orchestrator",
+      "verified_at": "2026-08-14T06:56:23Z",
+      "notes": "Сквозной тест вызывает реальные mark-status, move-task, review, next и accept, без synthetic append_event для проверяемых переходов."
     },
     {
       "criterion_id": "FR-003",
-      "description": "Verify FR-003 is satisfied",
+      "description": "Полный lifecycle не изменяет tracked-состояние и ветку repository root checkout",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "test_status_cli_reads_caller_surface_and_keeps_primary_clean; test_next_query_uses_caller_anchor_and_keeps_primary_clean; test_accept_diagnose_and_no_commit_use_caller_without_touching_primary; полный lifecycle 14/14",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata + orchestrator",
+      "verified_at": "2026-08-14T06:56:23Z",
+      "notes": "Интеграционные тесты сравнивают branch, HEAD и tracked status primary до и после сценария."
     },
     {
       "criterion_id": "FR-004",
-      "description": "Verify FR-004 is satisfied",
+      "description": "Managed coordination/lane topology сохраняет существующие canonical read/write rules",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "WP02 одобрен независимо; test_managed_lane_preserves_repository_root_anchor; test_placement_threads_anchor_metadata_to_lifecycle_phase; reviewer compatibility slice 62/62",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata + orchestrator",
+      "verified_at": "2026-08-14T06:56:23Z",
+      "notes": "Placement seam использует repository_root для topology и mission_anchor_root только для Mission artifacts."
     },
     {
       "criterion_id": "FR-005",
-      "description": "Verify FR-005 is satisfied",
+      "description": "Несовместимые Mission-кандидаты завершаются fail-closed без записи",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "test_context_cli_fails_closed_on_caller_primary_identity_conflict; test_slug_or_full_id_split_brain_fails_closed; architecture pair 28/28",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata + orchestrator",
+      "verified_at": "2026-08-14T06:56:23Z",
+      "notes": "Legacy fallback перехватывает только canonical MissionNotFound; conflict, ambiguity и другие ошибки остаются fail-loud."
     },
     {
       "criterion_id": "FR-006",
-      "description": "Verify FR-006 is satisfied",
+      "description": "Явно переданный repository root не подменяется текущим каталогом",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "test_explicit_root_does_not_expand_candidates_through_cwd; test_foreign_git_common_directory_is_not_a_candidate; reviewer slice 62/62",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata + orchestrator",
+      "verified_at": "2026-08-14T06:56:23Z",
+      "notes": "Candidate expansion ограничена общей Git identity и explicit-root contract."
     },
     {
       "criterion_id": "FR-007",
-      "description": "Verify FR-007 is satisfied",
+      "description": "Все lifecycle-команды сохраняют единую Mission identity и canonical path",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "test_context_cli_resolves_caller_owned_mission_without_touching_primary; test_tasks_status_reads_caller_planning_and_status_surfaces; test_complete_caller_owned_cli_lifecycle_keeps_primary_unchanged; production lifecycle 14/14",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata + orchestrator",
+      "verified_at": "2026-08-14T06:56:23Z",
+      "notes": "Operation context и placement передаются через production command boundaries без повторного выбора Mission surface."
     },
     {
       "criterion_id": "FR-008",
-      "description": "Verify FR-008 is satisfied",
+      "description": "Параллельные caller-owned worktree независимо разрешают собственные Mission",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "test_two_caller_worktrees_resolve_only_their_own_missions; test_parallel_caller_worktrees_resolve_only_their_own_mission; test_resolution_is_deterministic_across_one_hundred_calls",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata + orchestrator",
+      "verified_at": "2026-08-14T06:56:23Z",
+      "notes": "Два linked worktree одного common Git repository не смешивают Mission candidates."
     }
   ],
   "negative_invariants": []
