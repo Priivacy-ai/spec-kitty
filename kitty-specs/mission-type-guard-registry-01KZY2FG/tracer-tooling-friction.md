@@ -404,3 +404,53 @@ Identical gate/root-cause to entry 9 (which hit it from WP02's side). Not re-inv
 only the CLI-driven `doing` -> `for_review` status transition is blocked by this shared,
 already-tracked gate. Recorded here so a reader of WP01's activity log does not have to
 re-derive that this is the same defect as entry 9, not a second independent one.
+
+## 12. Independent re-verification + re-record closes entries 9-11's gate; entry 8's
+    dirty-worktree preflight friction recurs, this time on the charter-downgrade files
+
+**Verified first-hand** (Debugger Debbie profile, dispatched specifically for an independent
+re-verification, not a rubber stamp), same checkout, spec-kitty 3.2.5 (PATH-installed CLI).
+
+Re-verified coverage (11/11 FR, 4/4 NFR, C-001/C-002 code-mapped, C-003/004/005 process-only —
+no orphan), cross-artifact consistency (spec.md/plan.md/tasks.md/WP01/WP02 agree on file paths,
+gate sets, and the loud-block-vs-neutral-degrade split), and spot-checked the specific
+non-uniform citation shifts the orchestrator flagged as highest-risk
+(`runtime_bridge.py:399-405`'s WARNING-log precedent, +51; `runtime_bridge.py:785-803`/`:983`,
++105; `ci-quality.yml`'s job-def/marker-selection/critical-path/glossary/freshness citations,
++23) directly against this checkout — all exact, no blanket-offset error found. WP01's landed
+lane-branch code (4 commits, 7 files) was inspected only for design-artifact invalidation; none
+found — the diff matches plan.md's Seam & Module Placement exactly.
+
+Then hit entry 8's exact defect again while re-running `record-analysis`, but on a **different**
+dirty path than entry 8 saw: `_enforce_analysis_report_write_preflight` refused with
+`DIRTY_WORKTREE` over `.kittify/charter/metadata.yaml`, `.kittify/charter/synthesis-manifest.yaml`,
+and `_rnd/` together. The two charter files are the KNOWN TRAP's deliberately-uncommitted
+downgrade artifacts (a stale `3.2.5`-installed `charter synthesize` overwrote fields a `3.2.6`
+run had written; committing them would be a regression) — this session was explicitly briefed not
+to commit or hand-fix them, only to leave them dirty. Neither file is spec-kitty's own
+self-bookkeeping churn (`is_self_bookkeeping_churn` allowlists only `meta.json`,
+encoding-provenance, and `kitty-ops/` orphans — not `.kittify/charter/*`) and this mission's
+topology is `lanes` (no coordination branch), so the coord-residue leg never engages either — the
+preflight's blanket dirty-tree refusal has no allowlist path for "known-dirty, deliberately-left,
+out-of-mission-scope tracked files" any more than entry 8 found one for untracked content.
+
+**Worked around the same way as entry 8, extended to the new path set**: captured
+`git diff` of the two charter files first (for a byte-exact restoration check), then
+`git stash push -u -- .kittify/charter/metadata.yaml .kittify/charter/synthesis-manifest.yaml
+_rnd/`, ran `record-analysis` successfully against the now-clean tree, then `git stash pop`
+immediately after. Verified the restored `git diff` of the two charter files was byte-identical
+to the pre-stash capture, and `_rnd/` was untracked again with nothing else changed. The
+resulting `analysis-report.md` was committed separately via `safe-commit --to-branch` with an
+explicit path — the charter files were never staged or committed, and remain dirty exactly as
+this mission's brief required.
+
+Confirms entry 8's finding generalizes: this preflight blocks on *any* pre-existing dirty path
+repo-wide, with no scoping to what the command's own downstream commit actually touches (a single
+new file, `result.path`) and no `--force`/`--allow-dirty` escape hatch — not only for stray
+untracked directories (entry 8) but for deliberately-dirty, briefed-and-tracked files as well.
+Same remediation gap as entry 8; not re-argued in full here.
+
+**Gate confirmed clear after the re-record**: `spec-kitty next --agent claude --mission
+mission-type-guard-registry-01KZY2FG --json` returned `"kind": "query"`, `"guard_failures": []`,
+`"wp_id": "WP02"`, `"preview_step": "implement"` — no `stale_analysis_report` /
+`analysis_report_required` error, unlike entries 9-11's repeated hits on this exact gate.
