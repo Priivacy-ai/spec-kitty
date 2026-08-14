@@ -947,10 +947,15 @@ def test_render_baseline_header_is_the_tombstone_lists_named_home(tmp_path: Path
 
 def test_both_generators_are_byte_identical_on_a_second_run(tmp_path: Path) -> None:
     members = _three_members(tmp_path)
-    assert scan.render_census(members, sha=FROZEN_SHA, owed_to="#3121") == scan.render_census(
-        members, sha=FROZEN_SHA, owed_to="#3121"
-    )
-    assert scan.render_baseline(members, exempt=()) == scan.render_baseline(members, exempt=())
+    # Two independent invocations, bound to distinct names, so the determinism
+    # check compares separate render results rather than a self-identical
+    # expression (SonarCloud python:S5863).
+    census_first = scan.render_census(members, sha=FROZEN_SHA, owed_to="#3121")
+    census_second = scan.render_census(members, sha=FROZEN_SHA, owed_to="#3121")
+    assert census_first == census_second
+    baseline_first = scan.render_baseline(members, exempt=())
+    baseline_second = scan.render_baseline(members, exempt=())
+    assert baseline_first == baseline_second
 
 
 def test_main_demonstrates_the_exempt_module_absent(tmp_path: Path) -> None:
