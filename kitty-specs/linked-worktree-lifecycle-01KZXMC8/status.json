@@ -1,7 +1,7 @@
 {
-  "event_count": 34,
-  "last_event_id": "01KZZ75E2HXD2W67B2W7SH65FN",
-  "materialized_at": "2026-08-14T04:05:58.993908+00:00",
+  "event_count": 35,
+  "last_event_id": "01KZZAGE08K4K379EK5TER41SR",
+  "materialized_at": "2026-08-14T05:04:25.096723+00:00",
   "mission_number": "",
   "mission_slug": "linked-worktree-lifecycle-01KZXMC8",
   "mission_type": "software-dev",
@@ -9,12 +9,12 @@
     "approved": 2,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 0,
+    "claimed": 1,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -92,14 +92,14 @@
       }
     },
     "WP03": {
-      "actor": "user",
+      "actor": "codex",
       "agent": "",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01KZZ75E2HXD2W67B2W7SH65FN",
-      "last_transition_at": "2026-08-14T04:05:58.993908+00:00",
+      "lane": "claimed",
+      "last_event_id": "01KZZAGE08K4K379EK5TER41SR",
+      "last_transition_at": "2026-08-14T05:04:25.096723+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Единый caller-owned lifecycle root реализован и подтверждён 301 профильной проверкой; primary checkout не мутируется, conflict fail-closed.",
@@ -114,7 +114,7 @@
         "reviewer": "user",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
+      "role": "implementer",
       "shell_pid": 0,
       "shell_pid_created_at": "1786679224.7544172",
       "subtasks": {
