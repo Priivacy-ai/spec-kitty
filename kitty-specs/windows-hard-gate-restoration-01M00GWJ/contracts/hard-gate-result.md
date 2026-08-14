@@ -3,7 +3,9 @@
 **Дата**: 2026-08-14
 **Тип**: Reference
 
-## Локальная готовность
+## Завершённость реализации и локальная готовность
+
+`implementation_complete=true` означает, что оба implementation package приняты и task-owned tree clean. Это состояние не заменяет локальные или внешние gates.
 
 `local_ready=true` допустим только при одновременном выполнении:
 
@@ -22,7 +24,7 @@
 | blocked | not_run | `e2e_ready=false`, external blocker |
 | not_run | not_run | `e2e_ready=false`, incomplete evidence |
 
-Никакое локальное состояние не заменяет `e2e_ready=true`.
+`release_ready=true` требует одновременно `implementation_complete=true`, `local_ready=true` и `e2e_ready=true`. Никакое локальное состояние не заменяет `e2e_ready=true`.
 
 ## Privacy
 

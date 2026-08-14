@@ -47,7 +47,7 @@
 
 **Почему P2**: import-time `os.geteuid` прерывает collection и порождает десятки вторичных ошибок coverage и session-reaper.
 
-**Независимая проверка**: семь ранее проблемных файлов собираются на Windows отдельно и внутри полного architecture run; completeness gates видят ожидаемый набор модулей.
+**Независимая проверка**: семь ранее проблемных файлов собираются на Windows отдельно и внутри полного architecture run; completeness gates видят ожидаемый набор модулей. Точный список: `tests/cli/commands/test_sync_doctor_consent_health_3030.py`, `tests/integration/test_intake_size_cap.py`, `tests/review/test_pre_review_gate_engine.py`, `tests/specify_cli/core/test_target_branch_primitive.py`, `tests/sync/test_consent_fault_vocabulary_3030.py`, `tests/sync/test_consent_write_refusal_3030.py`, `tests/sync/test_issue_598_hang_fixes.py`.
 
 **Сценарии приёмки**:
 
@@ -58,7 +58,7 @@
 
 ### Сценарий 4 — Внешний cross-repo E2E gate не обходится (P2)
 
-Сопровождающий видит отдельно локальную готовность и доступность обязательного репозитория `Priivacy-ai/spec-kitty-end-to-end-testing`.
+Сопровождающий видит отдельно завершённость локальной реализации, локальную готовность и доступность обязательного репозитория `Priivacy-ai/spec-kitty-end-to-end-testing`.
 
 **Почему P2**: текущий GitHub principal не видит репозиторий; это внешний блокер, а не основание объявлять E2E пройденным или создавать локальное исключение.
 
@@ -67,7 +67,7 @@
 **Сценарии приёмки**:
 
 1. **Дано** авторизованный доступ к E2E-репозиторию, **когда** запускается публикационный preflight, **тогда** он проверяет зафиксированный CLI commit совместимым E2E-набором.
-2. **Дано** доступа нет, **когда** запускается preflight, **тогда** результат явно называет внешний блокер и не переводит gate в pass.
+2. **Дано** доступа нет, **когда** запускается preflight, **тогда** локальная реализация может быть завершена и принята, но публикационная готовность остаётся blocked; gate не переводится в pass.
 
 ### Граничные случаи
 
@@ -91,7 +91,7 @@
 | FR-006 | Полная Windows collection | Все файлы, от которых зависят gate-coverage, shard и session-reaper, успешно собираются на Windows. | High | Open |
 | FR-007 | Non-vacuous guards | Каждый исправленный architectural gate имеет положительный oracle и mutation/negative test, доказывающий, что новое нарушение всё ещё обнаруживается. | High | Open |
 | FR-008 | Синхронизация code map | До production-правок и в итоговом commit обновляются `docs/codemap/codemap.json`, `.html` и `.lock`, чтобы карта отвечала, кто вызывает изменяемые boundaries, что они затрагивают и какими тестами покрыты. | Medium | Open |
-| FR-009 | Раздельный E2E preflight | Доступность внешнего E2E-репозитория и результат его тестов представлены отдельными fail-closed состояниями; отсутствие доступа не становится pass. | High | Open |
+| FR-009 | Раздельный E2E preflight | Результат различает `implementation_complete`, `local_ready`, `e2e_access`, `e2e_ready` и `release_ready`; отсутствие E2E-доступа допускает завершение локальной реализации, но не публикацию. | High | Open |
 | FR-010 | Воспроизводимый handoff | Итог содержит команды, версии, commit SHA, counts и разделение исправленных, ожидаемых skip/xfail и внешних blockers. | Medium | Open |
 
 ### Нефункциональные требования
@@ -102,7 +102,7 @@
 | NFR-002 | Architecture gate | Полный `tests/architectural` завершается с `0 failed` и `0 errors` на Windows; существующие документированные skip/xfail не green-wash'ятся. | Надёжность | High | Open |
 | NFR-003 | Кроссплатформенность | Все изменённые path/EUID/null-sink oracles проходят на Windows и не меняют ожидаемую семантику POSIX. | Совместимость | High | Open |
 | NFR-004 | Fail-closed | Ни один baseline/allowlist не расширяется без конкретного call-site, rationale и negative/mutation evidence. | Безопасность архитектуры | High | Open |
-| NFR-005 | Ограниченный цикл | Во время реализации сначала запускаются targeted suites; полный architecture suite запускается один раз на финальном gate, если targeted packet зелёный. | Производительность | Medium | Open |
+| NFR-005 | Ограниченный цикл | Во время реализации сначала запускаются targeted suites; на окончательном неизменённом SHA выполняется не менее одного полного contract и architecture run. | Производительность | Medium | Open |
 
 ### Ограничения
 
@@ -121,5 +121,5 @@
 - **SC-003**: targeted collection ранее проблемных семи файлов: `0 collection errors`.
 - **SC-004**: минимум по одному mutation/negative oracle для path normalization, collection portability и каждого исправленного real boundary/inventory класса.
 - **SC-005**: code map JSON/HTML имеет одинаковые nodes/edges/references, а `.lock` совпадает с фактическими SHA-256.
-- **SC-006**: E2E gate либо проходит на доступном canonical репозитории, либо возвращает один явный внешний blocked-результат; ложный pass невозможен.
+- **SC-006**: при недоступном canonical E2E repo `implementation_complete=true` допустим, но `e2e_ready=false` и `release_ready=false`; ложный публикационный pass невозможен.
 - **SC-007**: локальная ветка остаётся clean после commit, полный handoff указывает worktree, branch, commits и все gate counts.

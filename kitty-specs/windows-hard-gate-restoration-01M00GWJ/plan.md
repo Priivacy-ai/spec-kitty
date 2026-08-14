@@ -86,49 +86,42 @@ docs/codemap/
 
 _Карта implementation concerns_
 
-### IC-01 — Windows portability тестовой обвязки
+### IC-01 — Windows portability и collection closure
 
-- **Цель**: убрать `/dev/null`, import-time `os.geteuid` и separator-sensitive comparisons без изменения смысла gates.
+- **Цель**: убрать `/dev/null`, import-time `os.geteuid` и separator-sensitive comparisons, затем доказать полную collection для семи известных файлов и зависимых coverage/shard/session-reaper gates.
 - **Требования**: FR-001, FR-002, FR-003, FR-006, FR-007.
-- **Поверхности**: contract test, consent-health test и узкие shared/path gate helpers.
+- **Поверхности**: `tests/contract/test_machine_facing_canonical_fields.py`; `tests/cli/commands/test_sync_doctor_consent_health_3030.py`; `tests/integration/test_intake_size_cap.py`; `tests/review/test_pre_review_gate_engine.py`; `tests/specify_cli/core/test_target_branch_primitive.py`; `tests/sync/test_consent_fault_vocabulary_3030.py`; `tests/sync/test_consent_write_refusal_3030.py`; `tests/sync/test_issue_598_hang_fixes.py`; только owning path/census gate tests, не production topology и не code map.
 - **Зависимости**: нет.
-- **Риски**: слишком широкий skip на Windows; нормализация уже после формирования baseline; потеря mutation sensitivity.
+- **Риски**: слишком широкий Windows skip; нормализация actual и expected одной функцией; лечение вторичных coverage errors до collection root cause.
 
-### IC-02 — Реальные architecture inventories и topology authority
+### IC-02 — Architecture classification, topology remediation и code map
 
-- **Цель**: отделить stale inventory от production bypass и восстановить single canonical authority.
+- **Цель**: отделить stale inventory от production bypass, восстановить single canonical authority и синхронизировать карту кода в том же commit, что production boundary.
 - **Требования**: FR-004, FR-005, FR-007, FR-008.
-- **Поверхности**: `_read_path_resolver.py`, `mission_creation.py`, соответствующие inventory/audit files и code map.
-- **Зависимости**: IC-01, чтобы диагностика не искажалась separator failures.
-- **Риски**: self-validating inventory update; blanket allowlist; параллельный resolver; несогласованная JSON/HTML карта.
+- **Поверхности**: затронутые `tests/architectural` inventory/audit gates, `_read_path_resolver.py`, `mission_creation.py`, `docs/codemap/codemap.json`, `.html`, `.lock`.
+- **Зависимости**: IC-01, чтобы диагностика не искажалась platform failures.
+- **Риски**: self-validating inventory update; blanket allowlist; параллельный resolver; parity/hash без независимого callers/impact/tests oracle.
 
-### IC-03 — Полнота collection и каскадные coverage gates
+## Приёмочные gates, не implementation concerns
 
-- **Цель**: собрать весь набор, используемый gate-coverage/shard/session-reaper, и устранить только первичные причины оставшихся ошибок.
-- **Требования**: FR-006, FR-007.
-- **Поверхности**: семь подтверждённых collection-sensitive test files, coverage aggregation и session reaper tests.
-- **Зависимости**: IC-01, IC-02.
-- **Риски**: чинить вторичные симптомы до collection root cause; запускать дорогой suite на каждом изменении.
+### Local acceptance
 
-### IC-04 — Финальный local packet и внешний E2E contract
+На окончательном неизменённом SHA выполняются полные contract/architecture suites, статические проверки, collection oracle, code map parity/hash/coverage и clean-tree check. Если обнаружен новый дефект, он возвращается в owning concern; после исправления новый финальный SHA проверяется повторно.
 
-- **Цель**: один раз доказать полный Windows result и отдельно проверить доступ/результат canonical cross-repo E2E.
-- **Требования**: FR-009, FR-010; NFR-001–NFR-005.
-- **Поверхности**: validation commands, handoff evidence, при наличии доступа — внешний E2E checkout без локальных подмен.
-- **Зависимости**: IC-01–IC-03.
-- **Риски**: объявить локальный green эквивалентом E2E; скрыть access blocker; потратить час на полный suite до targeted green.
+### External E2E release gate
+
+Доступность canonical E2E repo и результат его tests проверяются после `implementation_complete`. Недоступность repo допускает принятие локальной реализации, но оставляет `e2e_ready=false` и `release_ready=false`; отдельный implementation package для внешней авторизации не создаётся.
 
 ## Последовательность реализации
 
 1. Создать charter-required GitHub issue о pre-existing failures; приложить исходные команды и counts.
-2. Зафиксировать RED для Windows portability и collection defects отдельным commit.
-3. Реализовать минимальные platform-safe oracles; убить преднамеренные мутации и прогнать targeted packet.
-4. Регенерировать code map, затем RED-first классифицировать inventory drift и raw topology predicate.
-5. Исправить production boundary либо точечно синхронизировать inventory; доказать non-vacuity.
-6. Собрать семь проблемных файлов и прогнать coverage/shard/session-reaper targeted packet.
-7. Запустить полный contract suite и один полный architecture suite; повторять полный run только после конкретного исправления нового подтверждённого failure.
-8. Проверить доступ к canonical E2E repo. При доступе выполнить его documented gate; без доступа вернуть explicit external blocker.
-9. Синхронизировать фактический результат с mission, code map, issue и reproducible handoff.
+2. IC-01: отдельным RED commit зафиксировать null sink, EUID, separator и collect-only failures всех семи файлов.
+3. IC-01: реализовать platform-safe actual-path boundary и узкий permission oracle; доказать static expected inventory и mutation sensitivity; закрыть targeted coverage/shard/session-reaper.
+4. IC-02: на зелёной platform base зафиксировать RED для missing sink и raw topology predicate; read-only baseline code map предшествует production edit.
+5. IC-02: исправить production boundary либо доказать узкое исключение; точечно синхронизировать inventory и code map в том же commit; проверить независимые callers/impact/tests.
+6. Local acceptance: на окончательном SHA запустить полные contract и architecture suites, static gates и clean-tree check; найденные дефекты вернуть в owning concern.
+7. External gate: проверить доступ к canonical E2E repo. При доступе выполнить documented gate; без доступа сохранить `implementation_complete=true`, но `e2e_ready=false` и `release_ready=false`.
+8. Синхронизировать фактический результат с mission, issue и reproducible handoff, привязанным к неизменённому SHA.
 
 ## Проверки
 
@@ -147,6 +140,6 @@ git diff --check
 
 | Решение | Почему нужно | Более простой вариант отклонён потому что |
 |---------|--------------|-------------------------------------------|
-| Разделить platform portability и real architecture drift | Они требуют разных oracles и разной ответственности | Массовая замена строк/allowlists могла бы скрыть настоящий resolver bypass |
-| Отдельный финальный пакет для полного suite | Architecture run занимает около 55 минут | Запуск после каждого изменения не повышает доказательность и создаёт лишний runtime friction |
-| E2E как отдельное fail-closed состояние | Доступ зависит от внешнего GitHub principal | Локальный pass не доказывает cross-repo compatibility |
+| Разделить platform portability и real architecture drift | Они требуют разных oracles и непересекающегося ownership | Массовая замена строк/allowlists могла бы скрыть настоящий resolver bypass |
+| Полный suite как acceptance gate, не WP | Architecture run занимает около 55 минут и не производит implementation artifact | Отдельный WP смешивал реализацию и проверку готовности |
+| E2E как release gate, не WP | Доступ зависит от внешнего GitHub principal | Вечный локальный WP не способен исправить внешнюю авторизацию, а локальный pass не доказывает cross-repo compatibility |

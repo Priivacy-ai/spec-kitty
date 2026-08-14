@@ -15,7 +15,20 @@ git status --short --branch
 
 ## 2. Targeted portability и collection
 
-Запустить команды, перечисленные в соответствующих work-package prompts. До зелёного targeted packet полный architecture suite не запускать.
+Сначала подтвердить collection всех известных файлов:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest --collect-only -q -p no:cacheprovider `
+  tests\cli\commands\test_sync_doctor_consent_health_3030.py `
+  tests\integration\test_intake_size_cap.py `
+  tests\review\test_pre_review_gate_engine.py `
+  tests\specify_cli\core\test_target_branch_primitive.py `
+  tests\sync\test_consent_fault_vocabulary_3030.py `
+  tests\sync\test_consent_write_refusal_3030.py `
+  tests\sync\test_issue_598_hang_fixes.py
+```
+
+Затем запустить точные portability и dependent coverage/shard/session-reaper commands из WP01. До зелёного targeted packet полный architecture suite не запускать.
 
 ## 3. Полные локальные gates
 
@@ -35,8 +48,8 @@ git status --short --branch
 git diff --check
 ```
 
-Дополнительно проверить JSON/HTML parity и SHA-256 из `docs/codemap/codemap.lock`.
+Дополнительно проверить JSON/HTML parity и SHA-256 из `docs/codemap/codemap.lock`, а независимым oracle — что карта перечисляет callers/impact/tests для обеих изменённых boundaries.
 
 ## 5. Внешний E2E gate
 
-Сначала проверить read-only доступ к `Priivacy-ai/spec-kitty-end-to-end-testing`. При отсутствии доступа завершить handoff состоянием `blocked`; не клонировать подмену и не создавать exception. При доступе использовать documented commands самого E2E-репозитория против exact CLI commit.
+Сначала проверить read-only доступ к `Priivacy-ai/spec-kitty-end-to-end-testing`. При отсутствии доступа локальная реализация может иметь `implementation_complete=true`, но handoff обязан оставить `e2e_ready=false` и `release_ready=false`; не клонировать подмену и не создавать exception. При доступе использовать documented commands самого E2E-репозитория против exact CLI commit.

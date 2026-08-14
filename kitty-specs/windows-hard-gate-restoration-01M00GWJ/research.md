@@ -32,13 +32,17 @@ Repo-relative path переводится в POSIX-строку на boundary ф
 
 Если call-site действительно нарушает canonical authority, сначала исправляется production routing. Inventory синхронизируется только после этого и получает negative/mutation evidence.
 
-### D-004 — Один дорогой финальный architecture run
+### D-004 — Полный gate на финальном SHA
 
-Разработка использует targeted tests. Полный suite запускается после зелёной collection и targeted packet, потому что его исходное время около 55 минут.
+Разработка использует targeted tests. На окончательном SHA после зелёной collection и targeted packet выполняется не менее одного полного suite. Если он обнаружил дефект, исправление возвращается в owning package, а новый окончательный SHA проверяется повторно.
 
 ### D-005 — E2E availability и E2E result — разные состояния
 
-`unavailable`/`unauthorized` не сворачивается в pass или fail продукта. Публикация остаётся blocked до canonical access либо принятого владельцем изменения policy вне этой mission.
+`unavailable`/`unauthorized` не сворачивается в pass или fail продукта. Локальная реализация может завершиться, но публикация остаётся blocked до canonical access либо принятого владельцем изменения policy вне этой mission.
+
+### D-006 — Expected inventory остаётся независимым
+
+Нормализуется только фактически найденный repo-relative путь на boundary census. Static expected inventory хранится в canonical POSIX-виде и не проходит через ту же преобразующую функцию; mutation с новым или искажённым call-site обязана падать.
 
 ## Отклонённые альтернативы
 
