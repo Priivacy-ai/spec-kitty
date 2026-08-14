@@ -1,0 +1,17 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: >-
+      The bypass-authorization sentence is removed from WP07-cli-surface-fixes.md's Branch
+      Strategy and wps.yaml's header WARNING (both now only negate it — "never a license to
+      bypass") and replaced with a verification-only git merge-base --is-ancestor check inside
+      the canonical spec-kitty implement WP07 worktree; tracer-tooling-friction.md adds an
+      explicit Correction section that accurately reframes the reuse-path catch-up
+      (worktree_allocator.py:194-207, #1684, WP05/WP09 01KTYGTE precedent, warn+skip at
+      456-472) as documented and self-healing while still preserving the legitimate
+      compute_lanes cycle-validation gap as an open observation; both code claims were
+      independently re-read and confirmed accurate.

@@ -1,0 +1,116 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: tests
+mission: up-mission-type-seam-01KZY1JB
+findings:
+  - id: PR-TESTS-001
+    lens: cross-wp-vacuity
+    severity: 4
+    title: "New golden-parity regression class in test_runtime_seam.py cannot fail even when WP04's PackContext-threading is fully reverted"
+    evidence:
+      - code: "tests/runtime/test_runtime_seam.py:184-233"
+      - code: "src/charter/mission_type_profiles.py:917-925 (_resolve_action_slot, calls resolve_layered_mission_types)"
+      - code: "src/charter/mission_type_profiles.py:1036 (_resolve_template_set_slot, threads pack_context)"
+    claim: >
+      `TestGoldenParityUnaffectedByPackContextThreading.test_builtin_type_unaffected_by_real_pack_context_with_org_root`
+      (parametrized over the 4 built-in mission types) constructs a real
+      `PackContext` whose `org_root` directory is created via
+      `(org_root / "mission_types").mkdir(parents=True)` but never has any
+      YAML file written into it. Because the org layer therefore always
+      scans to `[]` (`_scan_mission_types_dir` returns early on an empty
+      directory), the test's assertions hold identically whether WP04's
+      PackContext-threading exists or not: with pack_context=None hardcoded
+      back into both `_resolve_action_slot` and `_resolve_template_set_slot`
+      (i.e. WP04's change fully reverted), the org root is never even
+      consulted, and the resolved built-in bundle is unaffected.
+
+      Verified empirically in a disposable worktree
+      (`git worktree add --detach /tmp/pr-tests-check HEAD`): with
+      `src/charter/mission_type_profiles.py` edited so `_resolve_action_slot`
+      calls `MissionTypeRepository.default()` instead of
+      `resolve_layered_mission_types(mission_types_dirs, pack_context)`, and
+      `_resolve_template_set_slot` calls
+      `MissionStepRepository.default().resolve_all_for_mission_type(mission_type,
+      pack_context=None)` instead of `pack_context=pack_context` — i.e. WP04's
+      entire FR-002 contribution reverted — `uv run pytest
+      tests/runtime/test_runtime_seam.py -k
+      TestGoldenParityUnaffectedByPackContextThreading` still reports
+      `4 passed, 0 failed`, and the full file reports `27 passed`. The
+      class's own docstring already concedes it is "not a red-first pin",
+      but its stated purpose — "the deliberate regression backstop ...
+      proving a real org pack root ... never perturbs built-in output" — is
+      not actually provable by this test as written, since the org root
+      never contributes any content for the merge logic to (mis)apply. Per
+      the review rubric, "a test that passes with the union's change
+      reverted is severity 4," which this test satisfies for WP04's own
+      change (not merely a sibling WP's).
+    remediation: >
+      Give the org root real, non-colliding content so the layered-merge
+      code path is actually exercised end to end, and assert on it. E.g. in
+      addition to the existing byte-parity assertions, write a distinct
+      custom mission-type YAML into `org_root / "mission_types" /
+      "unrelated-custom.yaml"` (an id that shares nothing with any built-in
+      type) and assert that `resolve_layered_mission_types` (or
+      `resolve_mission_type_context(tmp_path, mission_type="unrelated-custom")`
+      through the same patched PackContext) actually resolves it. That
+      addition would have failed under the exact WP04-revert performed
+      above (a non-built-in id becomes unresolvable — raises
+      `UnknownMissionTypeError` — once `pack_context` is no longer threaded
+      into `_resolve_action_slot`), giving the class a genuine failing case
+      for the dependency it claims to guard.
+
+  - id: PR-TESTS-002
+    lens: cache-clear-discipline
+    severity: 2
+    title: "tests/charter/test_mission_type_profiles.py never clears resolve_layered_mission_types' cache, unlike every other new/changed test file that patches PackContext.from_config"
+    evidence:
+      - code: "tests/charter/test_mission_type_profiles.py:483-613 (TestPackContextProjection — no cache_clear call anywhere in the class or file)"
+      - code: "tests/charter/test_mission_type_profiles.py:654-706 (TestEmptyActionSequenceLoudFail — same)"
+      - code: "tests/cli/test_charter_mission_type_commands.py:169,182 (MissionTypeRepository.cache_clear() before AND after, via try/finally)"
+      - code: "tests/cli/test_doctrine_commands.py:232-240 (same before/after pattern)"
+      - code: "tests/specify_cli/cli/commands/test_mission_type_template_set_cli.py:163-172 (same before/after pattern)"
+      - code: "tests/doctrine/missions/test_mission_type_repository.py (TestLayeredMissionTypesCacheKeyAndClear.setup_method/teardown_method — same discipline at the doctrine layer)"
+      - code: "src/doctrine/missions/mission_type_repository.py:453-478 (resolve_layered_mission_types, @functools.cache keyed on (mission_types_dirs, pack_context))"
+    claim: >
+      Every other new/changed test file that patches
+      `charter.pack_context.PackContext.from_config` and then drives
+      resolution through the module-level `resolve_layered_mission_types`
+      cache also calls `MissionTypeRepository.cache_clear()` (or the
+      doctrine-layer test file's own `setup_method`/`teardown_method`
+      equivalent) before and/or after the patched call, per the CLI test
+      files' own pattern.
+      `tests/charter/test_mission_type_profiles.py`'s `TestPackContextProjection`,
+      `TestEmptyActionSequenceLoudFail`, and
+      `TestMissionCreatePropagatesEmptyActionSequenceError` classes do the
+      same patch-and-resolve dance (constructing a `PackContext` keyed on
+      `tmp_path` and calling `resolve_mission_type_context`) but never call
+      `cache_clear()` anywhere in the file. Correctness currently survives
+      only because `PackContext` is a frozen, field-hashed dataclass and
+      every test's `pack_context.repo_root`/`pack_roots` are derived from
+      pytest's per-test-unique `tmp_path`, so no two tests in this file (or
+      in the wider suite) can ever construct an *equal* `PackContext` and
+      collide on the same cache entry — confirmed by reading
+      `src/charter/pack_context.py:100` (`@dataclass(frozen=True)`) and
+      `resolve_layered_mission_types`'s `@functools.cache` signature. That
+      is an incidental, not a designed, protection: it silently depends on
+      every future test in this file continuing to derive 100% of the
+      `PackContext`'s fields from `tmp_path`. A test added later that
+      reuses a fixed/shared root (e.g. to test a genuinely cross-test
+      scenario, or that captures a `pack_context` object and mutates
+      on-disk files under it a second time expecting a fresh read) would
+      silently read a stale cached roster with no test-order signal to
+      explain why, in a file whose sibling test files already carry the
+      cache-clear guard specifically to prevent exactly that.
+    remediation: >
+      Add the same `MissionTypeRepository.cache_clear()` before/after
+      (or a class-level `setup_method`/`teardown_method`) discipline used in
+      `tests/cli/test_charter_mission_type_commands.py`,
+      `tests/cli/test_doctrine_commands.py`, and
+      `tests/specify_cli/cli/commands/test_mission_type_template_set_cli.py`
+      to `TestPackContextProjection`, `TestEmptyActionSequenceLoudFail`, and
+      `TestMissionCreatePropagatesEmptyActionSequenceError` in
+      `tests/charter/test_mission_type_profiles.py`, so the file's isolation
+      is guaranteed by explicit test hygiene rather than by incidental
+      dataclass-hash uniqueness.
