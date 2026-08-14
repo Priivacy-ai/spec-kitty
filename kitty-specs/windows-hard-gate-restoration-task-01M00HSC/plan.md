@@ -46,7 +46,7 @@ Charter violations не планируются. Внешний E2E access и н�
 ### Документация mission
 
 ```text
-kitty-specs/windows-hard-gate-restoration-01M00GWJ/
+kitty-specs/windows-hard-gate-restoration-task-01M00HSC/
 ├── spec.md
 ├── plan.md
 ├── research.md

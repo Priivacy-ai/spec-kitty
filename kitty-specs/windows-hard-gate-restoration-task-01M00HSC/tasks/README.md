@@ -23,9 +23,9 @@ Each WP file **MUST** use YAML frontmatter:
 work_package_id: "WP01"
 title: "Work Package Title"
 dependencies: []
-planning_base_branch: "codex/setup-plan-preflight-closeout"
-merge_target_branch: "codex/setup-plan-preflight-closeout"
-branch_strategy: "Planning artifacts were generated on codex/setup-plan-preflight-closeout; completed changes must merge back into codex/setup-plan-preflight-closeout."
+planning_base_branch: "codex/setup-plan-hard-gates"
+merge_target_branch: "codex/setup-plan-hard-gates"
+branch_strategy: "Planning artifacts were generated on codex/setup-plan-hard-gates; completed changes must merge back into codex/setup-plan-hard-gates."
 subtasks:
   - "T001"
   - "T002"
