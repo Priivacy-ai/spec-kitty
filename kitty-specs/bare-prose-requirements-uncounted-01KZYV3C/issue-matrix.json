@@ -1,7 +1,7 @@
 {
   "rows": {
     "#3133": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Open issue; cited in spec.md/plan.md as a prior example of this repo's silent-success defect class, to motivate design. Context only; not addressed by this mission.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +9,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#3212": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Open issue; cited in spec.md/plan.md as a prior example of this repo's silent-success defect class, to motivate design. Context only; not addressed by this mission.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,11 +21,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#3282": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Open issue; cited in spec.md/plan.md as a prior example of this repo's silent-success defect class, to motivate design. Context only; not addressed by this mission.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,11 +33,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#3284": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Open issue; known-red baseline on main (~23 failures + 2 errors). This mission's targeted surface measured green at ab15225ea with zero overlap with #3284's failure set. Referenced as baseline only; not addressed here.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,11 +45,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#3336": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Closed issue (upgrade --dry-run reports nothing pending bug); already fixed prior to/outside this mission. Cited in spec.md/plan.md as a prior example of the silent-success defect class. Not addressed by this mission.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,11 +57,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "verified-already-fixed",
       "wp": null
     },
     "#3394": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Open issue; ancestor defect that PR #3395 addresses (citation-vs-declaration over-match). Context only; not addressed by this mission.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,11 +69,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#3395": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Open PR (unmerged) at Priivacy-ai/spec-kitty#3395; this mission's base branch op/3394-requirement-citation-scope@ab15225ea. Narrows requirement extraction; #3396 is the residual under-match it creates. Depended on, not fixed here.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,11 +81,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#3396": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "This mission's own defect; fixed by WP04 (reviewer-approved, zero findings; not yet mission-done/merged).",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,8 +93,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP04"
     }
   },
   "schema_version": 1

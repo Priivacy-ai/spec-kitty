@@ -10,6 +10,9 @@ requirement_refs:
 planning_base_branch: pr/bare-prose-requirements-uncounted
 merge_target_branch: pr/bare-prose-requirements-uncounted
 branch_strategy: Planning artifacts for this mission were generated on pr/bare-prose-requirements-uncounted. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into pr/bare-prose-requirements-uncounted unless the human explicitly redirects the landing branch.
+base_branch: pr/bare-prose-requirements-uncounted
+base_commit: 0bebe7dcc78d43f7731e7b4d4e9e980923f37ca4
+created_at: '2026-08-14T09:23:52.258502+00:00'
 subtasks:
 - T001
 - T002
