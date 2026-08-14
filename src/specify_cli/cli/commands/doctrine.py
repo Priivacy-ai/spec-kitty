@@ -963,7 +963,13 @@ def org_validate(
         validate_pack,
     )
 
-    result = validate_pack(pack_path)
+    # Written explicitly (not relying on validate_pack's own default) so a
+    # future default change cannot silently alter org_validate's behaviour
+    # without a visible diff here. No carve-out: org_init's scaffold never
+    # produces the drg-root-graph-missing shape, so this call was never
+    # protected by a carve-out in the first place (operator ruling #2,
+    # reviews/plan.ruling.md).
+    result = validate_pack(pack_path, check_drg_root=True)
 
     # Additionally validate drg/fragment.yaml against OrgDRGFragment schema
     # (pack_validator covers DRG edge/node cross-refs; this catches

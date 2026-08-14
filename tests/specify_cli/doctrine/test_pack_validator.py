@@ -270,7 +270,10 @@ class TestValidatePack:
             encoding="utf-8",
         )
 
-        result = validate_pack(tmp_path)
+        # check_drg_root=False: this test is about edge-URN resolution
+        # against pack artifacts, orthogonal to FR-004's pack-root-graph
+        # check — the fixture is deliberately drg/-fragments-only.
+        result = validate_pack(tmp_path, check_drg_root=False)
 
         assert result.ok is True, result.errors
 
@@ -294,7 +297,10 @@ class TestValidatePack:
         (drg / "010-a.graph.yaml").write_text(edge_yaml, encoding="utf-8")
         (drg / "020-b.graph.yaml").write_text(edge_yaml, encoding="utf-8")
 
-        result = validate_pack(tmp_path)
+        # check_drg_root=False: this test is about the duplicate-edge
+        # advisory, orthogonal to FR-004's pack-root-graph check — the
+        # fixture is deliberately drg/-fragments-only.
+        result = validate_pack(tmp_path, check_drg_root=False)
 
         # The duplicate is advisory, not fatal.
         assert result.ok is True, result.errors

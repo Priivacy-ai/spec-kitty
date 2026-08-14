@@ -115,6 +115,12 @@ class ValidationIssue:
       ``AgentProfileRepository`` as skipped (e.g. a post-merge field-conflict
       failure), surfaced here so ``pack validate`` reports it without a
       separate ``spec-kitty doctor doctrine --json`` invocation.
+    * ``drg_root_graph_missing`` — the pack's ``drg/`` directory contains one
+      or more ``*.graph.yaml`` fragments but the pack root has no top-level
+      ``*.graph.yaml`` — the runtime
+      (``src/charter/_drg_helpers.py:load_validated_graph``) reads only the
+      pack root, never ``drg/`` fragments, so this pack's DRG content is not
+      consumed as authored.
     * ``not_found`` / ``parse_error`` / ``advisory`` — structural categories.
     """
 
@@ -342,11 +348,20 @@ def _scan_artifact_directory(  # noqa: PLR0913 — small helper kept private to 
 # ---------------------------------------------------------------------------
 
 
-def validate_pack(pack_dir: Path) -> ValidationResult:
+def validate_pack(pack_dir: Path, *, check_drg_root: bool = True) -> ValidationResult:
     """Validate a doctrine pack directory.
 
     Returns a :class:`ValidationResult` with ``ok=False`` if any error was
     found.  Advisories do not affect ``ok``.
+
+    ``check_drg_root`` (FR-004, default ``True``): when ``True``, also runs
+    :func:`_check_drg_root_graph_missing` — a pack whose DRG content lives
+    only under ``drg/*.graph.yaml`` fragments with no pack-root
+    ``*.graph.yaml`` is flagged, since the runtime
+    (``src/charter/_drg_helpers.py:load_validated_graph``) reads only the
+    pack root. Callers that know their own output can never produce that
+    mismatch shape (e.g. ``pack_assembler.assemble_pack``'s internal
+    round-trip check) pass ``check_drg_root=False``.
     """
     errors: list[ValidationIssue] = []
     advisories: list[ValidationIssue] = []
@@ -405,6 +420,12 @@ def validate_pack(pack_dir: Path) -> ValidationResult:
         drg_errors, drg_advisories = _validate_drg(drg_dir, pack_artifact_urns)
         errors.extend(drg_errors)
         advisories.extend(drg_advisories)
+
+    # FR-004: warn when DRG content lives only under drg/*.graph.yaml with
+    # no pack-root graph — the shape the runtime never reads. Additive and
+    # independent of _validate_drg's fragment-content checks above.
+    if check_drg_root:
+        errors.extend(_check_drg_root_graph_missing(pack_dir, drg_dir))
 
     # ASSET sidecar safety checks (T015): a separate pass mirroring the DRG
     # seam above, NOT inlined in the branchy _scan_artifact_directory loop.
@@ -622,6 +643,44 @@ def _validate_drg(
                 seen_edges[key] = fragment
 
     return errors, advisories
+
+
+def _check_drg_root_graph_missing(
+    pack_dir: Path,
+    drg_dir: Path,
+) -> list[ValidationIssue]:
+    """Warn when DRG content lives only under drg/ with no pack-root graph.
+
+    The runtime (src/charter/_drg_helpers.py:load_validated_graph) reads a
+    pack-root *.graph.yaml, never drg/ fragments — see spec.md
+    Clarification 3 / sibling mission #3384. Fires only when drg/ contains
+    at least one *.graph.yaml fragment AND the pack root has none; a pack
+    with neither, or with a pack-root graph present, produces no issue.
+    Uses the identical glob string _validate_drg uses (:521) so the two
+    scans are consistent by construction (AC-5).
+    """
+    if not drg_dir.is_dir():
+        return []
+    if not sorted(drg_dir.glob("*.graph.yaml")):
+        return []
+    if sorted(pack_dir.glob("*.graph.yaml")):
+        return []
+    return [
+        ValidationIssue(
+            severity="error",
+            artifact_type="drg",
+            artifact_id=None,
+            file=str(pack_dir),
+            message=(
+                "DRG content exists only under drg/*.graph.yaml with no "
+                "pack-root *.graph.yaml. The runtime "
+                "(src/charter/_drg_helpers.py:load_validated_graph) reads "
+                "the pack root directly, not drg/ fragments — this pack's "
+                "DRG content will not be read as authored."
+            ),
+            category="drg_root_graph_missing",
+        )
+    ]
 
 
 # ---------------------------------------------------------------------------
