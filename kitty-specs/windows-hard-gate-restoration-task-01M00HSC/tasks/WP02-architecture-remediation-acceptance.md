@@ -10,8 +10,6 @@ requirement_refs:
 - FR-008
 - FR-009
 - FR-010
-tracker_refs:
-- '#3438'
 planning_base_branch: codex/setup-plan-hard-gates
 merge_target_branch: codex/setup-plan-hard-gates
 branch_strategy: Пакет начинается только от approved WP01, исполняется в отдельной lane и после review возвращается в codex/setup-plan-hard-gates.
@@ -50,7 +48,8 @@ tags:
 - topology
 - codemap
 task_type: implement
-tracker_refs: []
+tracker_refs:
+- '#3438'
 ---
 
 # Work Package Prompt: WP02 — Architecture classification, topology remediation и acceptance
