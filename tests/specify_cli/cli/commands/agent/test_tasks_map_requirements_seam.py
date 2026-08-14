@@ -325,7 +325,7 @@ def test_patched_identity_payload_intercepts_emit_output(tmp_path: Path) -> None
     st.primary_dir = tmp_path
     st.functional_ids = {"FR-001"}
     st.new_mappings = {"WP01": ["FR-001"]}
-    st.mapping_plan = cast(Any, SimpleNamespace(unmapped_fr=[]))
+    st.mapping_plan = cast(Any, SimpleNamespace(unmapped_fr=[], bare_prose_requirement_ids=[]))
     with (
         patch(
             f"{_TASKS}._mission_identity_payload",
@@ -366,6 +366,72 @@ def test_patched_output_error_intercepts_do_map_requirements_exception_arm() -> 
         )
     assert exc_info.value.exit_code == 1
     error_mock.assert_called_once_with(True, "boom")
+
+
+# ---------------------------------------------------------------------------
+# WP06 (#3396) T032a: _mr_plan threads spec_content -> the fail-loud
+# bare-prose detector -> MappingRequest.
+# ---------------------------------------------------------------------------
+
+
+def test_mr_plan_threads_spec_content_into_bare_prose_request_field(
+    tmp_path: Path,
+) -> None:
+    """``_mr_plan`` computes ``bare_prose_requirement_ids`` from
+    ``st.spec_content`` (populated by ``_mr_resolve_read_dirs``, Phase C) and
+    passes it into ``MappingRequest`` -- proving the plumbing fix threads the
+    raw text all the way from the Phase C read to the Phase D request, not
+    merely a dead field."""
+    st = _make_state()
+    st.tasks_dir = tmp_path
+    st.feature_dir = tmp_path
+    st.all_spec_ids = {"NFR-001"}
+    st.functional_ids = set()
+    st.new_mappings = {"WP01": ["NFR-001"]}
+    st.spec_content = (
+        "### Functional Requirements\n\n"
+        "FR-001 the loader must reject an unknown pack.\n"
+        "FR-002 the error must name the offending path.\n\n"
+        "| ID | Requirement |\n"
+        "|----|-------------|\n"
+        "| NFR-001 | Resolution completes within 200ms |\n"
+    )
+    with patch(f"{_TASKS}.plan_mapping") as plan_mock:
+        tasks_map_requirements._mr_plan(st)
+    request = plan_mock.call_args.args[0]
+    assert request.bare_prose_requirement_ids == frozenset({"FR-001", "FR-002"})
+
+
+def test_mr_detect_bare_prose_requirement_ids_finds_repro_ids() -> None:
+    """The wrapper's happy path returns the exact FR-001/FR-002 repro ids."""
+    spec_content = (
+        "### Functional Requirements\n\n"
+        "FR-001 the loader must reject an unknown pack.\n"
+        "FR-002 the error must name the offending path.\n\n"
+        "| ID | Requirement |\n"
+        "|----|-------------|\n"
+        "| NFR-001 | Resolution completes within 200ms |\n"
+    )
+    result = tasks_map_requirements._mr_detect_bare_prose_requirement_ids(spec_content)
+    assert result == frozenset({"FR-001", "FR-002"})
+
+
+def test_mr_detect_bare_prose_requirement_ids_is_fail_loud(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """WP06 (#3396) IC-04 fault injection: a detector exception is caught
+    ONCE and converted into an explicit, non-empty result -- never a
+    swallowed "0 uncounted" (NFR-002) -- mirroring WP05/T023's
+    ``classification_error`` contract."""
+    import specify_cli.requirement_mapping as req_mapping_module
+
+    def _boom(_spec_content: str) -> list[object]:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(req_mapping_module, "find_bare_prose_requirement_ids", _boom)
+    result = tasks_map_requirements._mr_detect_bare_prose_requirement_ids("irrelevant")
+    assert result, "expected a non-empty failure entry"
+    assert "boom" in next(iter(result))
 
 
 def test_default_ports_constructs_through_tasks_bindings() -> None:

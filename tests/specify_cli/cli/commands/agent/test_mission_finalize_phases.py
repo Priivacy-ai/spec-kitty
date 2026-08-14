@@ -202,6 +202,7 @@ def test_emit_requirement_mapping_report_json(capsys: pytest.CaptureFixture[str]
         missing_requirement_refs_wps=["WP01"],
         unknown_requirement_refs={"WP02": ["FR-999"]},
         unmapped_functional_requirements=["FR-002"],
+        bare_prose_requirement_ids=[],
         wp_dependencies={"WP01": []},
         wp_requirement_refs={"WP02": ["FR-999"]},
     )
@@ -211,6 +212,7 @@ def test_emit_requirement_mapping_report_json(capsys: pytest.CaptureFixture[str]
         "missing_requirement_refs_wps": ["WP01"],
         "unknown_requirement_refs": {"WP02": ["FR-999"]},
         "unmapped_functional_requirements": ["FR-002"],
+        "bare_prose_requirement_ids": [],
         "dependencies_parsed": {"WP01": []},
         "requirement_refs_parsed": {"WP02": ["FR-999"]},
     }
@@ -222,6 +224,7 @@ def test_emit_requirement_mapping_report_console(capsys: pytest.CaptureFixture[s
         missing_requirement_refs_wps=["WP01"],
         unknown_requirement_refs={"WP02": ["FR-999"]},
         unmapped_functional_requirements=["FR-002"],
+        bare_prose_requirement_ids=[],
         wp_dependencies={"WP01": []},
         wp_requirement_refs={"WP02": ["FR-999"]},
     )
@@ -233,6 +236,144 @@ def test_emit_requirement_mapping_report_console(capsys: pytest.CaptureFixture[s
     assert "- WP02: FR-999" in output
     assert "Unmapped functional requirements:" in output
     assert "- FR-002" in output
+
+
+def test_emit_requirement_mapping_report_json_includes_bare_prose_ids(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """WP06 (#3396): ``bare_prose_requirement_ids`` is additive, never merged
+    into ``unmapped_functional_requirements``."""
+    seam._emit_requirement_mapping_report(
+        json_output=True,
+        missing_requirement_refs_wps=[],
+        unknown_requirement_refs={},
+        unmapped_functional_requirements=[],
+        bare_prose_requirement_ids=["FR-001", "FR-002"],
+        wp_dependencies={"WP01": []},
+        wp_requirement_refs={"WP01": ["NFR-001"]},
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["bare_prose_requirement_ids"] == ["FR-001", "FR-002"]
+    assert payload["unmapped_functional_requirements"] == []
+
+
+def test_emit_requirement_mapping_report_console_includes_bare_prose_ids(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    seam._emit_requirement_mapping_report(
+        json_output=False,
+        missing_requirement_refs_wps=[],
+        unknown_requirement_refs={},
+        unmapped_functional_requirements=[],
+        bare_prose_requirement_ids=["FR-001", "FR-002"],
+        wp_dependencies={"WP01": []},
+        wp_requirement_refs={"WP01": ["NFR-001"]},
+    )
+    output = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out)
+    assert "Bare-prose requirement id(s) found, uncounted:" in output
+    assert "- FR-001" in output
+    assert "- FR-002" in output
+
+
+# ---------------------------------------------------------------------------
+# WP06 (#3396) T031/T033: bare-prose requirement ids wired into
+# _validate_requirement_mapping (Story 1 AC1/AC2 -- the issue's exact repro).
+# ---------------------------------------------------------------------------
+
+#: The issue's exact repro Functional Requirements section: FR-001/FR-002
+#: written as bare, unbulleted, unbolded prose alongside a properly DECLARED
+#: NFR-001 table row in the SAME section.
+_BARE_PROSE_REPRO_SPEC = (
+    "### Functional Requirements\n\n"
+    "FR-001 the loader must reject an unknown pack.\n"
+    "FR-002 the error must name the offending path.\n\n"
+    "| ID | Requirement |\n"
+    "|----|-------------|\n"
+    "| NFR-001 | Resolution completes within 200ms |\n"
+)
+
+
+def test_requirement_mapping_rejects_bare_prose_requirement_ids(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Story 1 AC1/AC2: the repro spec.md fails ``finalize-tasks``'s
+    requirement-mapping gate even though every WP's own missing/unknown/
+    unmapped bucket is otherwise clean -- naming FR-001/FR-002 explicitly in
+    a distinct field, never merely appended to
+    ``requirement_extraction_warnings`` (which this call site does not even
+    see)."""
+    with pytest.raises(typer.Exit):
+        seam._validate_requirement_mapping(
+            ["WP01"],
+            {"WP01": ["NFR-001"]},
+            {"NFR-001"},
+            set(),
+            {"WP01": []},
+            _BARE_PROSE_REPRO_SPEC,
+            json_output=True,
+        )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["bare_prose_requirement_ids"] == ["FR-001", "FR-002"]
+    assert payload["unmapped_functional_requirements"] == []
+    assert payload["missing_requirement_refs_wps"] == []
+    assert payload["unknown_requirement_refs"] == {}
+
+
+def test_requirement_mapping_passes_when_spec_content_defaults_empty() -> None:
+    """Backward-compat: the pre-existing 5-positional-arg call shape (no
+    ``spec_content``) still passes cleanly -- the new parameter's default
+    ("") detects zero bare-prose ids."""
+    seam._validate_requirement_mapping(
+        ["WP01"],
+        {"WP01": ["FR-001"]},
+        {"FR-001"},
+        {"FR-001"},
+        {"WP01": []},
+        json_output=True,
+    )
+
+
+def test_requirement_mapping_bare_prose_detection_is_fail_loud(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """WP06 (#3396) IC-04 fault injection: a detector exception becomes an
+    explicit, non-empty failure (NFR-002) -- never a swallowed "0 uncounted"
+    result -- even though every WP mapping bucket is otherwise clean."""
+    import specify_cli.requirement_mapping as req_mapping_module
+
+    def _boom(_spec_content: str) -> list[object]:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(req_mapping_module, "find_bare_prose_requirement_ids", _boom)
+    with pytest.raises(typer.Exit):
+        seam._validate_requirement_mapping(
+            ["WP01"],
+            {"WP01": ["FR-001"]},
+            {"FR-001"},
+            {"FR-001"},
+            {"WP01": []},
+            "irrelevant spec content",
+            json_output=True,
+        )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["bare_prose_requirement_ids"], "expected a non-empty failure entry"
+    assert "boom" in payload["bare_prose_requirement_ids"][0]
+
+
+# ---------------------------------------------------------------------------
+# _read_spec_requirement_ids (WP06 T031 plumbing fix: also returns spec_content)
+# ---------------------------------------------------------------------------
+
+
+def test_read_spec_requirement_ids_also_returns_raw_spec_content(tmp_path: Path) -> None:
+    planning_dir = tmp_path
+    (planning_dir / "spec.md").write_text(_BARE_PROSE_REPRO_SPEC, encoding="utf-8")
+    all_ids, functional_ids, _warnings, spec_content = seam._read_spec_requirement_ids(
+        planning_dir, json_output=True
+    )
+    assert all_ids == {"NFR-001"}
+    assert functional_ids == set()
+    assert spec_content == _BARE_PROSE_REPRO_SPEC
 
 
 # ---------------------------------------------------------------------------
