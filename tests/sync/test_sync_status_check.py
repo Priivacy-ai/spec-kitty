@@ -197,6 +197,28 @@ class TestCheckServerConnectionValidToken:
         assert "Unexpected" in status
         assert "500" in note
 
+    @patch("specify_cli.auth.http.request_with_fallback_sync")
+    def test_gateway_status_reports_dead_endpoint_with_repoint(self, mock_request):
+        """A 502/503/504 is a dead endpoint, not a generic 'unexpected' status.
+
+        Regression for FR-003 (#3406): a configured server pointing at a
+        decommissioned host answered 502 and the probe reported a bare
+        "Unexpected status", giving no signal that the URL was the fault. The
+        note must name the dead URL and the repoint command.
+        """
+        for gateway_status in (502, 503, 504):
+            mock_request.side_effect = _mock_response_for_probe(get_status=gateway_status)
+            fake_tm = _fake_token_manager(access_token="valid-token")
+
+            with patch("specify_cli.auth.get_token_manager", return_value=fake_tm):
+                status, note = _check_server_connection(SERVER_URL)
+
+            assert "Unexpected" not in status
+            assert "down" in status.lower()
+            assert str(gateway_status) in note
+            assert SERVER_URL in note
+            assert "sync server" in note
+
 
 class TestCheckServerConnectionUnreachable:
     """Test behavior when server is unreachable."""
