@@ -390,16 +390,39 @@ def _setup_undeclared_fr_feature(tmp_path: Path, mission_slug: str) -> Path:
 
 
 class TestRequirementExtractionWarningsInJson:
-    """#3394 review F1: finalize-tasks' SUCCESS path carries a non-blocking
-    signal when spec.md's requirements are written in none of the four
-    recognized declared shapes -- the "reports success while measuring
-    nothing" gap the review flagged. The warning must NEVER change the exit
-    code (SCOPE BOUNDARIES: non-blocking only).
+    """#3394 review F1: finalize-tasks' non-blocking ``requirement_extraction_
+    warnings`` signal for a Requirements section matching none of the four
+    recognized declared shapes at all (the "reports success while measuring
+    nothing" gap the review flagged for a WHOLLY-undeclared section).
+
+    RE-PINNED (operator ruling 2026-08-14; same DIRECTIVE_041 conflict as
+    ``1b5b86e0f``'s spec-kitty-next re-pin): this class used to ALSO pin the
+    "mixed declared + bare-prose" shape (a Requirements section that
+    correctly declares SOME ids while writing OTHERS as bare prose) as
+    non-blocking. #3396 exists specifically to supersede that advisory-only
+    decision for the mixed shape -- see
+    ``test_bare_sentence_frs_now_block_finalize_tasks_per_3396`` below.
     """
 
-    def test_bare_sentence_frs_surface_a_non_blocking_warning_on_success(
+    def test_bare_sentence_frs_now_block_finalize_tasks_per_3396(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
+        """RE-PINNED (operator ruling 2026-08-14, same conflict as ``1b5b86e0f``'s
+        spec-kitty-next re-pin): the F4 finding's own repro fixture (bare-prose
+        FR-001/FR-002 alongside a properly DECLARED table-row FR-100 that both
+        WP01/WP02 map to) IS #3396's own target repro -- the mission's whole
+        reason to exist (Story 1 AC1/AC2). Under #3395's fix this shape reached
+        finalize-tasks' SUCCESS path with only the non-blocking
+        ``requirement_extraction_warnings`` entry below (formerly asserted by
+        this test under its old name,
+        ``test_bare_sentence_frs_surface_a_non_blocking_warning_on_success``).
+        #3396 (WP06) wires ``find_bare_prose_requirement_ids`` into
+        ``_validate_requirement_mapping``, so this exact shape now BLOCKS
+        (exit code 1), naming FR-001/FR-002 explicitly in the distinct
+        ``bare_prose_requirement_ids`` field -- DIRECTIVE_041: the product
+        decision this test pins deliberately changed, so the old
+        non-blocking assertion was stale, not the new wiring.
+        """
         mission_slug = "060-test-feature"
         _setup_undeclared_fr_feature(tmp_path, mission_slug)
 
@@ -423,7 +446,7 @@ class TestRequirementExtractionWarningsInJson:
             for p in ctx_patches.values():
                 p.stop()
 
-        assert exit_code == 0, "F1's warning must be non-blocking -- exit code must stay 0"
+        assert exit_code == 1, "#3396 (WP06) supersedes #3395: this mixed shape must now block"
 
         captured = capsys.readouterr()
         for line in captured.out.strip().splitlines():
@@ -431,17 +454,11 @@ class TestRequirementExtractionWarningsInJson:
                 data = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if data.get("result") == "success":
-                warnings = data.get("requirement_extraction_warnings")
-                assert warnings, (
-                    "expected a non-empty requirement_extraction_warnings for a spec "
-                    "whose FRs matched none of the recognized declared shapes"
-                )
-                warning_text = " ".join(warnings)
-                assert "FR-001" in warning_text
-                assert "FR-002" in warning_text
+            if "bare_prose_requirement_ids" in data:
+                assert data["bare_prose_requirement_ids"] == ["FR-001", "FR-002"]
+                assert data["unmapped_functional_requirements"] == []
                 return
-        pytest.fail("No JSON output with 'result': 'success' found in captured output")
+        pytest.fail("No JSON output carrying 'bare_prose_requirement_ids' found in captured output")
 
 
 # ---------------------------------------------------------------------------
