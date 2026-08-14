@@ -1,0 +1,35 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: plan
+round: 3
+verified_against: plan-fresh.yaml (round 2, PLAN-FRESH2-*)
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: >
+      Live read of show_mission_type (mission_type.py:1453-1561) confirms exactly 3 hardcoded
+      built-in sites (mt-is-None Exit(1) at 1487-1490 querying the built-in-only
+      MissionTypeRepository.default(), JSON branch literal at 1531, Panel branch literal at
+      1543); IC-07's Affected-surfaces bullet (plan.md:820-839) now names all three with matching
+      line numbers, and its Test surface bullet (plan.md:847-852) requires asserting the correct
+      layer on both --json (line 1531) and default/Panel (line 1543) output for the same
+      activated non-built-in type.
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: >
+      IC-01's Sequencing/depends-on bullet (plan.md:637-639) now states only IC-02 depends on it
+      and that IC-03/IC-06 are independently sequenced with IC-06 preceding IC-01, matching IC-03
+      (plan.md:705) and IC-06 (plan.md:801-802) exactly; a whole-document grep for
+      "build on"/"builds on"/"foundation" returns zero hits, including in the Summary section.
+  - id: PLAN-FRESH2-003
+    status: resolved
+    reason: >
+      IC-01 gained a concrete "Malformed-YAML handling" sub-bullet (plan.md:618-636) requiring
+      the org/project parse call to wrap/re-raise with the offending file's path named, plus a
+      matching Test surface bullet (plan.md:654-657) for a scratch pack with invalid YAML
+      asserting the error message contains the file's path; this genuinely matches spec.md's
+      Edge Cases wording (line 272-274: "fail loudly, naming the offending file, not silently
+      skip it") rather than a weaker paraphrase, and the cited _load method
+      (mission_type_repository.py:130-163, bare-string parse at line 147) matches the live file
+      exactly.

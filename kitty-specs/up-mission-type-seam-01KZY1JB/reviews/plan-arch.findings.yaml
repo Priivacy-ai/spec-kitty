@@ -1,0 +1,120 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: up-mission-type-seam-01KZY1JB
+findings:
+  - id: PLAN-ARCH-001
+    lens: Layer-rule compliance of the new lookup's import graph (primary lens)
+    severity: 3
+    title: >-
+      Plan mischaracterizes _resolve_action_slot as "hardcoding pack_context=None" —
+      it has no pack_context parameter at all, so the stated fix mechanism is wrong
+      for one of the seam's two twin functions
+    evidence:
+      - artifact: "plan.md § Summary (line 17-18: '...both hardcode pack_context=None.')"
+      - artifact: "plan.md § IC-02 (Purpose: '...instead of their current hardcoded pack_context=None.')"
+      - code: "src/charter/mission_type_profiles.py:762-767 (def _resolve_action_slot(mission_type: str, *, registered: list[str], is_registered: bool) -> list[str]: — no pack_context parameter exists anywhere in the signature or body)"
+      - code: "src/charter/mission_type_profiles.py:793 (repo = MissionTypeRepository.default() — a zero-argument classmethod call; there is no argument to override)"
+      - code: "src/charter/mission_type_profiles.py:876-878 (_resolve_template_set_slot's call site — .resolve_all_for_mission_type(mission_type, pack_context=None) — this IS a genuine hardcoded pack_context=None argument)"
+    claim: >-
+      The plan's Summary and IC-02 both state that "_resolve_action_slot /
+      _resolve_template_set_slot ... both hardcode pack_context=None," and IC-02's
+      stated remedy is to "hand [PackContext] to _resolve_action_slot ... instead
+      of their current hardcoded pack_context=None." Live re-verification shows
+      this is only true for _resolve_template_set_slot. _resolve_action_slot takes
+      no pack_context argument whatsoever — its builtin-only-ness comes entirely
+      from calling MissionTypeRepository.default() (a zero-arg classmethod bound to
+      the built-in-only cache), not from a hardcoded default value on a parameter
+      that exists. IC-02's own "Affected surfaces" bullet does separately state the
+      correct fix ("call IC-01's new factory instead of MissionTypeRepository.default()"),
+      but the "hardcoded pack_context=None" framing sitting right next to it, repeated
+      in the Summary, could lead an implementer to look for a parameter to flip on
+      _resolve_action_slot rather than recognizing they must swap which repository/
+      factory object is called entirely — a structurally larger edit than adding an
+      argument. This is the mission's dominant-risk code path (CL-003), so an
+      imprecise premise here carries above-average rework cost.
+    remediation: >-
+      In plan.md's Summary and IC-02, replace "both hardcode pack_context=None"
+      with an accurate, per-function statement: _resolve_template_set_slot hardcodes
+      pack_context=None in its call to MissionStepRepository.resolve_all_for_mission_type;
+      _resolve_action_slot has no pack_context parameter at all and must be changed to
+      call IC-01's new layered factory (or a new MissionTypeRepository classmethod)
+      in place of MissionTypeRepository.default(), which is a repository-swap, not an
+      argument-threading change. State both mechanisms explicitly so the tasks phase
+      does not treat them as the same edit shape.
+
+  - id: PLAN-ARCH-002
+    lens: Contracts (charter.missions facade-table entry verification)
+    severity: 3
+    title: >-
+      "The Seam" section asserts as verified fact that a new charter.missions
+      facade-table entry IS needed, but this depends on a design choice IC-01
+      explicitly leaves open — and the sibling module's own precedent suggests
+      it may not be needed at all
+    evidence:
+      - artifact: "plan.md § The Seam, 'Facade re-export decision (verified, not assumed)' ('this mission DOES need a new charter.missions facade-table entry naming the new factory symbol')"
+      - artifact: "plan.md § IC-01, Risks ('The factory's exact per-call signature ... is a tasks-phase implementation choice this plan deliberately leaves open ... both shapes satisfy FR-001's stated cache-key contract')"
+      - code: "src/charter/missions.py:24-42 (MissionTypeRepository is already re-exported by identity)"
+      - code: "src/doctrine/missions/mission_step_repository.py:63-66 (__all__ = [\"StepKey\", \"MissionStepRepository\"] — the sibling module's own module-level cache function _resolve_all_for_mission_type_cached is NOT exported)"
+      - code: "src/doctrine/missions/mission_step_repository.py:446-470 (_resolve_all_for_mission_type_cached is private; external callers reach it only via the already-public MissionStepRepository.resolve_all_for_mission_type instance method)"
+    claim: >-
+      "The Seam" section treats "a new facade-table entry is required" as a settled,
+      verified conclusion (numbered steps 1-3 follow immediately, including editing
+      the architectural test file's _FACADE_TABLE). But IC-01's own Risks bullet says
+      the factory's shape — a bare module-level function callers reach directly, vs.
+      MissionTypeRepository gaining a new classmethod (mirroring default()'s existing
+      shape) that wraps the module-level cache internally — is not yet decided. The
+      sibling module (mission_step_repository.py) already answers this question for
+      its own analogous cache: the module-level @functools.cache function is kept
+      private (absent from __all__), and every external caller reaches it only through
+      the already-exported MissionStepRepository class's instance method. If this
+      mission's new factory follows that same established convention (e.g. a new
+      MissionTypeRepository.layered(...) classmethod wrapping a private module-level
+      cache), no new facade-table entry is needed at all, since MissionTypeRepository
+      itself is already in _FACADE_TABLE["charter.missions"] by identity. The plan's
+      "verified, not assumed" framing overclaims certainty on a question it separately,
+      correctly, defers to the tasks phase.
+    remediation: >-
+      Either (a) resolve IC-01's open design question in this plan before asserting the
+      facade conclusion — pick the classmethod-on-MissionTypeRepository shape (matching
+      the sibling convention and requiring zero facade-table churn) or the bare-function
+      shape (requiring the facade-table edit as currently described) — or (b) soften "The
+      Seam" section's language to state the facade-table-entry need is conditional on
+      IC-01's still-open per-call-signature decision, not a verified fact, so a reviewer
+      does not sign off on redundant work (adding + testing a facade row that IC-01's own
+      chosen shape may later make unnecessary).
+
+  - id: PLAN-ARCH-003
+    lens: Canonical source / reflexivity (project-layer collision risk, IC-04)
+    severity: 2
+    title: >-
+      IC-04's stated risk narrative overstates how much protection the CL-004a
+      deletion actually buys against the `.kittify/missions/mission_types/`
+      collision it describes
+    evidence:
+      - artifact: "plan.md § IC-04, Risks ('this mission's own CL-004a deletion (IC-06) removes the one live consumer that could have collided here ... Because IC-06 deletes that scanner's only caller in the same PR, this collision risk is eliminated by the mission's own scope')"
+      - code: "src/specify_cli/mission.py:78 (_mission_dir_if_valid: `return path if path.is_dir() and (path / \"mission.yaml\").exists() else None`)"
+    claim: >-
+      IC-04 frames the CL-004a/IC-06 deletion of discover_missions/list_cmd as what
+      "eliminates" the risk that `.kittify/missions/mission_types/` could be
+      misinterpreted as a mission instance named `mission_types`. Live re-check of
+      `_mission_dir_if_valid` shows the actual guard is independent of that deletion:
+      a candidate directory is only accepted as a mission instance if it contains a
+      file literally named `mission.yaml`. The new roster directory contains flat
+      `*.yaml` files named after mission-type ids (e.g. `qa.yaml`), not a file named
+      `mission.yaml`, so `_mission_dir_if_valid` would already reject it as a mission
+      instance regardless of whether `discover_missions`/`list_cmd` still existed.
+      The plan's conclusion (no collision) is correct, but the stated reason (IC-06's
+      deletion is what eliminates the risk) is not — the real protection is the
+      pre-existing `mission.yaml`-presence check, which this mission does not touch
+      and would have protected the roster directory even if CL-004a were out of scope.
+    remediation: >-
+      Rewrite IC-04's Risks bullet to cite the true protection: `_mission_dir_if_valid`
+      (src/specify_cli/mission.py:78) only recognizes a subdirectory of
+      `.kittify/missions/` as a mission instance when it contains a file named
+      `mission.yaml`; a roster directory of `*.yaml` files named after mission-type
+      ids never satisfies that check. Keep noting the CL-004a deletion as good hygiene
+      (dead code removal), but stop presenting it as the mechanism that prevents the
+      collision — it is not the operative safeguard.

@@ -1,0 +1,68 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: >-
+      Live code at mission_type_profiles.py:793-799 shows `if mission is None: raise
+      UnknownMissionTypeError(...)` executes and returns control before line 807 is ever
+      reached, so the plan's own Summary text ("mission is None today ... the type falls
+      through to list(mission.action_sequence or []) at line 807") misdescribes the exact
+      lines it cites — today's behavior is a loud raise, not a silent [] degrade.
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: >-
+      Confirmed by reading the live signature `def _resolve_action_slot(mission_type: str,
+      *, registered: list[str], is_registered: bool) -> list[str]` — there is no
+      pack_context parameter anywhere in it (it calls the zero-arg
+      MissionTypeRepository.default()), while _resolve_template_set_slot genuinely does pass
+      a literal pack_context=None at line 878; plan.md's Summary and IC-02 both state "both
+      hardcode pack_context=None" verbatim, which is inaccurate for the first function.
+  - id: PLAN-ARCH-002
+    verdict: confirmed
+    reason: >-
+      plan.md's "The Seam" section states as settled fact that a new charter.missions
+      facade entry "DOES" need adding, but plan.md's own IC-01 Risks bullet leaves open an
+      alternative shape ("MissionTypeRepository instead gains org/project directories baked
+      into its own __init__") that would reuse the already-exported MissionTypeRepository
+      symbol with no new facade row; the sibling module's cache function
+      (_resolve_all_for_mission_type_cached, mission_step_repository.py:446-470) is
+      confirmedly private and absent from its __all__ (lines 63-66), so the analogous
+      precedent does not guarantee new facade churn is required.
+  - id: PLAN-ARCH-003
+    verdict: confirmed
+    reason: >-
+      Live code shows discover_missions (mission.py:806-842) itself gates every candidate
+      directory through `_mission_dir_if_valid` (mission.yaml-presence check, lines 74-75)
+      independently of whether it has any caller — a `.kittify/missions/mission_types/`
+      directory containing only `*.yaml` roster files (no mission.yaml) would already be
+      skipped by that guard regardless of the CL-004a/IC-06 deletion, so IC-04's framing that
+      the deletion is what "eliminates" the collision risk overstates the deletion's actual
+      contribution.
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      grep of plan.md's Gate Set section for "diff-coverage"/"diff coverage" returns zero
+      hits in either the Included or Excluded table, while the live diff-coverage job
+      (ci-quality.yml, critical_paths array) enforces --fail-under=90 over 'src/doctrine/*'
+      and 'src/charter/*' — exactly this mission's touched directories — and is a required
+      quality-gate dependency, confirming the omission is real.
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      plan.md cites ci-quality.yml:3568, which is confirmed to be the sonarcloud job header
+      line (not the actual "[ENFORCED] SonarCloud Quality Gate" step, which lives at line
+      4011); the job's live if-condition is
+      `always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')`,
+      and quality-gate's needs: list (ci-quality.yml ~4338-4394) has no `sonarcloud` entry —
+      all matching the finding's claim that it never runs on this mission's actual PR.
+  - id: PLAN-VERIFY-004
+    verdict: confirmed
+    reason: >-
+      Directory listing of tests/specify_cli/cli/commands/ confirms no
+      test_mission_type.py exists there (only test_mission_type_force_delete_branch.py,
+      test_mission_type_rendering.py, and test_mission_type_template_set_cli.py do), so
+      plan.md's "EXTEND" verb on that path names a nonexistent file.
