@@ -318,16 +318,19 @@ def resolve_mission_operation_context_cli(
         raise typer.Exit(2) from exc
 
 
-def is_same_repository_worktree_context(
+def resolve_same_repository_worktree_root(
     project_root: Path,
     *,
     cwd: Path | None = None,
-) -> bool:
-    """Return whether ``cwd`` is a linked worktree of ``project_root``.
+) -> Path | None:
+    """Return the linked checkout enclosing ``cwd`` when it belongs to the project.
 
     Test harnesses and embedding callers may override project discovery while
     executing from an unrelated Spec Kitty checkout. A worktree-shaped cwd is
     therefore insufficient: both checkouts must share the same Git common dir.
+
+    This read-only helper selects a Git checkout for policy checks only. It does
+    not resolve Mission identity or a Mission anchor and does not start Git.
     """
     from specify_cli.core.paths import (
         _nearest_checkout_root,
@@ -338,13 +341,24 @@ def is_same_repository_worktree_context(
     current_checkout = _nearest_checkout_root((cwd or Path.cwd()).resolve())
     project_checkout = _nearest_checkout_root(project_root.resolve())
     if current_checkout is None or project_checkout is None:
-        return False
+        return None
     if not is_worktree_context(current_checkout):
-        return False
+        return None
     current_common = git_common_dir_for_checkout(current_checkout)
     project_common = git_common_dir_for_checkout(project_checkout)
     if current_common is None or project_common is None:
-        return False
-    return os.path.normcase(str(current_common.resolve())) == os.path.normcase(
+        return None
+    if os.path.normcase(str(current_common.resolve())) != os.path.normcase(
         str(project_common.resolve())
-    )
+    ):
+        return None
+    return Path(current_checkout)
+
+
+def is_same_repository_worktree_context(
+    project_root: Path,
+    *,
+    cwd: Path | None = None,
+) -> bool:
+    """Return whether ``cwd`` is a linked worktree of ``project_root``."""
+    return resolve_same_repository_worktree_root(project_root, cwd=cwd) is not None

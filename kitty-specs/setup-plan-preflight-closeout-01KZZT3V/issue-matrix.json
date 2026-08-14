@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#3332": {
+      "evidence_ref": "GREEN 2f2fbbbc0; independent review: RED 00b7d7b21 failed as expected, HEAD 14 focused tests passed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

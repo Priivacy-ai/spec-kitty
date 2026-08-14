@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -29,6 +30,39 @@ from runtime.next.runtime_bridge import MissionNotFoundError
 
 pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]  # non_sandbox: warning assertion fails in sandbox
 runner = CliRunner()
+
+
+def _git(root: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(root), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    return result.stdout.strip()
+
+
+def _repo_with_linked_checkout(tmp_path: Path, name: str) -> tuple[Path, Path]:
+    repository_root = tmp_path / f"{name}-repository"
+    repository_root.mkdir()
+    _git(repository_root, "init", "-q", "-b", "main")
+    _git(repository_root, "config", "user.email", "tests@example.invalid")
+    _git(repository_root, "config", "user.name", "Spec Kitty Tests")
+    (repository_root / "README.md").write_text("repository\n", encoding="utf-8")
+    _git(repository_root, "add", "README.md")
+    _git(repository_root, "commit", "-q", "-m", "test: initialize repository")
+    linked_checkout = tmp_path / f"{name}-linked"
+    _git(
+        repository_root,
+        "worktree",
+        "add",
+        "-q",
+        "-b",
+        f"test/{name}",
+        str(linked_checkout),
+    )
+    return repository_root, linked_checkout
 
 
 def _build_top_level_lifecycle_app() -> typer.Typer:
@@ -60,6 +94,107 @@ def warning_stream(monkeypatch: pytest.MonkeyPatch) -> io.StringIO:
     console = Console(file=stream, force_terminal=False, color_system=None, width=200)
     monkeypatch.setattr(selector_resolution, "_err_console", console)
     return stream
+
+
+def test_resolve_same_repository_worktree_root_returns_nested_caller_checkout(
+    tmp_path: Path,
+) -> None:
+    repository_root, linked_checkout = _repo_with_linked_checkout(tmp_path, "same")
+    nested = linked_checkout / "nested" / "directory"
+    nested.mkdir(parents=True)
+
+    resolved = selector_resolution.resolve_same_repository_worktree_root(
+        repository_root,
+        cwd=nested,
+    )
+
+    assert resolved == linked_checkout.resolve()
+
+
+def test_resolve_same_repository_worktree_root_rejects_ordinary_checkout(
+    tmp_path: Path,
+) -> None:
+    repository_root, _linked_checkout = _repo_with_linked_checkout(tmp_path, "ordinary")
+    nested = repository_root / "nested"
+    nested.mkdir()
+
+    resolved = selector_resolution.resolve_same_repository_worktree_root(
+        repository_root,
+        cwd=nested,
+    )
+
+    assert resolved is None
+
+
+def test_resolve_same_repository_worktree_root_rejects_unrelated_checkout(
+    tmp_path: Path,
+) -> None:
+    repository_root, _linked_checkout = _repo_with_linked_checkout(tmp_path, "expected")
+    _unrelated_root, unrelated_checkout = _repo_with_linked_checkout(tmp_path, "unrelated")
+
+    resolved = selector_resolution.resolve_same_repository_worktree_root(
+        repository_root,
+        cwd=unrelated_checkout,
+    )
+
+    assert resolved is None
+
+
+def test_resolve_same_repository_worktree_root_normalizes_common_dir_case(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from specify_cli.core import paths as core_paths
+
+    repository_root = tmp_path / "repository"
+    linked_checkout = tmp_path / "linked"
+    common_dir = tmp_path / "Common-Git-Directory"
+    checkout_by_input = {
+        repository_root.resolve(): repository_root,
+        linked_checkout.resolve(): linked_checkout,
+    }
+    monkeypatch.setattr(
+        core_paths,
+        "_nearest_checkout_root",
+        lambda path: checkout_by_input.get(path.resolve()),
+    )
+    monkeypatch.setattr(
+        core_paths,
+        "is_worktree_context",
+        lambda path: path == linked_checkout,
+    )
+    monkeypatch.setattr(
+        core_paths,
+        "git_common_dir_for_checkout",
+        lambda path: common_dir if path == repository_root else Path(str(common_dir).swapcase()),
+    )
+    monkeypatch.setattr(selector_resolution.os.path, "normcase", lambda value: value.casefold())
+
+    resolved = selector_resolution.resolve_same_repository_worktree_root(
+        repository_root,
+        cwd=linked_checkout,
+    )
+
+    assert resolved == linked_checkout
+
+
+def test_resolve_same_repository_worktree_root_never_starts_subprocess(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository_root, linked_checkout = _repo_with_linked_checkout(tmp_path, "no-process")
+
+    def fail_subprocess(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("checkout resolution must not start a subprocess")
+
+    monkeypatch.setattr(subprocess, "run", fail_subprocess)
+
+    resolved = selector_resolution.resolve_same_repository_worktree_root(
+        repository_root,
+        cwd=linked_checkout,
+    )
+
+    assert resolved == linked_checkout.resolve()
 
 
 def _build_task_repo(tmp_path: Path, mission_slug: str = "077-demo-mission") -> Path:

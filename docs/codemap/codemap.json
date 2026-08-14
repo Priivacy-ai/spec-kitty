@@ -13,6 +13,11 @@
       "role": "Creates one operation context for status, setup, tasks, next, workflow, and accept commands."
     },
     {
+      "id": "git-preflight-checkout-selection",
+      "path": "src/specify_cli/cli/commands/agent/mission_setup_plan.py; src/specify_cli/cli/selector_resolution.py",
+      "role": "Selects the active same-repository linked checkout for setup-plan Git policy before Mission resolution without becoming a Mission-root authority."
+    },
+    {
       "id": "placement-and-commit",
       "path": "src/specify_cli/coordination/commit_router.py",
       "role": "Keeps Git topology on the repository root while routing Mission artifacts through the Mission anchor."
@@ -45,6 +50,8 @@
   ],
   "edges": [
     {"from": "lifecycle-cli-boundaries", "to": "mission-operation-context", "kind": "calls"},
+    {"from": "lifecycle-cli-boundaries", "to": "git-preflight-checkout-selection", "kind": "calls"},
+    {"from": "git-preflight-checkout-selection", "to": "mission-operation-context", "kind": "precedes"},
     {"from": "mission-operation-context", "to": "placement-and-commit", "kind": "supplies roots"},
     {"from": "mission-operation-context", "to": "status-transaction-dual-root", "kind": "supplies roots"},
     {"from": "lifecycle-cli-boundaries", "to": "status-transaction-dual-root", "kind": "calls"},
@@ -54,6 +61,7 @@
     {"from": "status-transaction-dual-root", "to": "placement-and-commit", "kind": "routes commits"},
     {"from": "mission-operation-context", "to": "status-and-acceptance", "kind": "supplies anchor"},
     {"from": "caller-owned-integration-tests", "to": "lifecycle-cli-boundaries", "kind": "covers"},
+    {"from": "caller-owned-integration-tests", "to": "git-preflight-checkout-selection", "kind": "covers"},
     {"from": "caller-owned-integration-tests", "to": "status-transaction-dual-root", "kind": "covers"},
     {"from": "caller-owned-integration-tests", "to": "tasks-operation-boundary", "kind": "covers"},
     {"from": "operation-root-guard", "to": "lifecycle-cli-boundaries", "kind": "guards"},
@@ -63,6 +71,7 @@
   ],
   "flow": [
     "CLI command receives a Mission selector in any same-repository linked worktree.",
+    "setup-plan selects the active checkout and completes Git preflight before MissionOperationContext resolution.",
     "MissionOperationContext resolves repository_root, mission_anchor_root, and immutable identity once.",
     "Lifecycle and task readers and writers retain repository_root for Git topology and use mission_anchor_root for Mission artifacts.",
     "Conflicting identities fail before writes; managed worktrees retain their existing placement behavior."

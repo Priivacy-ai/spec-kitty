@@ -1035,20 +1035,30 @@ def setup_plan(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
-        repo_root, mission_anchor_root, feature_dir = _resolve_setup_plan_operation(
-            located_root,
-            feature,
-            json_output=json_output,
+        _enforce_saas_sync_boundary_preflight(located_root)
+
+        from specify_cli.cli.selector_resolution import (
+            resolve_same_repository_worktree_root,
         )
 
-        git_checkout_root = mission_anchor_root or repo_root
-
-        _enforce_saas_sync_boundary_preflight(repo_root)
+        git_checkout_root = (
+            resolve_same_repository_worktree_root(
+                located_root,
+                cwd=Path.cwd(),
+            )
+            or located_root
+        )
 
         _mission._enforce_git_preflight(
             git_checkout_root,
             json_output=json_output,
             command_name=SETUP_PLAN_COMMAND_NAME,
+        )
+
+        repo_root, mission_anchor_root, feature_dir = _resolve_setup_plan_operation(
+            located_root,
+            feature,
+            json_output=json_output,
         )
 
         mission_slug = feature_dir.name

@@ -338,6 +338,8 @@ def test_setup_plan_scaffolds_in_caller_worktree_not_primary(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    from specify_cli.cli.commands.agent import mission as mission_module
+
     repository_root, caller, mission_dir = _repo_with_caller_mission(tmp_path)
     (mission_dir / "spec.md").write_text(
         """# Spec — Caller Mission
@@ -353,7 +355,26 @@ def test_setup_plan_scaffolds_in_caller_worktree_not_primary(
     _git(caller, "add", ".")
     _git(caller, "commit", "-q", "-m", "test: add caller mission")
     before = _primary_snapshot(repository_root)
-    monkeypatch.chdir(caller)
+    preflight_roots: list[Path] = []
+    enforce_git_preflight = mission_module._enforce_git_preflight
+
+    def record_git_preflight(
+        repo_root: Path,
+        *,
+        json_output: bool,
+        command_name: str,
+    ) -> None:
+        preflight_roots.append(repo_root.resolve())
+        enforce_git_preflight(
+            repo_root,
+            json_output=json_output,
+            command_name=command_name,
+        )
+
+    monkeypatch.setattr(mission_module, "_enforce_git_preflight", record_git_preflight)
+    nested_cwd = caller / "nested" / "directory"
+    nested_cwd.mkdir(parents=True)
+    monkeypatch.chdir(nested_cwd)
 
     result = CliRunner().invoke(
         mission_app,
@@ -367,6 +388,7 @@ def test_setup_plan_scaffolds_in_caller_worktree_not_primary(
     assert Path(payload["feature_dir"]) == mission_dir
     assert Path(payload["plan_file"]) == mission_dir / "plan.md"
     assert (mission_dir / "plan.md").is_file()
+    assert preflight_roots == [caller.resolve()]
     assert not (repository_root / "kitty-specs" / _MISSION_SLUG).exists()
     assert _primary_snapshot(repository_root) == before
 

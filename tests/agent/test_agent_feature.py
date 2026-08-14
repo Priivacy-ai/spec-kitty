@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+import typer
 from typer.testing import CliRunner
 from ulid import ULID
 
@@ -811,6 +812,50 @@ class TestCheckPrerequisitesCommand:
 class TestGitPreflightEnforcement:
     """Tests for _enforce_git_preflight integration in feature commands."""
 
+    @patch("specify_cli.cli.commands.agent.mission_setup_plan._resolve_setup_plan_operation")
+    @patch("specify_cli.cli.commands.agent.mission.run_git_preflight")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission_setup_plan._enforce_saas_sync_auth_refusal")
+    def test_setup_plan_hosted_auth_failure_precedes_git_and_mission_resolution(
+        self,
+        mock_auth_gate: Mock,
+        mock_locate: Mock,
+        mock_preflight: Mock,
+        mock_resolve_operation: Mock,
+    ) -> None:
+        """Hosted-auth refusal remains the first setup-plan gate."""
+        mock_auth_gate.side_effect = typer.Exit(2)
+
+        result = runner.invoke(app, ["setup-plan", "--json"])
+
+        assert result.exit_code == 2
+        mock_locate.assert_not_called()
+        mock_preflight.assert_not_called()
+        mock_resolve_operation.assert_not_called()
+
+    @patch("specify_cli.cli.commands.agent.mission_setup_plan._resolve_setup_plan_operation")
+    @patch("specify_cli.cli.commands.agent.mission.run_git_preflight")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission_setup_plan._enforce_saas_sync_boundary_preflight")
+    def test_setup_plan_saas_boundary_failure_precedes_git_and_mission_resolution(
+        self,
+        mock_boundary_gate: Mock,
+        mock_locate: Mock,
+        mock_preflight: Mock,
+        mock_resolve_operation: Mock,
+        tmp_path: Path,
+    ) -> None:
+        """SaaS boundary refusal remains ahead of Git and Mission gates."""
+        mock_locate.return_value = tmp_path
+        mock_boundary_gate.side_effect = typer.Exit(2)
+
+        result = runner.invoke(app, ["setup-plan", "--json"])
+
+        assert result.exit_code == 2
+        mock_boundary_gate.assert_called_once_with(tmp_path)
+        mock_preflight.assert_not_called()
+        mock_resolve_operation.assert_not_called()
+
     @patch("specify_cli.cli.commands.agent.mission.run_git_preflight")
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     def test_check_prerequisites_exits_on_preflight_failure_json(
@@ -874,12 +919,17 @@ class TestGitPreflightEnforcement:
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     def test_setup_plan_exits_on_preflight_failure_json(
         self, mock_locate: Mock, mock_preflight: Mock, tmp_path: Path
-    ):
+    ) -> None:
         """setup-plan should emit JSON remediation payload on preflight failure."""
         from specify_cli.core.git_preflight import GitPreflightIssue, GitPreflightResult
 
         (tmp_path / ".git").mkdir()
         mock_locate.return_value = tmp_path
+        before = {
+            path.relative_to(tmp_path): path.read_bytes()
+            for path in tmp_path.rglob("*")
+            if path.is_file()
+        }
 
         failed_result = GitPreflightResult(repo_root=tmp_path)
         failed_result.errors.append(
@@ -898,6 +948,87 @@ class TestGitPreflightEnforcement:
         assert result.exit_code == 1
         payload = json.loads(result.stdout.strip().split("\n")[0])
         assert payload["error_code"] == "GIT_PREFLIGHT_FAILED"
+        assert payload["error"] == "Git rejected repository ownership trust (safe.directory)."
+        assert payload["remediation"] == ["git config --global --add safe.directory /repo"]
+        assert "PLAN_CONTEXT_UNRESOLVED" not in result.stdout
+        mock_preflight.assert_called_once_with(tmp_path, check_worktree_list=True)
+        after = {
+            path.relative_to(tmp_path): path.read_bytes()
+            for path in tmp_path.rglob("*")
+            if path.is_file()
+        }
+        assert after == before
+
+    @patch("specify_cli.cli.commands.agent.mission_setup_plan._resolve_setup_plan_operation")
+    @patch("specify_cli.cli.commands.agent.mission.run_git_preflight")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    def test_setup_plan_failed_preflight_skips_mission_resolution(
+        self,
+        mock_locate: Mock,
+        mock_preflight: Mock,
+        mock_resolve_operation: Mock,
+        tmp_path: Path,
+    ) -> None:
+        """A failed Git policy gate must stop before Mission resolution."""
+        from specify_cli.core.git_preflight import GitPreflightIssue, GitPreflightResult
+
+        (tmp_path / ".git").mkdir()
+        mock_locate.return_value = tmp_path
+        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        mock_resolve_operation.return_value = (tmp_path, None, feature_dir)
+        failed_result = GitPreflightResult(repo_root=tmp_path)
+        failed_result.errors.append(
+            GitPreflightIssue(
+                code="UNTRUSTED_REPOSITORY",
+                check="repository_trust",
+                message="Git rejected repository ownership trust (safe.directory).",
+                remediation="Mark the repository as trusted.",
+                command="git config --global --add safe.directory /repo",
+            )
+        )
+        mock_preflight.return_value = failed_result
+
+        result = runner.invoke(app, ["setup-plan", "--mission", "001-test", "--json"])
+
+        assert result.exit_code == 1
+        payload = json.loads(result.stdout.strip().split("\n")[0])
+        assert payload["error_code"] == "GIT_PREFLIGHT_FAILED"
+        mock_preflight.assert_called_once_with(tmp_path, check_worktree_list=True)
+        mock_resolve_operation.assert_not_called()
+        assert not feature_dir.exists()
+
+    @patch("specify_cli.cli.commands.agent.mission.run_git_preflight")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    def test_setup_plan_exits_on_preflight_failure_human(
+        self,
+        mock_locate: Mock,
+        mock_preflight: Mock,
+        tmp_path: Path,
+    ) -> None:
+        """Human output preserves the Git failure and remediation contract."""
+        from specify_cli.core.git_preflight import GitPreflightIssue, GitPreflightResult
+
+        (tmp_path / ".git").mkdir()
+        mock_locate.return_value = tmp_path
+        failed_result = GitPreflightResult(repo_root=tmp_path)
+        failed_result.errors.append(
+            GitPreflightIssue(
+                code="UNTRUSTED_REPOSITORY",
+                check="repository_trust",
+                message="Git rejected repository ownership trust (safe.directory).",
+                remediation="Mark the repository as trusted.",
+                command="git config --global --add safe.directory /repo",
+            )
+        )
+        mock_preflight.return_value = failed_result
+
+        result = runner.invoke(app, ["setup-plan"])
+
+        assert result.exit_code == 1
+        assert "Git rejected repository ownership trust (safe.directory)." in result.stdout
+        assert "Run: git config --global --add safe.directory /repo" in result.stdout
+        assert "PLAN_CONTEXT_UNRESOLVED" not in result.stdout
+        mock_preflight.assert_called_once_with(tmp_path, check_worktree_list=True)
 
 
 class TestFinalizeTasksCommand:
@@ -1093,6 +1224,7 @@ class TestSetupPlanCommand:
             lambda *args, **kwargs: GitPreflightResult(repo_root=tmp_path),
         )
 
+    @patch("specify_cli.cli.commands.agent.mission.run_git_preflight")
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main"))
@@ -1103,11 +1235,15 @@ class TestSetupPlanCommand:
         mock_show_branch: Mock,
         mock_find: Mock,
         mock_locate: Mock,
+        mock_preflight: Mock,
         tmp_path: Path,
     ) -> None:
         """Should scaffold plan template and output JSON format."""
+        from specify_cli.core.git_preflight import GitPreflightResult
+
         # Setup
         mock_locate.return_value = tmp_path
+        mock_preflight.return_value = GitPreflightResult(repo_root=tmp_path)
         mock_show_branch.return_value = (tmp_path, "main")
         # A SUBSTANTIVE plan template means setup-plan DOES commit plan.md, so
         # ``_commit_to_branch`` is invoked and its typed result is serialized into
@@ -1158,6 +1294,8 @@ class TestSetupPlanCommand:
 
         # Verify commit was called
         mock_commit.assert_called_once()
+        mock_preflight.assert_called_once_with(tmp_path, check_worktree_list=True)
+        mock_find.assert_called_once()
 
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")

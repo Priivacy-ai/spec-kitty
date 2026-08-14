@@ -1,0 +1,59 @@
+{
+  "mission_slug": "setup-plan-preflight-closeout-01KZZT3V",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Failed Git preflight \u0437\u0430\u0432\u0435\u0440\u0448\u0430\u0435\u0442\u0441\u044f \u0434\u043e Mission resolution \u0438 \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u0442 GIT_PREFLIGHT_FAILED",
+      "proof_type": "automated_test",
+      "evidence": "tests/agent/test_agent_feature.py::TestGitPreflightEnforcement::test_setup_plan_exits_on_preflight_failure_json \u0438 ::test_setup_plan_failed_preflight_skips_mission_resolution; RED 00b7d7b21 \u0432\u043e\u0441\u043f\u0440\u043e\u0438\u0437\u0432\u043e\u0434\u0438\u0442 PLAN_CONTEXT_UNRESOLVED, GREEN 2f2fbbbc0 \u043f\u0440\u043e\u0445\u043e\u0434\u0438\u0442",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-14T14:17:13Z",
+      "notes": "\u041d\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043c\u044b\u0439 review \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u043b \u043f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u044b\u0439 \u043f\u043e\u0440\u044f\u0434\u043e\u043a auth -> SaaS -> Git -> Mission"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "JSON \u0438 \u0447\u0435\u043b\u043e\u0432\u0435\u043a\u043e\u0447\u0438\u0442\u0430\u0435\u043c\u044b\u0439 \u0440\u0435\u0436\u0438\u043c\u044b \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u044e\u0442 \u043a\u043e\u0434 \u043e\u0448\u0438\u0431\u043a\u0438 \u0438 remediation Git preflight",
+      "proof_type": "automated_test",
+      "evidence": "tests/agent/test_agent_feature.py::TestGitPreflightEnforcement::test_setup_plan_exits_on_preflight_failure_json \u0438 ::test_setup_plan_exits_on_preflight_failure_human",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-14T14:17:13Z",
+      "notes": "\u041e\u0431\u0430 \u0440\u0435\u0436\u0438\u043c\u0430 \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u044e\u0442 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044e\u0449\u0443\u044e Git remediation \u0431\u0435\u0437 PLAN_CONTEXT_UNRESOLVED"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Caller-owned \u043f\u0443\u0442\u044c \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u0435\u0442 MissionOperationContext \u0438 \u0440\u0430\u0437\u0434\u0435\u043b\u0435\u043d\u0438\u0435 repository_root/mission_anchor_root",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_caller_owned_worktree_lifecycle.py::test_setup_plan_scaffolds_in_caller_worktree_not_primary; tests/specify_cli/cli/commands/test_selector_resolution.py \u2014 5 helper tests",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-14T14:17:13Z",
+      "notes": "\u0420\u0435\u0430\u043b\u044c\u043d\u044b\u0439 linked-worktree \u0442\u0435\u0441\u0442 \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u0435\u0442 caller checkout \u0438 \u043d\u0435\u0438\u0437\u043c\u0435\u043d\u043d\u043e\u0441\u0442\u044c primary"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "\u041e\u0434\u0438\u043d \u0432\u044b\u0437\u043e\u0432 setup-plan \u0432\u044b\u043f\u043e\u043b\u043d\u044f\u0435\u0442 Git preflight \u0440\u043e\u0432\u043d\u043e \u043e\u0434\u0438\u043d \u0440\u0430\u0437",
+      "proof_type": "automated_test",
+      "evidence": "tests/agent/test_agent_feature.py::TestSetupPlanCommand::test_scaffolds_plan_template_json \u0438 TestGitPreflightEnforcement assertions; mutation \u0441 duplicate preflight \u0443\u0431\u0438\u0442\u0430",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-14T14:17:13Z",
+      "notes": "Spy-oracle \u0438 caller-owned integration \u043d\u0430\u0431\u043b\u044e\u0434\u0430\u044e\u0442 \u0440\u043e\u0432\u043d\u043e \u043e\u0434\u0438\u043d \u0432\u044b\u0437\u043e\u0432"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Failed Git preflight \u043d\u0435 \u0432\u044b\u0437\u044b\u0432\u0430\u0435\u0442 Mission resolver \u0438 \u043d\u0435 \u0438\u0437\u043c\u0435\u043d\u044f\u0435\u0442 planning-\u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442\u044b",
+      "proof_type": "automated_test",
+      "evidence": "tests/agent/test_agent_feature.py::TestGitPreflightEnforcement::test_setup_plan_failed_preflight_skips_mission_resolution \u0438 ::test_setup_plan_exits_on_preflight_failure_json",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-14T14:17:13Z",
+      "notes": "Resolver not called; before/after snapshot \u0441\u043e\u0432\u043f\u0430\u0434\u0430\u0435\u0442; feature_dir \u043d\u0435 \u0441\u043e\u0437\u0434\u0430\u0451\u0442\u0441\u044f"
+    }
+  ],
+  "negative_invariants": []
+}
