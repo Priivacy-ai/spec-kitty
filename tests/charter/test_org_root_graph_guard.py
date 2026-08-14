@@ -628,9 +628,11 @@ class TestRootAndDrgMerge:
             dir_name="within-root-dup-fixture-pack",
         )
 
-        with patch("charter._drg_helpers.load_built_in_graph", side_effect=_built_in_graph):
-            with pytest.raises(DRGValidationError):
-                load_validated_graph(repo, org_root=pack_root)
+        with (
+            patch("charter._drg_helpers.load_built_in_graph", side_effect=_built_in_graph),
+            pytest.raises(DRGValidationError),
+        ):
+            load_validated_graph(repo, org_root=pack_root)
 
     def test_same_urn_node_label_conflict_drg_is_authoritative(self, tmp_path: Path) -> None:
         """PR-TESTS-002 regression (R3 confirmed finding).
