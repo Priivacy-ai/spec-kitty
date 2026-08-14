@@ -8,11 +8,14 @@ every subsequent extraction WP.
 It pins, independently of the implementation source:
 
 * the exact set of registered subcommand names (set-equality, order-free);
-  19 as of review-cycle-verdict-seam-rebuild-01KZ2W7W WP08, which added the
-  ``review-cycle-reconcile`` subcommand (FR-008 stranded-record reconciliation)
-  on top of the 18 prior names (17 names as of runtime-state-birth-cutover-all-
-  paths-01KYH654 WP05's ``cutover`` addition: 16 de-godding names from #2059 +
-  ``contracts`` from #2441);
+  20 as of mission-type-guard-registry-01KZY2FG WP02, which added the
+  ``mission-type`` subcommand (FR-007 mission-type resolution health audit)
+  on top of the 19 prior names (19 as of review-cycle-verdict-seam-rebuild-
+  01KZ2W7W WP08, which added the ``review-cycle-reconcile`` subcommand
+  (FR-008 stranded-record reconciliation) on top of the 18 prior names (17
+  names as of runtime-state-birth-cutover-all-paths-01KYH654 WP05's
+  ``cutover`` addition: 16 de-godding names from #2059 + ``contracts`` from
+  #2441));
 * each subcommand's option flags + arity (flag/value/multi);
 * each subcommand's ``--help`` body (whitespace-normalized snapshot);
 * the documented exit-code contracts, including the three load-bearing names
@@ -62,6 +65,7 @@ FROZEN_SUBCOMMANDS: frozenset[str] = frozenset(
         "workspaces",
         "identity",
         "topology",
+        "mission-type",
         "sparse-checkout",
         "shim-registry",
         "contracts",
@@ -92,6 +96,7 @@ EXPECTED_OPTIONS: dict[str, dict[str, str]] = {
     "workspaces": {"--fix": "flag", "--json": "flag"},
     "identity": {"--json": "flag", "--mission": "value", "--fail-on": "value"},
     "topology": {"--json": "flag", "--mission": "value"},
+    "mission-type": {"--json": "flag", "--mission": "value", "--fail-on": "value"},
     "sparse-checkout": {"--fix": "flag"},
     "shim-registry": {"--json": "flag"},
     "contracts": {"--json": "flag"},
@@ -219,6 +224,30 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'Options',
         '--json Emit structured JSON output (suitable for CI)',
         '--mission TEXT Scope report to a single mission slug',
+        '--help -h Show this message and exit.',
+    ],
+    'mission-type': [
+        'Usage: doctor mission-type [OPTIONS]',
+        'Report mission-type resolution health across kitty-specs/.',
+        'Classifies every mission into one of six states (FR-008):',
+        '\\b',
+        '- resolved: mission_type present, activated, and loadable',
+        '- activated-unresolvable: activated but has no loadable profile on disk',
+        '- unknown: mission_type present but not activated/registered anywhere',
+        '- typeless: no mission_type key (or a blank/null/non-string value)',
+        '- legacy-key-only: only the retired `mission` key is present',
+        '- error: meta.json unreadable or malformed',
+        'Examples:',
+        'spec-kitty doctor mission-type',
+        'spec-kitty doctor mission-type --json',
+        'spec-kitty doctor mission-type --mission 083-foo',
+        'spec-kitty doctor mission-type --fail-on unknown,activated-unresolvable',
+        'Options',
+        '--json Emit structured JSON output (suitable for CI)',
+        '--mission TEXT Scope report to a single mission slug',
+        '--fail-on TEXT Exit non-zero if any mission is in the given state(s). '
+        'Comma-separated list of: resolved, activated-unresolvable, unknown, '
+        'typeless, legacy-key-only, error.',
         '--help -h Show this message and exit.',
     ],
     'sparse-checkout': [
