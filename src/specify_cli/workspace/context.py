@@ -769,7 +769,7 @@ def resolve_workspace_for_wp(
     """
     resolved = _resolve_workspace_for_wp_impl(repo_root, mission_slug, wp_id)
     if write_intent:
-        from mission_runtime.checkout_identity import enforce_checkout_identity
+        from mission_runtime import enforce_checkout_identity
         from specify_cli.core.paths import get_main_repo_root
 
         enforce_checkout_identity(
