@@ -93,7 +93,7 @@
     },
     "WP03": {
       "actor": "user",
-      "agent": "reviewer-renata",
+      "agent": "",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -106,7 +106,8 @@
         "REQUEST_CHANGES: полный lifecycle RED/GREEN oracle и repo-wide architectural guard.",
         "Полный caller-owned lifecycle, repo-wide guard и status transaction dual-root исправлены; 195 тестов, Ruff, py_compile, strict mypy helper и codemap gates прошли.",
         "Cycle 4 fixes production task transitions and repo-wide root guard",
-        "Cycle 4: production mark-status and move-task e2e; dynamic src-wide root authority guard"
+        "Cycle 4: production mark-status and move-task e2e; dynamic src-wide root authority guard",
+        "REQUEST_CHANGES: raw KITTY_SPECS_DIR/slug join in tasks_shared.py bypasses canonical Mission resolver; existing repo-wide resolver guard fails (1 failed, 61 passed)."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -117,14 +118,14 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 26660,
+      "shell_pid": 0,
       "shell_pid_created_at": "1786684255.608665",
       "subtasks": {
-        "T011": "done",
-        "T012": "done",
-        "T013": "done",
-        "T014": "done",
-        "T015": "done"
+        "T011": "planned",
+        "T012": "planned",
+        "T013": "planned",
+        "T014": "planned",
+        "T015": "planned"
       }
     }
   }
