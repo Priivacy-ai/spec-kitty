@@ -1,6 +1,6 @@
 # Спецификация Mission: восстановить Git preflight в setup-plan
 
-**Mission Branch**: `codex/setup-plan-preflight-closeout`  
+**Ветка Mission**: `codex/setup-plan-preflight-closeout`  
 **Создано**: 2026-08-14  
 **Статус**: Draft  
 **Контекст**: regression follow-up для PR #3332; итоговый PR направляется в `codex/spec-kitty-worktree-mission-create`.

@@ -1,6 +1,6 @@
 # Контракт setup-plan preflight
 
-## Failed Git preflight
+## Проваленный Git preflight
 
 Для `setup-plan --json`:
 
@@ -15,7 +15,7 @@
 - вывод содержит причину Git preflight и существующую remediation;
 - порядок отказа совпадает с JSON-режимом.
 
-## Successful Git preflight
+## Успешный Git preflight
 
 - Git preflight вызывается один раз для активного checkout.
 - Для caller-owned пути затем разрешается canonical `MissionOperationContext`; обычный checkout сохраняет действующий feature-dir resolver.
