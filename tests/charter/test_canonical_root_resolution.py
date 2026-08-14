@@ -124,7 +124,7 @@ def test_non_repo_raises_not_inside_repo(tmp_path_factory: pytest.TempPathFactor
 
 def test_missing_git_binary_raises_git_common_dir_unavailable(fresh_repo: Path) -> None:
     resolve_canonical_repo_root.cache_clear()
-    with patch("specify_cli.git.git_topology.subprocess.run", side_effect=FileNotFoundError("git")):
+    with patch("kernel.git_topology.subprocess.run", side_effect=FileNotFoundError("git")):
         with pytest.raises(GitCommonDirUnavailableError) as excinfo:
             resolve_canonical_repo_root(fresh_repo)
     assert "binary not found" in str(excinfo.value)
@@ -133,7 +133,7 @@ def test_missing_git_binary_raises_git_common_dir_unavailable(fresh_repo: Path) 
 def test_corrupt_repo_raises_git_common_dir_unavailable(fresh_repo: Path) -> None:
     resolve_canonical_repo_root.cache_clear()
     fake_result = MagicMock(returncode=128, stderr="fatal: bad object HEAD\n", stdout="")
-    with patch("specify_cli.git.git_topology.subprocess.run", return_value=fake_result):
+    with patch("kernel.git_topology.subprocess.run", return_value=fake_result):
         with pytest.raises(GitCommonDirUnavailableError) as excinfo:
             resolve_canonical_repo_root(fresh_repo)
     assert "bad object" in str(excinfo.value)
@@ -143,7 +143,7 @@ def test_warm_call_uses_cache_no_git_invocation(fresh_repo: Path) -> None:
     resolve_canonical_repo_root.cache_clear()
     real_run = subprocess.run
     spy = MagicMock(side_effect=lambda *a, **kw: real_run(*a, **kw))
-    with patch("specify_cli.git.git_topology.subprocess.run", spy):
+    with patch("kernel.git_topology.subprocess.run", spy):
         resolve_canonical_repo_root(fresh_repo)
         resolve_canonical_repo_root(fresh_repo)
     assert spy.call_count == 1, f"Expected 1 git invocation, got {spy.call_count}"
@@ -153,7 +153,7 @@ def test_cache_clear_resets_invocation_count(fresh_repo: Path) -> None:
     resolve_canonical_repo_root.cache_clear()
     real_run = subprocess.run
     spy = MagicMock(side_effect=lambda *a, **kw: real_run(*a, **kw))
-    with patch("specify_cli.git.git_topology.subprocess.run", spy):
+    with patch("kernel.git_topology.subprocess.run", spy):
         resolve_canonical_repo_root(fresh_repo)
         resolve_canonical_repo_root.cache_clear()
         resolve_canonical_repo_root(fresh_repo)

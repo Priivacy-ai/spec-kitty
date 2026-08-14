@@ -21,7 +21,7 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC = _REPO_ROOT / "src"
 
-_PRIMITIVE = _SRC / "specify_cli" / "git" / "git_topology.py"
+_PRIMITIVE = _SRC / "kernel" / "git_topology.py"
 _RESOLUTION = _SRC / "mission_runtime" / "resolution.py"
 
 # The four probe sites migrated onto the primitive (WP01 T002/T003/T005).

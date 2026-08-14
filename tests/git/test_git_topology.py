@@ -2,7 +2,7 @@
 
 Mission ``write-path-integrity-01KZZD69`` WP01 (#3373) collapsed four
 re-implementations of the git-common-dir / toplevel probe into one primitive
-(:mod:`specify_cli.git.git_topology`). These tests pin the primitive's own
+(:mod:`kernel.git_topology`). These tests pin the primitive's own
 contract (canonicalization, not-a-repo classification, ``.git``-interior
 detection, caching) plus the two cross-site behaviors the consolidation MUST
 NOT regress: the charter resolver's caching/classification and the
@@ -16,7 +16,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.git.git_topology import (
+from kernel.git_topology import (
     GitTopologyUnavailableError,
     NotAGitRepositoryError,
     clear_caches,
@@ -105,7 +105,7 @@ def test_common_dir_inside_dot_git_raises(fresh_repo: Path) -> None:
 
 def test_common_dir_missing_binary_raises_unavailable(fresh_repo: Path) -> None:
     with (
-        patch("specify_cli.git.git_topology.subprocess.run", side_effect=FileNotFoundError("git")),
+        patch("kernel.git_topology.subprocess.run", side_effect=FileNotFoundError("git")),
         pytest.raises(GitTopologyUnavailableError) as excinfo,
     ):
         git_common_dir(fresh_repo)
@@ -115,7 +115,7 @@ def test_common_dir_missing_binary_raises_unavailable(fresh_repo: Path) -> None:
 def test_common_dir_corrupt_returncode_raises_unavailable(fresh_repo: Path) -> None:
     fake = MagicMock(returncode=128, stderr="fatal: bad object HEAD\n", stdout="")
     with (
-        patch("specify_cli.git.git_topology.subprocess.run", return_value=fake),
+        patch("kernel.git_topology.subprocess.run", return_value=fake),
         pytest.raises(GitTopologyUnavailableError) as excinfo,
     ):
         git_common_dir(fresh_repo)
@@ -161,7 +161,7 @@ def test_toplevel_not_a_repo_raises(tmp_path_factory: pytest.TempPathFactory) ->
 def test_warm_common_dir_makes_no_second_invocation(fresh_repo: Path) -> None:
     real_run = subprocess.run
     spy = MagicMock(side_effect=lambda *a, **kw: real_run(*a, **kw))
-    with patch("specify_cli.git.git_topology.subprocess.run", spy):
+    with patch("kernel.git_topology.subprocess.run", spy):
         git_common_dir(fresh_repo)
         git_common_dir(fresh_repo)
     assert spy.call_count == 1
@@ -170,7 +170,7 @@ def test_warm_common_dir_makes_no_second_invocation(fresh_repo: Path) -> None:
 def test_clear_caches_forces_reinvocation(fresh_repo: Path) -> None:
     real_run = subprocess.run
     spy = MagicMock(side_effect=lambda *a, **kw: real_run(*a, **kw))
-    with patch("specify_cli.git.git_topology.subprocess.run", spy):
+    with patch("kernel.git_topology.subprocess.run", spy):
         git_common_dir(fresh_repo)
         clear_caches()
         git_common_dir(fresh_repo)
