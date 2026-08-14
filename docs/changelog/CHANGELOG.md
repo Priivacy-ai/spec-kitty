@@ -355,6 +355,16 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   `sync server`) when neither is set, rather than silently defaulting to the dev
   URL. One of the ten-gate first-sync gauntlet fixes.
 
+- **`sync doctor` no longer reports "Sync is healthy" while the server probe
+  says otherwise (mission `first-sync-preflight-01KZZ9Q1` FR-002; `#3406`).**
+  The health summary only escalated a server verdict of `Unreachable`/`Error`;
+  a `Permission denied` (403), gateway-down (5xx), or unexpected-status verdict
+  printed a coloured row in the table but never entered the issue list, so the
+  doctor still declared everything healthy while the live drain was blocked —
+  the false-green that hid a broken first sync. Every non-healthy server verdict
+  (anything but `Connected`/`Disabled`, excluding the auth states the
+  auth/session block already owns) now reaches the summary with the probe's own
+  remediation note.
 - **Mission `create` and `next` now run correctly from a caller-owned linked
   git worktree, and each worktree's mission state stays isolated (mission
   `worktree-owned-root-3328-01KZRG01`; `#3346`, closes `#3328`).** Before,

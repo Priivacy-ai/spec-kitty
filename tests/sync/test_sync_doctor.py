@@ -209,6 +209,87 @@ class TestDoctorCommand:
     @patch("specify_cli.cli.commands.sync._check_server_connection")
     @patch("specify_cli.auth.get_token_manager")
     @patch("specify_cli.sync.config.SyncConfig")
+    def test_doctor_non_healthy_server_verdict_is_never_reported_healthy(
+        self,
+        mock_config_cls: MagicMock,
+        mock_get_tm: MagicMock,
+        mock_check: MagicMock,
+        mock_queue_cls: MagicMock,
+        mock_body_queue_cls: MagicMock,
+        mock_body_diag: MagicMock,
+        mock_scan_daemons: MagicMock,
+        _mock_orphan_records: MagicMock,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """A server verdict that is neither Unreachable nor Error still counts.
+
+        Regression for FR-002 (#3406): everything else is healthy, but the live
+        server probe returns a non-"Connected" verdict (permission denied /
+        gateway-down / unexpected status). Before, only "Unreachable"/"Error"
+        strings fed the summary, so these verdicts printed a coloured row and the
+        doctor still declared "Sync is healthy" -- the false-green that hid a
+        broken drain. Each must now produce an "Issues found" summary carrying
+        the probe's own remediation note, never "No issues detected".
+        """
+        swallowed_verdicts = [
+            ("[yellow]Permission denied[/yellow]", "Check team membership for this project."),
+            ("[red]Server endpoint down[/red]", "HTTP 502 from https://test.example.com -- repoint with `spec-kitty sync server`."),
+            ("[yellow]Unexpected[/yellow]", "Server returned HTTP 418."),
+        ]
+        for verdict_status, verdict_note in swallowed_verdicts:
+            mock_scan_daemons.return_value = SimpleNamespace(orphan_count=0, orphan_processes=[])
+            mock_queue = MagicMock()
+            mock_queue.get_queue_stats.return_value = QueueStats(total_queued=0)
+            mock_queue.db_path = "/nonexistent/test.db"
+            mock_queue_cls.return_value = mock_queue
+            mock_body_queue_cls.return_value = MagicMock()
+            mock_body_diag.return_value = {
+                "body_queue": {
+                    "total_tasks": 0,
+                    "ready_to_send": 0,
+                    "in_backoff": 0,
+                    "max_retry_count": 0,
+                    "oldest_task_age_seconds": None,
+                    "retry_distribution": {},
+                    "recorded_failure_count": 0,
+                    "recent_failures": [],
+                }
+            }
+
+            mock_config = MagicMock()
+            mock_config.get_server_url.return_value = "https://test.example.com"
+            mock_config.resolve_runtime_target.return_value.resolved_server_url = "https://test.example.com"
+            mock_config.read.return_value = ConfigRead(data={}, fault=None)
+            mock_config_cls.return_value = mock_config
+
+            now = now_utc()
+            session = _make_fake_session(
+                access_expires_at=now + timedelta(days=30),
+                refresh_expires_at=now + timedelta(days=30),
+            )
+            fake_tm = MagicMock()
+            fake_tm.get_current_session.return_value = session
+            mock_get_tm.return_value = fake_tm
+
+            mock_check.return_value = (verdict_status, verdict_note)
+
+            from specify_cli.cli.commands.sync import doctor
+
+            doctor()
+
+            captured = capsys.readouterr()
+            assert "No issues detected" not in captured.out, f"false-green on {verdict_status!r}"
+            assert "Issues found" in captured.out, f"verdict {verdict_status!r} did not reach summary"
+            assert verdict_note in captured.out
+
+    @patch("specify_cli.sync.owner.list_orphan_records", return_value=[])
+    @patch("specify_cli.sync.daemon.scan_sync_daemons")
+    @patch("specify_cli.sync.diagnose.diagnose_body_queue")
+    @patch("specify_cli.sync.body_queue.OfflineBodyUploadQueue")
+    @patch("specify_cli.sync.queue.OfflineQueue")
+    @patch("specify_cli.cli.commands.sync._check_server_connection")
+    @patch("specify_cli.auth.get_token_manager")
+    @patch("specify_cli.sync.config.SyncConfig")
     def test_doctor_full_queue_expired_auth(
         self,
         mock_config_cls: MagicMock,

@@ -3134,6 +3134,17 @@ def _gateway_unavailable_note(server_url: str, status_code: int) -> str:
         f"`spec-kitty sync server <url>` (e.g. {EXAMPLE_HOSTED_SAAS_URL}), then "
         "`spec-kitty auth login --force`."
     )
+#: Server-connection verdicts (from :func:`_check_server_connection`) that are
+#: healthy or a deliberate non-problem state. "Connected" = the live probe
+#: succeeded; "Disabled" = hosted sync is off by design. Any verdict NOT matching
+#: one of these is a real fault the ``doctor`` summary must surface rather than
+#: swallow behind a green "healthy" (FR-002 of the first-sync preflight, #3406).
+_HEALTHY_CONNECTION_MARKERS: tuple[str, ...] = ("Connected", "Disabled")
+
+#: Verdicts the auth/session block of ``doctor`` already reports. The
+#: server-reachability block skips these so one authentication fault is not
+#: listed twice with two differently-worded remediations.
+_AUTH_OWNED_CONNECTION_MARKERS: tuple[str, ...] = ("Not authenticated", "Session expired")
 
 
 def _check_server_connection(server_url: str) -> tuple[str, str]:
@@ -6126,8 +6137,22 @@ def doctor() -> None:  # noqa: C901
     if connection_note:
         table.add_row("", f"[dim]{connection_note}[/dim]")
 
-    if "Unreachable" in connection_status or "Error" in connection_status:
-        issues.append(f"Cannot reach server at {server_url}. Events will continue to queue locally.")
+    # Every non-healthy server verdict must reach the summary, not just
+    # "Unreachable"/"Error". Before, a 401/403/unexpected-status verdict showed a
+    # coloured row in the table above but never entered `issues`, so the doctor
+    # still declared "Sync is healthy" while the live probe said otherwise -- the
+    # false-green that hid a broken drain during onboarding (FR-002, #3406). The
+    # healthy states are "Connected" (probe OK) and "Disabled" (sync off by
+    # design); "Not authenticated"/"Session expired" are already surfaced by the
+    # auth/session block above, so skip them here to avoid double-reporting one
+    # fault. Anything else is a real server-side problem the operator must see.
+    connection_is_healthy = any(marker in connection_status for marker in _HEALTHY_CONNECTION_MARKERS)
+    connection_is_auth_owned = any(marker in connection_status for marker in _AUTH_OWNED_CONNECTION_MARKERS)
+    if not connection_is_healthy and not connection_is_auth_owned:
+        issues.append(
+            connection_note
+            or f"Sync server at {server_url} is not reachable. Events will continue to queue locally."
+        )
 
     # --- 3b. Daemon singleton invariant (spec-kitty#1071) ---
     # Inspect for live `run_sync_daemon` processes that are not the registered
