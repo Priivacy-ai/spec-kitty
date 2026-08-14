@@ -114,6 +114,32 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   `planning_commit_sha`; it now preserves provenance once any work package has left
   `planned` (`#3311`).
 
+### 💥 Breaking Changes
+
+- **`pack validate` (and `doctrine org validate`) now fails (exit code `1`) for
+  three previously-passing org-pack shapes (mission
+  `org-pack-authoring-diagnostics-01KZY463`; `#3387`).** All three close a
+  silent-success authoring gap where a pack passed validation cleanly and only
+  failed — or silently misbehaved — at runtime or on adoption. Concretely: a
+  merge-time-skipped agent profile (a profile that individually passes schema
+  validation but fails to field-merge onto a same-ID built-in profile) now
+  surfaces as a `profile_skipped` error, sourced from
+  `AgentProfileRepository.skipped_profiles()` rather than requiring a separate
+  `spec-kitty doctor doctrine --json` invocation. A nested
+  `assets/<pack>/x.asset.yaml` manifest with a schema violation is now scanned
+  recursively, matching what `AssetRepository` loads at runtime (previously
+  invisible to validation). DRG content living only under `drg/*.graph.yaml`
+  fragments with no pack-root `*.graph.yaml` now produces a
+  `drg_root_graph_missing` error — the runtime
+  (`src/charter/_drg_helpers.py:load_validated_graph`) reads only the pack
+  root, never `drg/` fragments, so this shape previously validated cleanly and
+  then silently zeroed the pack's DRG content on adoption (per sibling mission
+  `org-pack-drg-root-graph-guard-01KZY0QT`, `#3384`). `validate_pack()` gains a
+  keyword-only `check_drg_root: bool = True` parameter for the new DRG check;
+  `pack_assembler.py`'s internal round-trip validation of its own
+  drg/-fragments-only output passes `check_drg_root=False` unconditionally (a
+  structural carve-out — the assembler never writes a pack-root graph).
+
 ## [3.2.6rc1] - 2026-08-12
 
 > [!WARNING]
