@@ -518,6 +518,68 @@ _DRG_GRAPH_YAML_LABEL_CONFLICT = textwrap.dedent(
 )
 
 
+#: PR-FRESH-001 regression fixtures: a triple duplicated WITHIN one source
+#: while also appearing once in the other source (1x root + 2x drg/, and its
+#: mirror 2x root + 1x drg/). The pre-fix ``_dedup_org_layer_edges`` compared
+#: every occurrence only to the FIRST occurrence's source (``setdefault``
+#: over ``graph.edges`` in root-then-drg order): for 1x root + 2x drg/, the
+#: retained source is "root" and BOTH drg/ occurrences differ from it, so
+#: both were stripped -- leaving one edge, zero remaining duplicates, and a
+#: silently-absorbed same-source authoring bug (fresh-sweep PR-FRESH-001).
+_MIXED_1R2D_SOURCE_URN = "directive:org-mixed-1r2d-source-3384"
+_MIXED_1R2D_TARGET_URN = "directive:org-mixed-1r2d-target-3384"
+_ROOT_GRAPH_YAML_MIXED_1R2D = textwrap.dedent(
+    f"""\
+    schema_version: '1.0'
+    generated_at: '2026-08-13T00:00:00Z'
+    generated_by: test
+    nodes:
+      - {{urn: '{_MIXED_1R2D_SOURCE_URN}', kind: directive}}
+      - {{urn: '{_MIXED_1R2D_TARGET_URN}', kind: directive}}
+    edges:
+      - {{source: '{_MIXED_1R2D_SOURCE_URN}', target: '{_MIXED_1R2D_TARGET_URN}', relation: requires}}
+    """
+)
+_DRG_GRAPH_YAML_MIXED_1R2D = textwrap.dedent(
+    f"""\
+    schema_version: '1.0'
+    generated_at: '2026-08-13T00:00:00Z'
+    generated_by: test
+    nodes: []
+    edges:
+      - {{source: '{_MIXED_1R2D_SOURCE_URN}', target: '{_MIXED_1R2D_TARGET_URN}', relation: requires}}
+      - {{source: '{_MIXED_1R2D_SOURCE_URN}', target: '{_MIXED_1R2D_TARGET_URN}', relation: requires}}
+    """
+)
+
+#: Mirror case: 2x root + 1x drg/.
+_MIXED_2R1D_SOURCE_URN = "directive:org-mixed-2r1d-source-3384"
+_MIXED_2R1D_TARGET_URN = "directive:org-mixed-2r1d-target-3384"
+_ROOT_GRAPH_YAML_MIXED_2R1D = textwrap.dedent(
+    f"""\
+    schema_version: '1.0'
+    generated_at: '2026-08-13T00:00:00Z'
+    generated_by: test
+    nodes:
+      - {{urn: '{_MIXED_2R1D_SOURCE_URN}', kind: directive}}
+      - {{urn: '{_MIXED_2R1D_TARGET_URN}', kind: directive}}
+    edges:
+      - {{source: '{_MIXED_2R1D_SOURCE_URN}', target: '{_MIXED_2R1D_TARGET_URN}', relation: requires}}
+      - {{source: '{_MIXED_2R1D_SOURCE_URN}', target: '{_MIXED_2R1D_TARGET_URN}', relation: requires}}
+    """
+)
+_DRG_GRAPH_YAML_MIXED_2R1D = textwrap.dedent(
+    f"""\
+    schema_version: '1.0'
+    generated_at: '2026-08-13T00:00:00Z'
+    generated_by: test
+    nodes: []
+    edges:
+      - {{source: '{_MIXED_2R1D_SOURCE_URN}', target: '{_MIXED_2R1D_TARGET_URN}', relation: requires}}
+    """
+)
+
+
 def _write_org_pack_root_and_drg(
     repo_root: Path, *, root_yaml: str, drg_yaml: str, dir_name: str
 ) -> Path:
@@ -626,6 +688,66 @@ class TestRootAndDrgMerge:
             root_yaml=_ROOT_GRAPH_YAML_WITHIN_ROOT_DUP,
             drg_yaml=_DRG_GRAPH_YAML_UNRELATED_SIBLING,
             dir_name="within-root-dup-fixture-pack",
+        )
+
+        with (
+            patch("charter._drg_helpers.load_built_in_graph", side_effect=_built_in_graph),
+            pytest.raises(DRGValidationError),
+        ):
+            load_validated_graph(repo, org_root=pack_root)
+
+    def test_mixed_one_root_two_drg_duplicate_edge_triple_still_raises(
+        self, tmp_path: Path
+    ) -> None:
+        """PR-FRESH-001 regression (severity 4, fresh-sweep confirmed).
+
+        A triple appearing once in the root graph and TWICE in the drg/
+        fragment is a same-source (drg/-internal) authoring bug riding
+        alongside a genuine cross-source overlap. The pre-fix
+        ``_dedup_org_layer_edges`` classified "cross-source" by comparing
+        every occurrence only to the FIRST occurrence's source: with root
+        first, both drg/ occurrences were flagged as cross-source duplicates
+        of "root" and BOTH stripped, leaving one edge and silently absorbing
+        the drg/-internal duplicate. It must still reach the final
+        ``assert_valid`` and raise ``DRGValidationError``.
+        """
+        from charter._drg_helpers import load_validated_graph
+        from doctrine.drg.validator import DRGValidationError
+
+        repo = tmp_path / "mixed_1r_2d"
+        repo.mkdir()
+        pack_root = _write_org_pack_root_and_drg(
+            repo,
+            root_yaml=_ROOT_GRAPH_YAML_MIXED_1R2D,
+            drg_yaml=_DRG_GRAPH_YAML_MIXED_1R2D,
+            dir_name="mixed-1r2d-fixture-pack",
+        )
+
+        with (
+            patch("charter._drg_helpers.load_built_in_graph", side_effect=_built_in_graph),
+            pytest.raises(DRGValidationError),
+        ):
+            load_validated_graph(repo, org_root=pack_root)
+
+    def test_mixed_two_root_one_drg_duplicate_edge_triple_still_raises(
+        self, tmp_path: Path
+    ) -> None:
+        """PR-FRESH-001 regression, symmetric case (2x root + 1x drg/).
+
+        The mirror of the case above: the triple is duplicated within the
+        ROOT graph while also appearing once in drg/. Must likewise still
+        raise ``DRGValidationError`` -- the fix cannot be direction-specific.
+        """
+        from charter._drg_helpers import load_validated_graph
+        from doctrine.drg.validator import DRGValidationError
+
+        repo = tmp_path / "mixed_2r_1d"
+        repo.mkdir()
+        pack_root = _write_org_pack_root_and_drg(
+            repo,
+            root_yaml=_ROOT_GRAPH_YAML_MIXED_2R1D,
+            drg_yaml=_DRG_GRAPH_YAML_MIXED_2R1D,
+            dir_name="mixed-2r1d-fixture-pack",
         )
 
         with (
@@ -812,3 +934,41 @@ class TestMalformedOrgLayerContentVisibility:
         payload = _cli_context_json_raw(repo, json_output=True)
 
         _assert_distinguishable_failure(payload)
+
+
+# ---------------------------------------------------------------------------
+# PR-FRESH-002 regression (merge_layers edge-identity contract)
+# ---------------------------------------------------------------------------
+
+
+class TestMergeLayersEdgeIdentityContract:
+    def test_merge_layers_preserves_edge_object_identity(self) -> None:
+        """PR-FRESH-002 (severity 3, fresh-sweep confirmed).
+
+        ``_dedup_org_layer_edges``'s cross-source classification
+        (``_source_of`` in ``src/charter/_drg_helpers.py``) depends entirely
+        on ``id(edge)`` surviving from each pre-merge source graph's
+        ``.edges`` list into the merged graph's ``.edges``. This holds today
+        for two independent, previously-unpinned reasons: ``merge_layers``
+        concatenates edge lists without copying, and pydantic v2's default
+        ``revalidate_instances='never'`` skips reconstructing already-valid
+        ``DRGEdge`` instances. Pinning it here means a future change to
+        either behavior (e.g. ``merge_layers`` starting to ``model_copy()``
+        edges) fails at this test, with a clear message, instead of three
+        layers away as an opaque ``AssertionError`` inside ``_source_of``.
+        """
+        from doctrine.drg.loader import merge_layers
+
+        built_in = _graph_from_yaml(_BUILT_IN_GRAPH_YAML)
+        project = _graph_from_yaml(_ORG_DRG_FRAGMENT_YAML)
+        built_in_edge = built_in.edges[0]
+        project_edge = project.edges[0]
+
+        merged = merge_layers(built_in, project)
+
+        assert any(edge is built_in_edge for edge in merged.edges), (
+            "no built-in edge object survived merge_layers identity-preserved"
+        )
+        assert any(edge is project_edge for edge in merged.edges), (
+            "no project edge object survived merge_layers identity-preserved"
+        )
