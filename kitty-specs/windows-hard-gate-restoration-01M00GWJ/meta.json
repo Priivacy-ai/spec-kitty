@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-08-14T16:15:08.723957+00:00",
+  "flattened": false,
+  "friendly_name": "Восстановить hard-gates Spec Kitty на Windows",
+  "mission_id": "01M00GWJDDSE47571593GYGXZJ",
+  "mission_number": null,
+  "mission_slug": "windows-hard-gate-restoration-01M00GWJ",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Исправить Windows-несовместимые пути и collection, синхронизировать архитектурные inventories с текущим кодом, восстановить полный локальный gate packet и явно отделить внешний cross-repo E2E gate, который нельзя обходить без доступа к репозиторию.",
+  "purpose_tldr": "Contract и architecture gates должны стабильно завершаться на Windows без ослабления fail-closed проверок.",
+  "slug": "windows-hard-gate-restoration-01M00GWJ",
+  "target_branch": "codex/setup-plan-preflight-closeout",
+  "topology": "single_branch"
+}
