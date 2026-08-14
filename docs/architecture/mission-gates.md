@@ -16,9 +16,14 @@ related:
 ---
 # Mission transition gates — declarative, asset-backed, trust-gated
 
-> **Status: design (Proposed).** This page describes the intended model captured across
-> ADRs 2026-08-13-2 … -5. It is being hardened before implementation; treat it as the design
-> of record, not a description of shipped behaviour.
+> **Status: the gate mechanism is design (Proposed); the structural decision it builds on is
+> Accepted.** The declarative gate-mechanism ADRs ([2026-08-13-2](../adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md)
+> … [-6](../adr/3.x/2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md))
+> are **Proposed** — this page is the design of record for them, hardened before implementation, not
+> a description of shipped behaviour. The structural decision underneath it — the built-in mission
+> subtree stays nested and the legacy `MissionStepContract` surface is retired
+> ([ADR 2026-08-13-1](../adr/3.x/2026-08-13-1-built-in-mission-subtree-stays-nested-retire-legacy-step-contracts.md))
+> — is **Accepted**.
 
 A **transition gate** is a deterministic check that runs when a work package crosses a lane
 edge (e.g. `in_progress → for_review`) and returns a pass/fail verdict that can block the
