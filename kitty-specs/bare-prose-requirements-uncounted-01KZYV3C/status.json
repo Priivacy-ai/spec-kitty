@@ -132,6 +132,9 @@
       "lane": "approved",
       "last_event_id": "01M004XF4FPP06DX7NKC0KMD70",
       "last_transition_at": "2026-08-14T12:45:55.215695+00:00",
+      "notes": [
+        "Approved first pass. One severity-2 note recorded (not a rejection): b66884766's commit message over-cites the operator's ruling as authorisation for a file outside its literal scope; DIRECTIVE_041 is the correct primary authority for that re-pin."
+      ],
       "review_result": {
         "reference": "reviewer-renata: approved, no findings >= severity 4; reproduced signal reachability in-process (finalize_tasks exit1, bare_prose_requirement_ids FR-001/FR-002); confirmed CliRunner test on real stdout; red-first verified (29 failed pre-wiring, 441 passed/0 failed at HEAD); WP02 seams reused; protected files byte-identical; zero kitty-specs writes; mypy clean",
         "reviewer": "reviewer-renata",
