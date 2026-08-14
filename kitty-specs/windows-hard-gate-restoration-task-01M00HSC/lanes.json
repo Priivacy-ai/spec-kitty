@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "mission_slug": "windows-hard-gate-restoration-task-01M00HSC",
+  "mission_id": "01M00HSC1T4FDRXC99CWQKKZRK",
+  "mission_branch": "kitty/mission-windows-hard-gate-restoration-task-01M00HSC",
+  "target_branch": "codex/setup-plan-hard-gates",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/_gate_coverage.py",
+        "tests/architectural/test_ci_quality_path_filters.py",
+        "tests/architectural/test_cli_console_render_width.py",
+        "tests/architectural/test_doctrine_census.py",
+        "tests/architectural/test_glossary_pack_no_regression.py",
+        "tests/architectural/test_golden_count_ban.py",
+        "tests/architectural/test_kernel_no_doctrine_import.py",
+        "tests/architectural/test_marker_job_completeness.py",
+        "tests/architectural/test_mission_exit_baseline.py",
+        "tests/architectural/test_no_write_side_rederivation.py",
+        "tests/architectural/test_pytest_marker_correctness.py",
+        "tests/architectural/test_real_home_isolation_guard.py",
+        "tests/architectural/test_resolution_authority_gates.py",
+        "tests/architectural/test_runtime_charter_doctrine_boundary.py",
+        "tests/architectural/test_session_reaper.py",
+        "tests/architectural/test_shared_module_object_patches.py",
+        "tests/architectural/test_tracker_egress_guards_3108.py",
+        "tests/cli/commands/test_sync_doctor_consent_health_3030.py",
+        "tests/contract/test_machine_facing_canonical_fields.py",
+        "tests/integration/test_intake_size_cap.py",
+        "tests/review/test_pre_review_gate_engine.py",
+        "tests/specify_cli/core/test_target_branch_primitive.py",
+        "tests/sync/test_consent_fault_vocabulary_3030.py",
+        "tests/sync/test_consent_write_refusal_3030.py",
+        "tests/sync/test_issue_598_hang_fixes.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/codemap/codemap.html",
+        "docs/codemap/codemap.json",
+        "docs/codemap/codemap.lock",
+        "src/specify_cli/core/mission_creation.py",
+        "src/specify_cli/missions/_read_path_resolver.py",
+        "tests/architectural/surface_resolution_audit/inventory.md",
+        "tests/architectural/test_surface_resolution_audit.py",
+        "tests/architectural/test_topology_resolution_boundary.py",
+        "tests/architectural/test_untrusted_path_containment.py",
+        "tests/architectural/untrusted_path_audit/inventory.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-08-14T16:48:14.741538+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "9afa76d0044f84aff0fa3199f1b6203fa5856497"
+}
