@@ -114,6 +114,12 @@ _SEAM_DISPOSITION = "routed-through-seam"
 _TODO_DISPOSITION = "routed-through-seam (TODO)"
 _FR009_FILE = "mission_metadata.py"
 
+_MISSION_ANCHOR_COMPOSER_KEY: tuple[str, str, str] = (
+    "missions/_read_path_resolver.py",
+    "_compose_mission_anchor_feature_dir",
+    "return Path ( mission_anchor_root . resolve ( ) / KITTY_SPEC…",
+)
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -171,6 +177,16 @@ def test_audit_passes_on_fixed_tree() -> None:
         "Fix: run `python tests/architectural/untrusted_path_audit/audit.py` "
         "to identify the specific failure, then update inventory.md."
     )
+
+
+def test_mission_anchor_composer_has_exact_inventory_row() -> None:
+    """The sanctioned anchor leaf is discovered and documented by exact identity."""
+    discovered = build_discovered_key_map(discover_rows())
+    assert _MISSION_ANCHOR_COMPOSER_KEY in discovered
+
+    parse_errors, inventory = build_inventory_key_map(_load_inventory())
+    assert not parse_errors
+    assert _MISSION_ANCHOR_COMPOSER_KEY in inventory
 
 
 # ---------------------------------------------------------------------------

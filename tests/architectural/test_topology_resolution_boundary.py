@@ -198,6 +198,29 @@ def _is_worktrees_token(node: ast.expr) -> bool:
     return False
 
 
+def _coord_predicate_relpaths() -> set[str]:
+    """Return actual raw-predicate modules with repository-relative POSIX paths."""
+    return {_rel(path) for path in _iter_src_python_files() if _coord_predicate_sites(path)}
+
+
+def test_coord_predicate_detector_catches_synthetic_neighbor(tmp_path: Path) -> None:
+    """Positive control: a neighboring raw predicate cannot evade the AST ratchet."""
+    rogue = tmp_path / "neighbor.py"
+    rogue.write_text(
+        "def neighbor(checkout_root):\n"
+        "    return WORKTREES_DIR in checkout_root.parts\n",
+        encoding="utf-8",
+    )
+    assert _coord_predicate_sites(rogue)
+
+
+def test_mission_creation_delegates_worktree_shape_to_canonical_authority() -> None:
+    """Mission creation may call the seam but may not gain a file-wide exception."""
+    target = "src/specify_cli/core/mission_creation.py"
+    assert target not in _ALLOWLISTED_COORD_PREDICATE_SITES
+    assert target not in _coord_predicate_relpaths()
+
+
 def test_coord_path_predicate_only_in_blessed_modules() -> None:
     """Raw coord-topology path-shape predicates live only in blessed sites.
 
@@ -205,10 +228,7 @@ def test_coord_path_predicate_only_in_blessed_modules() -> None:
     un-allowlisted file means a coord-vs-lane routing decision was inferred from
     path shape instead of the git-registry authority — a C-SEAM-1 regression.
     """
-    actual: set[str] = set()
-    for path in _iter_src_python_files():
-        if _coord_predicate_sites(path):
-            actual.add(_rel(path))
+    actual = _coord_predicate_relpaths()
 
     blessed = {_BLESSED_COORD_PREDICATE_MODULE} | set(_ALLOWLISTED_COORD_PREDICATE_SITES)
     unexpected = actual - blessed
