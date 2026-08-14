@@ -349,6 +349,7 @@ def create_mission_core(
             topology=topology,
             force_recreate_coordination_branch=force_recreate_coordination_branch,
             allow_worktree_context=allow_worktree_context,
+            owned_checkout=owned_checkout,
         )
     except BaseException:
         # Re-raised below; the rollback is pure cleanup and must not swallow or
@@ -374,6 +375,7 @@ def _create_mission_core_impl(
     topology: MissionTopology = MissionTopology.COORD,
     force_recreate_coordination_branch: bool = False,
     allow_worktree_context: bool = False,
+    owned_checkout: Path | None = None,
 ) -> MissionCreationResult:
     """Create a new feature with all scaffolding.
 
