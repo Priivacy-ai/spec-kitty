@@ -86,7 +86,18 @@
       "last_event_id": "01KZZYQB83PEVY7PZ37AV61H3D",
       "last_transition_at": "2026-08-14T10:57:43.171301+00:00",
       "shell_pid": 1624788,
-      "shell_pid_created_at": "1786705059.11"
+      "shell_pid_created_at": "1786705059.11",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done"
+      }
     },
     "WP06": {
       "actor": "finalize-tasks",
