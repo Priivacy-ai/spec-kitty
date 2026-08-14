@@ -28,7 +28,8 @@
       "last_transition_at": "2026-08-14T20:37:26.825416+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Independent review APPROVE: RED 55257b5f, GREEN 54a4eaf5; contract/architecture/capability/session-reaper/170 collect-only/static gates pass"
+        "Independent review APPROVE: RED 55257b5f, GREEN 54a4eaf5; contract/architecture/capability/session-reaper/170 collect-only/static gates pass",
+        "APPROVE: RED-first fixed; 12 owned tests; 170 collect-only/0 errors; contract/architecture/capability/session-reaper/Ruff/compile/diff-check pass; assignment exception documented on issue #3438"
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
@@ -36,7 +37,7 @@
         "reviewer": "codex-review",
         "verdict": "approved"
       },
-      "role": "reviewer",
+      "role": "implementer",
       "shell_pid": 26716,
       "shell_pid_created_at": "1786739803.8896844",
       "subtasks": {
