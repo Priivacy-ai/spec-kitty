@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import subprocess
 import threading
 from pathlib import Path
@@ -838,7 +839,13 @@ def test_write_artifact_preserves_existing_file_mode(repo: Path) -> None:
         txn.write_artifact(artifact, b"new\n")
 
         assert artifact.read_bytes() == b"new\n"
-        assert artifact.stat().st_mode & 0o777 == 0o744
+        actual_mode = artifact.stat().st_mode & 0o777
+        if os.name == "nt":
+            # Windows only exposes the read-only bit through chmod/stat; execute
+            # bits are not representable.  Preserve the writable class instead.
+            assert actual_mode == 0o666
+        else:
+            assert actual_mode == 0o744
 
 
 # ---------------------------------------------------------------------------

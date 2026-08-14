@@ -179,6 +179,42 @@ def _write_confined_artifact_bytes(
     oracle) governs both the pre-write and post-mkdir containment checks.
     """
     resolved_path = resolve(worktree_root, path)
+    tmp_name = f".spec-kitty-{_generate_ulid()}.tmp"
+    if os.name == "nt":
+        from specify_cli.coordination.windows_confined_fs import (
+            ensure_confined_parent_windows,
+            write_confined_artifact_bytes_windows,
+        )
+
+        try:
+            ensure_confined_parent_windows(worktree_root, resolved_path)
+        except ValueError as exc:
+            raise ValueError(
+                "Refusing to write artifact outside coordination worktree "
+                "(unsafe path changed during write): "
+                f"{resolved_path}"
+            ) from exc
+        # Preserve the established post-parent-creation validation seam.  The
+        # native helper above already created every directory relative to pinned
+        # handles, so this is normally a no-op; any concurrent path swap is
+        # rejected here or by the handle-relative writer below.
+        resolved_path.parent.mkdir(parents=True, exist_ok=True)
+        resolved_path = resolve(worktree_root, resolved_path)
+        try:
+            write_confined_artifact_bytes_windows(
+                worktree_root,
+                resolved_path,
+                content,
+                tmp_name=tmp_name,
+            )
+        except ValueError as exc:
+            raise ValueError(
+                "Refusing to write artifact outside coordination worktree "
+                "(unsafe path changed during write): "
+                f"{resolved_path}"
+            ) from exc
+        return resolved_path
+
     resolved_path.parent.mkdir(parents=True, exist_ok=True)
     resolved_path = resolve(worktree_root, resolved_path)
     if resolved_path.exists() and not resolved_path.is_file():
@@ -194,7 +230,6 @@ def _write_confined_artifact_bytes(
     )
 
     parent_fd: int | None = None
-    tmp_name = f".spec-kitty-{_generate_ulid()}.tmp"
     try:
         parent_fd = _open_confined_parent_fd(worktree_root, resolved_path)
         _write_and_replace_via_parent_fd(
@@ -236,6 +271,14 @@ def _unlink_confined_artifact_path(
 ) -> None:
     """Unlink an artifact relative to a verified no-follow parent directory."""
     resolved_path = resolve(worktree_root, path)
+    if os.name == "nt":
+        from specify_cli.coordination.windows_confined_fs import (
+            unlink_confined_artifact_windows,
+        )
+
+        unlink_confined_artifact_windows(worktree_root, resolved_path)
+        return
+
     parent_fd: int | None = None
     try:
         parent_fd = _open_confined_parent_fd(worktree_root, resolved_path)

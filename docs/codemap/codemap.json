@@ -24,8 +24,8 @@
     },
     {
       "id": "coordination-confined-writer",
-      "path": "src/specify_cli/coordination/atomic_write.py",
-      "role": "Persists and rolls back coordination artifacts through a confined atomic write and unlink boundary."
+      "path": "src/specify_cli/coordination/atomic_write.py; src/specify_cli/coordination/windows_confined_fs.py",
+      "role": "Persists and rolls back coordination artifacts through POSIX fd-relative or Win32 handle-confined atomic write and unlink boundaries."
     },
     {
       "id": "tasks-operation-boundary",
