@@ -117,11 +117,11 @@
       "shell_pid": 0,
       "shell_pid_created_at": "1786645616.4649937",
       "subtasks": {
-        "T011": "planned",
-        "T012": "planned",
-        "T013": "planned",
-        "T014": "planned",
-        "T015": "planned"
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
       }
     }
   }
