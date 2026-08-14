@@ -613,6 +613,17 @@ def test_evaluate_guards_strict_raises_for_unregistered_mission_family() -> None
         cores.evaluate_guards_strict(_snapshot(mission_family="totally-unregistered-family", step_id="review"))
 
 
+def test_evaluate_guards_tolerant_wrapper_degrades_for_unregistered_mission_family() -> None:
+    """Companion coverage for the tolerant ``evaluate_guards`` wrapper's own
+    ``except UnregisteredMissionFamilyError: return []`` branch (T003) --
+    distinct from the strict function above and from
+    ``_check_cli_guards``/``_check_composed_action_guard`` (which bypass this
+    wrapper entirely per IC-03/IC-04). Kept tolerant/public only for direct
+    test callers per its own docstring, so this exercises that contract
+    directly."""
+    assert cores.evaluate_guards(_snapshot(mission_family="totally-unregistered-family", step_id="review")) == []
+
+
 def test_check_cli_guards_propagates_unregistered_mission_family_error(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
