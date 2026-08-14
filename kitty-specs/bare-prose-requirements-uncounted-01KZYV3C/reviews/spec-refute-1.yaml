@@ -1,0 +1,91 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: >-
+      spec.md's Story 5 AC2 says an ambiguous input is "treated as requiring review
+      (surfaced, non-silent)" and FR-007/NFR-002 only require an "explicit failure/report"
+      or "not indistinguishable from nothing to flag" — neither AC2, FR-007, nor NFR-002
+      anywhere states whether that classification blocks spec-kitty next's advance-vs-stay
+      decision the same way a confirmed bare-prose finding does (User Story 1's "blocked,
+      not merely logged"), leaving the dimension genuinely unspecified.
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: >-
+      Verified in this checkout: `git cat-file -t 3823f2b00` resolves (a real commit,
+      ancestor of HEAD per `git merge-base --is-ancestor`), while `ae7eba9b2` fails to
+      resolve to any object; spec.md's Context sentence defers the discrepancy to
+      Clarifications, but the Clarifications section (read in full) contains exactly one
+      2026-08-14 Q&A about the branch-from-#3395 decision and says nothing about any hash.
+  - id: SPEC-GOV-003
+    verdict: refuted
+    reason: >-
+      SK-04 (verified present and open in SPEC-KITTY-LEDGER.md at
+      /home/jeroennouws/dev/SK-missions/SPEC-KITTY-LEDGER.md:126) is real, but spec.md's
+      Context and Story 5 both scope the "silent-success failure class" language to four
+      explicitly named tracked incidents (#3133, #3212, #3282, #3336) rather than claiming
+      to close the class repository-wide, so the claimed over-reading is speculative
+      interpretation of reader impression, not a concrete textual overclaim.
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: >-
+      Read runtime_bridge_cores.py:484-534 directly: `_evaluate_tasks_packages_guard`,
+      `_evaluate_composed_tasks_packages_guard`, and `_evaluate_composed_tasks_terminal_guard`
+      all gate on `_tasks_dir_ready` before reading `requirement_mapping_failures`, and
+      `_evaluate_tasks_finalize_guard` (492-504) never reads `requirement_mapping_failures`
+      at all, exactly as claimed; both `_check_cli_guards` (runtime_bridge.py:1594,1612) and
+      `_check_composed_action_guard` (1039-1052) are live call sites; spec.md's FR-010,
+      NFR-005, and Story 3 AC4 each specify only a single unquantified "teeth" test with no
+      per-guard requirement.
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: >-
+      runtime_bridge_cores.py's module docstring (lines 1-9) states the "Zero-dependency
+      leaf... stdlib, Lane/decision types, and nothing else" invariant, its actual imports
+      (lines 70-77) are stdlib plus `runtime.next.decision` only, no test under
+      tests/architectural/ references `runtime_bridge_cores` to enforce this boundary, the
+      cited reuse targets (`_requirement_named_sections`/`find_undeclared_requirement_citations`)
+      live in the separate `specify_cli.requirement_mapping` package, and spec.md never
+      mentions "cores", "zero-dependency", "leaf", or any cross-package import constraint
+      anywhere in the document.
+  - id: SPEC-ARCH-003
+    verdict: confirmed
+    reason: >-
+      Confirmed `_check_composed_action_guard`/`_dispatch_via_composition` in
+      runtime_bridge_composition.py execute through `StepContractExecutor`
+      (specify_cli/mission_step_contracts/executor.py), and spec.md contains zero
+      occurrences of "step contract", "StepContractExecutor", "orchestrator-api", or
+      "mission_step_contracts" anywhere in the document; FR-009/Story 6 address only
+      in-flight-mission reflexivity, not whether the composed guard vocabulary's schema
+      surface is in scope.
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      Story 4 AC3, FR-006, C-006, and SC-006 (all read in full) defer the actual numeric
+      false-positive ceiling entirely to the plan phase ("this mission's plan phase sets
+      and justifies the bar") with no default ceiling or forcing function stated anywhere
+      in spec.md itself.
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      Story 4's Independent Test allows classification "manually or systematically" and
+      AC4 only requires the docstring record the number/corpus-size/date/rationale, not a
+      reproducible script or committed procedure; requirement_mapping.py's own docstring
+      (verified, ~lines 44-53) records that the prior prototype's measurement "were not
+      preserved outside the Op transcript," the exact failure mode the finding says FR-005
+      risks repeating, and FR-005 as written does not require the procedure itself be
+      committed in-repo.
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: >-
+      `_is_requirement_heading` (specify_cli/requirement_mapping.py:98-101, exact text
+      verified) matches only headings whose text contains the literal substring
+      "requirement"; a corpus scan of this checkout found 325 of 368 spec.md files
+      (~88%) use a "Constraints" heading, which does not contain that substring; spec.md's
+      Key Entities explicitly include C-XXX tokens in the detector's model, and Story 4's
+      corpus validation (Independent Test + AC1-4) measures false positives only, never
+      false negatives, so this under-match class would go undetected by the mission's own
+      validation design.

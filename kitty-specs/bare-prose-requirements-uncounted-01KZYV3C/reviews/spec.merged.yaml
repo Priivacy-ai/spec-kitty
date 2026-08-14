@@ -1,0 +1,256 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: merged
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings:
+  - id: SPEC-GOV-001
+    lens: mission-specific (silent-success self-application audit)
+    severity: 3
+    title: "Story 5 / FR-007's \"ambiguous case, treated as requiring review\" leaves the load-bearing dimension (blocking vs. advisory-visible) unspecified"
+    evidence:
+      - artifact: "spec.md § User Story 5, Acceptance Scenario 2"
+      - artifact: "spec.md § FR-007, § NFR-002"
+      - artifact: "spec.md § User Story 1 (title: \"blocked, not merely logged\")"
+      - code: "src/runtime/next/runtime_bridge.py:835-864 (_log_requirement_extraction_warnings_safely — the existing fail-safe advisory wrapper Scenario 3 says the new path must not be routed through)"
+    claim: >-
+      Acceptance Scenario 2 of Story 5 says the detector, on an ambiguous input, "treats the
+      ambiguous case as requiring review (surfaced, non-silent) rather than defaulting to 'not
+      a requirement, ignore'." Unlike Scenario 1 (exception case), which anchors to an
+      unambiguous observable ("an explicit failure naming what could not be classified"),
+      Scenario 2 deliberately uses softer language ("requiring review" rather than "failure")
+      and never states whether "requiring review" means the ambiguous case (a) blocks
+      spec-kitty next's advance-vs-stay decision the same way a confirmed bare-prose finding
+      does, or (b) is merely surfaced as a distinguishable-but-non-blocking signal (e.g. a
+      differently-worded log line or a JSON field) that never reaches the guard. NFR-002 only
+      requires the result be "not indistinguishable from nothing to flag" — it does not require
+      blocking. Because Story 1's entire raison d'être is that advisory-only logging is
+      insufficient ("blocked, not merely logged"), and the ambiguous bucket is by construction
+      the hardest-to-classify (and plausibly the highest true-positive-rate) subset of inputs,
+      an implementation that reads "requiring review" as option (b) — a second, distinctly-worded
+      but still non-blocking warning, distinguishable from "clean" in content only — would
+      satisfy AC2's and NFR-002's literal text while reintroducing exactly the "advisory-only,
+      easy to miss" failure this mission exists to close, for precisely the inputs most likely
+      to be genuine.
+    remediation: >-
+      In plan.md (or by amending spec.md's Acceptance Scenario 2 directly), state explicitly
+      whether an "ambiguous, requires review" classification blocks spec-kitty next's
+      advance-vs-stay decision (same guard path as a confirmed bare-prose finding) or is a
+      separate, non-blocking-but-visible signal — and if the latter, add an explicit acceptance
+      criterion bounding how that residual advisory differs in practice from the pre-mission
+      status quo this mission was chartered to fix.
+
+  - id: SPEC-GOV-002
+    lens: directive (traceability / communication governance) + falsifiability/traceability
+    severity: 2
+    title: "Broken internal cross-reference: spec.md promises a Clarifications entry on a commit-hash discrepancy that the Clarifications section does not contain"
+    evidence:
+      - artifact: "spec.md § Context (informative), sentence citing commit `3823f2b00` \"— see Clarifications for the hash discrepancy versus the issue text's `ae7eba9b2`\""
+      - artifact: "spec.md § Clarifications — contains exactly one Q&A (the branch-from-#3395 operator decision); no entry addresses a hash discrepancy"
+      - code: "git log (this checkout): 3823f2b00 = \"revert(runtime): drop inert zero-declared requirement block, keep advisory logging\" — real, verified ancestor of HEAD (git merge-base --is-ancestor 3823f2b00 HEAD succeeds); ae7eba9b2 does not resolve to any object in this checkout's history (git cat-file -t ae7eba9b2 -> fatal: Not a valid object name)"
+    claim: >-
+      spec.md's Context section explicitly defers explanation of a stated commit-hash
+      discrepancy to the Clarifications section, but that section — verified by reading it in
+      full — contains only the single 2026-08-14 branching-decision Q&A and says nothing about
+      the hash discrepancy. A reader following the promised cross-reference (including a future
+      plan/implementation-phase agent trying to `git show` the precedent Story 3's central risk
+      is built on) finds nothing. (Duplicate finding independently raised by both the gov and
+      verify lens groups — merged here.)
+    remediation: >-
+      Add the missing Clarifications entry (or fold a one- or two-sentence explanation directly
+      into the Context sentence) stating why the two hashes differ — most plausibly that the
+      referenced commit was rewritten/rebased between when the GitHub issue text was written and
+      when this checkout's branch was created (consistent with C-005's already-disclosed
+      rebase-on-#3395-change risk) — so the forward-reference resolves to real content.
+
+  - id: SPEC-GOV-003
+    lens: ledger (SK-04 — retrospective FR-coverage detector silently reports clean coverage)
+    severity: 1
+    title: "Spec frames itself as addressing \"this repository's silent-success failure class\" without acknowledging the closest ledger sibling (SK-04) that remains unaddressed"
+    evidence:
+      - artifact: "spec.md § Context: \"this repository's silent-success failure class (tracked incidents #3133, #3212, #3282, #3336)\""
+      - artifact: "spec.md § User Story 5 Why-this-priority: \"#3396 IS an instance of this repository's silent-success failure class... not an ordinary feature gap.\""
+      - code: "SPEC-KITTY-LEDGER.md SK-04 (src/specify_cli/retrospective/generator.py:75, _FR_REF_RE = re.compile(r\"\\b(FR-\\d{3,})\\b\")) — a separate, still-open silent-clean-coverage defect in a different FR-extraction mechanism"
+    claim: >-
+      SK-04 is the ledger's closest analog to this mission's defect class but lives in a
+      different file/mechanism (retrospective/generator.py, not requirement_mapping.py) and is
+      legitimately out of scope for implementation (C-001 keeps _DECLARED_ID_PATTERNS untouched).
+      The gap is purely framing: spec.md's broad "silent-success failure class" language invites
+      a reader to believe this mission narrows that class repository-wide, when a known,
+      still-open sibling instance is left completely unmentioned.
+    remediation: >-
+      Add a one-line note (Context or Constraints) explicitly scoping SK-04 out: e.g. "the
+      retrospective phase's separate FR-extraction mechanism (SPEC-KITTY-LEDGER.md SK-04) has an
+      analogous silent-clean defect and is NOT addressed by this mission."
+
+  - id: SPEC-ARCH-001
+    lens: Dead-path-avoidance concreteness (mission-specific)
+    severity: 4
+    title: "FR-010/NFR-005/Story-3-AC4 require only 'a' teeth test, not one per guard actually wired — permits shipping a reachability proof for one call site while another live call site stays unverified"
+    evidence:
+      - artifact: "spec.md § FR-010 (\"Add a non-vacuity ('teeth') test proving the new signal's guard-reachability is actually exercised\")"
+      - artifact: "spec.md § NFR-005 (\"The new blocking wiring must fail a synthetic reversion (teeth) test, proving it is load-bearing at the guard(s) it targets\")"
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 4"
+      - code: "src/runtime/next/runtime_bridge_cores.py:484-489 (_evaluate_tasks_packages_guard, checks _tasks_dir_ready before reading requirement_mapping_failures)"
+      - code: "src/runtime/next/runtime_bridge_cores.py:492-504 (_evaluate_tasks_finalize_guard — confirmed: does NOT read requirement_mapping_failures anywhere in its body today)"
+      - code: "src/runtime/next/runtime_bridge_cores.py:515-521 (_evaluate_composed_tasks_packages_guard)"
+      - code: "src/runtime/next/runtime_bridge_cores.py:524-534 (_evaluate_composed_tasks_terminal_guard)"
+      - code: "src/runtime/next/runtime_bridge.py:1594 and :1612 (_check_cli_guards — the CLI-native vocabulary — called directly in the primary spec-kitty next decision loop)"
+      - code: "src/runtime/next/runtime_bridge.py:1039-1052 (_check_composed_action_guard, the composed vocabulary, delegated separately via _dispatch_via_composition)"
+    claim: >
+      All three guards named in the issue check `_tasks_dir_ready` before reading
+      `requirement_mapping_failures`, and the fourth guard the spec says it discovered
+      (_evaluate_tasks_finalize_guard) reads `requirement_mapping_failures` nowhere in its body —
+      confirmed by direct read. Direct code evidence (runtime_bridge.py:1594/:1612 call
+      `_check_cli_guards` straight from the primary spec-kitty next decision loop, while
+      `_check_composed_action_guard` is reached via a separate `_dispatch_via_composition` path)
+      makes it plausible the FR-003 audit will conclude BOTH vocabularies are live for different
+      callers, meaning the implementation may need to add/modify wiring in up to four guard
+      functions across two boundaries. FR-010/NFR-005/Story-3-AC4 each demand only "a"/"the"
+      (singular, unquantified) teeth test — none require a reversion test PER guard the FR-003
+      audit identifies as live. An implementer can satisfy the letter of all three by writing one
+      teeth test against the easiest-to-wire guard while leaving a genuinely new wiring path
+      unverified. If that untested guard is the one actually dispatched by production
+      spec-kitty next, the mission reproduces — one call site over, under a new FR number — the
+      exact "provably inert" failure mode of the reverted `_zero_declared_requirement_block`
+      (commit 3823f2b00).
+    remediation: >
+      Amend FR-010 (and mirror in NFR-005 and Story 3's AC4) to require: "for every guard
+      function the implementation adds or modifies to read the new signal (as identified by the
+      FR-003 vocabulary audit), a reversion ('teeth') test proves that specific guard fails
+      closed when the wiring is removed from it" — an enumerated, per-call-site requirement, not
+      a single existence proof anywhere in the test suite.
+
+  - id: SPEC-ARCH-002
+    lens: Layering
+    severity: 3
+    title: "Spec never states the new detector's classification logic must not violate runtime_bridge_cores.py's documented stdlib-only 'zero-dependency leaf' import boundary, and no automated test currently enforces that boundary"
+    evidence:
+      - artifact: "spec.md § Key Entities, \"Blocking signal / guard-consumption point\""
+      - artifact: "spec.md § FR-001 (\"reusing _requirement_named_sections / find_undeclared_requirement_citations-style scoping\")"
+      - code: "src/runtime/next/runtime_bridge_cores.py:1-9 (module docstring: \"Zero-dependency leaf... it may import stdlib, Lane/decision types, and nothing else\")"
+      - code: "src/runtime/next/runtime_bridge_cores.py:70-77 (actual import list — stdlib + runtime.next.decision only, confirming the invariant currently holds)"
+    claim: >
+      runtime_bridge_cores.py documents itself as a stdlib-only pure leaf; no architectural test
+      in tests/architectural/*.py enforces this by construction today. `_requirement_named_sections`
+      and `find_undeclared_requirement_citations`, which FR-001 directs the new detector to
+      reuse, live in `specify_cli/requirement_mapping.py` — a cross-package, non-stdlib module.
+      The spec never states the new classifier's computation must stay in the residual
+      (runtime_bridge.py) and be threaded into cores.py only as plain data, rather than via a new
+      cross-package import inside cores.py, which would silently break the documented
+      zero-dependency-leaf contract with no test to catch it.
+    remediation: >
+      Add an explicit constraint directing the plan phase to gather any new blocking-detection
+      result as plain data in the residual and thread it through RequirementMappingFacts (or
+      equivalent) into runtime_bridge_cores.py, never via a new cross-package import inside that
+      module. Optionally direct the plan phase to add an architectural test pinning
+      runtime_bridge_cores.py's import set to stdlib + runtime.next.decision only.
+
+  - id: SPEC-ARCH-003
+    lens: Contracts
+    severity: 3
+    title: "Spec never states whether the composed/step-contract guard vocabulary is in scope for this mission's wiring, despite that vocabulary being the mission-step-contract execution surface"
+    evidence:
+      - artifact: "spec.md (whole document — no mention of mission step contracts, StepContractExecutor, or orchestrator-api anywhere)"
+      - artifact: "spec.md § FR-009 / Story 6 (covers only the operator-facing \"in-flight missions newly blocked\" framing)"
+      - code: "src/runtime/next/runtime_bridge.py:1039-1052 (_check_composed_action_guard delegates to runtime_bridge_composition._check_composed_action_guard)"
+      - code: "src/specify_cli/mission_step_contracts/executor.py (StepContractExecutor — confirmed present and referenced from runtime_bridge_composition.py / runtime_bridge.py)"
+    claim: >
+      The composed guard family that FR-002/FR-003's audit may direct the implementation to wire
+      is reached through _check_composed_action_guard, which is the mission step-contract
+      execution surface — not merely a second internal code path but the surface the charter's
+      Contracts lens names as needing explicit preservation/versioning treatment for any behavior
+      change. The spec addresses only the operator-facing "in-flight missions newly block"
+      consequence; it never states whether adding a new failure-message class to the
+      guard_failures content returned through this surface is also a step-contract-schema-relevant
+      or orchestrator-api-relevant change requiring documentation.
+    remediation: >
+      Add a sentence to FR-009 (or a new Constraint) requiring the plan phase to state explicitly
+      whether the composed/step-contract guard vocabulary is in scope for this mission's wiring,
+      and if so, whether src/specify_cli/mission_step_contracts/ schemas or any orchestrator-api-
+      facing contract documentation need a corresponding note for the new guard-failure message
+      class.
+
+  - id: SPEC-VERIFY-001
+    lens: corpus-gate falsifiability / bar-setting integrity
+    severity: 4
+    title: FP-rate acceptance bar deferred to plan phase with no ceiling or forcing function
+    evidence:
+      - artifact: "spec.md § User Story 4, Acceptance Scenario 3"
+      - artifact: "spec.md § FR-006"
+      - artifact: "spec.md § C-006"
+      - artifact: "spec.md § SC-006"
+      - code: "src/specify_cli/requirement_mapping.py:44-53 (docstring recording #3395's 6% figure, verified verbatim on this checkout)"
+    claim: >
+      Story 4 Scenario 3 says a rate "anywhere near #3395's rejected 6% is presumptively too
+      high" but explicitly defers the actual numeric bar to the plan phase. Nothing in spec.md
+      gives the plan phase a ceiling it must justify deviation FROM — no stated maximum, no
+      requirement that the chosen bar be lower than 6%, and no requirement that the bar itself
+      (as opposed to the resulting measured number) be independently reviewed before
+      implementation proceeds. FR-006/SC-006/C-006 only police what happens AFTER a bar is
+      chosen. A plan could set the bar at 15-20%, write one sentence of justification, and
+      technically satisfy FR-006's letter while defeating Story 4's stated purpose. This is the
+      classic "unfalsifiable success criterion" pattern: the passing threshold is set only after
+      (or concurrently with) knowing what number will be measured, by the same actor whose plan
+      needs it to land.
+    remediation: >
+      Either (a) set the actual numeric ceiling in spec.md itself (e.g. a Constraint: "the
+      accepted false-positive rate must not exceed <=X%, materially below #3395's rejected 6%"),
+      or (b) keep the deferral but bound it: require that any plan-phase bar above a stated
+      default ceiling (e.g. 2%) carries an explicit, evidence-backed justification that is
+      independently reviewed before FR-006/C-006 can be considered satisfied.
+
+  - id: SPEC-VERIFY-002
+    lens: corpus-gate falsifiability / bar-setting integrity
+    severity: 3
+    title: Corpus false-positive classification methodology is unspecified and not required to be preserved, risking a repeat of #3395's own lost-measurement failure
+    evidence:
+      - artifact: "spec.md § User Story 4, Independent Test (\"manually or systematically classifies each as a true or false positive\")"
+      - artifact: "spec.md § User Story 4, Acceptance Scenario 4"
+      - artifact: "spec.md § FR-005"
+      - code: "src/specify_cli/requirement_mapping.py:44-53 (\"the prototype and its measurement were not preserved outside the Op transcript...\" — verified verbatim)"
+    claim: >
+      spec.md's own Context section names the exact failure mode it must not repeat: #3395's 6%
+      figure was asserted with the underlying prototype/measurement never preserved outside an Op
+      transcript. Story 4's Independent Test explicitly leaves classification method open
+      ("manually or systematically") and Scenario 4 only requires the docstring to record the
+      number, corpus size, date, and rationale — not the classification method, not who/what
+      performed it, and not a reproducible script or procedure. No existing corpus-validation
+      script or fixture exists in this codebase to reuse — this mission's plan phase starts from
+      nothing, exactly as #3395's did.
+    remediation: >
+      Extend FR-005 (or add a new FR) to require that the corpus-validation procedure itself —
+      not only its resulting number — is committed in-repo (e.g. a script under `scripts/` or a
+      parametrized test under `tests/`) so the measurement is re-runnable, and require the
+      docstring to state whether classification was automated (name the heuristic) or manual
+      (name that it was manual and how ties/ambiguity were resolved).
+
+  - id: SPEC-VERIFY-003
+    lens: silent-success
+    severity: 4
+    title: "Section-scoping via _is_requirement_heading is structurally blind to the corpus's dominant Constraints heading, leaving C-XXX bare prose undetectable and undetected by Story 4's FP-only corpus validation"
+    evidence:
+      - artifact: "spec.md § Key Entities (\"Bare-prose requirement candidate: a raw FR-/NFR-/C--shaped token found inside a heading section whose title names 'Requirements'\")"
+      - artifact: "spec.md § Edge Cases (\"Heading-title matching for 'Requirements' sections\" — names over-match risk and a hypothetical under-match example only, not Constraints)"
+      - artifact: "spec.md § User Story 4 Independent Test/Acceptance Scenarios (measures false positives only, never false negatives)"
+      - code: "src/specify_cli/requirement_mapping.py:107-109 (_is_requirement_heading: `stripped.startswith(\"#\") and \"requirement\" in stripped.lower()`)"
+      - code: "kitty-specs/*/spec.md: 325 of 368 files (~88%) use a `### Constraints` or `## Constraints` heading, verified via `grep -rln '^### Constraints\\|^## Constraints' kitty-specs/*/spec.md`"
+    claim: >
+      This mission's own model of "declared" requirement shapes and the reused scoping mechanism
+      both explicitly include `C-` ids as a requirement type this mission must protect. But
+      `_is_requirement_heading` only matches headings whose text contains the literal substring
+      "requirement" — and the canonical, near-universal section heading for Constraints across
+      the real corpus is "### Constraints" (88% of 368 corpus files), which does not contain
+      "requirement." A bare-prose C-XXX item written under a "### Constraints" heading would
+      therefore never be scoped into any `_requirement_named_sections` result at all — not
+      flagged, not warned, not blocked. This is the same silent-success shape #3396 exists to
+      fix, recurring one category deeper, and Story 4's corpus validation as scoped (FP rate
+      only) cannot surface it, because a false NEGATIVE produces zero blocks and contributes
+      nothing to a false-positive-rate measurement.
+    remediation: >
+      Add an explicit Edge Case / Constraint naming the Constraints-heading gap (cite the ~88%
+      corpus figure) and require the plan phase to do one of: (a) broaden the heading-match
+      predicate used for C-XXX scoping (e.g. also match "constraint"), or (b) explicitly narrow
+      FR-001/Key Entities to state that C-XXX bare-prose detection is out of scope for this
+      mission and justify why. Also extend Story 4's corpus-validation methodology to sample for
+      false negatives, not only false positives.
