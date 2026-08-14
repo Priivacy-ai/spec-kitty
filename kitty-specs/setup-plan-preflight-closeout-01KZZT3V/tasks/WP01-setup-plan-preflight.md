@@ -18,6 +18,7 @@ subtasks:
 - T004
 - T005
 - T006
+- T007
 phase: Фаза 1 — regression fix
 history:
 - at: '2026-08-14T10:21:17Z'
@@ -114,7 +115,7 @@ HTML/XML-теги заключай в backticks. Для code blocks указыв
 - Hosted-auth и SaaS boundary сохраняют текущий приоритет относительно Git ошибки.
 - Helper выбора checkout не запускает Git subprocess; он переиспользует существующую common-dir abstraction.
 - Production diff ограничен двумя заявленными модулями.
-- Release, deploy, SaaS, user config и публикация в `main` вне scope.
+- Release, deploy, SaaS, user config и публикация в protected base branch вне scope.
 
 Работай только в lane worktree, который вернёт runtime. Planning checkout не является местом для product writes.
 
@@ -145,6 +146,7 @@ HTML/XML-теги заключай в backticks. Для code blocks указыв
 3. Проверяй наблюдаемый CLI payload/exit behavior, а не порядок строк в production source.
 4. Mock размещай только на внешних границах Git preflight и Mission resolution; сам command flow должен оставаться production.
 5. Убедись, что RED вызван нужным порядком gate, а не ошибкой fixture/import/setup.
+6. Закоммить failing acceptance/regression test отдельным RED-commit до любого implementation commit. В commit не должно быть production-изменений.
 
 Файлы:
 
@@ -157,9 +159,23 @@ Validation:
 - тест стал бы зелёным только при раннем failed-preflight exit;
 - human remediation проверяется отдельно от JSON payload.
 
-Не вноси production fix до фиксации RED evidence в Activity Log/commit rationale.
+Не вноси production fix, пока отдельный RED-commit не создан и его тест не доказан красным на `planning_base_branch`.
 
-### T002 — Добавить canonical helper выбора caller-owned linked checkout
+### T002 — Выполнить отдельный tidy-first campsite-clean
+
+**Защищаемая поломка**: функциональный diff может закрепить локальный debt или смешать обязательный behavior-preserving cleanup с изменением observable contract.
+
+После RED-commit и до функционального production commit:
+
+1. Ограничь осмотр уже выбранными files из `owned_files`; не открывай новые surfaces ради косметического cleanup.
+2. Проверь target functions на локальные Sonar/lint/type diagnostics, очевидное дублирование authority, чрезмерную сложность и stale comments, непосредственно мешающие исправлению.
+3. Если релевантный debt найден, исправь его отдельным behavior-preserving commit и подтверди текущими фокусными тестами.
+4. Если cleanup не требуется, запиши воспроизводимое evidence `none found` с командами/проверенными functions в Activity Log; не создавай пустой commit.
+5. Не смешивай tidy-first commit с изменением порядка gates, новым helper API или новыми acceptance semantics.
+
+Tidy-first не разрешает расширять file set. Любой out-of-map файл требует отдельного material replan.
+
+### T003 — Добавить canonical helper выбора caller-owned linked checkout
 
 **Защищаемая поломка**: простое использование `locate_project_root()` направит Git preflight в primary/repository checkout и пропустит состояние caller-owned linked worktree.
 
@@ -204,7 +220,7 @@ def resolve_same_repository_worktree_root(
 
 Mutation check: helper, который без common-dir проверки возвращает любой nearest checkout, обязан быть убит unrelated-checkout тестом.
 
-### T003 — Перестроить setup-plan на один ранний Git preflight
+### T004 — Перестроить setup-plan на один ранний Git preflight
 
 **Защищаемая поломка**: Mission resolver вызывается до Git policy, а наивный перенос может изменить auth/SaaS precedence или удвоить preflight.
 
@@ -239,7 +255,7 @@ Validation:
 - successful caller-owned path: preflight `1`, Mission resolver `1`;
 - auth/SaaS failures сохраняют прежний приоритет и не требуют новых Git calls.
 
-### T004 — Доказать caller-owned lifecycle и неизменность primary
+### T005 — Доказать caller-owned lifecycle и неизменность primary
 
 **Защищаемая поломка**: mock-only command test может подтвердить payload, но не обнаружить preflight по primary root или запись Mission artifacts не в тот checkout.
 
@@ -270,7 +286,7 @@ Acceptance oracle:
 
 Тест должен быть кроссплатформенным: используй `Path`, существующие Git test helpers и semantic comparisons, не литеральные slash-separated Windows пути.
 
-### T005 — Добавить mutation/deletion sensitivity
+### T006 — Добавить mutation/deletion sensitivity
 
 Тесты считаются достаточными только если ловят реалистичные production regressions. Выполни узкие локальные mutations или эквивалентный deletion oracle для четырёх случаев:
 
@@ -294,7 +310,7 @@ Acceptance oracle:
 
 Результат запиши в Activity Log или commit rationale кратко: mutation → test that killed it.
 
-### T006 — Выполнить gates, differential и codemap assessment
+### T007 — Выполнить gates, differential, tracers и codemap assessment
 
 Минимальный verification packet:
 
@@ -307,6 +323,7 @@ Acceptance oracle:
 4. `python -m py_compile` для изменённых production-файлов.
 5. `git diff --check` по cumulative Mission diff.
 6. Exact owned-files diff и чистый lane status после commit.
+7. Через `spec-kitty agent tracer-append --mission setup-plan-preflight-closeout-01KZZT3V` дополни `approach`, `design-decisions` и `tooling-friction`; прямую запись в coordination tracer files из lane не выполняй.
 
 Если широкий или соседний набор даёт красный результат:
 
@@ -351,8 +368,10 @@ Codemap gate:
 
 ## Definition of Done
 
-- [ ] T001–T006 отмечены `done` через штатный lifecycle.
+- [ ] T001–T007 отмечены `done` через штатный lifecycle.
 - [ ] FR-001–FR-005 имеют test/output evidence.
+- [ ] Failing acceptance/regression test существует отдельным RED-commit до implementation commits и воспроизводится красным на planning base.
+- [ ] Tidy-first campsite-clean выполнен отдельным behavior-preserving commit либо записано проверяемое `none found` evidence.
 - [ ] Failed JSON и human paths возвращают `GIT_PREFLIGHT_FAILED` с действующей remediation.
 - [ ] Failed path не вызывает Mission resolver и не меняет planning artifacts.
 - [ ] Один command invocation выполняет ровно один preflight.
@@ -363,8 +382,9 @@ Codemap gate:
 - [ ] Четыре обязательные mutations убиты тестами.
 - [ ] Ruff, strict mypy, py_compile и diff-check зелёные.
 - [ ] Codemap parity/fingerprint подтверждены либо документировано, почему обновление не требуется.
+- [ ] Все три Mission tracer дополнены через canonical CLI и оценены при closeout.
 - [ ] Lane содержит только owned/обоснованные out-of-map файлы и чист после commit.
-- [ ] Release/deploy/main publication не выполнялись.
+- [ ] Release/deploy/publication в protected base branch не выполнялись.
 
 ## Review Guidance
 
@@ -376,9 +396,10 @@ Reviewer обязан независимо проверить:
 4. Ноль Mission resolution/write на failed path.
 5. Отсутствие новой Mission-root authority или raw Mission path-join.
 6. Реальную чувствительность committed tests, а не только synthetic fixtures.
-7. Mutation evidence по четырём обязательным дефектам.
-8. Cross-platform semantics и отсутствие новых subprocess в checkout helper.
-9. Exact owned diff, codemap decision и static gates.
+7. Отдельный RED-commit предшествует implementation commits; tidy-first evidence отделено от functional diff.
+8. Mutation evidence по четырём обязательным дефектам.
+9. Cross-platform semantics и отсутствие новых subprocess в checkout helper.
+10. Exact owned diff, codemap decision, tracer updates и static gates.
 
 Review blocker, если тесты не отличают primary root от active linked checkout, если failure contract проверяется только mock payload, если helper принимает unrelated checkout или если preflight вызывается до SaaS boundary/после Mission resolver.
 
