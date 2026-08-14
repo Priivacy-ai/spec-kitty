@@ -73,7 +73,7 @@
       "wp": null
     },
     "#3395": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Open PR (unmerged) at Priivacy-ai/spec-kitty#3395; this mission's base branch op/3394-requirement-citation-scope@ab15225ea. Narrows requirement extraction; #3396 is the residual under-match it creates. Depended on, not fixed here.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,7 +81,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#3396": {
