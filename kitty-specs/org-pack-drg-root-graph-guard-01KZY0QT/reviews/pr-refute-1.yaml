@@ -1,0 +1,51 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 1
+verdicts:
+  - id: PR-BOUNDARY-001
+    verdict: confirmed
+    reason: Reproduced live in a scratch worktree at 5105c9d91 — a root graph.yaml with a
+      within-file duplicate (source,target,relation) triple, paired with an unrelated drg/
+      fragment, raises DRGValidationError("Duplicate edge...") on the pre-fix commit
+      (4babc62c3, hand-replayed load_graph_or_dir+merge_layers+assert_valid) but is silently
+      absorbed to exactly 1 retained edge with no exception on 5105c9d91;
+      duplicate_edge_triples() is confirmed source-blind (operates on graph.edges in encounter
+      order, no provenance field) and TestRootAndDrgMerge's two tests use either fully-distinct
+      URNs or a genuinely cross-source duplicate, so the within-source regression is unflagged
+      and untested as claimed.
+  - id: PR-BOUNDARY-002
+    verdict: refuted
+    reason: Live reproduction refutes the claim — ProfileInvocationExecutor.invoke() calls
+      build_charter_context() with no mission_type and no feature_dir kwarg (confirmed by
+      reading executor.py:356-361, the only call site in the file), so
+      resolve_mission_type_key() always returns None for the dispatch path and the
+      `if resolved_type is not None` guard in _load_action_doctrine_bundle skips
+      load_validated_graph entirely; calling executor.invoke() directly against a repo with a
+      malformed org root graph.yaml (same fixture shape as the finding's evidence) returned a
+      successful InvocationPayload with no exception, whereas the same malformed content raised
+      OrgDRGFragmentError only when mission_type was passed explicitly to build_charter_context
+      (a call shape invoke() never makes) — the finding's "verified empirically... the exact
+      call shape invoke() makes" does not hold up against the actual invoke() call, so the
+      described `spec-kitty dispatch` crash does not reproduce.
+  - id: PR-TESTS-001
+    verdict: confirmed
+    reason: Reproduced live in a scratch worktree — patched _load_org_layer's drg/-only branch
+      to strip every procedure-kind node/edge before returning, re-ran
+      tests/charter/test_org_root_graph_guard.py -n0, all 9 tests still passed; confirmed
+      _BUILT_IN_GRAPH_YAML (lines 87-98) declares zero procedure nodes so baseline_procedures
+      is always 0, making `with_pack_procedures >= baseline_procedures` a vacuous `>= 0`, and
+      the only positive-membership test (test_drg_fragment_node_reaches_resolved_bundle) checks
+      the tactic ID only, never a procedure ID — matches the finding exactly.
+  - id: PR-TESTS-002
+    verdict: confirmed
+    reason: >-
+      Reproduced live in a scratch worktree — swapped the merge_layers argument order at
+      _drg_helpers.py:132 to put the drg/ fragment first and the root graph second (reversing
+      FR-003/IC-02's mandated "drg/ authoritative" precedence), re-ran
+      tests/charter/test_org_root_graph_guard.py -n0, all 9 tests still passed; confirmed
+      TestRootAndDrgMerge's two tests use either fully-distinct node URNs or an edge-only
+      duplicate with an empty nodes list in the drg/ sibling, so neither fixture declares the
+      same node URN with conflicting labels in both sources and neither can observe which
+      side's label won — matches the finding exactly.

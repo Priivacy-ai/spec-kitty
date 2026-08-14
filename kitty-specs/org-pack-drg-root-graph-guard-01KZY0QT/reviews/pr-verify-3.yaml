@@ -1,0 +1,42 @@
+# review-verify/v1
+schema: review-verify/v1
+complete: true
+phase: pr
+results:
+  - id: PR-FRESH2-001
+    status: resolved
+    reason: >-
+      The per-triple `[edge for edge in graph.edges if ...]` rescan is replaced
+      by `_group_edges_by_triple` (src/charter/_drg_helpers.py:87-97), one pass
+      over `graph.edges` building `dict[triple, list[edge]]`, then a dict lookup
+      per duplicated triple (line 163) -- restoring O(n). Independently
+      constructed all six semantics-preservation fixtures (not reusing the
+      mission's test helpers) and drove them through the real
+      load_validated_graph: 1x root+2x drg raised, 2x root+1x drg raised, 1x
+      root+3x drg raised, 1x root+1x drg collapsed to exactly 1 retained edge
+      (no over-correction), duplicate-twice-within-root-only (2x root+0x drg)
+      raised, and a triple present once in root only alongside a distinct
+      triple present once in drg only (no duplication) left both edges intact
+      untouched. All six matched required behaviour exactly -- the perf
+      rewrite is behaviour-preserving. Re-measured `_dedup_org_layer_edges`
+      directly (not through the CLI) at n=1600 and n=3200 duplicated triples:
+      0.0026s and 0.0049s respectively (~1.9x time for 2x n), consistent with
+      linear scaling and a clear break from the O(n^2) ~4x-per-doubling
+      signature the finding measured pre-fix (0.6258s at n=1600, 2.5556s at
+      n=3200).
+  - id: PR-FRESH2-002
+    status: resolved
+    reason: >-
+      test_mixed_one_root_three_drg_duplicate_edge_triple_still_raises
+      (tests/charter/test_org_root_graph_guard.py:796-830) pins the 1x
+      root+3x drg shape, generalising past the count=2 boundary the prior
+      two regression tests exercise. Reproduced the fixer's claim: built a
+      deliberately boundary-only mutant in a scratch worktree
+      (`.worktrees` sibling, removed after use) that special-cases exactly
+      the two pinned shapes (root=1/drg=2 and root=2/drg=1 -> leave alone)
+      and falls through to a naive "keep only the first occurrence" collapse
+      for anything else. Ran the three relevant tests against the mutant:
+      the two existing count=2 boundary tests still PASSED (the mutant is a
+      plausible sneaky regression, not a strawman), while the new 3+ test
+      went RED ("DID NOT RAISE DRGValidationError") -- the test has genuine
+      teeth, not merely trivial pass-through coverage.

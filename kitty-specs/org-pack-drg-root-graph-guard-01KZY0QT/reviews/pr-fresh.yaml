@@ -1,0 +1,79 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true              # flipped after the yaml self-check passed (parses, 2 findings, ids valid)
+phase: pr
+lens_group: fresh
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+findings:
+  - id: PR-FRESH-001
+    lens: debugger-debbie
+    severity: 4
+    title: Mixed occurrence-count case reintroduces the silent-success dedup bug this revision was built to fix
+    evidence:
+      - code: "src/charter/_drg_helpers.py:130-140"
+      - code: "src/charter/_drg_helpers.py:90-98 (docstring's own invariant claim)"
+    claim: >-
+      `_dedup_org_layer_edges` classifies an occurrence as "cross-source" (removable) purely
+      by comparing its source to the source of the FIRST occurrence of that triple
+      (`retained_source_by_triple`, populated by `setdefault` over `graph.edges` in root-then-drg
+      order). When a triple appears 3 times as 1×root + 2×drg (root declares it once; drg/
+      declares the SAME triple a second time internally -- a same-file authoring bug -- while
+      also duplicating root's single occurrence), both drg occurrences differ from the retained
+      "root" source and are BOTH stripped, leaving exactly one edge and zero remaining
+      duplicates. `assert_valid` then raises nothing: the drg-internal authoring bug is silently
+      absorbed, exactly the failure mode the revision's own docstring says this dedup must never
+      produce ("a triple repeated twice within the SAME source ... must keep reaching the final
+      assert_valid/DRGValidationError ... collapsing it here would silently absorb a real
+      defect"). Verified live: constructed this exact fixture (root graph declaring the triple
+      once, `drg/` fragment declaring the identical triple twice) and ran it through the real
+      `load_validated_graph` pipeline via `uv run --extra test --extra lint pytest`
+      (patching only `load_built_in_graph`, same pattern as the module's own tests) -- the call
+      returns success with `matching edge count in final graph: 1` and no `DRGValidationError`
+      is raised. None of the revision's new tests (`test_within_root_duplicate_edge_triple_still_raises`,
+      2 same-source occurrences only; `test_identical_edge_triple_deduped_to_one_not_dropped`,
+      1 root + 1 drg only) exercises a 3-occurrence mixed case, so this gap was not caught by
+      the added regression coverage.
+    remediation: >-
+      Classify pairwise, not "differs from the first occurrence's source": for each repeated
+      triple, only strip occurrences that pair off one-for-one against a DIFFERENT-source
+      occurrence (e.g. remove at most min(root_count, drg_count) occurrences from each side, or
+      equivalently: if a source has more than one occurrence of a triple, at least one occurrence
+      from the source with the surplus must remain a "duplicate" for `duplicate_edge_triples` to
+      still flag on the final graph). Add a regression test with 1×root + 2×drg (and the mirror,
+      2×root + 1×drg) asserting `DRGValidationError` still raises for the within-source pair.
+  - id: PR-FRESH-002
+    lens: debugger-debbie
+    severity: 3
+    title: Cross-source classification depends on edge object identity surviving two undocumented, untested upstream behaviors
+    evidence:
+      - code: "src/charter/_drg_helpers.py:100-105"
+      - code: "src/doctrine/drg/loader.py:188-189 (merge_layers edge concatenation)"
+      - code: "src/doctrine/drg/models.py:403-409 (DRGGraph, no revalidate_instances override)"
+    claim: >-
+      `_dedup_org_layer_edges`'s whole source-classification mechanism relies on `id(edge)`
+      surviving from `root_graph.edges`/`drg_graph.edges` through `merge_layers` into the merged
+      graph's `.edges`. This holds today for two independent, un-pinned reasons: (1)
+      `merge_layers` (`src/doctrine/drg/loader.py:189`) builds `merged_edges` via
+      `list(built_in.edges) + list(project.edges)` -- a shallow list concatenation that happens
+      not to copy the `DRGEdge` elements -- and (2) `DRGGraph`'s pydantic `model_config` never
+      sets `revalidate_instances`, so pydantic v2's default (`'never'`) skips re-validating
+      (and thus re-constructing) already-valid `DRGEdge` instances passed into
+      `DRGGraph(edges=merged_edges)`. Neither behavior is documented as a contract of
+      `merge_layers` or `DRGGraph`, and no test in `tests/doctrine/` or `tests/charter/` pins
+      "edge object identity survives merge_layers." I confirmed both hold today with a live
+      probe (`id()` of each source edge matched the retained edge's `id()` after a real
+      `merge_layers` + `_dedup_org_layer_edges` call). If either upstream detail changes (e.g.
+      `merge_layers` starts `model_copy()`-ing edges for future provenance tagging, or a later
+      change sets `revalidate_instances='always'` for stricter validation), `_source_of` hits its
+      `# pragma: no cover` `AssertionError` branch -- a loud crash rather than a silent wrong
+      answer, which limits the damage, but the crash's message ("edge ... is not identity-present
+      in either org-layer source") gives no hint that the root cause is an unrelated pydantic
+      config or `merge_layers` refactor elsewhere in the codebase.
+    remediation: >-
+      Either (a) add a narrow regression test in `tests/doctrine/drg/` that pins
+      "`merge_layers` preserves edge object identity" as an explicit contract so a future
+      change to `merge_layers` fails at the point of the actual behavior change, not three
+      layers away in `_drg_helpers.py`; or (b) stop depending on identity and instead have
+      `_load_org_root_graph`/`_load_org_drg_fragment` tag each edge with an explicit
+      provenance marker (the `DRGEdge.provenance` field already exists for this) before the
+      sub-merge, so `_source_of` reads a field instead of relying on incidental object identity.

@@ -1,0 +1,7 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: pr
+lens_group: contract
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+findings: []

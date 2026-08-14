@@ -1,0 +1,148 @@
+# review-findings/v1 — R3 confirmed set.
+# 4 merged -> 3 confirmed, 1 refuted (PR-BOUNDARY-002; see pr-refute-1.yaml for the reason).
+# Refuted findings remain in pr.merged.yaml for the audit trail and are NOT sent to the fixer.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: confirmed
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+evidence_files:
+- pr.merged.yaml
+- pr-refute-1.yaml
+- pr-boundary.findings.yaml
+- pr-contract.findings.yaml
+- pr-tests.findings.yaml
+findings:
+- id: PR-BOUNDARY-001
+  lens: canonical-source / layering
+  severity: 4
+  title: '_dedup_org_layer_edges collapses WITHIN-source duplicate edges, not just cross-source ones,
+    silently absorbing a genuine authoring error that assert_valid used to catch
+
+    '
+  evidence:
+  - code: src/charter/_drg_helpers.py (diff hunk, _dedup_org_layer_edges, +67..+84)
+  - code: 'src/charter/_drg_helpers.py (diff hunk, _load_org_layer, final branch: merge_layers(...) then
+      _dedup_org_layer_edges(merged_org))'
+  - artifact: 'plan.md IC-02: ''this dedup step only collapses duplicates strictly within the org-internal
+      root+drg/ sub-merge... a duplicate between the org layer and the built-in or project layer is a
+      different scope... this concern must not accidentally widen the dedup to cover that case'''
+  - code: src/doctrine/drg/validator.py:264-283 duplicate_edge_triples() — operates on graph.edges in
+      encounter order with no source/provenance distinction; returns the 2nd+ occurrence of any repeated
+      (source,target,relation) triple, wherever it came from
+  claim: '_dedup_org_layer_edges(merged_org) calls the canonical duplicate_edge_triples() over the FULL
+    merged root+drg/ edge list and drops every edge it flags. duplicate_edge_triples has no concept of
+    "which source an edge came from" — it flags a repeated triple whether the two occurrences are (a)
+    one in root + one in drg/ (the FR-003 cross-source case this concern is scoped to), or (b) both inside
+    the SAME source file (root repeating itself, or drg/ repeating itself — a plain authoring bug with
+    nothing to do with the merge). Pre-fix, case (b) was NOT silently absorbed: it reached the unmodified
+    assert_valid(merged) at the end of load_validated_graph and raised DRGValidationError("Duplicate edge:
+    ..."), a real, surfaced failure. Post-fix, for any org pack that has BOTH root and drg/ content (the
+    only shape that enters this branch), case (b) is now silently collapsed to one edge before assert_valid
+    ever runs — the authoring bug disappears with no warning. Verified empirically against the lane-a
+    worktree (commit 5105c9d91): a root graph.yaml declaring the same (source,target,relation) triple
+    twice, paired with an unrelated drg/ fragment, raises DRGValidationError on the pre-fix code path
+    (confirmed by replaying the old load_graph_or_dir(root) + merge_layers + assert_valid sequence by
+    hand) but load_validated_graph on 5105c9d91 returns successfully with the duplicate silently reduced
+    to 1 retained edge, no exception, no log. This is a silent-success path per the severity rubric''s
+    own example. The new test suite (tests/charter/test_org_root_graph_guard.py::TestRootAndDrgMerge::
+    test_identical_edge_triple_deduped_to_one_not_dropped) only exercises the intended cross-source case
+    (root declares the triple once, drg/ declares it once) — there is no test for a within-root or within-drg/
+    duplicate in a combined pack, so this scope-widening regression is untested as well as unflagged.
+
+    '
+  remediation: 'Scope the dedup to genuinely cross-source duplicates only: track which edges came from
+    the root load vs. the drg/ load (e.g. two id()-sets, one per source, built before merge_layers concatenates
+    them), and only collapse a triple flagged by duplicate_edge_triples when its retained and dropped
+    occurrences come from DIFFERENT sources. If both occurrences of a flagged triple are id()-members
+    of the same source''s edge set, do not drop it — let it fall through to assert_valid so the existing
+    DRGValidationError still fires for a same-file authoring duplicate, exactly as it did before this
+    mission. Add a regression test pairing a root-internal (or drg/-internal) duplicate with unrelated
+    content in the other location, asserting assert_valid still raises.
+
+    '
+  _source_file: pr-boundary.findings.yaml
+- id: PR-TESTS-001
+  lens: Would these tests catch it? / Vacuity by empty set
+  severity: 4
+  title: Procedure-count assertions are vacuous — the built-in fixture graph never declares a procedure
+    node, so every "procedure >= / == baseline" check compares against a hardcoded zero and cannot detect
+    a procedure-only regression
+  evidence:
+  - code: tests/charter/test_org_root_graph_guard.py:80-98
+    note: '`_BUILT_IN_GRAPH_YAML` declares exactly one directive node and zero procedure nodes. The module
+      comment at these lines claims this makes the baseline "non-zero (a non-vacuous floor for the ''>=''
+      assertions below)" — true for directives/tactics/styleguides/toolguides, false for procedures specifically.'
+  - code: tests/charter/test_org_root_graph_guard.py:286-309
+    note: '`test_drg_only_pack_preserves_or_grows_typed_counts` (the FR-005 flagship test) asserts `with_pack_procedures
+      >= baseline_procedures`. Since `baseline_procedures` is always 0 (no procedure node anywhere in
+      the built-in fixture or bare project), this assertion is `>= 0`, which holds even if the org pack''s
+      procedure never loads at all.'
+  - code: tests/charter/test_org_root_graph_guard.py:311-325
+    note: '`test_drg_fragment_node_reaches_resolved_bundle` (US1 AC2''s positive- membership test) checks
+      membership only for the fixture''s TACTIC id, explicitly never the procedure id (per the module''s
+      own comment: "never `procedure` ... `--json` never surfaces a typed `procedures` array to check
+      membership against"). No test anywhere in the file does a positive-membership check for a procedure
+      id.'
+  - artifact: reviews/spec.ruling.md SPEC-FRESH4-001
+    note: 'The binding ruling''s own rationale is "issue #3384''s own reproduction measures procedures=10
+      -> 0. Procedures are one of the five artifact kinds the defect zeroes, so a regression test that
+      omits them does not prove the fix for that kind." A vacuous zero-baseline comparison reopens exactly
+      this concern without omitting the assertion outright.'
+  claim: 'Verified live: in the WP01 execution worktree (.worktrees/org-pack-drg-root-graph-guard-01KZY0QT-lane-a),
+    I edited `_load_org_layer`''s `drg/`-only branch (src/charter/_drg_helpers.py:130-131) to strip every
+    procedure-kind node and its edges from the loaded `drg/` fragment graph before returning — simulating
+    a hypothetical regression where procedure delivery specifically breaks while directives/tactics/styleguides/
+    toolguides keep working. Re-ran `tests/charter/test_org_root_graph_guard.py` with `-n0`: all 9 tests
+    still passed (`9 passed in 18.17s`). The edit was then reverted and `git status --porcelain -uno`
+    confirmed clean. This satisfies the severity-4 criterion verbatim ("a test that passes with the change
+    reverted") for the procedure-delivery slice of FR-002/FR-005: no test in this suite can distinguish
+    "the org pack''s procedure loaded correctly" from "procedure delivery is completely broken but every
+    other kind works."'
+  remediation: Add at least one procedure node to `_BUILT_IN_GRAPH_YAML` (scoped from the resolved action)
+    so `baseline_procedures` is a real non-zero floor, mirroring the docstring's already-stated intent
+    for the other four kinds; and/or add a direct positive-membership assertion for `_ORG_DRG_PROCEDURE_ID`
+    against the plain-text render's Procedures section (parallel to `test_drg_fragment_node_reaches_resolved_bundle`'s
+    tactic-id membership check, adapted to `_procedures_section_count`/line-scanning since the plain-text
+    render doesn't expose per-artifact IDs as cleanly as `--json` — e.g. assert the procedure's name/label
+    text appears in the rendered Procedures section, not just that the section's line count grew).
+  _source_file: pr-tests.findings.yaml
+- id: PR-TESTS-002
+  lens: Would these tests catch it?
+  severity: 4
+  title: FR-003's "drg/ fragments are authoritative on same-URN node-label conflict" precedence rule has
+    no test coverage — a swapped merge_layers() argument order passes the entire suite
+  evidence:
+  - artifact: spec.md FR-003
+    note: '"On a same-URN node-label conflict between the root graph and drg/ fragments, drg/ fragments
+      are authoritative: the org-layer sub-merge calls merge_layers(root_graph, drg_graph) — the root
+      graph as the first (built_in) positional argument, drg/ content as the second (project) positional
+      argument."'
+  - artifact: plan.md IC-02
+    note: '"merge them via merge_layers(root_graph, drg_graph) ... so drg/''s node labels win on same-URN
+      conflicts."'
+  - code: src/charter/_drg_helpers.py:132
+    note: merge_layers(_load_org_root_graph(org_root), _load_org_drg_fragment(drg_dir))
+  - code: tests/charter/test_org_root_graph_guard.py:441-509 (class TestRootAndDrgMerge)
+    note: 'Its two tests use fixtures with either fully DISTINCT URNs (`test_root_and_drg_both_present_neither_node_dropped`,
+      node A only in root, node B only in drg/) or an IDENTICAL edge triple with no node-label conflict
+      (`test_identical_edge_triple_deduped_to_one_not_dropped`, `nodes: []` in the drg/ sibling). Neither
+      fixture declares the same node URN with two different label values in both sources, so neither test
+      can observe which side''s label "won."'
+  claim: 'Verified live in the same WP01 worktree: I swapped the argument order at src/charter/_drg_helpers.py:132
+    to `merge_layers(_load_org_drg_fragment(drg_dir), _load_org_root_graph(org_root))` — the exact reverse
+    of what FR-003/IC-02/C-001 mandate, which would flip override-wins from "drg/ authoritative" to "root
+    authoritative" on any same-URN node-label conflict. Re-ran `tests/charter/test_org_root_graph_guard.py`
+    with `-n0`: all 9 tests still passed (`9 passed in 18.17s`). Reverted the edit and confirmed `git
+    status --porcelain -uno` clean. This meets the severity-4 bar ("a test that passes with the change
+    reverted") for a specifically documented, C-001-mandated behavior — a future refactor that silently
+    reverses the argument order (or a copy-paste of `_load_org_layer` into a hypothetical future third
+    layer, per the plan''s own "Non-Vacuous Gate for the Defect Class" scenario) would ship with zero
+    test signal.'
+  remediation: Add a test to `TestRootAndDrgMerge` that declares the SAME node URN in both the root graph
+    and the `drg/` fragment with two different `label` values (e.g. root labels it "root version", drg/
+    labels it "drg version"), runs `load_validated_graph`/`--json`, and asserts the resolved node's label
+    equals the `drg/` fragment's label — not the root graph's — pinning FR-003's "drg/ authoritative"
+    clause the same way `test_identical_edge_triple_deduped_to_one_not_dropped` already pins the edge-dedup
+    clause.
+  _source_file: pr-tests.findings.yaml

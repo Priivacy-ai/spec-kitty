@@ -1,0 +1,66 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true              # flipped after the yaml self-check passed (parses, 2 findings, ids valid)
+phase: pr
+lens_group: fresh
+mission: org-pack-drg-root-graph-guard-01KZY0QT
+findings:
+  - id: PR-FRESH2-001
+    lens: debugger-debbie
+    severity: 3
+    title: Per-source-occurrence dedup rescans graph.edges once per duplicated triple, making the org-layer merge quadratic
+    evidence:
+      - code: "src/charter/_drg_helpers.py:145-162"
+    claim: >-
+      The revised `_dedup_org_layer_edges` computes `duplicated_triples` in one pass (fine),
+      but then, for EACH distinct duplicated triple, rebuilds `occurrences` with a fresh
+      `[edge for edge in graph.edges if _edge_triple(edge) == triple]` full scan
+      (`src/charter/_drg_helpers.py:149`). The pre-revision implementation (single
+      `retained_source_by_triple` dict built in one pass over `graph.edges`, then one filter
+      pass) was O(n). This revision is O(n * k) where k is the number of distinct duplicated
+      triples, which is O(n) in the worst case (every edge duplicated once) -- making the
+      whole function O(n^2). Verified live with a microbenchmark that builds a root/drg pair
+      each containing n distinct triples, all duplicated once across the two sources (the
+      ordinary "genuine cross-source overlap" case FR-003 exists to support, not an error
+      state): n=200 -> 0.0092s, n=400 -> 0.0391s, n=800 -> 0.1553s, n=1600 -> 0.6258s,
+      n=3200 -> 2.5556s -- each doubling of n roughly quadruples the runtime, the textbook
+      O(n^2) signature. `_dedup_org_layer_edges` runs on every `load_validated_graph` call
+      for any project with an org pack declaring both a root graph and a `drg/` fragment
+      (i.e. on every `charter context` action resolution), so this is a real latency
+      regression on a governance hot path for organisations with larger overlapping org
+      packs, not merely a theoretical concern.
+    remediation: >-
+      Replace the per-triple rescan with a single grouping pass: build
+      `edges_by_triple: dict[tuple[str, str, str], list[DRGEdge]]` once via one loop over
+      `graph.edges` (`edges_by_triple.setdefault(_edge_triple(edge), []).append(edge)`), then
+      iterate `duplicated_triples` and look up `edges_by_triple[triple]` instead of
+      re-filtering `graph.edges`. This restores O(n) total work while keeping the same
+      per-triple source-counting logic.
+  - id: PR-FRESH2-002
+    lens: debugger-debbie
+    severity: 2
+    title: New PR-FRESH-001 regression tests pin only the count=2 boundary per source, not the general "any count != 1" rule
+    evidence:
+      - code: "tests/charter/test_org_root_graph_guard.py:699-762 (test_mixed_one_root_two_drg_duplicate_edge_triple_still_raises, test_mixed_two_root_one_drg_duplicate_edge_triple_still_raises)"
+      - code: "src/charter/_drg_helpers.py:151 (sources.count(\"root\") == 1 and sources.count(\"drg\") == 1)"
+    claim: >-
+      The two new regression tests fix fixtures at exactly 1x-root+2x-drg and its mirror
+      2x-root+1x-drg -- the smallest triple-count-per-source that isn't (1, 1). They pin
+      that the fix no longer reintroduces PR-FRESH-001's original bug (which stripped ALL
+      occurrences differing from the first-seen source). They do NOT pin the shipped rule's
+      actual generalization to 3+ occurrences in one source (e.g. 1x-root+3x-drg, or
+      2x-root+2x-drg). Today's implementation happens to generalize correctly because the
+      guard is a single boolean condition (`== 1` on both counts) with no count-specific
+      branching -- verified live via a probe sweeping root/drg occurrence counts 0..3 in
+      every combination, confirming only the exact (1, 1) case collapses and every other
+      combination (2, 0), (3, 0), (1, 2), (1, 3), (2, 1), (3, 1), (2, 2), (3, 3) is left
+      fully intact for the final `assert_valid` to catch. But a plausible future edit that
+      special-cases the tested boundary (e.g. `if sources.count("drg") == 2: leave alone`
+      instead of `!= 1`) would pass both existing tests unchanged while silently mishandling
+      a 3-occurrence case, and no test in this file would catch it.
+    remediation: >-
+      Add at least one test beyond the count=2 boundary (e.g. 1x-root+3x-drg, or
+      2x-root+2x-drg) asserting `DRGValidationError` still raises, so the general
+      "collapse only exactly (1, 1)" rule is pinned across the count space the fresh review
+      was asked to probe, not just the boundary the previous PR-FRESH-001 finding happened
+      to use as its counter-example.

@@ -1,0 +1,42 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: pr
+results:
+  - id: PR-BOUNDARY-001
+    status: resolved
+    reason: >-
+      Reproduced both directions in a scratch worktree at 470bc8053. Mutation: reverted
+      _dedup_org_layer_edges to the pre-fix, source-blind behavior (dedup over the full
+      merged graph, ignoring root_edges/drg_edges) — the new
+      test_within_root_duplicate_edge_triple_still_raises went RED ("DID NOT RAISE
+      DRGValidationError"), while test_identical_edge_triple_deduped_to_one_not_dropped
+      (the genuine cross-source case) still passed under the real fix, confirming dedup was
+      not disabled outright. The identity-preservation assumption behind the fix was
+      independently verified, not trusted: read merge_layers (plain list concatenation of
+      the two source edge lists, no copying) and DRGGraph/DRGEdge's pydantic model_config
+      (no revalidate_instances override, so constructing DRGGraph(edges=...) from
+      already-instantiated DRGEdge objects does not clone them), then confirmed empirically
+      with a standalone script showing `any(e is e1 for e in merged.edges)` is True for both
+      source edges after merge_layers. The identity assumption holds.
+  - id: PR-TESTS-001
+    status: resolved
+    reason: >-
+      Reproduced in the scratch worktree: stripped procedure-kind nodes/edges from
+      _load_org_layer's drg/-only branch (simulating procedure delivery breaking while
+      other kinds work). test_drg_fragment_node_reaches_resolved_bundle went RED
+      ("drg/-declared procedure 'org-drg-procedure-3384' did not reach the resolved
+      bundle's plain-text Procedures section"), where the surviving procedure_lines
+      contained only the fixture's own baseline procedure — confirming the fixture change
+      is honest: _BUILT_IN_GRAPH_YAML now declares a real procedure node
+      (builtin-baseline-procedure), giving a genuine non-zero floor distinguishable from the
+      org pack's own procedure id, and the new assertion is a positive-membership check, not
+      a vacuous ">= 0" count comparison.
+  - id: PR-TESTS-002
+    status: resolved
+    reason: >-
+      Reproduced in the scratch worktree: swapped the merge_layers argument order at
+      _drg_helpers.py's _load_org_layer call site (merge_layers(drg_graph, root_graph)
+      instead of (root_graph, drg_graph)). test_same_urn_node_label_conflict_drg_is_authoritative
+      went RED ("expected the drg/ fragment's label 'drg label' to win ... got 'root
+      label'"), pinning FR-003's drg/-authoritative precedence exactly as claimed.

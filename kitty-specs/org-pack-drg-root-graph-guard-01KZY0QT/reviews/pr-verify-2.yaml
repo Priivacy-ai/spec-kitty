@@ -1,0 +1,41 @@
+# review-verify/v1
+schema: review-verify/v1
+complete: true
+phase: pr
+results:
+  - id: PR-FRESH-001
+    status: resolved
+    reason: >-
+      The fix replaces first-occurrence-source classification with a genuine
+      per-source occurrence count (src/charter/_drg_helpers.py:145-160): a
+      triple collapses only when sources.count("root") == 1 and
+      sources.count("drg") == 1; any source with >=2 occurrences leaves every
+      occurrence untouched. Independently constructed all four required
+      fixtures (not reusing the mission's test helpers) and drove them
+      through the real load_validated_graph: 1x root + 2x drg raised
+      DRGValidationError with 2 "Duplicate edge" errors; 2x root + 1x drg
+      raised likewise (symmetric, by construction of the count check, not by
+      edge-ordering luck); 1x root + 1x drg deduped to exactly 1 matching
+      edge with no exception (guards against over-correction/disabling
+      dedup); duplicate-twice-within-root-only (2x root + 0x drg) raised
+      DRGValidationError with 1 "Duplicate edge" error. The mission's own 14
+      tests in tests/charter/test_org_root_graph_guard.py, including the two
+      new mixed-count regressions, also pass. This is a substantive fix, not
+      a restated finding.
+  - id: PR-FRESH-002
+    status: resolved
+    reason: >-
+      test_merge_layers_preserves_edge_object_identity
+      (tests/charter/test_org_root_graph_guard.py:958-978) asserts `is`
+      identity of built-in/project edge objects surviving a real
+      merge_layers() call. Verified it is a genuine pin, not a vacuous
+      assertion: in the scratch worktree I mutated
+      src/doctrine/drg/loader.py's merge_layers to `model_copy()` each edge
+      before concatenating (simulating the exact future refactor the finding
+      warned about) and reran the suite -- the pin test failed directly with
+      "no built-in edge object survived merge_layers identity-preserved",
+      and four other tests failed loudly at _source_of's AssertionError
+      (the documented, intentional fail-closed crash) rather than silently
+      producing a wrong answer. Reverted the mutation (git checkout --) and
+      confirmed the file matches upstream and the suite returns to 14/14
+      green before discarding the scratch worktree.
