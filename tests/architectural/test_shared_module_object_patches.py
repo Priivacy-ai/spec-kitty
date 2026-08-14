@@ -295,6 +295,14 @@ def test_the_gate_names_the_files_it_opened() -> None:
     )
 
 
+def test_census_actual_paths_match_static_posix_oracle() -> None:
+    """Actual scanner paths must compare directly with static POSIX inventory."""
+    opened = frozenset(site.file for site in _census([ENFORCED_SCOPE]).sites)
+    expected = "tests/sync/tracker/test_saas_client.py"
+    assert expected in opened, f"actual paths did not contain static expected {expected!r}"
+    assert all("\\" not in path for path in opened), sorted(opened)
+
+
 # ---------------------------------------------------------------------------
 # SC-007 item 3 — self-mutation arms
 #

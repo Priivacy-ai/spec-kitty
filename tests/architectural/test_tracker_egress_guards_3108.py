@@ -349,6 +349,17 @@ def analyze_calls_in_tree(root: Path, target: str) -> CallFindings:
     return _calls_in_tree(str(root), target)
 
 
+def test_call_census_actual_path_matches_static_posix_oracle(tmp_path: Path) -> None:
+    """The actual census key is canonical; the expected literal is not normalized."""
+    module = tmp_path / "nested" / "probe.py"
+    module.parent.mkdir()
+    module.write_text("def probe():\n    tracker_egress_verdict()\n", encoding="utf-8")
+
+    findings = analyze_calls_in_tree(tmp_path, VERDICT_FN)
+
+    assert {call.module for call in findings.calls} == {"nested/probe.py"}
+
+
 def _announce(guard: str, input_count: int, **facts: object) -> None:
     """Print the input count and interpreter beside every result, and assert it is non-zero.
 
@@ -1739,6 +1750,23 @@ def _patch_sites_in_tree(root_str: str, target: str) -> PatchFindings:
 def analyze_patch_sites_in_tree(root: Path, *, target: str = "_build_engine") -> PatchFindings:
     """Root-path entry point: census of *target* patch sites across the whole ``tests/`` tree."""
     return _patch_sites_in_tree(str(root), target)
+
+
+def test_patch_census_actual_path_matches_static_posix_oracle(tmp_path: Path) -> None:
+    """Patch-site census uses the same canonical actual-path boundary."""
+    module = tmp_path / "nested" / "probe.py"
+    module.parent.mkdir()
+    module.write_text(
+        "from unittest.mock import patch\n"
+        "def probe():\n"
+        "    with patch.object(service, '_build_engine'):\n"
+        "        pass\n",
+        encoding="utf-8",
+    )
+
+    findings = analyze_patch_sites_in_tree(tmp_path)
+
+    assert findings.sites == {"nested/probe.py::probe"}
 
 
 #: The **control**: structurally identical to the mutants below, but patching something that is

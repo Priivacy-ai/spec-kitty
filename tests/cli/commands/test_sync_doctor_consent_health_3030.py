@@ -33,7 +33,7 @@ that hole, and a later relocation would orphan the helper with the suite still g
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
@@ -51,6 +51,20 @@ PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
 # Rich wraps at the console width; the assertions normalise whitespace, but a width
 # this generous keeps a mid-phrase break from splitting a short asserted string.
 _WIDE_TERMINAL = "220"
+
+
+def _posix_permission_oracle_unavailable(
+    geteuid: Callable[[], int] | None = getattr(os, "geteuid", None),
+) -> bool:
+    """Return whether chmod-based unreadability cannot be observed faithfully."""
+    return geteuid is None or geteuid() == 0
+
+
+def test_permission_oracle_capability_boundary_preserves_posix_branch() -> None:
+    """Injected capabilities keep Windows, root and non-root semantics distinct."""
+    assert _posix_permission_oracle_unavailable(None)
+    assert _posix_permission_oracle_unavailable(lambda: 0)
+    assert not _posix_permission_oracle_unavailable(lambda: 1000)
 
 
 @pytest.fixture(autouse=True)
