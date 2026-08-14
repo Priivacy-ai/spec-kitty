@@ -38,7 +38,11 @@ from mission_runtime import (
     resolve_topology,
     routes_through_coordination,
 )
-from specify_cli.coordination.coherence import is_coord_residue_churn, is_status_state_path
+from specify_cli.coordination.coherence import (
+    is_coord_residue_churn,
+    is_self_bookkeeping_churn,
+    is_status_state_path,
+)
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.coordination.status_transition import emit_status_transition_transactional
@@ -734,6 +738,58 @@ def _partition_files_for_commit(files_to_commit: list[str]) -> tuple[list[str], 
     return primary_files, coord_files
 
 
+def _guard_planning_commit_partition(files: list[str], *, destination_is_coord: bool) -> None:
+    """Seam-A guard for the kind-agnostic ``BookkeepingTransaction`` commit (T011).
+
+    write-path-integrity WP02 / FR-002 / C-008: the ``commit_for_mission``
+    classifier already refuses a PRIMARY kind reaching coord staging
+    (:class:`~specify_cli.coordination.commit_router.PrimaryKindReachedCoordStagingError`),
+    but the P0 planning path commits through the kind-AGNOSTIC
+    :class:`BookkeepingTransaction` seam, which never consulted a kind. This is
+    the mirror guard on THAT seam: it classifies each staged path and raises the
+    SAME exception on a partition mis-route, so a future edit that mixes
+    partitions fails loud instead of silently landing a PRIMARY ``lanes.json`` on
+    the coordination branch (the #3371 class).
+
+    Exemption ORDER matters (C-008): spec-kitty's OWN bookkeeping
+    (:func:`~specify_cli.coordination.coherence.is_self_bookkeeping_churn` --
+    ``meta.json``, encoding-provenance, ``kitty-ops`` Op records) is exempted
+    BEFORE kind classification, so a legitimate coordination commit co-travelling
+    ``meta.json`` (a COORD-partition status commit that also carries mission
+    identity metadata) does NOT trip the ``PRIMARY_METADATA``→coord guard. Only
+    then is each remaining path checked: under a COORD destination a PRIMARY
+    (non-residue) kind is the forbidden PRIMARY→coord route; under a PRIMARY
+    destination a coord-residue kind is the forbidden COORD→primary/lane route.
+
+    This guard is only applied under coordination topology (the caller passes
+    ``enforce_partition=True`` for the coord-topology partition commits and
+    ``False`` for the flat/legacy single-branch collapse, where every kind
+    legitimately shares one branch and there is no partition to violate).
+    """
+    from specify_cli.coordination.commit_router import PrimaryKindReachedCoordStagingError
+
+    for path_str in files:
+        if is_self_bookkeeping_churn(path_str):
+            # meta.json / encoding-provenance / kitty-ops co-travel — exempt
+            # BEFORE kind classification (C-008).
+            continue
+        file_is_coord = is_coord_residue_churn(path_str)
+        if file_is_coord == destination_is_coord:
+            continue
+        if destination_is_coord:
+            raise PrimaryKindReachedCoordStagingError(
+                f"PRIMARY-partition planning artifact {path_str!r} reached the "
+                f"coordination-branch commit seam; PRIMARY kinds must commit to "
+                f"the primary target branch and never transit the coordination "
+                f"branch (write-path-integrity FR-002)."
+            )
+        raise PrimaryKindReachedCoordStagingError(
+            f"COORD-partition artifact {path_str!r} reached a PRIMARY/lane commit "
+            f"seam; coordination-partition kinds must commit to the coordination "
+            f"branch, never a primary or lane branch (write-path-integrity FR-002/#2549)."
+        )
+
+
 def _run_planning_artifact_commit(
     *,
     repo_root: Path,
@@ -743,16 +799,39 @@ def _run_planning_artifact_commit(
     destination_ref: str,
     files: list[str],
     commit_msg: str,
+    commit_to_primary_target: bool = False,
+    enforce_partition: bool = False,
 ) -> None:
     """Execute ONE ``BookkeepingTransaction`` commit of *files* to *destination_ref*.
 
     Extracted from :func:`_commit_planning_artifacts_transaction` (T007) so
     the partition-aware caller below can run this once per PRIMARY/COORD-
     residue group without duplicating the transaction I/O + exception
-    handling. Preserves the pre-partition byte-for-byte behavior for a single
-    group covering all of ``files_to_commit``.
+    handling.
+
+    ``commit_to_primary_target`` (WP02 / FR-001): threaded to
+    :meth:`BookkeepingTransaction.acquire` so a PRIMARY-partition commit lands on
+    the mission's own ``destination_ref`` (primary target branch) instead of
+    being redirected onto the coordination branch. See ``acquire``'s docstring.
+
+    ``enforce_partition`` (WP02 / FR-002 / T011): apply the Seam-A guard. Set for
+    the coordination-topology partition commits (PRIMARY and COORD groups) and
+    left ``False`` for the flat/legacy single-branch collapse where a mixed batch
+    legitimately shares one branch.
+
+    ``commit_idempotent`` (WP02 / FR-001 / T009): crash-recovery re-drive. If the
+    process dies between the PRIMARY and COORD commits, re-invoking ``implement``
+    re-runs BOTH groups; the group that already committed finds its staged paths
+    byte-identical to HEAD and no-ops instead of hard-failing on an empty
+    changeset. Recovery is per-partition idempotent re-drive, NOT cross-ref
+    atomicity.
     """
     from specify_cli.coordination.transaction import BookkeepingTransaction
+
+    if enforce_partition:
+        _guard_planning_commit_partition(
+            files, destination_is_coord=not commit_to_primary_target
+        )
 
     with BookkeepingTransaction.acquire(
         repo_root=repo_root,
@@ -761,6 +840,7 @@ def _run_planning_artifact_commit(
         mid8=mid8,
         destination_ref=destination_ref,
         operation=f"planning artifacts for {mission_slug}",
+        commit_to_primary_target=commit_to_primary_target,
     ) as txn:
         for path_str in files:
             repo_path = Path(path_str)
@@ -769,7 +849,7 @@ def _run_planning_artifact_commit(
                 continue
             txn.write_artifact(repo_path, source_path.read_bytes())
         try:
-            txn.commit(commit_msg)
+            txn.commit_idempotent(commit_msg)
         except Exception as exc:  # noqa: BLE001 — surface as exit-1
             console.print(f"{_RED_ERROR_PREFIX}Failed to commit planning artifacts to {destination_ref}: {exc}")
             raise typer.Exit(1) from exc
@@ -825,20 +905,25 @@ def _commit_planning_artifacts_transaction(
     both groups are non-empty, mirroring
     ``commit_router._group_files_by_partition``'s own two-group split.
 
-    C-004 (mission scope): the ``if placement_ref is not None:`` branch is
-    UNCHANGED by this WP -- it keeps committing the whole batch to
-    ``placement_ref.ref`` verbatim (WP03 / T011 / D11's pinned "no
-    re-derivation" contract, ``test_effective_destination_ref_is_placement_ref_verbatim``).
-    C-004 explicitly defers retiring that seam path's "one ref for
-    everything" model (and its now-false C-PLACE-1 docstring) to the
-    separate #2160 placement-seam SSOT cluster -- out of scope here.
+    write-path-integrity WP02 / T008 / FR-001 (SANCTIONED C-004 reversal):
+    the ``if placement_ref is not None:`` branch is NO LONGER a verbatim
+    whole-batch commit. It now partitions ``files_to_commit`` exactly like the
+    meta-derived ``else`` arm -- the PRIMARY group commits to the mission's
+    target branch (honoured via ``commit_to_primary_target=True`` so the
+    transaction does not redirect it onto coord) and the COORD-residue group
+    commits to ``placement_ref.ref`` (the coordination ref). This closes the
+    #3371 P0 where a PRIMARY ``lanes.json`` was committed onto the coordination
+    branch and add/add-conflicted at lane allocation. The prior "one ref for
+    everything" contract (and its pinned test
+    ``test_effective_destination_ref_is_placement_ref_verbatim``) is rewritten
+    (not deleted) to assert BOTH partition refs receive their group (T010).
 
     #2648 (WP01) narrow-triple fail-close: this function has exactly FOUR
     ``placement_ref``/``coord_branch``/protection outcomes, and only ONE of
     them raises --
 
-    - ``placement_ref is not None`` -- commit verbatim to ``placement_ref.ref``
-      (C-004, unchanged by this WP).
+    - ``placement_ref is not None`` -- partition-aware commit: PRIMARY group to
+      the target branch, COORD-residue group to ``placement_ref.ref`` (T008).
     - ``placement_ref is None`` and ``not coord_branch`` -- flat/legacy
       mission, single transaction to ``planning_branch`` (C-004 strangler,
       unchanged).
@@ -888,18 +973,45 @@ def _commit_planning_artifacts_transaction(
         )
 
     if placement_ref is not None:
-        # WP03 / T011 / D11 (unchanged, C-004): the seam-resolved value is
-        # used VERBATIM for the whole batch -- no re-derivation, no per-file
-        # partition override.
-        _run_planning_artifact_commit(
-            repo_root=repo_root,
-            mission_id=effective_mission_id,
-            mission_slug=mission_slug,
-            mid8=effective_mid8,
-            destination_ref=placement_ref.ref,
-            files=files_to_commit,
-            commit_msg=commit_msg,
-        )
+        # write-path-integrity WP02 / T008 / FR-001 (SANCTIONED C-004 reversal):
+        # the seam-resolved ``placement_ref.ref`` is the COORD ref under
+        # coordination topology. Pre-fix this arm committed the WHOLE batch
+        # (PRIMARY ``lanes.json`` / ``spec.md`` included) VERBATIM to that coord
+        # ref -- the #3371 P0 that landed PRIMARY ``lanes.json`` on the
+        # coordination branch and add/add-conflicted at lane allocation. Post-fix
+        # this arm partitions the batch exactly like the meta-derived ``else`` arm
+        # below: the PRIMARY group commits to the mission's target branch
+        # (``_commit_target_ref_for(planning_branch)``, honoured by
+        # ``commit_to_primary_target=True`` so the transaction does not redirect
+        # it to coord), and the COORD-residue group commits to the coordination
+        # ref (``placement_ref.ref``). Only the non-empty group(s) run
+        # (skip-empty caller guard, mirroring the ``else`` arm -- no empty
+        # transaction). The Seam-A guard (``enforce_partition=True``) fails loud on
+        # any partition mis-route on either leg (FR-002 / T011).
+        primary_files, coord_files = _partition_files_for_commit(files_to_commit)
+        if primary_files:
+            _run_planning_artifact_commit(
+                repo_root=repo_root,
+                mission_id=effective_mission_id,
+                mission_slug=mission_slug,
+                mid8=effective_mid8,
+                destination_ref=_commit_target_ref_for(planning_branch),
+                files=primary_files,
+                commit_msg=commit_msg,
+                commit_to_primary_target=True,
+                enforce_partition=True,
+            )
+        if coord_files:
+            _run_planning_artifact_commit(
+                repo_root=repo_root,
+                mission_id=effective_mission_id,
+                mission_slug=mission_slug,
+                mid8=effective_mid8,
+                destination_ref=placement_ref.ref,
+                files=coord_files,
+                commit_msg=commit_msg,
+                enforce_partition=True,
+            )
     elif not coord_branch:
         # Flattened/legacy mission: no coordination branch at all -- the
         # historical single transaction to ``planning_branch``, routed
@@ -949,6 +1061,9 @@ def _commit_planning_artifacts_transaction(
             # is derived from the SAME ``_commit_target_ref_for`` expression the
             # read-side idempotency compare uses -- one source of the
             # cli-side PRIMARY ref, not two independently-written literals.
+            # WP02 / FR-001: ``commit_to_primary_target=True`` so the transaction
+            # commits this group to the target branch from the primary checkout
+            # instead of redirecting it onto the coordination branch.
             _run_planning_artifact_commit(
                 repo_root=repo_root,
                 mission_id=effective_mission_id,
@@ -957,6 +1072,8 @@ def _commit_planning_artifacts_transaction(
                 destination_ref=_commit_target_ref_for(planning_branch),
                 files=primary_files,
                 commit_msg=commit_msg,
+                commit_to_primary_target=True,
+                enforce_partition=True,
             )
         if coord_files:
             _run_planning_artifact_commit(
@@ -967,6 +1084,7 @@ def _commit_planning_artifacts_transaction(
                 destination_ref=str(coord_branch),
                 files=coord_files,
                 commit_msg=commit_msg,
+                enforce_partition=True,
             )
 
     if is_legacy:
