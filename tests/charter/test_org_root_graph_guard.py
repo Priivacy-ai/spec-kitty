@@ -425,6 +425,37 @@ _DRG_GRAPH_YAML_DUP_EDGE = textwrap.dedent(
     """
 )
 
+#: PR-BOUNDARY-001 regression fixture: the root graph declares the identical
+#: ``(source, target, relation)`` triple TWICE WITHIN ITSELF (a same-file
+#: authoring bug), paired with an unrelated, unconnected drg/ sibling so the
+#: dedup step has genuinely cross-source content to distinguish from.
+_WITHIN_ROOT_DUP_SOURCE_URN = "directive:org-within-root-dup-source-3384"
+_WITHIN_ROOT_DUP_TARGET_URN = "directive:org-within-root-dup-target-3384"
+_ROOT_GRAPH_YAML_WITHIN_ROOT_DUP = textwrap.dedent(
+    f"""\
+    schema_version: '1.0'
+    generated_at: '2026-08-13T00:00:00Z'
+    generated_by: test
+    nodes:
+      - {{urn: '{_WITHIN_ROOT_DUP_SOURCE_URN}', kind: directive}}
+      - {{urn: '{_WITHIN_ROOT_DUP_TARGET_URN}', kind: directive}}
+    edges:
+      - {{source: '{_WITHIN_ROOT_DUP_SOURCE_URN}', target: '{_WITHIN_ROOT_DUP_TARGET_URN}', relation: requires}}
+      - {{source: '{_WITHIN_ROOT_DUP_SOURCE_URN}', target: '{_WITHIN_ROOT_DUP_TARGET_URN}', relation: requires}}
+    """
+)
+_UNRELATED_DRG_SIBLING_URN = "directive:org-unrelated-drg-sibling-3384"
+_DRG_GRAPH_YAML_UNRELATED_SIBLING = textwrap.dedent(
+    f"""\
+    schema_version: '1.0'
+    generated_at: '2026-08-13T00:00:00Z'
+    generated_by: test
+    nodes:
+      - {{urn: '{_UNRELATED_DRG_SIBLING_URN}', kind: directive}}
+    edges: []
+    """
+)
+
 
 def _write_org_pack_root_and_drg(
     repo_root: Path, *, root_yaml: str, drg_yaml: str, dir_name: str
@@ -507,6 +538,38 @@ class TestRootAndDrgMerge:
             f"expected exactly one retained copy of the duplicated triple, "
             f"found {len(matching_edges)}: {matching_edges}"
         )
+
+    def test_within_root_duplicate_edge_triple_still_raises(self, tmp_path: Path) -> None:
+        """PR-BOUNDARY-001 regression (R3 confirmed finding).
+
+        A ``(source, target, relation)`` triple duplicated TWICE WITHIN the
+        root graph alone -- not split one-in-root/one-in-drg/ -- is a
+        same-file authoring bug unrelated to the cross-source FR-003/IC-02
+        dedup this class of fix targets. It must still reach the final
+        ``assert_valid`` and raise ``DRGValidationError``, exactly as it did
+        before ``_dedup_org_layer_edges`` existed. A dedup step that is not
+        scoped to genuinely cross-source duplicates (i.e. one that flags a
+        triple purely by ``duplicate_edge_triples`` over the merged graph,
+        with no regard for which source each occurrence came from) would
+        silently collapse this to one retained edge and swallow the
+        authoring error -- the drg/ sibling here carries only unrelated
+        content, so nothing about it should influence this outcome.
+        """
+        from charter._drg_helpers import load_validated_graph
+        from doctrine.drg.validator import DRGValidationError
+
+        repo = tmp_path / "within_root_dup"
+        repo.mkdir()
+        pack_root = _write_org_pack_root_and_drg(
+            repo,
+            root_yaml=_ROOT_GRAPH_YAML_WITHIN_ROOT_DUP,
+            drg_yaml=_DRG_GRAPH_YAML_UNRELATED_SIBLING,
+            dir_name="within-root-dup-fixture-pack",
+        )
+
+        with patch("charter._drg_helpers.load_built_in_graph", side_effect=_built_in_graph):
+            with pytest.raises(DRGValidationError):
+                load_validated_graph(repo, org_root=pack_root)
 
 
 # ---------------------------------------------------------------------------
