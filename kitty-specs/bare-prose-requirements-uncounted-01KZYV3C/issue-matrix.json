@@ -13,7 +13,7 @@
       "wp": null
     },
     "#3212": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Open issue; cited in spec.md/plan.md as a prior example of this repo's silent-success defect class, to motivate design. Context only; not addressed by this mission.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,7 +21,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#3282": {
