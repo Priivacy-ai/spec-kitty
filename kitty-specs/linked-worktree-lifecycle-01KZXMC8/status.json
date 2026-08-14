@@ -93,9 +93,9 @@
     },
     "WP03": {
       "actor": "codex",
-      "agent": "",
-      "agent_profile": "implementer-ivan",
-      "agent_profile_version": "1.0",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "for_review",
       "last_event_id": "01KZZG2ED2JAB46WGWQ55VV2XH",
@@ -107,7 +107,8 @@
         "Полный caller-owned lifecycle, repo-wide guard и status transaction dual-root исправлены; 195 тестов, Ruff, py_compile, strict mypy helper и codemap gates прошли.",
         "Cycle 4 fixes production task transitions and repo-wide root guard",
         "Cycle 4: production mark-status and move-task e2e; dynamic src-wide root authority guard",
-        "REQUEST_CHANGES: raw KITTY_SPECS_DIR/slug join in tasks_shared.py bypasses canonical Mission resolver; existing repo-wide resolver guard fails (1 failed, 61 passed)."
+        "REQUEST_CHANGES: raw KITTY_SPECS_DIR/slug join in tasks_shared.py bypasses canonical Mission resolver; existing repo-wide resolver guard fails (1 failed, 61 passed).",
+        "Cycle 5: canonical resolver fallback and raw-path-join architectural census; parent gates pass"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
