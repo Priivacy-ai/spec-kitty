@@ -250,6 +250,68 @@ def test_classify_mission_type_to_dict_shape(tmp_path: Path) -> None:
     assert payload["error"] is None
 
 
+def test_classify_mission_type_classification_helper_exception_is_error_not_crash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-008 Edge Case: 'one bad mission must never crash the whole audit
+    run' also covers bugs in the classification helpers that run AFTER the
+    meta.json read, not just the read itself. A mission whose classifier
+    raises must be reported as ``error`` with the reason preserved — never
+    let the exception propagate out of ``classify_mission_type``.
+    """
+    import specify_cli.cli.commands._mission_type_audit as mission_type_audit_mod
+    from doctrine.missions.mission_type_repository import MissionTypeRepository
+
+    d = tmp_path / "kitty-specs" / "001-boom"
+    _write_meta(d, {"mission_type": "software-dev"})
+
+    def _boom(raw_val: object) -> str | None:
+        raise RuntimeError("classifier exploded")
+
+    monkeypatch.setattr(mission_type_audit_mod, "canonical_mission_type_key", _boom)
+
+    state = mission_type_audit_mod.classify_mission_type(
+        d, registered=["software-dev"], repo=MissionTypeRepository.default()
+    )
+    assert state.state == "error"
+    assert state.error is not None
+    assert "classifier exploded" in state.error
+
+
+def test_audit_mission_types_classification_error_does_not_abort_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-008 Edge Case, run-level: one mission whose classifier blows up
+    must not abort the whole ``audit_mission_types`` walk — every other
+    mission in the tree must still be classified and reported.
+    """
+    import specify_cli.cli.commands._mission_type_audit as mission_type_audit_mod
+
+    specs = tmp_path / "kitty-specs"
+    _write_meta(specs / "001-good", {"mission_type": "software-dev"})
+    _write_meta(specs / "002-boom", {"mission_type": "software-dev"})
+    _write_config(tmp_path, ["software-dev"])
+
+    real_canonical = mission_type_audit_mod.canonical_mission_type_key
+    calls = {"n": 0}
+
+    def _flaky(raw_val: object) -> str | None:
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise RuntimeError("classifier exploded")
+        return real_canonical(raw_val)
+
+    monkeypatch.setattr(mission_type_audit_mod, "canonical_mission_type_key", _flaky)
+
+    states = mission_type_audit_mod.audit_mission_types(tmp_path)
+    assert len(states) == 2
+    by_slug = {s.slug: s for s in states}
+    assert by_slug["001-good"].state == "resolved"
+    assert by_slug["002-boom"].state == "error"
+    assert by_slug["002-boom"].error is not None
+    assert "classifier exploded" in (by_slug["002-boom"].error or "")
+
+
 # ---------------------------------------------------------------------------
 # audit_mission_types / summarize_mission_types (direct, unit-level)
 # ---------------------------------------------------------------------------
