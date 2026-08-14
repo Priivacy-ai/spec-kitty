@@ -228,3 +228,38 @@ in that worktree rather than re-running or improvising around the gate.
 **Action taken**: no `/spec-kitty.analyze` run; no hand-edit of any spec-kitty state file; no
 alternate `--base` invented. Third corroboration (mission-wide) of this specific false-positive
 class; documented here as instructed rather than silently routed around.
+
+## 2026-08-14 — WP04 status transition refuses on protected-branch bookkeeping (SK-21 family,
+   new surface: `spec-kitty agent status emit`, not `move-task`)
+
+**What happened**: with all of T014-T019's work committed and pushed on
+`kitty/mission-org-pack-authoring-diagnostics-01KZY463-lane-b`, attempted the canonical status
+transition to advance WP04 out of `planned` (the lane-b worktree's local
+`kitty-specs/org-pack-authoring-diagnostics-01KZY463/status.json` still showed WP04 — and WP02/WP03
+— as `planned`, despite WP02/WP03 being independently reported approved by the orchestrator; per
+the brief's own note, "Status source of truth: the resolved status surface (coord branch...), not
+the open worktree" — this worktree's copy is not necessarily authoritative):
+
+```
+spec-kitty agent status emit WP04 --to claimed --actor claude \
+  --mission org-pack-authoring-diagnostics-01KZY463 --json
+
+{"error": "Bookkeeping refused: PROTECTED_BRANCH_REFUSED: Refusing to record 'status transition
+WP04': destination ref 'main' is on this project's protected branch list. Bookkeeping commits
+must target the coordination branch."}
+```
+
+Same defect family as SK-21 (`move-task`'s hard-refusal on protected-branch bookkeeping), but a
+**new surface**: `spec-kitty agent status emit` itself refuses, not only `move-task`. Unlike
+SK-21's documented `mark-status` behavior (refuses cleanly but leaves files uncommitted,
+recoverable via `safe-commit`), this refusal left **zero** local file changes — `git status`
+immediately after was clean. So there is no partial-write artifact to recover via `safe-commit`
+here; the transition simply did not happen at all.
+
+**Action taken**: per the mission brief ("If a status transition refuses, REPORT it — the
+orchestrator handles transitions. NEVER hand-edit spec-kitty state"), did not retry with
+`--force`, did not hand-edit `status.json`/`status.events.jsonl`/WP frontmatter, and did not set
+`SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1`. All substantive WP04 work (T014-T019, all six
+commits) is complete, committed, and pushed independent of this status-bookkeeping gap — reported
+to the orchestrator as a BLOCKED sub-item on the transition specifically, not on the
+implementation itself.
