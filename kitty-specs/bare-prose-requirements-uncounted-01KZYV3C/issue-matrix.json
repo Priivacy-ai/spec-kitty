@@ -107,6 +107,18 @@
       "title": "<fill at WP-implementation time>",
       "verdict": "in-mission",
       "wp": "WP04"
+    },
+    "#394": {
+      "evidence_ref": "Closed issue. Cited in plan.md as prior art for an already-enforced patch()-target-string validation gate ('[ENFORCED] Validate patch() target strings (closes #394)'). Context only; not addressed by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
     }
   },
   "schema_version": 1
