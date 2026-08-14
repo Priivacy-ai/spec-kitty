@@ -1,0 +1,62 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: >-
+      Story 5 AC2 (spec.md:129) now explicitly defines "requiring review" as blocking
+      spec-kitty next's advance-vs-stay decision the same way a confirmed bare-prose
+      finding does, with a concrete boundary distinguishing a genuine classification
+      failure from a deliberate non-match; FR-007 (171) and NFR-002 (181) both
+      cross-reference the same blocking/boundary definition.
+  - id: SPEC-GOV-002
+    status: resolved
+    reason: >-
+      A new Clarifications Q&A (spec.md:38-39) explains the hash discrepancy, and the
+      explanation is verified accurate: `git cat-file -t 3823f2b00` resolves as a
+      commit and is an ancestor of HEAD, while `git cat-file -t ae7eba9b2` fails to
+      resolve to any object.
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: >-
+      FR-010 (174), NFR-005 (184), and Story 3 AC4 (96) all now require a per-guard
+      reversion ("teeth") test for every guard function wired to the new signal,
+      explicitly rejecting a single existence-proof test anywhere in the suite as
+      insufficient — checked in all three locations, not just one.
+  - id: SPEC-ARCH-002
+    status: resolved
+    reason: >-
+      New C-007 (197) and the updated "Blocking signal / guard-consumption point" Key
+      Entity (205) require the new signal reach runtime_bridge_cores.py only as plain
+      data via RequirementMappingFacts (or equivalent), never via a new cross-package
+      import inside that module, preserving the documented zero-dependency-leaf
+      boundary.
+  - id: SPEC-ARCH-003
+    status: resolved
+    reason: >-
+      New C-009 (199) requires the plan phase to state explicitly whether the
+      composed/step-contract guard vocabulary is in scope for this mission's wiring
+      and whether mission_step_contracts/ schemas or orchestrator-api docs need a
+      corresponding note.
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: >-
+      FR-006/C-006/Story 4 AC3 now set a default false-positive ceiling of <=2% that
+      is "not itself open to silent revision," with a real bar for any higher
+      accepted rate (explicit, evidence-backed, independently-reviewed justification,
+      never at or near #3395's rejected 6%).
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: >-
+      FR-005 and Story 4's Independent Test now require the corpus-validation
+      procedure itself be committed in-repo as a re-runnable script under scripts/ or
+      a parametrized test under tests/, not only the resulting false-positive number.
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: >-
+      The Constraints-heading blind spot is now a named Edge Case (citing the
+      325/368 corpus figure) with C-008 requiring a plan-phase resolution (broaden
+      the heading predicate or explicitly narrow scope with justification), and
+      Story 4's Independent Test plus new AC5 require a false-negative sample that
+      specifically covers the C-XXX-under-Constraints-heading case.
