@@ -133,7 +133,16 @@
       "last_event_id": "01M002SEE3QZ6FNPVTF2YQC2JR",
       "last_transition_at": "2026-08-14T12:08:46.275131+00:00",
       "shell_pid": 1717616,
-      "shell_pid_created_at": "1786709323.31"
+      "shell_pid_created_at": "1786709323.31",
+      "subtasks": {
+        "T029": "done",
+        "T030": "done",
+        "T030a": "done",
+        "T031": "done",
+        "T032": "done",
+        "T032a": "done",
+        "T033": "done"
+      }
     },
     "WP07": {
       "actor": "user",
