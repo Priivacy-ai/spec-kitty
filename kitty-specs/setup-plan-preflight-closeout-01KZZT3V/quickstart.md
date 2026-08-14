@@ -12,7 +12,9 @@
 
 - Mission resolver вызывается раньше failed preflight;
 - caller-owned checkout нельзя получить простым использованием `located_root`;
-- порядок/количество вызовов чувствительны к mutation.
+- порядок/количество вызовов чувствительны к mutation;
+- preflight получает caller checkout, вызывается один раз, failed path не вызывает Mission resolver;
+- helper не запускает subprocess, successful caller path не меняет primary snapshot.
 
 ## GREEN
 

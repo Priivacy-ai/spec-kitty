@@ -5,16 +5,17 @@
 
 ## Краткое решение
 
-До Mission resolution определить активный Git checkout через единственный canonical checkout helper, выполнить существующий Git preflight ровно один раз и только после его успеха разрешать `MissionOperationContext`. Для обычного checkout helper возвращает repository root; для caller-owned linked worktree — текущий checkout той же Git identity. Mission identity и `mission_anchor_root` по-прежнему определяет только `MissionOperationContext`.
+После существующих hosted-auth и SaaS boundary gates определить активный Git checkout через единственный canonical checkout helper, выполнить существующий Git preflight ровно один раз и только после его успеха разрешать caller-owned Mission path. Для обычного checkout helper возвращает repository root и сохраняется действующий feature-dir resolver; для caller-owned linked worktree выбирается текущий checkout той же Git identity. Mission identity и `mission_anchor_root` по-прежнему определяет только `MissionOperationContext`.
 
-## Engineering Alignment
+## Инженерное согласование
 
 - **Инвариант отказа**: failed Git preflight завершает команду до Mission resolution и до любых planning-записей.
 - **Инвариант authority**: checkout selection для Git-политики не становится Mission-root authority; Mission identity/anchor остаются за `MissionOperationContext`.
 - **Инвариант количества**: один вызов `setup-plan` выполняет Git preflight ровно один раз.
+- **Порядок gate**: hosted-auth отказ и SaaS boundary сохраняют существующий приоритет; затем выполняется Git preflight, и только после него — Mission resolution.
 - **Delivery**: исправляется regression PR #3332 без release, deploy, SaaS или изменения пользовательской конфигурации.
 
-## Technical Context
+## Technical Context — технический контекст
 
 **Language/Version**: Python 3.11+  
 **Primary Dependencies**: Typer CLI, `pathlib`, существующие `core.paths`, `selector_resolution`, `MissionOperationContext`, `git_preflight`  
@@ -30,7 +31,7 @@
 
 *GATE до Phase 0 и повторно после Phase 1: PASS.*
 
-- **Canonical authority**: используется существующий Mission resolver; checkout helper отвечает только за Git checkout до Mission selection.
+- **Canonical authority**: caller-owned путь использует существующий Mission resolver; обычный checkout сохраняет действующий feature-dir resolver; checkout helper отвечает только за Git checkout до Mission selection.
 - **ATDD-first**: сначала воспроизводится RED `PLAN_CONTEXT_UNRESOLVED` вместо `GIT_PREFLIGHT_FAILED`, затем production fix.
 - **Cross-platform**: решение основано на `Path` и существующей Git identity abstraction, без Windows-only ветвей.
 - **Static quality**: изменённые Python-файлы проходят Ruff, strict mypy и py_compile без suppressions.
@@ -83,13 +84,13 @@ tests/
 
 ## Implementation Concern Map
 
-### IC-01 — pre-Mission Git checkout selection
+### IC-01 — выбор Git checkout до Mission selection
 
-- **Назначение**: выбрать checkout для Git preflight до Mission resolution и не спутать его с Mission anchor.
+- **Назначение**: после hosted-auth/SaaS boundary выбрать checkout для Git preflight до Mission resolution и не спутать его с Mission anchor.
 - **Требования**: FR-001, FR-003, FR-004, FR-005; NFR-001, NFR-004; C-001, C-002.
 - **Поверхности**: `mission_setup_plan.py`, при необходимости `selector_resolution.py`.
 - **Зависимости**: отсутствуют.
-- **Риски**: preflight repository root вместо caller checkout; выбор unrelated CWD; дублирование root authority.
+- **Риски**: preflight repository root вместо caller checkout; выбор unrelated CWD; дублирование root authority; случайное изменение SaaS-vs-Git error precedence.
 
 ### IC-02 — regression и mutation evidence
 
@@ -97,7 +98,7 @@ tests/
 - **Требования**: FR-001–FR-005; NFR-002, NFR-003; C-004.
 - **Поверхности**: `test_agent_feature.py`, `test_caller_owned_worktree_lifecycle.py`, точечный helper-test при необходимости.
 - **Зависимости**: IC-01 определяет observable contract, но RED фиксируется до production-изменения.
-- **Риски**: mock-only тест не поймает реальный linked-worktree root; broad Windows suite содержит известные baseline reds.
+- **Риски**: mock-only тест не поймает реальный linked-worktree root; broad Windows suite содержит известные baseline reds. Оракул обязан проверить preflight argument, call count, отсутствие Mission resolver на failed path и неизменность primary snapshot.
 
 ## Gates перед реализацией и delivery
 

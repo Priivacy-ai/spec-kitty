@@ -18,9 +18,10 @@
 ## Successful Git preflight
 
 - Git preflight вызывается один раз для активного checkout.
-- Затем разрешается canonical `MissionOperationContext`.
+- Для caller-owned пути затем разрешается canonical `MissionOperationContext`; обычный checkout сохраняет действующий feature-dir resolver.
 - В caller-owned linked worktree `feature_dir` и `plan_file` указывают на caller-owned Mission surface.
 - Primary checkout не получает Mission-артефакты или изменения.
+- Hosted-auth и SaaS boundary gates сохраняют прежний приоритет относительно Git preflight.
 
 ## Ошибки после preflight
 

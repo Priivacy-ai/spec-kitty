@@ -33,7 +33,7 @@
 **Критерии приёмки**:
 
 1. **Дано**: Git preflight успешен и Mission существует в caller-owned linked worktree. **Когда**: запускается `setup-plan`. **Тогда**: команда использует канонический Mission resolver и возвращает корректные planning paths.
-2. **Дано**: `repository_root` и `mission_anchor_root` различаются. **Когда**: выполняется planning setup. **Тогда**: Git-политика остаётся привязана к repository checkout, а Mission-артефакты — к anchor surface.
+2. **Дано**: `repository_root`, активный checkout и `mission_anchor_root` различаются. **Когда**: выполняется planning setup. **Тогда**: topology/coordination используют `repository_root`, Git preflight — активный checkout, а Mission-артефакты — anchor surface.
 
 ---
 
@@ -65,7 +65,7 @@
 |----|----------|------------|-----------|--------|
 | FR-001 | Приоритет Git preflight | `setup-plan` обязан завершать failed Git preflight до разрешения Mission-контекста и возвращать `GIT_PREFLIGHT_FAILED`. | High | Open |
 | FR-002 | Стабильная remediation | JSON и человекочитаемый режимы обязаны сохранить существующий код ошибки и remediation для Git preflight. | High | Open |
-| FR-003 | Сохранение caller-owned routing | После успешного preflight `setup-plan` обязан использовать канонический `MissionOperationContext` и сохранять разделение `repository_root`/`mission_anchor_root`. | High | Open |
+| FR-003 | Сохранение caller-owned routing | После успешного preflight caller-owned путь обязан использовать канонический `MissionOperationContext` и сохранять разделение `repository_root`/`mission_anchor_root`; обычный checkout сохраняет действующий feature-dir resolver. | High | Open |
 | FR-004 | Один preflight | Один вызов `setup-plan` обязан выполнять Git preflight ровно один раз. | Medium | Open |
 | FR-005 | Fail-closed без записей | Failed Git preflight не должен вызывать Mission resolver или создавать/изменять planning-артефакты. | High | Open |
 
