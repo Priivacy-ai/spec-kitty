@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "mission_slug": "setup-plan-preflight-closeout-01KZZT3V",
+  "mission_id": "01KZZT3VAR0E5GN7FH41G9FRBN",
+  "mission_branch": "kitty/mission-setup-plan-preflight-closeout-01KZZT3V",
+  "target_branch": "codex/setup-plan-preflight-closeout",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/codemap/codemap.html",
+        "docs/codemap/codemap.json",
+        "docs/codemap/codemap.lock",
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py",
+        "src/specify_cli/cli/selector_resolution.py",
+        "tests/agent/test_agent_feature.py",
+        "tests/integration/test_caller_owned_worktree_lifecycle.py",
+        "tests/specify_cli/cli/commands/test_selector_resolution.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-14T10:27:35.961679+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "edee51388da1eb26cd8f34b73f8427f6e3a87cf1"
+}
