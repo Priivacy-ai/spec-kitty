@@ -1,0 +1,25 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: "New \"Related, Not Fixed\" section names the layer_roots/_layer_scan_dirs cascade path (drg.py lines 333-397, activate.py lines 87-119/433/466) and pack_manager.py's FR-013 flat-preferred precedent as distinct, deliberately-deferred divergences; all citations verified against current code."
+  - id: PLAN-GOV-002
+    status: resolved
+    reason: "Campsite-Clean Scope now quotes _scan_roots's docstring verbatim (kind_vocabulary.py lines 158-160, confirmed accurate) and mandates the implementing WP update it as part of the fix commit."
+  - id: PLAN-GOV-003
+    status: resolved
+    reason: "\"Nothing Generated\" and \"No Contract Movement\" are merged into a single \"Nothing Generated, No Contract Movement\" section, removing the duplicated section-level ceremony while keeping the content."
+  - id: PLAN-GOV-004
+    status: resolved
+    reason: "Tracer Files section now adds an explicit one-line cross-reference to SK-09/SK-11 so a reader of plan.md alone has the pointer."
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: "The Seam now names compiler.py's _resolve_config_activated_ids/_resolve_config_activated_roots (crash-today via uncaught UnknownArtifactIdError, verified at compiler.py lines 135-139) and consistency_check.py's two parity-guard call sites (verified narrowly catching and reporting at lines 744-748/815-818) as additional resolve_artifact_urn consumers, plus a proportional test-coverage decision (extra assertion for compiler.py in FR-002's new module, documented deferral for consistency_check.py)."
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: "Gate Set's Commitlint row now reads \"Applies (advisory, not blocking)\" with the continue-on-error caveat, matching the verified workflow shape (ci-quality.yml line 673 id commitlint with continue-on-error true, lines 976-985 outcome-check naming only bandit/pip_audit, line 990 lint-feedback consumption)."
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: "Red-First Discipline step 2 now states unconditionally that the reachable pre-fix red is the org-node-absent assertion, correctly attributing the resolve_artifact_urn-raises case to FR-003 only, consistent with drg.py lines 371-381's swallow-in-try/except at line 379-380."

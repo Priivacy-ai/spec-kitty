@@ -1,0 +1,125 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: org-activation-scan-dirs-01KZY1PT
+findings:
+  - id: PLAN-FRESH-001
+    lens: cross-section-consistency
+    severity: 3
+    title: "Project Structure's \"the only production edit\" claim is now contradicted by Campsite-Clean Scope's new docstring mandate"
+    evidence:
+      - artifact: "plan.md § Project Structure — `kind_vocabulary.py           # _org_scan_dirs (:200-209) — the only production edit`"
+      - artifact: "plan.md § Campsite-Clean Scope (new text) — \"the implementing WP must update this docstring sentence\" (the `_scan_roots` docstring at `src/charter/kind_vocabulary.py:158-160`)"
+      - code: "src/charter/kind_vocabulary.py:142-181 (_scan_roots, whose docstring lines 158-160 are the sentence the fix now mandates be updated)"
+    claim: >
+      The fix commit added a new paragraph to Campsite-Clean Scope requiring the implementing WP
+      to edit `_scan_roots`'s docstring (a second function in `kind_vocabulary.py`, distinct from
+      `_org_scan_dirs`) as part of the fix commit. That new obligation was not propagated to
+      Project Structure, which the fix commit left untouched and which still asserts
+      `_org_scan_dirs (:200-209)` is "the only production edit" in `kind_vocabulary.py`. The plan
+      now makes two irreconcilable claims about its own scope within the same document: one
+      section mandates a second, distinct production edit; the other still says there is only one.
+      A WP implementer or a later reviewer reading Project Structure in isolation would reasonably
+      conclude the docstring update is out of scope (or conversely, would flag the docstring edit
+      as an undocumented scope excursion against Project Structure's own claim).
+    remediation: >
+      Update Project Structure's `kind_vocabulary.py` bullet to name both edits (e.g. "`_org_scan_dirs`
+      (:200-209) fix plus the `_scan_roots` docstring update at :158-160") and drop or qualify
+      the "only production edit" wording so it no longer contradicts Campsite-Clean Scope.
+
+  - id: PLAN-FRESH-002
+    lens: scope-boundary / conceptual-alignment
+    severity: 3
+    title: "New compiler.py test-coverage decision commits the WP to asserting a consumer spec.md's FR-002/FR-003 and C-001–C-005 never name"
+    evidence:
+      - artifact: "plan.md § Nothing Generated, No Contract Movement (new text) — \"the implementing WP adds one additional assertion to FR-002's own new test module ... asserting `charter.compiler._resolve_config_activated_ids` no longer raises `UnknownArtifactIdError` ... it is the same new module FR-002 already authorizes.\""
+      - artifact: "spec.md FR-002 — scoped explicitly to \"the full `activate()` → `filter_graph_by_activation()` round trip, not a direct `resolve_artifact_urn()` call\"; no mention of `compiler.py` or `_resolve_config_activated_ids` anywhere in spec.md"
+      - artifact: "spec.md C-001 — \"Test changes are confined to ... plus one new or extended test module for the activation-filter-level regression (FR-002)\" — ties the new module's content to FR-002's activation-filter framing, not to compiler.py's synthesize path"
+    claim: >
+      This is the fix commit's own remediation for the prior finding that compiler.py's crash-today
+      symptom was unnamed and untested (PLAN-ARCH-001's remediation offered two options: extend
+      FR-002's scope in spec.md, or explicitly document the gap as deferred). The fix took a third,
+      unlisted path: it added the compiler.py assertion directly in plan.md without touching spec.md
+      at all. spec.md's FR-002 text is unchanged and still describes only the `filter_graph_by_activation`
+      round trip; no FR/C authorizes asserting behavior of `charter.compiler._resolve_config_activated_ids`.
+      The plan's own justification — "it is the same new module FR-002 already authorizes" — conflates
+      file-level authorization (C-001's bounded file set) with content-level authorization (what FR-002
+      says the module must prove), which are different constraints. A downstream `/spec-kitty.analyze`
+      or requirement-traceability pass over this test module would find an assertion with no FR it maps
+      to, and a strict reading of C-001's "test changes... for the activation-filter-level regression
+      (FR-002)" would treat the compiler.py assertion as scope creep the WP wasn't actually granted.
+    remediation: >
+      Either amend spec.md to extend FR-002 (or add a companion FR/C) explicitly authorizing the
+      compiler.py assertion — closing the gap the way PLAN-ARCH-001's remediation option (a)
+      intended — or drop the compiler.py assertion from plan.md and instead document the gap as
+      deliberately deferred (remediation option (b)), consistent with how the same section already
+      treats consistency_check.py's coverage.
+
+  - id: PLAN-FRESH-003
+    lens: citation-accuracy
+    severity: 2
+    title: "_source_urn's cascade-path citation is inaccurate: line :433 does not invoke it, and the call is not actually gated on --cascade"
+    evidence:
+      - artifact: "plan.md § Related, Not Fixed (new text) — \"`_source_urn` (`:87-119`, invoked from the cascade path at `:433,466` whenever `charter activate --cascade` runs)\""
+      - code: "src/specify_cli/cli/commands/charter/activate.py:433 — `layer_roots = resolve_layer_roots(repo_root)` (resolves an argument later passed to `_source_urn`; does not call `_source_urn`)"
+      - code: "src/specify_cli/cli/commands/charter/activate.py:466 — `source_urn = _source_urn(kind, artifact_id, layer_roots)`, the only call site, reached unconditionally on every `charter activate` invocation (no `if scope is not None:` guard precedes it) — used both to render the no-cascade warning (`scope is None`) and to actually cascade (`scope` set)"
+    claim: >
+      Two inaccuracies in one newly-added citation. First, line :433 is not an invocation of
+      `_source_urn` at all — it is where `layer_roots` gets resolved, several lines before the
+      only actual call at :466. Second, the parenthetical "whenever `charter activate --cascade`
+      runs" implies the call is conditional on the `--cascade` flag; it is not — `_source_urn`
+      runs on every successful `charter activate` call regardless of whether `--cascade` was
+      passed, because its result also drives the "no cascade" warning path when `--cascade` is
+      omitted.
+    remediation: >
+      Cite only `:466` as the call site, and rephrase to "invoked on every `charter activate` call
+      (with or without `--cascade`) to decide between rendering the no-cascade warning and actually
+      cascading" instead of "whenever `charter activate --cascade` runs".
+
+  - id: PLAN-FRESH-004
+    lens: cross-reference-integrity
+    severity: 2
+    title: "Tracer Files' new SK-09/SK-11 cross-reference points at a ledger file that does not exist anywhere in this repository"
+    evidence:
+      - artifact: "plan.md § Tracer Files (new bullet) — \"the workspace-root ledger's SK-09 (protected-`main` branch refusal) and SK-11 (missing git identity swallowed by `safe-commit`)\""
+      - artifact: "tracer-tooling-friction.md § Commit blocked — \"both recorded as new entries in the workspace-root `SPEC-KITTY-LEDGER.md` (SK-11; SK-09 already covered the first half from a sibling mission)\""
+    claim: >
+      Searching this repository's full working tree and its entire git history for any file named
+      like a ledger (`find . -iname "*LEDGER*"` and `git log --all --oneline -- "*LEDGER*"`) turns
+      up mission-scoped ledger files under individual `kitty-specs/*/` directories but no
+      repository-root `SPEC-KITTY-LEDGER.md` and no evidence such a file was ever tracked in this
+      repository. The plan's new Tracer Files bullet asks a reader to go verify SK-09/SK-11 in "the
+      workspace-root ledger" as the full account of two blocking defects, but that ledger is not
+      part of this repository and cannot be located or verified from it. This undercuts the
+      "verified against the live checkout, not assumed" standard the rest of this plan revision
+      holds itself to everywhere else (Gate Set, Related-Not-Fixed, The Seam).
+    remediation: >
+      Either drop the "workspace-root ledger" citation (relying solely on tracer-tooling-friction.md's
+      own "Commit blocked" / "Resolution" sections, which do exist and are self-contained), or clarify
+      that SK-09/SK-11 live in an external, non-repository tracking surface the reader cannot check out
+      alongside this branch.
+
+  - id: PLAN-FRESH-005
+    lens: citation-accuracy
+    severity: 1
+    title: "Two small precision slips in the newly-added consumer analysis"
+    evidence:
+      - artifact: "plan.md § Related, Not Fixed — \"`_layer_scan_dirs` (`src/charter/kind_vocabulary.py:219-228`, via `_layer_candidate_dir`, `:212-217`)\""
+      - code: "src/charter/kind_vocabulary.py:212-216 (_layer_candidate_dir's actual body; line 217 is a blank line before the next def, not part of the function)"
+      - artifact: "plan.md § The Seam — \"`consistency_check.py`'s two call sites narrowly catch `UnknownArtifactIdError` and report the stem as unresolved\""
+      - code: "src/charter/consistency_check.py:744-748 (_check_reference_id_parity's call site does a bare `continue` on catch, with no report emitted from that except block — the comment there says the report happens via a separate check, `_check_unknown_references`)"
+      - code: "src/charter/consistency_check.py:815-819 (_resolve_graph_kind_parity_stem's call site does directly append to `verification_errors`/`suggestions` on catch)"
+    claim: >
+      `_layer_candidate_dir` is cited as `:212-217`, one line past its actual body (`:212-216`);
+      line 217 is a blank separator line. Separately, "consistency_check.py's two call sites ...
+      report the stem as unresolved" generalizes both sites as behaving alike, but only one of the
+      two (`_resolve_graph_kind_parity_stem`) reports from within its own except block — the other
+      (`_check_reference_id_parity`) silently continues and depends on a different, unrelated check
+      to ever report that stem. Neither slip changes the section's overall conclusion, but both are
+      citation/characterization inaccuracies introduced by this fix commit in a document that
+      otherwise emphasizes exact, re-verified line numbers.
+    remediation: >
+      Correct `_layer_candidate_dir`'s citation to `:212-216`. Reword the consistency_check.py
+      sentence to note that only `_resolve_graph_kind_parity_stem` reports directly, while
+      `_check_reference_id_parity` relies on `_check_unknown_references` to report the same stem.
