@@ -1,0 +1,7 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true               # flip to true ONLY at the very end, after the yaml self-check passes
+phase: tasks
+lens_group: decomp
+mission: org-activation-scan-dirs-01KZY1PT
+findings: []

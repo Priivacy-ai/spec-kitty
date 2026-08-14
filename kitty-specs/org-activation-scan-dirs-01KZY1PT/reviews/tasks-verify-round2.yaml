@@ -1,0 +1,35 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+round: 2
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: >
+      T001 step 6 now reads "Two distinct, self-contained alternatives exist here — do not
+      combine them into one," presenting (1) a hand-built merge_layers(load_built_in_graph(),
+      load_graph_or_dir(org_root)) call explicitly labeled "a hand-reproduction of
+      load_validated_graph's own internal implementation... not an instance of any test file's
+      pattern," and (2) calling load_validated_graph(repo_root, org_root=<org_root>) directly
+      while optionally patching charter._drg_helpers.load_built_in_graph, now correctly
+      described as the pattern tests/charter/test_merged_graph_on_live_path.py actually uses
+      ("that file always calls load_validated_graph(tmp_path) itself and only patches
+      load_built_in_graph") — verified against the live test file (test_load_validated_graph_invokes_assert_valid
+      and test_load_validated_graph_overlays_project_graph both call load_validated_graph(tmp_path)
+      and patch charter._drg_helpers.load_built_in_graph, never calling load_built_in_graph/
+      load_graph_or_dir/merge_layers directly) and against src/charter/_drg_helpers.py's
+      load_validated_graph body (the three-call sequence is confirmed as its own internal
+      implementation) and src/doctrine/drg/loader.py (merge_layers, load_built_in_graph,
+      load_graph_or_dir all exist with the cited names).
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: >
+      The "Both present" bullet in Subtask T005 now reads "this is the proof of spec.md User
+      Story 1 Acceptance Scenario 3 (artifacts under both the flat directory and the legacy
+      built-in/ subdirectory are found; the fix is additive, not a replacement that trades one
+      phantom layout for a different single layout)," which matches spec.md's actual AS3 text
+      near-verbatim ("artifacts under both the flat directory and the legacy built-in/
+      subdirectory are found — the fix is additive (the old scan location keeps working), not a
+      replacement that trades one phantom layout for a different single layout"), closing the
+      gap that left AS3 as the only one of the five User Story 1 scenarios without an explicit
+      test-to-scenario attribution.

@@ -1,0 +1,30 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      Verified against the live WP01 file — T005's five new cases (bullets: Flat-only,
+      Legacy-only, Both-present, Neither-present, Same-config-stem-precedence) contain
+      exactly one direct `resolve_artifact_urn` call, and it requires a fixture with BOTH
+      the flat and legacy directories present (the precedence case), never a flat-only
+      fixture; T005's own "Which test proves which scenario" note names only FR-003 and
+      User Story 2's Acceptance Scenarios 1-2, never User Story 1's Acceptance Scenario 2
+      (flat-only, direct `resolve_artifact_urn` call, no-raise) — so no subtask, as
+      literally written, produces the assertion spec.md's Acceptance Scenario 2 requires.
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      Verified against current code — `_resolve_org_root` (src/charter/_drg_helpers.py:39-51)
+      is a hardcoded no-op returning `None` by its own docstring, `action_doctrine_bundle.py:165`
+      is the only call site anywhere in src/ or tests/ that passes a non-`None` `org_root=` into
+      `load_validated_graph`, no test in the repo does so (confirmed by grep across tests/), and
+      `pack_manager.py`'s `_resolve_org_layer_dir` (:238-253) already checks the flat layout first
+      independent of this mission's fix — while WP01's T001 (steps 3-6) and plan.md's Red-First
+      Discipline step 2 never name `load_validated_graph`, `org_root`, or any graph-merge
+      mechanism, and WP01's own Risks section anticipates only the wrong-exception-type failure
+      mode, not the graph-merge-never-wired-to-org_root failure mode (the finding's evidence
+      citation attributes this Risks content to plan.md rather than WP01.md, a minor mislabel,
+      but the quoted content itself is verbatim and accurately characterized).

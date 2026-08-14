@@ -1,0 +1,71 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: org-activation-scan-dirs-01KZY1PT
+findings:
+  - id: TASKS-FRESH-001
+    lens: Citation fidelity of the newly-added "alternative construction" guidance
+    severity: 2
+    title: T001 step 6's "Alternatively" parenthetical misdescribes test_merged_graph_on_live_path.py's own pattern as a manual three-call graph build
+    evidence:
+      - artifact: "tasks/WP01-org-scan-dirs-flat-layout-fix.md § Subtask T001, step 6 (\"Alternatively, build the merged graph directly via `doctrine.drg.loader.load_built_in_graph()` + `load_graph_or_dir(org_root)` + `merge_layers(...)`, in the patching style `tests/charter/test_merged_graph_on_live_path.py` already uses to inject a fixture layer via `patch(\\\"charter._drg_helpers.load_built_in_graph\\\", ...)`...\")"
+      - code: "tests/charter/test_merged_graph_on_live_path.py:47-52 (test_load_validated_graph_invokes_assert_valid: patches `charter._drg_helpers.load_built_in_graph` and then calls `load_validated_graph(tmp_path)` — it never calls `load_built_in_graph()` / `load_graph_or_dir()` / `merge_layers()` directly itself)"
+      - code: "src/charter/_drg_helpers.py:55-97 (load_validated_graph's own body: `built_in = load_built_in_graph(); org = load_graph_or_dir(org_root) if org_root and org_root.exists() else None; ... merged = merge_layers(merge_layers(built_in, org), project)` — this IS the 'direct' three-call construction, but it is `load_validated_graph`'s internal implementation, not a pattern the cited test file demonstrates externally)"
+    claim: >
+      The parenthetical presents two genuinely different techniques as if one instance of the
+      other: "(a) build the merged graph directly via three separate loader calls, (b) in the
+      patching style [that file] already uses". But `test_merged_graph_on_live_path.py` never
+      builds a graph "directly" via `load_built_in_graph()` + `load_graph_or_dir()` +
+      `merge_layers()` in test code — it always goes through `load_validated_graph(tmp_path)`
+      (the seam under test) and only patches `charter._drg_helpers.load_built_in_graph` to
+      substitute a fixture built-in layer; `merge_layers` is called inside
+      `load_validated_graph`, not by the test. The three-call "direct" construction the WP
+      recommends is actually `load_validated_graph`'s own internal implementation, reproduced
+      by hand outside it (which sidesteps the org_root fallback problem simply by never calling
+      `_resolve_org_root` at all — a valid technique on its own, but not "the patching style"
+      the cited file uses). An implementer who tries to literally combine both — patch
+      `load_built_in_graph` AND manually call the three loader functions — would find the
+      patch has no effect on their manual `load_built_in_graph()` call (since they invoke the
+      unpatched `doctrine.drg.loader.load_built_in_graph` directly, not through
+      `charter._drg_helpers`'s patchable reference), producing confusion during review even
+      though the primary, unambiguous instruction earlier in the same step (call
+      `load_validated_graph(repo_root, org_root=<org_root>)` explicitly) is correct and
+      sufficient on its own.
+    remediation: >
+      Split the parenthetical into two clearly separate, self-contained options: "(1) build the
+      merged graph by hand — `merge_layers(load_built_in_graph(), load_graph_or_dir(org_root))`
+      — bypassing `load_validated_graph` entirely, which sidesteps the `org_root` fallback
+      problem by construction; OR (2) call `load_validated_graph(repo_root, org_root=<org_root>)`
+      directly (the primary instruction above) while optionally patching
+      `charter._drg_helpers.load_built_in_graph` — in the style
+      `tests/charter/test_merged_graph_on_live_path.py` uses — only if you also want to
+      substitute a fixture built-in layer instead of the real shipped one." Do not describe (1)
+      as an instance of the cited file's pattern.
+  - id: TASKS-FRESH-002
+    lens: "\"Which test proves which scenario\" note completeness against the actual test bullets"
+    severity: 2
+    title: Acceptance Scenario 3 (additive discovery under both directories) has no explicit test-to-scenario attribution anywhere in WP01, unlike its siblings AS1/AS2/AS4/AS5
+    evidence:
+      - artifact: "tasks/WP01-org-scan-dirs-flat-layout-fix.md § Subtask T005, \"Both present\" bullet (\"both directories exist → returns both entries, flat first\" — no Acceptance Scenario citation)"
+      - artifact: "tasks/WP01-org-scan-dirs-flat-layout-fix.md § Subtask T005, \"Flat-only\" bullet (explicitly cites \"proof of spec.md User Story 1 Acceptance Scenario 2\") and \"Same-config-stem precedence\" bullet (explicitly cites \"Acceptance Scenario 4\") — both citations newly added by this revision"
+      - artifact: "tasks/WP01-org-scan-dirs-flat-layout-fix.md § Subtask T005, \"Which test proves which scenario\" note (newly extended to name AS2 and AS4 explicitly but not AS3)"
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 3 (\"artifacts under both the flat directory and the legacy built-in/ subdirectory are found — the fix is additive\")"
+    claim: >
+      This revision explicitly added scenario-attribution text for two of T005's five new
+      cases (Flat-only → AS2, Same-config-stem-precedence → AS4), and T001's own note already
+      attributes AS1 and AS5 to its two test methods. That leaves exactly one of spec.md's five
+      User-Story-1 acceptance scenarios — AS3 ("both directories scanned, additive, nothing
+      dropped") — with no explicit sentence anywhere in WP01 saying which test proves it, even
+      though the "Both present" bullet functionally exercises it. Given the revision's own
+      newly-added text demonstrates the authors were doing exactly this scenario-to-test
+      mapping exercise for this subtask, the omission of AS3 reads as an oversight rather than
+      a deliberate choice, and a reviewer checking spec.md's five scenarios against WP01's
+      documented proof-mapping would find AS3 unaccounted-for on paper (the underlying test
+      case is fine; only the traceability sentence is missing).
+    remediation: >
+      Add one clause to the "Both present" bullet or to the "Which test proves which scenario"
+      note stating that the "Both present" case is the proof of Acceptance Scenario 3 (both
+      flat and legacy directories are scanned and their artifacts found — the additive
+      guarantee), mirroring the citation style already used for the Flat-only (AS2) and
+      Same-config-stem-precedence (AS4) bullets.

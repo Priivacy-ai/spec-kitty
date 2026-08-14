@@ -1,0 +1,126 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: boundary
+mission: org-activation-scan-dirs-01KZY1PT
+findings:
+  - id: PR-BOUNDARY-001
+    lens: layout-authority consistency
+    severity: 3
+    title: >-
+      "kept only for backward compatibility" docstring claim is inaccurate --
+      the live loader (doctrine.base.BaseDoctrineRepository / DoctrineService)
+      has never read from an org pack's <root>/<plural>/built-in/ subdirectory,
+      before or after this diff
+    evidence:
+      - artifact: "diff origin/main...HEAD"
+      - code: "src/charter/kind_vocabulary.py:206-217 (_org_scan_dirs docstring: 'the legacy <root>/<plural>/built-in layout ... kept only for backward compatibility')"
+      - code: "src/doctrine/service.py:47-55 (DoctrineService._org_dirs returns [root / artifact for root in self._org_roots] -- one flat dir per root, no built-in-subdir concept at all)"
+      - code: "src/doctrine/base.py:153-159 (_project_scan default is non-recursive `project_dir.glob(self._glob)`; no subclass in src/doctrine/*.py overrides it, verified via grep)"
+      - code: "src/doctrine/base.py:227-260 (_apply_overlay_layer, used for both org and project layers, calls self._project_scan(overlay_dir) -- so org dirs are ALWAYS scanned non-recursively, never via rglob)"
+      - code: "src/doctrine/base.py:364-366 (_load calls self._apply_overlay_layer(self._org_dirs, 'org', ...) -- org_dirs sourced from DoctrineService._org_dirs, i.e. flat dirs only)"
+    claim: >-
+      _org_scan_dirs's new docstring (kind_vocabulary.py:206-217) and the
+      _scan_roots docstring (kind_vocabulary.py:158-164) both assert the
+      legacy <root>/<plural>/built-in scan is retained "for backward
+      compatibility" -- language that implies real org packs, or the real
+      loader, once relied on that shape and still might. Verified against
+      the actual live loader: DoctrineService._org_dirs (service.py:47-55)
+      only ever constructs `<root>/<artifact>` (flat), and
+      BaseDoctrineRepository's org-layer application
+      (_apply_overlay_layer -> _project_scan, base.py:153-159/227-260) is
+      always a non-recursive glob directly on that flat directory -- no
+      subclass overrides _project_scan to use rglob, so this holds for
+      every kind, not just some. The live loader has therefore NEVER read
+      an org pack's nested built-in/ subdirectory, either before or after
+      this diff (confirmed the pre-diff _org_scan_dirs already made the
+      identical unverified claim -- origin/main:src/charter/kind_vocabulary.py:200-209
+      said "this nested layout is still live for org packs", which was
+      already false). kind_vocabulary.py's resolve_artifact_urn /
+      resolve_config_id now assert (and the new tests pin as contractual
+      behavior, e.g. test_legacy_only_dir_returned_recursive) that an org
+      artifact placed under <root>/<plural>/built-in/ is a valid,
+      resolvable location -- i.e. two competing definitions of "where org
+      artifacts live" (flat, matching the loader; and nested built-in/,
+      matching nothing the loader implements). An org-pack author who
+      structures their pack like a built-in pack (nested under built-in/,
+      by analogy with how built-in tactics/styleguides/toolguides are laid
+      out) would see `charter activate` succeed via kind_vocabulary's URN
+      resolution + a DRG graph fragment, while the artifact's actual
+      content silently never loads through DoctrineService -- the exact
+      "activation succeeds, content quietly missing" defect class this
+      mission was chartered to close, now left open for the nested-legacy
+      shape. This is not a new regression (the mismatch between
+      kind_vocabulary's org resolution and base.py's org loading predates
+      this diff for the nested case), but the diff had the loader-vs-module
+      comparison in hand (it cites DoctrineService._org_dirs and
+      BaseDoctrineRepository by name to justify the flat fix) and chose to
+      keep, rather than correct or flag, the inaccurate "backward
+      compatibility" framing for the part that still doesn't match the
+      loader.
+    remediation: >-
+      Either (a) drop the legacy nested-built-in scan from _org_scan_dirs
+      entirely, since no real org pack uses it and the live loader has
+      never supported it -- collapsing kind_vocabulary's org resolution to
+      the single flat definition that actually matches DoctrineService /
+      BaseDoctrineRepository (directive 044, canonical single-surface); or
+      (b) if the nested scan must be retained for some concrete backward-
+      compatibility need, correct the docstring to say plainly that this
+      shape is NOT, and never was, loaded by the live doctrine loader
+      (DoctrineService/BaseDoctrineRepository), so a config-stem resolving
+      successfully via this path does not guarantee the artifact's content
+      is actually usable at runtime -- and file a follow-up issue to close
+      that gap (e.g. reject/warn on nested-only org artifacts at activation
+      time) rather than silently legitimizing it as an equally-valid
+      location.
+
+  - id: PR-BOUNDARY-002
+    lens: first-match-wins ordering
+    severity: 3
+    title: >-
+      Flat-wins precedence guarantee (FR-001) holds only within a single org
+      root; with multiple org roots, a legacy built-in/ file in an earlier
+      root can still win over a flat file in a later root, contradicting the
+      documented and tested contract
+    evidence:
+      - artifact: "diff origin/main...HEAD"
+      - code: "src/charter/kind_vocabulary.py:203-227 (_org_scan_dirs: for root in org_roots: appends (flat, False) then (legacy, True) -- interleaved per root, not grouped flat-then-legacy globally)"
+      - code: "src/charter/kind_vocabulary.py:249-268 (_iter_artifact_paths iterates _scan_roots()'s dirs in order, sorted(matches) applied only within each scan_dir, not globally)"
+      - code: "src/charter/kind_vocabulary.py:271-318 (resolve_artifact_urn returns on the first _config_stem match in that combined, per-scan-dir-ordered list)"
+      - code: "tests/charter/test_kind_vocabulary_scan_roots.py:203-232 (test_same_config_stem_precedence_flat_wins exercises only a SINGLE org root -- 'never a result that depends on incidental scan order' is asserted but not tested for >1 org root)"
+      - artifact: "empirical repro: resolve_artifact_urn(DIRECTIVE, stem, org_roots=[rootA, rootB]) with rootA having only <rootA>/directives/built-in/<stem>.directive.yaml (id: DIRECTIVE_LEGACY_A) and rootB having only <rootB>/directives/<stem>.directive.yaml (id: DIRECTIVE_FLAT_B, flat) returns 'directive:DIRECTIVE_LEGACY_A' -- the legacy entry from the earlier root wins over the flat entry from the later root"
+    claim: >-
+      _org_scan_dirs builds its dir list per org root, in order (flat_1,
+      legacy_1, flat_2, legacy_2, ...) rather than grouping all flat dirs
+      before all legacy dirs across roots. _iter_artifact_paths then
+      concatenates each scan_dir's own sorted() matches in that same
+      per-root-interleaved order, and resolve_artifact_urn returns on the
+      first config-stem match in the combined list. The module's own
+      docstring and the new unit test both assert flat-always-wins as a
+      global precedence rule ("FR-001's precedence rule", "never a result
+      that depends on incidental scan order" -- kind_vocabulary.py:214-217,
+      test_kind_vocabulary_scan_roots.py:203-208), but that guarantee is
+      only actually established for a same-config-stem collision within one
+      org root. multi-org-root configuration is a real, live shape in this
+      codebase (PackContext.org_roots = pack_roots[1:], consumed by
+      src/charter/consistency_check.py and src/charter/drg.py, both of
+      which call resolve_artifact_urn with a multi-element org_roots list),
+      so this is not a purely hypothetical edge case: with two org packs,
+      one still using the legacy nested built-in/ layout and another using
+      the flat layout, a same-config-stem collision across the two packs
+      resolves to whichever pack's directory happens to sort earlier in
+      org_roots, and can pick the legacy file over the flat one --
+      contradicting the documented invariant. Verified empirically (see
+      evidence): with org_roots=[rootA (legacy-only), rootB (flat-only)]
+      and a colliding stem, resolve_artifact_urn returns rootA's legacy
+      artifact's ID, not rootB's flat one.
+    remediation: >-
+      Change _org_scan_dirs (or _scan_roots) to group by scan-shape across
+      all org roots rather than interleaving per root -- e.g. first append
+      every org root's flat dir (in org_roots order), then every org root's
+      legacy dir (in org_roots order) -- so that within the org-roots
+      contribution to _scan_roots, all flat entries are guaranteed to
+      precede all legacy entries regardless of root count or ordering. Add
+      a regression test with >=2 org_roots and a same-config-stem collision
+      straddling a flat dir in one root and a legacy dir in another, in
+      both root orderings, asserting the flat file always wins.

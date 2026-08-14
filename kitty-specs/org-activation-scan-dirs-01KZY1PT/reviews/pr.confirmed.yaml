@@ -1,0 +1,105 @@
+# R3 output — confirmed findings only. Refuted findings are NOT repeated here; see
+# reviews/pr.merged.yaml (full text of every finding) and reviews/pr-refute-1.yaml
+# (verdict + reason for all 4, including the 2 refuted) for the audit trail.
+#
+# PROCESS NOTE (read before acting on this file): while this squad was running, two
+# additional commits landed on pr/org-activation-scan-dirs beyond the two this squad was
+# scoped to review (dcc4f0c57, c88dd78dd): 7ac9b2fa0 ("docs(charter): correct org-scan-dirs
+# legacy-shape and precedence-scope claims") and d6a297409 ("fix(architectural): refresh
+# built-in-join line-pin for _org_scan_dirs move"). Neither commit was made by this squad or
+# any of its subagents (all lens/refute sessions ran read-only against src/ and tests/,
+# confirmed via git status --porcelain -uno before finishing). Per the review protocol, a
+# report-only phase's HEAD must not move mid-squad; this is a REPORT-ONLY VIOLATION by
+# whatever process authored those two commits, reported here verbatim per the protocol's
+# instruction to report, not revert. Practical effect: those two commits already applied
+# fixes matching PR-BOUNDARY-001's and PR-CONTRACT-001's remediations, which is why the R3
+# refuter found them refuted (already fixed on HEAD at refutation time) rather than
+# confirmed. This does not make the original findings wrong at the diff they were filed
+# against — see pr-refute-1.yaml's reasons for the evidence trail on each.
+schema: review-confirmed/v1
+complete: true
+phase: pr
+mission: org-activation-scan-dirs-01KZY1PT
+source_files:
+  - reviews/pr.merged.yaml
+  - reviews/pr-refute-1.yaml
+findings:
+  - id: PR-BOUNDARY-002
+    lens_group: boundary
+    lens: first-match-wins ordering
+    severity: 3
+    title: >-
+      Flat-wins precedence guarantee (FR-001) holds only within a single org
+      root; with multiple org roots, a legacy built-in/ file in an earlier
+      root can still win over a flat file in a later root, contradicting the
+      documented and tested contract
+    evidence:
+      - code: "src/charter/kind_vocabulary.py:239-247 (_org_scan_dirs, current HEAD: for root in org_roots: appends (flat, False) then (legacy, True) -- interleaved per root, not grouped flat-then-legacy globally)"
+      - code: "src/charter/kind_vocabulary.py (_iter_artifact_paths iterates _scan_roots()'s dirs in order; sorted(matches) applied only within each scan_dir, not globally)"
+      - code: "src/charter/kind_vocabulary.py (resolve_artifact_urn returns on the first _config_stem match in that combined, per-scan-dir-ordered list)"
+      - code: "tests/charter/test_kind_vocabulary_scan_roots.py::test_same_config_stem_precedence_flat_wins (current HEAD, still single-org-root only; no multi-root regression test exists)"
+      - artifact: "empirical repro, reproduced independently by BOTH the boundary lens and the R3 refuter: resolve_artifact_urn(DIRECTIVE, stem, org_roots=[rootA(legacy-only), rootB(flat-only)]) with a colliding stem returns rootA's legacy artifact's ID ('directive:DIRECTIVE_LEGACY_A'), not rootB's flat one"
+      - artifact: "reviews/pr.merged.yaml#PR-BOUNDARY-002 (full original claim/evidence)"
+      - artifact: "reviews/pr-refute-1.yaml#PR-BOUNDARY-002 (refuter verdict: confirmed -- notes that commit 7ac9b2fa0, already on this branch, documents the cross-root limitation in the docstring but does NOT fix the underlying ordering or add a regression test)"
+    claim: >-
+      _org_scan_dirs builds its dir list per org root, in order (flat_1,
+      legacy_1, flat_2, legacy_2, ...) rather than grouping all flat dirs
+      before all legacy dirs across roots. The module's docstring and the new
+      unit test both assert flat-always-wins as a precedence rule, but that
+      guarantee is only actually established for a same-config-stem collision
+      within ONE org root. Multi-org-root is a real, live shape in this
+      codebase (PackContext.org_roots, consumed by consistency_check.py and
+      drg.py with multi-element org_roots lists), so a same-config-stem
+      collision across two org packs -- one legacy-shaped, one flat-shaped --
+      can resolve to the legacy file over the flat one, contradicting the
+      documented invariant. As of current HEAD (after commit 7ac9b2fa0), the
+      docstring has been corrected to disclose this scope limitation
+      explicitly ("This ordering guarantee does not extend across multiple
+      org roots... out of this fix's bounded scope"), which resolves the
+      accuracy concern but leaves the underlying precedence gap itself
+      unfixed and untested.
+    remediation: >-
+      Either (a) accept the current docstring disclosure as sufficient scope
+      framing and track the cross-root precedence gap as a separate,
+      explicitly out-of-scope follow-up issue (consistent with spec.md C-001
+      as cited in the current docstring), or (b) if cross-root precedence is
+      in scope for this mission, change _org_scan_dirs/_scan_roots to group
+      by scan-shape globally across all org roots (all flat entries before
+      all legacy entries, regardless of root order) and add a >=2-org-root
+      regression test covering both root orderings. Route to the fix
+      dispatch for an explicit scope decision either way -- do not leave it
+      silently unresolved.
+
+  - id: PR-TESTS-001
+    lens_group: tests
+    lens: "mission-specific lens 4 (function-body-only revert of _org_scan_dirs)"
+    severity: 2
+    title: "test_neither_dir_present_returns_empty_list does not regress under a function-body-only revert -- non-discriminating, and duplicates pre-existing coverage"
+    evidence:
+      - artifact: "empirical: git diff against src/charter/kind_vocabulary.py, function body only, reverted to origin/main shape (candidate = root / kind.plural / \"built-in\"; if candidate.is_dir(): dirs.append((candidate, True))), then restored -- reproduced independently by BOTH the tests lens and the R3 refuter"
+      - code: "tests/charter/test_kind_vocabulary_scan_roots.py:225-227 (test_neither_dir_present_returns_empty_list; current HEAD adds a docstring note calling this a non-discriminating boundary case, per commit 7ac9b2fa0, but the test itself is unchanged)"
+      - artifact: "command: uv run pytest tests/charter/test_kind_vocabulary_scan_roots.py tests/charter/test_org_scan_dirs_activation_regression.py -q -- with body reverted: 7 failed, 14 passed; test_neither_dir_present_returns_empty_list NOT among the 7 failures, both times it was run"
+      - code: "tests/charter/test_kind_vocabulary_scan_roots.py:127-131 (pre-existing test_none_org_roots_returns_empty_list, test_missing_org_built_in_dir_skipped already cover the 'nothing to scan' case)"
+      - artifact: "reviews/pr.merged.yaml#PR-TESTS-001 (full original claim/evidence)"
+      - artifact: "reviews/pr-refute-1.yaml#PR-TESTS-001 (refuter verdict: confirmed -- independently reproduced the exact 7-failed/14-passed split and confirmed the duplication claim)"
+    claim: >-
+      test_neither_dir_present_returns_empty_list asserts _org_scan_dirs
+      returns [] when the org root itself does not exist on disk -- a code
+      path identical under old and new code (is_dir() is False for every
+      candidate either way), so it stays green under a function-body-only
+      revert to the pre-fix implementation. It adds no fix-specific
+      regression coverage and duplicates two pre-existing tests covering
+      functionally the same "nothing to scan" outcome. Not a wrong
+      assertion -- the test is factually correct in both versions -- but it
+      provides no discriminating signal and could be mistaken for
+      fix-specific coverage given its placement among the FR-003 enumerated
+      cases. Already partially addressed on current HEAD: commit 7ac9b2fa0
+      added a docstring note explicitly disclosing the non-discriminating
+      nature, satisfying one of the two remediation options this finding
+      originally offered -- the test itself remains in place, undeduplicated.
+    remediation: >-
+      The docstring-disclosure remediation option is now applied (current
+      HEAD). No further action required unless the fix dispatch prefers the
+      alternative: remove test_neither_dir_present_returns_empty_list
+      entirely as redundant with test_none_org_roots_returns_empty_list /
+      test_missing_org_built_in_dir_skipped.
