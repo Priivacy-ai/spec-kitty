@@ -231,13 +231,39 @@ defect shape (dynamic lane-slot allocation diverging from the committed static l
 corroboration of an existing one; recommend a follow-up issue against the `--base` lane-allocation
 path to either reuse the WP's `lanes.json`-assigned lane_id or reconcile the naming scheme.
 
-**Net remedy actually used**: verified per the brief's own instruction that the lane worktree
-contains the mission's artifacts (`spec.md`, `tasks/WP01-guide-correction-fr001.md`, and the
-target guide file) — `lane-b` does, `lane-a` does not. The stray, wrongly-based `lane-a`
-worktree/branch was left in place untouched (removing it would be an unrequested destructive git
-operation outside this WP's scope); work proceeds in `lane-b`, the only worktree that actually
-carries the mission's artifacts, despite the naming mismatch against `lanes.json` documented
-above. `.kittify/charter/metadata.yaml` and `.kittify/charter/synthesis-manifest.yaml` remain
-modified in the primary checkout from steps 1–2 above; left uncommitted as tool-prerequisite
-housekeeping outside WP01's owned-file scope
-(`docs/guides/how-to/governance/create-an-org-doctrine-pack.md` only).
+**Escalation — the lane-naming mismatch is not merely cosmetic: `lane-b` is live-occupied by a
+concurrent WP02 session, making it unsafe to use.** Immediately before starting WP01's edit,
+`git -C .../lane-b status --short` and `log` were re-checked as a final safety pass and found to
+have moved since the `--base` remedy: HEAD is now `bfb152524` (`fix(pack-validator): recurse into
+assets/ matching AssetRepository (FR-003)`, author `MOES-Media`), with two more commits ahead of
+the fork point this session created it at (`86b072366`) — `9e8f3687c test(pack-validator): add
+red AC-1 nested asset recursion regression (FR-003)` and `5960f75d6 chore(tracer): record SK-14
+corroboration on WP02 workspace allocation` — plus a currently-uncommitted working-tree
+modification to `tests/specify_cli/doctrine/test_pack_validator.py`. None of these three commits
+or the pending test-file edit originate from this session. `git worktree list` timestamps
+(directory mtimes) confirm this session's own `--base` call minted `lane-b` at `2026-08-14
+00:41:51 UTC`; the FR-003/WP02 commits above are timestamped `02:41:48`–`02:43:38` **local**
+(`+0200` = UTC+2, i.e. `00:41:48`–`00:43:38 UTC`) — within seconds to ~2 minutes of this
+session's own allocation, and HEAD was observed to advance a second time between two consecutive
+read-only checks made moments apart in this session, confirming the other agent's writes are
+actively landing in real time, not a stale leftover. Conclusion: a separate, live WP02
+implementer session resolved its own `lane-b` allocation to the **same worktree and branch** this
+session's WP01 `--base` remedy had just minted (because `lane-b` is WP02/WP03/WP04's correct,
+`lanes.json`-assigned name, and the runtime's sequential lane-slot allocator handed that same name
+to this session's WP01 attempt only because `lane-a` was already occupied by the earlier
+broken-base worktree). The two sessions are now sharing one worktree/branch with no isolation.
+
+**Net remedy: none usable — reporting BLOCKED rather than writing into a live-shared worktree.**
+`lane-a` lacks this mission's planning artifacts (confirmed above) and is therefore unusable.
+`lane-b` does contain the artifacts but is concurrently occupied by another agent's in-flight
+WP02 commits and an uncommitted WP02 test edit; writing WP01's guide correction there would land
+in the same branch as unrelated, concurrently-authored WP02 work-in-progress and risks a race
+against the other session's own git operations. No third worktree was created (the brief's
+"do not create branches yourself" and "do not improvise any other base" both apply, and creating
+one now would also mean guessing at a base ref not documented for this case). WP01's target file
+(`docs/guides/how-to/governance/create-an-org-doctrine-pack.md`) was **not edited** in this
+session — there is no safe, isolated worktree available for it right now. `.kittify/charter/
+metadata.yaml` and `.kittify/charter/synthesis-manifest.yaml` (steps 1–2 above) and this tracer
+file were committed to the primary checkout's `feat/org-pack-authoring-diagnostics-3387` branch
+via `spec-kitty safe-commit --to-branch feat/org-pack-authoring-diagnostics-3387` as
+tool-prerequisite housekeeping and process record — neither is WP01's owned file.
