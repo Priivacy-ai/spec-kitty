@@ -1,0 +1,15 @@
+{
+  "coordination_branch": "kitty/mission-setup-plan-preflight-closeout-01KZZT3V",
+  "created_at": "2026-08-14T09:37:09.976352+00:00",
+  "flattened": false,
+  "friendly_name": "Восстановить Git preflight в setup-plan",
+  "mission_id": "01KZZT3VAR0E5GN7FH41G9FRBN",
+  "mission_number": null,
+  "mission_slug": "setup-plan-preflight-closeout-01KZZT3V",
+  "mission_type": "software-dev",
+  "purpose_context": "После интеграции caller-owned Mission resolver команда setup-plan стала разрешать Mission раньше Git preflight. При сломанном Git-контексте это маскирует GIT_PREFLIGHT_FAILED ошибкой PLAN_CONTEXT_UNRESOLVED. Исправление должно восстановить прежний observable contract, не создавая второй root authority и не ломая linked-worktree routing. После проверки изменения должны быть предложены в codex/spec-kitty-worktree-mission-create.",
+  "purpose_tldr": "setup-plan снова возвращает Git remediation до ошибок Mission-context, сохраняя caller-owned worktree lifecycle.",
+  "slug": "setup-plan-preflight-closeout-01KZZT3V",
+  "target_branch": "codex/setup-plan-preflight-closeout",
+  "topology": "coord"
+}
