@@ -340,27 +340,24 @@ def _feature_dir_status_paths(repo_root: Path, feature_dir: Path) -> list[str]:
 def _resolve_lanes_dir(repo_root: Path, mission_slug: str) -> Path:
     """Return the directory containing ``lanes.json`` for *mission_slug*.
 
-    Prefers the coordination-worktree surface (where ``finalize-tasks``
-    commits ``lanes.json``) and falls back to the primary checkout for
-    flat/legacy missions that carry no coordination worktree.  Pure path:
-    no git subprocess calls beyond filesystem stats when the coord worktree
-    is already materialised.
+    ``lanes.json`` is the ``LANE_STATE`` artifact, a member of
+    :data:`mission_runtime.artifacts._PRIMARY_ARTIFACT_KINDS` — it "travels
+    with tasks.md → PRIMARY" and carries **INV-5 full read/write symmetry**
+    (FR-004 / NFR-004): PRIMARY on both sides, for every topology. So this
+    reader resolves it through the kind-aware placement seam
+    (``placement_seam(...).read_dir(LANE_STATE)`` → the PRIMARY surface),
+    exactly as the other canonical ``lanes.json`` readers already do
+    (``merge/executor.py``, ``lanes/lifecycle_sync.py``). The coord-aware
+    STATUS surface — the ``-coord`` husk — does NOT carry ``lanes.json``, so
+    resolving it there (the pre-symmetry C-LANES-1 read) was the write-path
+    -integrity regression: the write side commits ``lanes.json`` to the
+    PRIMARY target branch while this read looked on coord (#3371 e2e break).
 
     Distinct from :func:`lanes.persistence.resolve_lanes_dir`, which is a
     path-join helper (``feature_dir / lanes.json``); this function resolves
-    the *feature_dir* itself from topology.
-
-    C-LANES-1 (#1991 / FR-008): ``lanes.json`` lives on the coordination
-    branch (committed by ``finalize-tasks``; primary copy deleted after
-    staging). This extraction makes the inline
-    ``_lanes_feature_dir = _status_feature_dir`` guard unit-testable
-    without infrastructure mocks (WP03 / #2052).
+    the *feature_dir* itself from the artifact's canonical partition.
     """
-    from specify_cli.coordination.surface_resolver import (
-        resolve_status_surface_with_anchor as _resolve_surface,
-    )
-
-    return _resolve_surface(repo_root, mission_slug).read_dir
+    return placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.LANE_STATE)
 
 
 def _print_uncommitted_planning_artifacts(files_to_commit: list[str]) -> None:
@@ -1796,13 +1793,12 @@ def implement(
         # derives mid8 from meta and carries the fail-closed coord semantics
         # (StatusReadPathNotFound) — one authority, C-STAT-1.
         _status_feature_dir = _resolve_status_surface(repo_root, mission_slug).read_dir
-        # C-LANES-1 (#1991 / FR-008): lanes.json lives on the COORDINATION
-        # branch (committed by finalize-tasks; primary copy deleted after
-        # staging). Derive the lanes-dir from the same coord surface used for
-        # status reads — never from ``feature_dir`` (the primary fallback dir),
-        # which is the regression this assignment prevents.
-        # WP03 / #2052: routed through the pure extraction seam so the topology
-        # logic is unit-testable without infrastructure mocks.
+        # ``lanes.json`` (LANE_STATE) is a PRIMARY-partition artifact with INV-5
+        # read/write symmetry, so its dir resolves through the kind-aware
+        # placement seam (PRIMARY surface) — a DIFFERENT surface than the coord
+        # STATUS read above. Resolving it on the coord surface (the pre-symmetry
+        # C-LANES-1 read) mismatched the PRIMARY write and broke coord-mission
+        # implement (#3371). See :func:`_resolve_lanes_dir`.
         _lanes_feature_dir: Path = _resolve_lanes_dir(repo_root, mission_slug)
 
         # T012 / Contract 3 + dependency gate: reject unseeded WPs and
