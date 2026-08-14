@@ -48,6 +48,18 @@
       "verdict": "deferred-with-followup",
       "wp": null
     },
+    "#3311": {
+      "evidence_ref": "Closed issue. Cited in tasks.md/WP02/WP06 only to disambiguate an unrelated same-repo provenance-preservation guard test from this mission's own tests. Not addressed by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
     "#3336": {
       "evidence_ref": "Closed issue (upgrade --dry-run reports nothing pending bug); already fixed prior to/outside this mission. Cited in spec.md/plan.md as a prior example of the silent-success defect class. Not addressed by this mission.",
       "fr": null,
