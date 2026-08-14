@@ -1,7 +1,7 @@
 {
-  "event_count": 12,
-  "last_event_id": "01KZZTY18J2Q83TC444DT5W4V1",
-  "materialized_at": "2026-08-14T09:51:28.018031+00:00",
+  "event_count": 13,
+  "last_event_id": "01KZZTY7SS4JKFHXEEBFEEG4BT",
+  "materialized_at": "2026-08-14T09:51:34.713867+00:00",
   "mission_number": "",
   "mission_slug": "bare-prose-requirements-uncounted-01KZYV3C",
   "mission_type": "software-dev",
@@ -11,9 +11,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 6
   },
   "work_packages": {
@@ -35,9 +35,9 @@
       "actor": "claude",
       "agent": "implement-command",
       "force_count": 1,
-      "lane": "for_review",
-      "last_event_id": "01KZZTY18J2Q83TC444DT5W4V1",
-      "last_transition_at": "2026-08-14T09:51:28.018031+00:00",
+      "lane": "in_review",
+      "last_event_id": "01KZZTY7SS4JKFHXEEBFEEG4BT",
+      "last_transition_at": "2026-08-14T09:51:34.713867+00:00",
       "shell_pid": 1516063,
       "shell_pid_created_at": "1786699424.07",
       "subtasks": {
