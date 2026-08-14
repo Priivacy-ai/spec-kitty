@@ -93,7 +93,7 @@
     },
     "WP03": {
       "actor": "codex",
-      "agent": "",
+      "agent": "codex",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -104,7 +104,8 @@
       "notes": [
         "Единый caller-owned lifecycle root реализован и подтверждён 301 профильной проверкой; primary checkout не мутируется, conflict fail-closed.",
         "REQUEST_CHANGES: полный lifecycle RED/GREEN oracle и repo-wide architectural guard.",
-        "Полный caller-owned lifecycle, repo-wide guard и status transaction dual-root исправлены; 195 тестов, Ruff, py_compile, strict mypy helper и codemap gates прошли."
+        "Полный caller-owned lifecycle, repo-wide guard и status transaction dual-root исправлены; 195 тестов, Ruff, py_compile, strict mypy helper и codemap gates прошли.",
+        "Cycle 4 fixes production task transitions and repo-wide root guard"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -118,11 +119,11 @@
       "shell_pid": 0,
       "shell_pid_created_at": "1786679224.7544172",
       "subtasks": {
-        "T011": "planned",
-        "T012": "planned",
-        "T013": "planned",
-        "T014": "planned",
-        "T015": "planned"
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
       }
     }
   }
