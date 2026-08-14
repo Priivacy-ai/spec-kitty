@@ -1,37 +1,43 @@
 ---
-work_package_id: "WP04"
-subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-  - "T005"
-  - "T006"
-  - "T007"
-  - "T019"
-title: "Baseline Capture & Architectural Import-Boundary Test for runtime_bridge_cores.py"
-task_type: "implement"
-phase: "Phase 0/1 - Baseline & Foundation (sequential, first)"
-execution_mode: "code_change"
-owned_files:
-  - "tests/architectural/test_bridge_cores_import_boundary.py"
-authoritative_surface: "tests/architectural/"
-create_intent:
-  - "tests/architectural/test_bridge_cores_import_boundary.py"
+work_package_id: WP04
+title: Baseline Capture & Architectural Import-Boundary Test for runtime_bridge_cores.py
 dependencies: []
-agent_profile: ""
-role: ""
-agent: ""
-model: ""
-assignee: ""
-shell_pid: ""
+requirement_refs:
+- C-003
+- C-005
+- C-007
+planning_base_branch: pr/bare-prose-requirements-uncounted
+merge_target_branch: pr/bare-prose-requirements-uncounted
+branch_strategy: Planning artifacts for this mission were generated on pr/bare-prose-requirements-uncounted. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into pr/bare-prose-requirements-uncounted unless the human explicitly redirects the landing branch.
+subtasks:
+- T001
+- T002
+- T003
+- T004
+- T005
+- T006
+- T007
+- T019
+phase: Phase 0/1 - Baseline & Foundation (sequential, first)
 history:
-  - at: "2026-08-14T02:50:21Z"
-    actor: "system"
-    action: "Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)"
-  - at: "2026-08-14T00:00:00Z"
-    actor: "claude"
-    action: "Fix 1 (issue #3396 fixer pass, ledger SK-24): folded WP01 (Baseline Capture & Pre-Existing Failure Audit, T001-T007) into this WP — WP01 was execution_mode planning_artifact with owned_files [], which finalize-tasks/compute_lanes cannot represent. WP04 absorbs WP01 and now runs first, alone; WP02 and WP03 depend on WP04 instead of WP01 but remain parallel with each other. See tracer-design-decisions.md for the full placement rationale."
+- at: '2026-08-14T02:50:21Z'
+  actor: system
+  action: Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)
+- at: '2026-08-14T00:00:00Z'
+  actor: claude
+  action: 'Fix 1 (issue #3396 fixer pass, ledger SK-24): folded WP01 (Baseline Capture & Pre-Existing Failure Audit, T001-T007) into this WP — WP01 was execution_mode planning_artifact with owned_files [], which finalize-tasks/compute_lanes cannot represent. WP04 absorbs WP01 and now runs first, alone; WP02 and WP03 depend on WP04 instead of WP01 but remain parallel with each other. See tracer-design-decisions.md for the full placement rationale.'
+agent_profile: ''
+authoritative_surface: tests/architectural/
+create_intent:
+- tests/architectural/test_bridge_cores_import_boundary.py
+execution_mode: code_change
+model: ''
+owned_files:
+- tests/architectural/test_bridge_cores_import_boundary.py
+role: ''
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP04 – Baseline Capture & Architectural Import-Boundary Test for `runtime_bridge_cores.py`

@@ -3,7 +3,12 @@ work_package_id: WP07
 title: False-Negative Sample + Broadened-Predicate Re-Verification
 dependencies:
 - WP03
-requirement_refs: []
+requirement_refs:
+- FR-005
+- C-008
+planning_base_branch: pr/bare-prose-requirements-uncounted
+merge_target_branch: pr/bare-prose-requirements-uncounted
+branch_strategy: Planning artifacts for this mission were generated on pr/bare-prose-requirements-uncounted. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into pr/bare-prose-requirements-uncounted unless the human explicitly redirects the landing branch.
 subtasks:
 - T034
 - T035

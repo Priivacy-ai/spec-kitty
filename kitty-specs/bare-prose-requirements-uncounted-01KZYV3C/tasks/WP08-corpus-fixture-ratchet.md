@@ -6,7 +6,13 @@ dependencies:
 - WP03
 - WP05
 - WP06
-requirement_refs: []
+requirement_refs:
+- FR-005
+- NFR-004
+- FR-009
+planning_base_branch: pr/bare-prose-requirements-uncounted
+merge_target_branch: pr/bare-prose-requirements-uncounted
+branch_strategy: Planning artifacts for this mission were generated on pr/bare-prose-requirements-uncounted. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into pr/bare-prose-requirements-uncounted unless the human explicitly redirects the landing branch.
 subtasks:
 - T037
 - T038
@@ -23,16 +29,7 @@ history:
   action: Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)
 - at: '2026-08-14T00:00:00Z'
   actor: claude
-  action: >-
-    Fix 1 (issue #3396 fixer pass, ledger SK-24): folded WP09 (Reflexivity —
-    In-Flight Mission Census & PR Description, T041-T044) into this WP — WP09
-    was execution_mode planning_artifact with owned_files [], which
-    finalize-tasks/compute_lanes cannot represent. WP08 absorbs WP09 because it
-    was already the mission's last chokepoint, sequenced after every
-    implementation WP; the fold requires no new WP-level dependency edges
-    beyond what WP08's own prose already claimed ("sequenced after WP05 and
-    WP06") plus WP09's own WP02 dependency, now added explicitly. See
-    tracer-design-decisions.md for the full placement rationale.
+  action: "Fix 1 (issue #3396 fixer pass, ledger SK-24): folded WP09 (Reflexivity — In-Flight Mission Census & PR Description, T041-T044) into this WP — WP09 was execution_mode planning_artifact with owned_files [], which finalize-tasks/compute_lanes cannot represent. WP08 absorbs WP09 because it was already the mission's last chokepoint, sequenced after every implementation WP; the fold requires no new WP-level dependency edges beyond what WP08's own prose already claimed (\"sequenced after WP05 and WP06\") plus WP09's own WP02 dependency, now added explicitly. See tracer-design-decisions.md for the full placement rationale."
 agent_profile: ''
 authoritative_surface: tests/architectural/
 create_intent:

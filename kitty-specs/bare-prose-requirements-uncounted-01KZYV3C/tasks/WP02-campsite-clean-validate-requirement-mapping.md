@@ -3,7 +3,11 @@ work_package_id: WP02
 title: Campsite-Clean — Decompose _validate_requirement_mapping
 dependencies:
 - WP04
-requirement_refs: []
+requirement_refs:
+- FR-001
+planning_base_branch: pr/bare-prose-requirements-uncounted
+merge_target_branch: pr/bare-prose-requirements-uncounted
+branch_strategy: Planning artifacts for this mission were generated on pr/bare-prose-requirements-uncounted. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into pr/bare-prose-requirements-uncounted unless the human explicitly redirects the landing branch.
 subtasks:
 - T008
 - T009
@@ -17,11 +21,7 @@ history:
   action: Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)
 - at: '2026-08-14T00:00:00Z'
   actor: claude
-  action: >-
-    Fix 1 (issue #3396 fixer pass): dependency retargeted from WP01 to WP04 —
-    WP01 (baseline capture) was folded into WP04. WP02 no longer runs
-    parallel with WP04 (WP04 now runs first, alone); WP02 still runs
-    parallel with WP03.
+  action: 'Fix 1 (issue #3396 fixer pass): dependency retargeted from WP01 to WP04 — WP01 (baseline capture) was folded into WP04. WP02 no longer runs parallel with WP04 (WP04 now runs first, alone); WP02 still runs parallel with WP03.'
 agent_profile: ''
 authoritative_surface: src/specify_cli/cli/commands/agent/mission_finalize.py
 create_intent: []

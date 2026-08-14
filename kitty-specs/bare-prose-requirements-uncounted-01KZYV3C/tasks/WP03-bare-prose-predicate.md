@@ -3,7 +3,18 @@ work_package_id: WP03
 title: New Bare-Prose Predicate — find_bare_prose_requirement_ids
 dependencies:
 - WP04
-requirement_refs: []
+requirement_refs:
+- FR-001
+- FR-004
+- FR-005
+- C-001
+- C-006
+- C-008
+- NFR-001
+- NFR-006
+planning_base_branch: pr/bare-prose-requirements-uncounted
+merge_target_branch: pr/bare-prose-requirements-uncounted
+branch_strategy: Planning artifacts for this mission were generated on pr/bare-prose-requirements-uncounted. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into pr/bare-prose-requirements-uncounted unless the human explicitly redirects the landing branch.
 subtasks:
 - T013
 - T014
@@ -18,11 +29,7 @@ history:
   action: Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)
 - at: '2026-08-14T00:00:00Z'
   actor: claude
-  action: >-
-    Fix 1 (issue #3396 fixer pass): dependency retargeted from WP01 to WP04 —
-    WP01 (baseline capture) was folded into WP04. WP03 no longer runs
-    parallel with WP04 (WP04 now runs first, alone); WP03 still runs
-    parallel with WP02.
+  action: 'Fix 1 (issue #3396 fixer pass): dependency retargeted from WP01 to WP04 — WP01 (baseline capture) was folded into WP04. WP03 no longer runs parallel with WP04 (WP04 now runs first, alone); WP03 still runs parallel with WP02.'
 agent_profile: ''
 authoritative_surface: src/specify_cli/requirement_mapping.py
 create_intent: []

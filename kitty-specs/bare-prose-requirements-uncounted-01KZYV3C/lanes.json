@@ -1,0 +1,134 @@
+{
+  "version": 1,
+  "mission_slug": "bare-prose-requirements-uncounted-01KZYV3C",
+  "mission_id": "01KZYV3CT68WBACF0MJ323YF7X",
+  "mission_branch": "kitty/mission-bare-prose-requirements-uncounted-01KZYV3C",
+  "target_branch": "pr/bare-prose-requirements-uncounted",
+  "lanes": [
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/architectural/test_bridge_cores_import_boundary.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP02",
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "src/specify_cli/cli/commands/agent/tasks_map_requirements.py",
+        "src/specify_cli/cli/commands/agent/tasks_mapping_core.py",
+        "tests/specify_cli/cli/commands/agent/fixtures/tasks_cli/json/byte_contracts.json",
+        "tests/specify_cli/cli/commands/agent/test_tasks_json_bytes.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP03",
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/requirement_mapping.py",
+        "tests/specify_cli/test_requirement_mapping.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge.py",
+        "src/runtime/next/runtime_bridge_cores.py",
+        "src/runtime/next/runtime_bridge_io.py",
+        "tests/next/test_runtime_bridge_unit.py",
+        "tests/runtime/test_bridge_cores.py",
+        "tests/specify_cli/next/test_runtime_bridge_composition.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "tests/architectural/test_bare_prose_corpus_ratchet.py",
+        "tests/fixtures/bare_prose_corpus_baseline.json"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-d"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-08-14T08:28:57.510121+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "3be56dbea1b1f3572a423749a404a8781ec2bf17",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP06",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/cli/commands/agent/mission_finalize.py' vs 'src/specify_cli/cli/commands/agent/mission_finalize.py'; WP06 depends on WP02"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP07",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/requirement_mapping.py' vs 'src/specify_cli/requirement_mapping.py'; WP07 depends on WP03"
+      }
+    ],
+    "total_merges": 2,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 2
+    }
+  }
+}

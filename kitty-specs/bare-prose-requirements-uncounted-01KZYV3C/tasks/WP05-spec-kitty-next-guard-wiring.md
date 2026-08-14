@@ -3,7 +3,18 @@ work_package_id: WP05
 title: spec-kitty next Guard Wiring + Per-Guard Non-Vacuity Teeth Tests
 dependencies:
 - WP03
-requirement_refs: []
+requirement_refs:
+- FR-002
+- FR-003
+- FR-004
+- FR-007
+- FR-008
+- FR-010
+- NFR-002
+- NFR-005
+planning_base_branch: pr/bare-prose-requirements-uncounted
+merge_target_branch: pr/bare-prose-requirements-uncounted
+branch_strategy: Planning artifacts for this mission were generated on pr/bare-prose-requirements-uncounted. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into pr/bare-prose-requirements-uncounted unless the human explicitly redirects the landing branch.
 subtasks:
 - T020
 - T021
@@ -21,15 +32,7 @@ history:
   action: Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)
 - at: '2026-08-14T00:00:00Z'
   actor: claude
-  action: >-
-    Fix 1 (issue #3396 fixer pass): dependency changed from WP01 to WP03.
-    WP01 (baseline capture) was folded into WP04; WP05's baseline need is
-    now satisfied transitively via WP03's own WP04 dependency, so the direct
-    WP01/WP04 edge is dropped as redundant. This also corrects a pre-existing
-    gap: WP05's frontmatter never declared its WP03 dependency even though
-    tasks.md's own prose ("Depends on WP01 and WP03") and this file's own
-    chokepoint banner already stated WP05 needs WP03's predicate before it
-    can start — WP03 is now the sole, correct dependency edge.
+  action: "Fix 1 (issue #3396 fixer pass): dependency changed from WP01 to WP03. WP01 (baseline capture) was folded into WP04; WP05's baseline need is now satisfied transitively via WP03's own WP04 dependency, so the direct WP01/WP04 edge is dropped as redundant. This also corrects a pre-existing gap: WP05's frontmatter never declared its WP03 dependency even though tasks.md's own prose (\"Depends on WP01 and WP03\") and this file's own chokepoint banner already stated WP05 needs WP03's predicate before it can start — WP03 is now the sole, correct dependency edge."
 agent_profile: ''
 authoritative_surface: src/runtime/next/
 create_intent: []
