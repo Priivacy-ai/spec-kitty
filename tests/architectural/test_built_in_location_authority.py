@@ -136,12 +136,35 @@ _AUTHORITY_FILE = Path("src/doctrine/pack_paths.py")
 _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
     {
         # src/charter/kind_vocabulary.py::_org_scan_dirs -- org-tier legacy
-        # nested-pack join (`root / kind.plural / "built-in"`), NOT a
-        # built-in-tier reconstruction. See module docstring.
+        # nested-pack join (`flat / "built-in"`), NOT a built-in-tier
+        # reconstruction. See module docstring.
         # FRESHENED 2026-08-11 (#3317 landing): the join was extracted out of
         # _scan_roots into _org_scan_dirs (S3776 complexity reduction), moving
         # it from line 183 to 206; behaviour-preserving, same org-tier join.
-        (Path("src/charter/kind_vocabulary.py"), 206),
+        # FRESHENED 2026-08-13 (#3385 landing, org-activation-scan-dirs): the
+        # join was rewritten from the single chained
+        # `root / kind.plural / "built-in"` to `flat / "built-in"` (reusing
+        # the new `flat = root / kind.plural` variable introduced to also
+        # scan the flat, non-built-in org layout ahead of this legacy one),
+        # moving it from line 206 to 244; behaviour-preserving for this join
+        # itself, same org-tier legacy shape.
+        # FRESHENED 2026-08-14 (#3385 fix-agent pass, PR-BOUNDARY-002): the
+        # `_org_scan_dirs` docstring was expanded to document the new
+        # global flat-before-legacy grouping fix, pushing the (unchanged)
+        # `flat / "built-in"` join from line 244 to line 254; the join
+        # itself is unchanged -- only the accumulator variable name
+        # (`legacy_dirs` instead of `dirs`) and the docstring moved.
+        # FRESHENED 2026-08-14 (#3385 fix-agent pass, docstring-overclaim
+        # fix): the `_scan_roots` docstring was further expanded to correct
+        # an overclaim about which repositories' org-layer scans are
+        # non-recursive, pushing the (unchanged) join from line 254 to
+        # line 269; the join itself remains unchanged.
+        # FRESHENED 2026-08-14 (#3399 landing pass, #3426 residual note): the
+        # `_org_scan_dirs` docstring gained a "Known residual (tracked #3426)"
+        # paragraph documenting the nested-org styleguide activation gap,
+        # pushing the (unchanged) `flat / "built-in"` join from line 269 to
+        # line 283; the join itself remains unchanged.
+        (Path("src/charter/kind_vocabulary.py"), 283),
         # src/kernel/paths.py::_MISSION_ASSETS_SIBLING_PATTERN -- a relative
         # SHAPE constant (input to kernel.sibling_paths.resolve_installed_sibling),
         # not a filesystem join against a concrete root. kernel cannot import
