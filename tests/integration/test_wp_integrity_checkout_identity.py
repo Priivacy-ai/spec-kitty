@@ -29,11 +29,10 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import CheckoutIdentityError
-from mission_runtime.resolution import (
-    ActionContextError as _ActionContextError,
-    CheckoutIdentityError as _CheckoutIdentityErrorFromResolution,
-)
+from mission_runtime.resolution import ActionContextError as _ActionContextError
 from specify_cli.workspace.context import resolve_workspace_for_wp
+
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -274,8 +273,11 @@ def test_refusal_exception_is_not_action_context_error() -> None:
     # Also not a RuntimeError, so a narrowed ``except RuntimeError`` (the
     # record-analysis best-effort commit set) cannot swallow it either.
     assert not issubclass(CheckoutIdentityError, RuntimeError)
-    # The re-export on the authoritative resolution surface is the same object.
-    assert _CheckoutIdentityErrorFromResolution is CheckoutIdentityError
+    # ``CheckoutIdentityError`` is surfaced on the package root
+    # (``mission_runtime``) — the single sanctioned import surface. It is
+    # deliberately NOT re-exported from ``mission_runtime.resolution`` (a second
+    # unimported surface there is dead public API, test_no_dead_symbols).
+    assert CheckoutIdentityError is not None
 
 
 # ---------------------------------------------------------------------------

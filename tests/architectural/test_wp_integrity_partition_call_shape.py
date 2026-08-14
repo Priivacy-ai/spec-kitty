@@ -39,6 +39,10 @@ import ast
 from dataclasses import dataclass
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.architectural
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _IMPLEMENT = _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "implement.py"
 

@@ -167,6 +167,7 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2); grown to 75 via WP09, +1 
     "_mt_resolve_feedback",
     "_mt_build_request",
     "_lane_deliverable_paths",
+    "_drop_lane_coord_residue",
     "_mt_commit_lane_deliverables",
     "_mt_complete_deferred_for_review_readiness",
     "_mt_gather_review_facts",
@@ -515,5 +516,8 @@ def test_guard_covers_full_142_symbol_surface() -> None:
     (verdict-seam-boundary-hardening-01KZG179, T007) extracted
     ``_build_claim_review_override`` out of the cc=14
     ``_mt_emit_runtime_state`` campsite fix — a native move-task seam def
-    (tasks_move_task 78 -> 79): 160 -> 161."""
-    assert len(SYMBOL_TO_MODULE) == 161  # golden-count: cardinality-is-contract
+    (tasks_move_task 78 -> 79): 160 -> 161. write-path-integrity WP02
+    (#2549, FR-003, PR #3437 landing) added ``_drop_lane_coord_residue`` — the
+    Seam-A residue filter for the raw lane-deliverable commit, a native
+    move-task seam def (tasks_move_task 79 -> 80): 161 -> 162."""
+    assert len(SYMBOL_TO_MODULE) == 162  # golden-count: cardinality-is-contract
