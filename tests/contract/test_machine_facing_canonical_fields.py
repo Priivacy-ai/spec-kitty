@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import json
+import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -330,19 +331,20 @@ def test_verify_enhanced_feature_detection_emits_canonical_mission_fields(tmp_pa
         encoding="utf-8",
     )
 
-    console = Console(file=open("/dev/null", "w"))  # noqa: SIM115
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(stdout="main\n", returncode=0)
-        payload = run_enhanced_verify(
-            repo_root=project_root,
-            project_root=project_root,
-            cwd=project_root,
-            feature=mission_dir.name,
-            json_output=True,
-            check_files=False,
-            console=console,
-            feature_dir=mission_dir,
-        )
+    with open(os.devnull, "w", encoding="utf-8") as null_sink:
+        console = Console(file=null_sink)
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(stdout="main\n", returncode=0)
+            payload = run_enhanced_verify(
+                repo_root=project_root,
+                project_root=project_root,
+                cwd=project_root,
+                feature=mission_dir.name,
+                json_output=True,
+                check_files=False,
+                console=console,
+                feature_dir=mission_dir,
+            )
 
     detected = payload["feature_detection"]
     assert detected["mission_slug"] == mission_dir.name
@@ -601,6 +603,28 @@ def test_permission_oracle_helper_preserves_injected_posix_semantics() -> None:
     assert helper(None)
     assert helper(lambda: 0)
     assert not helper(lambda: 1000)
+
+
+def test_architecture_path_oracle_keeps_expected_value_static() -> None:
+    """The expected POSIX key must not reuse the actual-path normalizer."""
+    repo_root = Path(__file__).resolve().parents[2]
+    oracle_path = repo_root / "tests/architectural/test_runtime_charter_doctrine_boundary.py"
+    tree = ast.parse(oracle_path.read_text(encoding="utf-8"), filename=oracle_path.as_posix())
+    function = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "test_actual_repo_relative_key_matches_static_posix_oracle"
+    )
+    expected_assignment = next(
+        node
+        for node in function.body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "expected" for target in node.targets)
+    )
+
+    assert isinstance(expected_assignment.value, ast.Constant)
+    assert expected_assignment.value.value == "src/specify_cli/doctrine/config.py"
 
 
 @pytest.mark.parametrize("relative_path", _COLLECTION_SENSITIVE_TESTS)

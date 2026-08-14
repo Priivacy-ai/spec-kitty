@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import stat
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,13 @@ import pytest
 from specify_cli.core.paths import MissionMetaReadError, read_target_branch_from_meta
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
+def _posix_permission_oracle_unavailable(
+    getuid: Callable[[], int] | None = getattr(os, "getuid", None),
+) -> bool:
+    """Return whether chmod-based read denial is unavailable or root-bypassed."""
+    return getuid is None or getuid() == 0
 
 
 # ---------------------------------------------------------------------------
@@ -161,7 +169,10 @@ def test_non_object_json_raises_mission_meta_read_error(tmp_path: Path) -> None:
         read_target_branch_from_meta(feature_dir)
 
 
-@pytest.mark.skipif(os.getuid() == 0, reason="root ignores file permissions")
+@pytest.mark.skipif(
+    _posix_permission_oracle_unavailable(),
+    reason="requires a non-root POSIX permission oracle",
+)
 def test_io_error_raises_mission_meta_read_error(tmp_path: Path) -> None:
     """I/O failure reading meta.json → MissionMetaReadError (fail-closed).
 

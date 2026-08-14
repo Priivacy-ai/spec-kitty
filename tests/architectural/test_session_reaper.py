@@ -201,8 +201,13 @@ def _branch_exists(repo_root: Path, name: str) -> bool:
 
 def _worktree_is_registered(repo_root: Path, worktree_dir: Path) -> bool:
     result = run(["git", "worktree", "list", "--porcelain"], cwd=repo_root)
-    resolved = str(worktree_dir.resolve())
-    return any(line == f"worktree {resolved}" for line in result.stdout.splitlines())
+    resolved = worktree_dir.resolve()
+    registered = (
+        Path(line.removeprefix("worktree ")).resolve()
+        for line in result.stdout.splitlines()
+        if line.startswith("worktree ")
+    )
+    return resolved in registered
 
 
 # ---------------------------------------------------------------------------

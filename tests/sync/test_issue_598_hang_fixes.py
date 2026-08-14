@@ -20,11 +20,13 @@ code paths fire without inserting 100 k rows.
 from __future__ import annotations
 
 import errno
-import fcntl
+import importlib
+import importlib.util
 import sqlite3
 import threading
 import time
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -32,6 +34,9 @@ import pytest
 from kernel.clock import now_epoch
 
 pytestmark = pytest.mark.fast
+
+_FCNTL_AVAILABLE = importlib.util.find_spec("fcntl") is not None
+fcntl: Any = importlib.import_module("fcntl") if _FCNTL_AVAILABLE else None
 
 
 @pytest.fixture(autouse=True)
@@ -620,6 +625,7 @@ class TestBackgroundStopBounded:
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.skipif(not _FCNTL_AVAILABLE, reason="requires POSIX fcntl.flock")
 class TestDaemonBoundedFlock:
     """ensure_sync_daemon_running uses LOCK_NB with bounded retries."""
 
@@ -952,6 +958,7 @@ class TestFullQueueExpiredSessionIntegration:
 
         assert elapsed < 2.0
 
+    @pytest.mark.skipif(not _FCNTL_AVAILABLE, reason="requires POSIX fcntl.flock")
     def test_daemon_lock_contention_bounded(self, monkeypatch, tmp_path):
         """Under lock contention, the daemon startup gives up after ~10 s of sleep."""
         from specify_cli.sync import daemon

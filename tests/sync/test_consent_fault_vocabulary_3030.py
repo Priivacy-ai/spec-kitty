@@ -45,6 +45,7 @@ that cannot occur.
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -52,6 +53,13 @@ import pytest
 pytestmark = pytest.mark.fast
 
 PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
+
+
+def _posix_permission_oracle_unavailable(
+    geteuid: Callable[[], int] | None = getattr(os, "geteuid", None),
+) -> bool:
+    """Return whether chmod-based unreadability cannot be observed faithfully."""
+    return geteuid is None or geteuid() == 0
 
 
 @pytest.fixture(autouse=True)
@@ -135,7 +143,10 @@ def test_each_project_local_state_gets_its_own_token(tmp_path: Path, state: str,
     assert _local_kind(_checkout(tmp_path, config_text)) == expected, f"the {state!r} state did not report {expected!r}"
 
 
-@pytest.mark.skipif(os.geteuid() == 0, reason="root reads a chmod 000 file regardless")
+@pytest.mark.skipif(
+    _posix_permission_oracle_unavailable(),
+    reason="requires a non-root POSIX permission oracle",
+)
 def test_a_project_config_that_cannot_be_opened_is_unreadable(tmp_path: Path) -> None:
     """The fourth state, which needs a real permission fault rather than a stub.
 
@@ -152,7 +163,10 @@ def test_a_project_config_that_cannot_be_opened_is_unreadable(tmp_path: Path) ->
         config.chmod(0o600)
 
 
-@pytest.mark.skipif(os.geteuid() == 0, reason="root reads a chmod 000 directory regardless")
+@pytest.mark.skipif(
+    _posix_permission_oracle_unavailable(),
+    reason="requires a non-root POSIX permission oracle",
+)
 def test_a_project_config_in_an_unreadable_directory_is_unreadable(tmp_path: Path) -> None:
     """An unreadable ``.kittify`` *directory* is a carried fault, not a raised traceback.
 
@@ -211,7 +225,10 @@ def test_an_unparseable_index_reports_unparseable() -> None:
     assert _index_kind() == "unparseable"
 
 
-@pytest.mark.skipif(os.geteuid() == 0, reason="root reads a chmod 000 file regardless")
+@pytest.mark.skipif(
+    _posix_permission_oracle_unavailable(),
+    reason="requires a non-root POSIX permission oracle",
+)
 def test_an_index_that_cannot_be_opened_reports_unreadable() -> None:
     _write_index("[sync]\n")
     from specify_cli.sync.config import SyncConfig

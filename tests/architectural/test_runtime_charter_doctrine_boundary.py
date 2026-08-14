@@ -130,7 +130,7 @@ def _iter_runtime_python_files() -> list[Path]:
 
 
 def _rel_to_repo(path: Path) -> str:
-    return str(path.relative_to(_REPO_ROOT))
+    return path.relative_to(_REPO_ROOT).as_posix()
 
 
 def test_actual_repo_relative_key_matches_static_posix_oracle() -> None:

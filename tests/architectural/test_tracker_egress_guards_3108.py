@@ -337,7 +337,7 @@ def _calls_in_tree(root_str: str, target: str) -> CallFindings:
         if tree is None:
             continue
         scanned += 1
-        collector = _CallCollector(str(path.relative_to(root)), target)
+        collector = _CallCollector(path.relative_to(root).as_posix(), target)
         collector.visit(tree)
         calls.extend(collector.calls)
         del tree  # release this module's AST before parsing the next one
@@ -536,7 +536,7 @@ def test_g1_build_connector_perimeter_is_exactly_beads_and_fp() -> None:
     _announce(
         "G1",
         real.input_count,
-        file=str(_FACTORY_PATH.relative_to(REPO_ROOT)),
+        file=_FACTORY_PATH.relative_to(REPO_ROOT).as_posix(),
         providers_found=sorted(real.providers or ()),
         literal_elements=real.element_count,
     )
@@ -886,7 +886,7 @@ def test_g3_build_engine_callers_are_the_three_gated_methods() -> None:
     _announce(
         "G3",
         real.input_count,
-        file=str(_LOCAL_SERVICE_PATH.relative_to(REPO_ROOT)),
+        file=_LOCAL_SERVICE_PATH.relative_to(REPO_ROOT).as_posix(),
         callers=sorted(real.callers),
         gate_is_first_statement=real.gate_is_first,
     )
@@ -1740,7 +1740,7 @@ def _patch_sites_in_tree(root_str: str, target: str) -> PatchFindings:
         if tree is None:
             continue
         scanned += 1
-        f, n = _collect_patch_sites(tree, str(path.relative_to(root)), target)
+        f, n = _collect_patch_sites(tree, path.relative_to(root).as_posix(), target)
         fixed |= f
         naive |= n
         del tree  # release this module's AST before parsing the next one

@@ -509,7 +509,10 @@ def test_a_raising_consent_read_is_reported_rather_than_hiding_the_section(
     assert "Issues found" in result.output
 
 
-@pytest.mark.skipif(os.geteuid() == 0, reason="root reads a chmod 000 file regardless")
+@pytest.mark.skipif(
+    _posix_permission_oracle_unavailable(),
+    reason="requires a non-root POSIX permission oracle",
+)
 def test_a_chmod_000_index_is_reported_as_a_fault(tmp_path: Path) -> None:
     """The FR-020 measurement itself: healthy -> granted, unreadable -> undetermined.
 
