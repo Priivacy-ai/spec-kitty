@@ -765,6 +765,10 @@ class TransitionRequest:
     mission_slug: str | None = None
     _legacy_mission_slug: str | None = None
     repo_root: Path | None = None
+    # The repository root remains the Git/topology anchor.  An optional
+    # effective root keeps status placement on an explicitly selected
+    # caller-owned checkout instead of folding back to the primary checkout.
+    effective_root: Path | None = None
     # Transition target
     wp_id: str | None = None
     to_lane: str | None = None

@@ -637,9 +637,16 @@ def _canonical_primary_feature_dir(
 
 
 def _resolve_write_target(
-    repo_root: Path, mission_slug: str, coord_branch: str | None
+    repo_root: Path,
+    mission_slug: str,
+    coord_branch: str | None,
+    effective_root: Path | None = None,
 ) -> str:
     """Resolve the status write-target ref via the canonical placement resolver.
+
+    ``effective_root`` is the optional caller-owned mission anchor.  It changes
+    only placement discovery; the repository root remains the Git/topology
+    authority used by the transaction.
 
     FR-004 / D-2 adoption (the latent-bug fix): the prior inline selector was
     ``coord_branch or _current_branch(repo_root)``. The flat arm
@@ -732,6 +739,7 @@ def _resolve_write_target(
             mission_slug,
             MissionArtifactKind.STATUS_STATE,
             degrade_ref=coord_branch or None,
+            effective_root=effective_root,
         ).ref
     except ActionContextError:
         fallback_ref: str = get_feature_target_branch(repo_root, mission_slug)
@@ -802,7 +810,12 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
         feature_dir=feature_dir,
         mission_id=effective_mission_id,
         mid8=effective_mid8,
-        destination_ref=_resolve_write_target(repo_root, mission_slug, coord_branch),
+        destination_ref=_resolve_write_target(
+            repo_root,
+            mission_slug,
+            coord_branch,
+            request.effective_root,
+        ),
         meta_exists=meta_exists,
         coordination_branch=coord_branch,
         transaction_meta_exists=(feature_dir.parent / transaction_dir_name / "meta.json").exists(),
@@ -1145,6 +1158,7 @@ def read_events_transactional(
     feature_dir: Path,
     mission_slug: str,
     repo_root: Path | None = None,
+    effective_root: Path | None = None,
 ) -> list[StatusEvent]:
     """Read status events from the same target transactional writes use."""
     identity = _identity_for_request(
@@ -1155,6 +1169,7 @@ def read_events_transactional(
             to_lane=Lane.PLANNED,
             actor="status-read",
             repo_root=repo_root,
+            effective_root=effective_root,
         )
     )
     return _read_events_from_transaction_target(identity, mission_slug)
@@ -1165,6 +1180,7 @@ def read_event_stream_transactional(
     feature_dir: Path,
     mission_slug: str,
     repo_root: Path | None = None,
+    effective_root: Path | None = None,
 ) -> EventStream:
     """Read the complete event stream from the transactional write target."""
     identity = _identity_for_request(
@@ -1175,6 +1191,7 @@ def read_event_stream_transactional(
             to_lane=Lane.PLANNED,
             actor="status-read",
             repo_root=repo_root,
+            effective_root=effective_root,
         )
     )
     return _read_event_stream_from_transaction_target(identity, mission_slug)
@@ -1187,6 +1204,7 @@ def has_transition_to_transactional(
     wp_id: str,
     to_lane: str,
     repo_root: Path | None = None,
+    effective_root: Path | None = None,
 ) -> bool:
     """Return whether the transaction write target already has a lane event."""
     identity = _identity_for_request(
@@ -1197,6 +1215,7 @@ def has_transition_to_transactional(
             to_lane=Lane.PLANNED,
             actor="status-read",
             repo_root=repo_root,
+            effective_root=effective_root,
         )
     )
     return any(

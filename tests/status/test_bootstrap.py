@@ -141,6 +141,71 @@ class TestBootstrapCoordinationBranchPersistence:
         )
 
 
+def test_caller_owned_bootstrap_routes_status_to_effective_root(tmp_path: Path) -> None:
+    """A caller-owned linked checkout is the status write/read surface.
+
+    ``finalize-tasks`` keeps the repository root for Git/topology discovery,
+    but its operation context must keep canonical status bootstrap on the
+    selected caller checkout.  Without the explicit effective root the
+    resolver folds the status target back to the primary protected branch.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "t@example.invalid")
+    _git(repo, "config", "user.name", "Test")
+    (repo / ".kittify").mkdir()
+    (repo / ".kittify" / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
+    _git(repo, "add", ".kittify")
+    _git(repo, "commit", "-q", "-m", "seed project")
+
+    caller = tmp_path / "caller-owned"
+    _git(repo, "worktree", "add", "-q", "-b", "codex/caller", str(caller))
+
+    mission_slug = "060-owned"
+    mission_id = "01OWNED000000000000000000"
+    feature_dir = caller / "kitty-specs" / mission_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": mission_slug,
+                "mission_id": mission_id,
+                "mid8": mission_id[:8],
+                "target_branch": "codex/caller",
+                "topology": "single_branch",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    _write_wp_file(tasks_dir, "WP01")
+    _git(caller, "add", "kitty-specs")
+    _git(caller, "commit", "-q", "-m", "seed caller-owned mission")
+
+    result = bootstrap_canonical_state(
+        feature_dir,
+        mission_slug,
+        effective_root=caller,
+    )
+
+    assert result.newly_seeded == 1
+
+    from specify_cli.coordination.status_transition import read_events_transactional
+
+    events = read_events_transactional(
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        repo_root=repo,
+        effective_root=caller,
+    )
+    assert {event.wp_id for event in events} == {"WP01"}
+    assert not (repo / "kitty-specs" / mission_slug / EVENTS_FILENAME).exists()
+
+
 class TestBootstrapSeedsUninitialized:
     """T002-a: Seeds planned events for uninitialized WPs."""
 

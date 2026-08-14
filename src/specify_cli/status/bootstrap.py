@@ -91,6 +91,7 @@ def bootstrap_canonical_state(
     *,
     dry_run: bool = False,
     capability: GuardCapability = GuardCapability.STANDARD,
+    effective_root: Path | None = None,
 ) -> BootstrapResult:
     """Ensure every WP in a feature has canonical status state.
 
@@ -113,6 +114,9 @@ def bootstrap_canonical_state(
             branch, so no protected-flow capability is required, and a
             protected destination is refused. Test fixtures that seed on a
             protected branch may pass ``GuardCapability.TEST_MODE``.
+        effective_root: Optional caller-owned checkout root selected by the
+            mission operation context. The repository root remains the Git
+            anchor, while status reads and writes resolve against this root.
 
     Returns:
         A :class:`BootstrapResult` with counts and per-WP detail strings.
@@ -144,6 +148,7 @@ def bootstrap_canonical_state(
     existing_events = read_events_transactional(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
+        effective_root=effective_root,
     )
     initialized_wp_ids: set[str] = {e.wp_id for e in existing_events}
 
@@ -168,6 +173,7 @@ def bootstrap_canonical_state(
                 to_lane="planned",
                 actor="finalize-tasks",
                 reason="canonical bootstrap",
+                effective_root=effective_root,
             ),
             capability=capability,
         )

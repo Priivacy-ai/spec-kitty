@@ -34,7 +34,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Annotated, cast
+from typing import Any, Annotated, cast
 
 import typer
 from specify_cli.cli.console import console
@@ -154,14 +154,22 @@ def _resolve_planning_branch_via_mission(
 
 
 def _bootstrap_canonical_state_via_mission(
-    planning_dir: Path, mission_slug: str, *, dry_run: bool, capability: GuardCapability | None = None
+    planning_dir: Path,
+    mission_slug: str,
+    *,
+    dry_run: bool,
+    capability: GuardCapability | None = None,
+    effective_root: Path | None = None,
 ) -> BootstrapResult:
     """Route ``bootstrap_canonical_state`` through ``mission`` (patch seam)."""
     from specify_cli.cli.commands.agent import mission as _mission
 
-    if capability is None:
-        return _mission.bootstrap_canonical_state(planning_dir, mission_slug, dry_run=dry_run)
-    return _mission.bootstrap_canonical_state(planning_dir, mission_slug, dry_run=dry_run, capability=capability)
+    call_kwargs: dict[str, Any] = {"dry_run": dry_run}
+    if capability is not None:
+        call_kwargs["capability"] = capability
+    if effective_root is not None:
+        call_kwargs["effective_root"] = effective_root
+    return _mission.bootstrap_canonical_state(planning_dir, mission_slug, **call_kwargs)
 
 
 def _validate_ownership_via_mission(
@@ -1077,12 +1085,20 @@ def _emit_validate_only_report(
     target_branch: str,
     *,
     json_output: bool,
+    effective_root: Path | None = None,
 ) -> None:
     """Phase: emit the --validate-only report (INV-6: zero mutation).
 
     Runs bootstrap + lane computation in dry-run mode only.
     """
-    bootstrap_result = _bootstrap_canonical_state_via_mission(planning_dir, mission_slug, dry_run=True)
+    bootstrap_kwargs: dict[str, Any] = {"dry_run": True}
+    if effective_root is not None:
+        bootstrap_kwargs["effective_root"] = effective_root
+    bootstrap_result = _bootstrap_canonical_state_via_mission(
+        planning_dir,
+        mission_slug,
+        **bootstrap_kwargs,
+    )
     bootstrap_stats = {
         "total_wps": bootstrap_result.total_wps,
         "newly_seeded": bootstrap_result.newly_seeded,
@@ -1781,8 +1797,16 @@ def _run_commit_pipeline(
         planning_dir, mission_slug, repo_root, state.work_packages, json_output=json_output
     )
 
+    bootstrap_kwargs: dict[str, Any] = {
+        "dry_run": False,
+        "capability": GuardCapability.STANDARD,
+    }
+    if effective_root is not None:
+        bootstrap_kwargs["effective_root"] = effective_root
     bootstrap_result = _bootstrap_canonical_state_via_mission(
-        planning_dir, mission_slug, dry_run=False, capability=GuardCapability.STANDARD
+        planning_dir,
+        mission_slug,
+        **bootstrap_kwargs,
     )
     if not json_output and bootstrap_result.newly_seeded:
         console.print(f"[green]✓[/green] Bootstrapped canonical status: {bootstrap_result.newly_seeded} WPs seeded")
@@ -2028,6 +2052,7 @@ def finalize_tasks(
                 wp_bodies,
                 target_branch,
                 json_output=json_output,
+                effective_root=mission_anchor_root,
             )
             return
 

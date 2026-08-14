@@ -70,6 +70,7 @@ def resolve_write_target_or_degrade(
     kind: MissionArtifactKind,
     *,
     degrade_ref: str | None,
+    effective_root: Path | None = None,
 ) -> CommitTarget:
     """Resolve write target via the placement port, or degrade to a caller-supplied ref.
 
@@ -92,6 +93,8 @@ def resolve_write_target_or_degrade(
             yet, or an ad-hoc fixture outside a resolvable mission). The caller decides
             the policy: fail-open passes a concrete ref, fail-closed passes ``None`` to
             raise instead of silently degrading.
+        effective_root: Optional caller-owned checkout root used to resolve the mission
+            metadata and placement while ``repo_root`` remains the Git/topology anchor.
 
     Returns:
         A ``CommitTarget`` resolved for ``kind`` through the placement port, or
@@ -118,9 +121,15 @@ def resolve_write_target_or_degrade(
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
     resolution_exc: ActionContextError | StatusReadPathNotFound | FileNotFoundError | None = None
-    if _mission_meta_exists(repo_root, mission_slug):
+    placement_root = effective_root or repo_root
+    if _mission_meta_exists(placement_root, mission_slug):
         try:
-            return resolve_placement_only(repo_root, mission_slug, kind=kind)
+            return resolve_placement_only(
+                repo_root,
+                mission_slug,
+                kind=kind,
+                effective_root=effective_root,
+            )
         except (ActionContextError, StatusReadPathNotFound, FileNotFoundError) as exc:
             resolution_exc = exc
     if degrade_ref is None:
