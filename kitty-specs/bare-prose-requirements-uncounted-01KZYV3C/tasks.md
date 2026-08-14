@@ -634,8 +634,12 @@ as a blocking result on the exact repro fixture, and confirm Story 4/negative-sp
 
 - Depends on WP02 (the campsite-clean split must land in `mission_finalize.py` first,
   so this WP's new branch lands against the already-decomposed helper shape, never
-  adding a branch to the pre-split 16-complexity function) and WP03 (needs the
-  predicate). Sequenced after WP05 per the chokepoint-serialization note above.
+  adding a branch to the pre-split 16-complexity function), WP03 (needs the predicate
+  — this WP's own body states "this WP calls `find_bare_prose_requirement_ids`
+  directly"), and WP05 (the chokepoint-serialization note above; issue #3396 fixer pass
+  (F1) corrected the frontmatter `dependencies` field from `[WP02]` to
+  `[WP02, WP03, WP05]` to make the WP-level dependency gate enforce all three edges
+  mechanically instead of relying on prose convention — see tracer-tooling-friction.md).
 
 ### Risks & Mitigations
 
@@ -691,7 +695,12 @@ FP rate WP03/T015 already recorded, so both figures live in one place.
 
 ### Dependencies
 
-- Depends on WP03 (needs the finalized detector/heading logic to sample against).
+- Depends on WP03 (needs the finalized detector/heading logic to sample against) and
+  WP05 (the chokepoint-serialization note above — this WP is scheduled after WP05
+  alongside WP06, per "Parallelism & Chokepoints"; issue #3396 fixer pass (F2) corrected
+  the frontmatter `dependencies` field from `[WP03]` to `[WP03, WP05]` to make the
+  WP-level dependency gate enforce this edge mechanically instead of relying on prose
+  convention — see tracer-tooling-friction.md).
 
 ### Risks & Mitigations
 

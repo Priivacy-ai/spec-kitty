@@ -3,6 +3,8 @@ work_package_id: WP06
 title: finalize-tasks / map-requirements CLI Wiring
 dependencies:
 - WP02
+- WP03
+- WP05
 requirement_refs:
 - C-002
 - FR-001
