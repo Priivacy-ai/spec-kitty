@@ -214,6 +214,55 @@ _MISSION_LEVEL_ACTIONS: frozenset[str] = frozenset(
 )
 
 
+def read_dir_for(
+    effective_root: Path | None,
+    primary_root: Path,
+    mission_slug: str,
+    *,
+    kind: MissionArtifactKind,
+    resolver: MissionResolver | None = None,
+) -> Path:
+    """Resolve the primary meta-bearing read dir for a mission (single fork authority).
+
+    Collapses the ``effective_root is None ? <legacy primary compose> :
+    compose_meta_json_path(effective_root, …).parent`` fork that recurred across
+    the coord/topology resolvers in this module (mission
+    write-path-integrity-01KZZD69 WP01, #3373, T004). One helper now owns the
+    derivation so no site re-inlines it and the read stays drift-free.
+
+    * The default (``effective_root is None``) arm delegates to
+      :func:`resolve_planning_read_dir` for the PRIMARY-partition ``kind`` these
+      sites read (``PRIMARY_METADATA``). That is byte-identical to the prior
+      inline ``_compose_primary_feature_dir(_canonicalize_primary_read_handle(
+      primary_root, mission_slug, resolver=resolver))`` — because
+      :func:`resolve_planning_read_dir`'s PRIMARY leg IS exactly that composition
+      (the ``resolver`` is threaded to the same single injected walk, no bypass).
+    * The opted-in (owned-checkout) arm composes the ``meta.json`` dir directly
+      against the already-validated ``effective_root`` — never re-folding it
+      through ``get_main_repo_root`` (#3328 / C-002) — matching the prior inline
+      ``compose_meta_json_path(effective_root, mission_slug).parent``.
+
+    ``kind`` MUST be a PRIMARY-partition kind (``meta.json`` lives only on the
+    primary checkout); passing a STATUS-partition kind would route the default
+    arm through the topology-aware seam instead and is a caller error.
+    """
+    from specify_cli.missions._read_path_resolver import (
+        compose_meta_json_path,
+        resolve_planning_read_dir,
+    )
+
+    # Explicit ``Path`` binds absorb the ``Any`` the ``specify_cli.*`` package
+    # boundary erases these returns to (follow_imports=skip) — mirroring the
+    # existing typed-local pattern elsewhere in this module.
+    if effective_root is None:
+        planning_dir: Path = resolve_planning_read_dir(
+            primary_root, mission_slug, kind=kind, resolver=resolver
+        )
+        return planning_dir
+    meta_dir: Path = compose_meta_json_path(effective_root, mission_slug).parent
+    return meta_dir
+
+
 def build_execution_context(
     **fields: Any,
 ) -> MissionExecutionContext:
@@ -849,36 +898,23 @@ def _resolve_coordination_branch(
     placement with NO second destination authority.
     """
     from specify_cli.mission_metadata import load_meta
-    from specify_cli.missions._read_path_resolver import (
-        _canonicalize_primary_read_handle,
-        _compose_primary_feature_dir,
+
+    # WP01 (#3373, T004): the effective-root read fork is consolidated into the
+    # single ``read_dir_for`` authority. PRIMARY_METADATA is a PRIMARY-partition
+    # kind, so the default arm stays byte-identical to the prior
+    # ``_compose_primary_feature_dir(_canonicalize_primary_read_handle(...))``
+    # (resolver threaded to the same single injected walk — WP03/FR-002), and the
+    # opted-in arm to ``compose_meta_json_path(effective_root, …).parent``. This
+    # read feeds the seam's classification decision (it produces the raw
+    # ``coordination_branch`` routing signal) rather than recursing through it, so
+    # there is no cycle.
+    primary_dir = read_dir_for(
+        effective_root,
+        primary_root,
+        mission_slug,
+        kind=MissionArtifactKind.PRIMARY_METADATA,
+        resolver=resolver,
     )
-
-    # WP05/FR-005: route through _canonicalize_primary_read_handle.
-    # WP03/FR-002: ``resolver`` is threaded to the canonicalizer so this read
-    # reaches the single injected walk (no bypass) — ``None`` is byte-identical
-    # to the pre-WP03 behaviour.
-    # WP03 T016 (read-side-seam-primary-primitive-closure-01KYKMMT): calls the
-    # leaf directly, not the deleted public wrapper. This feeds the seam's
-    # classification decision rather than recursing through it:
-    # ``_classify_artifact_surface`` calls this helper only AFTER
-    # ``declared_read_surface`` has already resolved COORD (a PRIMARY-partition
-    # kind, or a coord-less topology, resolves PRIMARY first and never reaches
-    # here); ``_resolve_topology``'s bootstrap-fallback arm also calls this
-    # directly to derive the topology shape it returns. Either way this reads
-    # the raw ``coordination_branch`` meta field that PRODUCES a routing
-    # signal — it never itself re-enters ``declared_read_surface`` /
-    # ``_classify_artifact_surface``, so there is no cycle.
-    primary_dir: Path
-    if effective_root is None:
-        primary_dir = _compose_primary_feature_dir(
-            primary_root,
-            _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
-        )
-    else:
-        from specify_cli.missions._read_path_resolver import compose_meta_json_path
-
-        primary_dir = compose_meta_json_path(effective_root, mission_slug).parent
     # FR-006: canonical reader contract (a) — None on missing, ValueError on
     # malformed (defaults stated explicitly to document the chosen arm).
     try:
@@ -918,30 +954,20 @@ def _resolve_topology(
     from mission_runtime.context import classify_topology
     from specify_cli.core.paths import MissionMetaReadError
     from specify_cli.migration.backfill_topology import read_topology
-    from specify_cli.missions._read_path_resolver import (
-        _canonicalize_primary_read_handle,
-        _compose_primary_feature_dir,
+
+    # WP01 (#3373, T004): consolidated through the single ``read_dir_for`` fork
+    # authority (byte-identical arms; resolver threaded to the same single
+    # injected walk — WP03/FR-002). This IS the pure shell read
+    # ``declared_read_surface`` calls (via the public ``resolve_topology``) to
+    # produce the PRIMARY/COORD signal for a coord-partition kind — it precedes
+    # and feeds that decision rather than routing through it, so there is no cycle.
+    primary_dir = read_dir_for(
+        effective_root,
+        primary_root,
+        mission_slug,
+        kind=MissionArtifactKind.PRIMARY_METADATA,
+        resolver=resolver,
     )
-
-    # WP05/FR-005: route through _canonicalize_primary_read_handle.
-    # WP03/FR-002: ``resolver`` threaded through so this shell read reaches the
-    # single injected walk (no bypass).
-    # WP03 T016 (read-side-seam-primary-primitive-closure-01KYKMMT): calls the
-    # leaf directly, not the deleted public wrapper. This IS the pure shell
-    # read ``declared_read_surface`` calls (via the public
-    # ``resolve_topology``) to produce the PRIMARY/COORD signal for a
-    # coord-partition kind — it precedes and feeds that decision rather than
-    # routing through it, so there is no cycle.
-    primary_dir: Path
-    if effective_root is None:
-        primary_dir = _compose_primary_feature_dir(
-            primary_root,
-            _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
-        )
-    else:
-        from specify_cli.missions._read_path_resolver import compose_meta_json_path
-
-        primary_dir = compose_meta_json_path(effective_root, mission_slug).parent
     try:
         stored: MissionTopology = read_topology(primary_dir)
         return stored
@@ -1030,7 +1056,6 @@ def mission_context_for(
         MissionSelectorAmbiguous,
         StatusReadPathNotFound,
         candidate_feature_dir_for_mission,
-        resolve_planning_read_dir,
     )
 
     if not mission_handle or not mission_handle.strip():
@@ -1064,17 +1089,18 @@ def mission_context_for(
         resolver=resolver,
         effective_root=effective_root,
     )
-    if effective_root is None:
-        primary_read_dir = resolve_planning_read_dir(
-            primary_root,
-            mission_slug,
-            kind=MissionArtifactKind.PRIMARY_METADATA,
-            resolver=resolver,
-        )
-    else:
-        from specify_cli.missions._read_path_resolver import compose_meta_json_path
-
-        primary_read_dir = compose_meta_json_path(primary_root, mission_slug).parent
+    # WP01 (#3373, T004): consolidated through the single ``read_dir_for`` fork
+    # authority. ``effective_root`` arrives already resolved (validated by
+    # ``resolve_ownership_claim``), so composing meta against it is byte-identical
+    # to the prior ``compose_meta_json_path(primary_root, …)`` (``primary_root ==
+    # effective_root.resolve()`` on this arm).
+    primary_read_dir = read_dir_for(
+        effective_root,
+        primary_root,
+        mission_slug,
+        kind=MissionArtifactKind.PRIMARY_METADATA,
+        resolver=resolver,
+    )
     if effective_root is None:
         target_branch = get_feature_target_branch(primary_root, mission_slug)
     else:
@@ -1161,29 +1187,20 @@ def _resolve_mission_id(
     pins (T014).
     """
     from specify_cli.mission_metadata import load_meta
-    from specify_cli.missions._read_path_resolver import (
-        _canonicalize_primary_read_handle,
-        _compose_primary_feature_dir,
+
+    # WP01 (#3373, T004): consolidated through the single ``read_dir_for`` fork
+    # authority (byte-identical arms; resolver threaded to the same single
+    # injected walk). This feeds the ``mid8`` its coord-state probe needs after
+    # ``declared_read_surface`` has already resolved COORD — the ``legacy-<slug>``
+    # sentinel carve-out below is unaffected: it fires on a malformed/absent meta
+    # read, before any classification decision is even in play.
+    primary_dir = read_dir_for(
+        effective_root,
+        primary_root,
+        mission_slug,
+        kind=MissionArtifactKind.PRIMARY_METADATA,
+        resolver=resolver,
     )
-
-    # WP05/FR-005: route through _canonicalize_primary_read_handle.
-    # WP03 T016 (read-side-seam-primary-primitive-closure-01KYKMMT): calls the
-    # leaf directly, not the deleted public wrapper. ``_classify_artifact_
-    # surface`` calls this helper only AFTER ``declared_read_surface`` has
-    # already resolved COORD, to derive the ``mid8`` its coord-state probe
-    # needs — it feeds that already-made decision rather than recursing back
-    # into it (the ``legacy-<slug>`` sentinel carve-out below is unaffected:
-    # it fires on a malformed/absent meta read, before any classification
-    # decision is even in play).
-    if effective_root is None:
-        primary_dir = _compose_primary_feature_dir(
-            primary_root,
-            _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
-        )
-    else:
-        from specify_cli.missions._read_path_resolver import compose_meta_json_path
-
-        primary_dir = compose_meta_json_path(effective_root, mission_slug).parent
     # FR-006: canonical reader contract (a) — None on missing, ValueError on
     # malformed; the malformed arm degrades to the ``legacy-`` sentinel below.
     try:
@@ -1236,14 +1253,22 @@ def _resolve_status_surface_dir(
         from specify_cli.mission_metadata import load_meta
         from specify_cli.missions._read_path_resolver import (
             CoordState,
-            compose_meta_json_path,
             coord_feature_dir,
             probe_coord_state,
         )
 
-        primary_dir: Path = compose_meta_json_path(
-            effective_root, mission_slug
-        ).parent
+        # WP01 (#3373, T004): the effective-root meta compose routes through the
+        # single ``read_dir_for`` fork authority. ``effective_root`` is non-None
+        # on this arm, so it is the opted-in owned-checkout compose —
+        # byte-identical to the prior ``compose_meta_json_path(effective_root,
+        # …).parent``.
+        primary_dir: Path = read_dir_for(
+            effective_root,
+            effective_root,
+            mission_slug,
+            kind=MissionArtifactKind.PRIMARY_METADATA,
+            resolver=resolver,
+        )
         meta = load_meta(primary_dir, allow_missing=True, on_malformed="raise") or {}
         raw_coordination_branch = meta.get("coordination_branch")
         coordination_branch = (
