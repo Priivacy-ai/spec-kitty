@@ -1,7 +1,7 @@
 # План реализации: восстановить Git preflight в setup-plan
 
-**Branch**: `codex/setup-plan-preflight-closeout` | **Дата**: 2026-08-14 | **Spec**: [spec.md](spec.md)  
-**Delivery**: внутренний Mission merge остаётся в `codex/setup-plan-preflight-closeout`; проверенный task-owned PR направляется в `codex/spec-kitty-worktree-mission-create`.
+**Ветка**: `codex/setup-plan-preflight-closeout` | **Дата**: 2026-08-14 | **Спецификация**: [spec.md](spec.md)  
+**Доставка**: внутренний Mission merge остаётся в `codex/setup-plan-preflight-closeout`; проверенный task-owned PR направляется в `codex/spec-kitty-worktree-mission-create`.
 
 ## Краткое решение
 
@@ -15,7 +15,9 @@
 - **Порядок gate**: hosted-auth отказ и SaaS boundary сохраняют существующий приоритет; затем выполняется Git preflight, и только после него — Mission resolution.
 - **Delivery**: исправляется regression PR #3332 без release, deploy, SaaS или изменения пользовательской конфигурации.
 
-## Technical Context — технический контекст
+## Technical Context
+
+*Технический контекст реализации.*
 
 **Language/Version**: Python 3.11+  
 **Primary Dependencies**: Typer CLI, `pathlib`, существующие `core.paths`, `selector_resolution`, `MissionOperationContext`, `git_preflight`  
@@ -27,7 +29,7 @@
 **Constraints**: ATDD-first; fail-closed; без второй Mission-root authority; без записи до failed preflight  
 **Scale/Scope**: один CLI flow, не более двух production-модулей и фокусные тесты
 
-## Charter Check
+## Charter Check — проверка charter
 
 *GATE до Phase 0 и повторно после Phase 1: PASS.*
 
@@ -70,11 +72,11 @@ tests/
 
 **Решение по структуре**: сохранить orchestration в `mission_setup_plan.py`; общий pre-Mission checkout primitive размещать рядом с существующим same-repository selector logic, а не в новом модуле.
 
-## Phase 0 — исследование решения
+## Фаза 0 — исследование решения
 
 Результаты зафиксированы в [research.md](research.md). Выбран вариант с canonical pre-Mission checkout helper. Простое перемещение preflight на `located_root` отклонено: `locate_project_root()` намеренно возвращает repository-root checkout и тем самым перестал бы проверять caller-owned checkout.
 
-## Phase 1 — design и contracts
+## Фаза 1 — design и contracts
 
 - [data-model.md](data-model.md) фиксирует ephemeral roots и порядок переходов без новой persisted-сущности.
 - [contracts/setup-plan-preflight.md](contracts/setup-plan-preflight.md) фиксирует observable JSON/human error contract и успешный caller-owned path.
@@ -82,7 +84,7 @@ tests/
 
 Повторная Charter Check: **PASS** — дизайн не добавляет authority, storage, network или platform-specific path.
 
-## Implementation Concern Map
+## Implementation Concern Map — карта аспектов реализации
 
 ### IC-01 — выбор Git checkout до Mission selection
 
