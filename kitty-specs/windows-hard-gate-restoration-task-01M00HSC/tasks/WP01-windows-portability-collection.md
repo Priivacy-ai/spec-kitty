@@ -8,6 +8,8 @@ requirement_refs:
 - FR-003
 - FR-006
 - FR-007
+tracker_refs:
+- '#3438'
 planning_base_branch: codex/setup-plan-hard-gates
 merge_target_branch: codex/setup-plan-hard-gates
 branch_strategy: Пакет исполняется в отдельной lane от task-local planning branch и после review возвращается в codex/setup-plan-hard-gates.
