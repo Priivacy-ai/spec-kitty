@@ -27,6 +27,15 @@ pytestmark = pytest.mark.git_repo
 
 runner = CliRunner()
 
+# Click >=8.2 removed ``mix_stderr`` and repointed ``Result.output`` at an
+# always-mixed stdout+stderr stream (see click.testing.Result docstring:
+# "Now has its own independent stream that is mixing <stdout> and <stderr>").
+# Every assertion below that parses ``--json`` output as a single JSON
+# document therefore reads ``result.stdout`` (pure stdout, matching what a
+# real machine consumer piping this command's stdout would see), never
+# ``result.output`` -- a stray stderr warning (e.g. from the sync emitter)
+# would otherwise prepend non-JSON text and corrupt ``json.loads``.
+
 
 @pytest.fixture(autouse=True)
 def _bypass_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -574,7 +583,7 @@ class TestNextCommandCLI:
             ["next", "--mission", "042-test-feature", "--json"],
         )
         assert result.exit_code == 0, f"stderr: {result.output}"
-        data = json.loads(result.output)
+        data = json.loads(result.stdout)
         assert data["agent"] is None
         assert data["mission_slug"] == "042-test-feature"
         assert data["mission"] == "software-dev"
@@ -604,7 +613,7 @@ class TestNextCommandCLI:
 
         assert result.exit_code == 0, result.output
         assert "stale runtime notice" not in result.output
-        data = json.loads(result.output)
+        data = json.loads(result.stdout)
         assert data["mission_slug"] == "042-test-feature"
 
     def test_invalid_result_flag(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -635,7 +644,7 @@ class TestNextCommandCLI:
             ["next", "--agent", "test", "--mission", "042-test-feature", "--result", "blocked", "--json"],
         )
         assert result.exit_code == 1
-        data = json.loads(result.output)
+        data = json.loads(result.stdout)
         assert data["kind"] == "blocked"
 
     def test_terminal_state_exit_code_zero(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -650,7 +659,7 @@ class TestNextCommandCLI:
             ["next", "--agent", "test", "--mission", "042-test-feature", "--result", "success", "--json"],
         )
         assert result.exit_code == 0
-        data = json.loads(result.output)
+        data = json.loads(result.stdout)
         assert data["kind"] == "terminal"
 
     def test_human_output_mode(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -697,14 +706,14 @@ class TestNextCommandCLI:
             ["next", "--mission", "042-test-feature", "--json"],
         )
         assert r1.exit_code == 0
-        d1 = json.loads(r1.output)
+        d1 = json.loads(r1.stdout)
 
         r2 = runner.invoke(
             cli_app,
             ["next", "--agent", "compat-agent", "--mission", "042-test-feature", "--json"],
         )
         assert r2.exit_code == 0
-        d2 = json.loads(r2.output)
+        d2 = json.loads(r2.stdout)
 
         after = _read_snapshot(Path(run_ref.run_dir))
 
@@ -726,7 +735,7 @@ class TestNextCommandCLI:
         )
 
         assert result.exit_code == 0
-        data = json.loads(result.output)
+        data = json.loads(result.stdout)
         assert data["mission_state"] == "not_started"
         assert data["preview_step"] is not None
         assert not runtime_index.exists()
@@ -748,7 +757,7 @@ class TestNextCommandCLI:
             ["next", "--mission", "042-test-feature", "--json"],
         )
         assert result.exit_code == 0
-        data = json.loads(result.output)
+        data = json.loads(result.stdout)
         assert "run_id" in data
         assert data["run_id"] is None  # ephemeral query run, not persisted
         assert "step_id" in data
@@ -765,7 +774,7 @@ class TestNextCommandCLI:
         )
 
         assert result.exit_code == 1
-        data = json.loads(result.output)
+        data = json.loads(result.stdout)
         assert "has no issuable first step" in data["error"]
 
     def test_advancing_mode_still_requires_agent_and_result(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -790,7 +799,7 @@ class TestNextCommandCLI:
         )
 
         assert result.exit_code == 0
-        data = json.loads(result.output)
+        data = json.loads(result.stdout)
         assert data["step_id"] is not None
         assert data["preview_step"] is None
 
@@ -813,7 +822,7 @@ class TestNextCommandAnswerJSON:
             ["next", "--agent", "test", "--mission", "042-test-feature", "--result", "success", "--json"],
         )
         assert first.exit_code == 0, first.output
-        first_data = json.loads(first.output)
+        first_data = json.loads(first.stdout)
         assert first_data["kind"] == "decision_required"
         assert first_data["decision_id"] == "input:approval"
 
@@ -841,7 +850,7 @@ class TestNextCommandAnswerJSON:
         # acceptable here — the regression we are guarding is the JSON shape
         # and the answer fields, not the exit code or kind.
         assert r.exit_code in (0, 1), r.output
-        data = json.loads(r.output.strip())
+        data = json.loads(r.stdout.strip())
         assert isinstance(data, dict)
         assert data["answered"] == "input:approval"
         assert data["answer"] == "yes"
@@ -897,7 +906,7 @@ class TestNextCommandAnswerJSON:
 
         # Ensure a single top-level JSON value with no trailing payload.
         decoder = json.JSONDecoder()
-        text = r.output.strip()
+        text = r.stdout.strip()
         obj, idx = decoder.raw_decode(text)
         assert isinstance(obj, dict)
         assert text[idx:].strip() == "", f"Unexpected trailing output: {text[idx:]!r}"
