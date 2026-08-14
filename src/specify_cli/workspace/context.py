@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.atomic import atomic_write
-from specify_cli.git.git_topology import GitTopologyError, git_toplevel
+from kernel.git_topology import GitTopologyError, git_toplevel
 from specify_cli.lanes.branch_naming import worktree_dir_name, worktree_path as _seam_worktree_path
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.ownership.inference import infer_execution_mode, score_execution_mode_signals
@@ -79,7 +79,7 @@ def verify_workspace_toplevel(workspace_path: Path) -> WorkspaceResolutionError 
     failure, ``None`` when the path is the toplevel of its own working tree.
 
     The toplevel probe is delegated to the unified
-    :func:`~specify_cli.git.git_topology.git_toplevel` primitive (mission
+    :func:`~kernel.git_topology.git_toplevel` primitive (mission
     write-path-integrity-01KZZD69 WP01, #3373); the primitive's typed failure is
     mapped to this site's ``git-toplevel`` structured error, preserving the
     is-worktree assertion contract.

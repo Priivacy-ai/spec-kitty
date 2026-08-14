@@ -82,7 +82,7 @@ from kernel.paths import to_posix
 from specify_cli.core.commit_guard import GuardCapability, GuardVerdict, ProtectionState
 from kernel.clock import now_utc_iso
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
-from specify_cli.git.git_topology import (
+from kernel.git_topology import (
     GitTopologyError,
     git_common_dir,
     git_toplevel,
@@ -614,7 +614,7 @@ def _read_worktree_head(worktree_root: Path) -> str | None:
 def _is_worktree_of(repo_root: Path, worktree_root: Path) -> bool:
     """Return ``True`` iff ``worktree_root`` is a worktree of ``repo_root``.
 
-    Uses the unified :func:`~specify_cli.git.git_topology.git_toplevel` primitive
+    Uses the unified :func:`~kernel.git_topology.git_toplevel` primitive
     to confirm ``worktree_root`` is the toplevel of *some* git working tree, then
     compares the common dir of ``worktree_root`` and ``repo_root`` — if they share
     a common ``.git`` repository, they are linked. A failing probe (the primitive

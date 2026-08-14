@@ -11,7 +11,7 @@ from specify_cli.coordination.surface_resolver import (
     read_worktree_registry,
 )
 from specify_cli.git.commit_helpers import is_worktree_of
-from specify_cli.git.git_topology import (
+from kernel.git_topology import (
     GitTopologyError,
     git_common_dir,
     git_toplevel,

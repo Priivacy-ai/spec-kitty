@@ -32,7 +32,7 @@ from doctrine.resolver import ResolutionResult, ResolutionTier
 # #3373). This resolver is the richest historical copy — cached, classifying
 # not-a-repo, ``.git``-interior detecting — and now consumes the unified
 # primitive so the whole write path shares ONE canonicalization contract.
-from specify_cli.git.git_topology import (
+from kernel.git_topology import (
     GitTopologyUnavailableError,
     NotAGitRepositoryError,
     clear_caches as _clear_topology_caches,
@@ -81,7 +81,7 @@ def resolve_canonical_repo_root(path: Path) -> Path:
     warm (LRU-cached) calls.
 
     The probe itself is delegated to the unified
-    :func:`specify_cli.git.git_topology.git_common_dir` primitive (mission
+    :func:`kernel.git_topology.git_common_dir` primitive (mission
     write-path-integrity-01KZZD69 WP01, #3373); this facade preserves the
     repo-**root** return shape (the parent of the common dir), the cache, and
     the historical error surface by mapping the primitive's typed errors onto
