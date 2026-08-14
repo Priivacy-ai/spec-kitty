@@ -60,6 +60,7 @@ def _run_core_phase_json(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> dic
             purpose_tldr=None,
             purpose_context=None,
             force_recreate_coordination_branch=False,
+            owned_checkout=None,
             json_output=True,
         )
     assert exc_info.value.exit_code == 1
