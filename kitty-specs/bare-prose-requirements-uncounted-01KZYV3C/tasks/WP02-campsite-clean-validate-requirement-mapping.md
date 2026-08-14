@@ -2,7 +2,7 @@
 work_package_id: WP02
 title: Campsite-Clean — Decompose _validate_requirement_mapping
 dependencies:
-- WP01
+- WP04
 requirement_refs: []
 subtasks:
 - T008
@@ -10,11 +10,18 @@ subtasks:
 - T010
 - T011
 - T012
-phase: Phase 1 - Foundation (parallel with WP03, WP04)
+phase: Phase 1 - Foundation (parallel with WP03; after WP04)
 history:
 - at: '2026-08-14T02:50:21Z'
   actor: system
   action: Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)
+- at: '2026-08-14T00:00:00Z'
+  actor: claude
+  action: >-
+    Fix 1 (issue #3396 fixer pass): dependency retargeted from WP01 to WP04 —
+    WP01 (baseline capture) was folded into WP04. WP02 no longer runs
+    parallel with WP04 (WP04 now runs first, alone); WP02 still runs
+    parallel with WP03.
 agent_profile: ''
 authoritative_surface: src/specify_cli/cli/commands/agent/mission_finalize.py
 create_intent: []

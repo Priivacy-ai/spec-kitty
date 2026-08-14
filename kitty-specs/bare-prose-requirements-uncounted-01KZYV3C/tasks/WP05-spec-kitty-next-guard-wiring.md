@@ -2,7 +2,7 @@
 work_package_id: WP05
 title: spec-kitty next Guard Wiring + Per-Guard Non-Vacuity Teeth Tests
 dependencies:
-- WP01
+- WP03
 requirement_refs: []
 subtasks:
 - T020
@@ -19,6 +19,17 @@ history:
 - at: '2026-08-14T02:50:21Z'
   actor: system
   action: Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)
+- at: '2026-08-14T00:00:00Z'
+  actor: claude
+  action: >-
+    Fix 1 (issue #3396 fixer pass): dependency changed from WP01 to WP03.
+    WP01 (baseline capture) was folded into WP04; WP05's baseline need is
+    now satisfied transitively via WP03's own WP04 dependency, so the direct
+    WP01/WP04 edge is dropped as redundant. This also corrects a pre-existing
+    gap: WP05's frontmatter never declared its WP03 dependency even though
+    tasks.md's own prose ("Depends on WP01 and WP03") and this file's own
+    chokepoint banner already stated WP05 needs WP03's predicate before it
+    can start — WP03 is now the sole, correct dependency edge.
 agent_profile: ''
 authoritative_surface: src/runtime/next/
 create_intent: []
@@ -53,9 +64,10 @@ model-task-routing discipline.
 This WP touches the runtime-state schema (`runtime_bridge_cores.py`'s `status_facts` /
 fact-object shape). Per this mission's tasks.md ("Parallelism & Chokepoints" section),
 **it runs alone — no other WP is scheduled concurrently with it**, even though its
-file list does not literally overlap WP06/WP07. Do not start this WP until WP01
-(baseline), WP03 (the predicate this WP calls), and — for the campsite-clean
-sequencing to make sense downstream — WP02 have all landed.
+file list does not literally overlap WP06/WP07. Do not start this WP until WP04
+(baseline capture, folded in from WP01, plus the import-boundary test), WP03 (the
+predicate this WP calls), and — for the campsite-clean sequencing to make sense
+downstream — WP02 have all landed.
 
 ---
 

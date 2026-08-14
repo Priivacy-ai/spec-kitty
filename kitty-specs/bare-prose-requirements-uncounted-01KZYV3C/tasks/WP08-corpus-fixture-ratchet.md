@@ -1,19 +1,38 @@
 ---
 work_package_id: WP08
-title: Frozen Corpus Fixture + Non-Vacuous Ratchet
+title: Frozen Corpus Fixture + Non-Vacuous Ratchet + Reflexivity Close-Out
 dependencies:
+- WP02
 - WP03
+- WP05
+- WP06
 requirement_refs: []
 subtasks:
 - T037
 - T038
 - T039
 - T040
-phase: Phase 4 - Chokepoint (sequential, alone, last-among-detector-work)
+- T041
+- T042
+- T043
+- T044
+phase: Phase 4 - Chokepoint & Closeout (sequential, alone, last)
 history:
 - at: '2026-08-14T02:50:21Z'
   actor: system
   action: Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)
+- at: '2026-08-14T00:00:00Z'
+  actor: claude
+  action: >-
+    Fix 1 (issue #3396 fixer pass, ledger SK-24): folded WP09 (Reflexivity —
+    In-Flight Mission Census & PR Description, T041-T044) into this WP — WP09
+    was execution_mode planning_artifact with owned_files [], which
+    finalize-tasks/compute_lanes cannot represent. WP08 absorbs WP09 because it
+    was already the mission's last chokepoint, sequenced after every
+    implementation WP; the fold requires no new WP-level dependency edges
+    beyond what WP08's own prose already claimed ("sequenced after WP05 and
+    WP06") plus WP09's own WP02 dependency, now added explicitly. See
+    tracer-design-decisions.md for the full placement rationale.
 agent_profile: ''
 authoritative_surface: tests/architectural/
 create_intent:
@@ -30,7 +49,7 @@ task_type: implement
 tracker_refs: []
 ---
 
-# Work Package Prompt: WP08 – Frozen Corpus Fixture + Non-Vacuous Ratchet
+# Work Package Prompt: WP08 – Frozen Corpus Fixture + Non-Vacuous Ratchet + Reflexivity Close-Out
 
 ## ⚡ Do This First: Load Agent Profile
 
@@ -51,13 +70,26 @@ note).
 
 ## Objectives & Success Criteria
 
-Implement IC-06 (plan.md): commit the 9-spec baseline signature and the shrink-only,
-**non-vacuous** ratchet test (charter Standing Order 5: concrete floor + self-mutation
-test + shrink-only allowlist — "a gate-unmask cannot self-validate").
+**This WP now carries two objectives, folded together by the Fix 1 restructure (issue
+#3396 fixer pass, ledger SK-24) — T037-T040 (this WP's original scope) land first;
+T041-T044 (folded from WP09) run last, since the reflexivity census must audit the
+*shipped* detector, not an intermediate state.**
 
-Success: all four assertions below pass in the committed test module, using a signature
-re-verified against the then-current corpus, not copy-pasted from spec.md's plan-time
-figure unverified.
+**Objective A (T037-T040, original scope) — Frozen Corpus Fixture + Non-Vacuous
+Ratchet**: Implement IC-06 (plan.md): commit the 9-spec baseline signature and the
+shrink-only, **non-vacuous** ratchet test (charter Standing Order 5: concrete floor +
+self-mutation test + shrink-only allowlist — "a gate-unmask cannot self-validate").
+
+**Objective B (T041-T044, folded from WP09) — Reflexivity: In-Flight Mission Census &
+PR Description**: Implement Story 6 / FR-009: state plainly what happens to every other
+mission currently in flight when this change lands, including confirmation that this
+mission's own spec.md does not block. This is the mission's own close-out step.
+
+Success: (A) all four ratchet assertions pass in the committed test module, using a
+signature re-verified against the then-current corpus, not copy-pasted from spec.md's
+plan-time figure unverified; (B) the implementing PR's description names any currently
+in-flight mission (at merge time) whose spec.md would newly block under the shipped
+detector, and states the operator-facing remediation.
 
 ## Context & Constraints
 
@@ -86,6 +118,16 @@ figure unverified.
   substitute: it must be run once and observed **failing** (stubbed detector → ratchet
   test fails) before this WP is marked done — the same red-then-green evidence C-011
   asks for, applied to the gate itself rather than to a production behaviour change.
+- **T041-T044 constraints, folded from WP09**: this portion audits every implementation
+  WP's *shipped* state, so it must run only after WP02, WP03, WP05, and WP06 have all
+  landed (see this WP's `dependencies` frontmatter, updated for the fold) — it is the
+  mission's last step by design. Read plan.md's "Reflexivity (Story 6 / FR-009)"
+  section — it already confirms, at plan time, that this mission's own spec.md contains
+  zero bare-prose requirements (every FR/NFR/C row is a proper markdown table row).
+  T042 re-confirms that live, against the shipped detector, not the plan-time claim
+  alone. Per spec.md: **no code-level grandfathering is proposed** — the remediation
+  for any newly-blocking in-flight mission is to rewrite its bare-prose requirements
+  into a declared shape.
 
 ## Branch Strategy
 
@@ -129,12 +171,53 @@ figure unverified.
   `find_bare_prose_requirement_ids` to always return an empty result, and assert the
   ratchet test above then **fails** (not errors, not skips).
 
+### Subtask T041 – Run the reflexivity census (folded from WP09)
+
+- **Purpose**: FR-009's in-flight mission census, deferred to implementation/close-out
+  time since the in-flight set changes daily.
+- **Steps**: Run the finished, fully-wired `find_bare_prose_requirement_ids` against
+  every `kitty-specs/*/spec.md` belonging to a mission not yet merged at the time this
+  subtask executes. Record which ones would newly block.
+
+### Subtask T042 – Re-confirm this mission's own spec.md (folded from WP09)
+
+- **Purpose**: Story 6 AC2.
+- **Steps**: Re-run the shipped detector against this mission's own
+  `kitty-specs/bare-prose-requirements-uncounted-01KZYV3C/spec.md` and confirm it does
+  not block, live — do not rely solely on plan.md's plan-time claim.
+
+### Subtask T043 – Draft the PR description content (folded from WP09)
+
+- **Purpose**: FR-009's operator-facing disclosure requirement.
+- **Steps**: Name any newly-blocking in-flight missions found in T041, and state the
+  remediation path (rewrite bare-prose requirements into a declared shape — no
+  code-level grandfathering).
+
+### Subtask T044 – Final close-out verification (folded from WP09)
+
+- **Purpose**: NFR-003/NFR-004 close-out; confirm the mission's overall test/lint state
+  before the PR is marked ready.
+- **Steps**: Run the full Targeted Test Surface one final time (never the full
+  `pytest tests/`):
+```bash
+PWHEADLESS=1 pytest \
+  tests/specify_cli/test_requirement_mapping.py \
+  tests/specify_cli/test_requirement_mapping_coord_surface.py \
+  tests/next/ tests/specify_cli/next/ tests/runtime/ \
+  tests/architectural/test_bare_prose_corpus_ratchet.py \
+  tests/architectural/test_bridge_cores_import_boundary.py \
+  -n 8 --dist loadfile -q
+```
+  Then run `ruff check` and `mypy --strict` on every file this mission touched;
+  confirm zero new issues/suppressions.
+
 ## Test Strategy
 
 - `pytest tests/architectural/test_bare_prose_corpus_ratchet.py -q` (and its teeth-test
   sibling if split into a separate file).
 - This test walks the full `kitty-specs/*/spec.md` corpus at run time — confirm it does
   not require network access or write to the corpus.
+- T041-T044 add no new test file; T044's own final targeted-surface run is the "test."
 
 ## Risks & Mitigations
 
@@ -142,15 +225,25 @@ figure unverified.
   this WP with only T038's two assertions.
 - Snapshotting at the wrong point (before WP05/WP06 land the final shipped shape) —
   mitigated by this WP's own sequencing (last, after all other implementation WPs).
+- A stale census (T041-T044, run too early, missing a mission that entered the
+  in-flight set later) — mitigated by running the census as this WP's own final
+  subtasks, as close to actual merge time as the mission's own execution allows.
 
 ## Review Guidance
 
-- Confirm all four assertions are present and each is independently testable (a
+- Confirm all four ratchet assertions are present and each is independently testable (a
   reviewer should be able to see T040's teeth test actually fail when run against a
   deliberately-stubbed detector).
 - Confirm the fixture was re-verified at this WP's execution time, not copied from
   spec.md.
+- Confirm the PR description actually contains the T041 census results and the T043
+  remediation statement — not merely a claim that it was checked.
+- Confirm T044's `ruff`/`mypy --strict` run is clean with zero new suppressions.
 
 ## Activity Log
 
 - 2026-08-14T02:50:21Z – system – Prompt created.
+- 2026-08-14 – claude – Fix 1 (issue #3396 fixer pass): folded WP09's T041-T044
+  (Reflexivity — In-Flight Mission Census & PR Description) into this WP per
+  operator-authorised restructure. See tracer-design-decisions.md for placement
+  rationale.

@@ -2,7 +2,7 @@
 work_package_id: WP03
 title: New Bare-Prose Predicate — find_bare_prose_requirement_ids
 dependencies:
-- WP01
+- WP04
 requirement_refs: []
 subtasks:
 - T013
@@ -11,11 +11,18 @@ subtasks:
 - T016
 - T017
 - T018
-phase: Phase 1 - Foundation (parallel with WP02, WP04)
+phase: Phase 1 - Foundation (parallel with WP02; after WP04)
 history:
 - at: '2026-08-14T02:50:21Z'
   actor: system
   action: Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)
+- at: '2026-08-14T00:00:00Z'
+  actor: claude
+  action: >-
+    Fix 1 (issue #3396 fixer pass): dependency retargeted from WP01 to WP04 —
+    WP01 (baseline capture) was folded into WP04. WP03 no longer runs
+    parallel with WP04 (WP04 now runs first, alone); WP03 still runs
+    parallel with WP02.
 agent_profile: ''
 authoritative_surface: src/specify_cli/requirement_mapping.py
 create_intent: []
@@ -99,7 +106,8 @@ Story 5's fault-injection case surfaces an explicit failure, never `[]`.
   implementation commit.
 - **Steps**: Write test(s) in `tests/specify_cli/test_requirement_mapping.py` for
   `find_bare_prose_requirement_ids` against Story 1's exact repro. Run against
-  **`ab15225ea`** (reuse WP01's worktree or check out fresh) and confirm RED — the
+  **`ab15225ea`** (reuse WP04's baseline worktree, T001, or check out fresh) and
+  confirm RED — the
   function does not exist yet, so this should fail with an import/attribute error at
   minimum; verify it fails for the *right* reason (missing function), not an unrelated
   syntax error in the test itself.

@@ -18,6 +18,24 @@ behaviour-changing work package, not an optional stakeholder request.
 Each work package is independently reviewable and, other than the two declared
 chokepoints (WP05, WP08), independently deliverable.
 
+**Fix 1 restructure note (issue #3396 fixer pass, ledger SK-24, operator-authorised)**:
+this mission originally had nine work packages. Two — WP01 (Baseline Capture &
+Pre-Existing Failure Audit) and WP09 (Reflexivity — In-Flight Mission Census & PR
+Description) — declared `execution_mode: planning_artifact` with `owned_files: []`
+because they own no code file. That shape cannot be satisfied by `finalize-tasks`:
+`build_wp_manifests` (`src/specify_cli/ownership/validation.py:335-358`) only builds an
+ownership manifest `if fm.execution_mode and fm.owned_files` — an empty `owned_files`
+list is falsy, so no manifest is built — and `compute_lanes`
+(`src/specify_cli/lanes/compute.py:326-336`) then raises `LaneComputationError` for any
+WP with no manifest, unable to distinguish "code WP missing metadata" from
+"planning-artifact WP that correctly owns nothing." This is a pre-existing `main`
+defect (not introduced by this mission, not fixed by this mission — see ledger SK-24),
+so the WPs were folded into code-owning WPs instead: **WP01's subtasks (T001-T007) are
+now WP04's own first subtasks**, and **WP09's subtasks (T041-T044) are now WP08's own
+last subtasks**. The mission is now **seven work packages** (WP02–WP08). See
+`tracer-design-decisions.md` for the full placement rationale and `tracer-tooling-friction.md`
+for the verified-first-hand reproduction of the underlying tooling gap.
+
 **Branch / base — read before starting any WP**: this mission's `planning_base_branch`
 for ATDD RED verification is **`ab15225ea`** (tip of
 `origin/op/3394-requirement-citation-scope`), **not** `main` and **not** the
@@ -53,7 +71,9 @@ No web/mobile/multi-package split — see plan.md's "Project Structure".
 ## Parallelism & Chokepoints (read before scheduling any WP)
 
 **Genuinely parallel-eligible** (disjoint write-scope, no chokepoint touched):
-**WP02 + WP03 + WP04** may run concurrently once WP01 (baseline) is captured.
+**WP04** (baseline capture, folded in from WP01, plus the architectural
+import-boundary test) runs first, alone — see the Fix 1 restructure note above.
+**WP02 + WP03** may run concurrently once WP04 has completed.
 **WP06 + WP07** may run concurrently once WP05 (the chokepoint below) has landed.
 Verified disjoint file sets — see each WP's `Requirement Refs`/file list; no two
 concurrently-eligible WPs write the same file.
@@ -132,73 +152,6 @@ source files named above.
 
 ---
 
-## Work Package WP01: Baseline Capture & Pre-Existing Failure Audit (Priority: P0)
-
-**Goal**: Establish the mission's actual RED/GREEN starting point before any code
-changes, per plan.md's "Baseline Capture on `ab15225ea`" section — verbatim procedure,
-not the CLI-computed (and here, wrong) `planning_base_branch`.
-**Independent Test**: A recorded red-test-ID list from `ab15225ea`, diffed explicitly
-against issue #3284's ~23-known-red-on-`main` set, with a stated match/mismatch
-verdict; any newly-discovered pre-existing failure has an upstream GitHub issue filed
-before this WP is considered done (charter's Pre-existing Failure Reporting Rule).
-**Prompt**: `/tasks/WP01-baseline-capture.md`
-**Requirement Refs**: C-003, C-005
-
-### Included Subtasks
-
-T001 Create an isolated worktree/clone at `ab15225ea` (tip of
-`origin/op/3394-requirement-citation-scope`): `git worktree add /tmp/baseline-ab15225ea ab15225ea`
-T002 `cd /tmp/baseline-ab15225ea && uv sync --all-extras`
-T003 Run the exact Targeted Test Surface command from plan.md:
-```bash
-PWHEADLESS=1 .venv/bin/python -m pytest \
-  tests/specify_cli/test_requirement_mapping.py \
-  tests/specify_cli/test_requirement_mapping_coord_surface.py \
-  tests/next/ tests/specify_cli/next/ tests/runtime/ \
-  -n 8 --dist loadfile -q
-```
-NEVER `-n auto` — deadlocks this 24-core box (documented repo-wide trap).
-T004 Record the red count and failing test IDs verbatim.
-T005 Diff the recorded red set against issue #3284's ~23 known-red-on-`main` tests by
-name; state explicitly, in the mission's implementation record (append to
-`tracer-tooling-friction.md`), whether the `ab15225ea` red set matches #3284's `main`
-set — plan.md explicitly does NOT assume they match, since `ab15225ea` carries #3395's
-unreviewed ~863-line rewrite that `main` does not.
-T006 For any red test not already covered by a filed, referenced upstream issue, open a
-new GitHub issue per the charter's Pre-existing Failure Reporting Rule (command run,
-failure summary, why believed pre-existing) **before** treating it as accepted baseline.
-T007 Also verify, live at execution time (not from a stale count), that every commit
-strictly between `ab15225ea` and the then-current tip is `spec(...)` /
-`fix(spec: ...)` / `reviews(spec: ...)` / `plan(...)` / meta-add shaped — zero
-implementation-shaped commits — per plan.md's PLAN-VERIFY-003 falsifiability note.
-
-### Implementation Notes
-
-- No production code changes in this WP. Output is a recorded finding (baseline red
-  set + #3284 diff verdict + any newly-filed issue links), appended to
-  `tracer-tooling-friction.md` and/or `tracer-approach.md` per Standing Order 3
-  (mission tracer files — append during implementation, never recreate).
-- This WP gates every other WP's ATDD RED verification: WP03/WP05/WP06 each re-run
-  their own new failing-first test against this same `ab15225ea` tip to confirm RED,
-  reusing the worktree this WP establishes (or a fresh one at the same ref).
-
-### Parallel Opportunities
-
-- None. This WP is the mission's first step and everything else in the mission depends
-  on its recorded baseline for RED verification.
-
-### Dependencies
-
-- None (starting package).
-
-### Risks & Mitigations
-
-- Misattributing a genuinely new regression as "pre-existing baseline" → mitigated by
-  the explicit #3284-diff requirement (T005) and the Pre-existing Failure Reporting
-  Rule (T006), both binding, not advisory.
-
----
-
 ## Work Package WP02: Campsite-Clean — Decompose `_validate_requirement_mapping` (Priority: P0) `[P]`
 
 **Goal**: Land the charter Standing Order 2 "campsite cleaning" FIRST commit,
@@ -249,13 +202,15 @@ than trusting this note) unmodified and green.
 
 ### Parallel Opportunities
 
-- Runs concurrently with WP03 and WP04 — disjoint files
-  (`mission_finalize.py` vs. `requirement_mapping.py` vs. a brand-new architectural test
-  file that only reads `runtime_bridge_cores.py`).
+- Runs concurrently with WP03 — disjoint files (`mission_finalize.py` vs.
+  `requirement_mapping.py`). No longer concurrent with WP04 (Fix 1 restructure,
+  issue #3396 fixer pass): WP04 now runs first, alone, since it carries the folded-in
+  WP01 baseline-capture gate.
 
 ### Dependencies
 
-- Depends on WP01 (baseline captured first).
+- Depends on WP04 (baseline captured first — WP01's baseline-capture work is folded
+  into WP04; see the Fix 1 restructure note at the top of this file).
 
 ### Risks & Mitigations
 
@@ -325,11 +280,14 @@ declared shape inside one) stays non-blocking.
 
 ### Parallel Opportunities
 
-- Runs concurrently with WP02 and WP04 — disjoint files.
+- Runs concurrently with WP02 — disjoint files. No longer concurrent with WP04 (Fix 1
+  restructure, issue #3396 fixer pass): WP04 now runs first, alone, since it carries
+  the folded-in WP01 baseline-capture gate.
 
 ### Dependencies
 
-- Depends on WP01.
+- Depends on WP04 (WP01's baseline-capture work is folded into WP04; see the Fix 1
+  restructure note at the top of this file).
 
 ### Risks & Mitigations
 
@@ -339,55 +297,108 @@ declared shape inside one) stays non-blocking.
 
 ---
 
-## Work Package WP04: Architectural Import-Boundary Test for `runtime_bridge_cores.py` (Priority: P1) `[P]`
+## Work Package WP04: Baseline Capture & Architectural Import-Boundary Test for `runtime_bridge_cores.py` (Priority: P0) — runs first, alone
 
-**Goal**: Implement IC-08 — pin `runtime_bridge_cores.py`'s "zero-dependency leaf"
-invariant (its own module docstring claim, C-007) by construction, ahead of WP05's edit
-to that same file, so a future (or this mission's own) regression that adds a
-cross-package import is caught mechanically, not by convention.
-**Independent Test**: `pytest tests/architectural/test_bridge_cores_import_boundary.py`
+**Fix 1 restructure note (issue #3396 fixer pass, ledger SK-24)**: this WP now carries
+two objectives. T001-T007 are WP01's own subtasks, folded in because WP01
+(`execution_mode: planning_artifact`, `owned_files: []`) had no valid representation
+`finalize-tasks`/`compute_lanes` could accept (see the restructure note at the top of
+this file). T001-T007 run FIRST, as a sequential prefix, before T019 — the baseline
+must be captured before ANY change lands, including this WP's own new test file.
+
+**Goal**: (A, folded from WP01) Establish the mission's actual RED/GREEN starting point
+before any code changes, per plan.md's "Baseline Capture on `ab15225ea`" section —
+verbatim procedure, not the CLI-computed (and here, wrong) `planning_base_branch`. (B,
+original scope) Implement IC-08 — pin `runtime_bridge_cores.py`'s "zero-dependency
+leaf" invariant (its own module docstring claim, C-007) by construction, ahead of
+WP05's edit to that same file, so a future (or this mission's own) regression that adds
+a cross-package import is caught mechanically, not by convention.
+**Independent Test**: (A) A recorded red-test-ID list from `ab15225ea`, diffed
+explicitly against issue #3284's ~23-known-red-on-`main` set, with a stated
+match/mismatch verdict; any newly-discovered pre-existing failure has an upstream
+GitHub issue filed before this WP is considered done (charter's Pre-existing Failure
+Reporting Rule). (B) `pytest tests/architectural/test_bridge_cores_import_boundary.py`
 passes on the current, unmodified `runtime_bridge_cores.py`; a synthetic
 `import specify_cli` (or any non-stdlib, non-`runtime.next.decision` import) inserted
 into a scratch copy fails the same test.
 **Prompt**: `/tasks/WP04-bridge-cores-import-boundary.md`
-**Requirement Refs**: C-007
+**Requirement Refs**: C-003, C-005 (folded from WP01), C-007
 
 ### Included Subtasks
 
+T001 Create an isolated worktree/clone at `ab15225ea` (tip of
+`origin/op/3394-requirement-citation-scope`): `git worktree add /tmp/baseline-ab15225ea ab15225ea`
+T002 `cd /tmp/baseline-ab15225ea && uv sync --all-extras`
+T003 Run the exact Targeted Test Surface command from plan.md:
+```bash
+PWHEADLESS=1 .venv/bin/python -m pytest \
+  tests/specify_cli/test_requirement_mapping.py \
+  tests/specify_cli/test_requirement_mapping_coord_surface.py \
+  tests/next/ tests/specify_cli/next/ tests/runtime/ \
+  -n 8 --dist loadfile -q
+```
+NEVER `-n auto` — deadlocks this 24-core box (documented repo-wide trap).
+T004 Record the red count and failing test IDs verbatim.
+T005 Diff the recorded red set against issue #3284's ~23 known-red-on-`main` tests by
+name; state explicitly, in the mission's implementation record (append to
+`tracer-tooling-friction.md`), whether the `ab15225ea` red set matches #3284's `main`
+set — plan.md explicitly does NOT assume they match, since `ab15225ea` carries #3395's
+unreviewed ~863-line rewrite that `main` does not.
+T006 For any red test not already covered by a filed, referenced upstream issue, open a
+new GitHub issue per the charter's Pre-existing Failure Reporting Rule (command run,
+failure summary, why believed pre-existing) **before** treating it as accepted baseline.
+T007 Also verify, live at execution time (not from a stale count), that every commit
+strictly between `ab15225ea` and the then-current tip is `spec(...)` /
+`fix(spec: ...)` / `reviews(spec: ...)` / `plan(...)` / meta-add shaped — zero
+implementation-shaped commits — per plan.md's PLAN-VERIFY-003 falsifiability note.
 T019 [P] Add `tests/architectural/test_bridge_cores_import_boundary.py`, following the
 existing precedent shape (`tests/architectural/test_kernel_no_doctrine_import.py` et
 al.): parse `src/runtime/next/runtime_bridge_cores.py`'s AST `Import`/`ImportFrom`
 nodes and assert every non-stdlib import target is `runtime.next.decision` (confirmed
 by direct read: the file's own top-of-file imports, lines 70-77, already only carry
-stdlib + `runtime.next.decision`).
+stdlib + `runtime.next.decision`). Run AFTER T001-T007 (baseline must be captured
+before this new file lands).
 
 ### Implementation Notes
 
-- This is a new test file only — it does not modify `runtime_bridge_cores.py` itself.
-  It is safe to land before, during, or after WP05 (which does edit that file); landing
-  it first (as scheduled) means WP05's own new imports are checked by construction as
-  they are added, not after the fact.
-- **ATDD/C-011 applicability (mirrors WP02's and WP08's own disclosure)**: this WP ships
-  a new architectural test with no accompanying production behaviour change, so charter
-  C-011's literal failing-first-separate-commit form does not apply — there is no
-  user-observable behaviour to pin RED against. The test's own negative-case
-  verification (a synthetic bad import manually confirmed, once during development, to
-  fail the test, then reverted — see Test Strategy) is the substitute regression
-  evidence.
+- T001-T007: No production code changes. Output is a recorded finding (baseline red
+  set + #3284 diff verdict + any newly-filed issue links), appended to
+  `tracer-tooling-friction.md` and/or `tracer-approach.md` per Standing Order 3
+  (mission tracer files — append during implementation, never recreate). This subtask
+  set gates every other WP's ATDD RED verification: WP03/WP05/WP06 each re-run their
+  own new failing-first test against this same `ab15225ea` tip to confirm RED, reusing
+  the worktree T001 establishes (or a fresh one at the same ref).
+- T019: This is a new test file only — it does not modify `runtime_bridge_cores.py`
+  itself. It is safe to land before, during, or after WP05 (which does edit that
+  file); landing it first (as scheduled) means WP05's own new imports are checked by
+  construction as they are added, not after the fact.
+- **ATDD/C-011 applicability for T019 (mirrors WP02's and WP08's own disclosure)**:
+  this subtask ships a new architectural test with no accompanying production
+  behaviour change, so charter C-011's literal failing-first-separate-commit form does
+  not apply — there is no user-observable behaviour to pin RED against. The test's own
+  negative-case verification (a synthetic bad import manually confirmed, once during
+  development, to fail the test, then reverted — see Test Strategy) is the substitute
+  regression evidence.
 
 ### Parallel Opportunities
 
-- Runs concurrently with WP02 and WP03 — disjoint files; this WP's only touched file
-  (`tests/architectural/test_bridge_cores_import_boundary.py`) is new and read-only
-  against the file it inspects.
+- **None — this WP runs alone, first.** Fix 1 restructure (issue #3396 fixer pass):
+  folding WP01's baseline-capture gate into this WP means WP04 itself is no longer
+  parallel-eligible with WP02/WP03 (it must complete before either can start); WP02
+  and WP03 remain parallel with EACH OTHER once WP04 completes.
 
 ### Dependencies
 
-- None beyond WP01 (baseline). Plan.md notes this concern "can land any time."
+- None (starting package — this WP now occupies WP01's former "first, gates
+  everything" role, per the Fix 1 restructure note at the top of this file).
 
 ### Risks & Mitigations
 
-- Low; a mechanical AST-walk test with an existing repo-wide precedent pattern to copy.
+- Misattributing a genuinely new regression as "pre-existing baseline" (T001-T007) →
+  mitigated by the explicit #3284-diff requirement (T005) and the Pre-existing Failure
+  Reporting Rule (T006), both binding, not advisory.
+- Low risk on T019; a mechanical AST-walk test with an existing repo-wide precedent
+  pattern to copy.
 
 ---
 
@@ -491,8 +502,10 @@ still pass, unmodified in their pinned assertions.
 
 ### Dependencies
 
-- Depends on WP01 (baseline) and WP03 (needs `find_bare_prose_requirement_ids` to call
-  from the new gather step).
+- Depends on WP03 (needs `find_bare_prose_requirement_ids` to call from the new gather
+  step; WP03 itself depends on WP04, which now carries the folded-in WP01
+  baseline-capture gate, so WP05's baseline need is satisfied transitively — see the
+  Fix 1 restructure note at the top of this file).
 
 ### Risks & Mitigations
 
@@ -687,20 +700,34 @@ FP rate WP03/T015 already recorded, so both figures live in one place.
 
 ---
 
-## Work Package WP08: Frozen Corpus Fixture + Non-Vacuous Ratchet (Priority: P0) — CHOKEPOINT, sequential, last
+## Work Package WP08: Frozen Corpus Fixture + Non-Vacuous Ratchet + Reflexivity Close-Out (Priority: P0) — CHOKEPOINT, sequential, last
 
-**Goal**: Implement IC-06 — commit the 9-spec baseline signature and the shrink-only,
-**non-vacuous** ratchet test (charter Standing Order 5: concrete floor + self-mutation
-test + shrink-only allowlist — a gate-unmask cannot self-validate).
-**Independent Test**: The four assertions plan.md's "The False-Positive Fixture"
+**Fix 1 restructure note (issue #3396 fixer pass, ledger SK-24)**: this WP now carries
+two objectives. T041-T044 are WP09's own subtasks, folded in because WP09
+(`execution_mode: planning_artifact`, `owned_files: []`) had no valid representation
+`finalize-tasks`/`compute_lanes` could accept (see the restructure note at the top of
+this file). T037-T040 (this WP's original scope) land first; T041-T044 run last, since
+the reflexivity census must audit the *shipped* detector, not an intermediate state.
+
+**Goal**: (A, original scope) Implement IC-06 — commit the 9-spec baseline signature
+and the shrink-only, **non-vacuous** ratchet test (charter Standing Order 5: concrete
+floor + self-mutation test + shrink-only allowlist — a gate-unmask cannot
+self-validate). (B, folded from WP09) Implement Story 6 / FR-009 — state plainly what
+happens to every other mission currently in flight when this change lands, including a
+confirmation that this mission's own spec.md does not block.
+**Independent Test**: (A) The four assertions plan.md's "The False-Positive Fixture"
 section specifies, all in the same test module: (1) no spec outside the fixture is
 newly flagged; (2) every fixture spec's live `flagged_ids` is a subset of (or equal to)
 its recorded set; (3) every fixture spec's live result is **non-empty** (the concrete
 floor); (4) a self-mutation ("teeth") test that stubs the detector to always return
-`[]` and asserts the ratchet test then **fails**, not skips.
+`[]` and asserts the ratchet test then **fails**, not skips. (B) The implementing PR's
+description names any currently in-flight mission (at merge time) whose spec.md would
+newly block under the shipped detector, and states the operator-facing remediation
+(rewrite into a declared shape — no code-level grandfathering, per the spec's own
+stated policy).
 **Prompt**: `/tasks/WP08-corpus-fixture-ratchet.md`
 **Requirement Refs**: FR-005, NFR-004 (SC-006 is the success-criterion label for this
-WP's deliverable)
+WP's deliverable), FR-009 (folded from WP09)
 
 **ATDD/C-011 applicability (mirrors WP02's own disclosure)**: this WP is test-only — it
 ships a new CI gate, not a production implementation. Charter C-011's literal
@@ -709,7 +736,9 @@ in its usual shape here, because there is no separate production code change to 
 against. T040's self-mutation ("teeth") test is this WP's load-bearing substitute: it
 must be run once and observed **failing** (stubbed detector → ratchet test fails) before
 the WP is marked done, giving the same red-then-green evidence C-011 asks for, applied
-to the gate itself rather than to a production behaviour change.
+to the gate itself rather than to a production behaviour change. T041-T044 (folded from
+WP09) ship no new test file; they are the mission's documentation/verification
+close-out, not a production behaviour change either.
 
 ### Included Subtasks
 
@@ -730,111 +759,92 @@ T040 Add assertion (4) / the self-mutation teeth test (same module or a sibling
 `test_bare_prose_corpus_ratchet_teeth.py`): monkeypatch/stub
 `find_bare_prose_requirement_ids` to always return `[]`, assert the ratchet test then
 fails (not errors, not skips) — proving the gate itself is load-bearing.
+T041 (folded from WP09) Run the finished, fully-wired detector
+(`find_bare_prose_requirement_ids`) against every `kitty-specs/*/spec.md` belonging to
+a mission not yet merged at the time this subtask executes (the in-flight set changes
+daily — plan.md explicitly defers this census to implementation time, close to merge,
+rather than plan time).
+T042 (folded from WP09) Confirm this mission's own spec.md does not block (Story 6
+AC2) — plan.md already verified this by construction at plan time; re-confirm live
+against the shipped detector, not the plan-time claim alone.
+T043 (folded from WP09) Draft the PR description content naming any newly-blocking
+in-flight missions and the operator remediation path (rewrite bare-prose requirements
+into a declared shape).
+T044 (folded from WP09) Run the full Targeted Test Surface one final time (not the full
+`pytest tests/`) plus `ruff check` and `mypy --strict` on every file this mission
+touched, confirming zero new issues/suppressions (NFR-003) before the PR is marked
+ready.
 
 ### Implementation Notes
 
-- This is deliberately **not** a live-scored percentage re-run at CI time — it never
-  recomputes "9/368"; it only asks whether the flagged *set* grew and is still
-  non-empty where it should be. A future, unrelated mission adding a new
+- T037-T040: This is deliberately **not** a live-scored percentage re-run at CI time —
+  it never recomputes "9/368"; it only asks whether the flagged *set* grew and is
+  still non-empty where it should be. A future, unrelated mission adding a new
   `kitty-specs/*/spec.md` cannot flip this gate red merely by existing.
 - Sequenced last among detector-adjacent work (this WP's own stated risk in plan.md):
   snapshotting before WP05/WP06 land the final shipped shape bakes in a stale
   signature.
+- T041-T044: this subtask set is the mission's own close-out step — it depends on
+  every implementation WP above having landed, since it audits the *shipped*
+  detector's real-world blast radius, not a plan-time projection.
 
 ### Parallel Opportunities
 
 - **None.** This WP is a declared chokepoint (the corpus ratchet is a shared CI gate)
   — see "Parallelism & Chokepoints" above. It runs alone, after every other
-  implementation WP.
+  implementation WP, and is now also the mission's last step by design (T041-T044's
+  in-flight census must reflect the state at/near merge time).
 
 ### Dependencies
 
-- Depends on WP03 (needs the live detector), and — because it must snapshot the final
-  shipped behaviour, not an intermediate state — is sequenced after WP05 and WP06 have
-  both landed.
+- Depends on WP02, WP03, WP05, WP06 (all other implementation WPs having landed).
+  WP03 is needed for the live detector (T037); WP02, WP05, WP06 are needed because
+  T044's close-out audits every implementation WP's shipped state (folded from WP09's
+  own dependency list). WP07 (informational) does not gate this WP. This also
+  supersedes this WP's own prior prose-only "sequenced after WP05 and WP06" note with
+  an explicit frontmatter `dependencies` edge — see the Fix 1 restructure note at the
+  top of this file.
 
 ### Risks & Mitigations
 
 - A vacuous, always-passing gate (a collapsed detector trivially satisfies
   shrink-only-subset checks) — this is exactly why assertions (3) and (4) exist;
   without them this WP would not satisfy Standing Order 5's non-vacuity requirement.
-
----
-
-## Work Package WP09: Reflexivity — In-Flight Mission Census & PR Description (Priority: P2) — sequential, last
-
-**Goal**: Implement Story 6 / FR-009 — state plainly what happens to every other
-mission currently in flight when this change lands, including a confirmation that this
-mission's own spec.md does not block.
-**Independent Test**: The implementing PR's description names any currently in-flight
-mission (at merge time) whose spec.md would newly block under the shipped detector, and
-states the operator-facing remediation (rewrite into a declared shape — no code-level
-grandfathering, per the spec's own stated policy).
-**Prompt**: `/tasks/WP09-reflexivity-pr-description.md`
-**Requirement Refs**: FR-009
-
-### Included Subtasks
-
-T041 Run the finished, fully-wired detector (`find_bare_prose_requirement_ids`) against
-every `kitty-specs/*/spec.md` belonging to a mission not yet merged at the time this WP
-executes (the in-flight set changes daily — plan.md explicitly defers this census to
-implementation time, close to merge, rather than plan time).
-T042 Confirm this mission's own spec.md does not block (Story 6 AC2) — plan.md already
-verified this by construction at plan time; re-confirm live against the shipped
-detector, not the plan-time claim alone.
-T043 Draft the PR description content naming any newly-blocking in-flight missions and
-the operator remediation path (rewrite bare-prose requirements into a declared shape).
-T044 Run the full Targeted Test Surface one final time (not the full `pytest tests/`)
-plus `ruff check` and `mypy --strict` on every file this mission touched, confirming
-zero new issues/suppressions (NFR-003) before the PR is marked ready.
-
-### Implementation Notes
-
-- This WP is the mission's own close-out step — it depends on every implementation WP
-  above having landed, since it audits the *shipped* detector's real-world blast radius,
-  not a plan-time projection.
-
-### Parallel Opportunities
-
-- None — this is the mission's last step by design (the in-flight census must reflect
-  the state at/near merge time).
-
-### Dependencies
-
-- Depends on WP02, WP03, WP05, WP06, WP08 (all implementation WPs) having landed.
-  WP07 (informational) does not gate this WP.
-
-### Risks & Mitigations
-
-- A stale census (run too early, missing a mission that entered the in-flight set
-  later) — mitigated by sequencing this WP last, as close to actual merge time as the
-  mission's own execution allows.
+- A stale census (T041-T044, run too early, missing a mission that entered the
+  in-flight set later) — mitigated by running the census as this WP's own final
+  subtasks, as close to actual merge time as the mission's own execution allows.
 
 ---
 
 ## Dependency & Execution Summary
 
+**Fix 1 restructure note (issue #3396 fixer pass, ledger SK-24)**: WP01 and WP09 are
+folded into WP04 and WP08 respectively (see the restructure note at the top of this
+file); this diagram reflects the resulting seven-WP graph.
+
 ```
-WP01 (baseline, sequential, first)
+WP04 (baseline + import-boundary, sequential, first, alone)
   └─▶ WP02 [P] ─┐
-  └─▶ WP03 [P] ─┼─▶ WP05 (CHOKEPOINT, sequential, alone) ─┬─▶ WP06 ─┐
-  └─▶ WP04 [P] ─┘                                          ├─▶ WP07 ─┼─▶ WP08 (CHOKEPOINT, sequential, alone, last-among-detector-work)
-                                                             (WP06 ∥ WP07,                 └─▶ WP09 (sequential, last)
-                                                              both after WP05)
+  └─▶ WP03 [P] ─┴─▶ WP05 (CHOKEPOINT, sequential, alone) ─┬─▶ WP06 ─┐
+                                                            ├─▶ WP07 ─┼─▶ WP08 (CHOKEPOINT, sequential, alone, last — incl. reflexivity close-out)
+                                                            (WP06 ∥ WP07,      ▲
+                                                             both after WP05)  │
+                                          WP02 ──────────────────────────────┘
 ```
 
-- **Sequence**: WP01 → {WP02, WP03, WP04 in parallel} → WP05 (alone) →
-  {WP06, WP07 in parallel} → WP08 (alone) → WP09 (alone, last).
-- **Parallelization**: WP02+WP03+WP04 (Phase 1); WP06+WP07 (Phase 3). No other pairing
-  is parallel-eligible — WP05 and WP08 are declared chokepoints that serialize the
-  mission at those points (see "Parallelism & Chokepoints" above for the explicit
-  rationale, including the judgment call on how literally to read "serializes the
-  mission").
+- **Sequence**: WP04 (alone, first) → {WP02, WP03 in parallel} → WP05 (alone) →
+  {WP06, WP07 in parallel} → WP08 (alone, last — depends on WP02, WP03, WP05, WP06).
+- **Parallelization**: WP02+WP03 (Phase 1, after WP04); WP06+WP07 (Phase 3). No other
+  pairing is parallel-eligible — WP04, WP05, and WP08 each run alone at their point in
+  the sequence (WP04 because it now carries the folded-in baseline-capture gate; WP05
+  and WP08 remain the mission's declared chokepoints — see "Parallelism & Chokepoints"
+  above for the explicit rationale, including the judgment call on how literally to
+  read "serializes the mission").
 - **No MVP subset call-out**: unlike a typical incremental-delivery mission, this
   mission has no partial-ship option — Story 1 (the mission's whole reason to exist)
   is not achieved until WP05 and WP06 both land, and Story 4/SC-006's non-vacuous gate
   (WP08) is a binding completion requirement (charter Standing Order 5), not optional
-  polish. All nine WPs ship together in the one PR.
+  polish. All seven WPs ship together in the one PR.
 
 ---
 
@@ -849,19 +859,19 @@ WP01 (baseline, sequential, first)
 | FR-005 | WP03, WP07, WP08 |
 | FR-007 | WP05, WP06 |
 | FR-008 | WP05, WP06 |
-| FR-009 | WP09 |
+| FR-009 | WP08 (folded from WP09) |
 | FR-010 | WP05 |
 | NFR-001 | WP03 |
 | NFR-002 | WP05, WP06 |
-| NFR-003 | WP09 (close-out check), cross-cutting per-WP (every WP's own `Independent Test`/Implementation Notes implicitly require zero new ruff/mypy issues on its own touched files) |
+| NFR-003 | WP08 (close-out check, folded from WP09), cross-cutting per-WP (every WP's own `Independent Test`/Implementation Notes implicitly require zero new ruff/mypy issues on its own touched files) |
 | NFR-004 | WP02, WP03, WP04, WP05, WP06, WP08 (every WP adding new branches/helpers includes its own focused tests) |
 | NFR-005 | WP05 |
 | NFR-006 | WP03, WP05 |
 | C-001 | WP03 |
 | C-002 | WP03, WP05, WP06 (each states the `ab15225ea` RED baseline explicitly) |
-| C-003 | WP01 |
-| C-004 | cross-cutting — "Mission," never "Feature," in all new identifiers/messages across every WP; no dedicated WP, verified at WP09's close-out pass |
-| C-005 | WP01 (baseline capture is where the #3395-churn risk first becomes concrete); mission-wide operating posture, see "Parallelism & Chokepoints" above |
+| C-003 | WP04 (folded from WP01) |
+| C-004 | cross-cutting — "Mission," never "Feature," in all new identifiers/messages across every WP; no dedicated WP, verified at WP08's close-out pass (folded from WP09) |
+| C-005 | WP04 (baseline capture, folded from WP01, is where the #3395-churn risk first becomes concrete); mission-wide operating posture, see "Parallelism & Chokepoints" above |
 | C-006 | WP03 |
 | C-007 | WP04, WP05 |
 | C-008 | WP03 (implements disposition (b)), WP07 (disclosure/false-negative side) |
@@ -874,28 +884,26 @@ WP01 (baseline, sequential, first)
 
 | Subtask ID | Summary | Work Package | Priority | Parallel? |
 |------------|---------|--------------|----------|-----------|
-| T001–T007 | Baseline capture on `ab15225ea`, #3284 diff, pre-existing-failure filing | WP01 | P0 | No |
-| T008–T012 | Campsite-clean split of `_validate_requirement_mapping` | WP02 | P0 | Yes (WP-level) |
-| T013–T018 | New `find_bare_prose_requirement_ids` predicate, ATDD-first | WP03 | P0 | Yes (WP-level) |
-| T019 | Architectural import-boundary test for `runtime_bridge_cores.py` | WP04 | P1 | Yes (WP-level) |
+| T001–T007, T019 | Baseline capture on `ab15225ea` (#3284 diff, pre-existing-failure filing, folded from WP01) + architectural import-boundary test for `runtime_bridge_cores.py` | WP04 | P0 | No (runs alone, first) |
+| T008–T012 | Campsite-clean split of `_validate_requirement_mapping` | WP02 | P0 | Yes (WP-level, with WP03) |
+| T013–T018 | New `find_bare_prose_requirement_ids` predicate, ATDD-first | WP03 | P0 | Yes (WP-level, with WP02) |
 | T020–T028 | `spec-kitty next` guard wiring + per-guard teeth tests, ATDD-first | WP05 | P0 | No (chokepoint) |
 | T029, T030, T030a, T031, T032a, T032, T033 | `finalize-tasks`/`map-requirements` CLI wiring, ATDD-first | WP06 | P0 | Yes (WP-level, with WP07) |
 | T034–T036 | False-negative sample + broadened-predicate re-verification | WP07 | P2 | Yes (WP-level, with WP06) |
-| T037–T040 | Frozen corpus fixture + non-vacuous ratchet | WP08 | P0 | No (chokepoint) |
-| T041–T044 | Reflexivity census + PR description + final close-out | WP09 | P2 | No |
+| T037–T040, T041–T044 | Frozen corpus fixture + non-vacuous ratchet, plus reflexivity census + PR description + final close-out (folded from WP09) | WP08 | P0 | No (chokepoint, last) |
 
 ---
 
 ## PR Size Note (flag only — decision left to orchestrator/operator)
 
-Nine work packages, four commits' worth of ATDD-first pairs (WP03, WP05, WP06, plus
+Seven work packages, four commits' worth of ATDD-first pairs (WP03, WP05, WP06, plus
 WP02's behaviour-preserving pair), a chokepoint touching four separate guard functions,
 and a non-vacuous corpus-ratchet gate is a substantial single-sitting review even though
 every individual WP is scoped to be independently reviewable. If the aggregate diff
 proves too large for one review sitting once implemented, a plausible per-WP-group
 split for review purposes only (not a PR split — plan.md's "PR Shape" is binding: one
-PR) would be: {WP01+WP02+WP03+WP04} as one review pass (foundation), {WP05} as its own
-pass (the named central risk), {WP06+WP07+WP08+WP09} as a third pass (consumers +
-closeout). This is offered as a reviewer-sequencing suggestion only; the orchestrator/
-operator decides whether to act on it — this tasks-authoring pass does not split the PR
-itself.
+PR) would be: {WP04+WP02+WP03} as one review pass (foundation, incl. folded-in baseline
+capture), {WP05} as its own pass (the named central risk), {WP06+WP07+WP08} as a third
+pass (consumers + closeout, incl. folded-in reflexivity census). This is offered as a
+reviewer-sequencing suggestion only; the orchestrator/operator decides whether to act
+on it — this tasks-authoring pass does not split the PR itself.
