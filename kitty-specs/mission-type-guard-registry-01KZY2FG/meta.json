@@ -10,5 +10,7 @@
   "purpose_tldr": "mission type guard registry",
   "slug": "mission-type-guard-registry-01KZY2FG",
   "target_branch": "main",
-  "topology": "lanes"
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-14T00:07:27.028985+00:00"
 }

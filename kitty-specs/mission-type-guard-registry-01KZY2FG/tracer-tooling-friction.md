@@ -229,3 +229,178 @@ for the ledger sweep: the dirty-tree preflight's scope (blocking on ANY repo-wid
 including content with no relationship to the mission or to what the command actually commits)
 is broader than its own stated rationale, and offers no operator escape hatch short of committing
 or stashing unrelated work the operator may not want to touch.
+
+## 9. WP02 dispatch — a post-analyze citation-refresh commit re-stales the analyze gate,
+   and the aborted `implement` attempts leave uncommitted side-effect files with no
+   in-scope way to clear them
+
+**Verified first-hand** (WP02 implementer, Wrangler Wendy), spec-kitty checkout at
+`kitty/mission-mission-type-guard-registry-01KZY2FG` @ `d12a98f81`.
+
+Entry 8 recorded a clean `record-analysis` run (commit `49c0ae411`, verdict `ready`, hashing
+`spec.md`/`plan.md`/`tasks.md`/`charter.yaml`). The very next commit, `d12a98f81`
+("refresh runtime_bridge.py/ci-quality.yml citations for #3346 rebase"), touched `plan.md`
+(37 insertions / 14 deletions), `spec.md` (4/4), and `tasks.md` (2/1) — a
+**citation-line-number-only** refresh after a rebase, with the commit's own message stating "No
+decision, requirement, or
+acceptance criterion changed. Confirmed the #3386 defect still reproduces byte-for-byte and no
+RED pin has flipped to green." No `record-analysis` re-run followed. Since
+`check_analysis_report_current` (`src/specify_cli/analysis_report.py:449-524`) gates purely on
+`sha256` equality against the hashes captured at the last `record-analysis` call, this
+semantically-inert commit re-triggers the exact same `stale_analysis_report` gate entry 8 had
+just cleared — confirmed directly:
+
+```
+$ sha256sum kitty-specs/.../plan.md kitty-specs/.../spec.md kitty-specs/.../tasks.md .kittify/charter/charter.yaml
+# all three mission-doc hashes differ from analysis-report.md's recorded input_artifacts;
+# charter.yaml hash is unchanged (b976bed2...) — only the mission docs drifted.
+
+$ spec-kitty agent action implement WP02 --agent claude --mission mission-type-guard-registry-01KZY2FG
+Error: analysis_report_required: /spec-kitty.analyze must be run before implementation.
+  Reason: stale_analysis_report
+  Stale inputs: charter, plan.md, spec.md, tasks.md
+```
+
+(`charter` is listed stale too, though its hash is unchanged — worth a second look by whoever
+re-runs `check_analysis_report_current`; not independently re-traced here.)
+
+**Compounding, second issue — uncommitted side-effect files with no lane-b-scoped remedy.**
+Running the canonical loop (`spec-kitty next --agent claude --mission ...` then
+`spec-kitty agent action implement WP02 --agent claude --mission ...`, per this WP's own
+dispatch instructions) left the shared primary checkout dirty *before* erroring on the gate
+above:
+
+```
+ M .kittify/charter/metadata.yaml            # charter cache re-extraction side effect
+ M .kittify/charter/synthesis-manifest.yaml  # ditto
+ M kitty-specs/.../meta.json                 # gained "vcs": "git", "vcs_locked_at": ...
+ M kitty-specs/.../tasks/WP01-....md         # gained base_branch/base_commit/created_at/shell_pid
+```
+
+None of these four files are in WP02's `owned_files`/lane-b `write_scope`
+(`kitty-specs/mission-type-guard-registry-01KZY2FG/lanes.json`) — three belong to mission-root
+bookkeeping, one (the WP01 task file) is explicitly WP01's, owned by the concurrently-running
+lane-a implementer. Falling back to the lower-level `spec-kitty implement WP02 --mission ...`
+(the command this WP's own prompt names as canonical for workspace prep, and which does **not**
+itself enforce the analyze-freshness gate — confirmed by grep, that gate lives only in
+`cli/commands/agent/workflow.py`, not `cli/commands/implement.py`) hits a second, independent
+gate instead:
+
+```
+$ spec-kitty implement WP02 --mission mission-type-guard-registry-01KZY2FG
+Planning artifacts not committed:
+  kitty-specs/.../tasks/WP01-guard-table-registry-and-plan-guards.md
+Error: Planning artifacts must be committed on main.
+Current branch: kitty/mission-mission-type-guard-registry-01KZY2FG
+```
+
+WP02's own frontmatter declares `planning_base_branch: main`, but every prior planning-phase
+commit for this mission (all of entries 1–8's work, and the entire git log above) landed
+directly on the mission branch, never on `main` — the same
+planning-branch-vs-mission-branch drift ledger **SK-11**/entry 6 already named from a different
+angle. `_print_planning_artifact_commit_instructions` (`implement.py:368-386`) refuses
+unconditionally when `current_branch != planning_branch`, with no override.
+
+**Not routed around.** Committing these four files myself would cross WP02's exclusive write
+scope (three are outside `lanes.json`'s lane-b `write_scope` entirely; the fourth is lane-a's
+own file, actively owned by a concurrently-running implementer per this WP's own dispatch
+brief — "do not touch those files"). Re-running `/spec-kitty.analyze` myself would mean
+performing full mission-level cross-artifact analysis and writing `analysis-report.md`, a
+mission-root planning artifact outside lane-b's scope and outside the `implementer` role this
+WP loads (`python-pedro`) — entry 8's own analyze-phase run was performed by a distinct
+`claude-analyze-phase` agent identity, not an implementer. Neither hand-editing state nor
+discarding the uncommitted side-effect files (`git checkout`/`restore`/`clean`, all
+categorically forbidden by this WP's dispatch brief) was attempted. Escalated to the
+orchestrator as BLOCKED with this entry as the reproduction record, per the same "escalate,
+don't route around" posture entry 6 took before entry 7's later-found remedy.
+
+## 10. WP01 dispatch — `spec-kitty implement WP01` chained two stale-state gates
+   before resolving the workspace, and `charter synthesize` appears to
+   downgrade the synthesis manifest it just regenerated
+
+**Verified first-hand** (WP01 implementer, Wrangler Wendy), spec-kitty checkout at
+`kitty/mission-mission-type-guard-registry-01KZY2FG` @ `d12a98f81`.
+
+`spec-kitty implement WP01 --mission mission-type-guard-registry-01KZY2FG` (the canonical
+workspace-prep command this WP's own prompt names) refused on the first attempt:
+
+```
+$ spec-kitty implement WP01 --mission mission-type-guard-registry-01KZY2FG
+Error: charter_source stale; run `spec-kitty charter sync`
+```
+
+Running the named remedy (`spec-kitty charter sync`) succeeded, but produced a SECOND,
+different stale-state error on retry:
+
+```
+$ spec-kitty charter sync
+Charter synced successfully
+Mode: hybrid
+Files written: governance.yaml, directives.yaml, metadata.yaml
+
+$ spec-kitty implement WP01 --mission mission-type-guard-registry-01KZY2FG
+Error: synthesized_drg missing; run `spec-kitty charter synthesize`
+```
+
+Running that second named remedy finally unblocked `implement`:
+
+```
+$ spec-kitty charter synthesize
+Charter synthesis (fresh project): minimal .kittify/doctrine/ materialized.
+  ✓ .kittify/charter/synthesis-manifest.yaml
+Synthesis artifacts written; commit provenance before continuing.
+
+$ spec-kitty implement WP01 --mission mission-type-guard-registry-01KZY2FG
+✓ Lane worktree ready
+```
+
+Two observations:
+
+1. **Chained, not batched.** `implement` surfaces one stale-state gate at a time, each behind
+   its own remedy command, rather than either running both remedies itself or naming both gaps
+   in the first error. A first-time operator following the first error message alone hits the
+   second gate immediately after "fixing" the first.
+2. **`charter synthesize`'s own output looks like a regression, not a refresh.** Diffing
+   `.kittify/charter/synthesis-manifest.yaml` before/after:
+   ```diff
+   -adapter_version: 3.2.6
+   +adapter_version: 3.2.5
+   -bundle_content_hash:
+   +manifest_hash: a64245b8...
+   -synthesizer_version: 3.2.6
+   +synthesizer_version: 3.2.5
+   ```
+   The command downgrades `adapter_version`/`synthesizer_version` from `3.2.6` to `3.2.5` (the
+   installed CLI is `3.2.6rc2`, confirmed via `pip show`/the editable build in this same
+   session) and drops the `bundle_content_hash` key entirely. This reads as `charter
+   synthesize` stamping a stale/lower version literal rather than reading the running CLI's
+   actual version — worth a second look by whoever owns the charter-synthesis code path.
+
+Neither `metadata.yaml` nor `synthesis-manifest.yaml` are in WP01's `owned_files`/lane-a
+`write_scope`, so both side-effect diffs were left uncommitted in the primary checkout (same
+posture as entry 9's uncommitted side-effect files) rather than folded into any WP01 commit.
+Not escalated as BLOCKED — both remedies were named in-band by the tool itself and worked on
+first try — but the version-downgrade appearance in observation 2 is flagged here for the
+orchestrator to route to `SPEC-KITTY-LEDGER.md` if it reproduces outside this session.
+
+## 11. WP01 dispatch — entry 9's stale-analysis-report gate also blocks the
+   `for_review` transition, cross-referenced not re-investigated
+
+**Verified first-hand** (WP01 implementer, Wrangler Wendy), same checkout, after all four WP01
+commits landed and pushed. Closing out via the named canonical command:
+
+```
+$ spec-kitty agent action implement WP01 --agent claude --mission mission-type-guard-registry-01KZY2FG
+Error: analysis_report_required: /spec-kitty.analyze must be run before implementation.
+  Reason: stale_analysis_report
+  Stale inputs: charter, plan.md, spec.md, tasks.md
+```
+
+Identical gate/root-cause to entry 9 (which hit it from WP02's side). Not re-investigated here
+-- entry 9 already traces the cause and the "not routed around" reasoning applies equally: a
+`/spec-kitty.analyze` re-run is mission-root scope, outside WP01's `owned_files`/lane-a
+`write_scope` and outside the `implementer` role. WP01's own code is committed
+(`0177f0db8`..`e0a04bcea`) and pushed to `origin/kitty/mission-mission-type-guard-registry-01KZY2FG-lane-a`;
+only the CLI-driven `doing` -> `for_review` status transition is blocked by this shared,
+already-tracked gate. Recorded here so a reader of WP01's activity log does not have to
+re-derive that this is the same defect as entry 9, not a second independent one.

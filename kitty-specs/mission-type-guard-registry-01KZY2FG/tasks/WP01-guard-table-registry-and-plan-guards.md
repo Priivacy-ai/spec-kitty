@@ -16,9 +16,13 @@ requirement_refs:
 - NFR-001
 - NFR-002
 - NFR-003
+tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-mission-type-guard-registry-01KZY2FG
+base_commit: d12a98f81a1d5c6cc7df0319d016740f876fb3a0
+created_at: '2026-08-14T00:07:27.793135+00:00'
 subtasks:
 - T001
 - T002
@@ -28,6 +32,7 @@ subtasks:
 - T006
 - T007
 phase: Phase 1 - Guard dispatch registry + strict/tolerant split
+shell_pid: '695823'
 history:
 - at: '2026-08-13T22:40:00Z'
   actor: system
@@ -48,7 +53,6 @@ owned_files:
 role: implementer
 tags: []
 task_type: implement
-tracker_refs: []
 ---
 
 # Work Package Prompt: WP01 – Guard-table registry, strict/tolerant split, and plan's guard table
