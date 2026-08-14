@@ -1,0 +1,95 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true              # flip to true ONLY at the very end, after the yaml self-check passes
+phase: plan
+lens_group: fresh
+round: 2
+mission: up-mission-type-seam-01KZY1JB
+findings:
+  - id: PLAN-FRESH2-001
+    lens: stenographer (trace-based-observability)
+    severity: 4
+    title: "IC-07 fixes only 2 of 3 hardcoded 'source_layer: built-in' lying sites in show_mission_type"
+    evidence:
+      - artifact: "plan.md § IC-07 — Four CLI-surface fixes (FR-006–FR-009), lines 796-802"
+      - code: "src/specify_cli/cli/commands/mission_type.py:1487-1490 (mt is None -> typer.Exit(1))"
+      - code: "src/specify_cli/cli/commands/mission_type.py:1531 (JSON branch: \"source_layer\": \"built-in\")"
+      - code: "src/specify_cli/cli/commands/mission_type.py:1543 (panel branch: \"[cyan]Source Layer:[/cyan] built-in\")"
+    claim: >
+      IC-07's own text names exactly two problem sites inside show_mission_type: the "mt is
+      None" -> typer.Exit(1) branch (lines 1487-1490) and the JSON-output branch's hardcoded
+      "source_layer": "built-in" at line 1531, which it explicitly calls "a second lying site
+      in the same function this IC must also fix." Live-checkout verification shows a third,
+      unmentioned lying site in the same function: the human-readable Panel branch at line
+      1543 also hardcodes the literal string "[cyan]Source Layer:[/cyan] built-in" regardless
+      of the type's actual resolved layer. This is the default output path (no --json flag) —
+      the one User Story 1 AC3 exercises ("mission-type show qa is run ... displays the
+      org-pack's declared fields"). If IC-07 is implemented literally against the plan's own
+      two-site enumeration, `mission-type show qa --json` would report the correct layer while
+      plain `mission-type show qa` keeps printing "Source Layer: built-in" for an org/project
+      type — an FR-007/NFR-002 violation (silently-wrong displayed field) shipping unnoticed
+      because the plan's IC-07 Test surface bullet describes only "show_mission_type output"
+      generically and the plan's own Risk bullet frames the concern as "JSON output shape must
+      not change field names" (JSON-only framing), giving no signal to also assert on the
+      panel's Source Layer text.
+    remediation: >
+      Add the panel branch's "[cyan]Source Layer:[/cyan] built-in" literal (line 1543) as a
+      third named lying site in IC-07's Affected surfaces bullet, alongside the mt-is-None
+      branch and the JSON hardcode at line 1531. Extend IC-07's Test surface bullet to assert
+      the non-JSON (panel) output for an activated non-built-in type shows the real layer, not
+      just the --json path.
+
+  - id: PLAN-FRESH2-002
+    lens: five-whys-cartographer (structural-root-cause)
+    severity: 3
+    title: "IC-01's 'foundation IC-02/IC-03/IC-06 build on' claim contradicts IC-03's and IC-06's own stated sequencing"
+    evidence:
+      - artifact: "plan.md § IC-01, Sequencing/depends-on bullet: 'none (this is the foundation IC-02/IC-03/IC-06 build on.)'"
+      - artifact: "plan.md § IC-03, Sequencing/depends-on bullet: 'none functionally (independent of IC-01/IC-02 per spec's own Q5 independence finding ...)'"
+      - artifact: "plan.md § IC-06, Sequencing/depends-on bullet: 'none — this is the mission's first commit ... landing before IC-01 begins.'"
+    claim: >
+      IC-01's own Sequencing/depends-on bullet asserts that IC-02, IC-03, and IC-06 all "build
+      on" IC-01 (implying they depend on / follow it). This is directly contradicted by two of
+      those three ICs' own, more specific Sequencing/depends-on bullets: IC-03 states it is
+      functionally independent of IC-01 ("Sequencing/depends-on: none functionally ...
+      independent of IC-01/IC-02"), and IC-06 states not only that it does not depend on IC-01
+      but that it lands *before* IC-01 even begins (it is explicitly the mission's first,
+      campsite-clean commit). Only IC-02 actually depends on IC-01 ("Sequencing/depends-on:
+      IC-01 (needs the new factory to exist first)"). A tasks-phase author skimming IC-01's
+      summary parenthetical rather than each IC's own detailed bullet could misorder WP
+      sequencing (e.g. delaying the IC-06 campsite-clean commit until after IC-01, when the
+      plan elsewhere requires it to be the mission's literal first commit).
+    remediation: >
+      Correct IC-01's Sequencing/depends-on bullet to name only IC-02 as depending on it (e.g.
+      "none (IC-02 depends on this; IC-03 and IC-06 are independently sequenced — see their own
+      bullets)"), so the summary does not overstate the dependency graph relative to what IC-03
+      and IC-06 themselves declare.
+
+  - id: PLAN-FRESH2-003
+    lens: falsifier (hypothesis-driven)
+    severity: 3
+    title: "spec.md's malformed-YAML Edge Case has zero IC/test coverage anywhere in plan.md"
+    evidence:
+      - artifact: "spec.md § Edge Cases: 'How does the system handle a malformed (unparsable) mission-type YAML in an org or project layer? It must fail loudly, naming the offending file, not silently skip it ...'"
+      - artifact: "plan.md — no IC, no Gate Set row, and no Test surface bullet anywhere mentions malformed/unparsable YAML; grep for 'malformed'/'unparsable' across the whole document returns zero hits"
+      - code: "src/doctrine/missions/mission_type_repository.py:141-151 (_load: `_yaml.load(yaml_file.read_text(...))` parses the file content as a bare string, not a named stream, so a ruamel.yaml parse error raised here would not carry the failing file's path in its own message unless the caller wraps it)"
+    claim: >
+      Spec.md's Edge Cases section (mandatory) requires that a malformed/unparsable org- or
+      project-layer mission-type YAML "fail loudly, naming the offending file" rather than
+      silently skip it (an explicit CL-006 silent-success violation otherwise). Nothing in
+      plan.md's Implementation Concern Map, Gate Set, or Test surface bullets addresses this
+      case — IC-01 (new layered lookup) and IC-03 (org/project layer scanning) are the two ICs
+      that would need to implement and test it, and neither mentions it. The existing built-in
+      `_load` static method this mission's layered lookup is most likely to mirror parses YAML
+      from a bare string (`yaml_file.read_text(...)`), which strips the file's identity from
+      ruamel.yaml's own error context — so naively reusing that pattern for org/project
+      scanning would satisfy "fail loudly" (the exception still propagates) but plausibly not
+      "naming the offending file" as the spec requires, and nothing in the plan would catch
+      that gap before it ships.
+    remediation: >
+      Add an explicit sub-bullet to IC-01 or IC-03 (whichever owns the org/project YAML parse
+      call) requiring the malformed-YAML path to wrap/re-raise with the offending file's path
+      named in the message, and add a corresponding red-first-or-otherwise test asserting that
+      a scratch org/project pack with an unparsable mission-type YAML file produces an error
+      whose message contains that file's path — mirroring the rigor already given to CL-003's
+      empty-action-sequence loud-fail (IC-05).

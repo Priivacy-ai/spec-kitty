@@ -1,0 +1,50 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: plan
+lens_group: gov
+mission: up-mission-type-seam-01KZY1JB
+findings:
+  - id: PLAN-GOV-001
+    lens: directive (ATDD / red-first discipline, C-011)
+    severity: 4
+    title: "Plan's Summary misdescribes the mission's own \"dominant risk\" mechanism, contradicting the exact code it cites"
+    evidence:
+      - artifact: "plan.md § Summary, paragraph 1"
+      - code: "src/charter/mission_type_profiles.py:788-799"
+    claim: >
+      The plan's Summary states that today, for "a genuinely-registered-but-unprojected type,"
+      _resolve_action_slot's `if not is_registered: return []` guard (line 788-789) "never even
+      fires," and instead "the type falls through to `list(mission.action_sequence or [])` at
+      line 807, and `mission` is `None` today because `MissionTypeRepository.default()` never
+      contains it." This is false as a description of the live code the plan itself cites: lines
+      793-799 read `mission = repo.get(mission_type); if mission is None: raise
+      UnknownMissionTypeError(...)`. When `mission is None`, execution raises at line 799 — it
+      never reaches line 807, and could not (attribute access on `None` would raise
+      AttributeError even if the raise weren't there first). Verified live: the docstring at the
+      raise site itself says "This is a configuration inconsistency; report it clearly rather
+      than returning an empty sequence" — the opposite of what the Summary claims happens today.
+      Today, an activated-but-not-built-in mission type hard-fails loudly via
+      UnknownMissionTypeError; it does not silently degrade to `[]`. The real CL-003 risk (which
+      the plan's own IC-05 section states correctly, consistent with spec.md) is prospective:
+      once IC-01/IC-02 land, `mission` will no longer be `None` for such a type (the new layered
+      lookup will find it), and the risk becomes `mission.action_sequence` itself being
+      `None`/empty for a type with no declared steps — a state that cannot occur under today's
+      code, only after this mission's own change is partially applied. The Summary conflates
+      today's actual failure mode (loud raise) with a state this mission would newly introduce if
+      it shipped IC-01/IC-02 without IC-05 atomically. This mischaracterization sits in the
+      plan's own foundational framing of why the mission exists and how urgent/severe the defect
+      is, and is exactly the "contradicts existing code" case the severity rubric names at level 4.
+    remediation: >
+      Rewrite the Summary's second paragraph to state the risk prospectively and correctly: today,
+      an activated non-built-in type hard-fails via UnknownMissionTypeError (mission is None,
+      raised at mission_type_profiles.py:799) — that is the current, correct, loud behavior. The
+      actual CL-003 risk is that once IC-01/IC-02's layered lookup makes `mission` resolvable for
+      such a type, `_resolve_action_slot`'s final `return list(mission.action_sequence or [])`
+      (line 807) would newly silently degrade to `[]` for a type whose YAML omits
+      `action_sequence` — which is exactly why CL-003/NFR-005 requires IC-05's loud-fail to land
+      atomically with IC-01/IC-02, not why today's code is already silently broken. Align this
+      paragraph with IC-05's own (correct) framing so a reader does not carry two contradictory
+      mental models of the same defect through the document, and so the red-first test (NFR-005)
+      is written against the right target state (post-IC-01/IC-02, pre-IC-05), not against a
+      "mission is None" scenario that cannot produce a silent `[]`.
