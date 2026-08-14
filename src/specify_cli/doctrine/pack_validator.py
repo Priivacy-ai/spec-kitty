@@ -35,7 +35,8 @@ Validation performs (in order):
 Issue ``category`` values surfaced via ``ValidationIssue.category``:
 ``schema_invalid``, ``duplicate_id``, ``drg_dangling_edge``, ``drg_kind_drift``,
 ``duplicate_drg_edge``, ``same_id_collision``, ``unknown_target``,
-``intent_conflict``, ``asset_path_escape``, ``asset_mime_invalid``, plus
+``intent_conflict``, ``asset_path_escape``, ``asset_mime_invalid``,
+``profile_skipped``, plus
 structural categories for the ``pack`` and ``org-charter`` artifact types.
 
 The public surface is intentionally small:
@@ -110,6 +111,10 @@ class ValidationIssue:
       pack's ``assets/`` root (absolute, ``..``-escape, or symlink escape).
     * ``asset_mime_invalid`` — an ASSET manifest's ``mime`` is not a well-formed
       ``type/subtype`` value, or disagrees with the path extension's guessed type.
+    * ``profile_skipped`` — an agent-profile file was recorded by
+      ``AgentProfileRepository`` as skipped (e.g. a post-merge field-conflict
+      failure), surfaced here so ``pack validate`` reports it without a
+      separate ``spec-kitty doctor doctrine --json`` invocation.
     * ``not_found`` / ``parse_error`` / ``advisory`` — structural categories.
     """
 
@@ -383,6 +388,16 @@ def validate_pack(pack_dir: Path) -> ValidationResult:
             pack_artifact_ids_per_type=pack_artifact_ids_per_type,
             pack_artifacts_data=pack_artifacts_data,
         )
+
+    # FR-002: surface AgentProfileRepository's post-merge profile-skip
+    # diagnostics inline, deduplicated against files the generic scan above
+    # already flagged schema_invalid.
+    already_flagged_files = {
+        issue.file for issue in errors if issue.artifact_type == "agent_profiles"
+    }
+    errors.extend(
+        _check_profile_skipped_diagnostics(pack_dir, already_flagged_files)
+    )
 
     # DRG validation (only if drg/ exists).
     drg_dir = pack_dir / "drg"
@@ -755,6 +770,50 @@ def _check_asset_mime(
             category="asset_mime_invalid",
         )
     return None
+
+
+# ---------------------------------------------------------------------------
+# Agent-profile skip diagnostics (FR-002)
+# ---------------------------------------------------------------------------
+
+
+def _check_profile_skipped_diagnostics(
+    pack_dir: Path,
+    already_flagged_files: set[str],
+) -> list[ValidationIssue]:
+    """Surface ``AgentProfileRepository``'s post-merge skip diagnostics.
+
+    Reuses ``AgentProfileRepository.skipped_profiles()`` directly (AC-4)
+    rather than a second skip-detection heuristic: the pack under validation
+    is treated as the sole org source, matching how the runtime loads a real
+    org pack. Deduplicated against files already flagged ``schema_invalid``
+    by the generic per-file scan, so one root cause is not reported twice
+    under two unrelated-looking categories (AC-2).
+
+    An absent ``agent_profiles/`` directory is safe by construction —
+    ``AgentProfileRepository``'s own ``_load_layer`` guard
+    (``if not directory.exists(): return loaded``) handles it internally, so
+    this never needs a defensive ``is_dir()`` check before construction
+    (AC-5).
+    """
+    from doctrine.agent_profiles.repository import AgentProfileRepository
+
+    repo = AgentProfileRepository(org_dirs=[pack_dir / "agent_profiles"])
+    issues: list[ValidationIssue] = []
+    for skip in repo.skipped_profiles():
+        if skip.path in already_flagged_files:
+            continue
+        issues.append(
+            ValidationIssue(
+                severity="error",
+                artifact_type="agent_profiles",
+                artifact_id=skip.profile_id,
+                file=skip.path,
+                message=skip.error_summary,
+                category="profile_skipped",
+            )
+        )
+    return issues
 
 
 # ---------------------------------------------------------------------------

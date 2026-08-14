@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import textwrap
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from ruamel.yaml import YAML
 
 from specify_cli.doctrine.pack_validator import (
     ValidationResult,
+    _check_profile_skipped_diagnostics,
     render_validation_result,
     validate_pack,
 )
@@ -878,3 +880,29 @@ class TestProfileSkippedDiagnostics:
         assert issue.artifact_id == "analyst-annie"
         assert issue.file == str(profile_path)
         assert "role" in issue.message and "roles" in issue.message
+
+    def test_helper_calls_repository_skipped_profiles_directly(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-4: the helper reuses ``AgentProfileRepository.skipped_profiles()``
+        directly rather than hand-rolling a second skip-detection heuristic.
+
+        Patches the source location the helper's lazy, function-local import
+        binds to (``doctrine.agent_profiles.repository.AgentProfileRepository``
+        — matching this file's existing precedent of lazy in-function
+        imports, and what ``scripts/check_patch_targets.py`` expects). This
+        assertion is non-vacuous: it fails if the call is removed or replaced
+        with an inline reimplementation, since only an actual invocation of
+        the mocked method satisfies ``assert_called_once``.
+        """
+        agent_profiles_dir = tmp_path / "agent_profiles"
+        agent_profiles_dir.mkdir()
+
+        with patch(
+            "doctrine.agent_profiles.repository.AgentProfileRepository.skipped_profiles"
+        ) as mock_skipped_profiles:
+            mock_skipped_profiles.return_value = []
+            issues = _check_profile_skipped_diagnostics(tmp_path, set())
+
+        mock_skipped_profiles.assert_called_once_with()
+        assert issues == []
