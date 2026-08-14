@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Caller-owned Mission lifecycle code map</title></head>
+<body>
+<h1>Caller-owned Mission lifecycle root</h1>
+<table>
+<thead><tr><th>Node</th><th>Path</th><th>Role</th></tr></thead>
+<tbody>
+<tr data-node="mission-operation-context"><td>mission-operation-context</td><td>src/specify_cli/missions/operation_context.py</td><td>Resolves one immutable Mission identity plus repository and Mission anchor roots.</td></tr>
+<tr data-node="lifecycle-cli-boundaries"><td>lifecycle-cli-boundaries</td><td>src/specify_cli/cli/commands</td><td>Creates one operation context for status, setup, tasks, next, workflow, and accept commands.</td></tr>
+<tr data-node="placement-and-commit"><td>placement-and-commit</td><td>src/specify_cli/coordination/commit_router.py</td><td>Keeps Git topology on the repository root while routing Mission artifacts through the Mission anchor.</td></tr>
+<tr data-node="status-transaction-dual-root"><td>status-transaction-dual-root</td><td>src/mission_runtime/write_target_degrade.py; src/specify_cli/status/models.py; src/specify_cli/status/bootstrap.py; src/specify_cli/status/work_package_lifecycle.py; src/specify_cli/coordination/status_transition.py; src/specify_cli/coordination/transaction.py</td><td>Carries the Mission anchor through status reads, write-target resolution, and bookkeeping commits while retaining the repository root for Git policy.</td></tr>
+<tr data-node="coordination-confined-writer"><td>coordination-confined-writer</td><td>src/specify_cli/coordination/atomic_write.py</td><td>Persists and rolls back coordination artifacts through a confined atomic write and unlink boundary.</td></tr>
+<tr data-node="tasks-operation-boundary"><td>tasks-operation-boundary</td><td>src/specify_cli/agent_tasks_ports.py; src/specify_cli/cli/commands/agent/tasks_shared.py; src/specify_cli/cli/commands/agent/tasks_move_task.py; src/specify_cli/cli/commands/agent/tasks_mark_status.py; src/specify_cli/cli/commands/agent/tasks_finalize_validation.py; src/specify_cli/cli/commands/agent/tasks_parsing_validation.py; src/specify_cli/status/emit.py</td><td>Resolves task operations once and carries both repository and Mission anchor roots through task reads, status transitions, and coordination commits.</td></tr>
+<tr data-node="status-and-acceptance"><td>status-and-acceptance</td><td>src/specify_cli/status/aggregate.py; src/specify_cli/acceptance</td><td>Reads status and acceptance evidence from the selected Mission anchor without changing managed-worktree behavior.</td></tr>
+<tr data-node="caller-owned-integration-tests"><td>caller-owned-integration-tests</td><td>tests/integration/test_caller_owned_worktree_lifecycle.py</td><td>Covers conflict safety, two linked worktrees, lifecycle commands, indexing cost, and primary-checkout immutability.</td></tr>
+<tr data-node="operation-root-guard"><td>operation-root-guard</td><td>tests/architectural/test_mission_operation_root_boundary.py; tests/architectural/fixtures/mission_root_authority_allowlist.tsv</td><td>Scans every production source and prevents lifecycle consumers from introducing a second Mission-root authority outside a shrink-only reviewed allowlist.</td></tr>
+<tr data-node="coordination-confined-writer-tests"><td>coordination-confined-writer-tests</td><td>tests/coordination/test_atomic_write_windows.py; tests/integration/test_tool_artifact_owner.py; tests/merge/test_bookkeeping_projection_seam.py</td><td>Covers Windows confined writes and unlinks plus transaction rollback and owner projection semantics.</td></tr>
+</tbody>
+</table>
+<h2>Edges</h2>
+<ul>
+<li>lifecycle-cli-boundaries calls mission-operation-context</li>
+<li>mission-operation-context supplies roots placement-and-commit</li>
+<li>mission-operation-context supplies roots status-transaction-dual-root</li>
+<li>lifecycle-cli-boundaries calls status-transaction-dual-root</li>
+<li>lifecycle-cli-boundaries calls tasks-operation-boundary</li>
+<li>mission-operation-context supplies roots tasks-operation-boundary</li>
+<li>tasks-operation-boundary routes transitions status-transaction-dual-root</li>
+<li>status-transaction-dual-root routes commits placement-and-commit</li>
+<li>status-transaction-dual-root persists artifacts coordination-confined-writer</li>
+<li>mission-operation-context supplies anchor status-and-acceptance</li>
+<li>caller-owned-integration-tests covers lifecycle-cli-boundaries</li>
+<li>caller-owned-integration-tests covers status-transaction-dual-root</li>
+<li>caller-owned-integration-tests covers tasks-operation-boundary</li>
+<li>operation-root-guard guards lifecycle-cli-boundaries</li>
+<li>operation-root-guard guards placement-and-commit</li>
+<li>operation-root-guard guards status-transaction-dual-root</li>
+<li>operation-root-guard guards tasks-operation-boundary</li>
+<li>coordination-confined-writer-tests covers coordination-confined-writer</li>
+</ul>
+</body>
+</html>
