@@ -200,8 +200,8 @@ def _yaml_parser() -> YAML:
 
 
 def _scan_files(directory: Path, glob: str) -> list[Path]:
-    """Return sorted files matching *glob*; recursive for styleguides."""
-    if directory.name == "styleguides":
+    """Return sorted files matching *glob*; recursive for styleguides and assets."""
+    if directory.name in {"styleguides", "assets"}:
         return sorted(directory.rglob(glob))
     return sorted(directory.glob(glob))
 
