@@ -194,11 +194,10 @@ def _write_confined_artifact_bytes(
                 "(unsafe path changed during write): "
                 f"{resolved_path}"
             ) from exc
-        # Preserve the established post-parent-creation validation seam.  The
-        # native helper above already created every directory relative to pinned
-        # handles, so this is normally a no-op; any concurrent path swap is
-        # rejected here or by the handle-relative writer below.
-        resolved_path.parent.mkdir(parents=True, exist_ok=True)
+        # Re-run the caller-provided resolver after secure parent creation.  Do
+        # not touch the parent through a path-based mkdir here: a junction swap
+        # could otherwise create directories outside the worktree before this
+        # validation rejects the changed path.
         resolved_path = resolve(worktree_root, resolved_path)
         try:
             write_confined_artifact_bytes_windows(

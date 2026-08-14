@@ -19,8 +19,23 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def test_windows_confined_writer_pins_directories_against_rename() -> None:
-    assert wfs._LOCKED_DIRECTORY_SHARE_MODE & wfs._FILE_SHARE_DELETE == 0
+def test_windows_confined_writer_pins_directories_against_rename(
+    tmp_path: Path,
+) -> None:
+    worktree = tmp_path / "coord"
+    parent = worktree / "mission"
+    target = parent / "status.json"
+    parent.mkdir(parents=True)
+
+    with (
+        wfs._locked_parent(worktree, target),
+        pytest.raises(OSError) as exc_info,
+    ):
+        parent.rename(worktree / "moved")
+
+    assert exc_info.value.winerror == 32
+    assert parent.is_dir()
+    assert not (worktree / "moved").exists()
 
 
 def test_windows_confined_write_atomically_replaces_existing_file(
@@ -234,6 +249,42 @@ def test_windows_confined_writer_creates_parents_relative_to_root_handle(
     assert path_opened and set(path_opened) == {worktree.resolve()}
     assert {"kitty-specs", "mission"}.issubset(relative_names)
     assert all("/" not in name and "\\" not in name for name in relative_names)
+
+
+def test_windows_confined_writer_does_not_create_outside_after_junction_swap(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    worktree = tmp_path / "coord"
+    outside = tmp_path / "outside"
+    anchor = worktree / "anchor"
+    target = anchor / "nested" / "status.json"
+    worktree.mkdir()
+    outside.mkdir()
+    original_ensure = wfs.ensure_confined_parent_windows
+    winapi = importlib.import_module("_winapi")
+
+    def swap_after_secure_parent_creation(root: Path, candidate: Path) -> None:
+        original_ensure(root, candidate)
+        candidate.parent.rmdir()
+        anchor.rmdir()
+        winapi.CreateJunction(str(outside), str(anchor))
+
+    monkeypatch.setattr(
+        wfs,
+        "ensure_confined_parent_windows",
+        swap_after_secure_parent_creation,
+    )
+
+    with pytest.raises(ValueError, match="outside worktree"):
+        aw._write_confined_artifact_bytes(
+            worktree,
+            target,
+            b"must-not-escape",
+            resolve=aw._resolve_confined_artifact_path,
+        )
+
+    assert not (outside / "nested").exists()
 
 
 def test_windows_confined_writer_cleans_temp_when_rename_fails(

@@ -773,7 +773,29 @@ def test_write_artifact_rechecks_after_parent_creation(
                 self.rmdir()
                 self.symlink_to(outside_dir, target_is_directory=True)
 
-        monkeypatch.setattr(Path, "mkdir", swap_to_symlink_after_mkdir)
+        if os.name == "nt":
+            from specify_cli.coordination import windows_confined_fs
+
+            original_ensure = windows_confined_fs.ensure_confined_parent_windows
+
+            def swap_to_symlink_after_secure_parent_creation(
+                worktree_root: Path,
+                target: Path,
+            ) -> None:
+                nonlocal swapped
+                original_ensure(worktree_root, target)
+                if not swapped:
+                    swapped = True
+                    link_path.rmdir()
+                    link_path.symlink_to(outside_dir, target_is_directory=True)
+
+            monkeypatch.setattr(
+                windows_confined_fs,
+                "ensure_confined_parent_windows",
+                swap_to_symlink_after_secure_parent_creation,
+            )
+        else:
+            monkeypatch.setattr(Path, "mkdir", swap_to_symlink_after_mkdir)
 
         with pytest.raises(ValueError, match="outside worktree"):
             txn.write_artifact(link_path / "artifact.txt", b"bad")
