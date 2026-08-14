@@ -24,6 +24,9 @@
       "lane": "approved",
       "last_event_id": "01M002QZAWNE587EBPSFA3SF1J",
       "last_transition_at": "2026-08-14T12:07:58.044787+00:00",
+      "notes": [
+        "First pass, no rejections. Behaviour-preserving decompose of _validate_requirement_mapping verified line-by-line diff-identical, call order unchanged; 29/29 tests pass, no existing test modified; 4 new non-vacuous helper tests. Non-blocking findings recorded (not rejections): WP02-F1 (sev3, radon/ruff C901 discrepancy recurs PLAN-GOV-001 remediation gap), WP02-F2 (sev2, undeclared radon pip install into shared .venv)."
+      ],
       "review_result": {
         "reference": "WP02-review-2026-08-14",
         "reviewer": "reviewer-renata",
