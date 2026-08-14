@@ -12,5 +12,7 @@
   "purpose_tldr": "setup-plan снова возвращает Git remediation до ошибок Mission-context, сохраняя caller-owned worktree lifecycle.",
   "slug": "setup-plan-preflight-closeout-01KZZT3V",
   "target_branch": "codex/setup-plan-preflight-closeout",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-14T12:34:23.843604+00:00"
 }
