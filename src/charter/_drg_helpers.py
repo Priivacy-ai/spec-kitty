@@ -77,25 +77,40 @@ def _load_org_drg_fragment(drg_dir: Path) -> DRGGraph:
         ) from exc
 
 
+def _edge_triple(edge: DRGEdge) -> tuple[str, str, str]:
+    """The ``(source, target, relation)`` identity :func:`duplicate_edge_triples`
+    (C-001) groups edges by -- factored out so :func:`_dedup_org_layer_edges`
+    can re-key ``graph.edges`` by the same triple without re-deriving it."""
+    return (edge.source, edge.target, edge.relation.value)
+
+
 def _dedup_org_layer_edges(
     graph: DRGGraph,
     *,
     root_edges: Sequence[DRGEdge],
     drg_edges: Sequence[DRGEdge],
 ) -> DRGGraph:
-    """Collapse identically-repeated (source, target, relation) triples to one
-    -- but ONLY when the retained and dropped occurrences come from
-    DIFFERENT org-layer sources (the root graph vs. the ``drg/`` fragment).
+    """Collapse a (source, target, relation) triple to one retained edge ONLY
+    when it appears EXACTLY ONCE in each org-layer source (the root graph and
+    the ``drg/`` fragment) -- a genuine cross-source overlap (FR-003).
 
-    Scoped strictly to genuinely cross-source duplicates within the
-    org-internal root+drg/ sub-merge (FR-003): a triple repeated twice
-    within the SAME source (both occurrences in the root graph, or both in
-    the ``drg/`` fragment) is a plain authoring bug unrelated to the merge
-    and must keep reaching the final ``assert_valid``/``DRGValidationError``
-    exactly as it did before this mission -- collapsing it here would
-    silently absorb a real defect. A duplicate between the org layer and the
-    built-in/project layers is a different scope again and, likewise,
-    continues to raise at the final ``assert_valid``.
+    Required semantics (pinned by the PR-FRESH-001 regression tests in
+    ``tests/charter/test_org_root_graph_guard.py``):
+
+    - If **any single source** contains the triple **two or more times**, it
+      is a within-source authoring bug -- possibly alongside an unrelated
+      single occurrence in the other source. Every occurrence of that triple
+      is left alone, so it keeps reaching the final
+      ``assert_valid``/``DRGValidationError`` exactly as it did before this
+      mission. Collapsing it here would silently absorb a real defect
+      (this was the FRESH-001 bug: classifying by comparison to the FIRST
+      occurrence's source alone treated every later occurrence -- including
+      a same-source duplicate -- as "cross-source" the moment it differed
+      from that first source, so 1x root + 2x drg/ dropped BOTH drg/
+      copies instead of leaving them for validation).
+    - Only when each source has **at most one** occurrence AND the triple
+      appears in **both** sources does it collapse to exactly one retained
+      edge.
 
     *root_edges*/*drg_edges* are the edge lists of the two pre-merge source
     graphs. :func:`~doctrine.drg.loader.merge_layers` combines edges via
@@ -105,9 +120,9 @@ def _dedup_org_layer_edges(
     counts as a duplicate triple.
 
     Reuses the canonical :func:`duplicate_edge_triples` definition of
-    "duplicate" (C-001) to find every 2nd+ occurrence of a triple; the
-    same-source-vs-cross-source classification is a provenance check layered
-    on top of that result.
+    "duplicate" (C-001) to find every triple with a 2nd+ occurrence; the
+    per-source occurrence count is a provenance check layered on top of that
+    result, not a redefinition of it.
 
     Filters by object identity (``id(e)``), not value/triple equality:
     ``DRGEdge`` has no custom ``__eq__``, so two identical-triple edges with
@@ -127,20 +142,24 @@ def _dedup_org_layer_edges(
             f"edge {edge!r} is not identity-present in either org-layer source"
         )
 
-    retained_source_by_triple: dict[tuple[str, str, str], str] = {}
-    for edge in graph.edges:
-        triple = (edge.source, edge.target, edge.relation.value)
-        retained_source_by_triple.setdefault(triple, _source_of(edge))
+    duplicated_triples = {_edge_triple(edge) for edge in duplicate_edge_triples(graph)}
 
-    cross_source_duplicate_ids = {
-        id(edge)
-        for edge in duplicate_edge_triples(graph)
-        if _source_of(edge)
-        != retained_source_by_triple[(edge.source, edge.target, edge.relation.value)]
-    }
-    deduped_edges = [
-        edge for edge in graph.edges if id(edge) not in cross_source_duplicate_ids
-    ]
+    edges_dropped_by_id: set[int] = set()
+    for triple in duplicated_triples:
+        occurrences = [edge for edge in graph.edges if _edge_triple(edge) == triple]
+        sources = [_source_of(edge) for edge in occurrences]
+        if sources.count("root") == 1 and sources.count("drg") == 1:
+            # Exactly one occurrence in each source: a genuine cross-source
+            # overlap. Collapse to exactly one retained edge by dropping the
+            # drg/ occurrence (matches the pre-existing root-authoritative
+            # retention behaviour for this case).
+            drg_occurrence = occurrences[sources.index("drg")]
+            edges_dropped_by_id.add(id(drg_occurrence))
+        # Otherwise a source has >=2 occurrences (a within-source authoring
+        # bug) -- leave every occurrence alone so it still reaches the final
+        # assert_valid.
+
+    deduped_edges = [edge for edge in graph.edges if id(edge) not in edges_dropped_by_id]
     return graph.model_copy(update={"edges": deduped_edges})
 
 
