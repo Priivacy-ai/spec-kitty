@@ -739,6 +739,9 @@ def resolve_workspace_for_wp(
     repo_root: Path,
     mission_slug: str,
     wp_id: str,
+    *,
+    write_intent: bool = False,
+    current_cwd: Path | None = None,
 ) -> ResolvedWorkspace:
     """Resolve the real workspace/branch contract for a work package.
 
@@ -749,6 +752,47 @@ def resolve_workspace_for_wp(
     4. `lanes.json` lane mapping for code_change
 
     The returned path may not exist yet; callers can inspect `.exists`.
+
+    Seam-B checkout-identity (write-path-integrity WP03, #3128 / FR-005). This is
+    the single WP-mutation chokepoint that ``implement`` and ``review`` both
+    funnel through. It is invoked ~20 times as a pure read vehicle, so the
+    checkout-identity refusal keys on **explicit write-intent, never action-name**
+    (C-007): only the true ``implement`` / ``review`` WP-write call sites pass
+    ``write_intent=True``. When set, and the resolved workspace is a real lane
+    worktree the invoking checkout does not own, this raises
+    :class:`~mission_runtime.checkout_identity.CheckoutIdentityError` (a distinct
+    exception NOT subclassing ``ActionContextError``). Reads (``write_intent``
+    left ``False``), planning writes resolving to the primary checkout, and the
+    mission's own worktrees are never refused. The comparison is pure-path — no
+    git subprocess is invoked (NFR-004). ``current_cwd`` defaults to the process
+    CWD; it is injectable for tests.
+    """
+    resolved = _resolve_workspace_for_wp_impl(repo_root, mission_slug, wp_id)
+    if write_intent:
+        from mission_runtime.checkout_identity import enforce_checkout_identity
+        from specify_cli.core.paths import get_main_repo_root
+
+        enforce_checkout_identity(
+            current_cwd=current_cwd if current_cwd is not None else Path.cwd(),
+            workspace_path=resolved.worktree_path,
+            primary_root=get_main_repo_root(repo_root),
+            resolution_kind=resolved.resolution_kind,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+        )
+    return resolved
+
+
+def _resolve_workspace_for_wp_impl(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+) -> ResolvedWorkspace:
+    """Resolve the ResolvedWorkspace for a WP (pure resolution, no identity gate).
+
+    The Seam-B checkout-identity refusal is layered on by the public
+    :func:`resolve_workspace_for_wp` wrapper so every one of this function's
+    early-return arms is gated identically without duplicating the check.
     """
     normalized_wp = get_normalized_wp(repo_root, mission_slug, wp_id)
     execution_mode = ExecutionMode(normalized_wp.metadata.execution_mode or ExecutionMode.CODE_CHANGE)

@@ -1255,7 +1255,12 @@ def implement(
         # ``_ensure_workspace_materialized`` — never re-resolve through a second
         # authority that could independently report "no workspace could be
         # resolved" on a verified read-path.
-        workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
+        #
+        # Seam-B (WP03, #3128 / FR-005): this is the canonical `agent action
+        # implement` WP-execution write site — refuse a claim invoked from a
+        # checkout the mission does not own. write_intent gates the
+        # checkout-identity refusal (pure reads leave it False).
+        workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id, write_intent=True)
         status_execution_mode = "direct_repo" if workspace.resolution_kind == "repo_root" else "worktree"
 
         def _create_workspace() -> None:

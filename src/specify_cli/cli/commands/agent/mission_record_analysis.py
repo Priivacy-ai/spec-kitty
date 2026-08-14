@@ -344,7 +344,15 @@ def record_analysis(
         # freshness-hash siblings (spec/plan/tasks) already live. Best-effort: a
         # commit failure (e.g. a protected target ref) does not abort the write
         # (the report is already on disk; the operator can commit separately).
-        with contextlib.suppress(Exception):
+        # WP03 / T017 (#3128): NARROWED from ``suppress(Exception)`` to the
+        # concrete commit-failure set. The former blanket catch would have
+        # swallowed a Seam-B ``CheckoutIdentityError`` (a distinct
+        # ``Exception``-direct refusal, deliberately outside this tuple), which
+        # this record-analysis path is out of scope for. Best-effort semantics
+        # for genuine commit failures (e.g. a protected target ref) are preserved.
+        with contextlib.suppress(
+            subprocess.CalledProcessError, OSError, RuntimeError, ValueError
+        ):
             from specify_cli.coordination.commit_router import commit_for_mission
             from specify_cli.git.protection_policy import ProtectionPolicy
 

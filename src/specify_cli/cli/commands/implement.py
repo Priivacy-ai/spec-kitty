@@ -1851,7 +1851,12 @@ def implement(
         )
         operational_context.require_active_role()
 
-        resolved_workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
+        # Seam-B (WP03, #3128 / FR-005): true WP-execution write site. Refuse a
+        # claim invoked from a checkout the mission does not own (canonically
+        # another mission's lane worktree in the same registry). write_intent
+        # gates the checkout-identity refusal; the ~20 pure read vehicles leave
+        # it False, so reads/planning are never falsely refused.
+        resolved_workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id, write_intent=True)
 
         lanes_manifest, _lane = _resolve_execution_lane(resolved_workspace, _lanes_feature_dir, wp_id, tracker)
     except Exception as exc:

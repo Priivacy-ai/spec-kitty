@@ -633,6 +633,13 @@ def _resolve_placement_ref(repo_root: Path, *, mission_slug: str, wp_id: str) ->
             wp_id=wp_id,
         )
     except ActionContextError:
+        # WP03 / T017 (#3128): this handler is deliberately NARROW — only the
+        # legacy-fallback ``ActionContextError`` degrades to ``None`` here. A
+        # Seam-B ``CheckoutIdentityError`` is an ``Exception``-direct refusal
+        # (NOT an ``ActionContextError``), so it can never be caught/degraded by
+        # this arm. (This is a read-shaped placement resolve — it passes no
+        # write-intent — so a refusal does not arise here regardless; the narrow
+        # catch is the structural guarantee that it could not be swallowed.)
         return None
     placement = context.artifact_placement
     return placement.placement_ref if placement is not None else None
