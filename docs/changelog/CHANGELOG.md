@@ -88,6 +88,20 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **Activating a charter directive no longer silently drops every org-pack
+  artifact from the doctrine graph (mission `org-activation-scan-dirs-01KZY1PT`;
+  `#3399`, closes `#3385`).** Before, the charter activation allow-list scanned
+  org packs at a phantom `<root>/<plural>/built-in` layout that no org pack
+  actually uses, while the live doctrine loader reads the flat `<root>/<plural>`
+  layout. The two disagreed silently: the moment an operator ran
+  `charter activate directive <stem>`, every org-pack URN failed to resolve and
+  was dropped from the filtered graph with no error — so a project's own
+  directives, tactics, and profiles vanished from governance the first time
+  anyone activated a single artifact. Now the activation scan reads the same
+  flat layout the loader does (plus the legacy nested layout additively, with
+  the flat entry winning a same-name collision), so activating one artifact
+  leaves the rest of the org pack intact.
+
 - **The `researcher-robbie` agent profile no longer introduces itself under the
   wrong name (`#3377`).** Before, the profile's `purpose` and
   initialization-declaration prose still read "Researcher Rosa" — a leftover the
