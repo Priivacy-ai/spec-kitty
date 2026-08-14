@@ -343,6 +343,53 @@ class TestFindBareProseRequirementIds:
         assert result[0].section_heading == "Functional Requirements"
         assert result[0].ids == ["FR-001", "FR-002"]
 
+    def test_story2_ac3_description_column_citation_not_flagged(self):
+        """Story 2 AC3: a table row whose ID cell is properly declared but
+        whose description column cites a foreign/malformed id-shaped token
+        must produce NO candidate for that row -- the per-line skip rule
+        that keeps this predicate from repeating #3395's rejected ~6%
+        false-positive rate."""
+        content = (
+            "### Functional Requirements\n\n"
+            "| ID | Requirement |\n"
+            "|----|-------------|\n"
+            "| FR-001 | See FR-999 for related context. |\n"
+        )
+        assert find_bare_prose_requirement_ids(content) == []
+
+    def test_story5_fault_injection_surfaces_explicit_failure_not_silent_clean(self, monkeypatch):
+        """Story 5 / NFR-002: when the classification logic hits an
+        unresolvable state, the pure function must never silently return
+        ``[]`` -- it must let the failure surface explicitly (here: the
+        underlying exception propagates, rather than being swallowed into a
+        quietly-clean result). The call-site conversion of that exception
+        into a caller-visible blocking message is IC-04, delivered per call
+        site elsewhere in this mission -- not tested here."""
+        import specify_cli.requirement_mapping as rm
+
+        def _boom(spec_content: str) -> list[tuple[str, str]]:
+            raise RuntimeError("simulated unresolvable classification state")
+
+        monkeypatch.setattr(rm, "_requirement_named_sections", _boom)
+        content = "### Functional Requirements\n\nFR-001 the loader must reject an unknown pack.\n"
+        with pytest.raises(RuntimeError, match="simulated unresolvable classification state"):
+            rm.find_bare_prose_requirement_ids(content)
+
+    def test_story4_negative_space_foreign_citation_outside_requirements_section_not_flagged(self):
+        """Story 4 / #3394 negative-space pin: a spec whose own requirements
+        are all declared correctly, citing a foreign id in prose OUTSIDE any
+        Requirements-named section, must not produce a candidate -- the two
+        stories are inseparable."""
+        content = (
+            "## Background\n\n"
+            "This bug is easy to miss -- see FR-021's default-pack materialization.\n\n"
+            "### Functional Requirements\n\n"
+            "| ID | Requirement |\n"
+            "|----|-------------|\n"
+            "| FR-001 | First requirement. |\n"
+        )
+        assert find_bare_prose_requirement_ids(content) == []
+
 
 class TestNormalizeRequirementRefsValue:
     """Test normalize_requirement_refs_value()."""
