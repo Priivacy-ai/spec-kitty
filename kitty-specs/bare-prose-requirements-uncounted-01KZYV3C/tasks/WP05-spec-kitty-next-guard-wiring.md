@@ -1,38 +1,40 @@
 ---
-work_package_id: "WP05"
+work_package_id: WP05
+title: spec-kitty next Guard Wiring + Per-Guard Non-Vacuity Teeth Tests
+dependencies:
+- WP01
+requirement_refs: []
 subtasks:
-  - "T020"
-  - "T021"
-  - "T022"
-  - "T023"
-  - "T024"
-  - "T025"
-  - "T026"
-  - "T027"
-  - "T028"
-title: "spec-kitty next Guard Wiring + Per-Guard Non-Vacuity Teeth Tests"
-task_type: "implement"
-phase: "Phase 2 - Chokepoint (sequential, alone)"
-execution_mode: "code_change"
-owned_files:
-  - "src/runtime/next/runtime_bridge_cores.py"
-  - "src/runtime/next/runtime_bridge.py"
-  - "src/runtime/next/runtime_bridge_io.py"
-  - "tests/runtime/test_bridge_cores.py"
-  - "tests/next/test_runtime_bridge_unit.py"
-  - "tests/specify_cli/next/test_runtime_bridge_composition.py"
-authoritative_surface: "src/runtime/next/"
-create_intent: []
-agent_profile: ""
-role: ""
-agent: ""
-model: ""
-assignee: ""
-shell_pid: ""
+- T020
+- T021
+- T022
+- T023
+- T024
+- T025
+- T026
+- T027
+- T028
+phase: Phase 2 - Chokepoint (sequential, alone)
 history:
-  - at: "2026-08-14T02:50:21Z"
-    actor: "system"
-    action: "Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)"
+- at: '2026-08-14T02:50:21Z'
+  actor: system
+  action: Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)
+agent_profile: ''
+authoritative_surface: src/runtime/next/
+create_intent: []
+execution_mode: code_change
+model: ''
+owned_files:
+- src/runtime/next/runtime_bridge_cores.py
+- src/runtime/next/runtime_bridge.py
+- src/runtime/next/runtime_bridge_io.py
+- tests/runtime/test_bridge_cores.py
+- tests/next/test_runtime_bridge_unit.py
+- tests/specify_cli/next/test_runtime_bridge_composition.py
+role: ''
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP05 – `spec-kitty next` Guard Wiring + Per-Guard Non-Vacuity Teeth Tests

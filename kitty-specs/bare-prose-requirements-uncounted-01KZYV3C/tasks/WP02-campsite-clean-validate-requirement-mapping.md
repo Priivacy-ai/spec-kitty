@@ -1,29 +1,31 @@
 ---
-work_package_id: "WP02"
+work_package_id: WP02
+title: Campsite-Clean — Decompose _validate_requirement_mapping
+dependencies:
+- WP01
+requirement_refs: []
 subtasks:
-  - "T008"
-  - "T009"
-  - "T010"
-  - "T011"
-  - "T012"
-title: "Campsite-Clean — Decompose _validate_requirement_mapping"
-task_type: "implement"
-phase: "Phase 1 - Foundation (parallel with WP03, WP04)"
-execution_mode: "code_change"
-owned_files:
-  - "src/specify_cli/cli/commands/agent/mission_finalize.py"
-authoritative_surface: "src/specify_cli/cli/commands/agent/mission_finalize.py"
-create_intent: []
-agent_profile: ""
-role: ""
-agent: ""
-model: ""
-assignee: ""
-shell_pid: ""
+- T008
+- T009
+- T010
+- T011
+- T012
+phase: Phase 1 - Foundation (parallel with WP03, WP04)
 history:
-  - at: "2026-08-14T02:50:21Z"
-    actor: "system"
-    action: "Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)"
+- at: '2026-08-14T02:50:21Z'
+  actor: system
+  action: Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)
+agent_profile: ''
+authoritative_surface: src/specify_cli/cli/commands/agent/mission_finalize.py
+create_intent: []
+execution_mode: code_change
+model: ''
+owned_files:
+- src/specify_cli/cli/commands/agent/mission_finalize.py
+role: ''
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP02 – Campsite-Clean — Decompose `_validate_requirement_mapping`

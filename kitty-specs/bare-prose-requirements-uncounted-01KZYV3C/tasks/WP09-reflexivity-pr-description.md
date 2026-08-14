@@ -1,27 +1,33 @@
 ---
-work_package_id: "WP09"
+work_package_id: WP09
+title: Reflexivity — In-Flight Mission Census & PR Description
+dependencies:
+- WP02
+- WP03
+- WP05
+- WP06
+- WP08
+requirement_refs: []
 subtasks:
-  - "T041"
-  - "T042"
-  - "T043"
-  - "T044"
-title: "Reflexivity — In-Flight Mission Census & PR Description"
-task_type: "implement"
-phase: "Phase 4 - Closeout (sequential, last)"
-execution_mode: "planning_artifact"
-owned_files: []
-authoritative_surface: "kitty-specs/bare-prose-requirements-uncounted-01KZYV3C/"
-create_intent: []
-agent_profile: ""
-role: ""
-agent: ""
-model: ""
-assignee: ""
-shell_pid: ""
+- T041
+- T042
+- T043
+- T044
+phase: Phase 4 - Closeout (sequential, last)
 history:
-  - at: "2026-08-14T02:50:21Z"
-    actor: "system"
-    action: "Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)"
+- at: '2026-08-14T02:50:21Z'
+  actor: system
+  action: Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)
+agent_profile: ''
+authoritative_surface: kitty-specs/bare-prose-requirements-uncounted-01KZYV3C/
+create_intent: []
+execution_mode: planning_artifact
+model: ''
+owned_files: []
+role: ''
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP09 – Reflexivity — In-Flight Mission Census & PR Description

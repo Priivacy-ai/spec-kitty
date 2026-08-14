@@ -1,35 +1,37 @@
 ---
-work_package_id: "WP06"
+work_package_id: WP06
+title: finalize-tasks / map-requirements CLI Wiring
+dependencies:
+- WP02
+requirement_refs: []
 subtasks:
-  - "T029"
-  - "T030"
-  - "T030a"
-  - "T031"
-  - "T032a"
-  - "T032"
-  - "T033"
-title: "finalize-tasks / map-requirements CLI Wiring"
-task_type: "implement"
-phase: "Phase 3 - Consumers (parallel with WP07, after WP05)"
-execution_mode: "code_change"
-owned_files:
-  - "src/specify_cli/cli/commands/agent/mission_finalize.py"
-  - "src/specify_cli/cli/commands/agent/tasks_mapping_core.py"
-  - "src/specify_cli/cli/commands/agent/tasks_map_requirements.py"
-  - "tests/specify_cli/cli/commands/agent/fixtures/tasks_cli/json/byte_contracts.json"
-  - "tests/specify_cli/cli/commands/agent/test_tasks_json_bytes.py"
-authoritative_surface: "src/specify_cli/cli/commands/agent/"
-create_intent: []
-agent_profile: ""
-role: ""
-agent: ""
-model: ""
-assignee: ""
-shell_pid: ""
+- T029
+- T030
+- T030a
+- T031
+- T032a
+- T032
+- T033
+phase: Phase 3 - Consumers (parallel with WP07, after WP05)
 history:
-  - at: "2026-08-14T02:50:21Z"
-    actor: "system"
-    action: "Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)"
+- at: '2026-08-14T02:50:21Z'
+  actor: system
+  action: Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)
+agent_profile: ''
+authoritative_surface: src/specify_cli/cli/commands/agent/
+create_intent: []
+execution_mode: code_change
+model: ''
+owned_files:
+- src/specify_cli/cli/commands/agent/mission_finalize.py
+- src/specify_cli/cli/commands/agent/tasks_mapping_core.py
+- src/specify_cli/cli/commands/agent/tasks_map_requirements.py
+- tests/specify_cli/cli/commands/agent/fixtures/tasks_cli/json/byte_contracts.json
+- tests/specify_cli/cli/commands/agent/test_tasks_json_bytes.py
+role: ''
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP06 – `finalize-tasks` / `map-requirements` CLI Wiring

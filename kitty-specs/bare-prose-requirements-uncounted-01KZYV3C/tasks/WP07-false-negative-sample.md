@@ -1,27 +1,29 @@
 ---
-work_package_id: "WP07"
+work_package_id: WP07
+title: False-Negative Sample + Broadened-Predicate Re-Verification
+dependencies:
+- WP03
+requirement_refs: []
 subtasks:
-  - "T034"
-  - "T035"
-  - "T036"
-title: "False-Negative Sample + Broadened-Predicate Re-Verification"
-task_type: "implement"
-phase: "Phase 3 - Consumers (parallel with WP06, after WP05, informational)"
-execution_mode: "code_change"
-owned_files:
-  - "src/specify_cli/requirement_mapping.py"
-authoritative_surface: "src/specify_cli/requirement_mapping.py"
-create_intent: []
-agent_profile: ""
-role: ""
-agent: ""
-model: ""
-assignee: ""
-shell_pid: ""
+- T034
+- T035
+- T036
+phase: Phase 3 - Consumers (parallel with WP06, after WP05, informational)
 history:
-  - at: "2026-08-14T02:50:21Z"
-    actor: "system"
-    action: "Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)"
+- at: '2026-08-14T02:50:21Z'
+  actor: system
+  action: Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)
+agent_profile: ''
+authoritative_surface: src/specify_cli/requirement_mapping.py
+create_intent: []
+execution_mode: code_change
+model: ''
+owned_files:
+- src/specify_cli/requirement_mapping.py
+role: ''
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP07 – False-Negative Sample + Broadened-Predicate Re-Verification

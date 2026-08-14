@@ -1,31 +1,33 @@
 ---
-work_package_id: "WP08"
+work_package_id: WP08
+title: Frozen Corpus Fixture + Non-Vacuous Ratchet
+dependencies:
+- WP03
+requirement_refs: []
 subtasks:
-  - "T037"
-  - "T038"
-  - "T039"
-  - "T040"
-title: "Frozen Corpus Fixture + Non-Vacuous Ratchet"
-task_type: "implement"
-phase: "Phase 4 - Chokepoint (sequential, alone, last-among-detector-work)"
-execution_mode: "code_change"
-owned_files:
-  - "tests/fixtures/bare_prose_corpus_baseline.json"
-  - "tests/architectural/test_bare_prose_corpus_ratchet.py"
-authoritative_surface: "tests/architectural/"
-create_intent:
-  - "tests/fixtures/bare_prose_corpus_baseline.json"
-  - "tests/architectural/test_bare_prose_corpus_ratchet.py"
-agent_profile: ""
-role: ""
-agent: ""
-model: ""
-assignee: ""
-shell_pid: ""
+- T037
+- T038
+- T039
+- T040
+phase: Phase 4 - Chokepoint (sequential, alone, last-among-detector-work)
 history:
-  - at: "2026-08-14T02:50:21Z"
-    actor: "system"
-    action: "Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)"
+- at: '2026-08-14T02:50:21Z'
+  actor: system
+  action: Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)
+agent_profile: ''
+authoritative_surface: tests/architectural/
+create_intent:
+- tests/fixtures/bare_prose_corpus_baseline.json
+- tests/architectural/test_bare_prose_corpus_ratchet.py
+execution_mode: code_change
+model: ''
+owned_files:
+- tests/fixtures/bare_prose_corpus_baseline.json
+- tests/architectural/test_bare_prose_corpus_ratchet.py
+role: ''
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP08 – Frozen Corpus Fixture + Non-Vacuous Ratchet

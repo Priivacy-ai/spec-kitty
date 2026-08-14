@@ -1,31 +1,33 @@
 ---
-work_package_id: "WP03"
+work_package_id: WP03
+title: New Bare-Prose Predicate — find_bare_prose_requirement_ids
+dependencies:
+- WP01
+requirement_refs: []
 subtasks:
-  - "T013"
-  - "T014"
-  - "T015"
-  - "T016"
-  - "T017"
-  - "T018"
-title: "New Bare-Prose Predicate — find_bare_prose_requirement_ids"
-task_type: "implement"
-phase: "Phase 1 - Foundation (parallel with WP02, WP04)"
-execution_mode: "code_change"
-owned_files:
-  - "src/specify_cli/requirement_mapping.py"
-  - "tests/specify_cli/test_requirement_mapping.py"
-authoritative_surface: "src/specify_cli/requirement_mapping.py"
-create_intent: []
-agent_profile: ""
-role: ""
-agent: ""
-model: ""
-assignee: ""
-shell_pid: ""
+- T013
+- T014
+- T015
+- T016
+- T017
+- T018
+phase: Phase 1 - Foundation (parallel with WP02, WP04)
 history:
-  - at: "2026-08-14T02:50:21Z"
-    actor: "system"
-    action: "Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)"
+- at: '2026-08-14T02:50:21Z'
+  actor: system
+  action: Prompt authored during tasks-authoring pass (not run via /spec-kitty.tasks)
+agent_profile: ''
+authoritative_surface: src/specify_cli/requirement_mapping.py
+create_intent: []
+execution_mode: code_change
+model: ''
+owned_files:
+- src/specify_cli/requirement_mapping.py
+- tests/specify_cli/test_requirement_mapping.py
+role: ''
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP03 – New Bare-Prose Predicate — `find_bare_prose_requirement_ids`
