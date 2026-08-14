@@ -88,6 +88,17 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **The `researcher-robbie` agent profile no longer introduces itself under the
+  wrong name (`#3377`).** Before, the profile's `purpose` and
+  initialization-declaration prose still read "Researcher Rosa" — a leftover the
+  profile rename missed — so any agent that loaded `researcher-robbie` and
+  followed its initialization declaration announced itself as "Researcher Rosa",
+  even though the profile's own `name` field, its docs page, and every sibling
+  profile said "Researcher Robbie". Now the prose matches the profile's own
+  `name`, and a parametrized test asserts every shipped profile's self-identity
+  prose equals its `name` field, so this class of identity drift cannot silently
+  recur.
+
 - **Mission `create` and `next` now run correctly from a caller-owned linked
   git worktree, and each worktree's mission state stays isolated (mission
   `worktree-owned-root-3328-01KZRG01`; `#3346`, closes `#3328`).** Before,
