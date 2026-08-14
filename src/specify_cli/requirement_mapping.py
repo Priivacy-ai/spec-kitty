@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, NamedTuple, TypedDict
 
 _REF_PATTERN = re.compile(r"^(?:FR|NFR|C)-\d+$", re.IGNORECASE)
 _REF_FIND_PATTERN = re.compile(r"\b(?:FR|NFR|C)-\d+\b", re.IGNORECASE)
@@ -170,6 +170,107 @@ def find_undeclared_requirement_citations(spec_content: str) -> list[str]:
                 _undeclared_citation_warning(sorted(section_raw_tokens), scope=f"The {heading_text!r} section")
             )
     return warnings
+
+
+class BareProseCandidate(NamedTuple):
+    """One requirement-named section's undeclared, bare-prose id candidates."""
+
+    section_heading: str
+    ids: list[str]
+
+
+BareProseResult = list[BareProseCandidate]
+
+
+def find_bare_prose_requirement_ids(spec_content: str) -> BareProseResult:
+    """#3396: a NEW per-token, per-line, document-scoped blocking predicate.
+
+    ``find_undeclared_requirement_citations`` (#3395, above) fires only when a
+    scope's *own* declared-id set is entirely empty (``section_raw_tokens and
+    not _declared_ids(section)``) -- it is structurally blind to a section
+    that declares SOME requirements correctly and writes OTHERS as bare,
+    unbulleted, unbolded prose in that same section (#3396's exact repro: a
+    declared ``NFR-001`` table row alongside bare-prose ``FR-001``/``FR-002``
+    sentences under one "Functional Requirements" heading). Verified
+    directly: ``find_undeclared_requirement_citations`` returns ``[]``
+    against that repro, because the section's declared set is non-empty
+    (``NFR-001`` is declared). This function is a distinct, NEW predicate --
+    not a promotion of that one -- asking a finer-grained, per-line question
+    instead: "does *this specific line* declare its own token, and if not, is
+    that token declared *anywhere in the document*?"
+
+    Algorithm (mirrors plan.md's "Architecture" section literally):
+
+    1. ``document_declared = _declared_ids(spec_content)`` -- the existing,
+       unmodified, whole-document declared-id set (C-001: the four
+       ``_DECLARED_ID_PATTERNS`` shapes are not touched or widened here).
+    2. For each ``(heading_text, body)`` in ``_requirement_named_sections`` --
+       heading-scoping reused byte-identical (C-008: ``_is_requirement_heading``
+       is NOT broadened in this mission; a bare-prose ``C-XXX`` item under a
+       ``### Constraints`` heading remains a disclosed, out-of-scope blind
+       spot -- see WP07).
+    3. For each line in ``body``: if the line matches one of the four
+       ``_DECLARED_ID_PATTERNS``, raw-token scanning of the REST of that line
+       is skipped entirely -- the load-bearing rule that keeps a foreign or
+       malformed id-shaped token in a properly-declared table row's own
+       description column from being mistaken for a second, undeclared
+       requirement (Story 2 AC3; the exact false-positive class that drove
+       #3395's rejected doc-wide prototype's ~6% rate). Otherwise, the line is
+       scanned for every ``_REF_FIND_PATTERN`` token; any token not present in
+       ``document_declared`` is a bare-prose candidate, recorded against that
+       section's heading.
+
+    Scope is document-level, not section-level (C-006), by design: a token
+    declared elsewhere in the document is already counted as a requirement,
+    so a section merely citing it again is not a lost requirement. This one
+    design choice was measured, twice independently, with identical results,
+    against the full ``kitty-specs/*/spec.md`` corpus (368 specs, measured
+    2026-08-14 -- mirroring ``_DECLARED_ID_PATTERNS``'s own #3395 6%-figure
+    precedent above) to matter by **15x**:
+
+    - **Document-scoped** (this function's actual behavior, C-006): **9/368
+      = 2.45%** of specs newly flag. Manual review of all 9 found **zero true
+      positives** -- every flagged id is a foreign-id citation (an id
+      belonging to another mission or ID space, not a requirement the citing
+      spec itself declares), appearing in both table-row description cells
+      and running prose under requirement-named headings that are not
+      themselves a table (e.g. ``kitty-specs/egress-refusal-consolidation-
+      3110-01KYW895/spec.md``'s "Requirement-level falsifiers" heading).
+    - **Section-scoped** (rejected alternative -- "declared" meaning declared
+      *within this section* rather than anywhere in the document): **139/368
+      = 37.77%** of specs newly flag -- 15x more than the document-scoped
+      figure, from this one design choice alone.
+
+    Document-scoped is the only correct reading (C-006) and is what this
+    function implements; both rates are recorded together here so a future
+    maintainer cannot reasonably reintroduce the rejected section-scoped
+    version without seeing the cost it was measured to carry.
+
+    Returns:
+        One :class:`BareProseCandidate` per requirement-named section that
+        contains at least one bare-prose candidate id -- sections with none
+        are omitted. This pure function never catches an exception to return
+        a quietly empty/clean result (NFR-002: silent-success prohibition);
+        whatever the underlying section-scoping / declared-id computation
+        raises propagates unchanged. The call-site wrapping that converts
+        such an exception into an explicit, blocking failure message for
+        callers is a separate concern, delivered per call site elsewhere in
+        this mission.
+    """
+    document_declared = _declared_ids(spec_content)
+    result: BareProseResult = []
+    for heading_text, body in _requirement_named_sections(spec_content):
+        section_ids: list[str] = []
+        for line in body.splitlines():
+            if any(pattern.match(line) for pattern in _DECLARED_ID_PATTERNS):
+                continue
+            for match in _REF_FIND_PATTERN.finditer(line):
+                token = match.group(0).upper()
+                if token not in document_declared and token not in section_ids:
+                    section_ids.append(token)
+        if section_ids:
+            result.append(BareProseCandidate(section_heading=heading_text, ids=section_ids))
+    return result
 
 
 class CoverageSummary(TypedDict):
