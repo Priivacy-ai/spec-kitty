@@ -10,14 +10,21 @@
 
 _Технический контекст_
 
-**Language/Version**: Python 3.11+; локально проверяется через task-owned `.venv`  
-**Primary Dependencies**: pytest, Typer, Rich, mypy, Ruff, Git  
-**Storage**: файловые inventories/allowlists, mission metadata, code map; БД продукта нет  
-**Testing**: ATDD/RED-first, targeted pytest, mutation/negative fixtures, финальные `tests/contract` и `tests/architectural`  
-**Target Platform**: Windows 10+ с сохранением Linux/macOS-семантики  
-**Project Type**: Python CLI, один репозиторий  
-**Performance Goals**: targeted-цикл до полного gate; полный architecture run запускается один раз после зелёного targeted packet  
-**Constraints**: без blanket skip/allowlist growth; без credentials; без записи в глобальную Beads DB; внешний E2E доступ не подменяется  
+**Language/Version**: Python 3.11+; локально проверяется через task-owned `.venv`
+
+**Primary Dependencies**: pytest, Typer, Rich, mypy, Ruff, Git
+
+**Storage**: файловые inventories/allowlists, mission metadata, code map; БД продукта нет
+
+**Testing**: ATDD/RED-first, targeted pytest, mutation/negative fixtures, финальные `tests/contract` и `tests/architectural`
+
+**Target Platform**: Windows 10+ с сохранением Linux/macOS-семантики
+
+**Project Type**: Python CLI, один репозиторий
+
+**Performance Goals**: targeted-цикл до полного gate; полный architecture run запускается один раз после зелёного targeted packet
+
+**Constraints**: без blanket skip/allowlist growth; без credentials; без записи в глобальную Beads DB; внешний E2E доступ не подменяется
 **Scale/Scope**: один contract portability defect, минимум семь collection-sensitive файлов, семь репрезентативных architecture failures и полный итоговый architecture suite
 
 ## Проверка charter
