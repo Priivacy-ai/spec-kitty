@@ -300,6 +300,53 @@ def _evaluate_requirement_mapping(facts: RequirementMappingFacts) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# WP05 (#3396) T021/T022 — bare-prose requirement fact-port/pure-core split.
+#
+# A SIBLING fact object to ``RequirementMappingFacts``, not an extension
+# (C-007): the bare-prose signal must fire independent of ``tasks_dir``/
+# WP-file state (FR-002), and ``RequirementMappingFacts`` is WP-shaped
+# (``wp_ids``/``wp_requirement_refs``) in a way that would force an
+# artificial coupling here. Facts arrive as plain data only -- computed by
+# the residual gather step in ``runtime_bridge.py`` (T023), which is the
+# only caller that may import ``specify_cli.requirement_mapping``; this
+# module (a stdlib-only zero-dependency leaf, see module docstring) never
+# does.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class BareProseRequirementFacts:
+    """Facts gathered from spec.md alone (T023-sibling) so the bare-prose
+    classification decision can be pure, independent of tasks/ dir state."""
+
+    flagged: Mapping[str, tuple[str, ...]]
+    classification_error: str | None
+
+
+def _evaluate_bare_prose_requirements(facts: BareProseRequirementFacts) -> list[str]:
+    """Pure decision tail for the bare-prose requirement signal (T022).
+
+    Fail-loud (Story 5 / FR-007 / FR-008 / NFR-002): a non-``None``
+    ``classification_error`` is ALWAYS blocking -- the residual gather step
+    already formatted the full failure message (mission name included), so
+    this function returns it verbatim rather than re-deriving it. Never
+    silently downgrades an unresolved/ambiguous classification to a clean
+    result.
+    """
+    if facts.classification_error is not None:
+        return [facts.classification_error]
+    if not facts.flagged:
+        return []
+    details = "; ".join(f"{heading}: {', '.join(ids)}" for heading, ids in sorted(facts.flagged.items()))
+    return [
+        "Bare-prose requirement id(s) found, uncounted by requirement mapping: "
+        + details
+        + ". Rewrite them in a recognized declared shape (table row / id-naming heading / "
+        "bulleted item / bold-led paragraph) before finalizing."
+    ]
+
+
+# ---------------------------------------------------------------------------
 # T022 — ArtifactPresenceSnapshot consumer: pure evaluate_guards(snapshot)
 # ---------------------------------------------------------------------------
 
@@ -483,17 +530,38 @@ def _first_missing_dependency_failure(snapshot: _ArtifactPresenceSnapshotLike) -
 
 def _evaluate_tasks_packages_guard(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
     """CLI-native ``tasks_packages`` — no tasks.md existence check (unlike
-    the composed vocabulary's equivalent branch)."""
+    the composed vocabulary's equivalent branch).
+
+    WP05 (#3396) FR-002: the bare-prose requirement fact is read FIRST,
+    unconditionally, before the ``_tasks_dir_ready`` short-circuit below --
+    the exact ordering fix the reverted ``3823f2b00``
+    (``_zero_declared_requirement_block``) lacked, which read the analogous
+    ``requirement_mapping_failures`` fact only in the branch AFTER this
+    check, making it provably inert whenever zero WP files existed.
+    """
+    failures = list(snapshot.status_facts.get("bare_prose_requirement_failures", ()))
     if not _tasks_dir_ready(snapshot):
-        return [MISSING_TASK_FILES_MESSAGE]
-    return list(snapshot.status_facts["requirement_mapping_failures"])
+        failures.append(MISSING_TASK_FILES_MESSAGE)
+        return failures
+    failures.extend(snapshot.status_facts["requirement_mapping_failures"])
+    return failures
 
 
 def _evaluate_tasks_finalize_guard(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
     """CLI-native ``tasks_finalize`` — distinct dir-missing message from the
     composed vocabulary, no requirement-mapping check, unconditional
-    occurrence-gate check."""
-    failures: list[str] = []
+    occurrence-gate check.
+
+    WP05 (#3396) FR-002: unlike the other three wired guards, this one has
+    NO ``_tasks_dir_ready`` call today -- it uses its own inline
+    ``tasks_dir_is_dir``/``tasks_wp_files`` branches with no early-return
+    short-circuit. The bare-prose fact is still read as the FIRST statement,
+    unconditionally, independent of those branches (it is also the one guard
+    FR-003's audit found never read ``requirement_mapping_failures`` at all
+    -- a pre-existing asymmetry this mission's wiring closes rather than
+    leaves structurally blind).
+    """
+    failures = list(snapshot.status_facts.get("bare_prose_requirement_failures", ()))
     if not snapshot.status_facts["tasks_dir_is_dir"]:
         failures.append("Required: tasks/ directory with finalized WP files")
     elif "tasks_wp_files" not in snapshot.present_artifacts:
@@ -513,7 +581,12 @@ def _evaluate_cli_tasks_guard(step_id: str, snapshot: _ArtifactPresenceSnapshotL
 
 
 def _evaluate_composed_tasks_packages_guard(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
-    failures = _check_artifact_present(snapshot, TASKS_ARTIFACT)
+    """WP05 (#3396) FR-002: the bare-prose fact is read FIRST, unconditionally,
+    before the ``tasks.md`` presence check and the ``_tasks_dir_ready``
+    short-circuit below -- see ``_evaluate_tasks_packages_guard`` for the
+    full ordering rationale."""
+    failures = list(snapshot.status_facts.get("bare_prose_requirement_failures", ()))
+    failures.extend(_check_artifact_present(snapshot, TASKS_ARTIFACT))
     if not _tasks_dir_ready(snapshot):
         failures.append(MISSING_TASK_FILES_MESSAGE)
     else:
@@ -523,8 +596,14 @@ def _evaluate_composed_tasks_packages_guard(snapshot: _ArtifactPresenceSnapshotL
 
 def _evaluate_composed_tasks_terminal_guard(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
     """Composed ``tasks`` for ``legacy_step_id in {"tasks_finalize", None}`` —
-    the union of all three legacy substep checks (no weakening)."""
-    failures = _check_artifact_present(snapshot, TASKS_ARTIFACT)
+    the union of all three legacy substep checks (no weakening).
+
+    WP05 (#3396) FR-002: the bare-prose fact is read FIRST, unconditionally,
+    before every other check in this guard -- see
+    ``_evaluate_tasks_packages_guard`` for the full ordering rationale.
+    """
+    failures = list(snapshot.status_facts.get("bare_prose_requirement_failures", ()))
+    failures.extend(_check_artifact_present(snapshot, TASKS_ARTIFACT))
     if not _tasks_dir_ready(snapshot):
         failures.append(MISSING_TASK_FILES_MESSAGE)
     else:
