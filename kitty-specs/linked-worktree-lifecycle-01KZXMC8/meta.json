@@ -1,6 +1,8 @@
 {
+  "accept_commit": "c97f53d2735af8fcc7ae353e7d401acc886f45f8",
   "acceptance_history": [
     {
+      "accept_commit": "c97f53d2735af8fcc7ae353e7d401acc886f45f8",
       "acceptance_mode": "pr",
       "accepted_at": "2026-08-14T06:58:40.411471+00:00",
       "accepted_by": "Руслан",
