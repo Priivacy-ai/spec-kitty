@@ -71,7 +71,7 @@ from charter.mission_type_key import canonical_mission_type_key
 from charter.mission_type_profiles import existing_mission_types
 from doctrine.missions.mission_type_repository import MissionTypeRepository
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.core.utils import safe_is_dir
 
 from ._doctor_shared import console
@@ -175,9 +175,15 @@ def classify_mission_type(
 ) -> MissionTypeState:
     """Classify a single mission directory into one of the six FR-008 states.
 
-    Reads ``meta.json`` from *feature_dir* via the shared fail-closed reader.
-    A corrupt or unreadable ``meta.json`` is classified as ``error`` with the
-    ``error`` field populated — it does **not** propagate an exception.
+    Reads ``meta.json`` from *feature_dir* via the shared fail-closed reader,
+    then runs it through the classification helpers. Per FR-008's Edge Case
+    ("never silently skip it and never crash the whole audit run"), the ENTIRE
+    body below — the ``meta.json`` read AND the classification helpers that
+    consume it — runs under one broad-but-intentional ``except Exception``:
+    any failure anywhere in this function classifies the mission as ``error``
+    with the ``error`` field populated. It does **not** propagate an
+    exception, so a bug in a single mission's classification can never abort
+    the whole audit run (mirrors ``doctor identity``'s ``orphan`` posture).
 
     Args:
         feature_dir: Absolute path to a mission directory.
@@ -193,7 +199,19 @@ def classify_mission_type(
 
     try:
         raw = load_meta_fail_closed(feature_dir) or {}
-    except (OSError, MissionMetaReadError) as exc:
+        if "mission_type" in raw:
+            raw_val = raw["mission_type"]
+            resolved_key, state = _classify_present_key(
+                raw_val, registered=registered, repo=repo
+            )
+            mission_type_raw = raw_val if isinstance(raw_val, str) else None
+        else:
+            resolved_key, state = _classify_absent_key(raw.get("mission"))
+            mission_type_raw = None
+    except Exception as exc:
+        # Intentional broad catch: FR-008 requires that ANY classification
+        # failure for one mission report as `error` rather than crash the
+        # whole audit run (see docstring above).
         return MissionTypeState(
             path=feature_dir,
             slug=slug,
@@ -202,14 +220,6 @@ def classify_mission_type(
             state="error",
             error=str(exc),
         )
-
-    if "mission_type" in raw:
-        raw_val = raw["mission_type"]
-        resolved_key, state = _classify_present_key(raw_val, registered=registered, repo=repo)
-        mission_type_raw = raw_val if isinstance(raw_val, str) else None
-    else:
-        resolved_key, state = _classify_absent_key(raw.get("mission"))
-        mission_type_raw = None
 
     return MissionTypeState(
         path=feature_dir,
