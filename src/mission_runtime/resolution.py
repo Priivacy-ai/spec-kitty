@@ -52,6 +52,15 @@ from mission_runtime.lifecycle_phase import (
     resolve_lifecycle_phase,
 )
 from mission_runtime.mission_resolver_port import MissionResolver
+# Seam-B checkout-identity refusal (WP03, #3128 / FR-005) — re-exported here so
+# the distinct refusal exception + pure comparator live on the authoritative
+# mission_runtime resolution surface. The gate itself is invoked from the WP
+# mutation chokepoint (``workspace.context.resolve_workspace_for_wp``) with
+# explicit write-intent; see that function and ``checkout_identity``.
+from mission_runtime.checkout_identity import (
+    CheckoutIdentityError,
+    enforce_checkout_identity,
+)
 
 
 ActionName = Literal[
@@ -73,12 +82,14 @@ __all__ = [
     "ACTION_NAMES",
     "ActionContextError",
     "ActionName",
+    "CheckoutIdentityError",
     "PlacementSeam",
     "ResolvedSurface",
     "SurfaceLocations",
     "TopologySurface",
     "coord_read_dir_for",
     "declared_read_surface",
+    "enforce_checkout_identity",
     "mission_context_for",
     "placement_seam",
     "resolve_action_context",

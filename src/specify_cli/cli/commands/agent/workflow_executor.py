@@ -1534,7 +1534,14 @@ def review_resolve_wp_and_lane_gate(
     if not rv_has_canonical:
         raise RuntimeError(missing_canonical_status_message(normalized_wp_id, mission_slug, feature_dir))
     current_lane = rv_get_wp_lane(feature_dir, normalized_wp_id)
-    review_workspace = _wf().resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
+    # Seam-B (WP03, #3128 / FR-005): the review WP-execution write chokepoint,
+    # reached before the review-claim transition. Refuse a review invoked from a
+    # checkout the mission does not own (canonically another mission's lane
+    # worktree). write_intent gates the checkout-identity refusal; the pure read
+    # vehicles leave it False so reads are never falsely refused.
+    review_workspace = _wf().resolve_workspace_for_wp(
+        main_repo_root, mission_slug, normalized_wp_id, write_intent=True
+    )
     status_execution_mode = "direct_repo" if review_workspace.resolution_kind == "repo_root" else "worktree"
     latest_event = None
     for event in reversed(rv_events):
