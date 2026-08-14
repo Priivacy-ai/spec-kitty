@@ -7,6 +7,7 @@ from pathlib import Path
 from specify_cli.requirement_mapping import (
     classify_stale_refs,
     compute_coverage,
+    find_bare_prose_requirement_ids,
     find_undeclared_requirement_citations,
     normalize_requirement_refs_value,
     parse_requirement_ids_from_spec_md,
@@ -313,6 +314,34 @@ class TestFindUndeclaredRequirementCitations:
             "| FR-001 | First requirement. |\n"
         )
         assert find_undeclared_requirement_citations(content) == []
+
+
+class TestFindBareProseRequirementIds:
+    """#3396: the NEW per-token, per-line, document-scoped blocking predicate.
+
+    Unlike ``find_undeclared_requirement_citations`` (#3395), which fires only
+    when a scope's *own* declared-id set is entirely empty, this predicate
+    catches the mixed case: a section that declares SOME requirements
+    correctly and writes OTHERS as bare, unbulleted, unbolded prose.
+    """
+
+    def test_story1_repro_mixed_declared_and_bare_prose_is_flagged(self):
+        """Issue #3396's exact repro: a declared NFR-001 table row alongside
+        bare-prose FR-001/FR-002 sentences under the same "Functional
+        Requirements" heading must be flagged -- this is the mission's whole
+        reason to exist."""
+        content = (
+            "### Functional Requirements\n\n"
+            "FR-001 the loader must reject an unknown pack.\n"
+            "FR-002 the error must name the offending path.\n\n"
+            "| ID | Requirement |\n"
+            "|----|-------------|\n"
+            "| NFR-001 | Resolution completes within 200ms |\n"
+        )
+        result = find_bare_prose_requirement_ids(content)
+        assert len(result) == 1
+        assert result[0].section_heading == "Functional Requirements"
+        assert result[0].ids == ["FR-001", "FR-002"]
 
 
 class TestNormalizeRequirementRefsValue:
