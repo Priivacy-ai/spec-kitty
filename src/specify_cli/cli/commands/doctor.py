@@ -99,6 +99,14 @@ from ._identity_audit import (  # noqa: E402
     run_topology_audit,
 )
 
+# mission-type-guard-registry-01KZY2FG WP02: the mission-type resolution
+# health audit (FR-007/FR-008/FR-009) lives in ``_mission_type_audit``,
+# combining the domain-layer classifier and CLI-glue/report-builder roles
+# into one sibling module (see plan.md's Seam & Module Placement section).
+from ._mission_type_audit import (  # noqa: E402
+    run_mission_type_audit,
+)
+
 # WP05 (#2059): the tool-surface + command-skill + slash-command cluster (A) was
 # extracted to ``_command_surface_doctor`` and the ``skills`` /
 # ``_repair_command_skill_state`` bodies decomposed into <=15-CC helpers. The
@@ -476,6 +484,57 @@ def topology(
         console.print("[red]Error:[/red] Not in a spec-kitty project")
         raise typer.Exit(1)
     run_topology_audit(repo_root, json_output, mission)
+
+
+@app.command(name="mission-type")
+def mission_type(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit structured JSON output (suitable for CI)"),
+    ] = False,
+    mission: Annotated[
+        str | None,
+        typer.Option("--mission", help="Scope report to a single mission slug"),
+    ] = None,
+    fail_on: Annotated[
+        str | None,
+        typer.Option(
+            "--fail-on",
+            help=(
+                "Exit non-zero if any mission is in the given state(s). "
+                "Comma-separated list of: resolved, activated-unresolvable, "
+                "unknown, typeless, legacy-key-only, error."
+            ),
+        ),
+    ] = None,
+) -> None:
+    """Report mission-type resolution health across kitty-specs/.
+
+    Classifies every mission into one of six states (FR-008):
+
+    \\b
+    - resolved: mission_type present, activated, and loadable
+    - activated-unresolvable: activated but has no loadable profile on disk
+    - unknown: mission_type present but not activated/registered anywhere
+    - typeless: no mission_type key (or a blank/null/non-string value)
+    - legacy-key-only: only the retired `mission` key is present
+    - error: meta.json unreadable or malformed
+
+    Examples:
+        spec-kitty doctor mission-type
+        spec-kitty doctor mission-type --json
+        spec-kitty doctor mission-type --mission 083-foo
+        spec-kitty doctor mission-type --fail-on unknown,activated-unresolvable
+    """
+    try:
+        repo_root = locate_project_root()
+    except Exception as exc:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1) from exc
+    if repo_root is None:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1)
+    run_mission_type_audit(repo_root, json_output, mission, fail_on)
 
 
 @app.command(name="sparse-checkout")
