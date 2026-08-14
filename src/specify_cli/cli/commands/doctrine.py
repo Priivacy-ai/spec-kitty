@@ -1025,26 +1025,6 @@ class _MissionTypeRow:
         self.display_name = display_name
 
 
-def _collect_built_in_mission_types() -> list[_MissionTypeRow]:
-    """Return mission types from the built-in doctrine layer.
-
-    Uses :class:`doctrine.missions.mission_type_repository.MissionTypeRepository`
-    to load all built-in mission types.  The display name is taken directly
-    from :attr:`~doctrine.missions.models.MissionType.display_name`.
-    """
-    from charter.missions import MissionTypeRepository  # noqa: PLC0415
-
-    repo = MissionTypeRepository.default()
-    return [
-        _MissionTypeRow(
-            id=mt.id,
-            source_layer="built-in",
-            display_name=mt.display_name,
-        )
-        for mt in repo.load_all()
-    ]
-
-
 @mission_type_app.command("list")
 def mission_type_list(
     json_output: bool = typer.Option(
@@ -1063,8 +1043,41 @@ def mission_type_list(
     Use ``spec-kitty charter mission-type list`` to see only types that
     are currently activated for this project.
     """
-    # Collect built-in types.
-    rows: list[_MissionTypeRow] = _collect_built_in_mission_types()
+    # FR-008 (WP07/T018): the full layered roster (built-in -> org ->
+    # project, full per-id replacement) IS the built-in -> org -> project
+    # shadow chain this docstring already promises -- reach it directly
+    # instead of the built-in-only collector, so an id merely *registered*
+    # (not activated) in an org/project layer still appears here with its
+    # real layer, matching this command's own contract (activation-scoped
+    # listing is `charter mission-type list`'s job, not this one's).
+    from specify_cli.cli.commands.charter.mission_type import (  # noqa: PLC0415
+        resolve_layered_roster,
+        resolve_mission_type_source_layer,
+    )
+
+    repo_root = Path.cwd()
+
+    # CL-006/NFR-002 (post-fix verification sweep, mission
+    # up-mission-type-seam-01KZY1JB): sibling of the same unguarded call in
+    # ``charter mission-type list`` -- ``resolve_layered_roster`` loud-fails
+    # BY DESIGN (WP03, PR-CONTRACT-002) on a malformed/unreadable YAML file
+    # anywhere in the built-in/org/project ``mission_types/`` layers. A bare
+    # ``except ValueError`` also catches ``pydantic.ValidationError`` (this
+    # resolver's other documented ``Raises`` type) since it subclasses
+    # ``ValueError`` in the pinned pydantic version.
+    try:
+        roster = resolve_layered_roster(repo_root)
+    except ValueError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    rows: list[_MissionTypeRow] = [
+        _MissionTypeRow(
+            id=mt_id,
+            source_layer=resolve_mission_type_source_layer(mt_id, repo_root),
+            display_name=mission_type.display_name,
+        )
+        for mt_id, mission_type in roster.items()
+    ]
 
     # Sort: built-in first (already the case), then by id within each layer.
     rows.sort(key=lambda r: (r.source_layer != "built-in", r.id))

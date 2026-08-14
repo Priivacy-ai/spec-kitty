@@ -68,15 +68,18 @@ from charter.mission_type_key import canonical_mission_type_key
 
 if TYPE_CHECKING:
     from charter.mission_type_profile_repository import MissionTypeProfileRepository
+    from doctrine.missions.mission_step_repository import _PackContextLike
 
 __all__ = [
     "CrossGrainDoubleDeclarationError",
     "GovernancePayload",
+    "MissionTypeEmptyActionSequenceError",
     "MissionTypeProfile",
     "ResolvedGovernance",
     "ResolvedMissionType",
     "UnknownMissionTypeError",
     "existing_mission_types",
+    "resolve_action_sequence_layer",
     "resolve_mission_type_context",
     "resolve_mission_type_key",
 ]
@@ -253,6 +256,54 @@ class UnknownMissionTypeError(ValueError):
                 "No registered mission types are available."
             )
         super().__init__(message)
+
+
+class MissionTypeEmptyActionSequenceError(ValueError):
+    """Raised when a mission type resolves with no action sequence (FR-004).
+
+    This is the mission's own dominant risk (CL-003, mission
+    ``up-mission-type-seam-01KZY1JB``): an org- or project-layer
+    mission-type YAML that carries only ``schema_version``/``id``/
+    ``display_name`` (no ``action_sequence``) loads CLEAN --
+    :class:`~doctrine.missions.models.MissionType`'s ``action_sequence``
+    field is ``list[str] | None``, and its own validator
+    (``MissionType._validate_action_sequence``) only enforces the
+    non-empty invariant when the field is **not** ``None``. Before this
+    error existed, a mission of that type would resolve "successfully"
+    through :func:`_resolve_action_slot` and plan **nothing** -- the
+    ``list(mission.action_sequence or [])`` silent-empty degradation, with
+    no error anywhere (NFR-002).
+
+    Mirrors :class:`UnknownMissionTypeError`'s shape (a plain ``ValueError``
+    subclass carrying structured attributes plus a formatted message,
+    raised at the same call site for an analogous configuration-
+    inconsistency case) per FR-004's explicit instruction to follow that
+    precedent rather than a bare ``ValueError``/``Exception``.
+
+    A built-in mission type can never trigger this: every shipped
+    ``packs/built-in/missions/mission_types/*.yaml`` resolves a non-empty
+    ``action_sequence`` by construction (either YAML-authored or
+    WP02-projected via ``_inject_projected_fields``), locked by
+    ``tests/runtime/test_runtime_seam.py``'s golden-parity suite across all
+    four built-in types. This error is therefore reachable only for a type
+    that resolved through the org or project layer (FR-001/FR-002).
+
+    Attributes
+    ----------
+    mission_type_id:
+        The mission type ID that resolved with an empty action sequence.
+    layer:
+        The layer the mission type resolved from -- ``"org"`` or
+        ``"project"`` (never ``"built-in"``; see above).
+    """
+
+    def __init__(self, mission_type_id: str, layer: str) -> None:
+        self.mission_type_id = mission_type_id
+        self.layer = layer
+        super().__init__(
+            f"mission type `{mission_type_id}` resolved from layer `{layer}` "
+            "has an empty action sequence."
+        )
 
 
 class CrossGrainDoubleDeclarationError(ValueError):
@@ -583,6 +634,21 @@ def resolve_mission_type_context(
     is_registered = type_key in registered
     has_override = _project_has_doctrine_overrides(repo_root)
 
+    # FR-002 (WP04): construct the real PackContext and thread it into both
+    # projection slots below -- sibling to (not a replacement for) the
+    # PackContext existing_mission_types() already builds one call-frame
+    # down purely to compute `registered`/`is_registered`, above. This is a
+    # second, separate construction: CL-001 forbids threading a
+    # project-dependent value into MissionTypeRepository.default()'s
+    # cls-keyed cache, so the two call sites deliberately do not share one
+    # PackContext instance -- each constructs its own from the same
+    # repo_root. PackContext.from_config() is a plain read (no caching of
+    # its own) and is called this way at every other charter call site
+    # (see e.g. charter.compiler, charter.action_doctrine_bundle).
+    from charter.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular
+
+    pack_context = PackContext.from_config(repo_root)
+
     governance_provenance, governance_text, governance_thunk = _resolve_governance_slot(
         type_key,
         registered=registered,
@@ -594,6 +660,7 @@ def resolve_mission_type_context(
         type_key,
         registered=registered,
         is_registered=is_registered,
+        pack_context=pack_context,
     )
     return ResolvedMissionType(
         mission_type=type_key,
@@ -607,7 +674,7 @@ def resolve_mission_type_context(
         # budget. Each is memoised on first access.
         _governance_thunk=governance_thunk,
         _template_set_thunk=lambda: _resolve_template_set_slot(
-            type_key, is_registered=is_registered
+            type_key, is_registered=is_registered, pack_context=pack_context
         ),
         _step_contracts_thunk=lambda: _resolve_step_contracts_slot(
             type_key, is_registered=is_registered
@@ -759,11 +826,57 @@ def _resolve_governance_slot(
     return provenance, text, governance_thunk
 
 
+def resolve_action_sequence_layer(
+    mission_type_id: str,
+    *,
+    mission_types_dirs: tuple[Path, ...],
+    pack_context: _PackContextLike,
+) -> str:
+    """Name the layer that resolved *mission_type_id*, for FR-004's error message.
+
+    Public (PR-BOUNDARY-001, pre-merge squad, mission
+    up-mission-type-seam-01KZY1JB): also called from
+    ``specify_cli.cli.commands.charter.mission_type.resolve_mission_type_source_layer``,
+    which previously imported this by its private,
+    leading-underscore name (bypassing the facade discipline the sibling
+    ``resolve_layered_roster`` applies one line above it, via the
+    ``charter.missions`` door). Renamed and added to this module's
+    ``__all__`` so the cross-module dependency is a documented, discoverable
+    part of the public contract instead of an unlisted private import.
+
+    Mirrors :func:`~doctrine.missions.mission_type_repository.resolve_layered_mission_types`'s
+    own precedence (project > org, earliest ``pack_root`` wins > built-in-
+    equivalent, CL-005) but only determines *which* layer's file exists for
+    *mission_type_id* -- it does not re-parse or re-validate any YAML, since
+    :func:`_resolve_action_slot` already has the resolved
+    :class:`~doctrine.missions.models.MissionType` in hand by the time this
+    is called. Used solely to name the layer in
+    :class:`MissionTypeEmptyActionSequenceError`'s message; callers only
+    reach this helper once the type's action sequence is already known to be
+    empty, so the built-in-equivalent fallback below is unreachable in
+    practice (see that class's docstring) -- it is named as the honest
+    default rather than raising a second error inside an error path.
+    """
+    project_dir = pack_context.repo_root / ".kittify" / "missions" / "mission_types"
+    if (project_dir / f"{mission_type_id}.yaml").is_file():
+        return "project"
+
+    protected_pack_roots = {base_dir.parent for base_dir in mission_types_dirs}
+    for pack_root in pack_context.pack_roots:
+        if pack_root in protected_pack_roots:
+            continue  # already handled by the built-in-equivalent layer
+        if (pack_root / "mission_types" / f"{mission_type_id}.yaml").is_file():
+            return "org"
+
+    return "built-in"
+
+
 def _resolve_action_slot(
     mission_type: str,
     *,
     registered: list[str],
     is_registered: bool,
+    pack_context: _PackContextLike,
 ) -> list[str]:
     """Resolve the action sequence under the **strict** validation policy.
 
@@ -772,39 +885,87 @@ def _resolve_action_slot(
     was tolerated by the governance slot (project override present) has no
     built-in action sequence, so it degrades to an empty list.
 
+    **WP04 (FR-002, mission up-mission-type-seam-01KZY1JB):** resolves
+    through :func:`~doctrine.missions.mission_type_repository.resolve_layered_mission_types`
+    -- the new, separate, module-level layered factory (WP03) -- instead of
+    the built-in-only :meth:`MissionTypeRepository.default`. This is a
+    repository-call **swap**, not argument-threading: the built-in-only
+    accessor had no ``pack_context`` parameter to thread through in the
+    first place. ``mission_types_dirs`` is the same built-in-equivalent root
+    :meth:`MissionTypeRepository.default` itself resolves
+    (``MissionTemplateRepository.default_missions_root() / "mission_types"``),
+    so a project with no org/project mission-type packs activated
+    (``pack_context`` resolving to the same built-in-only roster) sees
+    byte-identical output to the pre-WP04 code path (User Story 3 AC1,
+    locked by ``tests/runtime/test_runtime_seam.py``'s golden-parity suite).
+
+    **WP06 (FR-004/CL-003, mission up-mission-type-seam-01KZY1JB):** a
+    resolved type whose action sequence is empty -- own or, after the
+    ``extends`` fallback, inherited -- no longer degrades to ``[]`` here. It
+    raises :class:`MissionTypeEmptyActionSequenceError` naming the type id
+    and the layer :func:`resolve_action_sequence_layer` attributes it to.
+    Built-in types never trigger this (see that error class's docstring for
+    why); this closes the CL-003 silent "plans nothing, reports success" gap
+    that only became reachable once WP04 wired a non-built-in-layer roster
+    into this function.
+
     **WP06 confirmation (S-B cutover, mission-step-authority):**
     ``mission.action_sequence`` below is already the WP02-projected value —
     ``MissionTypeRepository._load`` overlays ``project_action_sequence(steps)``
     onto the raw YAML field (via ``_inject_projected_fields``) before
     :class:`~doctrine.missions.models.MissionType` validates, falling back to
     the authored YAML only while a given type's projection is still empty
-    (pre-WP07). This resolver was never a bypass; it reads the injected model
-    through :meth:`MissionTypeRepository.default`, which is memoized
-    (``functools.cache``) so this call never re-walks ``mission-steps/`` on
-    the hot path. See ``tests/runtime/test_runtime_seam.py`` for the
-    seam-equivalence lock (all 4 built-in types) and the extends-fallback
-    check below.
+    (pre-WP07). This resolver was never a bypass; it reads the injected
+    model through the layered factory, which is itself memoized
+    (``functools.cache``, keyed on ``(mission_types_dirs, pack_context)``) so
+    this call never re-walks ``mission-steps/`` on the hot path. See
+    ``tests/runtime/test_runtime_seam.py`` for the seam-equivalence lock
+    (all 4 built-in types) and the extends-fallback check below.
     """
     if not is_registered:
         return []
 
-    from doctrine.missions.mission_type_repository import MissionTypeRepository  # noqa: PLC0415
+    from doctrine.missions.mission_type_repository import (  # noqa: PLC0415
+        resolve_layered_mission_types,
+    )
+    from doctrine.missions.repository import MissionTemplateRepository  # noqa: PLC0415
 
-    repo = MissionTypeRepository.default()
-    mission = repo.get(mission_type)
+    mission_types_dirs = (MissionTemplateRepository.default_missions_root() / "mission_types",)
+    roster = resolve_layered_mission_types(mission_types_dirs, pack_context)
+    mission = roster.get(mission_type)
     if mission is None:
-        # The type is activated but has no YAML definition in the built-in
-        # doctrine bundle.  This is a configuration inconsistency; report it
-        # clearly rather than returning an empty sequence.
+        # The type is activated but has no YAML definition resolvable in
+        # any layer (built-in, org, or project).  This is a configuration
+        # inconsistency; report it clearly rather than returning an empty
+        # sequence.
         raise UnknownMissionTypeError(mission_type, registered_ids=registered)
 
-    # Resolve extends: chain (single level — top-level extends only).
-    if mission.extends is not None:
-        parent = repo.get(mission.extends)
-        if parent is not None and not mission.action_sequence:
-            return list(parent.action_sequence or [])
+    action_sequence = list(mission.action_sequence or [])
 
-    return list(mission.action_sequence or [])
+    # Resolve extends: chain (single level — top-level extends only). Only
+    # attempted when the type's own sequence is empty; a parent that is
+    # itself unresolvable or also empty leaves action_sequence empty, so the
+    # FR-004 check below still fires rather than silently returning [].
+    if not action_sequence and mission.extends is not None:
+        parent = roster.get(mission.extends)
+        if parent is not None:
+            action_sequence = list(parent.action_sequence or [])
+
+    if not action_sequence:
+        # FR-004/CL-003 (WP06): an org- or project-layer type -- built-in
+        # types always resolve non-empty, see
+        # MissionTypeEmptyActionSequenceError's docstring -- that reaches
+        # here has no usable action sequence, own or inherited. Silently
+        # returning [] would plan nothing and report success (NFR-002);
+        # raise loudly instead, naming the id and the resolving layer.
+        layer = resolve_action_sequence_layer(
+            mission_type,
+            mission_types_dirs=mission_types_dirs,
+            pack_context=pack_context,
+        )
+        raise MissionTypeEmptyActionSequenceError(mission_type, layer)
+
+    return action_sequence
 
 
 def _resolve_expected_artifacts_slot(
@@ -842,6 +1003,7 @@ def _resolve_template_set_slot(
     mission_type: str,
     *,
     is_registered: bool,
+    pack_context: _PackContextLike,
 ) -> Mapping[str, str] | None:
     """Project the activated doctrine mission type's immutable template mapping.
 
@@ -856,13 +1018,25 @@ def _resolve_template_set_slot(
     longer reads it -- it computes
     ``project_template_set(steps)`` directly from
     ``MissionStepRepository.resolve_all_for_mission_type(mission_type,
-    pack_context=None)`` (builtin-only, matching the pre-cutover parity
-    contract). ``pack_context=None`` here means the shared
+    pack_context=pack_context)``.
+
+    **WP04 (FR-002, mission up-mission-type-seam-01KZY1JB):** *pack_context*
+    is the real ``PackContext`` :func:`resolve_mission_type_context` already
+    constructs -- threaded straight through here (argument-threading only;
+    ``MissionStepRepository.resolve_all_for_mission_type`` already accepts a
+    ``pack_context`` parameter, this sibling module's own already-live
+    pattern) so an org/project mission type's step-authored templates
+    resolve for real instead of being invisible to a hardcoded
+    ``pack_context=None``. For a project with no org/project mission-type
+    packs activated, the resolved roster is identical to the built-in-only
+    roster, so built-in-type output is unaffected (User Story 3 AC1,
+    ``tests/runtime/test_runtime_seam.py``'s golden-parity suite). Threading
+    the real ``pack_context`` also means the shared
     ``resolve_all_for_mission_type`` cache (NFR-003) is warm whenever
     :class:`MissionTypeRepository`'s ``action_sequence`` overlay already
-    resolved the same ``(mission_type, None)`` pair in this process -- one
-    filesystem walk serves both consumers. This is the *dict* template
-    mapping (per-type template mapping), never the unrelated
+    resolved the same ``(mission_type, pack_context)`` pair in this process
+    -- one filesystem walk serves both consumers. This is the *dict*
+    template mapping (per-type template mapping), never the unrelated
     ``doctrine.template_set`` scalar (charter selection authority in
     ``resolver.py``/``compiler.py``/etc.) — C-002 keeps those surfaces
     fenced off.
@@ -875,7 +1049,7 @@ def _resolve_template_set_slot(
 
     steps = list(
         MissionStepRepository.default()
-        .resolve_all_for_mission_type(mission_type, pack_context=None)
+        .resolve_all_for_mission_type(mission_type, pack_context=pack_context)
         .values()
     )
     template_set = project_template_set(steps)

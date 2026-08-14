@@ -65,11 +65,14 @@ def test_documentation_in_composed_actions(tmp_path: Path) -> None:
     mock_repo = MagicMock()
     mock_repo.get.side_effect = lambda k: doc_mt if k == "documentation" else None
 
-    mock_repo_cls = MagicMock()
-    mock_repo_cls.default.return_value = mock_repo
+    # WP04 (mission up-mission-type-seam-01KZY1JB): resolve_mission_type_context
+    # now resolves through the layered factory
+    # ``resolve_layered_mission_types``, not ``MissionTypeRepository.default()``.
+    # mock_repo already exposes the ``.get(id)`` interface the roster needs.
+    mock_resolve_layered = MagicMock(return_value=mock_repo)
 
     fake_module = types.ModuleType("doctrine.missions.mission_type_repository")
-    fake_module.MissionTypeRepository = mock_repo_cls  # type: ignore[attr-defined]
+    fake_module.resolve_layered_mission_types = mock_resolve_layered  # type: ignore[attr-defined]
 
     saved = sys.modules.get("doctrine.missions.mission_type_repository")
     sys.modules["doctrine.missions.mission_type_repository"] = fake_module

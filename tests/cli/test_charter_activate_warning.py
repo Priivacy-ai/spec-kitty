@@ -365,8 +365,6 @@ class TestCharterActivateCLI:
 
         mock_mt = MagicMock()
         mock_mt.action_sequence = ["specify", "plan"]
-        mock_repo = MagicMock()
-        mock_repo.get.return_value = mock_mt
 
         with (
             patch(
@@ -374,8 +372,8 @@ class TestCharterActivateCLI:
                 return_value=SimpleNamespace(action_sequence=["specify", "plan", "review"]),
             ),
             patch(
-                "doctrine.missions.mission_type_repository.MissionTypeRepository.default",
-                return_value=mock_repo,
+                "specify_cli.cli.commands.charter.mission_type.resolve_layered_roster",
+                return_value={"software-dev": mock_mt},
             ),
         ):
             result = runner.invoke(
@@ -387,3 +385,43 @@ class TestCharterActivateCLI:
         assert result.exit_code == 0, result.output
         # Step removal warning emitted for in-flight WPs.
         assert "review" in result.output
+
+    def test_activate_mission_type_surfaces_resolution_failure_not_silenced(
+        self, tmp_path: Path
+    ) -> None:
+        """FR-009 edge case (spec.md Edge Cases): a previous action_sequence
+        resolution failure (WP06's ``MissionTypeEmptyActionSequenceError``)
+        MUST surface, not be silently folded into "no steps were removed"
+        by the bare ``except Exception`` this fix replaces.
+
+        CL-006/NFR-002 (post-fix verification sweep, mission
+        up-mission-type-seam-01KZY1JB): "surface" was pinned here as "let the
+        raw exception propagate all the way out of the CLI" -- which was
+        itself the bug the sweep flagged (an uncaught traceback, not
+        ``typer.Exit``). ``MissionTypeEmptyActionSequenceError`` IS a
+        ``ValueError`` subclass, so it is now caught by the same CLI-boundary
+        handler that catches a malformed-YAML ``ValueError`` from the layered
+        roster scan -- "surfaced" now means a clean, operator-readable
+        ``typer.Exit(1)`` naming the failure, not a raw traceback.
+        """
+        from charter.mission_type_profiles import MissionTypeEmptyActionSequenceError
+
+        (tmp_path / ".kittify").mkdir(exist_ok=True)
+        (tmp_path / ".kittify" / "config.yaml").write_text("# empty\n", encoding="utf-8")
+
+        with patch(
+            "charter.mission_type_profiles.resolve_mission_type_context",
+            side_effect=MissionTypeEmptyActionSequenceError("qa", "org"),
+        ):
+            result = runner.invoke(
+                charter_app,
+                ["activate", "--repo-root", str(tmp_path), "mission-type", "qa"],
+                catch_exceptions=True,
+            )
+
+        assert result.exit_code == 1, result.output
+        assert isinstance(result.exception, SystemExit), (
+            f"expected a clean typer.Exit(1) (SystemExit), got a raw "
+            f"{type(result.exception).__name__}: {result.exception!r}"
+        )
+        assert "qa" in result.output and "org" in result.output, result.output

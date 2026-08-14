@@ -398,12 +398,30 @@ class TestResolveLayerCandidate:
 
         assert candidate == MissionTemplateRepository.default_missions_root() / "mission_types"
 
-    def test_flat_kind_org_layer_has_no_candidate(self, tmp_path: Path) -> None:
-        """Mirrors the pre-extraction ``else: continue`` — a non-built-in
-        layer for a flat (``layered=False``) kind has no known directory."""
-        assert _resolve_layer_candidate("org", tmp_path, None, "missions/mission_types", layered=False) is None
-
-    def test_flat_kind_project_layer_has_no_candidate(self, tmp_path: Path) -> None:
-        assert (
-            _resolve_layer_candidate("project", tmp_path, None, "missions/mission_types", layered=False) is None
+    def test_flat_kind_org_layer_resolves_to_pack_root_mission_types(self, tmp_path: Path) -> None:
+        """FR-003: an org pack's flat mission-type roster lives at
+        ``<org_pack_root>/mission_types/`` (CL-005). This supersedes the
+        pre-FR-003 ``else: continue`` behaviour this test used to pin — a
+        flat (``layered=False``) kind in the org layer now resolves to a real
+        directory instead of ``None``. See
+        ``docs/adr/3.x/2026-08-13-1-mission-type-roster-layering-seam.md``."""
+        candidate = _resolve_layer_candidate(
+            "org", tmp_path, None, "missions/mission_types", layered=False
         )
+        assert candidate == tmp_path / "mission_types"
+
+    def test_flat_kind_project_layer_resolves_to_kittify_missions_mission_types(
+        self, tmp_path: Path
+    ) -> None:
+        """FR-005: a project's flat mission-type roster lives at
+        ``.kittify/missions/mission_types/`` — a flat sibling of, not nested
+        inside, ``.kittify/missions/<mission_name>/`` (CL-005). ``root`` here
+        is already ``repo_root / ".kittify"`` (see
+        ``specify_cli.cli.commands.charter._layer_roots.resolve_layer_roots``).
+        This supersedes the pre-FR-003/FR-005 ``else: continue`` behaviour
+        this test used to pin — a flat (``layered=False``) kind in the
+        project layer now resolves to a real directory instead of ``None``."""
+        candidate = _resolve_layer_candidate(
+            "project", tmp_path, None, "missions/mission_types", layered=False
+        )
+        assert candidate == tmp_path / "missions" / "mission_types"

@@ -38,7 +38,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from charter.catalog import DoctrineCatalog, load_doctrine_catalog
 from charter.reference_resolver import resolve_references_transitively
@@ -77,7 +77,6 @@ if TYPE_CHECKING:
     from doctrine.directives.models import Directive
     from doctrine.drg.models import DRGGraph
     from doctrine.glossary_packs.models import GlossaryPack
-    from doctrine.missions.mission_step_repository import _PackContextLike
     from doctrine.missions.step_contracts import MissionStepContract
     from doctrine.paradigms.models import Paradigm
     from doctrine.procedures.models import Procedure
@@ -903,38 +902,6 @@ def collect_governance_diagnostics(
     except GovernanceResolutionError as exc:
         return exc.issues
     return resolution.diagnostics
-
-
-def resolve_mission_steps(
-    mission_type_id: str,
-    pack_context: PackContext | None = None,
-) -> dict[str, Any]:
-    """Resolve all mission steps for ``mission_type_id`` with org/project shadowing.
-
-    Uses :class:`charter.mission_steps.MissionStepRepository` (the charter-layer
-    facade for FR-037 step resolution) to load the layered step catalog:
-    built-in → org packs → project overrides.
-
-    Parameters
-    ----------
-    mission_type_id:
-        The mission type identifier (e.g. ``"software-dev"``).
-    pack_context:
-        Optional :class:`~charter.pack_context.PackContext` for org and project
-        layer resolution.  When ``None``, only the built-in layer is queried.
-
-    Returns
-    -------
-    dict[str, MissionStep]
-        Mapping of ``step_id → MissionStep`` with layered shadowing applied.
-        Returns an empty dict when no steps exist for the given mission type.
-    """
-    from charter.mission_steps import MissionStepRepository  # noqa: PLC0415
-
-    return MissionStepRepository.default().resolve_all_for_mission_type(
-        mission_type_id,
-        pack_context=cast("_PackContextLike | None", pack_context),
-    )
 
 
 def _merge_unique(primary: list[str], secondary: list[str]) -> list[str]:

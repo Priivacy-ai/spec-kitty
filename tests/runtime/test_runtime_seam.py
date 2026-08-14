@@ -181,6 +181,116 @@ class TestSeamEquivalence:
         }
 
 
+class TestGoldenParityUnaffectedByPackContextThreading:
+    """WP04/T010 step 3 — golden-parity extension (User Story 3 AC1).
+
+    WP04 threads a real, non-``None`` ``PackContext`` into
+    ``_resolve_action_slot``/``_resolve_template_set_slot`` (FR-002). This
+    class extends ``TestSeamEquivalence`` above by exercising that real
+    threading against a ``PackContext`` that carries a genuine (but
+    unrelated) org pack root, and asserting all 4 built-in types still
+    resolve byte-identically to the pinned authored contract.
+
+    Not a red-first pin (unlike ``TestPackContextProjection`` in
+    ``tests/charter/test_mission_type_profiles.py``): built-in types already
+    resolve correctly pre-WP04 -- ``TestSeamEquivalence`` above never mocks
+    ``PackContext.from_config`` either, so it already exercises this WP's
+    new code path incidentally. This class is the deliberate regression
+    backstop (not incidental coverage) proving a real org pack root, present
+    but declaring nothing for any built-in type id, never perturbs built-in
+    output -- the mechanism CL-001 requires: no cross-project/cross-layer
+    pollution.
+    """
+
+    @pytest.mark.parametrize("mission_type_id", _BUILTIN_TYPE_IDS)
+    def test_builtin_type_unaffected_by_real_pack_context_with_org_root(
+        self, tmp_path: Path, mission_type_id: str
+    ) -> None:
+        from charter.pack_context import PackContext
+
+        expected = _expected_authored(mission_type_id)
+        org_root = tmp_path / "org-pack"
+        (org_root / "mission_types").mkdir(parents=True)
+        pack_context = PackContext(
+            activated_kinds=frozenset(),
+            activated_mission_types=frozenset(_BUILTIN_TYPE_IDS),
+            pack_roots=(tmp_path / "unused-builtin-placeholder", org_root),
+            org_pack_names=("org-pack",),
+            repo_root=tmp_path,
+        )
+
+        with patch(
+            "charter.pack_context.PackContext.from_config", return_value=pack_context
+        ):
+            bundle = _resolve_via_seam(tmp_path, mission_type_id)
+
+        assert bundle.action_sequence == expected["action_sequence"]
+        expected_template_set = expected.get("template_set")
+        if expected_template_set is None:
+            assert bundle.template_set is None
+        else:
+            assert bundle.template_set is not None
+            assert dict(bundle.template_set) == expected_template_set
+
+    def test_org_root_content_actually_resolves_through_the_seam(
+        self, tmp_path: Path
+    ) -> None:
+        """PR-TESTS-001 (pre-merge squad, mission up-mission-type-seam-01KZY1JB):
+        the sibling test above (``test_builtin_type_unaffected_by_real_pack_
+        context_with_org_root``) `mkdir`'s the org root's ``mission_types/``
+        directory but never writes a YAML into it -- the org layer always
+        scans to ``[]``, so that test's assertions hold identically whether
+        WP04's ``PackContext`` threading exists or is fully reverted
+        (empirically confirmed by the squad: reverting
+        ``_resolve_action_slot``/``_resolve_template_set_slot`` to bypass
+        ``resolve_layered_mission_types``/``pack_context`` entirely still
+        left that test 4/4 green). This test gives the SAME kind of org root
+        real, non-colliding content -- a custom id sharing nothing with any
+        built-in type -- so the layered-merge code path this class claims to
+        guard is actually exercised end to end, closing the vacuity gap.
+        """
+        from charter.pack_context import PackContext
+
+        org_root = tmp_path / "org-pack"
+        mt_dir = org_root / "mission_types"
+        mt_dir.mkdir(parents=True)
+        (mt_dir / "unrelated-custom.yaml").write_text(
+            "schema_version: 1\n"
+            "id: unrelated-custom\n"
+            "display_name: Unrelated Custom\n"
+            "action_sequence:\n"
+            "  - design\n"
+            "  - implement\n",
+            encoding="utf-8",
+        )
+        activated = ["unrelated-custom", *_BUILTIN_TYPE_IDS]
+        pack_context = PackContext(
+            activated_kinds=frozenset(),
+            activated_mission_types=frozenset(activated),
+            pack_roots=(tmp_path / "unused-builtin-placeholder", org_root),
+            org_pack_names=("org-pack",),
+            repo_root=tmp_path,
+        )
+
+        MissionTypeRepository.cache_clear()
+        try:
+            with (
+                patch(
+                    "charter.mission_type_profiles.existing_mission_types",
+                    return_value=activated,
+                ),
+                patch(
+                    "charter.pack_context.PackContext.from_config",
+                    return_value=pack_context,
+                ),
+            ):
+                bundle = resolve_mission_type_context(tmp_path, mission_type="unrelated-custom")
+        finally:
+            MissionTypeRepository.cache_clear()
+
+        assert bundle.action_sequence == ["design", "implement"]
+
+
 # ---------------------------------------------------------------------------
 # 2. Consumer transitivity (T019) — the three cited call sites read the seam
 # ---------------------------------------------------------------------------

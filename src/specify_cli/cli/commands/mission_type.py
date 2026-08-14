@@ -30,7 +30,6 @@ from typing import Annotated, Any
 import typer
 from mission_runtime import MissionArtifactKind, placement_seam
 from rich.panel import Panel
-from rich.table import Table
 from rich.text import Text
 
 from specify_cli.cli.console import console
@@ -39,7 +38,6 @@ from specify_cli.mission import (
     Mission,
     MissionError,
     MissionNotFoundError,
-    discover_missions,
     get_mission_by_name,
     get_mission_for_feature,
     list_available_missions,
@@ -117,55 +115,6 @@ def _mission_details_lines(mission: Mission, include_description: bool = True) -
         details.append(f"  • Optional: {', '.join(mission.config.mcp_tools.optional) or 'none'}")
 
     return details
-
-
-def _print_available_missions(project_root: Path) -> None:
-    """Print available missions with source indicators (project/built-in)."""
-    missions = discover_missions(project_root)
-    if not missions:
-        console.print("[yellow]No missions found in .kittify/missions/[/yellow]")
-        return
-
-    table = Table(title="Available Missions", show_header=True)
-    table.add_column("Key", style="cyan")
-    table.add_column("Name", style="green")
-    table.add_column("Domain", style="magenta")
-    table.add_column("Description", overflow="fold")
-    table.add_column("Source", style="dim")
-
-    for key, (mission, source) in sorted(missions.items()):
-        table.add_row(
-            key,
-            mission.name,
-            mission.domain,
-            mission.description or "",
-            source,
-        )
-
-    console.print(table)
-    console.print()
-    console.print("[dim]Mission types are selected per mission run during /spec-kitty.specify[/dim]")
-
-
-@app.command("list")
-def list_cmd() -> None:
-    """List all available missions with their source (project/built-in)."""
-    project_root = get_project_root_or_exit()
-    kittify_dir = project_root / ".kittify"
-    if not kittify_dir.exists():
-        console.print(f"[red]Spec Kitty project not initialized at:[/red] {project_root}")
-        console.print(
-            "[dim]Run 'spec-kitty init <project-name>' or execute this command from a feature worktree created under .worktrees/<feature>/.[/dim]"  # noqa: E501
-        )
-        raise typer.Exit(1)
-
-    try:
-        _print_available_missions(project_root)
-    except typer.Exit:
-        raise
-    except Exception as exc:
-        console.print(f"[red]Error listing missions:[/red] {exc}")
-        raise typer.Exit(1) from exc
 
 
 def _detect_current_feature(project_root: Path) -> str | None:
@@ -1468,11 +1417,15 @@ def show_mission_type(
     is not an activated type.
     """
     from charter.mission_type_profiles import (  # noqa: PLC0415
+        MissionTypeEmptyActionSequenceError,
         UnknownMissionTypeError,
         existing_mission_types,
         resolve_mission_type_context,
     )
-    from charter.missions import MissionTypeRepository  # noqa: PLC0415
+    from specify_cli.cli.commands.charter.mission_type import (  # noqa: PLC0415
+        resolve_layered_roster,
+        resolve_mission_type_source_layer,
+    )
 
     repo_root = Path.cwd()
     activated_ids = existing_mission_types(repo_root)
@@ -1482,12 +1435,34 @@ def show_mission_type(
         console.print(f"[red]Error:[/red] {err}")
         raise typer.Exit(1)
 
-    repo = MissionTypeRepository.default()
-    mt = repo.get(mission_type_id)
+    # FR-007 (WP07/T017, PLAN-FRESH2-001 site 1): reach the FR-001 layered
+    # lookup, not the built-in-only ``MissionTypeRepository.default()`` --
+    # an activated-but-non-built-in type must succeed here, not hard-fail.
+    #
+    # CL-006/NFR-002 (post-fix verification sweep, mission
+    # up-mission-type-seam-01KZY1JB): sibling of the same unguarded call in
+    # ``charter mission-type list`` / ``doctrine mission-type list`` --
+    # ``resolve_layered_roster`` loud-fails BY DESIGN (WP03,
+    # PR-CONTRACT-002) on a malformed/unreadable YAML file anywhere in the
+    # built-in/org/project ``mission_types/`` layers, even when the
+    # malformed file is unrelated to ``mission_type_id`` (the scan is
+    # directory-wide, not per-id). A bare ``except ValueError`` also catches
+    # ``pydantic.ValidationError`` (this resolver's other documented
+    # ``Raises`` type) since it subclasses ``ValueError`` in the pinned
+    # pydantic version.
+    try:
+        mt = resolve_layered_roster(repo_root).get(mission_type_id)
+    except ValueError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
     if mt is None:
         err = UnknownMissionTypeError(mission_type_id, registered_ids=activated_ids)
         console.print(f"[red]Error:[/red] {err}")
         raise typer.Exit(1)
+
+    # FR-007 (sites 2/3): one real, resolved value shared by both the JSON
+    # and Panel branches below -- not two independently-hardcoded literals.
+    source_layer = resolve_mission_type_source_layer(mission_type_id, repo_root)
 
     try:
         resolved = resolve_mission_type_context(repo_root, mission_type=mission_type_id)
@@ -1516,6 +1491,16 @@ def show_mission_type(
             .values()
         )
         template_mapping = project_template_set(fallback_steps)
+    except MissionTypeEmptyActionSequenceError as exc:
+        # PR-CONTRACT-001 (pre-merge squad, mission up-mission-type-seam-
+        # 01KZY1JB): CL-003's loud-fail exception is a sibling ValueError
+        # subclass of UnknownMissionTypeError, not a child of it -- the
+        # `except UnknownMissionTypeError` above does not catch it. Mirrors
+        # `charter_mission_type_list`'s existing handling
+        # (charter/mission_type.py:151-160) instead of inventing a second
+        # error-reporting style for the same exception type.
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
 
     # `dict()`-wrap: `ResolvedMissionType.template_set` is a `MappingProxyType`,
     # which `json.dumps` cannot serialize directly (TypeError) -- and the panel
@@ -1528,7 +1513,7 @@ def show_mission_type(
             "display_name": mt.display_name,
             "action_sequence": action_seq,
             "template_set": template_set,
-            "source_layer": "built-in",
+            "source_layer": source_layer,
             "extends": mt.extends,
         }
         print(json.dumps(data, indent=2))
@@ -1540,7 +1525,7 @@ def show_mission_type(
     lines: list[str] = [
         f"[cyan]ID:[/cyan] {mt.id}",
         f"[cyan]Display Name:[/cyan] {mt.display_name}",
-        "[cyan]Source Layer:[/cyan] built-in",
+        f"[cyan]Source Layer:[/cyan] {source_layer}",
     ]
     if mt.extends:
         lines.append(f"[cyan]Extends:[/cyan] {mt.extends}")
