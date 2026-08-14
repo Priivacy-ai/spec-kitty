@@ -84,6 +84,19 @@ def _edge_triple(edge: DRGEdge) -> tuple[str, str, str]:
     return (edge.source, edge.target, edge.relation.value)
 
 
+def _group_edges_by_triple(
+    edges: Sequence[DRGEdge],
+) -> dict[tuple[str, str, str], list[DRGEdge]]:
+    """Group *edges* by :func:`_edge_triple` in a single pass, preserving each
+    triple's occurrences in their original relative order -- the single-scan
+    replacement for repeatedly re-filtering ``graph.edges`` per duplicated
+    triple (PR-FRESH2-001: that re-filter made the org-layer merge O(n^2))."""
+    grouped: dict[tuple[str, str, str], list[DRGEdge]] = {}
+    for edge in edges:
+        grouped.setdefault(_edge_triple(edge), []).append(edge)
+    return grouped
+
+
 def _dedup_org_layer_edges(
     graph: DRGGraph,
     *,
@@ -143,10 +156,11 @@ def _dedup_org_layer_edges(
         )
 
     duplicated_triples = {_edge_triple(edge) for edge in duplicate_edge_triples(graph)}
+    edges_by_triple = _group_edges_by_triple(graph.edges)
 
     edges_dropped_by_id: set[int] = set()
     for triple in duplicated_triples:
-        occurrences = [edge for edge in graph.edges if _edge_triple(edge) == triple]
+        occurrences = edges_by_triple[triple]
         sources = [_source_of(edge) for edge in occurrences]
         if sources.count("root") == 1 and sources.count("drg") == 1:
             # Exactly one occurrence in each source: a genuine cross-source
