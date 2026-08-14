@@ -174,6 +174,17 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   while still validating known fields, so genuinely-malformed frontmatter is
   still skipped fail-loud. Authoring keeps the strict typo guard unchanged.
 
+- **`sync status` now names a dead sync server and how to repoint it, instead
+  of reporting a bare "Unexpected status" (mission
+  `first-sync-preflight-01KZZ9Q1` FR-003; `#3406`).** A configured server that
+  answers with a gateway-class status (`502`/`503`/`504`) — the signature of a
+  decommissioned platform env or a torn-down preview, which is exactly how a
+  first sync against a stale `*.platformsh.site` URL stranded — was folded into
+  the generic "Unexpected HTTP 502" branch, giving the operator no signal that
+  the URL itself was the fault. The health probe now reports these as
+  **Server endpoint down**, naming the dead URL and the exact recovery
+  (`spec-kitty sync server <url>` then `auth login --force`).
+
 - **Mission `create` and `next` now run correctly from a caller-owned linked
   git worktree, and each worktree's mission state stays isolated (mission
   `worktree-owned-root-3328-01KZRG01`; `#3346`, closes `#3328`).** Before,

@@ -3115,6 +3115,32 @@ def sync_workspace(  # noqa: C901
     console.print()
 
 
+#: Gateway-class HTTP statuses. A configured sync server that answers with one
+#: of these is almost always decommissioned or down at the edge (a dead
+#: platform env, a torn-down preview, DNS pointing at a retired load balancer) —
+#: not an application-level error. This is the exact shape that stranded a first
+#: sync against a stale ``*.platformsh.site`` URL: the probe saw HTTP 502 and
+#: reported a bare "Unexpected status", giving the operator no signal that the
+#: URL itself was the fault or how to repoint it. FR-003 of the first-sync
+#: preflight mission (#3406).
+_GATEWAY_STATUS: frozenset[int] = frozenset({502, 503, 504})
+
+
+def _dead_endpoint_note(server_url: str, status_code: int) -> str:
+    """Remediation note for a sync server returning a gateway-class status.
+
+    Names the dead URL explicitly and gives the exact repoint command, since the
+    common cause is a configured server that no longer exists rather than a
+    transient outage.
+    """
+    return (
+        f"HTTP {status_code} from {server_url} — the endpoint looks decommissioned "
+        "or down. If you switched environments, repoint with "
+        "`spec-kitty sync server <url>` (e.g. https://app.spec-kitty.ai), then "
+        "`spec-kitty auth login --force`."
+    )
+
+
 def _check_server_connection(server_url: str) -> tuple[str, str]:
     """Probe sync health using the user's real auth token.
 
@@ -3217,6 +3243,11 @@ def _check_server_connection(server_url: str) -> tuple[str, str]:
             return (
                 "[yellow]Permission denied[/yellow]",
                 "Check team membership for this project.",
+            )
+        elif response.status_code in _GATEWAY_STATUS:
+            return (
+                "[red]Server endpoint down[/red]",
+                _dead_endpoint_note(server_url, response.status_code),
             )
         else:
             return (
