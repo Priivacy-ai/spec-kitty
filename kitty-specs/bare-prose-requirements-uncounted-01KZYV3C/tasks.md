@@ -93,9 +93,13 @@ mission's own internal parallel/sequential scheduling above. One nuance worth re
 WP06 also touches `tasks_mapping_core.py` directly, a file #3395's stated touched-file
 list does **not** literally name (#3395 names its CLI-facing sibling,
 `tasks_map_requirements.py` — confirmed above to be directly touched by both #3395 and
-WP06/T032a — which itself imports `plan_mapping` from `tasks_mapping_core.py` at line
-52) — so `tasks_mapping_core.py` is one file removed from #3395's own named list via
-that same call chain, even though `tasks_map_requirements.py` itself is not.
+WP06/T032a — which reaches `plan_mapping` only indirectly: a lazy in-function import of
+the sibling `tasks.py` module (`tasks_map_requirements.py:330`, inside `_mr_plan`),
+called as `_tasks.plan_mapping(...)` at `tasks_map_requirements.py:355`, where
+`tasks.py:234` re-exports `plan_mapping` from `tasks_mapping_core.py`
+(`plan_mapping as plan_mapping`)) — so `tasks_mapping_core.py` is one file removed from
+#3395's own named list via that same two-hop call chain, even though
+`tasks_map_requirements.py` itself is not.
 
 **A sharper collision: the byte-frozen `map_requirements_success` fixture case.**
 WP06/T030a re-freezes
