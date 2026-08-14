@@ -1,11 +1,10 @@
 adapter_id: fresh-seed
-adapter_version: 3.2.6
+adapter_version: 3.2.5
 artifacts: []
 built_in_only: true
-bundle_content_hash:
 created_at: '1970-01-01T00:00:00+00:00'
-manifest_hash: 01aeb31d458fdf2b4993e460a9a0f811cbf27a0145d5f962f01b603c85c5158e
+manifest_hash: a64245b83ca12da53f23b1ebdf4c2d1c68beae6cecfaa88698bff301adb6cd97
 mission_id:
 run_id: fresh-project-seed
 schema_version: '2'
-synthesizer_version: 3.2.6
+synthesizer_version: 3.2.5

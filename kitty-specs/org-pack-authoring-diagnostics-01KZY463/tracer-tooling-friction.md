@@ -140,3 +140,104 @@ explicitly warn when dropping an unrecognized one, rather than silently truncati
 
 Seventh consecutive sighting (across spec/plan/tasks phases) of the commit-refusal class in this
 mission family, plus one newly discovered sibling defect in the same subsystem.
+
+## 2026-08-14 — WP01 implement — workspace allocation trap confirmed live, plus two more
+   friction incidents needed to clear it (charter prerequisite chain, then the base-branch trap
+   itself, then commit-refusal class again)
+
+**Eighth sighting overall; the base-branch trap named in the WP01 brief reproduced exactly as
+predicted.** Following the canonical loop (`spec-kitty next --agent claude --mission
+org-pack-authoring-diagnostics-01KZY463`, then `spec-kitty agent action implement WP01 --agent
+claude`), workspace creation failed twice before touching the base-branch issue at all:
+
+1. `Error: charter_source stale; run \`spec-kitty charter sync\`` — resolved by running exactly
+   that command (`spec-kitty charter sync --json`); it regenerated
+   `.kittify/charter/metadata.yaml` (timestamp/hash only, no content drift) and reported
+   `"stale_before": true`.
+2. `Error: synthesized_drg missing; run \`spec-kitty charter synthesize\`` — resolved by running
+   that command. `--dry-run` was used first to confirm blast radius: the repo has no
+   `.kittify/charter/generated/` directory, so the command took the documented "fresh project
+   seed" fallback (issue #839) and only materialized/refreshed two small metadata files
+   (`.kittify/doctrine/PROVENANCE.md`, already byte-identical; `.kittify/charter/synthesis-
+   manifest.yaml`, version-string drift only). No doctrine content was generated or altered.
+
+Neither of these two commands is mentioned in the WP01 brief or the canonical two-command loop —
+both had to be discovered live from the tool's own error text. Recording them here since a
+documentation-only WP should not need to touch charter/doctrine machinery at all to reach its
+lane worktree.
+
+**Then the named trap**: `spec-kitty agent action implement WP01 --agent claude` proceeded past
+those two gates, reached "Resolve execution workspace", and materialized
+`.worktrees/org-pack-authoring-diagnostics-01KZY463-lane-a` on branch
+`kitty/mission-org-pack-authoring-diagnostics-01KZY463-lane-a` — confirmed via `git branch
+--show-current` inside that worktree. As the brief predicted, this lane is missing this
+mission's artifacts entirely: `ls .../lane-a/kitty-specs/org-pack-authoring-diagnostics-01KZY463/
+tasks/WP01-guide-correction-fr001.md` and the equivalent `spec.md` path both returned "No such
+file or directory" — the worktree's top level only shows generic repo scaffolding (`AGENTS.md`,
+`docs`, `packs`, ...), no `kitty-specs/org-pack-authoring-diagnostics-01KZY463/` at all. The same
+command call also failed at its own final commit step with a byte-identical member of the
+SK-12/13 commit-refusal family: `Failed to commit workflow status update for WP01: safe_commit:
+worktree ... HEAD is 'feat/org-pack-authoring-diagnostics-3387', expected 'main'.` — ninth
+sighting of that class.
+
+**Remedy applied per the brief, exactly once**: `spec-kitty implement WP01 --mission
+org-pack-authoring-diagnostics-01KZY463 --base feat/org-pack-authoring-diagnostics-3387`. First
+attempt still failed — a *tenth* sighting of the commit-refusal class, this time phrased as
+`Error: Planning artifacts must be committed on main. Current branch:
+feat/org-pack-authoring-diagnostics-3387` — because the prior failed `agent action implement`
+call had already (as an uncommitted side effect) written `agent`/`shell_pid` tracking fields into
+`meta.json` and the WP01 task file's frontmatter, and this second command refuses to proceed
+while those are dirty, using the same stale-`main`-assumption diagnostic text. Landed those two
+tool-written files via the documented escape hatch (`spec-kitty safe-commit ... --to-branch
+feat/org-pack-authoring-diagnostics-3387`), matching the pattern already established three times
+earlier in this tracer. After that commit, worktree state showed `--base` had actually already
+succeeded silently in the background on its first (reported-failed) invocation: a second, correct
+lane worktree — `.worktrees/org-pack-authoring-diagnostics-01KZY463-lane-b` on branch
+`kitty/mission-org-pack-authoring-diagnostics-01KZY463-lane-b` — was present, based on the
+feat-branch tip, and does contain `kitty-specs/org-pack-authoring-diagnostics-01KZY463/tasks/
+WP01-guide-correction-fr001.md` with the correct committed content. **Net effect: the reported
+exit-1 failure was misleading — the workspace it needed had already been materialized correctly
+before the error was raised**, an eleventh distinct friction sighting (commit-step failure
+reporting overall command failure even though the higher-value side effect, correct workspace
+creation, had already succeeded).
+
+**A second, more troubling defect surfaced under closer inspection: the lane the runtime actually
+used for WP01 does not match this mission's own committed lane plan.**
+`kitty-specs/org-pack-authoring-diagnostics-01KZY463/lanes.json` (computed at tasks-finalize time,
+`computed_at: 2026-08-13T23:16:05Z`, unchanged since) statically assigns `lane-a` → `["WP01"]`
+with `write_scope: ["docs/guides/how-to/governance/create-an-org-doctrine-pack.md"]` — exactly
+WP01's one owned file — and `lane-b` → `["WP02", "WP03", "WP04"]` with a disjoint write_scope
+(`doctrine.py`, `pack_assembler.py`, `pack_validator.py`, test files, `CHANGELOG.md`). `lane-a` is
+precisely the broken, wrong-base worktree from the named trap above; the `--base` remedy did not
+repair or reuse `lane-a` — it minted a *new* worktree using the next sequential slot name,
+`lane-b`, which per the mission's own plan belongs to WP02/WP03/WP04, not WP01. That explains the
+WP02 side effect: materializing a worktree the runtime labeled `lane-b` apparently drove the
+runtime to also write lane-assignment frontmatter (`base_branch`, `base_commit`, `created_at`,
+`shell_pid`) into every WP `lanes.json` lists under that label — WP02 (confirmed diff), and
+likely WP03/WP04 (not checked) — even though this session asked only for WP01, which `lanes.json`
+does not associate with `lane-b` at all. `spec-kitty agent status lifecycle --mission
+org-pack-authoring-diagnostics-01KZY463 --json` now reports `"active_wp_count": 2` although only
+WP01 was requested. This session did not commit, revert, or otherwise touch the WP02 diff — left
+exactly as the tool wrote it, for whoever owns WP02 to evaluate. Net assessment: the runtime's
+live lane-slot allocator (sequential `lane-a`/`lane-b`/... naming on each fresh worktree
+materialization) and the static `lanes.json` WP-to-lane plan (content-based write-scope
+partitioning) are **two different, uncoordinated sources of lane identity** that happened to
+collide names here. Practically this is low-risk for WP01 specifically — WP01's file
+(`docs/guides/...create-an-org-doctrine-pack.md`) does not overlap `lane-b`'s planned write_scope,
+so no write collision — but the mismatch means "lane-b" is not evidence of WP02-ownership and a
+future WP02/WP03/WP04 agent may find its own `lane-a`/`lane-b` allocation similarly does not match
+`lanes.json`'s plan. Not filed as a numbered ledger sighting since it is a distinct, newly observed
+defect shape (dynamic lane-slot allocation diverging from the committed static lane plan), not a
+corroboration of an existing one; recommend a follow-up issue against the `--base` lane-allocation
+path to either reuse the WP's `lanes.json`-assigned lane_id or reconcile the naming scheme.
+
+**Net remedy actually used**: verified per the brief's own instruction that the lane worktree
+contains the mission's artifacts (`spec.md`, `tasks/WP01-guide-correction-fr001.md`, and the
+target guide file) — `lane-b` does, `lane-a` does not. The stray, wrongly-based `lane-a`
+worktree/branch was left in place untouched (removing it would be an unrequested destructive git
+operation outside this WP's scope); work proceeds in `lane-b`, the only worktree that actually
+carries the mission's artifacts, despite the naming mismatch against `lanes.json` documented
+above. `.kittify/charter/metadata.yaml` and `.kittify/charter/synthesis-manifest.yaml` remain
+modified in the primary checkout from steps 1–2 above; left uncommitted as tool-prerequisite
+housekeeping outside WP01's owned-file scope
+(`docs/guides/how-to/governance/create-an-org-doctrine-pack.md` only).
