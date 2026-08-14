@@ -25,6 +25,7 @@
   "purpose_context": "После интеграции caller-owned Mission resolver команда setup-plan стала разрешать Mission раньше Git preflight. При сломанном Git-контексте это маскирует GIT_PREFLIGHT_FAILED ошибкой PLAN_CONTEXT_UNRESOLVED. Исправление должно восстановить прежний observable contract, не создавая второй root authority и не ломая linked-worktree routing. После проверки изменения должны быть предложены в codex/spec-kitty-worktree-mission-create.",
   "purpose_tldr": "setup-plan снова возвращает Git remediation до ошибок Mission-context, сохраняя caller-owned worktree lifecycle.",
   "slug": "setup-plan-preflight-closeout-01KZZT3V",
+  "status_phase": "1",
   "target_branch": "codex/setup-plan-preflight-closeout",
   "topology": "coord",
   "vcs": "git",
