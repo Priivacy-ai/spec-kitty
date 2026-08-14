@@ -5,7 +5,7 @@ doc_status: durable
 updated: '2026-08-13'
 related:
 - docs/api/agent-plan-artifacts.md
-- src/specify_cli/intake/packet.py
+- docs/contracts/index.md
 ---
 # Handoff Packet v1
 
