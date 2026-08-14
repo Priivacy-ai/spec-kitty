@@ -1580,6 +1580,20 @@ def _row_sort_key(item: Mapping[str, Any]) -> tuple[str, str]:
     return (str(when), str(item.get("event_id", "")))
 
 
+def _is_legacy_typed_lane_transition(row: Mapping[str, Any]) -> bool:
+    """Return whether a typed legacy row carries the flat lane-transition shape.
+
+    Older writers added ``event_type: \"WPStatusChanged\"`` to the same flat
+    row shape consumed by the local lane reducer.  That field must not reclassify
+    a row carrying the lane-transition discriminator as a non-lane side-log
+    mirror.  TeamSpace envelopes remain non-lane here because their transition
+    fields live under ``payload`` rather than at the row's top level.
+    """
+    return row.get("event_type") == "WPStatusChanged" and all(
+        key in row for key in ("wp_id", "from_lane", "to_lane")
+    )
+
+
 def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
     """Return True for non-lane rows the repair MUST keep in status.events.jsonl.
 
@@ -1644,6 +1658,9 @@ def _rule_reject_non_status_event(
 ) -> CanonicalStepResult[_Row]:
     """Rule 1: route non-lane rows that share status.events.jsonl.
 
+    - Typed legacy ``WPStatusChanged`` rows with the flat lane-transition
+      discriminator are routed to the lane canonicalizer.  They are durable
+      transition history, not non-lane mirrors.
     - Rows whose only per-mission home is this file
       (:func:`_is_preserved_non_lane_row`: retrospective + canonical lifecycle
       events) are PRESERVED in place — the runtime reader skips them during lane
@@ -1653,6 +1670,8 @@ def _rule_reject_non_status_event(
       state, if any, lives elsewhere). ``_scan_raw_status_rows`` flags the same
       class before a TeamSpace dry-run.
     """
+    if _is_legacy_typed_lane_transition(row):
+        return CanonicalStepResult.passthrough(row)
     if _is_preserved_non_lane_row(row):
         return CanonicalStepResult(
             state=row,
