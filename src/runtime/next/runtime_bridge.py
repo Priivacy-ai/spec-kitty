@@ -930,6 +930,53 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
     return _cores._evaluate_requirement_mapping(facts)
 
 
+def _check_bare_prose_requirements_ready(feature_dir: Path) -> list[str]:
+    """WP05 (#3396) T023 — gather-only residual for the bare-prose
+    requirement signal (fact-port/pure-core split, mirroring
+    ``_check_requirement_mapping_ready``).
+
+    Deliberately independent of ``tasks_dir``/WP-file state (FR-002): reads
+    ONLY spec.md, so the signal is available and populated in
+    ``status_facts`` regardless of whether any WP file exists yet -- the
+    guards (``runtime_bridge_cores.py``) read it BEFORE their own
+    ``tasks_dir`` readiness checks, closing the exact dead-path shape the
+    reverted ``3823f2b00`` left open.
+
+    Fail-loud, textually separate from the advisory (Story 5 / FR-007 /
+    FR-008): this does NOT route through
+    ``_log_requirement_extraction_warnings_safely`` -- that wrapper's "never
+    crash into a gate" contract is the opposite of this detector's "never
+    silently report clean" contract. Any exception here becomes an explicit,
+    non-empty, blocking failure via ``BareProseRequirementFacts.
+    classification_error`` (NFR-002: silent-success prohibition) --
+    mirroring ``_check_requirement_mapping_ready``'s own
+    ``except Exception as exc: return [...]`` shape one function up, never
+    a bare traceback and never downgraded to a log line.
+    """
+    spec_md = feature_dir / SPEC_ARTIFACT
+    if not spec_md.exists():
+        return []
+
+    try:
+        from specify_cli.requirement_mapping import find_bare_prose_requirement_ids
+
+        spec_content = spec_md.read_text(encoding="utf-8")
+        candidates = find_bare_prose_requirement_ids(spec_content)
+        facts = _cores.BareProseRequirementFacts(
+            flagged={candidate.section_heading: tuple(candidate.ids) for candidate in candidates},
+            classification_error=None,
+        )
+    except Exception as exc:
+        facts = _cores.BareProseRequirementFacts(
+            flagged={},
+            classification_error=(
+                f"Bare-prose requirement detection failed to classify {feature_dir.name}'s spec.md: "
+                f"{exc!r} -- treating as blocking (never silently clean, NFR-002)."
+            ),
+        )
+    return _cores._evaluate_bare_prose_requirements(facts)
+
+
 def _has_raw_dependencies_field(wp_file: Path) -> bool:
     """Check if WP file has an explicit 'dependencies' field in raw frontmatter.
 
