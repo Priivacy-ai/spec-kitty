@@ -726,8 +726,7 @@ newly block under the shipped detector, and states the operator-facing remediati
 (rewrite into a declared shape — no code-level grandfathering, per the spec's own
 stated policy).
 **Prompt**: `/tasks/WP08-corpus-fixture-ratchet.md`
-**Requirement Refs**: FR-005, NFR-004 (SC-006 is the success-criterion label for this
-WP's deliverable), FR-009 (folded from WP09)
+**Requirement Refs**: FR-005, NFR-004, FR-009 (folded from WP09; SC-006 is the success-criterion label for this WP's deliverable) — kept on one physical line: `_parse_requirement_refs_from_tasks_md` has no `re.DOTALL`, so a wrapped second line would silently drop FR-009 from finalize-tasks's own coverage gate (see tracer-tooling-friction.md).
 
 **ATDD/C-011 applicability (mirrors WP02's own disclosure)**: this WP is test-only — it
 ships a new CI gate, not a production implementation. Charter C-011's literal
