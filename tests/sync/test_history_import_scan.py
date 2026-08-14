@@ -505,6 +505,40 @@ def test_malformed_wp_frontmatter_is_skipped_not_fatal(tmp_path):
     assert [wp.wp_id for wp in scan.work_packages] == ["WP02"]
 
 
+def test_legacy_wp_with_retired_frontmatter_field_imports_not_skipped(tmp_path):
+    """A WP carrying a retired frontmatter field (e.g. `estimated_lines`) must
+    import as a real synthesized WP — with its true title and dependencies —
+    not get rejected by `extra="forbid"` and degraded to a bare back-fill.
+
+    Regression for FR-011 (#3406): historical missions legitimately carry fields
+    the current schema no longer knows; the strict authoring reader rejected the
+    whole WP, so the import lost its title/deps. The lenient import reader drops
+    the unknown key while preserving everything the schema still understands.
+    """
+    mission_dir = tmp_path / "synthetic-legacy-fields-01IIII"
+    tasks = mission_dir / "tasks"
+    tasks.mkdir(parents=True)
+    (tasks / "WP01-legacy.md").write_text(
+        "---\n"
+        "work_package_id: WP01\n"
+        "title: Legacy WP With Retired Fields\n"
+        "dependencies: []\n"
+        "estimated_lines: 240\n"  # retired field — must not sink the WP
+        "some_other_dead_key: whatever\n"
+        "---\nbody\n",
+        encoding="utf-8",
+    )
+
+    scan = scan_mission(mission_dir)  # must not raise
+
+    # Not skipped, not back-filled — imported as a real synthesized WP.
+    assert scan.skipped_wp_files == ()
+    by_id = {wp.wp_id: wp for wp in scan.work_packages}
+    assert "WP01" in by_id
+    assert by_id["WP01"].wp_title == "Legacy WP With Retired Fields"
+    assert by_id["WP01"].source is PrefixSource.SYNTHESIZED
+
+
 def test_malformed_wp_referenced_by_a_lane_transition_is_backfilled_no_orphan(tmp_path):
     """A WP whose task file is malformed (skipped) but which a lane transition
     references must still get a WPCreated via coverage backfill — the exact spot

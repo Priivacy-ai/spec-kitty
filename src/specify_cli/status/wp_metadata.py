@@ -12,6 +12,7 @@ before it can be used.
 
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 from typing import Any, ClassVar
@@ -19,6 +20,8 @@ from typing import Any, ClassVar
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from specify_cli.status.models import NON_DISPLAY_LANES, AgentAssignment, Lane
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_agent_fallback(
@@ -640,6 +643,44 @@ def read_authored_wp_frontmatter(path: Path) -> tuple[WPMetadata, str]:
     return WPMetadata.model_validate(frontmatter_dict, strict=False), body
 
 
+def read_authored_wp_frontmatter_lenient(path: Path) -> tuple[WPMetadata, str]:
+    """Load WP frontmatter tolerating legacy/unknown fields (historical import).
+
+    The strict :class:`WPMetadata` uses ``extra="forbid"``, so any frontmatter
+    key the current schema does not know raises a ``ValidationError``. That is
+    the right behaviour when *authoring* a WP -- it catches typos and schema
+    drift the moment they are written -- but the wrong behaviour when *importing
+    a historical mission*, whose WP files legitimately carry retired fields
+    (e.g. ``estimated_lines``). Rejecting the whole WP there loses its real
+    title, dependencies, and path, degrading a rich WP to a bare back-fill.
+
+    This reader drops unrecognised top-level keys before validation so every
+    field the current schema still understands is preserved. It does **not**
+    relax validation of known fields: genuinely malformed frontmatter (bad YAML,
+    non-dict, an invalid value for a known field) still raises, so the import
+    scan's fail-loud skip path is unchanged for real corruption. Use it only on
+    the historical-import path -- never for authoring, where ``extra="forbid"``
+    is the intended typo guard.
+
+    FR-011 of the first-sync preflight mission (#3406).
+    """
+    from specify_cli.frontmatter import FrontmatterManager
+
+    frontmatter_dict, body = FrontmatterManager().read(path)
+    if isinstance(frontmatter_dict, dict):
+        known = set(WPMetadata.model_fields)
+        dropped = sorted(key for key in frontmatter_dict if key not in known)
+        if dropped:
+            logger.debug(
+                "wp_metadata: ignoring %d unrecognised legacy field(s) in %s: %s",
+                len(dropped),
+                path,
+                ", ".join(dropped),
+            )
+            frontmatter_dict = {key: value for key, value in frontmatter_dict.items() if key in known}
+    return WPMetadata.model_validate(frontmatter_dict, strict=False), body
+
+
 def read_wp_frontmatter(path: Path) -> tuple[WPMetadata, str]:
     """Load and validate WP frontmatter.
 
@@ -667,4 +708,9 @@ def read_wp_frontmatter(path: Path) -> tuple[WPMetadata, str]:
     return metadata, body
 
 
-__all__ = ["WPMetadata", "read_authored_wp_frontmatter", "read_wp_frontmatter"]
+__all__ = [
+    "WPMetadata",
+    "read_authored_wp_frontmatter",
+    "read_authored_wp_frontmatter_lenient",
+    "read_wp_frontmatter",
+]
