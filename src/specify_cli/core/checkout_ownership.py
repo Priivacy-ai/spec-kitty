@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import subprocess
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -12,6 +11,11 @@ from specify_cli.coordination.surface_resolver import (
     read_worktree_registry,
 )
 from specify_cli.git.commit_helpers import is_worktree_of
+from specify_cli.git.git_topology import (
+    GitTopologyError,
+    git_common_dir,
+    git_toplevel,
+)
 
 from .errors import StructuredError
 
@@ -104,43 +108,31 @@ def _claim(
 
 
 def _git_common_dir(checkout: Path) -> Path:
+    """Ownership-classifier common-dir probe (delegates to the unified primitive).
+
+    Preserves this site's fail-closed contract: every topology-read failure —
+    the primitive's typed :class:`GitTopologyError` (not-a-repo / unavailable)
+    OR a raw ``OSError`` — folds into :class:`_GitTopologyUnavailable`, which the
+    comparator maps to ``BROKEN_POINTER`` (mission
+    write-path-integrity-01KZZD69 WP01, #3373).
+    """
     try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--git-common-dir"],
-            cwd=checkout,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-        )
-    except OSError as exc:
+        return git_common_dir(checkout)
+    except (GitTopologyError, OSError) as exc:
         raise _GitTopologyUnavailable(str(exc)) from exc
-    raw = result.stdout.strip()
-    if result.returncode != 0 or not raw:
-        detail = result.stderr.strip() or raw or f"exit {result.returncode}"
-        raise _GitTopologyUnavailable(detail)
-    return (checkout / raw).resolve()
 
 
 def _git_toplevel(checkout: Path) -> Path:
+    """Ownership-classifier toplevel probe (delegates to the unified primitive).
+
+    Same fail-closed mapping as :func:`_git_common_dir`: the ``toplevel`` value
+    feeds the NESTED-vs-comparator classification, while any probe failure folds
+    into :class:`_GitTopologyUnavailable` (-> ``BROKEN_POINTER``).
+    """
     try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            cwd=checkout,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-        )
-    except OSError as exc:
+        return git_toplevel(checkout)
+    except (GitTopologyError, OSError) as exc:
         raise _GitTopologyUnavailable(str(exc)) from exc
-    raw = result.stdout.strip()
-    if result.returncode != 0 or not raw:
-        detail = result.stderr.strip() or raw or f"exit {result.returncode}"
-        raise _GitTopologyUnavailable(detail)
-    return Path(raw).resolve()
 
 
 def _rejected_comparator_claim(

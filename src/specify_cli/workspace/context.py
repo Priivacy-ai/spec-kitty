@@ -18,12 +18,12 @@ from __future__ import annotations
 
 import json
 import re
-import subprocess
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.git.git_topology import GitTopologyError, git_toplevel
 from specify_cli.lanes.branch_naming import worktree_dir_name, worktree_path as _seam_worktree_path
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.ownership.inference import infer_execution_mode, score_execution_mode_signals
@@ -77,27 +77,22 @@ def verify_workspace_toplevel(workspace_path: Path) -> WorkspaceResolutionError 
     Last-line defense for workspace paths arriving from other resolver
     lineages (#1833 R4). Returns a structured error on mismatch or git
     failure, ``None`` when the path is the toplevel of its own working tree.
+
+    The toplevel probe is delegated to the unified
+    :func:`~specify_cli.git.git_topology.git_toplevel` primitive (mission
+    write-path-integrity-01KZZD69 WP01, #3373); the primitive's typed failure is
+    mapped to this site's ``git-toplevel`` structured error, preserving the
+    is-worktree assertion contract.
     """
-    result = subprocess.run(
-        ["git", "-C", str(workspace_path), "rev-parse", "--show-toplevel"],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0:
+    try:
+        actual_toplevel = git_toplevel(workspace_path)
+    except GitTopologyError as exc:
         return WorkspaceResolutionError(
             workspace_path=workspace_path,
             failed_check="git-toplevel",
-            detail=f"git rev-parse --show-toplevel failed: {result.stderr.strip()}.",
+            detail=f"git rev-parse --show-toplevel failed: {exc}.",
         )
-    actual_toplevel = Path(result.stdout.strip())
-    try:
-        same = actual_toplevel.resolve() == workspace_path.resolve()
-    except OSError:
-        same = False
-    if not same:
+    if actual_toplevel != workspace_path.resolve():
         return WorkspaceResolutionError(
             workspace_path=workspace_path,
             failed_check="git-toplevel",
