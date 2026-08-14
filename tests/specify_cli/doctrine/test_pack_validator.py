@@ -96,6 +96,26 @@ def _write_asset_manifest(
     return manifest_path
 
 
+def _write_agent_profile_yaml(
+    pack_dir: Path,
+    *,
+    filename: str,
+    content: str,
+) -> Path:
+    """Write a raw ``*.agent.yaml`` file under ``pack_dir/agent_profiles/``.
+
+    Takes a pre-formatted YAML string (rather than a dict payload, unlike the
+    other ``_write_*`` helpers here) so callers can author fixtures whose
+    exact on-disk shape matters (e.g. the deprecated scalar ``role:`` field,
+    which a dict-based writer using ``roles:`` could not represent).
+    """
+    agent_profiles = pack_dir / "agent_profiles"
+    agent_profiles.mkdir(parents=True, exist_ok=True)
+    path = agent_profiles / filename
+    path.write_text(content, encoding="utf-8")
+    return path
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -796,3 +816,65 @@ class TestAssetManifestValidation:
         result = validate_pack(tmp_path)
 
         assert result.ok is True, result.errors
+
+
+class TestProfileSkippedDiagnostics:
+    """FR-002: ``pack validate`` surfaces ``AgentProfileRepository``'s
+    post-merge profile-skip diagnostics inline (``skipped_profiles()``),
+    not only via the separate, undocumented ``spec-kitty doctor doctrine
+    --json`` command.
+
+    This is additive wiring (AC-4), not a new validation engine: the checks
+    here exercise the REAL, shipped built-in ``analyst-annie`` profile
+    (``packs/built-in/agent_profiles/analyst-annie.agent.yaml``) as the
+    merge target, per this WP's Reviewer Guidance — no fake built-in
+    directory is fabricated.
+    """
+
+    _ANALYST_ANNIE_ROLE_CONFLICT_YAML = textwrap.dedent(
+        """\
+        profile-id: analyst-annie
+        role: implementer
+        name: Override
+        purpose: test purpose
+        specialization:
+          primary-focus: test focus
+        """
+    )
+
+    def test_post_merge_skip_surfaces_as_profile_skipped_issue(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-1: a profile that passes ``AgentProfile.model_validate`` in
+        isolation (proven standalone-valid by
+        ``tests/doctrine/test_agent_profile_model_field.py``'s
+        ``TestDeprecatedScalarRoleStandaloneValid``, T008) but is recorded
+        via ``AgentProfileRepository``'s ``_record_skip`` during merge-time
+        load (the deprecated scalar ``role:`` colliding with the real
+        built-in ``analyst-annie``'s already-resolved ``roles:``) causes
+        ``pack validate`` to include a ``profile_skipped`` ``ValidationIssue``
+        in ``result.errors``.
+
+        Before this WP, ``pack_validator.py`` never calls
+        ``AgentProfileRepository``/``skipped_profiles()`` at all, so this
+        assertion fails — the only surface for this diagnostic today is the
+        separate ``spec-kitty doctor doctrine --json`` command.
+        """
+        profile_path = _write_agent_profile_yaml(
+            tmp_path,
+            filename="analyst-annie.agent.yaml",
+            content=self._ANALYST_ANNIE_ROLE_CONFLICT_YAML,
+        )
+
+        result = validate_pack(tmp_path)
+
+        skipped_issues = [
+            issue for issue in result.errors if issue.category == "profile_skipped"
+        ]
+        assert skipped_issues, result.errors
+        issue = skipped_issues[0]
+        assert issue.severity == "error"
+        assert issue.artifact_type == "agent_profiles"
+        assert issue.artifact_id == "analyst-annie"
+        assert issue.file == str(profile_path)
+        assert "role" in issue.message and "roles" in issue.message
