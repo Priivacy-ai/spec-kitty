@@ -342,7 +342,7 @@ def _resolve_target_branch(
 
 def _read_spec_requirement_ids(
     planning_dir: Path, *, json_output: bool
-) -> tuple[set[str], set[str], list[str]]:
+) -> tuple[set[str], set[str], list[str], str]:
     """Phase: parse spec.md requirement ids (all + functional) + #3394 F1 warnings.
 
     The third element is a (possibly empty) list of non-blocking warning
@@ -350,6 +350,12 @@ def _read_spec_requirement_ids(
     so a spec whose Functional Requirements section matches none of the
     recognized declared shapes gets a loud (but never gate-failing) signal
     instead of silently reporting zero declared FRs as full coverage.
+
+    WP06 (#3396) T031 plumbing fix: also returns the raw ``spec_content`` (the
+    fourth element) so the caller can thread it into
+    :func:`_validate_requirement_mapping` for the bare-prose requirement-id
+    detector -- previously this text was read here and discarded, leaving
+    that later phase with no access to it.
     """
     spec_md = planning_dir / "spec.md"
     if not spec_md.exists():
@@ -362,7 +368,12 @@ def _read_spec_requirement_ids(
     spec_content = spec_md.read_text(encoding="utf-8")
     spec_requirement_ids = _parse_requirement_ids_from_spec_md(spec_content)
     extraction_warnings = _find_undeclared_requirement_citations(spec_content)
-    return set(spec_requirement_ids["all"]), set(spec_requirement_ids["functional"]), extraction_warnings
+    return (
+        set(spec_requirement_ids["all"]),
+        set(spec_requirement_ids["functional"]),
+        extraction_warnings,
+        spec_content,
+    )
 
 
 def _scaffold_issue_matrix_if_present(
@@ -618,16 +629,12 @@ def _validate_dependency_graph(wp_dependencies: dict[str, list[str]], *, json_ou
             raise typer.Exit(1)
 
 
-def _validate_requirement_mapping(
+def _classify_wp_requirement_refs(
     wp_ids: list[str],
     wp_requirement_refs: dict[str, list[str]],
     all_spec_requirement_ids: set[str],
-    functional_spec_requirement_ids: set[str],
-    wp_dependencies: dict[str, list[str]],
-    *,
-    json_output: bool,
-) -> None:
-    """Phase: validate every WP maps to known requirement ids (FR coverage)."""
+) -> tuple[list[str], dict[str, list[str]], set[str]]:
+    """Bucket each WP's requirement refs into missing/unknown/mapped."""
     missing_requirement_refs_wps: list[str] = []
     unknown_requirement_refs: dict[str, list[str]] = {}
     mapped_requirement_ids: set[str] = set()
@@ -643,35 +650,126 @@ def _validate_requirement_mapping(
         else:
             mapped_requirement_ids.update(refs)
 
+    return missing_requirement_refs_wps, unknown_requirement_refs, mapped_requirement_ids
+
+
+def _detect_bare_prose_requirement_ids_fail_loud(spec_content: str) -> list[str]:
+    """WP06 (#3396) T031/IC-04: fail-loud bare-prose requirement-id detection
+    for ``finalize-tasks``'s requirement-mapping gate.
+
+    ``find_bare_prose_requirement_ids`` catches a requirement id (e.g.
+    ``FR-001``) written as bare, unbulleted, unbolded prose in a
+    "Functional Requirements"-named section -- a gap the existing
+    missing/unknown/unmapped buckets cannot see, since a bare-prose id was
+    never counted as mapped OR as a declared functional requirement in the
+    first place (Story 1 AC1/AC2).
+
+    Deliberately NOT routed through ``_find_undeclared_requirement_citations``
+    / its swallow-and-log advisory contract (that helper's "never fail the
+    gate" intent is the opposite of this one) -- this is a textually separate
+    wrapper: any classification exception is caught ONCE and converted into
+    an explicit, non-empty failure entry (mirroring WP05/T023's
+    ``BareProseRequirementFacts.classification_error`` contract) so the
+    caller's blocking check below can never be silently satisfied by a
+    swallowed "0 uncounted" (NFR-002).
+    """
+    try:
+        from specify_cli.requirement_mapping import find_bare_prose_requirement_ids
+
+        candidates = find_bare_prose_requirement_ids(spec_content)
+        return sorted({req_id for candidate in candidates for req_id in candidate.ids})
+    except Exception as exc:  # noqa: BLE001 -- fail-loud: converted below into an explicit, non-empty failure, never swallowed
+        return [
+            f"<bare-prose-detection-error: {exc!r} -- treating as blocking, never silently clean (NFR-002)>"
+        ]
+
+
+def _emit_requirement_mapping_report(
+    *,
+    json_output: bool,
+    missing_requirement_refs_wps: list[str],
+    unknown_requirement_refs: dict[str, list[str]],
+    unmapped_functional_requirements: list[str],
+    bare_prose_requirement_ids: list[str],
+    wp_dependencies: dict[str, list[str]],
+    wp_requirement_refs: dict[str, list[str]],
+) -> None:
+    """Phase: emit the requirement-mapping validation failure (JSON or console)."""
+    error_msg = "Requirement mapping validation failed"
+    if json_output:
+        payload = {
+            "error": error_msg,
+            "missing_requirement_refs_wps": missing_requirement_refs_wps,
+            "unknown_requirement_refs": unknown_requirement_refs,
+            "unmapped_functional_requirements": unmapped_functional_requirements,
+            "bare_prose_requirement_ids": bare_prose_requirement_ids,
+            "dependencies_parsed": wp_dependencies,
+            "requirement_refs_parsed": wp_requirement_refs,
+        }
+        print(json.dumps(payload))
+        return
+    console.print(f"[red]Error:[/red] {error_msg}")
+    if missing_requirement_refs_wps:
+        console.print("[red]Missing requirement refs:[/red]")
+        for wp_id in missing_requirement_refs_wps:
+            console.print(f"  - {wp_id}")
+    if unknown_requirement_refs:
+        console.print("[red]Unknown requirement refs:[/red]")
+        for wp_id, refs in unknown_requirement_refs.items():
+            console.print(f"  - {wp_id}: {', '.join(refs)}")
+    if unmapped_functional_requirements:
+        console.print("[red]Unmapped functional requirements:[/red]")
+        for req_id in unmapped_functional_requirements:
+            console.print(f"  - {req_id}")
+    if bare_prose_requirement_ids:
+        console.print("[red]Bare-prose requirement id(s) found, uncounted:[/red]")
+        for req_id in bare_prose_requirement_ids:
+            console.print(f"  - {req_id}")
+
+
+def _validate_requirement_mapping(
+    wp_ids: list[str],
+    wp_requirement_refs: dict[str, list[str]],
+    all_spec_requirement_ids: set[str],
+    functional_spec_requirement_ids: set[str],
+    wp_dependencies: dict[str, list[str]],
+    spec_content: str = "",
+    *,
+    json_output: bool,
+) -> None:
+    """Phase: validate every WP maps to known requirement ids (FR coverage).
+
+    WP06 (#3396) T031: additionally surfaces ``bare_prose_requirement_ids`` --
+    requirement ids written as bare, unbulleted, unbolded prose in spec.md's
+    "Functional Requirements"-named section(s) -- as a distinct,
+    separately-labeled failure alongside missing/unknown/unmapped. Never
+    merged into ``unmapped_functional_requirements``: "declared but not yet
+    mapped to a WP" and "never declared at all" are different remediation
+    stories for an operator.
+    """
+    missing_requirement_refs_wps, unknown_requirement_refs, mapped_requirement_ids = (
+        _classify_wp_requirement_refs(wp_ids, wp_requirement_refs, all_spec_requirement_ids)
+    )
+
     unmapped_functional_requirements = sorted(functional_spec_requirement_ids - mapped_requirement_ids)
-    if not (missing_requirement_refs_wps or unknown_requirement_refs or unmapped_functional_requirements):
+    bare_prose_requirement_ids = _detect_bare_prose_requirement_ids_fail_loud(spec_content)
+    if not (
+        missing_requirement_refs_wps
+        or unknown_requirement_refs
+        or unmapped_functional_requirements
+        or bare_prose_requirement_ids
+    ):
         return
 
-    error_msg = "Requirement mapping validation failed"
-    payload = {
-        "error": error_msg,
-        "missing_requirement_refs_wps": missing_requirement_refs_wps,
-        "unknown_requirement_refs": unknown_requirement_refs,
-        "unmapped_functional_requirements": unmapped_functional_requirements,
-        "dependencies_parsed": wp_dependencies,
-        "requirement_refs_parsed": wp_requirement_refs,
-    }
-    if json_output:
-        print(json.dumps(payload))
-    else:
-        console.print(f"[red]Error:[/red] {error_msg}")
-        if missing_requirement_refs_wps:
-            console.print("[red]Missing requirement refs:[/red]")
-            for wp_id in missing_requirement_refs_wps:
-                console.print(f"  - {wp_id}")
-        if unknown_requirement_refs:
-            console.print("[red]Unknown requirement refs:[/red]")
-            for wp_id, refs in unknown_requirement_refs.items():
-                console.print(f"  - {wp_id}: {', '.join(refs)}")
-        if unmapped_functional_requirements:
-            console.print("[red]Unmapped functional requirements:[/red]")
-            for req_id in unmapped_functional_requirements:
-                console.print(f"  - {req_id}")
+    _emit_requirement_mapping_report(
+        json_output=json_output,
+        missing_requirement_refs_wps=missing_requirement_refs_wps,
+        unknown_requirement_refs=unknown_requirement_refs,
+        unmapped_functional_requirements=unmapped_functional_requirements,
+        bare_prose_requirement_ids=bare_prose_requirement_ids,
+        wp_dependencies=wp_dependencies,
+        wp_requirement_refs=wp_requirement_refs,
+    )
     raise typer.Exit(1)
 
 
@@ -1889,9 +1987,12 @@ def finalize_tasks(
         wp_files = list(tasks_dir.glob("WP*.md"))
         expected_wp_ids = _extract_wp_ids_from_task_files(wp_files)
 
-        all_spec_requirement_ids, functional_spec_requirement_ids, requirement_extraction_warnings = (
-            _read_spec_requirement_ids(planning_dir, json_output=json_output)
-        )
+        (
+            all_spec_requirement_ids,
+            functional_spec_requirement_ids,
+            requirement_extraction_warnings,
+            spec_content,
+        ) = _read_spec_requirement_ids(planning_dir, json_output=json_output)
 
         # Snapshot pre-existing primary-side files BEFORE any finalize writer runs
         # (WP02 / FR-006 / A-r1 — residue cleanup scoping, research R6).
@@ -1923,6 +2024,7 @@ def finalize_tasks(
             all_spec_requirement_ids,
             functional_spec_requirement_ids,
             dep_resolution.wp_dependencies,
+            spec_content,
             json_output=json_output,
         )
 

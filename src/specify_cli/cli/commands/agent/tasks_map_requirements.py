@@ -119,6 +119,11 @@ class _MapReqState:
     #: #3394 review F1 -- non-blocking signal: raw requirement-shaped tokens in
     #: spec.md that matched none of the recognized declared shapes.
     requirement_extraction_warnings: list[str] = field(default_factory=list)
+    #: WP06 (#3396) T032a plumbing fix: the raw spec.md text, stored here so
+    #: ``_mr_plan`` (Phase D) can feed it to the bare-prose requirement-id
+    #: detector -- previously this text was read locally in this phase and
+    #: discarded, leaving Phase D with no access to it.
+    spec_content: str = ""
     new_mappings: dict[str, list[str]] = field(default_factory=dict)
     # --- phase D: pure decision ---
     mapping_plan: MappingPlan | None = None
@@ -309,6 +314,8 @@ def _mr_resolve_read_dirs(st: _MapReqState, ports: TasksPorts) -> None:
     st.functional_ids = set(spec_ids["functional"])
     # #3394 review F1: non-blocking signal, never a gate -- see _mr_emit_output.
     st.requirement_extraction_warnings = find_undeclared_requirement_citations(spec_content)
+    # WP06 (#3396) T032a: stash the raw text for Phase D's bare-prose detector.
+    st.spec_content = spec_content
 
     _mr_build_new_mappings(st)
 
@@ -323,6 +330,30 @@ def _mr_resolve_read_dirs(st: _MapReqState, ports: TasksPorts) -> None:
         / "tasks"
     )
     _mr_unknown_wp_gate(st)
+
+
+def _mr_detect_bare_prose_requirement_ids(spec_content: str) -> frozenset[str]:
+    """WP06 (#3396) T032a fail-loud wrapper: bare-prose requirement-id
+    detection for ``map-requirements``.
+
+    Lives in the shell, never inside :func:`~.tasks_mapping_core.plan_mapping`
+    (that core is pure/no-I/O, INV-4). Textually separate from the
+    ``find_undeclared_requirement_citations`` advisory read a few lines above
+    in ``_mr_resolve_read_dirs`` (that helper's "never fail the command"
+    contract is the opposite of this one) -- any classification exception is
+    caught ONCE and converted into an explicit, non-empty failure entry
+    (mirroring WP05/T023's ``BareProseRequirementFacts.classification_error``
+    contract) rather than silently reporting "0 uncounted" (NFR-002).
+    """
+    try:
+        from specify_cli.requirement_mapping import find_bare_prose_requirement_ids
+
+        candidates = find_bare_prose_requirement_ids(spec_content)
+        return frozenset(req_id for candidate in candidates for req_id in candidate.ids)
+    except Exception as exc:  # noqa: BLE001 -- fail-loud: converted below into an explicit, non-empty failure, never swallowed
+        return frozenset(
+            {f"<bare-prose-detection-error: {exc!r} -- treating as blocking, never silently clean (NFR-002)>"}
+        )
 
 
 def _mr_plan(st: _MapReqState) -> None:
@@ -352,6 +383,7 @@ def _mr_plan(st: _MapReqState) -> None:
         _mapping_mode = "batch"
     else:
         _mapping_mode = "wp_refs"
+    bare_prose_requirement_ids = _mr_detect_bare_prose_requirement_ids(st.spec_content)
     st.mapping_plan = _tasks.plan_mapping(
         MappingRequest(
             spec_all_ids=frozenset(st.all_spec_ids),
@@ -361,6 +393,7 @@ def _mr_plan(st: _MapReqState) -> None:
             tasks_md_refs=tasks_md_refs,
             mode=_mapping_mode,
             replace=st.replace,
+            bare_prose_requirement_ids=bare_prose_requirement_ids,
         )
     )
 
@@ -600,6 +633,9 @@ def _mr_emit_output(st: _MapReqState) -> None:
         "commit_sha": st.commit_sha,
         "commit_result": st.commit_result_payload,
         "requirement_extraction_warnings": st.requirement_extraction_warnings,
+        # WP06 (#3396) T032: distinct, separately-labeled signal -- never
+        # merged into ``coverage.unmapped_functional`` (Story 1 / FR-001 / FR-004).
+        "bare_prose_requirement_ids": st.mapping_plan.bare_prose_requirement_ids,
     }
     if st.json_output:
         render = _tasks.RealRender()
@@ -615,6 +651,11 @@ def _mr_emit_output(st: _MapReqState) -> None:
             _tasks.console.print("[cyan]→ Committed mapping changes[/cyan]")
         for warning in st.requirement_extraction_warnings:
             _tasks.console.print(f"[yellow]Warning:[/yellow] {warning}")
+        if st.mapping_plan.bare_prose_requirement_ids:
+            _tasks.console.print(
+                f"  [red]Bare-prose requirement id(s) found, uncounted:[/red] "
+                f"{', '.join(st.mapping_plan.bare_prose_requirement_ids)}"
+            )
 
 
 def _do_map_requirements(

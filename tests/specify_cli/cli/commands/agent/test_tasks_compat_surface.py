@@ -79,7 +79,7 @@ _TASKS_FINALIZE: tuple[str, ...] = (  # WP08 (wave2) — 8 symbols
     "_do_finalize_tasks",
 )
 
-_TASKS_MAP_REQUIREMENTS: tuple[str, ...] = (  # WP06 (wave2) — 15 symbols
+_TASKS_MAP_REQUIREMENTS: tuple[str, ...] = (  # WP06 (wave2, +1 WP06/#3396) — 16 symbols
     "_default_map_requirements_ports",
     "_MapReqState",
     "_mr_validate_modes",
@@ -87,6 +87,9 @@ _TASKS_MAP_REQUIREMENTS: tuple[str, ...] = (  # WP06 (wave2) — 15 symbols
     "_mr_build_new_mappings",
     "_mr_unknown_wp_gate",
     "_mr_resolve_read_dirs",
+    # bare-prose-requirements-uncounted-01KZYV3C WP06 (#3396) T032a: the
+    # fail-loud bare-prose requirement-id detector wrapper.
+    "_mr_detect_bare_prose_requirement_ids",
     "_mr_plan",
     "_mr_gate_offenders",
     "_mr_write_frontmatter",
@@ -432,7 +435,7 @@ def test_no_required_symbol_duplicated_in_survey() -> None:
     assert total_declared == len(SYMBOL_TO_MODULE)
 
 
-def test_guard_covers_full_142_symbol_surface() -> None:
+def test_guard_covers_full_162_symbol_surface() -> None:
     """Traceability pin: the guard's total symbol count matches the sum of
     the 6 seams' counts recorded in the seam files' own docstrings at
     authoring time (8 + 15 + 20 + 21 + 65 + 13 = 142). A change here is
@@ -515,5 +518,9 @@ def test_guard_covers_full_142_symbol_surface() -> None:
     (verdict-seam-boundary-hardening-01KZG179, T007) extracted
     ``_build_claim_review_override`` out of the cc=14
     ``_mt_emit_runtime_state`` campsite fix — a native move-task seam def
-    (tasks_move_task 78 -> 79): 160 -> 161."""
-    assert len(SYMBOL_TO_MODULE) == 161  # golden-count: cardinality-is-contract
+    (tasks_move_task 78 -> 79): 160 -> 161. bare-prose-requirements-uncounted-
+    01KZYV3C WP06 (#3396, T032a) added ``_mr_detect_bare_prose_requirement_ids``
+    — the fail-loud bare-prose requirement-id detector wrapper ``_mr_plan``
+    calls — a native tasks_map_requirements seam def (tasks_map_requirements
+    15 -> 16): 161 -> 162."""
+    assert len(SYMBOL_TO_MODULE) == 162  # golden-count: cardinality-is-contract
