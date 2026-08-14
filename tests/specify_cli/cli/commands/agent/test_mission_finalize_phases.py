@@ -18,6 +18,8 @@ the WP01 golden harness. The relocated ``_collect_finalize_artifacts`` /
 
 from __future__ import annotations
 
+import json
+import re
 from pathlib import Path
 
 import pytest
@@ -158,6 +160,79 @@ def test_requirement_mapping_rejects_unknown_ref() -> None:
             {"WP01": []},
             json_output=True,
         )
+
+
+# ---------------------------------------------------------------------------
+# _classify_wp_requirement_refs (WP02 campsite-clean extraction)
+# ---------------------------------------------------------------------------
+
+
+def test_classify_wp_requirement_refs_buckets_missing_unknown_mapped() -> None:
+    missing, unknown, mapped = seam._classify_wp_requirement_refs(
+        ["WP01", "WP02", "WP03"],
+        {"WP01": [], "WP02": ["FR-999"], "WP03": ["FR-001", "FR-002"]},
+        {"FR-001", "FR-002"},
+    )
+    assert missing == ["WP01"]
+    assert unknown == {"WP02": ["FR-999"]}
+    assert mapped == {"FR-001", "FR-002"}
+
+
+def test_classify_wp_requirement_refs_dedupes_and_sorts_wp_ids() -> None:
+    # Duplicate wp_ids collapse via `sorted(set(...))`; unsorted input still
+    # produces deterministic (sorted) bucket membership.
+    missing, unknown, mapped = seam._classify_wp_requirement_refs(
+        ["WP02", "WP01", "WP01"],
+        {},
+        set(),
+    )
+    assert missing == ["WP01", "WP02"]
+    assert unknown == {}
+    assert mapped == set()
+
+
+# ---------------------------------------------------------------------------
+# _emit_requirement_mapping_report (WP02 campsite-clean extraction)
+# ---------------------------------------------------------------------------
+
+
+def test_emit_requirement_mapping_report_json(capsys: pytest.CaptureFixture[str]) -> None:
+    seam._emit_requirement_mapping_report(
+        json_output=True,
+        missing_requirement_refs_wps=["WP01"],
+        unknown_requirement_refs={"WP02": ["FR-999"]},
+        unmapped_functional_requirements=["FR-002"],
+        wp_dependencies={"WP01": []},
+        wp_requirement_refs={"WP02": ["FR-999"]},
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload == {
+        "error": "Requirement mapping validation failed",
+        "missing_requirement_refs_wps": ["WP01"],
+        "unknown_requirement_refs": {"WP02": ["FR-999"]},
+        "unmapped_functional_requirements": ["FR-002"],
+        "dependencies_parsed": {"WP01": []},
+        "requirement_refs_parsed": {"WP02": ["FR-999"]},
+    }
+
+
+def test_emit_requirement_mapping_report_console(capsys: pytest.CaptureFixture[str]) -> None:
+    seam._emit_requirement_mapping_report(
+        json_output=False,
+        missing_requirement_refs_wps=["WP01"],
+        unknown_requirement_refs={"WP02": ["FR-999"]},
+        unmapped_functional_requirements=["FR-002"],
+        wp_dependencies={"WP01": []},
+        wp_requirement_refs={"WP02": ["FR-999"]},
+    )
+    output = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out)
+    assert "Requirement mapping validation failed" in output
+    assert "Missing requirement refs:" in output
+    assert "- WP01" in output
+    assert "Unknown requirement refs:" in output
+    assert "- WP02: FR-999" in output
+    assert "Unmapped functional requirements:" in output
+    assert "- FR-002" in output
 
 
 # ---------------------------------------------------------------------------
