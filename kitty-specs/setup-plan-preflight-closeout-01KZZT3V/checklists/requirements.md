@@ -23,7 +23,7 @@
 - [x] Критерии успеха описывают observable contract, а не внутреннюю реализацию
 - [x] Все acceptance scenarios определены
 - [x] Граничные случаи перечислены
-- [x] Scope ограничен `setup-plan` regression follow-up
+- [x] Scope ограничен `setup-plan` regression follow-up и одним каноническим checkout resolver при необходимости
 - [x] Предпосылки и зависимости перечислены
 
 ## Готовность

@@ -83,7 +83,7 @@
 | ID | Название | Ограничение | Категория | Приоритет | Статус |
 |----|----------|-------------|-----------|-----------|--------|
 | C-001 | Единая root authority | Нельзя вводить новый Mission-root resolver или raw path-join; используется существующий `MissionOperationContext`. | Architecture | High | Open |
-| C-002 | Узкий diff | Production-правка ограничивается `mission_setup_plan.py`; тесты — фокусными preflight/caller-owned сценариями. Расширение границы требует повторного согласования. | Scope | High | Open |
+| C-002 | Узкий diff | Production-правка ограничивается `mission_setup_plan.py` и, только если нужно для единой checkout authority, одним существующим resolver-модулем; тесты — фокусными preflight/caller-owned сценариями. Дальнейшее расширение границы требует повторного согласования. | Scope | High | Open |
 | C-003 | Landing branch | Task-owned PR направляется в `codex/spec-kitty-worktree-mission-create`; публикация в `main` и release не входят в scope. | Delivery | High | Open |
 | C-004 | ATDD-first | До production-правки должен быть воспроизведён RED для маскировки `GIT_PREFLIGHT_FAILED`. | Process | High | Open |
 
