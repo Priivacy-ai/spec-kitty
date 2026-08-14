@@ -79,11 +79,16 @@ _GOVERNANCE_YAML = textwrap.dedent(
 
 #: Small fixture built-in graph -- patched in for ``load_built_in_graph`` so
 #: every test is isolated from the ~600-node shipped built-in graph. Carries
-#: exactly one baseline directive, scoped from the resolved action, so the
-#: no-pack baseline is non-zero (a non-vacuous floor for the ">=" assertions
-#: below -- an all-zero baseline would let a still-broken fix pass by
-#: accident).
+#: exactly one baseline directive AND one baseline procedure, each scoped
+#: from the resolved action, so the no-pack baseline is non-zero for BOTH
+#: the four ``--json``-typed kinds and the plain-text-only procedure count
+#: (a non-vacuous floor for the ">=" assertions below -- an all-zero
+#: baseline would let a still-broken fix pass by accident; PR-TESTS-001, R3
+#: confirmed -- this fixture previously declared zero procedure nodes, so
+#: every procedure "with-pack >= baseline" comparison was ">= 0", vacuously
+#: true even with procedure delivery completely broken).
 _BUILT_IN_DIRECTIVE_ID = "builtin-baseline-directive"
+_BUILT_IN_PROCEDURE_ID = "builtin-baseline-procedure"
 _BUILT_IN_GRAPH_YAML = textwrap.dedent(
     f"""\
     schema_version: '1.0'
@@ -92,8 +97,10 @@ _BUILT_IN_GRAPH_YAML = textwrap.dedent(
     nodes:
       - {{urn: '{_ACTION_URN}', kind: action}}
       - {{urn: 'directive:{_BUILT_IN_DIRECTIVE_ID}', kind: directive}}
+      - {{urn: 'procedure:{_BUILT_IN_PROCEDURE_ID}', kind: procedure}}
     edges:
       - {{source: '{_ACTION_URN}', target: 'directive:{_BUILT_IN_DIRECTIVE_ID}', relation: scope}}
+      - {{source: '{_ACTION_URN}', target: 'procedure:{_BUILT_IN_PROCEDURE_ID}', relation: scope}}
     """
 )
 
@@ -244,23 +251,35 @@ def _text_render(repo_root: Path, *, org_root: Path | None) -> str:
     return str(result.text)
 
 
-def _procedures_section_count(text: str) -> int:
-    """Count the bullet lines under the plain-text render's ``Procedures:``
-    heading. Returns 0 when the heading is absent (the bucket was empty, so
-    ``_extend_named_artifact_lines`` never emitted the heading at all).
+def _procedures_section_lines(text: str) -> list[str]:
+    """Return the bullet lines under the plain-text render's ``Procedures:``
+    heading. Returns ``[]`` when the heading is absent (the bucket was
+    empty, so ``_extend_named_artifact_lines`` never emitted the heading at
+    all).
+
+    PR-TESTS-001 (R3 confirmed): the raw lines (not just their count) let a
+    caller assert POSITIVE MEMBERSHIP of a specific procedure id -- a count
+    growing is consistent with "some unrelated procedure appeared", not
+    "the one this test cares about did".
     """
     lines = text.splitlines()
     try:
         start = lines.index("  Procedures:")
     except ValueError:
-        return 0
-    count = 0
+        return []
+    section: list[str] = []
     for line in lines[start + 1 :]:
         if line.startswith("    - "):
-            count += 1
+            section.append(line)
         else:
             break
-    return count
+    return section
+
+
+def _procedures_section_count(text: str) -> int:
+    """Count the bullet lines under the plain-text render's ``Procedures:``
+    heading (see :func:`_procedures_section_lines`)."""
+    return len(_procedures_section_lines(text))
 
 
 # ---------------------------------------------------------------------------
@@ -309,7 +328,15 @@ class TestDrgOnlyOrgPackGuard:
         )
 
     def test_drg_fragment_node_reaches_resolved_bundle(self, tmp_path: Path) -> None:
-        """US1 AC2; FR-002; SC-002 -- positive membership, not "no error"."""
+        """US1 AC2; FR-002; SC-002 -- positive membership, not "no error".
+
+        Covers both the ``--json`` typed-array membership check (tactics)
+        and, per the binding SPEC-FRESH4-001 ruling and PR-TESTS-001 (R3
+        confirmed), a plain-text-render positive-membership check for the
+        drg/-declared PROCEDURE -- the kind issue #3384's own reproduction
+        actually zeroed and that no test in this module checked membership
+        for before this addition.
+        """
         repo = tmp_path / "with_pack"
         repo.mkdir()
         _write_project_fixture(repo)
@@ -322,6 +349,12 @@ class TestDrgOnlyOrgPackGuard:
         assert _ORG_DRG_TACTIC_ID in tactic_ids, (
             f"drg/-declared tactic {_ORG_DRG_TACTIC_ID!r} did not reach the "
             f"resolved bundle: {tactic_ids}"
+        )
+
+        procedure_lines = _procedures_section_lines(_text_render(repo, org_root=pack_root))
+        assert any(_ORG_DRG_PROCEDURE_ID in line for line in procedure_lines), (
+            f"drg/-declared procedure {_ORG_DRG_PROCEDURE_ID!r} did not reach "
+            f"the resolved bundle's plain-text Procedures section: {procedure_lines}"
         )
 
     def test_empty_org_pack_degrades_to_no_pack_baseline(self, tmp_path: Path) -> None:
