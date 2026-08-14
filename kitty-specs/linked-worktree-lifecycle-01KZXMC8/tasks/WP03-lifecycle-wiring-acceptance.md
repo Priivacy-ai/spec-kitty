@@ -39,6 +39,7 @@ authoritative_surface: src/specify_cli/cli/selector_resolution.py
 create_intent:
 - tests/integration/test_caller_owned_worktree_lifecycle.py
 - tests/architectural/test_mission_operation_root_boundary.py
+- tests/architectural/fixtures/mission_root_authority_allowlist.tsv
 execution_mode: code_change
 model: ''
 owned_files:
@@ -55,6 +56,11 @@ owned_files:
 - src/specify_cli/cli/commands/agent/mission_feature_resolution.py
 - src/specify_cli/cli/commands/agent/mission_setup_plan.py
 - src/specify_cli/cli/commands/agent/mission_branch_context.py
+- src/specify_cli/agent_tasks_ports.py
+- src/specify_cli/cli/commands/agent/tasks_move_task.py
+- src/specify_cli/cli/commands/agent/tasks_mark_status.py
+- src/specify_cli/cli/commands/agent/tasks_finalize_validation.py
+- src/specify_cli/cli/commands/agent/tasks_parsing_validation.py
 - src/specify_cli/cli/commands/agent/tasks_shared.py
 - src/specify_cli/cli/commands/agent/tasks_finalize.py
 - src/specify_cli/cli/commands/agent/tasks_status_cmd.py
@@ -69,11 +75,13 @@ owned_files:
 - src/specify_cli/status/models.py
 - src/specify_cli/status/aggregate.py
 - src/specify_cli/status/work_package_lifecycle.py
+- src/specify_cli/status/emit.py
 - src/mission_runtime/write_target_degrade.py
 - src/specify_cli/task_utils/support.py
 - src/specify_cli/workspace/context.py
 - tests/integration/test_caller_owned_worktree_lifecycle.py
 - tests/architectural/test_mission_operation_root_boundary.py
+- tests/architectural/fixtures/mission_root_authority_allowlist.tsv
 - tests/specify_cli/cli/commands/agent/test_tasks_canonical_cleanup.py
 - tests/specify_cli/cli/commands/agent/test_tasks_finalize_seam.py
 role: implementer
