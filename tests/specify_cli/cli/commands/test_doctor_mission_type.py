@@ -1,0 +1,470 @@
+"""ATDD pin for ``spec-kitty doctor mission-type`` (FR-007, FR-008, FR-009, NFR-004).
+
+Modeled directly on ``tests/specify_cli/cli/commands/test_identity_audit.py`` and
+``tests/doctor/test_identity_audit.py`` — the precedent ``doctor identity``'s own
+test suites.
+
+Covers:
+- FR-008: the six-state taxonomy classifies every fixture mission correctly,
+  including the boundary case (blank/null/non-string ``mission_type`` classifies
+  as ``typeless``, never falling through to the legacy ``mission`` key).
+- FR-009 / SC-006: ``--fail-on`` exit-code contract, matching ``doctor identity``.
+- NFR-004: an automated timing regression test (200-mission synthetic repo,
+  < 2 seconds), mirroring ``test_nfr_002_timing_200_missions``'s shape.
+
+This whole file is RED against the WP's base commit: no ``mission-type`` Typer
+command is registered yet, so every assertion fails at the CLI-invocation
+boundary (and the direct-import tests fail to collect).
+"""
+
+from __future__ import annotations
+
+import json
+import time
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+pytestmark = [pytest.mark.fast]
+
+_CUSTOM_UNRESOLVABLE_TYPE = "custom-unresolvable-type"
+_UNKNOWN_TYPE = "totally-unregistered-mission-type"
+
+
+# ---------------------------------------------------------------------------
+# Fixture helpers
+# ---------------------------------------------------------------------------
+
+
+def _write_meta(feature_dir: Path, meta: dict[str, Any]) -> None:
+    """Write a minimal meta.json for test fixtures."""
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(meta, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _write_config(repo_root: Path, activated: list[str]) -> None:
+    """Write a minimal .kittify/config.yaml activating the given mission types."""
+    kittify = repo_root / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    lines = ["mission_type_activations:"]
+    lines += [f"  - {mission_type}" for mission_type in activated]
+    (kittify / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _build_taxonomy_repo(tmp_path: Path) -> Path:
+    """Build a kitty-specs/ tree with one mission per FR-008 taxonomy state,
+    plus the FR-008 boundary case (blank mission_type wins over a real legacy
+    `mission` value).
+
+    `software-dev` is activated AND a real built-in doctrine YAML (resolved).
+    `_CUSTOM_UNRESOLVABLE_TYPE` is activated but has no doctrine YAML
+    (activated-unresolvable). `_UNKNOWN_TYPE` is neither activated nor a
+    built-in (unknown).
+    """
+    specs = tmp_path / "kitty-specs"
+
+    _write_meta(specs / "001-resolved", {"mission_type": "software-dev"})
+    _write_meta(
+        specs / "002-activated-unresolvable",
+        {"mission_type": _CUSTOM_UNRESOLVABLE_TYPE},
+    )
+    _write_meta(specs / "003-unknown", {"mission_type": _UNKNOWN_TYPE})
+    _write_meta(specs / "004-typeless", {})
+    _write_meta(specs / "005-legacy-key-only", {"mission": "software-dev"})
+    (specs / "006-error").mkdir(parents=True)
+    (specs / "006-error" / "meta.json").write_text("{not valid json", encoding="utf-8")
+    # FR-008 boundary case: a present-but-blank `mission_type` key classifies
+    # as typeless REGARDLESS of the legacy `mission` key holding a real value.
+    _write_meta(
+        specs / "007-blank-wins-over-legacy",
+        {"mission_type": "", "mission": "software-dev"},
+    )
+
+    _write_config(tmp_path, ["software-dev", _CUSTOM_UNRESOLVABLE_TYPE])
+    return tmp_path
+
+
+_ALL_TAXONOMY_SLUGS = {
+    "001-resolved",
+    "002-activated-unresolvable",
+    "003-unknown",
+    "004-typeless",
+    "005-legacy-key-only",
+    "006-error",
+    "007-blank-wins-over-legacy",
+}
+
+
+# ---------------------------------------------------------------------------
+# FR-008 / SC-005: CLI classification of every taxonomy state
+# ---------------------------------------------------------------------------
+
+
+def test_mission_type_json_classifies_every_taxonomy_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--json classifies every fixture mission into the correct, single state
+    (SC-005) — none omitted, and the FR-008 boundary case is exercised."""
+    import specify_cli.cli.commands.doctor as doctor_mod
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.doctor import app
+
+    repo_root = _build_taxonomy_repo(tmp_path)
+    monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: repo_root)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["mission-type", "--json"])
+
+    assert result.exit_code == 0, result.output
+    doc = json.loads(result.output)
+
+    by_slug = {m["slug"]: m["state"] for m in doc["missions"]}
+    assert set(by_slug) == _ALL_TAXONOMY_SLUGS
+
+    assert by_slug["001-resolved"] == "resolved"
+    assert by_slug["002-activated-unresolvable"] == "activated-unresolvable"
+    assert by_slug["003-unknown"] == "unknown"
+    assert by_slug["004-typeless"] == "typeless"
+    assert by_slug["005-legacy-key-only"] == "legacy-key-only"
+    assert by_slug["006-error"] == "error"
+    # FR-008 boundary case: blank mission_type wins over the legacy `mission`
+    # key holding a real value — this is the plausible-but-wrong trap.
+    assert by_slug["007-blank-wins-over-legacy"] == "typeless"
+
+    # Summary is zero-filled across all six states.
+    for state in (
+        "resolved",
+        "activated-unresolvable",
+        "unknown",
+        "typeless",
+        "legacy-key-only",
+        "error",
+    ):
+        assert state in doc["summary"]
+    assert doc["summary"]["resolved"] == 1
+    assert doc["summary"]["activated-unresolvable"] == 1
+    assert doc["summary"]["unknown"] == 1
+    assert doc["summary"]["typeless"] == 2  # 004 + 007
+    assert doc["summary"]["legacy-key-only"] == 1
+    assert doc["summary"]["error"] == 1
+
+    assert doc["fail_on_triggered"] is False
+
+
+def test_mission_type_mission_entry_has_documented_fields(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each mission entry in --json carries the documented fields."""
+    import specify_cli.cli.commands.doctor as doctor_mod
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.doctor import app
+
+    repo_root = _build_taxonomy_repo(tmp_path)
+    monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: repo_root)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["mission-type", "--json"])
+    doc = json.loads(result.output)
+
+    for m in doc["missions"]:
+        assert "path" in m
+        assert "slug" in m
+        assert "mission_type_raw" in m
+        assert "resolved_key" in m
+        assert "state" in m
+        assert "error" in m
+
+    by_slug = {m["slug"]: m for m in doc["missions"]}
+    assert by_slug["001-resolved"]["mission_type_raw"] == "software-dev"
+    assert by_slug["001-resolved"]["resolved_key"] == "software-dev"
+    assert by_slug["005-legacy-key-only"]["mission_type_raw"] is None
+    assert by_slug["005-legacy-key-only"]["resolved_key"] == "software-dev"
+    assert by_slug["006-error"]["error"] is not None
+
+
+# ---------------------------------------------------------------------------
+# FR-008 boundary case: direct classifier-level coverage (null / non-string)
+# ---------------------------------------------------------------------------
+
+
+def test_classify_mission_type_null_value_is_typeless(tmp_path: Path) -> None:
+    from specify_cli.cli.commands._mission_type_audit import classify_mission_type
+    from doctrine.missions.mission_type_repository import MissionTypeRepository
+
+    d = tmp_path / "kitty-specs" / "001-null"
+    _write_meta(d, {"mission_type": None, "mission": "software-dev"})
+
+    state = classify_mission_type(
+        d, registered=["software-dev"], repo=MissionTypeRepository.default()
+    )
+    assert state.state == "typeless"
+    assert state.mission_type_raw is None
+
+
+def test_classify_mission_type_non_string_value_is_typeless(tmp_path: Path) -> None:
+    from specify_cli.cli.commands._mission_type_audit import classify_mission_type
+    from doctrine.missions.mission_type_repository import MissionTypeRepository
+
+    d = tmp_path / "kitty-specs" / "001-non-string"
+    _write_meta(d, {"mission_type": 42, "mission": "software-dev"})
+
+    state = classify_mission_type(
+        d, registered=["software-dev"], repo=MissionTypeRepository.default()
+    )
+    assert state.state == "typeless"
+    assert state.mission_type_raw is None
+
+
+def test_classify_mission_type_missing_meta_json_is_typeless(tmp_path: Path) -> None:
+    from specify_cli.cli.commands._mission_type_audit import classify_mission_type
+    from doctrine.missions.mission_type_repository import MissionTypeRepository
+
+    d = tmp_path / "kitty-specs" / "001-no-meta"
+    d.mkdir(parents=True)
+
+    state = classify_mission_type(d, registered=[], repo=MissionTypeRepository.default())
+    assert state.state == "typeless"
+
+
+def test_classify_mission_type_to_dict_shape(tmp_path: Path) -> None:
+    from specify_cli.cli.commands._mission_type_audit import classify_mission_type
+    from doctrine.missions.mission_type_repository import MissionTypeRepository
+
+    d = tmp_path / "kitty-specs" / "001-resolved"
+    _write_meta(d, {"mission_type": "software-dev"})
+
+    state = classify_mission_type(
+        d, registered=["software-dev"], repo=MissionTypeRepository.default()
+    )
+    payload = state.to_dict()
+    assert payload["slug"] == "001-resolved"
+    assert payload["state"] == "resolved"
+    assert payload["mission_type_raw"] == "software-dev"
+    assert payload["resolved_key"] == "software-dev"
+    assert payload["error"] is None
+
+
+# ---------------------------------------------------------------------------
+# audit_mission_types / summarize_mission_types (direct, unit-level)
+# ---------------------------------------------------------------------------
+
+
+def test_audit_mission_types_no_specs_dir_returns_empty(tmp_path: Path) -> None:
+    from specify_cli.cli.commands._mission_type_audit import audit_mission_types
+
+    assert audit_mission_types(tmp_path) == []
+
+
+def test_audit_mission_types_skips_non_directories(tmp_path: Path) -> None:
+    from specify_cli.cli.commands._mission_type_audit import audit_mission_types
+
+    specs = tmp_path / "kitty-specs"
+    specs.mkdir()
+    (specs / "README.md").write_text("ignore me", encoding="utf-8")
+    _write_meta(specs / "001-resolved", {"mission_type": "software-dev"})
+    _write_config(tmp_path, ["software-dev"])
+
+    states = audit_mission_types(tmp_path)
+    assert len(states) == 1
+    assert states[0].slug == "001-resolved"
+
+
+def test_summarize_mission_types_zero_filled() -> None:
+    from specify_cli.cli.commands._mission_type_audit import summarize_mission_types
+
+    summary = summarize_mission_types([])
+    counts = summary["counts"]
+    assert isinstance(counts, dict)
+    for state in (
+        "resolved",
+        "activated-unresolvable",
+        "unknown",
+        "typeless",
+        "legacy-key-only",
+        "error",
+    ):
+        assert state in counts
+        assert counts[state] == 0
+
+
+# ---------------------------------------------------------------------------
+# FR-009 / SC-006: --fail-on exit-code contract (matches doctor identity)
+# ---------------------------------------------------------------------------
+
+
+def test_mission_type_fail_on_unknown_exits_nonzero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import specify_cli.cli.commands.doctor as doctor_mod
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.doctor import app
+
+    repo_root = _build_taxonomy_repo(tmp_path)
+    monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: repo_root)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["mission-type", "--json", "--fail-on", "unknown"])
+
+    assert result.exit_code == 1
+    doc = json.loads(result.output)
+    assert doc["fail_on_triggered"] is True
+
+
+def test_mission_type_no_fail_on_exits_zero_regardless_of_findings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Exits zero with no --fail-on flag regardless of findings (SC-006)."""
+    import specify_cli.cli.commands.doctor as doctor_mod
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.doctor import app
+
+    repo_root = _build_taxonomy_repo(tmp_path)
+    monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: repo_root)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["mission-type", "--json"])
+
+    assert result.exit_code == 0
+    doc = json.loads(result.output)
+    assert doc["fail_on_triggered"] is False
+
+
+def test_mission_type_fail_on_state_with_no_matches_exits_zero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import specify_cli.cli.commands.doctor as doctor_mod
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.doctor import app
+
+    repo_root = tmp_path
+    _write_meta(repo_root / "kitty-specs" / "001-resolved", {"mission_type": "software-dev"})
+    _write_config(repo_root, ["software-dev"])
+    monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: repo_root)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["mission-type", "--json", "--fail-on", "unknown"])
+
+    assert result.exit_code == 0
+    doc = json.loads(result.output)
+    assert doc["fail_on_triggered"] is False
+
+
+def test_mission_type_mission_scope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--mission <slug> scopes the report to one mission."""
+    import specify_cli.cli.commands.doctor as doctor_mod
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.doctor import app
+
+    repo_root = _build_taxonomy_repo(tmp_path)
+    monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: repo_root)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["mission-type", "--json", "--mission", "001-resolved"])
+
+    assert result.exit_code == 0
+    doc = json.loads(result.output)
+    assert {m["slug"] for m in doc["missions"]} == {"001-resolved"}
+
+
+def test_mission_type_mission_scope_not_found_exits_1(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import specify_cli.cli.commands.doctor as doctor_mod
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.doctor import app
+
+    repo_root = _build_taxonomy_repo(tmp_path)
+    monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: repo_root)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["mission-type", "--json", "--mission", "999-nope"])
+
+    assert result.exit_code == 1
+
+
+def test_mission_type_human_output_smoke(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The human-readable (non-JSON) path renders without crashing."""
+    import specify_cli.cli.commands.doctor as doctor_mod
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.doctor import app
+
+    repo_root = _build_taxonomy_repo(tmp_path)
+    monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: repo_root)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["mission-type", "--fail-on", "unknown"])
+
+    assert result.exit_code == 1
+    assert "Mission Type Audit" in result.output
+    assert "FAIL" in result.output
+
+
+# ---------------------------------------------------------------------------
+# NFR-004: automated timing regression — 200 missions in < 2 seconds
+# (TASKS-VERIFY-004 fix; mirrors test_nfr_002_timing_200_missions's shape)
+# ---------------------------------------------------------------------------
+
+
+def _build_200_mission_type_repo(tmp_path: Path) -> Path:
+    """Create a synthetic repo with 200 missions using raw meta.json writes."""
+    specs = tmp_path / "kitty-specs"
+    specs.mkdir(parents=True)
+    for i in range(200):
+        slug = f"{i + 1:03d}-test-mission-{i}"
+        d = specs / slug
+        d.mkdir()
+        meta: dict[str, Any] = {
+            "slug": slug,
+            "mission_slug": slug,
+            "friendly_name": slug,
+            "mission_type": "software-dev",
+            "target_branch": "main",
+            "created_at": "2026-01-01T00:00:00+00:00",
+        }
+        (d / "meta.json").write_text(
+            json.dumps(meta, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    _write_config(tmp_path, ["software-dev"])
+    return tmp_path
+
+
+def test_nfr_004_timing_200_missions() -> None:
+    """audit_mission_types must complete in < 2 seconds for a synthetic
+    200-mission repo (NFR-004)."""
+    import tempfile
+
+    from specify_cli.cli.commands._mission_type_audit import audit_mission_types
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = _build_200_mission_type_repo(Path(tmpdir))
+
+        start = time.monotonic()
+        states = audit_mission_types(repo_root)
+        elapsed = time.monotonic() - start
+
+        # Sanity checks: the data is correct.
+        assert len(states) == 200  # golden-count: cardinality-is-contract
+        assert all(s.state == "resolved" for s in states)
+
+        # NFR-004: must be under 2 seconds.
+        assert elapsed < 2.0, (
+            f"NFR-004 timing violation: {elapsed:.2f}s for 200 missions "
+            f"(limit: 2.0s). Check for I/O hotspots."
+        )
