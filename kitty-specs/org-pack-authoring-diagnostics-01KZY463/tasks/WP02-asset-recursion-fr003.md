@@ -9,12 +9,16 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: feat/org-pack-authoring-diagnostics-3387
+base_commit: 86b072366e2c1af3f3824f4f26c1d2f37f94e262
+created_at: '2026-08-14T00:38:49.297063+00:00'
 subtasks:
 - T003
 - T004
 - T005
 - T006
 - T007
+shell_pid: '761207'
 history: []
 authoritative_surface: src/specify_cli/doctrine/pack_validator.py
 create_intent: []
