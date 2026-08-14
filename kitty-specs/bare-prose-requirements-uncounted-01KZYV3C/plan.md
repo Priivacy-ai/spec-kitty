@@ -91,8 +91,14 @@ extension) threaded from `runtime_bridge.py` into `runtime_bridge_cores.py`; a
   user-facing terms are introduced that need glossary entries — "bare-prose requirement"
   is spec-internal vocabulary, not a CLI flag or public API name.
 
-No charter violations requiring the Complexity Tracking table (see that section below —
-left empty, honestly).
+**Complexity ceiling** — one pre-existing violation found on a touched surface
+(`_validate_requirement_mapping`, complexity 16 > 15 ceiling; verified with `radon cc`)
+— see "Campsite-Clean Scope" below (PLAN-GOV-001). It is **remediated**, not shipped and
+justified: a behaviour-preserving extraction lands in the campsite-clean FIRST commit,
+before IC-03's functional addition touches the function, so no charter violation is
+actually shipped by this mission's diff. The Complexity Tracking table below (for
+violations shipped *with* a justification) therefore correctly stays empty — nothing is
+being retained/justified, it is being fixed.
 
 ## Seam
 
@@ -207,24 +213,64 @@ against `_requirement_named_sections` using the *current*, unmodified
 `_is_requirement_heading`. Broadening the heading predicate to also match
 `"constraint"` would pull ~88% of the corpus's `### Constraints` sections into the
 blocking detector's scope — a scope change an order of magnitude larger than the
-measured 2.45%, with **no corresponding false-positive re-measurement performed or
-available**. Shipping FR-001 with a broadened heading match would mean shipping a
-blocking gate whose real-world noise level is unknown, exactly the "invented
-acceptance ceiling on an unmeasured risk" apparatus the arbiter ruling (see
-`tracer-approach.md`) already deleted once for a different reason in this same spec.
-Per the spec's own Key Entities text — "C-008 requires the plan phase to either close
-this asymmetry **or explicitly document it as an accepted scope narrowing**" — narrowing
-is an explicitly sanctioned outcome, not a default the plan phase invented.
+measured 2.45%.
+
+**Broadened-predicate FP measurement, performed for this plan-fix pass (PLAN-GOV-002):**
+rather than leave the broadened-scope false-positive rate an unmeasured unknown, a
+read-only corpus scan was run against the current `kitty-specs/*/spec.md` corpus (368
+specs) using this plan's own documented algorithm ("Architecture" above), with
+`_is_requirement_heading` broadened to also match `"constraint"` — the same corpus-scan
+approach IC-07 already describes for the false-negative sample, reused here rather than
+inventing a new method. **Result: only 5 of 368 specs (1.36%) are newly flagged beyond
+the narrow-heading candidate set (7 candidate tokens total), and manual review of every
+one of those 7 tokens found zero true positives** — the same "foreign-id citation, not a
+lost requirement of this spec" class the settled 9/368 figure already establishes. Two of
+the 5 (`C-009` in
+`coord-read-residuals-merge-lanes-and-identity-routing-01KW2M8V/spec.md`; `C-007` in
+`doctrine-public-api-surface-01KZPDSR/spec.md`) are citations, from inside a genuine
+`### Constraints` table row, of another mission's or the charter's own like-named
+constraint id (compounded by a pre-existing, broadening-independent gap in
+`_DECLARED_ID_PATTERNS`: a non-numeric-suffixed custom id like `C-009-mirror` or
+`C-007-mission` never itself matches `_TABLE_ROW_ID_PATTERN`'s exact-digits capture, so
+its own ID-column text is scanned as un-declared raw text too). The other 3
+(`drg-relation-impacts-vocabulary-01KYFV87`, `foundational-values-creed-band-01KYFV8N`,
+`test-quality-doctrine-series-01KYFV8H`) surface a **broadening-specific over-match risk
+the narrow "requirement"-only predicate does not have**: a plain substring match on
+`"constraint"` also matches non-canonical narrative headings such as `"Carried
+constraints — do not lose these when speccing"` (a cross-mission-series scratch section,
+not the canonical `### Constraints` requirements table C-008 is actually about) —
+pulling free-text notes into blocking scope.
+
+**Why this measured result still supports (b), not (a):** the raw FP count is small, but
+shipping a production-quality broadened predicate would require the *same*
+double-independent manual true/false-positive classification discipline already applied
+to the settled 9/368 figure (per spec.md: "measured... twice, independently, with
+identical results"), not a single read-only scan — and it would additionally require
+designing a heading-match predicate smarter than a plain `"constraint"` substring test,
+to exclude free-text "carried constraints" sections from the over-match this scan just
+surfaced — a design question this plan phase did not scope and does not resolve here.
+That combined cost (re-run the double-verification discipline; design a non-substring
+heading predicate) is disproportionate to what this plan phase can responsibly absorb
+without either rushing the verification rigor FR-005 itself sets as precedent, or
+silently shipping a narrower ad hoc heading fix nobody asked for. This is the explicit
+effort/cost justification the confirmed finding asked for — the *measurement* was not
+out of scope (it is done, above, and its result is real data, not a placeholder), but
+the *full remediation* (a production-quality broadened predicate) is, and disposition
+(b) is kept on that basis, not because the data was unavailable. Per the spec's own Key
+Entities text — "C-008 requires the plan phase to either close this asymmetry **or
+explicitly document it as an accepted scope narrowing**" — narrowing is an explicitly
+sanctioned outcome, not a default the plan phase invented.
 
 **Disposition**: `_is_requirement_heading` is left byte-identical. `C-XXX` bare-prose
 items under a `### Constraints` heading remain **out of blocking scope** for this
-mission. Story 4 AC4's false-negative sample (below) is the disclosure mechanism: it
-runs the corpus through a heading predicate that *does* also match `"constraint"`
-(a throwaway measurement helper, not a change to production code) and records, purely
-informationally, how many sampled specs contain a genuine undetected bare-prose
-`C-XXX`/`NFR-XXX` item — giving a future mission the FP-rate data point this one
-deliberately does not gather, so that mission can make an informed broaden decision
-instead of guessing.
+mission. Story 4 AC4's false-negative sample (below, IC-07) is the disclosure mechanism
+for the *false-negative* side of this decision (specs where the detector under-fires);
+the *false-positive* side is now covered too, by the corpus scan measured above (this
+plan-fix pass, PLAN-GOV-002) — both figures, plus the over-match risk the scan surfaced,
+are the FP/FN data-point pair a future mission needs to make an informed broaden decision
+instead of guessing. IC-07's measurement helper should be extended to also record the
+FP-side result documented above (not only the FN sample) so both figures live in the
+same place — the detector's module docstring — at implementation time.
 
 ### C-006 in the algorithm
 
@@ -334,11 +380,35 @@ def _evaluate_tasks_packages_guard(snapshot):
 This is *exactly* the shape that made `_zero_declared_requirement_block` inert: with
 zero WP files, `_tasks_dir_ready` is `False` and the function returns before ever
 reading the new signal. This plan's fix reads the new bare-prose fact **first,
-unconditionally**, in each of the four guards, e.g.:
+unconditionally**, in each of the four guards.
+
+**Test-fixture regression, resolved explicitly (PLAN-ARCH-001): read via `.get(...)`, not
+a bare subscript.** `snapshot.status_facts` is a plain `Mapping[str, Any]`
+(`runtime_bridge_io.py:745-746`), and `tests/runtime/test_bridge_cores.py`'s shared
+`_snapshot()` helper's `base_status_facts` dict does **not** carry a
+`"bare_prose_requirement_failures"` key. An unconditional
+`snapshot.status_facts["bare_prose_requirement_failures"]` subscript would raise
+`KeyError` in every one of `_snapshot()`'s existing callers the instant the guard is
+wired — including exact-equality assertions in that same file (e.g.
+`test_cli_native_tasks_packages_extends_requirement_mapping_failures`,
+`test_cli_native_tasks_finalize_missing_dependency_uses_full_stem_breaks_on_first`) that
+this plan's own "Targeted Test Surface" above requires to keep passing unmodified (Story
+2 AC2 / SC-002). **This plan picks the `.get()`-degrades-gracefully option, not the
+fixture-update option**: every touched guard reads the new key via
+`snapshot.status_facts.get("bare_prose_requirement_failures", ())`, never a bare `[]`
+subscript, so a snapshot/fixture that predates this mission's wiring degrades to "no
+bare-prose failures" instead of crashing. This is a deliberately narrower fix than
+teaching every one of `_snapshot()`'s callers (and any equivalent helper in `tests/next/`
+/ `tests/specify_cli/next/`) about the new key: it makes the four guards resilient to
+*any* caller that has not been updated yet, present ones included, without requiring a
+coordinated fixture-update commit landed in lockstep. (`requirement_mapping_failures`
+itself stays a bare subscript, unchanged — it is a pre-existing key every `_snapshot()`
+caller already sets by default; only the brand-new key gets the defensive read — this is
+the guard-class-wide rule, not a one-off for this single guard.)
 
 ```python
 def _evaluate_tasks_packages_guard(snapshot):
-    failures = list(snapshot.status_facts["bare_prose_requirement_failures"])
+    failures = list(snapshot.status_facts.get("bare_prose_requirement_failures", ()))
     if not _tasks_dir_ready(snapshot):
         failures.append(MISSING_TASK_FILES_MESSAGE)
         return failures
@@ -351,6 +421,12 @@ ordered before, the `tasks_wp_files`-first check" — applied literally to every
 guard, and satisfies both of Story 3's required configurations (zero WP files; ≥1 WP
 file none referencing the bare-prose ids) with the same code path, because the new
 fact's presence never depends on `tasks_dir`/WP-file state at all — only on `spec.md`.
+Once IC-02's wiring lands and `gather_artifact_presence` always populates
+`"bare_prose_requirement_failures"` for real production snapshots, `_snapshot()`'s
+`base_status_facts` dict SHOULD still be updated to include the key (matching the other
+default-populated facts already in that dict) — for fixture *accuracy*, not to avoid a
+crash the `.get()` read already prevents; this is a follow-up hygiene item for IC-02, not
+a blocking dependency of the guard wiring itself.
 
 ### C-007 — fact-port shape: a sibling fact object, not an extension
 
@@ -453,10 +529,6 @@ enforced gate **not** included:
 - `fast-tests-next` — triggered (`needs.changes.outputs.next == 'true'`, this mission
   touches `src/runtime/next/`), runs `tests/next/ tests/specify_cli/next/ tests/runtime/`
   — not floor-enforced, but must be green.
-- SonarCloud Scan + Quality Gate (~line 4022/4034) — always attempted when `SONAR_TOKEN`
-  is configured; new-code coverage gate applies to every new branch/helper this mission
-  adds (NFR-004 already requires focused tests per new branch, which is the same
-  discipline Sonar's gate enforces).
 - `uv.lock` freshness (`uv-lock-check`) — always-on; this mission adds no new dependency,
   so `uv.lock` should already be in sync; the gate still runs and must pass.
 - `clean-install-verification` — always-on; unaffected in *content* by this mission
@@ -477,6 +549,24 @@ enforced gate **not** included:
   is scoped to `src/specify_cli/mission_loader/`, a package this mission does not touch.
   The floor is therefore vacuously satisfied by this mission's diff (unaffected
   baseline), not exercised by it.
+
+**Not triggered at all on this mission's PR (corrected, PLAN-VERIFY-002 — was
+mis-listed above as "Triggered / must pass"):**
+- **SonarCloud Scan + Quality Gate** — the `sonarcloud` job's own trigger condition,
+  `.github/workflows/ci-quality.yml:3648`
+  (`if: always() && (github.event_name == 'schedule' || github.event_name ==
+  'workflow_dispatch')`), restricts it to `schedule`/`workflow_dispatch` events only — it
+  **never** runs on a `pull_request` event. The job comment at
+  `ci-quality.yml:3585-3589` states this explicitly: "PRs skip Sonar entirely to keep
+  review latency low." The job is also absent from the `quality-gate` aggregator's
+  `needs:` list (`ci-quality.yml:4361-4416`), confirming it is not part of the blocking
+  set for a PR run either directly or transitively. This mission's PR will not run
+  SonarCloud at all — the earlier claim that it is "always attempted when `SONAR_TOKEN`
+  is configured" was wrong for the `pull_request` event this mission's own PR runs
+  under. **NFR-004's per-branch focused-test requirement (every new branch/helper gets a
+  focused test in the same work package) is therefore the sole enforcement mechanism for
+  new-code coverage on this mission's actual PR review surface** — not Sonar's new-code
+  coverage gate, which never executes here.
 
 **Not triggered at all (path-scoped, this mission's diff does not touch the gating
 paths):**
@@ -509,11 +599,26 @@ locally before commit; neither is claimed here as something CI will independentl
 inspection this plan phase performed: `git cat-file -t ab15225ea` resolves to `commit`;
 `git merge-base --is-ancestor ab15225ea HEAD` succeeds; `git rev-parse
 origin/op/3394-requirement-citation-scope` equals `ab15225ea8b08c93779da904a4c7f7f30f3efbac`
-exactly. `HEAD` (this mission's spec-authoring tip, `2e088fbe0`) sits 7 commits above
-`ab15225ea` — all 7 are spec-authoring commits (`git log --oneline ab15225ea..HEAD`
-shows only `spec(...)`/`fix(spec: ...)`/`reviews(spec: ...)`/meta-add commits, zero
-implementation commits), so `ab15225ea` is the correct, untouched pre-implementation
-tip.
+exactly.
+
+**Falsifiability note, fixed-ref not self-moving `HEAD` (PLAN-VERIFY-003):** the original
+draft of this section stated the commit count and tip hash relative to `HEAD` — a claim
+that goes stale the instant this file's own commit lands, since that commit *becomes*
+`HEAD` and is neither the hash originally named nor one of the four
+spec-authoring-shaped prefixes originally enumerated (this happened for real, between
+this plan's authoring and its own adversarial-review fix pass: the tip moved from
+`2e088fbe0` to `38a216f92`, an 8th, `plan(...)`-prefixed commit above `ab15225ea`, before
+this fix pass added a 9th). The durable claim is pinned to a fixed ref instead: **as of
+the pre-plan-commit tip `2e088fbe0`**, `git log --oneline ab15225ea..2e088fbe0` shows 7
+commits above `ab15225ea`, all `spec(...)`/`fix(spec: ...)`/`reviews(spec: ...)`/meta-add
+commits — zero implementation commits. `HEAD` moves again with every subsequent
+`plan(...)`-prefixed planning/review-fix commit (this mission's own plan commit, this
+fix-pass commit, and any future one), so **whoever executes the baseline capture
+re-verifies live, at execution time**, that every commit strictly between `ab15225ea`
+and the then-current tip matches one of `spec(...)` / `fix(spec: ...)` /
+`reviews(spec: ...)` / `plan(...)` / meta-add — never an implementation-shaped commit.
+The substantive conclusion that must hold is "zero implementation commits above
+`ab15225ea`," not a specific literal count or hash.
 
 **Tooling-friction note** (recorded here and in `tracer-tooling-friction.md`):
 `spec-kitty plan --mission ... --json`'s own computed `planning_base_branch` field
@@ -590,21 +695,55 @@ functional change touches: `src/specify_cli/requirement_mapping.py`,
 `src/runtime/next/runtime_bridge_io.py`, `src/specify_cli/cli/commands/agent/mission_finalize.py`,
 `src/specify_cli/cli/commands/agent/tasks_mapping_core.py`.
 
-**Honest finding: no domain-matched debt worth folding was found in these files during
-this plan-phase read.** All six are recently-touched, actively-maintained modules
-(`requirement_mapping.py` and `runtime_bridge_cores.py` both carry #3394/#3395/#2531-era
-docstrings dated within the last review cycle; `mission_finalize.py` and
-`tasks_mapping_core.py` show no lint/complexity red flags in the sections this plan
-phase read). None of the six functions this mission will modify
-(`_evaluate_tasks_packages_guard`, `_evaluate_composed_tasks_packages_guard`,
-`_evaluate_composed_tasks_terminal_guard`, `_evaluate_tasks_finalize_guard`,
-`_check_requirement_mapping_ready`, `_validate_requirement_mapping`, `plan_mapping`) is
-within reach of the repo's complexity ceiling (15) by inspection — each is a short,
-linear sequence of guard checks. An honestly-empty campsite-clean is recorded here
-rather than an invented one; if implementation discovers real debt in these files once
-it is editing them line-by-line, it folds it there and records it in the tracer files
-per Standing Order 2, but this plan does not manufacture a cleanup step to satisfy the
-checklist.
+**Complexity debt finding (verified, not by inspection alone): one function is already
+over the charter's ceiling.** `_validate_requirement_mapping`
+(`src/specify_cli/cli/commands/agent/mission_finalize.py:621-677`) measures at
+**cyclomatic complexity 16** — one over the charter's binding ceiling of 15 — verified
+directly during this plan-fix pass with `radon cc -s
+src/specify_cli/cli/commands/agent/mission_finalize.py -n A`, which reports `F 621:0
+_validate_requirement_mapping - C (16)`, not merely eyeballed. IC-03 below schedules
+exactly this function to gain a new branch (surfacing `bare_prose_requirement_ids`
+alongside the existing missing/unknown/unmapped fields), which would push it further
+over the ceiling if landed without remediation first. Per Standing Order 2, this is
+in-scope, domain-matched debt on a surface this mission is about to functionally change,
+and it is folded into the campsite-clean FIRST commit, not deferred:
+
+- **Extraction (behaviour-preserving, no observable-output change)**: split
+  `_validate_requirement_mapping` into (1) a pure classification helper — e.g.
+  `_classify_wp_requirement_refs(wp_ids, wp_requirement_refs, all_spec_requirement_ids) ->
+  tuple[list[str], dict[str, list[str]], set[str]]` — that owns the per-WP loop
+  (missing/unknown/mapped bucketing) currently inline in the function, and (2) a
+  report-formatting helper — e.g. `_emit_requirement_mapping_report(payload, *,
+  json_output)` — that owns the JSON-vs-console branch and the three `console.print`
+  loops. `_validate_requirement_mapping` itself becomes a thin orchestrator: call (1),
+  compute `unmapped_functional_requirements`, early-return if clean, else call (2) and
+  raise. This is the exact split the confirmed finding names: split the per-WP
+  classification loop from the report-formatting branch into two helpers.
+- **Sequencing**: this extraction lands in the campsite-clean FIRST commit, before IC-03's
+  functional addition (the new `bare_prose_requirement_ids` field) touches the same
+  function — so IC-03's diff lands against the already-decomposed, sub-ceiling shape,
+  never adding a branch to the still-16-complexity original.
+- **Verification**: re-run `radon cc` (or `ruff check --select C901` once available) on
+  both extracted helpers and the orchestrator after the split, confirming each is
+  comfortably under 15, before IC-03's commit is authored.
+
+**The other five files/functions show no complexity debt worth folding.** All are
+recently-touched, actively-maintained modules (`requirement_mapping.py` and
+`runtime_bridge_cores.py` both carry #3394/#3395/#2531-era docstrings dated within the
+last review cycle; `tasks_mapping_core.py` shows no lint/complexity red flags in the
+sections this plan phase read). None of `_evaluate_tasks_packages_guard`,
+`_evaluate_composed_tasks_packages_guard`, `_evaluate_composed_tasks_terminal_guard`,
+`_evaluate_tasks_finalize_guard`, `_check_requirement_mapping_ready`, or `plan_mapping`
+is within reach of the repo's complexity ceiling (15) — each is a short, linear sequence
+of guard checks; `radon cc` was run against the full `runtime_bridge_cores.py` and
+`mission_finalize.py` files (not only the touched functions) during this plan-fix pass
+and surfaced no other function at or above 15 among the files this mission touches
+(`_run_bootstrap_loop` in `mission_finalize.py` reports `C (14)` — below ceiling, and
+outside this mission's touched-function set — recorded here only so a reviewer does not
+rediscover it and wonder why it wasn't named). This is an honest, now-verified
+campsite-clean, not an invented one; if implementation discovers further real debt in
+these files once editing them line-by-line, it folds it there and records it in the
+tracer files per Standing Order 2.
 
 ## Targeted Test Surface
 
@@ -671,8 +810,10 @@ The pinned base is `ab15225ea`. If #3395 changes shape (force-push, additional r
 commits, a rewritten function signature) before this mission merges:
 
 1. `origin/op/3394-requirement-citation-scope`'s tip moves past `ab15225ea`.
-2. This mission's branch (currently 7 commits of spec-authoring above `ab15225ea`, soon
-   plus implementation commits) must be rebased onto the new tip.
+2. This mission's branch (spec-authoring and plan-phase commits above `ab15225ea` — see
+   "Baseline Capture" above for the fixed-ref accounting rather than a literal count,
+   since the live count changes with every planning/review-fix commit — soon plus
+   implementation commits) must be rebased onto the new tip.
 3. Because this mission's new code is additive (a new function, a new fact object, new
    guard-body statements) rather than a modification of #3395's own changed lines, the
    *expected* rebase shape is a clean, non-conflicting fast-forward-style rebase in the
@@ -716,13 +857,34 @@ each, and asserts:
 2. Every spec **in** the fixture has a live `flagged_ids` set that is a subset of (or
    equal to — never a superset of) the fixture's recorded set (shrink/stay-equal only).
 
+**Non-vacuity requirement (PLAN-VERIFY-001, load-bearing).** Charter Standing Order 5
+requires "a NON-VACUOUS call-site gate (concrete floor + self-mutation test +
+shrink-only allowlist); a gate-unmask cannot self-validate" — cite
+`architectural-gate-non-vacuity` here alongside the `frozen-baseline-shrink-only-ratchet`
+citation above, which covers only the shrink-only-allowlist half. Assertions 1+2 alone
+are vacuous against a fully-collapsed, always-empty detector: a detector that returns
+`[]` for every spec passes both trivially (empty is empty for non-fixture specs; the
+empty set is a subset of any recorded set for fixture specs), reproducing inside this
+mission's own regression safety net the exact "counts 0 and calls it clean"
+silent-success failure class this mission exists to fix. The ratchet test therefore
+**also** asserts, in the same test module:
+3. **Concrete floor**: for each of the 9 fixture specs, the LIVE `flagged_ids` result is
+   **non-empty** (`assert live_ids`, not only `assert live_ids <= recorded_ids`) — the
+   floor that (1)+(2) alone do not provide; a collapsed detector fails this assertion for
+   all 9 specs simultaneously, where it would pass (1)+(2) vacuously.
+4. **Self-mutation ("teeth") test**: a dedicated test (same module, or
+   `test_bare_prose_corpus_ratchet_teeth.py` alongside it) monkeypatches/stubs
+   `find_bare_prose_requirement_ids` to always return `[]` and asserts the ratchet test
+   above then **fails** (not errors, not skips) — proving the gate itself is
+   load-bearing, not merely present.
+
 This is deliberately **not** a live-scored percentage re-run — it never computes "9/368"
-at CI time; it only asks "did the flagged *set* grow." A future, unrelated mission
-adding a new `kitty-specs/*/spec.md` cannot flip this gate red by merely existing
-(satisfies check 1 vacuously as long as its own spec has no bare-prose token — which,
-per Story 6 AC2, this mission's *own* spec.md already satisfies by construction). Growth
-requires a deliberate re-snapshot with a recorded reason, mirroring
-`_baselines.yaml`'s per-PR edit policy exactly.
+at CI time; it only asks "did the flagged *set* grow, and is it still non-empty where it
+should be." A future, unrelated mission adding a new `kitty-specs/*/spec.md` cannot flip
+this gate red by merely existing (satisfies check 1 vacuously as long as its own spec has
+no bare-prose token — which, per Story 6 AC2, this mission's *own* spec.md already
+satisfies by construction). Growth requires a deliberate re-snapshot with a recorded
+reason, mirroring `_baselines.yaml`'s per-PR edit policy exactly.
 
 ## Reflexivity (Story 6 / FR-009)
 
@@ -801,8 +963,11 @@ corpus fixture (a data file, not source) and its ratchet test.
 
 *Fill ONLY if Charter Check has violations that must be justified*
 
-No Charter Check violations were found (see "Charter Check" above) — this table is left
-empty, honestly, rather than populated to satisfy a template requirement.
+One pre-existing complexity-ceiling violation was found (`_validate_requirement_mapping`,
+16 > 15 — see "Charter Check" and "Campsite-Clean Scope," PLAN-GOV-001), but it is
+**remediated** in the campsite-clean FIRST commit, not shipped-and-justified — so this
+table, which is for violations accepted *with* a justification, is left empty, honestly,
+rather than populated to satisfy a template requirement.
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|---------------------------------------|
@@ -838,7 +1003,12 @@ empty, honestly, rather than populated to satisfy a template requirement.
 - **Sequencing/depends-on**: IC-01.
 - **Risks**: this is the mission's central, named risk (repeating the
   `3823f2b00`-shaped dead-path). Mitigated by the explicit ordering fix and the
-  per-guard teeth tests (IC-05).
+  per-guard teeth tests (IC-05). Each guard reads the new `status_facts` key via
+  `.get(..., ())` (PLAN-ARCH-001, see the FR-002 code sketch above), never a bare
+  subscript, so pre-existing test fixtures/snapshots that do not yet populate the key
+  degrade instead of raising `KeyError` — `tests/runtime/test_bridge_cores.py`'s
+  `_snapshot()` should still be updated to set the key by default as a fixture-accuracy
+  hygiene item, not a blocking prerequisite of this concern.
 
 ### IC-03 — `finalize-tasks` / `map-requirements` CLI wiring
 
@@ -848,7 +1018,10 @@ empty, honestly, rather than populated to satisfy a template requirement.
 - **Relevant requirements**: FR-001 (Story 1 AC1/AC2), FR-004.
 - **Affected surfaces**: `src/specify_cli/cli/commands/agent/mission_finalize.py`,
   `tasks_mapping_core.py`.
-- **Sequencing/depends-on**: IC-01.
+- **Sequencing/depends-on**: IC-01, and the campsite-clean FIRST commit's
+  `_validate_requirement_mapping` extraction (see "Campsite-Clean Scope" above,
+  PLAN-GOV-001) — IC-03's new branch lands against the already-decomposed helper split,
+  never adding a branch to the pre-extraction 16-complexity function.
 - **Risks**: low — both call sites already have direct access to `spec_content`; the
   main risk is payload-shape drift between the two CLI commands' JSON output (mitigate
   by using the same field name, `bare_prose_requirement_ids`, in both).
@@ -882,7 +1055,11 @@ empty, honestly, rather than populated to satisfy a template requirement.
 
 ### IC-06 — Frozen corpus fixture + ratchet (FR-005 / SC-006)
 
-- **Purpose**: Commit the 9-spec baseline signature and the shrink-only ratchet test.
+- **Purpose**: Commit the 9-spec baseline signature and the shrink-only, **non-vacuous**
+  ratchet test — shrink-only assertions (1)+(2) PLUS the concrete-floor assertion (3) and
+  the self-mutation teeth test (4) specified in "The False-Positive Fixture" section
+  above (PLAN-VERIFY-001; charter's `architectural-gate-non-vacuity` doctrine, not only
+  `frozen-baseline-shrink-only-ratchet`).
 - **Relevant requirements**: FR-005, SC-006.
 - **Affected surfaces**: new `tests/fixtures/bare_prose_corpus_baseline.json`, new
   `tests/architectural/test_bare_prose_corpus_ratchet.py`.
@@ -894,7 +1071,12 @@ empty, honestly, rather than populated to satisfy a template requirement.
 
 - **Purpose**: A throwaway measurement (not shipped production code) that runs the
   corpus through a heading predicate broadened to also match `"constraint"`, records how
-  many sampled specs contain a genuine undetected bare-prose `C-XXX`/`NFR-XXX` item.
+  many sampled specs contain a genuine undetected bare-prose `C-XXX`/`NFR-XXX` item
+  (false-negative side), and additionally records — re-verified against the
+  then-current corpus — the broadened-predicate false-positive result already measured
+  during this plan's PLAN-GOV-002 fix pass (see "C-008 decision" above: 5/368 = 1.36%
+  newly flagged, zero true positives), so both figures live together in the detector's
+  module docstring, following FR-005's own re-verification precedent.
 - **Relevant requirements**: Story 4 AC4, C-008 (disclosure half of the decision).
 - **Affected surfaces**: a script/test under `tests/` or `scripts/`, output recorded in
   the detector's module docstring alongside the FP rate (does not touch
