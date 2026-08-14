@@ -49,13 +49,25 @@ _RESEARCH_ACTIONS = ["scoping", "methodology", "gathering", "synthesis", "output
 def _inject_mission_type_repository_mock(
     mock_repo: MagicMock,
 ) -> dict:
-    """Inject a mock MissionTypeRepository into sys.modules and return cleanup dict."""
-    mock_repo_cls = MagicMock()
-    mock_repo_cls.default.return_value = mock_repo
+    """Inject a mock ``resolve_layered_mission_types`` into sys.modules.
+
+    WP04 (mission up-mission-type-seam-01KZY1JB): ``_resolve_action_slot``
+    calls ``doctrine.missions.mission_type_repository.resolve_layered_mission_types``
+    (WP03's layered factory), not ``MissionTypeRepository.default()`` -- a
+    repository-call swap. *mock_repo* already exposes the ``.get(id)``
+    interface the returned roster needs, so it doubles as the fake factory's
+    return value unchanged.
+
+    Mirrors ``tests/charter/test_action_sequence_dispatch.py``'s helper of the
+    same name; both must move together.
+
+    Returns saved_modules for cleanup.
+    """
+    mock_resolve_layered = MagicMock(return_value=mock_repo)
 
     fake_pkg = types.ModuleType("doctrine.missions")
     fake_module = types.ModuleType("doctrine.missions.mission_type_repository")
-    fake_module.MissionTypeRepository = mock_repo_cls  # type: ignore[attr-defined]
+    fake_module.resolve_layered_mission_types = mock_resolve_layered  # type: ignore[attr-defined]
 
     saved: dict = {}
     for key in ("doctrine.missions", "doctrine.missions.mission_type_repository"):

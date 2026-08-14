@@ -159,28 +159,42 @@ def _emit_step_removal_warnings(kind: str, artifact_id: str, repo_root: Path) ->
     if kind != "mission-type":
         return
 
-    from charter.missions import (  # noqa: PLC0415
-        MissionTypeRepository,
-    )
-
     from specify_cli.charter_activate import (  # noqa: PLC0415
         emit_step_removal_warnings,
         find_removed_steps,
         scan_inflight_missions,
     )
+    from specify_cli.cli.commands.charter.mission_type import (  # noqa: PLC0415
+        resolve_layered_roster,
+    )
 
     try:
         from charter.mission_type_profiles import (  # noqa: PLC0415
+            UnknownMissionTypeError,
             resolve_mission_type_context,
         )
 
         current_seq: list[str] = resolve_mission_type_context(
             repo_root, mission_type=artifact_id
         ).action_sequence
-    except Exception:  # noqa: BLE001 — type not yet activated or unknown
+    except UnknownMissionTypeError:
+        # FR-009: not yet activated (or no resolvable profile) -- there is no
+        # previous state to compare against, so "no steps were removed" is
+        # correct here, not a silent degrade. Any OTHER resolution failure --
+        # e.g. WP06's MissionTypeEmptyActionSequenceError, raised when a
+        # previously-active non-built-in type's action sequence cannot be
+        # resolved at all -- MUST surface rather than being folded into this
+        # same "no previous state" branch (spec.md Edge Cases: "must surface
+        # that resolution failure rather than silently treating 'cannot
+        # resolve' as 'no steps were removed'"). The bare `except Exception`
+        # this replaces used to swallow that case too.
         current_seq = []
 
-    mt = MissionTypeRepository.default().get(artifact_id)
+    # FR-009: the layered roster (built-in -> org -> project), not the
+    # built-in-only MissionTypeRepository.default() -- a non-built-in type's
+    # incoming (about-to-be-activated) action sequence was previously always
+    # invisible here, so its removed steps were never detected.
+    mt = resolve_layered_roster(repo_root).get(artifact_id)
     # Optional-narrowing (WP07 S-B cutover): `MissionType.action_sequence` is
     # `list[str] | None` since WP01 (projection-sourced post-cutover, YAML no
     # longer carries a literal fallback) — narrow before `list()` for mypy --strict.
@@ -434,7 +448,27 @@ def activate_cmd(
 
     # FR-008: in-flight step-removal warnings (generalized — no inline
     # `kind == "mission-type"` branch in the command flow).
-    _emit_step_removal_warnings(kind, artifact_id, repo_root)
+    #
+    # CL-006/NFR-002 (post-fix verification sweep, mission
+    # up-mission-type-seam-01KZY1JB): this reaches the layered mission-type
+    # roster (``resolve_layered_roster`` -> ``resolve_layered_mission_types``
+    # -> ``scan_mission_types_dir``), which loud-fails BY DESIGN (WP03,
+    # PR-CONTRACT-002) on a malformed/unreadable YAML file anywhere in the
+    # built-in, org, or project ``mission_types/`` layer. Pre-fix this call
+    # had no exception boundary at all, so that loud-fail surfaced as a raw,
+    # uncaught traceback instead of the clean, operator-readable
+    # ``typer.Exit(1)`` every other failure mode in this command already
+    # gets. Same catch shape as ``manager.activate()`` below: a bare
+    # ``except ValueError`` also catches ``pydantic.ValidationError`` (the
+    # schema-validation failure mode the same resolver chain documents as a
+    # separate ``Raises`` entry) because ``pydantic.ValidationError``
+    # subclasses ``ValueError`` in the pinned pydantic version — no second
+    # import, no second error-handling style.
+    try:
+        _emit_step_removal_warnings(kind, artifact_id, repo_root)
+    except ValueError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
 
     manager = CharterPackManager()
     try:

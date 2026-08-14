@@ -2776,6 +2776,20 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-08-13-1-mission-type-roster-layering-seam.md"
+    title: "ADR: Mission-Type Roster Layering Is the Availability Slice, Not the Kind-Promotion Slice"
+    divio_type: "none"
+    abstract: "Adds a layered, pack-aware mission-type lookup and a flat org/project roster layout. Availability slice only: mission-type is not promoted to an ArtifactKind."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "a-this-mission-does-not-promote-mission-type-to-a-first-class-artifactkind", text: "(a) This mission does not promote mission-type to a first-class `ArtifactKind`", level: 3}
+    - {slug: "b-relation-to-the-sequencing-adr-s-no-silent-contract-reversal-driver", text: "(b) Relation to the sequencing ADR's \"no silent contract reversal\" driver", level: 3}
+    - {slug: "c-the-flat-org-pack-layout-cl-005-its-own-short-decision-record", text: "(c) The flat org-pack layout (CL-005) — its own short decision record", level: 3}
+    - {slug: "seam-shape-backing-these-decisions-cl-001-s-rejected-alternatives", text: "Seam Shape Backing These Decisions: CL-001's Rejected Alternatives", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md"
     title: "ADR: Transition gates are declarative, asset-backed, first-class doctrine artefacts"
     divio_type: "none"

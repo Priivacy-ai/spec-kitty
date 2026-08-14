@@ -944,6 +944,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-08-13-1-mission-type-roster-layering-seam.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md
   tag: current
   divio_type: none

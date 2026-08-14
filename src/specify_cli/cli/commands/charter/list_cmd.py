@@ -183,9 +183,25 @@ def list_cmd(
         if show_available:
             activated_set = value or frozenset()
             if all_layers:
-                entries = manager.list_available_detailed(
-                    ctx, kind, layer_roots=layer_roots
-                )
+                # CL-006/NFR-002 (post-fix verification sweep, mission
+                # up-mission-type-seam-01KZY1JB): for the ``mission-type``
+                # kind, ``list_available_detailed`` reaches
+                # ``scan_mission_types_dir`` directly (PR-CONTRACT-002) and
+                # loud-fails BY DESIGN on a malformed/unreadable YAML file
+                # anywhere in the built-in/org/project ``mission_types/``
+                # layers -- same underlying primitive as the other CLI
+                # surfaces this mission's grep found, a different direct
+                # caller. A bare ``except ValueError`` also catches
+                # ``pydantic.ValidationError`` (this scan's other documented
+                # ``Raises`` type, see its docstring) since it subclasses
+                # ``ValueError`` in the pinned pydantic version.
+                try:
+                    entries = manager.list_available_detailed(
+                        ctx, kind, layer_roots=layer_roots
+                    )
+                except ValueError as exc:
+                    console.print(f"[red]Error:[/red] {exc}")
+                    raise typer.Exit(1) from exc
                 available_str = _render_available(entries, activated_set)
             else:
                 available = manager.list_available(ctx, kind)

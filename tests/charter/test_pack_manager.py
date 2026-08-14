@@ -8,15 +8,22 @@ Covers:
   warn-when-absent, invalid-kind ValueError
 - ``list_activated()``: None-state returns None per kind, populated returns frozenset
 - ``merge_defaults()``: writes absent keys, preserves present keys, backup on charter
+- Mission-type layer scan (WP05, T011/T012 -- FR-003/FR-005/NFR-002): org/project
+  layer resolution for the flat ``mission-type`` kind, built-in->org->project
+  precedence order, the missing-project-directory edge case, and the
+  ``.kittify/missions/mission_types/`` roster vs
+  ``.kittify/missions/<mission-name>/`` instance non-collision guarantee.
 """
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
 import yaml
 
+from charter.activation_engine import UnknownActivationIdError
 from charter.invocation_context import ProjectContext
 from charter.pack_manager import (
     CharterPackManager,
@@ -424,3 +431,335 @@ class TestDeactivateCascadeAndInvalidKind:
         """deactivate() with an unknown kind raises ValueError."""
         with pytest.raises(ValueError, match="Unknown activation kind"):
             manager.deactivate(ctx, kind="not-a-kind", artifact_id="x")
+
+
+# ---------------------------------------------------------------------------
+# WP05 (T011/T012) -- mission-type org/project layer scan
+#
+# FR-003: charter activate mission-type <id> must resolve <id> against
+# built-in, org AND project layers (in that precedence order), not only the
+# built-in four. FR-005/CL-005: the project-layer roster is a FLAT
+# .kittify/missions/mission_types/*.yaml, scanned non-recursively, and does
+# not collide with the pre-existing .kittify/missions/<mission_name>/
+# per-mission-instance convention. NFR-002: no path here may silently
+# degrade to None/empty/"unknown".
+#
+# Pre-fix, ``_resolve_layer_candidate`` only resolves a directory for
+# ``kind is None`` (mission-type) when ``layer == "built-in"``; org/project
+# fall through to the final ``return None`` (src/charter/pack_manager.py,
+# confirmed live before this WP's change). Every test class below was
+# written and run RED against that pre-fix body before the production fix
+# was made -- see WP05's report for the captured pre-fix pytest output.
+# ---------------------------------------------------------------------------
+
+
+def _write_mission_type(dir_path: Path, mission_type_id: str) -> None:
+    """Write a minimal, schema-valid ``<id>.yaml`` mission-type roster file.
+
+    PR-CONTRACT-002 (pre-merge squad, mission up-mission-type-seam-01KZY1JB):
+    ``list_available_detailed``'s ``kind is None`` (mission-type) branch now
+    routes through the same schema-validating, loud-fail scan
+    ``resolve_layered_mission_types`` uses post-activation (see that
+    function's own module for the rationale) -- a file with only ``id:``/
+    ``name:`` (``name`` is not a ``MissionType`` field; ``display_name`` is
+    required) would now raise instead of being tolerated, so every fixture
+    written by this helper must be a genuinely valid ``MissionType``.
+    """
+    dir_path.mkdir(parents=True, exist_ok=True)
+    (dir_path / f"{mission_type_id}.yaml").write_text(
+        f"schema_version: 1\nid: {mission_type_id}\ndisplay_name: {mission_type_id.title()}\n",
+        encoding="utf-8",
+    )
+
+
+class TestResolveLayerCandidateMissionTypeLayers:
+    """Unit-level pin for the exact directories ``_resolve_layer_candidate``
+    resolves for ``kind is None`` (mission-type) org/project layers
+    (FR-003/FR-005, CL-005's chosen locations).
+    """
+
+    def test_org_layer_resolves_to_pack_root_mission_types(self, tmp_path: Path) -> None:
+        from charter.pack_manager import _resolve_layer_candidate
+
+        candidate = _resolve_layer_candidate(
+            "org", tmp_path, None, "missions/mission_types", layered=False
+        )
+        assert candidate == tmp_path / "mission_types"
+
+    def test_project_layer_resolves_to_kittify_missions_mission_types(self, tmp_path: Path) -> None:
+        """``root`` for the project layer is already ``repo_root / ".kittify"``
+        (see ``specify_cli.cli.commands.charter._layer_roots.resolve_layer_roots``),
+        so the resolved directory is ``.kittify/missions/mission_types`` -- a flat
+        sibling of, not nested inside, ``.kittify/missions/<mission_name>/``.
+        """
+        from charter.pack_manager import _resolve_layer_candidate
+
+        candidate = _resolve_layer_candidate(
+            "project", tmp_path, None, "missions/mission_types", layered=False
+        )
+        assert candidate == tmp_path / "missions" / "mission_types"
+
+    def test_built_in_layer_branch_is_unaffected(self, tmp_path: Path) -> None:
+        """The pre-existing built-in-layer branch for ``kind is None`` must be
+        untouched by adding the org/project branch."""
+        from charter.pack_manager import _resolve_layer_candidate
+        from doctrine.missions.repository import MissionTemplateRepository
+
+        candidate = _resolve_layer_candidate(
+            "built-in", tmp_path, None, "missions/mission_types", layered=False
+        )
+        assert candidate == MissionTemplateRepository.default_missions_root() / "mission_types"
+
+
+class TestMissionTypeOrgLayerResolves:
+    """FR-003: an org-tier pack's flat ``mission_types/`` directory (CL-005)
+    makes a non-built-in mission-type id available."""
+
+    def test_org_pack_mission_type_id_is_available(
+        self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path
+    ) -> None:
+        org_root = tmp_path / "org-pack"
+        _write_mission_type(org_root / "mission_types", "qa")
+
+        result = manager.list_available(ctx, kind="mission-type", layer_roots={"org": org_root})
+
+        assert "qa" in result
+
+    def test_org_pack_mission_type_id_reports_org_layer(
+        self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path
+    ) -> None:
+        org_root = tmp_path / "org-pack"
+        _write_mission_type(org_root / "mission_types", "qa")
+
+        detailed = manager.list_available_detailed(ctx, kind="mission-type", layer_roots={"org": org_root})
+
+        qa_entries = [entry for entry in detailed if entry.artifact_id == "qa"]
+        assert [entry.layer for entry in qa_entries] == ["org"]
+
+
+class TestMissionTypeProjectLayerResolves:
+    """FR-005: the project-layer mission-type roster is flat --
+    ``.kittify/missions/mission_types/*.yaml`` -- and makes a project-declared
+    mission-type id available."""
+
+    def test_project_pack_mission_type_id_is_available(
+        self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path
+    ) -> None:
+        kittify = project_root / ".kittify"
+        _write_mission_type(kittify / "missions" / "mission_types", "qa")
+
+        result = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify})
+
+        assert "qa" in result
+
+    def test_project_pack_mission_type_id_reports_project_layer(
+        self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path
+    ) -> None:
+        kittify = project_root / ".kittify"
+        _write_mission_type(kittify / "missions" / "mission_types", "qa")
+
+        detailed = manager.list_available_detailed(ctx, kind="mission-type", layer_roots={"project": kittify})
+
+        qa_entries = [entry for entry in detailed if entry.artifact_id == "qa"]
+        assert [entry.layer for entry in qa_entries] == ["project"]
+
+    def test_missing_project_mission_types_dir_yields_no_contributions(
+        self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path
+    ) -> None:
+        """spec.md edge case: a project layer root is supplied but
+        ``.kittify/missions/mission_types/`` does not exist at all (the
+        ``project_root`` fixture's ``.kittify`` has no ``missions/`` dir).
+        This must resolve as "no project-layer contributions" -- no crash,
+        no error -- while built-in ids still resolve normally (NFR-002).
+        """
+        kittify = project_root / ".kittify"
+
+        result = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify})
+
+        assert "software-dev" in result  # built-in layer unaffected
+        assert "qa" not in result
+
+
+class TestMissionTypeLayerPrecedenceOrder:
+    """FR-003: the built-in -> org -> project precedence order must be
+    explicit and tested, not incidental to a dict's iteration order."""
+
+    def test_scan_layer_dirs_order_is_built_in_org_project(
+        self, manager: CharterPackManager, tmp_path: Path
+    ) -> None:
+        org_root = tmp_path / "org-pack"
+        _write_mission_type(org_root / "mission_types", "qa")
+        project_kittify = tmp_path / "proj" / ".kittify"
+        _write_mission_type(project_kittify / "missions" / "mission_types", "qa")
+
+        dirs = manager._scan_layer_dirs(
+            "mission-type", layer_roots={"org": org_root, "project": project_kittify}
+        )
+
+        layers = [layer for layer, _dir in dirs]
+        assert layers == ["built-in", "org", "project"]
+
+
+class TestMissionTypeProjectLayerNonCollision:
+    """FR-005/CL-005 (T012): confirm, not merely assert, that
+    ``.kittify/missions/mission_types/`` (the flat mission-type roster) and
+    ``.kittify/missions/<mission_name>/`` (a real mission instance) coexist
+    as siblings under ``.kittify/missions/`` without either being misread as
+    the other.
+
+    The real protection is pre-existing and structural, independent of this
+    WP or WP02's dead-code deletions: ``_mission_dir_if_valid``
+    (``src/specify_cli/mission.py``) only recognizes a subdirectory as a
+    mission instance when it contains a file literally named
+    ``mission.yaml`` -- the roster directory's flat ``*.yaml`` files (named
+    after mission-type ids, never ``mission.yaml`` itself) can never satisfy
+    that check.
+    """
+
+    def test_roster_and_mission_instance_coexist_without_collision(
+        self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path
+    ) -> None:
+        from specify_cli.mission import _mission_dir_if_valid, list_available_missions
+
+        kittify = project_root / ".kittify"
+        missions_dir = kittify / "missions"
+
+        # The mission-type roster: a flat directory of *.yaml files named
+        # after mission-type ids -- NOT mission.yaml.
+        _write_mission_type(missions_dir / "mission_types", "qa")
+
+        # A real mission instance: a subdirectory containing mission.yaml.
+        instance_dir = missions_dir / "some-mission-instance"
+        instance_dir.mkdir(parents=True)
+        (instance_dir / "mission.yaml").write_text(
+            "name: some-mission-instance\n", encoding="utf-8"
+        )
+
+        # 1. The charter layer resolves "qa" as a mission-type roster entry
+        #    -- never "some-mission-instance" or the bare filename "mission".
+        available = manager.list_available(
+            ctx, kind="mission-type", layer_roots={"project": kittify}
+        )
+        assert "qa" in available
+        assert "some-mission-instance" not in available
+        assert "mission" not in available
+
+        # 2. The mission-instance scanner recognizes the real instance and
+        #    refuses the roster directory -- pre-existing/structural
+        #    (mission.yaml presence), not a byproduct of this WP.
+        assert _mission_dir_if_valid(instance_dir) == instance_dir
+        assert _mission_dir_if_valid(missions_dir / "mission_types") is None
+
+        # 3. list_available_missions (the top-level scanner over
+        #    .kittify/missions/) reports the real instance and never the
+        #    roster directory -- confirming no live collision end to end.
+        names = list_available_missions(kittify)
+        assert "some-mission-instance" in names
+        assert "mission_types" not in names
+
+    def test_nested_per_type_subdirectory_no_longer_leaks(
+        self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path
+    ) -> None:
+        """CL-005's *flat* layout trap, closed (PR-CONTRACT-002, pre-merge
+        squad, mission up-mission-type-seam-01KZY1JB).
+
+        Formerly (``test_rglob_would_leak_a_nested_per_type_subdirectory``,
+        pre-fix): ``list_available_detailed``'s ``kind is None`` branch used
+        ``scan_dir.rglob(glob)`` -- the SAME universal per-kind scan every
+        other charter-activatable kind uses -- which recurses into any
+        nested subdirectory and would mint a bogus mission-type id from an
+        unrelated file (e.g. the rejected
+        ``.kittify/doctrine/mission_types/<type>/governance-profile.yaml``
+        shape CL-005 explicitly avoided by convention, not by code). Fixing
+        PR-CONTRACT-002 -- routing the mission-type branch through the same
+        non-recursive, ``iterdir()``-based scan
+        ``resolve_layered_mission_types`` already uses post-activation
+        (``doctrine.missions.mission_type_repository.scan_mission_types_dir``)
+        -- closes this leak as a direct, intended side effect: the scan no
+        longer descends into ``roster_dir / "qa"`` at all, so
+        ``governance-profile`` is never even visited.
+        """
+        kittify = project_root / ".kittify"
+        roster_dir = kittify / "missions" / "mission_types"
+        _write_mission_type(roster_dir, "qa")
+
+        nested_dir = roster_dir / "qa"
+        nested_dir.mkdir(parents=True)
+        (nested_dir / "governance-profile.yaml").write_text(
+            "id: governance-profile\n", encoding="utf-8"
+        )
+
+        available = manager.list_available(
+            ctx, kind="mission-type", layer_roots={"project": kittify}
+        )
+
+        assert "qa" in available
+        assert "governance-profile" not in available
+
+
+# ---------------------------------------------------------------------------
+# PR-CONTRACT-002 (pre-merge squad, mission up-mission-type-seam-01KZY1JB):
+# WP05's ``_declared_id`` (via ``rglob`` + a broad ``except (OSError,
+# YAMLError, TypeError): return None``) silently drops a malformed or
+# unreadable org/project mission-type file from ``list_available_detailed``
+# -- the availability catalog ``activate()`` checks BEFORE allowing
+# ``charter activate mission-type <id>`` -- while ``resolve_layered_mission_
+# types`` (the path used post-activation) already loud-fails on the
+# IDENTICAL file. These tests pin the loud-fail parity.
+# ---------------------------------------------------------------------------
+
+
+class TestMissionTypeMalformedOrgLayerLoudFails:
+    def test_malformed_org_layer_yaml_is_not_silently_skipped(
+        self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path
+    ) -> None:
+        """A malformed org-layer mission-type YAML must raise from
+        ``list_available_detailed``/``list_available`` -- not be silently
+        dropped from the catalog and mistaken for "does not exist"."""
+        org_root = tmp_path / "org-pack"
+        bad_file = org_root / "mission_types" / "broken.yaml"
+        bad_file.parent.mkdir(parents=True, exist_ok=True)
+        bad_file.write_text("key: [unterminated\n  - a\n", encoding="utf-8")
+
+        with pytest.raises(Exception) as exc_info:  # noqa: PT011 - message content is the assertion
+            manager.list_available(ctx, kind="mission-type", layer_roots={"org": org_root})
+
+        assert str(bad_file) in str(exc_info.value)
+
+    def test_unreadable_org_layer_directory_raises_naming_the_directory(
+        self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path
+    ) -> None:
+        if os.geteuid() == 0:
+            pytest.skip("root bypasses directory permission bits; chmod 000 is a no-op")
+
+        org_root = tmp_path / "org-pack"
+        mt_dir = org_root / "mission_types"
+        _write_mission_type(mt_dir, "qa")
+
+        os.chmod(mt_dir, 0o000)
+        try:
+            with pytest.raises(Exception) as exc_info:  # noqa: PT011 - message content is the assertion
+                manager.list_available(ctx, kind="mission-type", layer_roots={"org": org_root})
+            assert str(mt_dir) in str(exc_info.value)
+        finally:
+            os.chmod(mt_dir, 0o755)
+
+    def test_activate_on_malformed_org_layer_type_raises_real_cause_not_generic_unknown_id(
+        self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path
+    ) -> None:
+        """End to end through ``activate()``: a malformed org-layer file must
+        surface the real parse failure, never the misleading generic
+        ``UnknownActivationIdError`` ("unknown ID") that WP05's tolerant
+        scan produced pre-fix for this exact input."""
+        org_root = tmp_path / "org-pack"
+        bad_file = org_root / "mission_types" / "broken.yaml"
+        bad_file.parent.mkdir(parents=True, exist_ok=True)
+        bad_file.write_text("key: [unterminated\n  - a\n", encoding="utf-8")
+
+        with pytest.raises(Exception) as exc_info:  # noqa: PT011 - message content is the assertion
+            manager.activate(
+                ctx, kind="mission-type", artifact_id="broken", layer_roots={"org": org_root}
+            )
+
+        assert not isinstance(exc_info.value, UnknownActivationIdError)
+        assert str(bad_file) in str(exc_info.value)

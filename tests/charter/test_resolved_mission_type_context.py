@@ -272,18 +272,39 @@ class TestResolvedTemplateSet:
         ``MissionStepRepository.default().resolve_all_for_mission_type(...)``
         directly. The proxy this test watches moves accordingly; the
         laziness + per-bundle-memoization contract it proves is unchanged.
+
+        WP04 update (mission up-mission-type-seam-01KZY1JB, FR-002):
+        ``_resolve_action_slot`` (the eager, non-lazy half of the bundle)
+        now resolves through
+        ``doctrine.missions.mission_type_repository.resolve_layered_mission_types``
+        -- a SEPARATE, ``(mission_types_dirs, pack_context)``-keyed cache
+        from ``MissionTypeRepository.default()``'s own ``cls``-keyed cache
+        (CL-001: the two must never share a cache). Priming
+        ``MissionTypeRepository.default()`` alone no longer isolates this
+        test's ``step_repository_default.call_count == 0`` assertion --
+        the action-sequence path's own YAML-load-time
+        ``MissionStepRepository.default()`` calls (one per built-in
+        mission-type file, via ``_inject_projected_fields``) now run
+        through the layered factory's cache instead. Priming with a full
+        ``resolve_mission_type_context()`` call (same ``tmp_path``, so the
+        same ``PackContext`` -- frozen dataclasses compare equal by value,
+        so a second, separately-constructed-but-equal ``PackContext`` still
+        hits the same cache entry) warms that cache instead, before the
+        patch below starts counting.
         """
         from doctrine.missions.mission_step_repository import MissionStepRepository
-        from doctrine.missions.mission_type_repository import MissionTypeRepository
-
-        # Prime MissionTypeRepository.default() (functools.cache, process-wide)
-        # so _load()'s own action_sequence-overlay resolution -- which also
-        # calls MissionStepRepository.default() internally -- has already run
-        # before the patch below starts counting. Isolates the template_set
-        # slot's OWN MissionStepRepository.default() call.
-        MissionTypeRepository.default()
 
         _write_config(tmp_path, ["software-dev"])
+
+        # Prime resolve_layered_mission_types' cache (see docstring above)
+        # so the action-sequence path's own MissionStepRepository.default()
+        # calls have already run before the patch below starts counting.
+        # Isolates the template_set slot's OWN MissionStepRepository.default()
+        # call. Deliberately does NOT touch bundle.template_set -- that
+        # thunk must stay cold so the assertions below observe its first
+        # real access.
+        resolve_mission_type_context(tmp_path, mission_type="software-dev")
+
         original_step_default = MissionStepRepository.default
         with patch.object(
             MissionStepRepository,

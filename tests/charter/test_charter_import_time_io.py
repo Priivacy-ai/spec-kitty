@@ -30,6 +30,16 @@ Covers (T006):
    (NFR-002) for the rest of the process — proven by the second assertion
    below. Run in a subprocess so the spy observes a genuine fresh import,
    not a module already cached in this test session's ``sys.modules``.
+
+3. **New-factory import-time-I/O bound (NFR-004, mission
+   ``up-mission-type-seam-01KZY1JB`` WP03)** — ``resolve_layered_mission_types``
+   (``doctrine.missions.mission_type_repository``, FR-001) must never be
+   called at module scope in any ``charter.*`` module. At this WP's point in
+   the mission sequence nothing calls it yet (WP04 wires the first caller),
+   so the bound asserted here is exactly zero calls, checked via
+   ``resolve_layered_mission_types.cache_info()`` (hits + misses) rather than
+   a spy -- the ``functools.cache`` wrapper already tracks total invocations,
+   so no extra instrumentation is needed.
 """
 
 from __future__ import annotations
@@ -49,6 +59,7 @@ from charter.pack_context import PackContext
 from doctrine.missions.mission_type_repository import (
     MissionTypeRepository,
     builtin_mission_type_ids,
+    resolve_layered_mission_types,
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -85,8 +96,10 @@ def _clear_builtin_mission_type_ids_cache() -> Iterator[None]:
     (including other modules under ``-n auto``).
     """
     builtin_mission_type_ids.cache_clear()
+    resolve_layered_mission_types.cache_clear()
     yield
     builtin_mission_type_ids.cache_clear()
+    resolve_layered_mission_types.cache_clear()
 
 
 def _write_config(project_root: Path, content: str) -> None:
@@ -169,6 +182,7 @@ _IMPORT_SPY_SCRIPT = textwrap.dedent(
     from doctrine.missions.mission_type_repository import (
         MissionTypeRepository,
         builtin_mission_type_id_set,
+        resolve_layered_mission_types,
     )
 
     _calls: list[int] = []
@@ -205,6 +219,22 @@ _IMPORT_SPY_SCRIPT = textwrap.dedent(
             f"MissionTypeRepository.default() called {after_second_access - after_import} "
             "additional time(s) on a second roster access -- the process-wide cache "
             "(NFR-002) is not preventing a repeat mission_types/ read",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # WP03/NFR-004: the new layered-lookup factory (FR-001) must never be
+    # called at module scope in any charter.* module. Nothing calls it yet
+    # at this WP's point in the mission sequence (WP04 wires the first
+    # caller), so the bound is exactly zero -- read straight off the
+    # functools.cache wrapper's own call-count bookkeeping.
+    layered_info = resolve_layered_mission_types.cache_info()
+    layered_calls = layered_info.hits + layered_info.misses
+    if layered_calls != 0:
+        print(
+            f"resolve_layered_mission_types() called {layered_calls} time(s) at "
+            "import time -- expected 0 (NFR-004; nothing calls it yet at WP03's "
+            "point in the mission sequence, WP04 wires the first caller)",
             file=sys.stderr,
         )
         sys.exit(1)

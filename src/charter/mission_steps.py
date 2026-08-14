@@ -23,7 +23,12 @@ This file is a **pure re-export** module — no behaviour, no wrappers, no
 type aliases.
 """
 
-from doctrine.missions.mission_step_repository import MissionStepRepository
+# MissionStepRepository: compat re-export (test-consumed); dropped from
+# __all__ when WP02 (mission up-mission-type-seam-01KZY1JB) deleted
+# resolve_mission_steps, the last src/ importer reached through this facade.
+# Direct callers still reach the same object via the charter.missions facade
+# or doctrine.missions.mission_step_repository directly.
+from doctrine.missions.mission_step_repository import MissionStepRepository as MissionStepRepository
 from doctrine.missions.models import MissionStep as MissionStep  # compat re-export (test-consumed); dropped from __all__ when last src importer was retyped
 from doctrine.missions.step_contracts import (
     GateBinding,
@@ -39,5 +44,4 @@ __all__ = [
     "MissionStepInput",
     "MissionStepContractRepository",
     "MissionStepContractStep",
-    "MissionStepRepository",
 ]

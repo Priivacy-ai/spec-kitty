@@ -25,6 +25,7 @@ from doctrine.missions.mission_step_repository import MissionStepRepository
 from doctrine.missions.mission_type_repository import (
     MissionTypeRepository,
     builtin_mission_type_ids,
+    resolve_layered_mission_types,
 )
 from doctrine.missions.repository import (
     MissionsRootNotFound,
@@ -39,4 +40,5 @@ __all__ = [
     "MissionTypeRepository",
     "builtin_mission_type_ids",
     "project_template_set",
+    "resolve_layered_mission_types",
 ]
