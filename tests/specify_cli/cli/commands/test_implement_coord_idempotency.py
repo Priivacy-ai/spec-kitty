@@ -115,20 +115,33 @@ class TestCoordHealthyPathIdempotency:
         """
         repo, feature_dir, mission_slug, spec_rel, target = _seed_coord_mission_real(tmp_path)
 
-        # Claim 1: spec.md is dirty vs HEAD and absent on coord -> committed to coord.
+        # write-path-integrity WP02 / T008+T009 re-baseline: a PRIMARY artifact
+        # (spec.md) now commits to the mission TARGET branch (``_PLANNING_BRANCH``),
+        # never the coordination ref (the #3371 partition fix), and a re-claim of
+        # an identical artifact is a ``commit_idempotent`` no-op (T009 crash-
+        # recovery re-drive) rather than an empty commit that ``Exit(1)``s.
+        #
+        # Claim 1: spec.md is dirty vs HEAD -> committed to the TARGET branch.
         _claim(repo, feature_dir, mission_slug, "WP01", target)
-        assert _git(repo, "show", f"{target.ref}:{spec_rel}") == "# Spec\nrevised"
+        assert _git(repo, "show", f"{_PLANNING_BRANCH}:{spec_rel}") == "# Spec\nrevised"
+        # It must NOT have landed on the coordination ref.
+        on_coord = subprocess.run(
+            ["git", "show", f"{target.ref}:{spec_rel}"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert on_coord.returncode != 0, "PRIMARY spec.md must never land on coord (#3371)"
 
-        # Claim 2: spec.md is STILL dirty vs HEAD but now identical on the coord
-        # WRITE surface -> must be dropped by the idempotency guard, no empty
-        # commit, no raise. (Pre-fix: compared vs HEAD -> re-committed -> Exit(1).)
+        # Claim 2: spec.md is now identical on the TARGET write surface -> the
+        # idempotent re-drive no-ops, no empty commit, no raise.
         try:
             _claim(repo, feature_dir, mission_slug, "WP02", target)
         except typer.Exit as exc:  # pragma: no cover - the bug this test guards
             pytest.fail(
-                f"claim 2 hard-failed with typer.Exit({exc.exit_code}) — the read "
-                "surface (HEAD) diverged from the write surface (coord ref); the "
-                "idempotency guard must compare against the write target"
+                f"claim 2 hard-failed with typer.Exit({exc.exit_code}) — an "
+                "already-committed PRIMARY artifact must be an idempotent no-op, "
+                "not an empty commit that fails the claim"
             )
-        # coord unchanged (the identical artifact was dropped, not re-committed).
-        assert _git(repo, "show", f"{target.ref}:{spec_rel}") == "# Spec\nrevised"
+        assert _git(repo, "show", f"{_PLANNING_BRANCH}:{spec_rel}") == "# Spec\nrevised"

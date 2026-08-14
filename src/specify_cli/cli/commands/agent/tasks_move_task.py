@@ -503,6 +503,46 @@ def _lane_deliverable_paths(worktree_path: Path, porcelain: str) -> tuple[Path, 
     return tuple(paths)
 
 
+def _drop_lane_coord_residue(
+    worktree_path: Path, paths: tuple[Path, ...]
+) -> tuple[Path, ...]:
+    """Seam-A guard for the raw lane-deliverable commit (#2549 / FR-003 / T012).
+
+    ``_mt_commit_lane_deliverables`` commits lane deliverables through a RAW
+    ``safe_commit`` on the LANE branch -- it BYPASSES the kind-aware
+    ``commit_for_mission`` classifier (and the ``BookkeepingTransaction`` Seam-A
+    guard) entirely. The ``_filter_runtime_state_paths`` deny-list only strips
+    spec-kitty's ``.spec-kitty/`` / ``.kittify/`` runtime dirs -- it does NOT
+    exclude a coord-partition artifact (``status.events.jsonl`` / ``status.json``
+    / ``acceptance-matrix.json`` / ``issue-matrix.md``). So if a coord-residue
+    file ever surfaces in the lane worktree's ``git status`` (e.g. a
+    ``move-task --force`` that materialised a status snapshot into a lane whose
+    sparse-checkout exclusion is absent/stale), the raw commit would land it on
+    the LANE ref -- the residual #2549 leak.
+
+    This filter routes the deliverable set through Seam A: a coord-partition
+    artifact (:func:`~specify_cli.coordination.coherence.is_coord_residue_churn`)
+    is DROPPED from the lane commit so it never lands on the lane branch (the
+    coord-owned status log is authored on the coordination branch by the
+    transactional emitter, never carried on a lane; the lane's copy is stale
+    residue). Every genuine PRIMARY deliverable (code, ``tasks/WP*.md``) is
+    preserved. Withdrawn Trigger A is respected: this NEVER touches the
+    status->coord routing, only status->LANE.
+    """
+    from specify_cli.coordination.coherence import is_coord_residue_churn
+
+    kept: list[Path] = []
+    for path in paths:
+        try:
+            rel = path.relative_to(worktree_path).as_posix()
+        except ValueError:
+            rel = path.name
+        if is_coord_residue_churn(rel):
+            continue
+        kept.append(path)
+    return tuple(kept)
+
+
 def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
     """Commit finished lane deliverables before a review transition (#2335).
 
@@ -550,6 +590,9 @@ def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
     if not filtered:
         return
     paths = _lane_deliverable_paths(worktree_path, filtered)
+    # Seam-A (#2549 / FR-003 / T012): never let a coord-partition artifact land
+    # on the lane branch via this raw ``safe_commit`` path.
+    paths = _drop_lane_coord_residue(worktree_path, paths)
     if not paths:
         return
 

@@ -137,6 +137,16 @@ MISSION_SLUG = "annoying-bugs-sweep-01KYHQ9F"
 MISSION_ID = "01KYHQ9FTN3W7C5J4K2M6R8QDS"
 MID8 = MISSION_ID[:8]
 WP_ID = "WP03"
+# write-path-integrity WP02 re-baseline: a coord mission's PRIMARY planning
+# artifacts now commit to the mission's TARGET branch (FR-001), which must be a
+# NON-protected feature branch -- committing planning artifacts to the protected
+# default ``main`` is refused by ``BookkeepingTransaction``/``safe_commit`` (the
+# same invariant the mission's narrow-triple encodes). This test's target branch
+# was incidentally ``main`` pre-fix (when planning artifacts were mis-routed to
+# coord); it now uses a real ``--start-branch``-shaped feature target so the
+# fixed PRIMARY commit lands on it. The ancestry contract under test is
+# unchanged.
+TARGET_BRANCH = "mission/annoying-bugs-sweep"
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -167,7 +177,7 @@ def _write_meta(feature_dir: Path, *, coordination_branch: str) -> None:
         "mission_slug": MISSION_SLUG,
         "mid8": MID8,
         "mission_type": "software-dev",
-        "target_branch": "main",
+        "target_branch": TARGET_BRANCH,
         "created_at": "2026-07-28T00:00:00+00:00",
         "friendly_name": "Annoying bugs sweep",
         "coordination_branch": coordination_branch,
@@ -198,7 +208,7 @@ def _make_manifest(
         mission_slug=MISSION_SLUG,
         mission_id=MISSION_ID,
         mission_branch=coordination_branch,
-        target_branch="main",
+        target_branch=TARGET_BRANCH,
         lanes=[
             ExecutionLane(
                 lane_id="lane-a",
@@ -239,13 +249,16 @@ def test_lane_worktree_does_not_descend_from_planning_artifacts(
     """
     repo = tmp_path / "repo"
     _init_repo(repo)
+    # PR-bound (--start-branch) target: a non-protected feature branch (WP02).
+    _git(repo, "branch", TARGET_BRANCH, "main")
+    _git(repo, "checkout", "-q", TARGET_BRANCH)
 
     # Step 1: mint the coordination branch BEFORE the planning artifacts exist.
     coord_result = ensure_coordination_branch(
         repo_root=repo,
         mission_slug=MISSION_SLUG,
         mission_id=MISSION_ID,
-        target_branch="main",
+        target_branch=TARGET_BRANCH,
     )
     assert coord_result.created
     coord_branch = coord_result.branch_name
@@ -283,7 +296,7 @@ def test_lane_worktree_does_not_descend_from_planning_artifacts(
         feature_dir=feature_dir,
         mission_slug=MISSION_SLUG,
         wp_id=WP_ID,
-        planning_branch="main",
+        planning_branch=TARGET_BRANCH,
         auto_commit=True,
         placement_ref=placement_ref,
     )
@@ -369,7 +382,7 @@ def test_lane_worktree_does_not_descend_from_planning_artifacts(
     _git(repo, "commit", "-q", "-m", "docs: amend tasks.md for WP03")
 
     merge_tree = subprocess.run(
-        ["git", "-C", str(repo), "merge-tree", "--write-tree", lane_branch, "main"],
+        ["git", "-C", str(repo), "merge-tree", "--write-tree", lane_branch, TARGET_BRANCH],
         capture_output=True,
         text=True,
     )
@@ -416,7 +429,7 @@ def test_lane_worktree_does_not_descend_from_planning_artifacts(
     _git(repo, "commit", "-q", "-m", "docs: retract NFR-002 for WP03")
 
     deletion_merge_tree = subprocess.run(
-        ["git", "-C", str(repo), "merge-tree", "--write-tree", lane_branch, "main"],
+        ["git", "-C", str(repo), "merge-tree", "--write-tree", lane_branch, TARGET_BRANCH],
         capture_output=True,
         text=True,
     )
