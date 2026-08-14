@@ -489,6 +489,34 @@ _DRG_GRAPH_YAML_UNRELATED_SIBLING = textwrap.dedent(
     """
 )
 
+#: PR-TESTS-002 regression fixture: the SAME node URN, declared in both the
+#: root graph and the drg/ fragment, with two DIFFERENT ``label`` values --
+#: the only fixture shape that can observe which side's label "won" a
+#: same-URN conflict (FR-003: drg/ is authoritative).
+_LABEL_CONFLICT_URN = "directive:org-label-conflict-3384"
+_LABEL_CONFLICT_ROOT_LABEL = "root label"
+_LABEL_CONFLICT_DRG_LABEL = "drg label"
+_ROOT_GRAPH_YAML_LABEL_CONFLICT = textwrap.dedent(
+    f"""\
+    schema_version: '1.0'
+    generated_at: '2026-08-13T00:00:00Z'
+    generated_by: test
+    nodes:
+      - {{urn: '{_LABEL_CONFLICT_URN}', kind: directive, label: '{_LABEL_CONFLICT_ROOT_LABEL}'}}
+    edges: []
+    """
+)
+_DRG_GRAPH_YAML_LABEL_CONFLICT = textwrap.dedent(
+    f"""\
+    schema_version: '1.0'
+    generated_at: '2026-08-13T00:00:00Z'
+    generated_by: test
+    nodes:
+      - {{urn: '{_LABEL_CONFLICT_URN}', kind: directive, label: '{_LABEL_CONFLICT_DRG_LABEL}'}}
+    edges: []
+    """
+)
+
 
 def _write_org_pack_root_and_drg(
     repo_root: Path, *, root_yaml: str, drg_yaml: str, dir_name: str
@@ -603,6 +631,42 @@ class TestRootAndDrgMerge:
         with patch("charter._drg_helpers.load_built_in_graph", side_effect=_built_in_graph):
             with pytest.raises(DRGValidationError):
                 load_validated_graph(repo, org_root=pack_root)
+
+    def test_same_urn_node_label_conflict_drg_is_authoritative(self, tmp_path: Path) -> None:
+        """PR-TESTS-002 regression (R3 confirmed finding).
+
+        FR-003/IC-02: on a same-URN node-label conflict between the root
+        graph and the drg/ fragment, drg/ is authoritative -- the org-layer
+        sub-merge calls ``merge_layers(root_graph, drg_graph)`` (root as the
+        ``built_in`` positional argument, drg/ as ``project``), and
+        ``merge_layers`` overrides the built-in label with the project
+        label on a shared URN. Neither existing ``TestRootAndDrgMerge`` test
+        declares the same URN with two different labels in both sources, so
+        this is the only assertion pinning that direction -- reversing the
+        argument order at ``_drg_helpers.py``'s ``merge_layers(root_graph,
+        drg_graph)`` call site (root/drg swapped) would flip this to
+        root-authoritative and pass every other test in this module
+        untouched.
+        """
+        from charter._drg_helpers import load_validated_graph
+
+        repo = tmp_path / "label_conflict"
+        repo.mkdir()
+        pack_root = _write_org_pack_root_and_drg(
+            repo,
+            root_yaml=_ROOT_GRAPH_YAML_LABEL_CONFLICT,
+            drg_yaml=_DRG_GRAPH_YAML_LABEL_CONFLICT,
+            dir_name="label-conflict-fixture-pack",
+        )
+
+        with patch("charter._drg_helpers.load_built_in_graph", side_effect=_built_in_graph):
+            merged = load_validated_graph(repo, org_root=pack_root)
+
+        resolved = next(node for node in merged.nodes if node.urn == _LABEL_CONFLICT_URN)
+        assert resolved.label == _LABEL_CONFLICT_DRG_LABEL, (
+            f"expected the drg/ fragment's label {_LABEL_CONFLICT_DRG_LABEL!r} "
+            f"to win the same-URN conflict (FR-003), got {resolved.label!r}"
+        )
 
 
 # ---------------------------------------------------------------------------
