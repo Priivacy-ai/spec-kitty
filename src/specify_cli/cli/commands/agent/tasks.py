@@ -554,6 +554,9 @@ from specify_cli.cli.commands.agent.tasks_map_requirements import (
     _map_requirements_feature_dir as _map_requirements_feature_dir,
     _mr_auto_commit as _mr_auto_commit,
     _mr_build_new_mappings as _mr_build_new_mappings,
+    # bare-prose-requirements-uncounted-01KZYV3C WP06 (#3396) T032a: the
+    # fail-loud bare-prose requirement-id detector wrapper _mr_plan calls.
+    _mr_detect_bare_prose_requirement_ids as _mr_detect_bare_prose_requirement_ids,
     _mr_emit_output as _mr_emit_output,
     _mr_gate_offenders as _mr_gate_offenders,
     _mr_plan as _mr_plan,
