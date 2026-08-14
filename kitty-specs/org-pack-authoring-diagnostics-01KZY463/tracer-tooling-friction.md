@@ -195,3 +195,36 @@ version downgrade that isn't scoped to any one WP or lane.
 **Action taken**: no hand-edit of any spec-kitty state file; no improvised `charter synthesize`
 run; no alternate `--base` invented. Waited for the documented remedy to be tried exactly once
 (per brief) and reported the result plainly rather than repeatedly retrying blind.
+
+## 2026-08-14 — WP04 allocation hits the documented `stale_analysis_report` false positive
+   (`analysis_report_required`); corroborated a third time, resolved per the documented recovery
+
+**What happened**: per this WP's brief, canonical allocation was attempted from the repo root:
+`spec-kitty next --agent claude --mission org-pack-authoring-diagnostics-01KZY463` returned a
+query-mode result (no advance, `next_step: implement`, `0/4 done`), then `spec-kitty agent action
+implement WP04 --agent claude --mission org-pack-authoring-diagnostics-01KZY463` was run and
+refused with:
+
+```
+Branch: on 'feat/org-pack-authoring-diagnostics-3387', mission targets 'main'
+Error: analysis_report_required: /spec-kitty.analyze must be run before implementation.
+  Reason: stale_analysis_report
+  Stale inputs:
+    - charter
+  Run: /spec-kitty.analyze --mission org-pack-authoring-diagnostics-01KZY463
+```
+
+Per the WP brief's explicit instruction (this is a known, hash-verified false positive hit three
+times already in this mission family; do NOT run the mission-wide `/spec-kitty.analyze` in
+response), the mission-wide analyze command was **not** run. Instead, checked whether a valid
+worktree had already materialized despite the refusal: `.worktrees/org-pack-authoring-diagnostics-01KZY463-lane-b`
+was present, on branch `kitty/mission-org-pack-authoring-diagnostics-01KZY463-lane-b`, clean,
+1 commit ahead of its own `origin` tracking ref, tip `617152291` ("reviews(wp03): record per-WP
+review verdict for FR-002") — exactly the tip WP03's own review recorded as approved, carrying
+WP02's and WP03's commits in `git log`. This is the same "stale-charter-hash false positive over
+an already-materialized, correct worktree" shape the mission brief pre-armed. Proceeded directly
+in that worktree rather than re-running or improvising around the gate.
+
+**Action taken**: no `/spec-kitty.analyze` run; no hand-edit of any spec-kitty state file; no
+alternate `--base` invented. Third corroboration (mission-wide) of this specific false-positive
+class; documented here as instructed rather than silently routed around.
