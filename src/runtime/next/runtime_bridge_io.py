@@ -715,6 +715,7 @@ _PRESENCE_FILE_TAGS: tuple[str, ...] = (
     "gap-analysis.md",
     "audit-report.md",
     "release.md",
+    "research.md",
 )
 
 
@@ -761,8 +762,8 @@ def gather_artifact_presence(
 
     Mirrors the exact set of filesystem/status/bulk-edit/requirement-mapping
     reads ``_check_cli_guards`` / ``_check_composed_action_guard`` perform
-    across all three mission families (software-dev / research /
-    documentation), so a downstream pure ``evaluate_guards(snapshot)`` can
+    across all four mission families (software-dev / research /
+    documentation / plan), so a downstream pure ``evaluate_guards(snapshot)`` can
     reproduce identical ``guard_failures`` content and ordering (SC-007)
     without touching disk again. The guard-helper calls below
     (``_check_requirement_mapping_ready``, ``_occurrence_gate_failures``,

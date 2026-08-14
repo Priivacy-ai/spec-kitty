@@ -595,7 +595,7 @@ def test_check_composed_action_guard_delegates_to_cores_and_io(
         )
 
     monkeypatch.setattr(io_seam, "gather_artifact_presence", _fake_gather)
-    monkeypatch.setattr(cores_seam, "evaluate_guards", lambda snapshot: ["boom"])
+    monkeypatch.setattr(cores_seam, "evaluate_guards_strict", lambda snapshot: ["boom"])
 
     failures = composition._check_composed_action_guard("specify", tmp_path, mission="software-dev")
     assert failures == ["boom"]
@@ -626,7 +626,7 @@ def test_check_composed_action_guard_uses_live_lookup_for_should_advance_wp_step
         return []
 
     monkeypatch.setattr(io_seam, "gather_artifact_presence", _fake_gather)
-    monkeypatch.setattr(cores_seam, "evaluate_guards", _fake_evaluate)
+    monkeypatch.setattr(cores_seam, "evaluate_guards_strict", _fake_evaluate)
     monkeypatch.setattr(rb, "_should_advance_wp_step", lambda step_id, feature_dir: True)
 
     failures = composition._check_composed_action_guard("implement", tmp_path, mission="software-dev")
@@ -694,7 +694,7 @@ def test_check_composed_action_guard_does_not_thread_wp_advance_ready_for_non_wp
         return []
 
     monkeypatch.setattr(io_seam, "gather_artifact_presence", _fake_gather)
-    monkeypatch.setattr(cores_seam, "evaluate_guards", _fake_evaluate)
+    monkeypatch.setattr(cores_seam, "evaluate_guards_strict", _fake_evaluate)
 
     composition._check_composed_action_guard("specify", tmp_path, mission="software-dev")
 

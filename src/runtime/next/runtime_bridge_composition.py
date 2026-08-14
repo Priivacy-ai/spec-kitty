@@ -483,7 +483,15 @@ def _check_composed_action_guard(
         snapshot = dataclasses.replace(
             snapshot, wp_advance_ready=_rb._should_advance_wp_step(action, feature_dir)
         )
-    return _cores.evaluate_guards(snapshot)
+    try:
+        return _cores.evaluate_guards_strict(snapshot)
+    except _cores.UnregisteredMissionFamilyError:
+        logger.warning(
+            "Unregistered mission_family %r reached the composed guard path; "
+            "returning a neutral (empty) guard result.",
+            mission,
+        )
+        return []
 
 
 def _dispatch_via_composition(
