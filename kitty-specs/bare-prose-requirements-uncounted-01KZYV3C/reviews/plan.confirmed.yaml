@@ -1,0 +1,166 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: confirmed
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings:
+- id: PLAN-GOV-001
+  lens: Campsite scope
+  severity: 4
+  title: Campsite-Clean Scope claims _validate_requirement_mapping has no complexity debt, but it already
+    exceeds the charter's ceiling (15) and this mission is about to add a branch to it
+  evidence:
+  - artifact: "plan.md \xA7 Campsite-Clean Scope (Standing Order 2)"
+  - artifact: "plan.md \xA7 Implementation Concern Map, IC-03"
+  - code: src/specify_cli/cli/commands/agent/mission_finalize.py:621-675 (_validate_requirement_mapping)
+  - code: ".kittify/charter/charter.md \xA7 Sonar Expectations: \"Complexity ceiling is 15. ... When touching\
+      \ a function near that limit, keep it at <=15\""
+  claim: 'Plan.md''s Campsite-Clean Scope section states none of the six touched functions are within
+    reach of the complexity ceiling (15). This is verifiably false for _validate_requirement_mapping (mission_finalize.py:621-675):
+    an AST-based McCabe-equivalent count gives cyclomatic complexity 16 -- already one over the charter''s
+    binding ceiling. IC-03 explicitly schedules this exact function to gain a new branch, pushing it further
+    over the ceiling unless refactored. Standing Order 2 requires campsite-cleaning surfaces about to
+    be functionally changed as a distinct FIRST commit -- the plan''s "no domain-matched debt worth folding"
+    claim is disproved for this one function.
+
+    '
+  remediation: 'Amend the Campsite-Clean Scope section to name _validate_requirement_mapping as an in-scope
+    complexity debt item and scope a behaviour-preserving extraction (e.g. split the per-WP classification
+    loop from the report-formatting branch) into the campsite-clean FIRST commit before IC-03''s functional
+    addition lands. Re-verify complexity with `ruff check --select C901` once available.
+
+    '
+- id: PLAN-GOV-002
+  lens: C-008 narrowing justification
+  severity: 3
+  title: C-008's justification for option (b) treats the absence of a broadened-predicate FP measurement
+    as an external constraint, when spec.md never forecloses the plan phase from taking that measurement
+    itself
+  evidence:
+  - artifact: "plan.md \xA7 C-008 decision: Constraints-heading (C-XXX) scoping \u2014 option (b), explicitly\
+      \ narrowed, not broadened"
+  - artifact: "spec.md \xA7 Constraints, row C-008"
+  - artifact: "spec.md \xA7 User Story 4, Independent Test / Acceptance Scenario 4 (false-negative sample\
+      \ only)"
+  - artifact: "plan.md \xA7 Implementation Concern Map, IC-07 (false-negative sample, informational)"
+  claim: 'Plan.md''s justification frames "no corresponding false-positive re-measurement performed or
+    available" as though the absence of that measurement is a fact discovered during the plan phase rather
+    than a choice the plan phase itself made. Spec.md''s C-008 row and Story 4 AC4 only require a false-negative
+    sample, and never forecloses measuring the broadened-predicate FP rate at plan time. The risk-based
+    half of the argument is sound, but the plan does not explain why gathering that data was out of plan-phase
+    scope/budget -- the missing piece that would make "with justification" fully responsive rather than
+    partly self-referential.
+
+    '
+  remediation: 'Either (1) perform the broadened-predicate FP measurement now using the same corpus-scan
+    approach already demonstrated for IC-07, and use its actual result to justify (a) or (b) with real
+    data, or (2) if that measurement is judged out-of-scope, state explicitly why (effort/cost estimate)
+    rather than describing the gap as simply "not performed or available." Keep disposition (b) if the
+    cost argument holds -- only the framing needs to change.
+
+    '
+- id: PLAN-ARCH-001
+  lens: Guard-ordering fix (FR-002) regression risk
+  severity: 3
+  title: Guard-ordering fix crashes tests/runtime/test_bridge_cores.py's shared _snapshot() fixture with
+    KeyError, and plan.md never flags the needed test-helper update
+  evidence:
+  - artifact: "plan.md \xA7 Story 3 / FR-002 / FR-003 \u2014 reaching spec-kitty next's actual decision\
+      \ (code sketch, ~lines 337-347)"
+  - code: src/runtime/next/runtime_bridge_cores.py:484-489 (_evaluate_tasks_packages_guard), :515-521
+      (_evaluate_composed_tasks_packages_guard), :524-534 (_evaluate_composed_tasks_terminal_guard), :492-504
+      (_evaluate_tasks_finalize_guard)
+  - code: "tests/runtime/test_bridge_cores.py:229-259 (_snapshot() helper's base_status_facts dict \u2014\
+      \ no 'bare_prose_requirement_failures' key)"
+  - code: "tests/runtime/test_bridge_cores.py:279-282, :306-308 \u2014 existing exact-equality assertions\
+      \ on the single-element MISSING_TASK_FILES_MESSAGE list when _tasks_dir_ready is False"
+  - code: "src/runtime/next/runtime_bridge_io.py:745-746 (ArtifactPresenceSnapshot.status_facts: Mapping[str,\
+      \ Any] \u2014 plain dict, subscripted with '[]' not '.get()')"
+  claim: 'Plan.md''s code sketch for the FR-002 ordering fix reads snapshot.status_facts["bare_prose_requirement_failures"]
+    via direct dict subscript, unconditionally, in every touched guard. The shared _snapshot() test helper''s
+    base_status_facts dict is never updated in the plan, so at least six existing evaluate_guards tests
+    in tests/runtime/test_bridge_cores.py (a file plan.md itself names in "Targeted Test Surface" and
+    Story 2 AC2/SC-002 require to keep passing unmodified) will raise KeyError the moment the guards are
+    wired.
+
+    '
+  remediation: "Add an explicit line to plan.md's IC-02 (or the FR-002 code sketch) stating that the _snapshot()\
+    \ helper (and equivalents in tests/next/ and tests/specify_cli/next/) must have \"bare_prose_requirement_failures\"\
+    : () added to its default status_facts dict in the SAME commit that adds the new guard reads \u2014\
+    \ or have the guard code read via .get(\"bare_prose_requirement_failures\", ()) so a missing key degrades\
+    \ gracefully instead of crashing. Pick one explicitly.\n"
+- id: PLAN-VERIFY-001
+  lens: Ratchet-fixture non-vacuity (FR-005/SC-006, mission-derived lens)
+  severity: 4
+  title: The proposed two-assertion corpus ratchet is vacuous against a fully-collapsed detector
+  evidence:
+  - artifact: "plan.md \xA7 'The False-Positive Fixture (FR-005 / Story 4 AC3, SC-006)', lines 694-725\
+      \ (the two ratchet assertions, lines 715-718)"
+  - code: "tests/architectural/test_ratchet_baselines.py:244-372 (cited precedent \u2014 count-based,\
+      \ gates a fixed allowlist size, not a computed detection result; its shape does not transfer the\
+      \ non-vacuity property needed here)"
+  - artifact: ".kittify/charter/charter.md \xA7 'Quality & Tech-Debt Standing Orders', item 5: 'a NON-VACUOUS\
+      \ call-site gate (concrete floor + self-mutation test + shrink-only allowlist); a gate-unmask cannot\
+      \ self-validate.' \u2192 architectural-gate-non-vacuity, frozen-baseline-shrink-only-ratchet"
+  claim: 'A detector that always returns an empty result for every spec -- including the 9 fixture specs
+    -- passes both proposed ratchet assertions: assertion 1 is trivially true (empty is empty for non-fixture
+    specs), and assertion 2 is trivially true because the empty set is a subset of any recorded set. A
+    totally broken/no-op detector produces a 100%-green ratchet run. This reproduces the "counts 0 and
+    calls it clean" silent-success failure class this mission exists to fix, inside its own regression
+    safety net, and violates charter Standing Order 5''s binding requirement for a concrete floor + self-mutation
+    test, not only a shrink-only allowlist. Plan.md cites frozen-baseline-shrink-only-ratchet but never
+    architectural-gate-non-vacuity.
+
+    '
+  remediation: 'Add to the ratchet-test design (IC-06''s scope) at least one of: (a) a concrete-floor
+    assertion that each of the 9 fixture specs'' LIVE flagged_ids is non-empty (not merely a subset of
+    the recorded set); and/or (b) a dedicated self-mutation ("teeth") test that stubs find_bare_prose_requirement_ids
+    to always return empty and asserts the ratchet test itself then FAILS. Cite architectural-gate-non-vacuity
+    alongside frozen-baseline-shrink-only-ratchet.
+
+    '
+- id: PLAN-VERIFY-002
+  lens: Gates
+  severity: 4
+  title: Gate Set section wrongly lists SonarCloud Quality Gate as 'Triggered / must pass' for this mission's
+    PR
+  evidence:
+  - artifact: "plan.md \xA7 'Gate Set For This Mission' \u2192 'Triggered / must pass' list: SonarCloud\
+      \ Scan + Quality Gate"
+  - code: ".github/workflows/ci-quality.yml:3648 \u2014 `if: always() && (github.event_name == 'schedule'\
+      \ || github.event_name == 'workflow_dispatch')`"
+  - code: ".github/workflows/ci-quality.yml:3585-3589 \u2014 job comment: 'PRs skip Sonar entirely to\
+      \ keep review latency low.'"
+  claim: "The sonarcloud job's trigger condition restricts it to schedule/workflow_dispatch events only\
+    \ \u2014 it never runs on a pull_request event. Plan.md's claim that it is \"always attempted when\
+    \ SONAR_TOKEN is configured\" and belongs under \"Triggered / must pass\" is contradicted by the workflow's\
+    \ own trigger condition and comment. The job is also absent from the quality-gate aggregator's needs\
+    \ list. This mission's PR will not run SonarCloud at all.\n"
+  remediation: 'Move "SonarCloud Scan + Quality Gate" out of "Triggered / must pass" into a "Not triggered
+    at all (schedule/workflow_dispatch only)" category, citing ci-quality.yml:3648, and state that NFR-004''s
+    per-branch focused-test requirement is the sole enforcement mechanism for new-code coverage on this
+    mission''s actual PR review surface.
+
+    '
+- id: PLAN-VERIFY-003
+  lens: Falsifiability / Baseline honesty
+  severity: 2
+  title: 'Baseline Capture section''s git-log commit count/HEAD-hash claim is already stale (self-referential:
+    the plan''s own commit invalidates it)'
+  evidence:
+  - artifact: "plan.md \xA7 'Baseline Capture on ab15225ea': '...sits 7 commits above ab15225ea... zero\
+      \ implementation commits'"
+  - code: live `git log --oneline ab15225ea..HEAD` now shows 8 commits; HEAD = 38a216f92 (the plan(...)
+      commit itself), not one of the four enumerated commit-type prefixes
+  claim: 'The claim was accurate at plan-authoring time but becomes stale the moment plan.md''s own commit
+    lands, since that commit is HEAD and is neither the hash plan.md names nor one of the four commit-type
+    prefixes it enumerates. The substantive conclusion (zero implementation commits above ab15225ea) still
+    holds, but the literal count (7) and HEAD hash (2e088fbe0) are now falsifiably wrong if checked as
+    written.
+
+    '
+  remediation: 'State the git-history claim relative to a fixed, non-moving ref (e.g. "as of the pre-plan-commit
+    tip 2e088fbe0") instead of the self-moving HEAD, or add a one-line note that one additional plan(...)
+    commit is expected beyond the seven enumerated (still zero implementation commits) when re-checked.
+
+    '
