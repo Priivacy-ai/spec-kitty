@@ -10,5 +10,7 @@
   "purpose_tldr": "org pack authoring diagnostics",
   "slug": "org-pack-authoring-diagnostics-01KZY463",
   "target_branch": "main",
-  "topology": "lanes"
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-14T00:37:59.297719+00:00"
 }

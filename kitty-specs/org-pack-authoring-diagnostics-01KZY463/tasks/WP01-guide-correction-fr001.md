@@ -19,6 +19,8 @@ execution_mode: code_change
 owned_files:
 - docs/guides/how-to/governance/create-an-org-doctrine-pack.md
 tags: []
+agent: "claude"
+shell_pid: "758990"
 ---
 
 ## PR Shape (mission-level note)
@@ -250,3 +252,7 @@ red/green pair to preserve).
 ---
 
 `spec-kitty agent action implement WP01 --agent <name>`
+
+## Activity Log
+
+- 2026-08-14T00:38:00Z – claude – shell_pid=758990 – Assigned agent via action command
