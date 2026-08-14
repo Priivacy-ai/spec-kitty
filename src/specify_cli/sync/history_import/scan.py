@@ -43,7 +43,7 @@ from specify_cli.status import (
     StatusEvent,
     StoreError,
     mission_event_log_path,
-    read_authored_wp_frontmatter,
+    read_authored_wp_frontmatter_lenient,
     read_events,
     read_lifecycle_events,
 )
@@ -267,7 +267,12 @@ def _wps_from_task_files(mission_dir: Path) -> tuple[tuple[ScannedWorkPackage, .
     skipped: list[str] = []
     for wp_file in sorted(tasks_dir.glob("WP*.md")):
         try:
-            metadata, _ = read_authored_wp_frontmatter(wp_file)
+            # Historical import tolerates retired frontmatter fields (FR-011,
+            # #3406): a legacy WP carrying e.g. `estimated_lines` must import as
+            # a real WP, not degrade to a bare back-fill. The lenient reader
+            # drops unknown keys but still raises on genuinely-malformed docs, so
+            # the fail-loud skip below is unchanged for real corruption.
+            metadata, _ = read_authored_wp_frontmatter_lenient(wp_file)
         except (FrontmatterError, ValidationError, ValueError, TypeError, KeyError, OSError) as exc:
             # A malformed WP doc (bad YAML, non-dict frontmatter, invalid schema)
             # must never abort the whole scan. The catch is broadened past the

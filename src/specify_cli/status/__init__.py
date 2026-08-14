@@ -136,6 +136,7 @@ from .wp_metadata import (
     WPMetadata,
     _Builder,
     read_authored_wp_frontmatter,
+    read_authored_wp_frontmatter_lenient,
     read_wp_frontmatter,
 )
 from .wp_status_metadata import (
@@ -355,6 +356,7 @@ __all__ = [
     "read_event_stream",
     "read_event_stream_from_text",
     "read_authored_wp_frontmatter",
+    "read_authored_wp_frontmatter_lenient",
     "CoordAuthorityUnavailable",
     "EventLogMergeError",
     "FeatureStatusLockTimeoutError",

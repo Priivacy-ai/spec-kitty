@@ -133,6 +133,17 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   prose equals its `name` field, so this class of identity drift cannot silently
   recur.
 
+- **`sync import-history` now imports legacy work packages that carry retired
+  frontmatter fields, instead of skipping them (mission
+  `first-sync-preflight-01KZZ9Q1` FR-011; `#3406`).** The import scan read WP
+  frontmatter with the strict authoring model (`extra="forbid"`), so a
+  historical WP carrying a field the current schema no longer knows (e.g.
+  `estimated_lines`) raised a validation error, was logged "unreadable", and was
+  degraded to a bare back-fill — losing its real title and dependencies. The
+  import path now uses a lenient reader that drops unrecognised legacy keys
+  while still validating known fields, so genuinely-malformed frontmatter is
+  still skipped fail-loud. Authoring keeps the strict typo guard unchanged.
+
 - **Mission `create` and `next` now run correctly from a caller-owned linked
   git worktree, and each worktree's mission state stays isolated (mission
   `worktree-owned-root-3328-01KZRG01`; `#3346`, closes `#3328`).** Before,

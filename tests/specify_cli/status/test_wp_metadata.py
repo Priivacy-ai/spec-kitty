@@ -308,6 +308,61 @@ class TestWPMetadataExtraFields:
         assert meta.agent_profile == "python-implementer"
 
 
+class TestLenientReaderToleratesLegacyFields:
+    """FR-011 (#3406): historical import must tolerate retired frontmatter keys.
+
+    The strict authoring reader rejects unknown fields (typo guard); the lenient
+    reader used by the import path drops them but still validates known fields.
+    """
+
+    _LEGACY_WP = (
+        "---\n"
+        "work_package_id: WP07\n"
+        "title: Legacy Work Package\n"
+        "dependencies: [WP06]\n"
+        "estimated_lines: 240\n"  # retired field, not on the current schema
+        "some_other_dead_key: whatever\n"
+        "---\n\nBody\n"
+    )
+
+    def test_strict_reader_rejects_legacy_field(self, tmp_path: Path) -> None:
+        from specify_cli.status.wp_metadata import read_authored_wp_frontmatter
+
+        wp_file = tmp_path / "WP07-legacy.md"
+        wp_file.write_text(self._LEGACY_WP, encoding="utf-8")
+        with pytest.raises(ValidationError, match="extra_forbidden"):
+            read_authored_wp_frontmatter(wp_file)
+
+    def test_lenient_reader_drops_legacy_field_and_preserves_known(self, tmp_path: Path) -> None:
+        from specify_cli.status.wp_metadata import read_authored_wp_frontmatter_lenient
+
+        wp_file = tmp_path / "WP07-legacy.md"
+        wp_file.write_text(self._LEGACY_WP, encoding="utf-8")
+
+        meta, body = read_authored_wp_frontmatter_lenient(wp_file)
+
+        assert meta.work_package_id == "WP07"
+        assert meta.display_title == "Legacy Work Package"
+        assert meta.dependencies == ["WP06"]
+        assert body.strip() == "Body"
+        # The dropped key does not become an attribute (frozen model, extra keys gone).
+        assert not hasattr(meta, "estimated_lines")
+
+    def test_lenient_reader_still_raises_on_invalid_known_field(self, tmp_path: Path) -> None:
+        """Tolerance covers unknown keys only -- a bad value for a known field
+        (here an id that violates the WP## pattern) still fails loudly, so the
+        import scan's malformed-skip path is unchanged for real corruption."""
+        from specify_cli.status.wp_metadata import read_authored_wp_frontmatter_lenient
+
+        wp_file = tmp_path / "WPbad.md"
+        wp_file.write_text(
+            "---\nwork_package_id: not-a-wp-id\ntitle: T\nestimated_lines: 5\n---\n\nBody\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(ValidationError):
+            read_authored_wp_frontmatter_lenient(wp_file)
+
+
 class TestWPMetadataDisplayTitle:
     """display_title property: safe title with fallback to work_package_id."""
 
