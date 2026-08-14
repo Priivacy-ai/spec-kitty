@@ -1000,3 +1000,133 @@ class TestProfileSkippedDiagnostics:
         # against the absent-directory case, not swallowed by a broad
         # try/except that would make the assertion above vacuous.
         assert _check_profile_skipped_diagnostics(tmp_path, set()) == []
+
+
+class TestDrgRootGraphMissing:
+    """FR-004: ``pack validate`` gains an additive check that fires when a
+    pack's DRG content lives only under ``drg/*.graph.yaml`` fragments with
+    no pack-root ``*.graph.yaml`` — the shape the runtime
+    (``src/charter/_drg_helpers.py:load_validated_graph``) never reads
+    (see sibling mission #3384). Keyed off pack *content*, via the same
+    exact ``*.graph.yaml`` glob ``_validate_drg`` already uses, so it is
+    consistent by construction (AC-5).
+    """
+
+    _MINIMAL_FRAGMENT_YAML = textwrap.dedent(
+        """\
+        schema_version: "1.0"
+        generated_at: STATIC
+        generated_by: test
+        nodes: []
+        edges: []
+        """
+    )
+
+    def test_drg_only_fragment_no_pack_root_graph_fires_error(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-1 + AC-4: a pack with ``drg/010-security.graph.yaml`` and no
+        pack-root ``*.graph.yaml`` produces a ``drg_root_graph_missing``
+        error (default ``check_drg_root=True``), and ``pack validate``'s
+        CLI maps that to exit code 1.
+
+        Before this WP, ``validate_pack`` has no ``check_drg_root``
+        parameter and no ``drg_root_graph_missing`` category exists, so
+        both assertions below fail.
+        """
+        drg = tmp_path / "drg"
+        drg.mkdir()
+        (drg / "010-security.graph.yaml").write_text(
+            self._MINIMAL_FRAGMENT_YAML, encoding="utf-8"
+        )
+        assert not sorted(tmp_path.glob("*.graph.yaml"))
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is False
+        root_missing = [
+            issue
+            for issue in result.errors
+            if issue.category == "drg_root_graph_missing"
+        ]
+        assert root_missing, result.errors
+        issue = root_missing[0]
+        assert issue.severity == "error"
+        assert "_drg_helpers.py" in issue.message or "load_validated_graph" in issue.message
+
+        # AC-4's exit-code half: exercise the same fixture through the CLI.
+        from typer.testing import CliRunner
+
+        from specify_cli.cli.commands.doctrine import app as doctrine_app
+
+        cli_result = CliRunner().invoke(
+            doctrine_app, ["pack", "validate", str(tmp_path)]
+        )
+        assert cli_result.exit_code == 1, cli_result.output
+
+    def test_pack_root_graph_present_suppresses_diagnostic(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-2: a pack-root ``*.graph.yaml`` present (alongside ``drg/``
+        fragments) produces no ``drg_root_graph_missing`` diagnostic.
+        """
+        drg = tmp_path / "drg"
+        drg.mkdir()
+        (drg / "010-security.graph.yaml").write_text(
+            self._MINIMAL_FRAGMENT_YAML, encoding="utf-8"
+        )
+        (tmp_path / "pack.graph.yaml").write_text(
+            self._MINIMAL_FRAGMENT_YAML, encoding="utf-8"
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert not any(
+            issue.category == "drg_root_graph_missing"
+            for issue in (*result.errors, *result.advisories)
+        )
+
+    def test_neither_root_graph_nor_drg_dir_no_diagnostic(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-3: a pack with neither a pack-root graph nor a ``drg/``
+        directory at all produces no diagnostic — this check is about a
+        *mismatch*, not about requiring DRG content to exist.
+        """
+        assert not (tmp_path / "drg").exists()
+        assert not sorted(tmp_path.glob("*.graph.yaml"))
+
+        result = validate_pack(tmp_path)
+
+        assert not any(
+            issue.category == "drg_root_graph_missing"
+            for issue in (*result.errors, *result.advisories)
+        )
+
+    def test_near_miss_pack_root_filename_does_not_satisfy_check(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-5: a pack-root file named e.g. ``notes.graph.yaml.bak`` (a
+        near-miss that does not match ``*.graph.yaml``) does not satisfy
+        the pack-root requirement — the AC-1 diagnostic still fires. This
+        is correct by construction (``Path.glob("*.graph.yaml")`` does not
+        match a ``.bak``-suffixed name); this test is a regression guard
+        against a future, accidental widening of the glob.
+        """
+        drg = tmp_path / "drg"
+        drg.mkdir()
+        (drg / "010-security.graph.yaml").write_text(
+            self._MINIMAL_FRAGMENT_YAML, encoding="utf-8"
+        )
+        (tmp_path / "notes.graph.yaml.bak").write_text(
+            "not a real graph", encoding="utf-8"
+        )
+
+        result = validate_pack(tmp_path)
+
+        root_missing = [
+            issue
+            for issue in result.errors
+            if issue.category == "drg_root_graph_missing"
+        ]
+        assert root_missing, result.errors
