@@ -262,6 +262,53 @@ def find_bare_prose_requirement_ids(spec_content: str) -> BareProseResult:
     section-scoped version without seeing the cost it was measured to
     carry.
 
+    **WP07 -- false-negative sample + re-verified broadened-predicate FP figure
+    (measured 2026-08-14, N=368, method: `tests/specify_cli/
+    test_bare_prose_false_negative_sample.py`, a read-only corpus scan with the
+    heading predicate locally broadened to also match "constraint" -- reusing
+    this function's own per-line algorithm against the broadened section
+    scoping, mirroring plan.md's PLAN-GOV-002 method; production
+    `_is_requirement_heading` is untouched and byte-identical).** C-008's
+    disposition (option (b), above) leaves `C-XXX` bare-prose items under a
+    `### Constraints` heading structurally invisible to this function -- 325 of
+    368 specs (88.32%) use that heading. This is the disclosure of that blind
+    spot's two sides:
+
+    - **Broadened-predicate FP rate (re-verified)**: 5/368 = 1.36% of specs are
+      newly flagged when the heading predicate is broadened to also match
+      "constraint" -- identical to PLAN-GOV-002's plan-time figure, same 5
+      specs (`coord-read-residuals-merge-lanes-and-identity-routing-01KW2M8V`,
+      `doctrine-public-api-surface-01KZPDSR`,
+      `drg-relation-impacts-vocabulary-01KYFV87`,
+      `foundational-values-creed-band-01KYFV8N`,
+      `test-quality-doctrine-series-01KYFV8H`), independently re-run and
+      re-verified rather than copied on trust.
+    - **False-negative sample**: manual review of all 5 newly-flagged tokens
+      found **zero genuine bare-prose requirements the shipped detector
+      misses** -- zero true positives, matching PLAN-GOV-002's own
+      classification. Two (`C-009` citing a sibling mission's own constraint
+      id; `C-010` citing another mission's requirement from a narrative
+      "Carried constraints" scratch heading) are foreign-id citations, the
+      same class as this function's own 1/368 measured rate above. Two more
+      (`C-009`, `C-005`) are likewise foreign/cross-mission citations under
+      narrative "Carried constraints" scratch headings -- not the canonical
+      `### Constraints` requirements table C-008 is about, so they are also
+      instances of the broadened predicate's substring over-match risk (a
+      plain `"constraint"` match also catching non-canonical prose headings),
+      not the Constraints-heading blind spot itself. The remaining one
+      (`C-007`, `doctrine-public-api-surface-01KZPDSR`) is this spec's own
+      locally-declared `C-007-mission` id, mis-scanned as bare because its
+      non-numeric-suffixed id text fails `_TABLE_ROW_ID_PATTERN`'s
+      exact-digits capture (the same pre-existing, broadening-independent gap
+      PLAN-GOV-002 already documented for `C-009-mirror`/`C-007-mission`
+      shapes) -- not a requirement genuinely lost to bare prose either. This
+      sample found no new evidence of a genuine missed requirement, but it
+      does not retire the underlying structural blind spot (325/368 specs use
+      a Constraints heading this function cannot see); a future spec with a
+      genuine undeclared `C-XXX` under that heading would still go
+      undetected. Informational only (Story 4 AC4) -- not a shipping gate,
+      and does not change this function's behavior or measured rate above.
+
     Returns:
         One :class:`BareProseCandidate` per requirement-named section that
         contains at least one bare-prose candidate id -- sections with none
