@@ -242,6 +242,7 @@ def _snapshot(
         "wp_dependencies_present": {},
         "wp_dependency_records": (),
         "requirement_mapping_failures": (),
+        "bare_prose_requirement_failures": (),
         "occurrence_gate_failures": (),
         "source_documented_count": 0,
         "publication_approved": False,
@@ -426,6 +427,78 @@ def test_composed_tasks_terminal_ready_reports_requirement_and_dependency_then_o
         "missing refs for WPs: WP02",
         "WP WP02-rawjoin missing 'dependencies' in frontmatter (run 'spec-kitty agent mission finalize-tasks')",
         "occurrence classification incomplete",
+    ]
+
+
+# ---------------------------------------------------------------------------
+# 4b. #3396 bare-prose requirement wiring — per-guard teeth tests (WP05,
+# FR-002/FR-010/NFR-005). Each of the four guard functions FR-003's audit
+# names must read the new ``bare_prose_requirement_failures`` status_facts
+# key BEFORE its own dir-readiness short-circuit — this is the exact
+# ordering fix the reverted ``3823f2b00``-shaped wiring lacked (that revert
+# read the analogous ``requirement_mapping_failures`` fact AFTER
+# ``_tasks_dir_ready``, so it was inert whenever zero WP files existed). Each
+# test below constructs a snapshot in the "guard would otherwise
+# short-circuit" configuration and asserts the bare-prose failure still
+# surfaces — it fails if that specific guard's wiring alone is reverted.
+# ---------------------------------------------------------------------------
+
+_BARE_PROSE_TEETH_MESSAGE = "Bare-prose requirement id(s) found, uncounted by requirement mapping: FR-001, FR-002."
+
+
+def test_cli_native_tasks_packages_guard_reads_bare_prose_before_tasks_dir_ready() -> None:
+    """Teeth test 1/4 — zero WP files (``_tasks_dir_ready`` is False)."""
+    snapshot = _snapshot(
+        status_facts={"bare_prose_requirement_failures": (_BARE_PROSE_TEETH_MESSAGE,)},
+        step_id="tasks_packages",
+    )
+    assert cores.evaluate_guards(snapshot) == [
+        _BARE_PROSE_TEETH_MESSAGE,
+        "Required: at least one tasks/WP*.md file",
+    ]
+
+
+def test_cli_native_tasks_finalize_guard_reads_bare_prose_unconditionally() -> None:
+    """Teeth test 2/4 — ``_evaluate_tasks_finalize_guard`` has NO
+    ``_tasks_dir_ready`` call today (it uses its own inline
+    ``tasks_dir_is_dir``/``tasks_wp_files`` branches); confirm the new fact
+    is read as the first statement, independent of those branches."""
+    snapshot = _snapshot(
+        status_facts={"bare_prose_requirement_failures": (_BARE_PROSE_TEETH_MESSAGE,)},
+        step_id="tasks_finalize",
+    )
+    assert cores.evaluate_guards(snapshot) == [
+        _BARE_PROSE_TEETH_MESSAGE,
+        "Required: tasks/ directory with finalized WP files",
+    ]
+
+
+def test_composed_tasks_packages_guard_reads_bare_prose_before_tasks_dir_ready() -> None:
+    """Teeth test 3/4 — tasks.md present, zero WP files."""
+    snapshot = _snapshot(
+        present_artifacts=frozenset({"tasks.md"}),
+        status_facts={"bare_prose_requirement_failures": (_BARE_PROSE_TEETH_MESSAGE,)},
+        step_id="tasks",
+        legacy_step_id="tasks_packages",
+    )
+    assert cores.evaluate_guards(snapshot) == [
+        _BARE_PROSE_TEETH_MESSAGE,
+        "Required: at least one tasks/WP*.md file",
+    ]
+
+
+def test_composed_tasks_terminal_guard_reads_bare_prose_before_tasks_dir_ready() -> None:
+    """Teeth test 4/4 — the composed terminal/union branch, tasks.md absent
+    and zero WP files (the highest-risk SC-007 fixture shape)."""
+    snapshot = _snapshot(
+        status_facts={"bare_prose_requirement_failures": (_BARE_PROSE_TEETH_MESSAGE,)},
+        step_id="tasks",
+        legacy_step_id="tasks_finalize",
+    )
+    assert cores.evaluate_guards(snapshot) == [
+        _BARE_PROSE_TEETH_MESSAGE,
+        "Required artifact missing: tasks.md",
+        "Required: at least one tasks/WP*.md file",
     ]
 
 
