@@ -1,7 +1,7 @@
 {
   "rows": {
     "#3133": {
-      "evidence_ref": "Open issue; cited in spec.md/plan.md as a prior example of this repo's silent-success defect class, to motivate design. Context only; not addressed by this mission.",
+      "evidence_ref": "Open issue; cited in spec.md/plan.md as a prior example of this repo's silent-success defect class, to motivate design. Context only; not addressed by this mission. Follow-up: #3133 (tracked in its own open issue).",
       "fr": null,
       "nfr": null,
       "repo": null,
