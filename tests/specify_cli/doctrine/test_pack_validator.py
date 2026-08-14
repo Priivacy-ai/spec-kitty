@@ -67,13 +67,19 @@ def _write_asset_manifest(
     title: str | None = "Acme brand logo (PNG)",
     filename: str | None = None,
     drop_id: bool = False,
+    subdir: str | None = None,
 ) -> Path:
     """Write a ``*.asset.yaml`` sidecar manifest under ``pack_dir/assets/``.
 
     Realistic, production-shaped defaults (a real PNG-shaped manifest) —
     callers override individual fields to exercise a single failure mode.
+
+    ``subdir``, when given, nests the manifest one directory below
+    ``assets/`` (e.g. ``assets/<subdir>/x.asset.yaml``) — the ADR-mandated
+    org-pack manifest layout (FR-003) that ``AssetRepository`` already
+    recurses into.
     """
-    assets = pack_dir / "assets"
+    assets = pack_dir / "assets" / subdir if subdir else pack_dir / "assets"
     assets.mkdir(parents=True, exist_ok=True)
     payload: dict[str, str] = {}
     if not drop_id and artifact_id is not None:
@@ -711,6 +717,30 @@ class TestAssetManifestValidation:
         mime_errors = [e for e in result.errors if e.category == "asset_mime_invalid"]
         assert mime_errors, result.errors
         assert mime_errors[0].artifact_id == "acme-logo-mismatch"
+
+    def test_nested_asset_manifest_violation_is_caught(self, tmp_path: Path) -> None:
+        """FR-003 AC-1: a schema-violating manifest nested one level below
+        ``assets/`` (``assets/<pack>/x.asset.yaml`` — the ADR-mandated org-pack
+        layout ``AssetRepository`` already recurses into) is caught by
+        ``pack validate``, not silently skipped. Before FR-003, ``_scan_files``
+        only recurses for ``styleguides``, so this manifest was never scanned
+        and this assertion failed.
+        """
+        _write_asset_manifest(
+            tmp_path,
+            artifact_id="acme-logo-nested-badmime",
+            mime="notamimetype",
+            path_value="branding/acme-logo.png",
+            subdir="acme-pack",
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is False
+        mime_errors = [e for e in result.errors if e.category == "asset_mime_invalid"]
+        assert mime_errors, result.errors
+        assert mime_errors[0].artifact_id == "acme-logo-nested-badmime"
+        assert "acme-pack" in mime_errors[0].file
 
     def test_multiple_assets_independent(self, tmp_path: Path) -> None:
         """Multiple manifests in one pack are each validated independently."""
