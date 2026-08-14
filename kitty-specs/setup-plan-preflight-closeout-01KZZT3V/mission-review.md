@@ -34,7 +34,7 @@
 - Файл: `kitty-specs/setup-plan-preflight-closeout-01KZZT3V/issue-matrix.json`.
 - Строк: `1`; `#3332` имеет terminal verdict `fixed` и evidence на RED `00b7d7b21`, GREEN `2f2fbbbc0` и независимый review.
 - Результат: **PASS**.
-- Неблокирующая неточность: поле `title` осталось шаблонным (`<fill at WP-implementation time>`), тогда как актуальный заголовок PR #3332 — `Allow mission creation from caller-owned linked worktrees`.
+- На момент review поле `title` было шаблонным; последующий metadata-only commit заменил его актуальным заголовком PR #3332 — `Allow mission creation from caller-owned linked worktrees`.
 
 ## Целевой post-merge пакет
 
@@ -102,7 +102,7 @@ Terminal verdict и evidence корректны, но шаблонное пол�
 
 **FAIL**
 
-Предметная реализация FR-001–FR-005 корректна и независимо проверена, но публикация блокируется тремя hard-gates и собственным delivery-дефектом `codemap.lock`. Минимальная remediation: исправить lock и issue title отдельным узким commit, затем восстановить зелёные contract/architecture gates либо получить допустимую policy-развязку; обеспечить доступ к cross-repo E2E или корректный operator-exception.
+Предметная реализация FR-001–FR-005 корректна и независимо проверена; найденные metadata-дефекты `codemap.lock` и issue title уже устранены. Публикация всё ещё блокируется тремя hard-gates: необходимо восстановить зелёные contract/architecture gates либо получить допустимую policy-развязку, а также обеспечить доступ к cross-repo E2E или корректный operator-exception.
 
 ## Retrospective reminder
 
