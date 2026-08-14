@@ -742,6 +742,42 @@ class TestAssetManifestValidation:
         assert mime_errors[0].artifact_id == "acme-logo-nested-badmime"
         assert "acme-pack" in mime_errors[0].file
 
+    def test_nested_asset_manifest_valid_passes(self, tmp_path: Path) -> None:
+        """FR-003 AC-2: a valid nested manifest passes with no false positive —
+        it participates in the existing containment/mime checks exactly like a
+        top-level asset would."""
+        _write_asset_manifest(
+            tmp_path,
+            artifact_id="acme-brand-logo-nested-png",
+            mime="image/png",
+            path_value="branding/acme-logo.png",
+            subdir="acme-pack",
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is True, result.errors
+        assert result.errors == []
+
+    def test_no_assets_directory_is_a_noop(self, tmp_path: Path) -> None:
+        """FR-003 AC-4: an absent ``assets/`` directory produces no error and no
+        behavior change. ``validate_pack``'s registry loop guard
+        (``if not type_dir.is_dir(): continue``) predates FR-003 and is left
+        untouched by it — this proves the guard path actually executes for the
+        absent-directory case (not merely that nothing crashes) by asserting no
+        ``assets``-typed issue is ever produced when ``assets/`` never existed.
+        """
+        _write_directive(tmp_path, artifact_id="ACME-001")
+        assert not (tmp_path / "assets").exists()
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is True, result.errors
+        assert not any(
+            issue.artifact_type == "assets"
+            for issue in (*result.errors, *result.advisories)
+        ), (result.errors, result.advisories)
+
     def test_multiple_assets_independent(self, tmp_path: Path) -> None:
         """Multiple manifests in one pack are each validated independently."""
         _write_asset_manifest(
