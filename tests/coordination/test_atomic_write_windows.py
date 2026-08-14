@@ -19,6 +19,10 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+def test_windows_confined_writer_pins_directories_against_rename() -> None:
+    assert wfs._LOCKED_DIRECTORY_SHARE_MODE & wfs._FILE_SHARE_DELETE == 0
+
+
 def test_windows_confined_write_atomically_replaces_existing_file(
     tmp_path: Path,
 ) -> None:
