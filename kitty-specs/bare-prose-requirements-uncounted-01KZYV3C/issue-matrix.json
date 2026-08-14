@@ -49,7 +49,7 @@
       "wp": null
     },
     "#3336": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Closed issue (upgrade --dry-run reports nothing pending bug); already fixed prior to/outside this mission. Cited in spec.md/plan.md as a prior example of the silent-success defect class. Not addressed by this mission.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,7 +57,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "verified-already-fixed",
       "wp": null
     },
     "#3394": {
