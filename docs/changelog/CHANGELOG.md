@@ -345,6 +345,15 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   drain on recovery (consistent with the offline queue's transient-retry
   handling), and — for the decommissioned case — naming the URL and the exact
   recovery (`spec-kitty sync server <url>` then `auth login --force`).
+- **`auth login` now resolves the server the same way `sync` does — env over
+  `[sync].server_url` over the documented default — instead of the env-only
+  accessor that errored when only `spec-kitty sync server` had been set
+  (`#3406`, FR-005).** Before, a user who set their server via `sync server`
+  still hit "SPEC_KITTY_SAAS_URL environment variable is not set" on login, so a
+  token could only be minted against one server while sync targeted another. It
+  still refuses (with a remedy naming both `SPEC_KITTY_SAAS_URL` and
+  `sync server`) when neither is set, rather than silently defaulting to the dev
+  URL. One of the ten-gate first-sync gauntlet fixes.
 
 - **Mission `create` and `next` now run correctly from a caller-owned linked
   git worktree, and each worktree's mission state stays isolated (mission

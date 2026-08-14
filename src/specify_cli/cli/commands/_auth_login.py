@@ -9,9 +9,15 @@ The ``--headless`` branch lazy-imports a future ``auth.flows.device_code``
 module that WP05 will supply. Until WP05 lands, attempting to use
 ``--headless`` surfaces a clear "not yet implemented" error.
 
-Per constraint C-012 and decision D-5, this module never hardcodes a SaaS
-URL — it always reads from :func:`specify_cli.auth.config.get_saas_base_url`
-so operators must set ``SPEC_KITTY_SAAS_URL`` in the environment.
+This module never hardcodes a SaaS URL. It resolves the login target through the
+canonical resolver :func:`specify_cli.sync.target_authority.resolve_sync_target`,
+which folds ``SPEC_KITTY_SAAS_URL`` (env) over ``[sync].server_url`` in
+``config.toml`` over the documented default — the *same* precedence ``sync`` uses.
+This is deliberate (#3406, FR-005): login previously read the env-only accessor
+``get_saas_base_url`` and errored when the env var was unset, even when the user
+had already set a server via ``spec-kitty sync server``. That inconsistency meant
+a token could be obtained one way while sync targeted another; resolving both the
+same way removes it.
 """
 
 from __future__ import annotations
@@ -27,10 +33,9 @@ from specify_cli.auth import (
     BrowserLaunchError,
     CallbackTimeoutError,
     CallbackValidationError,
-    ConfigurationError,
     get_token_manager,
 )
-from specify_cli.auth.config import get_saas_base_url
+from specify_cli.sync.target_authority import resolve_sync_target
 
 if TYPE_CHECKING:
     from specify_cli.auth.session import StorageBackend, StoredSession
@@ -55,11 +60,22 @@ async def login_impl(*, headless: bool, force: bool) -> None:
         ``enforce_teamspace_mission_state_ready`` themselves — those are
         the commands that actually depend on TeamSpace state.
     """
-    try:
-        saas_url = get_saas_base_url()
-    except ConfigurationError as exc:
-        console.print(f"[red]X {exc}[/red]")
-        raise typer.Exit(1) from exc
+    # Resolve the login target the same way sync does — env over config.toml
+    # over the documented default (#3406, FR-005). Login previously read the
+    # env-only accessor and errored when only `sync server` had been set, so a
+    # token could be minted against one server while sync targeted another.
+    # We still refuse when NEITHER an env override nor an explicit config
+    # server_url is set, rather than silently defaulting to the descriptive dev
+    # URL — preserving the "choose your server" intent while honouring config.
+    target = resolve_sync_target()
+    if target.env_server_url is None and target.configured_server_url is None:
+        console.print(
+            "[red]X No sync server is configured. Set SPEC_KITTY_SAAS_URL, or run "
+            "`spec-kitty sync server <url>` (e.g. https://app.spec-kitty.ai), then "
+            "try again.[/red]"
+        )
+        raise typer.Exit(1)
+    saas_url = target.resolved_server_url
 
     tm = get_token_manager()
 
