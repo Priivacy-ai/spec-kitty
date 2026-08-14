@@ -75,7 +75,8 @@ Close the guard-evaluation fall-through defect (issue #3386) across both call pa
    registry (FR-001, FR-006).
 2. Split the single shared `_cores.evaluate_guards(snapshot)` call into a **strict lookup**
    (`evaluate_guards_strict`, raises `UnregisteredMissionFamilyError` for an unregistered
-   family) that `_check_cli_guards` (`runtime_bridge.py:680-698`) calls **directly**, and a
+   family) that `_check_cli_guards` (`runtime_bridge.py:785-803`, re-verified
+   post-#3346-rebase — shifted +105 lines from 680-698, same code) calls **directly**, and a
    **tolerant wrapper** (catches that exception, logs at WARNING, returns `[]`) that
    `_check_composed_action_guard` (`runtime_bridge_composition.py:427-486`) calls **directly**
    (FR-003, FR-004, FR-005, C-001, C-002).
@@ -273,7 +274,8 @@ reason (e.g. a typo in the assertion that happens to also fail).
   2. **`_check_cli_guards` propagates via an injection seam** (name the test with
      `unregistered_mission_family_propagates` in it, e.g.
      `test_check_cli_guards_propagates_unregistered_mission_family_error`) — `_check_cli_guards` hardcodes
-     `mission_family="software-dev"` (line 692), so no real caller can reach this state today
+     `mission_family="software-dev"` (line 797, re-verified post-#3346-rebase; was
+     line 692), so no real caller can reach this state today
      (User Story 3's own framing: "defensive correctness... currently unreachable"). Use
      `monkeypatch` to make `rb._io_seam.gather_artifact_presence` return an
      `ArtifactPresenceSnapshot` with `mission_family="totally-unregistered-family"` regardless of
@@ -393,7 +395,8 @@ reason (e.g. a typo in the assertion that happens to also fail).
   already imported at line 88 — no new imports.
 - **Files**: `src/runtime/next/runtime_bridge_composition.py`.
 - **Validation**: T002's composed-path assertion (returns `[]` + WARNING log captured) goes
-  GREEN. Confirm `runtime_bridge.py:878-891`'s thin compat delegate (which forwards to this
+  GREEN. Confirm `runtime_bridge.py:983-996`'s thin compat delegate (re-verified
+  post-#3346-rebase, shifted +105 lines from 878-891, same code; which forwards to this
   function) needs no change — do not add a duplicate log call there.
 - **Parallel?**: Yes, alongside T004/T006 (disjoint files).
 
@@ -402,8 +405,9 @@ reason (e.g. a typo in the assertion that happens to also fail).
 - **Purpose**: FR-005, C-002, User Story 3 — the legacy/CLI-native path raises loudly, never
   silently degrades, for an unregistered family, and `_check_cli_guards` itself is the direct
   caller (not an isolated unwired helper).
-- **Steps**: In `_check_cli_guards` (`runtime_bridge.py:680-698`), change the last line,
-  `return _cores.evaluate_guards(snapshot)` (line 698), to `return
+- **Steps**: In `_check_cli_guards` (`runtime_bridge.py:785-803`, re-verified
+  post-#3346-rebase — shifted +105 lines from 680-698, same code), change the last line,
+  `return _cores.evaluate_guards(snapshot)` (line 803, was line 698), to `return
   _cores.evaluate_guards_strict(snapshot)`. **No try/except** — letting
   `UnregisteredMissionFamilyError` propagate uncaught IS the "raise loudly" requirement. `_cores`
   is already imported at line 162 — no new imports.

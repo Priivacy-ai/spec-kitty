@@ -145,3 +145,72 @@ one stale citation this mission's own review trail already caught (the 2-line
 `_check_cli_guards` line-number drift) was in spec.md's PROSE, already fixed there
 in a prior review round, and was never a code-level defect to begin with. There is
 nothing domain-matched to fold in as a preceding tidy-first step.
+
+## 7. Post-rebase citation refresh (#3346 landed underneath this mission) — decision: correct coordinates only, never re-open the design
+
+**Context**: after this mission's design phase completed (spec → plan → tasks →
+analyze, verdict `ready`, all citations verified first-hand against `main` @
+`ab0a0b9b5`), the mission branch was rebased onto `main` @ `7923fda40` (#3346,
+"fix: isolate explicit owned-checkout mission state"), which added 182 lines to
+`src/runtime/next/runtime_bridge.py` (first hunk at old line 233) and 23 lines to
+`.github/workflows/ci-quality.yml` (one hunk at old line 3392), plus touched
+`src/runtime/next/decision.py` and `tests/next/test_runtime_bridge_unit.py` (both
+uncited by this mission's design artifacts, so untouched here).
+
+**Decision**: treat every `runtime_bridge.py`/`ci-quality.yml` citation whose old
+line number falls after the respective insertion point as needing a coordinate
+correction only — re-verify the code at the new location is byte-identical to
+what was verified at plan/tasks time, correct the line number, and add a short
+"re-verified post-#3346-rebase" annotation so a future reader can tell the
+correction from an original claim. Do NOT touch the requirement, acceptance
+criterion, or design decision the citation supports.
+
+**Verification method, not assumption**: diffed `7923fda40^..7923fda40` for both
+files, computed the exact cumulative line-delta at each cited line (deltas are
+NOT uniform across a file — they step at each hunk boundary), then confirmed each
+new coordinate by reading the actual current file content and checking it matches
+the original cited text verbatim. Two deltas resulted, not one: `runtime_bridge.py`
+citations between old line 360 and old line 1203 shifted by a stable **+105**
+lines (`_check_cli_guards` 680-698→785-803, its `mission_family="software-dev"`
+hardcode 692→797, the `_check_composed_action_guard` compat delegate 878-891→
+983-996, the guard-evaluation section header 670-699→775-804); the one citation
+inside the earlier, variable-delta hunk zone (the `DecisionGitLog`
+construction-failure WARNING-log precedent, FR-004's cross-file motivation for
+picking WARNING) shifted by **+51** (348-354→399-405) because it sits between two
+hunks of different sizes, not in the stable-delta zone most of the other
+citations share — computing this one by uniform-offset assumption would have
+been wrong by 54 lines. `ci-quality.yml`'s diff-coverage `critical_paths` entry
+and its `--fail-under=90 --include` invocation both shifted by a uniform **+23**
+(3489→3512, 3516-3517→3539-3540) since #3346 touched that file with exactly one
+insertion, before both citations.
+
+**What did NOT move, confirmed by direct verification, not by assumption from
+"only these three files changed"**: `runtime_bridge_cores.py`,
+`runtime_bridge_composition.py`, and `runtime_bridge_io.py` were not part of
+#3346's diff at all, so every citation into them (`evaluate_guards` at 351,
+`_evaluate_research_guards` at 415, `_evaluate_documentation_guards` at 439 with
+its `accept`-case precedent at 455-456, `_evaluate_software_dev_guards` at 554
+with its catch-all `return []` at 566, `_PRESENCE_FILE_TAGS` at 708-718, the
+composed path's real `_check_composed_action_guard` at 427-486) is unchanged —
+confirmed by reading each cited line, not inferred from the commit's file list
+alone. The historical citation inside `runtime_bridge_cores.py`'s own module
+docstring ("moved VERBATIM from `runtime_bridge.py:343-473`, pre-decomposition
+line numbers") is correctly left untouched — plan.md's Campsite-Clean Scope
+section already, correctly, flagged this as a frozen provenance record rather
+than a live cross-reference, and it lives in a file #3346 never touched, so it
+is doubly unaffected. `runtime_bridge.py:162` (the `_cores` import) is also
+unaffected — it precedes #3346's first hunk (old line 233).
+
+**Also re-confirmed, not assumed**: the #3386 defect itself still reproduces
+byte-for-byte on the rebased base — `plan`/`review` still returns
+`["Not all work packages are approved or done"]`, `_check_cli_guards` still
+hardcodes `mission_family="software-dev"` and does not raise for an unregistered
+family, the composed path still returns the same WP-iteration message (not a
+neutral degrade) with zero WARNING-level log records naming the family, and
+`evaluate_guards_strict` / `UnregisteredMissionFamilyError` / `_evaluate_plan_guards`
+still do not exist. #3346's own scope (checkout ownership / coordination-workspace
+resolution) never touched guard dispatch — it added parameters and new
+functions around `_wrap_with_decision_git_log` / `_dn_bootstrap` /
+`decide_next_via_runtime`, nowhere near `_check_cli_guards` or
+`_check_composed_action_guard`'s guard-evaluation logic itself. No RED pin
+flipped to green; none of this mission's WPs ship coverage that proves nothing.

@@ -33,7 +33,8 @@ close-out work for this mission, not a WP.
 ## No campsite-clean-first WP
 
 Per plan.md's Campsite-Clean Scope section: the touched lines
-(`runtime_bridge_cores.py:348-567`, `runtime_bridge.py:670-699`,
+(`runtime_bridge_cores.py:348-567`, `runtime_bridge.py:775-804` (re-verified
+post-#3346-rebase, shifted +105 lines from 670-699, same code),
 `runtime_bridge_composition.py:427-486`) were checked first-hand for pre-existing Sonar
 findings, complexity violations, or stale in-code citations, and none were found. **This
 mission has no distinct campsite-clean-first commit** — Standing Order #2's determination

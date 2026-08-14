@@ -11,7 +11,7 @@ line range on this checkout) with an explicit `_GUARD_TABLES` registry, author
 `plan`'s own guard table so it stops silently inheriting software-dev's
 work-package guard, and split the single shared `_cores.evaluate_guards(snapshot)`
 call (used identically today by both the legacy path,
-`runtime_bridge.py:680-698`'s `_check_cli_guards`, and the composed path,
+`runtime_bridge.py:785-803`'s `_check_cli_guards`, and the composed path,
 `runtime_bridge_composition.py:427-486`'s `_check_composed_action_guard`) into two
 concrete call sites: a strict lookup the legacy path calls directly (raises on an
 unregistered family) and a tolerant, WARNING-logging wrapper the composed path
@@ -173,19 +173,26 @@ noted explicitly):
   FR-004, C-001). `_cores` is already imported at line 88 — zero new imports.
   This is the destination FR-004 names explicitly ("the composed path's actual
   implementation site, not `runtime_bridge.py`") and the verification above
-  confirms `runtime_bridge.py`'s own `_check_composed_action_guard` (line 878)
+  confirms `runtime_bridge.py`'s own `_check_composed_action_guard` (line 983,
+  re-verified post-#3346-rebase — this compat delegate shifted +105 lines
+  from its plan-authoring-time location at line 878; the code itself is
+  byte-identical, only its line number moved)
   is a thin compat delegate that forwards here — the log call must not be added
   to that delegate, only to this real implementation.
 
 - `runtime_bridge.py` — the **legacy/CLI-native residual + compat-delegate
-  facade**. `_check_cli_guards` (def at line 680, body through line 698 —
-  confirmed at this exact range on this checkout, matching spec.md's already-
-  corrected FR-005/User-Story-3 citation; no further drift found) has its last
-  line, `return _cores.evaluate_guards(snapshot)` (line 698), changed to `return
+  facade**. `_check_cli_guards` (def at line 785, body through line 803 —
+  re-verified against the current checkout after the mission branch's rebase
+  onto `main` @ `7923fda40` (#3346, "isolate explicit owned-checkout mission
+  state"), which added 182 lines to this file starting at line 233 and shifted
+  every citation below it by +105 lines through this point in the file; the
+  guard-dispatch code itself is unchanged, byte-for-byte, from this plan's
+  original verification — only line numbers moved) has its last
+  line, `return _cores.evaluate_guards(snapshot)` (line 803), changed to `return
   _cores.evaluate_guards_strict(snapshot)`. No try/except is added — letting
   `UnregisteredMissionFamilyError` propagate uncaught IS the "raise loudly"
   requirement (C-002); `_check_cli_guards` itself hardcodes
-  `mission_family="software-dev"` unconditionally at line 692 today (confirmed:
+  `mission_family="software-dev"` unconditionally at line 797 today (confirmed:
   this is the ONLY call site that ever populates `mission_family` for this
   function — grep across `src/` finds no other caller reaching
   `_check_cli_guards` with a different family), so this raise path is real,
@@ -447,7 +454,9 @@ family:
 
 Explicit determination (Standing Order #2 requires stating this, not silently
 skipping it): I checked `runtime_bridge_cores.py`'s guard-evaluation section
-(lines 348-567), `runtime_bridge.py:670-699`, and
+(lines 348-567), `runtime_bridge.py:670-699` (re-verified post-#3346-rebase:
+now `runtime_bridge.py:775-804`, shifted +105 lines — same code, new
+coordinates), and
 `runtime_bridge_composition.py:427-486` — the exact lines this mission's
 functional change touches — for pre-existing, unrelated Sonar findings,
 complexity violations, or stale in-code citations (distinct from spec.md's own
@@ -550,7 +559,7 @@ included:
 | `pytest tests/architectural/test_no_legacy_terminology.py` | **Enforced, pre-push** | `doctor mission-type`'s `--help` text is new user-facing prose (charter's own "Pre-push" rule names this exact scenario); this gate runs only in CI's `integration-tests-core-misc` job, not the fast-tests shards, so it must be run locally before push, not assumed from local fast-test green. |
 | `tests/architectural/test_shared_package_boundary.py` / `test_pyproject_shape.py` | **Runs on this PR (`arch-adversarial`, always-on), expected to pass** | `arch-adversarial`'s job-level `if:` gate carries no path filter and always fires on every push of this PR — not only incidentally at a separate merge-time full-suite run (`.github/workflows/ci-quality.yml:2144`, job definition; `if:` condition at line 2147: `(always()) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci')`) — the only *job-level* opt-outs are the `pr:deferred`/`pr:skip-ci` PR labels. The job's own run step then applies a second, runtime diff-content-based narrowing: a "Detect docs-only PR" step (`ci-quality.yml:2201-2220`) diffs the PR base against HEAD, and the "Run architectural + adversarial suite" step (`ci-quality.yml:2228-2265`) collapses the pytest marker selection to `-m '<shard> and docs_scoped and not windows_ci'` (line 2241) when the changeset is docs-only, versus the full `-m '<shard> and not windows_ci and (git_repo or integration or architectural) and not timing'` selection (line 2258) otherwise — so a docs-only/non-docs-only distinction does exist, just at test-selection time inside the job rather than at its `if:` gate. Neither `test_shared_package_boundary.py` (`pytestmark = pytest.mark.architectural`, line 11) nor `test_pyproject_shape.py` (same, line 13) carries the `docs_scoped` marker, so on a hypothetical docs-only PR neither file would actually run within this job. That carve-out does not apply here: this mission's real PR touches `src/runtime/next/*` and `src/specify_cli/cli/commands/*`, so it is never docs-only, and the full (unnarrowed) marker selection runs, including both files. No dependency, `pyproject.toml`, or `spec-kitty-events`/`spec-kitty-tracker` import is touched by this mission, so both are expected to pass. |
 | Doctrine schema freshness / Contextive glossary | **Runs on this PR, expected to pass** | Not skipped: the Contextive-glossary step is triggered by this mission's own `src/specify_cli/**` changes (`ci-quality.yml:848-869`'s path filter includes `src/specify_cli/**`, and this mission changes/adds files under it), and the doctrine-schema-freshness step (`ci-quality.yml:653`) is not path-gated at all — it runs whenever the always-invoked `lint` job runs, deliberately placed there per its own comment ("a freshness gate behind a paths filter is the same silence #2957 is about"). Both execute on this PR's CI run and are expected to pass because this mission changes no glossary markdown/traceability content and no doctrine Pydantic model. |
-| PR diff-coverage (critical-path, 90%, `src/runtime/next/*`) | **Enforced** | Every IC-01–IC-04 production file lives under `src/runtime/next/`, inside this gate's `critical_paths` include list (`ci-quality.yml:3489`, fed by `integration-tests-next`'s `--cov=src/runtime/next` report, `ci-quality.yml:2927`, consumed by the `diff-coverage` job via `--fail-under=90 --include "${critical_paths[@]}"` at `ci-quality.yml:3516-3517`). ATDD Commit 1/2 and IC-02's plan-guard-table tests are expected to satisfy the 90% floor on new/changed lines, but this should be verified locally with `uv run diff-cover` against the base branch before push, not assumed. |
+| PR diff-coverage (critical-path, 90%, `src/runtime/next/*`) | **Enforced** | Every IC-01–IC-04 production file lives under `src/runtime/next/`, inside this gate's `critical_paths` include list (`ci-quality.yml:3512`, re-verified post-#3346-rebase — shifted +23 lines from 3489 by that PR's unrelated 23-line e2e-acceptance-step insertion at old line 3392, same array entry — fed by `integration-tests-next`'s `--cov=src/runtime/next` report, `ci-quality.yml:2927` (unaffected — precedes the #3346 insertion point), consumed by the `diff-coverage` job via `--fail-under=90 --include "${critical_paths[@]}"` at `ci-quality.yml:3539-3540` (also +23 from 3516-3517)). ATDD Commit 1/2 and IC-02's plan-guard-table tests are expected to satisfy the 90% floor on new/changed lines, but this should be verified locally with `uv run diff-cover` against the base branch before push, not assumed. |
 | Kernel coverage ≥90% / mission-loader coverage ≥90% | **Not a distinct gate for this mission** | This mission's touched files are not under the `src/kernel/` coverage-gated boundary or the mission-loader package (distinct from the diff-coverage critical-path gate above, which does apply); new-code coverage is instead driven by the "every new branch/helper gets tests in the same PR" rule (charter Sonar Expectations), satisfied by the ATDD sequencing above covering every new branch in `_GUARD_TABLES`'s dispatch, both split call sites, `_evaluate_plan_guards`'s 5 branches, and the FR-008 classifier's 6 states. |
 | `make lint` | **Advisory only** | Per charter/design-pipeline convention, `make lint` is advisory in CI for this repo, not a hard gate; `ruff check` above is the enforced equivalent. |
 | commitlint / markdown lint / TID251 banned-API / Typer JSON error surface / `patch()` target validation / Bandit / pip-audit / `uv.lock` freshness / SonarCloud Quality Gate | **Unaffected, run incidentally by CI** | None of this mission's changes introduce a new dependency, a new banned-API usage, a new `patch()` target, a security-sensitive code path, or a lockfile change; these CI-wide gates run automatically on the PR regardless of this plan's own scoping and are not called out with a per-gate rationale beyond "this diff does not touch what they check." |
@@ -654,8 +663,9 @@ that group's own binding "thin shell + sibling module" convention.
   the family, returns `[]` (FR-003, FR-004, C-001).
 - **Relevant requirements**: FR-003, FR-004, C-001, NFR-002.
 - **Affected surfaces**: `src/runtime/next/runtime_bridge_composition.py`,
-  lines 427-486 (the real implementation; the `runtime_bridge.py:878-891`
-  compat delegate needs no change — it already forwards everything through).
+  lines 427-486 (the real implementation; the `runtime_bridge.py:983-996`
+  compat delegate — re-verified post-#3346-rebase, shifted +105 lines from
+  878-891, same code — needs no change — it already forwards everything through).
 - **Sequencing/depends-on**: IC-01.
 - **Risks**: must not weaken the ≥24-test / ≥4-test custom-mission-type
   tolerance NFR-002 pins — this IC only changes what happens for a family with
@@ -668,10 +678,11 @@ that group's own binding "thin shell + sibling module" convention.
   lets the exception propagate — the loud-block half of the split (FR-005,
   C-002, User Story 3).
 - **Relevant requirements**: FR-005, C-002.
-- **Affected surfaces**: `src/runtime/next/runtime_bridge.py`, lines 680-698.
+- **Affected surfaces**: `src/runtime/next/runtime_bridge.py`, lines 785-803
+  (re-verified post-#3346-rebase, shifted +105 lines from 680-698, same code).
 - **Sequencing/depends-on**: IC-01.
 - **Risks**: this path is currently unreachable with an unregistered family
-  (hardcoded `mission_family="software-dev"` at line 692) — the test for this
+  (hardcoded `mission_family="software-dev"` at line 797) — the test for this
   IC necessarily uses an injection seam (per User Story 3's own Independent
   Test framing), not a real end-to-end caller; do not mistake "no live caller
   reaches this today" for "untested" — FR-011 requires the seam-injected test
