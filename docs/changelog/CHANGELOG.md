@@ -19,6 +19,26 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### ✨ Added
 
+- **An org- or project-tier doctrine pack can now contribute a mission type
+  that works end to end (mission `up-mission-type-seam-01KZY1JB`; `#3424`,
+  closes `#3397`).** Before, a mission type shipped by an org or project pack
+  could be declared and activated but not used: `mission create`, charter
+  activation, and action-sequence projection all resolved against a
+  built-in-only roster, so a custom type either hard-failed or — worse —
+  silently resolved to an empty action sequence that planned nothing yet
+  reported success. Now a layered, pack-aware lookup resolves built-in, org,
+  and project mission types in that precedence order with a genuine action
+  sequence and template set, and four operator-facing surfaces stop reporting
+  falsehoods: `charter mission-type list` shows the real source layer,
+  `mission-type show` succeeds for an activated non-built-in type, `doctrine
+  mission-type list` actually layers, and `charter activate`'s step-removal
+  warnings compare real sequences. Three previously silent degradations —
+  malformed mission-type YAML, an unreadable roster directory, and an empty
+  action sequence from a non-built-in layer — now fail loud, naming the
+  offending file and layer. This is the availability slice only; mission-type
+  is deliberately not promoted to a first-class doctrine artifact kind (ADR
+  `2026-08-13-1`).
+
 - **Hosted-sync consent is now per-project: one immutable `project_uuid` owns
   one physically separate sync store and one explicit consent decision
   (mission `per-project-sync-consent-ledgers-01KZKMQZ`; `#3262`, pairs with
