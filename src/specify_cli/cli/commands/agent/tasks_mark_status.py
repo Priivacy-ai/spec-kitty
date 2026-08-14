@@ -71,6 +71,7 @@ from specify_cli.cli.commands.agent.tasks_outline import (
     _resolve_history_wp_id,
     _resolve_wp_id,
 )
+from specify_cli.cli.commands.agent.tasks_shared import _resolve_tasks_operation
 from specify_cli.core.subtask_rows import (
     SubtaskRosterResolutionError,
     authored_subtask_roster,
@@ -100,6 +101,7 @@ class _MarkStatusState:
     # --- phase A/B: resolved context ---
     repo_root: Path = field(default_factory=Path)
     main_repo_root: Path = field(default_factory=Path)
+    mission_anchor_root: Path | None = None
     target_branch: str = ""
     mission_slug: str = ""
     resolved_auto_commit: bool = False
@@ -153,22 +155,24 @@ def _ms_resolve_context(st: _MarkStatusState) -> None:
     commit refusal does not apply.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
-    repo_root = _tasks.locate_project_root()
-    if repo_root is None:
-        _tasks._output_error(st.json_output, "Could not locate project root")
-        raise typer.Exit(1)
+    repo_root, mission_slug, operation = _resolve_tasks_operation(
+        explicit_mission=st.mission,
+        json_output=st.json_output,
+    )
     st.repo_root = repo_root
     # FR-010 / FR-019: one-shot sparse-checkout session warning.
     _tasks._emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks mark-status")
     st.resolved_auto_commit = (
         _tasks.get_auto_commit_default(repo_root) if st.auto_commit is None else st.auto_commit
     )
-    st.mission_slug = _tasks._find_mission_slug(
-        explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root
-    )
+    st.mission_slug = mission_slug
     st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(
         repo_root, st.mission_slug, st.json_output
     )
+    operation_anchor = getattr(operation, "mission_anchor_root", None)
+    operation_slug = getattr(operation, "mission_slug", None)
+    if operation_slug == st.mission_slug and isinstance(operation_anchor, Path):
+        st.mission_anchor_root = operation_anchor
 
 
 def _ms_resolve_read_dir(st: _MarkStatusState, ports: TasksPorts) -> None:
@@ -182,14 +186,16 @@ def _ms_resolve_read_dir(st: _MarkStatusState, ports: TasksPorts) -> None:
     husk under coord topology, so the write and the validation read would diverge.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
-    handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
+    handle = MissionHandle(
+        repo_root=st.main_repo_root,
+        mission_slug=st.mission_slug,
+        mission_anchor_root=st.mission_anchor_root,
+    )
     st.feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)
     # #3027: this TASKS_INDEX-resolved dir is also handed to
     # owning_wp_from_authored_roster, which reads WORK_PACKAGE_TASK-kinded
     # ``tasks/*.md`` files — see the pinning comment on that function.
-    from specify_cli.coordination import resolve_status_surface
-
-    st.status_dir = resolve_status_surface(st.main_repo_root, st.mission_slug).parent
+    st.status_dir = ports.coord.feature_write_dir(handle)
     # Boundary guard — hard-reject pre-3.0 layout before any WP mutation
     try:
         check_pre30_layout(st.feature_dir)
@@ -230,7 +236,11 @@ def _ms_commit(st: _MarkStatusState, ports: TasksPorts) -> None:
     try:
         actual_tasks_path = st.tasks_md.resolve()
         router_result = ports.coord.commit_artifact(
-            MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug),
+            MissionHandle(
+                repo_root=st.main_repo_root,
+                mission_slug=st.mission_slug,
+                mission_anchor_root=st.mission_anchor_root,
+            ),
             (actual_tasks_path,),
             commit_msg,
             kind=MissionArtifactKind.TASKS_INDEX,

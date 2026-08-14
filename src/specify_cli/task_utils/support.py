@@ -62,19 +62,22 @@ def find_repo_root(start: Path | None = None) -> Path:
 
     detected_root = locate_project_root(current)
     if detected_root is not None:
-        return get_main_repo_root(detected_root)
+        main_root: Path = get_main_repo_root(detected_root)
+        return main_root
 
     # Fallback: support plain git repositories that do not contain .kittify yet.
     for candidate in [current, *current.parents]:
         git_path = candidate / ".git"
 
         if git_path.is_dir():
-            return get_main_repo_root(candidate)
+            main_root = get_main_repo_root(candidate)
+            return main_root
 
         if git_path.is_file():
             resolved = get_main_repo_root(candidate)
             if resolved != candidate:
-                return resolved
+                resolved_root: Path = resolved
+                return resolved_root
 
     raise TaskCliError("Unable to locate repository root (missing .git or .kittify).")
 
@@ -547,7 +550,13 @@ class WorkPackage:
         return str(view.resolved.lane)
 
 
-def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackage:
+def locate_work_package(
+    repo_root: Path,
+    feature: str,
+    wp_id: str,
+    *,
+    mission_anchor_root: Path | None = None,
+) -> WorkPackage:
     """Locate a work package by ID, supporting both legacy and new formats.
 
     Always uses main repo's kitty-specs/ regardless of current directory.
@@ -557,7 +566,6 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     New format: WP files in flat tasks/ directory with lane in frontmatter
     """
     from mission_runtime import MissionArtifactKind, placement_seam
-    from specify_cli.coordination import resolve_status_surface
     from specify_cli.core.paths import get_main_repo_root
     from specify_cli.status import reconstruct_wp_view
 
@@ -568,10 +576,15 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
     # instead of the kind-blind ``resolve_planning_read_dir``.
     main_root = get_main_repo_root(repo_root)
-    feature_path = placement_seam(main_root, feature).read_dir(
+    seam = placement_seam(
+        main_root,
+        feature,
+        mission_anchor_root=mission_anchor_root,
+    )
+    feature_path = seam.read_dir(
         MissionArtifactKind.WORK_PACKAGE_TASK
     )
-    status_dir = resolve_status_surface(main_root, feature).parent
+    status_dir = seam.read_dir(MissionArtifactKind.STATUS_STATE)
 
     tasks_root = feature_path / "tasks"
     if not tasks_root.exists():

@@ -21,9 +21,10 @@ from __future__ import annotations
 import json as _json
 import os
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import click
 import typer
@@ -37,6 +38,11 @@ from specify_cli.context.mission_resolver import (
     resolve_mission,
 )
 from specify_cli.core.paths import require_explicit_feature
+from specify_cli.missions.operation_context import (
+    MissionOperationContext,
+    MissionSurfaceConflictError,
+    resolve_mission_operation_context,
+)
 
 _warned: set[tuple[int, str, str]] = set()
 _direct_invocation_counter: int = 0
@@ -228,7 +234,7 @@ def resolve_mission_handle(
         else:
             _err_console.print(
                 f'[red]Error:[/red] No mission found for handle "{exc.handle}". '
-                f"Check that the handle is correct and that the mission exists in kitty-specs/."
+                "Check that the handle is correct and that the mission exists in kitty-specs/."
             )
         sys.exit(2)
     except MissingIdentityError as exc:
@@ -242,6 +248,103 @@ def resolve_mission_handle(
         else:
             _err_console.print(
                 f"[red]Error:[/red] {exc}\n"
-                f"[yellow]Remediation:[/yellow] Run `spec-kitty migrate backfill-identity` to fix."
+                "[yellow]Remediation:[/yellow] Run `spec-kitty migrate backfill-identity` to fix."
             )
         sys.exit(2)
+
+
+def resolve_mission_operation_context_cli(
+    project_root: Path,
+    handle: str,
+    *,
+    cwd: Path | None = None,
+    explicit_root: bool = False,
+    json_mode: bool = False,
+    mission_not_found_handler: Callable[[MissionNotFoundError], NoReturn] | None = None,
+) -> MissionOperationContext:
+    """Resolve one Mission operation context and render stable CLI failures.
+
+    Lifecycle commands use this boundary once, then carry both roots instead
+    of independently repeating repository or Mission discovery.
+    """
+    try:
+        return resolve_mission_operation_context(
+            project_root,
+            handle,
+            cwd=cwd,
+            explicit_root=explicit_root,
+        )
+    except MissionSurfaceConflictError as exc:
+        if json_mode:
+            _err_console.print_json(_json.dumps(exc.to_dict()))
+        else:
+            _err_console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(2) from exc
+    except AmbiguousHandleError as exc:
+        if json_mode:
+            _err_console.print_json(_json.dumps(exc.to_dict()))
+        else:
+            _err_console.print(str(exc))
+        raise typer.Exit(2) from exc
+    except MissionNotFoundError as exc:
+        if mission_not_found_handler is not None:
+            mission_not_found_handler(exc)
+        if json_mode:
+            _err_console.print_json(
+                _json.dumps({"error": "mission_not_found", "handle": exc.handle})
+            )
+        else:
+            _err_console.print(
+                f'[red]Error:[/red] No mission found for handle "{exc.handle}". '
+                "Check that the handle is correct and that the mission exists in kitty-specs/."
+            )
+        raise typer.Exit(2) from exc
+    except MissingIdentityError as exc:
+        if json_mode:
+            _err_console.print_json(
+                _json.dumps(
+                    {
+                        "error": "missing_mission_id",
+                        "detail": str(exc),
+                        "remediation": "spec-kitty migrate backfill-identity",
+                    }
+                )
+            )
+        else:
+            _err_console.print(
+                f"[red]Error:[/red] {exc}\n"
+                "[yellow]Remediation:[/yellow] Run `spec-kitty migrate backfill-identity` to fix."
+            )
+        raise typer.Exit(2) from exc
+
+
+def is_same_repository_worktree_context(
+    project_root: Path,
+    *,
+    cwd: Path | None = None,
+) -> bool:
+    """Return whether ``cwd`` is a linked worktree of ``project_root``.
+
+    Test harnesses and embedding callers may override project discovery while
+    executing from an unrelated Spec Kitty checkout. A worktree-shaped cwd is
+    therefore insufficient: both checkouts must share the same Git common dir.
+    """
+    from specify_cli.core.paths import (
+        _nearest_checkout_root,
+        git_common_dir_for_checkout,
+        is_worktree_context,
+    )
+
+    current_checkout = _nearest_checkout_root((cwd or Path.cwd()).resolve())
+    project_checkout = _nearest_checkout_root(project_root.resolve())
+    if current_checkout is None or project_checkout is None:
+        return False
+    if not is_worktree_context(current_checkout):
+        return False
+    current_common = git_common_dir_for_checkout(current_checkout)
+    project_common = git_common_dir_for_checkout(project_checkout)
+    if current_common is None or project_common is None:
+        return False
+    return os.path.normcase(str(current_common.resolve())) == os.path.normcase(
+        str(project_common.resolve())
+    )

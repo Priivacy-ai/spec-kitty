@@ -182,7 +182,13 @@ def test_patched_bootstrap_seams_intercept_apply_writes(tmp_path: Path) -> None:
         tasks_finalize._ft_apply_writes(st)
     seam_mock.assert_called_once_with(tmp_path, "034-feature")
     mock_seam.read_dir.assert_called_once_with(MissionArtifactKind.STATUS_STATE)
-    bootstrap_mock.assert_called_once_with(feature_dir, "034-feature", dry_run=True)
+    bootstrap_mock.assert_called_once_with(
+        feature_dir,
+        "034-feature",
+        dry_run=True,
+        repo_root=tmp_path,
+        mission_anchor_root=None,
+    )
     assert st.feature_dir == feature_dir
     assert st.bootstrap_result is bootstrap_result
     console_mock.print.assert_not_called()

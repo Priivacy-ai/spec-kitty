@@ -338,6 +338,33 @@ def _nearest_checkout_root(path: Path) -> Path | None:
     return None
 
 
+def git_common_dir_for_checkout(path: Path) -> Path | None:
+    """Return the Git common directory for the checkout enclosing ``path``.
+
+    A regular checkout owns a ``.git`` directory. A linked worktree owns a
+    ``.git`` pointer into ``<common-dir>/worktrees/<name>``. Other ``.git``
+    file shapes (submodules and separate-git-dir clones) are deliberately not
+    classified as linked worktrees and return ``None``.
+
+    This is a read-only identity primitive: callers compare normalized common
+    directories instead of inferring repository membership from path prefixes.
+    """
+    checkout_root = _nearest_checkout_root(path)
+    if checkout_root is None:
+        return None
+
+    git_marker = checkout_root / ".git"
+    if git_marker.is_dir():
+        return git_marker.resolve()
+
+    worktree_gitdir = _read_worktree_gitdir(git_marker)
+    if worktree_gitdir is None:
+        return None
+    if not worktree_gitdir.is_absolute():
+        worktree_gitdir = (git_marker.parent / worktree_gitdir).resolve()
+    return worktree_gitdir.parent.parent.resolve()
+
+
 def resolve_mission_creation_root(
     project_root: Path | None,
     start: Path | None = None,

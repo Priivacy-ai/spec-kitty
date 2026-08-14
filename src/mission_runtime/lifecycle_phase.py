@@ -220,6 +220,7 @@ def resolve_lifecycle_phase(
     repo_root: Path,
     *,
     resolver: MissionResolver | None = None,
+    feature_dir: Path | None = None,
 ) -> LifecyclePhase:
     """Derive a mission's :class:`LifecyclePhase` from durable signals (D2).
 
@@ -253,20 +254,40 @@ def resolve_lifecycle_phase(
             canonical primary root internally).
         resolver: Optional :class:`MissionResolver` threaded through handle
             canonicalization. ``None`` preserves historical behaviour.
+        feature_dir: Already-resolved PRIMARY Mission directory. When supplied,
+            metadata reads use this anchor while Git probes remain rooted at
+            ``repo_root``. ``None`` preserves historical canonicalization.
     """
-    feature_dir = _primary_feature_dir(mission_slug, repo_root, resolver=resolver)
-    baseline = _read_baseline_merge_commit(feature_dir)
+    resolved_feature_dir = feature_dir or _primary_feature_dir(
+        mission_slug,
+        repo_root,
+        resolver=resolver,
+    )
+    baseline = _read_baseline_merge_commit(resolved_feature_dir)
     if not baseline:
         return LifecyclePhase.PRE_CONSOLIDATION
 
-    from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root
+    from specify_cli.core.git_ops import resolve_primary_branch
+    from specify_cli.core.paths import (
+        get_feature_target_branch,
+        get_main_repo_root,
+        read_target_branch_from_meta,
+    )
 
     main_root = get_main_repo_root(repo_root)
-    target_branch = get_feature_target_branch(repo_root, mission_slug)
+    if feature_dir is None:
+        target_branch = get_feature_target_branch(repo_root, mission_slug)
+    else:
+        anchored_target = read_target_branch_from_meta(resolved_feature_dir)
+        target_branch = (
+            anchored_target
+            if anchored_target is not None
+            else str(resolve_primary_branch(main_root))
+        )
     if _target_ref_exists(main_root, target_branch):
         return LifecyclePhase.CONSOLIDATED
 
-    if _terminal_completion_evidence(feature_dir):
+    if _terminal_completion_evidence(resolved_feature_dir):
         return LifecyclePhase.PUBLISHED
     return LifecyclePhase.PRE_CONSOLIDATION
 

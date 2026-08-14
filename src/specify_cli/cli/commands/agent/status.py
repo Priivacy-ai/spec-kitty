@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Annotated, Any
 
 import typer
@@ -17,7 +18,10 @@ from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.cli.console import console
 from rich.table import Table
 
-from specify_cli.cli.selector_resolution import resolve_mission_handle
+from specify_cli.cli.selector_resolution import (
+    resolve_mission_handle,
+    resolve_mission_operation_context_cli,
+)
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
 from specify_cli.missions._read_path_resolver import (
     resolve_bare_modern_mission_dir_name,
@@ -34,6 +38,45 @@ app = typer.Typer(
 )
 
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
+
+
+def _resolve_status_operation(
+    explicit_mission: str | None,
+    *,
+    json_output: bool,
+):
+    """Resolve the shared dual-root context once for a status command."""
+    cwd = Path.cwd().resolve()
+    checkout_root = locate_project_root(cwd)
+    if checkout_root is None:
+        _output_error(json_output, PROJECT_ROOT_NOT_FOUND)
+        raise typer.Exit(1)
+    raw_handle = explicit_mission.strip() if explicit_mission else None
+    if not raw_handle:
+        _output_error(json_output, "--mission <slug> is required")
+        raise typer.Exit(1)
+    from specify_cli.cli.selector_resolution import (
+        is_same_repository_worktree_context,
+    )
+
+    if is_same_repository_worktree_context(checkout_root, cwd=cwd):
+        return resolve_mission_operation_context_cli(
+            checkout_root,
+            raw_handle,
+            cwd=cwd,
+            json_mode=json_output,
+        )
+    main_repo_root = get_main_repo_root(checkout_root)
+    mission_slug = _find_mission_slug(
+        raw_handle,
+        json_output=json_output,
+        repo_root=main_repo_root,
+    )
+    return SimpleNamespace(
+        repository_root=main_repo_root,
+        mission_anchor_root=None,
+        mission_slug=mission_slug,
+    )
 
 
 def _find_mission_slug(
@@ -132,24 +175,22 @@ def _resolve_status_surface(
         typer.Exit: If resolution fails
     """
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
-    from specify_cli.status import CoordAuthorityUnavailable, MissionMetadataUnavailable, MissionStatus
+    from specify_cli.status import CoordAuthorityUnavailable, MissionMetadataUnavailable
 
-    cwd = Path.cwd().resolve()
-    repo_root = locate_project_root(cwd)
-
-    if repo_root is None:
-        console.print(f"[red]Error:[/red] {PROJECT_ROOT_NOT_FOUND}")
-        raise typer.Exit(1)
-
-    mission_slug = _find_mission_slug(
-        explicit_mission=explicit_mission,
+    operation = _resolve_status_operation(
+        explicit_mission,
         json_output=json_output,
-        repo_root=repo_root,
     )
-    main_repo_root = get_main_repo_root(repo_root)
+    mission_slug = operation.mission_slug
+    main_repo_root = operation.repository_root
 
     try:
-        ms = MissionStatus.load(repo_root=main_repo_root, mission_slug=mission_slug)
+        ms = _resolve_mission_status_for_repo(
+            main_repo_root,
+            mission_slug,
+            json_output,
+            mission_anchor_root=operation.mission_anchor_root,
+        )
         feature_dir = ms.read_dir
     # ``CoordinationBranchDeleted`` (WP05 / T025) surfaces the converged coord-
     # deleted hard-fail (#1848 data-loss) identically to the other fail-closed
@@ -166,6 +207,8 @@ def _resolve_mission_status_for_repo(
     main_repo_root: Path,
     mission_slug: str,
     json_output: bool = False,
+    *,
+    mission_anchor_root: Path | None = None,
 ) -> Any:
     """Resolve the coord-aware ``MissionStatus`` aggregate for a mission.
 
@@ -190,7 +233,16 @@ def _resolve_mission_status_for_repo(
     )
 
     try:
-        return MissionStatus.load(repo_root=main_repo_root, mission_slug=mission_slug)
+        if mission_anchor_root is None:
+            return MissionStatus.load(
+                repo_root=main_repo_root,
+                mission_slug=mission_slug,
+            )
+        return MissionStatus.load(
+            repo_root=main_repo_root,
+            mission_slug=mission_slug,
+            mission_anchor_root=mission_anchor_root,
+        )
     # ``CoordinationBranchDeleted`` (WP05 / T025): the aggregate now propagates the
     # converged coord-deleted hard-fail VERBATIM, so the CLI surfaces it as a clean
     # fail-closed error (#1848) rather than letting it escape uncaught.
@@ -203,6 +255,8 @@ def _resolve_status_surface_for_repo(
     main_repo_root: Path,
     mission_slug: str,
     json_output: bool = False,
+    *,
+    mission_anchor_root: Path | None = None,
 ) -> tuple[Path, str, Path]:
     """Resolve coord-aware status read_dir given an already-resolved main_repo_root.
 
@@ -215,7 +269,12 @@ def _resolve_status_surface_for_repo(
     Raises:
         typer.Exit: If CoordAuthorityUnavailable is raised.
     """
-    ms = _resolve_mission_status_for_repo(main_repo_root, mission_slug, json_output)
+    ms = _resolve_mission_status_for_repo(
+        main_repo_root,
+        mission_slug,
+        json_output,
+        mission_anchor_root=mission_anchor_root,
+    )
     return ms.read_dir, mission_slug, main_repo_root
 
 
@@ -275,22 +334,19 @@ def emit(
         spec-kitty agent status emit WP01 --to in_progress --actor claude --force --reason "resuming after crash"
     """
     try:
-        # Resolve repo root
-        cwd = Path.cwd().resolve()
-        repo_root = locate_project_root(cwd)
-        if repo_root is None:
-            _output_error(json_output, PROJECT_ROOT_NOT_FOUND)
-            raise typer.Exit(1)
-
-        main_repo_root = get_main_repo_root(repo_root)
-
-        # Resolve feature slug
-        mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
+        operation = _resolve_status_operation(mission, json_output=json_output)
+        main_repo_root = operation.repository_root
+        mission_slug = operation.mission_slug
 
         # Resolve coord-aware mission aggregate via MissionStatus.load(). The
         # aggregate is retained (not just its read_dir) so the write below can
         # route through it without loading twice (FR-004).
-        ms = _resolve_mission_status_for_repo(main_repo_root, mission_slug, json_output)
+        ms = _resolve_mission_status_for_repo(
+            main_repo_root,
+            mission_slug,
+            json_output,
+            mission_anchor_root=operation.mission_anchor_root,
+        )
         feature_dir = ms.read_dir
 
         # Parse evidence JSON if provided
@@ -329,6 +385,7 @@ def emit(
             implementation_evidence_present=implementation_evidence_present,
             execution_mode=execution_mode,
             repo_root=main_repo_root,
+            mission_anchor_root=operation.mission_anchor_root,
         ))
 
         # ``transition()`` can materialize the coordination worktree and write
@@ -337,10 +394,17 @@ def emit(
         # event log affected by this command.
         output_feature_dir = feature_dir
         try:
-            output_feature_dir = type(ms).load(
-                repo_root=main_repo_root,
-                mission_slug=mission_slug,
-            ).read_dir
+            if operation.mission_anchor_root is None:
+                output_feature_dir = type(ms).load(
+                    repo_root=main_repo_root,
+                    mission_slug=mission_slug,
+                ).read_dir
+            else:
+                output_feature_dir = type(ms).load(
+                    repo_root=main_repo_root,
+                    mission_slug=mission_slug,
+                    mission_anchor_root=operation.mission_anchor_root,
+                ).read_dir
         except Exception as reload_exc:  # noqa: BLE001
             logger.debug(
                 "Could not reload mission status after transition for %s: %s",
@@ -401,20 +465,10 @@ def materialize(
         spec-kitty agent status materialize --json
     """
     try:
-        # Resolve repo root
-        cwd = Path.cwd().resolve()
-        repo_root = locate_project_root(cwd)
-        if repo_root is None:
-            _output_error(json_output, PROJECT_ROOT_NOT_FOUND)
-            raise typer.Exit(1)
-
-        main_repo_root = get_main_repo_root(repo_root)
-
-        # Resolve feature slug
-        mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
-
-        # Resolve coord-aware mission directory via MissionStatus aggregate
-        feature_dir, _, _ = _resolve_status_surface_for_repo(main_repo_root, mission_slug, json_output)
+        feature_dir, mission_slug, main_repo_root = _resolve_status_surface(
+            mission,
+            json_output=json_output,
+        )
 
         # Lazy import to avoid circular imports
         from specify_cli.status import materialize as do_materialize
@@ -859,19 +913,10 @@ def validate(
     """
     from specify_cli.status import ValidationResult
 
-    cwd = Path.cwd().resolve()
-    repo_root = locate_project_root(cwd)
-    if repo_root is None:
-        if json_output:
-            print(json.dumps({"error": PROJECT_ROOT_NOT_FOUND}))
-        else:
-            console.print(f"[red]Error:[/red] {PROJECT_ROOT_NOT_FOUND}")
-        raise typer.Exit(1)
-
-    mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
-
-    main_repo_root = get_main_repo_root(repo_root)
-    feature_dir, _, _ = _resolve_status_surface_for_repo(main_repo_root, mission_slug, json_output)
+    feature_dir, mission_slug, main_repo_root = _resolve_status_surface(
+        mission,
+        json_output=json_output,
+    )
 
     if not feature_dir.exists():
         msg = f"Mission directory not found: {feature_dir}"

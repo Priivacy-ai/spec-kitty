@@ -122,9 +122,17 @@ def _locate_wp(repo_root: Path, mission_slug: str, normalized_wp_id: str) -> Wor
     this module -- every ``locate_work_package`` call site (erroring or not)
     routes through here instead of scattering casts at each read site.
     """
+    w = _wf()
+    operation = w._MISSION_OPERATION_CONTEXT.get()
+    mission_anchor_root = getattr(operation, "mission_anchor_root", None)
     return cast(
         "WorkPackage",
-        _wf().locate_work_package(repo_root, mission_slug, normalized_wp_id),
+        w.locate_work_package(
+            repo_root,
+            mission_slug,
+            normalized_wp_id,
+            mission_anchor_root=mission_anchor_root,
+        ),
     )
 
 
@@ -368,6 +376,12 @@ def commit_workflow_change(
     # ``repo_root``; ``_commit_via_legacy_safe_commit`` resolves the porcelain
     # pre-check root from (mission_slug, mid8) for FR-002(b) robustness.
     try:
+        operation_context = w._MISSION_OPERATION_CONTEXT.get()
+        mission_anchor_root = getattr(
+            operation_context,
+            "mission_anchor_root",
+            None,
+        )
         w._commit_via_legacy_safe_commit(
             repo_root=repo_root,
             target_branch=placement.ref,
@@ -376,6 +390,11 @@ def commit_workflow_change(
             wp_id=wp_id,
             mission_slug=mission_slug,
             mid8=mid8,
+            worktree_root=(
+                mission_anchor_root
+                if isinstance(mission_anchor_root, Path)
+                else None
+            ),
         )
     except Exception as exc:  # noqa: BLE001 — surface + truncate + exit
         _handle_commit_failure(
@@ -712,6 +731,7 @@ class ImplementClaimResult:
 def _implement_start_claim(
     *,
     main_repo_root: Path,
+    mission_anchor_root: Path | None,
     feature_dir: Path,
     mission_slug: str,
     normalized_wp_id: str,
@@ -781,6 +801,7 @@ def _implement_start_claim(
             workspace_context=f"{status_execution_mode}:{workspace_path}",
             execution_mode=status_execution_mode,
             repo_root=main_repo_root,
+            mission_anchor_root=mission_anchor_root,
             allow_rework=current_lane in {Lane.FOR_REVIEW, Lane.APPROVED, Lane.IN_REVIEW},
             # WP07/T026 (FR-004/FR-014): the claim triple rides the
             # planned -> claimed transition's policy_metadata sidecar
@@ -1006,6 +1027,9 @@ def implement_claim_transition(
 
         shell_pid = _implement_start_claim(
             main_repo_root=main_repo_root,
+            mission_anchor_root=(
+                repo_root if repo_root != main_repo_root else None
+            ),
             feature_dir=wf_feature_dir,
             mission_slug=mission_slug,
             normalized_wp_id=normalized_wp_id,
@@ -1114,8 +1138,8 @@ def implement_try_render_fix_mode_prompt(
 
         # WP05 (verdict-seam-write-unification-01KZ9Q35, T024): routed through
         # the T058 owner function instead of a raw ``feature_dir / "tasks" /
-        # wp_slug`` join -- one of the three sites WP04's review flagged as
-        # unrouted (alongside
+        # wp_slug`` join -- one of the three sites WP04's own
+        # ``verdict_seam_IC04.yaml`` fragment flagged as unrouted (alongside
         # ``workflow_cores.py::has_prior_rejection`` and ``workflow.py::
         # review``). This function's own ``.from_file``/``.latest`` calls
         # below remain content/cycle-number loaders (squad #1 — KEPT, not
@@ -1244,11 +1268,18 @@ def implement_capture_baseline(
         # (The ``failed == -1`` sentinel is never persisted, so it never
         # reaches this commit.)
         baseline_artifact = feature_dir / "tasks" / wp_slug / "baseline-tests.json"
+        operation = w._MISSION_OPERATION_CONTEXT.get()
+        mission_anchor_root = getattr(operation, "mission_anchor_root", None)
+        baseline_worktree = (
+            mission_anchor_root
+            if isinstance(mission_anchor_root, Path)
+            else main_repo_root
+        )
         if (
             baseline is not None
             and baseline.failed != -1
             and baseline_artifact.exists()
-            and _baseline_artifact_needs_commit(main_repo_root, baseline_artifact)
+            and _baseline_artifact_needs_commit(baseline_worktree, baseline_artifact)
         ):
             # Mechanical WP06 pre-step migration.
             try:
@@ -1267,7 +1298,7 @@ def implement_capture_baseline(
                 )
                 w.safe_commit(
                     repo_root=main_repo_root,
-                    worktree_root=main_repo_root,
+                    worktree_root=baseline_worktree,
                     target=baseline_placement,
                     message=f"chore: Capture baseline tests for {normalized_wp_id}",
                     paths=(baseline_artifact,),
@@ -1534,13 +1565,15 @@ def review_resolve_wp_and_lane_gate(
     if not rv_has_canonical:
         raise RuntimeError(missing_canonical_status_message(normalized_wp_id, mission_slug, feature_dir))
     current_lane = rv_get_wp_lane(feature_dir, normalized_wp_id)
-    # Seam-B (WP03, #3128 / FR-005): the review WP-execution write chokepoint,
-    # reached before the review-claim transition. Refuse a review invoked from a
-    # checkout the mission does not own (canonically another mission's lane
-    # worktree). write_intent gates the checkout-identity refusal; the pure read
-    # vehicles leave it False so reads are never falsely refused.
-    review_workspace = _wf().resolve_workspace_for_wp(
-        main_repo_root, mission_slug, normalized_wp_id, write_intent=True
+    operation = w._MISSION_OPERATION_CONTEXT.get()
+    mission_anchor_root = getattr(operation, "mission_anchor_root", None)
+    review_workspace = w.resolve_workspace_for_wp(
+        main_repo_root,
+        mission_slug,
+        normalized_wp_id,
+        mission_anchor_root=(
+            mission_anchor_root if isinstance(mission_anchor_root, Path) else None
+        ),
     )
     status_execution_mode = "direct_repo" if review_workspace.resolution_kind == "repo_root" else "worktree"
     latest_event = None
@@ -1571,12 +1604,7 @@ def review_resolve_wp_and_lane_gate(
 
 
 def review_enforce_bulk_edit_gate(
-    *,
-    feature_dir: Path,
-    main_repo_root: Path,
-    mission_slug: str,
-    target_branch: str,
-    review_workspace: ResolvedWorkspace,
+    *, feature_dir: Path, main_repo_root: Path, target_branch: str, review_workspace: ResolvedWorkspace
 ) -> None:
     """Bulk edit occurrence classification + per-file diff compliance gate (FR-006/7/8)."""
     from specify_cli.bulk_edit.gate import (
@@ -1596,7 +1624,6 @@ def review_enforce_bulk_edit_gate(
         _wf()._enforce_bulk_edit_diff_compliance(
             feature_dir=feature_dir,
             main_repo_root=main_repo_root,
-            mission_slug=mission_slug,
             target_branch=target_branch,
             review_workspace=review_workspace,
             check_review_diff_compliance=check_review_diff_compliance,
@@ -1683,6 +1710,9 @@ def review_claim_transition(
                 workspace_context=f"action-review:{main_repo_root}",
                 execution_mode=status_execution_mode,
                 repo_root=main_repo_root,
+                mission_anchor_root=(
+                    repo_root if repo_root != main_repo_root else None
+                ),
                 # WP07/T027 (FR-004/FR-014): mirror T026 -- carry the claim
                 # triple on the for_review -> in_review transition's
                 # policy_metadata sidecar too (provenance on the event even

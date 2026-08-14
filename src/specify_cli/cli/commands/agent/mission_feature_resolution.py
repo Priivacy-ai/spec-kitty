@@ -66,7 +66,13 @@ def _kind_for_artifact(artifact_type: str) -> MissionArtifactKind:
         ) from exc
 
 
-def _planning_read_dir(repo_root: Path, mission_slug: str, *, artifact_type: str) -> Path:
+def _planning_read_dir(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    artifact_type: str,
+    mission_anchor_root: Path | None = None,
+) -> Path:
     """Resolve the read dir for a planning artifact via the single kind-aware seam.
 
     The canonical chokepoint (gate-read-surface-completion WP01 / FR-004 / FR-009):
@@ -102,7 +108,11 @@ def _planning_read_dir(repo_root: Path, mission_slug: str, *, artifact_type: str
     # ``Any``; the annotation re-narrows it (the method IS typed ``-> Path``) so the
     # chokepoint return is not an ``Any`` leak — matching the sibling ``tasks.py``
     # pattern rather than suppressing the check.
-    read_dir: Path = placement_seam(repo_root, mission_slug).read_dir(kind)
+    read_dir: Path = placement_seam(
+        repo_root,
+        mission_slug,
+        mission_anchor_root=mission_anchor_root,
+    ).read_dir(kind)
     return read_dir
 
 
@@ -116,7 +126,8 @@ def _read_feature_meta(feature_dir: Path) -> dict[str, Any]:
     """
     from specify_cli.mission_metadata import load_meta_or_empty
 
-    return load_meta_or_empty(feature_dir)
+    metadata: dict[str, Any] = load_meta_or_empty(feature_dir)
+    return metadata
 
 
 def _safe_load_meta(repo_root: Path, mission_slug: str) -> dict[str, object] | None:

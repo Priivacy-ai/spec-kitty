@@ -236,6 +236,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         cls,
         *,
         repo_root: Path,
+        mission_anchor_root: Path | None = None,
         mission_id: str,
         mission_slug: str,
         mid8: str,
@@ -243,7 +244,6 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         operation: str,
         timeout: float = 30.0,
         capability: GuardCapability = GuardCapability.STANDARD,
-        commit_to_primary_target: bool = False,
     ) -> BookkeepingTransaction:
         """Construct, lock, and run the pre-flight policy gate.
 
@@ -252,23 +252,9 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         concurrent emitters. Policy refusal still happens before any
         bookkeeping write.
 
-        ``commit_to_primary_target`` (write-path-integrity WP02 / FR-001):
-        an OPT-IN routing signal for the partition-aware planning-artifact
-        commit. By default (``False``) a coordination-topology mission
-        redirects every write to the coordination branch + coord worktree
-        (the historical behaviour every status caller relies on -- status
-        events already resolve their ``destination_ref`` to the coord ref,
-        so the redirect is a no-op for them). When ``True`` the caller is
-        committing a PRIMARY-partition artifact (e.g. ``lanes.json`` /
-        ``spec.md``) that MUST land on the mission's own ``destination_ref``
-        (the primary target branch) from the primary checkout -- so the
-        coord redirect is skipped and ``worktree_root`` is ``repo_root``.
-        This is the fix for the #3371 P0 where a PRIMARY ``lanes.json`` was
-        silently redirected onto the coordination branch and add/add-
-        conflicted at lane allocation. Only the planning PRIMARY-partition
-        caller (``implement.py::_run_planning_artifact_commit``) sets it;
-        every other caller keeps the default, so no status/coord write path
-        changes behaviour.
+        ``repo_root`` remains the Git-policy authority. An explicit
+        ``mission_anchor_root`` selects the caller-owned Mission artifact
+        surface without changing repository topology decisions.
 
         On a lock-acquire timeout, raises :class:`BookkeepingLockTimeout`.
 
@@ -296,6 +282,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         try:
             return cls._acquire_locked(
                 repo_root=repo_root,
+                mission_anchor_root=mission_anchor_root,
                 mission_id=mission_id,
                 mission_slug=mission_slug,
                 mid8=mid8,
@@ -304,7 +291,6 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 operation=operation,
                 lock_cm=lock_cm,
                 capability=capability,
-                commit_to_primary_target=commit_to_primary_target,
             )
         except Exception:
             lock_cm.__exit__(None, None, None)
@@ -315,6 +301,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         cls,
         *,
         repo_root: Path,
+        mission_anchor_root: Path | None,
         mission_id: str,
         mission_slug: str,
         mid8: str,
@@ -323,7 +310,6 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         operation: str,
         lock_cm: AbstractContextManager[Path],
         capability: GuardCapability = GuardCapability.STANDARD,
-        commit_to_primary_target: bool = False,
     ) -> BookkeepingTransaction:
         safe_mission_slug = _validate_safe_segment("mission_slug", mission_slug)
         safe_mid8 = _validate_safe_segment("mid8", mid8)
@@ -354,7 +340,12 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # truncate rollback, and the outbound deferral — applies
         # uniformly to both paths.**  Only ``worktree_root`` and (in
         # legacy mode) ``destination_ref`` differ.
-        legacy_mode = _is_legacy_mission(repo_root, safe_mission_slug, safe_mid8)
+        metadata_root = mission_anchor_root or repo_root
+        legacy_mode = _is_legacy_mission(
+            metadata_root,
+            safe_mission_slug,
+            safe_mid8,
+        )
         if legacy_mode:
             # #2453: ``_is_legacy_mission`` alone conflates two shapes that
             # both merely lack ``coordination_branch`` — a genuinely-legacy
@@ -365,7 +356,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             # introduced (C-005) — reuse it here as the routing split too,
             # rather than inventing a second classifier.
             genuinely_legacy = _warrants_legacy_warning(
-                repo_root, safe_mission_slug, safe_mid8,
+                metadata_root, safe_mission_slug, safe_mid8,
             )
             if genuinely_legacy:
                 # Genuinely-legacy: unchanged pre-#2453 behaviour — resolve
@@ -406,7 +397,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 # (``test_transaction_legacy_topology_routing`` asserts this arm
                 # lands on ``repo_root`` from a stale lane cwd), NOT a runtime
                 # provenance check here.
-                worktree_root = repo_root
+                worktree_root = mission_anchor_root or repo_root
         else:
             coord_branch = CoordinationWorkspace.branch_name(safe_mission_slug, safe_mid8)
             caller_change_set = GitChangeSet(
@@ -421,7 +412,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             caller_verdict = WorkflowMutationPolicy.assert_allowed(caller_change_set)
             if isinstance(caller_verdict, Refused):
                 explicit_coord_branch = _coordination_branch_from_meta(
-                    repo_root, safe_mission_slug, safe_mid8,
+                    metadata_root, safe_mission_slug, safe_mid8,
                 )
                 can_recover_to_coord_branch = (
                     caller_verdict.error_code == PROTECTED_BRANCH_REFUSED
@@ -436,36 +427,21 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                     or allow_coord_resolution_to_report_missing_branch
                 ):
                     raise BookkeepingPolicyRefused(caller_verdict)
-            if commit_to_primary_target:
-                # write-path-integrity WP02 / FR-001: the caller is committing a
-                # PRIMARY-partition planning artifact that MUST land on the
-                # mission's own ``destination_ref`` (its primary target branch),
-                # NOT the coordination branch. The primary target branch is
-                # already checked out at ``repo_root`` when ``implement`` runs
-                # the planning auto-commit, so we honour the caller-supplied ref
-                # and commit from the primary checkout -- the SAME "worktree_root
-                # = repo_root, keep the caller's destination_ref" shape the
-                # modern coordination-less arm above uses. This is what stops a
-                # PRIMARY ``lanes.json`` being silently redirected onto the
-                # coordination branch (the #3371 add/add root cause). The coord
-                # redirect below is skipped entirely.
-                worktree_root = repo_root
-            else:
-                # New topology — create coord worktree on first call.
-                try:
-                    worktree_root = CoordinationWorkspace.resolve(
-                        repo_root, safe_mission_slug, safe_mid8,
-                    )
-                except Exception as exc:  # noqa: BLE001 — domain error surface
-                    raise BookkeepingWorktreeMissing(
-                        f"Failed to resolve coordination worktree for "
-                        f"{safe_mission_slug}-{safe_mid8}: {exc}"
-                    ) from exc
-                # Status events must be committed to the coordination branch,
-                # not the caller-supplied destination (which may be "main").
-                # Mirror the legacy path's destination_ref override (lines above).
-                effective_normalized_ref = _normalize_ref(coord_branch)
-                effective_destination_ref = effective_normalized_ref
+            # New topology — create coord worktree on first call.
+            try:
+                worktree_root = CoordinationWorkspace.resolve(
+                    repo_root, safe_mission_slug, safe_mid8,
+                )
+            except Exception as exc:  # noqa: BLE001 — domain error surface
+                raise BookkeepingWorktreeMissing(
+                    f"Failed to resolve coordination worktree for "
+                    f"{safe_mission_slug}-{safe_mid8}: {exc}"
+                ) from exc
+            # Status events must be committed to the coordination branch,
+            # not the caller-supplied destination (which may be "main").
+            # Mirror the legacy path's destination_ref override (lines above).
+            effective_normalized_ref = _normalize_ref(coord_branch)
+            effective_destination_ref = effective_normalized_ref
 
         # 3. Compute the feature_dir + status files INSIDE the resolved
         # worktree.  Both paths (coord and legacy lane) host the

@@ -105,6 +105,7 @@ def start_implementation_status(
     workspace_context: str,
     execution_mode: str,
     repo_root: Path | None = None,
+    mission_anchor_root: Path | None = None,
     policy_metadata: dict[str, Any] | None = None,
     ensure_sync_daemon: bool = True,
     sync_dossier: bool = True,
@@ -132,6 +133,7 @@ def start_implementation_status(
             mission_slug=mission_slug,
             wp_id=wp_id,
             repo_root=repo_root,
+            mission_anchor_root=mission_anchor_root,
         )
         current_lane = current.lane
         current_actor = current.actor
@@ -152,6 +154,7 @@ def start_implementation_status(
                         actor=actor,
                         execution_mode=execution_mode,
                         repo_root=repo_root,
+                        mission_anchor_root=mission_anchor_root,
                         policy_metadata=policy_metadata,
                     ),
                     TransitionRequest(
@@ -163,6 +166,7 @@ def start_implementation_status(
                         workspace_context=workspace_context,
                         execution_mode=execution_mode,
                         repo_root=repo_root,
+                        mission_anchor_root=mission_anchor_root,
                         policy_metadata=policy_metadata,
                         annotation_delta=annotation_delta,
                     ),
@@ -193,6 +197,7 @@ def start_implementation_status(
                         workspace_context=workspace_context,
                         execution_mode=execution_mode,
                         repo_root=repo_root,
+                        mission_anchor_root=mission_anchor_root,
                         policy_metadata=policy_metadata,
                         annotation_delta=annotation_delta,
                     )
@@ -227,6 +232,7 @@ def start_implementation_status(
                     workspace_context=workspace_context,
                     execution_mode=execution_mode,
                     repo_root=repo_root,
+                    mission_anchor_root=mission_anchor_root,
                     policy_metadata=policy_metadata,
                     annotation_delta=annotation_delta,
                 ),
@@ -254,6 +260,7 @@ def start_review_status(
     workspace_context: str,
     execution_mode: str,
     repo_root: Path | None = None,
+    mission_anchor_root: Path | None = None,
     policy_metadata: dict[str, Any] | None = None,
     ensure_sync_daemon: bool = True,
     sync_dossier: bool = True,
@@ -276,6 +283,7 @@ def start_review_status(
             mission_slug=mission_slug,
             wp_id=wp_id,
             repo_root=repo_root,
+            mission_anchor_root=mission_anchor_root,
         )
         current_lane = current.lane
         current_actor = current.actor
@@ -294,6 +302,7 @@ def start_review_status(
                     workspace_context=workspace_context,
                     execution_mode=execution_mode,
                     repo_root=repo_root,
+                    mission_anchor_root=mission_anchor_root,
                     policy_metadata=policy_metadata,
                     annotation_delta=annotation_delta,
                 ),

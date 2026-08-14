@@ -97,13 +97,20 @@ def _read_transactional_wp_lane(
     mission_slug: str,
     wp_id: str,
     repo_root: Path,
+    mission_anchor_root: Path | None = None,
 ) -> Lane:
     """Read the WP lane from the same status target transactional writes use."""
+    anchor_kwargs = (
+        {"mission_anchor_root": mission_anchor_root}
+        if mission_anchor_root is not None
+        else {}
+    )
     return _wp_lane_from_status_events(
         read_events_transactional(
             feature_dir=feature_dir,
             mission_slug=mission_slug,
             repo_root=repo_root,
+            **anchor_kwargs,
         ),
         wp_id,
     )

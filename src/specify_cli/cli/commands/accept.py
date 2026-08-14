@@ -27,7 +27,7 @@ from specify_cli.migration.runtime_state_cutover import MissingMissionIdError
 from specify_cli.migration.verdict_provenance_backfill import stranded_verdict_findings
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError
 from specify_cli.cli import StepTracker
-from specify_cli.cli.selector_resolution import resolve_mission_handle
+from specify_cli.cli.selector_resolution import resolve_mission_operation_context_cli
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import show_banner
 from specify_cli.task_utils import (
@@ -112,7 +112,12 @@ def _primary_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
     return _dirty_paths_with_prefix(git_status_lines(repo_root), prefix)
 
 
-def _coord_worktree_root(repo_root: Path, mission_slug: str) -> Path | None:
+def _coord_worktree_root(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    mission_anchor_root: Path | None = None,
+) -> Path | None:
     """Resolve the mission's materialised coordination worktree root, if any.
 
     Returns ``None`` when the mission's stored topology does not route
@@ -139,9 +144,19 @@ def _coord_worktree_root(repo_root: Path, mission_slug: str) -> Path | None:
         resolve_artifact_surface,
     )
 
-    resolved = resolve_artifact_surface(
-        repo_root, mission_slug, MissionArtifactKind.ACCEPTANCE_MATRIX
-    )
+    if mission_anchor_root is None:
+        resolved = resolve_artifact_surface(
+            repo_root,
+            mission_slug,
+            MissionArtifactKind.ACCEPTANCE_MATRIX,
+        )
+    else:
+        resolved = resolve_artifact_surface(
+            repo_root,
+            mission_slug,
+            MissionArtifactKind.ACCEPTANCE_MATRIX,
+            mission_anchor_root=mission_anchor_root,
+        )
     if resolved.surface_kind is not TopologySurface.COORD:
         return None
 
@@ -159,7 +174,12 @@ def _coord_worktree_root(repo_root: Path, mission_slug: str) -> Path | None:
     return worktree_root
 
 
-def _coord_status_feature_dir(repo_root: Path, mission_slug: str) -> Path | None:
+def _coord_status_feature_dir(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    mission_anchor_root: Path | None = None,
+) -> Path | None:
     """Resolve the COORD-partition mission dir the birth-cutover seeds into.
 
     ``cutover_mission``'s ``status_feature_dir`` argument IS the ``STATUS_STATE``
@@ -200,17 +220,41 @@ def _coord_status_feature_dir(repo_root: Path, mission_slug: str) -> Path | None
     # ``primary_feature_dir_for_mission``).
     assert_safe_path_segment(mission_slug)
 
-    resolved = resolve_artifact_surface(
-        repo_root, mission_slug, MissionArtifactKind.STATUS_STATE
-    )
+    if mission_anchor_root is None:
+        resolved = resolve_artifact_surface(
+            repo_root,
+            mission_slug,
+            MissionArtifactKind.STATUS_STATE,
+        )
+    else:
+        resolved = resolve_artifact_surface(
+            repo_root,
+            mission_slug,
+            MissionArtifactKind.STATUS_STATE,
+            mission_anchor_root=mission_anchor_root,
+        )
     if resolved.surface_kind is not TopologySurface.COORD:
         return None
-    return placement_seam(repo_root, mission_slug).read_dir(
+    seam = (
+        placement_seam(repo_root, mission_slug)
+        if mission_anchor_root is None
+        else placement_seam(
+            repo_root,
+            mission_slug,
+            mission_anchor_root=mission_anchor_root,
+        )
+    )
+    return seam.read_dir(
         MissionArtifactKind.STATUS_STATE
     )
 
 
-def _coord_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
+def _coord_dirty_paths(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    mission_anchor_root: Path | None = None,
+) -> list[str]:
     """Return tracked-but-uncommitted acceptance artifacts in the COORD worktree.
 
     M2 (#read-surface-ssot-closeout FR-008): ``write_acceptance_matrix`` writes
@@ -222,7 +266,11 @@ def _coord_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
     a completely separate git worktree. This mirrors :func:`_primary_dirty_paths`
     against that surface instead.
     """
-    worktree_root = _coord_worktree_root(repo_root, mission_slug)
+    worktree_root = _coord_worktree_root(
+        repo_root,
+        mission_slug,
+        mission_anchor_root=mission_anchor_root,
+    )
     if worktree_root is None:
         return []
     prefix = f"kitty-specs/{mission_slug}/"
@@ -252,7 +300,12 @@ def _spec_artifact_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
     return dirty
 
 
-def _stamp_birth_cutover_for_accept(repo_root: Path, mission_slug: str) -> None:
+def _stamp_birth_cutover_for_accept(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    mission_anchor_root: Path | None = None,
+) -> None:
     """Auto-stamp the birth-cutover into the mission branch at the terminal
     ``accept`` seam (WP02 / FR-001 / FR-004 / FR-005 / FR-006 / NFR-003).
 
@@ -300,7 +353,16 @@ def _stamp_birth_cutover_for_accept(repo_root: Path, mission_slug: str) -> None:
     # ``resolve_planning_read_dir``'s PRIMARY leg applies before composing).
     from mission_runtime import MissionArtifactKind, placement_seam
 
-    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+    seam_kwargs = (
+        {"mission_anchor_root": mission_anchor_root}
+        if mission_anchor_root is not None
+        else {}
+    )
+    feature_dir = placement_seam(
+        repo_root,
+        mission_slug,
+        **seam_kwargs,
+    ).read_dir(
         MissionArtifactKind.PRIMARY_METADATA
     )
     if not feature_dir.is_dir():
@@ -315,7 +377,14 @@ def _stamp_birth_cutover_for_accept(repo_root: Path, mission_slug: str) -> None:
     # ``get_main_repo_root``) and collapse the very partition split this
     # function exists to preserve, while a raw mission-spec-dir join re-derives
     # placement the seam already owns.
-    status_feature_dir = _coord_status_feature_dir(repo_root, mission_slug)
+    if mission_anchor_root is None:
+        status_feature_dir = _coord_status_feature_dir(repo_root, mission_slug)
+    else:
+        status_feature_dir = _coord_status_feature_dir(
+            repo_root,
+            mission_slug,
+            mission_anchor_root=mission_anchor_root,
+        )
 
     try:
         result = stamp_accept_cutover(feature_dir, status_feature_dir=status_feature_dir)
@@ -407,7 +476,12 @@ def _commit_coord_residuals(repo_root: Path, mission_slug: str, dirty: list[str]
     return bool(result.status == "committed")
 
 
-def _commit_residual_acceptance_artifacts(repo_root: Path, mission_slug: str) -> bool:
+def _commit_residual_acceptance_artifacts(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    mission_anchor_root: Path | None = None,
+) -> bool:
     """Stage and commit any leftover acceptance artifacts so the tree is clean.
 
     Returns True when a follow-up commit was created. This preserves the
@@ -422,8 +496,13 @@ def _commit_residual_acceptance_artifacts(repo_root: Path, mission_slug: str) ->
     the historical direct commit. A batch mixing both commits to each surface
     independently (never a single cross-worktree commit, which git cannot do).
     """
-    coord_dirty = _coord_dirty_paths(repo_root, mission_slug)
-    primary_dirty = _primary_dirty_paths(repo_root, mission_slug)
+    coord_dirty = _coord_dirty_paths(
+        repo_root,
+        mission_slug,
+        mission_anchor_root=mission_anchor_root,
+    )
+    primary_root = mission_anchor_root or repo_root
+    primary_dirty = _primary_dirty_paths(primary_root, mission_slug)
     if not coord_dirty and not primary_dirty:
         return False
 
@@ -431,7 +510,7 @@ def _commit_residual_acceptance_artifacts(repo_root: Path, mission_slug: str) ->
     if coord_dirty:
         committed = _commit_coord_residuals(repo_root, mission_slug, coord_dirty) or committed
     if primary_dirty:
-        committed = _commit_primary_residuals(repo_root, mission_slug, primary_dirty) or committed
+        committed = _commit_primary_residuals(primary_root, mission_slug, primary_dirty) or committed
     return committed
 
 
@@ -597,6 +676,7 @@ def _collect_summary_with_optional_repair(
     strict_metadata: bool,
     mutate_matrix: bool,
     normalize_encoding: bool,
+    mission_anchor_root: Path | None = None,
 ) -> AcceptanceSummary:
     """Collect the acceptance summary, optionally repairing artifact encoding.
 
@@ -614,11 +694,16 @@ def _collect_summary_with_optional_repair(
             mission_slug,
             strict_metadata=strict_metadata,
             mutate_matrix=mutate_matrix,
+            mission_anchor_root=mission_anchor_root,
         )
     except ArtifactEncodingError:
         if not normalize_encoding:
             raise
-        repaired = normalize_feature_encoding(repo_root, mission_slug)
+        repaired = normalize_feature_encoding(
+            repo_root,
+            mission_slug,
+            mission_anchor_root=mission_anchor_root,
+        )
         _report_encoding_repair(repo_root, repaired)
         # Re-collect exactly once; a second encoding (or other acceptance)
         # failure propagates rather than looping.
@@ -627,6 +712,7 @@ def _collect_summary_with_optional_repair(
             mission_slug,
             strict_metadata=strict_metadata,
             mutate_matrix=mutate_matrix,
+            mission_anchor_root=mission_anchor_root,
         )
 
 
@@ -685,14 +771,25 @@ def accept(
             console.print("[red]Error:[/red] --mission <slug> is required")
         raise typer.Exit(2)
 
-    resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
-    mission_slug = resolved.mission_slug
+    operation = resolve_mission_operation_context_cli(
+        repo_root,
+        raw_handle,
+        cwd=Path.cwd(),
+        json_mode=json_output,
+    )
+    mission_slug = operation.mission_slug
+    operation_root = operation.mission_anchor_root
+    mission_anchor_root = (
+        operation_root
+        if operation_root != operation.repository_root
+        else None
+    )
 
     # T020 (#3255): computed unconditionally so the SC-008 advisory reaches
     # BOTH the human console (non-JSON branch below) and every non-error
     # `--json` payload via `_with_advisories` — it was previously gated
     # behind `if not json_output`, so JSON automation never saw it.
-    provenance_note = _stranded_verdict_provenance_note(resolved.feature_dir)
+    provenance_note = _stranded_verdict_provenance_note(operation.identity.feature_dir)
 
     if not json_output:
         tracker.complete("detect", mission_slug)
@@ -700,7 +797,7 @@ def accept(
             console.print(f"[yellow]⚠ {provenance_note}[/yellow]")
 
     requested_mode = (mode or "auto").lower()
-    actual_mode = choose_mode(requested_mode, repo_root)
+    actual_mode = choose_mode(requested_mode, operation_root)
     commit_required = actual_mode != "checklist" and not no_commit and not diagnose
     if commit_required and not json_output:
         tracker.add("commit", "Record acceptance metadata")
@@ -724,6 +821,7 @@ def accept(
             # FR-005: opt-in repair of mojibake acceptance artifacts via the
             # canonical normalize_feature_encoding before validating (default off).
             normalize_encoding=normalize_encoding,
+            mission_anchor_root=mission_anchor_root,
         )
     except Pre30LayoutError as exc:
         # #1057 / squad Blocker 1: a pre-3.0 lane-directory mission must hard-reject
@@ -860,7 +958,11 @@ def accept(
             # into that SAME partition-aware commit rather than needing a
             # second committer.
             try:
-                _stamp_birth_cutover_for_accept(repo_root, mission_slug)
+                _stamp_birth_cutover_for_accept(
+                    repo_root,
+                    mission_slug,
+                    mission_anchor_root=mission_anchor_root,
+                )
             except MissingMissionIdError as stamp_exc:
                 _stamp_exc = stamp_exc
                 _safe_emit_error_logged(f"birth-cutover stamp fail-closed: {stamp_exc}")
@@ -872,7 +974,11 @@ def accept(
             # them into a follow-up commit so all writing exit paths (including
             # error paths and accept_commit == None) leave a clean working tree.
             try:
-                _commit_residual_acceptance_artifacts(repo_root, mission_slug)
+                _commit_residual_acceptance_artifacts(
+                    repo_root,
+                    mission_slug,
+                    mission_anchor_root=mission_anchor_root,
+                )
             except Exception as residue_exc:
                 _residue_exc = residue_exc
                 _safe_emit_error_logged(f"Residual artifact commit failed: {residue_exc}")

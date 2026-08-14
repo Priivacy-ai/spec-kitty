@@ -70,6 +70,7 @@ def resolve_write_target_or_degrade(
     kind: MissionArtifactKind,
     *,
     degrade_ref: str | None,
+    mission_anchor_root: Path | None = None,
 ) -> CommitTarget:
     """Resolve write target via the placement port, or degrade to a caller-supplied ref.
 
@@ -92,6 +93,9 @@ def resolve_write_target_or_degrade(
             yet, or an ad-hoc fixture outside a resolvable mission). The caller decides
             the policy: fail-open passes a concrete ref, fail-closed passes ``None`` to
             raise instead of silently degrading.
+        mission_anchor_root: Explicit caller-owned Mission root. When supplied,
+            placement and metadata checks use it without changing Git policy rooted
+            at ``repo_root``.
 
     Returns:
         A ``CommitTarget`` resolved for ``kind`` through the placement port, or
@@ -118,9 +122,18 @@ def resolve_write_target_or_degrade(
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
     resolution_exc: ActionContextError | StatusReadPathNotFound | FileNotFoundError | None = None
-    if _mission_meta_exists(repo_root, mission_slug):
+    if _mission_meta_exists(
+        repo_root,
+        mission_slug,
+        mission_anchor_root=mission_anchor_root,
+    ):
         try:
-            return resolve_placement_only(repo_root, mission_slug, kind=kind)
+            return resolve_placement_only(
+                repo_root,
+                mission_slug,
+                kind=kind,
+                mission_anchor_root=mission_anchor_root,
+            )
         except (ActionContextError, StatusReadPathNotFound, FileNotFoundError) as exc:
             resolution_exc = exc
     if degrade_ref is None:
@@ -159,7 +172,12 @@ def _fail_closed_error(
     )
 
 
-def _mission_meta_exists(repo_root: Path, mission_slug: str) -> bool:
+def _mission_meta_exists(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    mission_anchor_root: Path | None = None,
+) -> bool:
     """Return True when ``mission_slug`` has a primary ``meta.json`` on disk.
 
     A cheap, read-only existence gate — NOT a ref derivation — that
@@ -180,7 +198,17 @@ def _mission_meta_exists(repo_root: Path, mission_slug: str) -> bool:
         # ``follow_imports = "skip"`` mypy config the cross-module
         # ``candidate_feature_dir_for_mission`` return is seen as ``Any``; the
         # annotation re-narrows it (the function IS typed ``-> Path``).
-        candidate: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
+        if mission_anchor_root is not None:
+            from specify_cli.missions._read_path_resolver import (
+                _compose_mission_anchor_feature_dir,
+            )
+
+            candidate = _compose_mission_anchor_feature_dir(
+                mission_anchor_root,
+                mission_slug,
+            )
+        else:
+            candidate = candidate_feature_dir_for_mission(repo_root, mission_slug)
     except Exception:  # noqa: BLE001 — any resolution hiccup means "not resolvable"
         return False
-    return (candidate / "meta.json").exists()
+    return bool((candidate / "meta.json").exists())

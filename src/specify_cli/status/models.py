@@ -837,6 +837,7 @@ class TransitionRequest:
     mission_slug: str | None = None
     _legacy_mission_slug: str | None = None
     repo_root: Path | None = None
+    mission_anchor_root: Path | None = None
     # Transition target
     wp_id: str | None = None
     to_lane: str | None = None
