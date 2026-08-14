@@ -222,29 +222,45 @@ def find_bare_prose_requirement_ids(spec_content: str) -> BareProseResult:
 
     Scope is document-level, not section-level (C-006), by design: a token
     declared elsewhere in the document is already counted as a requirement,
-    so a section merely citing it again is not a lost requirement. This one
-    design choice was measured, twice independently, with identical results,
-    against the full ``kitty-specs/*/spec.md`` corpus (368 specs, measured
-    2026-08-14 -- mirroring ``_DECLARED_ID_PATTERNS``'s own #3395 6%-figure
-    precedent above) to matter by **15x**:
+    so a section merely citing it again is not a lost requirement.
 
-    - **Document-scoped** (this function's actual behavior, C-006): **9/368
-      = 2.45%** of specs newly flag. Manual review of all 9 found **zero true
-      positives** -- every flagged id is a foreign-id citation (an id
-      belonging to another mission or ID space, not a requirement the citing
-      spec itself declares), appearing in both table-row description cells
-      and running prose under requirement-named headings that are not
-      themselves a table (e.g. ``kitty-specs/egress-refusal-consolidation-
-      3110-01KYW895/spec.md``'s "Requirement-level falsifiers" heading).
-    - **Section-scoped** (rejected alternative -- "declared" meaning declared
-      *within this section* rather than anywhere in the document): **139/368
-      = 37.77%** of specs newly flag -- 15x more than the document-scoped
-      figure, from this one design choice alone.
+    **Measured rate of this shipped function** -- re-verified independently
+    twice with identical results, against the full ``kitty-specs/*/spec.md``
+    corpus (N=368, measured 2026-08-14): **1/368 = 0.27%** of specs flag.
+    The sole hit is ``kitty-specs/egress-refusal-consolidation-3110-
+    01KYW895/spec.md``, section "Requirement-level falsifiers", ids
+    ``C-1`` and ``C-3``. That hit is a **foreign-id citation**: the spec
+    explicitly disambiguates its own constraint ids (``C-001``..``C-011``)
+    from the orchestrator's self-correction ids (``C-1``..``C-4``, tracked
+    in that mission's own ``ORCHESTRATOR-NOTES.md``) -- so this is a false
+    positive, and the function's true-positive count over this corpus is
+    **zero**.
+
+    **Reconciliation -- do not mistake these for this function's rate.**
+    The ``9/368 = 2.45%`` and ``139/368 = 37.77%`` figures below were
+    measured during design against an *earlier, broader prototype* that did
+    NOT apply this function's per-line declared-shape skip (step 3 below:
+    "if the line matches ... raw-token scanning of the REST of that line is
+    skipped entirely"). They describe that earlier, different predicate --
+    not the per-line-skip-gated function shipped here -- and are retained
+    only as the historical evidence for the document-scoped-vs-section-
+    scoped design choice (C-006) immediately below; a future maintainer must
+    not read them as this function's own false-positive rate.
+
+    - **Document-scoped prototype** (matches this function's C-006 scoping
+      choice, measured without the per-line skip rule): 9/368 = 2.45% of
+      specs newly flagged.
+    - **Section-scoped prototype** (rejected alternative -- "declared"
+      meaning declared *within this section* rather than anywhere in the
+      document, same pre-skip-rule scan): 139/368 = 37.77% of specs newly
+      flagged -- 15x more than the document-scoped prototype figure, from
+      the document-vs-section design choice alone.
 
     Document-scoped is the only correct reading (C-006) and is what this
-    function implements; both rates are recorded together here so a future
-    maintainer cannot reasonably reintroduce the rejected section-scoped
-    version without seeing the cost it was measured to carry.
+    function implements; both prototype rates are recorded together here so
+    a future maintainer cannot reasonably reintroduce the rejected
+    section-scoped version without seeing the cost it was measured to
+    carry.
 
     Returns:
         One :class:`BareProseCandidate` per requirement-named section that
