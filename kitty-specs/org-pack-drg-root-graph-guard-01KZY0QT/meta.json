@@ -9,6 +9,7 @@
   "purpose_context": "This mission advances org pack drg root graph guard on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "org pack drg root graph guard",
   "slug": "org-pack-drg-root-graph-guard-01KZY0QT",
+  "status_phase": "1",
   "target_branch": "main",
   "topology": "lanes",
   "vcs": "git",
