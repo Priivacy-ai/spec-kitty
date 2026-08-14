@@ -1,0 +1,260 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: merged
+mission: org-activation-scan-dirs-01KZY1PT
+# R2 merge/dedup (orchestrator bookkeeping, no session). Source files:
+# plan-gov.findings.yaml (4), plan-arch.findings.yaml (1), plan-verify.findings.yaml (2).
+# No two findings cite the same artifact section AND file:line with substantially the same
+# claim, so no dedup was performed — all 7 are kept, ids unchanged, no renumbering.
+# Note (not a dedup, recorded for R3's benefit): PLAN-GOV-001 and PLAN-ARCH-001 are
+# thematically related (both say "The Seam" / "No Contract Movement" understate
+# resolve_artifact_urn's real consumer set) but cite entirely different code paths and
+# file:lines (GOV-001: activate.py's cascade _source_urn + pack_manager.py's
+# _resolve_org_layer_dir/FR-013; ARCH-001: compiler.py's _resolve_config_activated_roots +
+# consistency_check.py's parity guard) — kept as two distinct findings per the mechanical-only
+# rule.
+findings:
+  - id: PLAN-GOV-001
+    lens: Directive
+    severity: 3
+    title: "Charter Check's 'Single canonical authority: Pass' overlooks an existing, closer org-layout precedent (FR-013) and a third, still-divergent org-resolution path"
+    evidence:
+      - artifact: "plan.md § Charter Check ('Single canonical authority... Pass')"
+      - artifact: "plan.md § The Seam ('No CLI surface. `charter activate` itself... is unchanged')"
+      - code: "src/charter/pack_manager.py:238-256 (_resolve_org_layer_dir, docstring: 'FR-013 unifies the charter activation subsystem with runtime, which resolves org packs from the flat <pack>/<plural>/ layout... Flat is therefore the canonical, preferred layout. The legacy nested <pack>/doctrine/<plural>/org/ layout is kept as a fallback')"
+      - code: "src/charter/kind_vocabulary.py:219-228 (_layer_scan_dirs / _layer_candidate_dir, org layer resolves to <root>/doctrine/<plural>/org — a third, distinct shape)"
+      - code: "src/charter/drg.py:376,397 (_resolve_activated_urns_for_kind calls resolve_artifact_urn with org_roots only, never layer_roots)"
+      - code: "src/specify_cli/cli/commands/charter/activate.py:87-116,433 (_source_urn / cascade path calls resolve_artifact_urn with layer_roots only, never org_roots)"
+    claim: >
+      The plan's Charter Check marks "Single canonical authority" as a clean Pass and
+      "The Seam" asserts the fix's blast radius is fully contained to
+      `_org_scan_dirs`/`_scan_roots`/`resolve_artifact_urn`. Live-code verification shows this
+      undersells the actual state of the "charter activation subsystem": there are at least
+      three parallel, non-unified mechanisms for locating an org pack's artifacts inside this
+      subsystem — (1) `_org_scan_dirs`'s `org_roots` param (the one this mission fixes, adding a
+      flat-plus-legacy-built-in additive scan), (2) `_layer_scan_dirs`'s `layer_roots["org"]` param
+      (a THIRD directory shape, `<root>/doctrine/<plural>/org`, used by the CLI's own
+      `charter activate` cascade helper `_source_urn`/`_drg_id_to_config_id` via
+      `resolve_layer_roots`, and never combined with `org_roots` at any call site), and (3)
+      `CharterPackManager._resolve_org_layer_dir` (pack_manager.py:238-256), whose docstring
+      states outright that a past mission (FR-013) already "unified the charter activation
+      subsystem with runtime" onto flat-preferred-with-nested-fallback resolution — a precedent
+      this plan neither cites nor reconciles with. The net effect: this mission's fix corrects the
+      DRG activation-filter path (`drg.py`'s `_resolve_activated_urns_for_kind`, which is what
+      `filter_graph_by_activation` uses and what the spec's Acceptance Scenarios test), but the
+      same command's cascade-warning/DRG-id-mapping path (`activate.py`'s `_source_urn`, invoked
+      whenever `--cascade` is used) still resolves org roots exclusively via `layer_roots`'s
+      `<root>/doctrine/<plural>/org` shape and would still silently fail to resolve a
+      flat-layout org artifact after this fix lands. The plan does not mention this second
+      pathway exists, so a reader trusting "The Seam"'s completeness claim would not know a
+      related, adjacent defect remains open in the very command this mission is about.
+    remediation: >
+      Before or alongside implementation, add a short note to the plan (Charter Check or a new
+      "Related, Not Fixed" subsection) naming the `layer_roots`/`_layer_scan_dirs` cascade path
+      as a distinct, still-divergent org-resolution mechanism that this mission's C-001 file set
+      does not touch and does not close — explicitly deferred, not silently missed — and likewise
+      note `CharterPackManager._resolve_org_layer_dir`'s FR-013 precedent as prior art the chosen
+      additive-scan shape diverges from. This keeps the "reconcile, don't add a second authority"
+      principle honestly accounted for without expanding this mission's bounded scope.
+
+  - id: PLAN-GOV-002
+    lens: Campsite scope
+    severity: 3
+    title: "Campsite-Clean Scope misses that _scan_roots's own docstring (the caller The Seam cites as 'unchanged') will be stale after the fix"
+    evidence:
+      - artifact: "plan.md § Campsite-Clean Scope ('no other adjacent Sonar/lint debt on the touched surface was found that would change that conclusion')"
+      - artifact: "plan.md § The Seam ('Its caller (`_scan_roots`, `:142-180`)... are unchanged')"
+      - code: "src/charter/kind_vocabulary.py:158-160 (_scan_roots docstring: '``org_roots`` preserves the legacy package-shaped root contract where each root contributes ``<root>/<plural>/built-in`` -- this nested layout is still live for org packs')"
+    claim: >
+      `_scan_roots` (the immediate caller of `_org_scan_dirs`, cited by the plan's "The Seam"
+      section as staying unchanged) carries a docstring that makes a present-tense, factual claim
+      about what `org_roots` contributes: only `<root>/<plural>/built-in`. Once FR-001's fix
+      lands, `org_roots` will additionally contribute the flat `<root>/<plural>` layout, making
+      this sentence stale and misleading to the next reader of the same file — exactly the
+      "doc/code disagreement is a doc defect" class the charter's Documentation Structure section
+      names. This is adjacent, domain-matched debt directly caused by the change (not an
+      unrelated neighboring helper like `_built_in_scan_dir`/`_layer_scan_dirs`, which C-003
+      correctly leaves alone), sitting in the same file and same function the plan is already
+      touching, so updating it would not expand C-001's file set at all. The plan's
+      Campsite-Clean Scope section asserts no such debt was found; it was there to find.
+    remediation: >
+      Add one line to the implementing WP's scope (or to plan.md's Campsite-Clean Scope section)
+      instructing the fix to also update `_scan_roots`'s docstring sentence describing
+      `org_roots`'s contract, so it accurately describes both the flat and legacy entries after
+      the change — a same-file, same-function-neighborhood correction, not scope creep.
+
+  - id: PLAN-GOV-003
+    lens: Proportionality
+    severity: 2
+    title: "'Nothing Generated' and 'No Contract Movement' sections mostly restate 'The Seam' without new information, for a mission billed as ~5 LOC"
+    evidence:
+      - artifact: "plan.md § Nothing Generated"
+      - artifact: "plan.md § No Contract Movement"
+      - artifact: "plan.md § The Seam"
+    claim: >
+      Both sections exist to state, in different words, the same conclusion "The Seam" already
+      established: no CLI, schema, kernel, or contract surface is touched by this change. "No
+      Contract Movement" even cross-references "The Seam" directly ("the defect and its fix are
+      fully contained in one resolution helper") rather than adding independent information.
+      For a mission the plan itself repeatedly frames as a ~5 LOC, one-function, one-WP fix, three
+      separate sections making the same negative claim is process weight not clearly earned by
+      the diff's size — the kind of generic template completeness the Proportionality lens is
+      meant to catch, even though each individual sentence is accurate.
+    remediation: >
+      Merge "Nothing Generated" and "No Contract Movement" into a single short paragraph appended
+      to "The Seam" (or drop them if "The Seam"'s own closing sentence already covers the same
+      ground), keeping the accurate content but removing the duplicated section-level ceremony.
+
+  - id: PLAN-GOV-004
+    lens: Ledger
+    severity: 1
+    title: "Plan's tracer-friction entry correctly avoids a duplicate ledger entry, but does not cross-link the still-relevant SK-09/SK-11 branch/identity entries already logged for this same mission"
+    evidence:
+      - artifact: "kitty-specs/org-activation-scan-dirs-01KZY1PT/tracer-tooling-friction.md § Plan phase (2026-08-13)"
+      - artifact: "the workspace's tooling-defect ledger (SK-09, SK-11)"
+    claim: >
+      This is a minor, non-blocking observation rather than a defect: the plan phase's own
+      tracer-friction entry correctly judges that `spec-kitty plan --json`'s "blocked" /
+      placeholder-Technical-Context result is expected, documented behavior and not a new ledger
+      entry — that reasoning is sound and I could not find any live-code contradiction of it.
+      The only gap is that neither plan.md nor the plan-phase tracer entry references back to
+      SK-09/SK-11 (already logged earlier in this same mission's own specify-phase friction, for
+      the `single_branch` topology / protected-`main` / missing-git-identity blockers) even though
+      those are the only ledger entries genuinely relevant to this mission's tooling path so far.
+      A future reader of plan.md alone (without also reading tracer-tooling-friction.md) has no
+      pointer to them.
+    remediation: >
+      Optional, cosmetic: add a one-line cross-reference from plan.md's own Tracer Files section
+      to SK-09/SK-11 so a reader of plan.md alone knows this mission already hit and resolved
+      those two tooling defects at the specify phase.
+
+  - id: PLAN-ARCH-001
+    lens: contracts / blast-radius
+    severity: 3
+    title: "'The Seam' / 'No Contract Movement' understate resolve_artifact_urn's real consumer set — compiler.py's charter-synthesize path (a hard crash today, not a silent drop) is never named or covered by a regression test"
+    evidence:
+      - artifact: "plan.md § The Seam — \"Its caller (_scan_roots, :142-180) and *its* caller (resolve_artifact_urn, :253+) are unchanged — they already consume whatever _org_scan_dirs returns... so the fix needs no change above or below it in the call chain.\""
+      - artifact: "plan.md § No Contract Movement — \"...because none of them sit on the call path between charter activate arming activated_directives and _org_scan_dirs finding (or failing to find) an org-pack directory — the defect and its fix are fully contained in one resolution helper.\""
+      - artifact: "plan.md § Red-First Discipline / § Test Placement Decision — FR-002's regression test is scoped only to the `filter_graph_by_activation` / drg.py path"
+      - code: "src/charter/kind_vocabulary.py:179 (_scan_roots extends with _org_scan_dirs) — confirmed via grep this is the only call site of _org_scan_dirs, so that narrow claim holds"
+      - code: "src/charter/compiler.py:112-142 (_resolve_config_activated_ids) — the set-comprehension calls resolve_artifact_urn(...) with no try/except; its own docstring states plainly: \"A stem that cannot be resolved to a canonical id ... raises UnknownArtifactIdError ... rather than being silently dropped\""
+      - code: "src/charter/compiler.py:187 (_resolve_config_activated_roots) — `org_roots: list[Path] | None = list(pack_context.pack_roots[1:]) if pack_context is not None else None`, threaded into every _resolve_config_activated_ids call for every activated kind (directives, paradigms, tactics, styleguides, toolguides, procedures, agent_profiles)"
+      - code: "src/charter/consistency_check.py:744-748 and :815-817 — two more resolve_artifact_urn call sites inside the config<->graph parity guard, both passed real org_roots (caught narrowly, not swallowed into a false 'nothing wrong' result)"
+    claim: >
+      _org_scan_dirs is indeed called from exactly one place (_scan_roots), so the plan's narrowest
+      layering claim holds. But the broader "fully contained in one resolution helper" /
+      "unchanged...caller" framing is inaccurate: resolve_artifact_urn — the function whose *return
+      value* changes once _org_scan_dirs starts finding flat-layout org artifacts — has production
+      call sites beyond the drg.py `_resolve_activated_urns_for_kind` path the spec and plan build
+      their whole narrative around. Two of those (activate.py's/deactivate.py's/org_charter.py's/
+      m_unify_charter_activation.py's `_source_urn`/normalizer helpers) genuinely don't pass
+      org_roots and are unaffected, so they're correctly out of scope. But `compiler.py`'s
+      `_resolve_config_activated_roots` (the `charter synthesize` / references.yaml compilation path)
+      and `consistency_check.py`'s `_check_reference_id_parity` / per-ID graph-parity check (the
+      config<->graph parity guard, also exercised by the suite-tier
+      `test_this_project_charter_pack_is_coherent` gate) both thread real org_roots into
+      resolve_artifact_urn today. For a downstream project with a flat-layout org pack that has
+      activated one of its own org artifacts by stem, compiler.py's uncaught raise means
+      `charter synthesize` **crashes today** — a second, more severe symptom of the exact same
+      `_org_scan_dirs` root cause the spec frames purely as a "silent drop." The fix, as specified,
+      will also flip that crash to success (a good outcome), and will change what
+      consistency_check.py's parity guard reports for such a project. Neither transition is named
+      in the plan's Seam/Contract-Movement sections, and neither is covered by FR-002's regression
+      test (scoped only to `filter_graph_by_activation`) or by FR-003's unit-level cases (scoped
+      only to `_org_scan_dirs`/`resolve_artifact_urn` directly, not to compiler.py or
+      consistency_check.py as consumers). An implementer following the plan's Test Placement
+      Decision verbatim would ship FR-001 without any test proving the compiler.py crash path is
+      actually fixed, or asserting consistency_check.py's parity guard now agrees with compiler.py
+      instead of independently swallowing the same stem via its own `except UnknownArtifactIdError`.
+    remediation: >
+      Add one sentence to plan.md § The Seam (or a short new subsection) naming compiler.py's
+      `_resolve_config_activated_roots`/`_resolve_config_activated_ids` and consistency_check.py's
+      `_check_reference_id_parity`/per-ID graph-parity check as two additional resolve_artifact_urn
+      consumers that pass real org_roots today and will observe a behavior change once FR-001
+      lands (compiler.py: UnknownArtifactIdError crash → success; consistency_check.py: the stem
+      stops being swallowed as "already reported elsewhere" and starts resolving cleanly). Either
+      (a) extend FR-002's scope, or add one FR-002b case, asserting `charter synthesize`
+      no longer raises UnknownArtifactIdError for a flat-layout org pack that activates its own
+      stem, using the same fixture already being built for FR-002; or (b) explicitly document in
+      the plan why that additional coverage is deliberately deferred (e.g. "compiler.py's crash-to-
+      success flip is a byproduct of the same fix and is exercised incidentally by
+      test_this_project_charter_pack_is_coherent" — but only if that's actually verified true, which
+      it is not for a *flat-layout* org pack since this repo's own .kittify/config.yaml has no org
+      pack configured at all).
+
+  - id: PLAN-VERIFY-001
+    lens: Gates
+    severity: 3
+    title: Gate Set row mischaracterizes Commitlint as blocking when the actual step is continue-on-error/advisory-only
+    evidence:
+      - artifact: "plan.md § Gate Set (row: `Commitlint`)"
+      - code: ".github/workflows/ci-quality.yml:672-675"
+      - code: ".github/workflows/ci-quality.yml:976-985"
+      - code: ".github/workflows/ci-quality.yml:987-990"
+    claim: >
+      plan.md's Gate Set table lists "Commitlint | Applies | Repo-wide conventional-commit
+      check on commit messages; the `spec-kitty safe-commit` commit for this plan (and later,
+      the WP's own commits) must carry a conventional-commit-shaped subject" with no advisory
+      caveat. Reading the actual workflow: the `lint` job's "[ENFORCED] Run commit message
+      linting" step (id `commitlint`) carries `continue-on-error: true`
+      (ci-quality.yml:672-675); its `has_failures` output is consumed only by the PR-comment
+      `lint-feedback` job (ci-quality.yml:987-990), and the only step in `lint` that turns a
+      `continue-on-error` failure into an actual job failure is the explicit outcome check at
+      :976-985, which names only `bandit` and `pip_audit` — commitlint is not included. So
+      commitlint has the exact same continue-on-error/advisory-only shape as `ruff check` and
+      `mypy --strict`, which this same Gate Set table (two and three rows below) correctly
+      labels "Advisory, not blocking" with the continue-on-error caveat spelled out. The
+      Commitlint row is inconsistent with the standard the table applies to its sibling
+      rows, and could lead a reader to believe a malformed commit message fails CI when it
+      does not.
+    remediation: >
+      Change the Commitlint row's "Applies?" value to "Applies (advisory, not blocking)" and
+      add the same continue-on-error caveat used for the ruff/mypy rows, citing
+      ci-quality.yml:672-675 (continue-on-error on the commitlint step) and the outcome-check
+      at :976-985 (which never names commitlint). If the plan means to keep the *house-rule*
+      obligation on the WP's own commits regardless of CI enforcement, state that
+      explicitly as a house rule (per CLAUDE.md) rather than implying the CI gate itself
+      blocks on it.
+
+  - id: PLAN-VERIFY-002
+    lens: Red-first stated per WP
+    severity: 3
+    title: Red-First Discipline hedges between two failure modes when only one is reachable for FR-002's own specified test shape
+    evidence:
+      - artifact: "plan.md § Red-First Discipline (WP Sequencing), step 2"
+      - artifact: "spec.md § Requirements, row FR-002"
+      - code: "src/charter/drg.py:371-381"
+    claim: >
+      plan.md step 2 says the expected pre-fix failure mode is "either a raised ...
+      `UnknownArtifactIdError` (if the test calls `resolve_artifact_urn` directly as a
+      sub-assertion) or, at the `filter_graph_by_activation` level, the org directive's node
+      being absent from the returned graph." But FR-002 (spec.md) explicitly constrains the
+      regression test to "the full `activate()` → `filter_graph_by_activation()` round trip,
+      not a direct `resolve_artifact_urn()` call" — i.e. it explicitly rules out the
+      "direct sub-assertion" branch that the plan's first disjunct depends on. Tracing the
+      actual code: `_resolve_activated_urns_for_kind` (src/charter/drg.py:371-381) calls
+      `resolve_artifact_urn` inside a `try`/`except UnknownArtifactIdError: continue` at
+      :379-380 — the exception is swallowed there and never propagates out of
+      `filter_graph_by_activation`. For the round-trip test shape FR-002 actually specifies,
+      the `UnknownArtifactIdError`-raised branch can never be observed; only the "org node
+      absent from the filtered graph" assertion failure is reachable. The plan's own
+      "either/or" framing therefore offers, as a live possibility for FR-002's own test, a
+      failure mode that cannot occur given FR-002's own constraint, and never states which
+      one is actually correct — exactly the vagueness a red-first step is supposed to
+      eliminate. (Separately, `pack_manager.CharterPackManager.activate`'s own ID-validation
+      step, `list_available` → `_resolve_org_layer_dir`
+      (src/charter/pack_manager.py:238-253), already resolves the flat org layout correctly
+      via a wholly different scan path than `_org_scan_dirs`, so the `activate()` write itself
+      succeeds pre-fix — it is only the later `filter_graph_by_activation` step, going through
+      `_org_scan_dirs`, that drops the node. This confirms the round trip's only reachable red
+      is the node-absent assertion, never a raised exception surfacing to the test.)
+    remediation: >
+      Rewrite step 2 to state unconditionally (no "either/or") that the expected pre-fix red
+      for FR-002's round-trip test is the assertion that the org directive's node is absent
+      from `filter_graph_by_activation`'s output graph, because
+      `_resolve_activated_urns_for_kind` (drg.py:379-380) swallows `UnknownArtifactIdError`
+      before it can reach a round-trip caller. If the plan wants to also record a
+      `resolve_artifact_urn`-raises assertion, attribute it explicitly to FR-003 (the
+      unit-level test, which per spec.md Acceptance Scenario 2 does call
+      `resolve_artifact_urn` directly), not to FR-002's own red-first attribution.
