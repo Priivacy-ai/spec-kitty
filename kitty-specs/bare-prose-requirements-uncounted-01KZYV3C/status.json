@@ -1,20 +1,20 @@
 {
-  "event_count": 8,
-  "last_event_id": "01KZZS210M3XM42NJHKKT61YS5",
-  "materialized_at": "2026-08-14T09:18:41.684663+00:00",
+  "event_count": 9,
+  "last_event_id": "01KZZSAYQASCP69PS56Q4CC4PT",
+  "materialized_at": "2026-08-14T09:23:34.250750+00:00",
   "mission_number": "",
   "mission_slug": "bare-prose-requirements-uncounted-01KZYV3C",
   "mission_type": "software-dev",
   "summary": {
     "approved": 0,
-    "blocked": 1,
+    "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 6
+    "planned": 7
   },
   "work_packages": {
     "WP02": {
@@ -32,11 +32,11 @@
       "last_transition_at": "2026-08-14T09:17:26.621305+00:00"
     },
     "WP04": {
-      "actor": "implement-command",
-      "force_count": 0,
-      "lane": "blocked",
-      "last_event_id": "01KZZS210M3XM42NJHKKT61YS5",
-      "last_transition_at": "2026-08-14T09:18:41.684663+00:00"
+      "actor": "fixer",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KZZSAYQASCP69PS56Q4CC4PT",
+      "last_transition_at": "2026-08-14T09:23:34.250750+00:00"
     },
     "WP05": {
       "actor": "finalize-tasks",
