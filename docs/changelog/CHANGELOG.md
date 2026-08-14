@@ -88,6 +88,17 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **`agent mission create` now surfaces the actionable remediation body of an
+  internal-consistency error instead of only the bare code (`#3406`, FR-012).**
+  A `KittyInternalConsistencyError` (e.g. `CHARTER_PACK_CONFIG_INVALID`, raised
+  when a project has no activated mission types) carries both a stable `code`
+  and a human `body`, but the command's broad handler emitted only `str(exc)` —
+  the code — so `mission create --json` returned an opaque error with no next
+  step and the console showed the same. It now emits the `body` as `detail` in
+  `--json` and prints it to the console, so the user is told to run
+  `spec-kitty charter activate mission-type <name>`. Second fix in the
+  first-sync gauntlet.
+
 - **Mission `create` and `next` now run correctly from a caller-owned linked
   git worktree, and each worktree's mission state stays isolated (mission
   `worktree-owned-root-3328-01KZRG01`; `#3346`, closes `#3328`).** Before,

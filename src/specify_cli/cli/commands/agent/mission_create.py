@@ -268,6 +268,7 @@ def _run_create_core_phase(
     a ``MissionCreationError`` (with worktree navigation hint), or any other
     unexpected exception.
     """
+    from kernel.errors import KittyInternalConsistencyError
     from specify_cli.core.mission_creation import (
         MissionCreationError,
         create_mission_core,
@@ -320,6 +321,22 @@ def _run_create_core_phase(
         else:
             console.print(f"[bold red]Error:[/bold red] {error_msg}")
             _print_worktree_navigation_hint(mission_slug, error_msg)
+        raise typer.Exit(1) from exc
+    except KittyInternalConsistencyError as exc:
+        # Internal-consistency errors (e.g. CHARTER_PACK_CONFIG_INVALID) carry a
+        # stable `code` AND a human-actionable `body`. The broad handler below
+        # emits only `str(exc)`, which is the bare code — the #3406 FR-012
+        # opacity where `mission create --json` returned a code with no next
+        # step. Surface the remediation body in both JSON and console modes.
+        if json_output:
+            payload: dict[str, str] = {"error": exc.code}
+            if exc.body:
+                payload["detail"] = exc.body
+            _emit_json(payload)
+        else:
+            console.print(f"[bold red]Error:[/bold red] {exc.code}")
+            if exc.body:
+                console.print(exc.body)
         raise typer.Exit(1) from exc
     except Exception as e:
         if json_output:

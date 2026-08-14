@@ -702,3 +702,56 @@ def test_start_branch_target_branch_mismatch_refuses_before_switch(tmp_path: Pat
     assert _git(tmp_path, "branch", "--show-current").stdout.strip() == "main"
     assert not _branch_exists(tmp_path, "feat/json-pr-bound-mismatch")
     assert list((tmp_path / "kitty-specs").iterdir()) == []
+
+
+# ---------------------------------------------------------------------------
+# #3406 FR-012: internal-consistency errors surface their actionable body
+# ---------------------------------------------------------------------------
+
+
+def test_create_json_surfaces_internal_error_body(tmp_path: Path) -> None:
+    """A ``KittyInternalConsistencyError`` (e.g. CHARTER_PACK_CONFIG_INVALID) must
+    expose BOTH the stable ``code`` and its actionable ``body`` in ``--json``
+    output (#3406 FR-012). Before, the broad handler emitted only ``str(exc)`` —
+    the bare code — so `mission create --json` returned an opaque error with no
+    next step (this is what made the empty-mission-type gate unreadable)."""
+    _init_repo(tmp_path)
+    from charter.pack_context import CharterPackConfigError
+
+    body = (
+        "This project has no activated mission types. Run "
+        "`spec-kitty charter activate mission-type software-dev` to activate one."
+    )
+
+    runner = CliRunner()
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main"),
+        patch(f"{_CORE_MODULE}.create_mission_core", side_effect=CharterPackConfigError(body)),
+    ):
+        result = runner.invoke(
+            mission_app,
+            [
+                "create",
+                "cli-err-test",
+                "--json",
+                "--target-branch",
+                "main",
+                "--friendly-name",
+                "CLI Err Test",
+                "--purpose-tldr",
+                "Validate the error body reaches JSON.",
+                "--purpose-context",
+                "Issue #3406 FR-012 — the remediation must not be swallowed.",
+            ],
+        )
+
+    assert result.exit_code != 0, result.output
+    payload = _json_payload_from_output(result.output)
+    assert payload["error"] == "CHARTER_PACK_CONFIG_INVALID"
+    assert "detail" in payload, f"remediation body dropped: {payload!r}"
+    assert "charter activate mission-type" in payload["detail"]
