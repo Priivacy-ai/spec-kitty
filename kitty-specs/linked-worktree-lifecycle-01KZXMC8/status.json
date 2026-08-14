@@ -108,7 +108,8 @@
         "Cycle 4 fixes production task transitions and repo-wide root guard",
         "Cycle 4: production mark-status and move-task e2e; dynamic src-wide root authority guard",
         "REQUEST_CHANGES: raw KITTY_SPECS_DIR/slug join in tasks_shared.py bypasses canonical Mission resolver; existing repo-wide resolver guard fails (1 failed, 61 passed).",
-        "Cycle 5: canonical resolver fallback and raw-path-join architectural census; parent gates pass"
+        "Cycle 5: canonical resolver fallback and raw-path-join architectural census; parent gates pass",
+        "Review passed: cycle-5 resolver-first legacy fallback closes the raw KITTY_SPECS_DIR/slug bypass; nested sentinel handles only canonical mission-not-found and preserves fail-loud errors; repo-wide raw-path census and mutation are non-vacuous. Independent gates: reviewer slice 62/62, architecture 28/28, production lifecycle 14/14, Ruff/mypy tasks_shared/py_compile/codemap hashes/diff-check PASS; Windows os.geteuid remains unchanged baseline; all 8 anti-pattern checks PASS/N/A."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
