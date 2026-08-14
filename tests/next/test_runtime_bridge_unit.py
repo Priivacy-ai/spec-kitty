@@ -1145,6 +1145,78 @@ class TestAtomicTaskSteps:
         assert "Requirement mapping incomplete" in failures[0]
         assert "unmapped FRs: FR-002" in failures[0]
 
+    # -----------------------------------------------------------------
+    # #3396 Story 3 — the bare-prose signal actually reaches spec-kitty
+    # next's advance-vs-stay decision, in BOTH Story 3 configurations
+    # (zero WP files; >=1 WP file, none referencing the bare-prose ids),
+    # driven through the CLI-native and composed integration entry points
+    # (not only the pure evaluate_guards core in isolation — see
+    # tests/runtime/test_bridge_cores.py for the pure-core teeth tests).
+    # -----------------------------------------------------------------
+
+    _BARE_PROSE_REPRO_SPEC = (
+        "# Spec\n\n"
+        "## Functional Requirements\n\n"
+        "FR-001 the loader must reject bad input. FR-002 the error must name "
+        "the offending path.\n\n"
+        "| ID | Requirement | Acceptance Criteria | Status |\n"
+        "| --- | --- | --- | --- |\n"
+        "| NFR-001 | Perf | Some criteria. | proposed |\n"
+    )
+
+    @pytest.mark.git_repo
+    def test_tasks_packages_guard_blocks_bare_prose_requirements_zero_wp_files(self, tmp_path: Path) -> None:
+        """Story 3 config (a): zero WP files materialized yet. Before this
+        WP's wiring, `_check_cli_guards("tasks_packages", ...)` returned only
+        the generic 'materialize WP packages first' message regardless of
+        spec.md content -- this is the exact `_zero_declared_requirement_
+        block` (3823f2b00) dead-path shape this mission exists to avoid
+        repeating. The failure detail must be traceable to FR-001/FR-002
+        specifically, not only the generic message that would fire
+        regardless."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(self._BARE_PROSE_REPRO_SPEC, encoding="utf-8")
+
+        from runtime.next.runtime_bridge import _check_cli_guards
+
+        failures = _check_cli_guards("tasks_packages", feature_dir)
+        assert any("FR-001" in f and "FR-002" in f for f in failures), failures
+        assert any("WP*.md" in f for f in failures), failures
+
+    @pytest.mark.git_repo
+    def test_composed_tasks_finalize_guard_blocks_bare_prose_requirements_with_unrelated_wp_files(
+        self, tmp_path: Path
+    ) -> None:
+        """Story 3 config (b): >=1 WP file exists, referencing only the
+        correctly-declared NFR-001 -- NOT the bare-prose FR-001/FR-002 (those
+        ids were never offered by map-requirements, since they are
+        undeclared). The pre-existing missing/unknown/unmapped
+        requirement-mapping check is clean here by construction
+        (`functional_requirement_ids` is empty since no FR is declared in a
+        recognized shape), proving this is not merely that pre-existing check
+        incidentally catching the same case (spec.md Story 3 AC2)."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(self._BARE_PROSE_REPRO_SPEC, encoding="utf-8")
+        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01\ndependencies: []\n"
+            "requirement_refs: [NFR-001]\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from runtime.next.runtime_bridge import _check_composed_action_guard, _check_requirement_mapping_ready
+
+        # Sanity: the pre-existing requirement-mapping check is clean here --
+        # the assertion below is not incidentally passing because of it.
+        assert _check_requirement_mapping_ready(feature_dir) == []
+
+        failures = _check_composed_action_guard("tasks", feature_dir, legacy_step_id="tasks_finalize")
+        assert any("FR-001" in f and "FR-002" in f for f in failures), failures
+
     @pytest.mark.git_repo
     def test_tasks_packages_guard_passes_when_functional_requirements_are_mapped(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
