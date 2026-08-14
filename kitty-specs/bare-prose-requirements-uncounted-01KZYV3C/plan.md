@@ -85,7 +85,7 @@ extension) threaded from `runtime_bridge.py` into `runtime_bridge_cores.py`; a
   (core domain logic) gets full unit-test rigour (NFR-004); the CLI wiring at the three
   call sites is glue, tested at integration granularity via the existing per-command
   test files.
-- **ATDD-first** — see "ATDD-First (C-011)" below; ordering constraint acknowledged and
+- **ATDD-first** — see "ATDD-First (charter C-011 / spec C-002)" below; ordering constraint acknowledged and
   the base-branch caveat is stated explicitly, not silently assumed.
 - **Glossary & terminology** — PASS. "Mission," never "Feature" (C-004); no new
   user-facing terms are introduced that need glossary entries — "bare-prose requirement"
@@ -664,7 +664,7 @@ not match (new reds introduced by #3395's still-unreviewed rewrite, or reds #339
 rewrite happens to fix), open a new upstream issue naming the delta before treating it
 as accepted baseline, per the charter rule.
 
-## ATDD-First (C-011)
+## ATDD-First (charter C-011 / spec C-002)
 
 `planning_base_branch` for this mission is explicitly **`ab15225ea` /
 `origin/op/3394-requirement-citation-scope`** — not `main`, and not the CLI-computed
