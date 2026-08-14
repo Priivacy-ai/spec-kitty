@@ -172,10 +172,7 @@ def test_mission_created_payload_contains_required_fields(feature_dir: Path) -> 
     assert envelope is not None
     payload = envelope["payload"]
     # Forbidden: ``actor`` belongs on the envelope, not the payload (#1190).
-    assert "actor" not in payload, (
-        f"MissionCreated payload must not contain 'actor'; got {payload!r}. "
-        "See Priivacy-ai/spec-kitty#1190."
-    )
+    assert "actor" not in payload, f"MissionCreated payload must not contain 'actor'; got {payload!r}. See Priivacy-ai/spec-kitty#1190."
     # Required by the canonical schema (#1199).
     assert payload["mission_type"] == "software-dev"
     assert payload["wp_count"] == 0
@@ -273,11 +270,7 @@ def test_wp_created_full_roster_writes_one_event_per_wp(feature_dir: Path) -> No
             wp_id=wp_id,
             wp_title=title,
         )
-    entries = [
-        e
-        for e in read_lifecycle_events(mission_event_log_path(feature_dir))
-        if e["event_type"] == WP_CREATED
-    ]
+    entries = [e for e in read_lifecycle_events(mission_event_log_path(feature_dir)) if e["event_type"] == WP_CREATED]
     assert sorted(e["aggregate_id"] for e in entries) == ["WP01", "WP02", "WP03"]
 
 
@@ -478,7 +471,7 @@ def test_has_non_bootstrap_status_history_tolerates_noise_and_detects_planned_re
     log.write_text(
         "\n"
         "not-json\n"
-        "[\"not\", \"an\", \"event\"]\n"
+        '["not", "an", "event"]\n'
         + json.dumps(
             {
                 "event_id": "01H3",
@@ -497,9 +490,7 @@ def test_has_non_bootstrap_status_history_tolerates_noise_and_detects_planned_re
     assert has_non_bootstrap_status_history(feature_dir) is True
 
 
-def test_has_non_bootstrap_status_history_false_when_log_read_fails(
-    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_has_non_bootstrap_status_history_false_when_log_read_fails(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     mission_event_log_path(feature_dir).write_text("{}", encoding="utf-8")
 
     def _raise(*args, **kwargs):  # noqa: ANN002, ANN003
@@ -541,23 +532,14 @@ def test_has_lifecycle_event_matches_dedup_keys(feature_dir: Path) -> None:
         aggregate_type="WorkPackage",
         dedup_keys={"mission_slug": "demo-mission", "wp_id": "WP07"},
     )
-    assert has_lifecycle_event(
-        log, event_type=WP_CREATED, dedup_keys={"mission_slug": "demo-mission", "wp_id": "WP07"}
-    )
-    assert not has_lifecycle_event(
-        log, event_type=WP_CREATED, dedup_keys={"mission_slug": "demo-mission", "wp_id": "WP99"}
-    )
+    assert has_lifecycle_event(log, event_type=WP_CREATED, dedup_keys={"mission_slug": "demo-mission", "wp_id": "WP07"})
+    assert not has_lifecycle_event(log, event_type=WP_CREATED, dedup_keys={"mission_slug": "demo-mission", "wp_id": "WP99"})
 
 
-def test_read_lifecycle_events_tolerates_unreadable_and_malformed_logs(
-    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_read_lifecycle_events_tolerates_unreadable_and_malformed_logs(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     log = mission_event_log_path(feature_dir)
     log.write_text(
-        "\n"
-        "not-json\n"
-        + json.dumps({"event_type": WP_CREATED, "payload": {"wp_id": "WP01"}})
-        + "\n",
+        "\nnot-json\n" + json.dumps({"event_type": WP_CREATED, "payload": {"wp_id": "WP01"}}) + "\n",
         encoding="utf-8",
     )
     assert len(read_lifecycle_events(log)) == 1
@@ -573,9 +555,7 @@ def test_has_lifecycle_event_ignores_non_mapping_payload(feature_dir: Path) -> N
     log = mission_event_log_path(feature_dir)
     _write_jsonl(log, [{"event_type": WP_CREATED, "payload": ["not", "a", "mapping"]}])
 
-    assert not has_lifecycle_event(
-        log, event_type=WP_CREATED, dedup_keys={"mission_slug": "demo-mission"}
-    )
+    assert not has_lifecycle_event(log, event_type=WP_CREATED, dedup_keys={"mission_slug": "demo-mission"})
 
 
 def test_append_lifecycle_event_rejects_unknown_type(feature_dir: Path) -> None:
@@ -591,9 +571,7 @@ def test_append_lifecycle_event_rejects_unknown_type(feature_dir: Path) -> None:
     )
 
 
-def test_append_lifecycle_event_returns_none_when_write_fails(
-    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_append_lifecycle_event_returns_none_when_write_fails(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     def _raise(path: Path, line: str) -> None:
         raise OSError("disk full")
 
@@ -645,7 +623,8 @@ def test_lifecycle_repo_root_resolution_handles_supported_logs(repo: Path) -> No
 
 
 def test_lifecycle_repo_root_resolution_fails_closed_outside_git(
-    repo: Path, monkeypatch: pytest.MonkeyPatch,
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A path the resolver cannot anchor to a git root returns ``None``.
 
@@ -740,10 +719,13 @@ def test_lifecycle_saas_outbox_skips_unmaterializable_event(
 
 
 def test_lifecycle_saas_outbox_queues_when_scoped(
-    feature_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    feature_dir: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     queued: list[dict[str, object]] = []
+    queue_authority: list[tuple[object, object]] = []
 
     # Mint + persist a real project identity (as ``spec-kitty init`` does).
     # Post-#2263 the SaaS lifecycle fan-out resolves identity WITHOUT
@@ -756,6 +738,9 @@ def test_lifecycle_saas_outbox_queues_when_scoped(
     ensure_identity(tmp_path)
 
     class _Queue:
+        def __init__(self, unit: object, layout_generation: object) -> None:
+            queue_authority.append((unit, layout_generation))
+
         def queue_event(self, event: dict[str, object]) -> bool:
             queued.append(event)
             return True
@@ -781,6 +766,13 @@ def test_lifecycle_saas_outbox_queues_when_scoped(
         artifact_path="kitty-specs/demo-mission/spec.md",
     )
 
+    assert len(queue_authority) == 1
+    from specify_cli.sync.layout_generation import LayoutGenerationAuthority
+    from specify_cli.sync.project_store import ProjectUnitOfWork
+
+    unit, layout_generation = queue_authority[0]
+    assert isinstance(unit, ProjectUnitOfWork)
+    assert isinstance(layout_generation, LayoutGenerationAuthority)
     assert len(queued) == 1
     queued_event = queued[0]
     assert queued_event["event_type"] == SPECIFY_COMPLETED
@@ -799,9 +791,12 @@ def test_lifecycle_saas_outbox_queues_when_scoped(
 
 
 def test_lifecycle_saas_outbox_suppresses_queue_failures(
-    feature_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    feature_dir: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
+
     class _Queue:
         def __init__(self) -> None:
             raise RuntimeError("queue unavailable")
@@ -967,18 +962,17 @@ _SAAS_KW = {
 def test_build_saas_lifecycle_queue_event_returns_none_for_invalid_event_type_or_payload() -> None:
     """A non-queueable envelope (bad ``event_type``/``payload``) yields None."""
     # Non-str event_type.
-    assert lifecycle.build_saas_lifecycle_queue_event(
-        {"event_type": None, "payload": {}}, **_SAAS_KW
-    ) is None
+    assert lifecycle.build_saas_lifecycle_queue_event({"event_type": None, "payload": {}}, **_SAAS_KW) is None
     # Non-Mapping payload.
-    assert lifecycle.build_saas_lifecycle_queue_event(
-        {"event_type": "ProjectInitialized", "payload": "not-a-mapping"}, **_SAAS_KW
-    ) is None
+    assert lifecycle.build_saas_lifecycle_queue_event({"event_type": "ProjectInitialized", "payload": "not-a-mapping"}, **_SAAS_KW) is None
 
 
 def test_build_saas_lifecycle_queue_event_returns_none_for_invalid_aggregate_type() -> None:
     """A valid event_type+payload but non-str ``aggregate_type`` yields None."""
-    assert lifecycle.build_saas_lifecycle_queue_event(
-        {"event_type": "ProjectInitialized", "payload": {}, "aggregate_type": None},
-        **_SAAS_KW,
-    ) is None
+    assert (
+        lifecycle.build_saas_lifecycle_queue_event(
+            {"event_type": "ProjectInitialized", "payload": {}, "aggregate_type": None},
+            **_SAAS_KW,
+        )
+        is None
+    )

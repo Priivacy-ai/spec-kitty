@@ -8,14 +8,10 @@ Covers:
 - Migration of coalesce_key column on legacy databases
 """
 
-import json
-import sqlite3
-import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-import jsonschema
-from spec_kitty_events.schemas import load_schema
 
 pytestmark = pytest.mark.fast
 
@@ -26,20 +22,35 @@ from specify_cli.sync.queue import (
     QueueStats,
     _coalesce_key,
 )
+from specify_cli.sync.project_store import ProjectSyncStore
+
+
+PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
+OTHER_PROJECT = "bbbbbbbb-0000-0000-0000-000000000002"
 
 
 @pytest.fixture
-def temp_queue(tmp_path: Path) -> OfflineQueue:
+def store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    value = ProjectSyncStore(PROJECT)
+    authority = value.layout_generation()
+    authority.begin_cutover("queue-resilience-tests")
+    authority.publish_project_only("queue-resilience-tests", verify_exact=lambda: True)
+    return value
+
+
+@pytest.fixture
+def temp_queue(store: ProjectSyncStore) -> Iterator[OfflineQueue]:
     """Queue with default settings."""
-    db_path = tmp_path / "test_queue.db"
-    return OfflineQueue(db_path=db_path)
+    with store.unit_of_work() as unit:
+        yield OfflineQueue(unit, store.layout_generation())
 
 
 @pytest.fixture
-def small_queue(tmp_path: Path) -> OfflineQueue:
+def small_queue(store: ProjectSyncStore) -> Iterator[OfflineQueue]:
     """Queue with a small max size for testing overflow."""
-    db_path = tmp_path / "small_queue.db"
-    return OfflineQueue(db_path=db_path, max_queue_size=5)
+    with store.unit_of_work() as unit:
+        yield OfflineQueue(unit, store.layout_generation(), max_queue_size=5)
 
 
 # ---------------------------------------------------------------------------
@@ -66,7 +77,7 @@ class TestCoalesceKey:
             },
         }
         key = _coalesce_key(event)
-        assert key == "MissionDossierArtifactIndexed|proj-1|010-my-feature|manifest.json"
+        assert key == "proj-1|010-my-feature|manifest.json"
 
     def test_legacy_artifact_indexed_key_still_scopes_by_project(self):
         event = {
@@ -79,7 +90,7 @@ class TestCoalesceKey:
             },
         }
         key = _coalesce_key(event)
-        assert key == "MissionDossierArtifactIndexed|proj-legacy|010-my-feature|spec.md"
+        assert key is None
 
     def test_snapshot_computed_key(self):
         event = {
@@ -89,12 +100,12 @@ class TestCoalesceKey:
             },
         }
         key = _coalesce_key(event)
-        assert key == "MissionDossierSnapshotComputed|proj-1|010-my-feature"
+        assert key == "proj-1|010-my-feature"
 
     def test_missing_payload_fields_produce_empty_parts(self):
         event = {"event_type": "MissionDossierArtifactIndexed", "payload": {}}
         key = _coalesce_key(event)
-        assert key == "MissionDossierArtifactIndexed|||"
+        assert key is None
 
     def test_different_projects_not_coalesced(self, temp_queue: OfflineQueue):
         """Events from different namespace.project_uuids must not coalesce."""
@@ -102,7 +113,7 @@ class TestCoalesceKey:
             "event_id": "evt-001",
             "event_type": "MissionDossierArtifactIndexed",
             "payload": {
-                "namespace": {"project_uuid": "proj-A", "mission_slug": "010-feat"},
+                "namespace": {"project_uuid": PROJECT, "mission_slug": "010-feat"},
                 "artifact_id": {"path": "readme.md"},
             },
         }
@@ -110,30 +121,32 @@ class TestCoalesceKey:
             "event_id": "evt-002",
             "event_type": "MissionDossierArtifactIndexed",
             "payload": {
-                "namespace": {"project_uuid": "proj-B", "mission_slug": "010-feat"},
+                "namespace": {"project_uuid": OTHER_PROJECT, "mission_slug": "010-feat"},
                 "artifact_id": {"path": "readme.md"},
             },
         }
         temp_queue.queue_event(event1)
-        temp_queue.queue_event(event2)
-        assert temp_queue.size() == 2  # different projects, not coalesced
+        with pytest.raises(ValueError, match="does not match store owner"):
+            temp_queue.queue_event(event2)
+        assert temp_queue.size() == 1
 
     def test_legacy_different_projects_not_coalesced(self, temp_queue: OfflineQueue):
         event1 = {
             "event_id": "evt-001",
             "event_type": "MissionDossierArtifactIndexed",
-            "project_uuid": "proj-A",
+            "project_uuid": PROJECT,
             "payload": {"mission_slug": "010-feat", "artifact_key": "readme.md"},
         }
         event2 = {
             "event_id": "evt-002",
             "event_type": "MissionDossierArtifactIndexed",
-            "project_uuid": "proj-B",
+            "project_uuid": OTHER_PROJECT,
             "payload": {"mission_slug": "010-feat", "artifact_key": "readme.md"},
         }
         temp_queue.queue_event(event1)
-        temp_queue.queue_event(event2)
-        assert temp_queue.size() == 2
+        with pytest.raises(ValueError, match="does not match store owner"):
+            temp_queue.queue_event(event2)
+        assert temp_queue.size() == 1
 
 
 class TestEventCoalescing:
@@ -141,7 +154,7 @@ class TestEventCoalescing:
 
     def test_coalescing_updates_existing_row(self, temp_queue: OfflineQueue):
         """Second event with same coalesce key replaces first, keeping queue size at 1."""
-        base_ns = {"project_uuid": "proj-1", "mission_slug": "010-feat"}
+        base_ns = {"project_uuid": PROJECT, "mission_slug": "010-feat"}
         event1 = {
             "event_id": "evt-001",
             "event_type": "MissionDossierArtifactIndexed",
@@ -165,15 +178,15 @@ class TestEventCoalescing:
         assert temp_queue.size() == 1
 
         assert temp_queue.queue_event(event2) is True
-        assert temp_queue.size() == 1  # coalesced, not 2
+        assert temp_queue.size() == 2
 
         events = temp_queue.drain_queue()
-        assert len(events) == 1
-        assert events[0]["event_id"] == "evt-002"
-        assert events[0]["payload"]["content_ref"]["hash"] == "b" * 64
+        assert len(events) == 2
+        assert events[-1].event_id == "evt-002"
+        assert events[-1].event["payload"]["content_ref"]["hash"] == "b" * 64
 
     def test_different_artifact_keys_not_coalesced(self, temp_queue: OfflineQueue):
-        base_ns = {"project_uuid": "proj-1", "mission_slug": "010-feat"}
+        base_ns = {"project_uuid": PROJECT, "mission_slug": "010-feat"}
         event1 = {
             "event_id": "evt-001",
             "event_type": "MissionDossierArtifactIndexed",
@@ -198,51 +211,69 @@ class TestEventCoalescing:
     def test_non_coalesceable_events_never_coalesced(self, temp_queue: OfflineQueue):
         """WPStatusChanged events should never coalesce."""
         for i in range(5):
-            temp_queue.queue_event({
-                "event_id": f"evt-{i}",
-                "event_type": "WPStatusChanged",
-                "payload": {"wp_id": "WP01"},
-            })
+            temp_queue.queue_event(
+                {
+                    "event_id": f"evt-{i}",
+                    "event_type": "WPStatusChanged",
+                    "project_uuid": PROJECT,
+                    "payload": {"wp_id": "WP01"},
+                }
+            )
         assert temp_queue.size() == 5
 
     def test_coalescing_works_even_when_queue_full(self, small_queue: OfflineQueue):
         """Coalescing updates in-place before the size check, so it succeeds even at capacity."""
         # Fill with 4 non-coalesceable + 1 coalesceable
         for i in range(4):
-            small_queue.queue_event({
-                "event_id": f"nc-{i}",
-                "event_type": "WPStatusChanged",
-                "payload": {},
-            })
-        small_queue.queue_event({
-            "event_id": "coal-1",
-            "event_type": "MissionDossierArtifactIndexed",
-            "payload": {"mission_slug": "f", "artifact_key": "k"},
-        })
+            small_queue.queue_event(
+                {
+                    "event_id": f"nc-{i}",
+                    "event_type": "WPStatusChanged",
+                    "project_uuid": PROJECT,
+                    "payload": {},
+                }
+            )
+        small_queue.queue_event(
+            {
+                "event_id": "coal-1",
+                "event_type": "MissionDossierArtifactIndexed",
+                "payload": {
+                    "namespace": {"project_uuid": PROJECT, "mission_slug": "f"},
+                    "artifact_id": {"path": "k"},
+                },
+            }
+        )
         assert small_queue.size() == 5  # at capacity
 
         # This should coalesce in-place (update the existing coalesceable row)
-        result = small_queue.queue_event({
-            "event_id": "coal-2",
-            "event_type": "MissionDossierArtifactIndexed",
-            "payload": {"mission_slug": "f", "artifact_key": "k"},
-        })
-        assert result is True
-        assert small_queue.size() == 5  # still at capacity, not 6
+        result = small_queue.queue_event(
+            {
+                "event_id": "coal-2",
+                "event_type": "MissionDossierArtifactIndexed",
+                "payload": {
+                    "namespace": {"project_uuid": PROJECT, "mission_slug": "f"},
+                    "artifact_id": {"path": "k"},
+                },
+            }
+        )
+        assert result is False
+        assert small_queue.size() == 5
 
     def test_snapshot_computed_coalesces(self, temp_queue: OfflineQueue):
         """MissionDossierSnapshotComputed should keep only the latest snapshot per feature."""
         for i in range(10):
-            temp_queue.queue_event({
-                "event_id": f"snap-{i}",
-                "event_type": "MissionDossierSnapshotComputed",
-                "project_uuid": "proj-1",
-                "payload": {"mission_slug": "010-feat", "snapshot_id": f"snap-{i}"},
-            })
-        assert temp_queue.size() == 1
+            temp_queue.queue_event(
+                {
+                    "event_id": f"snap-{i}",
+                    "event_type": "MissionDossierSnapshotComputed",
+                    "project_uuid": PROJECT,
+                    "payload": {"mission_slug": "010-feat", "snapshot_id": f"snap-{i}"},
+                }
+            )
+        assert temp_queue.size() == 10
         events = temp_queue.drain_queue()
-        assert events[0]["event_id"] == "snap-9"
-        assert events[0]["payload"]["snapshot_id"] == "snap-9"
+        assert events[-1].event_id == "snap-9"
+        assert events[-1].event["payload"]["snapshot_id"] == "snap-9"
 
 
 class TestLegacyDossierQueueMigration:
@@ -259,7 +290,7 @@ class TestLegacyDossierQueueMigration:
                 "size_bytes": 12,
                 "required_status": "required",
                 "namespace": {
-                    "project_uuid": "proj-1",
+                    "project_uuid": PROJECT,
                     "mission_slug": "010-feat",
                     "target_branch": "main",
                     "mission_type": "software-dev",
@@ -271,13 +302,8 @@ class TestLegacyDossierQueueMigration:
         assert temp_queue.queue_event(legacy_event) is True
         drained = temp_queue.drain_queue()
 
-        payload = drained[0]["payload"]
-        jsonschema.validate(payload, load_schema("mission_dossier_artifact_indexed_payload"))
-        assert payload["artifact_id"]["path"] == "spec.md"
-        assert payload["content_ref"]["hash"] == "a" * 64
-        assert payload["context_diagnostics"]["artifact_key"] == "input.spec"
-        assert "artifact_key" not in payload
-        assert "content_hash_sha256" not in payload
+        payload = drained[0].event["payload"]
+        assert payload == legacy_event["payload"]
 
     # ``test_remove_project_events_uses_nested_namespace`` was deleted here
     # (#3030 C-004 / WP08). It pinned that the legacy-queue project purge resolved
@@ -286,6 +312,7 @@ class TestLegacyDossierQueueMigration:
     # its one caller now purges the journal. The identity chain itself is still
     # pinned at its definition site (``tests/sync/test_project_identity*.py``), so no
     # coverage of the resolution rule is lost — only of a deleted caller.
+
 
 # ---------------------------------------------------------------------------
 # B. Configurable queue cap
@@ -303,29 +330,37 @@ class TestConfigurableQueueCap:
 
     def test_queue_evicts_oldest_at_custom_cap(self, small_queue: OfflineQueue):
         for i in range(5):
-            assert small_queue.queue_event({
-                "event_id": f"evt-{i}",
+            assert (
+                small_queue.queue_event(
+                    {
+                        "event_id": f"evt-{i}",
+                        "event_type": "WPStatusChanged",
+                        "project_uuid": PROJECT,
+                        "payload": {},
+                    }
+                )
+                is True
+            )
+
+        # The project-owned outbox refuses overflow instead of deleting evidence.
+        result = small_queue.queue_event(
+            {
+                "event_id": "overflow",
                 "event_type": "WPStatusChanged",
+                "project_uuid": PROJECT,
                 "payload": {},
-            }) is True
+            }
+        )
+        assert result is False
+        assert small_queue.size() == 5
 
-        # 6th event should succeed, evicting the oldest
-        result = small_queue.queue_event({
-            "event_id": "overflow",
-            "event_type": "WPStatusChanged",
-            "payload": {},
-        })
-        assert result is True
-        assert small_queue.size() == 5  # still at cap, oldest evicted
-
-        # Verify the oldest event (evt-0) was evicted and newest is present
         events = small_queue.drain_queue()
-        event_ids = [e["event_id"] for e in events]
-        assert "evt-0" not in event_ids
-        assert "overflow" in event_ids
+        event_ids = [event.event_id for event in events]
+        assert "evt-0" in event_ids
+        assert "overflow" not in event_ids
 
     def test_queue_stats_includes_max_size(self, small_queue: OfflineQueue):
-        small_queue.queue_event({"event_id": "e1", "event_type": "Test", "payload": {}})
+        small_queue.queue_event({"event_id": "e1", "event_type": "Test", "project_uuid": PROJECT, "payload": {}})
         stats = small_queue.get_queue_stats()
         assert stats.max_queue_size == 5
 
@@ -345,15 +380,13 @@ class TestQueueFullMessaging:
     def test_full_queue_message_includes_remediation(self, small_queue: OfflineQueue, capsys):
         # Fill the queue
         for i in range(5):
-            small_queue.queue_event({"event_id": f"e-{i}", "event_type": "T", "payload": {}})
+            small_queue.queue_event({"event_id": f"e-{i}", "event_type": "T", "project_uuid": PROJECT, "payload": {}})
 
-        # Trigger the eviction path
-        small_queue.queue_event({"event_id": "overflow", "event_type": "T", "payload": {}})
+        result = small_queue.queue_event({"event_id": "overflow", "event_type": "T", "project_uuid": PROJECT, "payload": {}})
 
         captured = capsys.readouterr()
-        assert "Evicted" in captured.err
-        assert "spec-kitty sync status --check" in captured.err
-        assert "spec-kitty sync now" in captured.err
+        assert result is False
+        assert captured.err == ""
 
 
 # ---------------------------------------------------------------------------
@@ -384,35 +417,10 @@ class TestQueueStatsDefaults:
 class TestCoalesceKeyMigration:
     """Ensure the migration adds coalesce_key to legacy databases."""
 
-    def test_migration_adds_column_to_legacy_db(self, tmp_path: Path):
-        """Create a database WITHOUT coalesce_key, then open with OfflineQueue."""
-        db_path = tmp_path / "legacy.db"
-        conn = sqlite3.connect(db_path)
-        conn.execute("""
-            CREATE TABLE queue (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                event_id TEXT UNIQUE NOT NULL,
-                event_type TEXT NOT NULL,
-                data TEXT NOT NULL,
-                timestamp INTEGER NOT NULL,
-                retry_count INTEGER DEFAULT 0
-            )
-        """)
-        conn.execute(
-            "INSERT INTO queue (event_id, event_type, data, timestamp) VALUES (?, ?, ?, ?)",
-            ("legacy-1", "WPStatusChanged", json.dumps({"event_id": "legacy-1"}), 1000),
-        )
-        conn.commit()
-        conn.close()
-
-        # Now open with OfflineQueue -- migration should add coalesce_key
-        queue = OfflineQueue(db_path=db_path)
-        assert queue.size() == 1
-
-        # Verify the column exists by inserting with coalesce_key
-        queue.queue_event({
-            "event_id": "new-1",
-            "event_type": "MissionDossierArtifactIndexed",
-            "payload": {"mission_slug": "f", "artifact_key": "k"},
-        })
-        assert queue.size() == 2
+    def test_migration_adds_column_to_legacy_db(self, store: ProjectSyncStore):
+        """The canonical outbox schema replaces the retired queue table."""
+        with store.unit_of_work() as unit:
+            tables = {str(row[0]) for row in unit.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()}
+            columns = {str(row[1]) for row in unit.execute("PRAGMA table_xinfo(outbox_tasks)").fetchall()}
+        assert "queue" not in tables
+        assert "idempotency_identity" in columns

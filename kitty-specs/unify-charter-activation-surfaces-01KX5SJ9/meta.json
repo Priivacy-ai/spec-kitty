@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "0308af2b3925d81bd6cd59f57f8d38bf4896c3fb",
-  "coordination_branch": "kitty/mission-unify-charter-activation-surfaces-01KX5SJ9",
   "created_at": "2026-07-10T10:35:55.968510+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Unify charter activation surfaces",
   "mission_id": "01KX5SJ9P0HXTVWZDJ121JBP60",
   "mission_number": 172,
@@ -14,5 +13,5 @@
   "slug": "unify-charter-activation-surfaces-01KX5SJ9",
   "status_phase": "1",
   "target_branch": "epic/2519-charter-authoring-lifecycle",
-  "topology": "coord"
+  "topology": "lanes"
 }

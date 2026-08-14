@@ -44,7 +44,10 @@ def test_websocket_auth_headers_kwarg_uses_additional_headers(monkeypatch: pytes
     monkeypatch.setattr("specify_cli.sync.client.websockets.connect", _connect)
 
     assert _websocket_auth_headers_kwarg("ws-tok") == {
-        "additional_headers": {"Authorization": "Bearer ws-tok"}
+        "additional_headers": {
+            "Authorization": "Bearer ws-tok",
+            "X-Spec-Kitty-Sync-Protocol": "2.0",
+        }
     }
 
 
@@ -59,7 +62,10 @@ def test_websocket_auth_headers_kwarg_uses_extra_headers_for_legacy(
     monkeypatch.setattr("specify_cli.sync.client.websockets.connect", _connect)
 
     assert _websocket_auth_headers_kwarg("ws-tok") == {
-        "extra_headers": {"Authorization": "Bearer ws-tok"}
+        "extra_headers": {
+            "Authorization": "Bearer ws-tok",
+            "X-Spec-Kitty-Sync-Protocol": "2.0",
+        }
     }
 
 
@@ -132,20 +138,9 @@ async def test_send_event_when_not_connected():
 
 def test_normalize_ws_url_converts_https_and_loopback_http():
     """Provisioned HTTPS URLs become WSS; loopback HTTP remains allowed for local dev."""
-    assert (
-        WebSocketClient._normalize_ws_url(
-            "https://spec-kitty-dev.fly.dev/ws?project=alpha#frag"
-        )
-        == "wss://spec-kitty-dev.fly.dev/ws?project=alpha#frag"
-    )
-    assert (
-        WebSocketClient._normalize_ws_url("http://127.0.0.1:9400/ws")
-        == "ws://127.0.0.1:9400/ws"
-    )
-    assert (
-        WebSocketClient._normalize_ws_url("ws://localhost:9400/ws")
-        == "ws://localhost:9400/ws"
-    )
+    assert WebSocketClient._normalize_ws_url("https://spec-kitty-dev.fly.dev/ws?project=alpha#frag") == "wss://spec-kitty-dev.fly.dev/ws?project=alpha#frag"
+    assert WebSocketClient._normalize_ws_url("http://127.0.0.1:9400/ws") == "ws://127.0.0.1:9400/ws"
+    assert WebSocketClient._normalize_ws_url("ws://localhost:9400/ws") == "ws://localhost:9400/ws"
 
 
 def test_normalize_ws_url_rejects_insecure_remote_plaintext():
@@ -154,6 +149,88 @@ def test_normalize_ws_url_rejects_insecure_remote_plaintext():
         WebSocketClient._normalize_ws_url("http://spec-kitty-dev.fly.dev/ws")
     with pytest.raises(Exception, match="Refusing insecure WebSocket provisioning URL"):
         WebSocketClient._normalize_ws_url("ws://spec-kitty-dev.fly.dev/ws")
+
+
+@pytest.mark.parametrize("query_key", ["token", "ws_token", "access_token"])
+def test_normalize_ws_url_rejects_query_token(query_key: str) -> None:
+    """Provisioned credentials may travel only in the Authorization header."""
+    with pytest.raises(Exception, match="query token"):
+        WebSocketClient._normalize_ws_url(f"wss://app.spec-kitty.ai/ws?{query_key}=secret")
+
+
+def _local_commit_wire() -> dict[str, Any]:
+    return {
+        "type": "LocalCommit",
+        "git_hash": "a" * 40,
+        "mission_id": "mission-1",
+        "build_id": "build-1",
+        "changed_files": ["kitty-specs/mission-1/spec.md"],
+        "committed_at": "2026-08-11T12:00:00+00:00",
+        "project_uuid": "aaaaaaaa-0000-0000-0000-0000000000aa",
+        "admission_generation": 9,
+        "binding_audience": "private-teamspace:teamspace-1",
+    }
+
+
+@pytest.mark.parametrize(
+    "ack",
+    [
+        {
+            "type": "LocalCommitAck",
+            "git_hash": "a" * 40,
+            "build_id": "build-1",
+            "project_uuid": "aaaaaaaa-0000-0000-0000-0000000000aa",
+            "admission_generation": 9,
+            "binding_audience": "private-teamspace:teamspace-1",
+            "status": "accepted",
+        },
+        {
+            "type": "LocalCommitAck",
+            "git_hash": "a" * 40,
+            "build_id": "build-1",
+            "project_uuid": "aaaaaaaa-0000-0000-0000-0000000000aa",
+            "admission_generation": 9,
+            "binding_audience": "private-teamspace:teamspace-1",
+            "status": "duplicate",
+            "received_at": "2026-08-11T12:00:01+00:00",
+            "ambient": "forbidden",
+        },
+        {
+            "type": "LocalCommitAck",
+            "git_hash": "a" * 40,
+            "build_id": "build-1",
+            "project_uuid": "aaaaaaaa-0000-0000-0000-0000000000aa",
+            "admission_generation": 9,
+            "binding_audience": "private-teamspace:teamspace-1",
+            "status": "rejected",
+            "error_category": "project_not_admitted",
+        },
+    ],
+)
+def test_local_commit_ack_rejects_non_schema_shapes(ack: dict[str, Any]) -> None:
+    with pytest.raises(ValueError):
+        WebSocketClient._classify_local_commit_response(
+            ack,
+            expected=_local_commit_wire(),
+        )
+
+
+@pytest.mark.parametrize(
+    "ack",
+    [
+        {"type": "error", "event_id": "event-1", "status": "accepted"},
+        {
+            "type": "ack",
+            "event_id": "event-1",
+            "status": "rejected",
+            "error_category": "project_not_admitted",
+            "retryable": False,
+        },
+    ],
+)
+def test_event_ack_requires_contract_frame_type(ack: dict[str, Any]) -> None:
+    with pytest.raises(ValueError):
+        WebSocketClient._classify_event_response(ack, event_id="event-1")
 
 
 # ---------------------------------------------------------------------------
@@ -399,9 +476,7 @@ async def test_ws_token_skipped_when_no_private_team_after_rehydrate(
             },
         )
     )
-    wstoken_route = respx.post(f"{_SAAS_BASE_URL}/api/v1/ws-token").mock(
-        return_value=httpx.Response(200, json={})
-    )
+    wstoken_route = respx.post(f"{_SAAS_BASE_URL}/api/v1/ws-token").mock(return_value=httpx.Response(200, json={}))
 
     client = WebSocketClient()
     with caplog.at_level(logging.WARNING, logger="specify_cli.sync._team"):
@@ -411,16 +486,8 @@ async def test_ws_token_skipped_when_no_private_team_after_rehydrate(
     assert client.connected is False
     assert client.status == ConnectionStatus.OFFLINE
 
-    matching = [
-        record
-        for record in caplog.records
-        if "direct ingress skipped" in record.getMessage()
-        and "/api/v1/ws-token" in record.getMessage()
-    ]
-    assert matching, (
-        "expected structured 'direct ingress skipped' warning citing "
-        "/api/v1/ws-token endpoint"
-    )
+    matching = [record for record in caplog.records if "direct ingress skipped" in record.getMessage() and "/api/v1/ws-token" in record.getMessage()]
+    assert matching, "expected structured 'direct ingress skipped' warning citing /api/v1/ws-token endpoint"
 
 
 @pytest.mark.asyncio
@@ -433,9 +500,7 @@ async def test_ws_token_healthy_session_no_rehydrate(
     _enable_sync(monkeypatch)
     _patch_singleton(monkeypatch, token_manager_with_private_session)
 
-    me_route = respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
-        return_value=httpx.Response(200, json={})
-    )
+    me_route = respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(return_value=httpx.Response(200, json={}))
     wstoken_route = respx.post(f"{_SAAS_BASE_URL}/api/v1/ws-token").mock(
         return_value=httpx.Response(
             200,
@@ -472,4 +537,7 @@ async def test_ws_token_healthy_session_no_rehydrate(
     args, kwargs = connect_calls[0]
     assert args == ("wss://saas.example/ws",)
     assert "token=" not in args[0]
-    assert kwargs["additional_headers"] == {"Authorization": "Bearer ws-tok"}
+    assert kwargs["additional_headers"] == {
+        "Authorization": "Bearer ws-tok",
+        "X-Spec-Kitty-Sync-Protocol": "2.0",
+    }

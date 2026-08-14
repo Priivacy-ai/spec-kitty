@@ -57,7 +57,6 @@ class TestFanOutPreservation:
                     wp_id="WP01",
                     to_lane="claimed",
                     actor="test-actor",
-
                 )
             )
             assert isinstance(event, StatusEvent)
@@ -117,7 +116,6 @@ class TestFanOutPreservation:
                     wp_id="WP01",
                     to_lane="claimed",
                     actor="test-actor",
-
                 )
             )
             assert event is not None
@@ -127,10 +125,7 @@ class TestFanOutPreservation:
             # kwarg. The #1141 breadcrumb still surfaces it: adapters._fanout_force
             # duck-types ``metadata.force`` when no top-level ``force`` is present,
             # so the diagnostic keeps reporting the real flag.
-            assert (
-                "fire_saas_fanout: wp_id=WP01 from=planned to=claimed "
-                "force=False handlers=0"
-            ) in caplog.text
+            assert ("fire_saas_fanout: wp_id=WP01 from=planned to=claimed force=False handlers=0") in caplog.text
         finally:
             adapters.reset_handlers()
 
@@ -152,7 +147,6 @@ class TestFanOutPreservation:
                     wp_id="WP01",
                     to_lane="claimed",
                     actor="test-actor",
-
                 )
             )
             assert event is not None
@@ -183,15 +177,9 @@ class TestSyncBootstrapRegisters:
         # sync/__init__.py.
         importlib.reload(specify_cli.sync)
 
-        assert len(adapters._saas_handlers) >= 1, (
-            "sync import should register a SaaS fan-out handler"
-        )
-        assert len(adapters._dossier_handlers) >= 1, (
-            "sync import should register a dossier-sync handler"
-        )
-        assert emitter_adapter._emitter is not None, (
-            "sync import should register a dossier emitter"
-        )
+        assert len(adapters._saas_handlers) >= 1, "sync import should register a SaaS fan-out handler"
+        assert len(adapters._dossier_handlers) >= 1, "sync import should register a dossier-sync handler"
+        assert emitter_adapter._emitter is not None, "sync import should register a dossier emitter"
 
     def test_repeated_sync_reloads_do_not_duplicate_handlers(self) -> None:
         """Reloading sync N times must NOT produce N duplicate handlers.
@@ -214,13 +202,50 @@ class TestSyncBootstrapRegisters:
         for _ in range(3):
             importlib.reload(specify_cli.sync)
 
-        assert len(adapters._saas_handlers) == 1, (
-            f"Expected exactly 1 SaaS handler after 3 reloads, got "
-            f"{len(adapters._saas_handlers)}"
-        )
-        assert len(adapters._dossier_handlers) == 1, (
-            f"Expected exactly 1 dossier-sync handler after 3 reloads, got "
-            f"{len(adapters._dossier_handlers)}"
-        )
+        assert len(adapters._saas_handlers) == 1, f"Expected exactly 1 SaaS handler after 3 reloads, got {len(adapters._saas_handlers)}"
+        assert len(adapters._dossier_handlers) == 1, f"Expected exactly 1 dossier-sync handler after 3 reloads, got {len(adapters._dossier_handlers)}"
         # Dossier emitter is single-slot already (replace semantics)
         assert emitter_adapter._emitter is not None
+
+    def test_dossier_bridge_forwards_exact_store_context(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The registration bridge never substitutes cwd/ambient identity."""
+        import importlib
+
+        import specify_cli.sync
+        import specify_cli.sync.events as sync_events
+        from specify_cli.dossier.emitter_adapter import fire_dossier_event
+        from specify_cli.sync.project_store import ProjectSyncStore
+
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+        store = ProjectSyncStore("11111111-2222-4333-8444-555555555555")
+        layout = store.layout_generation()
+        captured: list[dict[str, object]] = []
+
+        class _ExplicitContextEmitter:
+            def _emit(self, **kwargs: object) -> dict[str, object]:
+                captured.append(dict(kwargs))
+                return {"event_id": "dossier-1"}
+
+        monkeypatch.setattr(sync_events, "get_emitter", lambda: _ExplicitContextEmitter())
+        importlib.reload(specify_cli.sync)
+
+        with store.unit_of_work() as unit:
+            context = store.create_context()
+            result = fire_dossier_event(
+                event_type="MissionDossierSnapshotComputed",
+                aggregate_id="mission-1",
+                aggregate_type="MissionDossier",
+                payload={"snapshot_hash": "abc"},
+                project_context=context,
+                project_unit=unit,
+                project_layout=layout,
+            )
+
+        assert result == {"event_id": "dossier-1"}
+        assert len(captured) == 1
+        assert captured[0]["project_context"] is context
+        assert captured[0]["project_unit"] is unit

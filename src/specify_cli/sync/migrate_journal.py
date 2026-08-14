@@ -35,15 +35,23 @@ no home on a delivery-state ledger row); it never re-implements those tables.
 During **import** (:func:`migrate_queues_to_journal`) source DBs are opened
 **read-only** so they are structurally untouched.
 
-**Cleanup (#2665).** Import alone never converges the legacy-row boundary: the
-rows stay in the source queues, so ``sync now`` / ``sync opt-in`` refuse forever.
-:func:`cleanup_migrated_sources` is the separate, gated follow-up that deletes
-the confirmed-migrated rows (provenance ∩ journal) from each source once a
-migration is clean (no conflicts, no source errors) — by id, never a blanket
-clear. It is safe because delivery reads solely from the journal (the legacy
-offline-queue drain is retired), so a row proven durable in the journal remains
-deliverable after its source copy is removed.
+**Cleanup (#2665) — RETIRED.** Import alone never converges the legacy-row
+boundary: the rows stay in the source queues, so ``sync now`` / ``sync
+opt-in`` refuse forever. This module used to carry a separate, gated
+follow-up (``cleanup_migrated_sources``) that deleted the confirmed-migrated
+rows (provenance ∩ journal) from each source once a migration was clean, plus
+an explicit conflict-resolution recovery path (``resolve_conflicts_keep_journal``).
+Both deleted source rows via ``OfflineQueue(db_path=source_path)`` — pointing
+the queue class directly at an arbitrary discovered source file. That
+constructor was retired when ``OfflineQueue`` moved onto the per-project store
+(``unit``/``authority``) API (see ``sync/queue.py``), which has no notion of an
+arbitrary source file path, so neither step has an equivalent against the new
+class. Both were already unreachable in practice (``sync migrate``
+unconditionally refuses; see ``cli/commands/sync.py::migrate``) and were
+removed rather than ported — see the note above ``CleanupResult`` /
+``ConflictResolution`` below for the full rationale.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -229,23 +237,17 @@ class MigrationAudit:
     def close(self) -> None:
         self._conn.close()
 
-    def record_provenance(
-        self, *, event_id: str, source_digest: str, target_id: str, payload_sha: str
-    ) -> None:
+    def record_provenance(self, *, event_id: str, source_digest: str, target_id: str, payload_sha: str) -> None:
         """Idempotently record one ``(event_id, source_digest)`` provenance row."""
         self._conn.execute(
-            "INSERT OR IGNORE INTO migration_provenance "
-            "(event_id, source_digest, target_id, payload_sha, recorded_at) "
-            "VALUES (?, ?, ?, ?, ?)",
+            "INSERT OR IGNORE INTO migration_provenance (event_id, source_digest, target_id, payload_sha, recorded_at) VALUES (?, ?, ?, ?, ?)",
             (event_id, source_digest, target_id, payload_sha, now_utc_iso()),
         )
 
     def record_conflict(self, conflict: MigrationConflict) -> None:
         """Idempotently record a divergent-duplicate migration-conflict row."""
         self._conn.execute(
-            "INSERT OR IGNORE INTO migration_conflicts "
-            "(event_id, source_digest, existing_sha, incoming_sha, detail, recorded_at) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT OR IGNORE INTO migration_conflicts (event_id, source_digest, existing_sha, incoming_sha, detail, recorded_at) VALUES (?, ?, ?, ?, ?, ?)",
             (
                 conflict.event_id,
                 conflict.source_digest,
@@ -265,8 +267,7 @@ class MigrationAudit:
     def provenance_for(self, event_id: str) -> list[str]:
         """Return the sorted distinct source digests recorded for *event_id*."""
         rows = self._conn.execute(
-            "SELECT DISTINCT source_digest FROM migration_provenance "
-            "WHERE event_id = ? ORDER BY source_digest",
+            "SELECT DISTINCT source_digest FROM migration_provenance WHERE event_id = ? ORDER BY source_digest",
             (event_id,),
         ).fetchall()
         return [str(row["source_digest"]) for row in rows]
@@ -288,8 +289,7 @@ class MigrationAudit:
         never returned here. Ordered for reproducibility.
         """
         rows = self._conn.execute(
-            "SELECT DISTINCT event_id FROM migration_provenance "
-            "WHERE source_digest = ? ORDER BY event_id",
+            "SELECT DISTINCT event_id FROM migration_provenance WHERE source_digest = ? ORDER BY event_id",
             (source_digest,),
         ).fetchall()
         return [str(row["event_id"]) for row in rows]
@@ -297,8 +297,7 @@ class MigrationAudit:
     def conflicts(self) -> list[MigrationConflict]:
         """Return every recorded migration conflict (ordered for reproducibility)."""
         rows = self._conn.execute(
-            "SELECT event_id, source_digest, existing_sha, incoming_sha, detail "
-            "FROM migration_conflicts ORDER BY event_id, source_digest"
+            "SELECT event_id, source_digest, existing_sha, incoming_sha, detail FROM migration_conflicts ORDER BY event_id, source_digest"
         ).fetchall()
         return [
             MigrationConflict(
@@ -331,9 +330,7 @@ class MigrationAudit:
         resolution converges the boundary without ever losing data.
         """
         self._conn.execute(
-            "INSERT OR IGNORE INTO quarantined_conflicts "
-            "(event_id, source_digest, payload, existing_sha, incoming_sha, resolved_at) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT OR IGNORE INTO quarantined_conflicts (event_id, source_digest, payload, existing_sha, incoming_sha, resolved_at) VALUES (?, ?, ?, ?, ?, ?)",
             (event_id, source_digest, payload, existing_sha, incoming_sha, now_utc_iso()),
         )
 
@@ -348,6 +345,34 @@ class MigrationAudit:
         """Return the number of archived (quarantined) conflict payloads."""
         row = self._conn.execute("SELECT COUNT(*) FROM quarantined_conflicts").fetchone()
         return int(row[0]) if row else 0
+
+
+def read_migration_conflicts(db_path: Path | str) -> list[MigrationConflict]:
+    """Read legacy migration-conflict evidence without creating or mutating DBs."""
+    path = Path(db_path)
+    if not path.is_file():
+        return []
+    connection = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
+    connection.row_factory = sqlite3.Row
+    try:
+        table = connection.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'migration_conflicts'").fetchone()
+        if table is None:
+            return []
+        rows = connection.execute(
+            "SELECT event_id, source_digest, existing_sha, incoming_sha, detail FROM migration_conflicts ORDER BY event_id, source_digest"
+        ).fetchall()
+        return [
+            MigrationConflict(
+                event_id=str(row["event_id"]),
+                source_digest=str(row["source_digest"]),
+                existing_sha=str(row["existing_sha"]),
+                incoming_sha=str(row["incoming_sha"]),
+                detail=None if row["detail"] is None else str(row["detail"]),
+            )
+            for row in rows
+        ]
+    finally:
+        connection.close()
 
 
 # --- per-source outcomes + overall result ---------------------------------
@@ -426,9 +451,7 @@ def _payload_sha(payload: bytes) -> str:
 
 
 def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
-    cur = conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name = ?", (table,)
-    )
+    cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", (table,))
     return cur.fetchone() is not None
 
 
@@ -445,9 +468,7 @@ def _read_queued_rows(path: Path) -> list[_QueuedRow]:
             return []
         columns = {str(row[1]) for row in conn.execute("PRAGMA table_info(queue)")}
         has_coalesce = "coalesce_key" in columns
-        projection = "event_id, event_type, data, timestamp" + (
-            ", coalesce_key" if has_coalesce else ""
-        )
+        projection = "event_id, event_type, data, timestamp" + (", coalesce_key" if has_coalesce else "")
         rows = conn.execute(
             f"SELECT {projection} FROM queue ORDER BY timestamp ASC, id ASC"  # noqa: S608  # nosec B608 - projection is built from a fixed allowlist, not user input
         ).fetchall()
@@ -469,11 +490,7 @@ def _row_to_queued(row: tuple[Any, ...], has_coalesce: bool) -> _QueuedRow:
 
 def _build_event(row: _QueuedRow, payload: bytes) -> Event:
     """Build a journal :class:`Event`, carrying ``event_id`` verbatim (C-005)."""
-    when = (
-        from_epoch(row.timestamp).isoformat()
-        if row.timestamp is not None
-        else now_utc_iso()
-    )
+    when = from_epoch(row.timestamp).isoformat() if row.timestamp is not None else now_utc_iso()
     return Event(
         event_id=row.event_id,
         event_type=row.event_type,
@@ -547,9 +564,7 @@ class _SourceStaging:
         outcome.conflicts += len(self.conflicts)
 
 
-def _classify_and_apply(
-    row: _QueuedRow, txn: JournalTransaction, source_digest: str
-) -> _RowImport:
+def _classify_and_apply(row: _QueuedRow, txn: JournalTransaction, source_digest: str) -> _RowImport:
     """Append/dedupe/quarantine one row against the staged journal batch.
 
     * unseen ``event_id`` → stage the canonical payload (``imported``);
@@ -702,120 +717,69 @@ def migrate_queues_to_journal(
 
 
 # --- source cleanup after a clean migration (#2665) -----------------------
-
-
-@dataclass
-class CleanupOutcome:
-    """Per-source outcome of the post-migration source-queue cleanup."""
-
-    digest: str
-    is_legacy: bool
-    deleted: int = 0
-    error: str | None = None
+#
+# RETIRED (landing-fold, per-project-sync-consent-ledgers): the cleanup and
+# conflict-resolution steps below used to delete confirmed-migrated rows from
+# a legacy per-source ``queue.db`` file via ``OfflineQueue(db_path=source_path)``
+# — pointing the queue class directly at an arbitrary discovered source file.
+# ``OfflineQueue`` moved onto the per-project store (``unit``/``authority``,
+# see ``sync/queue.py``) and dropped file-path construction entirely, so
+# there is no way to express "delete these ids from this legacy source file"
+# against the new class — the two concepts no longer intersect.
+#
+# This is safe to drop rather than port: ``cleanup_migrated_sources`` and
+# ``resolve_conflicts_keep_journal`` (formerly defined here, alongside their
+# private helpers ``_delete_migrated_rows``/``_read_row_payload`` and the
+# ``CleanupOutcome`` dataclass) had exactly one caller, ``converge_legacy_runtime``
+# below, which itself has zero live callers: the CLI's ``sync migrate`` command
+# unconditionally refuses (see ``cli/commands/sync.py::migrate``), and
+# ``tests/specify_cli/cli/commands/test_sync_opt_in_converge.py`` pins that the
+# auto-migration seam never invokes ``converge_legacy_runtime`` either.
+# ``converge_legacy_runtime`` itself is kept (see its docstring) purely because
+# that test monkeypatches it by name to prove it stays uncalled.
+#
+# ``CleanupResult`` is kept even though nothing constructs a non-default
+# instance anymore: ``cli/commands/sync.py`` still imports it (under
+# ``TYPE_CHECKING``) to type its own dead ``_print_cleanup_result`` helper.
 
 
 @dataclass
 class CleanupResult:
-    """Observable outcome of one :func:`cleanup_migrated_sources` run.
+    """Observable outcome of one legacy-cleanup run (retired; see module note).
 
-    ``ran`` is ``False`` when cleanup was blocked (a no-op), so callers can
+    ``ran`` stays ``False`` — cleanup is a no-op now — so callers can still
     distinguish "nothing to clean" from "cleanup was gated off".
     """
 
     ran: bool = False
-    outcomes: list[CleanupOutcome] = field(default_factory=list)
+    outcomes: list[Any] = field(default_factory=list)
 
     @property
     def total_deleted(self) -> int:
-        return sum(outcome.deleted for outcome in self.outcomes)
+        return 0
 
     @property
     def sources_cleaned(self) -> int:
-        return sum(1 for outcome in self.outcomes if outcome.deleted)
+        return 0
 
     @property
     def had_errors(self) -> bool:
-        return any(outcome.error for outcome in self.outcomes)
-
-
-def _delete_migrated_rows(source_path: Path, event_ids: list[str]) -> int:
-    """Delete *event_ids* from a source queue DB via the canonical queue class.
-
-    Imported lazily to avoid a queue<->migrate import cycle.
-    """
-    from specify_cli.sync.queue import OfflineQueue  # noqa: PLC0415 - avoid import cycle
-
-    deleted: int = OfflineQueue(db_path=source_path).remove_events(event_ids)
-    return deleted
-
-
-def cleanup_migrated_sources(
-    spec_kitty_dir: Path,
-    *,
-    journal: EventJournal,
-    audit: MigrationAudit,
-    result: MigrationResult,
-) -> CleanupResult:
-    """Delete confirmed-migrated rows from source queues after a CLEAN migration.
-
-    :func:`migrate_queues_to_journal` is deliberately read-only — it copies
-    queued events into the journal but never deletes the source rows. Without a
-    follow-up delete the legacy ``queue.db`` rows persist forever, the preflight
-    boundary keeps counting them, and ``sync now`` / ``sync opt-in`` refuse
-    indefinitely (#2665). This is that follow-up, and it is **gated and safe**:
-
-    * **No-op when cleanup is blocked** (``result.cleanup_blocked`` — any
-      divergent-duplicate conflict or source read/import error). Nothing is
-      deleted until an operator resolves the blockers, so a conflicted event is
-      never dropped from its source.
-    * **Per-source error isolation** — a source that errored during import is
-      skipped individually (its rows are left intact).
-    * **Delete only confirmed-migrated ids** — an ``event_id`` is removed only
-      when it carries migration *provenance* (imported/deduped, never
-      conflicted) **and** is present in the journal, and it is deleted *by id*,
-      never via a blanket clear, so a row enqueued after the migration snapshot
-      is preserved.
-
-    Deleting is safe because delivery reads from the journal, not the queues:
-    the legacy offline-queue drain is retired (``sync now`` delivers solely from
-    the journal), so a row proven durable in the journal remains fully
-    deliverable after its source copy is removed.
-    """
-    cleanup = CleanupResult()
-    if result.cleanup_blocked:
-        # Any conflict or source import error blocks ALL cleanup, so by the time
-        # we get past this guard every source imported cleanly — no per-source
-        # error handling is needed inside the loop below.
-        return cleanup
-    cleanup.ran = True
-    for source in discover_source_dbs(spec_kitty_dir):
-        migrated = [
-            event_id
-            for event_id in audit.event_ids_for_source(source.digest)
-            if journal.read_by_id(event_id) is not None
-        ]
-        if not migrated:
-            cleanup.outcomes.append(CleanupOutcome(digest=source.digest, is_legacy=source.is_legacy))
-            continue
-        try:
-            deleted = _delete_migrated_rows(source.path, migrated)
-        except sqlite3.Error as exc:  # a locked/corrupt source — report, keep going
-            cleanup.outcomes.append(
-                CleanupOutcome(digest=source.digest, is_legacy=source.is_legacy, error=str(exc))
-            )
-            continue
-        cleanup.outcomes.append(
-            CleanupOutcome(digest=source.digest, is_legacy=source.is_legacy, deleted=deleted)
-        )
-    return cleanup
+        return False
 
 
 # --- keep-journal conflict resolution (#2665, explicit operator recovery) --
+#
+# RETIRED alongside cleanup above (see the module note): resolving a conflict
+# used to delete the superseded source row via the same retired
+# ``OfflineQueue(db_path=...)`` constructor. ``ConflictResolution`` is kept for
+# the same reason as ``CleanupResult`` — ``cli/commands/sync.py`` still imports
+# it (``TYPE_CHECKING``) to type its own dead ``_print_resolution_result``
+# helper.
 
 
 @dataclass
 class ConflictResolution:
-    """Outcome of one :func:`resolve_conflicts_keep_journal` run."""
+    """Outcome of one legacy conflict-resolution run (retired; see module note)."""
 
     resolved: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
@@ -824,79 +788,6 @@ class ConflictResolution:
     @property
     def resolved_count(self) -> int:
         return len(self.resolved)
-
-
-def _read_row_payload(source_path: Path, event_id: str) -> bytes | None:
-    """Return one queued row's canonical payload from *source_path* (read-only)."""
-    for row in _read_queued_rows(source_path):
-        if row.event_id == event_id:
-            return _canonical_payload(row.data)
-    return None
-
-
-def resolve_conflicts_keep_journal(
-    spec_kitty_dir: Path,
-    *,
-    journal: EventJournal,
-    audit: MigrationAudit,
-) -> ConflictResolution:
-    """Resolve divergent-duplicate conflicts by keeping the journal (canonical).
-
-    An explicit operator recovery path for the migrate-conflict deadlock: when a
-    source row and the journal disagree on the canonical payload for the same
-    ``event_id``, the migration quarantines it and blocks cleanup (FR-018), and
-    there is otherwise no way to converge the boundary. This resolves each such
-    conflict *journal-wins*:
-
-    1. only when the ``event_id`` is durable in the journal (the journal copy is
-       canonical/delivered; a conflict whose id is not in the journal is left
-       intact — never dropped);
-    2. archive the divergent SOURCE payload to the audit quarantine (nothing is
-       lost — the superseded copy is recoverable);
-    3. delete that row from its source queue by id; and
-    4. clear the conflict record so cleanup is no longer blocked.
-
-    The journal payload is never overwritten and no ``event_id`` is rewritten
-    (C-005/FR-018) — only the superseded source copy is removed, after it is
-    preserved. This is the only contract-legal resolution direction.
-    """
-    resolution = ConflictResolution()
-    conflicts = audit.conflicts()
-    if not conflicts:
-        return resolution
-    sources = {source.digest: source for source in discover_source_dbs(spec_kitty_dir)}
-    for conflict in conflicts:
-        if journal.read_by_id(conflict.event_id) is None:
-            resolution.skipped.append(conflict.event_id)  # not canonical yet — keep it
-            continue
-        source = sources.get(conflict.source_digest)
-        if source is None:
-            resolution.skipped.append(conflict.event_id)  # source gone from disk
-            continue
-        payload = _read_row_payload(source.path, conflict.event_id)
-        if payload is None:  # row already absent from source — just clear the record
-            audit.clear_conflict(conflict.event_id, conflict.source_digest)
-            resolution.already_absent.append(conflict.event_id)
-            continue
-        audit.quarantine_conflict(
-            event_id=conflict.event_id,
-            source_digest=conflict.source_digest,
-            payload=payload,
-            existing_sha=conflict.existing_sha,
-            incoming_sha=conflict.incoming_sha,
-        )
-        # Write-ahead: the quarantine archive MUST be durable before the source
-        # row is destroyed (the delete below commits queue.db immediately). A
-        # crash between the two would otherwise leave the row deleted but the
-        # archive rolled back — losing the superseded payload the docstring
-        # promises is recoverable. Mirrors the import path's provenance-first
-        # commit ordering (see ``audit.commit()`` before ``txn.commit()`` above).
-        audit.commit()
-        _delete_migrated_rows(source.path, [conflict.event_id])
-        audit.clear_conflict(conflict.event_id, conflict.source_digest)
-        resolution.resolved.append(conflict.event_id)
-    audit.commit()
-    return resolution
 
 
 # --- one-shot legacy convergence (the migration engine, #2665/#2180) -------
@@ -940,14 +831,9 @@ def converge_legacy_runtime(
     The single orchestration shared by ``sync migrate`` and the auto-migration:
 
     1. import queued events into the journal (read-only on sources);
-    2. optionally resolve divergent-duplicate conflicts journal-wins (archiving
-       each divergent source payload to the quarantine), then re-import so the
-       result reflects the converged state;
-    3. **project stored identity into the journal's identity columns** (#3030 H4);
-    4. optionally delete the confirmed-migrated rows from their sources so the
-       legacy-row boundary converges.
+    2. **project stored identity into the journal's identity columns** (#3030 H4).
 
-    Step 3 belongs to convergence, not beside it: a row sitting in the journal with
+    Step 2 belongs to convergence, not beside it: a row sitting in the journal with
     ``project_uuid IS NULL`` is *not* converged. ``delivery/selection.py`` makes
     NULL permanently unselectable, so before this step every pre-mission row — and
     every row this very function imports, since ``_build_event`` sets no identity
@@ -955,11 +841,10 @@ def converge_legacy_runtime(
     project's history. That is a data-availability defect that reads as "sync is
     broken", and nothing in ``src/`` ran the backfill that recovers it.
 
-    It runs after import so freshly-imported rows are included, and before cleanup
-    so a run that converges the boundary also converges the identity columns.
-    Identity is only ever RECOVERED from the row's own stored envelope, never
-    invented: a row whose payload carries no resolvable uuid stays NULL and stays
-    unselectable, so the fail-closed egress boundary is untouched.
+    It runs after import so freshly-imported rows are included. Identity is only
+    ever RECOVERED from the row's own stored envelope, never invented: a row
+    whose payload carries no resolvable uuid stays NULL and stays unselectable,
+    so the fail-closed egress boundary is untouched.
 
     Consent records are deliberately NOT backfilled here. That write is
     machine-global, and because the uuid index outranks the repo default it can
@@ -969,21 +854,24 @@ def converge_legacy_runtime(
     must never rewrite consent as a side effect of enabling one checkout.
 
     Idempotent: on an already-converged runtime every step is a no-op. Nothing
-    is ever lost — import is read-only, conflict resolution quarantines before
-    removing, cleanup deletes only journal-confirmed rows by id, and the identity
-    backfill considers only NULL rows and never overwrites a stored value.
+    is ever lost — import is read-only and the identity backfill considers only
+    NULL rows and never overwrites a stored value.
+
+    ``resolve_conflicts`` and ``cleanup`` are retired no-ops kept only for
+    signature stability (see the module note above ``CleanupResult`` /
+    ``ConflictResolution``): both used to delete rows from a legacy per-source
+    ``queue.db`` file via the now-retired ``OfflineQueue(db_path=...)``
+    constructor, which has no equivalent against the per-project-store
+    ``OfflineQueue``. This function has no live caller (``sync migrate``
+    unconditionally refuses; ``tests/specify_cli/cli/commands/test_sync_opt_in_converge.py``
+    pins that the auto-migration seam never invokes it either), so the
+    parameters are dead weight rather than a live contract — kept anyway so an
+    eventual removal of this whole function is a separate, deliberate change.
     """
     from specify_cli.sync.project_identity import backfill_journal_identity
 
-    result = migrate_queues_to_journal(
-        spec_kitty_dir, journal=journal, audit=audit, resolved_target=resolved_target
-    )
-    resolution: ConflictResolution | None = None
-    if resolve_conflicts and result.conflicts:
-        resolution = resolve_conflicts_keep_journal(spec_kitty_dir, journal=journal, audit=audit)
-        result = migrate_queues_to_journal(
-            spec_kitty_dir, journal=journal, audit=audit, resolved_target=resolved_target
-        )
+    del resolve_conflicts, cleanup
+    result = migrate_queues_to_journal(spec_kitty_dir, journal=journal, audit=audit, resolved_target=resolved_target)
     # Best-effort: a journal that cannot be backfilled must not abort a migration
     # that has already imported rows successfully. The CLI reports ``None`` as an
     # outstanding backfill rather than treating it as "nothing to do".
@@ -994,15 +882,10 @@ def converge_legacy_runtime(
     except Exception as exc:  # noqa: BLE001
         logger.warning("Journal identity backfill failed: %s", exc)
 
-    cleanup_result: CleanupResult | None = None
-    if cleanup and not result.cleanup_blocked:
-        cleanup_result = cleanup_migrated_sources(
-            spec_kitty_dir, journal=journal, audit=audit, result=result
-        )
     return ConvergeResult(
         migration=result,
-        resolution=resolution,
-        cleanup=cleanup_result,
+        resolution=None,
+        cleanup=None,
         identity_backfill=identity,
     )
 
@@ -1014,14 +897,13 @@ __all__ = [
     "MIGRATION_NOTE",
     "CleanupResult",
     "ConflictResolution",
-    "ConvergeResult",
     "MigrationAudit",
     "MigrationConflict",
     "MigrationResult",
     "SourceDb",
     "SourceOutcome",
     "UNKNOWN_PREFIX",
-    "converge_legacy_runtime",
     "discover_source_dbs",
     "migration_target_token",
+    "read_migration_conflicts",
 ]

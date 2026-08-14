@@ -7,6 +7,10 @@ silently pass these tests.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from dataclasses import dataclass
+from pathlib import Path
+
 import pytest
 
 from specify_cli.dossier import emitter_adapter
@@ -16,18 +20,40 @@ from specify_cli.dossier.emitter_adapter import (
     reset_dossier_emitter,
 )
 from specify_cli.dossier.events import emit_artifact_indexed
+from specify_cli.sync.layout_generation import LayoutGenerationAuthority
+from specify_cli.sync.project_context import ProjectSyncContext
+from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 VALID_HASH = "a" * 64
 
 NAMESPACE_DICT = {
-    "project_uuid": "proj-1",
+    "project_uuid": "11111111-2222-4333-8444-555555555555",
     "mission_slug": "042-feat",
     "target_branch": "main",
     "mission_type": "software-dev",
     "manifest_version": "1",
 }
+
+
+@dataclass(frozen=True)
+class _Authority:
+    context: ProjectSyncContext
+    unit: ProjectUnitOfWork
+    layout: LayoutGenerationAuthority
+
+
+@pytest.fixture
+def project_authority(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[_Authority]:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(NAMESPACE_DICT["project_uuid"])
+    layout = store.layout_generation()
+    with store.unit_of_work() as unit:
+        yield _Authority(store.create_context(), unit, layout)
 
 
 @pytest.fixture(autouse=True)
@@ -41,16 +67,22 @@ def _isolate_registration() -> None:
 class TestFireDossierEventDirect:
     """Direct tests of fire_dossier_event against a registered callable."""
 
-    def test_no_emitter_registered_returns_none(self) -> None:
+    def test_no_emitter_registered_returns_none(self, project_authority: _Authority) -> None:
         result = fire_dossier_event(
             event_type="X",
             aggregate_id="agg",
             aggregate_type="MissionDossier",
             payload={"k": "v"},
+            project_context=project_authority.context,
+            project_unit=project_authority.unit,
+            project_layout=project_authority.layout,
         )
         assert result is None
 
-    def test_registered_emitter_receives_kwargs_and_routes_return(self) -> None:
+    def test_registered_emitter_receives_kwargs_and_routes_return(
+        self,
+        project_authority: _Authority,
+    ) -> None:
         captured: list[dict] = []
 
         def fake_emitter(**kwargs: object) -> dict:
@@ -63,6 +95,9 @@ class TestFireDossierEventDirect:
             aggregate_id="042:input.spec",
             aggregate_type="MissionDossier",
             payload={"mission_slug": "042"},
+            project_context=project_authority.context,
+            project_unit=project_authority.unit,
+            project_layout=project_authority.layout,
         )
 
         assert result is not None
@@ -77,8 +112,13 @@ class TestFireDossierEventDirect:
         assert call["aggregate_id"] == "042:input.spec"
         assert call["aggregate_type"] == "MissionDossier"
         assert call["payload"] == {"mission_slug": "042"}
+        assert call["project_context"] is project_authority.context
+        assert call["project_unit"] is project_authority.unit
 
-    def test_emitter_exception_returns_none_does_not_raise(self) -> None:
+    def test_emitter_exception_returns_none_does_not_raise(
+        self,
+        project_authority: _Authority,
+    ) -> None:
         def boom(**kwargs: object) -> dict:
             raise RuntimeError("emitter blew up")
 
@@ -88,10 +128,16 @@ class TestFireDossierEventDirect:
             aggregate_id="agg",
             aggregate_type="MissionDossier",
             payload={},
+            project_context=project_authority.context,
+            project_unit=project_authority.unit,
+            project_layout=project_authority.layout,
         )
         assert result is None
 
-    def test_register_replaces_existing_emitter(self) -> None:
+    def test_register_replaces_existing_emitter(
+        self,
+        project_authority: _Authority,
+    ) -> None:
         first_calls: list[str] = []
         second_calls: list[str] = []
 
@@ -111,6 +157,9 @@ class TestFireDossierEventDirect:
             aggregate_id="a",
             aggregate_type="MissionDossier",
             payload={},
+            project_context=project_authority.context,
+            project_unit=project_authority.unit,
+            project_layout=project_authority.layout,
         )
 
         assert first_calls == []
@@ -125,7 +174,10 @@ class TestEmitArtifactIndexedThroughAdapter:
     bypasses the adapter, this test fails loudly.
     """
 
-    def test_no_emitter_registered_drops_silently(self) -> None:
+    def test_no_emitter_registered_drops_silently(
+        self,
+        project_authority: _Authority,
+    ) -> None:
         # Adapter cleared by autouse fixture
         assert emitter_adapter._emitter is None
 
@@ -138,10 +190,16 @@ class TestEmitArtifactIndexedThroughAdapter:
             size_bytes=100,
             required_status="optional",
             namespace=NAMESPACE_DICT,
+            project_context=project_authority.context,
+            project_unit=project_authority.unit,
+            project_layout=project_authority.layout,
         )
         assert result is None  # silent drop is correct behavior
 
-    def test_registered_emitter_receives_correctly_shaped_event(self) -> None:
+    def test_registered_emitter_receives_correctly_shaped_event(
+        self,
+        project_authority: _Authority,
+    ) -> None:
         captured: list[dict] = []
 
         def fake_emitter(**kwargs: object) -> dict:
@@ -159,6 +217,9 @@ class TestEmitArtifactIndexedThroughAdapter:
             size_bytes=100,
             required_status="required",
             namespace=NAMESPACE_DICT,
+            project_context=project_authority.context,
+            project_unit=project_authority.unit,
+            project_layout=project_authority.layout,
         )
 
         assert result is not None
@@ -170,6 +231,8 @@ class TestEmitArtifactIndexedThroughAdapter:
         # artifact_key has moved to context_diagnostics on the wire.
         assert call["aggregate_id"] == "042-feat:spec.md"
         assert call["aggregate_type"] == "MissionDossier"
+        assert call["project_context"] is project_authority.context
+        assert call["project_unit"] is project_authority.unit
         payload = call["payload"]
         # Namespaced envelope (spec-kitty-events >= 5.0.0):
         assert payload["namespace"]["mission_slug"] == "042-feat"

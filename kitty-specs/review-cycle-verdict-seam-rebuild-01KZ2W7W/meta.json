@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "d8fefa8c5cbe9c3bf08cfa41492f92858ccca313",
-  "coordination_branch": "kitty/mission-review-cycle-verdict-seam-rebuild-01KZ2W7W",
   "created_at": "2026-08-03T03:56:20.369377+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Review-Cycle Verdict Seam Rebuild",
   "mission_id": "01KZ2W7W0F81GE153NF6ZWDNTS",
   "mission_number": null,
@@ -15,7 +14,7 @@
   "source_description": "Fast-follow to closed PR #3156. Five-lens adversarial squad findings plus issues #3157, #3158, #3159, #3160.",
   "status_phase": "1",
   "target_branch": "pr/review-verdict-write-integrity-01KZ1CGF",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-08-03T12:09:09.552499+00:00"
 }

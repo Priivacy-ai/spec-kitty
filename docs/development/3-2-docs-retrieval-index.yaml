@@ -2702,6 +2702,33 @@ pages:
     - {slug: "confirmation-and-what-this-adr-does-not-prove", text: "Confirmation — and what this ADR does not prove", level: 3}
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-08-09-1-project-sync-store-boundary.md"
+    title: "ADR: One Project UUID Owns One Sync Store and One Consent Decision"
+    divio_type: "none"
+    abstract: "Hosted-sync state is isolated by project UUID behind one ProjectSyncStore unit of work; ambient checkout, identity, target, or environment cannot select another project."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "1-one-uuid-owns-one-sync-db", text: "1. One UUID owns one `sync.db`", level: 3}
+    - {slug: "2-projectsyncstore-is-the-unit-of-work-boundary", text: "2. `ProjectSyncStore` is the unit-of-work boundary", level: 3}
+    - {slug: "3-consent-is-a-project-store-decision-not-ambient-state", text: "3. Consent is a project-store decision, not ambient state", level: 3}
+    - {slug: "4-the-3030-egress-boundary-is-preserved-and-strengthened", text: "4. The #3030 egress boundary is preserved and strengthened", level: 3}
+    - {slug: "5-shared-live-stores-are-retired-by-copy-verify-and-cutover", text: "5. Shared live stores are retired by copy, verify, and cutover", level: 3}
+    - {slug: "6-historical-inspection-is-an-explicit-capability", text: "6. Historical inspection is an explicit capability", level: 3}
+    - {slug: "supersession-and-relationship-to-3030", text: "Supersession and Relationship to #3030", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative-and-operational-cost", text: "Negative and operational cost", level: 3}
+    - {slug: "risks-retained-deliberately", text: "Risks retained deliberately", level: 3}
+    - {slug: "rejected-alternatives", text: "Rejected Alternatives", level: 2}
+    - {slug: "keep-shared-databases-and-add-more-uuid-predicates", text: "Keep shared databases and add more UUID predicates", level: 3}
+    - {slug: "partition-by-slug-repository-path-checkout-path-login-team-or-target", text: "Partition by slug, repository path, checkout path, login, team, or target", level: 3}
+    - {slug: "make-the-machine-global-environment-flag-a-grant", text: "Make the machine-global environment flag a grant", level: 3}
+    - {slug: "use-a-shared-database-with-one-connection-manager", text: "Use a shared database with one connection manager", level: 3}
+    - {slug: "dual-read-old-and-new-stores-during-a-compatibility-window", text: "Dual-read old and new stores during a compatibility window", level: 3}
+    - {slug: "scope-exclusions", text: "Scope Exclusions", level: 2}
+    - {slug: "verification-and-enforcement", text: "Verification and Enforcement", level: 2}
   - path: "docs/adr/3.x/2026-08-12-1-checkout-ownership-for-mission-create-and-next.md"
     title: "ADR: Explicit Checkout Ownership for Mission Create and Next"
     divio_type: "none"
@@ -3299,6 +3326,11 @@ pages:
     - {slug: "spec-kitty-sync-opt-in", text: "spec-kitty sync opt-in", level: 2}
     - {slug: "spec-kitty-sync-opt-out", text: "spec-kitty sync opt-out", level: 2}
     - {slug: "spec-kitty-sync-purge", text: "spec-kitty sync purge", level: 2}
+    - {slug: "spec-kitty-sync-project-store-history", text: "spec-kitty sync project_store_history", level: 2}
+    - {slug: "spec-kitty-sync-project-store-migrate", text: "spec-kitty sync project_store_migrate", level: 2}
+    - {slug: "spec-kitty-sync-project-store-preview", text: "spec-kitty sync project_store_preview", level: 2}
+    - {slug: "spec-kitty-sync-project-store-quarantine", text: "spec-kitty sync project_store_quarantine", level: 2}
+    - {slug: "spec-kitty-sync-project-store-status", text: "spec-kitty sync project_store_status", level: 2}
     - {slug: "spec-kitty-sync-routes", text: "spec-kitty sync routes", level: 2}
     - {slug: "spec-kitty-sync-server", text: "spec-kitty sync server", level: 2}
     - {slug: "spec-kitty-sync-share", text: "spec-kitty sync share", level: 2}
@@ -8040,6 +8072,19 @@ pages:
     abstract: "End-user Spec Kitty guides: learning-oriented tutorials and task-oriented how-tos for installing, running, governing, and monitoring your missions."
     anchors:
     - {slug: "how-to-concerns", text: "How-To concerns", level: 2}
+  - path: "docs/guides/project-sync-consent.md"
+    title: "Per-Project Sync Consent"
+    divio_type: "how-to"
+    abstract: "Per-project hosted-sync consent in Spec Kitty 3.2: opting in and out, the deny-only kill switch, SaaS admission pairing, and migrating legacy shared sync state."
+    anchors:
+    - {slug: "the-model-in-one-table", text: "The model in one table", level: 2}
+    - {slug: "opt-a-project-in", text: "Opt a project in", level: 2}
+    - {slug: "opt-a-project-out", text: "Opt a project out", level: 2}
+    - {slug: "what-the-kill-switch-does-and-does-not-do", text: "What the kill switch does — and does not do", level: 2}
+    - {slug: "how-admission-pairs-with-the-saas-boundary", text: "How admission pairs with the SaaS boundary", level: 2}
+    - {slug: "migrating-legacy-shared-state-operators", text: "Migrating legacy shared state (operators)", level: 2}
+    - {slug: "where-the-evidence-lives", text: "Where the evidence lives", level: 2}
+    - {slug: "related-reading", text: "Related reading", level: 2}
   - path: "docs/guides/tutorials/charter-governed-workflow.md"
     title: "Tutorial: Governed Charter Workflow End-to-End"
     divio_type: "tutorial"

@@ -57,6 +57,13 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "emit_diff_summary_recorded": (_EVENTS_MODULE, "emit_diff_summary_recorded"),
     "emit_proof_event": (_EVENTS_MODULE, "emit_proof_event"),
     "OfflineQueue": (".queue", "OfflineQueue"),
+    "ProjectOutboxTask": (".queue", "ProjectOutboxTask"),
+    "OfflineBodyUploadQueue": (".body_queue", "OfflineBodyUploadQueue"),
+    "ProjectSyncStore": (".project_store", "ProjectSyncStore"),
+    "ProjectUnitOfWork": (".project_store", "ProjectUnitOfWork"),
+    "LayoutGenerationAuthority": (".layout_generation", "LayoutGenerationAuthority"),
+    "LayoutWritePermit": (".layout_generation", "LayoutWritePermit"),
+    "LayoutTestHooks": (".layout_generation", "LayoutTestHooks"),
     "SAAS_SYNC_ENV_VAR": (_FEATURE_FLAGS_MODULE, "SAAS_SYNC_ENV_VAR"),
     "is_saas_sync_enabled": (_FEATURE_FLAGS_MODULE, "is_saas_sync_enabled"),
     "saas_sync_disabled_message": (_FEATURE_FLAGS_MODULE, "saas_sync_disabled_message"),
@@ -109,6 +116,13 @@ __all__ = [
     "WebSocketClient",
     "SyncConfig",
     "OfflineQueue",
+    "ProjectOutboxTask",
+    "OfflineBodyUploadQueue",
+    "ProjectSyncStore",
+    "ProjectUnitOfWork",
+    "LayoutGenerationAuthority",
+    "LayoutWritePermit",
+    "LayoutTestHooks",
     "BatchEventResult",
     "BatchSyncResult",
     "categorize_error",
@@ -229,6 +243,7 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
         OfflineQueue,
         read_queue_scope_from_session,
     )
+    from specify_cli.sync.project_store import ProjectSyncStore
 
     if not is_saas_sync_enabled():
         return
@@ -259,11 +274,7 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
     event_type = envelope.get("event_type")
     payload = envelope.get("payload")
     aggregate_type = envelope.get("aggregate_type")
-    if (
-        not isinstance(event_type, str)
-        or not isinstance(payload, Mapping)
-        or not isinstance(aggregate_type, str)
-    ):
+    if not isinstance(event_type, str) or not isinstance(payload, Mapping) or not isinstance(aggregate_type, str):
         return
 
     repo_root = repo_root_for_lifecycle_log(log_path)
@@ -293,7 +304,9 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
 
     validate_outbound_payload(event, "envelope")
     EventModel(**event)
-    OfflineQueue().queue_event(event)
+    store = ProjectSyncStore(str(identity.project_uuid))
+    with store.unit_of_work() as unit:
+        OfflineQueue(unit, store.layout_generation()).queue_event(event)
 
     # -----------------------------------------------------------------------
     # Daemon/WebSocket push for MissionCreated envelopes (FR-005, WP03)
@@ -353,36 +366,22 @@ def register_default_handlers() -> None:
             derivation of checkout → project, and it already carries the FR-022 /
             FR-023 hardening: an unreadable or non-mapping ``.kittify/config.yaml``
             yields ``project_uuid=None`` instead of raising, and an unidentifiable
-            project is never consentable (NFR-001), so it answers
-            :attr:`~specify_cli.invocation.adapters.EgressConsent.NOT_CONSENTABLE`
-            here.
+            project is never consentable (NFR-001), so it denies here.
 
-            **Whether that project consents, and the split mapping** come from one
-            call to ``consent.resolve_project_consent`` — the single consent
-            authority, keyed on the project's own uuid — the same authority the
-            drain (``delivery/selection.py``) and the emitter reach through
-            ``consent.consented_project_uuids`` (whose ``granted`` field is this
-            call's own ``.granted``; egress-single-authority mission Decision 2).
-            Deliberately NOT ``effective_sync_enabled``: that chain also honours the
-            repo-slug-keyed ``[sync.repo_defaults]`` record, which FR-019 condemns
-            precisely because it is keyed on a mutable git remote and cannot speak
-            for a project. One consent authority, one split-mapping, both live here
-            and nowhere else (C-003) — ``egress.py``'s ``_egress_decision`` obtains
-            the member this function returns through the registry seam rather than
-            re-deriving any of this (C-004).
+            **Whether that project consents** comes from one call to
+            ``consent.resolve_project_consent`` — the same authority used by the drain
+            and emitter, walking the one declared precedence chain. Deliberately NOT
+            ``effective_sync_enabled``: that chain also honours the repo-slug-keyed
+            ``[sync.repo_defaults]`` record, which FR-019 condemns precisely because
+            it is keyed on a mutable git remote and cannot speak for a project. One
+            authority and one split mapping preserve the current main contract.
 
-            Asked for *this* uuid specifically, rather than for a returned set being
-            non-empty — the same discipline ``consented_project_uuids`` already
-            requires of its callers, now enforced by construction: a single-uuid
-            call cannot be satisfied by a bystander project's grant.
-
-            Returns an :class:`~specify_cli.invocation.adapters.EgressConsent`
-            member, never a bare bool. The seam maps a raise to ``UNANSWERABLE`` (a
-            refusal); this function itself never raises.
+            Returns an ``EgressConsent`` member, never a bare bool. The registry seam
+            maps a raise to ``UNANSWERABLE``; this resolver classifies ordinary
+            absence, refusal, grant, and non-consentable paths explicitly.
 
             Imports at call time (not closure) so that test patches on
-            ``specify_cli.sync.routing`` / ``specify_cli.sync.consent`` are
-            respected.
+            ``specify_cli.sync.routing`` / ``specify_cli.sync.consent`` are respected.
             """
             from specify_cli.sync.consent import ConsentLevel, resolve_project_consent
             from specify_cli.sync.routing import resolve_checkout_sync_routing_readonly
@@ -390,18 +389,12 @@ def register_default_handlers() -> None:
             routing = resolve_checkout_sync_routing_readonly(path)
             if routing is None or not routing.project_uuid:
                 return EgressConsent.NOT_CONSENTABLE
-
             uuid = str(routing.project_uuid)
             decision = resolve_project_consent(uuid, checkout_roots=[routing.repo_root])
             if decision.granted:
                 return EgressConsent.GRANTED
             if decision.level is ConsentLevel.ABSENT:
                 return EgressConsent.NO_RECORD
-            # PROJECT_LOCAL / MACHINE_INDEX / ENV (an actual recorded refusal) or
-            # UNDETERMINED (the record could not be read, FR-020) — both are
-            # reported as a recorded refusal, consciously, matching today's
-            # behaviour (data-model Decision 2 / post-plan m2), not a silent
-            # catch-all.
             return EgressConsent.RECORDED_REFUSAL
 
         register_egress_consent_resolver(_egress_consent_resolver)
@@ -475,14 +468,38 @@ if not is_truthy(os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT")):
             aggregate_id: str,
             aggregate_type: str,
             payload: dict[str, object],
+            project_context: object,
+            project_unit: object,
+            project_layout: object,
         ) -> dict[str, object]:
+            from specify_cli.sync.layout_generation import LayoutGenerationAuthority
+            from specify_cli.sync.project_context import (
+                ProjectSyncContext,
+                validate_project_sync_context_authority,
+            )
+            from specify_cli.sync.project_store import ProjectUnitOfWork
             from specify_cli.sync.events import get_emitter
 
+            if not isinstance(project_context, ProjectSyncContext):
+                raise TypeError("dossier emission requires a store-minted ProjectSyncContext")
+            if not isinstance(project_unit, ProjectUnitOfWork):
+                raise TypeError("dossier emission requires the active project unit of work")
+            if not isinstance(project_layout, LayoutGenerationAuthority):
+                raise TypeError("dossier emission requires the project layout authority")
+            validate_project_sync_context_authority(project_context)
+            if project_unit.store_identity is not project_context.store_identity:
+                raise ValueError("dossier project unit does not match the explicit project context")
+            # Forward the sealed authority object to the explicit local-capture
+            # seam. That seam never falls back to cwd/cached identity or direct
+            # remote routing.
             result = get_emitter()._emit(
                 event_type=event_type,
                 aggregate_id=aggregate_id,
                 aggregate_type=aggregate_type,
                 payload=payload,
+                project_context=project_context,
+                project_unit=project_unit,
+                project_layout=project_layout,
             )
             return result if result is not None else {}
 

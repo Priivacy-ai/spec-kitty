@@ -420,6 +420,16 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         #   governance-evidence seam (append-only policy-audit.jsonl);
         #   wiring is design work tracked in a follow-up issue, not deleted.
         "specify_cli.policy.audit",
+        # - sync.admission_operations: WP05 (#3262) durable admission-operation
+        #   record library (per-project store rows in the admission_operations
+        #   table). Written red-first with a pinned contract
+        #   (tests/sync/test_admission_operations.py); the production wiring
+        #   belongs to the coordinated-acceptance milestone (WP11) which binds
+        #   the Core admission client to the SaaS candidate.
+        #   TODO(triage): wire from the admission client or fold into
+        #   saas_client.admission as part of #3262 WP11 — do not delete: the
+        #   schema row it owns is live in project_store.py.
+        "specify_cli.sync.admission_operations",
         # migration.verdict_provenance_backfill: REMOVED (verdict-seam-write-
         #   unification-01KZ9Q35 pre-merge remediation, 2026-08-06). The
         #   eventual-wiring follow-up (#3236) landed: the FR-012/SC-008 backfill

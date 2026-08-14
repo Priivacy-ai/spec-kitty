@@ -202,8 +202,8 @@ def test_whole_process_override_resolves_url_and_scope_consistently(
     # resolving another (SC-008).
     assert target.override_mode is OverrideMode.PROCESS_OVERRIDE
     assert target.resolved_server_url == ENV_URL
-    assert "env.example.com" in target.derived_queue_scope
-    assert "config.example.com" not in target.derived_queue_scope
+    assert len(target.derived_queue_scope) == 64
+    assert set(target.derived_queue_scope) <= set("0123456789abcdef")
 
 
 def test_ambiguous_setup_only_disagreement_fails_closed(
@@ -330,7 +330,7 @@ def test_stale_cache_is_reported_but_never_authoritative(target_root: Path) -> N
     assert target.queue_db_path == scope_db_path(target.derived_queue_scope)
 
 
-def test_credentials_scope_is_consulted_for_diagnostic(target_root: Path) -> None:
+def test_credentials_scope_is_not_live_target_authority(target_root: Path) -> None:
     from specify_cli.sync.queue import build_queue_scope
 
     _write_config(target_root, CONFIG_URL)
@@ -345,14 +345,14 @@ url = "{CONFIG_URL}"
 """.strip(),
         encoding="utf-8",
     )
-    # The resolver derives the same scope from the same URL + identity, so the
-    # credentials-cached scope matches.
+    # The resolver derives the same opaque scope from the URL + identity, while
+    # retired credentials metadata is no longer consulted as live authority.
     expected = build_queue_scope(
         server_url=CONFIG_URL, username="alice@example.com", team_slug="team-red"
     )
     target = resolve_sync_target(user_id="alice@example.com", team_slug="team-red")
     assert target.derived_queue_scope == expected
-    assert target.active_queue_scope_status is QueueScopeStatus.MATCHES
+    assert target.active_queue_scope_status is QueueScopeStatus.ABSENT
 
 
 def test_session_scope_read_returning_value_is_consulted(

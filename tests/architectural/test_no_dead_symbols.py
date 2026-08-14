@@ -758,7 +758,6 @@ _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset(
         SymbolKey("LEDGER_INDEX_NAME", "00ff2374543242c1a9bb343f02ce2a4119d806a11f317a6b569f631332aeebca"),  # specify_cli.delivery.ledger::LEDGER_INDEX_NAME
         SymbolKey("LedgerRow", "8120a15f278fab95a5e1eda3af4bc646b746555a8f4ac31e9bcf44559b0da3e3"),  # specify_cli.delivery.ledger::LedgerRow
         SymbolKey("TERMINAL_STATUSES", "39cfb0bb7ccf29fe7683659c8e5648022bc1fa98b30069fdee81822c103fe7bd"),  # specify_cli.delivery.ledger::TERMINAL_STATUSES
-        SymbolKey("init_ledger", "95d75b9f2c0c5692072a02c2145128f9fe47e82e9a47120235d5c77bfae3f4ec"),  # specify_cli.delivery.ledger::init_ledger
         SymbolKey("BATCH_ENDPOINT_PATH", "ca95ace141f4fdf0e9b45beded0c05ad7eacbf89e4d6d3db6035fd7d17fcc644"),  # specify_cli.delivery.receivers::BATCH_ENDPOINT_PATH
         # BATCH_TIMEOUT_SECONDS left the allowlist: sync.history_import.upload now
         # imports it (reusing the canonical delivery timeout, #2884).
@@ -793,15 +792,10 @@ _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset(
         SymbolKey("TERMINAL_FAILURES_KEY", "59fcb2d13859d17054c2b2ec3102d40e6e06a507128e071bca2079e3fa8a9640"),
         # specify_cli.delivery.status_report::evaluate_gc_suggestion
         SymbolKey("evaluate_gc_suggestion", "ec86dd1fd2dac37f7f480eb7e3d7b6f5454ba1b5231f574c5d3232894751e64a"),
-        # specify_cli.event_journal.coalesce::CoalescingStrategy
-        SymbolKey("CoalescingStrategy", "04e781848fa8cfb8dd5dbf2b31dac5d5a1a519a59861d405dde3d9c9dd03dbd4"),
         # specify_cli.event_journal.coalesce::DeliveredAnywhereQuery
         SymbolKey("DeliveredAnywhereQuery", "006197fe8e8930ae3340613069f631fd0478c9aed0b95416e3c951db65c9c70b"),
-        SymbolKey("SUPERSEDED_TABLE", "0692924492f1bdbd44f223bb9f42c90fc80d9f5f5aa324dc6b291d597565d346"),  # specify_cli.event_journal.coalesce::SUPERSEDED_TABLE
         SymbolKey("SupersedeMarker", "28103221c51dc7ad13004841818581069756ef63456a93fd398760b0e9934968"),  # specify_cli.event_journal.coalesce::SupersedeMarker
         SymbolKey("install", "49e1cbe2531458103c6492184d179bc70a1707789487b439a4815b4e21ec58ef"),  # specify_cli.event_journal.coalesce::install
-        # specify_cli.event_journal.coalesce::read_supersede_markers
-        SymbolKey("read_supersede_markers", "5aef05a234dd7a63b420970cc73a1d2cdf3b2b2acf8aa65add08722b4a5d2905"),
         SymbolKey("JOURNAL_SUBDIR", "43ec497396ce60afcd8ef2916a2646172c1c3775c05813cb212642144d8e1d62"),  # specify_cli.event_journal.journal::JOURNAL_SUBDIR
         # specify_cli.event_journal.models::ORDERED_COLUMNS — re-keyed AGAIN for
         # #3030, which appended repo_slug after the T012 re-key below had already

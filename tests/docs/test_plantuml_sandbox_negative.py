@@ -20,9 +20,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
-import time
 import sys
-import urllib.request
 from pathlib import Path
 
 import pytest
@@ -47,22 +45,10 @@ def _docker_available() -> bool:
 
 
 def _ensure_jar() -> Path:
-    jar = _REPO_ROOT / "plantuml.jar"
-    pins = plantuml_invoke.load_pins()
-    if not jar.exists():
-        last: Exception | None = None
-        for attempt in range(5):  # GitHub release downloads flake with RemoteDisconnected
-            try:
-                urllib.request.urlretrieve(pins.plantuml_jar_url, jar)  # noqa: S310 - pinned https URL
-                last = None
-                break
-            except Exception as exc:  # noqa: BLE001 - retry any transient download error
-                last = exc
-                time.sleep(2 * (attempt + 1))
-        if last is not None:
-            raise last
-    plantuml_invoke.verify_jar_sha256(jar, pins.plantuml_jar_sha256)
-    return jar
+    # Concurrency-safe: see plantuml_invoke.ensure_jar (WP01 canonical provisioner
+    # — a per-process temp download + atomic publish under a cross-process lock,
+    # so xdist workers racing on the shared plantuml.jar path never truncate it).
+    return plantuml_invoke.ensure_jar(plantuml_invoke.load_pins(), _REPO_ROOT / "plantuml.jar")
 
 
 _docker = pytest.mark.skipif(not _docker_available(), reason="docker unavailable")

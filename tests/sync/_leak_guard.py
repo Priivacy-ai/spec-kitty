@@ -104,9 +104,7 @@ _WATCHED_GLOBALS: tuple[_WatchedGlobal, ...] = _WATCHED_SINGLETONS + _WATCHED_CA
 # inventory E51 (test_target_authority.py) and E52
 # (test_target_authority_wiring.py) write the same key, so one watch covers
 # both rows.
-_WATCHED_ENV_KEYS: tuple[tuple[str, str], ...] = (
-    ("E51/E52", "SPEC_KITTY_SAAS_URL"),
-)
+_WATCHED_ENV_KEYS: tuple[tuple[str, str], ...] = (("E51/E52", "SPEC_KITTY_SAAS_URL"),)
 
 # WP04 inventory entries this guard deliberately does NOT watch, and why.
 # Reported every session by ``pytest_terminal_summary`` (H8 / NFR-008) so the
@@ -114,8 +112,7 @@ _WATCHED_ENV_KEYS: tuple[tuple[str, str], ...] = (
 _UNWATCHED_ENTRIES: tuple[tuple[str, str], ...] = (
     (
         "E15, E16",
-        "not reachable -- frozen str constants (E15) / function-local variables that "
-        "structurally cannot be promoted to a module global (E16); nothing to snapshot",
+        "not reachable -- frozen str constants (E15) / function-local variables that structurally cannot be promoted to a module global (E16); nothing to snapshot",
     ),
     (
         "E17, E18, E19",
@@ -402,12 +399,15 @@ _PINNED_LEAKS: tuple[_PinnedLeak, ...] = (
     # reproduces" for both.
     #   - tests/sync/test_issue_598_hang_fixes.py::TestBackgroundStopBounded::test_stop_does_not_hang_when_sync_is_slow
     #   - tests/sync/test_issue_598_hang_fixes.py::TestBackgroundStopBounded::test_stop_emits_structured_warning_when_sync_times_out
-    # UN-PINNED 2026-08-11 (WP08 assertive sanitation). The lifecycle
-    # readiness oracle now replaces incidental runtime attachment with a
-    # no-thread fake and restores the exact prior emitter. Its former pin was
-    # itself order-flaky: documented to error as a partial match in a full
-    # sweep while passing in isolation. Dirty-predecessor and isolated probes
-    # now both leave E26 and the async-loop thread unchanged.
+    # UN-PINNED on both sides of the 2026-08-12 reconciliation merge, for
+    # convergent reasons. Main (2026-08-11, WP08 assertive sanitation): the
+    # lifecycle readiness oracle now replaces incidental runtime attachment
+    # with a no-thread fake and restores the exact prior emitter; its former
+    # pin was itself order-flaky. Branch (2026-08-12): the project-init node
+    # now uses the canonical ProjectSyncStore and its existing finally block
+    # leaves all watched runtime globals and threads clean — the guard's
+    # self-proving isolated run rejected the old pin with "this run left
+    # NOTHING dirty" before this entry was removed.
     #   - tests/sync/test_lifecycle_readiness.py::test_init_emits_project_init_event_offline
     # UN-PINNED 2026-08-06 (#3130 fold, landing pass for #3209; per the
     # "un-pinning requires a leak that provably stopped as a consequence of
@@ -751,10 +751,7 @@ def _compute_dirty_lines(before: dict[str, object], after: dict[str, object]) ->
         before_val = before["globals"][entry.inventory_id]
         after_val = after["globals"][entry.inventory_id]
         if before_val != after_val:
-            dirty.append(
-                f"  - [{entry.inventory_id}] {entry.module_path}.{entry.attr_path} "
-                f"({entry.description}): before={before_val!r} after={after_val!r}"
-            )
+            dirty.append(f"  - [{entry.inventory_id}] {entry.module_path}.{entry.attr_path} ({entry.description}): before={before_val!r} after={after_val!r}")
 
     for label, var_name in _WATCHED_ENV_KEYS:
         before_val = before["env"][label]

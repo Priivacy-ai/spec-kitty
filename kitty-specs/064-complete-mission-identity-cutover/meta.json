@@ -1,5 +1,6 @@
 {
   "created_at": "2026-04-06T05:01:28.874035+00:00",
+  "flattened": false,
   "friendly_name": "Complete Mission Identity Cutover",
   "mission_id": "01KQ47E80QJG8GTVGDCV67RW7M",
   "mission_number": 64,
@@ -9,5 +10,6 @@
   "source_description": "Clean up and complete the partially landed mission/build identity cutover on main, aligning to spec-kitty-events 3.0.0 and spec-kitty-saas upstream contracts.",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "single_branch",
   "vcs": "git"
 }

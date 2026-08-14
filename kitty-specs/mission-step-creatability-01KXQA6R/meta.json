@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "8aa50952aaf4237780b4efa0d196e163ad38c978",
-  "coordination_branch": "kitty/mission-mission-step-creatability-01KXQA6R",
   "created_at": "2026-07-17T05:53:48.895305+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Mission-Type Creatability via Rich Step Model",
   "mission_id": "01KXQA6RAYQ8SXBMB0WC2RF6PG",
   "mission_number": 182,
@@ -14,7 +13,7 @@
   "slug": "mission-step-creatability-01KXQA6R",
   "status_phase": "1",
   "target_branch": "feat/mission-step-creatability",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-17T10:16:16.459282+00:00"
 }

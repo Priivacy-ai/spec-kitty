@@ -237,6 +237,11 @@ ALLOWED_CALL_SITES: set[str] = {
     # to respawn the daemon at the foreground executable. Authorized caller; the
     # WP04 caller-audit row covers this surface.
     "src/specify_cli/sync/restart.py",
+    # WP10 project-store cutover: ``discover_daemon_cutover_protocol`` restarts
+    # the healthy current daemon binary after a layout cutover, calling with an
+    # explicit ``DaemonIntent.REMOTE_REQUIRED`` + ``force_explicit=True`` — the
+    # exact intent discipline this gate exists to enforce.
+    "src/specify_cli/sync/daemon_protocol.py",
 }
 
 

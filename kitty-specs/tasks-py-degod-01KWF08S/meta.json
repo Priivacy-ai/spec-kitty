@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "60a71d6fc45106fda887b54a9fc1bb6cf74890db",
-  "coordination_branch": "kitty/mission-tasks-py-degod-01KWF08S",
   "created_at": "2026-07-01T14:10:32.471440+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Degod tasks.py — thin CLI over pure cores (Wave 1)",
   "mission_id": "01KWF08SCQPF8NT288EPNQBCRH",
   "mission_number": 157,
@@ -14,7 +13,7 @@
   "slug": "tasks-py-degod-01KWF08S",
   "status_phase": "1",
   "target_branch": "design/degod-tasks-2116",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-01T18:46:18.852737+00:00"
 }

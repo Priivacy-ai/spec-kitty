@@ -23,6 +23,7 @@
       "lane": "approved",
       "last_event_id": "01KRC674R94WR7CQ6VMHA2S6XS",
       "last_transition_at": "2026-05-11T18:53:59.433672+00:00",
+      "review_result": null,
       "shell_pid": 54295
     }
   }

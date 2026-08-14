@@ -11,6 +11,7 @@ Covers FR-001 (config), FR-004/FR-005 (queues + active scope), FR-006
 (daemon), FR-007 (clock), plus the lazy ``SPEC_KITTY_DIR`` shim (research.md
 D5) and the POSIX flat daemon layout (research.md D3).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,6 +23,7 @@ from specify_cli.sync import daemon
 from specify_cli.sync.clock import LamportClock
 from specify_cli.sync.config import SyncConfig
 from specify_cli.sync.queue import (
+    LegacyQueueMigrationRequiredError,
     _active_scope_path,
     _legacy_queue_db_path,
     _scoped_queue_dir,
@@ -29,6 +31,8 @@ from specify_cli.sync.queue import (
     default_queue_db_path,
     scope_db_path,
 )
+from specify_cli.sync.layout_generation import LayoutMode
+from specify_cli.sync.project_store import ProjectSyncStore
 
 if TYPE_CHECKING:
     from specify_cli.auth.token_manager import StoredSession
@@ -73,18 +77,14 @@ def _patch_no_session(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def test_unset_base_is_byte_identical_to_legacy(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_unset_base_is_byte_identical_to_legacy(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """With SPEC_KITTY_HOME unset, the POSIX base equals ``~/.spec-kitty``."""
     base = _configure_root(monkeypatch, tmp_path, env_set=False)
     assert base == Path.home() / ".spec-kitty"
 
 
 @pytest.mark.parametrize("env_set", [False, True])
-def test_sync_config_file_under_base(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env_set: bool
-) -> None:
+def test_sync_config_file_under_base(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env_set: bool) -> None:
     base = _configure_root(monkeypatch, tmp_path, env_set=env_set)
     cfg = SyncConfig()
     assert cfg.config_dir == base
@@ -92,30 +92,26 @@ def test_sync_config_file_under_base(
 
 
 @pytest.mark.parametrize("env_set", [False, True])
-def test_active_scope_path_under_base(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env_set: bool
-) -> None:
+def test_active_scope_path_under_base(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env_set: bool) -> None:
     base = _configure_root(monkeypatch, tmp_path, env_set=env_set)
     assert _active_scope_path() == base / "active_queue_scope"
 
 
 @pytest.mark.parametrize("env_set", [False, True])
-def test_default_queue_db_path_unauthenticated(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env_set: bool
-) -> None:
-    """No session + no credentials → legacy ``base/queue.db``."""
+def test_default_queue_db_path_unauthenticated(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env_set: bool) -> None:
+    """No session cannot turn the legacy migration input into a live queue."""
     base = _configure_root(monkeypatch, tmp_path, env_set=env_set)
     _patch_no_session(monkeypatch)
     expected = base / "queue.db"
     assert _legacy_queue_db_path() == expected
-    assert default_queue_db_path() == expected
+    with pytest.raises(LegacyQueueMigrationRequiredError):
+        default_queue_db_path()
+    assert not expected.exists()
 
 
 @pytest.mark.parametrize("env_set", [False, True])
-def test_default_queue_db_path_authenticated(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env_set: bool
-) -> None:
-    """Credentials present → scoped queue under ``base/queues``."""
+def test_default_queue_db_path_authenticated(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env_set: bool) -> None:
+    """Credentials cannot select a live queue; project identity owns its store."""
     base = _configure_root(monkeypatch, tmp_path, env_set=env_set)
     _patch_no_session(monkeypatch)
     base.mkdir(parents=True, exist_ok=True)
@@ -130,41 +126,48 @@ url = "https://test.example.com"
 """.strip()
     )
 
-    expected = scope_db_path(
+    legacy_scoped = scope_db_path(
         build_queue_scope(
             server_url="https://test.example.com",
             username="tester@example.com",
             team_slug="team-red",
         )
     )
-    resolved = default_queue_db_path()
-    assert resolved == expected
-    assert resolved.parent == base / "queues"
+    with pytest.raises(LegacyQueueMigrationRequiredError):
+        default_queue_db_path()
+    assert legacy_scoped.parent == base / "queues"
     assert _scoped_queue_dir() == base / "queues"
+    assert not legacy_scoped.exists()
+
+    project_uuid = "aaaaaaaa-0000-0000-0000-000000000001"
+    store = ProjectSyncStore(project_uuid)
+    authority = store.layout_generation()
+    if authority.read_state().mode is LayoutMode.LEGACY:
+        authority.begin_cutover("home-path-test")
+        authority.publish_project_only("home-path-test", verify_exact=lambda: True)
+    with store.unit_of_work() as unit:
+        row = unit.execute("SELECT project_uuid FROM project_store_metadata WHERE singleton = 1").fetchone()
+    assert row == (project_uuid,)
+    assert store.database_path.parent == base / "projects" / project_uuid / "sync"
+    assert store.database_path != legacy_scoped
 
 
 @pytest.mark.parametrize("env_set", [False, True])
-def test_daemon_sync_root_under_base(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env_set: bool
-) -> None:
+def test_daemon_sync_root_under_base(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env_set: bool) -> None:
     """POSIX sync root keeps the flat ``base/sync`` suffix (research.md D3)."""
     base = _configure_root(monkeypatch, tmp_path, env_set=env_set)
     assert daemon._sync_root() == base / "sync"
 
 
 @pytest.mark.parametrize("env_set", [False, True])
-def test_daemon_root_is_flat_base(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env_set: bool
-) -> None:
+def test_daemon_root_is_flat_base(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env_set: bool) -> None:
     """POSIX daemon root is the flat base, NOT ``base/daemon`` (research.md D3)."""
     base = _configure_root(monkeypatch, tmp_path, env_set=env_set)
     assert daemon._daemon_root() == base
 
 
 @pytest.mark.parametrize("env_set", [False, True])
-def test_spec_kitty_dir_shim_is_lazy(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env_set: bool
-) -> None:
+def test_spec_kitty_dir_shim_is_lazy(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env_set: bool) -> None:
     """The retired ``SPEC_KITTY_DIR`` constant resolves lazily per access."""
     # Other daemon tests use ``monkeypatch.setattr(daemon, "SPEC_KITTY_DIR", …)``.
     # Because the name now lives only on the module ``__getattr__`` shim,
@@ -190,9 +193,7 @@ def test_spec_kitty_dir_shim_rejects_unknown_attr() -> None:
 
 
 @pytest.mark.parametrize("env_set", [False, True])
-def test_lamport_clock_default_under_base(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env_set: bool
-) -> None:
+def test_lamport_clock_default_under_base(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env_set: bool) -> None:
     base = _configure_root(monkeypatch, tmp_path, env_set=env_set)
     expected = base / "clock.json"
     # default_factory on a freshly constructed clock

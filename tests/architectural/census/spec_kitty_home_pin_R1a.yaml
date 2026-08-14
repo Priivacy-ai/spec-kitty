@@ -11,7 +11,7 @@ header:
     census -- they are hashed into the baseline''s `exempt_set_sha256`, because with
     `E` inside the census `census u E` is a no-op union and `discovered == census
     u E` degenerates to `discovered == census`. KNOWN-FRAGILE ROWS, named by the generator:
-    sync/tracker/test_tracker_egress_refusal_3108.py:1165 (held by unused monkeypatch;
+    sync/tracker/test_tracker_egress_refusal_3108.py:1124 (held by unused monkeypatch;
     MemberKey qualname is the INNERMOST scope and differs from the keyed def `test_bind_counter_wrapper_changes_no_outcome_committed_red`,
     so this row is also C-004''s only real-tree witness). Removing the unused parameter
     drops the row from the class with nothing red.'
@@ -20,21 +20,21 @@ rows:
   - cli/commands/test_sync_commands.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
-  lineno: 55
+  lineno: 57
   kind: fixture
   home_partition: B1
 - key:
   - cli/commands/test_sync_doctor_consent_health_3030.py
   - checkout
   - monkeypatch . setenv ( , str ( home ) )
-  lineno: 109
+  lineno: 110
   kind: fixture
   home_partition: B1
 - key:
   - cli/commands/test_sync_doctor_per_project_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( home ) )
-  lineno: 99
+  lineno: 108
   kind: fixture
   home_partition: B1
 - key:
@@ -48,14 +48,14 @@ rows:
   - cli/commands/test_sync_migrate_backfills_h4.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( home ) )
-  lineno: 94
+  lineno: 34
   kind: fixture
   home_partition: B2
 - key:
   - cli/commands/test_sync_now_empty_selection_t005.py
   - _now_machinery
   - monkeypatch . setenv ( , str ( home ) )
-  lineno: 82
+  lineno: 85
   kind: fixture
   home_partition: B2
 - key:
@@ -69,70 +69,70 @@ rows:
   - cli/commands/test_sync_report_label_is_a_purge_selector_3030.py
   - checkout
   - monkeypatch . setenv ( , str ( home ) )
-  lineno: 84
+  lineno: 86
   kind: fixture
   home_partition: B1
 - key:
   - cli/commands/test_sync_status_per_project_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( home ) )
-  lineno: 108
+  lineno: 115
   kind: fixture
   home_partition: B1
 - key:
   - delivery/test_body_queue_purge_differential_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
-  lineno: 45
+  lineno: 19
   kind: fixture
   home_partition: A
 - key:
   - delivery/test_dispatch_window_consent_3030.py
   - _consent_records
   - monkeypatch . setenv ( , str ( home ) )
-  lineno: 143
+  lineno: 147
   kind: fixture
   home_partition: A
 - key:
   - delivery/test_liveness_predicate_before_limit_3030.py
   - _consent
   - monkeypatch . setenv ( , str ( home ) )
-  lineno: 70
+  lineno: 74
   kind: fixture
   home_partition: A
 - key:
   - delivery/test_nfr002_loop_permanence_3030.py
   - _consent_records
   - monkeypatch . setenv ( , str ( home ) )
-  lineno: 103
+  lineno: 101
   kind: fixture
   home_partition: A
 - key:
   - delivery/test_nfr003_predicate_cost_3030.py
   - _consent
   - monkeypatch . setenv ( , str ( home ) )
-  lineno: 69
+  lineno: 75
   kind: fixture
   home_partition: A
 - key:
   - delivery/test_per_project_report_3030.py
   - _home
   - monkeypatch . setenv ( , str ( home ) )
-  lineno: 36
+  lineno: 47
   kind: fixture
   home_partition: A
 - key:
   - delivery/test_purge_all_body_uploads_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
-  lineno: 51
+  lineno: 30
   kind: fixture
   home_partition: A
 - key:
   - delivery/test_purge_all_events_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
-  lineno: 51
+  lineno: 43
   kind: fixture
   home_partition: A
 - key:
@@ -146,7 +146,7 @@ rows:
   - specify_cli/sync/test_local_commit_consent_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
-  lineno: 84
+  lineno: 47
   kind: fixture
   home_partition: A
 - key:
@@ -160,21 +160,21 @@ rows:
   - sync/test_body_drain_consent_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
-  lineno: 49
+  lineno: 50
   kind: fixture
   home_partition: A
 - key:
   - sync/test_body_upload_consent_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( home ) )
-  lineno: 62
+  lineno: 70
   kind: fixture
   home_partition: A
 - key:
   - sync/test_capture_gate_project_identity_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
-  lineno: 59
+  lineno: 61
   kind: fixture
   home_partition: A
 - key:
@@ -188,70 +188,70 @@ rows:
   - sync/test_consent_field_fault_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
-  lineno: 82
+  lineno: 43
   kind: fixture
   home_partition: B1
 - key:
   - sync/test_consent_read_fault_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
-  lineno: 66
+  lineno: 45
   kind: fixture
   home_partition: A
 - key:
   - sync/test_consent_resolver_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
-  lineno: 43
+  lineno: 39
   kind: fixture
   home_partition: A
 - key:
   - sync/test_consent_write_refusal_3030.py
   - home
   - monkeypatch . setenv ( , str ( root ) )
-  lineno: 75
+  lineno: 43
   kind: fixture
   home_partition: B1
 - key:
   - sync/test_daemon_publish_consent_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( home ) )
-  lineno: 78
+  lineno: 82
   kind: fixture
   home_partition: A
 - key:
   - sync/test_legacy_queue_precondition_3030.py
   - test_a_credentials_read_failure_is_not_evidence
   - monkeypatch . setenv ( , str ( tmp_path / ) )
-  lineno: 162
+  lineno: 89
   kind: test-body
   home_partition: A
 - key:
   - sync/test_routing.py
   - test_opt_out_purge_targets_the_same_stores_the_drain_reads
   - monkeypatch . setenv ( , str ( tmp_path / ) )
-  lineno: 303
+  lineno: 300
   kind: test-body
   home_partition: A
 - key:
   - sync/test_ws_publish_consent_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
-  lineno: 64
+  lineno: 66
   kind: fixture
   home_partition: A
 - key:
   - sync/tracker/test_tracker_egress_refusal_3108.py
   - _isolated_home_and_arming
   - monkeypatch . setenv ( , str ( home ) )
-  lineno: 194
+  lineno: 198
   kind: fixture
   home_partition: B1
 - key:
   - sync/tracker/test_tracker_egress_refusal_3108.py
   - test_bind_counter_wrapper_changes_no_outcome_committed_red._run_once
   - mp . setenv ( , str ( tmp_path / ) )
-  lineno: 1165
+  lineno: 1124
   kind: test-body
   home_partition: A
 - key:

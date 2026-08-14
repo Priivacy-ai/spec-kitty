@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "f18716d61d0fcbd31613cedfc73d3f49f554b013",
-  "coordination_branch": "kitty/mission-placement-port-residuals-closure-01KYDEF0",
   "created_at": "2026-07-25T20:11:31.172729+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Placement-Port Residuals Closure",
   "mission_id": "01KYDEF0F4H4HNFMXQG26AS4DE",
   "mission_number": null,
@@ -14,7 +13,7 @@
   "slug": "placement-port-residuals-closure-01KYDEF0",
   "status_phase": "1",
   "target_branch": "placement-port-residuals",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-26T20:47:04.725133+00:00"
 }

@@ -14,9 +14,8 @@
   "accepted_by": "stijn",
   "accepted_from_commit": "ad1389b363e50f3887b27d8c179f51cd3fe90667",
   "baseline_merge_commit": "ce60f0f840df08a23fa0d52be0c25b46b2f76b46",
-  "coordination_branch": "kitty/mission-coord-write-placement-closure-01KYCF83",
   "created_at": "2026-07-25T11:05:59.194629+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Coord Write-Placement Closure & Birth-Cutover",
   "mission_id": "01KYCF83MT808X1J7ZE87ZJXQW",
   "mission_number": null,
@@ -28,7 +27,7 @@
   "slug": "coord-write-placement-closure-01KYCF83",
   "status_phase": "1",
   "target_branch": "feat/coord-write-placement-closure",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-25T13:51:27.748222+00:00"
 }

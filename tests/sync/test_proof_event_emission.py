@@ -110,7 +110,9 @@ def test_emitted_proof_event_passes_queue_diagnose(
     event = emitter.emit_proof_event("TestEvidenceCaptured", _test_payload())
 
     assert event is not None
-    results = diagnose_events(temp_queue.drain_queue())
+    # ``drain_queue`` now returns ``ProjectOutboxTask`` rows; ``diagnose_events``
+    # validates the event envelope dicts those tasks carry.
+    results = diagnose_events([task.event for task in temp_queue.drain_queue()])
     assert len(results) == 1
     assert results[0].valid is True
     assert results[0].event_type == "TestEvidenceCaptured"

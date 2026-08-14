@@ -66,5 +66,5 @@ def test_saas_flag_disabled_suppresses_direct_ingress_resolution(
     assert event is not None
     assert routed == [event]
     assert event["team_slug"] is None
-    assert event["drain_blocked_reason"] == "sync_disabled"
+    assert event["drain_blocked_reason"] == "saas_disabled"
     assert "direct ingress skipped" not in caplog.text

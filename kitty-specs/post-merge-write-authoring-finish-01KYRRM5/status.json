@@ -20,62 +20,182 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYSYTGV2K4078EX8MCQ7W7CD",
       "last_transition_at": "2026-07-30T16:48:18.786252+00:00",
-      "shell_pid": 1797882,
-      "shell_pid_created_at": "1785415770.39"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed (reviewer-renata): ADR+glossary+drift-guard verified; gates green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata): ADR+glossary+drift-guard verified; gates green.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1846210,
+      "shell_pid_created_at": "1785416971.43",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYSYTHRTEBFDR128CTBHMKVX",
       "last_transition_at": "2026-07-30T16:48:19.738627+00:00",
-      "shell_pid": 1814813,
-      "shell_pid_created_at": "1785416099.05"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Red-first #3033 pin verified: 4 reds genuine and for the #3033 reason (T006 seam-level resolve_placement_only hands back deleted Target Ref verbatim; T007x3 write_artifact status=refused naming the deferred #3033 CONSOLIDATED-surface decision + CoordinationBranchDeleted). Both pins assert desired post-fix behavior so they flip green unmodified after WP03/WP04. E2 fixtures built via real git init/branch/merge/branch -D + record_baseline_merge_commit; content on Primary Branch, Target Ref deleted, production-shaped ids. ruff+mypy clean; test commit scoped to owned file. Campsite feb1aa404 = mission-own status/lanes bookkeeping only (append-only, event_id dedup), no product/test code, no cross-WP overlap."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Red-first #3033 pin verified: 4 reds genuine and for the #3033 reason (T006 seam-level resolve_placement_only hands back deleted Target Ref verbatim; T007x3 write_artifact status=refused naming the deferred #3033 CONSOLIDATED-surface decision + CoordinationBranchDeleted). Both pins assert desired post-fix behavior so they flip green unmodified after WP03/WP04. E2 fixtures built via real git init/branch/merge/branch -D + record_baseline_merge_commit; content on Primary Branch, Target Ref deleted, production-shaped ids. ruff+mypy clean; test commit scoped to owned file. Campsite feb1aa404 = mission-own status/lanes bookkeeping only (append-only, event_id dedup), no product/test code, no cross-WP overlap.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1877314,
+      "shell_pid_created_at": "1785418074.66",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYSYTJJSP68DE7C8H8Z57NJ1",
       "last_transition_at": "2026-07-30T16:48:20.569372+00:00",
-      "shell_pid": 1881232,
-      "shell_pid_created_at": "1785418194.73"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Resolver-core verified. Single phase authority (resolve_lifecycle_phase) called by both probe+materializer with phase-agreement test; two-step git probe (rev-validity then path-presence) correctly distinguishes content-absent (FR-006 refuse) from broken probe (raise), squash-robust content-presence keyed on primary_dir.name + resolve_primary_branch(bias=False); E2 scope excludes STATUS_STATE/DECISION_LOG with SC-005 pins; CommitTarget.ref is Primary-Branch NAME; commit_router.py + commit_helpers.py byte-unchanged; layering fix sound (self-contained subprocess, no closed specify_cli.lanes edge). ruff+mypy --strict clean, 21 unit tests + 10 arch-gate tests green. WP02 pins still red at safe_commit protected-branch guard = expected WP04 dependency (safe_commit CLI calls safe_commit() directly, bypassing frozen router guard; capability assertable at WP04-owned call site) — NOT a WP03 defect."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Resolver-core verified. Single phase authority (resolve_lifecycle_phase) called by both probe+materializer with phase-agreement test; two-step git probe (rev-validity then path-presence) correctly distinguishes content-absent (FR-006 refuse) from broken probe (raise), squash-robust content-presence keyed on primary_dir.name + resolve_primary_branch(bias=False); E2 scope excludes STATUS_STATE/DECISION_LOG with SC-005 pins; CommitTarget.ref is Primary-Branch NAME; commit_router.py + commit_helpers.py byte-unchanged; layering fix sound (self-contained subprocess, no closed specify_cli.lanes edge). ruff+mypy --strict clean, 21 unit tests + 10 arch-gate tests green. WP02 pins still red at safe_commit protected-branch guard = expected WP04 dependency (safe_commit CLI calls safe_commit() directly, bypassing frozen router guard; capability assertable at WP04-owned call site) — NOT a WP03 defect.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1991801,
+      "shell_pid_created_at": "1785421161.42",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYSYTKCJY7ZTTGV4PDTM0HKW",
       "last_transition_at": "2026-07-30T16:48:21.394284+00:00",
-      "shell_pid": 1995978,
-      "shell_pid_created_at": "1785421268.03"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "APPROVED. SC-002 empirically adjudicated: T007's WP02 pin is a stale/mis-authored no-op fixture (passes the already-committed, unmodified issue-matrix.json for all 3 params), so 'unchanged' (destination_surface=main, routed to CONSOLIDATED, nothing to commit) is the correct idempotent result -- NOT a WP04 gap. A genuinely-differing E2 coord write returns 'committed' with probe/commit phase agreement (test_e2_consolidated_coord_kind_write_commits_and_agrees_with_probe, green). SC-001 T006 green. Thunk single-locus + exactly-one-of guard + misuse tests green; tracer migrated (T015); FR-006 off-checkout refusal names branch-derived default (resolve_primary_branch bias=False), zero residue, no checkout forced. Guard POST_CONSOLIDATION_WRITE mirrors MERGE_BOOKKEEPING, allowlisted to 2 call sites; commit_router.py/commit_helpers.py/retrospective_terminus.py BYTE-UNCHANGED by WP04. Dep-lane merges clean (WP01/02/03 files only, no smuggling). ruff+mypy --strict clean; thunk 7/7, guard+tracer 19/19. FOLLOW-UP (non-blocking, WP02 already approved): T007 needs a differing-content fixture."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED. SC-002 empirically adjudicated: T007's WP02 pin is a stale/mis-authored no-op fixture (passes the already-committed, unmodified issue-matrix.json for all 3 params), so 'unchanged' (destination_surface=main, routed to CONSOLIDATED, nothing to commit) is the correct idempotent result -- NOT a WP04 gap. A genuinely-differing E2 coord write returns 'committed' with probe/commit phase agreement (test_e2_consolidated_coord_kind_write_commits_and_agrees_with_probe, green). SC-001 T006 green. Thunk single-locus + exactly-one-of guard + misuse tests green; tracer migrated (T015); FR-006 off-checkout refusal names branch-derived default (resolve_primary_branch bias=False), zero residue, no checkout forced. Guard POST_CONSOLIDATION_WRITE mirrors MERGE_BOOKKEEPING, allowlisted to 2 call sites; commit_router.py/commit_helpers.py/retrospective_terminus.py BYTE-UNCHANGED by WP04. Dep-lane merges clean (WP01/02/03 files only, no smuggling). ruff+mypy --strict clean; thunk 7/7, guard+tracer 19/19. FOLLOW-UP (non-blocking, WP02 already approved): T007 needs a differing-content fixture.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2109407,
+      "shell_pid_created_at": "1785425638.11",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYSYTM6FERQXXGD4MBZ44T5D",
       "last_transition_at": "2026-07-30T16:48:22.223134+00:00",
-      "shell_pid": 2121130,
-      "shell_pid_created_at": "1785425970.86"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "APPROVED (reviewer-renata). Recovery verified clean (4 commits, exactly 5 owned paths, no WP06 files, gates_core untouched). T019/T020: additive --negative-invariant mode, mutually exclusive with --criterion, reuses enforce_negative_invariants, no schema migration. T021: typed AcceptanceMatrixParseError(section,item_index,reason) at from_dict, drop/exit decision in accept --diagnose CLI layer only; both criteria + negative_invariants covered; well-formed gate behavior unchanged. T022 honesty CONFIRMED: unconditional persist authored by b04da00e1 (#3076, ancestor of mission base); WP05 correctly only pins SC-007. T023: SOURCE prompt drives executable acceptance-verdict (both modes), structural test. T024: stage= thunk + refused->0-untracked regression. gates_core:371 mypy error is pre-existing (file byte-identical to base, untouched by WP05). Gates: ruff clean, mypy --strict clean on 3 changed files, 20/20 new tests + 150 acceptance + 22 shared-caller tests green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED (reviewer-renata). Recovery verified clean (4 commits, exactly 5 owned paths, no WP06 files, gates_core untouched). T019/T020: additive --negative-invariant mode, mutually exclusive with --criterion, reuses enforce_negative_invariants, no schema migration. T021: typed AcceptanceMatrixParseError(section,item_index,reason) at from_dict, drop/exit decision in accept --diagnose CLI layer only; both criteria + negative_invariants covered; well-formed gate behavior unchanged. T022 honesty CONFIRMED: unconditional persist authored by b04da00e1 (#3076, ancestor of mission base); WP05 correctly only pins SC-007. T023: SOURCE prompt drives executable acceptance-verdict (both modes), structural test. T024: stage= thunk + refused->0-untracked regression. gates_core:371 mypy error is pre-existing (file byte-identical to base, untouched by WP05). Gates: ruff clean, mypy --strict clean on 3 changed files, 20/20 new tests + 150 acceptance + 22 shared-caller tests green.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2267426,
+      "shell_pid_created_at": "1785428785.92",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      }
     },
     "WP06": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYSYTN0427Q75YF0RRG8EVZ1",
       "last_transition_at": "2026-07-30T16:48:23.044491+00:00",
-      "shell_pid": 1,
-      "shell_pid_created_at": "1785055726.14"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP06 #1738 URL+provenance; lane-f cleaned of WP05 stash-contamination"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED (reviewer-renata). T026: single _GH_ISSUE_PATTERN, non-capturing outer alt keeps hash number in group(1); URL arm anchored to /issues/ only (PR URL non-match proven), trailing boundary admits #,/,EOL; same/cross-repo split in Python via _CANONICAL_REPO_SLUG; no second matcher. T027/028: source_file on IssueReference (both construction sites) + _ENTRY_FIELDS additive (from_dict get-default None); multi-file dedup carries (context,source_file) pair, first-occurrence wins. T029: write_issue_matrix migrated to stage= thunk; refused-write=0-residue regression green. SC-008 all arms green (17/17 in provenance test): samuelgoff #320 discovered+row+source_file, PR URL not matched, anchor URL matched, cross-repo does not block gate, every ref non-empty source_file. Sibling ripple (5 files) legitimate non-overlapping: IssueReference 3-arg fix + fakes invoke stage() mirroring production, no other WP owns them. Gates: ruff clean, mypy --strict clean (3 files), pytest tests/specify_cli/tasks/ 58 passed. Lane clean, only WP06's 2 commits, no WP05 files. 2 cited reds (3033 coord_kind, 2804) confirmed baseline (3033 fails identically for ACCEPTANCE_MATRIX which WP06 never touches; WP06 touches only issue_matrix.py+discovery+tests).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2270607,
+      "shell_pid_created_at": "1785428855.47",
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done"
+      }
     }
   }
 }

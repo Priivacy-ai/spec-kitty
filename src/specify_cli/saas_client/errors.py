@@ -29,6 +29,10 @@ class SaasNotFoundError(SaasClientError):
     """Raised on HTTP 404 (decision or mission not found)."""
 
 
+class SaasAdmissionContractError(SaasClientError):
+    """The admission endpoint returned bytes outside the pinned contract."""
+
+
 class SaasConsentError(SaasClientError):
     """Raised when the project owning the data has not consented to hosted sync.
 

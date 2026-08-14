@@ -32,6 +32,11 @@
         "Review passed (renata/sonnet): ADR + cross-link, markdownlint clean"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (renata/sonnet): ADR + cross-link, markdownlint clean",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 3352518,
       "shell_pid_created_at": "1784739499.25",
@@ -56,6 +61,11 @@
         "Review passed (renata/opus): all 7 keystone criteria PASS; RawRunResult + baseline-relative; 36 tests+ruff+mypy green"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (renata/opus): all 7 keystone criteria PASS; RawRunResult + baseline-relative; 36 tests+ruff+mypy green",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 3366703,
       "shell_pid_created_at": "1784739660.44",
@@ -83,6 +93,11 @@
         "Engine consumes port; probe deleted; #2330 + pre-existing-not-blocked tests green"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Engine consumes injected ScopeSource for baseline+head via RawRunResult/parse_results split, verdict classification stays in engine; always-on _gate_coverage import removed (only reachable via GateCoverageScopeSource); _is_spec_kitty_source_repo deleted, is_consumer_repo field kept for WP09; scope_source=None preserves byte-identical behaviour (21 hook tests unmodified, docstring-only diff); both required T015 tests (#2330 closure + pre_existing_not_blocked) present and genuinely exercise production code via real subprocess; scope limited to owned_files. 65/65 tests pass, ruff clean, mypy --strict clean on both src files; 18 mypy errors in test-engine file confirmed pre-existing via pre-WP03 tree diff (identical errors, shifted line numbers).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 3471990,
       "shell_pid_created_at": "1784742413.21",
@@ -105,6 +120,11 @@
       "last_transition_at": "2026-07-22T21:26:14.288429+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Approved: GateHandler/TransitionGateContext/GATE_REGISTRY match spec, single home, length-1 guard test, pass-through adapter (no Exit/aggregation), non-vacuous dispatch-parity test. Scope clean (2 new files only). pytest 7 passed, ruff clean, mypy --strict clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 3490155,
       "shell_pid_created_at": "1784743087.82",
@@ -126,6 +146,11 @@
       "last_transition_at": "2026-07-22T21:26:21.334870+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (renata/sonnet): all 7 criteria + anti-pattern checklist; 19+137 tests green",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 3552786,
       "shell_pid_created_at": "1784744023.62",
@@ -149,6 +174,11 @@
       "last_transition_at": "2026-07-22T21:26:28.156396+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (renata/opus): owning-contract-URN join correct; non-vacuous negative control; built-in-DRG flag → WP09 concern",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 3588377,
       "shell_pid_created_at": "1784745362.62",
@@ -172,6 +202,11 @@
       "last_transition_at": "2026-07-22T21:26:34.857013+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Content reviewed correct (renata/sonnet); relocated to lane-g (impl cwd error fixed); casing+terminology gates green",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 3578383,
       "shell_pid_created_at": "1784744851.37",
@@ -196,6 +231,11 @@
         "Review passed (renata/opus): pure aggregate_verdicts, machine-emitted base parity oracle, strict-xfail arm accepted"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (renata/opus): pure aggregate_verdicts, machine-emitted base parity oracle, strict-xfail arm accepted",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 3369606,
       "shell_pid_created_at": "1784739696.31",
@@ -218,6 +258,11 @@
       "last_transition_at": "2026-07-22T21:26:41.775942+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review (renata/opus) found 2 regressions; cycle-1 fix d27d82dd3 routes override tier through fail-open (KI exit 1) + robust st.wp; orchestrator-verified: observability 12, parity 37, both arms green",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 3833833,
       "shell_pid_created_at": "1784754045.75",

@@ -74,30 +74,27 @@ Both tests are additive: they do not alter any assertion in
 ``None`` on every row), so this file's premise cannot collide with any
 existing green there.
 """
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
+from types import SimpleNamespace
 
 import pytest
 
 from specify_cli.cli.commands import sync as sync_commands
-from specify_cli.cli.commands.sync import _EventSyncRuntime, _run_dispatch_batches
+from specify_cli.cli.commands.sync import _run_dispatch_batches
 from specify_cli.delivery.dispatcher import dispatch
+from specify_cli.delivery.interfaces import DeliveryTarget
 from specify_cli.delivery.ledger import SqliteDeliveryLedger
 from specify_cli.delivery.receivers import StubReceiver
-from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
+from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import DRAIN_BLOCKED_SAAS_DISABLED, Event
-from specify_cli.sync.target_authority import (
-    OverrideMode,
-    QueueScopeStatus,
-    ResolvedSyncTarget,
-)
-
-if TYPE_CHECKING:
-    from specify_cli.delivery.interfaces import DeliveryTarget
+from specify_cli.sync.consent import record_project_opt_in
+from specify_cli.sync.layout_generation import LayoutMode
+from specify_cli.sync.project_store import ProjectSyncStore
 
 pytestmark = pytest.mark.fast
 
@@ -115,9 +112,26 @@ def _consent_to_the_single_project(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     home = tmp_path / "consent-home"
     home.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
-    from specify_cli.sync.consent import set_project_consent
-
-    set_project_consent(_CONSENTED_UUID, True)
+    store = ProjectSyncStore(_CONSENTED_UUID)
+    authority = store.layout_generation()
+    if authority.read_state().mode is LayoutMode.LEGACY:
+        authority.begin_cutover("drain-blocked-test")
+        authority.publish_project_only("drain-blocked-test", verify_exact=lambda: True)
+    record_project_opt_in(_CONSENTED_UUID, actor="drain-blocked-test")
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO project_target_admissions "
+            "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, binding_audience) "
+            "VALUES (?, ?, ?, ?, 1, 'admitted', '1', ?)",
+            (
+                _CONSENTED_UUID,
+                _TARGET_URL,
+                _TARGET_USER_EMAIL,
+                _TARGET_TEAM_SLUG,
+                f"private-teamspace:{_TARGET_TEAM_SLUG}",
+            ),
+        )
 
 
 def _make_event(
@@ -163,30 +177,12 @@ def _make_event(
     )
 
 
-def _register_target(registry: SqliteDeliveryTargetRegistry) -> DeliveryTarget:
-    return registry.register(
-        url=_TARGET_URL, team_slug=_TARGET_TEAM_SLUG, user_email=_TARGET_USER_EMAIL
-    )
-
-
-def _resolved_sync_target(tmp_path: Path) -> ResolvedSyncTarget:
-    """Build a plain, no-I/O ``ResolvedSyncTarget`` to satisfy ``_EventSyncRuntime``.
-
-    ``_run_dispatch_batches`` never reads ``runtime.target`` — it only touches
-    ``runtime.journal`` and ``runtime.ledger`` — but the dataclass requires it,
-    so this is inert fixture data, not a behavioural input to the test.
-    """
-    return ResolvedSyncTarget(
-        configured_server_url=_TARGET_URL,
-        env_server_url=None,
-        override_mode=OverrideMode.NONE,
-        resolved_server_url=_TARGET_URL,
-        user_id=None,
-        team_slug=_TARGET_TEAM_SLUG,
-        derived_queue_scope=f"team:{_TARGET_TEAM_SLUG}",
-        queue_db_path=tmp_path / "queue.db",
-        active_queue_scope_status=QueueScopeStatus.MATCHES,
-    )
+def _store_and_target() -> tuple[ProjectSyncStore, DeliveryTarget]:
+    store = ProjectSyncStore(_CONSENTED_UUID)
+    with store.unit_of_work() as unit:
+        target = ProjectDeliveryTargetRegistry(store).get_current(unit)
+    assert target is not None
+    return store, target
 
 
 def test_dispatch_excludes_events_with_recorded_drain_blocked_reason(
@@ -207,7 +203,8 @@ def test_dispatch_excludes_events_with_recorded_drain_blocked_reason(
     drained exactly like any other row. The drain now inspects
     ``Event.drain_blocked_reason`` on each row, so this guard is green.
     """
-    journal = EventJournal(tmp_path / "journal.db")
+    del tmp_path
+    store, target = _store_and_target()
     unblocked = _make_event(
         "evt-engagement-assistant-0",
         project_slug="engagement-assistant",
@@ -220,21 +217,21 @@ def test_dispatch_excludes_events_with_recorded_drain_blocked_reason(
         drain_blocked_reason=DRAIN_BLOCKED_SAAS_DISABLED,
         created_at="2026-06-29T00:00:01+00:00",
     )
-    journal.append(unblocked)
-    journal.append(blocked)
-
-    ledger = SqliteDeliveryLedger(":memory:")
-    registry = SqliteDeliveryTargetRegistry(":memory:")
-    target = _register_target(registry)
+    with store.unit_of_work() as unit:
+        journal = EventJournal(unit, store.layout_generation())
+        journal.append(unblocked)
+        journal.append(blocked)
     receiver = StubReceiver()
 
-    dispatch(journal=journal, ledger=ledger, receiver=receiver, target=target)
+    dispatch(
+        store=store,
+        receiver=receiver,
+        target=target,
+        context=store.create_context(),
+    )
 
     received_ids = set(receiver.received_event_ids())
-    assert unblocked.event_id in received_ids, (
-        "the unblocked event must still ship — this test is not about "
-        "breaking healthy drains"
-    )
+    assert unblocked.event_id in received_ids, "the unblocked event must still ship — this test is not about breaking healthy drains"
     assert blocked.event_id not in received_ids, (
         f"a journal row captured with drain_blocked_reason={DRAIN_BLOCKED_SAAS_DISABLED!r} "
         "must never reach the receiver; the drain has no predicate over "
@@ -242,7 +239,8 @@ def test_dispatch_excludes_events_with_recorded_drain_blocked_reason(
         "so capture-time consent classification is silently discarded at drain time"
     )
 
-    blocked_row = ledger.get(blocked.event_id, target.target_id)
+    with store.unit_of_work() as unit:
+        blocked_row = SqliteDeliveryLedger(unit, store.layout_generation()).get(blocked.event_id, target.target_id)
     assert blocked_row is None, (
         "a blocked event must not be recorded delivered to the ledger either — "
         "today it is, because dispatch() posted it and _record() wrote a "
@@ -250,9 +248,7 @@ def test_dispatch_excludes_events_with_recorded_drain_blocked_reason(
     )
 
 
-def test_consent_predicate_must_apply_before_limit_not_after(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_consent_predicate_must_apply_before_limit_not_after(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A large blocked backlog must not starve a newer unblocked event.
 
     #3031 Defect 5 (per-event drain filtering) — NOT a #3030 consent pin. The
@@ -299,35 +295,29 @@ def test_consent_predicate_must_apply_before_limit_not_after(
     """
     monkeypatch.setattr(sync_commands, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 5)
 
-    journal = EventJournal(tmp_path / "journal.db")
+    del tmp_path
+    store, target = _store_and_target()
     blocked_ids = [f"evt-client-confidential-{index}" for index in range(10)]
     for index, event_id in enumerate(blocked_ids):
-        journal.append(
-            _make_event(
-                event_id,
-                project_slug="client-confidential",
-                drain_blocked_reason=DRAIN_BLOCKED_SAAS_DISABLED,
-                created_at=f"2026-06-29T00:00:{index:02d}+00:00",
+        with store.unit_of_work() as unit:
+            EventJournal(unit, store.layout_generation()).append(
+                _make_event(
+                    event_id,
+                    project_slug="client-confidential",
+                    drain_blocked_reason=DRAIN_BLOCKED_SAAS_DISABLED,
+                    created_at=f"2026-06-29T00:00:{index:02d}+00:00",
+                )
             )
-        )
     unblocked = _make_event(
         "evt-engagement-assistant-0",
         project_slug="engagement-assistant",
         drain_blocked_reason=None,
         created_at="2026-06-29T00:01:00+00:00",
     )
-    journal.append(unblocked)
-
-    ledger = SqliteDeliveryLedger(":memory:")
-    registry = SqliteDeliveryTargetRegistry(":memory:")
-    target = _register_target(registry)
+    with store.unit_of_work() as unit:
+        EventJournal(unit, store.layout_generation()).append(unblocked)
     receiver = StubReceiver()
-    runtime = _EventSyncRuntime(
-        target=_resolved_sync_target(tmp_path),
-        journal=journal,
-        ledger=ledger,
-        registry=registry,
-    )
+    runtime = SimpleNamespace(store=store, context=store.create_context())
 
     _run_dispatch_batches(runtime, receiver, target)
 

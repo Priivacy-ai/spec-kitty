@@ -358,8 +358,7 @@ def _announce(guard: str, input_count: int, **facts: object) -> None:
     for key, value in facts.items():
         print(f"[{guard}]   {key}: {value}")
     assert input_count > 0, (
-        f"{guard} scanned ZERO inputs -- this result is vacuous, not a pass. "
-        f"If Bundle B moved this guard's subject, re-point it; do not let it scan nothing."
+        f"{guard} scanned ZERO inputs -- this result is vacuous, not a pass. If Bundle B moved this guard's subject, re-point it; do not let it scan nothing."
     )
 
 
@@ -367,7 +366,7 @@ def _announce(guard: str, input_count: int, **facts: object) -> None:
 # T037 exit -- the matcher's own falsification probe
 # ---------------------------------------------------------------------------
 
-_PROBE_BOTH_FORMS = '''
+_PROBE_BOTH_FORMS = """
 from specify_cli.tracker.egress_verdict import tracker_egress_verdict
 from specify_cli.tracker import egress_verdict as ev
 
@@ -376,7 +375,7 @@ def written_as_a_bare_name(root):
 
 def written_module_qualified(root):
     return ev.tracker_egress_verdict(root, destination=None)
-'''
+"""
 
 
 def test_matcher_resolves_both_name_and_attribute_func_nodes() -> None:
@@ -397,11 +396,7 @@ def test_matcher_resolves_both_name_and_attribute_func_nodes() -> None:
     assert found.call_count == 2, f"matcher is blind to one of the two func-node forms:\n{found.describe()}"
     assert sorted(call.func_form for call in found.calls) == ["Attribute", "Name"]
 
-    blind = [
-        node
-        for node in ast.walk(ast.parse(_PROBE_BOTH_FORMS))
-        if isinstance(node, ast.Call) and _name_only_callee_trailing_name(node) == VERDICT_FN
-    ]
+    blind = [node for node in ast.walk(ast.parse(_PROBE_BOTH_FORMS)) if isinstance(node, ast.Call) and _name_only_callee_trailing_name(node) == VERDICT_FN]
     assert len(blind) == 1, (  # golden-count: cardinality-is-contract
         "NEGATIVE CONTROL FAILED: the ast.Name-only matcher was expected to miss the "
         f"module-qualified call and see exactly 1, but saw {len(blind)}. The probe no longer "
@@ -460,12 +455,8 @@ def analyze_supported_providers(source: str) -> ProviderFindings:
             findings.unreadable_assignments.append(ast.unparse(value))
             continue
         findings.element_count = len(value.elts)
-        findings.non_constant_elements = [
-            ast.unparse(e) for e in value.elts if not (isinstance(e, ast.Constant) and isinstance(e.value, str))
-        ]
-        findings.providers = frozenset(
-            e.value for e in value.elts if isinstance(e, ast.Constant) and isinstance(e.value, str)
-        )
+        findings.non_constant_elements = [ast.unparse(e) for e in value.elts if not (isinstance(e, ast.Constant) and isinstance(e.value, str))]
+        findings.providers = frozenset(e.value for e in value.elts if isinstance(e, ast.Constant) and isinstance(e.value, str))
     return findings
 
 
@@ -486,23 +477,23 @@ def _supported_providers_assignment(node: ast.AST) -> ast.expr | None:
     return value
 
 
-_G1_MUTANT_THIRD_PROVIDER = '''
+_G1_MUTANT_THIRD_PROVIDER = """
 SUPPORTED_PROVIDERS: tuple[str, ...] = ("beads", "fp", "jira")
-'''
+"""
 
 #: Review LOW-1, silent hole (a): the widening is a ``BinOp``, so the literal reader sees nothing
 #: and an earlier revision kept the first assignment's answer -- reading exactly ``{beads, fp}``.
-_G1_MUTANT_WIDENED_BY_BINOP = '''
+_G1_MUTANT_WIDENED_BY_BINOP = """
 SUPPORTED_PROVIDERS: tuple[str, ...] = ("beads", "fp")
 SUPPORTED_PROVIDERS = SUPPORTED_PROVIDERS + ("jira",)
-'''
+"""
 
 #: Review LOW-1, silent hole (b): a non-``Constant`` element was silently filtered out, so
 #: ``("beads", "fp", JIRA)`` also read as exactly ``{beads, fp}``.
-_G1_MUTANT_NON_CONSTANT_ELEMENT = '''
+_G1_MUTANT_NON_CONSTANT_ELEMENT = """
 JIRA = "jira"
 SUPPORTED_PROVIDERS: tuple[str, ...] = ("beads", "fp", JIRA)
-'''
+"""
 
 
 def test_g1_build_connector_perimeter_is_exactly_beads_and_fp() -> None:
@@ -592,25 +583,31 @@ EXPECTED_BUILD_CONNECTOR_COUNT = 1
 #: The **control** every G2 mutant is measured against: the correct shape, one call site in
 #: ``_build_engine``. Each mutant below is this control plus one extra site, so the kill can be
 #: attributed to the added site rather than to the synthetic base merely differing from ``src/``.
-_G2_CONTROL = '''
+_G2_CONTROL = """
 from specify_cli.tracker.factory import build_connector
 
 class LocalTrackerService:
     def _build_engine(self, config, credentials, store):
         return build_connector(provider="beads", workspace="w", credentials=credentials)
-'''
+"""
 
-_G2_MUTANT_SECOND_SITE = _G2_CONTROL + '''
+_G2_MUTANT_SECOND_SITE = (
+    _G2_CONTROL
+    + """
 def some_other_helper(config, credentials):
     return build_connector(provider="beads", workspace="w", credentials=credentials)
-'''
+"""
+)
 
-_G2_MUTANT_SECOND_SITE_QUALIFIED = _G2_CONTROL + '''
+_G2_MUTANT_SECOND_SITE_QUALIFIED = (
+    _G2_CONTROL
+    + """
 from specify_cli.tracker import factory
 
 def some_other_helper(config, credentials):
     return factory.build_connector(provider="beads", workspace="w", credentials=credentials)
-'''
+"""
+)
 
 
 def test_g2_build_connector_has_exactly_one_call_site() -> None:
@@ -625,8 +622,7 @@ def test_g2_build_connector_has_exactly_one_call_site() -> None:
     real = analyze_calls_in_tree(SRC_ROOT, "build_connector")
     _announce("G2", real.input_count, call_expressions=real.call_count, sites=sorted(real.enclosing))
     assert real.call_count == EXPECTED_BUILD_CONNECTOR_COUNT, (
-        f"G2: expected exactly {EXPECTED_BUILD_CONNECTOR_COUNT} build_connector call expression, "
-        f"found {real.call_count}:\n{real.describe()}"
+        f"G2: expected exactly {EXPECTED_BUILD_CONNECTOR_COUNT} build_connector call expression, found {real.call_count}:\n{real.describe()}"
     )
     assert real.enclosing == EXPECTED_BUILD_CONNECTOR_SITES, (
         f"G2: build_connector's call-site set changed.\n"
@@ -667,9 +663,7 @@ def test_g2_build_connector_has_exactly_one_call_site() -> None:
 
 _LOCAL_SERVICE_PATH = SRC_ROOT / "specify_cli" / "tracker" / "local_service.py"
 
-EXPECTED_BUILD_ENGINE_CALLERS = frozenset(
-    {"LocalTrackerService.sync_pull", "LocalTrackerService.sync_push", "LocalTrackerService.sync_run"}
-)
+EXPECTED_BUILD_ENGINE_CALLERS = frozenset({"LocalTrackerService.sync_pull", "LocalTrackerService.sync_push", "LocalTrackerService.sync_run"})
 
 
 @dataclass
@@ -787,12 +781,15 @@ class LocalTrackerService:
         return self._run_async(_run())
 '''
 
-_G3_MUTANT_FOURTH_CALLER = _G3_POSITIVE_CONTROL + '''
+_G3_MUTANT_FOURTH_CALLER = (
+    _G3_POSITIVE_CONTROL
+    + """
     def sync_sideways(self, *, limit=100):
         config, credentials, store = self._load_runtime()
         connector, engine = self._build_engine(config, credentials, store)
         return connector
-'''
+"""
+)
 
 _G3_MUTANT_STATEMENT_BEFORE_GATE = '''
 class LocalTrackerService:
@@ -876,8 +873,7 @@ def test_g3_build_engine_callers_are_the_three_gated_methods() -> None:
         gate_is_first_statement=real.gate_is_first,
     )
     assert len(real.callers) == len(EXPECTED_BUILD_ENGINE_CALLERS), (
-        f"G3: expected exactly {len(EXPECTED_BUILD_ENGINE_CALLERS)} _build_engine callers, "
-        f"found {len(real.callers)}: {sorted(real.callers)}"
+        f"G3: expected exactly {len(EXPECTED_BUILD_ENGINE_CALLERS)} _build_engine callers, found {len(real.callers)}: {sorted(real.callers)}"
     )
     assert real.callers == EXPECTED_BUILD_ENGINE_CALLERS, (
         f"G3: the set of _build_engine callers changed.\n"
@@ -939,7 +935,7 @@ EXPECTED_ENCLOSING_FUNCTIONS = frozenset(
         "LocalTrackerService.sync_pull",
         "LocalTrackerService.sync_push",
         "LocalTrackerService.sync_run",
-        "SaaSTrackerClient._request",
+        "SaaSTrackerClient._current_tracker_egress_verdict",
         "_check_sync_readiness",
         "_render_tracker_egress",
     }
@@ -972,16 +968,13 @@ EXPECTED_PER_SITE_DESTINATIONS: dict[str, tuple[str, ...]] = {
     "LocalTrackerService.sync_pull": ("LOCAL_SUBPROCESS",),
     "LocalTrackerService.sync_push": ("LOCAL_SUBPROCESS",),
     "LocalTrackerService.sync_run": ("LOCAL_SUBPROCESS",),
-    "SaaSTrackerClient._request": ("HOSTED_SERVICE",),
+    "SaaSTrackerClient._current_tracker_egress_verdict": ("HOSTED_SERVICE",),
     "_check_sync_readiness": ("HOSTED_SERVICE",),
     "_render_tracker_egress": ("HOSTED_SERVICE", "LOCAL_SUBPROCESS"),
 }
 EXPECTED_LITERAL_MEMBERS = frozenset({"LOCAL_SUBPROCESS", "HOSTED_SERVICE"})
 
-_ALIAS_HINT = (
-    "If `EgressDestination` was imported under an alias, this is a FALSE RED -- import it under "
-    "its own name (FR-015 G5, data-model.md section 2). "
-)
+_ALIAS_HINT = "If `EgressDestination` was imported under an alias, this is a FALSE RED -- import it under its own name (FR-015 G5, data-model.md section 2). "
 
 
 @dataclass(frozen=True)
@@ -1054,7 +1047,7 @@ def _non_literal_sites(findings: CallFindings) -> list[str]:
 
 # --- the six shared mutants -------------------------------------------------
 
-_MUTANT_ADDED_CONFIG_DERIVED = '''
+_MUTANT_ADDED_CONFIG_DERIVED = """
 from specify_cli.tracker.egress_verdict import tracker_egress_verdict, EgressDestination
 
 def _dest_from_config(root):
@@ -1063,7 +1056,7 @@ def _dest_from_config(root):
 def newly_added_ungated_path(root):
     dest = _dest_from_config(root)
     return tracker_egress_verdict(root, destination=dest)
-'''
+"""
 
 _MUTANT_ADDED_SWAPPED_LITERAL = '''
 from specify_cli.tracker.egress_verdict import tracker_egress_verdict, EgressDestination
@@ -1073,12 +1066,12 @@ def sync_sideways_local_path(root):
     return tracker_egress_verdict(root, destination=EgressDestination.HOSTED_SERVICE)
 '''
 
-_MUTANT_ADDED_MODULE_QUALIFIED = '''
+_MUTANT_ADDED_MODULE_QUALIFIED = """
 from specify_cli.tracker import egress_verdict as ev
 
 def newly_added_ungated_path(root):
     return ev.tracker_egress_verdict(root, destination=ev.EgressDestination.LOCAL_SUBPROCESS)
-'''
+"""
 
 #: G5's mutant (ii): the two literals swapped **IN PLACE** -- no site added, no site removed.
 #: This is the exact defect that would reopen `#3030`: ``_request`` (which sends to spec-kitty's
@@ -1086,7 +1079,7 @@ def newly_added_ungated_path(root):
 #: **grants independently of Channel 1**. It moves **no count**, which is precisely why G4's third
 #: mutant had to become an *added* site instead. Two guards, two different mutants, one shared
 #: literal-swap idea -- do not copy one into the other.
-_MUTANT_INPLACE_SWAP = '''
+_MUTANT_INPLACE_SWAP = """
 from specify_cli.tracker.egress_verdict import tracker_egress_verdict, EgressDestination
 
 class LocalTrackerService:
@@ -1096,9 +1089,9 @@ class LocalTrackerService:
 class SaaSTrackerClient:
     def _request(self, method, path):
         return tracker_egress_verdict(self._project_root, destination=EgressDestination.LOCAL_SUBPROCESS)
-'''
+"""
 
-_UNSWAPPED_CONTROL = '''
+_UNSWAPPED_CONTROL = """
 from specify_cli.tracker.egress_verdict import tracker_egress_verdict, EgressDestination
 
 class LocalTrackerService:
@@ -1108,7 +1101,7 @@ class LocalTrackerService:
 class SaaSTrackerClient:
     def _request(self, method, path):
         return tracker_egress_verdict(self._project_root, destination=EgressDestination.HOSTED_SERVICE)
-'''
+"""
 
 
 @cache
@@ -1148,9 +1141,7 @@ def test_g4_exactly_six_enclosing_functions_and_seven_call_expressions() -> None
         membership=sorted(real.enclosing),
         func_forms=sorted({call.func_form for call in real.calls}),
     )
-    bundle_b = (
-        "\nIf Bundle B moved these call sites, update this membership set -- do not let it fall to zero."
-    )
+    bundle_b = "\nIf Bundle B moved these call sites, update this membership set -- do not let it fall to zero."
     assert real.enclosing == EXPECTED_ENCLOSING_FUNCTIONS, (
         f"G4: the enclosing-function set changed.\n"
         f"  expected ({EXPECTED_ENCLOSING_COUNT}): {sorted(EXPECTED_ENCLOSING_FUNCTIONS)}\n"
@@ -1165,6 +1156,27 @@ def test_g4_exactly_six_enclosing_functions_and_seven_call_expressions() -> None
         f"(the doctor renderer contributes two, one per destination row), found {real.call_count}:\n"
         f"{real.describe()}{bundle_b}"
     )
+
+
+def test_g4_hosted_verdict_helper_is_wired_to_the_exact_physical_sink() -> None:
+    """The audited helper must remain the first call in ``_request`` itself."""
+    path = SRC_ROOT / "specify_cli" / "tracker" / "saas_client.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    request_method = next(
+        node
+        for parent in tree.body
+        if isinstance(parent, ast.ClassDef) and parent.name == "SaaSTrackerClient"
+        for node in parent.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_request"
+    )
+    first = request_method.body[0]
+    assert isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant)
+    first_runtime = request_method.body[1]
+    assert isinstance(first_runtime, ast.Assign)
+    assert isinstance(first_runtime.value, ast.Call)
+    assert isinstance(first_runtime.value.func, ast.Attribute)
+    assert first_runtime.value.func.attr == "_current_tracker_egress_verdict"
+    real = _real_verdict_calls()
 
     # Every kill below is measured as a DELTA against a control that is itself correctly shaped,
     # then folded onto the real tree's findings. Asserting only "the synthetic mutant's set differs
@@ -1230,9 +1242,10 @@ def test_g4_inplace_literal_swap_does_NOT_move_its_counts() -> None:
 def test_g5_every_destination_is_a_literal_member_with_the_per_site_mapping_intact() -> None:
     """G5 -- the P0 guard. Its clauses, in the order of their worth.
 
-    **1. The per-site mapping (load-bearing).** ``SaaSTrackerClient._request`` always
-    ``HOSTED_SERVICE``; the three local sites always ``LOCAL_SUBPROCESS``; the doctor renderer
-    exactly one of each. *This is the clause whose mutant must kill.*
+    **1. The per-site mapping (load-bearing).** The hosted verdict helper always
+    ``HOSTED_SERVICE`` and the adjacent physical-sink pin proves ``_request`` calls it first;
+    the three local sites always ``LOCAL_SUBPROCESS``; the doctor renderer exactly one of each.
+    *This is the clause whose mutant must kill.*
 
     **2. The node-shape clause.** Every ``destination`` argument is an ``ast.Attribute`` on
     ``EgressDestination``. No ``ast.Name`` (a loop variable or a config-derived local), no
@@ -1444,7 +1457,7 @@ def analyze_verdict_body(source: str) -> BodyFindings:
     return BodyFindings(input_count=nodes, byte_length=len(source.encode("utf-8")), offences=offences, chained_config_reads=chained)
 
 
-_G6_MUTANT_PROVIDER_READ = '''
+_G6_MUTANT_PROVIDER_READ = """
 from specify_cli.tracker.config import LOCAL_PROVIDERS, load_tracker_config
 
 def tracker_egress_verdict(root, *, destination):
@@ -1452,21 +1465,21 @@ def tracker_egress_verdict(root, *, destination):
     if cfg.provider in LOCAL_PROVIDERS:
         destination = EgressDestination.LOCAL_SUBPROCESS
     return destination
-'''
+"""
 
-_G6_MUTANT_CHAINED_READ = '''
+_G6_MUTANT_CHAINED_READ = """
 from specify_cli.tracker.config import load_tracker_config
 
 def tracker_egress_verdict(root, *, destination):
     if load_tracker_config(root).provider in ("beads", "fp"):
         destination = EgressDestination.LOCAL_SUBPROCESS
     return destination
-'''
+"""
 
 #: Review LOW-3: the same body-side derivation reached through a **string** rather than an
 #: identifier. Neither shape produces an ``ast.Attribute`` named ``provider``, so the
 #: identifier-based clauses scored both zero before this was closed.
-_G6_MUTANT_STRING_INDIRECTED_READS = '''
+_G6_MUTANT_STRING_INDIRECTED_READS = """
 from specify_cli.tracker.config import load_tracker_config
 
 def tracker_egress_verdict(root, *, destination):
@@ -1476,7 +1489,7 @@ def tracker_egress_verdict(root, *, destination):
     if cfg.to_dict()["provider"] == "jira":
         destination = EgressDestination.HOSTED_SERVICE
     return destination
-'''
+"""
 
 
 def test_g6_verdict_body_never_reads_the_provider() -> None:
@@ -1506,8 +1519,7 @@ def test_g6_verdict_body_never_reads_the_provider() -> None:
     assert real.byte_length > 0, "G6 read an empty file -- vacuous"
     assert real.offences == [], (
         "G6: the verdict body references the provider again -- a body-side derivation ignores the "
-        "caller's destination and reopens the P0 boundary:\n"
-        + "\n".join(f"    {o}" for o in real.offences)
+        "caller's destination and reopens the P0 boundary:\n" + "\n".join(f"    {o}" for o in real.offences)
     )
     assert real.chained_config_reads == [], "G6: a load_tracker_config(...).provider read is present:\n" + "\n".join(f"    {o}" for o in real.chained_config_reads)
     print(f"[G6] positive control: the real egress_verdict.py PASSES with {real.input_count} AST nodes scanned and 0 offences")
@@ -1550,12 +1562,7 @@ def analyze_polarity_exhaustiveness(legal_values: frozenset[str], join_keys: set
     without touching ``tracker/config.py`` -- no source edit, no ``sys.path`` manipulation.
     """
     destinations = tuple(EgressDestination)
-    uncovered = {
-        (value, dest.name)
-        for value in legal_values
-        for dest in destinations
-        if (value, dest) not in join_keys
-    }
+    uncovered = {(value, dest.name) for value in legal_values for dest in destinations if (value, dest) not in join_keys}
     return PolarityFindings(input_count=len(legal_values) * len(destinations), uncovered=uncovered, legal_values=legal_values)
 
 
@@ -1740,7 +1747,7 @@ def analyze_patch_sites_in_tree(root: Path, *, target: str = "_build_engine") ->
 #: The **control**: structurally identical to the mutants below, but patching something that is
 #: not ``_build_engine``. Without it, "the mutant produced a site" would not distinguish a matcher
 #: that detects ``_build_engine`` patches from one that flags every ``patch.object`` it sees.
-_G8_CONTROL_PATCHES_SOMETHING_ELSE = '''
+_G8_CONTROL_PATCHES_SOMETHING_ELSE = """
 from unittest import mock
 from unittest.mock import patch
 
@@ -1749,25 +1756,25 @@ class TestSomethingNew:
         with patch.object(svc, "_load_runtime", return_value=(None, None, None)):
             with mock.patch.object(svc, "_resolve_db_path", return_value=None):
                 svc.sync_push()
-'''
+"""
 
-_G8_MUTANT_FOURTH_SITE = '''
+_G8_MUTANT_FOURTH_SITE = """
 from unittest.mock import patch
 
 class TestSomethingNew:
     def test_a_new_shortcut(self):
         with patch.object(svc, "_build_engine", return_value=(None, None)):
             svc.sync_push()
-'''
+"""
 
-_G8_MUTANT_FOURTH_SITE_MOCK_QUALIFIED = '''
+_G8_MUTANT_FOURTH_SITE_MOCK_QUALIFIED = """
 from unittest import mock
 
 class TestSomethingNew:
     def test_a_new_shortcut(self):
         with mock.patch.object(svc, "_build_engine", return_value=(None, None)):
             svc.sync_push()
-'''
+"""
 
 
 def test_g8_build_engine_patch_census_over_all_tests_is_exact() -> None:

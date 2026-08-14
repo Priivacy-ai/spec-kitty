@@ -15,9 +15,8 @@
   "accepted_from_commit": "11981db222afe30a97852a9dfcd1c884af1c8442",
   "baseline_merge_commit": "8d18ffaf27a48e3c9bfa1acc1c05d21cb164c3a6",
   "change_mode": "bulk_edit",
-  "coordination_branch": "kitty/mission-docs-structural-sanity-01KY53KJ",
   "created_at": "2026-07-22T14:27:50.596547+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Docs Structural Sanity & Concern Guard",
   "mission_id": "01KY53KJ63D2QGQMM36KEGSKBQ",
   "mission_number": null,
@@ -29,7 +28,7 @@
   "slug": "docs-structural-sanity-01KY53KJ",
   "status_phase": "1",
   "target_branch": "docs/common-docs-section-audit",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-22T16:58:28.966957+00:00"
 }

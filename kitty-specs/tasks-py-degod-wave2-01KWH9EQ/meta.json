@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "0951c221ded380a615bcb0a9347ea272f063175d",
-  "coordination_branch": "kitty/mission-tasks-py-degod-wave2-01KWH9EQ",
   "created_at": "2026-07-02T11:29:32.706322+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Tasks Degod Wave 2: Render Seam + Relocation",
   "mission_id": "01KWH9EQ11VNZHMYA1W9PWSRXF",
   "mission_number": 158,
@@ -14,7 +13,7 @@
   "slug": "tasks-py-degod-wave2-01KWH9EQ",
   "status_phase": "1",
   "target_branch": "degod-follow-ups",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-02T14:04:27.626376+00:00"
 }

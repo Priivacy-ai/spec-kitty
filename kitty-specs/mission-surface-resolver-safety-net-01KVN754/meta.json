@@ -15,6 +15,7 @@
   "accepted_from_commit": "becf738b0612c487edca4d479f10971ec50da3e6",
   "baseline_merge_commit": "5794d6270fa15bed16198c6645692ba787461c23",
   "created_at": "2026-06-21T13:50:37.919501+00:00",
+  "flattened": false,
   "friendly_name": "Mission-Surface Resolver Safety Net",
   "mission_id": "01KVN754TY9CVJ8G10ERTMPVRH",
   "mission_number": null,
@@ -26,6 +27,7 @@
   "slug": "mission-surface-resolver-safety-net-01KVN754",
   "status_phase": "1",
   "target_branch": "feat/mission-surface-resolver-safety-net",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-06-21T15:28:40.807080+00:00"
 }

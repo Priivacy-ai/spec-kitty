@@ -24,6 +24,7 @@
       "lane": "done",
       "last_event_id": "01KWZJJX7SYHBG5V6KYWD5GNE2",
       "last_transition_at": "2026-07-08T00:38:29.369331+00:00",
+      "review_result": null,
       "shell_pid": 1468015,
       "subtasks": {
         "T001": "done",
@@ -40,6 +41,7 @@
       "lane": "done",
       "last_event_id": "01KWZJJZ95CNWBE6TA2FA9HM37",
       "last_transition_at": "2026-07-08T00:38:31.461077+00:00",
+      "review_result": null,
       "shell_pid": 1607768,
       "subtasks": {
         "T006": "done",
@@ -55,6 +57,7 @@
       "lane": "done",
       "last_event_id": "01KWZJJZXWFWNS6BMTBEQ6EB5H",
       "last_transition_at": "2026-07-08T00:38:32.124676+00:00",
+      "review_result": null,
       "shell_pid": 1722045,
       "subtasks": {
         "T010": "done",
@@ -72,6 +75,7 @@
       "lane": "done",
       "last_event_id": "01KWZJK0JJTZQB1H0X8F7NTJV5",
       "last_transition_at": "2026-07-08T00:38:32.786123+00:00",
+      "review_result": null,
       "shell_pid": 1696974,
       "subtasks": {
         "T016": "done",
@@ -89,6 +93,7 @@
       "lane": "done",
       "last_event_id": "01KWZJK17PABKFWDVPQZ961285",
       "last_transition_at": "2026-07-08T00:38:33.462443+00:00",
+      "review_result": null,
       "shell_pid": 1713716,
       "subtasks": {
         "T022": "done",
@@ -105,6 +110,7 @@
       "lane": "done",
       "last_event_id": "01KWZJJXZ35ZWVECF7JRS6H769",
       "last_transition_at": "2026-07-08T00:38:30.115148+00:00",
+      "review_result": null,
       "shell_pid": 1424763,
       "subtasks": {
         "T027": "done",
@@ -122,6 +128,7 @@
       "lane": "done",
       "last_event_id": "01KWZJK1WHRKREF3GG0Y85PPPY",
       "last_transition_at": "2026-07-08T00:38:34.129462+00:00",
+      "review_result": null,
       "shell_pid": 1882036,
       "subtasks": {
         "T033": "planned",
@@ -138,6 +145,7 @@
       "lane": "done",
       "last_event_id": "01KWZJK2H9RK0MPBAFTA542Z8H",
       "last_transition_at": "2026-07-08T00:38:34.793830+00:00",
+      "review_result": null,
       "shell_pid": 1882036,
       "subtasks": {
         "T038": "planned",
@@ -154,6 +162,7 @@
       "lane": "done",
       "last_event_id": "01KWZJJYMF0V6XVR0S61MRZAR0",
       "last_transition_at": "2026-07-08T00:38:30.799881+00:00",
+      "review_result": null,
       "shell_pid": 1352030,
       "subtasks": {
         "T043": "done",

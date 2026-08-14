@@ -31,6 +31,11 @@
         "Cycle 3: verify_backfill corpus-correctness fix. 3 defects fixed (never-claimed WPs skipped not failed; tracker_refs set-dedup; snapshot-ahead/already-migrated tolerated with phantom-WP fail-closed guard kept). PROVEN on real corpus: 299/299 missions verify OK, 3303 seed events, 0 failed, exit 0; seed payload reverted from primary (WP03 owns the seed commit). 48 lib+cutover tests pass, 17 CLI+integration pass; ruff+mypy clean; cx<=15. Gate skipped: WP diff still carries tests/architectural/* -> 300s arch-dir-hang timeout (accepted prior cycles).",
         "Cycle 3 approved: verify_backfill correct on real corpus (299/299 flip, 0 fail), fail-closed NFR-001 intact (59 tests)"
       ],
+      "review_result": {
+        "reference": "Cycle 3 approved: verify_backfill correct on real corpus (299/299 flip, 0 fail), fail-closed NFR-001 intact (59 tests)",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "shell_pid": 3693979,
       "shell_pid_created_at": "1784549455.73",
       "subtasks": {
@@ -52,6 +57,11 @@
         "Ready for review. Pre-review gate skipped: it timed out at 300s scoping the known-slow tests/architectural/ suite (pulled in because WP02 makes a required one-line allowlist edit to tests/architectural/test_no_dead_modules.py). Relevant regression surface verified GREEN individually: 13 owned tests + test_no_dead_modules.py + test_migration_chain_integrity.py = 17 passed in ~53s.",
         "Approved: reuses cutover_mission, m_zz ordering correct, fail-closed abort non-vacuous, 17 tests green"
       ],
+      "review_result": {
+        "reference": "Approved: reuses cutover_mission, m_zz ordering correct, fail-closed abort non-vacuous, 17 tests green",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "shell_pid": 3706820,
       "shell_pid_created_at": "1784549947.15",
       "subtasks": {
@@ -71,6 +81,11 @@
         "Re-run after WP01 verify fix (lane-a 906af76f5): verify OK corpus-wide (299/299 flip, 0 fail, exit 0), 285 missions seeded (3303 events); our own mission excluded (self-interference revert); idempotent re-run seeds nothing (seeded=0). Seed payload committed on feat primary partition (ecb6b452c, 583 files); guard test on lane-c (928b58927). Pre-review gate SKIPPED: hit its internal 300s timeout on the slow arch-dir scoped run (perf limit, not a failure). Per-file evidence at head: guard test tests/specify_cli/migration/test_dogfood_corpus_backfilled.py 4 pass + test_runtime_state_cutover.py 22 pass = 26 pass/50s; ruff clean; mypy at sibling baseline (only shared pytest-stub note; tests/ not CI-mypy-gated). WP03 is data+one-test only, no src changes.",
         "Approved: corpus verify ok (0 mismatch), self-excluded, guard test 4-pass non-vacuous, idempotent"
       ],
+      "review_result": {
+        "reference": "Approved: corpus verify ok (0 mismatch), self-excluded, guard test 4-pass non-vacuous, idempotent",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "shell_pid": 3781659,
       "shell_pid_created_at": "1784551839.14",
       "subtasks": {
@@ -91,6 +106,11 @@
         "Ready for review",
         "Approved: headline cutover, byte-stability non-vacuous, predicate deleted, write_shell_pid_claim retired, zero regressions; WP04+WP05 merge-unit"
       ],
+      "review_result": {
+        "reference": "Approved: headline cutover, byte-stability non-vacuous, predicate deleted, write_shell_pid_claim retired, zero regressions; WP04+WP05 merge-unit",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "shell_pid": 3914998,
       "shell_pid_created_at": "1784555187.93",
       "subtasks": {
@@ -112,6 +132,11 @@
         "Ready for review: IC-04 snapshot done-evidence + T037 fallback deletions + bypass reader reroutes (T018-T023). 14/14 owned tests green; ruff+mypy clean; cx<=15.",
         "Approved: C-001 done-evidence order, workflow_cores one-edit, WP04 site fixed, 14 tests green"
       ],
+      "review_result": {
+        "reference": "Approved: C-001 done-evidence order, workflow_cores one-edit, WP04 site fixed, 14 tests green",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "shell_pid": 4043644,
       "shell_pid_created_at": "1784558926.96",
       "subtasks": {
@@ -134,6 +159,11 @@
         "Ready for review. Per-file evidence (arch-dir hangs whole, so gate skipped): test_2093_authority_invariant 8 passed (non-vacuous, both detector classes + live-tree repro); 416 reconciled split-suite tests passed; test_gate_coverage 31 passed (node-id GC-2b + orphan GC-2 green after --freeze/--update-baseline); ruff clean; mypy clean modulo env pytest-stub. Classified reds NOT mine: #8 test_unasserted_flag_blocks_on_unchecked_primary_rows (WP02/WP04 subtask-gate C-001-fallback divergence, routed back) + test_dogfood_corpus_backfilled (corpus-on-feat). FOLD (9-fn dead closure) deferred + reported.",
         "Approved: detector non-vacuous, ~33 files reconciled no-weaken, fail-closed #2510 fix (door symmetry), baselines regen"
       ],
+      "review_result": {
+        "reference": "Approved: detector non-vacuous, ~33 files reconciled no-weaken, fail-closed #2510 fix (door symmetry), baselines regen",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "shell_pid": 4047979,
       "shell_pid_created_at": "1784559081.52",
       "subtasks": {
@@ -155,6 +185,11 @@
         "Ready for review: IC-06 inert-field reduction (branch_strategy_override, proven zero-readers + parse-safe) with durable poison guard; + campsite fold of the 9-fn production-dead move-task write/commit closure orphaned by WP05. Per-file evidence: all affected tests green, ruff+mypy clean, test_no_dead_symbols shows no new offender. --skip-pre-review-gate: gate timed out >300s on scoped shards",
         "Approved: inert reduction + 9-fn dead-closure fold + straggler reconciled stronger; Phase 1 complete (WP01-07)"
       ],
+      "review_result": {
+        "reference": "Approved: inert reduction + 9-fn dead-closure fold + straggler reconciled stronger; Phase 1 complete (WP01-07)",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "shell_pid": 315401,
       "shell_pid_created_at": "1784569902.07",
       "subtasks": {
@@ -173,6 +208,11 @@
         "Ready for review",
         "Approved: field-authority ADR (B4 resolved) + identity vocabulary; C-009 gate satisfied for WP09"
       ],
+      "review_result": {
+        "reference": "Approved: field-authority ADR (B4 resolved) + identity vocabulary; C-009 gate satisfied for WP09",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "shell_pid": 359894,
       "shell_pid_created_at": "1784570891.77",
       "subtasks": {
@@ -191,6 +231,11 @@
         "Ready for review: resolved-binding vocabulary + reducer slots; two behaviour-preserving tidy-firsts (data-driven delta collapse + _REPLACE_SLOTS table, cx 13->11). 18 new tests + 447 regression tests green; ruff+mypy clean.",
         "Approved: triple-enum collapsed, replace-table cx13->11, 18 latest-wins tests, tidy-firsts pinned"
       ],
+      "review_result": {
+        "reference": "Approved: triple-enum collapsed, replace-table cx13->11, 18 latest-wins tests, tidy-firsts pinned",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "shell_pid": 411008,
       "shell_pid_created_at": "1784572058.59",
       "subtasks": {
@@ -211,6 +256,11 @@
         "Ready for review: dispatch->claim resolved-binding linkage + emit + backfill re-seed (T037-T042). Pre-review gate skipped (arch-dir 300s timeout); per-file evidence: test_resolved_binding_linkage.py 11 passed, migration backfill 61+5 passed, emit/reducer/wp_state 111 passed, #2093 invariant 6 passed, orchestrator 67 passed, boundary gates 9 passed, dead-symbol/module green (only pre-existing SYNC_DISABLE_ENV_VARS from #2814), ruff+mypy clean. Re-seed committed on feat (185 missions, 1154 resolved_binding events).",
         "Approved: C-007 by construction (no frontmatter param), SC-011 sentinel non-vacuous, C-011 wrote-not-skip, 185-mission re-seed excl self"
       ],
+      "review_result": {
+        "reference": "Approved: C-007 by construction (no frontmatter param), SC-011 sentinel non-vacuous, C-011 wrote-not-skip, 185-mission re-seed excl self",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "shell_pid": 512547,
       "shell_pid_created_at": "1784575185.83",
       "subtasks": {
@@ -233,6 +283,11 @@
         "Ready for review: canonical reconstruct_wp_view reader (4 gates -> 1). Pre-review gate hit the 300s scoped-run cap (env timeout, not a failure); per-file evidence GREEN: test_reconstruct_wp_view (17), test_2093 (6), test_tasks_compat_surface (295), test_dashboard + board seam + WP lifecycle (231), test_all_declarations_required + test_status_module_boundary + test_2093 (102), test_dashboard_wp_modal UI (1); ruff+mypy clean, cx<=15.",
         "Approved: reconstruct_wp_view 4 gates->1, SC-007/008/tolerate-absent, mypy net-clean 68<=70, merges cleanly with Phase-1"
       ],
+      "review_result": {
+        "reference": "Approved: reconstruct_wp_view 4 gates->1, SC-007/008/tolerate-absent, mypy net-clean 68<=70, merges cleanly with Phase-1",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "shell_pid": 722501,
       "shell_pid_created_at": "1784578367.44",
       "subtasks": {
@@ -253,6 +308,11 @@
         "Ready for review (pre-review gate skipped: scoped gate timed out at 300s — arch-dir timeout, not a code failure; per-file evidence green). actor str|dict widening + guarded from_dict decoders (dict round-trips JSONL uncorrupted, non-vacuously proven by revert-to-red); claim/review _saas_fan_out carries resolved {role,profile,tool,model}; first-class WPResolvedBindingChanged version-gated fan-out on emit_inner_state_changed (present+absent paths tested); reducer chokepoint keeps snapshot actor slot str. mypy --strict net-clean (base 71 = branch 71), ruff clean, shared_package_boundary green, zero new suppressions. Per-file evidence: owned 9/9, status suites 1182, support/activity 1192, resolved-binding/emit 118.",
         "Approved: actor widening mypy net-clean (68<=70), dict round-trip non-vacuous, WPResolvedBindingChanged first-class version-gated, feature_slug->mission_slug canon"
       ],
+      "review_result": {
+        "reference": "Approved: actor widening mypy net-clean (68<=70), dict round-trip non-vacuous, WPResolvedBindingChanged first-class version-gated, feature_slug->mission_slug canon",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "shell_pid": 703549,
       "shell_pid_created_at": "1784577989.12",
       "subtasks": {
@@ -273,6 +333,11 @@
         "Ready for review — guard reroute + doctrine templates event-sourced (#2816 IC-10). Pre-review gate skipped: arch-dir scoped run timed out (300s); per-file evidence: owned+remediated test files green, ruff clean, mypy 68=68 base.",
         "Approved: guard fail-closed off snapshot, 52 template checkboxes stripped, mypy clean; emit-door consistency + corpus strip = closeout items"
       ],
+      "review_result": {
+        "reference": "Approved: guard fail-closed off snapshot, 52 template checkboxes stripped, mypy clean; emit-door consistency + corpus strip = closeout items",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "shell_pid": 802169,
       "shell_pid_created_at": "1784583308.14",
       "subtasks": {

@@ -30,6 +30,8 @@ function reported, the store says what it actually staged for the live drain.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -39,8 +41,14 @@ from specify_cli.dossier.models import ArtifactRef
 from specify_cli.sync.body_queue import OfflineBodyUploadQueue
 from specify_cli.sync.body_upload import prepare_body_uploads
 from specify_cli.sync.config import SyncConfig
-from specify_cli.sync.consent import set_project_consent
+from specify_cli.sync.consent import (
+    LegacyConsentMigrationRequiredError,
+    record_project_opt_in,
+    record_project_opt_out,
+    set_project_consent,
+)
 from specify_cli.sync.namespace import NamespaceRef, UploadStatus
+from specify_cli.sync.project_store import ProjectSyncStore
 
 pytestmark = [pytest.mark.fast]
 
@@ -66,8 +74,27 @@ def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
 
 
-def _queue(tmp_path: Path) -> OfflineBodyUploadQueue:
-    return OfflineBodyUploadQueue(db_path=tmp_path / "bodies.db")
+@contextmanager
+def _capture_unit():
+    """The UUID-owned project store's active unit of work, plus its authorities.
+
+    ``OfflineBodyUploadQueue`` no longer takes ``db_path``: live payload stores are
+    selected by ``ProjectSyncStore`` per project uuid (rooted in the per-test
+    ``SPEC_KITTY_HOME``), and the queue is a short-lived adapter over one active
+    unit of work.
+    """
+    store = ProjectSyncStore(UUID_A)
+    authority = store.layout_generation()
+    authority.begin_cutover("body-consent-3030-tests")
+    authority.publish_project_only("body-consent-3030-tests", verify_exact=lambda: True)
+    with store.unit_of_work() as unit:
+        yield store, unit, authority, OfflineBodyUploadQueue(unit, authority)
+
+
+@contextmanager
+def _queue() -> Iterator[OfflineBodyUploadQueue]:
+    with _capture_unit() as (_store, _unit, _authority, queue):
+        yield queue
 
 
 def _namespace(uuid: str = UUID_A) -> NamespaceRef:
@@ -117,48 +144,69 @@ def _checkout(tmp_path: Path, name: str, *, uuid: str, hosted: bool | None) -> P
 
 
 def test_consenting_project_still_enqueues_its_bodies(tmp_path: Path) -> None:
-    """The control. Without this passing, every refusal below proves nothing."""
+    """The control. Without this passing, every refusal below proves nothing.
+
+    Consent is recorded through the only surviving grant path: the explicit
+    UUID-owned project opt-in (``record_project_opt_in``). The checkout's own
+    ``sync.enabled: true`` is a legacy diagnostic and never grants.
+
+    The control runs the *explicit* same-UoW authority path — production's only
+    positive path since the per-project store cutover (``dossier_pipeline`` always
+    mints the context from the active unit). The legacy keyword path below cannot
+    grant while the queue's own unit of work is live, because a second same-store
+    consent read reports UNREADABLE, and undetermined is not consent (FR-003).
+    So this proves the store plumbing can enqueue at all, which is what makes the
+    refusals' empty queues below evidence rather than a fixture artefact.
+    """
     root = _checkout(tmp_path, "consenting", uuid=UUID_A, hosted=True)
     feature_dir, artifacts = _feature_dir(root)
-    queue = _queue(tmp_path)
+    record_project_opt_in(UUID_A, actor="body-consent-3030-tests")
 
-    outcomes = prepare_body_uploads(
-        artifacts=artifacts,
-        namespace_ref=_namespace(),
-        body_queue=queue,
-        feature_dir=feature_dir,
-    )
+    with _capture_unit() as (store, unit, authority, queue):
+        outcomes = prepare_body_uploads(
+            artifacts=artifacts,
+            namespace_ref=_namespace(),
+            body_queue=queue,
+            feature_dir=feature_dir,
+            project_context=store.create_context_from_unit(unit),
+            project_unit=unit,
+            project_layout=authority,
+        )
 
-    assert [o.status for o in outcomes] == [UploadStatus.QUEUED]
-    assert queue.count_by_project() == {UUID_A: 1}
+        assert [o.status for o in outcomes] == [UploadStatus.QUEUED]
+        assert queue.count_by_project() == {UUID_A: 1}
 
 
-def test_machine_index_grant_enqueues_when_the_checkout_is_unresolvable(
+def test_explicit_uuid_grant_enqueues_when_the_checkout_is_unresolvable(
     tmp_path: Path,
 ) -> None:
     """Second control, and the boundary of the fix.
 
     Resolving from the namespace's own ``project_uuid`` means an unresolvable checkout
     is no longer *fatal* — it is simply not a source of a project-local vote. A uuid
-    with a recorded machine-index grant is still a determined answer, so it enqueues.
-    This is what stops the fix from being "deny whenever ``locate_project_root``
-    returns ``None``", which would be a different (and wrong) rule.
+    with an explicit UUID-owned opt-in (the machine index is retired and
+    non-authoritative) still has a determined answer, so it enqueues. This is what
+    stops the fix from being "deny whenever ``locate_project_root`` returns
+    ``None``", which would be a different (and wrong) rule.
     """
     loose = tmp_path / "not-a-project"
     feature_dir, artifacts = _feature_dir(loose)
     assert locate_project_root(feature_dir) is None, "precondition: no project root"
-    set_project_consent(UUID_A, True)
-    queue = _queue(tmp_path)
+    record_project_opt_in(UUID_A, actor="body-consent-3030-tests")
 
-    outcomes = prepare_body_uploads(
-        artifacts=artifacts,
-        namespace_ref=_namespace(),
-        body_queue=queue,
-        feature_dir=feature_dir,
-    )
+    with _capture_unit() as (store, unit, authority, queue):
+        outcomes = prepare_body_uploads(
+            artifacts=artifacts,
+            namespace_ref=_namespace(),
+            body_queue=queue,
+            feature_dir=feature_dir,
+            project_context=store.create_context_from_unit(unit),
+            project_unit=unit,
+            project_layout=authority,
+        )
 
-    assert [o.status for o in outcomes] == [UploadStatus.QUEUED]
-    assert queue.count_by_project() == {UUID_A: 1}
+        assert [o.status for o in outcomes] == [UploadStatus.QUEUED]
+        assert queue.count_by_project() == {UUID_A: 1}
 
 
 # --------------------------------------------------------------------------
@@ -178,20 +226,20 @@ def test_unresolvable_project_root_does_not_consent_to_body_enqueue(
     loose = tmp_path / "not-a-project"
     feature_dir, artifacts = _feature_dir(loose)
     assert locate_project_root(feature_dir) is None, "precondition: no project root"
-    queue = _queue(tmp_path)
 
-    outcomes = prepare_body_uploads(
-        artifacts=artifacts,
-        namespace_ref=_namespace(),
-        body_queue=queue,
-        feature_dir=feature_dir,
-    )
+    with _queue() as queue:
+        outcomes = prepare_body_uploads(
+            artifacts=artifacts,
+            namespace_ref=_namespace(),
+            body_queue=queue,
+            feature_dir=feature_dir,
+        )
 
-    assert [o.status for o in outcomes] == [UploadStatus.SKIPPED]
-    assert queue.count_by_project() == {}, (
-        "a project whose consent could not be determined had its spec.md staged "
-        "for the body drain"
-    )
+        assert [o.status for o in outcomes] == [UploadStatus.SKIPPED]
+        assert queue.count_by_project() == {}, (
+            "a project whose consent could not be determined had its spec.md staged "
+            "for the body drain"
+        )
 
 
 # --------------------------------------------------------------------------
@@ -199,25 +247,47 @@ def test_unresolvable_project_root_does_not_consent_to_body_enqueue(
 # --------------------------------------------------------------------------
 
 
-def test_repo_slug_default_does_not_consent_to_body_enqueue(tmp_path: Path) -> None:
+def test_repo_slug_default_does_not_consent_to_body_enqueue(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """FR-031(b) / FR-019: ``[sync.repo_defaults]`` is not a consent level.
 
-    The routing chain honours a grant keyed on the git remote slug; the consent chain
-    deliberately does not, because a fresh clone or a ``git init`` inherits a decision
-    nobody made about it. Here the project has **no** record of its own and **no**
-    entry in the uuid-keyed index — only a repo-slug default — so the two chains
-    disagree, and the gate must follow the consent chain.
+    FR-019 condemned the repo-slug default because a fresh clone or a ``git init``
+    inherits a decision nobody made about it. The C-003 divergence — the routing
+    chain granting from it while the consent chain refused — is now closed at the
+    source: the writer refuses (``LegacyConsentMigrationRequiredError``), and even a
+    legacy on-disk record survives only as a *diagnostic*. The routing chain answers
+    from the UUID-owned decision, so no chain grants, and the gate must withhold.
     """
     root = _checkout(tmp_path, "slug-default", uuid=UUID_A, hosted=None)
     feature_dir, artifacts = _feature_dir(root)
-    SyncConfig().set_repository_sync_enabled("acme/carve-out", True)
 
-    from specify_cli.sync.routing import is_sync_enabled_for_checkout
+    # The retired writer must refuse — a repo-slug default can no longer be minted.
+    with pytest.raises(LegacyConsentMigrationRequiredError):
+        SyncConfig().set_repository_sync_enabled("acme/carve-out", True)
+
+    # Plant the legacy record directly on disk, as a machine migrated from the old
+    # world would carry it. It must be visible as a diagnostic and grant nothing.
+    config = SyncConfig()
+    config.config_file.parent.mkdir(parents=True, exist_ok=True)
+    config.config_file.write_text(
+        '[sync.repo_defaults."acme/carve-out"]\nenabled = true\n',
+        encoding="utf-8",
+    )
+    assert SyncConfig().get_repository_sync_enabled("acme/carve-out") is True, (
+        "precondition: the legacy repo-slug default must be present on disk, or the "
+        "level this test is about is not exercised"
+    )
 
     import specify_cli.sync.git_metadata as git_metadata_mod
 
+    from specify_cli.sync.routing import (
+        is_sync_enabled_for_checkout,
+        resolve_checkout_sync_routing_readonly,
+    )
+
     # Pin the repo slug so the routing chain reaches its repo-default level. Patching
-    # the metadata resolver rather than creating a git remote keeps the divergence,
+    # the metadata resolver rather than creating a git remote keeps the level,
     # not git plumbing, as the thing under test.
     real_resolve = git_metadata_mod.GitMetadataResolver.resolve
 
@@ -225,45 +295,57 @@ def test_repo_slug_default_does_not_consent_to_body_enqueue(tmp_path: Path) -> N
         meta = real_resolve(self)
         return type(meta)(**{**meta.__dict__, "repo_slug": "acme/carve-out"})
 
-    git_metadata_mod.GitMetadataResolver.resolve = _resolve  # type: ignore[method-assign]
-    try:
-        assert is_sync_enabled_for_checkout(root) is True, (
-            "precondition: the routing chain must GRANT here, or the divergence "
-            "this test is about is not present"
-        )
-        queue = _queue(tmp_path)
+    monkeypatch.setattr(git_metadata_mod.GitMetadataResolver, "resolve", _resolve)
+
+    routing = resolve_checkout_sync_routing_readonly(start=root)
+    assert routing is not None
+    assert routing.repo_default_sync_enabled is True, (
+        "precondition: the routing chain must SEE the repo-slug default, or the "
+        "level this test is about is not present"
+    )
+    # Stronger than the original divergence premise: the routing chain itself no
+    # longer grants from the repo-slug default, so the two gates cannot diverge.
+    assert is_sync_enabled_for_checkout(root) is False
+
+    with _queue() as queue:
         outcomes = prepare_body_uploads(
             artifacts=artifacts,
             namespace_ref=_namespace(),
             body_queue=queue,
             feature_dir=feature_dir,
         )
-    finally:
-        git_metadata_mod.GitMetadataResolver.resolve = real_resolve  # type: ignore[method-assign]
 
-    assert [o.status for o in outcomes] == [UploadStatus.SKIPPED]
-    assert queue.count_by_project() == {}, (
-        "a repo-slug default granted egress for a project that never consented"
-    )
+        assert [o.status for o in outcomes] == [UploadStatus.SKIPPED]
+        assert queue.count_by_project() == {}, (
+            "a repo-slug default granted egress for a project that never consented"
+        )
 
 
 def test_project_local_refusal_still_withholds(tmp_path: Path) -> None:
-    """A committed ``sync.enabled: false`` keeps refusing after the chain swap.
+    """An explicit refusal keeps refusing, and no stale grant can outrank it.
 
-    The pre-fix gate got this case right through the routing chain; the fix must not
-    lose it while changing which chain answers.
+    The refusal authority moved from the committed ``sync.enabled: false`` (now a
+    diagnostic) to the explicit UUID-owned opt-out. Two properties survive the move:
+
+    * a refusal recorded *after* a genuine grant wins — later explicit decisions
+      outrank earlier ones; and
+    * the retired machine-index writer (``set_project_consent``) cannot mint a
+      stale grant at all any more — it raises instead of writing.
     """
     root = _checkout(tmp_path, "refusing", uuid=UUID_A, hosted=False)
     feature_dir, artifacts = _feature_dir(root)
-    set_project_consent(UUID_A, True)  # a stale machine-index grant must not win
-    queue = _queue(tmp_path)
+    record_project_opt_in(UUID_A, actor="body-consent-3030-tests")  # a real prior grant
+    with pytest.raises(LegacyConsentMigrationRequiredError):
+        set_project_consent(UUID_A, True)  # a stale machine-index grant cannot even be written
+    record_project_opt_out(UUID_A, actor="body-consent-3030-tests")  # the refusal must win
 
-    outcomes = prepare_body_uploads(
-        artifacts=artifacts,
-        namespace_ref=_namespace(),
-        body_queue=queue,
-        feature_dir=feature_dir,
-    )
+    with _queue() as queue:
+        outcomes = prepare_body_uploads(
+            artifacts=artifacts,
+            namespace_ref=_namespace(),
+            body_queue=queue,
+            feature_dir=feature_dir,
+        )
 
-    assert [o.status for o in outcomes] == [UploadStatus.SKIPPED]
-    assert queue.count_by_project() == {}
+        assert [o.status for o in outcomes] == [UploadStatus.SKIPPED]
+        assert queue.count_by_project() == {}

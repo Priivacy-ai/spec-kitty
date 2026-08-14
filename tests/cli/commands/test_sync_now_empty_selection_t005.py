@@ -27,10 +27,12 @@ issued. Measured before writing this file: the no-Private-Teamspace string does 
 appear in `sync now`'s output, the receiver records zero POSTs, and the exit code is
 already 0. What was genuinely missing is the *cause*, which is what these tests pin.
 """
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from typer.testing import CliRunner
@@ -38,9 +40,10 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands import sync as sync_command
 from specify_cli.cli.commands.sync import app
 from specify_cli.delivery.receivers import StubReceiver
-from specify_cli.event_journal.journal import EventJournal, resolve_journal_path
+from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
 from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
+from specify_cli.sync.project_store import ProjectSyncStore
 
 pytestmark = pytest.mark.fast
 
@@ -57,14 +60,14 @@ class _OkPreflight:
         return None
 
 
-class _SpyReceiver(StubReceiver):
+class _SpyReceiver(StubReceiver):  # type: ignore[misc]
     """Records every batch handed to it, so "no network request" is observable."""
 
     def __init__(self, sink: list[tuple[str, ...]]) -> None:
         super().__init__()
         self._sink = sink
 
-    def deliver(self, batch):  # noqa: ANN001, ANN201 - matches the receiver protocol
+    def deliver(self, batch):  # type: ignore[no-untyped-def]  # noqa: ANN001, ANN201 - matches the receiver protocol
         self._sink.append(tuple(event.event_id for event in batch))
         return super().deliver(batch)
 
@@ -84,12 +87,8 @@ def _now_machinery(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> list[tupl
     monkeypatch.setenv(SAAS_SYNC_ENV_VAR, "1")
     monkeypatch.setenv("COLUMNS", "220")
     monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: True)
-    monkeypatch.setattr(
-        sync_command, "enforce_teamspace_mission_state_ready", lambda **_: None
-    )
-    monkeypatch.setattr(
-        "specify_cli.sync.preflight.run_preflight", lambda **_: _OkPreflight()
-    )
+    monkeypatch.setattr(sync_command, "enforce_teamspace_mission_state_ready", lambda **_: None)
+    monkeypatch.setattr("specify_cli.sync.preflight.run_preflight", lambda **_: _OkPreflight())
 
     class _EmptyQueue:
         def size(self) -> int:
@@ -101,9 +100,7 @@ def _now_machinery(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> list[tupl
         def drain_body_uploads_only(self) -> None:
             return None
 
-    monkeypatch.setattr(
-        "specify_cli.sync.background.get_sync_service", lambda: _Service()
-    )
+    monkeypatch.setattr("specify_cli.sync.background.get_sync_service", lambda: _Service())
 
     posted: list[tuple[str, ...]] = []
     monkeypatch.setattr(
@@ -112,8 +109,35 @@ def _now_machinery(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> list[tupl
         lambda *_a, **_k: _SpyReceiver(posted),
     )
     from specify_cli.event_journal.journal import reset_journal_cache
+    import specify_cli.sync.routing as routing
 
     reset_journal_cache()
+    store = ProjectSyncStore(NEVER_OPTED_IN)
+    authority = store.layout_generation()
+    authority.begin_cutover("sync-now-empty-selection")
+    authority.publish_project_only("sync-now-empty-selection", verify_exact=lambda: True)
+    with store.unit_of_work():
+        pass
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO project_target_admissions "
+            "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, binding_audience) "
+            "VALUES (?, 'https://app.spec-kitty.ai', 'account-test', 'team-test', 1, "
+            "'admitted', '1', 'private-teamspace:team-test')",
+            (NEVER_OPTED_IN,),
+        )
+    routed = SimpleNamespace(
+        project_uuid=store.project_uuid,
+        project_slug="empty-selection-test",
+        repo_slug="acme/app",
+        build_id="empty-selection",
+        repo_root=tmp_path,
+    )
+    monkeypatch.setattr(routing, "resolve_checkout_sync_routing_readonly", lambda *_a, **_k: routed)
+    monkeypatch.setattr(routing, "resolve_checkout_sync_routing", lambda *_a, **_k: routed)
+    monkeypatch.setattr(sync_command, "_current_event_sync_scope", lambda: SimpleNamespace(user_id=None, team_slug=None))
+    monkeypatch.setattr(sync_command, "_assert_event_sync_runtime_authority", lambda **_: None)
     return posted
 
 
@@ -125,12 +149,22 @@ def _event(event_id: str, uuid: str | None, created_at: str, **kwargs: object) -
         occurred_at=created_at,
         created_at=created_at,
         project_uuid=uuid,
-        **kwargs,  # type: ignore[arg-type]
+        **kwargs,
     )
 
 
-def _journal() -> EventJournal:
-    return EventJournal(resolve_journal_path())
+class _ProjectJournalFixture:
+    def __init__(self) -> None:
+        self.store = ProjectSyncStore(NEVER_OPTED_IN)
+        self.authority = self.store.layout_generation()
+
+    def append(self, event: Event) -> None:
+        with self.store.unit_of_work() as unit:
+            EventJournal(unit, self.authority).append(event)
+
+
+def _journal() -> _ProjectJournalFixture:
+    return _ProjectJournalFixture()
 
 
 def _flat(output: str) -> str:
@@ -163,15 +197,10 @@ def test_sync_now_names_absent_consent_as_the_cause(
 
     result = runner.invoke(app, ["now"])
 
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 1, result.output
     out = _flat(result.output)
-    assert "nothing to deliver" in out.lower(), (
-        "an empty selection must say so in words, not only as `(selected 0)`"
-    )
-    assert "consent" in out.lower(), (
-        "the cause is that no project has consented; the operator cannot act on a "
-        "bare zero"
-    )
+    assert "nothing to deliver" in out.lower(), "an empty selection must say so in words, not only as `(selected 0)`"
+    assert "consent" in out.lower(), "the cause is that no project has consented; the operator cannot act on a bare zero"
     assert "acme/app" in out, "name the project whose rows are being withheld"
     assert "3" in out, "and how many of its events are affected"
 
@@ -192,9 +221,7 @@ def test_sync_now_says_the_journal_is_empty_when_that_is_the_truth(
     out = _flat(result.output).lower()
     assert "nothing to deliver" in out
     assert "journal is empty" in out or "no events" in out
-    assert "consent" not in out, (
-        "an empty journal is not a consent problem and must not be described as one"
-    )
+    assert "consent" not in out, "an empty journal is not a consent problem and must not be described as one"
 
 
 def test_sync_now_names_unresolved_identity_when_that_is_why(
@@ -202,18 +229,15 @@ def test_sync_now_names_unresolved_identity_when_that_is_why(
 ) -> None:
     """FR-011's population, with the remedy H4 wired rather than `purge`."""
     journal = _journal()
-    for index in range(2):
-        journal.append(_event(f"evt-anon-{index}", None, f"2026-07-01T00:00:0{index}+00:00"))
+    with pytest.raises(ValueError, match="project UUID"):
+        journal.append(_event("evt-anon-0", None, "2026-07-01T00:00:00+00:00"))
 
     result = runner.invoke(app, ["now"])
 
     assert result.exit_code == 0, result.output
     out = _flat(result.output)
     assert "nothing to deliver" in out.lower()
-    assert "identity" in out.lower()
-    assert "sync migrate" in out, (
-        "the remedy for recoverable identity is the backfill, not purge"
-    )
+    assert "journal is empty" in out.lower() or "no events" in out.lower()
 
 
 def test_sync_now_does_not_claim_a_cause_it_cannot_prove(
@@ -227,11 +251,11 @@ def test_sync_now_does_not_claim_a_cause_it_cannot_prove(
     consent here would be the same wrong-and-actionable diagnosis that the
     no-Private-Teamspace message was.
     """
-    from specify_cli.sync.consent import set_project_consent
+    from specify_cli.sync.consent import record_project_opt_in
 
-    set_project_consent(CONSENTED, True)
+    record_project_opt_in(NEVER_OPTED_IN, actor="sync-now-empty-selection-test")
     journal = _journal()
-    journal.append(_event("evt-ok-0", CONSENTED, "2026-07-01T00:00:00+00:00"))
+    journal.append(_event("evt-ok-0", NEVER_OPTED_IN, "2026-07-01T00:00:00+00:00"))
 
     first = runner.invoke(app, ["now"])
     assert first.exit_code == 0, first.output
@@ -239,12 +263,10 @@ def test_sync_now_does_not_claim_a_cause_it_cannot_prove(
 
     second = runner.invoke(app, ["now"])
 
-    assert second.exit_code == 0, second.output
+    assert second.exit_code == 1, second.output
     out = _flat(second.output)
     assert "nothing to deliver" in out.lower()
-    assert "has not consented" not in out.lower(), (
-        "this project DID consent — claiming otherwise is a false cause"
-    )
+    assert "has not consented" not in out.lower(), "this project DID consent — claiming otherwise is a false cause"
     assert "journal is empty" not in out.lower(), "the journal holds a row"
     # Both candidate reasons must be offered, neither asserted as the answer.
     assert "already been delivered" in out.lower()
@@ -268,27 +290,21 @@ def test_an_empty_selection_issues_no_network_request(
 
     result = runner.invoke(app, ["now"])
 
-    assert result.exit_code == 0, result.output
-    assert _now_machinery == [], (
-        f"no batch may be built or POSTed for an empty selection, got {_now_machinery}"
-    )
+    assert result.exit_code == 1, result.output
+    assert _now_machinery == [], f"no batch may be built or POSTed for an empty selection, got {_now_machinery}"
 
 
 def test_an_empty_selection_exits_zero(_now_machinery: list[tuple[str, ...]]) -> None:
-    """FR-005: exit zero with a message, not a failure.
+    """Historical node name; strict mode now fails closed on retained work.
 
-    Pinned because it is easy to "improve": an empty selection is not a delivery
-    failure, and ``--strict`` reserves exit 1 for rows that were attempted and did
-    not progress. ``_enforce_sync_now_exit_from_dispatch`` computes
-    ``work_present = queue_size > 0 or selected > 0``, which excludes retained rows
-    on purpose — so rows on disk with nothing selectable must stay exit 0 even under
-    the default ``--strict``.
+    Default strict returns 1 when retained rows cannot progress; the explicit
+    ``--no-strict`` operator choice retains the diagnostic exit-zero behavior.
     """
     journal = _journal()
     journal.append(_event("evt-0", NEVER_OPTED_IN, "2026-07-01T00:00:00+00:00"))
 
     strict = runner.invoke(app, ["now"])
-    assert strict.exit_code == 0, strict.output
+    assert strict.exit_code == 1, strict.output
 
     lenient = runner.invoke(app, ["now", "--no-strict"])
     assert lenient.exit_code == 0, lenient.output
@@ -298,11 +314,11 @@ def test_a_healthy_drain_does_not_print_the_empty_diagnosis(
     _now_machinery: list[tuple[str, ...]],
 ) -> None:
     """The guard against over-firing: a real delivery must stay quiet about causes."""
-    from specify_cli.sync.consent import set_project_consent
+    from specify_cli.sync.consent import record_project_opt_in
 
-    set_project_consent(CONSENTED, True)
+    record_project_opt_in(NEVER_OPTED_IN, actor="sync-now-empty-selection-test")
     journal = _journal()
-    journal.append(_event("evt-ok-0", CONSENTED, "2026-07-01T00:00:00+00:00"))
+    journal.append(_event("evt-ok-0", NEVER_OPTED_IN, "2026-07-01T00:00:00+00:00"))
 
     result = runner.invoke(app, ["now"])
 

@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KX9HMVXCCGQSXAG0XDY0FW83",
       "last_transition_at": "2026-07-11T21:34:29.292674+00:00",
+      "review_result": {
+        "reference": "Review PASSED (opus/reviewer-renata). All 8 make-or-break criteria verified against real code+canonical sources. (1) NOT bare-name-alone: SymbolKey always carries body_hash; byte-identical same-name collisions escalate to module_path via live key_tier or fail-close — T004 no-false-negative preserved. (2) AnnAssign branch present (definition_span L171-174); <=14 typed constants keyable+hashable; whitespace-invariance tested. (3) Facade by-shape: _facade_target handles BOTH sync 2-tuple _LAZY_IMPORTS AND runtime 1-value _EXPORT_MODULES (the shape gate's _record_facade_edges len!=2 SKIPS); _record_facade_edges untouched (empty git log); 2 pure helpers imported via function-local deferred import — no circular load. (4) Single-alias hash scoped to the one ast.alias's own columns; sibling-edit immunity tested. (5) Live classifier: classify_collisions re-derives bare_name->[Location] index every call from corpus, NOT frozen — proven by test_dod_i catching a NEW non-ArtifactKind byte-identical pair. (6) Fail-closed: None-key + >=2-resolution both return None; no 'if key is None: exempt'. (7) body_hash reuses code_tokens_by_line (no forked normalizer). (8) test under tests/unit/ w/ pytest.mark.unit, DoD-j invariance + perf-budget. 37 passed, ruff+mypy clean, only 2 owned files touched.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2171058,
       "subtasks": {
         "T001": "done",
@@ -42,6 +47,11 @@
       "lane": "done",
       "last_event_id": "01KX9HMXV94QKW1Z8WJ5G4EXWQ",
       "last_transition_at": "2026-07-11T21:34:31.273066+00:00",
+      "review_result": {
+        "reference": "APPROVED cycle-2 (opus/reviewer-renata). Cycle-1 blocker RESOLVED: pending sentinel-swap committed (0faa93811, out-of-map WP01 coordination note); committed HEAD verified clean of /tmp (git grep empty; line 158 no longer /tmp/cache; worktree clean; only new commits = fix + status/merge bookkeeping, no substantive code change). All cycle-1 substantive criteria remain PASS: classifier CONSUMED live in production _compute_offenders (collision_index threaded per __all__ symbol via key_tier; None fail-closes); (i) test_bite_i drives a NEW byte-identical GateDecision pair through the PRODUCTION path (L1810), catches the rogue sibling (C-007, not standalone self-validation); bite a/c/e/f/i/k all through production path; C-005 byte-frozen VERIFIED via AST compare; 0 un-keyable. FLAG1 (missions/__init__.py hoist) ACCEPTABLE (behavior-preserving; entries escalate to module_path tier, not silently exempted). FLAG2 (30 removals/6 categories) ACCEPTABLE (all FR-010 auto-exempt/gained-caller; green suite + live classifier forbid dead-and-unexempt slip). Non-blocking note: 4 T004 detector tests whitespace-reflowed by ruff format (verbatim logic, invariant preserved+green; C-005 machinery byte-frozen). Cycle-1 artifact was repaired to add missing YAML frontmatter (verdict: rejected) so this override records correctly.",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
       "shell_pid": 2446012,
       "subtasks": {
         "T008": "planned",
@@ -60,6 +70,11 @@
       "lane": "done",
       "last_event_id": "01KX9HMZ0GH5D6B8WAQCAF9CJ8",
       "last_transition_at": "2026-07-11T21:34:32.464037+00:00",
+      "review_result": {
+        "reference": "APPROVED (reviewer-renata/opus). (1) Tier-specific dangling ratchet correct: content-tier=(bare_name,body_hash)->0 live in classify_collisions index; module_path-tier=(bare_name,module_path)->no live __all__ decl, body_hash correctly ignored (relocation forfeit). (2) One-signal reconciliation SOUND and adequately guarded: bare_name suppression is a theoretical masking vector but (a) safe-direction - never suppresses an offender, so the gate can NEVER go falsely green (a coincidental same-named offender keeps assert red anyway); (b) self-healing - suppression only holds while a same-named offender coexists, dangling entry re-surfaces once the offender clears; (c) structurally necessary since the content tier is deliberately location-free. Cannot permanently hide a dangling entry nor blind dead-code detection. (3) All 5 new tests drive production _compute_offenders/_compute_stale/_compute_dangling (C-007), not a standalone key-fn; (g) reds both tiers + proves body-edit->one-signal (exercises the suppression path); (b) relocated-but-wired green; (d) reds stale on both tiers body-independently; (j)-gate 0-false-red for AnnAssign-whitespace + single-alias relocation. (4) C-005: only test_no_dead_symbols.py changed; _compute_stale extraction byte-identical to inline loop except _SYMBOL_ALLOWLIST->param; real-corpus main gate test green. (5) No new /tmp literals. ruff+mypy clean; 5 new tests + main gate green. Low-sev note: masking window logged for record, not a blocker.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2531502,
       "subtasks": {
         "T015": "planned",
@@ -75,6 +90,11 @@
       "lane": "done",
       "last_event_id": "01KX9HMWJ0CDZZ73TKREVKRM3N",
       "last_transition_at": "2026-07-11T21:34:29.952314+00:00",
+      "review_result": {
+        "reference": "Review PASSED (reviewer-renata opus): verified _ALLOWLIST is pure frozenset[str] of exact dotted paths — no relocatable anchor (marker cats 4/5 empty); FR-011 downgrade-to-preserve correct, not lazy; test_no_dead_modules.py 0-diff (blob SHA identical), FR-012 invariants byte-unchanged (4 caller patterns + test-not-caller + bidirectional ratchet); file 2 passed. Matrix schema-drift (Notes->Scope) reconciled.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2086590,
       "subtasks": {
         "T019": "done",
@@ -89,6 +109,11 @@
       "lane": "done",
       "last_event_id": "01KX9HMX5VWJYHS3H4XZV0DQ21",
       "last_transition_at": "2026-07-11T21:34:30.587741+00:00",
+      "review_result": {
+        "reference": "Review PASS (reviewer-renata/opus). Warnings 40->2 (census: 890 passed/4 skipped/2 warnings/0 failed). (1) No blanket ignore: sole filterwarnings('ignore') is context-scoped inside with warnings.catch_warnings() around ONE import of tests.contract.test_example_round_trip, category=UserWarning, inline rationale ref #2553 - FR-016 hard rule honored. (2) Signal preserved: all 5 report-only diagnostics (gate_coverage backlog+dupes, migration patch-skips, ratchet shrinkage, retired-contract live-occurrence) routed warnings.warn->record_property per-item. (3) Ratchet ENFORCEMENT INTACT: test_growing_an_allowlist_above_baseline_fails still asserts not growth_failures; only shrinkage diagnostic re-channeled. (4) Root fix: models.py adds references:list[str] to Toolguide - resolves pre-existing model-vs-schema drift (toolguide.schema.yaml already listed references + YAML already carried it; extra=forbid model lagged), additive/backward-compat, base.py:108 stops warning, NOT a suppression. (5) Out-of-map edits (test_ratchet_baselines.py, test_retired_contracts_absent.py, toolguides/models.py) rationale-backed, ZERO overlap with WP01-04 owned_files/lanes.json. (6) Residual 2 = CharterCatalogMissWarning src/charter/context.py (src-emitted, not arch-emitted), tracked #2554 (REAL/OPEN); #2553 REAL/OPEN - meets NFR-006 (arch-EMITTED scope) + SC-005 (tracked src/ follow-up permitted).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2310546,
       "subtasks": {
         "T022": "done",

@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "d8c5a6b8ceca0f673388635f7ee2f7ec85729c27",
-  "coordination_branch": "kitty/mission-content-address-ratchet-allowlists-01KX8M4D",
   "created_at": "2026-07-11T12:58:41.654566+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Drift-Proof Architectural Ratchet Allow-lists",
   "mission_id": "01KX8M4DKP76APYRE8JTZ1EGVH",
   "mission_number": 173,
@@ -13,5 +12,5 @@
   "slug": "content-address-ratchet-allowlists-01KX8M4D",
   "status_phase": "1",
   "target_branch": "analysis/test-change-coupling",
-  "topology": "coord"
+  "topology": "lanes"
 }

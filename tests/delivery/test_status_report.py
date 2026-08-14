@@ -19,12 +19,14 @@ C-006:
 * no status field implies body-upload rows are event-journal rows (NFR-006,
   C-006) — body-upload counts live only in ``body_upload_compatibility``.
 """
+
 from __future__ import annotations
 
 import json
-import sqlite3
-from kernel.clock import now_epoch
+from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -33,6 +35,8 @@ from specify_cli.delivery.retention import (
     archive_payloads,
     gc_payloads,
 )
+from specify_cli.delivery.interfaces import DeliveryTarget
+from specify_cli.delivery.ledger import LedgerRow, SqliteDeliveryLedger
 from specify_cli.delivery.status_report import (
     ADDITIVE_SECTION_KEYS,
     BODY_UPLOAD_COMPAT_KEY,
@@ -45,13 +49,24 @@ from specify_cli.delivery.status_report import (
     TARGET_AUTHORITY_KEY,
     TERMINAL_FAILURES_KEY,
     build_status_report,
+    build_project_store_status,
     default_status_sections,
     evaluate_gc_suggestion,
 )
-from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
-from specify_cli.event_journal import Event, EventJournal
+from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry, canonicalize_url
+from specify_cli.event_journal import Event
+from specify_cli.event_journal.journal import EventJournal
+from specify_cli.sync.body_queue import OfflineBodyUploadQueue
+from specify_cli.sync.consent import record_project_opt_in
 from specify_cli.sync.migrate_journal import MigrationAudit, MigrationConflict
+from specify_cli.sync.namespace import NamespaceRef
+from specify_cli.sync.project_context import (
+    ProjectSyncContext,
+    VerifiedProjectStoreIdentity,
+)
+from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork
 from specify_cli.sync.target_authority import (
+    AdmissionAudience,
     OverrideMode,
     QueueScopeStatus,
     ResolvedSyncTarget,
@@ -63,6 +78,54 @@ CURRENT_URL = "https://current.example"
 PREVIOUS_URL = "https://previous.example"
 TEAM = "team-x"
 USER = "user@example.com"
+PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
+PROJECT_B = "bbbbbbbb-0000-0000-0000-000000000002"
+
+
+class _ReadCountingBodyQueue(OfflineBodyUploadQueue):
+    size_reads = 0
+
+    def size(self) -> int:
+        self.size_reads += 1
+        return super().size()
+
+
+class _ReadCountingJournal(EventJournal):
+    count_reads = 0
+
+    def count(self) -> int:
+        self.count_reads += 1
+        return super().count()
+
+
+class _ReadCountingLedger(SqliteDeliveryLedger):
+    rows_reads = 0
+
+    def rows(self) -> list[LedgerRow]:
+        self.rows_reads += 1
+        return super().rows()
+
+
+def _clone_context_with_identity(
+    context: ProjectSyncContext,
+    store_identity: VerifiedProjectStoreIdentity,
+) -> ProjectSyncContext:
+    clone = object.__new__(ProjectSyncContext)
+    for name in (
+        "project_uuid",
+        "consent_state",
+        "consent_generation",
+        "epoch_id",
+        "target_audience",
+        "admission_state",
+        "admission_generation",
+        "binding_audience",
+        "kill_switch_allows",
+        "transport_lease_identity",
+    ):
+        object.__setattr__(clone, name, getattr(context, name))
+    object.__setattr__(clone, "store_identity", store_identity)
+    return clone
 
 
 # ---------------------------------------------------------------------------
@@ -92,32 +155,86 @@ def _event(event_id: str, *, payload: bytes = b"x", at: str = "2026-06-01T00:00:
         payload=payload,
         occurred_at=at,
         created_at=at,
+        project_uuid=PROJECT,
     )
 
 
 @pytest.fixture
-def journal(tmp_path: Path) -> EventJournal:
-    return EventJournal(tmp_path / "event_journal" / "journal.db")
+def store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    value = ProjectSyncStore(PROJECT)
+    authority = value.layout_generation()
+    authority.begin_cutover("status-tests")
+    authority.publish_project_only("status-tests", verify_exact=lambda: True)
+    record_project_opt_in(PROJECT, actor="test")
+    return value
 
 
 @pytest.fixture
-def ledger() -> object:
-    from specify_cli.delivery.ledger import SqliteDeliveryLedger
-
-    led = SqliteDeliveryLedger(":memory:")
-    yield led
-    led.close()
+def unit(store: ProjectSyncStore) -> Iterator[ProjectUnitOfWork]:
+    with store.unit_of_work() as value:
+        yield value
 
 
 @pytest.fixture
-def registry() -> object:
-    reg = SqliteDeliveryTargetRegistry(":memory:")
-    yield reg
-    reg.close()
+def journal(unit: ProjectUnitOfWork, store: ProjectSyncStore) -> EventJournal:
+    return EventJournal(unit, store.layout_generation())
 
 
-def _register(reg: object, url: str) -> object:
-    return reg.register(url=url, team_slug=TEAM, user_email=USER)
+@pytest.fixture
+def ledger(
+    unit: ProjectUnitOfWork,
+    store: ProjectSyncStore,
+) -> SqliteDeliveryLedger:
+    return SqliteDeliveryLedger(unit, store.layout_generation())
+
+
+@dataclass
+class _RegistryFixture:
+    repository: ProjectDeliveryTargetRegistry
+    store: ProjectSyncStore
+    unit: ProjectUnitOfWork
+    generation: int = 0
+
+    def register(self, url: str) -> DeliveryTarget:
+        self.generation += 1
+        return self.repository.register(
+            self.unit,
+            AdmissionAudience(
+                normalized_server_origin=canonicalize_url(url),
+                account_identity=USER,
+                private_teamspace_id=TEAM,
+                project_uuid=self.store.project_uuid,
+                configuration_generation=self.generation,
+            ),
+        )
+
+
+@pytest.fixture
+def registry(
+    store: ProjectSyncStore,
+    unit: ProjectUnitOfWork,
+) -> _RegistryFixture:
+    return _RegistryFixture(ProjectDeliveryTargetRegistry(store), store, unit)
+
+
+def _register(reg: _RegistryFixture, url: str) -> DeliveryTarget:
+    return reg.register(url)
+
+
+def _build_status_report(
+    *,
+    target_registry: _RegistryFixture,
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+    **kwargs: object,
+) -> dict[str, object]:
+    return build_status_report(
+        context=target_registry.store.create_context_from_unit(target_registry.unit),
+        journal=journal,
+        ledger=ledger,
+        **kwargs,
+    )
 
 
 def _legacy_base() -> dict[str, object]:
@@ -134,21 +251,203 @@ def _legacy_base() -> dict[str, object]:
     }
 
 
-def _insert_body_upload_row(db_path: Path) -> None:
-    """Insert one queued body-upload row directly (test-only, raw SQL)."""
-    conn = sqlite3.connect(db_path)
-    try:
-        conn.execute(
-            """INSERT INTO body_upload_queue
-               (project_uuid, mission_slug, target_branch, mission_type,
-                manifest_version, artifact_path, content_hash, hash_algorithm,
-                content_body, size_bytes, retry_count, next_attempt_at, created_at, last_error)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0.0, ?, NULL)""",
-            ("p", "m", "main", "software-dev", "1", "a/b.md", "h", "sha256", "body", 4, now_epoch()),
+def test_project_store_status_rejects_a_context_b_queue_before_read(
+    store: ProjectSyncStore,
+    unit: ProjectUnitOfWork,
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+) -> None:
+    store_b = ProjectSyncStore(PROJECT_B)
+    with store_b.unit_of_work() as unit_b:
+        queue_b = _ReadCountingBodyQueue(unit_b, store_b.layout_generation())
+        with pytest.raises(ValueError, match="context's project store"):
+            build_project_store_status(
+                context=store.create_context(),
+                journal=journal,
+                ledger=ledger,
+                body_upload_queue=queue_b,
+            )
+        assert queue_b.size_reads == 0
+
+
+def test_project_store_status_rejects_same_uuid_from_another_physical_home_before_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home-a"))
+    store_a = ProjectSyncStore(PROJECT)
+    authority_a = store_a.layout_generation()
+    authority_a.begin_cutover("status-home-a")
+    authority_a.publish_project_only("status-home-a", verify_exact=lambda: True)
+    record_project_opt_in(PROJECT, actor="test")
+    with store_a.unit_of_work() as unit_a:
+        context_a = store_a.create_context()
+        assert context_a.store_identity.database_path == store_a.database_path
+        assert unit_a.project_uuid == store_a.project_uuid
+
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home-b"))
+    store_b = ProjectSyncStore(PROJECT)
+    authority_b = store_b.layout_generation()
+    authority_b.begin_cutover("status-home-b")
+    authority_b.publish_project_only("status-home-b", verify_exact=lambda: True)
+    with store_b.unit_of_work() as unit_b:
+        seed_queue = OfflineBodyUploadQueue(unit_b, authority_b)
+        seed_queue.enqueue(
+            NamespaceRef(PROJECT, "mission-a", "develop", "software-dev", "1"),
+            "spec.md",
+            "hash-a",
+            "# private body",
+            14,
         )
-        conn.commit()
-    finally:
-        conn.close()
+        journal_b = _ReadCountingJournal(unit_b, authority_b)
+        ledger_b = _ReadCountingLedger(unit_b, authority_b)
+        queue_b = _ReadCountingBodyQueue(unit_b, authority_b)
+
+        with pytest.raises(ValueError, match="verified project store"):
+            build_project_store_status(
+                context=context_a,
+                journal=journal_b,
+                ledger=ledger_b,
+                body_upload_queue=queue_b,
+            )
+
+        assert journal_b.count_reads == 0
+        assert ledger_b.rows_reads == 0
+        assert queue_b.size_reads == 0
+        same_store = build_project_store_status(
+            context=store_b.create_context(),
+            journal=journal_b,
+            ledger=ledger_b,
+            body_upload_queue=queue_b,
+        )
+        assert same_store["body_task_count"] == 1
+
+
+def test_compatibility_report_rejects_same_uuid_foreign_home_before_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home-a"))
+    store_a = ProjectSyncStore(PROJECT)
+    authority_a = store_a.layout_generation()
+    authority_a.begin_cutover("status-wrapper-home-a")
+    authority_a.publish_project_only(
+        "status-wrapper-home-a",
+        verify_exact=lambda: True,
+    )
+    record_project_opt_in(PROJECT, actor="test")
+    with store_a.unit_of_work() as unit_a:
+        context_a = store_a.create_context_from_unit(unit_a)
+
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home-b"))
+    store_b = ProjectSyncStore(PROJECT)
+    authority_b = store_b.layout_generation()
+    authority_b.begin_cutover("status-wrapper-home-b")
+    authority_b.publish_project_only(
+        "status-wrapper-home-b",
+        verify_exact=lambda: True,
+    )
+    with store_b.unit_of_work() as unit_b:
+        journal_b = _ReadCountingJournal(unit_b, authority_b)
+        ledger_b = _ReadCountingLedger(unit_b, authority_b)
+        with pytest.raises(ValueError, match="verified project store"):
+            build_status_report(
+                resolved_target=_resolved(),
+                journal=journal_b,
+                ledger=ledger_b,
+                context=context_a,
+            )
+
+        assert journal_b.count_reads == 0
+        assert ledger_b.rows_reads == 0
+
+
+def test_project_store_status_rejects_genuine_identity_transplant_before_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home-a"))
+    store_a = ProjectSyncStore(PROJECT)
+    authority_a = store_a.layout_generation()
+    authority_a.begin_cutover("status-transplant-a")
+    authority_a.publish_project_only("status-transplant-a", verify_exact=lambda: True)
+    record_project_opt_in(PROJECT, actor="test")
+    with store_a.unit_of_work():
+        context_a = store_a.create_context()
+    assert context_a.consent_state is not None
+
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home-b"))
+    store_b = ProjectSyncStore(PROJECT)
+    authority_b = store_b.layout_generation()
+    authority_b.begin_cutover("status-transplant-b")
+    authority_b.publish_project_only("status-transplant-b", verify_exact=lambda: True)
+    with store_b.unit_of_work() as unit_b:
+        seed_queue = OfflineBodyUploadQueue(unit_b, authority_b)
+        seed_queue.enqueue(
+            NamespaceRef(PROJECT, "mission-a", "develop", "software-dev", "1"),
+            "spec.md",
+            "hash-a",
+            "# private body",
+            14,
+        )
+        journal_b = _ReadCountingJournal(unit_b, authority_b)
+        ledger_b = _ReadCountingLedger(unit_b, authority_b)
+        queue_b = _ReadCountingBodyQueue(unit_b, authority_b)
+        transplanted = _clone_context_with_identity(context_a, unit_b.store_identity)
+
+        with pytest.raises(ValueError, match="context authority mismatch"):
+            build_project_store_status(
+                context=transplanted,
+                journal=journal_b,
+                ledger=ledger_b,
+                body_upload_queue=queue_b,
+            )
+
+        assert journal_b.count_reads == 0
+        assert ledger_b.rows_reads == 0
+        assert queue_b.size_reads == 0
+        same_store = build_project_store_status(
+            context=store_b.create_context(),
+            journal=journal_b,
+            ledger=ledger_b,
+            body_upload_queue=queue_b,
+        )
+        assert same_store["decision"] is None
+        assert same_store["body_task_count"] == 1
+
+
+def test_project_store_status_rejects_fabricated_store_identity_before_read(
+    store: ProjectSyncStore,
+    unit: ProjectUnitOfWork,
+) -> None:
+    context = store.create_context()
+    genuine = context.store_identity
+    fabricated = object.__new__(VerifiedProjectStoreIdentity)
+    for name in (
+        "project_uuid",
+        "database_path",
+        "schema_version",
+        "layout_version",
+    ):
+        object.__setattr__(fabricated, name, getattr(genuine, name))
+    with pytest.raises(TypeError, match="ProjectSyncStore"):
+        ProjectUnitOfWork(object(), store.project_uuid, fabricated)
+    fabricated_context = _clone_context_with_identity(context, fabricated)
+    journal = _ReadCountingJournal(unit, store.layout_generation())
+    ledger = _ReadCountingLedger(unit, store.layout_generation())
+    queue = _ReadCountingBodyQueue(unit, store.layout_generation())
+
+    with pytest.raises(ValueError, match="verified project store"):
+        build_project_store_status(
+            context=fabricated_context,
+            journal=journal,
+            ledger=ledger,
+            body_upload_queue=queue,
+        )
+
+    assert journal.count_reads == 0
+    assert ledger.rows_reads == 0
+    assert queue.size_reads == 0
 
 
 # ---------------------------------------------------------------------------
@@ -215,11 +514,9 @@ def test_default_status_sections_has_every_additive_key() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_report_has_every_additive_section_and_preserves_base(
-    journal: EventJournal, ledger: object, registry: object
-) -> None:
+def test_report_has_every_additive_section_and_preserves_base(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: _RegistryFixture) -> None:
     base = _legacy_base()
-    report = build_status_report(
+    report = _build_status_report(
         base=base,
         resolved_target=_resolved(),
         journal=journal,
@@ -250,14 +547,61 @@ def test_report_has_every_additive_section_and_preserves_base(
     assert json.loads(json.dumps(report))
 
 
-def test_target_authority_section_mirrors_resolved_target(
-    journal: EventJournal, ledger: object, registry: object
-) -> None:
+def test_target_authority_section_mirrors_resolved_target(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: _RegistryFixture) -> None:
     resolved = _resolved()
-    report = build_status_report(
-        resolved_target=resolved, journal=journal, ledger=ledger, target_registry=registry
-    )
+    report = _build_status_report(resolved_target=resolved, journal=journal, ledger=ledger, target_registry=registry)
     assert report[TARGET_AUTHORITY_KEY] == resolved.to_diagnostics_dict()
+
+
+def test_report_current_target_is_context_bound_and_sanitized(
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+    registry: _RegistryFixture,
+) -> None:
+    target = _register(registry, CURRENT_URL)
+
+    report = _build_status_report(
+        resolved_target=_resolved(),
+        journal=journal,
+        ledger=ledger,
+        target_registry=registry,
+    )
+
+    current = report[DELIVERY_TARGETS_KEY]["current"]
+    assert current == {
+        "target_id": target.target_id,
+        "canonical_url": CURRENT_URL,
+        "team_slug": "",
+        "user_email": "",
+        "account_identity": USER,
+        "private_teamspace_id": TEAM,
+        "project_uuid": PROJECT,
+        "configuration_generation": 1,
+        "admission_state": "pending",
+        "admission_generation": None,
+        "binding_audience": None,
+    }
+
+
+def test_report_target_mismatch_cannot_authorize_gc_suggestion(
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+    registry: _RegistryFixture,
+) -> None:
+    target = _register(registry, PREVIOUS_URL)
+    _fill(journal, ledger, target.target_id, count=1, deliver=1)
+
+    report = _build_status_report(
+        resolved_target=_resolved(CURRENT_URL),
+        journal=journal,
+        ledger=ledger,
+        target_registry=registry,
+        large_threshold_bytes=1,
+    )
+
+    assert report[DELIVERY_TARGETS_KEY]["authority_mismatch"] is True
+    assert report[DELIVERY_TARGETS_KEY]["current"]["target_id"] is None
+    assert report[EVENT_JOURNAL_KEY]["gc_suggested"] is False
 
 
 # ---------------------------------------------------------------------------
@@ -265,9 +609,7 @@ def test_target_authority_section_mirrors_resolved_target(
 # ---------------------------------------------------------------------------
 
 
-def test_distinct_counts_retained_previous_current(
-    journal: EventJournal, ledger: object, registry: object
-) -> None:
+def test_distinct_counts_retained_previous_current(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: _RegistryFixture) -> None:
     previous = _register(registry, PREVIOUS_URL)
     _register(registry, CURRENT_URL)  # current target known but undelivered
 
@@ -277,7 +619,7 @@ def test_distinct_counts_retained_previous_current(
         journal.append(_event(event_id))
         ledger.record_success(event_id, previous.target_id)
 
-    report = build_status_report(
+    report = _build_status_report(
         resolved_target=_resolved(CURRENT_URL),
         journal=journal,
         ledger=ledger,
@@ -309,7 +651,7 @@ def test_distinct_counts_retained_previous_current(
 # ---------------------------------------------------------------------------
 
 
-def _fill(journal: EventJournal, ledger: object, target_id: str, *, count: int, deliver: int) -> None:
+def _fill(journal: EventJournal, ledger: SqliteDeliveryLedger, target_id: str, *, count: int, deliver: int) -> None:
     for index in range(count):
         event_id = f"evt-{index}"
         journal.append(_event(event_id, payload=b"payload-bytes"))
@@ -317,13 +659,11 @@ def _fill(journal: EventJournal, ledger: object, target_id: str, *, count: int, 
             ledger.record_success(event_id, target_id)
 
 
-def test_gc_suggested_when_large_and_fully_delivered(
-    journal: EventJournal, ledger: object, registry: object
-) -> None:
+def test_gc_suggested_when_large_and_fully_delivered(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: _RegistryFixture) -> None:
     target = _register(registry, CURRENT_URL)
     _fill(journal, ledger, target.target_id, count=3, deliver=3)
 
-    report = build_status_report(
+    report = _build_status_report(
         resolved_target=_resolved(),
         journal=journal,
         ledger=ledger,
@@ -336,13 +676,11 @@ def test_gc_suggested_when_large_and_fully_delivered(
     assert section["journal_size_bytes"] > 0  # size unconditional
 
 
-def test_gc_not_suggested_when_not_fully_delivered_but_size_shown(
-    journal: EventJournal, ledger: object, registry: object
-) -> None:
+def test_gc_not_suggested_when_not_fully_delivered_but_size_shown(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: _RegistryFixture) -> None:
     target = _register(registry, CURRENT_URL)
     _fill(journal, ledger, target.target_id, count=3, deliver=2)  # one undelivered
 
-    report = build_status_report(
+    report = _build_status_report(
         resolved_target=_resolved(),
         journal=journal,
         ledger=ledger,
@@ -355,13 +693,11 @@ def test_gc_not_suggested_when_not_fully_delivered_but_size_shown(
     assert section["journal_size_bytes"] > 0  # size still surfaced
 
 
-def test_gc_not_suggested_when_small_but_size_shown(
-    journal: EventJournal, ledger: object, registry: object
-) -> None:
+def test_gc_not_suggested_when_small_but_size_shown(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: _RegistryFixture) -> None:
     target = _register(registry, CURRENT_URL)
     _fill(journal, ledger, target.target_id, count=1, deliver=1)
 
-    report = build_status_report(
+    report = _build_status_report(
         resolved_target=_resolved(),
         journal=journal,
         ledger=ledger,
@@ -373,14 +709,12 @@ def test_gc_not_suggested_when_small_but_size_shown(
     assert "journal_size_bytes" in section
 
 
-def test_gc_not_suggested_with_zero_known_targets(
-    journal: EventJournal, ledger: object, registry: object
-) -> None:
+def test_gc_not_suggested_with_zero_known_targets(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: _RegistryFixture) -> None:
     # Events present and "large", but no delivery target configured/known.
     for index in range(3):
         journal.append(_event(f"evt-{index}", payload=b"payload-bytes"))
 
-    report = build_status_report(
+    report = _build_status_report(
         resolved_target=_resolved(),
         journal=journal,
         ledger=ledger,
@@ -397,7 +731,7 @@ def test_evaluate_gc_suggestion_threshold_boundary() -> None:
     suggested, suggestion = evaluate_gc_suggestion(
         retained_event_ids=(),
         journal_size_bytes=GC_LARGE_JOURNAL_THRESHOLD_BYTES,
-        ledger=object(),
+        ledger=cast(SqliteDeliveryLedger, object()),
         known_target_ids=(),
         large_threshold_bytes=GC_LARGE_JOURNAL_THRESHOLD_BYTES,
     )
@@ -405,33 +739,29 @@ def test_evaluate_gc_suggestion_threshold_boundary() -> None:
     assert suggestion is None
 
 
-def test_delivery_ledger_non_terminal_counts(
-    journal: EventJournal, ledger: object, registry: object
-) -> None:
+def test_delivery_ledger_non_terminal_counts(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: _RegistryFixture) -> None:
     target = _register(registry, CURRENT_URL)
+    for event_id in ("evt-p", "evt-r", "evt-t"):
+        journal.append(_event(event_id))
     ledger.record_pending("evt-p", target.target_id)
     ledger.record_rejected("evt-r", target.target_id, error="bad content")
     ledger.record_transient("evt-t", target.target_id, error="5xx")
 
-    report = build_status_report(
-        resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry
-    )
+    report = _build_status_report(resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry)
     section = report[DELIVERY_LEDGER_KEY]
     assert section["pending"] == 1
     assert section["rejected"] == 1
     assert section["transient"] == 1
 
 
-def test_known_target_without_deliveries_is_not_listed_as_previous(
-    journal: EventJournal, ledger: object, registry: object
-) -> None:
+def test_known_target_without_deliveries_is_not_listed_as_previous(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: _RegistryFixture) -> None:
     _register(registry, CURRENT_URL)
     previous = _register(registry, PREVIOUS_URL)
-    unused = registry.register(url="https://unused.example", team_slug=TEAM, user_email=USER)
+    unused = registry.register("https://unused.example")
     journal.append(_event("evt-x"))
     ledger.record_success("evt-x", previous.target_id)
 
-    report = build_status_report(
+    report = _build_status_report(
         resolved_target=_resolved(CURRENT_URL),
         journal=journal,
         ledger=ledger,
@@ -442,10 +772,8 @@ def test_known_target_without_deliveries_is_not_listed_as_previous(
     assert unused.target_id not in previous_ids  # zero deliveries -> not surfaced
 
 
-def test_malformed_resolved_url_yields_unregistered_current(
-    journal: EventJournal, ledger: object, registry: object
-) -> None:
-    report = build_status_report(
+def test_malformed_resolved_url_yields_unregistered_current(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: _RegistryFixture) -> None:
+    report = _build_status_report(
         resolved_target=_resolved("not-a-valid-url"),
         journal=journal,
         ledger=ledger,
@@ -456,7 +784,7 @@ def test_malformed_resolved_url_yields_unregistered_current(
     assert current["canonical_url"] == "not-a-valid-url"
 
 
-def test_evaluate_gc_suggestion_empty_retained_is_vacuously_delivered(ledger: object) -> None:
+def test_evaluate_gc_suggestion_empty_retained_is_vacuously_delivered(ledger: SqliteDeliveryLedger) -> None:
     suggested, suggestion = evaluate_gc_suggestion(
         retained_event_ids=(),
         journal_size_bytes=GC_LARGE_JOURNAL_THRESHOLD_BYTES,
@@ -473,16 +801,12 @@ def test_evaluate_gc_suggestion_empty_retained_is_vacuously_delivered(ledger: ob
 # ---------------------------------------------------------------------------
 
 
-def test_terminal_failures_inspectable(
-    journal: EventJournal, ledger: object, registry: object
-) -> None:
+def test_terminal_failures_inspectable(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: _RegistryFixture) -> None:
     target = _register(registry, CURRENT_URL)
     journal.append(_event("evt-oversized"))
     ledger.record_terminal_failed("evt-oversized", target.target_id, error="payload too large")
 
-    report = build_status_report(
-        resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry
-    )
+    report = _build_status_report(resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry)
     section = report[TERMINAL_FAILURES_KEY]
     assert section["count"] == 1
     failure = section["events"][0]
@@ -490,9 +814,7 @@ def test_terminal_failures_inspectable(
     assert failure["last_error"] == "payload too large"
 
 
-def test_migration_conflicts_block_cleanup(
-    journal: EventJournal, ledger: object, registry: object
-) -> None:
+def test_migration_conflicts_block_cleanup(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: _RegistryFixture) -> None:
     audit = MigrationAudit(":memory:")
     audit.record_conflict(
         MigrationConflict(
@@ -505,7 +827,7 @@ def test_migration_conflicts_block_cleanup(
     )
     audit.commit()
 
-    report = build_status_report(
+    report = _build_status_report(
         resolved_target=_resolved(),
         journal=journal,
         ledger=ledger,
@@ -518,12 +840,8 @@ def test_migration_conflicts_block_cleanup(
     assert section["conflicts"][0]["event_id"] == "evt-dup"
 
 
-def test_migration_conflicts_section_present_when_none(
-    journal: EventJournal, ledger: object, registry: object
-) -> None:
-    report = build_status_report(
-        resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry
-    )
+def test_migration_conflicts_section_present_when_none(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: _RegistryFixture) -> None:
+    report = _build_status_report(resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry)
     section = report[MIGRATION_CONFLICTS_KEY]
     assert section["count"] == 0
     assert section["cleanup_blocked"] is False
@@ -536,19 +854,26 @@ def test_migration_conflicts_section_present_when_none(
 
 
 def test_body_upload_counts_only_in_compat_section(
-    tmp_path: Path, journal: EventJournal, ledger: object, registry: object
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+    registry: _RegistryFixture,
+    unit: ProjectUnitOfWork,
+    store: ProjectSyncStore,
 ) -> None:
-    from specify_cli.sync.body_queue import OfflineBodyUploadQueue
-
-    body_db = tmp_path / "queue.db"
-    body_queue = OfflineBodyUploadQueue(db_path=body_db)
-    _insert_body_upload_row(body_db)
+    body_queue = OfflineBodyUploadQueue(unit, store.layout_generation())
+    body_queue.enqueue(
+        NamespaceRef(PROJECT, "m", "main", "software-dev", "1"),
+        "a/b.md",
+        "h",
+        "body",
+        4,
+    )
 
     # Journal has a *different* number of events so a leak would be visible.
     for index in range(2):
         journal.append(_event(f"evt-{index}"))
 
-    report = build_status_report(
+    report = _build_status_report(
         resolved_target=_resolved(),
         journal=journal,
         ledger=ledger,
@@ -573,9 +898,7 @@ def test_body_upload_counts_only_in_compat_section(
 # ---------------------------------------------------------------------------
 
 
-def test_archive_marks_and_preserves_ledger(
-    journal: EventJournal, ledger: object, registry: object
-) -> None:
+def test_archive_marks_and_preserves_ledger(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: _RegistryFixture) -> None:
     target = _register(registry, CURRENT_URL)
     ids = ["evt-a", "evt-b", "evt-c"]
     for event_id in ids:
@@ -592,12 +915,11 @@ def test_archive_marks_and_preserves_ledger(
         assert stored is not None
         assert stored.archived_at is not None
         # Ledger provenance intact.
-        assert ledger.get(event_id, target.target_id).status == "success"
+        row = ledger.get(event_id, target.target_id)
+        assert row is not None and row.status == "success"
 
     # Archived rows leave the "retained" surface.
-    report = build_status_report(
-        resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry
-    )
+    report = _build_status_report(resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry)
     assert report[EVENT_JOURNAL_KEY]["retained_event_count"] == 0
     assert report[EVENT_JOURNAL_KEY]["archived_event_count"] == 3
 
@@ -611,9 +933,7 @@ def test_archive_is_idempotent(journal: EventJournal) -> None:
     assert "evt-a" in second.skipped
 
 
-def test_gc_purges_delivered_preserves_undelivered_and_ledger(
-    journal: EventJournal, ledger: object, registry: object
-) -> None:
+def test_gc_purges_delivered_preserves_undelivered_and_ledger(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: _RegistryFixture) -> None:
     target = _register(registry, CURRENT_URL)
     journal.append(_event("evt-delivered"))
     journal.append(_event("evt-undelivered"))
@@ -631,7 +951,8 @@ def test_gc_purges_delivered_preserves_undelivered_and_ledger(
     assert journal.read_by_id("evt-undelivered") is not None
 
     # Ledger history/provenance preserved (FR-010).
-    assert ledger.get("evt-delivered", target.target_id).status == "success"
+    row = ledger.get("evt-delivered", target.target_id)
+    assert row is not None and row.status == "success"
 
 
 def test_archive_without_event_ids_scans_retained(journal: EventJournal) -> None:
@@ -642,9 +963,7 @@ def test_archive_without_event_ids_scans_retained(journal: EventJournal) -> None
     assert result.archived_count == 2
 
 
-def test_gc_with_no_delivered_events_purges_nothing(
-    journal: EventJournal, ledger: object
-) -> None:
+def test_gc_with_no_delivered_events_purges_nothing(journal: EventJournal, ledger: SqliteDeliveryLedger) -> None:
     journal.append(_event("evt-undelivered"))
     result = gc_payloads(journal, ledger)  # nothing delivered anywhere
     assert result.purged_count == 0
@@ -652,9 +971,7 @@ def test_gc_with_no_delivered_events_purges_nothing(
     assert journal.read_by_id("evt-undelivered") is not None
 
 
-def test_sync_now_style_path_does_not_trigger_retention(
-    journal: EventJournal, ledger: object, registry: object
-) -> None:
+def test_sync_now_style_path_does_not_trigger_retention(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: _RegistryFixture) -> None:
     # Simulate a normal capture + deliver cycle (US4 scenario 3): no explicit
     # cleanup command is invoked, so no journal payload is ever deleted.
     target = _register(registry, CURRENT_URL)
@@ -670,10 +987,8 @@ def test_sync_now_style_path_does_not_trigger_retention(
 # ---------------------------------------------------------------------------
 
 
-def test_empty_journal_report(journal: EventJournal, ledger: object, registry: object) -> None:
-    report = build_status_report(
-        resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry
-    )
+def test_empty_journal_report(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: _RegistryFixture) -> None:
+    report = _build_status_report(resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry)
     section = report[EVENT_JOURNAL_KEY]
     assert section["retained_event_count"] == 0
     assert section["archived_event_count"] == 0
@@ -687,30 +1002,11 @@ def test_empty_journal_report(journal: EventJournal, ledger: object, registry: o
 # ---------------------------------------------------------------------------
 
 
-def test_status_report_carries_the_per_project_store_section(
+def test_status_report_carries_the_explicit_project_store_section(
     journal: EventJournal,
-    ledger: object,
-    registry: object,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    ledger: SqliteDeliveryLedger,
+    registry: _RegistryFixture,
 ) -> None:
-    """FR-015 names three surfaces; this is the machine-readable one.
-
-    Red before the fix: `build_status_report` had no `per_project_store` section
-    at all, so `sync status --check --json` reported an aggregate
-    `retained_event_count` and nothing about who those events belonged to — the
-    same number the operator was reassured by during the incident.
-    """
-    home = tmp_path / "consent-home"
-    home.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
-    from specify_cli.sync.consent import set_project_consent
-
-    consented = "aaaaaaaa-0000-0000-0000-000000000001"
-    silent = "bbbbbbbb-0000-0000-0000-000000000002"
-    set_project_consent(consented, True)
-
     journal.append(
         Event(
             event_id="evt-ok",
@@ -718,22 +1014,12 @@ def test_status_report_carries_the_per_project_store_section(
             payload=b"{}",
             occurred_at="2026-06-01T00:00:00+00:00",
             created_at="2026-06-01T00:00:00+00:00",
-            project_uuid=consented,
+            project_uuid=PROJECT,
             project_slug="engagement-assistant",
         )
     )
-    journal.append(
-        Event(
-            event_id="evt-leak",
-            event_type="WorkPackageApproved",
-            payload=b"{}",
-            occurred_at="2026-06-02T00:00:00+00:00",
-            created_at="2026-06-02T00:00:00+00:00",
-            project_uuid=silent,
-        )
-    )
 
-    report = build_status_report(
+    report = _build_status_report(
         resolved_target=_resolved(),
         journal=journal,
         ledger=ledger,
@@ -742,76 +1028,45 @@ def test_status_report_carries_the_per_project_store_section(
 
     section = report[PER_PROJECT_STORE_KEY]
     assert section["reconciles"] is True
-    assert section["retained_event_count"] == 2
-    assert section["counted_event_total"] == 2
-    assert section["non_consenting_project_count"] == 1
+    assert section["retained_event_count"] == 1
+    assert section["counted_event_total"] == 1
+    assert section["non_consenting_project_count"] == 0
 
     by_uuid = {row["project_uuid"]: row for row in section["projects"]}
-    assert set(by_uuid) == {consented, silent}
-    assert by_uuid[consented]["consent_granted"] is True
-    assert by_uuid[consented]["project_slug"] == "engagement-assistant"
-    assert by_uuid[silent]["consent_granted"] is False, "absence of a record is not consent"
-    assert by_uuid[silent]["consent_level"] == "absent"
+    assert set(by_uuid) == {PROJECT}
+    assert by_uuid[PROJECT]["consent_granted"] is True
+    assert by_uuid[PROJECT]["project_slug"] == "engagement-assistant"
 
     # FR-019 round-trip: the new section must not break JSON serialisation.
     assert json.loads(json.dumps(report))[PER_PROJECT_STORE_KEY] == section
 
 
-def test_the_json_section_never_names_the_unresolved_bucket_as_a_refusal(
+def test_unresolved_identity_cannot_enter_the_physical_project_store(
     journal: EventJournal,
-    ledger: object,
-    registry: object,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    ledger: SqliteDeliveryLedger,
+    registry: _RegistryFixture,
 ) -> None:
-    """#3030 N1 on the machine-readable surface.
-
-    A monitor keying on ``non_consenting_project_count`` must not be told a project
-    refused consent when that cannot be known. Red before the fix: the
-    unresolved-identity bucket counted as a refusal and carried the first-found repo
-    slug, so this reported ``1`` with ``repo_slug='acme/app'``.
-    """
-    home = tmp_path / "n1-home"
-    home.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
-
-    for index, (slug, repo) in enumerate(
-        (("acme-app", "acme/app"), ("beta-svc", "beta/svc"))
-    ):
+    with pytest.raises(ValueError, match="owner"):
         journal.append(
             Event(
-                event_id=f"evt-anon-{index}",
+                event_id="evt-anon",
                 event_type="WorkPackageApproved",
                 payload=b"{}",
-                occurred_at=f"2026-06-0{index + 1}T00:00:00+00:00",
-                created_at=f"2026-06-0{index + 1}T00:00:00+00:00",
+                occurred_at="2026-06-01T00:00:00+00:00",
+                created_at="2026-06-01T00:00:00+00:00",
                 project_uuid=None,
-                project_slug=slug,
-                repo_slug=repo,
+                project_slug="acme-app",
             )
         )
 
-    section = build_status_report(
+    section = _build_status_report(
         resolved_target=_resolved(),
         journal=journal,
         ledger=ledger,
         target_registry=registry,
     )[PER_PROJECT_STORE_KEY]
 
-    assert section["non_consenting_project_count"] == 0, (
-        "no project is KNOWN to have refused here — consent could not be resolved"
-    )
-    assert section["unresolved_identity_count"] == 2
-
-    (bucket,) = section["projects"]
-    assert bucket["unresolved_identity"] is True
-    assert bucket["repo_slug"] is None, "the bucket must claim no single identity"
-    assert bucket["project_slug"] is None
-    # Both repos are still named, with counts, so SC-004 holds for this population.
-    assert {c["repo_slug"] for c in bucket["unresolved_candidates"]} == {
-        "acme/app",
-        "beta/svc",
-    }
-    assert all(c["event_count"] == 1 for c in bucket["unresolved_candidates"])
+    assert section["non_consenting_project_count"] == 0
+    assert section["unresolved_identity_count"] == 0
+    assert section["projects"] == []
     assert json.loads(json.dumps(section)) == section

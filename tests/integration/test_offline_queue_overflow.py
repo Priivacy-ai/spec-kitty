@@ -1,22 +1,32 @@
-"""Integration test: ``OfflineQueueFull`` + drain helper (FR-027, T035).
+"""Integration test: ``OfflineQueueFull`` (FR-027, T035).
 
 Verifies that:
 
 * ``OfflineQueue.append()`` raises :class:`OfflineQueueFull` rather than
   silently dropping events when the queue is at capacity.
-* :meth:`OfflineQueue.drain_to_file` writes a JSONL stream and clears
-  the queue.
-* The drained file is replayable: a fresh :class:`OfflineQueue`
-  re-imports every drained event with the strict-cap append surface.
+* A burst of appends past capacity loses zero events when the caller drains
+  and acknowledges (``drain_queue`` + ``remove_events``) to free capacity and
+  retries, using the per-project-store queue API.
+
+Historical note: this module used to also cover ``OfflineQueue.drain_to_file``
+(a JSONL-file spillover written by the caller on overflow) and its replay
+round-trip. That method was retired when the queue moved off a
+file/db-per-project backing onto the shared per-project SQLite store (see
+``tests/sync/test_offline_queue_counter.py::test_counter_after_drain_to_file``,
+which asserts ``not hasattr(queue, "drain_to_file")``). There is no file-based
+equivalent to port those two tests to — the durable store itself is now the
+only backing, so "drain to a JSONL file" has no successor operation — so they
+were retired rather than migrated.
 """
 
 from __future__ import annotations
 
-import json
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 
+from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork
 from specify_cli.sync.queue import (
     DEFAULT_STRICT_CAP_SIZE,  # noqa: F401 - smoke import for the surface
     OfflineQueue,
@@ -27,21 +37,39 @@ from specify_cli.sync.queue import (
 pytestmark = [pytest.mark.integration]
 
 CAP = 5  # tight cap keeps the test fast and deterministic
+PROJECT = "aaaaaaaa-0000-0000-0000-00000000ff10"
 
 
 def _event(idx: int) -> dict[str, object]:
     return {
         "event_id": f"evt-{idx:04d}",
         "event_type": "TestEvent",
+        "project_uuid": PROJECT,
         "payload": {"i": idx},
     }
 
 
 @pytest.fixture
-def queue(tmp_path: Path) -> OfflineQueue:
-    """A scratch :class:`OfflineQueue` rooted in *tmp_path*."""
-    db_path = tmp_path / "queue.db"
-    return OfflineQueue(db_path=db_path)
+def store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
+    """A scratch per-project store rooted in *tmp_path*."""
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    value = ProjectSyncStore(PROJECT)
+    authority = value.layout_generation()
+    authority.begin_cutover("offline-queue-overflow-test")
+    authority.publish_project_only("offline-queue-overflow-test", verify_exact=lambda: True)
+    return value
+
+
+@pytest.fixture
+def unit(store: ProjectSyncStore) -> Iterator[ProjectUnitOfWork]:
+    with store.unit_of_work() as value:
+        yield value
+
+
+@pytest.fixture
+def queue(unit: ProjectUnitOfWork, store: ProjectSyncStore) -> OfflineQueue:
+    """A scratch :class:`OfflineQueue` bound to the *store*/*unit* fixtures."""
+    return OfflineQueue(unit, store.layout_generation())
 
 
 class TestOfflineQueueOverflow:
@@ -58,91 +86,45 @@ class TestOfflineQueueOverflow:
         assert exc_info.value.cap == CAP
         assert exc_info.value.current == CAP
 
-    def test_drain_to_file_writes_jsonl_and_clears(
-        self,
-        queue: OfflineQueue,
-        tmp_path: Path,
-    ) -> None:
-        for i in range(CAP):
-            queue.append(_event(i), cap=CAP)
-        overflow = tmp_path / "sync" / "overflow.jsonl"
-
-        drained = queue.drain_to_file(overflow)
-        assert drained == CAP
-        assert queue.size() == 0
-        assert overflow.exists()
-
-        lines = overflow.read_text(encoding="utf-8").splitlines()
-        assert len(lines) == CAP
-        ids = [json.loads(line)["event_id"] for line in lines]
-        # Order is FIFO.
-        assert ids == [f"evt-{i:04d}" for i in range(CAP)]
-
-    def test_drained_file_is_replayable(
-        self,
-        queue: OfflineQueue,
-        tmp_path: Path,
-    ) -> None:
-        """Round-trip: drain -> re-import -> queue has every event."""
-        for i in range(CAP):
-            queue.append(_event(i), cap=CAP)
-        overflow = tmp_path / "sync" / "overflow.jsonl"
-        drained = queue.drain_to_file(overflow)
-        assert drained == CAP
-
-        # Fresh queue: re-import the drained events using the
-        # strict-cap append surface.
-        replay_db = tmp_path / "replay.db"
-        replay_queue = OfflineQueue(db_path=replay_db)
-        with open(overflow, "r", encoding="utf-8") as fh:
-            for line in fh:
-                replay_queue.append(json.loads(line), cap=CAP)
-        assert replay_queue.size() == CAP
-        events = replay_queue.drain_queue(limit=CAP * 2)
-        assert {e["event_id"] for e in events} == {
-            f"evt-{i:04d}" for i in range(CAP)
-        }
-
-    def test_zero_events_dropped_under_load(
-        self,
-        queue: OfflineQueue,
-        tmp_path: Path,
-    ) -> None:
+    def test_zero_events_dropped_under_load(self, queue: OfflineQueue) -> None:
         """Burst of (CAP * 3) appends → exactly 0 events lost.
 
-        The CLI handler pattern is:
+        The CLI handler pattern (post-per-project-store migration) is:
 
             try:
                 queue.append(event, cap=CAP)
             except OfflineQueueFull:
-                queue.drain_to_file(overflow_path)
-                queue.append(event, cap=CAP)  # retry once
+                # Free capacity by acknowledging the oldest pending batch,
+                # then retry once.
+                oldest = queue.drain_queue(limit=CAP)
+                queue.remove_events([task.event_id for task in oldest])
+                queue.append(event, cap=CAP)
 
-        We replay that pattern here and assert all events end up either
-        in the queue or in the overflow file.
+        This replaces the old file-spillover pattern (``drain_to_file`` was
+        retired — see the module docstring) with the store-native
+        drain-then-acknowledge pair. We replay that pattern here and assert
+        every event ends up either still pending in the queue or
+        acknowledged (removed) — never lost.
         """
-        overflow = tmp_path / "sync" / "overflow.jsonl"
         total = CAP * 3
-        attempts = 0
+        acknowledged_ids: set[str] = set()
         for i in range(total):
-            attempts += 1
             try:
                 queue.append(_event(i), cap=CAP)
             except OfflineQueueFull:
-                # Drain then re-append once.
-                # Use a per-overflow-cycle distinct file to preserve
-                # evidence across multiple drains.
-                cycle_path = tmp_path / "sync" / f"overflow-{attempts:04d}.jsonl"
-                queue.drain_to_file(cycle_path)
+                oldest = queue.drain_queue(limit=CAP)
+                ids = [task.event_id for task in oldest]
+                queue.remove_events(ids)
+                acknowledged_ids.update(ids)
                 queue.append(_event(i), cap=CAP)
 
-        # Sum events retained in queue + every overflow file.
-        retained = queue.size()
-        overflow_total = 0
-        for path in (tmp_path / "sync").glob("overflow-*.jsonl"):
-            overflow_total += sum(1 for _ in path.read_text().splitlines() if _.strip())
+        retained_ids = {task.event_id for task in queue.drain_queue(limit=total * 2)}
+        expected_ids = {f"evt-{i:04d}" for i in range(total)}
 
-        assert retained + overflow_total == total, (
-            f"Expected {total} events accounted for, "
-            f"got retained={retained} + overflow={overflow_total}"
+        assert acknowledged_ids & retained_ids == set(), (
+            "an event must not be both acknowledged and still pending"
+        )
+        assert acknowledged_ids | retained_ids == expected_ids, (
+            f"Expected all {total} events accounted for, "
+            f"got retained={len(retained_ids)} + acknowledged={len(acknowledged_ids)}"
         )

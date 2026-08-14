@@ -1,7 +1,7 @@
 {
   "baseline_merge_commit": "b81e9eae94514833adba9960ac3a33a04c18ab2c",
-  "coordination_branch": "kitty/mission-coordination-topology-stabilization-01KTZVQ2",
   "created_at": "2026-06-13T06:46:39.469648+00:00",
+  "flattened": true,
   "friendly_name": "Coordination Topology Stabilization",
   "mission_id": "01KTZVQ2KB742M37VB5V2380CN",
   "mission_number": 132,
@@ -12,6 +12,7 @@
   "slug": "coordination-topology-stabilization-01KTZVQ2",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-06-13T07:58:38.056208+00:00"
 }

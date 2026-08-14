@@ -29,10 +29,9 @@ stores, never from what the command reports about itself:
 from __future__ import annotations
 
 import json
-import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from typer.testing import CliRunner
@@ -40,6 +39,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.sync import app
 from specify_cli.event_journal.journal import EventJournal, reset_journal_cache
 from specify_cli.event_journal.models import Event
+from specify_cli.sync.project_store import ProjectSyncStore
 from tests._support.ansi import strip_ansi
 
 pytestmark = pytest.mark.fast
@@ -134,6 +134,30 @@ def checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
     monkeypatch.chdir(repo)
+    from specify_cli.sync.project_store import ProjectSyncStore
+    import specify_cli.sync.routing as routing
+
+    target_store = ProjectSyncStore(TARGET)
+    authority = target_store.layout_generation()
+    authority.begin_cutover("purge-cli")
+    authority.publish_project_only("purge-cli", verify_exact=lambda: True)
+    for project_uuid in (TARGET, OTHER):
+        with ProjectSyncStore(project_uuid).unit_of_work():
+            pass
+    monkeypatch.setattr(
+        routing,
+        "resolve_checkout_sync_routing_readonly",
+        lambda: type(
+            "Routing",
+            (),
+            {
+                "project_uuid": target_store.project_uuid,
+                "project_slug": TARGET_SLUG,
+                "repo_slug": None,
+                "build_id": None,
+            },
+        )(),
+    )
     reset_journal_cache()
     try:
         yield repo
@@ -146,16 +170,10 @@ def checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
 # --------------------------------------------------------------------------- #
 
 
-def _live_paths() -> tuple[Path, Path]:
-    from specify_cli.delivery.retention import resolve_live_store_paths
+def _stores() -> tuple[Any, Any]:
+    from specify_cli.sync.project_store import ProjectSyncStore
 
-    return resolve_live_store_paths()
-
-
-def _queue_db_path() -> Path:
-    from specify_cli.sync.queue import default_queue_db_path
-
-    return default_queue_db_path()
+    return ProjectSyncStore(TARGET), ProjectSyncStore(OTHER)
 
 
 def _event(event_id: str, project_uuid: str | None, index: int, slug: str | None = None) -> Event:
@@ -174,68 +192,48 @@ def _event(event_id: str, project_uuid: str | None, index: int, slug: str | None
 
 
 def _seed_journal_and_ledger() -> None:
-    """The incident's shape, plus the three populations a targeted purge cannot reach."""
+    """Seed two physically isolated project stores plus a target ledger ghost."""
     from specify_cli.delivery.ledger import SqliteDeliveryLedger
+    from specify_cli.sync.consent import record_project_opt_in
 
-    journal_path, ledger_path = _live_paths()
-    journal_path.parent.mkdir(parents=True, exist_ok=True)
-    ledger_path.parent.mkdir(parents=True, exist_ok=True)
-
-    journal = EventJournal(journal_path)
-    for i in range(3):
-        journal.append(_event(f"t-{i}", TARGET, i, TARGET_SLUG))
-    for i in range(2):
-        journal.append(_event(f"o-{i}", OTHER, 10 + i, OTHER_SLUG))
-    journal.append(_event("null-1", None, 20))
-    journal.append(_event("blank-1", "", 21))
-    journal.append(_event("ws-1", "   ", 22))
-
-    ledger = SqliteDeliveryLedger(str(ledger_path))
-    try:
+    target_store, other_store = _stores()
+    for project_uuid in (TARGET, OTHER):
+        record_project_opt_in(project_uuid, actor="purge-cli-test")
+    with target_store.unit_of_work() as unit:
+        journal = EventJournal(unit, target_store.layout_generation())
+        for i in range(3):
+            journal.append(_event(f"t-{i}", TARGET, i, TARGET_SLUG))
+        ledger = SqliteDeliveryLedger(unit, target_store.layout_generation())
         ledger.record_success("t-0", TARGET_ID)
         ledger.record_rejected("t-1", TARGET_ID, error="not consented")
-        # t-2 has no ledger row at all: never attempted.
+        # t-2 has no result: never attempted.
+    with other_store.unit_of_work() as unit:
+        journal = EventJournal(unit, other_store.layout_generation())
+        for i in range(2):
+            journal.append(_event(f"o-{i}", OTHER, 10 + i, OTHER_SLUG))
+        ledger = SqliteDeliveryLedger(unit, other_store.layout_generation())
         ledger.record_success("o-0", TARGET_ID)
-        ledger.record_rejected("null-1", TARGET_ID, error="no identity")
-        # A ledger row whose journal row is already gone — every machine that has
-        # run `sync gc` holds some, because gc preserves ledger history by design.
-        ledger.record_rejected("ghost-1", TARGET_ID, error="journal row gc'd")
-    finally:
-        ledger.close()
 
 
 def _seed_body_queue() -> None:
     from specify_cli.sync.body_queue import OfflineBodyUploadQueue
+    from specify_cli.sync.namespace import NamespaceRef
 
-    path = _queue_db_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    OfflineBodyUploadQueue(db_path=path)  # ensures the schema exists
-    rows = [
-        (TARGET, "acme-migration-01K", "spec.md"),
-        (TARGET, "acme-migration-01K", "plan.md"),
-        (OTHER, "globex-rollout-01K", "spec.md"),
-        # The two unattributable forms, and they are unattributable *differently*:
-        # ``remove_project_tasks`` returns 0 for a falsy argument and strips a padded
-        # one to the same falsy value, so neither is reachable by a project selector.
-        # ``project_uuid`` is NOT NULL, so these two strings are the only forms a row
-        # can take that name no project.
-        ("", "orphan-mission-01K", "spec.md"),
-        ("   ", "orphan-mission-01K", "plan.md"),
-    ]
-    conn = sqlite3.connect(path)
-    try:
-        for project_uuid, mission_slug, artifact in rows:
-            conn.execute(
-                """INSERT INTO body_upload_queue
-                   (project_uuid, mission_slug, target_branch, mission_type,
-                    manifest_version, artifact_path, content_hash, hash_algorithm,
-                    content_body, size_bytes, retry_count, next_attempt_at, created_at)
-                   VALUES (?, ?, 'main', 'feature', '1', ?, ?, 'sha256', 'body', 4, 0, 0.0, 0.0)""",
-                (project_uuid, mission_slug, artifact, f"{project_uuid}-{artifact}"),
-            )
-        conn.commit()
-    finally:
-        conn.close()
+    target_store, other_store = _stores()
+    for store, project_uuid, mission_slug, artifacts in (
+        (target_store, TARGET, "acme-migration-01K", ("spec.md", "plan.md")),
+        (other_store, OTHER, "globex-rollout-01K", ("spec.md",)),
+    ):
+        with store.unit_of_work() as unit:
+            queue = OfflineBodyUploadQueue(unit, store.layout_generation())
+            for artifact in artifacts:
+                queue.enqueue(
+                    NamespaceRef(project_uuid, mission_slug, "main", "software-dev", "1"),
+                    artifact,
+                    f"{project_uuid}-{artifact}",
+                    "body",
+                    4,
+                )
 
 
 def _seed_frames(repo: Path) -> None:
@@ -281,49 +279,52 @@ def _seed_all(repo: Path) -> None:
 
 
 def _journal_by_uuid() -> dict[str | None, int]:
-    journal_path, _ = _live_paths()
-    if not journal_path.exists():
-        return {}
-    conn = sqlite3.connect(str(journal_path))
-    try:
-        return {
-            (None if row[0] is None else str(row[0])): int(row[1]) for row in conn.execute("SELECT project_uuid, COUNT(*) FROM event_journal GROUP BY project_uuid")
-        }
-    finally:
-        conn.close()
+    result: dict[str | None, int] = {}
+    for store in _stores():
+        with store.unit_of_work() as unit:
+            count = EventJournal(unit, store.layout_generation()).count()
+            if count:
+                result[str(store.project_uuid.storage_token)] = count
+    return result
 
 
 def _journal_ids() -> set[str]:
-    journal_path, _ = _live_paths()
-    if not journal_path.exists():
-        return set()
-    conn = sqlite3.connect(str(journal_path))
-    try:
-        return {str(row[0]) for row in conn.execute("SELECT event_id FROM event_journal")}
-    finally:
-        conn.close()
+    result: set[str] = set()
+    for store in _stores():
+        with store.unit_of_work() as unit:
+            result.update(event.event_id for event in EventJournal(unit, store.layout_generation()).read_all())
+    return result
 
 
 def _ledger_ids() -> list[str]:
-    _, ledger_path = _live_paths()
-    if not ledger_path.exists():
-        return []
-    conn = sqlite3.connect(str(ledger_path))
-    try:
-        return [str(row[0]) for row in conn.execute("SELECT event_id FROM delivery_ledger")]
-    finally:
-        conn.close()
+    from specify_cli.delivery.ledger import SqliteDeliveryLedger
+
+    result: list[str] = []
+    for store in _stores():
+        with store.unit_of_work() as unit:
+            result.extend(
+                row.event_id
+                for row in SqliteDeliveryLedger(
+                    unit,
+                    store.layout_generation(),
+                ).rows()
+            )
+    return result
 
 
 def _body_by_uuid() -> dict[str, int]:
-    path = _queue_db_path()
-    if not path.exists():
-        return {}
-    conn = sqlite3.connect(path)
-    try:
-        return {str(row[0]): int(row[1]) for row in conn.execute("SELECT project_uuid, COUNT(*) FROM body_upload_queue GROUP BY project_uuid")}
-    finally:
-        conn.close()
+    from specify_cli.sync.body_queue import OfflineBodyUploadQueue
+
+    result: dict[str, int] = {}
+    for store in _stores():
+        with store.unit_of_work() as unit:
+            result.update(
+                OfflineBodyUploadQueue(
+                    unit,
+                    store.layout_generation(),
+                ).count_by_project()
+            )
+    return result
 
 
 def _frames_by_uuid(repo: Path) -> dict[str | None, int]:
@@ -350,7 +351,7 @@ def _snapshot(repo: Path) -> dict[str, Any]:
 
 
 def _report(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
+    return cast("dict[str, Any]", json.loads(path.read_text(encoding="utf-8")))
 
 
 # --------------------------------------------------------------------------- #
@@ -359,11 +360,42 @@ def _report(path: Path) -> dict[str, Any]:
 
 
 class TestDryRunIsTheDefault:
-    def test_default_invocation_changes_nothing_in_any_of_the_four_stores(self, checkout: Path, tmp_path: Path) -> None:
+    def test_default_invocation_changes_nothing_in_any_of_the_four_stores(
+        self,
+        checkout: Path,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """C-002: the safe direction has to be the one an operator gets by default."""
         _seed_all(checkout)
         before = _snapshot(checkout)
         report = tmp_path / "dry.json"
+        from specify_cli.identity import project as identity_module
+        from specify_cli.sync import queue as queue_module
+
+        original_load = identity_module.load_identity
+        original_get_max_queue_size = queue_module.get_max_queue_size
+        identity_reads = 0
+        max_queue_reads = 0
+
+        def load_with_lock_probe(path: Path) -> Any:
+            nonlocal identity_reads
+            identity_reads += 1
+            # Filesystem identity resolution must happen before purge owns the
+            # active store write transaction.
+            with ProjectSyncStore(TARGET).unit_of_work(lock_timeout_seconds=0):
+                pass
+            return original_load(path)
+
+        def max_queue_size_with_lock_probe() -> int:
+            nonlocal max_queue_reads
+            max_queue_reads += 1
+            with ProjectSyncStore(TARGET).unit_of_work(lock_timeout_seconds=0):
+                pass
+            return cast(int, cast(Any, original_get_max_queue_size)())
+
+        monkeypatch.setattr(identity_module, "load_identity", load_with_lock_probe)
+        monkeypatch.setattr(queue_module, "get_max_queue_size", max_queue_size_with_lock_probe)
 
         result = runner.invoke(app, ["purge", "--project", TARGET, "--report", str(report)])
 
@@ -372,6 +404,8 @@ class TestDryRunIsTheDefault:
         data = _report(report)
         assert data["dry_run"] is True
         assert data["applied"] is False
+        assert identity_reads == 1
+        assert max_queue_reads == 1
 
     def test_dry_run_reports_per_state_counts_across_all_four_stores(self, checkout: Path, tmp_path: Path) -> None:
         """FR-016: per-state counts, from every store the project has rows in.
@@ -400,6 +434,8 @@ class TestDryRunIsTheDefault:
         out = result.output
         assert "DRY RUN" in out
         assert "no rows have been deleted" in out.lower()
+        assert "ledger rows would be deleted" in out.lower()
+        assert "ledger rows are deleted" not in out.lower()
 
 
 # --------------------------------------------------------------------------- #
@@ -469,9 +505,10 @@ def test_no_other_projects_rows_move_in_any_store(checkout: Path, tmp_path: Path
     assert after["body"].get(OTHER) == before["body"].get(OTHER) == 1
     assert after["frames"].get(OTHER) == before["frames"].get(OTHER) == 1
     assert "o-0" in after["ledger"]
-    assert after["journal"].get(None) == before["journal"].get(None) == 1
-    assert after["journal"].get("") == before["journal"].get("") == 1
-    assert after["journal"].get("   ") == before["journal"].get("   ") == 1
+    # Project stores cannot contain unbound identity rows; the old global
+    # journal fixture fabricated them. Their absence is part of the authority
+    # invariant, not a missing purge population.
+    assert not any(key is None or not str(key).strip() for key in after["journal"])
 
     data = _report(report)
     assert data["others_delta_total"] == 0
@@ -485,13 +522,7 @@ def test_no_other_projects_rows_move_in_any_store(checkout: Path, tmp_path: Path
 
 
 def test_targeted_purge_names_the_populations_it_leaves_behind(checkout: Path, tmp_path: Path) -> None:
-    """A residue nobody names is the same defect as a report that overstates.
-
-    Four known-unreachable populations, all real rather than contrived: a NULL
-    identity, a non-NULL blank uuid, a whitespace-only uuid (visible in the census,
-    selectable by nothing), and a ledger row whose journal row `sync gc` already
-    removed.
-    """
+    """The report never invents unbound live rows or claims another store."""
     _seed_all(checkout)
     report = tmp_path / "dry.json"
 
@@ -500,22 +531,14 @@ def test_targeted_purge_names_the_populations_it_leaves_behind(checkout: Path, t
     assert result.exit_code == 0, result.output
     not_reached = {row["population"]: row for row in _report(report)["not_reached"]}
 
-    assert not_reached["journal_identity_null"]["count"] == 1
-    assert not_reached["journal_identity_null"]["reachable_by"] == "--identity-less"
-    assert not_reached["journal_identity_blank"]["count"] == 2, "the '' row and the whitespace-only row: both unreachable by any selector but --all"
-    assert not_reached["journal_identity_blank"]["reachable_by"] == "--all"
-    assert not_reached["ledger_without_journal_row"]["count"] == 1
-    assert not_reached["ledger_without_journal_row"]["reachable_by"] == "--all"
-    assert not_reached["body_uploads_identity_blank"]["count"] == 2, "the '' row and the padded row: remove_project_tasks strips its argument"
-    # FR-017 completeness: these rows now HAVE a selector. Before
-    # ``purge_all_body_uploads`` existed this said "none", and that was the honest
-    # report of a store `--all` could not empty.
-    assert not_reached["body_uploads_identity_blank"]["reachable_by"] == "--all"
+    assert "journal_identity_null" not in not_reached
+    assert "journal_identity_blank" not in not_reached
+    assert "body_uploads_identity_blank" not in not_reached
+    assert _snapshot(checkout)["journal"].get(OTHER) == 2
 
     out = result.output
-    assert "Not reached by this purge" in out
-    assert "--identity-less" in out
-    assert "--all" in out
+    assert "identity_null" not in out
+    assert "identity_blank" not in out
 
 
 def test_unparseable_frame_file_is_reported_not_silently_counted_as_empty(checkout: Path, tmp_path: Path) -> None:
@@ -534,6 +557,26 @@ def test_unparseable_frame_file_is_reported_not_silently_counted_as_empty(checko
     frames = _report(report)["stores"]["local_commit_frames"]
     assert frames["unreadable"] is True
     assert "could not be read" in result.output
+
+
+def test_unparseable_frame_file_refuses_apply_before_any_store_changes(checkout: Path) -> None:
+    """Every destructive boundary is preflighted before the shared UoW mutates."""
+    _seed_all(checkout)
+    frame_path = checkout / ".kittify" / "sync-state.json"
+    frame_path.write_bytes(b"{not json")
+    journal_before = _journal_by_uuid()
+    ledger_before = sorted(_ledger_ids())
+    body_before = _body_by_uuid()
+    frame_before = frame_path.read_bytes()
+
+    result = runner.invoke(app, ["purge", "--project", TARGET, "--apply"])
+
+    assert result.exit_code == 2, result.output
+    assert "refusing before any project-store or frame deletion" in result.output
+    assert _journal_by_uuid() == journal_before
+    assert sorted(_ledger_ids()) == ledger_before
+    assert _body_by_uuid() == body_before
+    assert frame_path.read_bytes() == frame_before
 
 
 # --------------------------------------------------------------------------- #
@@ -564,7 +607,7 @@ class TestPurgeAll:
         assert _snapshot(checkout) == before
 
     def test_confirmed_all_empties_the_machine_global_stores_and_this_checkout(self, checkout: Path, tmp_path: Path) -> None:
-        """Including the three populations no targeted selector could reach."""
+        """Confirmed --all empties only the active project and this checkout."""
         _seed_all(checkout)
         report = tmp_path / "all.json"
 
@@ -583,43 +626,31 @@ class TestPurgeAll:
 
         assert result.exit_code == 0, result.output
         after = _snapshot(checkout)
-        assert after["journal"] == {}
-        assert after["ledger"] == []
+        assert after["journal"] == {OTHER: 2}
+        assert set(after["ledger"]) == {"o-0"}
         assert after["frames"] == {}
         # Including the body store's blank and padded rows. Until
         # ``purge_all_body_uploads`` existed these survived a confirmed ``--all`` and
         # were reported as reachable by nothing — a total purge that left verbatim
         # engagement documents on disk.
-        assert after["body"] == {}
+        assert after["body"] == {OTHER: 1}
         assert _report(report)["stores"]["body_upload_queue"]["left_behind"] == {}
 
     def test_all_reaches_the_body_rows_no_targeted_selector_could(self, checkout: Path, tmp_path: Path) -> None:
-        """FR-017 completeness for the fourth store, from the operator surface.
-
-        ``remove_project_tasks`` strips its argument and returns 0 for a falsy one, so
-        the ``''`` and ``'   '`` rows are reachable by no ``--project`` value at all.
-        The dry run must count them **in scope** — a total purge that silently
-        excluded them would be the false-totality claim this command exists to avoid —
-        and the confirmed run must actually remove them.
-        """
+        """The active-project body purge cannot cross-open another store."""
         _seed_all(checkout)
-        assert {key: count for key, count in _body_by_uuid().items() if not key.strip()} == {
-            "": 1,
-            "   ": 1,
-        }, "precondition: the store holds the rows no project selector reaches"
+        assert _body_by_uuid() == {TARGET: 2, OTHER: 1}
         dry_report = tmp_path / "dry.json"
 
         dry = runner.invoke(app, ["purge", "--all", "--report", str(dry_report)])
 
         assert dry.exit_code == 0, dry.output
-        assert _report(dry_report)["stores"]["body_upload_queue"]["in_scope"] == 5, "every row, not just the attributable ones"
+        assert _report(dry_report)["stores"]["body_upload_queue"]["in_scope"] == 2
 
-        applied = runner.invoke(
-            app, ["purge", "--all", "--apply", "--confirm", "purge all events"]
-        )
+        applied = runner.invoke(app, ["purge", "--all", "--apply", "--confirm", "purge all events"])
 
         assert applied.exit_code == 0, applied.output
-        assert _body_by_uuid() == {}
+        assert _body_by_uuid() == {OTHER: 1}
 
     def test_the_all_dry_run_predicts_exactly_what_the_confirmed_run_deletes(self, checkout: Path, tmp_path: Path) -> None:
         """FR-017's preview is the operator's record; if it can drift it is worthless.
@@ -638,9 +669,7 @@ class TestPurgeAll:
         assert all(count > 0 for count in predicted.values()), predicted
 
         before = _snapshot(checkout)
-        applied = runner.invoke(
-            app, ["purge", "--all", "--apply", "--confirm", "purge all events"]
-        )
+        applied = runner.invoke(app, ["purge", "--all", "--apply", "--confirm", "purge all events"])
         assert applied.exit_code == 0, applied.output
         after = _snapshot(checkout)
 
@@ -691,18 +720,15 @@ class TestPurgeAll:
 def test_applied_run_says_the_two_stores_are_not_one_transaction(
     checkout: Path,
 ) -> None:
-    """The ledger delete commits first; the journal is untouched on failure.
-
-    A report that implied atomicity would leave an operator with no reason to
-    re-run after an interruption — and a re-run is exactly what converges.
-    """
+    """The report states the local transaction and frame-file boundary."""
     _seed_all(checkout)
 
     result = runner.invoke(app, ["purge", "--project", TARGET, "--apply"])
 
     assert result.exit_code == 0, result.output
     flat = " ".join(result.output.split()).lower()
-    assert "not one transaction" in flat
+    assert "one local database transaction" in flat
+    assert "checkout-local frames are a separate file boundary" in flat
     assert "re-run" in flat
 
 
@@ -760,21 +786,14 @@ class TestSelectorResolution:
 
         assert result.exit_code == 0, result.output
         after = _snapshot(checkout)
-        assert None not in after["journal"], "the NULL-identity row survived"
-        assert "null-1" not in after["ledger"]
-        # Blank and whitespace uuids are NOT this selector's population.
-        assert after["journal"].get("") == 1
-        assert after["journal"].get("   ") == 1
-        # Nothing attributed moved.
-        assert after["journal"].get(TARGET) == before["journal"].get(TARGET) == 3
-        assert after["journal"].get(OTHER) == before["journal"].get(OTHER) == 2
-        assert after["body"] == before["body"], "this selector does not span the body queue"
-        assert after["frames"] == before["frames"]
+        assert after == before, "canonical project stores contain no identity-less live rows"
 
         stores = _report(report)["stores"]
         assert stores["body_upload_queue"]["in_scope"] == 0
         assert stores["local_commit_frames"]["in_scope"] == 0
-        assert "--all" in result.output
+        assert "Nothing matched" in result.output
+        assert "no rows matched or were removed" in result.output.lower()
+        assert "rows have been deleted" not in result.output.lower()
 
     @pytest.mark.parametrize(
         ("argv", "expected"),

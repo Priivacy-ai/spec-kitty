@@ -8,16 +8,17 @@ from pathlib import Path
 
 from specify_cli.core.paths import locate_project_root
 
-from .body_queue import OfflineBodyUploadQueue
 from .config import ConfigReadFault, SyncConfig
 from .consent import (
+    LegacyConsentMigrationRequiredError,
+    ProjectConsentRecord,
     project_local_consent_fault,
-    read_project_local_consent,
-    set_project_consent,
+    record_project_opt_in,
+    record_project_opt_out,
+    resolve_project_consent,
 )
 from .git_metadata import GitMetadataResolver
 from specify_cli.identity.project import ProjectIdentity, load_identity, resolve_identity
-from .queue import OfflineQueue
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,7 @@ class SyncOptOutResult:
     removed_events: int
     removed_body_uploads: int
     remembered_for_repo: bool
+    decision: ProjectConsentRecord | None = None
 
 
 def resolve_checkout_sync_routing(start: Path | None = None) -> CheckoutSyncRouting | None:
@@ -141,9 +143,7 @@ def _routing_for_unreadable_project_config(
     return _deny_routing_for_project_local_fault(repo_root, fault)
 
 
-def _deny_routing_for_project_local_fault(
-    repo_root: Path, fault: ConfigReadFault
-) -> CheckoutSyncRouting:
+def _deny_routing_for_project_local_fault(repo_root: Path, fault: ConfigReadFault) -> CheckoutSyncRouting:
     """Build the fail-closed routing for an unreadable/unusable project-local file.
 
     Shared by the pre-identity fence (:func:`_routing_for_unreadable_project_config`)
@@ -192,53 +192,13 @@ def _build_checkout_sync_routing(repo_root: Path, identity: ProjectIdentity) -> 
     repo_slug = git_metadata.repo_slug or identity.repo_slug
 
     local_sync_enabled = read_local_sync_enabled(repo_root)
-    repo_default_sync_enabled = (
-        SyncConfig().get_repository_sync_enabled(repo_slug)
-        if repo_slug
-        else None
-    )
+    repo_default_sync_enabled = SyncConfig().get_repository_sync_enabled(repo_slug) if repo_slug else None
 
-    # Level 1 of the consent chain (``sync/consent.py``): the project's OWN
-    # ``.kittify/config.yaml`` ``sync.enabled`` key. Consulted first because it is the
-    # most specific and the only reviewable input — it lives in the repo it governs
-    # and shows up in a diff, where every record below it is machine-global state
-    # invisible to the project.
-    #
-    # This read is why the acceptance pins in
-    # ``tests/sync/test_sync_consent_default_deny.py`` mean anything. Until it landed,
-    # nothing in the tree read that key: the pins wrote ``sync.enabled`` and passed
-    # purely on the default-deny fall-through below, so flipping the fixture to an
-    # explicit ``sync.enabled: true`` grant left them green — they were not testing
-    # refusal-beats-grant at all.
-    project_local_sync_enabled = read_project_local_consent(repo_root)
-
-    if project_local_sync_enabled is not None:
-        effective_sync_enabled = project_local_sync_enabled
-    elif local_sync_enabled is not None:
-        effective_sync_enabled = local_sync_enabled
-    elif repo_default_sync_enabled is not None:
-        effective_sync_enabled = repo_default_sync_enabled
-    else:
-        # FR-002 (spec-kitty#3030, absorbing #3031): absence of a consent record
-        # is NOT consent — for capture *or* delivery.
-        #
-        # This fall-through used to yield ``True``, which is how the 2026-07-27
-        # breach happened: five client projects had never been opted in, so
-        # neither a checkout override nor a repo default existed, and every one
-        # resolved to "sync enabled". Inverting only the ``routing is None``
-        # branch of ``is_sync_enabled_for_checkout`` does not close it — those
-        # projects resolve fine, they simply have no record.
-        #
-        # Pinned red on main by
-        # ``tests/sync/test_sync_consent_default_deny.py::
-        # test_unconfigured_checkout_does_not_consent_to_sync``.
-        #
-        # Deny here also gates the emit-time path (``sync/emitter.py:1890,1921``)
-        # and the body-upload path (``sync/body_upload.py:150``). That is now
-        # intended: NFR-005 was amended so capture-first durability applies only
-        # to *consenting* projects — a non-consenting project's events must never
-        # reach the journal (#3031 Defect 3).
-        effective_sync_enabled = False
+    # Checkout and repository settings remain visible as legacy diagnostics, but
+    # only the UUID-owned store decision may grant. The global environment value is
+    # applied later as a deny-only egress switch, never in this authority read.
+    decision = resolve_project_consent(str(identity.project_uuid) if identity.project_uuid else None)
+    effective_sync_enabled = decision.granted
 
     return CheckoutSyncRouting(
         repo_root=repo_root,
@@ -281,8 +241,9 @@ def read_local_sync_enabled(repo_root: Path) -> bool | None:
 
 
 def write_local_sync_enabled(repo_root: Path, enabled: bool) -> None:
-    """Persist the checkout-local sync override in global machine config."""
-    SyncConfig().set_checkout_sync_enabled(repo_root, enabled)
+    """Reject the retired checkout grant writer with migration guidance."""
+    del repo_root, enabled
+    raise LegacyConsentMigrationRequiredError("checkout sync overrides are non-authoritative; use explicit project opt-in")
 
 
 class ConsentIdentityUnresolvedError(RuntimeError):
@@ -305,8 +266,10 @@ def enable_checkout_sync(
     repo_root: Path,
     *,
     remember_repo_default: bool = True,
+    actor: str = "local-operator",
 ) -> CheckoutSyncRouting:
-    """Enable SaaS sync for this checkout and optionally future repo checkouts."""
+    """Explicitly grant this UUID while leaving admission/network state separate."""
+    del remember_repo_default
     routing = resolve_checkout_sync_routing(repo_root)
     if routing is None:
         raise ValueError("Could not resolve the active checkout.")
@@ -320,10 +283,7 @@ def enable_checkout_sync(
     if not routing.project_uuid:
         raise ConsentIdentityUnresolvedError(repo_root)
 
-    write_local_sync_enabled(repo_root, True)
-    if remember_repo_default and routing.repo_slug:
-        SyncConfig().set_repository_sync_enabled(routing.repo_slug, True)
-    set_project_consent(str(routing.project_uuid), True)
+    record_project_opt_in(str(routing.project_uuid), actor=actor)
     refreshed = resolve_checkout_sync_routing(repo_root)
     assert refreshed is not None
     return refreshed
@@ -333,66 +293,24 @@ def disable_checkout_sync(
     repo_root: Path,
     *,
     remember_repo_default: bool = True,
+    actor: str = "local-operator",
 ) -> SyncOptOutResult:
-    """Disable SaaS sync for this checkout and purge its pending uploads.
-
-    "Pending uploads" spans two live stores: the event journal's rows for this
-    project that have not been delivered anywhere, and the project's queued document
-    bodies. Already-delivered journal rows are **kept** — see the C-004 note in the
-    body — and removing everything is the operator's explicit ``sync purge``
-    (FR-016), which is dry-run by default.
-    """
-    from specify_cli.delivery.retention import purge_project_events_from_live_stores
-
+    """Explicitly refuse egress and seal the epoch without deleting local rows."""
+    del remember_repo_default
     routing = resolve_checkout_sync_routing(repo_root)
     if routing is None:
         raise ValueError("Could not resolve the active checkout.")
 
-    write_local_sync_enabled(repo_root, False)
-    if remember_repo_default and routing.repo_slug:
-        SyncConfig().set_repository_sync_enabled(routing.repo_slug, False)
-
-    if routing.project_uuid:
-        # #3030 FR-013: record the refusal uuid-keyed as well, so the drain
-        # honours it from any checkout and after this one moves or is deleted.
-        set_project_consent(str(routing.project_uuid), False)
-
-    # C-004 (#3030 WP08): the legacy-queue purge is retired. It targeted the store
-    # WP02 removed the drain from — nothing ships out of it — and full-decoded every
-    # row to find the project. The store that *does* ship is the event journal, which
-    # only gained a ``project_uuid`` column in WP04; that is why C-004 had to wait
-    # for this WP.
-    #
-    # Scope is deliberately "queued" (no terminal-success delivery anywhere), not
-    # everything: C-002 reserves wholesale deletion for the operator's explicit
-    # ``sync purge`` (FR-016/FR-017, dry-run by default), and ``removed_events`` is
-    # printed as "Removed N queued event(s)". Destroying the record of what already
-    # left the machine on a routing toggle would be both a surprise and the loss of
-    # the incident's own evidence.
-    removed_events = 0
-    if routing.project_uuid:
-        purge = purge_project_events_from_live_stores(
-            str(routing.project_uuid), dry_run=False, undelivered_only=True
-        )
-        # ``None`` means there is no journal on disk yet — nothing to purge, and no
-        # store is created just to report zero.
-        removed_events = 0 if purge is None else purge.purged_count
-
-    # Body uploads stay: they are a *separate* store the daemon still drains (WP11
-    # gated it per task, it did not remove it), so this purge is live, not
-    # superseded. Removing this call would reopen the path WP11 just closed.
-    body_queue = OfflineBodyUploadQueue(db_path=OfflineQueue().db_path)
-    removed_body_uploads = (
-        body_queue.remove_project_tasks(routing.project_uuid)
-        if routing.project_uuid
-        else 0
-    )
+    if not routing.project_uuid:
+        raise ConsentIdentityUnresolvedError(repo_root)
+    decision = record_project_opt_out(str(routing.project_uuid), actor=actor)
 
     refreshed = resolve_checkout_sync_routing(repo_root)
     assert refreshed is not None
     return SyncOptOutResult(
         routing=refreshed,
-        removed_events=removed_events,
-        removed_body_uploads=removed_body_uploads,
-        remembered_for_repo=bool(remember_repo_default and routing.repo_slug),
+        removed_events=0,
+        removed_body_uploads=0,
+        remembered_for_repo=False,
+        decision=decision,
     )

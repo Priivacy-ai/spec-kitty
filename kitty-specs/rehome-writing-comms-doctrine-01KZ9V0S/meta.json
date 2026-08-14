@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "53272741a1882acf0c2b216d62b21f64a6ef1add",
-  "coordination_branch": "kitty/mission-rehome-writing-comms-doctrine-01KZ9V0S",
   "created_at": "2026-08-05T20:49:40.556220+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Rehome & Complete Writing-Comms Doctrine",
   "mission_id": "01KZ9V0S6BEBY1QHKM0YPT8B8D",
   "mission_number": null,
@@ -14,7 +13,7 @@
   "slug": "rehome-writing-comms-doctrine-01KZ9V0S",
   "status_phase": "1",
   "target_branch": "feat/rehome-writing-comms-doctrine",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-08-05T21:36:53.628533+00:00"
 }

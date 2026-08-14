@@ -35,6 +35,7 @@ Per **C-001** this is a read-only consumer: it never opens SQLite directly to
 resolve a target and never mutates the journal, ledger, registry, or audit store.
 Destructive payload operations live in :mod:`specify_cli.delivery.retention`.
 """
+
 from __future__ import annotations
 
 from collections.abc import Collection
@@ -44,11 +45,9 @@ from typing import TYPE_CHECKING, Any
 
 from specify_cli.delivery.ledger import (
     LEDGER_TABLE,
-    STATUS_DUPLICATE,
     STATUS_FAILED_TRANSIENT,
     STATUS_PENDING,
     STATUS_REJECTED,
-    STATUS_SUCCESS,
     STATUS_TERMINAL_FAILED,
     TERMINAL_SUCCESS_STATUSES,
 )
@@ -56,14 +55,16 @@ from specify_cli.delivery.selection import unselectable_identity_count
 from specify_cli.delivery.targets import (
     InvalidTargetUrlError,
     canonicalize_url,
-    compute_url_hash,
+    compute_target_id,
 )
+from specify_cli.sync.body_queue import OfflineBodyUploadQueue
+from specify_cli.sync.project_context import validate_project_sync_context_authority
 
 if TYPE_CHECKING:
     from specify_cli.delivery.ledger import SqliteDeliveryLedger
-    from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
     from specify_cli.event_journal import EventJournal
     from specify_cli.sync.migrate_journal import MigrationAudit
+    from specify_cli.sync.project_context import ProjectSyncContext
     from specify_cli.sync.target_authority import ResolvedSyncTarget
 
 # -- additive section keys (contract §6; exported so tests pin the exact set) ---
@@ -154,8 +155,7 @@ ADDITIVE_SECTION_KEYS: tuple[str, ...] = tuple(default_status_sections())
 GC_LARGE_JOURNAL_THRESHOLD_BYTES = 50 * 1024 * 1024  # 50 MiB
 
 _GC_SUGGESTION_REASON = (
-    "Retained payloads are large and fully delivered to all known targets; "
-    "an explicit `sync gc` would reclaim space while preserving delivery history."
+    "Retained payloads are large and fully delivered to all known targets; an explicit `sync gc` would reclaim space while preserving delivery history."
 )
 
 # -- ledger status reads via the public diagnostic connection (contract §6) ----
@@ -174,7 +174,10 @@ _DELIVERED_IDS_SQL = f"SELECT target_id, event_id FROM {LEDGER_TABLE} WHERE stat
 # ---------------------------------------------------------------------------
 
 
-def _resolve_current_target(resolved_target: ResolvedSyncTarget, registry: SqliteDeliveryTargetRegistry) -> Any:
+def _resolve_current_target(
+    resolved_target: ResolvedSyncTarget,
+    context: ProjectSyncContext,
+) -> Any:
     """Return the registered :class:`DeliveryTarget` for the resolved active URL.
 
     Derives the C-002 identity from ``resolved_server_url`` + scope using the
@@ -186,17 +189,32 @@ def _resolve_current_target(resolved_target: ResolvedSyncTarget, registry: Sqlit
         canonical = canonicalize_url(resolved_target.resolved_server_url)
     except InvalidTargetUrlError:
         return None
-    url_hash = compute_url_hash(canonical)
-    return registry.get(url_hash, resolved_target.team_slug, resolved_target.user_id)
+    current_target = context.target_audience
+    if current_target is None or current_target.target_identity != canonical:
+        return None
+    return current_target
 
 
-def _target_identity_dict(target: Any) -> dict[str, Any]:
+def _target_identity_dict(target: Any, context: ProjectSyncContext) -> dict[str, Any]:
     """Identity view (URL + scope) of a registered target."""
     return {
-        "target_id": target.target_id,
-        "canonical_url": target.canonical_url,
-        "team_slug": target.team_slug,
-        "user_email": target.user_email,
+        "target_id": compute_target_id(
+            target_identity=target.target_identity,
+            account_identity=target.account_identity,
+            private_teamspace_id=target.private_teamspace_id,
+            project_uuid=target.project_uuid,
+            configuration_generation=target.configuration_generation,
+        ),
+        "canonical_url": target.target_identity,
+        "team_slug": "",
+        "user_email": "",
+        "account_identity": target.account_identity,
+        "private_teamspace_id": target.private_teamspace_id,
+        "project_uuid": target.project_uuid.storage_token,
+        "configuration_generation": target.configuration_generation,
+        "admission_state": (None if context.admission_state is None else context.admission_state.value),
+        "admission_generation": context.admission_generation,
+        "binding_audience": context.binding_audience,
     }
 
 
@@ -221,7 +239,11 @@ def _resolved_identity_dict(resolved_target: ResolvedSyncTarget) -> dict[str, An
 
 def _ledger_status_rows(ledger: SqliteDeliveryLedger) -> list[Any]:
     """Fetch ``(target_id, status, count)`` triples once for the count sections."""
-    return list(ledger.connection.execute(_STATUS_COUNTS_SQL).fetchall())
+    counts: dict[tuple[str, str], int] = {}
+    for row in ledger.rows():
+        key = (row.target_id, row.status)
+        counts[key] = counts.get(key, 0) + 1
+    return [(target, status, count) for (target, status), count in counts.items()]
 
 
 def _delivered_counts_by_target(status_rows: list[Any]) -> dict[str, int]:
@@ -269,7 +291,7 @@ def _delivery_ledger_section(status_rows: list[Any], current_target_id: str | No
 
 def _delivery_targets_section(
     resolved_target: ResolvedSyncTarget,
-    registry: SqliteDeliveryTargetRegistry,
+    context: ProjectSyncContext,
     status_rows: list[Any],
 ) -> tuple[dict[str, Any], str | None]:
     """Build ``delivery_targets`` and return ``(section, current_target_id)``.
@@ -277,29 +299,49 @@ def _delivery_targets_section(
     ``previous`` lists every known target other than the current one that has
     actually received deliveries, with its own delivered count (US4).
     """
-    current_target = _resolve_current_target(resolved_target, registry)
-    current_target_id = current_target.target_id if current_target is not None else None
+    stored_target_present = context.target_audience is not None
+    current_target = _resolve_current_target(resolved_target, context)
+    current_target_id = (
+        None
+        if current_target is None
+        else compute_target_id(
+            target_identity=current_target.target_identity,
+            account_identity=current_target.account_identity,
+            private_teamspace_id=current_target.private_teamspace_id,
+            project_uuid=current_target.project_uuid,
+            configuration_generation=current_target.configuration_generation,
+        )
+    )
     delivered_by_target = _delivered_counts_by_target(status_rows)
     previous: list[dict[str, Any]] = []
-    for target in registry.list_targets():
-        if current_target_id is not None and target.target_id == current_target_id:
+    for target_id, delivered in sorted(delivered_by_target.items()):
+        if current_target_id is not None and target_id == current_target_id:
             continue
-        delivered = delivered_by_target.get(target.target_id, 0)
         if delivered <= 0:
             continue
-        entry = _target_identity_dict(target)
-        entry["delivered_count"] = delivered
-        previous.append(entry)
-    current = _target_identity_dict(current_target) if current_target is not None else _resolved_identity_dict(resolved_target)
-    return {"current": current, "previous": previous}, current_target_id
+        previous.append(
+            {
+                "target_id": target_id,
+                "canonical_url": None,
+                "team_slug": "",
+                "user_email": "",
+                "delivered_count": delivered,
+            }
+        )
+    current = _target_identity_dict(current_target, context) if current_target is not None else _resolved_identity_dict(resolved_target)
+    return {
+        "current": current,
+        "previous": previous,
+        "authority_mismatch": stored_target_present and current_target is None,
+    }, current_target_id
 
 
 def _delivered_success_ids_by_target(ledger: SqliteDeliveryLedger) -> dict[str, set[str]]:
     """Per-target set of event ids with a terminal-success delivery."""
-    rows = ledger.connection.execute(_DELIVERED_IDS_SQL, (STATUS_SUCCESS, STATUS_DUPLICATE)).fetchall()
     by_target: dict[str, set[str]] = {}
-    for target_id, event_id in rows:
-        by_target.setdefault(str(target_id), set()).add(str(event_id))
+    for row in ledger.rows():
+        if row.status in TERMINAL_SUCCESS_STATUSES:
+            by_target.setdefault(row.target_id, set()).add(row.event_id)
     return by_target
 
 
@@ -376,14 +418,14 @@ def _event_journal_section(
 
 def _terminal_failures_section(ledger: SqliteDeliveryLedger) -> dict[str, Any]:
     """Selector-excluded permanent failures (FR-015) — inspectable, never deleted."""
-    rows = ledger.connection.execute(_TERMINAL_FAILED_SQL, (STATUS_TERMINAL_FAILED,)).fetchall()
     events = [
         {
-            "event_id": str(row[0]),
-            "target_id": str(row[1]),
-            "last_error": None if row[2] is None else str(row[2]),
+            "event_id": row.event_id,
+            "target_id": row.target_id,
+            "last_error": row.last_error,
         }
-        for row in rows
+        for row in ledger.rows()
+        if row.status == STATUS_TERMINAL_FAILED
     ]
     return {"count": len(events), "events": events}
 
@@ -398,14 +440,17 @@ def _conflict_dict(conflict: Any) -> dict[str, Any]:
     }
 
 
-def _migration_conflicts_section(migration_audit: MigrationAudit | None) -> dict[str, Any]:
+def _migration_conflicts_section(
+    migration_audit: MigrationAudit | None,
+    migration_conflicts: tuple[Any, ...],
+) -> dict[str, Any]:
     """Unresolved divergent-duplicate conflicts (WP10); cleanup-blocked flag."""
-    if migration_audit is None:
+    if migration_audit is None and not migration_conflicts:
         return {"count": 0, "cleanup_blocked": False, "conflicts": []}
-    conflicts = migration_audit.conflicts()
+    conflicts = list(migration_conflicts) if migration_audit is None else migration_audit.conflicts()
     return {
         "count": len(conflicts),
-        "cleanup_blocked": migration_audit.has_conflicts(),
+        "cleanup_blocked": bool(conflicts),
         "conflicts": [_conflict_dict(conflict) for conflict in conflicts],
     }
 
@@ -491,8 +536,9 @@ def build_status_report(
     resolved_target: ResolvedSyncTarget,
     journal: EventJournal,
     ledger: SqliteDeliveryLedger,
-    target_registry: SqliteDeliveryTargetRegistry,
+    context: ProjectSyncContext,
     migration_audit: MigrationAudit | None = None,
+    migration_conflicts: tuple[Any, ...] = (),
     body_upload_queue: Any = None,
     base: dict[str, Any] | None = None,
     large_threshold_bytes: int | None = None,
@@ -509,15 +555,31 @@ def build_status_report(
     network connection, mutates nothing, and never reads raw SQLite to resolve a
     target (C-001 / C-002).
     """
+    # Validate the store-minted authority and exact shared UoW before any
+    # compatibility section reads the repositories.  Status is a read side, not
+    # a second target resolver or connection owner.
+    build_project_store_status(
+        context=context,
+        journal=journal,
+        ledger=ledger,
+        body_upload_queue=body_upload_queue,
+    )
     status_rows = _ledger_status_rows(ledger)
-    targets_section, current_target_id = _delivery_targets_section(resolved_target, target_registry, status_rows)
-    known_target_ids = tuple(target.target_id for target in target_registry.list_targets())
+    targets_section, current_target_id = _delivery_targets_section(
+        resolved_target,
+        context,
+        status_rows,
+    )
+    known_target_ids = () if current_target_id is None else (current_target_id,)
     sections: dict[str, Any] = {
         TARGET_AUTHORITY_KEY: resolved_target.to_diagnostics_dict(),
         EVENT_JOURNAL_KEY: _event_journal_section(journal, ledger, known_target_ids, large_threshold_bytes),
         DELIVERY_TARGETS_KEY: targets_section,
         DELIVERY_LEDGER_KEY: _delivery_ledger_section(status_rows, current_target_id),
-        MIGRATION_CONFLICTS_KEY: _migration_conflicts_section(migration_audit),
+        MIGRATION_CONFLICTS_KEY: _migration_conflicts_section(
+            migration_audit,
+            migration_conflicts,
+        ),
         TERMINAL_FAILURES_KEY: _terminal_failures_section(ledger),
         BODY_UPLOAD_COMPAT_KEY: _body_upload_compatibility_section(body_upload_queue),
         PER_PROJECT_STORE_KEY: _per_project_store_section(journal),
@@ -525,6 +587,87 @@ def build_status_report(
     report: dict[str, Any] = dict(base) if base else {}
     report.update(sections)
     return report
+
+
+def build_project_store_status(
+    *,
+    context: ProjectSyncContext,
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+    body_upload_queue: OfflineBodyUploadQueue | None = None,
+    migration_phase: str | None = None,
+    quarantine_count: int = 0,
+) -> dict[str, Any]:
+    """Report adapters bound to the context's exact verified store/UoW open."""
+    validate_project_sync_context_authority(context)
+    owner = str(context.project_uuid)
+    if body_upload_queue is not None and not isinstance(
+        body_upload_queue,
+        OfflineBodyUploadQueue,
+    ):
+        raise TypeError("project-store status requires a project-store body queue")
+    expected_store = context.store_identity
+    repository_stores = [journal.store_identity, ledger.store_identity]
+    if body_upload_queue is not None:
+        repository_stores.append(body_upload_queue.store_identity)
+    if any(identity is not expected_store for identity in repository_stores):
+        raise ValueError("status inputs do not belong to the context's project store; verified project store capability mismatch")
+    if journal.project_uuid != owner or ledger.project_uuid != owner:
+        raise ValueError("status inputs do not belong to the context's project store")
+    if journal.unit_of_work_identity != ledger.unit_of_work_identity:
+        raise ValueError("status inputs do not share the same project unit of work")
+    if body_upload_queue is not None:
+        if body_upload_queue.project_uuid != owner:
+            raise ValueError("status inputs do not belong to the context's project store")
+        if body_upload_queue.unit_of_work_identity != journal.unit_of_work_identity:
+            raise ValueError("status inputs do not share the same project unit of work")
+    target = context.target_audience
+    blockers: list[str] = []
+    if context.consent_state is None:
+        blockers.append("consent_absent")
+    elif context.consent_state.value != "granted":
+        blockers.append("consent_refused")
+    if context.epoch_id is None:
+        blockers.append("eligible_epoch_absent")
+    if target is None:
+        blockers.append("target_absent")
+    if context.admission_state is None or context.admission_state.value != "admitted":
+        blockers.append("admission_not_current")
+    if not context.kill_switch_allows:
+        blockers.append("kill_switch_closed")
+    return {
+        "project_uuid": owner,
+        "decision": (
+            None
+            if context.consent_state is None
+            else {
+                "state": context.consent_state.value,
+                "generation": context.consent_generation,
+            }
+        ),
+        "epoch_id": context.epoch_id,
+        "target": (
+            None
+            if target is None
+            else {
+                "target_identity": target.target_identity,
+                "account_identity": target.account_identity,
+                "private_teamspace_id": target.private_teamspace_id,
+                "configuration_generation": target.configuration_generation,
+            }
+        ),
+        "admission": {
+            "state": context.admission_state.value if context.admission_state else None,
+            "generation": context.admission_generation,
+            "binding_audience": context.binding_audience,
+        },
+        "migration": {"phase": migration_phase},
+        "quarantine_count": quarantine_count,
+        "journal_count": journal.count(),
+        "delivery_result_count": len(ledger.rows()),
+        "body_task_count": body_upload_queue.size() if body_upload_queue is not None else 0,
+        "blocking_reasons": blockers,
+    }
 
 
 __all__ = [
@@ -694,11 +837,7 @@ class PerProjectStoreReport:
         and unnamed. The bucket speaks through ``unresolved_identity_count`` and its
         own FR-011 warning instead, so no row is reported twice under two diagnoses.
         """
-        return tuple(
-            row
-            for row in self.rows
-            if not row.consent_granted and not row.is_unresolved_identity
-        )
+        return tuple(row for row in self.rows if not row.consent_granted and not row.is_unresolved_identity)
 
 
 def _unresolved_identity_candidates(
@@ -786,8 +925,6 @@ def build_per_project_store_report(
     writes, via ``_reconcile_index``) is unreachable from here. A diagnostic must
     not mutate the consent index it is reporting on (C-001).
     """
-    from specify_cli.sync.consent import resolve_project_consent
-
     # The REPORTING read, not the drain's filtered one. `read_identity_projection`
     # requires a uuid filter so the drain cannot scan (NFR-003); this report has the
     # inverse requirement and must see rows whose project is not known to consent —
@@ -833,6 +970,7 @@ def build_per_project_store_report(
     for row in rows:
         grouped.setdefault(row.project_uuid or None, []).append(row)
 
+    owner_state, _owner_generation = journal.owner_consent_projection()
     report_rows: list[ProjectStoreRow] = []
     for project_uuid, group in grouped.items():
         candidates: tuple[UnresolvedIdentityCandidate, ...] = ()
@@ -846,26 +984,24 @@ def build_per_project_store_report(
             candidates = _unresolved_identity_candidates(group)
             decision_granted = False
             level = "unresolved_identity"
-            reason = (
-                "no stored project identity; unselectable while the column is "
-                "NULL or blank, and counted here rather than dropped (FR-011)"
-            )
+            reason = "no stored project identity; unselectable while the column is NULL or blank, and counted here rather than dropped (FR-011)"
         else:
             # Safe for a resolved project: every row in this group shares one
             # ``project_uuid``, so the slugs describe one identity. A disagreement
             # among them is not a licence to invent a third value.
             project_slug = next((r.project_slug for r in group if r.project_slug), None)
             repo_slug = next((r.repo_slug for r in group if r.repo_slug), None)
-            # `project_uuid` ONLY. The `repo_slug=` argument this used to pass was
-            # removed when #3030 reverted repo-slug-keyed consent: a repo slug is a
-            # mutable git remote, so keying a grant on it lets a fresh clone, a renamed
-            # remote or a re-`git init`ed repo inherit a decision nobody made (FR-019).
-            # The slug is still READ above and rendered — naming which repo a row came
-            # from is the report's job — but it never influences the decision.
-            decision = resolve_project_consent(project_uuid)
-            decision_granted = decision.granted
-            level = str(decision.level)
-            reason = decision.reason
+            if project_uuid != journal.project_uuid:
+                raise ValueError("journal projection contains a foreign project owner")
+            decision_granted = owner_state == "granted"
+            level = "project_store" if owner_state is not None else "absent"
+            reason = (
+                "granted by the explicit UUID-owned project decision"
+                if owner_state == "granted"
+                else "refused by the explicit UUID-owned project decision"
+                if owner_state == "refused"
+                else "no explicit UUID-owned project decision exists"
+            )
 
         report_rows.append(
             ProjectStoreRow(

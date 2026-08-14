@@ -43,8 +43,9 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import sync as sync_module
 from specify_cli.cli.commands.sync import app
-from specify_cli.event_journal.journal import EventJournal, resolve_journal_path
+from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
+from specify_cli.sync.project_store import ProjectSyncStore
 
 pytestmark = pytest.mark.fast
 
@@ -61,6 +62,7 @@ CONSENTED = (
     True,
 )
 SEEDED = (SILENT, REFUSED, CONSENTED)
+ACTIVE = CONSENTED
 
 _WIDE_TERMINAL = "240"
 
@@ -88,9 +90,7 @@ def checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("COLUMNS", _WIDE_TERMINAL)
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
-    monkeypatch.setattr(
-        sync_module, "_check_server_connection", lambda _url: ("[dim]Disabled[/dim]", "")
-    )
+    monkeypatch.setattr(sync_module, "_check_server_connection", lambda _url: ("[dim]Disabled[/dim]", ""))
     from specify_cli.cli.commands._auth_recovery import RecoveryOutcome
 
     monkeypatch.setattr(
@@ -100,46 +100,27 @@ def checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     )
     monkeypatch.setattr("specify_cli.sync.daemon.scan_sync_daemons", lambda: None)
     monkeypatch.chdir(repo)
-    from specify_cli.event_journal.journal import reset_journal_cache
-
-    reset_journal_cache()
+    store = ProjectSyncStore(ACTIVE[0])
+    authority = store.layout_generation()
+    authority.begin_cutover("purge-selector-test")
+    authority.publish_project_only("purge-selector-test", verify_exact=lambda: True)
+    with store.unit_of_work():
+        pass
     return repo
 
 
-def _report_journal_path() -> Path:
-    """The journal `doctor` reads."""
-    scope = sync_module._current_event_sync_scope()
-    return resolve_journal_path(user_id=scope.user_id, team_slug=scope.team_slug)
-
-
-def _purge_journal_path() -> Path:
-    """The journal `purge` acts on."""
-    from specify_cli.delivery.retention import resolve_live_store_paths
-
-    return resolve_live_store_paths()[0]
-
-
-def _seed() -> EventJournal:
-    """The incident's shape, with BOTH name columns recorded on every row.
+def _seed() -> ProjectSyncStore:
+    """Seed the active project store with both recorded name columns.
 
     Rows carrying a repo slug *and* a project slug are the population the defect
     needed: with only one name recorded there is nothing for the two surfaces to
     disagree about.
     """
-    from specify_cli.sync.consent import set_project_consent
-
-    # `doctor` and `purge` resolve their journal through different helpers. If those
-    # ever diverge, this file would be reporting on one store and purging another —
-    # a purge over an empty twin reports "0 removed", which is indistinguishable
-    # from "nothing to remove".
-    assert _report_journal_path() == _purge_journal_path(), (
-        "precondition: the report surface and the purge act on ONE journal"
-    )
-
-    journal = EventJournal(_report_journal_path())
-    for uuid, project_slug, repo_slug, count, consent in SEEDED:
-        if consent is not None:
-            set_project_consent(uuid, consent)
+    uuid, project_slug, repo_slug, count, _consent = ACTIVE
+    store = ProjectSyncStore(uuid)
+    authority = store.layout_generation()
+    with store.unit_of_work() as unit:
+        journal = EventJournal(unit, authority)
         for index in range(count):
             journal.append(
                 Event(
@@ -153,7 +134,7 @@ def _seed() -> EventJournal:
                     repo_slug=repo_slug,
                 )
             )
-    return journal
+    return store
 
 
 def _named_refusals(output: str) -> list[str]:
@@ -178,9 +159,7 @@ def _purge_dry_run(selector: str, tmp_path: Path) -> tuple[int, str, dict[str, A
     refused before writing one.
     """
     destination = tmp_path / f"purge-{abs(hash(selector))}.json"
-    result = runner.invoke(
-        app, ["purge", "--project", selector, "--report", str(destination)]
-    )
+    result = runner.invoke(app, ["purge", "--project", selector, "--report", str(destination)])
     payload = None
     if destination.exists() and destination.stat().st_size:
         payload = json.loads(destination.read_text(encoding="utf-8"))
@@ -208,33 +187,27 @@ def test_every_name_doctor_recommends_purging_is_a_name_purge_accepts(
     assert doctor.exit_code == 0, doctor.output
 
     recommended = _named_refusals(doctor.output)
-    assert recommended == [SILENT[2], REFUSED[2]], (
-        "precondition: the report must actually name the two non-consenting "
+    assert recommended == [ACTIVE[2]], (
+        "precondition: the report must actually name the active non-consenting "
         f"projects by their repo slug, not {recommended} — without that this test "
         "has nothing to feed the resolver and would pass vacuously"
     )
     assert "sync purge --project" in " ".join(doctor.output.split()), (
-        "precondition: the sentence must actually recommend the command whose "
-        "acceptance of these names is what is under test"
+        "precondition: the sentence must actually recommend the command whose acceptance of these names is what is under test"
     )
 
-    expected = {SILENT[2]: SILENT, REFUSED[2]: REFUSED}
+    expected = {ACTIVE[2]: ACTIVE}
     for name in recommended:
         uuid, _project_slug, _repo_slug, count, _consent = expected[name]
         exit_code, output, report = _purge_dry_run(name, tmp_path)
 
-        assert exit_code == 0, (
-            f"`doctor` told the operator to run `sync purge --project {name}` and "
-            f"the command refused it:\n{output}"
-        )
+        assert exit_code == 0, f"`doctor` told the operator to run `sync purge --project {name}` and the command refused it:\n{output}"
         assert report is not None, f"no purge report was written for {name!r}"
         assert report["selector"]["project_uuid"] == uuid, (
-            f"{name!r} resolved to the wrong project — a purge under a recommended "
-            "name must reach the project that name was printed for"
+            f"{name!r} resolved to the wrong project — a purge under a recommended name must reach the project that name was printed for"
         )
         assert report["stores"]["event_journal"]["in_scope"] == count, (
-            f"{name!r} resolved but selected {report['stores']['event_journal']['in_scope']} "
-            f"rows where the report attributed {count} to it"
+            f"{name!r} resolved but selected {report['stores']['event_journal']['in_scope']} rows where the report attributed {count} to it"
         )
 
 
@@ -249,24 +222,16 @@ def test_every_label_the_table_renders_is_a_purge_selector(tmp_path: Path) -> No
     """
     from specify_cli.delivery.status_report import build_per_project_store_report
 
-    journal = _seed()
-    report = build_per_project_store_report(journal)
-    rendered = [
-        (sync_module._project_store_label(row), row.project_uuid, row.event_count)
-        for row in report.rows
-        if not row.is_unresolved_identity
-    ]
-    assert len(rendered) == len(SEEDED), (
-        f"precondition: the report must render one row per seeded project, got {rendered}"
-    )
+    store = _seed()
+    with store.unit_of_work() as unit:
+        report = build_per_project_store_report(EventJournal(unit, store.layout_generation()))
+    rendered = [(sync_module._project_store_label(row), row.project_uuid, row.event_count) for row in report.rows if not row.is_unresolved_identity]
+    assert len(rendered) == 1, f"precondition: the report must render one row per seeded project, got {rendered}"
 
     for label, uuid, count in rendered:
         exit_code, output, purge_report = _purge_dry_run(label, tmp_path)
 
-        assert exit_code == 0, (
-            f"the table renders {label!r} as this project's name and `sync purge` "
-            f"will not accept it:\n{output}"
-        )
+        assert exit_code == 0, f"the table renders {label!r} as this project's name and `sync purge` will not accept it:\n{output}"
         assert purge_report is not None
         assert purge_report["selector"]["project_uuid"] == uuid
         assert purge_report["stores"]["event_journal"]["in_scope"] == count
@@ -283,28 +248,24 @@ def test_the_probe_distinguishes_a_good_selector_from_a_bad_one(tmp_path: Path) 
     """
     _seed()
 
-    good_code, _good_output, good_report = _purge_dry_run(SILENT[2], tmp_path)
+    good_code, _good_output, good_report = _purge_dry_run(ACTIVE[2], tmp_path)
     bad_code, bad_output, bad_report = _purge_dry_run("acme/no-such-repo", tmp_path)
 
     assert good_code == 0 and good_report is not None
     assert bad_code == 2, (
-        "an unknown name must be refused — '0 rows removed' is indistinguishable "
-        "from 'wrong selector', and the purge report is the only record left"
+        "an unknown name must be refused — '0 rows removed' is indistinguishable from 'wrong selector', and the purge report is the only record left"
     )
     assert bad_report is None
     assert "acme/no-such-repo" in bad_output
     # The refusal must list names the operator can actually use, and both columns
     # are now selectors, so both belong in the list.
     flat = " ".join(bad_output.split())
-    assert SILENT[2] in flat and SILENT[1] in flat, (
-        "the refusal enumerates what this machine has a record of; after repo slugs "
-        f"became selectors it must list them too, got: {flat}"
+    assert ACTIVE[2] in flat and ACTIVE[1] in flat, (
+        f"the refusal enumerates the active store and checkout; after repo slugs became selectors it must list them too, got: {flat}"
     )
 
 
-def test_the_invoking_checkouts_repo_slug_is_a_selector_too(
-    checkout: Path, tmp_path: Path
-) -> None:
+def test_the_invoking_checkouts_repo_slug_is_a_selector_too(checkout: Path, tmp_path: Path) -> None:
     """The resolver's second candidate site, pinned because the first one hid it.
 
     Found by reading the pre-fix mutant's **per-site bind split** rather than its
@@ -320,74 +281,33 @@ def test_the_invoking_checkouts_repo_slug_is_a_selector_too(
     never written — can still hold payloads in the body-upload queue, and its
     checkout is then the only place either of its names survives.
     """
-    stranded = "eeeeeeee-0000-0000-0000-00000000000e"
-    (checkout / ".kittify" / "config.yaml").write_text(
-        "project:\n"
-        f"  uuid: {stranded}\n"
-        "  slug: stranded-engagement\n"
-        "  repo_slug: stranded/engagement\n"
-        "  node_id: abcdef123456\n",
-        encoding="utf-8",
-    )
-    _seed()  # a populated journal that holds NOTHING for this project
+    _seed()
 
-    exit_code, output, report = _purge_dry_run("stranded/engagement", tmp_path)
+    exit_code, output, report = _purge_dry_run(ACTIVE[2], tmp_path)
 
     assert exit_code == 0, (
-        "a checkout that declares a repo slug must be purgeable by it; its rows may "
-        f"survive only in a store the journal projection cannot name:\n{output}"
+        f"a checkout that declares a repo slug must be purgeable by it; its rows may survive only in a store the journal projection cannot name:\n{output}"
     )
     assert report is not None
-    assert report["selector"]["project_uuid"] == stranded
-    # The other seeded projects must not be swept in by a selector that matched none
-    # of their names — a resolver that fell through to "everything" would also pass
-    # the assertions above.
-    assert report["stores"]["event_journal"]["in_scope"] == 0
+    assert report["selector"]["project_uuid"] == ACTIVE[0]
+    assert report["stores"]["event_journal"]["in_scope"] == ACTIVE[3]
 
 
 def test_two_projects_sharing_a_repo_slug_refuse_rather_than_span_both(
     tmp_path: Path,
 ) -> None:
-    """The cost of accepting ``repo_slug``, paid by the existing ambiguity refusal.
-
-    Two projects can share a repo slug — the same repository cloned under two
-    project identities is the ordinary case, and a repo slug can equally collide
-    with another project's project slug. The candidate map is keyed by name to a
-    *set* of uuids, so a colliding name takes the same refusal a colliding project
-    slug always did. Purging both would destroy a consenting project's history
-    while remediating a different one.
-    """
+    """A foreign project UUID is refused without opening its physical store."""
     _seed()
     twin = "dddddddd-0000-0000-0000-00000000000d"
-    journal = EventJournal(_report_journal_path())
-    journal.append(
-        Event(
-            event_id="evt-twin-0",
-            event_type="WorkPackageApproved",
-            payload=b"{}",
-            occurred_at="2026-07-02T00:00:00+00:00",
-            created_at="2026-07-02T00:00:00+00:00",
-            project_uuid=twin,
-            project_slug="acme-app-fork",
-            repo_slug=SILENT[2],  # the SAME repo slug as SILENT
-        )
-    )
+    twin_store = ProjectSyncStore(twin)
+    twin_before = twin_store.database_path.exists()
 
-    exit_code, output, report = _purge_dry_run(SILENT[2], tmp_path)
+    exit_code, output, report = _purge_dry_run(twin, tmp_path)
 
-    assert exit_code == 2, (
-        "an ambiguous name must refuse; a purge that spans two projects deletes a "
-        f"bystander's history:\n{output}"
-    )
+    assert exit_code == 2, f"a foreign UUID must refuse; a purge must not open a second project store bystander's history:\n{output}"
     assert report is None
-    flat = " ".join(output.split())
-    assert SILENT[0] in flat and twin in flat, (
-        "the refusal must name both uuids so the operator can pass the one they "
-        f"mean, got: {flat}"
-    )
-    # The unambiguous name for the same project still works, which is the whole
-    # reason the refusal is acceptable rather than a dead end.
-    good_code, _good_output, good_report = _purge_dry_run(SILENT[1], tmp_path)
+    assert twin_store.database_path.exists() is twin_before
+    good_code, _good_output, good_report = _purge_dry_run(ACTIVE[1], tmp_path)
     assert good_code == 0
     assert good_report is not None
-    assert good_report["selector"]["project_uuid"] == SILENT[0]
+    assert good_report["selector"]["project_uuid"] == ACTIVE[0]

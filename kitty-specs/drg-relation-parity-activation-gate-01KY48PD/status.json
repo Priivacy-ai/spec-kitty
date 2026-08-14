@@ -33,6 +33,11 @@
         "Review APPROVED by reviewer-renata/opus: red-first proven vs merge-base, all discriminating tests + gates verified, anti_pattern bypass correct, zero blocking findings"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review APPROVED by reviewer-renata/opus: red-first proven vs merge-base, all discriminating tests + gates verified, anti_pattern bypass correct, zero blocking findings",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "shell_pid": 2301578,
       "shell_pid_created_at": "1784710920.87",
@@ -60,6 +65,11 @@
         "Review APPROVED by reviewer-renata/opus: narrow-except verified genuinely narrow, non-drift guard discriminates, tension verdicts unchanged, zero blocking findings"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review APPROVED by reviewer-renata/opus: narrow-except verified genuinely narrow, non-drift guard discriminates, tension verdicts unchanged, zero blocking findings",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "shell_pid": 2421488,
       "shell_pid_created_at": "1784713356.81",
@@ -85,6 +95,11 @@
         "Review APPROVED by reviewer-renata/opus: all 5 populated-path tests proven RED on pre-fix gate via swap, None-path structural identity confirmed, zero blocking findings"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review APPROVED by reviewer-renata/opus: all 5 populated-path tests proven RED on pre-fix gate via swap, None-path structural identity confirmed, zero blocking findings",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "shell_pid": 2421488,
       "shell_pid_created_at": "1784713356.81",
@@ -113,6 +128,11 @@
         "Review APPROVED by reviewer-renata/opus; issue-matrix verdicts filled"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review APPROVED by reviewer-renata/opus; issue-matrix verdicts filled",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "shell_pid": 2301578,
       "shell_pid_created_at": "1784710920.87",
@@ -139,6 +159,11 @@
         "Review APPROVED by reviewer-renata/opus: verbatim parity verified for all 15, gates re-run, comparator not weakened, zero findings"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review APPROVED by reviewer-renata/opus: verbatim parity verified for all 15, gates re-run, comparator not weakened, zero findings",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "shell_pid": 2394119,
       "shell_pid_created_at": "1784712348.18",

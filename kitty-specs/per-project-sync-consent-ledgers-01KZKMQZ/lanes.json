@@ -1,0 +1,438 @@
+{
+  "version": 1,
+  "mission_slug": "per-project-sync-consent-ledgers-01KZKMQZ",
+  "mission_id": "01KZKMQZPJ1DK4ZC99MWM71KGZ",
+  "mission_branch": "kitty/mission-per-project-sync-consent-ledgers-01KZKMQZ",
+  "target_branch": "pr/per-project-sync-consent-progress",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-08-09-1-project-sync-store-boundary.md",
+        "src/specify_cli/state/contract.py",
+        "src/specify_cli/sync/config.py",
+        "src/specify_cli/sync/consent.py",
+        "src/specify_cli/sync/deny_hints.py",
+        "src/specify_cli/sync/history_disclosure.py",
+        "src/specify_cli/sync/layout_generation.py",
+        "src/specify_cli/sync/project_context.py",
+        "src/specify_cli/sync/project_identity.py",
+        "src/specify_cli/sync/project_store.py",
+        "src/specify_cli/sync/routing.py",
+        "tests/architectural/test_egress_consent_boundary.py",
+        "tests/architectural/test_project_store_boundary.py",
+        "tests/architectural/test_sync_writer_census.py",
+        "tests/sync/test_consent_epochs.py",
+        "tests/sync/test_consent_resolver_3030.py",
+        "tests/sync/test_consent_write_refusal_3030.py",
+        "tests/sync/test_daemon_deny_hints.py",
+        "tests/sync/test_history_disclosure.py",
+        "tests/sync/test_layout_generation.py",
+        "tests/sync/test_legacy_grant_writers.py",
+        "tests/sync/test_project_consent_authority.py",
+        "tests/sync/test_project_consent_incident_baseline.py",
+        "tests/sync/test_project_store.py",
+        "tests/sync/test_project_store_transactions.py",
+        "tests/sync/test_project_sync_context.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/delivery/ledger.py",
+        "src/specify_cli/delivery/receivers.py",
+        "src/specify_cli/delivery/retention.py",
+        "src/specify_cli/delivery/selection.py",
+        "src/specify_cli/delivery/status_report.py",
+        "src/specify_cli/event_journal/coalesce.py",
+        "src/specify_cli/event_journal/journal.py",
+        "src/specify_cli/event_journal/models.py",
+        "src/specify_cli/sync/__init__.py",
+        "src/specify_cli/sync/body_queue.py",
+        "src/specify_cli/sync/queue.py",
+        "tests/delivery/test_project_store_ledger.py",
+        "tests/delivery/test_project_store_retention.py",
+        "tests/event_journal/test_project_store_journal.py",
+        "tests/sync/test_project_store_outboxes.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/delivery/__init__.py",
+        "src/specify_cli/delivery/interfaces.py",
+        "src/specify_cli/delivery/targets.py",
+        "src/specify_cli/saas_client/admission.py",
+        "src/specify_cli/saas_client/endpoints.py",
+        "src/specify_cli/saas_client/errors.py",
+        "src/specify_cli/sync/admission_operations.py",
+        "src/specify_cli/sync/target_authority.py",
+        "tests/contract/test_project_sync_admission_contract.py",
+        "tests/delivery/test_targets.py",
+        "tests/sync/test_admission_operations.py",
+        "tests/sync/test_saas_admission_compatibility.py",
+        "tests/sync/test_target_admission_audience.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/sync/transport_attempts.py",
+        "src/specify_cli/sync/transport_lease.py",
+        "tests/sync/test_transport_attempt_recovery.py",
+        "tests/sync/test_transport_orphan_settlement.py",
+        "tests/sync/test_transport_result_lease.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        ".gitattributes",
+        ".kittify/charter/charter.yaml",
+        "src/specify_cli/_completion_manifest.json",
+        "src/specify_cli/cli/commands/sync.py",
+        "src/specify_cli/delivery/status_report.py",
+        "src/specify_cli/sync/background.py",
+        "src/specify_cli/sync/daemon_protocol.py",
+        "src/specify_cli/sync/layout_generation.py",
+        "src/specify_cli/sync/migrate_journal.py",
+        "src/specify_cli/sync/preflight.py",
+        "src/specify_cli/sync/project_store.py",
+        "src/specify_cli/sync/project_store_migration.py",
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/test_egress_consent_boundary.py",
+        "tests/architectural/test_project_store_boundary.py",
+        "tests/architectural/test_patch_seam_census_control.py",
+        "tests/cli/commands/test_sync_commands.py",
+        "tests/cli/commands/test_sync_doctor_consent_health_3030.py",
+        "tests/cli/commands/test_sync_doctor_per_project_3030.py",
+        "tests/cli/commands/test_sync_doctor_tracker_egress_3108.py",
+        "tests/cli/commands/test_sync_migrate_backfills_h4.py",
+        "tests/cli/commands/test_sync_now_empty_selection_t005.py",
+        "tests/cli/commands/test_sync_project_store_commands.py",
+        "tests/cli/commands/test_sync_purge_3030.py",
+        "tests/cli/commands/test_sync_report_label_is_a_purge_selector_3030.py",
+        "tests/cli/commands/test_sync_routes.py",
+        "tests/cli/commands/test_sync_status_drain_blockers.py",
+        "tests/cli/commands/test_sync_status_per_project_3030.py",
+        "tests/cli/commands/test_sync_status_singleton_diagnostics.py",
+        "tests/delivery/test_purge_all_body_uploads_3030.py",
+        "tests/contract/test_identity_contract_matrix.py",
+        "tests/contract/test_machine_facing_canonical_fields.py",
+        "tests/delivery/test_batch_bisection_ordering.py",
+        "tests/delivery/test_config.py",
+        "tests/delivery/test_dispatch_honours_drain_blocked_3031.py",
+        "tests/delivery/test_dispatch_project_consent_3030.py",
+        "tests/delivery/test_dispatch_window_consent_3030.py",
+        "tests/delivery/test_envelope.py",
+        "tests/delivery/test_incident_reproduction_3030.py",
+        "tests/delivery/test_nfr002_loop_permanence_3030.py",
+        "tests/delivery/test_nfr003_predicate_cost_3030.py",
+        "tests/delivery/test_purge_all_events_3030.py",
+        "tests/dossier/test_snapshot_emit.py",
+        "tests/specify_cli/invocation/test_propagator_consent_gate_3030.py",
+        "tests/delivery/test_status_report.py",
+        "tests/event_journal/test_identity_migration_3030.py",
+        "tests/specify_cli/cli/commands/test_sync_opt_in_converge.py",
+        "tests/specify_cli/cli/commands/test_sync_status_check_paths.py",
+        "tests/sync/test_daemon_cutover_protocol.py",
+        "tests/sync/test_background.py",
+        "tests/sync/test_background_authority_convergence.py",
+        "tests/sync/test_layout_generation.py",
+        "tests/sync/test_legacy_queue_guard_3030.py",
+        "tests/sync/test_legacy_queue_precondition_3030.py",
+        "tests/sync/test_migrate_journal.py",
+        "tests/sync/test_event_emission.py",
+        "tests/sync/test_final_sync_diagnostics.py",
+        "tests/sync/test_spec_kitty_home_paths.py",
+        "tests/sync/test_migration_writer_barrier.py",
+        "tests/sync/test_body_queue_migration.py",
+        "tests/sync/test_queue_row_level_migration.py",
+        "tests/sync/test_project_store_migration.py",
+        "tests/sync/test_sync_boundary_preflight.py",
+        "tests/sync/test_sync_doctor.py",
+        "tests/sync/test_sync_status_boundary_check.py",
+        "tests/status/test_lifecycle_events.py",
+        "tests/contract/test_project_sync_admission_contract.py",
+        "tests/delivery/test_project_store_ledger.py",
+        "tests/delivery/test_project_store_retention.py",
+        "tests/delivery/test_targets.py",
+        "tests/event_journal/test_project_store_journal.py",
+        "tests/sync/test_admission_operations.py",
+        "tests/sync/test_project_store.py",
+        "tests/sync/test_project_store_outboxes.py",
+        "tests/sync/test_project_store_transactions.py",
+        "tests/sync/test_project_sync_context.py",
+        "tests/sync/test_saas_admission_compatibility.py",
+        "tests/sync/test_target_admission_audience.py",
+        "tests/sync/test_transport_attempt_recovery.py",
+        "tests/sync/test_transport_orphan_settlement.py",
+        "tests/sync/test_transport_result_lease.py",
+        "tests/status/test_producer_conformance.py",
+        "tests/sync/test_batch_error_surfacing.py",
+        "tests/sync/test_body_diagnostics.py",
+        "tests/sync/test_body_upload.py",
+        "tests/sync/_leak_guard.py",
+        "tests/sync/test_lifecycle_readiness.py",
+        "tests/sync/test_offline_queue_counter.py",
+        "tests/sync/test_offline_replay.py",
+        "tests/sync/test_owner_record_unreadable_3030.py",
+        "tests/sync/test_owner_unknown_direction_3030.py",
+        "tests/sync/test_queue_resilience.py",
+        "tests/sync/test_sync_action_gate.py",
+        "tests/sync/test_sync_e2e_integration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-e"
+      ],
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/sync.py",
+        "src/specify_cli/delivery/consent_gate.py",
+        "src/specify_cli/delivery/dispatcher.py",
+        "src/specify_cli/delivery/ledger.py",
+        "src/specify_cli/delivery/receivers.py",
+        "src/specify_cli/delivery/targets.py",
+        "src/specify_cli/dossier/events.py",
+        "src/specify_cli/dossier/emitter_adapter.py",
+        "src/specify_cli/saas_client/client.py",
+        "src/specify_cli/sync/__init__.py",
+        "src/specify_cli/sync/body_transport.py",
+        "src/specify_cli/sync/body_upload.py",
+        "src/specify_cli/sync/client.py",
+        "src/specify_cli/sync/consent.py",
+        "src/specify_cli/sync/dossier_pipeline.py",
+        "src/specify_cli/sync/emitter.py",
+        "src/specify_cli/sync/events.py",
+        "src/specify_cli/sync/history_import/pipeline.py",
+        "src/specify_cli/sync/history_import/upload.py",
+        "src/specify_cli/sync/local_commit.py",
+        "src/specify_cli/sync/runtime_event_emitter.py",
+        "src/specify_cli/sync/transport_attempts.py",
+        "src/specify_cli/sync/transport_lease.py",
+        "src/specify_cli/tracker/saas_client.py",
+        "tests/architectural/test_egress_consent_boundary.py",
+        "tests/architectural/test_tracker_egress_guards_3108.py",
+        "tests/delivery/test_cross_project_refusal_state_3030.py",
+        "tests/delivery/test_dispatcher.py",
+        "tests/delivery/test_project_store_ledger.py",
+        "tests/delivery/test_receivers.py",
+        "tests/delivery/test_targets.py",
+        "tests/delivery/test_liveness_predicate_before_limit_3030.py",
+        "tests/dossier/test_emitter_adapter.py",
+        "tests/dossier/test_events.py",
+        "tests/specify_cli/saas_client/conftest.py",
+        "tests/specify_cli/saas_client/test_client_consent_gate_3030.py",
+        "tests/specify_cli/saas_client/test_decision_widen_ownership_3111.py",
+        "tests/status/test_emit_fanout_after_adapter.py",
+        "tests/sync/test_body_drain_consent_3030.py",
+        "tests/sync/test_dossier_pipeline.py",
+        "tests/sync/test_dossier_trigger.py",
+        "tests/sync/test_history_import_consent_3030.py",
+        "tests/sync/test_history_import_pipeline.py",
+        "tests/sync/test_history_import_upload.py",
+        "tests/sync/test_interactive_transport_convergence.py",
+        "tests/sync/test_saas_refusal_parking.py",
+        "tests/sync/test_sender_context_convergence.py",
+        "tests/sync/test_transport_attempt_recovery.py",
+        "tests/sync/test_transport_orphan_settlement.py",
+        "tests/sync/tracker/conftest.py",
+        "tests/sync/tracker/test_origin_integration.py",
+        "tests/sync/tracker/test_saas_client.py",
+        "tests/sync/tracker/test_saas_client_consent_gate_3030.py",
+        "tests/sync/tracker/test_saas_client_discovery.py",
+        "tests/sync/tracker/test_saas_client_new_methods.py",
+        "tests/sync/tracker/test_saas_client_origin.py",
+        "tests/sync/tracker/test_saas_client_routing.py",
+        "tests/sync/tracker/test_tracker_egress_refusal_3108.py",
+        "tests/sync/tracker/test_tracker_egress_verdict_3108.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/specify_cli/sync/background.py",
+        "src/specify_cli/sync/daemon.py",
+        "src/specify_cli/sync/owner.py",
+        "src/specify_cli/sync/runtime.py",
+        "tests/architectural/test_egress_consent_boundary.py",
+        "tests/sync/test_background.py",
+        "tests/sync/test_background_auth_backoff_3030.py",
+        "tests/sync/test_background_authority_convergence.py",
+        "tests/sync/test_background_body.py",
+        "tests/sync/test_body_drain_consent_3030.py",
+        "tests/sync/test_daemon_project_isolation.py",
+        "tests/sync/test_runtime.py",
+        "tests/sync/test_target_authority.py",
+        "tests/sync/test_target_authority_wiring.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "tests/architectural/test_egress_consent_boundary.py",
+        "tests/architectural/test_sync_writer_census.py",
+        "tests/support/sync_transport_barriers.py",
+        "tests/sync/test_daemon_publish_consent_3030.py",
+        "tests/sync/test_transport_crash_matrix.py",
+        "tests/sync/test_transport_revocation_matrix.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-e",
+        "lane-f"
+      ],
+      "parallel_group": 5
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        ".github/workflows/project-sync-consent-evidence.yml",
+        "CHANGELOG.md",
+        "docs/guides/project-sync-consent.md",
+        "scripts/benchmarks/bench_project_discovery.py",
+        "scripts/evidence/build_project_sync_consent_manifest.py",
+        "tests/contract/test_cli_saas_sync_contract.py",
+        "tests/evidence/test_project_sync_consent_manifest.py",
+        "tests/integration/test_project_sync_six_project.py",
+        "tests/integration/test_project_sync_stale_generation.py",
+        "tests/perf/test_project_discovery_benchmark.py",
+        "tests/sync/test_project_store_cross_platform.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-g",
+        "lane-h"
+      ],
+      "parallel_group": 6
+    }
+  ],
+  "computed_at": "2026-08-10T00:37:54.496560+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "2a706d2274ec81eb66ce2e145fd2e10ff87de740",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP02",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/architectural/test_project_store_boundary.py' vs 'tests/architectural/test_project_store_boundary.py', 'tests/architectural/test_egress_consent_boundary.py' vs 'tests/architectural/test_egress_consent_boundary.py'; WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP03",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/architectural/test_sync_writer_census.py' vs 'tests/architectural/test_sync_writer_census.py', 'tests/architectural/test_egress_consent_boundary.py' vs 'tests/architectural/test_egress_consent_boundary.py'"
+      }
+    ],
+    "total_merges": 2,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 2
+    }
+  }
+}

@@ -40,9 +40,11 @@ from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.core.payload_shaping import apply_keep_none_fields
 from kernel.clock import now_utc_iso, parse_iso
 from specify_cli.event_journal import (
+    DRAIN_BLOCKED_MISSING_AUTH,
+    DRAIN_BLOCKED_MISSING_TEAM,
+    DRAIN_BLOCKED_SAAS_DISABLED,
     CaptureGateState,
-    capture_teamspace_bound,
-    get_journal,
+    classify_drain_blocked_reason,
 )
 from specify_cli.mission_metadata import mission_number_from_slug
 from specify_cli.proof.events import (
@@ -88,7 +90,10 @@ _DISPLAY_LANE_VALUES: frozenset[str] = frozenset(CANONICAL_LANES)
 if TYPE_CHECKING:
     from .client import WebSocketClient
     from .git_metadata import GitMetadata, GitMetadataResolver
+    from .layout_generation import LayoutGenerationAuthority
+    from .project_context import ProjectSyncContext
     from .project_identity import ProjectIdentity
+    from .project_store import ProjectUnitOfWork
 
 _console = Console(stderr=True)
 
@@ -167,9 +172,7 @@ def _build_payload_via_model(
     try:
         instance = model_cls(**fields)
     except ValidationError as exc:
-        _console.print(
-            f"[yellow]Warning: {model_cls.__name__} payload validation failed: {exc}[/yellow]"
-        )
+        _console.print(f"[yellow]Warning: {model_cls.__name__} payload validation failed: {exc}[/yellow]")
         return None
     return apply_keep_none_fields(instance, keep_none_fields=keep_none_fields)
 
@@ -364,9 +367,7 @@ _BASE_PROOF_VALIDATORS: dict[str, Any] = {
 #: re-inlining the ``rejected``/``changes_requested`` equivalence -- plus the
 #: two proof-event-only extra states (``commented``/``unknown``) this schema
 #: also accepts (outside the artifact<->event bridge's scope).
-_REVIEW_PROOF_VERDICTS: frozenset[str] = (
-    event_verdicts() | emission_artifact_verdicts() | {"commented", "unknown"}
-)
+_REVIEW_PROOF_VERDICTS: frozenset[str] = event_verdicts() | emission_artifact_verdicts() | {"commented", "unknown"}
 
 #: Per-event-type extra validators merged on top of :data:`_BASE_PROOF_VALIDATORS`.
 _PROOF_EVENT_VALIDATORS: dict[str, dict[str, Any]] = {
@@ -861,7 +862,10 @@ class EventEmitter:
 
     clock: LamportClock = field(default_factory=LamportClock.load)
     config: SyncConfig = field(default_factory=SyncConfig)
-    queue: OfflineQueue = field(default_factory=OfflineQueue)
+    # The singleton may be constructed outside a project.  A project-owned
+    # OfflineQueue can only be minted from an active store unit + layout
+    # authority, so there is intentionally no ambient/path-backed default.
+    queue: OfflineQueue | None = None
     ws_client: WebSocketClient | None = field(default=None, repr=False)
     _pending_tasks: set = field(default_factory=set, repr=False)
     _identity: ProjectIdentity | None = field(default=None, repr=False)
@@ -1029,12 +1033,15 @@ class EventEmitter:
         # fields the Phase-1 contract owns. Done strictly via the
         # pydantic model so any future tightening on these fields is
         # an emit-time error.
-        if _build_payload_via_model(
-            BuildRegisteredPayload,
-            repo_slug=base.get("repo_slug"),
-            git_branch=base.get("branch"),
-            head_commit_sha=base.get("head_commit"),
-        ) is None:
+        if (
+            _build_payload_via_model(
+                BuildRegisteredPayload,
+                repo_slug=base.get("repo_slug"),
+                git_branch=base.get("branch"),
+                head_commit_sha=base.get("head_commit"),
+            )
+            is None
+        ):
             return None
         aggregate_id = identity.build_id or identity.node_id or "build"
         return self._emit(
@@ -1076,16 +1083,19 @@ class EventEmitter:
             base["recent_commits"] = recent_commits
 
         # Canonical-payload validation on the seven fields Phase 1 owns.
-        if _build_payload_via_model(
-            BuildHeartbeatPayload,
-            repo_slug=base.get("repo_slug"),
-            git_branch=base.get("branch"),
-            head_commit_sha=base.get("head_commit"),
-            remote_head=remote_head,
-            ahead_of_remote=ahead_of_remote,
-            behind_remote=behind_remote,
-            recent_commits=recent_commits,
-        ) is None:
+        if (
+            _build_payload_via_model(
+                BuildHeartbeatPayload,
+                repo_slug=base.get("repo_slug"),
+                git_branch=base.get("branch"),
+                head_commit_sha=base.get("head_commit"),
+                remote_head=remote_head,
+                ahead_of_remote=ahead_of_remote,
+                behind_remote=behind_remote,
+                recent_commits=recent_commits,
+            )
+            is None
+        ):
             return None
         aggregate_id = identity.build_id or identity.node_id or "build"
         return self._emit(
@@ -1119,14 +1129,10 @@ class EventEmitter:
         envelope's ``timestamp`` will equal this value; otherwise the emitter
         mints a fresh ``datetime.now(UTC).isoformat()``.
         """
-        unexpected_kwargs = sorted(
-            set(legacy_kwargs) - {"mission_id", "policy_metadata"}
-        )
+        unexpected_kwargs = sorted(set(legacy_kwargs) - {"mission_id", "policy_metadata"})
         if unexpected_kwargs:
             unexpected = ", ".join(unexpected_kwargs)
-            raise TypeError(
-                f"emit_wp_status_changed() got unexpected keyword argument(s): {unexpected}"
-            )
+            raise TypeError(f"emit_wp_status_changed() got unexpected keyword argument(s): {unexpected}")
         evidence_payload = evidence
         if evidence_payload is not None and not evidence_payload.get("repos"):
             git_meta = self._get_git_metadata()
@@ -1302,9 +1308,7 @@ class EventEmitter:
                 created_at=created_at,
             )
         except ValidationError as exc:
-            _console.print(
-                f"[yellow]Warning: MissionCreatedPayload validation failed: {exc}[/yellow]"
-            )
+            _console.print(f"[yellow]Warning: MissionCreatedPayload validation failed: {exc}[/yellow]")
             return None
         effective_aggregate_id = mission_slug
         if mission_id is not None:
@@ -1742,11 +1746,7 @@ class EventEmitter:
         if git_meta.head_commit_sha:
             enriched.setdefault("head_commit_sha", git_meta.head_commit_sha)
 
-        team_slug = (
-            self._get_team_slug()
-            if is_saas_sync_enabled()
-            else self._get_cached_private_team_slug()
-        )
+        team_slug = self._get_team_slug() if is_saas_sync_enabled() else self._get_cached_private_team_slug()
         if team_slug:
             enriched.setdefault("team_slug", team_slug)
 
@@ -1905,31 +1905,39 @@ class EventEmitter:
 
     # Drain blocked reason taxonomy — see issue #1072.
     #
-    # ``None``            event is ready to drain to SaaS.
-    # ``"sync_disabled"`` SaaS sync is off machine-wide, or **this event's own
-    #                     project** has not consented to hosted sync (#3030 M1-1;
-    #                     it used to mean "the checkout cwd happens to be in").
-    # ``"no_auth"``       no authenticated session; drain cannot ship.
-    # ``"no_team"``       authenticated but the strict Private Teamspace
-    #                     resolver returned None (ingress safety).
+    # Tokens are the canonical closed vocabulary from
+    # ``specify_cli.event_journal.models`` — delivery selection
+    # (``specify_cli.delivery.selection``) fail-closes on any token it does
+    # not recognise, so a private spelling here would strand every stamped
+    # row as terminally blocked.
+    #
+    # ``None``               event is ready to drain to SaaS.
+    # ``"saas_disabled"``    SaaS sync is off machine-wide, or **this event's
+    #                        own project** has not consented to hosted sync
+    #                        (#3030 M1-1; it used to mean "the checkout cwd
+    #                        happens to be in"). Terminal for selection:
+    #                        consent refusal must not ship.
+    # ``"missing_auth"``     no authenticated session; drain cannot ship.
+    # ``"missing_team"``     authenticated but the strict Private Teamspace
+    #                        resolver returned None (ingress safety).
     #
     # The flag is captured at emit time as a diagnostic. The drain loop
     # re-resolves on every tick, so a previously-blocked event becomes
     # eligible once the underlying condition clears (login, opt-in,
-    # private team materialized). Ingress safety is preserved: ``no_team``
-    # events are never shipped via direct ingress because the drain side
-    # re-checks the resolver and skips the batch when it still returns
-    # None.
-    DRAIN_BLOCKED_REASONS = frozenset({"sync_disabled", "no_auth", "no_team"})
+    # private team materialized). Ingress safety is preserved:
+    # ``missing_team`` events are never shipped via direct ingress because
+    # the drain side re-checks the resolver and skips the batch when it
+    # still returns None.
+    DRAIN_BLOCKED_REASONS = frozenset(
+        {DRAIN_BLOCKED_SAAS_DISABLED, DRAIN_BLOCKED_MISSING_AUTH, DRAIN_BLOCKED_MISSING_TEAM}
+    )
 
-    def _classify_drain_blocked_reason(
-        self, team_slug: str | None, *, project_uuid: str | None = None
-    ) -> str | None:
+    def _classify_drain_blocked_reason(self, team_slug: str | None, *, project_uuid: str | None = None) -> str | None:
         """Return a drain-blocked reason for the current emission context.
 
         Order matters: the most coarse-grained gate (sync feature flag)
         wins so operators see "the checkout is opted out" rather than a
-        downstream symptom like "no_team".
+        downstream symptom like "missing_team".
 
         **M1's recorded exclusion for this method was wrong and is withdrawn
         (#3030 M1-1).** It claimed this field is the legacy offline queue's advisory
@@ -1958,23 +1966,23 @@ class EventEmitter:
         """
         try:
             if not is_saas_sync_enabled():
-                return "sync_disabled"
+                return DRAIN_BLOCKED_SAAS_DISABLED
             if not self._project_consents_to_capture(project_uuid):
-                return "sync_disabled"
+                return DRAIN_BLOCKED_SAAS_DISABLED
         except Exception:
             # Routing config errors should not destroy event durability;
             # treat as drain-blocked so the operator can re-evaluate
             # later via ``sync status --check``.
-            return "sync_disabled"
+            return DRAIN_BLOCKED_SAAS_DISABLED
 
         try:
             if not self._is_authenticated():
-                return "no_auth"
+                return DRAIN_BLOCKED_MISSING_AUTH
         except Exception:
-            return "no_auth"
+            return DRAIN_BLOCKED_MISSING_AUTH
 
         if team_slug is None:
-            return "no_team"
+            return DRAIN_BLOCKED_MISSING_TEAM
 
         return None
 
@@ -2043,11 +2051,7 @@ class EventEmitter:
         try:
             from .consent import consented_project_uuids
 
-            return bool(
-                consented_project_uuids(
-                    [project_uuid], checkout_roots=self._offered_consent_roots()
-                )
-            )
+            return bool(consented_project_uuids([project_uuid], checkout_roots=self._offered_consent_roots()))
         # Inability to determine consent is not consent.
         except Exception as exc:  # noqa: BLE001
             logger.debug(
@@ -2057,9 +2061,7 @@ class EventEmitter:
             )
             return False
 
-    def _capture_gate_state(
-        self, team_slug: str | None, *, project_uuid: str | None = None
-    ) -> CaptureGateState:
+    def _capture_gate_state(self, team_slug: str | None, *, project_uuid: str | None = None) -> CaptureGateState:
         """Snapshot the drain gates for the journal's blocked-reason audit (T017).
 
         ``checkout_enabled`` is resolved from *project_uuid* — the event's own
@@ -2099,72 +2101,16 @@ class EventEmitter:
         occurred_at: str,
         team_slug: str | None,
     ) -> None:
-        """Capture-first durable write to the producer-scoped event journal.
+        """Capture the full envelope in its project-owned journal/outbox.
 
-        Runs before every delivery gate so a Teamspace-bound fact survives even
-        when all gates block (FR-017, contract §2; SC-009). Producer-scoped,
-        never server-scoped (FR-003). A journal I/O error is warned but never
-        propagated — capture-first must not make emission fail.
-
-        The journal payload BLOB stores the **full wire envelope** (``event``),
-        not just the inner ``payload`` field. The dispatcher decodes this BLOB
-        verbatim and the receiver POSTs it as a per-event object, so every
-        contract-required envelope field (``event_id``, ``event_type``,
-        ``aggregate_id``, ``payload``, ``timestamp``, ``node_id``,
-        ``lamport_clock``, ``schema_version``) survives the capture→drain path.
-        The ``event_id``/``event_type`` journal columns still index the envelope.
-
-        **Consent gates the write itself (#3030 T006, NFR-005 as amended
-        2026-07-29).** Capture-first durability applies only to *consenting*
-        projects. A project whose checkout has not consented never reaches the
-        journal at all — previously its event was written and merely stamped
-        with a ``drain_blocked_reason``, which left every unrelated local
-        project's payloads pooled in one machine-global store. This is a
-        deliberate reversal of the unconditional-write invariant that
-        ``event_journal/journal.py`` documents, not an oversight.
-
-        The refusal lives here, at the caller, on purpose: it is the only
-        production entry point for a capture, and gating inside
-        ``capture_teamspace_bound`` via its unused ``skip_journal`` parameter
-        would leave every real capture unconditional while looking fixed.
+        Capture is local and therefore independent of hosted consent (FR-006).
+        The event's UUID selects the physical project store; cwd, team, login,
+        and active-target defaults cannot select or widen it. The queue append
+        persists the journal entry and outbox task atomically before egress.
         """
-        from .project_identity import (
-            resolve_event_project_slug,
-            resolve_event_project_uuid,
-        )
-
+        del event_id, event_type, occurred_at, team_slug
         try:
-            # Resolved through T011's single chain so the stored column, the gate that
-            # authorizes the write, and the backfill can never disagree (NFR-001).
-            # This must precede the gate: the gate's consent question is *about* this
-            # uuid (#3030 M1). It used to be resolved afterwards, which is how the
-            # gate came to answer for the working directory instead.
-            project_uuid = resolve_event_project_uuid(event)
-            gate = self._capture_gate_state(team_slug, project_uuid=project_uuid)
-            if not gate.checkout_enabled:
-                # Refuse the write, loudly enough to be diagnosable but without
-                # failing emission — the local command still succeeds, exactly
-                # as it does when a delivery gate blocks.
-                logger.debug(
-                    "Journal capture refused for event %s (%s): project %s has not "
-                    "consented to sync (#3030 NFR-005)",
-                    event_id,
-                    event_type,
-                    project_uuid or "<unidentified>",
-                )
-                return
-            payload_bytes = json.dumps(event, sort_keys=True, default=str).encode("utf-8")
-            capture_teamspace_bound(
-                journal=get_journal(team_slug=team_slug),
-                event_id=event_id,
-                event_type=event_type,
-                payload=payload_bytes,
-                occurred_at=occurred_at,
-                gate=gate,
-                project_uuid=project_uuid,
-                project_slug=resolve_event_project_slug(event),
-                repo_slug=event.get("repo_slug"),
-            )
+            self._queue_event_locally(event)
         except Exception as exc:
             _console.print(f"[yellow]Warning: event journal capture failed: {exc}[/yellow]")
 
@@ -2177,6 +2123,9 @@ class EventEmitter:
         causation_id: str | None = None,
         envelope_fields: dict[str, Any] | None = None,
         occurred_at: str | None = None,
+        project_context: ProjectSyncContext | None = None,
+        project_unit: ProjectUnitOfWork | None = None,
+        project_layout: LayoutGenerationAuthority | None = None,
     ) -> dict[str, Any] | None:
         """Build, validate, and route an event. Non-blocking: never raises.
 
@@ -2195,6 +2144,22 @@ class EventEmitter:
         on the envelope; the drain loop re-evaluates each tick and only ships
         events whose blockers have cleared.
         """
+        if project_context is not None or project_unit is not None or project_layout is not None:
+            if project_context is None or project_unit is None or project_layout is None:
+                _console.print("[yellow]Warning: Explicit-context event capture requires context, unit, and layout authority[/yellow]")
+                return None
+            return self._emit_for_project_context(
+                event_type=event_type,
+                aggregate_id=aggregate_id,
+                aggregate_type=aggregate_type,
+                payload=payload,
+                causation_id=causation_id,
+                envelope_fields=envelope_fields,
+                occurred_at=occurred_at,
+                project_context=project_context,
+                project_unit=project_unit,
+                project_layout=project_layout,
+            )
         try:
             # Tick clock for causal ordering — local fact, always recorded.
             clock_value = self.clock.tick()
@@ -2215,10 +2180,14 @@ class EventEmitter:
             # Classify the drain blocker (None means ready to ship). Keyed on the
             # identity this event is about to be stamped with, not on cwd (#3030
             # M1-1) — ``_route_event`` turns a ``None`` here into a WebSocket publish.
-            drain_blocked_reason = self._classify_drain_blocked_reason(
+            # Snapshot the gates once (T017) and classify through the journal's
+            # canonical classifier so the stamped token is always a member of the
+            # closed vocabulary delivery selection recognises.
+            gate_state = self._capture_gate_state(
                 team_slug,
                 project_uuid=str(identity.project_uuid) if identity.project_uuid else None,
             )
+            drain_blocked_reason = classify_drain_blocked_reason(gate_state)
 
             event_id = _generate_ulid()
 
@@ -2252,21 +2221,6 @@ class EventEmitter:
             if envelope_fields:
                 event.update(envelope_fields)
 
-            # Capture-first (FR-017, contract §2; SC-009): durably record the
-            # Teamspace-bound fact in the producer-scoped event journal BEFORE
-            # any delivery gate (validation, contract gate, project routing,
-            # WebSocket, drain) can decide whether to ship it.
-            #
-            # Capture-first is scoped to CONSENTING projects only (#3030 T006,
-            # NFR-005 as amended 2026-07-29). The write is therefore NOT
-            # unconditional: `_capture_to_journal` refuses it outright when the
-            # capture gate's `checkout_enabled` is False, because writing a
-            # non-consenting project's payload and merely stamping it with a
-            # `drain_blocked_reason` is what pooled every unrelated local
-            # project's data in one machine-global store. Every *other* gate
-            # still only sets the recorded `drain_blocked_reason` and never
-            # whether the durable write happens — consent is the single
-            # exception, and it is checked at the callee.
             self._capture_to_journal(
                 event_id=event_id,
                 event_type=event_type,
@@ -2298,7 +2252,7 @@ class EventEmitter:
                 # identified can never be shown to belong to a consenting one
                 # (NFR-001). The write itself is deliberately not consent-gated — see
                 # the recorded judgement above ``_route_event``.
-                self.queue.queue_event(event)
+                self._queue_event_locally(event)
                 return event
 
             self._route_event(event)
@@ -2306,6 +2260,79 @@ class EventEmitter:
 
         except Exception as e:
             _console.print(f"[yellow]Warning: Event emission failed: {e}[/yellow]")
+            return None
+
+    def _emit_for_project_context(
+        self,
+        *,
+        event_type: str,
+        aggregate_id: str,
+        aggregate_type: str,
+        payload: dict[str, Any],
+        causation_id: str | None,
+        envelope_fields: dict[str, Any] | None,
+        occurred_at: str | None,
+        project_context: ProjectSyncContext,
+        project_unit: ProjectUnitOfWork,
+        project_layout: LayoutGenerationAuthority,
+    ) -> dict[str, Any] | None:
+        """Capture one event locally under exact store-minted authority.
+
+        This explicit-context seam never consults cwd, cached emitter identity,
+        auth, team, git, or request defaults and never invokes WebSocket or HTTP
+        routing. It writes only to the canonical project journal/outbox; the
+        dispatcher independently revalidates authority before any later egress.
+        """
+        from .project_context import validate_project_sync_context_authority
+        from .queue import OfflineQueue
+
+        try:
+            validate_project_sync_context_authority(project_context)
+            if project_unit.store_identity is not project_context.store_identity:
+                raise ValueError("project unit does not match the explicit project context")
+            event_id = _generate_ulid()
+            timestamp = occurred_at if occurred_at is not None else now_utc_iso()
+            # canonical-producer-exempt: #1248 -- explicit-context local envelope assembly.
+            event: dict[str, Any] = {
+                "event_id": event_id,
+                "event_type": event_type,
+                "aggregate_id": aggregate_id,
+                "aggregate_type": aggregate_type,
+                "schema_version": "3.0.0",
+                "build_id": "",
+                "payload": payload,
+                "node_id": self.clock.node_id,
+                "lamport_clock": self.clock.tick(),
+                "causation_id": causation_id,
+                "correlation_id": causation_id or event_id,
+                "timestamp": timestamp,
+                "team_slug": None,
+                "project_uuid": project_context.project_uuid.storage_token,
+                "project_slug": None,
+                "git_branch": None,
+                "head_commit_sha": None,
+                "repo_slug": None,
+                "drain_blocked_reason": None,
+            }
+            if envelope_fields:
+                protected = {
+                    "project_uuid",
+                    "event_id",
+                    "correlation_id",
+                }
+                if protected.intersection(envelope_fields):
+                    raise ValueError("explicit-context emission cannot override project or event identity")
+                event.update(envelope_fields)
+            if not self._validate_event(event):
+                return None
+            validate_outbound_payload(event, "envelope")
+
+            queued = OfflineQueue(project_unit, project_layout).queue_event(event)
+            if not queued:
+                raise RuntimeError("canonical project outbox refused dossier event capture")
+            return event
+        except Exception as exc:
+            _console.print(f"[yellow]Warning: Explicit-context event capture failed: {exc}[/yellow]")
             return None
 
     def _get_team_slug(self) -> str | None:
@@ -2481,80 +2508,38 @@ class EventEmitter:
     # becomes egress and must be gated on consent *first*. That is a precondition on
     # restoring the drain, not a follow-up ticket.
     def _route_event(self, event: dict[str, Any]) -> bool:
-        """Route event to WebSocket or offline queue.
+        """Capture to the local outbox without performing direct transport.
 
-        Local queue is the durable outbox and is always appended first
-        (issue #1072). WebSocket publish is opportunistic and only
-        attempted when the event is drain-eligible:
-
-        - **the event's own project consents to hosted sync** (#3030 M1-1), AND
-        - ``drain_blocked_reason`` is None (ready to ship), AND
-        - WebSocket client is connected, AND
-        - session is authenticated.
-
-        The consent condition is checked here, from ``event["project_uuid"]``, and
-        **not** inherited from ``drain_blocked_reason``. This method is the egress
-        point, so it owns its own refusal: M1-1 was precisely the failure of resting a
-        confidentiality boundary on a field documented as a diagnostic, and the
-        rejected rationale for leaving that field cwd-derived was "nothing reads it to
-        decide whether anything ships" — this line is the reader. Keeping both means a
-        future change to the diagnostic's meaning cannot silently re-open the network.
-
-        Returns True if event was sent/queued successfully.
+        The former opportunistic ``ws_client.send_event`` branch had no exact
+        project context, durable delivery attempt, lease, admission audience, or
+        acknowledgement. A connected client therefore never authorizes egress here.
+        WP08's runtime publisher owns the admitted WebSocket path through the WP06
+        transport gate; this legacy method preserves local durability only.
         """
         try:
             # Unconditional local durability, deliberately (issue #1072) and
             # deliberately not consent-gated — see the recorded judgement above.
-            queued = self.queue.queue_event(event)
-
-            # Drain-blocked events stay in the durable outbox; the drain
-            # loop re-evaluates conditions on each tick. Skipping the WS
-            # publish here preserves ingress safety (no_team events are
-            # never shipped opportunistically over WebSocket).
-            if event.get("drain_blocked_reason") is not None:
-                return queued
-
-            # The event's own project must consent before anything leaves the
-            # process. Resolved from the envelope's ``project_uuid``, never from cwd:
-            # under ``SyncRuntime`` the emitter is long-lived, ``_get_identity``
-            # caches, and an agent session that ``cd``s into a consenting sibling
-            # checkout would otherwise authorize this project's publish.
-            if not self._project_consents_to_capture(event.get("project_uuid")):
-                logger.debug(
-                    "WebSocket publish withheld: project %s has not consented to hosted sync",
-                    event.get("project_uuid") or "<unidentified>",
-                )
-                return queued
-
-            # Check if authenticated (via TokenManager)
-            try:
-                authenticated = self._is_authenticated()
-            except Exception:
-                authenticated = False
-
-            # WebSocket publish is opportunistic: the local queue is the
-            # durable outbox, because the WS path has no per-event server ack.
-            if authenticated and self.ws_client is not None and self.ws_client.connected:
-                try:
-                    import asyncio
-
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        task = asyncio.ensure_future(self.ws_client.send_event(event))
-                        self._pending_tasks.add(task)
-                        task.add_done_callback(self._pending_tasks.discard)
-                        task.add_done_callback(lambda completed: self._queue_if_async_send_failed(completed, event))
-                    else:
-                        loop.run_until_complete(self.ws_client.send_event(event))
-                    return True
-                except Exception as e:
-                    _console.print(f"[yellow]Warning: WebSocket send failed; event remains queued: {e}[/yellow]")
-
-            return queued
+            return self._queue_event_locally(event)
 
         except Exception as e:
             _console.print(f"[yellow]Warning: Event routing failed: {e}[/yellow]")
             return False
+
+    def _queue_event_locally(self, event: dict[str, Any]) -> bool:
+        """Capture through an attached or transient exact project outbox."""
+        if self.queue is not None:
+            return self.queue.queue_event(event)
+        from .project_identity import resolve_event_project_uuid
+        from .project_store import ProjectSyncStore
+        from .queue import OfflineQueue
+
+        project_uuid = resolve_event_project_uuid(event)
+        if project_uuid is None:
+            logger.debug("Event %s has no project-owned outbox", event.get("event_id"))
+            return False
+        store = ProjectSyncStore(project_uuid)
+        with store.unit_of_work() as unit:
+            return OfflineQueue(unit, store.layout_generation()).queue_event(event)
 
     def _queue_if_async_send_failed(self, completed: object, event: dict[str, Any]) -> None:
         """Queue an event if a fire-and-forget WebSocket send fails later."""
@@ -2566,7 +2551,7 @@ class EventEmitter:
             return
         logger.debug("Async WebSocket send failed; queueing event %s: %s", event.get("event_id"), exception)
         try:
-            self.queue.queue_event(event)
+            self._queue_event_locally(event)
         except Exception as queue_exc:
             logger.warning("Failed to queue event %s after async send failure: %s", event.get("event_id"), queue_exc)
 

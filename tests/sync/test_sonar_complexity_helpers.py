@@ -716,6 +716,10 @@ class TestPartitionWindowHelper:
         return BodyUploadTask(
             row_id=row_id,
             project_uuid=project_uuid,
+            # Per-project store identity fields (ProjectSyncStore migration):
+            # required by the branch's consent-epoch capture model.
+            epoch_id=1,
+            capture_sequence=row_id,
             mission_slug="047-feat",
             target_branch="main",
             mission_type="software-dev",

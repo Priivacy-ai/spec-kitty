@@ -125,6 +125,7 @@ def _stub_boundary_inputs(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     monkeypatch.setattr(preflight_mod, "collect_foreground_identity", lambda repo_root: foreground)  # noqa: ARG005
     monkeypatch.setattr(preflight_mod, "_count_legacy_rows_for_scope", lambda fg: (0, 0))  # noqa: ARG005
+    monkeypatch.setattr(preflight_mod, "_project_store_layout_diagnostic", lambda repo_root: None)  # noqa: ARG005
 
 
 @pytest.fixture
@@ -202,8 +203,7 @@ def test_a_corrupt_owner_record_refuses_the_whole_preflight(
     failure_set = preflight_mod.build_boundary_failure_set(repo_root=Path.cwd())
 
     assert failure_set.ok is False, (
-        "an owner.json that cannot be read is not permission to sync: a daemon "
-        f"(e.g. pid {daemon_pid}) may hold the port under another auth scope"
+        f"an owner.json that cannot be read is not permission to sync: a daemon (e.g. pid {daemon_pid}) may hold the port under another auth scope"
     )
     assert failure_set.daemon_status != "absent", "a present-but-unreadable record must never render as 'absent'"
     fault = failure_set.unreadable_owner_record

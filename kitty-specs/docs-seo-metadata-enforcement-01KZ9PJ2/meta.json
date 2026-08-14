@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "fdeed44bc2e901ad4a98c76003300353d7588fc6",
-  "coordination_branch": "kitty/mission-docs-seo-metadata-enforcement-01KZ9PJ2",
   "created_at": "2026-08-05T19:31:44.496528+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Docs SEO Metadata Audit and Enforcement",
   "mission_id": "01KZ9PJ2QG6BWH6MFMMZHVB72C",
   "mission_number": 191,
@@ -15,6 +14,6 @@
   "source_description": "GitHub issue #1652 — SEO audit needed for GitHub Pages docs site (https://github.com/Priivacy-ai/spec-kitty/issues/1652)",
   "status_phase": "1",
   "target_branch": "feat/docs-seo-metadata-enforcement",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git"
 }

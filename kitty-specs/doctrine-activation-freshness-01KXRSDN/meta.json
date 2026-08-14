@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "3cdada30101ae87505643be974a2912f934635cc",
-  "coordination_branch": "kitty/mission-doctrine-activation-freshness-01KXRSDN",
   "created_at": "2026-07-17T19:38:58.569962+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Doctrine-activation freshness integrity",
   "mission_id": "01KXRSDNM9G3QG0E8QSGXZX8YE",
   "mission_number": 183,
@@ -14,7 +13,7 @@
   "slug": "doctrine-activation-freshness-01KXRSDN",
   "status_phase": "1",
   "target_branch": "feat/doctrine-activation-freshness",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-17T21:11:22.876567+00:00"
 }

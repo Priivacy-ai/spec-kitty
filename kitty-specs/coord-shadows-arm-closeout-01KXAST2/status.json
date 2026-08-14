@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KXB5S9Q29PX7DDPRPQKHE4QW",
       "last_transition_at": "2026-07-12T12:45:40.450765+00:00",
+      "review_result": {
+        "reference": "APPROVE (opus renata): one _walk_wp_section, writer break-semantic verified, dead-code gate 7/0, 313 tests",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 5803,
       "subtasks": {
         "T001": "done",
@@ -74,6 +79,11 @@
       "lane": "done",
       "last_event_id": "01KXB5SAJQCY64MYBV5A71NQ0X",
       "last_transition_at": "2026-07-12T12:45:41.335768+00:00",
+      "review_result": {
+        "reference": "APPROVE (opus renata): one sparse-checkout helper both paths; recovery status-file-absence tested; no liveness creep",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 20646,
       "subtasks": {
         "T018": "done",

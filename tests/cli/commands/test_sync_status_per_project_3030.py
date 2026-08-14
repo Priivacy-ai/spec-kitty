@@ -27,20 +27,27 @@ from projects that never opted in, sat untouched.
 So these tests drive the **command** through `typer.testing.CliRunner`. Calling
 `_render_per_project_store` directly would pass with the call site deleted, which
 is the entire defect.
+
+WP10 correction: the historical node names remain stable, while the fixture now
+uses the exact routed project store. Status must report retained work in that
+store and must not recreate the retired machine-global, cross-project journal.
 """
+
 from __future__ import annotations
 
 import json
 from collections.abc import Iterator
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands import sync as sync_module
 from specify_cli.cli.commands.sync import app
-from specify_cli.event_journal.journal import EventJournal, resolve_journal_path
+from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
+from specify_cli.sync.project_store import ProjectSyncStore
 
 pytestmark = pytest.mark.fast
 
@@ -115,8 +122,24 @@ def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[
     # unrelated orphan-daemon block into these assertions.
     monkeypatch.setattr("specify_cli.sync.daemon.scan_sync_daemons", lambda: None)
     from specify_cli.event_journal.journal import reset_journal_cache
+    from specify_cli.sync.consent import record_project_opt_in
+    import specify_cli.sync.routing as routing
 
     reset_journal_cache()
+    record_project_opt_in(CONSENTED, actor="status-per-project-test")
+    store = ProjectSyncStore(CONSENTED)
+    authority = store.layout_generation()
+    authority.begin_cutover("status-per-project-test")
+    authority.publish_project_only("status-per-project-test", verify_exact=lambda: True)
+    with store.unit_of_work():
+        pass
+    routed = SimpleNamespace(
+        project_uuid=store.project_uuid,
+        project_slug="consented-project",
+        repo_slug="acme/consented-project",
+        build_id="status-per-project",
+    )
+    monkeypatch.setattr(routing, "resolve_checkout_sync_routing_readonly", lambda *_a, **_k: routed)
     try:
         yield
     finally:
@@ -134,31 +157,30 @@ def _event(event_id: str, uuid: str | None, created_at: str) -> Event:
     )
 
 
-def _status_journal() -> EventJournal:
-    """Open the journal `status` itself will resolve, at the same producer scope."""
-    scope = sync_module._current_event_sync_scope()
-    return EventJournal(
-        resolve_journal_path(user_id=scope.user_id, team_slug=scope.team_slug)
-    )
+class _ProjectJournalFixture:
+    def __init__(self) -> None:
+        self.store = ProjectSyncStore(CONSENTED)
+        self.authority = self.store.layout_generation()
+
+    def append(self, event: Event) -> None:
+        with self.store.unit_of_work() as unit:
+            EventJournal(unit, self.authority).append(event)
+
+    def count(self) -> int:
+        with self.store.unit_of_work() as unit:
+            return int(EventJournal(unit, self.authority).count())
 
 
-def _seed_contaminated_store() -> EventJournal:
-    """The incident's shape: one consenting project, two that never shipped, one anon."""
-    from specify_cli.sync.consent import set_project_consent
+def _status_journal() -> _ProjectJournalFixture:
+    """Open the exact canonical project journal that ``status`` resolves."""
+    return _ProjectJournalFixture()
 
-    set_project_consent(CONSENTED, True)
-    set_project_consent(OPTED_OUT, False)
-    # SILENT deliberately gets no record at all — absence, not refusal, is the
-    # population the incident turned on.
 
+def _seed_contaminated_store() -> _ProjectJournalFixture:
+    """Seed retained work in the active project without cross-project contamination."""
     journal = _status_journal()
     for i in range(7):
         journal.append(_event(f"evt-ok-{i}", CONSENTED, f"2026-07-01T00:00:0{i}+00:00"))
-    for i in range(4):
-        journal.append(_event(f"evt-silent-{i}", SILENT, f"2026-06-01T00:00:0{i}+00:00"))
-    for i in range(2):
-        journal.append(_event(f"evt-out-{i}", OPTED_OUT, f"2026-06-15T00:00:0{i}+00:00"))
-    journal.append(_event("evt-anon-0", None, "2026-05-01T00:00:00+00:00"))
     return journal
 
 
@@ -171,7 +193,7 @@ def test_status_names_every_project_with_count_age_and_consent() -> None:
     noticed.
     """
     journal = _seed_contaminated_store()
-    assert journal.count() == 14, "precondition: the store really is contaminated"
+    assert journal.count() == 7, "precondition: the active project retains seven events"
 
     result = runner.invoke(app, ["status"])
 
@@ -179,17 +201,12 @@ def test_status_names_every_project_with_count_age_and_consent() -> None:
     out = result.output
     assert "Event journal by project" in out
 
-    # Every project is NAMED, with its count — a project row, not just the title.
-    for uuid, count in ((CONSENTED, "7"), (SILENT, "4"), (OPTED_OUT, "2")):
-        assert uuid in out, f"{uuid} is in the journal but `status` did not name it"
-        assert count in out
-
-    # Identity-less rows are their own row, not silently dropped (FR-011).
-    assert "identity unresolved" in out
+    assert CONSENTED in out
+    assert "7" in out
+    assert SILENT not in out and OPTED_OUT not in out, "status must not cross-open another project store"
 
     # Consent state, and the level that answered it.
     assert "consented" in out
-    assert "denied" in out
 
     # Oldest-event AGE, which is the column FR-015 asks for.
     assert "Oldest" in out
@@ -209,16 +226,10 @@ def test_status_contradicts_its_own_empty_queue_line() -> None:
 
     assert result.exit_code == 0, result.output
     flat = " ".join(result.output.split())
-    assert "Queue empty" in flat, (
-        "precondition: the legacy queue really is empty, so the reassuring line "
-        "really is printed — without it this test cannot witness the contradiction"
-    )
-    assert "have not consented to hosted sync" in flat, (
-        "`status` printed 'Queue empty -- all events synced' over a journal "
-        "holding two never-consenting projects, with nothing contradicting it"
-    )
-    assert "no stored project identity" in flat
-    assert "sync purge" in flat
+    assert "Queue empty" not in flat, "canonical journal/outbox state must not contradict retained project work"
+    assert "Queue 7 event(s)" in flat
+    assert "Event journal by project" in flat
+    assert CONSENTED in flat
 
 
 def test_status_says_so_when_the_journal_is_empty() -> None:

@@ -14,9 +14,8 @@
   "accepted_by": "stijn",
   "accepted_from_commit": "6b8edf408775db3c81dca71c847dd4d9e4dd8740",
   "baseline_merge_commit": "4aab9bd66a1342d10e171ae920a35ff63ee735a8",
-  "coordination_branch": "kitty/mission-runtime-state-birth-cutover-all-paths-01KYH654",
   "created_at": "2026-07-27T07:03:16.824152+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Runtime-State Birth-Cutover (All Landing Paths)",
   "mission_id": "01KYH654JQGY765A6Y63M41REP",
   "mission_number": null,
@@ -28,7 +27,7 @@
   "slug": "runtime-state-birth-cutover-all-paths-01KYH654",
   "status_phase": "1",
   "target_branch": "fix/runtime-state-birth-cutover-all-paths",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-27T07:52:41.941272+00:00"
 }

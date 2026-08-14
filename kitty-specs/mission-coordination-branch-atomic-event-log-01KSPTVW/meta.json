@@ -1,5 +1,6 @@
 {
   "created_at": "2026-05-28T08:22:57.258517+00:00",
+  "flattened": false,
   "friendly_name": "Mission Coordination Branch with Atomic Event Log",
   "mission_id": "01KSPTVWZ9GGWK5NC9RYNMWPVV",
   "mission_number": null,
@@ -10,6 +11,7 @@
   "slug": "mission-coordination-branch-atomic-event-log-01KSPTVW",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-05-28T09:54:32.764560+00:00"
 }

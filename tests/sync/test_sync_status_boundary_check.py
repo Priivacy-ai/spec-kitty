@@ -16,13 +16,14 @@ from __future__ import annotations
 import os
 import sqlite3
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.sync import app
 from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
+from specify_cli.sync.owner import DaemonOwnerRecord
 
 pytestmark = pytest.mark.fast
 
@@ -45,10 +46,26 @@ def _scoped_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "AppData"))
+    runtime_root = tmp_path / ".spec-kitty"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime_root))
     monkeypatch.delenv(SAAS_SYNC_ENV_VAR, raising=False)
-    # Operate from a tmp cwd so the FR-013 workspace detector returns None
-    # by default; tests that need a mission slug override cwd locally.
-    monkeypatch.chdir(tmp_path)
+    repo = tmp_path / "checkout"
+    (repo / ".kittify").mkdir(parents=True)
+    project_uuid = "aaaaaaaa-0000-0000-8000-000000000001"
+    (repo / ".kittify" / "config.yaml").write_text(
+        f"project:\n  uuid: {project_uuid}\n  slug: status-boundary\n  node_id: status-boundary-node\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo))
+    monkeypatch.chdir(repo)
+    from specify_cli.sync.project_store import ProjectSyncStore
+
+    store = ProjectSyncStore(project_uuid)
+    authority = store.layout_generation()
+    authority.begin_cutover("status-boundary-test")
+    authority.publish_project_only("status-boundary-test", verify_exact=lambda: True)
+    with store.unit_of_work():
+        pass
     return tmp_path
 
 
@@ -106,10 +123,10 @@ def _legacy_db_path() -> Path:
     """Return the canonical legacy queue DB path under the current HOME."""
     from specify_cli.sync.queue import _legacy_queue_db_path
 
-    return _legacy_queue_db_path()
+    return Path(_legacy_queue_db_path())
 
 
-def _build_owner_record(**overrides: Any):
+def _build_owner_record(**overrides: Any) -> DaemonOwnerRecord:
     """Construct a :class:`DaemonOwnerRecord` matching the live foreground.
 
     By default the record agrees with the foreground on every D-3 field, so
@@ -221,20 +238,15 @@ def test_check_fails_when_daemon_version_disagrees() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Scenario 3: legacy body-upload backlog → exit non-zero, FR-013 tag present
+# Scenario 3: physical legacy residue is diagnosis-only after project-store cutover
 # ---------------------------------------------------------------------------
 
 
-def test_check_fails_when_legacy_body_upload_backlog_exists(
+def test_check_does_not_select_physical_legacy_body_upload_backlog(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Legacy DB with a body-upload row → exit non-zero and surface the path.
-
-    When the row carries a mission slug that matches the active mission
-    context (derived from cwd), the FR-013 stranded-tag must appear in
-    the rendered output.
-    """
+    """General status never opens or promotes physical legacy residue to live state."""
     # Establish a mission slug derivable from cwd via _detect_workspace_context.
     mission_slug = "012-my-mission"
     worktree_dir = tmp_path / "repo" / ".worktrees" / f"{mission_slug}-lane-a"
@@ -243,8 +255,25 @@ def test_check_fails_when_legacy_body_upload_backlog_exists(
 
     _seed_legacy_body_upload(mission_slug=mission_slug)
 
+    real_connect = sqlite3.connect
+    opened_legacy: list[Path] = []
+
+    def connect_without_legacy_selection(
+        database: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        *args: Any,
+        **kwargs: Any,
+    ) -> sqlite3.Connection:
+        path = Path(str(database))
+        if path == _legacy_db_path():
+            opened_legacy.append(path)
+            raise AssertionError("general status must not open the retired shared queue")
+        return cast("sqlite3.Connection", cast(Any, real_connect)(database, *args, **kwargs))
+
+    monkeypatch.setattr(sqlite3, "connect", connect_without_legacy_selection)
+
     result = runner.invoke(app, ["status", "--check"])
-    assert result.exit_code != 0, result.stdout
+    assert result.exit_code == 0, result.stdout
+    assert opened_legacy == []
 
     # Rich wraps long lines on the terminal width chosen by the runner;
     # collapse newlines + extra spaces before substring checks so the
@@ -256,11 +285,10 @@ def test_check_fails_when_legacy_body_upload_backlog_exists(
     # `queue .db` after the split-join above). The CI runner uses a narrower
     # terminal than dev workstations and triggers this case.
     flat_nows = flat.replace(" ", "")
-    assert "Identity boundary check FAILED" in flat
+    assert "Identity boundary check FAILED" not in flat
     assert "queue.db" in flat_nows
-    assert "body_upload_queue" in flat_nows
-    # FR-013 tag for the active mission.
-    assert f"setup-plan stranded mission slug {mission_slug}" in flat
+    assert "body_upload_queue" not in flat_nows
+    assert f"setup-plan stranded mission slug {mission_slug}" not in flat
     # And the legacy DB filename should land verbatim.
     assert _legacy_db_path().name in flat_nows
 
@@ -387,38 +415,33 @@ def _seed_legacy_event_row() -> None:
             )
             """
         )
-        conn.execute(
-            "INSERT INTO queue (event_id, event_type, data, timestamp, "
-            "retry_count, coalesce_key) VALUES "
-            "('evt-1', 'TestEvent', '{}', 1, 0, NULL)"
-        )
+        conn.execute("INSERT INTO queue (event_id, event_type, data, timestamp, retry_count, coalesce_key) VALUES ('evt-1', 'TestEvent', '{}', 1, 0, NULL)")
         conn.commit()
     finally:
         conn.close()
 
 
-def test_check_fails_on_legacy_event_rows_for_scope() -> None:
-    """Legacy event-class rows alone (no body uploads) → exit non-zero."""
+def test_check_does_not_treat_legacy_event_rows_as_live_scope() -> None:
+    """Legacy event-class rows are WP10 residue, not current delivery work."""
     _seed_legacy_event_row()
     result = runner.invoke(app, ["status", "--check"])
-    assert result.exit_code != 0, result.stdout
+    assert result.exit_code == 0, result.stdout
     flat = " ".join(result.stdout.split())
     flat_nows = flat.replace(" ", "")
-    assert "Identity boundary check FAILED" in flat
+    assert "Identity boundary check FAILED" not in flat
     assert "queue.db" in flat_nows
-    # The event subtotal is surfaced as ``queue=<N>`` in the failure line.
-    assert "queue=1" in flat_nows
+    assert "queue=1" not in flat_nows
 
 
-def test_check_fails_on_legacy_body_upload_rows_for_scope() -> None:
-    """Legacy body-upload rows alone (no event rows) → exit non-zero."""
+def test_check_does_not_treat_legacy_body_rows_as_live_scope() -> None:
+    """Legacy body rows remain explicit migration evidence, never live authority."""
     _seed_legacy_body_upload(mission_slug="some-other-mission")
     result = runner.invoke(app, ["status", "--check"])
-    assert result.exit_code != 0, result.stdout
+    assert result.exit_code == 0, result.stdout
     flat = " ".join(result.stdout.split())
     flat_nows = flat.replace(" ", "")
-    assert "Identity boundary check FAILED" in flat
-    assert "body_upload_queue" in flat_nows
+    assert "Identity boundary check FAILED" not in flat
+    assert "body_upload_queue" not in flat_nows
 
 
 # ---------------------------------------------------------------------------
@@ -474,6 +497,43 @@ def test_check_json_mode_emits_documented_shape_for_coherent_host() -> None:
     legacy = parsed["legacy_queue"]
     for key in ("path", "event_count", "body_upload_count", "rows_in_scope"):
         assert key in legacy
+
+
+def test_check_json_fails_closed_when_live_daemon_scan_is_unreadable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unreadable live-process boundary is unknown, never zero or healthy."""
+    import json
+
+    def fail_scan() -> None:
+        raise RuntimeError("process table unavailable")
+
+    monkeypatch.setattr("specify_cli.sync.daemon.scan_sync_daemons", fail_scan)
+    result = runner.invoke(app, ["status", "--check", "--json"])
+    assert result.exit_code == 2, result.stdout
+    parsed = json.loads(result.stdout.strip())
+    assert parsed["ok"] is False
+    assert parsed["exit_code"] == 2
+    assert parsed["live_orphan_daemon_count"] == 0
+    assert parsed["daemon_scan_diagnostic"] == "live daemon scan failed: process table unavailable"
+
+
+def test_check_human_fails_closed_when_live_daemon_scan_is_unreadable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Human status names the failed scan instead of claiming singleton health."""
+
+    def fail_scan() -> None:
+        raise RuntimeError("process table unavailable")
+
+    monkeypatch.setattr("specify_cli.sync.daemon.scan_sync_daemons", fail_scan)
+    result = runner.invoke(app, ["status", "--check"])
+    assert result.exit_code == 2, result.stdout
+    flat = " ".join(result.stdout.split())
+    assert "Singleton" in flat
+    assert "Unavailable" in flat
+    assert "live daemon scan failed: process table unavailable" in flat
+    assert "Identity boundary check FAILED" in flat
 
 
 def test_check_json_mode_emits_non_empty_mismatches_for_split_brain_host() -> None:
@@ -546,9 +606,7 @@ def test_status_prints_all_fr005_fields(monkeypatch: pytest.MonkeyPatch) -> None
         "Orphan records",
     ):
         compact = label.replace(" ", "")
-        assert compact in flat_nows, (
-            f"missing FR-005 label {label!r} in --check output"
-        )
+        assert compact in flat_nows, f"missing FR-005 label {label!r} in --check output"
 
 
 # ---------------------------------------------------------------------------

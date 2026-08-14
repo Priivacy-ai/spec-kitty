@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "d5e5e5055235224e0c74b305be6dadc5943003cd",
-  "coordination_branch": "kitty/mission-write-side-seam-matrix-tracer-01KYP3MH",
   "created_at": "2026-07-29T04:55:27.862823+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Write-Side Seam: Matrix & Tracer Writers",
   "mission_id": "01KYP3MHBPB22TGAT5VRRPT66G",
   "mission_number": null,
@@ -14,7 +13,7 @@
   "slug": "write-side-seam-matrix-tracer-01KYP3MH",
   "status_phase": "1",
   "target_branch": "feat/write-side-seam-matrix-tracer",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-29T10:35:35.702234+00:00"
 }

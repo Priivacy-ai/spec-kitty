@@ -19,3 +19,8 @@ charter: .kittify/charter/charter.yaml
 # Lane -> mission merges always use merge commits regardless of this setting.
 merge:
   strategy: squash
+mission_type_activations:
+- software-dev
+- documentation
+- research
+- plan

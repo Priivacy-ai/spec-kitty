@@ -13,16 +13,79 @@ from __future__ import annotations
 
 import threading
 from pathlib import Path
+from uuid import UUID, uuid4
 from unittest.mock import MagicMock
 
-
+from specify_cli.sync.project_identity import ProjectIdentity
+from specify_cli.sync.project_store import ProjectSyncStore
 from specify_cli.sync.emitter import EventEmitter
-from specify_cli.sync.queue import OfflineQueue
+from specify_cli.sync.queue import OfflineQueue, ProjectOutboxTask
 from specify_cli.sync.clock import LamportClock
 
 import pytest
 
 pytestmark = pytest.mark.fast
+
+
+class _ProjectQueue:
+    """Connection-free test facade over one canonical project outbox."""
+
+    def __init__(self, store: ProjectSyncStore, *, max_queue_size: int | None = None) -> None:
+        self._store = store
+        self._authority = store.layout_generation()
+        self._max_queue_size = max_queue_size
+
+    @property
+    def project_uuid(self) -> str:
+        return str(self._store.project_uuid)
+
+    def queue_event(self, event: dict[str, object]) -> bool:
+        with self._store.unit_of_work() as unit:
+            return OfflineQueue(
+                unit,
+                self._authority,
+                max_queue_size=self._max_queue_size,
+            ).queue_event(event)
+
+    def size(self) -> int:
+        with self._store.unit_of_work() as unit:
+            return OfflineQueue(
+                unit,
+                self._authority,
+                max_queue_size=self._max_queue_size,
+            ).size()
+
+    def drain_queue(self, limit: int = 1000) -> list[ProjectOutboxTask]:
+        with self._store.unit_of_work() as unit:
+            return OfflineQueue(
+                unit,
+                self._authority,
+                max_queue_size=self._max_queue_size,
+            ).drain_queue(limit=limit)
+
+
+def _project_queue(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    runtime_name: str,
+    max_queue_size: int | None = None,
+) -> _ProjectQueue:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / runtime_name))
+    store = ProjectSyncStore(str(uuid4()))
+    authority = store.layout_generation()
+    authority.begin_cutover("edge-case-test")
+    authority.publish_project_only("edge-case-test", verify_exact=lambda: True)
+    return _ProjectQueue(store, max_queue_size=max_queue_size)
+
+
+def _identity(queue: _ProjectQueue) -> ProjectIdentity:
+    return ProjectIdentity(
+        project_uuid=UUID(queue.project_uuid),
+        project_slug="edge-case-test",
+        node_id="edge-case-node",
+        build_id="edge-case-build",
+    )
 
 
 class TestNetworkFailureQueuesEvent:
@@ -64,13 +127,13 @@ class TestNetworkFailureQueuesEvent:
 
 
 class TestInvalidSchemaDiscardsEvent:
-    """Test that invalid events are discarded with warning."""
+    """Invalid events are rejected from transport after durable local capture."""
 
     def test_invalid_wp_id_discards(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        """Invalid WP ID format results in None return and no queue entry."""
+        """Invalid WP ID returns None but leaves its pre-validation audit capture."""
         event = emitter.emit_wp_status_changed("BADID", "planned", "in_progress")
         assert event is None
-        assert temp_queue.size() == 0
+        assert temp_queue.size() == 1
 
     def test_invalid_event_type_discards(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Unknown event type in _emit results in None."""
@@ -81,10 +144,10 @@ class TestInvalidSchemaDiscardsEvent:
             payload={"foo": "bar"},
         )
         assert event is None
-        assert temp_queue.size() == 0
+        assert temp_queue.size() == 1
 
     def test_missing_required_field_discards(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        """Missing required payload field results in None."""
+        """Typed payload construction rejects an empty field before durable capture."""
         # WPCreated requires wp_id, title, mission_slug - we pass empty title
         event = emitter.emit_wp_created("WP01", "", "028-sync")
         assert event is None
@@ -122,10 +185,15 @@ class TestLamportClockDesyncRecovery:
 class TestQueueOverflow:
     """Test queue behavior at the configured capacity limit."""
 
-    def test_queue_rejects_at_max(self, tmp_path: Path):
-        """Queue evicts the oldest event when it reaches MAX_QUEUE_SIZE."""
+    def test_queue_rejects_at_max(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """Queue refuses a new event without evicting durable older evidence."""
         max_queue_size = 8
-        queue = OfflineQueue(db_path=tmp_path / "overflow.db", max_queue_size=max_queue_size)
+        queue = _project_queue(
+            tmp_path,
+            monkeypatch,
+            runtime_name="overflow",
+            max_queue_size=max_queue_size,
+        )
 
         # Fill to capacity
         for i in range(max_queue_size):
@@ -133,6 +201,7 @@ class TestQueueOverflow:
                 {
                     "event_id": f"evt{i:06d}00000000000000000000",
                     "event_type": "WPStatusChanged",
+                    "project_uuid": queue.project_uuid,
                     "payload": {},
                 }
             )
@@ -140,18 +209,19 @@ class TestQueueOverflow:
 
         assert queue.size() == max_queue_size
 
-        # Next event should succeed by evicting the oldest row
+        # The next event must be refused; capacity is not retention authority.
         result = queue.queue_event(
             {
                 "event_id": "overflow_event_00000000000000",
                 "event_type": "WPStatusChanged",
+                "project_uuid": queue.project_uuid,
                 "payload": {},
             }
         )
-        assert result is True
+        assert result is False
         assert queue.size() == max_queue_size
-        events = queue.drain_queue(limit=1)
-        assert events[0]["event_id"] != "evt0000000000000000000000"
+        tasks = queue.drain_queue(limit=1)
+        assert tasks[0].event_id == f"evt{0:06d}00000000000000000000"
 
     def test_emitter_handles_full_queue(self, tmp_path: Path, mock_auth: MagicMock):
         """EventEmitter handles queue persistence gracefully (non-blocking)."""
@@ -195,7 +265,11 @@ class TestConcurrentEmission:
 
     @staticmethod
     def _run_concurrent_emits(
-        tmp_path: Path, mock_auth: MagicMock, count: int, db_name: str
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_auth: MagicMock,
+        count: int,
+        db_name: str,
     ) -> None:
         """Drive ``_CONCURRENCY_THREADS`` writers emitting *count* events each.
 
@@ -204,12 +278,18 @@ class TestConcurrentEmission:
         assertion move in lockstep so volume can be tuned without silently
         weakening the invariant.
         """
-        queue = OfflineQueue(db_path=tmp_path / db_name)
+        queue = _project_queue(tmp_path, monkeypatch, runtime_name=db_name)
         clock = LamportClock(value=0, node_id="test", _storage_path=tmp_path / "c.json")
         config = MagicMock()
         mock_auth.is_authenticated = False
 
-        em = EventEmitter(clock=clock, config=config, queue=queue, ws_client=None)
+        em = EventEmitter(
+            clock=clock,
+            config=config,
+            queue=queue,
+            ws_client=None,
+            _identity=_identity(queue),
+        )
 
         errors: list[str] = []
 
@@ -222,10 +302,7 @@ class TestConcurrentEmission:
             except Exception as exc:
                 errors.append(f"Thread {thread_id}: {exc}")
 
-        threads = [
-            threading.Thread(target=emit_events, args=(t,))
-            for t in range(_CONCURRENCY_THREADS)
-        ]
+        threads = [threading.Thread(target=emit_events, args=(t,)) for t in range(_CONCURRENCY_THREADS)]
         for t in threads:
             t.start()
         for t in threads:
@@ -235,32 +312,58 @@ class TestConcurrentEmission:
         # All events should be queued (threads x count), in lockstep with count.
         assert queue.size() == _CONCURRENCY_THREADS * count
 
-    def test_concurrent_emits_no_corruption(self, tmp_path: Path, mock_auth: MagicMock):
+    def test_concurrent_emits_no_corruption(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_auth: MagicMock,
+    ):
         """Concurrent emits don't corrupt queue or clock (default fast volume)."""
         self._run_concurrent_emits(
-            tmp_path, mock_auth, _EMIT_COUNT_DEFAULT, "concurrent.db"
+            tmp_path,
+            monkeypatch,
+            mock_auth,
+            _EMIT_COUNT_DEFAULT,
+            "concurrent.db",
         )
 
     @pytest.mark.slow
     def test_concurrent_emits_no_corruption_high_volume(
-        self, tmp_path: Path, mock_auth: MagicMock
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_auth: MagicMock,
     ):
         """High-volume corruption stress (nightly/@slow). Volume-sensitive (C-004)."""
         self._run_concurrent_emits(
-            tmp_path, mock_auth, _EMIT_COUNT_SLOW, "concurrent_highvol.db"
+            tmp_path,
+            monkeypatch,
+            mock_auth,
+            _EMIT_COUNT_SLOW,
+            "concurrent_highvol.db",
         )
 
     @staticmethod
     def _run_clock_concurrency(
-        tmp_path: Path, mock_auth: MagicMock, count: int, db_name: str
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_auth: MagicMock,
+        count: int,
+        db_name: str,
     ) -> None:
         """Drive concurrent clock ticks and assert total emitted == threads*count."""
-        queue = OfflineQueue(db_path=tmp_path / db_name)
+        queue = _project_queue(tmp_path, monkeypatch, runtime_name=db_name)
         clock = LamportClock(value=0, node_id="test", _storage_path=tmp_path / "c.json")
         config = MagicMock()
         mock_auth.is_authenticated = False
 
-        em = EventEmitter(clock=clock, config=config, queue=queue, ws_client=None)
+        em = EventEmitter(
+            clock=clock,
+            config=config,
+            queue=queue,
+            ws_client=None,
+            _identity=_identity(queue),
+        )
 
         results: list[int] = []
         lock = threading.Lock()
@@ -272,10 +375,7 @@ class TestConcurrentEmission:
                     with lock:
                         results.append(event["lamport_clock"])
 
-        threads = [
-            threading.Thread(target=emit_and_collect)
-            for _ in range(_CONCURRENCY_THREADS)
-        ]
+        threads = [threading.Thread(target=emit_and_collect) for _ in range(_CONCURRENCY_THREADS)]
         for t in threads:
             t.start()
         for t in threads:
@@ -288,20 +388,34 @@ class TestConcurrentEmission:
         assert len(results) == _CONCURRENCY_THREADS * count
 
     def test_clock_values_unique_under_concurrency(
-        self, tmp_path: Path, mock_auth: MagicMock
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_auth: MagicMock,
     ):
         """Lamport clock values under concurrent access (default fast volume)."""
         self._run_clock_concurrency(
-            tmp_path, mock_auth, _CLOCK_COUNT_DEFAULT, "concurrent2.db"
+            tmp_path,
+            monkeypatch,
+            mock_auth,
+            _CLOCK_COUNT_DEFAULT,
+            "concurrent2.db",
         )
 
     @pytest.mark.slow
     def test_clock_values_unique_under_concurrency_high_volume(
-        self, tmp_path: Path, mock_auth: MagicMock
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_auth: MagicMock,
     ):
         """High-volume clock concurrency stress (nightly/@slow). C-004."""
         self._run_clock_concurrency(
-            tmp_path, mock_auth, _CLOCK_COUNT_SLOW, "concurrent2_highvol.db"
+            tmp_path,
+            monkeypatch,
+            mock_auth,
+            _CLOCK_COUNT_SLOW,
+            "concurrent2_highvol.db",
         )
 
 
@@ -337,20 +451,18 @@ class TestNonBlockingEmission:
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
 
-    def test_auth_exception_queues_event_locally(
-        self, tmp_path: Path, monkeypatch
-    ):
+    def test_auth_exception_queues_event_locally(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         """Auth exception during team-slug resolution still queues durably.
 
         Issue #1072 (teamspace-local-first-outbox): when ``get_token_manager``
         raises, the strict ingress resolver returns ``None``. The emitter
         must NOT drop the event — instead it queues with ``team_slug =
-        None`` and ``drain_blocked_reason in {"no_auth", "no_team"}``. The
+        None`` and ``drain_blocked_reason in {"missing_auth", "missing_team"}``. The
         drain layer re-checks on every tick and only POSTs when a Private
         Teamspace is resolvable, preserving FR-002/FR-007 of the
         private-teamspace-ingress-safeguards mission.
         """
-        queue = OfflineQueue(db_path=tmp_path / "q.db")
+        queue = _project_queue(tmp_path, monkeypatch, runtime_name="auth-exception")
         clock = LamportClock(value=0, node_id="test", _storage_path=tmp_path / "c.json")
         config = MagicMock()
 
@@ -359,10 +471,16 @@ class TestNonBlockingEmission:
 
         monkeypatch.setattr("specify_cli.auth.get_token_manager", _boom)
 
-        em = EventEmitter(clock=clock, config=config, queue=queue, ws_client=None)
+        em = EventEmitter(
+            clock=clock,
+            config=config,
+            queue=queue,
+            ws_client=None,
+            _identity=_identity(queue),
+        )
 
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         assert event["team_slug"] is None
-        assert event["drain_blocked_reason"] in {"no_auth", "no_team"}
+        assert event["drain_blocked_reason"] in {"missing_auth", "missing_team"}
         assert queue.size() == 1

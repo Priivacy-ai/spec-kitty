@@ -21,10 +21,12 @@ The poster is REUSED from :mod:`test_poison_batch_2736` on purpose: its
 order** — input order is always create-before-status by FIFO, which would make the
 ordering assertion a tautology and the fixture teeth decorative.
 """
+
 from __future__ import annotations
 
 import math
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -35,6 +37,9 @@ from specify_cli.delivery.receivers import (
     ExternalReceiver,
     OutboundEvent,
 )
+from specify_cli.event_journal import Event, EventJournal
+from specify_cli.sync.consent import record_project_opt_in
+from specify_cli.sync.project_store import ProjectSyncStore
 from tests._support.consented_batches import deliverable
 
 from ._poison_batch_poster import _AllOrNothingBatchPoster
@@ -44,6 +49,7 @@ pytestmark = pytest.mark.fast
 _ENDPOINT = "https://ops.example/ingest/"
 _TARGET_ID = "teamspace-1"
 _BATCH_ERROR = "whole-batch rollback: one event failed validation, all rejected"
+_PROJECT_UUID = "aaaaaaaa-0000-0000-0000-0000000000b1"
 
 
 def _event(event_id: str, *, wp: str, event_type: str) -> OutboundEvent:
@@ -108,9 +114,7 @@ def test_straddling_create_receipts_before_its_status() -> None:
     A parallel or right-before-left bisect would receipt the status first, inverting
     the index — exactly the SC-003 failure this pins.
     """
-    poster = _AllOrNothingBatchPoster(
-        invalid_event_ids=[_CULPRIT], batch_error=_BATCH_ERROR
-    )
+    poster = _AllOrNothingBatchPoster(invalid_event_ids=[_CULPRIT], batch_error=_BATCH_ERROR)
     results = {r.event_id: r for r in _receiver(poster).deliver(deliverable(_straddle_batch()))}
 
     # Every innocent delivered; only the culprit rejected.
@@ -123,8 +127,7 @@ def test_straddling_create_receipts_before_its_status() -> None:
     accepted = poster.accepted_receipts
     assert _S_CREATE in accepted and _S_STATUS in accepted
     assert accepted.index(_S_CREATE) < accepted.index(_S_STATUS), (
-        "straddling create/status pair lost create-before-status order — "
-        f"accepted receipt order was {accepted}"
+        f"straddling create/status pair lost create-before-status order — accepted receipt order was {accepted}"
     )
     # Culprit isolated to its own size-1 POST.
     assert {_CULPRIT} in poster.singleton_posts()
@@ -155,38 +158,52 @@ def _record_all(ledger: SqliteDeliveryLedger, results: Any) -> None:
         ledger.record_result(event_id=r.event_id, target_id=_TARGET_ID, result=r.outcome)
 
 
-def test_drain_leaves_exactly_the_culprit_and_re_drain_does_not_re_poison() -> None:
+def test_drain_leaves_exactly_the_culprit_and_re_drain_does_not_re_poison(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     backlog = _drain_backlog()
     universe = [e.event_id for e in backlog]
-    poster = _AllOrNothingBatchPoster(
-        invalid_event_ids=[_DRAIN_CULPRIT], batch_error=_BATCH_ERROR
-    )
+    poster = _AllOrNothingBatchPoster(invalid_event_ids=[_DRAIN_CULPRIT], batch_error=_BATCH_ERROR)
     external = _receiver(poster)
-    ledger = SqliteDeliveryLedger()
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(_PROJECT_UUID)
+    authority = store.layout_generation()
+    authority.begin_cutover("batch-bisection-tests")
+    authority.publish_project_only("batch-bisection-tests", verify_exact=lambda: True)
+    record_project_opt_in(_PROJECT_UUID, actor="batch-bisection-tests")
+    with store.unit_of_work() as unit:
+        journal = EventJournal(unit, authority)
+        for event in backlog:
+            journal.append(
+                Event(
+                    event_id=event.event_id,
+                    event_type=str(event.payload["event_type"]),
+                    payload=b"{}",
+                    occurred_at="2026-08-12T00:00:00+00:00",
+                    created_at="2026-08-12T00:00:00+00:00",
+                    project_uuid=_PROJECT_UUID,
+                )
+            )
+        ledger = SqliteDeliveryLedger(unit, authority)
+        _record_all(ledger, external.deliver(deliverable(backlog)))
 
-    _record_all(ledger, external.deliver(deliverable(backlog)))
+        # FR-004: residual == just the culprit (innocents are terminal-success, excluded).
+        residual = set(ledger.select_undelivered(target_id=_TARGET_ID, event_universe=universe))
+        assert residual == {_DRAIN_CULPRIT}
 
-    # FR-004: residual == just the culprit (innocents are terminal-success, excluded).
-    residual = set(ledger.select_undelivered(target_id=_TARGET_ID, event_universe=universe))
-    assert residual == {_DRAIN_CULPRIT}
+        # Re-drain only the residual; innocents must NOT be re-selected (no re-poison).
+        redrain = [e for e in backlog if e.event_id in residual]
+        _record_all(ledger, external.deliver(deliverable(redrain)))
+        still = set(ledger.select_undelivered(target_id=_TARGET_ID, event_universe=universe))
+        assert still == {_DRAIN_CULPRIT}
 
-    # Re-drain only the residual; innocents must NOT be re-selected (no re-poison).
-    redrain = [e for e in backlog if e.event_id in residual]
-    _record_all(ledger, external.deliver(deliverable(redrain)))
-    still = set(ledger.select_undelivered(target_id=_TARGET_ID, event_universe=universe))
-    assert still == {_DRAIN_CULPRIT}
+        # NFR-002 (single culprit): bounded POST count + singleton termination.
+        n = len(backlog)
+        bound = 2 * math.ceil(math.log2(n)) + 1
+        single_culprit_posts = poster.receipt_log[: _first_redrain_index(poster, redrain)]
+        assert len(single_culprit_posts) <= bound
+        _assert_no_singleton_reposted(poster)
 
-    # NFR-002 (single culprit): bounded POST count + singleton termination.
-    n = len(backlog)
-    bound = 2 * math.ceil(math.log2(n)) + 1
-    single_culprit_posts = poster.receipt_log[: _first_redrain_index(poster, redrain)]
-    assert len(single_culprit_posts) <= bound
-    _assert_no_singleton_reposted(poster)
-
-    # NFR-003: no event accepted (delivered) twice.
-    assert len(poster.accepted_receipts) == len(set(poster.accepted_receipts))
-
-    ledger.close()
+        # NFR-003: no event accepted (delivered) twice.
+        assert len(poster.accepted_receipts) == len(set(poster.accepted_receipts))
 
 
 def _first_redrain_index(poster: _AllOrNothingBatchPoster, redrain: list[OutboundEvent]) -> int:
@@ -210,9 +227,7 @@ def _assert_no_singleton_reposted(poster: _AllOrNothingBatchPoster) -> None:
 def test_all_invalid_batch_is_bounded_and_every_event_isolated() -> None:
     """All-invalid batch: every event ends rejected, within the 2*N-1 POST bound."""
     events = [_create(f"01JMBY0000000000000ALLBAD{i:02d}", wp=f"WP-{i}") for i in range(4)]
-    poster = _AllOrNothingBatchPoster(
-        invalid_event_ids=[e.event_id for e in events], batch_error=_BATCH_ERROR
-    )
+    poster = _AllOrNothingBatchPoster(invalid_event_ids=[e.event_id for e in events], batch_error=_BATCH_ERROR)
     results = _receiver(poster).deliver(deliverable(events))
 
     assert all(r.outcome is DeliveryOutcome.REJECTED for r in results)
@@ -232,9 +247,7 @@ def test_reposting_an_already_accepted_event_returns_duplicate() -> None:
     re-drain never double-delivers an innocent.
     """
     backlog = _drain_backlog()
-    poster = _AllOrNothingBatchPoster(
-        invalid_event_ids=[_DRAIN_CULPRIT], batch_error=_BATCH_ERROR
-    )
+    poster = _AllOrNothingBatchPoster(invalid_event_ids=[_DRAIN_CULPRIT], batch_error=_BATCH_ERROR)
     external = _receiver(poster)
 
     external.deliver(deliverable(backlog))  # first pass: innocents accepted
@@ -277,9 +290,7 @@ def test_same_wp_poison_pair_terminates_and_preserves_create_before_status() -> 
     delivers, and the left-before-right recursion still receipts the (left) create
     POST before the (right) status POST — ordering preserved through the split.
     """
-    poster = _AllOrNothingBatchPoster(
-        invalid_event_ids=[_PAIR_CULPRIT], batch_error=_BATCH_ERROR
-    )
+    poster = _AllOrNothingBatchPoster(invalid_event_ids=[_PAIR_CULPRIT], batch_error=_BATCH_ERROR)
     results = {r.event_id: r for r in _receiver(poster).deliver(deliverable(_same_wp_poison_pair()))}
 
     # Termination (reaching here means no RecursionError) + isolation.
@@ -293,8 +304,7 @@ def test_same_wp_poison_pair_terminates_and_preserves_create_before_status() -> 
     posts = poster.receipt_log
     assert [_PAIR_CULPRIT] in posts and [_PAIR_STATUS] in posts
     assert posts.index([_PAIR_CULPRIT]) < posts.index([_PAIR_STATUS]), (
-        "forced split of the same-wp_id pair lost create-before-status POST order — "
-        f"receipt_log was {posts}"
+        f"forced split of the same-wp_id pair lost create-before-status POST order — receipt_log was {posts}"
     )
 
 
@@ -333,9 +343,7 @@ def test_adjacent_same_wp_pair_funnel_terminates_and_isolates_culprit() -> None:
     after: the drain terminates, isolates the culprit to a singleton, and delivers
     every innocent.
     """
-    poster = _AllOrNothingBatchPoster(
-        invalid_event_ids=[_SIX_CULPRIT], batch_error=_BATCH_ERROR
-    )
+    poster = _AllOrNothingBatchPoster(invalid_event_ids=[_SIX_CULPRIT], batch_error=_BATCH_ERROR)
     results = {r.event_id: r for r in _receiver(poster).deliver(deliverable(_adjacent_degenerate_backlog()))}
 
     assert results[_SIX_CULPRIT].outcome is DeliveryOutcome.REJECTED

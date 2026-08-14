@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "c7a04094c9ca95a8881a1d6b57657b6ad559623f",
-  "coordination_branch": "kitty/mission-lifecycle-gate-execution-context-01KY72GQ",
   "created_at": "2026-07-23T08:47:17.841445+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Lifecycle Gate Execution Context and Tool-Artifact Ownership",
   "mission_id": "01KY72GQAGEQYNQBKM41X7F6JP",
   "mission_number": null,
@@ -14,7 +13,7 @@
   "slug": "lifecycle-gate-execution-context-01KY72GQ",
   "status_phase": "1",
   "target_branch": "remediation/coord-lifecycle-gates",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-23T19:34:06.186813+00:00"
 }

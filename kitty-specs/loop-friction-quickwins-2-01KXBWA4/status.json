@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KXC98RTRH7B13BN9DPWVWF9V",
       "last_transition_at": "2026-07-12T23:05:47.608988+00:00",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE (post-fix)",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1477088,
       "shell_pid_created_at": "1783891867.36",
       "subtasks": {
@@ -44,6 +49,11 @@
       "lane": "done",
       "last_event_id": "01KXC98Z7F6E3P5CPE9AP32BY7",
       "last_transition_at": "2026-07-12T23:05:54.159664+00:00",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1481719,
       "shell_pid_created_at": "1783891999.06",
       "subtasks": {
@@ -64,6 +74,11 @@
       "lane": "done",
       "last_event_id": "01KXC995PAGV582GA0F102NNP8",
       "last_transition_at": "2026-07-12T23:06:00.778848+00:00",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1482898,
       "shell_pid_created_at": "1783892026.99",
       "subtasks": {
@@ -86,6 +101,11 @@
       "lane": "done",
       "last_event_id": "01KXC99C7KPG4KW3QBDKV5E3SZ",
       "last_transition_at": "2026-07-12T23:06:07.475806+00:00",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1484725,
       "shell_pid_created_at": "1783892074.19",
       "subtasks": {
@@ -105,6 +125,11 @@
       "lane": "done",
       "last_event_id": "01KXC99JN74HTKW08X86B4BGH7",
       "last_transition_at": "2026-07-12T23:06:14.055389+00:00",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1484725,
       "shell_pid_created_at": "1783892074.19",
       "subtasks": {
@@ -124,6 +149,11 @@
       "lane": "done",
       "last_event_id": "01KXC99S1Y6EMG2DK4HRXP4S7Y",
       "last_transition_at": "2026-07-12T23:06:20.606358+00:00",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1484725,
       "shell_pid_created_at": "1783892074.19",
       "subtasks": {
@@ -143,6 +173,11 @@
       "lane": "done",
       "last_event_id": "01KXC9A5TDWP0H0DV6Q65D42YQ",
       "last_transition_at": "2026-07-12T23:06:33.677318+00:00",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "subtasks": {
         "T025": "planned",
         "T026": "planned",
@@ -162,6 +197,11 @@
       "lane": "done",
       "last_event_id": "01KXC99ZBC9TGB1VGRVH4YZ8D5",
       "last_transition_at": "2026-07-12T23:06:27.052065+00:00",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1484725,
       "shell_pid_created_at": "1783892074.19",
       "subtasks": {

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import pytest
 from dataclasses import dataclass
 from unittest.mock import MagicMock, patch
 
 import requests
 
+from specify_cli.saas_client.admission import ProjectWriteAdmissionProof
 from specify_cli.sync.body_transport import (
     DEFAULT_TIMEOUT_SECONDS,
     _build_request_body,
@@ -20,6 +22,7 @@ from specify_cli.sync.body_transport import (
 from specify_cli.sync.namespace import UploadStatus
 
 pytestmark = pytest.mark.fast
+
 
 @dataclass
 class FakeTask:
@@ -35,7 +38,9 @@ class FakeTask:
     hash_algorithm: str = "sha256"
     content_body: str = "# Spec\n"
     size_bytes: int = 8
-    row_id: int = 1
+    row_id: str = "body-row-1"
+    epoch_id: int = 1
+    capture_sequence: int = 1
     retry_count: int = 0
     next_attempt_at: float = 0.0
     created_at: float = 1000.0
@@ -52,13 +57,22 @@ def _mock_response(status_code: int, json_body: dict | None = None) -> MagicMock
     return resp
 
 
+def _proof(task: FakeTask | None = None) -> ProjectWriteAdmissionProof:
+    value = task or FakeTask()
+    return ProjectWriteAdmissionProof(
+        project_uuid=value.project_uuid,
+        admission_generation=7,
+        binding_audience="private-teamspace:teamspace-1",
+    )
+
+
 # --- _build_request_body (T022) ---
 
 
 class TestBuildRequestBody:
-    def test_includes_all_9_fields(self) -> None:
+    def test_includes_exact_contract_fields(self) -> None:
         task = FakeTask()
-        body = _build_request_body(task)
+        body = _build_request_body(task, _proof(task))
         assert body["project_uuid"] == task.project_uuid
         assert body["mission_slug"] == task.mission_slug
         assert body["target_branch"] == task.target_branch
@@ -68,11 +82,13 @@ class TestBuildRequestBody:
         assert body["content_hash"] == task.content_hash
         assert body["hash_algorithm"] == task.hash_algorithm
         assert body["content_body"] == task.content_body
-        assert len(body) == 9
+        assert body["admission_generation"] == 7
+        assert body["binding_audience"] == "private-teamspace:teamspace-1"
+        assert len(body) == 11
 
     def test_no_legacy_fields(self) -> None:
         task = FakeTask()
-        body = _build_request_body(task)
+        body = _build_request_body(task, _proof(task))
         assert "feature_slug" not in body
         assert "mission_key" not in body
 
@@ -96,7 +112,7 @@ class TestSafeJson:
 class TestClassifyResponse:
     def test_201_stored(self) -> None:
         task = FakeTask()
-        resp = _mock_response(201, {"status": "stored"})
+        resp = _mock_response(201, {"artifact_path": task.artifact_path, "content_hash": task.content_hash, "status": "stored"})
         outcome = _classify_response(task, resp)
         assert outcome.status == UploadStatus.UPLOADED
         assert outcome.reason == "stored"
@@ -104,10 +120,52 @@ class TestClassifyResponse:
 
     def test_200_already_exists(self) -> None:
         task = FakeTask()
-        resp = _mock_response(200, {"status": "already_exists"})
+        resp = _mock_response(200, {"artifact_path": task.artifact_path, "content_hash": task.content_hash, "status": "already_exists"})
         outcome = _classify_response(task, resp)
         assert outcome.status == UploadStatus.ALREADY_EXISTS
         assert outcome.reason == "already_exists"
+
+    def test_202_accepted_pending_remains_uncertain(self) -> None:
+        outcome = _classify_response(FakeTask(), _mock_response(202, {"status": "pending"}))
+        assert outcome.status is UploadStatus.FAILED
+        assert outcome.reason == "accepted_pending"
+        assert outcome.retryable is True
+
+    def test_success_requires_exact_artifact_correlation(self) -> None:
+        task = FakeTask()
+        resp = _mock_response(
+            201,
+            {
+                "artifact_path": "plan.md",
+                "content_hash": task.content_hash,
+                "status": "stored",
+            },
+        )
+        outcome = _classify_response(task, resp)
+        assert outcome.status is UploadStatus.FAILED
+        assert outcome.retryable is True
+        assert "uncorrelated_response" in outcome.reason
+
+    @pytest.mark.parametrize("category_field", ["error_category", "category", "code"])
+    def test_project_not_admitted_requires_exact_artifact_correlation(
+        self,
+        category_field: str,
+    ) -> None:
+        task = FakeTask()
+        resp = _mock_response(
+            403,
+            {
+                "artifact_path": task.artifact_path,
+                "content_hash": task.content_hash,
+                "status": "rejected",
+                category_field: "project_not_admitted",
+                "retryable": False,
+            },
+        )
+        outcome = _classify_response(task, resp)
+        assert outcome.status is UploadStatus.FAILED
+        assert outcome.reason == "project_not_admitted"
+        assert outcome.retryable is False
 
     def test_400_bad_request(self) -> None:
         task = FakeTask()
@@ -146,6 +204,8 @@ class TestClassifyResponse:
         resp = _mock_response(
             403,
             {
+                "artifact_path": task.artifact_path,
+                "content_hash": task.content_hash,
                 "category": "direct_ingress_missing_private_team",
                 "message": "Private Teamspace is required.",
             },
@@ -157,10 +217,34 @@ class TestClassifyResponse:
 
     def test_403_permission_denied_is_unauthorized(self) -> None:
         task = FakeTask()
-        resp = _mock_response(403, {"message": "Forbidden"})
+        resp = _mock_response(
+            403,
+            {
+                "artifact_path": task.artifact_path,
+                "content_hash": task.content_hash,
+                "message": "Forbidden",
+            },
+        )
         outcome = _classify_response(task, resp)
         assert outcome.status == UploadStatus.FAILED
         assert outcome.reason == "unauthorized"
+        assert outcome.retryable is False
+
+    def test_403_preserves_other_correlated_canonical_category(self) -> None:
+        task = FakeTask()
+        outcome = _classify_response(
+            task,
+            _mock_response(
+                403,
+                {
+                    "artifact_path": task.artifact_path,
+                    "content_hash": task.content_hash,
+                    "code": "project_refused",
+                },
+            ),
+        )
+        assert outcome.status is UploadStatus.FAILED
+        assert outcome.reason == "project_refused"
         assert outcome.retryable is False
 
     def test_429_rate_limited(self) -> None:
@@ -215,15 +299,10 @@ class TestFormatBadRequestReason:
         assert _format_bad_request_reason({"detail": "payload invalid"}) == "payload invalid"
 
     def test_renders_field_errors(self) -> None:
-        assert (
-            _format_bad_request_reason({"content_body": ["This field may not be blank."]})
-            == "content_body: This field may not be blank."
-        )
+        assert _format_bad_request_reason({"content_body": ["This field may not be blank."]}) == "content_body: This field may not be blank."
 
     def test_renders_multiple_fields(self) -> None:
-        assert _format_bad_request_reason(
-            {"artifact_path": ["Missing"], "content_body": ["Blank"]}
-        ) == "artifact_path: Missing | content_body: Blank"
+        assert _format_bad_request_reason({"artifact_path": ["Missing"], "content_body": ["Blank"]}) == "artifact_path: Missing | content_body: Blank"
 
     def test_namespace_not_found_not_retryable(self) -> None:
         task = FakeTask()
@@ -262,44 +341,85 @@ class TestPushContent:
     @patch("specify_cli.sync.body_transport.requests.post")
     def test_successful_upload(self, mock_post: MagicMock) -> None:
         mock_post.return_value = _mock_response(
-            201, {"status": "stored"}
+            201,
+            {"artifact_path": "spec.md", "content_hash": "abcd1234" * 8, "status": "stored"},
         )
         task = FakeTask()
-        outcome = push_content(task, "token123", "https://api.example.com")
+        outcome = push_content(task, "token123", "https://api.example.com", admission_proof=_proof(task))
         assert outcome.status == UploadStatus.UPLOADED
         mock_post.assert_called_once()
 
     @patch("specify_cli.sync.body_transport.requests.post")
     def test_sends_auth_header(self, mock_post: MagicMock) -> None:
-        mock_post.return_value = _mock_response(201, {"status": "stored"})
-        push_content(FakeTask(), "my-secret-token", "https://api.example.com")
+        task = FakeTask()
+        mock_post.return_value = _mock_response(201, {"artifact_path": task.artifact_path, "content_hash": task.content_hash, "status": "stored"})
+        push_content(task, "my-secret-token", "https://api.example.com", admission_proof=_proof(task))
         call_kwargs = mock_post.call_args
         headers = call_kwargs.kwargs.get("headers") or call_kwargs[1].get("headers")
         assert headers["Authorization"] == "Bearer my-secret-token"
 
     @patch("specify_cli.sync.body_transport.requests.post")
     def test_sends_correct_url(self, mock_post: MagicMock) -> None:
-        mock_post.return_value = _mock_response(201, {"status": "stored"})
-        push_content(FakeTask(), "token", "https://api.example.com/")
+        task = FakeTask()
+        mock_post.return_value = _mock_response(201, {"artifact_path": task.artifact_path, "content_hash": task.content_hash, "status": "stored"})
+        push_content(task, "token", "https://api.example.com/", admission_proof=_proof(task))
         call_args = mock_post.call_args
         url = call_args.args[0] if call_args.args else call_args[0][0]
         assert url == "https://api.example.com/api/dossier/push-content/"
 
     @patch("specify_cli.sync.body_transport.requests.post")
     def test_sends_correct_payload(self, mock_post: MagicMock) -> None:
-        mock_post.return_value = _mock_response(201, {"status": "stored"})
+        mock_post.return_value = _mock_response(201, {"artifact_path": "spec.md", "content_hash": "abcd1234" * 8, "status": "stored"})
         task = FakeTask()
-        push_content(task, "token", "https://api.example.com")
+        push_content(task, "token", "https://api.example.com", admission_proof=_proof(task))
         call_kwargs = mock_post.call_args
-        payload = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
+        payload = json.loads(call_kwargs.kwargs.get("data") or call_kwargs[1].get("data"))
+        raw = call_kwargs.kwargs.get("data") or call_kwargs[1].get("data")
+        headers = call_kwargs.kwargs.get("headers") or call_kwargs[1].get("headers")
         assert payload["project_uuid"] == task.project_uuid
         assert payload["content_body"] == task.content_body
-        assert len(payload) == 9
+        assert payload["admission_generation"] == 7
+        assert payload["binding_audience"] == "private-teamspace:teamspace-1"
+        assert len(payload) == 11
+        assert headers["X-Spec-Kitty-Sync-Protocol"] == "2.0"
+        assert raw == json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+
+    @patch("specify_cli.sync.body_transport.requests.post")
+    def test_missing_admission_proof_never_posts(self, mock_post: MagicMock) -> None:
+        outcome = push_content(FakeTask(), "token", "https://api.example.com")
+        assert outcome.status is UploadStatus.FAILED
+        assert outcome.retryable is True
+        assert "admission_proof_required" in outcome.reason
+        mock_post.assert_not_called()
+
+    @patch("specify_cli.sync.body_transport.requests.post")
+    def test_cross_project_admission_proof_never_posts(self, mock_post: MagicMock) -> None:
+        outcome = push_content(
+            FakeTask(),
+            "token",
+            "https://api.example.com",
+            admission_proof=ProjectWriteAdmissionProof(
+                project_uuid="aaaaaaaa-0000-0000-0000-0000000000aa",
+                admission_generation=7,
+                binding_audience="private-teamspace:teamspace-1",
+            ),
+        )
+
+        assert outcome.status is UploadStatus.FAILED
+        assert outcome.retryable is False
+        assert "different projects" in outcome.reason
+        mock_post.assert_not_called()
 
     @patch("specify_cli.sync.body_transport.requests.post")
     def test_uses_default_timeout(self, mock_post: MagicMock) -> None:
-        mock_post.return_value = _mock_response(201, {"status": "stored"})
-        push_content(FakeTask(), "token", "https://api.example.com")
+        task = FakeTask()
+        mock_post.return_value = _mock_response(201, {"artifact_path": task.artifact_path, "content_hash": task.content_hash, "status": "stored"})
+        push_content(task, "token", "https://api.example.com", admission_proof=_proof(task))
         call_kwargs = mock_post.call_args
         timeout = call_kwargs.kwargs.get("timeout") or call_kwargs[1].get("timeout")
         assert timeout == DEFAULT_TIMEOUT_SECONDS
@@ -308,7 +428,7 @@ class TestPushContent:
     def test_connection_error_retryable(self, mock_post: MagicMock) -> None:
         mock_post.side_effect = requests.ConnectionError("Connection refused")
         task = FakeTask()
-        outcome = push_content(task, "token", "https://api.example.com")
+        outcome = push_content(task, "token", "https://api.example.com", admission_proof=_proof(task))
         assert outcome.status == UploadStatus.FAILED
         assert "connection_error" in outcome.reason
         assert outcome.retryable is True
@@ -317,23 +437,25 @@ class TestPushContent:
     def test_timeout_retryable(self, mock_post: MagicMock) -> None:
         mock_post.side_effect = requests.Timeout("Request timed out")
         task = FakeTask()
-        outcome = push_content(task, "token", "https://api.example.com")
+        outcome = push_content(task, "token", "https://api.example.com", admission_proof=_proof(task))
         assert outcome.status == UploadStatus.FAILED
         assert "timeout" in outcome.reason
         assert outcome.retryable is True
 
     @patch("specify_cli.sync.body_transport.requests.post")
     def test_custom_timeout(self, mock_post: MagicMock) -> None:
-        mock_post.return_value = _mock_response(201, {"status": "stored"})
-        push_content(FakeTask(), "token", "https://api.example.com", timeout=60.0)
+        task = FakeTask()
+        mock_post.return_value = _mock_response(201, {"artifact_path": task.artifact_path, "content_hash": task.content_hash, "status": "stored"})
+        push_content(task, "token", "https://api.example.com", timeout=60.0, admission_proof=_proof(task))
         call_kwargs = mock_post.call_args
         timeout = call_kwargs.kwargs.get("timeout") or call_kwargs[1].get("timeout")
         assert timeout == 60.0
 
     @patch("specify_cli.sync.body_transport.requests.post")
     def test_server_url_trailing_slash_stripped(self, mock_post: MagicMock) -> None:
-        mock_post.return_value = _mock_response(201, {"status": "stored"})
-        push_content(FakeTask(), "token", "https://api.example.com///")
+        task = FakeTask()
+        mock_post.return_value = _mock_response(201, {"artifact_path": task.artifact_path, "content_hash": task.content_hash, "status": "stored"})
+        push_content(task, "token", "https://api.example.com///", admission_proof=_proof(task))
         call_args = mock_post.call_args
         url = call_args.args[0] if call_args.args else call_args[0][0]
         assert url == "https://api.example.com/api/dossier/push-content/"

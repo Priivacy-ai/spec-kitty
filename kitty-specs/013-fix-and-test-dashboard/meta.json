@@ -1,5 +1,6 @@
 {
   "created_at": "2026-01-16T00:00:00Z",
+  "flattened": false,
   "friendly_name": "Fix and Test Dashboard",
   "mission_id": "01KN2371WPA42WS6W1G5XZHZJ9",
   "mission_number": 13,
@@ -8,5 +9,6 @@
   "slug": "fix-and-test-dashboard",
   "source_description": "The PR has until now ignored the dashboard. We made breaking changes to the dashboard and now it's time to fix them. This feature is to fix and test the dashboard.",
   "status_phase": "1",
-  "target_branch": "main"
+  "target_branch": "main",
+  "topology": "single_branch"
 }

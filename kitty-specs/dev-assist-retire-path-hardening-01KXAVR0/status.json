@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KXB5FA274QFAQ2XB9FX310PF",
       "last_transition_at": "2026-07-12T12:40:13.127833+00:00",
+      "review_result": {
+        "reference": "LAND (review a09189b5): all vectors rejected, 44 green/0 xfail, anti-vacuity re-reds 11, ruff+mypy clean",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
       "shell_pid": 119196,
       "subtasks": {
         "T001": "done",
@@ -61,6 +66,11 @@
       "lane": "done",
       "last_event_id": "01KXB5FM34E542FZ1C3MM5XCKA",
       "last_transition_at": "2026-07-12T12:40:23.396135+00:00",
+      "review_result": {
+        "reference": "LAND (review a55fb964): all retirements subsumed by verified guards, narrow non-vacuous (same-size-rename mutation reds golden), 123 green, ruff clean, mypy warnings pre-existing",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
       "shell_pid": 158503,
       "subtasks": {
         "T001": "done",

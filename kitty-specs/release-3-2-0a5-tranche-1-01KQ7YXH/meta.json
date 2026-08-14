@@ -1,6 +1,7 @@
 {
   "change_mode": "bulk_edit",
   "created_at": "2026-04-27T17:13:45.186291+00:00",
+  "flattened": false,
   "friendly_name": "3.2.0a5 Tranche 1: Release Reset & CLI Surface Cleanup",
   "mission_id": "01KQ7YXHA5AMZHJT3HQ8XPTZ6B",
   "mission_number": 104,
@@ -12,5 +13,6 @@
   "source_description": "Stabilization tranche prepared in start-here.md (workspace root) covering GitHub issues #805, #705, #815, #635, #636, #790, #774, #735, #717. Bulk-edit mode is set because issue #815 removes the /spec-kitty.checklist command across ~30 template/registry/snapshot/doc files; an occurrence map is to be drafted during /spec-kitty.plan. Other issues are localized fixes.",
   "status_phase": "1",
   "target_branch": "release/3.2.0a5-tranche-1",
+  "topology": "lanes",
   "vcs": "git"
 }

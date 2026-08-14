@@ -13,6 +13,7 @@
   "slug": "verdict-seam-write-unification-01KZ9Q35",
   "status_phase": "1",
   "target_branch": "feat/verdict-seam-write-unification",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-08-05T21:40:28.695201+00:00"
 }

@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "eb199cedb6ea973e235af0f66e61f6206e402bf8",
-  "coordination_branch": "kitty/mission-ci-test-topology-performance-01KXBJRT",
   "created_at": "2026-07-12T16:32:36.782632+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "CI Test-Topology Performance",
   "mission_id": "01KXBJRTXD8VNCZ859AYM0WEFY",
   "mission_number": 176,
@@ -14,5 +13,5 @@
   "slug": "ci-test-topology-performance-01KXBJRT",
   "status_phase": "1",
   "target_branch": "feat/ci-test-topology-performance",
-  "topology": "coord"
+  "topology": "lanes"
 }

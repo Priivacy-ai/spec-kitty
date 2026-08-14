@@ -136,9 +136,7 @@ def doctor_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Itera
     # root regardless of which directory was actually chdir-ed into (`core/paths.py`'s
     # env-var tier is checked before the walk-up).
     monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
-    monkeypatch.setattr(
-        sync_module, "_check_server_connection", lambda _url: ("[dim]Disabled[/dim]", "")
-    )
+    monkeypatch.setattr(sync_module, "_check_server_connection", lambda _url: ("[dim]Disabled[/dim]", ""))
     from specify_cli.cli.commands._auth_recovery import RecoveryOutcome
 
     monkeypatch.setattr(
@@ -183,26 +181,27 @@ def _make_checkout(
     root = tmp_path / name
     (root / ".kittify").mkdir(parents=True, exist_ok=True)
     parts: list[str] = []
-    if has_identity:
-        parts.append(_project_block(str(uuid_module.uuid4())))
+    project_uuid = str(uuid_module.uuid4()) if has_identity else None
+    if project_uuid is not None:
+        parts.append(_project_block(project_uuid))
     if sync_block:
         parts.append(sync_block)
     if tracker_egress is not None:
         parts.append(f"tracker:\n  egress: {tracker_egress}\n")
     (root / ".kittify" / "config.yaml").write_text("".join(parts), encoding="utf-8")
+    if project_uuid is not None and sync_block == _SYNC_ENABLED_TRUE:
+        from specify_cli.sync.consent import record_project_opt_in
+
+        record_project_opt_in(project_uuid, actor="tracker-egress-doctor-test")
     return root
 
 
 def _egress_refused_checkout(tmp_path: Path) -> Path:
-    return _make_checkout(
-        tmp_path, "egress-refused", has_identity=True, sync_block=_SYNC_ENABLED_TRUE, tracker_egress="refused"
-    )
+    return _make_checkout(tmp_path, "egress-refused", has_identity=True, sync_block=_SYNC_ENABLED_TRUE, tracker_egress="refused")
 
 
 def _egress_fault_checkout(tmp_path: Path) -> Path:
-    return _make_checkout(
-        tmp_path, "egress-fault", has_identity=True, sync_block=_SYNC_ENABLED_TRUE, tracker_egress="refuse"
-    )
+    return _make_checkout(tmp_path, "egress-fault", has_identity=True, sync_block=_SYNC_ENABLED_TRUE, tracker_egress="refuse")
 
 
 def _channel1_recorded_refusal_checkout(tmp_path: Path) -> Path:
@@ -321,9 +320,7 @@ def test_row_extraction_helper_is_controlled(tmp_path: Path, monkeypatch: pytest
     assert set(rows) == {"local_subprocess", "hosted_service"}, "positive control: known-good output must yield 2 rows"
     for destination_value, row_text in rows.items():
         flat_row = _flat(row_text)
-        assert flat_row.startswith(f"{destination_value} permitted"), (
-            "positive control: a fully-permitted checkout's own row must report `permitted`"
-        )
+        assert flat_row.startswith(f"{destination_value} permitted"), "positive control: a fully-permitted checkout's own row must report `permitted`"
 
     with pytest.raises(AssertionError, match="Tracker egress"):
         _tracker_egress_section("Sync Doctor\n\nConsent record readability\n  this checkout  readable\n")
@@ -341,9 +338,7 @@ def _assert_row_matches_verdict(row_text: str, verdict: TrackerEgressVerdict) ->
     """
     flat_row = _flat(row_text)
     expected_verb = "REFUSED" if verdict.refused else "permitted"
-    assert flat_row.startswith(f"{verdict.destination.value} {expected_verb}"), (
-        f"row header must report the verdict's own `refused` field: {flat_row!r}"
-    )
+    assert flat_row.startswith(f"{verdict.destination.value} {expected_verb}"), f"row header must report the verdict's own `refused` field: {flat_row!r}"
 
     for channel in (CHANNEL_1, CHANNEL_2):
         if channel in verdict.refusing_channels:
@@ -353,9 +348,7 @@ def _assert_row_matches_verdict(row_text: str, verdict: TrackerEgressVerdict) ->
 
     # Rendered from the field via the renderer's own lookup table, never re-derived here.
     expected_state_wording = sync_module._CHANNEL1_STATE_WORDING[verdict.channel1_state]
-    assert expected_state_wording in flat_row, (
-        f"Channel-1 state {verdict.channel1_state!r} must render as {expected_state_wording!r}: {flat_row!r}"
-    )
+    assert expected_state_wording in flat_row, f"Channel-1 state {verdict.channel1_state!r} must render as {expected_state_wording!r}: {flat_row!r}"
 
     assert _flat(verdict.message) in flat_row, f"verdict.message must be rendered verbatim: {flat_row!r}"
 
@@ -434,9 +427,7 @@ def test_all_seven_checkouts_render_two_verdict_true_rows(tmp_path: Path, monkey
 # --------------------------------------------------------------------------- #
 
 
-def test_root_none_renders_two_undetermined_refused_rows_outside_any_checkout(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_root_none_renders_two_undetermined_refused_rows_outside_any_checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``locate_project_root(Path.cwd())`` returning ``None`` is a specified case, not an
     error path (the verdict function never raises, NFR-003).
 
@@ -507,9 +498,7 @@ def _strip_markup(text: str) -> str:
     return _RICH_MARKUP_RE.sub("", text)
 
 
-def _render_row(
-    verdict: TrackerEgressVerdict, *, binding_present: bool = True
-) -> tuple[str, list[str]]:
+def _render_row(verdict: TrackerEgressVerdict, *, binding_present: bool = True) -> tuple[str, list[str]]:
     """Render one row directly.
 
     ``binding_present`` defaults to ``True`` -- these cells are about the row's own
@@ -518,9 +507,7 @@ def _render_row(
     """
     console_out = _CapturingConsole()
     issues: list[str] = []
-    sync_module._render_tracker_egress_row(
-        console_out, issues, verdict, binding_present=binding_present
-    )
+    sync_module._render_tracker_egress_row(console_out, issues, verdict, binding_present=binding_present)
     return _flat(_strip_markup(console_out.text)), issues
 
 
@@ -596,9 +583,7 @@ class TestRenderTrackerEgressDirectly:
     root resolution, against a real checkout, without `doctor`'s own auth/daemon/network
     setup cost."""
 
-    def test_prints_the_section_title_and_two_rows_for_a_real_checkout(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_prints_the_section_title_and_two_rows_for_a_real_checkout(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         repo = _fully_permitted_checkout(tmp_path)
         monkeypatch.chdir(repo)
         console_out = _CapturingConsole()
@@ -670,9 +655,7 @@ def _render_fault_row_through_a_real_console(offending: object) -> tuple[str, st
     row_buf = io.StringIO()
     console_out = Console(file=row_buf, force_terminal=False, no_color=True, width=300)
     issues: list[str] = []
-    sync_module._render_tracker_egress_row(
-        console_out, issues, verdict, binding_present=True
-    )  # must not raise
+    sync_module._render_tracker_egress_row(console_out, issues, verdict, binding_present=True)  # must not raise
     assert len(issues) == 1, f"expected exactly one issues entry, got {issues!r}"  # golden-count: cardinality-is-contract
 
     summary_buf = io.StringIO()
@@ -698,9 +681,7 @@ class TestUnparseableConfigDoesNotAbortDoctor:
     def test_unparseable_config_still_renders_both_rows(self, tmp_path: Path) -> None:
         root = tmp_path / "broken"
         (root / ".kittify").mkdir(parents=True)
-        (root / ".kittify" / "config.yaml").write_text(
-            "project:\n  uuid: [unclosed\n", encoding="utf-8"
-        )
+        (root / ".kittify" / "config.yaml").write_text("project:\n  uuid: [unclosed\n", encoding="utf-8")
         console_out = _CapturingConsole()
         issues: list[str] = []
         monkey = pytest.MonkeyPatch()
@@ -772,12 +753,9 @@ class TestFaultRowMarkupSafety:
     def test_bracket_shaped_value_survives_verbatim_and_does_not_raise(self, offending: str) -> None:
         rendered_row, rendered_summary = _render_fault_row_through_a_real_console(offending)
 
-        assert repr(offending) in rendered_row, (
-            f"the offending value must survive verbatim in the printed row: {rendered_row!r}"
-        )
+        assert repr(offending) in rendered_row, f"the offending value must survive verbatim in the printed row: {rendered_row!r}"
         assert repr(offending) in rendered_summary, (
-            "the offending value must also survive doctor()'s own summary-loop render "
-            f"of the issues entry: {rendered_summary!r}"
+            f"the offending value must also survive doctor()'s own summary-loop render of the issues entry: {rendered_summary!r}"
         )
 
     def test_bracket_free_value_is_unaffected_by_the_escape(self) -> None:

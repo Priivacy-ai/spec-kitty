@@ -19,6 +19,27 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### ✨ Added
 
+- **Hosted-sync consent is now per-project: one immutable `project_uuid` owns
+  one physically separate sync store and one explicit consent decision
+  (mission `per-project-sync-consent-ledgers-01KZKMQZ`; `#3262`, pairs with
+  SaaS `#585`).** Before, a shared journal/ledger/queue mixed every project's
+  rows and a filter defect could deliver another project's data (the #3030
+  consent incident). Now each project's consent, consent epochs, journal,
+  delivery results, body/offline queue, target binding, and migration state
+  live in a UUID-owned `ProjectSyncStore` no other project's operation can
+  open; `spec-kitty sync opt-in` records the only local grant authority
+  (offline-capable, never inherited from login/URL/slug/path/env), opt-out is
+  an immediate epoch-sealing barrier that never deletes captured rows, and
+  `SPEC_KITTY_ENABLE_SAAS_SYNC` is strictly deny-only — arming it grants
+  nothing. Local consent additionally pairs with an independent target-scoped
+  SaaS admission generation, and `project_not_admitted` refusals park
+  terminally instead of retrying. Operators migrate legacy shared state with
+  the new copy-only, resumable project-store cutover commands
+  (`spec-kitty sync project-store-preview` / `-migrate` / `-status` /
+  `-quarantine` / `-history`); the retired shared-store `sync migrate`
+  refuses with guidance.
+  See [Per-Project Sync Consent](../guides/project-sync-consent.md).
+
 - **Documentation can now be marked `durable` — a standing reference that is
   never flagged as stale draft (mission `docs-plans-closeout-01KZTK2J`;
   `#3368`).** Before, a long-lived throughline doc could only be `active`, so the

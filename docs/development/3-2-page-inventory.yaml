@@ -920,6 +920,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-08-09-1-project-sync-store-boundary.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/2026-08-12-1-checkout-ownership-for-mission-create-and-next.md
   tag: current
   divio_type: none
@@ -2639,6 +2645,12 @@
 - path: docs/guides/index.md
   tag: current
   divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/guides/project-sync-consent.md
+  tag: current
+  divio_type: how-to
   owning_workstream: none
   current_target: true
   notes: null

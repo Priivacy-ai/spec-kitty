@@ -22,6 +22,9 @@ from specify_cli.sync.background import (
     reset_sync_service,
 )
 from specify_cli.sync.queue import OfflineQueue
+from specify_cli.sync.project_store import ProjectSyncStore
+
+PROJECT_UUID = "aaaaaaaa-0000-0000-0000-000000000001"
 
 
 @pytest.fixture(autouse=True)
@@ -33,9 +36,23 @@ def _isolate_legacy_queue(
 
 
 @pytest.fixture
-def mock_queue(tmp_path) -> OfflineQueue:
-    """Real queue with tmp_path database."""
-    return OfflineQueue(db_path=tmp_path / "bg_queue.db")
+def mock_queue(tmp_path, monkeypatch) -> OfflineQueue:
+    """Real project-owned queue with a live unit for the fixture lifetime."""
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    repo = tmp_path / "repo"
+    (repo / ".kittify").mkdir(parents=True)
+    (repo / ".kittify" / "config.yaml").write_text(
+        f"project:\n  uuid: {PROJECT_UUID}\n  slug: background\n  node_id: node\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo))
+    monkeypatch.chdir(repo)
+    store = ProjectSyncStore(PROJECT_UUID)
+    authority = store.layout_generation()
+    authority.begin_cutover("background-test")
+    authority.publish_project_only("background-test", verify_exact=lambda: True)
+    with store.unit_of_work() as unit:
+        yield OfflineQueue(unit, authority)
 
 
 @pytest.fixture
@@ -46,9 +63,7 @@ def mock_auth(monkeypatch):
     set ``.return_value = None`` to simulate the unauthenticated state.
     """
     fake_fetch = MagicMock(return_value="token")
-    monkeypatch.setattr(
-        "specify_cli.sync.background._fetch_access_token_sync", fake_fetch
-    )
+    monkeypatch.setattr("specify_cli.sync.background._fetch_access_token_sync", fake_fetch)
     return fake_fetch
 
 
@@ -61,17 +76,39 @@ def mock_config() -> MagicMock:
 
 
 @pytest.fixture
-def service(mock_queue, mock_auth, mock_config) -> BackgroundSyncService:
+def service(mock_queue, mock_auth, mock_config, monkeypatch) -> BackgroundSyncService:
     """BackgroundSyncService with mocked dependencies.
 
     The ``mock_auth`` fixture already patched the token-fetch bridge, so
     constructing the service is a no-op w.r.t. auth plumbing.
     """
-    return BackgroundSyncService(
+    background = BackgroundSyncService(
         queue=mock_queue,
         config=mock_config,
         sync_interval_seconds=0.1,  # Fast for testing
     )
+    monkeypatch.setattr(background, "_has_discovered_project_candidates", lambda: False)
+    return background
+
+
+@pytest.fixture
+def singleton_project_store(tmp_path, monkeypatch) -> ProjectSyncStore:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    repo = tmp_path / "repo"
+    (repo / ".kittify").mkdir(parents=True)
+    (repo / ".kittify" / "config.yaml").write_text(
+        f"project:\n  uuid: {PROJECT_UUID}\n  slug: singleton\n  node_id: node\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo))
+    monkeypatch.chdir(repo)
+    store = ProjectSyncStore(PROJECT_UUID)
+    authority = store.layout_generation()
+    authority.begin_cutover("background-singleton")
+    authority.publish_project_only("background-singleton", verify_exact=lambda: True)
+    with store.unit_of_work():
+        pass
+    return store
 
 
 def _failing_drain(service: BackgroundSyncService):
@@ -82,9 +119,7 @@ def _failing_drain(service: BackgroundSyncService):
     the backoff contract.
     """
     service._body_queue = MagicMock()
-    return patch.object(
-        service, "_drain_body_queue", side_effect=Exception("fail")
-    )
+    return patch.object(service, "_drain_body_queue", side_effect=Exception("fail"))
 
 
 class TestStartStop:
@@ -272,6 +307,7 @@ class TestSyncNow:
             {
                 "event_id": "evt-unauth-001",
                 "event_type": "Test",
+                "project_uuid": PROJECT_UUID,
                 "payload": {},
             }
         )
@@ -279,6 +315,7 @@ class TestSyncNow:
             {
                 "event_id": "evt-unauth-002",
                 "event_type": "Test",
+                "project_uuid": PROJECT_UUID,
                 "payload": {},
             }
         )
@@ -294,7 +331,7 @@ class TestSyncNow:
         ]
         assert "spec-kitty auth login" in result.error_messages[0]
         assert service.queue.size() == 2
-        assert [event["event_id"] for event in service.queue.drain_queue()] == [
+        assert [task.event["event_id"] for task in service.queue.drain_queue()] == [
             "evt-unauth-001",
             "evt-unauth-002",
         ]
@@ -320,6 +357,7 @@ class TestLastSync:
             {
                 "event_id": "test123456789012345678901",
                 "event_type": "WPStatusChanged",
+                "project_uuid": PROJECT_UUID,
                 "payload": {},
             }
         )
@@ -347,7 +385,7 @@ class TestSingletonAccessor:
 
     @patch("specify_cli.sync.background.SyncConfig")
     @patch("specify_cli.sync.background.OfflineQueue")
-    def test_get_sync_service_returns_same_instance(self, mock_q, _c):
+    def test_get_sync_service_returns_same_instance(self, mock_q, _c, singleton_project_store):
         """get_sync_service() returns the same instance."""
         mock_q.return_value.size.return_value = 0
         s1 = get_sync_service()
@@ -357,7 +395,7 @@ class TestSingletonAccessor:
 
     @patch("specify_cli.sync.background.SyncConfig")
     @patch("specify_cli.sync.background.OfflineQueue")
-    def test_reset_clears_singleton(self, mock_q, _c):
+    def test_reset_clears_singleton(self, mock_q, _c, singleton_project_store):
         """reset_sync_service() allows new instance."""
         mock_q.return_value.size.return_value = 0
         s1 = get_sync_service()

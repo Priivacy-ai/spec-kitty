@@ -1,243 +1,253 @@
-"""Tests for body_upload_queue column rename migration (T032).
+"""Historical body queues are immutable WP10 migration inputs.
 
-Verifies that the SQLite column rename migration:
-- Preserves all data in populated queues (FR-020)
-- Is idempotent (safe to run multiple times)
-- Handles empty tables
-- Handles fresh installs (no pre-existing table)
+The retired shared queue used to rename columns in place.  PROJECT_ONLY layout
+never opens that database as a live queue: the public migration service takes a
+read-only snapshot, partitions attributable rows into UUID-owned stores, and
+leaves the source bytes unchanged.  These seven nodes preserve the old suite's
+data, idempotence, empty/fresh-schema, uniqueness, and legacy-column intents at
+that current boundary.
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
 import sqlite3
 from pathlib import Path
 
 import pytest
 
-from specify_cli.sync.queue import (
-    _migrate_body_queue_column_rename,
-    ensure_body_queue_schema,
+from specify_cli.sync.project_store import ProjectSyncStore
+from specify_cli.sync.project_store_migration import (
+    LegacyProjectStoreMigration,
+    MigrationPhase,
 )
+
 
 pytestmark = pytest.mark.fast
 
-# Old schema with legacy column names
-_OLD_SCHEMA = """
-CREATE TABLE body_upload_queue (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    project_uuid TEXT NOT NULL,
-    mission_slug TEXT NOT NULL,
-    target_branch TEXT NOT NULL,
-    mission_type TEXT NOT NULL,
-    manifest_version TEXT NOT NULL,
-    artifact_path TEXT NOT NULL,
-    content_hash TEXT NOT NULL,
-    hash_algorithm TEXT NOT NULL DEFAULT 'sha256',
-    content_body TEXT NOT NULL,
-    size_bytes INTEGER NOT NULL,
-    retry_count INTEGER NOT NULL DEFAULT 0,
-    next_attempt_at REAL NOT NULL DEFAULT 0.0,
-    created_at REAL NOT NULL,
-    last_error TEXT,
-    UNIQUE(project_uuid, mission_slug, target_branch, mission_type, manifest_version, artifact_path, content_hash)
-);
-"""
+PROJECT_A = "11111111-1111-4111-8111-111111111111"
+PROJECT_B = "22222222-2222-4222-8222-222222222222"
 
 
-def _get_columns(conn: sqlite3.Connection, table: str) -> set[str]:
-    """Return set of column names for a table."""
-    cursor = conn.execute(f"PRAGMA table_info({table})")
-    return {row[1] for row in cursor}
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()  # noqa: TID251 -- immutable source evidence
 
 
-def _insert_old_row(
-    conn: sqlite3.Connection,
-    project_uuid: str = "uuid-1",
-    mission_slug: str = "047-feat",
-    target_branch: str = "main",
-    mission_type: str = "software-dev",
-    manifest_version: str = "1",
-    artifact_path: str = "spec.md",
-    content_hash: str = "abc123",
-    content_body: str = "# Spec",
-    size_bytes: int = 6,
+def _create_historical_body_source(
+    path: Path,
+    rows: tuple[tuple[int, str, str, str, str, str, str], ...],
+    *,
+    include_body_task_id: bool = False,
 ) -> None:
-    """Insert a row using the old column names."""
-    conn.execute(
-        """INSERT INTO body_upload_queue
-           (project_uuid, mission_slug, target_branch, mission_type,
-            manifest_version, artifact_path, content_hash, hash_algorithm,
-            content_body, size_bytes, retry_count, next_attempt_at, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 'sha256', ?, ?, 0, 0.0, 1000.0)""",
+    connection = sqlite3.connect(path)
+    identity_column = ", body_task_id TEXT" if include_body_task_id else ""
+    connection.execute(
+        "CREATE TABLE body_upload_queue ("
+        "id INTEGER PRIMARY KEY"
+        f"{identity_column}, "
+        "project_uuid TEXT NOT NULL, mission_slug TEXT NOT NULL, "
+        "target_branch TEXT NOT NULL, mission_type TEXT NOT NULL, "
+        "manifest_version TEXT NOT NULL, artifact_path TEXT NOT NULL, "
+        "content_hash TEXT NOT NULL, hash_algorithm TEXT NOT NULL, "
+        "content_body TEXT NOT NULL, size_bytes INTEGER NOT NULL, "
+        "retry_count INTEGER NOT NULL, next_attempt_at REAL NOT NULL, "
+        "created_at REAL NOT NULL, last_error TEXT)"
+    )
+    for row_id, project, mission, mission_type, artifact, digest, body in rows:
+        columns = "id, project_uuid"
+        values: tuple[object, ...] = (row_id, project)
+        if include_body_task_id:
+            columns = "id, body_task_id, project_uuid"
+            values = (row_id, "shared-body-task", project)
+        connection.execute(
+            f"INSERT INTO body_upload_queue ({columns}, mission_slug, target_branch, "  # noqa: S608 -- closed test schema
+            "mission_type, manifest_version, artifact_path, content_hash, "
+            "hash_algorithm, content_body, size_bytes, retry_count, "
+            "next_attempt_at, created_at, last_error) "
+            "VALUES (" + ", ".join("?" for _ in range(len(values) + 13)) + ")",
+            (
+                *values,
+                mission,
+                "main",
+                mission_type,
+                "1",
+                artifact,
+                digest,
+                "sha256",
+                body,
+                len(body.encode("utf-8")),
+                0,
+                0.0,
+                1000.0 + row_id,
+                None,
+            ),
+        )
+    connection.commit()
+    connection.close()
+
+
+def _body_rows(project: str) -> list[tuple[str, str, str, str]]:
+    with ProjectSyncStore(project).unit_of_work() as unit:
+        rows = unit.execute("SELECT body_task_id, content_hash, body_reference, state FROM body_upload_tasks ORDER BY body_task_id").fetchall()
+    return [(str(row[0]), str(row[1]), str(row[2]), str(row[3])) for row in rows]
+
+
+def test_historical_body_rows_copy_to_project_store_without_source_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = tmp_path / "runtime"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime))
+    source = tmp_path / "legacy-body.db"
+    _create_historical_body_source(
+        source,
         (
-            project_uuid,
-            mission_slug,
-            target_branch,
-            mission_type,
-            manifest_version,
-            artifact_path,
-            content_hash,
-            content_body,
-            size_bytes,
+            (1, PROJECT_A, "feat-a", "software-dev", "spec.md", "h1", "# Spec"),
+            (2, PROJECT_A, "feat-b", "research", "plan.md", "h2", "# Plan"),
+            (3, PROJECT_A, "feat-c", "documentation", "tasks.md", "h3", "# Tasks"),
         ),
     )
-    conn.commit()
+    before = _sha256(source)
+
+    completed = LegacyProjectStoreMigration(runtime, (source,)).migrate("body-copy")
+
+    assert completed.phase is MigrationPhase.COMPLETE
+    rows = _body_rows(PROJECT_A)
+    assert [(row[0], row[1]) for row in rows] == [("1", "h1"), ("2", "h2"), ("3", "h3")]
+    references = [json.loads(row[2]) for row in rows]
+    assert [(item["mission_slug"], item["mission_type"], item["artifact_path"]) for item in references] == [
+        ("feat-a", "software-dev", "spec.md"),
+        ("feat-b", "research", "plan.md"),
+        ("feat-c", "documentation", "tasks.md"),
+    ]
+    assert _sha256(source) == before
 
 
-class TestBodyQueueColumnMigration:
-    """Test the column rename migration for body_upload_queue."""
+def test_body_migration_rerun_is_idempotent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = tmp_path / "runtime"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime))
+    source = tmp_path / "legacy-body.db"
+    _create_historical_body_source(
+        source,
+        ((1, PROJECT_A, "feat", "software-dev", "spec.md", "hash", "body"),),
+    )
+    migration = LegacyProjectStoreMigration(runtime, (source,))
 
-    def test_populated_queue_preserves_data(self, tmp_path: Path) -> None:
-        """Old-schema table with rows: migration renames columns, preserves data."""
-        db = tmp_path / "test.db"
-        conn = sqlite3.connect(db)
-        conn.executescript(_OLD_SCHEMA)
+    first = migration.migrate("body-idempotent")
+    second = migration.migrate("body-idempotent")
 
-        # Insert 3 rows with different data
-        _insert_old_row(conn, mission_slug="feat-a", mission_type="sw-dev", artifact_path="spec.md", content_hash="h1")
-        _insert_old_row(conn, mission_slug="feat-b", mission_type="research", artifact_path="plan.md", content_hash="h2")
-        _insert_old_row(conn, mission_slug="feat-c", mission_type="doc", artifact_path="tasks.md", content_hash="h3")
-
-        # Verify old columns exist
-        columns_before = _get_columns(conn, "body_upload_queue")
-        assert "mission_slug" in columns_before
-        assert "mission_type" in columns_before
-
-        # Run migration
-        _migrate_body_queue_column_rename(conn)
-
-        # Verify new columns exist, old ones gone
-        columns_after = _get_columns(conn, "body_upload_queue")
-        assert "mission_slug" in columns_after
-        assert "mission_type" in columns_after
-        assert "feature_slug" not in columns_after
-        assert "mission_key" not in columns_after
-
-        # Verify all 3 rows preserved with data intact
-        rows = conn.execute(
-            "SELECT mission_slug, mission_type, artifact_path FROM body_upload_queue ORDER BY id"
-        ).fetchall()
-        assert len(rows) == 3
-        assert rows[0] == ("feat-a", "sw-dev", "spec.md")
-        assert rows[1] == ("feat-b", "research", "plan.md")
-        assert rows[2] == ("feat-c", "doc", "tasks.md")
-
-        conn.close()
-
-    def test_idempotent_migration(self, tmp_path: Path) -> None:
-        """Running migration twice does not error."""
-        db = tmp_path / "test.db"
-        conn = sqlite3.connect(db)
-        conn.executescript(_OLD_SCHEMA)
-        _insert_old_row(conn)
-
-        # Run migration twice
-        _migrate_body_queue_column_rename(conn)
-        _migrate_body_queue_column_rename(conn)  # Should not raise
-
-        # Verify columns are correct
-        columns = _get_columns(conn, "body_upload_queue")
-        assert "mission_slug" in columns
-        assert "mission_type" in columns
-
-        # Verify data still intact
-        row = conn.execute("SELECT mission_slug, mission_type FROM body_upload_queue").fetchone()
-        assert row == ("047-feat", "software-dev")
-
-        conn.close()
-
-    def test_empty_table_migration(self, tmp_path: Path) -> None:
-        """Migration succeeds on empty table."""
-        db = tmp_path / "test.db"
-        conn = sqlite3.connect(db)
-        conn.executescript(_OLD_SCHEMA)
-
-        _migrate_body_queue_column_rename(conn)
-
-        columns = _get_columns(conn, "body_upload_queue")
-        assert "mission_slug" in columns
-        assert "mission_type" in columns
-        assert "feature_slug" not in columns
-        assert "mission_key" not in columns
-
-        conn.close()
-
-    def test_no_table_skips_migration(self, tmp_path: Path) -> None:
-        """Migration is a no-op when the table does not exist."""
-        db = tmp_path / "test.db"
-        conn = sqlite3.connect(db)
-
-        # Should not raise when table doesn't exist
-        _migrate_body_queue_column_rename(conn)
-
-        conn.close()
+    assert second == first
+    assert len(_body_rows(PROJECT_A)) == 1
 
 
-class TestFreshInstallSchema:
-    """Test that fresh installs create the table with canonical column names."""
+def test_empty_body_table_previews_without_cutover_or_source_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = tmp_path / "runtime"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime))
+    source = tmp_path / "empty-body.db"
+    _create_historical_body_source(source, ())
+    before = _sha256(source)
 
-    def test_fresh_install_uses_new_columns(self, tmp_path: Path) -> None:
-        """ensure_body_queue_schema on empty DB creates table with mission_slug/mission_type."""
-        db = tmp_path / "test.db"
-        conn = sqlite3.connect(db)
+    preview = LegacyProjectStoreMigration(runtime, (source,)).preview("empty-body")
 
-        ensure_body_queue_schema(conn)
-
-        columns = _get_columns(conn, "body_upload_queue")
-        assert "mission_slug" in columns
-        assert "mission_type" in columns
-        assert "feature_slug" not in columns
-        assert "mission_key" not in columns
-
-        conn.close()
-
-    def test_fresh_install_unique_constraint(self, tmp_path: Path) -> None:
-        """Unique constraint uses new column names."""
-        db = tmp_path / "test.db"
-        conn = sqlite3.connect(db)
-        ensure_body_queue_schema(conn)
-
-        # Insert a row
-        conn.execute(
-            """INSERT INTO body_upload_queue
-               (project_uuid, mission_slug, target_branch, mission_type,
-                manifest_version, artifact_path, content_hash, content_body,
-                size_bytes, created_at)
-               VALUES ('uuid', 'slug', 'main', 'sw', '1', 'spec.md', 'h1', 'body', 4, 1000.0)"""
-        )
-        conn.commit()
-
-        # Duplicate should be rejected by unique constraint
-        with pytest.raises(sqlite3.IntegrityError):
-            conn.execute(
-                """INSERT INTO body_upload_queue
-                   (project_uuid, mission_slug, target_branch, mission_type,
-                    manifest_version, artifact_path, content_hash, content_body,
-                    size_bytes, created_at)
-                   VALUES ('uuid', 'slug', 'main', 'sw', '1', 'spec.md', 'h1', 'body2', 5, 2000.0)"""
-            )
-
-        conn.close()
+    assert preview.phase is MigrationPhase.INVENTORIED
+    assert preview.total_rows == 0
+    assert preview.partitions == {}
+    assert preview.sources[0].tables == ("body_upload_queue",)
+    assert _sha256(source) == before
 
 
-class TestEnsureBodyQueueSchemaWithLegacyDB:
-    """Test that ensure_body_queue_schema handles existing DBs with old columns."""
+def test_source_without_tables_previews_as_empty_inventory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = tmp_path / "runtime"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime))
+    source = tmp_path / "empty.db"
+    sqlite3.connect(source).close()
 
-    def test_legacy_db_migrated_on_schema_ensure(self, tmp_path: Path) -> None:
-        """Old DB with mission_slug/mission_type gets migrated when schema is ensured."""
-        db = tmp_path / "test.db"
-        conn = sqlite3.connect(db)
-        conn.executescript(_OLD_SCHEMA)
-        _insert_old_row(conn, mission_slug="my-feat", mission_type="my-type")
+    preview = LegacyProjectStoreMigration(runtime, (source,)).preview("no-tables")
 
-        # This is the real entrypoint called during queue init
-        ensure_body_queue_schema(conn)
+    assert preview.total_rows == 0
+    assert preview.sources[0].tables == ()
+    assert preview.partitions == {}
+    assert preview.quarantine == ()
 
-        columns = _get_columns(conn, "body_upload_queue")
-        assert "mission_slug" in columns
-        assert "mission_type" in columns
 
-        row = conn.execute("SELECT mission_slug, mission_type FROM body_upload_queue").fetchone()
-        assert row == ("my-feat", "my-type")
+def test_fresh_project_store_uses_canonical_body_task_columns(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
 
-        conn.close()
+    with ProjectSyncStore(PROJECT_A).unit_of_work() as unit:
+        columns = {str(row[1]) for row in unit.execute("PRAGMA table_info(body_upload_tasks)")}
+
+    assert columns == {
+        "body_task_id",
+        "project_uuid",
+        "epoch_id",
+        "capture_sequence",
+        "content_hash",
+        "body_reference",
+        "state",
+        "created_at",
+    }
+    assert {"mission_slug", "mission_type", "feature_slug", "mission_key"}.isdisjoint(columns)
+
+
+def test_same_historical_body_identity_is_isolated_by_project_store(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = tmp_path / "runtime"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime))
+    source_a = tmp_path / "project-a.db"
+    source_b = tmp_path / "project-b.db"
+    _create_historical_body_source(
+        source_a,
+        ((1, PROJECT_A, "a", "software-dev", "spec.md", "hash-a", "body-a"),),
+        include_body_task_id=True,
+    )
+    _create_historical_body_source(
+        source_b,
+        ((1, PROJECT_B, "b", "software-dev", "spec.md", "hash-b", "body-b"),),
+        include_body_task_id=True,
+    )
+
+    completed = LegacyProjectStoreMigration(runtime, (source_a, source_b)).migrate("body-isolation")
+
+    assert set(completed.partitions) == {PROJECT_A, PROJECT_B}
+    assert [(row[0], row[1]) for row in _body_rows(PROJECT_A)] == [("shared-body-task", "hash-a")]
+    assert [(row[0], row[1]) for row in _body_rows(PROJECT_B)] == [("shared-body-task", "hash-b")]
+
+
+def test_historical_column_names_are_inventory_only_and_preserved_as_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = tmp_path / "runtime"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime))
+    source = tmp_path / "legacy-columns.db"
+    _create_historical_body_source(
+        source,
+        ((1, PROJECT_A, "mission-047", "software-dev", "tasks.md", "hash", "payload"),),
+    )
+    before = _sha256(source)
+    migration = LegacyProjectStoreMigration(runtime, (source,))
+
+    preview = migration.preview("legacy-columns")
+    columns = preview.sources[0].table_columns["body_upload_queue"]
+    completed = migration.migrate("legacy-columns")
+
+    assert {"mission_slug", "mission_type"}.issubset(columns)
+    assert completed.phase is MigrationPhase.COMPLETE
+    reference = json.loads(_body_rows(PROJECT_A)[0][2])
+    assert (reference["mission_slug"], reference["mission_type"]) == ("mission-047", "software-dev")
+    assert _sha256(source) == before

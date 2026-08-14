@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KXVB10K58AEFSADYX71CVGWK",
       "last_transition_at": "2026-07-18T19:25:07.045225+00:00",
+      "review_result": {
+        "reference": "Review passed (renata): landmines verified, gates green 67/67, scope clean; 28 out-of-scope hash-narrowing failures noted for downstream.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 278415,
       "shell_pid_created_at": "1784379527.3",
       "subtasks": {
@@ -44,6 +49,11 @@
       "lane": "done",
       "last_event_id": "01KXVB117VWTAG3G8G03EAWMKC",
       "last_transition_at": "2026-07-18T19:25:07.707023+00:00",
+      "review_result": {
+        "reference": "APPROVED. Dual-branch (pointer-conditional) is a CORRECT TRANSITIONAL migration-compat design, not a permanent split-brain: INV-5 fail-loud is honored (present-but-dangling pointer RAISES; the config.yaml path is reachable ONLY when the pointer is genuinely ABSENT = un-migrated), and that absent-branch is behavior-preserving (reads/writes where a pre-relocation project stored activation). Canonical charter.yaml is used the instant a pointer exists. All 5 writers re-pointed via WP01 shared helper (update_charter_yaml_section, section-preserving); C-002 clean (no specify_cli import in src/charter/); three-state fidelity byte-identical (absent->default, []->frozenset, populated->exact; never absent->[]); INV-2 held (test_migrated_project_ignores_stale_activated_keys). Gates GREEN: ruff clean; mypy only the 2 pre-declared pre-existing errors (org_charter:306 + interview decorator, zero-diff, last touched 161d5c0b6); 40 owned+parity tests + 255 consumer tests pass (parity guard green, no WP02/WP04 transient red). MISSION-LEVEL HAND-OFF (not a WP02 defect): no production code writes the charter: pointer yet — spec-kitty init writes NO pointer and scaffolds no charter.yaml, so NEW projects currently fall to the config.yaml branch permanently. WP07 migration mints the pointer for EXISTING projects; an explicit owner (WP07 or a #2519 init-scaffold follow-up) MUST ensure new-project init also mints it, else the transitional absent-branch silently becomes permanent for new projects and can never be retired. Anti-pattern checklist: all 8 PASS.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 383053,
       "shell_pid_created_at": "1784382220.72",
       "subtasks": {
@@ -65,6 +75,11 @@
       "lane": "done",
       "last_event_id": "01KXVB11WEZ9DAZ7MY71DACEE1",
       "last_transition_at": "2026-07-18T19:25:08.366525+00:00",
+      "review_result": {
+        "reference": "APPROVE cycle-2. Landmine 3 internal-clobber PREVENTED (partial refresh of catalog+metadata via WP01 helper; authored governance/directives/activation/overrides survive byte-for-byte, pinned by test_authored_*_survive_refresh). #2772 clobber removed (no charter.md write, references writer retired, force no-op). T014 bootstrap+pointer-mint VERIFIED: this repo's config.yaml pointer minted comment-preservingly + charter.yaml committed/tracked with activation seeded verbatim. #2758 preflight re-messaged, guard kept. Gates: ruff clean, mypy=2 pre-existing zero-diff, 86 passed/1 skipped. Scope clean, init.py untouched. Symlink-guard: acceptable narrowing (partial in-place write follows symlink to target preserving authored content + symlink; NOT rename-based; dir-guard remains) -> follow-up not regression. Unblocks WP04+WP08. Full detail in review-cycle-2.md.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 430495,
       "shell_pid_created_at": "1784383657.86",
       "subtasks": {
@@ -86,6 +101,11 @@
       "lane": "done",
       "last_event_id": "01KXVB133KV545DPKMHQPRM3ED",
       "last_transition_at": "2026-07-18T19:25:09.619077+00:00",
+      "review_result": {
+        "reference": "Ordering OK: loaders read charter.yaml governance/directives directly (T016) and sync() scrape+post_save_hook deleted (T017) -- no silent-empty-governance window (loaders read hand-authored charter.yaml, not the retired triad; verified authored gov/13 directives load when charter.yaml at resolved root). Parity coherent=True, verification_errors=[], reference_id_divergences=[]; test_activation_parity_guard GREEN; both consistency_check reads moved (activation via PackContext charter: pointer, catalog via catalog.references); #2530 re-homed to CharterYamlCorruptError/CharterPackConfigError. Extractor kept: honest+minimal dead-symbols allowlist entry (test-only callers post-WP04, deletion deferred to tracked follow-up) -- DoD requires deleting scraper symbols (done: SECTION_MAPPING/write_extraction_result/extract_with_ai gone), not the class. 3 bypass readers re-pointed; #2758 assertion->charter.yaml. Owned gates green: ruff clean, mypy --strict clean, complexity<=15, 56 owned tests pass. Scope clean (only owned files + justified allowlist). 52 out-of-scope fallout items (48 fail + 4 err across 11 files) catalogued for WP05(context.py)/WP07 -- all WP04-caused ripple, GREEN at parent, NOT pre-existing. Plus pre-existing dead-symbols orphan charter_yaml_io::OWNED_SECTIONS/UnknownCharterYamlSectionError (WP01 territory, red at parent) -> WP07.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 583708,
       "shell_pid_created_at": "1784388189.08",
       "subtasks": {
@@ -106,6 +126,11 @@
       "lane": "done",
       "last_event_id": "01KXVB14AS7423WXJCMA2SAWH9",
       "last_transition_at": "2026-07-18T19:25:10.873298+00:00",
+      "review_result": {
+        "reference": "INV-3 holds: decision path (resolver.resolve_project_governance, _load_action_doctrine_bundle et al) reads no charter.md prose; new AST test pins it. Graceful absence: _compact_section_block + render_compact_view degrade to empty on missing/unreadable charter.md (NFR-005), tests cover absent/None/OSError. Only DISPLAY call-sites re-pointed to shared charter.bundle.CHARTER_MD; CHARTER_FILENAME dup retired (S1192). Gates green: ruff+C901 clean, mypy --strict clean, 16 owned tests pass. Scope: only context.py/compact.py/test file authored by WP05.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 679243,
       "shell_pid_created_at": "1784390707.16",
       "subtasks": {
@@ -124,6 +149,11 @@
       "lane": "done",
       "last_event_id": "01KXVB12FXW4BMZAP6E5MQBQRK",
       "last_transition_at": "2026-07-18T19:25:08.989738+00:00",
+      "review_result": {
+        "reference": "APPROVED. Landmine 2: _compute_charter_source's charter.md-hash-vs-metadata staleness retired outright (missing/invalid/fresh only, never stale); no self-referential charter_hash reintroduced (grep clean; dead _charter_hash_of deleted -> mypy 5->3). Freshness now reads charter.yaml via single _BUNDLE_FILES=('charter.yaml',) mirroring WP01 BUNDLE_CONTENT_HASH_FILES; #2732 recipe intact (compute_bundle_content_hash single point, built_in_only short-circuit :379, legacy fresh-seed early-exit, unchanged-yaml->identical-hash test green). #2759 _activation_parity_drift_reason/_PARITY_DRIFT_REMEDIATION removed from computer.py (only prose refs remain). Spurious-staleness decision (b) RULED SOUND: authored-only charter.yaml edit reads stale until next synth, but the preflight gate (_attempt_auto_refresh, runner.py:405) auto-runs 'charter synthesize' on a clean tree which re-stamps the manifest -> fresh; dirty tree blocks with 'commit or stash and retry' -> heal on commit. No permanent-stale dead-end; SC-001 mutation-flip + reconcile-to-fresh tested through the real compute_freshness path (test_freshness_activation_visibility.py:130/146/167). Recorded traces/decisions.md D9-D12. NFR-002 subprocess-spy=0 test present+green (fresh/stale/missing branches). Leeway: 3 unowned fallout files (_fixtures.py, test_runner.py, test_freshness_residue.py) confirmed owned by no other WP, broken by WP01 narrowing / this WP's charter_source rework, minimally scoped (seed_charter_yaml helper + re-pin stale->invalid preserving the blocking invariant) -- ACCEPTABLE leeway per ownership-map rationale. Gates: ruff clean, complexity <=15, mypy 3 pre-existing charter.* follow_imports=skip Path-from-Any artifacts (confirmed pre-existing vs base, zero new), 109/109 owned+fallout tests green. Anti-pattern checklist all PASS/N-A (no dead code, no synthetic fixtures, no silent empty return, no frozen-surface touch).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 398991,
       "shell_pid_created_at": "1784382545.72",
       "subtasks": {
@@ -145,6 +175,11 @@
       "lane": "done",
       "last_event_id": "01KXVB14YGSCXGBSQ48X72EF12",
       "last_transition_at": "2026-07-18T19:25:11.504738+00:00",
+      "review_result": {
+        "reference": "Cycle-2 review passed: version reverted to 3.2.6 (no stray 3.2.7), fold ordered strictly after m_unify via filename-prefix tie-break verified through production auto_discover+get_all path, compat-guard re-homed to charter.yaml, v2 bundle-validate + gitignore-reframe legitimate, #2772 untagged; 630 tests pass, ruff clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 976981,
       "shell_pid_created_at": "1784399681.13",
       "subtasks": {
@@ -164,6 +199,11 @@
       "lane": "done",
       "last_event_id": "01KXVB13Q23QAWFTJNX0CCYA91",
       "last_transition_at": "2026-07-18T19:25:10.242923+00:00",
+      "review_result": {
+        "reference": "FR-009/INV-3 met: no charter.md prose read remains in language_scope.py (only docstring mentions); tier-1 now reads charter.yaml catalog.languages via CHARTER_YAML+load_charter_yaml, tier-2 interview precedence + graceful None/empty preserved. extract_declared_languages still live (compiler.py, interview_mapping.py, tier-2). Leeway edit tests/charter/test_context.py assessed: genuinely unowned (WP05 owns context.py + test_context_display_charter_md.py, not test_context.py), mechanical fixture repoint references.yaml->charter.yaml catalog.languages, minimal. Gates green: ruff clean, mypy --strict clean, 43 passed (4 CharterCatalogMissWarning pre-existing noise), C901<=15.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 490282,
       "shell_pid_created_at": "1784385324.63",
       "subtasks": {
@@ -182,6 +222,11 @@
       "lane": "done",
       "last_event_id": "01KXVB15JKDVCRH7T3VMDB77G8",
       "last_transition_at": "2026-07-18T19:25:12.147925+00:00",
+      "review_result": {
+        "reference": "Contradictions flipped: charter-overview/governance-files now describe charter.yaml=authoritative structured source, charter.md=curated companion (never resolving), config charter: pointer, extractor/sync-scrape retired. API (charter-commands) + arch (06_unified_charter_bundle manifest v2, content_hash_files=[charter.yaml], derived_files empty) accurate to WP01/03/04 landed behavior. SKILL assets (SKILL.md + both references + charter mission-step prompt) consistently inverted; no stale 'derived-from-charter.md' teaching (retired triad only named as anti-pattern). 12-agent baselines + codex/vibe skill snapshots regenerated consistently: skills 284 passed, twelve-agent parity 209 passed. Gates green: terminology guard 3 passed, check_docs_freshness --ci errors=0 (8 warnings all pre-existing external LINK-HEALTH). Scope clean: all 22 files owned. Anti-pattern checklist PASS/N-A (docs-only). Note: one out-of-scope historical plan doc docs/plans/doctrine/org-doctrine-layer-architecture-review.md still narrates old sync-extraction in a past-analysis snapshot — not an owned WP09 surface; candidate follow-up, non-blocking.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 688604,
       "shell_pid_created_at": "1784390848.95",
       "subtasks": {

@@ -1,6 +1,6 @@
 {
-  "coordination_branch": "kitty/mission-pi-and-letta-agent-support-01KT4Q26",
   "created_at": "2026-06-02T17:45:51.837061+00:00",
+  "flattened": true,
   "friendly_name": "Pi and Letta Code Agent Support",
   "mission_id": "01KT4Q26YT9B4ZNBC4GH0D2WNM",
   "mission_number": null,
@@ -11,5 +11,6 @@
   "slug": "pi-and-letta-agent-support-01KT4Q26",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git"
 }

@@ -19,83 +19,216 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "python-pedro",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KZ038CKZSC1HBG8Q6373PC01",
       "last_transition_at": "2026-08-02T02:01:14.111180+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "reviewer-renata APPROVE (independent verify, 46+24 tests green); NFR-004 fallout reconciled honestly; empty_charter.py:100 mypy red pre-existing."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 383435,
-      "shell_pid_created_at": "1785626582.51"
+      "shell_pid_created_at": "1785626582.51",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      },
+      "tracker_refs": [
+        "3104",
+        "3118"
+      ]
     },
     "WP02": {
       "actor": "merge",
-      "agent": "python-pedro",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KZ038DJT18BE3FGTSZDXHV8Z",
       "last_transition_at": "2026-08-02T02:01:15.098849+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "reviewer-renata APPROVE (23 tests green independent): --compile reuses seam no new compiler; default apply git-agnostic (C-004); FR-008 shape-from-same-input; campsite hoist correct; mypy fix real not masking."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 427109,
-      "shell_pid_created_at": "1785630662.1"
+      "shell_pid_created_at": "1785630662.1",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      },
+      "tracker_refs": [
+        "3105",
+        "3107"
+      ]
     },
     "WP03": {
       "actor": "merge",
-      "agent": "python-pedro",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KZ038ECX45J32S7B2GV5ZHPV",
       "last_transition_at": "2026-08-02T02:01:15.933406+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "reviewer-renata APPROVE (59 pass, 1 pre-existing #3045 red verified byte-identical to base): OR-gate adjudicated correct (satisfies FR-005/SC-002/#3105, strict swap spec-unrequired+over-regressive); C-003 held (prose readers on CHARTER_MD, sibling resolver); FR-006 flip + all consumers reconciled; fallout files legit. Deliberate OR-gate deviation recorded for PR body."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 430499,
-      "shell_pid_created_at": "1785630822.57"
+      "shell_pid_created_at": "1785630822.57",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      },
+      "tracker_refs": [
+        "3105",
+        "2787"
+      ]
     },
     "WP04": {
       "actor": "merge",
-      "agent": "python-pedro",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KZ038F6H06MC814XEHJNQG33",
       "last_transition_at": "2026-08-02T02:01:16.753148+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "reviewer-renata APPROVE (32 tests green independent): fix in _resolve_directives_selection not wrapper; three-state pinned incl frozenset() (verified RED pre-fix, discriminating); M1 :187/:250 intact; context_json untouched; mypy red pre-existing."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 433096,
-      "shell_pid_created_at": "1785630892.58"
+      "shell_pid_created_at": "1785630892.58",
+      "subtasks": {
+        "T030": "done",
+        "T031": "done",
+        "T032": "done"
+      },
+      "tracker_refs": [
+        "3104"
+      ]
     },
     "WP05": {
       "actor": "merge",
-      "agent": "python-pedro",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KZ038G03D3DSQNTZACAEY4J9",
       "last_transition_at": "2026-08-02T02:01:17.571256+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "reviewer-renata APPROVE (61 tests green): advertised selectors always resolve to honest placeholder (boundary correct, garbage tokens still None); confined to section_bodies.py (C-003, no seed enrichment per #2808); fresh-pack test avoids false-green; T042 fallout honest. Non-blocking follow-up: masked-fence placeholder wording precision."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 436016,
-      "shell_pid_created_at": "1785630962.6"
+      "shell_pid_created_at": "1785630962.6",
+      "subtasks": {
+        "T040": "done",
+        "T041": "done",
+        "T042": "done"
+      },
+      "tracker_refs": [
+        "3095",
+        "3094",
+        "2552"
+      ]
     },
     "WP06": {
       "actor": "merge",
-      "agent": "python-pedro",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KZ038GSXAFFHQ2WXKVKY6A2Q",
       "last_transition_at": "2026-08-02T02:01:18.397081+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "reviewer-renata APPROVE: FR-011 surface reconciled (bare CLI form absent from canonical surfaces, independently grep-verified); working /spec-kitty.analyze skill preserved; T051 is a real regression guard; #849/#851/#853 not folded; owned_files correction legit (SKILL.md is generated)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 438082,
-      "shell_pid_created_at": "1785631032.61"
+      "shell_pid_created_at": "1785631032.61",
+      "subtasks": {
+        "T050": "done",
+        "T051": "done"
+      },
+      "tracker_refs": [
+        "3096"
+      ]
     },
     "WP07": {
       "actor": "merge",
-      "agent": "python-pedro",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KZ038HKDHS2X5QWP6BRJHEKQ",
       "last_transition_at": "2026-08-02T02:01:19.213400+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "reviewer-renata APPROVE: invocation/** filter present+non-vacuous; skip-with-green genuine (cutover-guard); no double-charge of always-on arch-adversarial/lint; YAML valid. PR-body: repo-admin must add doctrine-charter-tests to branch protection after first run."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 440556,
-      "shell_pid_created_at": "1785631102.62"
+      "shell_pid_created_at": "1785631102.62",
+      "subtasks": {
+        "T060": "done",
+        "T061": "done"
+      },
+      "tracker_refs": [
+        "3102"
+      ]
     },
     "WP08": {
       "actor": "merge",
       "agent": "curator-carla",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KZ038JDB743FN4E7ZJE465JC",
       "last_transition_at": "2026-08-02T02:01:20.043968+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 536152,
-      "shell_pid_created_at": "1785634752.81"
+      "shell_pid_created_at": "1785634752.81",
+      "subtasks": {
+        "T070": "done",
+        "T071": "done"
+      },
+      "tracker_refs": [
+        "3107"
+      ]
     }
   }
 }

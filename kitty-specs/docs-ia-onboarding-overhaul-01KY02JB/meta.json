@@ -14,7 +14,6 @@
   "accepted_by": "robert",
   "accepted_from_commit": "54b8062831a58f8cf0b591496df1e0a7767e84fb",
   "baseline_merge_commit": "68a0d8e4171f537d2962685138808241b680e263",
-  "coordination_branch": "kitty/mission-docs-ia-onboarding-overhaul-01KY02JB",
   "created_at": "2026-07-20T15:33:30.254028+00:00",
   "documentation_state": {
     "coverage_percentage": 0.5344827586206896,
@@ -40,7 +39,7 @@
     "last_audit_date": "2026-07-20T18:13:14.048384",
     "target_audience": "end-users"
   },
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Docs Site IA & Onboarding Overhaul",
   "mission_id": "01KY02JBGCYS2H0EFDS76WDRFR",
   "mission_number": null,
@@ -52,7 +51,7 @@
   "slug": "docs-ia-onboarding-overhaul-01KY02JB",
   "status_phase": "1",
   "target_branch": "feat/docs-ia-onboarding-overhaul",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-20T16:36:52.010818+00:00"
 }

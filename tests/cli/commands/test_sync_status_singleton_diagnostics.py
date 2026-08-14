@@ -13,11 +13,15 @@ inside the function body, so these tests patch the source module
 
 from __future__ import annotations
 
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+from kernel.clock import now_utc, timedelta
 from typer.testing import CliRunner
 
+from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands import sync as sync_command
 from specify_cli.cli.commands.sync import app
 from specify_cli.sync.daemon import (
@@ -31,6 +35,27 @@ pytestmark = pytest.mark.fast
 
 
 runner = CliRunner()
+
+
+def _authenticated_session() -> StoredSession:
+    now = now_utc()
+    return StoredSession(
+        user_id="status-test-user",
+        email="tester@example.com",
+        name="Status Test",
+        teams=(Team(id="t-private", name="Private", role="owner", is_private_teamspace=True),),
+        default_team_id="t-private",
+        access_token="access",
+        refresh_token="refresh",
+        session_id="status-test-session",
+        issued_at=now,
+        access_token_expires_at=now + timedelta(hours=1),
+        refresh_token_expires_at=now + timedelta(days=1),
+        scope="offline_access",
+        storage_backend="file",
+        last_used_at=now,
+        auth_method="authorization_code",
+    )
 
 
 def _healthy_status(pid: int = 4242, port: int = 9400) -> SyncDaemonStatus:
@@ -49,7 +74,7 @@ def _healthy_status(pid: int = 4242, port: int = 9400) -> SyncDaemonStatus:
     )
 
 
-def test_status_check_includes_daemon_pid_and_port(monkeypatch, tmp_path):
+def test_status_check_includes_daemon_pid_and_port(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """The daemon PID and port appear in the ``sync status --check`` table.
 
     Authenticate a foreground identity so the FR-004 auth-required gate
@@ -60,17 +85,41 @@ def test_status_check_includes_daemon_pid_and_port(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "AppData"))
     monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / ".spec-kitty"))
+    from specify_cli.sync.consent import record_project_opt_in
+    from specify_cli.sync.project_store import ProjectSyncStore
+    import specify_cli.sync.routing as routing
+
+    project_uuid = "aaaaaaaa-0000-0000-8000-000000001071"
+    record_project_opt_in(project_uuid, actor="status-singleton-test")
+    store = ProjectSyncStore(project_uuid)
+    authority = store.layout_generation()
+    authority.begin_cutover("status-singleton-test")
+    authority.publish_project_only("status-singleton-test", verify_exact=lambda: True)
+    with store.unit_of_work():
+        pass
+    routed = SimpleNamespace(
+        project_uuid=store.project_uuid,
+        project_slug="status-singleton-test",
+        repo_slug="tests/status-singleton",
+        build_id=None,
+        repo_root=tmp_path,
+    )
+    monkeypatch.setattr(routing, "resolve_checkout_sync_routing_readonly", lambda *_a, **_k: routed)
+    token_manager = SimpleNamespace(
+        is_authenticated=True,
+        get_current_session=lambda: _authenticated_session(),
+        rehydrate_membership_if_needed=lambda **_kwargs: True,
+    )
+    monkeypatch.setattr("specify_cli.auth.manager.get_token_manager", lambda: token_manager)
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: token_manager)
 
     # Stage a foreground identity with a real auth scope so the
     # auth-required-and-absent failure does not trip the boundary gate.
     cred_dir = tmp_path / ".spec-kitty"
     cred_dir.mkdir(parents=True, exist_ok=True)
     (cred_dir / "credentials").write_text(
-        "[user]\n"
-        'username = "tester@example.com"\n'
-        'team_slug = "t-private"\n'
-        "[server]\n"
-        'url = "https://spec-kitty-dev.fly.dev"\n',
+        '[user]\nusername = "tester@example.com"\nteam_slug = "t-private"\n[server]\nurl = "https://spec-kitty-dev.fly.dev"\n',
         encoding="utf-8",
     )
 
@@ -105,7 +154,7 @@ def test_status_check_includes_daemon_pid_and_port(monkeypatch, tmp_path):
     assert "OK" in result.output
 
 
-def test_status_check_flags_orphan_daemons(monkeypatch, tmp_path):
+def test_status_check_flags_orphan_daemons(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Orphan ``run_sync_daemon`` processes are surfaced with PIDs in the output."""
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "AppData"))
@@ -159,7 +208,7 @@ def test_status_check_flags_orphan_daemons(monkeypatch, tmp_path):
     assert "live `run_sync_daemon` process(es) detected" in result.output
 
 
-def test_status_without_check_skips_orphan_scan(monkeypatch, tmp_path):
+def test_status_without_check_skips_orphan_scan(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """``sync status`` without ``--check`` is the fast path; no scan is run."""
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "AppData"))
@@ -167,7 +216,7 @@ def test_status_without_check_skips_orphan_scan(monkeypatch, tmp_path):
 
     scan_called = {"count": 0}
 
-    def fail_if_called():
+    def fail_if_called() -> None:
         scan_called["count"] += 1
         raise AssertionError("scan_sync_daemons must not run on fast path")
 

@@ -26,6 +26,7 @@ from __future__ import annotations
 import logging
 import json
 import re
+from contextlib import contextmanager
 from pathlib import Path
 from collections.abc import Iterator
 from typing import Any
@@ -48,21 +49,46 @@ ANSI_RED_RE = re.compile(r"\x1b\[(?:1;)?31m|\[red\]|\[bold red\]", re.IGNORECASE
 NOT_AUTH_RE = re.compile(r"Not authenticated, skipping sync")
 
 
-def _queued_background_service(tmp_path: Path) -> Any:
+@contextmanager
+def _queued_background_service(tmp_path: Path) -> Iterator[Any]:
+    """Per-project-store ``BackgroundSyncService`` with one queued event.
+
+    Mirrors ``tests/sync/test_final_sync_diagnostics.py::_queued_service`` (the
+    canonical migrated pattern) rather than the retired file-backed
+    ``OfflineQueue(db_path=...)`` constructor. The ``unit_of_work`` is kept open
+    for the caller's ``with`` block because ``BackgroundSyncService.stop()``
+    reads ``queue.size()`` to decide whether a final sync is needed — closing
+    the unit early would make that read silently report zero.
+    """
+    from uuid import uuid4
+
     from specify_cli.sync.background import BackgroundSyncService
+    from specify_cli.sync.layout_generation import LayoutMode
+    from specify_cli.sync.project_store import ProjectSyncStore
     from specify_cli.sync.queue import OfflineQueue
 
-    queue = OfflineQueue(db_path=tmp_path / "queue.db")
-    queue.queue_event(
-        {
-            "event_id": "EVT000000000000000000000001",
-            "event_type": "WPStatusChanged",
-            "payload": {"wp_id": "WP05", "from_lane": "doing", "to_lane": "for_review"},
-        }
-    )
-    cfg = MagicMock()
-    cfg.get_server_url.return_value = "https://test.example.com"
-    return BackgroundSyncService(queue=queue, config=cfg, sync_interval_seconds=300)
+    project_uuid = str(uuid4())
+    with patch.dict("os.environ", {"SPEC_KITTY_HOME": str(tmp_path / "runtime")}):
+        store = ProjectSyncStore(project_uuid)
+        authority = store.layout_generation()
+        if authority.read_state().mode is LayoutMode.LEGACY:
+            authority.begin_cutover("mission-create-clean-output-test")
+            authority.publish_project_only(
+                "mission-create-clean-output-test", verify_exact=lambda: True
+            )
+        with store.unit_of_work() as unit:
+            queue = OfflineQueue(unit, authority)
+            queue.queue_event(
+                {
+                    "event_id": "EVT000000000000000000000001",
+                    "event_type": "WPStatusChanged",
+                    "project_uuid": project_uuid,
+                    "payload": {"wp_id": "WP05", "from_lane": "doing", "to_lane": "for_review"},
+                }
+            )
+            cfg = MagicMock()
+            cfg.get_server_url.return_value = "https://test.example.com"
+            yield BackgroundSyncService(queue=queue, config=cfg, sync_interval_seconds=300)
 
 
 @pytest.fixture(autouse=True)
@@ -148,16 +174,15 @@ def test_final_sync_shutdown_diagnostic_preserves_clean_success_output(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Final sync failures after local success are clean stderr diagnostics."""
-    service = _queued_background_service(tmp_path)
+    with _queued_background_service(tmp_path) as service:
+        print(json.dumps({"result": "success", "mission_slug": "demo"}))
+        mark_invocation_succeeded()
 
-    print(json.dumps({"result": "success", "mission_slug": "demo"}))
-    mark_invocation_succeeded()
-
-    with (
-        patch("specify_cli.sync.batch.time.sleep"),
-        patch.object(service, "_perform_sync", side_effect=RuntimeError("network down")),
-    ):
-        service.stop()
+        with (
+            patch("specify_cli.sync.batch.time.sleep"),
+            patch.object(service, "_perform_sync", side_effect=RuntimeError("network down")),
+        ):
+            service.stop()
 
     captured = capsys.readouterr()
     assert json.loads(captured.out) == {"result": "success", "mission_slug": "demo"}

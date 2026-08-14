@@ -12,22 +12,39 @@ Still covered here:
 2. Queue size limits (oldest-row eviction, and accepting again after a drain)
 """
 
-import pytest
+from collections.abc import Iterator
 from pathlib import Path
-import tempfile
+
+import pytest
 
 pytestmark = pytest.mark.fast
 
 from specify_cli.sync.queue import OfflineQueue
+from specify_cli.sync.project_store import ProjectSyncStore
+
+
+PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
+
+
+def _project_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(PROJECT)
+    authority = store.layout_generation()
+    authority.begin_cutover("offline-replay-tests")
+    authority.publish_project_only("offline-replay-tests", verify_exact=lambda: True)
+    return store
 
 
 @pytest.fixture
-def temp_queue():
-    """Create a queue with a temporary database"""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test_queue.db"
-        queue = OfflineQueue(db_path)
-        yield queue
+def store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
+    return _project_store(tmp_path, monkeypatch)
+
+
+@pytest.fixture
+def temp_queue(store: ProjectSyncStore) -> Iterator[OfflineQueue]:
+    """Create a project-owned queue inside its outer unit of work."""
+    with store.unit_of_work() as unit:
+        yield OfflineQueue(unit, store.layout_generation())
 
 
 def create_test_event(index: int, node_id: str = "test-node") -> dict:
@@ -35,6 +52,7 @@ def create_test_event(index: int, node_id: str = "test-node") -> dict:
     return {
         "event_id": f"evt-{index:06d}",
         "event_type": "WPStatusChanged",
+        "project_uuid": PROJECT,
         "aggregate_id": f"WP{index % 100:02d}",
         "aggregate_type": "WorkPackage",
         "lamport_clock": index,
@@ -62,8 +80,8 @@ class TestQueueEventsOffline:
         events = temp_queue.drain_queue(limit=100)
         assert len(events) == 100
         for i, event in enumerate(events):
-            assert event["event_id"] == f"evt-{i:06d}"
-            assert event["payload"]["index"] == i
+            assert event.event_id == f"evt-{i:06d}"
+            assert event.event["payload"]["index"] == i
 
     def test_queue_events_with_complex_payloads(self, temp_queue):
         """Queue events with complex nested payloads"""
@@ -71,6 +89,7 @@ class TestQueueEventsOffline:
             event = {
                 "event_id": f"complex-{i}",
                 "event_type": "ComplexEvent",
+                "project_uuid": PROJECT,
                 "aggregate_id": "WP01",
                 "lamport_clock": i,
                 "node_id": "test",
@@ -86,47 +105,38 @@ class TestQueueEventsOffline:
 
         # Verify complex payload preserved
         events = temp_queue.drain_queue()
-        assert events[25]["payload"]["nested"]["deep"]["value"] == 25
+        assert events[25].event["payload"]["nested"]["deep"]["value"] == 25
 
 
 class TestQueueSizeLimit:
     """Test T133: Queue size limit warning"""
 
-    def test_queue_size_limit_enforced(self, tmp_path: Path):
-        """Queue should evict the oldest event at MAX_QUEUE_SIZE."""
+    def test_queue_size_limit_enforced(self, store: ProjectSyncStore):
+        """Queue refuses a new event once its project-owned cap is reached."""
         max_queue_size = 8
-        queue = OfflineQueue(tmp_path / "queue_size_limit.db", max_queue_size=max_queue_size)
+        with store.unit_of_work() as unit:
+            queue = OfflineQueue(unit, store.layout_generation(), max_queue_size=max_queue_size)
+            for i in range(max_queue_size):
+                result = queue.queue_event({"event_id": f"evt-{i}", "event_type": "Test", "project_uuid": PROJECT, "payload": {}})
+                assert result is True
 
-        # Fill queue to limit
-        for i in range(max_queue_size):
-            result = queue.queue_event({"event_id": f"evt-{i}", "event_type": "Test", "payload": {}})
-            assert result is True
+            assert queue.size() == max_queue_size
+            result = queue.queue_event({"event_id": "evt-overflow", "event_type": "Test", "project_uuid": PROJECT, "payload": {}})
+            assert result is False
+            assert queue.size() == max_queue_size
+            assert queue.drain_queue(limit=1)[0].event_id == "evt-0"
 
-        assert queue.size() == max_queue_size
-
-        # 10,001st event should succeed and evict the oldest row
-        result = queue.queue_event({"event_id": "evt-overflow", "event_type": "Test", "payload": {}})
-        assert result is True
-        assert queue.size() == max_queue_size
-        events = queue.drain_queue(limit=1)
-        assert events[0]["event_id"] == "evt-1"
-
-    def test_queue_accepts_after_sync(self, tmp_path: Path):
+    def test_queue_accepts_after_sync(self, store: ProjectSyncStore):
         """Queue accepts new events after sync makes room"""
         max_queue_size = 32
         drain_count = 10
-        queue = OfflineQueue(tmp_path / "queue_accepts_after_sync.db", max_queue_size=max_queue_size)
+        with store.unit_of_work() as unit:
+            queue = OfflineQueue(unit, store.layout_generation(), max_queue_size=max_queue_size)
+            for i in range(max_queue_size):
+                queue.queue_event({"event_id": f"evt-{i}", "event_type": "Test", "project_uuid": PROJECT, "payload": {}})
 
-        # Fill to limit
-        for i in range(max_queue_size):
-            queue.queue_event({"event_id": f"evt-{i}", "event_type": "Test", "payload": {}})
-
-        # Drain some events (simulating sync)
-        events = queue.drain_queue(limit=drain_count)
-        queue.mark_synced([e["event_id"] for e in events])
-
-        assert queue.size() == max_queue_size - drain_count
-
-        # Should accept new events now
-        result = queue.queue_event({"event_id": "evt-new", "event_type": "Test", "payload": {}})
-        assert result is True
+            events = queue.drain_queue(limit=drain_count)
+            queue.mark_synced([event.event_id for event in events])
+            assert queue.size() == max_queue_size - drain_count
+            result = queue.queue_event({"event_id": "evt-new", "event_type": "Test", "project_uuid": PROJECT, "payload": {}})
+            assert result is True

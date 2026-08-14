@@ -1,46 +1,57 @@
-"""Offline body upload queue with SQLite persistence.
-
-Provides durable, idempotent queuing for artifact body uploads with
-per-task exponential backoff. Lives alongside the event queue in the
-same SQLite DB file.
-"""
+"""Connection-free project-owned body upload repository."""
 
 from __future__ import annotations
 
-import sqlite3
+import hashlib
+import json
 from collections.abc import Collection
 from dataclasses import dataclass
 from enum import StrEnum
-from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any, Protocol
 
-from kernel.clock import now_epoch
-
-from .queue import (
-    DEFAULT_MAX_QUEUE_SIZE,
-    default_queue_db_path,
-    ensure_body_queue_schema,
-    get_max_queue_size,
+from kernel.clock import now_epoch, now_utc_iso
+from specify_cli.sync.consent import allocate_capture_sequence
+from specify_cli.sync.layout_generation import (
+    LayoutDestination,
+    LayoutGenerationAuthority,
+    LayoutTestHooks,
+    LayoutWritePermit,
 )
+from specify_cli.sync.project_context import VerifiedProjectStoreIdentity
+from specify_cli.sync.project_store import ProjectUnitOfWork
 
-if TYPE_CHECKING:
-    from .namespace import NamespaceRef
+from .queue import DEFAULT_MAX_QUEUE_SIZE, get_max_queue_size
 
 DEFAULT_BODY_QUEUE_SIZE = DEFAULT_MAX_QUEUE_SIZE
 _BACKOFF_BASE = 1.0
 _BACKOFF_CAP = 300.0
 
-# S1192: exact SQL literals shared by several row-count / delete call sites below.
-_SELECT_COUNT_BODY_QUEUE_SQL = "SELECT COUNT(*) FROM body_upload_queue"
-_DELETE_BODY_QUEUE_ROW_SQL = "DELETE FROM body_upload_queue WHERE id = ?"
+
+class NamespaceRef(Protocol):
+    @property
+    def project_uuid(self) -> str: ...
+
+    @property
+    def mission_slug(self) -> str: ...
+
+    @property
+    def target_branch(self) -> str: ...
+
+    @property
+    def mission_type(self) -> str: ...
+
+    @property
+    def manifest_version(self) -> str: ...
+
+    def to_dict(self) -> dict[str, str]: ...
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class BodyUploadTask:
-    """A single queued body upload task."""
-
-    row_id: int
+    row_id: str
     project_uuid: str
+    epoch_id: int
+    capture_sequence: int
     mission_slug: str
     target_branch: str
     mission_type: str
@@ -56,10 +67,8 @@ class BodyUploadTask:
     last_error: str | None
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class BodyQueueStats:
-    """Diagnostic information about body queue state."""
-
     total_count: int
     ready_count: int
     backoff_count: int
@@ -69,10 +78,8 @@ class BodyQueueStats:
     retry_histogram: dict[int, int]
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class BodyUploadFailureRecord:
-    """A persisted non-retryable body upload failure for later diagnosis."""
-
     project_uuid: str
     mission_slug: str
     target_branch: str
@@ -89,43 +96,70 @@ class BodyUploadFailureRecord:
 
 
 class BodyEnqueueResult(StrEnum):
-    """Classification of a body queue enqueue attempt."""
-
     ENQUEUED = "enqueued"
     ALREADY_EXISTS = "already_exists"
     QUEUE_FULL = "queue_full"
 
 
-class OfflineBodyUploadQueue:
-    """SQLite-backed queue for artifact body uploads.
+def _require_project_destination(permit: LayoutWritePermit) -> None:
+    if permit.destination is not LayoutDestination.PROJECT_STORE:
+        raise RuntimeError("body outbox writes require the project_only layout")
 
-    Shares the same DB file as the event OfflineQueue. Provides
-    idempotent enqueue, per-task backoff drain, and lifecycle methods.
-    """
+
+def _task_id(
+    namespace: NamespaceRef,
+    artifact_path: str,
+    content_hash: str,
+) -> str:
+    material = "\0".join(
+        (
+            namespace.project_uuid,
+            namespace.mission_slug,
+            namespace.target_branch,
+            namespace.mission_type,
+            namespace.manifest_version,
+            artifact_path,
+            content_hash,
+        )
+    ).encode()
+    # This digest is the durable body native identity, not charter content.
+    return "body-" + hashlib.sha256(material).hexdigest()  # noqa: TID251
+
+
+def _encode_reference(values: dict[str, Any]) -> str:
+    return json.dumps(values, sort_keys=True, separators=(",", ":"))
+
+
+class OfflineBodyUploadQueue:
+    """Short-lived body outbox adapter over one active project UoW."""
+
+    __slots__ = ("_authority", "_max_queue_size", "_unit")
 
     def __init__(
         self,
-        db_path: Path | None = None,
+        unit: ProjectUnitOfWork,
+        authority: LayoutGenerationAuthority,
         max_queue_size: int | None = None,
     ) -> None:
-        if db_path is None:
-            db_path = default_queue_db_path()
-        self.db_path = db_path
-        self._max_queue_size = (
-            int(max_queue_size)
-            if max_queue_size is not None
-            else get_max_queue_size()
-        )
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(self.db_path)
-        try:
-            ensure_body_queue_schema(conn)
-        finally:
-            conn.close()
+        self._unit = unit
+        self._authority = authority
+        self._max_queue_size = max_queue_size if max_queue_size is not None else get_max_queue_size()
+
+    @property
+    def project_uuid(self) -> str:
+        return str(self._unit.project_uuid.storage_token)
+
+    @property
+    def unit_of_work_identity(self) -> int:
+        return int(self._unit.connection_identity)
+
+    @property
+    def store_identity(self) -> VerifiedProjectStoreIdentity:
+        """Return the opaque identity minted for this repository's active UoW."""
+        return self._unit.store_identity
 
     @property
     def max_queue_size(self) -> int:
-        """Configured queue capacity for body uploads."""
         return self._max_queue_size
 
     def enqueue(
@@ -136,381 +170,237 @@ class OfflineBodyUploadQueue:
         content_body: str,
         size_bytes: int,
         hash_algorithm: str = "sha256",
+        *,
+        test_hooks: LayoutTestHooks | None = None,
     ) -> BodyEnqueueResult:
-        """Enqueue a body upload task."""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            row = conn.execute(_SELECT_COUNT_BODY_QUEUE_SQL).fetchone()
-            count = int(row[0]) if row else 0
-            if count >= self._max_queue_size:
-                # Keep normal CLI output quiet in offline-first mode. Saturation can
-                # still be inspected explicitly via queue diagnostics.
-                return BodyEnqueueResult.QUEUE_FULL
-            # Validate outbound payload before queue write
-            from specify_cli.core.contract_gate import validate_outbound_payload
-            namespace_dict = namespace.to_dict()
-            validate_outbound_payload(namespace_dict, "body_sync")
+        owner = namespace.project_uuid.strip().lower()
+        if owner != self.project_uuid:
+            raise ValueError("body task project UUID does not match store owner")
+        identity = _task_id(namespace, artifact_path, content_hash)
+        exists = self._unit.execute(
+            "SELECT 1 FROM body_upload_tasks WHERE project_uuid = ? AND body_task_id = ?",
+            (self.project_uuid, identity),
+        ).fetchone()
+        if exists is not None:
+            return BodyEnqueueResult.ALREADY_EXISTS
+        if self.size() >= self._max_queue_size:
+            return BodyEnqueueResult.QUEUE_FULL
+        created = now_epoch()
 
-            cursor = conn.execute(
-                """INSERT OR IGNORE INTO body_upload_queue
-                   (project_uuid, mission_slug, target_branch, mission_type,
-                    manifest_version, artifact_path, content_hash, hash_algorithm,
-                    content_body, size_bytes, retry_count, next_attempt_at, created_at, last_error)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0.0, ?, NULL)""",
+        def write(permit: LayoutWritePermit) -> None:
+            _require_project_destination(permit)
+            assignment = allocate_capture_sequence(self._unit)
+            reference = _encode_reference(
+                {
+                    "mission_slug": namespace.mission_slug,
+                    "target_branch": namespace.target_branch,
+                    "mission_type": namespace.mission_type,
+                    "manifest_version": namespace.manifest_version,
+                    "artifact_path": artifact_path,
+                    "hash_algorithm": hash_algorithm,
+                    "content_body": content_body,
+                    "size_bytes": size_bytes,
+                    "retry_count": 0,
+                    "next_attempt_at": 0.0,
+                    "created_at": created,
+                    "last_error": None,
+                }
+            )
+            self._unit.execute(
+                "INSERT INTO body_upload_tasks "
+                "(body_task_id, project_uuid, epoch_id, capture_sequence, content_hash, "
+                "body_reference, state, created_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)",
                 (
-                    namespace.project_uuid,
-                    namespace.mission_slug,
-                    namespace.target_branch,
-                    namespace.mission_type,
-                    namespace.manifest_version,
-                    artifact_path,
+                    identity,
+                    self.project_uuid,
+                    assignment.epoch_id,
+                    assignment.capture_sequence,
                     content_hash,
-                    hash_algorithm,
-                    content_body,
-                    size_bytes,
-                    now_epoch(),
+                    reference,
+                    now_utc_iso(),
                 ),
             )
-            conn.commit()
-            if cursor.rowcount > 0:
-                return BodyEnqueueResult.ENQUEUED
-            return BodyEnqueueResult.ALREADY_EXISTS
-        finally:
-            conn.close()
+
+        self._authority.execute_write(
+            self._authority.issue_write_permit(),
+            write,
+            test_hooks=test_hooks,
+        )
+        return BodyEnqueueResult.ENQUEUED
+
+    def _rows(self, *, include_terminal: bool = False) -> list[tuple[Any, ...]]:
+        if include_terminal:
+            rows = self._unit.execute(
+                "SELECT body_task_id, epoch_id, capture_sequence, content_hash, "
+                "body_reference, state FROM body_upload_tasks WHERE project_uuid = ? "
+                "ORDER BY capture_sequence, body_task_id",
+                (self.project_uuid,),
+            ).fetchall()
+        else:
+            rows = self._unit.execute(
+                "SELECT body_task_id, epoch_id, capture_sequence, content_hash, "
+                "body_reference, state FROM body_upload_tasks WHERE project_uuid = ? "
+                "AND state NOT IN ('uploaded', 'terminal_failed') "
+                "ORDER BY capture_sequence, body_task_id",
+                (self.project_uuid,),
+            ).fetchall()
+        return [tuple(row) for row in rows]
+
+    def _task(self, row: tuple[Any, ...]) -> BodyUploadTask:
+        data: Any = json.loads(str(row[4]))
+        if not isinstance(data, dict):
+            raise ValueError("body reference is not an object")
+        return BodyUploadTask(
+            row_id=str(row[0]),
+            project_uuid=self.project_uuid,
+            epoch_id=int(row[1]),
+            capture_sequence=int(row[2]),
+            mission_slug=str(data["mission_slug"]),
+            target_branch=str(data["target_branch"]),
+            mission_type=str(data["mission_type"]),
+            manifest_version=str(data["manifest_version"]),
+            artifact_path=str(data["artifact_path"]),
+            content_hash=str(row[3]),
+            hash_algorithm=str(data["hash_algorithm"]),
+            content_body=str(data["content_body"]),
+            size_bytes=int(data["size_bytes"]),
+            retry_count=int(data["retry_count"]),
+            next_attempt_at=float(data["next_attempt_at"]),
+            created_at=float(data["created_at"]),
+            last_error=(None if data.get("last_error") is None else str(data["last_error"])),
+        )
 
     def drain(
         self,
         limit: int = 100,
         *,
         exclude_project_uuids: Collection[str] | None = None,
-        exclude_row_ids: Collection[int] | None = None,
+        exclude_row_ids: Collection[str] | None = None,
     ) -> list[BodyUploadTask]:
-        """Retrieve tasks ready for delivery (next_attempt_at <= now).
+        denied_projects = {value.strip().lower() for value in (exclude_project_uuids or ())}
+        if self.project_uuid in denied_projects:
+            return []
+        denied_rows = {str(value) for value in (exclude_row_ids or ())}
+        now = now_epoch()
+        return [task for task in (self._task(row) for row in self._rows()) if task.row_id not in denied_rows and task.next_attempt_at <= now][:limit]
 
-        ``exclude_project_uuids`` / ``exclude_row_ids`` narrow the read **before**
-        ``LIMIT`` is applied. That ordering is the point, not an optimisation: the
-        drain withholds a non-consenting project's bodies and leaves them queued
-        (``sync/background.py:_drain_body_queue``), so filtering *after* the window
-        would let a wall of retained non-consenting rows sit at the head of the
-        FIFO forever and starve a consenting project's bodies behind it — the
-        NFR-002 starvation this mission names for the event drain, on this store.
+    def _update(
+        self,
+        row_id: str,
+        *,
+        state: str,
+        error: str | None = None,
+        retry: bool = False,
+    ) -> None:
+        row = next((row for row in self._rows(include_terminal=True) if str(row[0]) == str(row_id)), None)
+        if row is None:
+            raise ValueError("body task is not owned by this project store")
+        task = self._task(row)
+        data: Any = json.loads(str(row[4]))
+        retry_count = task.retry_count + (1 if retry else 0)
+        data["retry_count"] = retry_count
+        data["next_attempt_at"] = now_epoch() + min(_BACKOFF_BASE * (2 ** max(0, retry_count - 1)), _BACKOFF_CAP) if retry else task.next_attempt_at
+        data["last_error"] = error if error is not None else task.last_error
 
-        Blank ``project_uuid`` rows are matched by an explicit ``""`` entry in
-        *exclude_project_uuids* and by nothing else. Passing it is how the drain steps
-        past unattributable rows wholesale after refusing them once — they are never
-        consentable, and there can be arbitrarily many, so they must be excludable as
-        a group rather than one ``row_id`` at a time. (The column is ``NOT NULL``, so
-        the empty string is the only unattributable form a row can take.)
-        """
-        where = ["next_attempt_at <= ?"]
-        params: list[Any] = [now_epoch()]
-
-        denied_uuids = sorted({str(u).strip() for u in (exclude_project_uuids or ())})
-        if denied_uuids:
-            placeholders = ", ".join("?" for _ in denied_uuids)
-            where.append(f"project_uuid NOT IN ({placeholders})")
-            params.extend(denied_uuids)
-
-        denied_rows = sorted({int(r) for r in (exclude_row_ids or ())})
-        if denied_rows:
-            placeholders = ", ".join("?" for _ in denied_rows)
-            where.append(f"id NOT IN ({placeholders})")
-            params.extend(denied_rows)
-
-        params.append(limit)
-        # Every value travels via a ``?`` placeholder; the only interpolation is
-        # the placeholder count itself, so there is no injection surface (same
-        # pattern as ``delivery/retention.py``'s static-identifier SQL).
-        query = f"""SELECT id, project_uuid, mission_slug, target_branch, mission_type,
-                          manifest_version, artifact_path, content_hash, hash_algorithm,
-                          content_body, size_bytes, retry_count, next_attempt_at,
-                          created_at, last_error
-                   FROM body_upload_queue
-                   WHERE {" AND ".join(where)}
-                   ORDER BY created_at ASC, id ASC
-                   LIMIT ?"""  # noqa: S608 — placeholder counts only; all values bound
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.execute(query, params)
-            tasks: list[BodyUploadTask] = []
-            for row in cursor:
-                tasks.append(
-                    BodyUploadTask(
-                        row_id=row[0],
-                        project_uuid=row[1],
-                        mission_slug=row[2],
-                        target_branch=row[3],
-                        mission_type=row[4],
-                        manifest_version=row[5],
-                        artifact_path=row[6],
-                        content_hash=row[7],
-                        hash_algorithm=row[8],
-                        content_body=row[9],
-                        size_bytes=row[10],
-                        retry_count=row[11],
-                        next_attempt_at=row[12],
-                        created_at=row[13],
-                        last_error=row[14],
-                    )
-                )
-            return tasks
-        finally:
-            conn.close()
-
-    def mark_uploaded(self, row_id: int) -> None:
-        """Remove a successfully uploaded task from the queue."""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            conn.execute(_DELETE_BODY_QUEUE_ROW_SQL, (row_id,))
-            conn.commit()
-        finally:
-            conn.close()
-
-    def mark_already_exists(self, row_id: int) -> None:
-        """Remove a task whose content already exists on the server."""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            conn.execute(_DELETE_BODY_QUEUE_ROW_SQL, (row_id,))
-            conn.commit()
-        finally:
-            conn.close()
-
-    def mark_failed_retryable(self, row_id: int, error: str) -> None:
-        """Update a failed task with exponential backoff."""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            row = conn.execute(
-                "SELECT retry_count FROM body_upload_queue WHERE id = ?", (row_id,)
-            ).fetchone()
-            if row is None:
-                return
-            retry_count = int(row[0])
-            backoff_seconds = min(_BACKOFF_BASE * (2 ** retry_count), _BACKOFF_CAP)
-            next_attempt = now_epoch() + backoff_seconds
-            conn.execute(
-                """UPDATE body_upload_queue
-                   SET retry_count = retry_count + 1,
-                       next_attempt_at = ?,
-                       last_error = ?
-                   WHERE id = ?""",
-                (next_attempt, error, row_id),
+        def write(permit: LayoutWritePermit) -> None:
+            _require_project_destination(permit)
+            self._unit.execute(
+                "UPDATE body_upload_tasks SET body_reference = ?, state = ? WHERE project_uuid = ? AND body_task_id = ?",
+                (_encode_reference(data), state, self.project_uuid, str(row_id)),
             )
-            conn.commit()
-        finally:
-            conn.close()
 
-    def mark_failed_permanent(self, row_id: int, _error: str) -> None:
-        """Remove a permanently failed task (non-retryable error)."""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            conn.execute(_DELETE_BODY_QUEUE_ROW_SQL, (row_id,))
-            conn.commit()
-        finally:
-            conn.close()
+        self._authority.execute_write(self._authority.issue_write_permit(), write)
+
+    def mark_uploaded(self, row_id: str) -> None:
+        self._update(row_id, state="uploaded")
+
+    def mark_already_exists(self, row_id: str) -> None:
+        self.mark_uploaded(row_id)
+
+    def mark_failed_retryable(self, row_id: str, error: str) -> None:
+        self._update(row_id, state="retry", error=error, retry=True)
+
+    def mark_failed_permanent(self, row_id: str, error: str) -> None:
+        self._update(row_id, state="terminal_failed", error=error)
 
     def record_permanent_failure(self, task: BodyUploadTask, error: str) -> None:
-        """Persist a non-retryable failure record for later diagnosis."""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            now = now_epoch()
-            conn.execute(
-                """
-                INSERT INTO body_upload_failure_log (
-                    project_uuid, mission_slug, target_branch, mission_type,
-                    manifest_version, artifact_path, content_hash, hash_algorithm,
-                    size_bytes, failure_reason, failure_count, first_failed_at,
-                    last_failed_at
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
-                ON CONFLICT(
-                    project_uuid, mission_slug, target_branch, mission_type,
-                    manifest_version, artifact_path, content_hash, failure_reason
-                )
-                DO UPDATE SET
-                    failure_count = failure_count + 1,
-                    last_failed_at = excluded.last_failed_at,
-                    size_bytes = excluded.size_bytes,
-                    hash_algorithm = excluded.hash_algorithm
-                """,
-                (
-                    task.project_uuid,
-                    task.mission_slug,
-                    task.target_branch,
-                    task.mission_type,
-                    task.manifest_version,
-                    task.artifact_path,
-                    task.content_hash,
-                    task.hash_algorithm,
-                    task.size_bytes,
-                    error,
-                    now,
-                    now,
-                ),
-            )
-            conn.commit()
-        finally:
-            conn.close()
+        if task.project_uuid != self.project_uuid:
+            raise ValueError("body task is not owned by this project store")
+        self.mark_failed_permanent(task.row_id, error)
 
     def get_recent_failures(self, limit: int = 10) -> list[BodyUploadFailureRecord]:
-        """Return the most recent persisted non-retryable failures."""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.execute(
-                """
-                SELECT project_uuid, mission_slug, target_branch, mission_type,
-                       manifest_version, artifact_path, content_hash, hash_algorithm,
-                       size_bytes, failure_reason, failure_count, first_failed_at,
-                       last_failed_at
-                FROM body_upload_failure_log
-                ORDER BY last_failed_at DESC, id DESC
-                LIMIT ?
-                """,
-                (limit,),
+        failed = [self._task(row) for row in self._rows(include_terminal=True) if str(row[5]) == "terminal_failed"]
+        return [
+            BodyUploadFailureRecord(
+                project_uuid=task.project_uuid,
+                mission_slug=task.mission_slug,
+                target_branch=task.target_branch,
+                mission_type=task.mission_type,
+                manifest_version=task.manifest_version,
+                artifact_path=task.artifact_path,
+                content_hash=task.content_hash,
+                hash_algorithm=task.hash_algorithm,
+                size_bytes=task.size_bytes,
+                failure_reason=task.last_error or "permanent_failure",
+                failure_count=1,
+                first_failed_at=task.created_at,
+                last_failed_at=task.created_at,
             )
-            return [
-                BodyUploadFailureRecord(
-                    project_uuid=row[0],
-                    mission_slug=row[1],
-                    target_branch=row[2],
-                    mission_type=row[3],
-                    manifest_version=row[4],
-                    artifact_path=row[5],
-                    content_hash=row[6],
-                    hash_algorithm=row[7],
-                    size_bytes=row[8],
-                    failure_reason=row[9],
-                    failure_count=row[10],
-                    first_failed_at=row[11],
-                    last_failed_at=row[12],
-                )
-                for row in cursor
-            ]
-        finally:
-            conn.close()
+            for task in reversed(failed[-limit:])
+        ]
 
     def failure_count(self) -> int:
-        """Return the number of persisted non-retryable failure records."""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            row = conn.execute(
-                "SELECT COUNT(*) FROM body_upload_failure_log"
-            ).fetchone()
-            return int(row[0]) if row else 0
-        finally:
-            conn.close()
+        return len(self.get_recent_failures(limit=max(1, len(self._rows(include_terminal=True)))))
 
     def remove_stale(self, max_retry_count: int = 20) -> int:
-        """Remove tasks that have exceeded max retries. Returns count removed."""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.execute(
-                "DELETE FROM body_upload_queue WHERE retry_count > ?",
-                (max_retry_count,),
-            )
-            conn.commit()
-            return cursor.rowcount
-        finally:
-            conn.close()
+        stale = [task for task in (self._task(row) for row in self._rows()) if task.retry_count >= max_retry_count]
+        for task in stale:
+            self.mark_failed_permanent(task.row_id, task.last_error or "retry_limit")
+        return len(stale)
 
     def remove_project_tasks(self, project_uuid: str) -> int:
-        """Remove queued body uploads for a specific project UUID."""
-        if not project_uuid:
-            return 0
+        if project_uuid.strip().lower() != self.project_uuid:
+            raise ValueError("cannot remove body tasks from another project store")
+        before = len(self._rows(include_terminal=True))
 
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.execute(
-                "DELETE FROM body_upload_queue WHERE project_uuid = ?",
-                (project_uuid,),
+        def write(permit: LayoutWritePermit) -> None:
+            _require_project_destination(permit)
+            self._unit.execute(
+                "DELETE FROM body_upload_tasks WHERE project_uuid = ?",
+                (self.project_uuid,),
             )
-            conn.commit()
-            return cursor.rowcount
-        finally:
-            conn.close()
+
+        self._authority.execute_write(self._authority.issue_write_permit(), write)
+        return before
 
     def count_by_project(self) -> dict[str, int]:
-        """Queued body-upload counts keyed by ``project_uuid`` (#3030 T026).
-
-        The per-project census FR-016's purge differential is computed from: a
-        purge that reports "100% of project X removed" has to be able to show that
-        the count for **every other** project is unchanged (NFR-006), and this
-        store shares its DB file with the event offline queue, so a journal+ledger
-        differential alone would have said nothing about the document bodies still
-        queued here.
-
-        Rows with a blank ``project_uuid`` (the column is ``NOT NULL``, so blank is
-        the only unattributable form) are reported under ``""`` rather than dropped.
-        They can never be purged *by project* and can never be delivered either;
-        hiding them would make the census disagree with the store.
-        """
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.execute(
-                "SELECT project_uuid, COUNT(*) FROM body_upload_queue GROUP BY project_uuid"
-            )
-            return {str(row[0]): int(row[1]) for row in cursor}
-        finally:
-            conn.close()
+        total = len(self._rows(include_terminal=True))
+        return {self.project_uuid: total} if total else {}
 
     def size(self) -> int:
-        """Get current body queue size."""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            row = conn.execute(_SELECT_COUNT_BODY_QUEUE_SQL).fetchone()
-            return row[0] if row else 0
-        finally:
-            conn.close()
+        return len(self._rows())
 
     def get_stats(self) -> BodyQueueStats:
-        """Compute diagnostic statistics about the queue."""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            now = now_epoch()
+        tasks = [self._task(row) for row in self._rows()]
+        now = now_epoch()
+        histogram: dict[int, int] = {}
+        for task in tasks:
+            histogram[task.retry_count] = histogram.get(task.retry_count, 0) + 1
+        timestamps = [task.created_at for task in tasks]
+        return BodyQueueStats(
+            total_count=len(tasks),
+            ready_count=sum(task.next_attempt_at <= now for task in tasks),
+            backoff_count=sum(task.next_attempt_at > now for task in tasks),
+            oldest_created_at=min(timestamps) if timestamps else None,
+            newest_created_at=max(timestamps) if timestamps else None,
+            max_retry_count=max(histogram, default=0),
+            retry_histogram=histogram,
+        )
 
-            row = conn.execute(_SELECT_COUNT_BODY_QUEUE_SQL).fetchone()
-            total_count = int(row[0]) if row else 0
 
-            if total_count == 0:
-                return BodyQueueStats(
-                    total_count=0,
-                    ready_count=0,
-                    backoff_count=0,
-                    oldest_created_at=None,
-                    newest_created_at=None,
-                    max_retry_count=0,
-                    retry_histogram={},
-                )
-
-            row = conn.execute(
-                "SELECT COUNT(*) FROM body_upload_queue WHERE next_attempt_at <= ?",
-                (now,),
-            ).fetchone()
-            ready_count = int(row[0]) if row else 0
-
-            backoff_count = total_count - ready_count
-
-            row = conn.execute(
-                "SELECT MIN(created_at), MAX(created_at), MAX(retry_count) FROM body_upload_queue"
-            ).fetchone()
-            oldest_created_at = float(row[0]) if row and row[0] is not None else None
-            newest_created_at = float(row[1]) if row and row[1] is not None else None
-            max_retry_count = int(row[2]) if row and row[2] is not None else 0
-
-            cursor = conn.execute(
-                "SELECT retry_count, COUNT(*) FROM body_upload_queue GROUP BY retry_count"
-            )
-            retry_histogram: dict[int, int] = {}
-            for retry_val, cnt in cursor:
-                retry_histogram[int(retry_val)] = int(cnt)
-
-            return BodyQueueStats(
-                total_count=total_count,
-                ready_count=ready_count,
-                backoff_count=backoff_count,
-                oldest_created_at=oldest_created_at,
-                newest_created_at=newest_created_at,
-                max_retry_count=max_retry_count,
-                retry_histogram=retry_histogram,
-            )
-        finally:
-            conn.close()
+__all__ = [
+    "BodyEnqueueResult",
+    "BodyQueueStats",
+    "BodyUploadTask",
+    "OfflineBodyUploadQueue",
+]
