@@ -117,13 +117,18 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   merge hit an add/add conflict — blocking every work-package claim on a
   PR-bound `--start-branch` + coord mission with no self-service recovery. Root
   cause was one layer deeper than the commit site: `BookkeepingTransaction.acquire`
-  *unconditionally* redirected writes to the coordination worktree, so this fix
+  _unconditionally_ redirected writes to the coordination worktree, so this fix
   adds an opt-in `commit_to_primary_target` that PRIMARY planning commits use to
   land on the mission's own target branch (every status/coord caller keeps the
   default — zero regression to coord routing). A partition guard at the
   planning-commit seam now fails loud on any PRIMARY→coord / COORD→lane
   mis-route (excluding self-bookkeeping `meta.json` co-travel), closing the same
-  class for `move-task --force` (`#2549`). Separately, mission-mutating
+  class for `move-task --force` (`#2549`). `implement`'s lane-state **read** now
+  resolves `lanes.json` from that same PRIMARY partition (via the kind-aware
+  placement seam, matching its canonical `LANE_STATE` classification), so the
+  read and write agree for coord-topology missions — previously the read still
+  looked on the coordination surface, which broke `implement` end-to-end.
+  Separately, mission-mutating
   `implement`/`review` now **fail closed** when invoked from a checkout the
   mission does not own (`#3128`): a `write_intent`-gated `CheckoutIdentityError`
   at the real workspace chokepoint (`workspace/context.py::resolve_workspace_for_wp`)
