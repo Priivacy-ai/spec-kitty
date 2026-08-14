@@ -4,13 +4,15 @@ title: New Bare-Prose Predicate — find_bare_prose_requirement_ids
 dependencies:
 - WP04
 requirement_refs:
+- C-001
+- C-002
+- C-006
+- C-008
 - FR-001
 - FR-004
 - FR-005
-- C-001
-- C-006
-- C-008
 - NFR-001
+- NFR-004
 - NFR-006
 planning_base_branch: pr/bare-prose-requirements-uncounted
 merge_target_branch: pr/bare-prose-requirements-uncounted

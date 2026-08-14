@@ -4,11 +4,13 @@ title: finalize-tasks / map-requirements CLI Wiring
 dependencies:
 - WP02
 requirement_refs:
+- C-002
 - FR-001
 - FR-004
 - FR-007
 - FR-008
-- C-002
+- NFR-002
+- NFR-004
 planning_base_branch: pr/bare-prose-requirements-uncounted
 merge_target_branch: pr/bare-prose-requirements-uncounted
 branch_strategy: Planning artifacts for this mission were generated on pr/bare-prose-requirements-uncounted. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into pr/bare-prose-requirements-uncounted unless the human explicitly redirects the landing branch.

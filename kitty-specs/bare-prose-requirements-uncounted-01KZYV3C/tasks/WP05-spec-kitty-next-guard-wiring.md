@@ -4,6 +4,9 @@ title: spec-kitty next Guard Wiring + Per-Guard Non-Vacuity Teeth Tests
 dependencies:
 - WP03
 requirement_refs:
+- C-002
+- C-007
+- C-009
 - FR-002
 - FR-003
 - FR-004
@@ -11,7 +14,9 @@ requirement_refs:
 - FR-008
 - FR-010
 - NFR-002
+- NFR-004
 - NFR-005
+- NFR-006
 planning_base_branch: pr/bare-prose-requirements-uncounted
 merge_target_branch: pr/bare-prose-requirements-uncounted
 branch_strategy: Planning artifacts for this mission were generated on pr/bare-prose-requirements-uncounted. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into pr/bare-prose-requirements-uncounted unless the human explicitly redirects the landing branch.
