@@ -1556,12 +1556,24 @@ class TestAtomicTaskSteps:
         assert _check_requirement_mapping_ready(feature_dir) == []
 
     @pytest.mark.git_repo
-    def test_requirement_mapping_3394_repro_shape_does_not_block(self, tmp_path: Path) -> None:
-        """THE regression pin: #3394's actual repro shape -- spec.md DECLARES
-        three FRs in a Requirements table and merely CITES a foreign,
-        already-shipped FR-021 in prose -- must NOT block. Every declared FR
-        is mapped to WP01, so the foreign citation is simply not this spec's
-        concern; #3394 stays fixed."""
+    def test_requirement_mapping_foreign_citation_shape_now_blocks_per_3396(self, tmp_path: Path) -> None:
+        """RE-PINNED (operator ruling 2026-08-14): #3396 supersedes #3395's
+        advisory-only decision for this exact shape. #3394/#3395's repro --
+        spec.md DECLARES three FRs in a table and merely CITES a foreign,
+        already-shipped FR-021 in bare prose in that same section -- was
+        pinned non-blocking under #3395's fix (`find_undeclared_requirement_
+        citations` never fires here, since the section's declared set is
+        non-empty). #3396's new, per-token, document-scoped detector
+        (`find_bare_prose_requirement_ids`) cannot distinguish "this spec's
+        own uncounted requirement" from "a bare-prose citation of a foreign
+        id" -- both are simply a ref-shaped token, in a Requirements
+        section, absent from the document-wide declared set -- and #3396 is
+        chartered to block on that shape rather than stay silent
+        (DIRECTIVE_041: the product decision this test pins changed, so the
+        old non-blocking assertion was stale, not the wiring). The
+        pre-#3396 requirement-mapping decision alone stays clean (every
+        declared FR is still mapped to WP01); only the full guard path,
+        which now also reads the bare-prose fact, blocks."""
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
         (feature_dir / "spec.md").write_text(
@@ -1593,21 +1605,31 @@ class TestAtomicTaskSteps:
 
         from runtime.next.runtime_bridge import _check_cli_guards, _check_requirement_mapping_ready
 
+        # The pre-#3396 requirement-mapping decision alone is still clean --
+        # every declared FR is mapped to WP01.
         assert _check_requirement_mapping_ready(feature_dir) == []
-        # Full `spec-kitty next` guard path also reports ready to advance:
-        assert _check_cli_guards("tasks_packages", feature_dir) == []
+        # But the full `spec-kitty next` guard path now blocks on the
+        # bare-prose FR-021 citation (#3396 supersedes #3395's advisory-only
+        # treatment of this shape).
+        failures = _check_cli_guards("tasks_packages", feature_dir)
+        assert any("FR-021" in f for f in failures), failures
 
     @pytest.mark.git_repo
-    def test_requirement_mapping_f4_repro_shape_stays_non_blocking_but_logs_advisory(
+    def test_requirement_mapping_mixed_declared_and_bare_prose_now_blocks_per_3396(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """The F4 finding's own repro fixture (bare FR-001/FR-002 alongside a
-        properly DECLARED NFR-001, WP mapping only NFR-001): stays
-        non-blocking (WP01's one declared ref, NFR-001, is mapped, and the
-        bare FR-001/FR-002 sentences are simply not counted as declared
-        requirements -- that's #3394's own fix, unchanged here). The F1
-        advisory logs the undeclared-shape mention instead, surfacing the
-        "why" without gating on it."""
+        """RE-PINNED (operator ruling 2026-08-14): #3396 supersedes #3395's
+        advisory-only decision for this exact shape. The F4 finding's own
+        repro fixture (bare-prose FR-001/FR-002 alongside a properly
+        DECLARED table-row NFR-001, WP01 mapping only NFR-001) IS #3396's own
+        target repro -- the mission's whole reason to exist (Story 1).
+        Under #3395's fix it was pinned non-blocking-but-logged (the F1
+        advisory surfaces the "why" without gating). #3396 deliberately
+        supersedes that advisory-only decision for this shape and blocks
+        instead (DIRECTIVE_041: the product decision this test pins
+        changed, so the old non-blocking assertion was stale, not the
+        wiring). The F1 advisory keeps logging alongside the new blocking
+        failure -- both signals now coexist for this shape."""
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
         (feature_dir / "spec.md").write_text(
@@ -1636,12 +1658,17 @@ class TestAtomicTaskSteps:
         from runtime.next.runtime_bridge import _check_cli_guards, _check_requirement_mapping_ready
 
         caplog.set_level("WARNING")
+        # The pre-#3396 requirement-mapping decision alone is still clean --
+        # NFR-001 is mapped, and #3394/#3395's own fix still does not count
+        # bare FR-001/FR-002 as declared requirements.
         assert _check_requirement_mapping_ready(feature_dir) == []
-        # `_check_cli_guards` re-gathers artifact presence, which calls
-        # `_check_requirement_mapping_ready` again -- so the advisory below
-        # logs once per call (>=1, not necessarily exactly 1).
-        assert _check_cli_guards("tasks_packages", feature_dir) == []
+        # But the full `spec-kitty next` guard path now blocks (#3396
+        # supersedes #3395's advisory-only treatment of this shape):
+        failures = _check_cli_guards("tasks_packages", feature_dir)
+        assert any("FR-001" in f and "FR-002" in f for f in failures), failures
 
+        # The pre-existing F1 advisory still logs alongside the new
+        # blocking failure -- both signals coexist for this shape.
         advisory_records = [r for r in caplog.records if "mentions requirement-shaped token(s)" in r.message]
         assert len(advisory_records) >= 1
         assert "Functional Requirements" in advisory_records[0].message
