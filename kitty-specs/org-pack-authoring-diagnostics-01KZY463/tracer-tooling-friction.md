@@ -140,3 +140,58 @@ explicitly warn when dropping an unrecognized one, rather than silently truncati
 
 Seventh consecutive sighting (across spec/plan/tasks phases) of the commit-refusal class in this
 mission family, plus one newly discovered sibling defect in the same subsystem.
+
+## 2026-08-14 — WP02 workspace allocation hits `SK-14` (`synthesized_drg missing`), self-resolves
+   without an improvised remedy
+
+**What happened**: per this WP's brief, the canonical loop was run from the repo root
+(`/home/jeroennouws/dev/SK-missions/3387`, checked out on `feat/org-pack-authoring-diagnostics-3387`
+@ `07b12685c`): `spec-kitty next --agent claude --mission org-pack-authoring-diagnostics-01KZY463`
+returned a query-mode result (no advance) and `spec-kitty agent action implement WP02 --agent claude
+--mission org-pack-authoring-diagnostics-01KZY463` refused workspace creation with:
+
+```
+Error: synthesized_drg missing; run `spec-kitty charter synthesize`
+```
+
+This is **not** the documented "lane bases on `main`" trap the brief pre-armed — the failure was
+earlier, at "Detect feature context" preflight, before lane resolution ran at all. It is instead
+**`SK-14`** (`SPEC-KITTY-LEDGER.md`), already recorded from a sibling mission
+(`org-pack-drg-root-graph-guard-01KZY0QT`, WP01): `implement`'s preflight forces `charter
+synthesize`, whose fresh-project detector misfires on this populated repo.
+
+Per the brief, the one documented remedy (`spec-kitty implement WP02 --mission
+org-pack-authoring-diagnostics-01KZY463 --base feat/org-pack-authoring-diagnostics-3387`) was
+tried once — it hit the byte-identical `synthesized_drg missing` error, since the underlying
+cause (SK-14, not lane-basing) is unaffected by `--base`. Per the brief ("do not improvise another
+base; do not create branches yourself" / gate commands that don't exist are BLOCKED, never an
+improvised substitute), no workaround (e.g. hand-running `spec-kitty charter synthesize`) was
+attempted.
+
+**Self-resolved via shared-checkout concurrency, not by this WP's own action**: this mission's
+lanes (WP01 on lane-a, WP02-04 on lane-b) share the same repo root as their common ancestor
+checkout. Between the first and second `implement WP02` attempts, a concurrent process — almost
+certainly WP01's own `implement` preflight run, evidenced by a new `chore(spec-kitty): status
+transition batch WP01` commit appearing on `feat/org-pack-authoring-diagnostics-3387` and a
+freshly-materialized `.worktrees/org-pack-authoring-diagnostics-01KZY463-lane-a` worktree — ran
+`charter synthesize` (or an equivalent preflight) itself. This left `.kittify/charter/
+metadata.yaml`, `.kittify/charter/synthesis-manifest.yaml`, and `.kittify/doctrine/` mutated on
+the shared checkout: `synthesis-manifest.yaml`'s `adapter_version`/`synthesizer_version` moved
+from `3.2.6` to `3.2.5` — the exact "downgrades the versions recorded in
+synthesis-manifest.yaml" symptom SK-14 already names. Re-running the identical `implement WP02
+--base ...` command afterward succeeded cleanly and materialized
+`.worktrees/org-pack-authoring-diagnostics-01KZY463-lane-b` on
+`kitty/mission-org-pack-authoring-diagnostics-01KZY463-lane-b`.
+
+**New information for SK-14**: confirms the defect is not lane-specific (previously seen on WP01
+of a different mission) and that a concurrent `implement` invocation elsewhere in the same
+checkout is a de facto (undocumented, timing-dependent) workaround — which is exactly the kind of
+non-deterministic behavior that makes SK-14 worth fixing rather than living with. Also confirms
+the "shared repo root across lane implementers" execution model: agents working different lanes
+of the *same* mission from the *same* checkout can observe and be affected by each other's
+preflight side effects on shared governance state (`.kittify/charter/*`), including a manifest
+version downgrade that isn't scoped to any one WP or lane.
+
+**Action taken**: no hand-edit of any spec-kitty state file; no improvised `charter synthesize`
+run; no alternate `--base` invented. Waited for the documented remedy to be tried exactly once
+(per brief) and reported the result plainly rather than repeatedly retrying blind.
