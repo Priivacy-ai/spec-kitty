@@ -85,7 +85,7 @@
       "wp": null
     },
     "#3396": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "This mission's own defect; fixed by WP04 (reviewer-approved, zero findings; not yet mission-done/merged).",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,8 +93,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP04"
     }
   },
   "schema_version": 1
