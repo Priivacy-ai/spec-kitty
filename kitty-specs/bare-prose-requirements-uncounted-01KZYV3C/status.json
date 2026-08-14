@@ -32,7 +32,15 @@
       "last_event_id": "01KZZVYFXCWDBKMB2RWDGHC3VT",
       "last_transition_at": "2026-08-14T10:09:11.596424+00:00",
       "shell_pid": 1588809,
-      "shell_pid_created_at": "1786702148.71"
+      "shell_pid_created_at": "1786702148.71",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
     },
     "WP04": {
       "actor": "user",
