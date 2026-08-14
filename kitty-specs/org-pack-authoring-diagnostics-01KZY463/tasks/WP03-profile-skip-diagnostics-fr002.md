@@ -264,13 +264,35 @@ design already fixed in `plan.md` IC-03.
    `"doctrine.agent_profiles.repository.AgentProfileRepository"` (the source location), never
    a nonexistent `"specify_cli.doctrine.pack_validator.AgentProfileRepository"` alias.
 4. Re-run T009's test id — it should now pass (GREEN).
-5. Commit as its own commit, separate from T009's test commit.
+5. **AC-4 call-assertion (spec-mandated, not satisfiable by inspection)**: `spec.md` FR-002
+   AC-4 requires this be "verified by test asserting the same function is called or the same
+   dataclass shape is surfaced" — T009's end-to-end test is reasonable indirect evidence but
+   does not assert the call itself. Add a small test to
+   `tests/specify_cli/doctrine/test_pack_validator.py`, mirroring WP04's T016/T017(a)
+   parameter-value-assertion technique, that patches
+   `"doctrine.agent_profiles.repository.AgentProfileRepository.skipped_profiles"` (the source
+   location the helper's lazy import binds to — see step 3 above) with a `MagicMock`, then
+   calls `_check_profile_skipped_diagnostics(pack_dir, set())` directly (or
+   `validate_pack(...)` against a minimal pack with an `agent_profiles/` directory) and asserts
+   the mock was actually invoked. This proves the helper calls the real repository method
+   rather than a hand-rolled heuristic, non-vacuously (the assertion fails if the call is
+   removed or replaced with an inline reimplementation).
+6. Update `ValidationIssue`'s class docstring (`src/specify_cli/doctrine/pack_validator.py:95-114`,
+   the "Valid values" bullet list) to add a `` * ``profile_skipped`` — ...`` bullet documenting
+   the new category, matching the existing bullets' format (backtick-quoted category name, em
+   dash, one-line description) — e.g. placed alongside the other per-issue categories such as
+   `asset_mime_invalid`. This docstring is the authoritative enumeration of valid `category`
+   values; leaving it unupdated would make it silently disagree with the helper added in step 1.
+7. Commit as its own commit, separate from T009's test commit.
 
 **Files**: `src/specify_cli/doctrine/pack_validator.py` (one new ~20-line helper, one ~6-line
-call site addition).
+call site addition, and the `ValidationIssue` docstring's "Valid values" list updated with
+`profile_skipped`); `tests/specify_cli/doctrine/test_pack_validator.py` (one additional small
+test for step 5's call-assertion, ~10-15 lines).
 
-**Validation**: T009's test id passes. `mypy --strict` and `ruff check` pass with zero new
-suppressions on the touched file.
+**Validation**: T009's test id passes; step 5's call-assertion test passes and is non-vacuous.
+`mypy --strict` and `ruff check` pass with zero new suppressions on the touched
+`pack_validator.py`.
 
 ### Subtask T011: AC-2 — no double-report for the already-fixed acute case
 
@@ -343,17 +365,23 @@ it *doesn't need to*, since `_load_layer`'s own guard already handles this.
       as a **separate ref/worktree checkout** (not merely the intra-lane tip — see Reviewer
       Guidance), as its own commit.
 - [ ] T010's helper + call site committed second, as its own commit; T009's test now GREEN.
+- [ ] `ValidationIssue`'s class docstring "Valid values" list (`pack_validator.py:95-114`) has a
+      new `profile_skipped` bullet, added by T010 step 6, matching the existing bullets' format.
 - [ ] AC-2 (dedup, no double-report), AC-3 (no false positive), AC-5 (absent directory, proven
       exercised) all covered by tests.
 - [ ] AC-4 (reuse `AgentProfileRepository`/`skipped_profiles()` directly, no second heuristic)
-      is true by construction — confirm the helper calls `.skipped_profiles()` and does not
-      reimplement any part of the skip-detection logic.
+      is proven by T010 step 5's `unittest.mock.patch`-based call-assertion test — not "true by
+      construction" — confirming the helper actually invokes `.skipped_profiles()` on the
+      constructed repository and does not reimplement any part of the skip-detection logic.
 - [ ] `uv run pytest tests/specify_cli/doctrine/test_pack_validator.py tests/doctrine/test_agent_profile_model_field.py -q`
       is fully green.
 - [ ] No file outside `owned_files` is touched.
 - [ ] Severity for every `profile_skipped` issue is `"error"`.
 - [ ] `ValidationResult.to_dict()`'s top-level shape remains exactly `{ok, errors, advisories}`
       — no new top-level JSON key was introduced.
+- [ ] `ruff check src/specify_cli/doctrine/pack_validator.py` and
+      `mypy --strict src/specify_cli/doctrine/pack_validator.py` (or the project's standard
+      invocation) pass with zero new suppressions.
 
 ## Risks
 
@@ -387,6 +415,26 @@ it *doesn't need to*, since `_load_layer`'s own guard already handles this.
   in the lane, not boilerplate — an earlier draft of this mission's plan made exactly this
   substitution error and had to be corrected (`plan.md`, "Per-FR ATDD Sequencing," citing
   finding PLAN-V4-001).
+- **Concrete mechanics for the separate ref/worktree check** — the paragraph above names the
+  requirement; here is a runnable procedure for it:
+  ```bash
+  # Idempotent cleanup first, in case a prior run of this procedure left the worktree
+  # registered (e.g. an earlier `git apply` or `pytest` step failed before reaching the
+  # closing `git worktree remove` below):
+  git worktree remove --force /tmp/pbb-check 2>/dev/null || true
+  git worktree add /tmp/pbb-check main   # planning_base_branch is "main" per meta.json
+  # Isolate only T009's new test function — do not apply the whole test-file diff, which
+  # would also carry WP02's own new tests and muddy the RED signal. Either:
+  #   (a) extract just the new test function's hunk from its own commit and apply it:
+  git show <T009-test-commit-sha> -- tests/specify_cli/doctrine/test_pack_validator.py \
+    | git -C /tmp/pbb-check apply
+  #   (b) or, if the hunk doesn't apply cleanly (e.g. WP02's own test additions in the same
+  #       file shift context lines), manually copy just T009's new test function's body into
+  #       /tmp/pbb-check's copy of the file.
+  cd /tmp/pbb-check && uv run pytest tests/specify_cli/doctrine/test_pack_validator.py \
+    -k <T009's_new_test_id> -q   # confirm RED
+  cd - && git worktree remove /tmp/pbb-check
+  ```
 - Confirm T009's test commit precedes T010's implementation commit.
 - Confirm T008's fixture-proof test is present and passing — it documents why the AC-1
   scenario's premise ("passes schema validation individually") holds for the specific fixture

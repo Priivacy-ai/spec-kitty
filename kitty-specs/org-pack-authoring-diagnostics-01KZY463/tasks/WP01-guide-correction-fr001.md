@@ -32,18 +32,21 @@ here at the top of the mission's first WP file because WP01 is the one WP with n
 dependency, making it a reasonable durable home for this note pending `tasks.md`'s
 auto-generation (which will fold a short PR-shape summary in from the mission's final report).
 
-**Assessment**: the resulting one-PR diff is a documentation edit (this WP) plus three narrow,
-independently-reasoned validator diagnostics — each a small new helper function plus one call
-site, plus two one-line call-site edits in two other files for FR-004's carve-outs, plus
-focused tests per FR, plus one changelog entry (per plan.md's file-by-file "Source Code"
-breakdown). Total touched-file count is eight non-test files across four WPs, none large,
-none touching more than ~2 functions per file. This is reviewable by a human in one sitting:
-each FR is self-contained (its own helper, its own tests, its own acceptance criteria), the
-chokepoint file (`pack_validator.py`) accumulates changes in a strictly sequential,
-low-risk-to-high-risk order that a reviewer can read top-to-bottom as three additive diffs
-rather than one tangled one, and the total new production code across all three code-bearing
-WPs is on the order of three new helper functions (each under 30 lines) plus two
-one-line-each call-site edits — not a rewrite of any existing function. **Recommendation:
+**Assessment**: the resulting one-PR diff is a documentation edit (this WP) plus two narrow,
+independently-reasoned validator diagnostics — FR-002 and FR-004 each add a small new helper
+function plus one call site — plus FR-003's one-clause condition widening inside the
+pre-existing `_scan_files` helper (no new helper function, no new call site), plus two
+one-line call-site edits in two other files for FR-004's carve-outs, plus focused tests per
+FR, plus one changelog entry (per plan.md's file-by-file "Source Code" breakdown). Total
+touched-file count is **5 non-test files, 9 files total including tests**, across four WPs,
+none large, none touching more than ~2 functions per file. This is reviewable by a human in
+one sitting: each FR is self-contained (its own tests, its own acceptance criteria; FR-002
+and FR-004 each also get their own helper), the chokepoint file (`pack_validator.py`)
+accumulates changes in a strictly sequential, low-risk-to-high-risk order that a reviewer can
+read top-to-bottom as three additive diffs rather than one tangled one, and the total new
+production code across all three code-bearing WPs is on the order of two new helper functions
+(each under 30 lines) plus one one-clause condition widening plus two one-line-each call-site
+edits — not a rewrite of any existing function. **Recommendation:
 one PR, as planned.** If mission-level review finds the aggregate diff harder to hold in one
 sitting than this estimate assumes (e.g., if FR-004's positive-fire fixture construction turns
 out to need substantial new test scaffolding), the fallback is to split at the natural lane

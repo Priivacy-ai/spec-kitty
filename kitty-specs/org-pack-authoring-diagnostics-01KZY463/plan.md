@@ -504,6 +504,30 @@ preceding FR's implementation, so `planning_base_branch` and the intra-lane tip 
 but this plan states the `planning_base_branch` check as the one that satisfies C-011, not the
 coincidence that a looser check happens to agree with it.
 
+**Mechanics for the separate-ref check**: "check out `planning_base_branch` itself as a separate
+ref" above names the requirement; concretely, this is a disposable worktree, not a branch switch
+in the working checkout (which would disturb Lane B's own running tip):
+
+```bash
+# Idempotent cleanup first: a prior iteration of this same procedure (e.g. this mechanic is
+# repeated once per FR/test id — see WP03's and WP04's Reviewer Guidance) may have left the
+# worktree registered if an earlier `git apply` or `pytest` step failed before reaching the
+# closing `git worktree remove` below. Clear it unconditionally before (re-)adding:
+git worktree remove --force /tmp/pbb-check 2>/dev/null || true
+git worktree add /tmp/pbb-check main   # planning_base_branch is "main" per meta.json
+# Isolate only the FR's new test function(s) — not the whole targeted file, which by the
+# time FR-002's or FR-004's test commit lands also carries the prior FR's own new tests.
+# Either extract just the new test function's hunk from its own commit and apply it:
+git show <FR's-test-commit-sha> -- <test file> | git -C /tmp/pbb-check apply
+# ...or, if that hunk doesn't apply cleanly against the worktree's pre-mission copy, manually
+# copy just the new test function's body into /tmp/pbb-check's copy of the file instead.
+cd /tmp/pbb-check && uv run pytest <test file> -k <new_test_id> -q   # confirm RED
+cd - && git worktree remove /tmp/pbb-check
+```
+
+WP03's and WP04's own Reviewer Guidance sections give this same procedure adapted to their
+specific test files and test ids.
+
 **FR-001 (documentation-only)**: C-011 pins "the user-observable behaviour the WP delivers" with
 a failing-first test. FR-001 delivers no runtime-observable behaviour — it corrects prose in a
 guide file, touches no code, and (per C-004's own annotation, restated in "The Baseline" step 4
@@ -592,10 +616,16 @@ in spec.md.
 
 **Open-PR write-scope check (all currently-open PRs, not just the one tracked sibling mission)**:
 lanes-topology discipline requires checking this mission's touched files against every
-currently-open PR, not only the sibling mission spec.md happens to name. Re-verified directly
-(2026-08-14): `gh pr list --state open --json number,title,files` returns 18 open PRs;
-cross-referencing their file lists against this mission's touched-file set shows two overlaps
-with `src/specify_cli/cli/commands/doctrine.py`:
+currently-open PR, not only the sibling mission spec.md happens to name. `gh pr list --state
+open --json number,title,files` returned 18 open PRs at first verification time (2026-08-14);
+a later live re-check (same day, during this fix round) returned 19 — the extra PR, #3395
+("fix(requirements): scope spec.md requirement extraction..."), opened 2026-08-13T23:34:24Z,
+does not touch any file this mission owns (confirmed via `gh pr view 3395 --json files`). PR
+counts drift continuously in this repo; the specific enumerated overlaps below, not the total
+count, are the load-bearing claims, and neither verification pass found overlaps beyond those
+enumerated. Cross-referencing file lists against this mission's touched-file set shows overlaps
+on three of this mission's non-chokepoint files — `doctrine.py`, `test_doctrine_org_commands.py`,
+and `CHANGELOG.md` — but **none** on the chokepoint file itself:
 
 - **PR #3166** ("feat(doctrine): ETag skip + Artifactory version for HTTPS fetch") edits `fetch()`
   (`doctrine.py:94-160` region on this checkout). This mission's only edit to `doctrine.py` is
@@ -610,6 +640,20 @@ with `src/specify_cli/cli/commands/doctrine.py`:
   full-pack-authoring caller gets, so its correctness never depended on `org_init`'s output shape
   in the first place. #2719 landing before or after this mission's PR has no effect on FR-004's
   correctness at this call site. There is no operator merge-order decision to make here.
+  **PR #2719 also touches `tests/cli/test_doctrine_org_commands.py` (+206/-0)** — a distinct,
+  higher-risk co-edit than the `doctrine.py` overlap above, since WP04's own T017 adds new test
+  functions to that same file (AC-7(a)'s parameter-value assertion, AC-7(b)'s positive-fire
+  fixture). Landing order with #2719 may require a rebase *inside* `test_doctrine_org_commands.py`
+  itself, not just `doctrine.py` — a test file is more likely to need manual conflict resolution
+  than the `doctrine.py` co-edit, which touches disjoint functions. See WP04's own Risks section
+  for the implementer-facing version of this note.
+- **`docs/changelog/CHANGELOG.md`** (WP04-owned, per T019) is concurrently touched by eight other
+  currently-open PRs: #3383, #3379, #3378, #3332, #3293, #2890, #2492, #2239. All eight are purely
+  additive (0 deletions each in the `gh pr list` file diff), so this is low-conflict-risk — but it
+  was not previously enumerated here.
+- **No open PR touches `pack_validator.py` or `pack_assembler.py`** — the chokepoint file and the
+  assembler carve-out's other file both have zero open-PR overlap. This is the load-bearing claim
+  for the chokepoint-file risk assessment, and it still holds under this re-check.
 
 ## Project Structure
 

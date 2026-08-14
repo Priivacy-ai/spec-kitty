@@ -125,6 +125,17 @@ drg/-only, no-pack-root-graph shape.
      (a message referencing `src/charter/_drg_helpers.py` / `load_validated_graph` / the
      pack-root `*.graph.yaml` requirement — the exact wording is your call, but the message
      must be actionable, not just a bare category name).
+   - **Also exercises the CLI for AC-4's exit-code-1 half** (a direct `validate_pack()` call
+     alone only proves `result.ok is False`, not that `pack_validate` maps that to exit code
+     `1`): using `typer.testing.CliRunner` against the same fixture pack this test already
+     built, `runner.invoke(app, ["pack", "validate", str(tmp_path)])` (mirror
+     `tests/specify_cli/doctrine/test_config.py`'s `TestDoctrinePackCommands` invocation
+     pattern, or `tests/cli/test_doctrine_org_commands.py`'s `runner.invoke(app, [...])`
+     pattern for the app/fixture wiring already used in this repo) and assert
+     `result.exit_code == 1`. This can be the same test function as the direct-call assertion
+     above, or a small sibling test in the same class — either is fine as long as both the
+     `ok is False` half and the CLI `exit_code == 1` half are actually exercised against AC-1's
+     fixture pack, not just one of the two.
 2. **Primary RED check (C-011)**: run this new test id in isolation against
    `planning_base_branch` (`main`, per `meta.json`'s `target_branch`), as a **separate
    ref/worktree checkout** — see this WP's Reviewer Guidance for the exact procedure (WP04 is
@@ -133,10 +144,13 @@ drg/-only, no-pack-root-graph shape.
    DRG-root-graph check exists yet, so the assertion fails.
 3. Do not implement yet — commit this test addition as its own commit.
 
-**Files**: `tests/specify_cli/doctrine/test_pack_validator.py` (new test class, ~20-25 lines).
+**Files**: `tests/specify_cli/doctrine/test_pack_validator.py` (new test class, ~20-30 lines
+including the CliRunner exit-code assertion).
 
-**Validation**: the new test id fails against `planning_base_branch`, confirmed via the
-separate-ref procedure.
+**Validation**: the new test id(s) fail against `planning_base_branch`, confirmed via the
+separate-ref procedure — both the `result.ok is False` assertion and the CLI
+`result.exit_code == 1` assertion fail (the category doesn't exist yet, and `pack_validate`
+therefore has nothing to map to a non-zero exit).
 
 ### Subtask T015: ATDD red-first — AC-2, AC-3, AC-5 (no-diagnostic and near-miss cases)
 
@@ -215,11 +229,22 @@ the destructive shape the dropped carve-out used to suppress.
 **Steps**:
 1. **AC-7(a)** — in `tests/cli/test_doctrine_org_commands.py`, add a test asserting
    `check_drg_root=True` is the literal parameter value at `org_validate`'s internal
-   `validate_pack(...)` call — same mocking/patching technique as T016, mirroring its
-   assertion but for the opposite value and the opposite call site
-   (`src/specify_cli/cli/commands/doctrine.py:966`). Verify the correct patch target location
-   via `scripts/check_patch_targets.py`'s constraints (patch where `validate_pack` is bound in
-   `doctrine.py`, not a nonexistent alias).
+   `validate_pack(...)` call — same *assertion shape* as T016 (patch + `assert_called_with(...,
+   check_drg_root=True)`), but **not** the same patch target: `validate_pack` is **not** bound
+   at module scope in `doctrine.py`. `org_validate`'s body does a lazy, function-local import
+   (`from specify_cli.doctrine.pack_validator import (render_validation_result, validate_pack)`
+   inside the command function, at `src/specify_cli/cli/commands/doctrine.py:961-964` (the call
+   site itself is separately at `:966`), re-run on every invocation) — the same lazy-import
+   shape WP03's T010 step 3 calls out for
+   `AgentProfileRepository` in `pack_validator.py`, not the module-scope import
+   `pack_assembler.py` has at line 37 (which is what makes T016's
+   `"specify_cli.doctrine.pack_assembler.validate_pack"` patch target work there). Per
+   `scripts/check_patch_targets.py`'s constraint that a patch target's module portion must
+   actually expose the attribute being patched, the correct target here is the **source
+   location**, `"specify_cli.doctrine.pack_validator.validate_pack"` — doctrine.py's lazy import
+   picks up the patched function on each call. Do not patch a
+   `specify_cli.cli.commands.doctrine.validate_pack` alias; it does not exist and `mock.patch`
+   will reject it with an `AttributeError`.
 2. Confirm the existing `test_doctrine_org_validate_accepts_valid_pack`
    (`tests/cli/test_doctrine_org_commands.py:108-119`) is **not modified** — per AC-7(a)'s own
    text, it "continues to exit `0` unmodified, because `drg/fragment.yaml` never matches the
@@ -309,8 +334,13 @@ and operator ruling #2.
    ```python
    def validate_pack(pack_dir: Path, *, check_drg_root: bool = True) -> ValidationResult:
    ```
-3. Call the new helper conditionally, immediately after the existing `_validate_drg` call
-   (`:389-392`):
+3. Call the new helper conditionally, immediately after the existing `_validate_drg` call —
+   locate it structurally (the `if drg_dir.is_dir(): drg_errors, drg_advisories =
+   _validate_drg(...)` block), not by absolute line number: this block sits at `:387-392` on
+   `main`'s tip as of this WP file's writing, but that citation is a `main`-tip reference taken
+   before WP02's and WP03's own call-site additions land earlier in `validate_pack()`'s body —
+   by the time WP04 implements, the block will have shifted down and the absolute line numbers
+   above will be stale:
    ```python
    if check_drg_root:
        errors.extend(_check_drg_root_graph_missing(pack_dir, drg_dir))
@@ -343,14 +373,53 @@ and operator ruling #2.
    Do **not** edit `pack_validate`'s call (`doctrine.py:370`) — it already gets the implicit
    default `True`.
 6. Re-run T014-T017's test ids — all should now pass (GREEN).
-7. Commit as its own commit, separate from the T014-T017 test commits.
+7. Update `ValidationIssue`'s class docstring (`src/specify_cli/doctrine/pack_validator.py:95-114`,
+   the "Valid values" bullet list) to add a `` * ``drg_root_graph_missing`` — ...`` bullet
+   documenting the new category, matching the existing bullets' format (backtick-quoted category
+   name, em dash, one-line description) — e.g. placed alongside the other DRG-related categories
+   such as `drg_dangling_edge`. This docstring is the authoritative enumeration of valid
+   `category` values; leaving it unupdated would make it silently disagree with the helper added
+   in step 1.
+8. **Re-measure `validate_pack()`'s complexity now that both new helper calls (FR-002's
+   `_check_profile_skipped_diagnostics` from WP03 and this WP's own
+   `_check_drg_root_graph_missing`) are wired in**, per `plan.md`'s "Complexity Tracking"
+   section. `ruff check --select C901 --statistics` only ever reports a number when a function
+   *violates* the configured ceiling (`pyproject.toml`'s `max-complexity = 15`) — for a
+   compliant function it produces no output at all (verified: `ruff check
+   src/specify_cli/doctrine/pack_validator.py --select C901 --statistics` against
+   `validate_pack()`'s pre-mission complexity of 9 emits nothing), so it cannot supply a number
+   "regardless of outcome." To get the actual number unconditionally, override the ceiling on
+   the command line only — do **not** edit `pyproject.toml` — so ruff's per-violation message,
+   which embeds the real complexity, always fires:
+   ```bash
+   ruff check src/specify_cli/doctrine/pack_validator.py --select C901 \
+       --config "lint.mccabe.max-complexity=1"
+   ```
+   Read `validate_pack()`'s actual complexity `N` from its message, e.g. "`validate_pack` is too
+   complex (N > 1)" — the `> 1` is this command's temporary override, not the project's real
+   ceiling (still 15, unchanged in `pyproject.toml`). Record `N` in your implementation notes
+   regardless of outcome — not just a comfortable/uncomfortable label — so a reviewer can
+   independently check the same number without re-deriving judgment. Use a concrete numeric
+   trigger for whether `plan.md` also needs an edit: if `N` is **>= 12** (80% of the
+   complexity-15 ceiling), also record it in `plan.md`'s "Complexity Tracking" section as an
+   early-warning note that the function is approaching the ceiling (a mechanical numeric
+   trigger, additional to — not a substitute for — that section's own stated commitment to
+   record a *design trade-off* only when one is genuinely non-mechanical); if `N` is **< 12**,
+   the implementation-notes entry alone is sufficient and no `plan.md` edit is needed.
+9. Commit as its own commit, separate from the T014-T017 test commits.
 
 **Files**: `src/specify_cli/doctrine/pack_validator.py` (~25-line new helper, ~4-line signature
-+ call-site change), `src/specify_cli/doctrine/pack_assembler.py` (1-line call change + 3-line
-comment), `src/specify_cli/cli/commands/doctrine.py` (1-line call change + 4-line comment).
++ call-site change, and the `ValidationIssue` docstring's "Valid values" list updated with
+`drg_root_graph_missing`), `src/specify_cli/doctrine/pack_assembler.py` (1-line call change +
+3-line comment), `src/specify_cli/cli/commands/doctrine.py` (1-line call change + 4-line
+comment); `plan.md`'s "Complexity Tracking" section only if step 8's re-measurement reads >= 12
+(80% of the complexity-15 ceiling).
 
 **Validation**: all of T014-T017's test ids pass. `test_force_dedup_prunes_duplicate_edges_via_canonical_serializer`
-and `test_doctrine_org_validate_accepts_valid_pack` both still pass, unmodified.
+and `test_doctrine_org_validate_accepts_valid_pack` both still pass, unmodified. Step 8's
+complexity re-measurement was performed and its actual numeric reading is noted in the
+implementation notes either way, plus a `plan.md` "Complexity Tracking" entry if that reading
+is >= 12 (80% of the ceiling).
 
 ### Subtask T019: CHANGELOG entry
 
@@ -403,9 +472,15 @@ untouched — confirm with `git status` that only the canonical path shows as mo
       `_check_drg_root_graph_missing` helper, `validate_pack()`'s `check_drg_root: bool = True`
       keyword-only parameter, the assembler's unconditional `check_drg_root=False`, and
       `org_validate`'s explicit `check_drg_root=True` (no carve-out).
+- [ ] `ValidationIssue`'s class docstring "Valid values" list (`pack_validator.py:95-114`) has a
+      new `drg_root_graph_missing` bullet, added by T018 step 7, matching the existing bullets'
+      format.
 - [ ] AC-1 through AC-7 all covered: AC-1 (fires), AC-2 (pack-root graph present → no fire),
-      AC-3 (neither graph nor drg/ → no fire), AC-4 (error severity, exit code 1 — falsifiable
-      via T014's test), AC-5 (near-miss `.bak` file doesn't satisfy the check), AC-6
+      AC-3 (neither graph nor drg/ → no fire), AC-4 (error severity **and** exit code 1, both
+      independently falsifiable via T014's test — `result.ok is False` via the direct
+      `validate_pack()` call, and `result.exit_code == 1` via T014's added CliRunner assertion
+      against `pack_validate`, not merely inferred from the unchanged ok→exit-code mapping),
+      AC-5 (near-miss `.bak` file doesn't satisfy the check), AC-6
       (assembler's `check_drg_root=False` proven by parameter-value assertion, not just a
       passing pre-existing test), AC-7(a) (org_validate's explicit `True`, proven the same way)
       and AC-7(b) (the new positive-fire fixture, built from scratch, actually exercising
@@ -419,6 +494,13 @@ untouched — confirm with `git status` that only the canonical path shows as mo
       is fully green.
 - [ ] No file outside `owned_files` is touched; `src/charter/_drg_helpers.py` is not touched
       anywhere in this WP's diff (C-002).
+- [ ] `ruff check src/specify_cli/doctrine/pack_validator.py src/specify_cli/doctrine/pack_assembler.py src/specify_cli/cli/commands/doctrine.py`
+      and `mypy --strict` on the same three files (or the project's standard invocation) pass
+      with zero new suppressions.
+- [ ] T018 step 8's `validate_pack()` complexity re-measurement was performed, with the actual
+      numeric ruff-reported complexity reading (via the forced-ceiling-override invocation, not
+      plain `--statistics`) recorded in implementation notes, and additionally in `plan.md`'s
+      "Complexity Tracking" section if that reading is >= 12 (80% of the ceiling).
 
 ## Risks
 
@@ -432,8 +514,13 @@ untouched — confirm with `git status` that only the canonical path shows as mo
   a failing `ValidationResult` before asserting a specific non-zero value (do not assume `1`
   without checking `org_validate`'s implementation).
 - **Open-PR collision — `doctrine.py`** (per `plan.md`'s "Chokepoint" section, "Open-PR
-  write-scope check," re-verified 2026-08-14 against 18 open PRs): two currently-open PRs
-  touch `doctrine.py`:
+  write-scope check": first verification (2026-08-14) found 18 open PRs, a later same-day
+  re-check during a prior fix round found 19 — the extra PR, #3395, confirmed to touch no file
+  this mission owns. A third live re-check performed for this fix round (`gh pr list --state
+  open --json number`, 2026-08-14) again returned 19, so the count has not drifted further since
+  the second check. PR counts drift continuously; the enumerated overlaps below, not the raw
+  count, are the load-bearing claims, per plan.md's own framing): two currently-open PRs touch
+  `doctrine.py`:
   - **PR #3166** ("feat(doctrine): ETag skip + Artifactory version for HTTPS fetch") edits
     `fetch()` (a different function, roughly `doctrine.py:94-160`). This WP's only edit to
     `doctrine.py` is `org_validate`'s call site (`:966`) — no line-range overlap. Benign
@@ -445,8 +532,22 @@ untouched — confirm with `git status` that only the canonical path shows as mo
     (the carve-out that depended on that shape is dropped, not conditioned). #2719 landing
     before or after this mission's PR has no effect on this WP's correctness. There is no
     operator merge-order decision pending here — do not reintroduce one.
-  No other WP's `owned_files` in this mission overlaps any of the 18 currently-open PRs
-  (verified fact from `plan.md`'s Chokepoint section — cited here, not re-derived).
+  **PR #2719 also touches a second WP04-owned file** —
+  `tests/cli/test_doctrine_org_commands.py` (+206/-0, confirmed via `gh pr list --state open
+  --json number,title,files`) — which is a *distinct* co-edit risk from the `doctrine.py`
+  overlap above: T017 adds its own new test functions to this same file (AC-7(a)'s
+  parameter-value assertion and AC-7(b)'s positive-fire fixture). Landing order with #2719 may
+  require a rebase inside `test_doctrine_org_commands.py` itself, not just `doctrine.py` — check
+  for this specifically when this WP's branch is rebased, since a test-file conflict is more
+  likely to need manual resolution than a same-function-absent `doctrine.py` co-edit.
+  Separately, `docs/changelog/CHANGELOG.md` (also WP04-owned, per T019) is concurrently touched
+  by eight other currently-open PRs — #3383, #3379, #3378, #3332, #3293, #2890, #2492, #2239 —
+  all purely additive (0 deletions each), so low conflict risk, but previously undisclosed here.
+  The core claim still holds under this re-check: **no open PR touches `pack_validator.py` or
+  `pack_assembler.py`** — the chokepoint file itself has zero open-PR overlap.
+  No other WP's `owned_files` in this mission overlaps any currently-open PR beyond what's
+  enumerated above (verified fact from `plan.md`'s Chokepoint section — cited here, not
+  re-derived; the raw open-PR count is not the load-bearing claim, per the framing note above).
 
 ## Reviewer Guidance
 
@@ -460,6 +561,29 @@ untouched — confirm with `git status` that only the canonical path shows as mo
   this WP's implementation commit" check is a secondary, attribution-only aid, never a
   substitute for the `planning_base_branch` check — apply this to **all** of AC-1's, AC-6's,
   and AC-7(a)/(b)'s new test ids, across all three targeted test files this WP touches.
+- **Concrete mechanics for the separate ref/worktree check** — since this WP touches three
+  different test files (each carrying its own new test id(s)), repeat the same procedure per
+  file/test-id pair:
+  ```bash
+  # Idempotent cleanup first: this procedure repeats once per test id (T014/T015's several
+  # ids, T016's id, T017(a)/(b)'s ids) in the same review session, so a prior iteration whose
+  # `git apply` or `pytest` step failed before reaching the closing `git worktree remove`
+  # below would otherwise leave the worktree registered and make the next `git worktree add`
+  # fail outright ("already exists"). Clear it unconditionally before (re-)adding, every time:
+  git worktree remove --force /tmp/pbb-check 2>/dev/null || true
+  git worktree add /tmp/pbb-check main   # planning_base_branch is "main" per meta.json
+  # For each target file (test_pack_validator.py, test_pack_assembler.py,
+  # test_doctrine_org_commands.py), isolate only THIS WP's new test function(s) — not the
+  # whole file, which by now also carries WP02's/WP03's own new tests:
+  git show <this-WP's-test-commit-sha> -- <test file> | git -C /tmp/pbb-check apply
+  # If the hunk doesn't apply cleanly, manually copy just the new test function's body into
+  # /tmp/pbb-check's copy of the file instead.
+  cd /tmp/pbb-check && uv run pytest <test file> -k <new_test_id> -q   # confirm RED
+  cd - && git worktree remove /tmp/pbb-check
+  ```
+  Repeat for each of T014/T015's ids in `test_pack_validator.py`, T016's id in
+  `test_pack_assembler.py`, and T017(a)/(b)'s ids in `test_doctrine_org_commands.py` — run
+  the cleanup-then-add sequence at the top of each repetition, not just the first.
 - Confirm the two carve-outs are treated **separately**, each for its own stated reason — a
   diff that treats them as one shared "assembler and org_validate both get carved out"
   guarantee is wrong per operator ruling #2, and is itself a finding.
