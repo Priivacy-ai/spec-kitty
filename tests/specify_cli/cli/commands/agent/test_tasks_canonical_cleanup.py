@@ -164,7 +164,13 @@ class TestFinalizeTasksBootstrap:
         assert result.exit_code == 0, f"CLI error: {result.output}"
 
         # bootstrap was called
-        mock_bootstrap.assert_called_once_with(feature_dir, mission_slug, dry_run=False)
+        mock_bootstrap.assert_called_once_with(
+            feature_dir,
+            mission_slug,
+            dry_run=False,
+            repo_root=tmp_path,
+            mission_anchor_root=None,
+        )
 
         # JSON output includes bootstrap stats
         data = json.loads(result.output)
@@ -220,7 +226,13 @@ class TestFinalizeTasksBootstrap:
         assert data["mission_number"] is None
         assert data["mission_type"] == "software-dev"
 
-        mock_bootstrap.assert_called_once_with(ANY, mission_slug, dry_run=True)
+        mock_bootstrap.assert_called_once_with(
+            ANY,
+            mission_slug,
+            dry_run=True,
+            repo_root=tmp_path,
+            mission_anchor_root=None,
+        )
 
 
 # ---------------------------------------------------------------------------

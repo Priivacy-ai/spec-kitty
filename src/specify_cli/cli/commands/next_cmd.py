@@ -21,6 +21,7 @@ opened directly from the next command.
 from __future__ import annotations
 
 import contextlib
+from contextvars import ContextVar
 import io
 import importlib
 import json
@@ -29,8 +30,11 @@ from pathlib import Path
 
 import typer
 from mission_runtime import MissionArtifactKind, placement_seam
-from typing import Annotated
+from typing import Annotated, NoReturn
 
+from specify_cli.context.mission_resolver import (
+    MissionNotFoundError as _SelectorMissionNotFoundError,
+)
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.paths import (
     MissionMetaReadError,
@@ -41,6 +45,19 @@ from runtime.next._runtime_pkg_notice import maybe_emit_runtime_pkg_notice
 
 
 _VALID_RESULTS = ("success", "failed", "blocked")
+_MISSION_ANCHOR_ROOT: ContextVar[Path | None] = ContextVar(
+    "next_mission_anchor_root",
+    default=None,
+)
+
+
+def _next_placement_seam(repo_root: Path, mission_slug: str):
+    """Return the shared placement seam for the current next invocation."""
+    return placement_seam(
+        repo_root,
+        mission_slug,
+        mission_anchor_root=_MISSION_ANCHOR_ROOT.get(),
+    )
 
 
 def decide_next(agent: str, mission_slug: str, result: str, repo_root):
@@ -88,10 +105,16 @@ def next_step(
     """
     _maybe_emit_runtime_notice(json_output)
 
-    repo_root = locate_project_root()
-    if repo_root is None:
+    located_root = locate_project_root()
+    if located_root is None:
         print("Error: Could not locate project root", file=sys.stderr)
         raise typer.Exit(1)
+    raw_handle = mission.strip() if mission else ""
+    if not raw_handle:
+        _emit_mission_not_found_error("", json_output)
+        raise typer.Exit(1)
+    repo_root = located_root
+    _MISSION_ANCHOR_ROOT.set(None)
 
     # FR-006 caller contract: charter preflight runs BEFORE any state
     # mutation. On failure, print blocked_reason and exit 1 — the runtime
@@ -108,8 +131,32 @@ def next_step(
         StatusReadPathNotFound as _StatusReadPathNotFound,
     )
 
+    def _raise_next_mission_not_found(
+        exc: _SelectorMissionNotFoundError,
+    ) -> NoReturn:
+        _emit_mission_not_found_error(exc.handle, json_output)
+        raise typer.Exit(1) from exc
+
     try:
-        mission_slug = _resolve_mission_slug(mission, repo_root)
+        from specify_cli.cli.selector_resolution import (
+            is_same_repository_worktree_context,
+            resolve_mission_operation_context_cli,
+        )
+
+        if is_same_repository_worktree_context(located_root, cwd=Path.cwd()):
+            operation = resolve_mission_operation_context_cli(
+                located_root,
+                raw_handle,
+                cwd=Path.cwd(),
+                json_mode=json_output,
+                mission_not_found_handler=_raise_next_mission_not_found,
+            )
+            repo_root = operation.mission_anchor_root
+            mission_slug = operation.mission_slug
+            if operation.mission_anchor_root != operation.repository_root:
+                _MISSION_ANCHOR_ROOT.set(operation.mission_anchor_root)
+        else:
+            mission_slug = _resolve_mission_slug(mission, repo_root)
     except _StatusReadPathNotFound as _exc:
         # FR-001 / C-IC02: preserve the typed read-path error (code + checked
         # paths + read-path remediation) instead of collapsing to MISSION_NOT_FOUND.
@@ -192,7 +239,7 @@ def _pair_previous_lifecycle_record(
     # WP08 (T036): dropped the caller-side canonicalizer fold — redundant with
     # the seam's own internal fold for a PRIMARY-partition kind.
     try:
-        feature_dir = placement_seam(
+        feature_dir = _next_placement_seam(
             repo_root_path, mission_slug
         ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     except Exception:
@@ -279,7 +326,7 @@ def _write_issuance_lifecycle_record(
     # WP08 (T036): dropped the caller-side canonicalizer fold — redundant with
     # the seam's own internal fold for a PRIMARY-partition kind.
     try:
-        feature_dir = placement_seam(
+        feature_dir = _next_placement_seam(
             repo_root_path, mission_slug
         ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     except Exception:
@@ -400,7 +447,7 @@ def _resolve_mission_slug(mission: str | None, repo_root: Path) -> str:
         # that arm: PRIMARY_METADATA never raises CoordinationBranchDeleted, so
         # the branch is unreachable in the new code path. Kept so a future
         # STATUS-partition regression still surfaces typed.
-        candidate = placement_seam(
+        candidate = _next_placement_seam(
             get_main_repo_root(repo_root), raw_handle
         ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     except StatusReadPathNotFound:
@@ -624,10 +671,10 @@ def _emit_mission_next_invoked(agent: str, result: str, mission_slug: str, repo_
     # append-only per-mission event log, the same coord-aware STATUS-namespace
     # shape as ``status.events.jsonl`` — route it through the seam on
     # ``STATUS_STATE`` rather than the kind-blind resolver (NFR-001).
-    from mission_runtime import MissionArtifactKind, placement_seam
+    from mission_runtime import MissionArtifactKind
 
     try:
-        feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        feature_dir = _next_placement_seam(repo_root, mission_slug).read_dir(
             MissionArtifactKind.STATUS_STATE
         )
     except Exception:
@@ -692,7 +739,7 @@ def _handle_answer(
         # the PRIMARY dir so the type is read from the real meta.json. WP08
         # (T036): dropped the caller-side canonicalizer fold — redundant with
         # the seam's own internal fold for a PRIMARY-partition kind.
-        feature_dir = placement_seam(
+        feature_dir = _next_placement_seam(
             repo_root_path, mission_slug
         ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         mission_type = get_mission_type(feature_dir)

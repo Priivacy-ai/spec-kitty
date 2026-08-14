@@ -11,7 +11,7 @@ from rich.console import Console
 from specify_cli.cli.console import console
 from typing_extensions import Annotated
 
-from specify_cli.cli.selector_resolution import resolve_mission_handle
+from specify_cli.cli.selector_resolution import resolve_mission_operation_context_cli
 from specify_cli.core.paths import locate_project_root
 from mission_runtime import (
     ACTION_NAMES,
@@ -123,16 +123,22 @@ def resolve_context(
         raw_handle = mission.strip() if mission else None
         if not raw_handle:
             raise ActionContextError("MISSING_MISSION", "--mission <slug> is required")
-        mission_resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
-        mission_slug = mission_resolved.mission_slug
+        operation = resolve_mission_operation_context_cli(
+            repo_root,
+            raw_handle,
+            cwd=Path.cwd(),
+            json_mode=json_output,
+        )
+        mission_slug = operation.mission_slug
 
         context = resolve_action_context(
-            repo_root,
+            operation.repository_root,
             action=cast(ActionName, action),
             feature=mission_slug,
             wp_id=wp_id,
             agent=agent,
             cwd=Path.cwd(),
+            mission_anchor_root=operation.mission_anchor_root,
         )
 
         if json_output:

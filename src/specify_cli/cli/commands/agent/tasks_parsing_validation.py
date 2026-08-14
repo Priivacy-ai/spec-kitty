@@ -922,6 +922,7 @@ def _validate_ready_for_review(
     force: bool,
     target_lane: str = "for_review",
     *,
+    mission_anchor_root: Path | None = None,
     get_main_repo_root: Callable[[Path], Path],
     get_mission_type: Callable[[Path], str],
     get_feature_target_branch: Callable[[Path, str], str],
@@ -972,7 +973,16 @@ def _validate_ready_for_review(
         placement_seam,
     )
 
-    feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+    seam_kwargs = (
+        {"mission_anchor_root": mission_anchor_root}
+        if mission_anchor_root is not None
+        else {}
+    )
+    feature_dir = placement_seam(
+        main_repo_root,
+        mission_slug,
+        **seam_kwargs,
+    ).read_dir(
         MissionArtifactKind.RESEARCH
     )
 

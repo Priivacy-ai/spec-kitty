@@ -66,15 +66,18 @@ from specify_cli.status import StatusEvent, TransitionRequest
 
 @dataclass(frozen=True)
 class MissionHandle:
-    """The two coordinates every real ``tasks.py`` seam consumes.
+    """The coordinates every real ``tasks.py`` seam consumes.
 
     The canonical resolvers take ``(repo_root, mission_slug)``; this frozen pair
     threads them through the ports as one value so the orchestrators pass a single
-    handle instead of re-plumbing both arguments at every call.
+    handle instead of re-plumbing both arguments at every call. Caller-owned
+    missions additionally carry their explicit artifact anchor while keeping
+    ``repo_root`` authoritative for Git policy.
     """
 
     repo_root: Path
     mission_slug: str
+    mission_anchor_root: Path | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -244,14 +247,28 @@ class RealFsReader:
         # Annotated local: the project runs mypy with ``follow_imports = "skip"``,
         # so the imported (typed ``-> Path``) resolver surfaces as ``Any`` here;
         # the annotation re-pins the known concrete type without a suppression.
+        seam_kwargs = (
+            {"mission_anchor_root": mission.mission_anchor_root}
+            if mission.mission_anchor_root is not None
+            else {}
+        )
         read_dir: Path = placement_seam(
-            mission.repo_root, mission.mission_slug
+            mission.repo_root,
+            mission.mission_slug,
+            **seam_kwargs,
         ).read_dir(kind)
         return read_dir
 
     def wp_tasks_dir(self, mission: MissionHandle) -> Path:
+        seam_kwargs = (
+            {"mission_anchor_root": mission.mission_anchor_root}
+            if mission.mission_anchor_root is not None
+            else {}
+        )
         feature_dir: Path = placement_seam(
-            mission.repo_root, mission.mission_slug
+            mission.repo_root,
+            mission.mission_slug,
+            **seam_kwargs,
         ).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
         return feature_dir / "tasks"
 
@@ -271,8 +288,15 @@ class RealFsReader:
         # seam does not already do — folding twice is idempotent, not merely
         # equivalent (the fold's own no-op leg for an unresolvable handle
         # returns it unchanged either way).
+        seam_kwargs = (
+            {"mission_anchor_root": mission.mission_anchor_root}
+            if mission.mission_anchor_root is not None
+            else {}
+        )
         anchor: Path = placement_seam(
-            mission.repo_root, mission.mission_slug
+            mission.repo_root,
+            mission.mission_slug,
+            **seam_kwargs,
         ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         return anchor
 
@@ -330,7 +354,14 @@ class RealCoordCommitRouter:
         self._emit_fn = emit_fn or emit_status_transition_transactional
 
     def feature_write_dir(self, mission: MissionHandle) -> Path:
-        write_dir: Path = resolve_feature_dir_for_mission(
+        if mission.mission_anchor_root is not None:
+            write_dir: Path = placement_seam(
+                mission.repo_root,
+                mission.mission_slug,
+                mission_anchor_root=mission.mission_anchor_root,
+            ).read_dir(MissionArtifactKind.STATUS_STATE)
+            return write_dir
+        write_dir = resolve_feature_dir_for_mission(
             mission.repo_root, mission.mission_slug
         )
         return write_dir
@@ -357,24 +388,47 @@ class RealCoordCommitRouter:
         # in (map_requirements). The others omit the kwarg entirely so the mock
         # call shape stays identical to the pre-collapse inline call.
         if self._thread_target_branch:
-            result = self._commit_fn(
-                mission.repo_root,
-                mission.mission_slug,
-                tuple(paths),
-                message,
-                policy,
-                kind=kind,
-                target_branch=self._target_branch,
-            )
+            if mission.mission_anchor_root is None:
+                result = self._commit_fn(
+                    mission.repo_root,
+                    mission.mission_slug,
+                    tuple(paths),
+                    message,
+                    policy,
+                    kind=kind,
+                    target_branch=self._target_branch,
+                )
+            else:
+                result = self._commit_fn(
+                    mission.repo_root,
+                    mission.mission_slug,
+                    tuple(paths),
+                    message,
+                    policy,
+                    kind=kind,
+                    target_branch=self._target_branch,
+                    mission_anchor_root=mission.mission_anchor_root,
+                )
         else:
-            result = self._commit_fn(
-                mission.repo_root,
-                mission.mission_slug,
-                tuple(paths),
-                message,
-                policy,
-                kind=kind,
-            )
+            if mission.mission_anchor_root is None:
+                result = self._commit_fn(
+                    mission.repo_root,
+                    mission.mission_slug,
+                    tuple(paths),
+                    message,
+                    policy,
+                    kind=kind,
+                )
+            else:
+                result = self._commit_fn(
+                    mission.repo_root,
+                    mission.mission_slug,
+                    tuple(paths),
+                    message,
+                    policy,
+                    kind=kind,
+                    mission_anchor_root=mission.mission_anchor_root,
+                )
         return CommitArtifactResult(
             status=result.status,
             placement_ref=result.placement_ref,

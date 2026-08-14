@@ -234,7 +234,11 @@ def _evaluate_branch_gate(
 
 
 def _acceptance_gate_context(
-    repo_root: Path, feature_dir: Path, *, branch: str | None = None
+    repo_root: Path,
+    feature_dir: Path,
+    *,
+    branch: str | None = None,
+    mission_anchor_root: Path | None = None,
 ) -> GateExecutionContext:
     """Build the ACCEPT-phase :class:`GateExecutionContext` for the acceptance matrix.
 
@@ -274,6 +278,7 @@ def _acceptance_gate_context(
         MissionArtifactKind.ACCEPTANCE_MATRIX,
         phase=LifecyclePhase.ACCEPT,
         ref=ref,
+        mission_anchor_root=mission_anchor_root,
     )
 
 
@@ -343,7 +348,12 @@ def _record_ref_mismatch_cannot_evaluate(
     _append_skipped_lane_checks(skipped_checks, reason=exc.error_code)
 
 
-def _acceptance_matrix_read_dir(repo_root: Path, feature_dir: Path) -> Path:
+def _acceptance_matrix_read_dir(
+    repo_root: Path,
+    feature_dir: Path,
+    *,
+    mission_anchor_root: Path | None = None,
+) -> Path:
     """Resolve the dir the acceptance-matrix must be READ from for this mission.
 
     ``ACCEPTANCE_MATRIX`` is a *coordination*-partition kind
@@ -368,11 +378,19 @@ def _acceptance_matrix_read_dir(repo_root: Path, feature_dir: Path) -> Path:
     carries unmerged acceptance state, so accept must refuse, not silently pass on a
     stale surface.
     """
-    return _acceptance_gate_context(repo_root, feature_dir).surface
+    return _acceptance_gate_context(
+        repo_root,
+        feature_dir,
+        mission_anchor_root=mission_anchor_root,
+    ).surface
 
 
 def _matrix_surface_cannot_hold(
-    context: GateExecutionContext, repo_root: Path, feature_dir: Path
+    context: GateExecutionContext,
+    repo_root: Path,
+    feature_dir: Path,
+    *,
+    mission_anchor_root: Path | None = None,
 ) -> CannotEvaluate | None:
     """GEC-5 / C2: refuse when the coord-homed matrix is judged on a PRIMARY stamp.
 
@@ -399,7 +417,10 @@ def _matrix_surface_cannot_hold(
     from mission_runtime import MissionArtifactKind
 
     home = declared_home_surface(
-        repo_root, feature_dir.name, MissionArtifactKind.ACCEPTANCE_MATRIX
+        repo_root,
+        feature_dir.name,
+        MissionArtifactKind.ACCEPTANCE_MATRIX,
+        mission_anchor_root=mission_anchor_root,
     )
     return context.surface_cannot_hold(home)
 
@@ -431,6 +452,7 @@ def _evaluate_acceptance_matrix(
     *,
     mutate_matrix: bool,
     branch: str | None = None,
+    mission_anchor_root: Path | None = None,
 ) -> None:
     """Read/enforce/validate the acceptance matrix once the branch gate passed.
 
@@ -451,7 +473,12 @@ def _evaluate_acceptance_matrix(
         write_acceptance_matrix,
     )
 
-    context = _acceptance_gate_context(repo_root, feature_dir, branch=branch)
+    context = _acceptance_gate_context(
+        repo_root,
+        feature_dir,
+        branch=branch,
+        mission_anchor_root=mission_anchor_root,
+    )
     ref_mismatch = _assert_ref_agreement(context)
     if ref_mismatch is not None:
         _record_ref_mismatch_cannot_evaluate(
@@ -459,7 +486,12 @@ def _evaluate_acceptance_matrix(
         )
         return
 
-    cannot = _matrix_surface_cannot_hold(context, repo_root, feature_dir)
+    cannot = _matrix_surface_cannot_hold(
+        context,
+        repo_root,
+        feature_dir,
+        mission_anchor_root=mission_anchor_root,
+    )
     if cannot is not None:
         _record_matrix_cannot_evaluate(cannot, activity_issues, skipped_checks, blocked_checks)
         return
@@ -554,6 +586,7 @@ def _check_lane_gates(
     blocked_checks: list[AcceptanceCheckDiagnostic],
     *,
     mutate_matrix: bool = True,
+    mission_anchor_root: Path | None = None,
 ) -> None:
     """Enforce lane-based acceptance gates and acceptance matrix."""
     lanes_manifest = _resolve_lanes_manifest_or_stop(feature_dir, activity_issues, skipped_checks, blocked_checks)
@@ -574,6 +607,7 @@ def _check_lane_gates(
         blocked_checks,
         mutate_matrix=mutate_matrix,
         branch=branch,
+        mission_anchor_root=mission_anchor_root,
     )
 
 

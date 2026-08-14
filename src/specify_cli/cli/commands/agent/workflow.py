@@ -59,8 +59,10 @@ import logging
 import re
 import subprocess
 import contextlib
+from contextvars import ContextVar
 from pathlib import Path
 from collections.abc import Callable
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Annotated
 
 import typer
@@ -365,9 +367,11 @@ def _canonical_status_feature_dir(main_repo_root: Path, mission_slug: str) -> Pa
     no caller of ``_canonical_status_feature_dir`` consumed any coord-branch-only
     meta field (all three read callers only need the resolved directory).
     """
-    from specify_cli.missions._read_path_resolver import resolve_handle_to_read_path
-
-    return resolve_handle_to_read_path(main_repo_root, mission_slug)
+    return _resolve_workflow_read_dir(
+        repo_root=main_repo_root,
+        mission_slug=mission_slug,
+        kind=MissionArtifactKind.STATUS_STATE,
+    )
 
 
 def _merge_event_log_bytes(existing: bytes, incoming: bytes) -> bytes:
@@ -558,7 +562,12 @@ def _workflow_placement_seam(repo_root: Path, mission_slug: str) -> PlacementSea
     """
     from mission_runtime import placement_seam
 
-    return placement_seam(repo_root, mission_slug)
+    operation = _MISSION_OPERATION_CONTEXT.get()
+    mission_anchor_root = getattr(operation, "mission_anchor_root", None)
+    kwargs: dict[str, Path] = {}
+    if mission_anchor_root is not None and Path(mission_anchor_root) != repo_root:
+        kwargs["mission_anchor_root"] = mission_anchor_root
+    return placement_seam(repo_root, mission_slug, **kwargs)
 
 
 def _resolve_workflow_placement(
@@ -658,6 +667,7 @@ def _commit_via_legacy_safe_commit(
     wp_id: str,
     mission_slug: str | None = None,
     mid8: str | None = None,
+    worktree_root: Path | None = None,
 ) -> None:
     """Commit workflow changes directly on legacy mission branches."""
     # #2684: nothing-to-commit is a benign no-op, not a hard failure. When the
@@ -676,7 +686,11 @@ def _commit_via_legacy_safe_commit(
     # WP01/T004 (FR-002(b)): run the pre-check in the resolved worktree root, not
     # ``repo_root`` — a gitignored ``.worktrees/`` status file reads as clean
     # from ``repo_root`` and would trip a phantom "already committed" no-op.
-    porcelain_root = _resolve_legacy_porcelain_root(repo_root, mission_slug, mid8)
+    porcelain_root = worktree_root or _resolve_legacy_porcelain_root(
+        repo_root,
+        mission_slug,
+        mid8,
+    )
     porcelain = subprocess.run(
         ["git", "status", "--porcelain", "--", *[str(p) for p in paths]],
         cwd=porcelain_root,
@@ -703,7 +717,7 @@ def _commit_via_legacy_safe_commit(
     # tracking ``main``) is REFUSED by the guard, never waived (FR-008).
     result = safe_commit(
         repo_root=repo_root,
-        worktree_root=repo_root,
+        worktree_root=worktree_root or repo_root,
         target=CommitTarget(ref=target_branch),
         message=message,
         paths=tuple(paths),
@@ -764,6 +778,11 @@ def _render_charter_context(
 
 app = typer.Typer(name="action", help="Mission action commands that display prompts and instructions for agents", no_args_is_help=True)
 
+_MISSION_OPERATION_CONTEXT: ContextVar[object | None] = ContextVar(
+    "workflow_mission_operation_context",
+    default=None,
+)
+
 
 def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tuple[Path, str]:
     """Resolve branch context without auto-checkout (respects user's current branch).
@@ -779,10 +798,13 @@ def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tup
     from mission_runtime import ActionContextError, resolve_action_context
     from specify_cli.core.git_ops import get_current_branch
 
+    operation = _MISSION_OPERATION_CONTEXT.get()
     main_repo_root = get_main_repo_root(repo_root)
+    mission_anchor_root = getattr(operation, "mission_anchor_root", None)
+    branch_checkout = mission_anchor_root or main_repo_root
 
     # Check for detached HEAD using robust branch detection
-    current_branch = get_current_branch(main_repo_root)
+    current_branch = get_current_branch(branch_checkout)
     if current_branch is None:
         print("Error: Detached HEAD — checkout a branch before continuing.")
         raise typer.Exit(1)
@@ -793,6 +815,8 @@ def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tup
             main_repo_root,
             action="tasks",
             feature=mission_slug,
+            cwd=Path.cwd(),
+            mission_anchor_root=mission_anchor_root,
         )
         target = _ctx.target_branch
     except ActionContextError:
@@ -1204,15 +1228,47 @@ def implement(
 
     # WP06 T029: reset the commit-receipt accumulator for this invocation.
     _reset_workflow_receipts()
+    operation_token = None
     try:
         # Get repo root and feature slug
-        repo_root = locate_project_root()
-        if repo_root is None:
+        located_root = locate_project_root()
+        if located_root is None:
             print("Error: Could not locate project root")
             raise typer.Exit(1)
-        repo_root = get_main_repo_root(repo_root)
+        raw_handle = request.mission.strip() if request.mission else ""
+        if not raw_handle:
+            print("Error: --mission <slug> is required")
+            raise typer.Exit(1)
+        from specify_cli.cli.selector_resolution import (
+            is_same_repository_worktree_context,
+            resolve_mission_operation_context_cli,
+        )
 
-        mission_slug = _find_mission_slug(explicit_mission=request.mission, repo_root=repo_root)
+        main_repo_root = get_main_repo_root(located_root)
+        if is_same_repository_worktree_context(located_root, cwd=Path.cwd()):
+            operation = resolve_mission_operation_context_cli(
+                located_root,
+                raw_handle,
+                cwd=Path.cwd(),
+            )
+        else:
+            operation = SimpleNamespace(
+                repository_root=main_repo_root,
+                mission_anchor_root=main_repo_root,
+                mission_slug=_find_mission_slug(
+                    explicit_mission=request.mission,
+                    repo_root=main_repo_root,
+                ),
+            )
+        operation_token = _MISSION_OPERATION_CONTEXT.set(operation)
+        main_repo_root = operation.repository_root
+        repo_root = operation.mission_anchor_root
+        mission_anchor_root = (
+            operation.mission_anchor_root
+            if operation.mission_anchor_root != operation.repository_root
+            else None
+        )
+        mission_slug = operation.mission_slug
 
         # -- WP05/T021 FR-007: Sparse-checkout preflight -- runs BEFORE any
         # worktree creation or state changes (same surface as merge).
@@ -1220,7 +1276,10 @@ def implement(
 
         # Ensure planning repo is on the target branch before we start
         # (needed for auto-commits and status tracking inside this command)
-        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug)
+        main_repo_root, target_branch = _ensure_target_branch_checked_out(
+            main_repo_root,
+            mission_slug,
+        )
 
         # Determine which WP to implement
         if request.wp_id:
@@ -1260,7 +1319,19 @@ def implement(
         # ``_ensure_workspace_materialized`` — never re-resolve through a second
         # authority that could independently report "no workspace could be
         # resolved" on a verified read-path.
-        workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
+        if mission_anchor_root is None:
+            workspace = resolve_workspace_for_wp(
+                main_repo_root,
+                mission_slug,
+                normalized_wp_id,
+            )
+        else:
+            workspace = resolve_workspace_for_wp(
+                main_repo_root,
+                mission_slug,
+                normalized_wp_id,
+                mission_anchor_root=mission_anchor_root,
+            )
         status_execution_mode = "direct_repo" if workspace.resolution_kind == "repo_root" else "worktree"
 
         def _create_workspace() -> None:
@@ -1384,6 +1455,9 @@ def implement(
             _print_commit_summary(command_name="implement")
         print(f"Error: {e}")
         raise typer.Exit(1)
+    finally:
+        if operation_token is not None:
+            _MISSION_OPERATION_CONTEXT.reset(operation_token)
 
     # WP06 T029: terminal commit summary for the implement command.
     _print_commit_summary(command_name="implement")
@@ -1395,6 +1469,8 @@ def _resolve_review_context(
     mission_slug: str,
     wp_id: str,
     wp_frontmatter: str,
+    *,
+    mission_anchor_root: Path | None = None,
 ) -> dict:
     """Resolve git branch and base context for review prompts.
 
@@ -1421,7 +1497,15 @@ def _resolve_review_context(
     if not workspace_path.exists():
         return ctx
 
-    workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
+    if mission_anchor_root is None:
+        workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
+    else:
+        workspace = resolve_workspace_for_wp(
+            repo_root,
+            mission_slug,
+            wp_id,
+            mission_anchor_root=mission_anchor_root,
+        )
     # WP04 / T017 / FR-002: lanes.json (LANE_STATE — PRIMARY-partition) and
     # tasks/ (WORK_PACKAGE_TASK — PRIMARY-partition) both route to the primary
     # checkout.  Under coord topology, candidate_feature_dir_for_mission returned
@@ -1656,18 +1740,54 @@ def review(
 
     # WP06 T029: reset the commit-receipt accumulator for this invocation.
     _reset_workflow_receipts()
+    operation_token = None
     try:
         # Get repo root and feature slug
-        repo_root = locate_project_root()
-        if repo_root is None:
+        located_root = locate_project_root()
+        if located_root is None:
             print("Error: Could not locate project root")
             raise typer.Exit(1)
+        raw_handle = request.mission.strip() if request.mission else ""
+        if not raw_handle:
+            print("Error: --mission <slug> is required")
+            raise typer.Exit(1)
+        from specify_cli.cli.selector_resolution import (
+            is_same_repository_worktree_context,
+            resolve_mission_operation_context_cli,
+        )
 
-        mission_slug = _find_mission_slug(explicit_mission=request.mission, repo_root=repo_root)
+        main_repo_root = get_main_repo_root(located_root)
+        if is_same_repository_worktree_context(located_root, cwd=Path.cwd()):
+            operation = resolve_mission_operation_context_cli(
+                located_root,
+                raw_handle,
+                cwd=Path.cwd(),
+            )
+        else:
+            operation = SimpleNamespace(
+                repository_root=main_repo_root,
+                mission_anchor_root=main_repo_root,
+                mission_slug=_find_mission_slug(
+                    explicit_mission=request.mission,
+                    repo_root=main_repo_root,
+                ),
+            )
+        operation_token = _MISSION_OPERATION_CONTEXT.set(operation)
+        main_repo_root = operation.repository_root
+        repo_root = operation.mission_anchor_root
+        mission_anchor_root = (
+            operation.mission_anchor_root
+            if operation.mission_anchor_root != operation.repository_root
+            else None
+        )
+        mission_slug = operation.mission_slug
 
         # Ensure planning repo is on the target branch before we start
         # (needed for auto-commits and status tracking inside this command)
-        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug)
+        main_repo_root, target_branch = _ensure_target_branch_checked_out(
+            main_repo_root,
+            mission_slug,
+        )
 
         # Determine which WP to review
         if request.wp_id:
@@ -1722,12 +1842,31 @@ def review(
             resolved_binding=resolved_binding,
         )
 
-        workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
+        if mission_anchor_root is None:
+            workspace = resolve_workspace_for_wp(
+                main_repo_root,
+                mission_slug,
+                normalized_wp_id,
+            )
+        else:
+            workspace = resolve_workspace_for_wp(
+                main_repo_root,
+                mission_slug,
+                normalized_wp_id,
+                mission_anchor_root=mission_anchor_root,
+            )
         workspace = _prepare_review_workspace(workspace, main_repo_root, normalized_wp_id, agent)
         workspace_path = workspace.worktree_path
 
         # Resolve git context (branch name, base branch, commit count)
-        review_ctx = _resolve_review_context(workspace_path, main_repo_root, mission_slug, normalized_wp_id, wp.frontmatter)
+        review_ctx = _resolve_review_context(
+            workspace_path,
+            main_repo_root,
+            mission_slug,
+            normalized_wp_id,
+            wp.frontmatter,
+            mission_anchor_root=mission_anchor_root,
+        )
 
         dependents_warning = _executor.review_compute_dependents_warning(repo_root, mission_slug, normalized_wp_id)
 
@@ -1796,6 +1935,9 @@ def review(
             _print_commit_summary(command_name="review")
         print(f"Error: {e}")
         raise typer.Exit(1)
+    finally:
+        if operation_token is not None:
+            _MISSION_OPERATION_CONTEXT.reset(operation_token)
 
     # WP06 T029: terminal commit summary for the review command.
     _print_commit_summary(command_name="review")

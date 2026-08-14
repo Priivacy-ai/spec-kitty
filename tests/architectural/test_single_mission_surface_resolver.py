@@ -327,6 +327,21 @@ _RAW_JOIN_SITES: tuple[ContentDescriptor, ...] = (
             "WP08's deletion of the (now-thin) public wrapper."
         ),
     ),
+    ContentDescriptor(
+        rel_path="specify_cli/missions/_read_path_resolver.py",
+        qualname="_compose_mission_anchor_feature_dir",
+        token_substring=(
+            "return Path ( mission_anchor_root . resolve ( ) / "
+            "KITTY_SPECS_DIR / mission_slug )"
+        ),
+        occurrence=None,
+        rationale=(
+            "TBYD — dual-root Mission operation primitive: the caller already "
+            "resolved and Git-validated mission_anchor_root, so applying "
+            "get_main_repo_root here would destroy caller-owned PRIMARY "
+            "placement; assert_safe_path_segment is called before the join."
+        ),
+    ),
     # ----- mission_creation.py: seam-grammar output -----
     # ``mission_slug_formatted = mission_dir_name(mission_slug, mid8=...)`` is
     # composed just above.  The slug on the RHS of the join is NOT raw operator

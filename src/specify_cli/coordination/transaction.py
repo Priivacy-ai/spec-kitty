@@ -236,6 +236,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         cls,
         *,
         repo_root: Path,
+        mission_anchor_root: Path | None = None,
         mission_id: str,
         mission_slug: str,
         mid8: str,
@@ -250,6 +251,10 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         first-time coordination worktree creation is serialized across
         concurrent emitters. Policy refusal still happens before any
         bookkeeping write.
+
+        ``repo_root`` remains the Git-policy authority. An explicit
+        ``mission_anchor_root`` selects the caller-owned Mission artifact
+        surface without changing repository topology decisions.
 
         On a lock-acquire timeout, raises :class:`BookkeepingLockTimeout`.
 
@@ -277,6 +282,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         try:
             return cls._acquire_locked(
                 repo_root=repo_root,
+                mission_anchor_root=mission_anchor_root,
                 mission_id=mission_id,
                 mission_slug=mission_slug,
                 mid8=mid8,
@@ -295,6 +301,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         cls,
         *,
         repo_root: Path,
+        mission_anchor_root: Path | None,
         mission_id: str,
         mission_slug: str,
         mid8: str,
@@ -333,7 +340,12 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # truncate rollback, and the outbound deferral — applies
         # uniformly to both paths.**  Only ``worktree_root`` and (in
         # legacy mode) ``destination_ref`` differ.
-        legacy_mode = _is_legacy_mission(repo_root, safe_mission_slug, safe_mid8)
+        metadata_root = mission_anchor_root or repo_root
+        legacy_mode = _is_legacy_mission(
+            metadata_root,
+            safe_mission_slug,
+            safe_mid8,
+        )
         if legacy_mode:
             # #2453: ``_is_legacy_mission`` alone conflates two shapes that
             # both merely lack ``coordination_branch`` — a genuinely-legacy
@@ -344,7 +356,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             # introduced (C-005) — reuse it here as the routing split too,
             # rather than inventing a second classifier.
             genuinely_legacy = _warrants_legacy_warning(
-                repo_root, safe_mission_slug, safe_mid8,
+                metadata_root, safe_mission_slug, safe_mid8,
             )
             if genuinely_legacy:
                 # Genuinely-legacy: unchanged pre-#2453 behaviour — resolve
@@ -385,7 +397,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 # (``test_transaction_legacy_topology_routing`` asserts this arm
                 # lands on ``repo_root`` from a stale lane cwd), NOT a runtime
                 # provenance check here.
-                worktree_root = repo_root
+                worktree_root = mission_anchor_root or repo_root
         else:
             coord_branch = CoordinationWorkspace.branch_name(safe_mission_slug, safe_mid8)
             caller_change_set = GitChangeSet(
@@ -400,7 +412,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             caller_verdict = WorkflowMutationPolicy.assert_allowed(caller_change_set)
             if isinstance(caller_verdict, Refused):
                 explicit_coord_branch = _coordination_branch_from_meta(
-                    repo_root, safe_mission_slug, safe_mid8,
+                    metadata_root, safe_mission_slug, safe_mid8,
                 )
                 can_recover_to_coord_branch = (
                     caller_verdict.error_code == PROTECTED_BRANCH_REFUSED

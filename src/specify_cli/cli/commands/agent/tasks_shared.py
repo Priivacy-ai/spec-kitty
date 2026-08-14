@@ -28,9 +28,10 @@ the parity contract); interception pins live in
 
 from __future__ import annotations
 
+from contextvars import ContextVar
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import typer
 
@@ -47,6 +48,43 @@ from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import is_dossier_snapshot as _is_dossier_snapshot
 
 logger = logging.getLogger(__name__)
+
+
+_TASKS_OPERATION_CONTEXT: ContextVar[object | None] = ContextVar(
+    "tasks_mission_operation_context",
+    default=None,
+)
+
+
+def _current_tasks_operation_context() -> object | None:
+    """Return the dual-root context resolved by this tasks invocation."""
+    return _TASKS_OPERATION_CONTEXT.get()
+
+
+def _resolve_tasks_operation(
+    *,
+    explicit_mission: str | None,
+    json_output: bool,
+) -> tuple[Path, str, object | None]:
+    """Resolve one tasks invocation without duplicating root authority.
+
+    Family orchestrators consume this boundary instead of locating the
+    repository and resolving the mission independently. The shared mission
+    resolver stores a caller-owned dual-root context for downstream placement;
+    managed-primary invocations retain the legacy ``None`` context.
+    """
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    repo_root = _tasks.locate_project_root()
+    if repo_root is None:
+        _tasks._output_error(json_output, "Could not locate project root")
+        raise typer.Exit(1)
+    mission_slug = _tasks._find_mission_slug(
+        explicit_mission=explicit_mission,
+        json_output=json_output,
+        repo_root=repo_root,
+    )
+    return repo_root, mission_slug, _current_tasks_operation_context()
 
 
 def _review_currency_check_branch(
@@ -179,12 +217,17 @@ def _ensure_target_branch_checked_out(
     from specify_cli.cli.commands.agent import tasks as _tasks
     from specify_cli.core.git_ops import get_current_branch, resolve_target_branch
 
-    # Write path: keep main-repo-root resolution so canonical serialization
-    # pins to the primary checkout regardless of where the operator stands.
     main_repo_root = _tasks.get_main_repo_root(repo_root)
 
+    operation = _current_tasks_operation_context()
+    operation_root = getattr(operation, "repository_root", None)
+    mission_anchor_root = getattr(operation, "mission_anchor_root", None)
+    if isinstance(operation_root, Path):
+        main_repo_root = operation_root
+    branch_root = mission_anchor_root if isinstance(mission_anchor_root, Path) else main_repo_root
+
     # Check for detached HEAD using robust branch detection
-    current_branch = get_current_branch(main_repo_root)
+    current_branch = get_current_branch(branch_root)
     if current_branch is None:
         raise RuntimeError("Detached HEAD — checkout a branch before continuing")
 
@@ -239,15 +282,53 @@ def _find_mission_slug(
         raise typer.Exit(1)
 
     raw_handle = explicit_mission.strip()
+    # Every invocation owns its routing context.  Clear any value left by a
+    # prior in-process CLI call before resolving the current command.
+    _TASKS_OPERATION_CONTEXT.set(None)
     if repo_root is not None:
+        from specify_cli.cli.selector_resolution import (
+            resolve_mission_operation_context_cli,
+        )
+        from specify_cli.cli.selector_resolution import (
+            is_same_repository_worktree_context,
+        )
+
+        legacy_dir = placement_seam(
+            _tasks.get_main_repo_root(repo_root), raw_handle
+        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+        if is_same_repository_worktree_context(repo_root, cwd=Path.cwd()):
+            class _UseLegacyMissionDirectory(Exception):
+                pass
+
+            def _use_legacy_mission_directory(_: Exception) -> NoReturn:
+                raise _UseLegacyMissionDirectory
+
+            try:
+                operation = resolve_mission_operation_context_cli(
+                    repo_root,
+                    raw_handle,
+                    cwd=Path.cwd(),
+                    json_mode=json_output,
+                    mission_not_found_handler=(
+                        _use_legacy_mission_directory
+                        if legacy_dir.exists()
+                        else None
+                    ),
+                )
+            except _UseLegacyMissionDirectory:
+                # Legacy coordination-less missions may have no ``meta.json``
+                # at all. They predate immutable Mission identity, so only a
+                # canonical resolver miss may use the placed directory name.
+                return legacy_dir.name
+            if operation.mission_anchor_root != operation.repository_root:
+                _TASKS_OPERATION_CONTEXT.set(operation)
+            return str(operation.mission_slug)
+
         # Write path: keep main-repo-root resolution so canonical serialization
         # pins to the primary checkout regardless of where the operator stands.
         # Note: repo_root from locate_project_root() already resolves to the main
         # checkout; get_main_repo_root() here guards against caller passing a
         # worktree path directly.
-        legacy_dir = placement_seam(
-            _tasks.get_main_repo_root(repo_root), raw_handle
-        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         if legacy_dir.exists():
             # F-001: the candidate resolver canonicalizes mid8/ULID/numeric
             # handles, so the resolved directory's NAME — not the raw operator
@@ -407,7 +488,14 @@ def _resolve_git_common_dir(main_repo_root: Path) -> Path:
     return common_dir
 
 
-def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _force: bool) -> list[str]:
+def _check_unchecked_subtasks(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    _force: bool,
+    *,
+    mission_anchor_root: Path | None = None,
+) -> list[str]:
     """Return *wp_id*'s incomplete subtask ids, read from the reduced snapshot.
 
     The subtask **roster** (which task ids belong to ``wp_id``) is the authored
@@ -448,7 +536,13 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
     # WP04 / FR-006: the authored WP roster is TASKS_INDEX and therefore lives
     # on the primary partition. Dynamic completion is STATUS_STATE and follows
     # the topology-routed status surface instead.
-    feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+    seam_kwargs = (
+        {"mission_anchor_root": mission_anchor_root}
+        if mission_anchor_root is not None
+        else {}
+    )
+    seam = placement_seam(main_repo_root, mission_slug, **seam_kwargs)
+    feature_dir = seam.read_dir(
         MissionArtifactKind.TASKS_INDEX
     )
     if not (feature_dir / "tasks").is_dir():
@@ -461,10 +555,13 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
     roster = authored_subtask_roster(feature_dir, wp_id)
     if not roster:
         return []
-    from specify_cli.coordination import resolve_status_surface
-
-    status_dir = resolve_status_surface(main_repo_root, mission_slug).parent
-    return unchecked_subtask_ids_from_snapshot(status_dir, wp_id, roster)
+    status_dir = seam.read_dir(MissionArtifactKind.STATUS_STATE)
+    unchecked_ids: list[str] = unchecked_subtask_ids_from_snapshot(
+        status_dir,
+        wp_id,
+        roster,
+    )
+    return unchecked_ids
 
 
 def _validate_ready_for_review(
@@ -473,6 +570,8 @@ def _validate_ready_for_review(
     wp_id: str,
     force: bool,
     target_lane: str = "for_review",
+    *,
+    mission_anchor_root: Path | None = None,
 ) -> tuple[bool, list[str]]:
     """Validate that WP is ready for review by checking for uncommitted changes.
 
@@ -488,12 +587,18 @@ def _validate_ready_for_review(
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
+    anchor_kwargs = (
+        {"mission_anchor_root": mission_anchor_root}
+        if mission_anchor_root is not None
+        else {}
+    )
     verdict: tuple[bool, list[str]] = _seam_validate_ready_for_review(
         repo_root,
         mission_slug,
         wp_id,
         force,
         target_lane=target_lane,
+        **anchor_kwargs,
         get_main_repo_root=_tasks.get_main_repo_root,
         get_mission_type=_tasks.get_mission_type,
         get_feature_target_branch=_tasks.get_feature_target_branch,
@@ -638,7 +743,12 @@ def _list_wp_branch_mission_specs_changes(worktree_path: Path, base_branch: str)
     if not candidates:
         return []
 
-    return _tasks._filter_by_planning_tip_content(worktree_path, candidates, base_branch)
+    filtered: list[str] = _tasks._filter_by_planning_tip_content(
+        worktree_path,
+        candidates,
+        base_branch,
+    )
+    return filtered
 
 
 def _list_wp_branch_specs_changes_for_guard(worktree_path: Path, base_branch: str) -> list[str]:

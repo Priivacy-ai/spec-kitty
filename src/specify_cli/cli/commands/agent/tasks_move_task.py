@@ -90,6 +90,7 @@ from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _issue_matrix_approval_blocker,
     _self_review_fallback_option_error,
 )
+from specify_cli.cli.commands.agent.tasks_shared import _resolve_tasks_operation
 from specify_cli.cli.commands.agent.tasks_transition_core import (
     Emit,
     MoveTaskRequest,
@@ -210,6 +211,7 @@ class _MoveTaskState:
     target_lane: Lane = Lane.PLANNED
     repo_root: Path = field(default_factory=Path)
     main_repo_root: Path = field(default_factory=Path)
+    mission_anchor_root: Path | None = None
     target_branch: str = ""
     mission_slug: str = ""
     tracker_ref_values: tuple[str, ...] = ()
@@ -309,22 +311,24 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Resolve roots/branch/feature-dir and load the WP + its canonical lane."""
     from specify_cli.cli.commands.agent import tasks as _tasks
     st.target_lane = Lane(ensure_lane(st.to))
-    repo_root = _tasks.locate_project_root()
-    if repo_root is None:
-        _tasks._output_error(st.json_output, "Could not locate project root")
-        raise typer.Exit(1)
+    repo_root, mission_slug, operation = _resolve_tasks_operation(
+        explicit_mission=st.mission,
+        json_output=st.json_output,
+    )
     st.repo_root = repo_root
     # FR-010 / FR-019: one-shot sparse-checkout warning before any read/mutate.
     _tasks._emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks move-task")
     st.resolved_auto_commit = (
         _tasks.get_auto_commit_default(repo_root) if st.auto_commit is None else st.auto_commit
     )
-    st.mission_slug = _tasks._find_mission_slug(
-        explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root
-    )
+    st.mission_slug = mission_slug
     st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(
         repo_root, st.mission_slug, st.json_output
     )
+    operation_anchor = getattr(operation, "mission_anchor_root", None)
+    operation_slug = getattr(operation, "mission_slug", None)
+    if operation_slug == st.mission_slug and isinstance(operation_anchor, Path):
+        st.mission_anchor_root = operation_anchor
     from specify_cli.cli.commands.agent.workflow import _resolve_dispatch_binding
 
     claim_mission_id: str | None = None
@@ -335,8 +339,15 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
         # ``mission_id`` (resolve_mission_identity). WP08 (T036): dropped the
         # caller-side canonicalizer fold — redundant with the seam's own
         # internal fold for a PRIMARY-partition kind.
+        seam_kwargs = (
+            {"mission_anchor_root": st.mission_anchor_root}
+            if st.mission_anchor_root is not None
+            else {}
+        )
         primary_feature_dir = placement_seam(
-            st.main_repo_root, st.mission_slug
+            st.main_repo_root,
+            st.mission_slug,
+            **seam_kwargs,
         ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         claim_mission_id = resolve_mission_identity(primary_feature_dir).mission_id
     st.resolved_binding = _resolve_dispatch_binding(
@@ -387,20 +398,30 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     # and the coord override persist. It is NEVER repointed to a primary kind — that
     # would move the event-log read off the coord husk and reintroduce the split-brain
     # FR-010 closes.
-    handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
+    handle = MissionHandle(
+        repo_root=st.main_repo_root,
+        mission_slug=st.mission_slug,
+        mission_anchor_root=getattr(st, "mission_anchor_root", None),
+    )
     st.mt_feature_dir = ports.coord.feature_write_dir(handle)
     try:
         check_pre30_layout(st.mt_feature_dir)
     except Pre30LayoutError as e:
         _tasks._output_error(st.json_output, str(e))
         raise typer.Exit(1) from None
-    st.wp = _tasks.locate_work_package(repo_root, st.mission_slug, st.task_id)
+    st.wp = _tasks.locate_work_package(
+        repo_root,
+        st.mission_slug,
+        st.task_id,
+        mission_anchor_root=st.mission_anchor_root,
+    )
     # Lane is event-log-only; read from the canonical coord-husk event log.
     st.old_lane = _read_transactional_wp_lane(
         feature_dir=st.mt_feature_dir,
         mission_slug=st.mission_slug,
         wp_id=st.task_id,
         repo_root=st.main_repo_root,
+        mission_anchor_root=st.mission_anchor_root,
     )
     # Event-store write leg — the SAME coord husk as ``mt_feature_dir``.
     st.feature_dir = st.mt_feature_dir
@@ -596,7 +617,13 @@ def _mt_gather_review_facts(st: _MoveTaskState) -> None:
     unchecked_subtasks: tuple[str, ...] = ()
     if st.target_lane in (Lane.FOR_REVIEW, Lane.APPROVED, Lane.DONE) and not st.force:
         unchecked_subtasks = tuple(
-            _tasks._check_unchecked_subtasks(st.repo_root, st.mission_slug, st.task_id, st.force)
+            _tasks._check_unchecked_subtasks(
+                st.repo_root,
+                st.mission_slug,
+                st.task_id,
+                st.force,
+                mission_anchor_root=st.mission_anchor_root,
+            )
         )
     review_ready = True
     review_guidance: tuple[str, ...] = ()
@@ -613,11 +640,12 @@ def _mt_gather_review_facts(st: _MoveTaskState) -> None:
         )
         if not defer_readiness:
             is_valid, guidance = _tasks._validate_ready_for_review(
-                st.repo_root,
+                st.mission_anchor_root or st.repo_root,
                 st.mission_slug,
                 st.task_id,
                 st.force,
                 target_lane=str(st.target_lane),
+                mission_anchor_root=st.mission_anchor_root,
             )
             review_ready = is_valid
             review_guidance = tuple(guidance)
@@ -646,11 +674,12 @@ def _mt_complete_deferred_for_review_readiness(st: _MoveTaskState) -> None:
     assert st.request is not None
     _mt_commit_lane_deliverables(st)
     is_valid, guidance = _tasks._validate_ready_for_review(
-        st.repo_root,
+        st.mission_anchor_root or st.repo_root,
         st.mission_slug,
         st.task_id,
         st.force,
         target_lane=str(st.target_lane),
+        mission_anchor_root=st.mission_anchor_root,
     )
     st.request = replace(
         st.request,
@@ -2041,6 +2070,7 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
                     else None
                 ),
                 repo_root=st.main_repo_root,
+                mission_anchor_root=st.mission_anchor_root,
                 review_result=hop_review_result,
                 annotation_delta=annotation_delta,
             ),
@@ -2076,7 +2106,11 @@ def _mt_rollback_subtasks_reset(
     """
     from specify_cli.core.subtask_rows import authored_subtask_roster
 
-    handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
+    handle = MissionHandle(
+        repo_root=st.main_repo_root,
+        mission_slug=st.mission_slug,
+        mission_anchor_root=getattr(st, "mission_anchor_root", None),
+    )
     feature_dir = ports.fs.planning_read_dir(
         handle, kind=MissionArtifactKind.TASKS_INDEX
     )

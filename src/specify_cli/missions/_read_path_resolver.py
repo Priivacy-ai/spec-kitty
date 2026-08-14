@@ -1309,6 +1309,23 @@ def _compose_primary_feature_dir(repo_root: Path, mission_slug: str) -> Path:
     return primary_dir
 
 
+def _compose_mission_anchor_feature_dir(
+    mission_anchor_root: Path,
+    mission_slug: str,
+) -> Path:
+    """Compose PRIMARY Mission storage under an already-resolved anchor root.
+
+    Unlike :func:`_compose_primary_feature_dir`, this leaf deliberately does not
+    call ``get_main_repo_root``.  Its caller has already resolved and validated
+    the Mission operation context, so folding a caller-owned linked worktree back
+    to the repository-root checkout would destroy the dual-root contract.
+    """
+    from specify_cli.core.paths import assert_safe_path_segment
+
+    assert_safe_path_segment(mission_slug)
+    return Path(mission_anchor_root.resolve() / KITTY_SPECS_DIR / mission_slug)
+
+
 def _canonicalize_primary_read_handle(
     repo_root: Path, handle: str, *, resolver: MissionResolver | None = None
 ) -> str:

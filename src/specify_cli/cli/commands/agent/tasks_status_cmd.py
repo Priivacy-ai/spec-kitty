@@ -136,6 +136,7 @@ class _StatusState:
     repo_root: Path = field(default_factory=Path)
     mission_slug: str = ""
     main_repo_root: Path = field(default_factory=Path)
+    mission_anchor_root: Path | None = None
     feature_dir: Path = field(default_factory=Path)
     tasks_dir: Path = field(default_factory=Path)
     # --- phase B: loaded work packages + reduced snapshot ---
@@ -161,21 +162,54 @@ def _st_resolve_dirs(st: _StatusState) -> None:
     repo_root = _tasks.locate_project_root(st.cwd)
     if repo_root is None:
         raise typer.Exit(1)
-    st.repo_root = repo_root
-
-    st.mission_slug = _tasks._find_mission_slug(
-        explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root
-    )
-    st.main_repo_root, _ = _tasks._ensure_target_branch_checked_out(
-        repo_root, st.mission_slug, st.json_output
-    )
-
-    # Route through the single guarded read-side seam (WP01/IC-01; FR-002, C-007).
-    from specify_cli.missions._read_path_resolver import (
-        resolve_handle_to_read_path,
+    raw_handle = st.mission.strip() if st.mission else ""
+    if not raw_handle:
+        _tasks._output_error(st.json_output, "--mission <slug> is required")
+        raise typer.Exit(1)
+    from specify_cli.cli.selector_resolution import (
+        is_same_repository_worktree_context,
+        resolve_mission_operation_context_cli,
     )
 
-    feature_dir = resolve_handle_to_read_path(st.main_repo_root, st.mission_slug)
+    if is_same_repository_worktree_context(repo_root, cwd=st.cwd):
+        operation = resolve_mission_operation_context_cli(
+            repo_root,
+            raw_handle,
+            cwd=st.cwd,
+            json_mode=st.json_output,
+        )
+        st.repo_root = operation.repository_root
+        st.main_repo_root = operation.repository_root
+        st.mission_anchor_root = (
+            operation.mission_anchor_root
+            if operation.mission_anchor_root != operation.repository_root
+            else None
+        )
+        st.mission_slug = operation.mission_slug
+    else:
+        st.repo_root = repo_root
+        st.mission_slug = _tasks._find_mission_slug(
+            explicit_mission=st.mission,
+            json_output=st.json_output,
+            repo_root=repo_root,
+        )
+        st.main_repo_root, _ = _tasks._ensure_target_branch_checked_out(
+            repo_root,
+            st.mission_slug,
+            st.json_output,
+        )
+        st.mission_anchor_root = None
+
+    seam_kwargs = (
+        {"mission_anchor_root": st.mission_anchor_root}
+        if st.mission_anchor_root is not None
+        else {}
+    )
+    feature_dir = placement_seam(
+        st.main_repo_root,
+        st.mission_slug,
+        **seam_kwargs,
+    ).read_dir(MissionArtifactKind.STATUS_STATE)
     if not feature_dir.exists():
         # Last-ditch fallback to the original worktree-aware path so tests /
         # projects that stand up status files in unusual places still work.
@@ -191,7 +225,11 @@ def _st_resolve_dirs(st: _StatusState) -> None:
     # PRIMARY leg — tasks/ is PRIMARY-partition (FR-001 / C-001 per-leg split —
     # WP03 T009). The STATUS leg stays on the coord-aware ``feature_dir`` above.
     st.tasks_dir = (
-        placement_seam(st.main_repo_root, st.mission_slug).read_dir(
+        placement_seam(
+            st.main_repo_root,
+            st.mission_slug,
+            **seam_kwargs,
+        ).read_dir(
             MissionArtifactKind.WORK_PACKAGE_TASK
         )
         / "tasks"

@@ -59,6 +59,7 @@ _logger = logging.getLogger(__name__)
 class _TransactionIdentity:
     repo_root: Path
     feature_dir: Path
+    mission_anchor_root: Path | None
     mission_id: str | None  # WP04/FR-004: ULID or None; never a slug-derived fallback
     mid8: str
     destination_ref: str
@@ -557,7 +558,11 @@ def _canonical_repo_root(feature_dir: Path, repo_root: Path) -> Path:
 
 
 def _canonical_primary_feature_dir(
-    repo_root: Path, mission_slug: str, fallback: Path
+    repo_root: Path,
+    mission_slug: str,
+    fallback: Path,
+    *,
+    mission_anchor_root: Path | None = None,
 ) -> Path:
     """Resolve the CWD-invariant primary feature-dir anchor via the facade.
 
@@ -587,7 +592,11 @@ def _canonical_primary_feature_dir(
     )
 
     def _primary_anchor() -> Path:
-        anchor: Path = placement_seam(repo_root, mission_slug).read_dir(
+        anchor: Path = placement_seam(
+            repo_root,
+            mission_slug,
+            mission_anchor_root=mission_anchor_root,
+        ).read_dir(
             MissionArtifactKind.PRIMARY_METADATA
         )
         return anchor
@@ -613,6 +622,9 @@ def _canonical_primary_feature_dir(
     # primary anchor. The previous code resolved the surface for validation,
     # discarded it, then re-invoked the primary resolver — a second composition
     # of the same path. Now both halves come from one resolution.
+    if mission_anchor_root is not None:
+        return _primary_anchor()
+
     try:
         resolved = resolve_status_surface_with_anchor(repo_root, mission_slug)
     except FileNotFoundError:
@@ -637,7 +649,11 @@ def _canonical_primary_feature_dir(
 
 
 def _resolve_write_target(
-    repo_root: Path, mission_slug: str, coord_branch: str | None
+    repo_root: Path,
+    mission_slug: str,
+    coord_branch: str | None,
+    *,
+    mission_anchor_root: Path | None = None,
 ) -> str:
     """Resolve the status write-target ref via the canonical placement resolver.
 
@@ -732,6 +748,7 @@ def _resolve_write_target(
             mission_slug,
             MissionArtifactKind.STATUS_STATE,
             degrade_ref=coord_branch or None,
+            mission_anchor_root=mission_anchor_root,
         ).ref
     except ActionContextError:
         fallback_ref: str = get_feature_target_branch(repo_root, mission_slug)
@@ -750,11 +767,28 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
     # #1737 / F-007: anchor the transaction identity on the CWD-invariant
     # canonical primary feature dir resolved through the facade, instead of
     # trusting the (CWD-dependent, existence-gated) canonicalize redirect alone.
-    canonical_feature_dir = canonicalize_feature_dir(raw_feature_dir)
+    canonical_feature_dir = (
+        raw_feature_dir
+        if request.mission_anchor_root is not None
+        else canonicalize_feature_dir(raw_feature_dir)
+    )
     interim_repo_root = _repo_root_for_feature(canonical_feature_dir, request.repo_root)
     canonical_repo_root = _canonical_repo_root(canonical_feature_dir, interim_repo_root)
+    mission_anchor_root = request.mission_anchor_root
+    if (
+        mission_anchor_root is None
+        and canonical_feature_dir == raw_feature_dir
+        and (raw_feature_dir / "meta.json").is_file()
+        and not _is_coord_worktree_status_surface(raw_feature_dir)
+    ):
+        candidate_anchor = raw_feature_dir.parent.parent
+        if candidate_anchor != canonical_repo_root and (candidate_anchor / ".git").exists():
+            mission_anchor_root = candidate_anchor
     feature_dir = _canonical_primary_feature_dir(
-        canonical_repo_root, mission_slug, fallback=canonical_feature_dir
+        canonical_repo_root,
+        mission_slug,
+        fallback=canonical_feature_dir,
+        mission_anchor_root=mission_anchor_root,
     )
     repo_root = request.repo_root or canonical_repo_root
 
@@ -800,9 +834,15 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
     return _TransactionIdentity(
         repo_root=repo_root,
         feature_dir=feature_dir,
+        mission_anchor_root=mission_anchor_root,
         mission_id=effective_mission_id,
         mid8=effective_mid8,
-        destination_ref=_resolve_write_target(repo_root, mission_slug, coord_branch),
+        destination_ref=_resolve_write_target(
+            repo_root,
+            mission_slug,
+            coord_branch,
+            mission_anchor_root=mission_anchor_root,
+        ),
         meta_exists=meta_exists,
         coordination_branch=coord_branch,
         transaction_meta_exists=(feature_dir.parent / transaction_dir_name / "meta.json").exists(),
@@ -847,9 +887,22 @@ def _prepare_event(
         # unrecovered -- closing the historically weak fallback this site used
         # to fall back to ``feature_dir`` (the coordination-branch husk for a
         # coord-topology mission) without ever attempting recovery.
-        from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir  # noqa: PLC0415
+        if request.mission_anchor_root is None:
+            from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir  # noqa: PLC0415
 
-        subtasks_dir = resolve_subtasks_gate_dir(feature_dir, request.repo_root, mission_slug)
+            subtasks_dir = resolve_subtasks_gate_dir(
+                feature_dir,
+                request.repo_root,
+                mission_slug,
+            )
+        else:
+            from mission_runtime import MissionArtifactKind, placement_seam  # noqa: PLC0415
+
+            subtasks_dir = placement_seam(
+                request.repo_root or request.mission_anchor_root,
+                mission_slug,
+                mission_anchor_root=request.mission_anchor_root,
+            ).read_dir(MissionArtifactKind.TASKS_INDEX)
         subtasks_complete = _emit._infer_subtasks_complete(
             subtasks_dir,
             request.wp_id,
@@ -978,6 +1031,7 @@ def read_current_wp_state_transactional(
     mission_slug: str,
     wp_id: str,
     repo_root: Path | None = None,
+    mission_anchor_root: Path | None = None,
 ) -> tuple[Lane, str | None]:
     """Read current WP lane/actor from the transaction's write target."""
     identity = _identity_for_request(
@@ -988,6 +1042,7 @@ def read_current_wp_state_transactional(
             to_lane=Lane.PLANNED,
             actor="status-read",
             repo_root=repo_root,
+            mission_anchor_root=mission_anchor_root,
         )
     )
     contract = _read_contract_from_transaction_target(identity, mission_slug)
@@ -1145,6 +1200,7 @@ def read_events_transactional(
     feature_dir: Path,
     mission_slug: str,
     repo_root: Path | None = None,
+    mission_anchor_root: Path | None = None,
 ) -> list[StatusEvent]:
     """Read status events from the same target transactional writes use."""
     identity = _identity_for_request(
@@ -1155,6 +1211,7 @@ def read_events_transactional(
             to_lane=Lane.PLANNED,
             actor="status-read",
             repo_root=repo_root,
+            mission_anchor_root=mission_anchor_root,
         )
     )
     return _read_events_from_transaction_target(identity, mission_slug)
@@ -1322,6 +1379,7 @@ def emit_status_transition_transactional(
     _txn_mission_id = identity.mission_id or f"legacy-{mission_slug}"
     with BookkeepingTransaction.acquire(
         repo_root=identity.repo_root,
+        mission_anchor_root=identity.mission_anchor_root,
         mission_id=_txn_mission_id,
         mission_slug=mission_slug,
         mid8=identity.mid8,
@@ -1421,6 +1479,7 @@ def emit_status_transition_batch_transactional(
     _txn_mission_id_batch = identity.mission_id or f"legacy-{mission_slug}"
     with BookkeepingTransaction.acquire(
         repo_root=identity.repo_root,
+        mission_anchor_root=identity.mission_anchor_root,
         mission_id=_txn_mission_id_batch,
         mission_slug=mission_slug,
         mid8=identity.mid8,

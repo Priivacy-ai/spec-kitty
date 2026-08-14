@@ -62,6 +62,9 @@ from specify_cli.cli.commands.agent.tasks_finalize_validation import (
     validate_wp_coverage,
 )
 from specify_cli.cli.commands.agent.tasks_outline import TASKS_MD_FILENAME
+from specify_cli.cli.commands.agent.tasks_shared import (
+    _current_tasks_operation_context,
+)
 from specify_cli.status import BootstrapResult
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 
@@ -133,10 +136,22 @@ def _ft_resolve_context(st: _FinalizeState, ports: TasksPorts) -> None:
     st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(
         repo_root, st.mission_slug, st.json_output
     )
-    handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
-    st.primary_feature_dir = ports.fs.planning_read_dir(
-        handle, kind=MissionArtifactKind.WORK_PACKAGE_TASK
-    )
+    operation = _current_tasks_operation_context()
+    mission_anchor_root = getattr(operation, "mission_anchor_root", None)
+    operation_slug = getattr(operation, "mission_slug", None)
+    if operation_slug != st.mission_slug:
+        mission_anchor_root = None
+    if isinstance(mission_anchor_root, Path):
+        st.primary_feature_dir = placement_seam(
+            st.main_repo_root,
+            st.mission_slug,
+            mission_anchor_root=mission_anchor_root,
+        ).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+    else:
+        handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
+        st.primary_feature_dir = ports.fs.planning_read_dir(
+            handle, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        )
     # Boundary guard — hard-reject pre-3.0 layout before any WP mutation (#1057)
     try:
         check_pre30_layout(st.primary_feature_dir)
@@ -265,11 +280,31 @@ def _ft_apply_writes(st: _FinalizeState) -> None:
     # ``_tasks.resolve_feature_dir_for_mission`` — the kind-blind resolver's
     # module re-export was retired in the same WP; ``STATUS_STATE`` resolves
     # the SAME coord-aware dir the kind-blind resolver produced for this read).
-    st.feature_dir = placement_seam(st.main_repo_root, st.mission_slug).read_dir(
-        MissionArtifactKind.STATUS_STATE
+    operation = _current_tasks_operation_context()
+    mission_anchor_root = getattr(operation, "mission_anchor_root", None)
+    operation_slug = getattr(operation, "mission_slug", None)
+    if operation_slug != st.mission_slug:
+        mission_anchor_root = None
+    seam_kwargs = (
+        {"mission_anchor_root": mission_anchor_root}
+        if isinstance(mission_anchor_root, Path)
+        else {}
     )
+    st.feature_dir = placement_seam(
+        st.main_repo_root,
+        st.mission_slug,
+        **seam_kwargs,
+    ).read_dir(MissionArtifactKind.STATUS_STATE)
     st.bootstrap_result = _tasks.bootstrap_canonical_state(
-        st.feature_dir, st.mission_slug, dry_run=st.validate_only
+        st.feature_dir,
+        st.mission_slug,
+        dry_run=st.validate_only,
+        repo_root=st.main_repo_root,
+        mission_anchor_root=(
+            mission_anchor_root
+            if isinstance(mission_anchor_root, Path)
+            else None
+        ),
     )
 
 

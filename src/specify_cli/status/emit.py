@@ -569,6 +569,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
     """
     current_actor = None
     annotation_delta: WPInnerStateDelta | None = None
+    mission_anchor_root: Path | None = None
     if isinstance(feature_dir, TransitionRequest):
         request = feature_dir
         mixed_legacy_args = (
@@ -612,6 +613,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
         current_actor = request.current_actor
         execution_mode = request.execution_mode
         repo_root = request.repo_root
+        mission_anchor_root = request.mission_anchor_root
         policy_metadata = request.policy_metadata
         review_result = request.review_result
         annotation_delta = request.annotation_delta
@@ -626,7 +628,16 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
     # resolver. When the caller hands us a worktree-rooted path, this
     # rewrites it to the main repo's kitty-specs/<slug>/ so the event log
     # never lands in a stale worktree-local copy.
-    canonical_feature_dir: Path = canonicalize_feature_dir(feature_dir)
+    if mission_anchor_root is None:
+        canonical_feature_dir: Path = canonicalize_feature_dir(feature_dir)
+    else:
+        from mission_runtime import MissionArtifactKind, placement_seam  # noqa: PLC0415
+
+        canonical_feature_dir = placement_seam(
+            repo_root or mission_anchor_root,
+            mission_slug,
+            mission_anchor_root=mission_anchor_root,
+        ).read_dir(MissionArtifactKind.STATUS_STATE)
 
     lock_root = _feature_status_lock_root(canonical_feature_dir, repo_root)
     with feature_status_lock(lock_root, mission_slug):
@@ -650,13 +661,22 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
             and from_lane == Lane.IN_PROGRESS
             and resolved_lane == Lane.FOR_REVIEW
         ):
-            from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir  # noqa: PLC0415
+            if mission_anchor_root is None:
+                from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir  # noqa: PLC0415
 
-            primary_subtasks_dir = resolve_subtasks_gate_dir(
-                canonical_feature_dir,
-                repo_root,
-                mission_slug,
-            )
+                primary_subtasks_dir = resolve_subtasks_gate_dir(
+                    canonical_feature_dir,
+                    repo_root,
+                    mission_slug,
+                )
+            else:
+                from mission_runtime import MissionArtifactKind, placement_seam  # noqa: PLC0415
+
+                primary_subtasks_dir = placement_seam(
+                    repo_root or mission_anchor_root,
+                    mission_slug,
+                    mission_anchor_root=mission_anchor_root,
+                ).read_dir(MissionArtifactKind.TASKS_INDEX)
             subtasks_complete = _infer_subtasks_complete(
                 primary_subtasks_dir,
                 wp_id,
@@ -832,7 +852,17 @@ def emit_status_transition_batch(  # noqa: C901 — composite transition orchest
     if feature_dir is None or mission_slug is None or wp_id is None:
         raise TypeError("emit_status_transition_batch requires feature_dir/mission_dir, mission_slug, and wp_id")
 
-    feature_dir = canonicalize_feature_dir(feature_dir)
+    first_anchor = first.mission_anchor_root
+    if first_anchor is None:
+        feature_dir = canonicalize_feature_dir(feature_dir)
+    else:
+        from mission_runtime import MissionArtifactKind, placement_seam  # noqa: PLC0415
+
+        feature_dir = placement_seam(
+            first.repo_root or first_anchor,
+            mission_slug,
+            mission_anchor_root=first_anchor,
+        ).read_dir(MissionArtifactKind.STATUS_STATE)
     mission_id = _load_mission_id(feature_dir)
     from_lane: str = str(_derive_from_lane(feature_dir, wp_id))
     built: list[tuple[StatusEvent, TransitionRequest]] = []
@@ -843,7 +873,17 @@ def emit_status_transition_batch(  # noqa: C901 — composite transition orchest
         request_mission_slug = request.mission_slug or request._legacy_mission_slug
         if request_feature_dir is None or request_mission_slug is None or request.wp_id is None or request.to_lane is None or request.actor is None:
             raise TypeError("Each batch transition requires feature_dir/mission_dir, mission_slug, wp_id, to_lane, and actor")
-        if canonicalize_feature_dir(request_feature_dir) != feature_dir or request_mission_slug != mission_slug or request.wp_id != wp_id:
+        if request.mission_anchor_root is None:
+            canonical_request_dir = canonicalize_feature_dir(request_feature_dir)
+        else:
+            from mission_runtime import MissionArtifactKind, placement_seam  # noqa: PLC0415
+
+            canonical_request_dir = placement_seam(
+                request.repo_root or request.mission_anchor_root,
+                request_mission_slug,
+                mission_anchor_root=request.mission_anchor_root,
+            ).read_dir(MissionArtifactKind.STATUS_STATE)
+        if canonical_request_dir != feature_dir or request_mission_slug != mission_slug or request.wp_id != wp_id:
             raise TypeError("emit_status_transition_batch only supports one feature/mission/wp per batch")
 
         raw_to_lane = str(request.to_lane).strip().lower()
@@ -860,9 +900,22 @@ def emit_status_transition_batch(  # noqa: C901 — composite transition orchest
             and from_lane == Lane.IN_PROGRESS
             and resolved_lane == Lane.FOR_REVIEW
         ):
-            from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir  # noqa: PLC0415
+            if request.mission_anchor_root is None:
+                from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir  # noqa: PLC0415
 
-            primary_subtasks_dir = resolve_subtasks_gate_dir(feature_dir, request.repo_root, mission_slug)
+                primary_subtasks_dir = resolve_subtasks_gate_dir(
+                    feature_dir,
+                    request.repo_root,
+                    mission_slug,
+                )
+            else:
+                from mission_runtime import MissionArtifactKind, placement_seam  # noqa: PLC0415
+
+                primary_subtasks_dir = placement_seam(
+                    request.repo_root or request.mission_anchor_root,
+                    mission_slug,
+                    mission_anchor_root=request.mission_anchor_root,
+                ).read_dir(MissionArtifactKind.TASKS_INDEX)
             subtasks_complete = _infer_subtasks_complete(
                 primary_subtasks_dir,
                 wp_id,

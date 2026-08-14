@@ -669,6 +669,8 @@ def _normalize_wp_file(wp_file: Path, mission_slug: str) -> NormalizedWorkPackag
 def build_normalized_wp_index(
     repo_root: Path,
     mission_slug: str,
+    *,
+    mission_anchor_root: Path | None = None,
 ) -> dict[str, NormalizedWorkPackage]:
     """Load and normalize mission WP metadata once per process.
 
@@ -676,12 +678,19 @@ def build_normalized_wp_index(
     for supported historical missions are inferred in memory so downstream
     callers share one canonical classification result.
     """
-    cache_key = _normalized_feature_cache_key(repo_root, mission_slug)
+    cache_key = _normalized_feature_cache_key(
+        mission_anchor_root or repo_root,
+        mission_slug,
+    )
     # read-side-placement-seam-migration WP07: names WORK_PACKAGE_TASK through
     # the seam authority instead of the kind-blind ``resolve_planning_read_dir``.
     # WORK_PACKAGE_TASK is PRIMARY-partition, so this is behavior-identical to
     # the prior resolver — no fail-loud arm is reachable here.
-    tasks_dir = placement_seam(repo_root, mission_slug).read_dir(
+    tasks_dir = placement_seam(
+        repo_root,
+        mission_slug,
+        mission_anchor_root=mission_anchor_root,
+    ).read_dir(
         MissionArtifactKind.WORK_PACKAGE_TASK
     ) / "tasks"
     snapshot = _normalized_feature_snapshot(tasks_dir)
@@ -722,10 +731,19 @@ def get_normalized_wp(
     repo_root: Path,
     mission_slug: str,
     wp_id: str,
+    *,
+    mission_anchor_root: Path | None = None,
 ) -> NormalizedWorkPackage:
     """Return the normalized metadata entry for a work package."""
-    cache_key = _normalized_feature_cache_key(repo_root, mission_slug)
-    entry = build_normalized_wp_index(repo_root, mission_slug).get(wp_id)
+    cache_key = _normalized_feature_cache_key(
+        mission_anchor_root or repo_root,
+        mission_slug,
+    )
+    entry = build_normalized_wp_index(
+        repo_root,
+        mission_slug,
+        mission_anchor_root=mission_anchor_root,
+    ).get(wp_id)
     if entry is None:
         error = _FEATURE_WP_METADATA_ERROR_CACHE.get(cache_key, {}).get(wp_id)
         if error is not None:
@@ -735,7 +753,7 @@ def get_normalized_wp(
             # read-side-placement-seam-migration WP07: named via the seam
             # authority (WORK_PACKAGE_TASK, PRIMARY-partition — no fail-loud
             # arm reachable) instead of ``resolve_planning_read_dir``.
-            f"{placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK) / 'tasks'}"
+            f"{placement_seam(repo_root, mission_slug, mission_anchor_root=mission_anchor_root).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK) / 'tasks'}"
         )
     return entry
 
@@ -744,6 +762,8 @@ def resolve_workspace_for_wp(
     repo_root: Path,
     mission_slug: str,
     wp_id: str,
+    *,
+    mission_anchor_root: Path | None = None,
 ) -> ResolvedWorkspace:
     """Resolve the real workspace/branch contract for a work package.
 
@@ -755,7 +775,12 @@ def resolve_workspace_for_wp(
 
     The returned path may not exist yet; callers can inspect `.exists`.
     """
-    normalized_wp = get_normalized_wp(repo_root, mission_slug, wp_id)
+    normalized_wp = get_normalized_wp(
+        repo_root,
+        mission_slug,
+        wp_id,
+        mission_anchor_root=mission_anchor_root,
+    )
     execution_mode = ExecutionMode(normalized_wp.metadata.execution_mode or ExecutionMode.CODE_CHANGE)
 
     if execution_mode == ExecutionMode.PLANNING_ARTIFACT:
@@ -770,7 +795,7 @@ def resolve_workspace_for_wp(
             mission_slug=mission_slug,
             wp_code=wp_id,
             owned_files=list(normalized_wp.metadata.owned_files),
-            repo_root=repo_root,
+            repo_root=mission_anchor_root or repo_root,
         )
         # Try to populate lane_wp_ids from lanes.json if available.
         # lanes.json is a PRIMARY-partition artifact (LANE_STATE kind).
@@ -779,7 +804,11 @@ def resolve_workspace_for_wp(
         # behavior-identical since LANE_STATE is PRIMARY-partition (no
         # fail-loud arm reachable here).
         lane_wp_ids: list[str] = []
-        lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(
+        lanes_read_dir = placement_seam(
+            repo_root,
+            mission_slug,
+            mission_anchor_root=mission_anchor_root,
+        ).read_dir(
             MissionArtifactKind.LANE_STATE
         )
         lanes_manifest = read_lanes_json(lanes_read_dir)
@@ -824,7 +853,11 @@ def resolve_workspace_for_wp(
     # instead of the kind-blind ``resolve_planning_read_dir``; behavior-
     # identical since LANE_STATE is PRIMARY-partition (no fail-loud arm
     # reachable here).
-    lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(
+    lanes_read_dir = placement_seam(
+        repo_root,
+        mission_slug,
+        mission_anchor_root=mission_anchor_root,
+    ).read_dir(
         MissionArtifactKind.LANE_STATE
     )
     from specify_cli.lanes.branch_naming import lane_branch_name
@@ -846,7 +879,7 @@ def resolve_workspace_for_wp(
             mode_source=normalized_wp.mode_source,
             resolution_kind="repo_root",
             workspace_name=f"{mission_slug}-{PLANNING_LANE_ID}",
-            worktree_path=repo_root,
+            worktree_path=mission_anchor_root or repo_root,
             branch_name=lane_branch_name(mission_slug, PLANNING_LANE_ID, planning_base_branch=target_branch),
             lane_id=PLANNING_LANE_ID,
             lane_wp_ids=list(lane.wp_ids),

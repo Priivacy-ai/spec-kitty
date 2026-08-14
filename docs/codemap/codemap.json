@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "scope": "caller-owned Mission lifecycle root",
+  "nodes": [
+    {
+      "id": "mission-operation-context",
+      "path": "src/specify_cli/missions/operation_context.py",
+      "role": "Resolves one immutable Mission identity plus repository and Mission anchor roots."
+    },
+    {
+      "id": "lifecycle-cli-boundaries",
+      "path": "src/specify_cli/cli/commands",
+      "role": "Creates one operation context for status, setup, tasks, next, workflow, and accept commands."
+    },
+    {
+      "id": "placement-and-commit",
+      "path": "src/specify_cli/coordination/commit_router.py",
+      "role": "Keeps Git topology on the repository root while routing Mission artifacts through the Mission anchor."
+    },
+    {
+      "id": "status-transaction-dual-root",
+      "path": "src/mission_runtime/write_target_degrade.py; src/specify_cli/status/models.py; src/specify_cli/status/bootstrap.py; src/specify_cli/status/work_package_lifecycle.py; src/specify_cli/coordination/status_transition.py; src/specify_cli/coordination/transaction.py",
+      "role": "Carries the Mission anchor through status reads, write-target resolution, and bookkeeping commits while retaining the repository root for Git policy."
+    },
+    {
+      "id": "tasks-operation-boundary",
+      "path": "src/specify_cli/agent_tasks_ports.py; src/specify_cli/cli/commands/agent/tasks_shared.py; src/specify_cli/cli/commands/agent/tasks_move_task.py; src/specify_cli/cli/commands/agent/tasks_mark_status.py; src/specify_cli/cli/commands/agent/tasks_finalize_validation.py; src/specify_cli/cli/commands/agent/tasks_parsing_validation.py; src/specify_cli/status/emit.py",
+      "role": "Resolves task operations once and carries both repository and Mission anchor roots through task reads, status transitions, and coordination commits."
+    },
+    {
+      "id": "status-and-acceptance",
+      "path": "src/specify_cli/status/aggregate.py; src/specify_cli/acceptance",
+      "role": "Reads status and acceptance evidence from the selected Mission anchor without changing managed-worktree behavior."
+    },
+    {
+      "id": "caller-owned-integration-tests",
+      "path": "tests/integration/test_caller_owned_worktree_lifecycle.py",
+      "role": "Covers conflict safety, two linked worktrees, lifecycle commands, indexing cost, and primary-checkout immutability."
+    },
+    {
+      "id": "operation-root-guard",
+      "path": "tests/architectural/test_mission_operation_root_boundary.py; tests/architectural/fixtures/mission_root_authority_allowlist.tsv",
+      "role": "Scans every production source and prevents lifecycle consumers from introducing a second Mission-root authority outside a shrink-only reviewed allowlist."
+    }
+  ],
+  "edges": [
+    {"from": "lifecycle-cli-boundaries", "to": "mission-operation-context", "kind": "calls"},
+    {"from": "mission-operation-context", "to": "placement-and-commit", "kind": "supplies roots"},
+    {"from": "mission-operation-context", "to": "status-transaction-dual-root", "kind": "supplies roots"},
+    {"from": "lifecycle-cli-boundaries", "to": "status-transaction-dual-root", "kind": "calls"},
+    {"from": "lifecycle-cli-boundaries", "to": "tasks-operation-boundary", "kind": "calls"},
+    {"from": "mission-operation-context", "to": "tasks-operation-boundary", "kind": "supplies roots"},
+    {"from": "tasks-operation-boundary", "to": "status-transaction-dual-root", "kind": "routes transitions"},
+    {"from": "status-transaction-dual-root", "to": "placement-and-commit", "kind": "routes commits"},
+    {"from": "mission-operation-context", "to": "status-and-acceptance", "kind": "supplies anchor"},
+    {"from": "caller-owned-integration-tests", "to": "lifecycle-cli-boundaries", "kind": "covers"},
+    {"from": "caller-owned-integration-tests", "to": "status-transaction-dual-root", "kind": "covers"},
+    {"from": "caller-owned-integration-tests", "to": "tasks-operation-boundary", "kind": "covers"},
+    {"from": "operation-root-guard", "to": "lifecycle-cli-boundaries", "kind": "guards"},
+    {"from": "operation-root-guard", "to": "placement-and-commit", "kind": "guards"},
+    {"from": "operation-root-guard", "to": "status-transaction-dual-root", "kind": "guards"},
+    {"from": "operation-root-guard", "to": "tasks-operation-boundary", "kind": "guards"}
+  ],
+  "flow": [
+    "CLI command receives a Mission selector in any same-repository linked worktree.",
+    "MissionOperationContext resolves repository_root, mission_anchor_root, and immutable identity once.",
+    "Lifecycle and task readers and writers retain repository_root for Git topology and use mission_anchor_root for Mission artifacts.",
+    "Conflicting identities fail before writes; managed worktrees retain their existing placement behavior."
+  ]
+}

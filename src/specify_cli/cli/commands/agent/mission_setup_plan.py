@@ -173,6 +173,8 @@ def _commit_to_branch(
     repo_root: Path,
     _target_branch: str,
     json_output: bool = False,
+    *,
+    mission_anchor_root: Path | None = None,
 ) -> CommitToBranchResult:
     """Commit a planning artifact to its single resolved placement.
 
@@ -205,7 +207,8 @@ def _commit_to_branch(
     """
     from specify_cli.core.git_ops import get_current_branch
 
-    if get_current_branch(repo_root) is None:
+    commit_checkout = mission_anchor_root or repo_root
+    if get_current_branch(commit_checkout) is None:
         raise RuntimeError("Not in a git repository")
 
     from specify_cli.coordination.commit_router import commit_for_mission
@@ -221,6 +224,7 @@ def _commit_to_branch(
         policy=policy,
         kind=_kind_for_artifact(artifact_type),
         target_branch=_target_branch,
+        mission_anchor_root=mission_anchor_root,
     )
 
     if router_result.status == "committed":
@@ -293,11 +297,12 @@ def _resolve_setup_plan_feature_dir(repo_root: Path, feature: str | None, *, jso
     try:
         from mission_runtime import ActionContextError
 
-        return _mission._find_feature_directory(
+        feature_dir: Path = _mission._find_feature_directory(
             repo_root,
             cwd,
             explicit_feature=resolved_feature,
         )
+        return feature_dir
     except (ValueError, ActionContextError) as detection_error:
         payload = _build_setup_plan_detection_error(repo_root, str(detection_error), feature)
         if json_output:
@@ -520,10 +525,11 @@ def _is_plan_pristine(
     """
     from specify_cli.missions._substantive import is_pristine_scaffold
 
-    return is_pristine_scaffold(
+    pristine: bool = is_pristine_scaffold(
         plan_file.read_text(encoding="utf-8"),
         plan_template.path.read_text(encoding="utf-8"),
     )
+    return pristine
 
 
 def _emit_spec_plan_phase_events(feature_dir: Path, mission_slug: str, spec_file: Path, repo_root: Path) -> None:
@@ -563,6 +569,7 @@ def _commit_plan_if_substantive(
     target_branch: str,
     json_output: bool,
     plan_template: ResolutionResult,
+    mission_anchor_root: Path | None = None,
 ) -> tuple[CommitToBranchResult | None, str | None, bool]:
     """Commit plan.md when substantive; otherwise resolve blocked vs. scaffold_only.
 
@@ -579,7 +586,25 @@ def _commit_plan_if_substantive(
     from specify_cli.missions._substantive import is_committed, is_substantive
 
     if is_substantive(plan_file, "plan"):
-        commit_result = _mission._commit_to_branch(plan_file, mission_slug, "plan", repo_root, target_branch, json_output)
+        if mission_anchor_root is None:
+            commit_result = _mission._commit_to_branch(
+                plan_file,
+                mission_slug,
+                "plan",
+                repo_root,
+                target_branch,
+                json_output,
+            )
+        else:
+            commit_result = _mission._commit_to_branch(
+                plan_file,
+                mission_slug,
+                "plan",
+                repo_root,
+                target_branch,
+                json_output,
+                mission_anchor_root=mission_anchor_root,
+            )
         try:
             from specify_cli.status import emit_artifact_phase, PLAN_COMPLETED
 
@@ -597,7 +622,7 @@ def _commit_plan_if_substantive(
     _, scaffold_only = _resolve_plan_result_state(
         is_substantive=False,
         is_pristine=_is_plan_pristine(plan_file, plan_template),
-        committed=is_committed(plan_file, repo_root),
+        committed=is_committed(plan_file, mission_anchor_root or repo_root),
     )
     if scaffold_only:
         if not json_output:
@@ -734,6 +759,7 @@ def _run_documentation_wiring(
     *,
     target_branch: str,
     json_output: bool,
+    mission_anchor_root: Path | None = None,
 ) -> tuple[str | None, list[GeneratorConfig]]:
     """Documentation-mission plan wiring (T014 + T016): gap analysis + generator detection.
 
@@ -754,7 +780,11 @@ def _run_documentation_wiring(
     ``gap-analysis.md`` itself carries no ``MissionArtifactKind`` (WP02 T013's
     honest bound) -- it simply anchors on this resolved directory.
     """
-    primary_dir = placement_seam(repo_root, mission_slug).read_dir(
+    primary_dir = placement_seam(
+        repo_root,
+        mission_slug,
+        mission_anchor_root=mission_anchor_root,
+    ).read_dir(
         MissionArtifactKind.PRIMARY_METADATA
     )
     if get_mission_type(primary_dir) != MISSION_TYPE_DOCUMENTATION:
@@ -828,6 +858,91 @@ def _emit_setup_plan_result(
     if generators_detected:
         result["generators_detected"] = generators_detected
     _emit_json(_inject_branch_contract(result, target_branch=target_branch, current_branch=current_branch))
+
+
+def _resolve_setup_plan_operation(
+    located_root: Path,
+    feature: str | None,
+    *,
+    json_output: bool,
+) -> tuple[Path, Path | None, Path]:
+    """Resolve repository, optional caller anchor, and Mission directory once."""
+    from specify_cli.cli.selector_resolution import (
+        is_same_repository_worktree_context,
+    )
+
+    if not is_same_repository_worktree_context(
+        located_root,
+        cwd=Path.cwd(),
+    ):
+        feature_dir = _resolve_setup_plan_feature_dir(
+            located_root,
+            feature,
+            json_output=json_output,
+        )
+        return located_root, None, feature_dir
+
+    from specify_cli.cli.selector_resolution import resolve_mission_operation_context_cli
+
+    selector = feature or _sole_mission_slug_or_none(located_root)
+    if selector is None:
+        selector = _resolve_setup_plan_feature_dir(
+            located_root,
+            feature,
+            json_output=json_output,
+        ).name
+    operation = resolve_mission_operation_context_cli(
+        located_root,
+        selector,
+        cwd=Path.cwd(),
+        json_mode=json_output,
+    )
+    anchor = (
+        operation.mission_anchor_root
+        if operation.mission_anchor_root != operation.repository_root
+        else None
+    )
+    return operation.repository_root, anchor, operation.identity.feature_dir
+
+
+def _resolve_setup_plan_branch(
+    mission_module: object,
+    *,
+    repo_root: Path,
+    mission_anchor_root: Path | None,
+    feature_dir: Path,
+    mission_slug: str,
+    json_output: bool,
+) -> tuple[str, str]:
+    """Resolve target/current branch without switching either checkout."""
+    if mission_anchor_root is None:
+        _, target_branch = mission_module._show_branch_context(  # type: ignore[attr-defined]
+            repo_root,
+            mission_slug,
+            json_output,
+        )
+        current_branch = mission_module.get_current_branch(repo_root)  # type: ignore[attr-defined]
+        return target_branch, current_branch or target_branch
+
+    from specify_cli.missions._resolve_planning_branch import (
+        load_mission_target_branch,
+    )
+
+    target_branch = load_mission_target_branch(feature_dir)
+    current_branch = mission_module.get_current_branch(mission_anchor_root)  # type: ignore[attr-defined]
+    if current_branch is None:
+        raise RuntimeError("Detached HEAD — checkout a branch before continuing")
+    if not json_output:
+        if current_branch == target_branch:
+            console.print(
+                f"[bold cyan]Branch:[/bold cyan] {current_branch} (target for this mission)"
+            )
+        else:
+            console.print(
+                f"[bold yellow]Branch:[/bold yellow] on '{current_branch}', "
+                f"mission targets '{target_branch}'"
+            )
+    return target_branch, current_branch
 
 
 def setup_plan(
@@ -911,8 +1026,8 @@ def setup_plan(
     try:
         _enforce_saas_sync_auth_refusal(json_output=json_output)
 
-        repo_root = _mission.locate_project_root()
-        if repo_root is None:
+        located_root = _mission.locate_project_root()
+        if located_root is None:
             error_msg = PROJECT_ROOT_NOT_FOUND_MESSAGE
             if json_output:
                 _emit_json({"error": error_msg})
@@ -920,18 +1035,31 @@ def setup_plan(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
+        repo_root, mission_anchor_root, feature_dir = _resolve_setup_plan_operation(
+            located_root,
+            feature,
+            json_output=json_output,
+        )
+
+        git_checkout_root = mission_anchor_root or repo_root
+
         _enforce_saas_sync_boundary_preflight(repo_root)
 
         _mission._enforce_git_preflight(
-            repo_root,
+            git_checkout_root,
             json_output=json_output,
             command_name=SETUP_PLAN_COMMAND_NAME,
         )
 
-        feature_dir = _resolve_setup_plan_feature_dir(repo_root, feature, json_output=json_output)
         mission_slug = feature_dir.name
-        _, target_branch = _mission._show_branch_context(repo_root, mission_slug, json_output)
-        current_branch = _mission.get_current_branch(repo_root) or target_branch
+        target_branch, current_branch = _resolve_setup_plan_branch(
+            _mission,
+            repo_root=repo_root,
+            mission_anchor_root=mission_anchor_root,
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            json_output=json_output,
+        )
 
         # gate-read-surface-completion WP02 / FR-001 / #2107 (out-of-map edit —
         # WP01 owns ``mission.py``; rationale: re-point ``setup_plan``'s PLANNING
@@ -956,16 +1084,31 @@ def setup_plan(
         # Routed through the ``mission`` shim (``_mission`` deferred-imported at the
         # top of this body) so the historical ``mission._planning_read_dir`` patch
         # seam — exercised by ``test_setup_plan_read_surface`` — reaches this caller.
-        spec_read_dir = _mission._planning_read_dir(repo_root, mission_slug, artifact_type="spec")
+        planning_kwargs = (
+            {"mission_anchor_root": mission_anchor_root}
+            if mission_anchor_root is not None
+            else {}
+        )
+        spec_read_dir = _mission._planning_read_dir(
+            repo_root,
+            mission_slug,
+            artifact_type="spec",
+            **planning_kwargs,
+        )
         spec_file = spec_read_dir / "spec.md"
-        plan_read_dir = _mission._planning_read_dir(repo_root, mission_slug, artifact_type="plan")
+        plan_read_dir = _mission._planning_read_dir(
+            repo_root,
+            mission_slug,
+            artifact_type="plan",
+            **planning_kwargs,
+        )
         plan_file = plan_read_dir / "plan.md"
 
         if _enforce_spec_gate(
             spec_file,
             feature_dir,
             mission_slug,
-            repo_root,
+            git_checkout_root,
             target_branch=target_branch,
             current_branch=current_branch,
             json_output=json_output,
@@ -990,10 +1133,15 @@ def setup_plan(
             target_branch=target_branch,
             json_output=json_output,
             plan_template=plan_template,
+            mission_anchor_root=mission_anchor_root,
         )
 
         gap_analysis_path, generators_detected = _run_documentation_wiring(
-            mission_slug, repo_root, target_branch=target_branch, json_output=json_output
+            mission_slug,
+            repo_root,
+            target_branch=target_branch,
+            json_output=json_output,
+            mission_anchor_root=mission_anchor_root,
         )
 
         _trigger_dossier_sync(feature_dir, mission_slug, repo_root)

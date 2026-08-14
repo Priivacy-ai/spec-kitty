@@ -369,6 +369,13 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **Mission lifecycle commands now keep caller-owned linked worktrees as the
+  Mission artifact root.** Status, setup, tasks, `next`, implement/review, and
+  acceptance share one immutable Mission identity while retaining the primary
+  repository only for Git topology. Conflicting copies fail before writes, so
+  multiple parallel Codex tasks no longer redirect one another into the primary
+  checkout.
+
 - **A corrupt, truncated, or wrong-authority `meta.json` is now rejected loudly by
   every mission read path instead of being silently accepted (mission
   `meta-json-fail-closed-routing`; closes epic `#3259` — `#3228` / `#3229` /
