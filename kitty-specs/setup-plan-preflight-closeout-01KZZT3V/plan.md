@@ -102,11 +102,21 @@ tests/
 - **Зависимости**: IC-01 определяет observable contract, но RED фиксируется до production-изменения.
 - **Риски**: mock-only тест не поймает реальный linked-worktree root; broad Windows suite содержит известные baseline reds. Оракул обязан проверить preflight argument, call count, отсутствие Mission resolver на failed path и неизменность primary snapshot.
 
+### IC-03 — charter-compliant execution evidence
+
+- **Назначение**: сохранить обязательный RED-first proof, выполнить узкий tidy-first осмотр выбранной поверхности и вести три Mission tracer через coordination-aware CLI.
+- **Требования**: C-004 и binding charter ATDD/campsite/tracer rules.
+- **Поверхности**: отдельный RED commit в lane; `spec-kitty agent tracer-append` для `approach`, `design-decisions`, `tooling-friction`; без прямой записи tracer из product worktree.
+- **Зависимости**: RED фиксируется первым; campsite-clean выполняется после RED и до функционального production commit.
+- **Риски**: test и implementation попадут в один commit; tidy-first разрастит file set; tracer будет записан в неверную partition. Защита: отдельный commit, текущий owned file set и только canonical tracer CLI.
+
 ## Gates перед реализацией и delivery
 
-1. RED существующего preflight test и нового precedence/spies oracle на текущем HEAD.
-2. GREEN targeted unit + caller-owned integration.
-3. Deletion/mutation: resolver-before-preflight, пропущенный early exit, второй preflight и main-root вместо caller checkout должны падать.
-4. Ruff changed files, `mypy --strict` changed production, py_compile, `git diff --check`.
-5. Targeted branch/base differential для любых посторонних красных тестов; pre-existing failures связать с существующим GitHub issue либо открыть отдельный issue.
-6. Независимый review, Mission accept, push и PR в `codex/spec-kitty-worktree-mission-create`; release/deploy не выполнять.
+1. RED существующего preflight test и нового precedence/spies oracle на текущем HEAD; failing test закоммитить отдельным commit до implementation commits.
+2. После RED выполнить отдельный behavior-preserving campsite-clean выбранных production/test surfaces; при отсутствии релевантного debt записать `none found`.
+3. GREEN targeted unit + caller-owned integration.
+4. Deletion/mutation: resolver-before-preflight, пропущенный early exit, второй preflight и repository-root checkout вместо caller checkout должны падать.
+5. Ruff changed files, `mypy --strict` changed production, py_compile, `git diff --check`.
+6. Targeted branch/base differential для любых посторонних красных тестов; pre-existing failures связать с существующим GitHub issue либо открыть отдельный issue.
+7. Вести `approach`, `design-decisions` и `tooling-friction` только через `spec-kitty agent tracer-append`; оценить их при closeout.
+8. Независимый review, Mission accept, push и PR в `codex/spec-kitty-worktree-mission-create`; release/deploy не выполнять.
