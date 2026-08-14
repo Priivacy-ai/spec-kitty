@@ -33,6 +33,7 @@ Three independent concerns, all in-memory / no I/O (NFR-003, SC-004):
 from __future__ import annotations
 
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -600,3 +601,38 @@ def test_plan_guard_fail_closed_else_branch() -> None:
     ]
 
 
+# ---------------------------------------------------------------------------
+# 9. evaluate_guards_strict / UnregisteredMissionFamilyError (T002, FR-011)
+# ---------------------------------------------------------------------------
+
+
+def test_evaluate_guards_strict_raises_for_unregistered_mission_family() -> None:
+    """RED today via ``AttributeError`` -- neither ``evaluate_guards_strict``
+    nor ``UnregisteredMissionFamilyError`` exists until T003 lands."""
+    with pytest.raises(cores.UnregisteredMissionFamilyError):
+        cores.evaluate_guards_strict(_snapshot(mission_family="totally-unregistered-family", step_id="review"))
+
+
+def test_check_cli_guards_propagates_unregistered_mission_family_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """RED today: ``_check_cli_guards`` ends with
+    ``return _cores.evaluate_guards(snapshot)`` (the tolerant function),
+    which currently returns the software-dev misfire (or `[]`), never
+    raises. Once T003/T006 land, the strict lookup's
+    ``UnregisteredMissionFamilyError`` must propagate OUT of
+    ``_check_cli_guards`` itself -- not merely out of an isolated,
+    unwired ``evaluate_guards_strict`` call."""
+
+    def _fake_gather(feature_dir: Path, *, mission_family: str, step_id: str, legacy_step_id: str | None = None) -> Any:
+        return ArtifactPresenceSnapshot(
+            present_artifacts=frozenset(),
+            status_facts={},
+            mission_family="totally-unregistered-family",
+            step_id=step_id,
+            legacy_step_id=legacy_step_id,
+        )
+
+    monkeypatch.setattr(rb._io_seam, "gather_artifact_presence", _fake_gather)
+    with pytest.raises(cores.UnregisteredMissionFamilyError):
+        rb._check_cli_guards("review", tmp_path)

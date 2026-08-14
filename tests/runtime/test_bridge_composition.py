@@ -635,6 +635,44 @@ def test_check_composed_action_guard_uses_live_lookup_for_should_advance_wp_step
     assert captured["wp_advance_ready"] is True
 
 
+def test_check_composed_action_guard_warns_for_unregistered_mission_family(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """T002 step 3 (FR-003/FR-004/C-001): an unregistered ``mission_family``
+    reaching the composed path must degrade to `[]` (not the software-dev
+    misfire it falls through to today) AND log a WARNING-or-above record
+    naming the family -- RED today for two independent reasons: (a) today's
+    tolerant ``evaluate_guards`` falls through to the software-dev
+    WP-iteration guard for step_id="review", returning a non-empty message,
+    not `[]`; (b) no WARNING log call for this case exists anywhere in the
+    module yet."""
+    import logging
+
+    from runtime.next.runtime_bridge_io import ArtifactPresenceSnapshot
+
+    def _fake_gather(feature_dir: Path, *, mission_family: str, step_id: str, legacy_step_id: str | None = None) -> Any:
+        return ArtifactPresenceSnapshot(
+            present_artifacts=frozenset(),
+            status_facts={},
+            mission_family=mission_family,
+            step_id=step_id,
+            legacy_step_id=legacy_step_id,
+        )
+
+    monkeypatch.setattr(io_seam, "gather_artifact_presence", _fake_gather)
+
+    with caplog.at_level(logging.WARNING):
+        failures = composition._check_composed_action_guard(
+            "review", tmp_path, mission="totally-unregistered-family"
+        )
+
+    assert failures == []
+    assert any(
+        record.levelno >= logging.WARNING and "totally-unregistered-family" in record.getMessage()
+        for record in caplog.records
+    )
+
+
 def test_check_composed_action_guard_does_not_thread_wp_advance_ready_for_non_wp_actions(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
