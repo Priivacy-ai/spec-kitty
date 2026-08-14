@@ -8,7 +8,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "Allow mission creation from caller-owned linked worktrees",
       "verdict": "fixed",
       "wp": "WP01"
     }

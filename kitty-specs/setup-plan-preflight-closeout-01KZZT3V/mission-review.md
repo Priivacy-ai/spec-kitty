@@ -66,6 +66,7 @@
 - В lock записано: JSON `b3a09600214fec21a70704f2679f060aa1f3316758595c525ce05669ca57d0c7`, HTML `4e9d8bd83c3bf301aa731adbf72fe45e7da668d8d3a6b266b19c65a696c95277`.
 - Фактический SHA-256 Git blobs: JSON `1025abb398f1dd7c066ff0acb0c6484dc531e395b6366160177982c89d727d98`, HTML `fb1fb1c99b5441f36ca1ef7cd565bce595b696e73a39f66d746b499f12a84d12`.
 - Baseline lock до миссии точно совпадал с baseline blobs, поэтому это регрессия текущей доставки, а не иной алгоритм проверки.
+- **Remediation после review**: исправлено отдельным metadata-only commit; фактические SHA повторно проверены.
 
 ### DRIFT-2 — шаблонный заголовок issue matrix
 
@@ -73,6 +74,8 @@
 **Severity**: LOW
 
 Terminal verdict и evidence корректны, но шаблонное поле ухудшает долговечность audit trail.
+
+**Remediation после review**: заголовок заменён актуальным названием PR #3332.
 
 ## Риски
 
