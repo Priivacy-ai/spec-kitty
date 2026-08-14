@@ -906,3 +906,97 @@ class TestProfileSkippedDiagnostics:
 
         mock_skipped_profiles.assert_called_once_with()
         assert issues == []
+
+    def test_schema_invalid_profile_is_not_double_reported(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-2: a profile file with an undeclared key (the already-fixed
+        acute case — ``AgentProfile.model_config`` has ``extra="forbid"``)
+        is caught by the existing generic per-file schema scan as
+        ``schema_invalid``. ``AgentProfileRepository``'s own load of this
+        same file would *also* fail schema validation (identical model,
+        identical ``extra="forbid"`` constraint) and therefore also appear
+        in ``skipped_profiles()`` — proving the ``already_flagged_files``
+        dedup actually filters the redundant report rather than merely
+        happening not to fire.
+        """
+        profile_path = _write_agent_profile_yaml(
+            tmp_path,
+            filename="some-profile.agent.yaml",
+            content=textwrap.dedent(
+                """\
+                profile-id: some-profile
+                name: Some Profile
+                purpose: test purpose
+                specialization:
+                  primary-focus: test focus
+                roles: [implementer]
+                totally-unknown-field: true
+                """
+            ),
+        )
+
+        result = validate_pack(tmp_path)
+
+        file_issues = [
+            issue for issue in result.errors if issue.file == str(profile_path)
+        ]
+        assert len(file_issues) == 1, file_issues
+        assert file_issues[0].category == "schema_invalid"
+        assert not any(
+            issue.category == "profile_skipped" for issue in file_issues
+        )
+
+    def test_clean_pack_has_no_profile_skipped_issue(self, tmp_path: Path) -> None:
+        """AC-3: a pack with no profile problems produces no ``profile_skipped``
+        issue and an unaffected ``ok`` result — no false positive on a
+        currently-passing pack. Uses a fresh ``profile-id`` that does not
+        collide with any built-in profile, so no merge is even attempted.
+        """
+        _write_agent_profile_yaml(
+            tmp_path,
+            filename="acme-custom-implementer.agent.yaml",
+            content=textwrap.dedent(
+                """\
+                profile-id: acme-custom-implementer
+                name: Acme Custom Implementer
+                purpose: test purpose
+                specialization:
+                  primary-focus: test focus
+                roles: [implementer]
+                """
+            ),
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is True, result.errors
+        assert not any(
+            issue.category == "profile_skipped"
+            for issue in (*result.errors, *result.advisories)
+        )
+
+    def test_absent_agent_profiles_directory_is_safe_and_exercised(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-5: a pack whose ``agent_profiles/`` directory is entirely
+        absent does not raise, produces no ``profile_skipped`` issue, and —
+        per the spec's Edge Cases bullet 2 — this is proven by actually
+        exercising the check path (a direct call to the helper returning an
+        empty list), not merely by the absence of a crash from
+        ``validate_pack``.
+        """
+        (tmp_path / "directives").mkdir()
+        assert not (tmp_path / "agent_profiles").exists()
+
+        result = validate_pack(tmp_path)
+
+        assert not any(
+            issue.category == "profile_skipped"
+            for issue in (*result.errors, *result.advisories)
+        )
+
+        # Direct-call assertion: prove the check path actually executed
+        # against the absent-directory case, not swallowed by a broad
+        # try/except that would make the assertion above vacuous.
+        assert _check_profile_skipped_diagnostics(tmp_path, set()) == []
