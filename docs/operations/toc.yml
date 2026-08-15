@@ -1,5 +1,13 @@
 - name: Operations Overview
   href: index.md
+- name: Coordination Branch Created Off main (Add/Add)
+  href: coord-off-main-addadd.md
+- name: Coordination Branch Stranded After a Base Rebase
+  href: coord-branch-base-strand.md
+- name: Coordination Branch Declared but Worktree Missing
+  href: coord-worktree-missing.md
+- name: Cutover Flip Fails From a Linked Worktree
+  href: cutover-flip-linked-worktree.md
 - name: How to Maintain the Issue Tracker
   href: how-to-maintain.md
 - name: Identity-Boundary CI Gate
@@ -16,5 +24,9 @@
   href: recovery-index.md
 - name: SSH Deploy Keys
   href: ssh-deploy-keys.md
+- name: Stale Lane Seed After Re-Finalizing Tasks
+  href: stale-lane-seed.md
+- name: --start-branch Coordination Divergence
+  href: start-branch-coord-divergence.md
 - name: Sync Daemon Orphan Cleanup
   href: sync-daemon-orphan-cleanup.md
