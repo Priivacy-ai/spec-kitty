@@ -180,37 +180,29 @@ def _invoke_move(
 
 
 class TestReviewRejectionFamily:
-    """FR-015 provenance on the backward ``-> planned`` family (re-pointed).
+    """#3307 provenance on the backward ``-> planned`` family.
 
-    Only the emit-force expectation is re-pointed here (SC-007, delete-the-
-    assertion-not-the-test): the ``reason``/lane wire-shape assertions are
-    unchanged. Force provenance is now per-edge, decided by the FSM query:
-
-    * ``in_progress -> planned`` / ``approved -> planned`` — WP02's two
-      plan-reachable evidence-gated edges. With the ``--review-feedback-file``
-      evidence threaded (``reason`` / ``review_ref``) the FSM accepts them
-      force-free, so the persisted ``force`` is now ``False``.
-    * ``for_review -> planned`` — genuine force: ``for_review`` has NO backward
-      edge (rejection routes via ``in_review``), so the FSM rejects it force-free
-      and ``force`` stays truthfully ``True`` (positive control).
-    * ``in_review -> planned`` — WP10 closeout re-point: WP06 now threads the
-      structured ``review_result`` on its two owned ``in_review`` edges, so the
-      FSM accepts the evidence-gated rejection force-FREE and the persisted
-      ``force`` flips to ``False`` (the WP02-window truthful-force this row
-      formerly asserted is superseded).
+    Only the emit-force expectation is re-pointed here (delete-the-assertion-not-
+    the-test): the ``reason``/lane wire-shape assertions are unchanged. Every
+    ``* -> planned`` edge is a member of the shared ``spec-kitty-events``
+    review-rejection family (``in_progress|for_review|in_review|approved ->
+    planned``), which the wire contract the SaaS ingestion endpoint enforces
+    declares ``force=True``-required regardless of local evidence. The CLI-local
+    FSM would accept some of these force-free on ``reason`` / ``review_ref`` /
+    ``review_result`` evidence, but ``build_transition_plan`` now gates on BOTH
+    validators, so the persisted ``force`` is ``True`` for the whole family — no
+    contract-invalid ``force=False`` event the SaaS would silently drop. The
+    structured rewind rationale (and ``review_ref``, when present) still travels
+    on the wire.
     """
 
     @pytest.mark.parametrize(
         "starting_lane, expected_prefix, expected_force",
         [
-            # WP06 threads review_result on in_review -> planned -> force-free.
-            ("in_review", "backward rewind: in_review -> planned", False),
-            # Evidence-gated (review_ref) -> force-free after FR-015.
-            ("approved", "backward rewind: approved -> planned", False),
-            # Genuine force: for_review has no backward edge (structurally illegal).
+            ("in_review", "backward rewind: in_review -> planned", True),
+            ("approved", "backward rewind: approved -> planned", True),
             ("for_review", "backward rewind: for_review -> planned", True),
-            # Evidence-gated (reason) -> force-free after FR-015.
-            ("in_progress", "backward rewind: in_progress -> planned", False),
+            ("in_progress", "backward rewind: in_progress -> planned", True),
         ],
     )
     def test_backward_to_planned_force_provenance(
@@ -444,11 +436,10 @@ class TestBackwardEmitFeedbackRef:
         assert result.exit_code == 0, f"backward emit failed:\n{result.output}"
 
         emitted = _read_latest_events_for_wp(feature_dir, wp_id)[-1]
-        # WP10 closeout re-point: WP06 threads the structured review_result on the
-        # in_review -> planned edge, so the evidence-gated rejection is force-FREE.
-        # The canonical review-cycle URI segment (the assertion this test owns) is
-        # unchanged — only the force provenance flips.
-        assert emitted.force is False
+        # #3307: in_review -> planned is a review-rejection family edge, force=True
+        # per the shared wire contract. The canonical review-cycle URI segment (the
+        # assertion this test owns) is unchanged — only the force provenance is fixed.
+        assert emitted.force is True
         assert emitted.reason is not None
         # Prefix:
         prefix = "backward rewind: in_review -> planned"
@@ -498,8 +489,9 @@ class TestBackwardEmitFeedbackRef:
         assert result.exit_code == 0, f"backward emit with note failed:\n{result.output}"
 
         emitted = _read_latest_events_for_wp(feature_dir, wp_id)[-1]
-        # FR-015 re-point: approved -> planned is force-free with review_ref evidence.
-        assert emitted.force is False
+        # #3307: approved -> planned is a review-rejection family edge, force=True
+        # per the shared wire contract (the review_ref rationale still travels).
+        assert emitted.force is True
         assert emitted.reason is not None
         assert emitted.reason.startswith("backward rewind: approved -> planned")
         assert ": review-cycle://" in emitted.reason
@@ -583,11 +575,11 @@ class TestApprovedRewindWireShape:
 
         # CLI emit wire-shape invariants (independent of the upstream fixture).
         expected_prefix = "backward rewind: approved -> planned"
-        # FR-015 re-point: approved -> planned is now force-free with review_ref
-        # evidence. Mission 1's fixture still encodes the pre-fix force=True — that
-        # is the exact false-force provenance this mission corrects, so the force
-        # bit is deliberately NOT cross-checked against the (stale) fixture below.
-        assert emitted.force is False
+        # #3307: approved -> planned is a review-rejection family edge, force=True
+        # per the shared wire contract. Mission 1's fixture encodes force=True — the
+        # CLI now AGREES with it (FR-015 had wrongly diverged to force=False, which
+        # the SaaS silently rejected). The force bit is cross-checked below.
+        assert emitted.force is True
         assert str(emitted.from_lane) == "approved"
         assert str(emitted.to_lane) == "planned"
         assert emitted.reason is not None
@@ -611,10 +603,15 @@ class TestApprovedRewindWireShape:
         f_from = fp.get("from_lane", fp.get("data", {}).get("from_lane"))
         f_to = fp.get("to_lane", fp.get("data", {}).get("to_lane"))
         f_reason = fp.get("reason", fp.get("data", {}).get("reason"))
+        f_force = fp.get("force", fp.get("data", {}).get("force"))
 
-        # NB: the fixture's ``force`` bit is intentionally NOT cross-checked — it
-        # still carries the pre-FR-015 force=True value the mission corrects. The
+        # #3307: the CLI emit now conforms to the fixture's ``force`` bit. The
         # lane/reason wire shape (FR-009) remains normative and IS cross-checked.
+        if f_force is not None:
+            assert emitted.force == bool(f_force), (
+                f"CLI force must match fixture force; got emitted={emitted.force} "
+                f"fixture={f_force}"
+            )
         if f_from is not None:
             assert str(emitted.from_lane) == f_from == "approved"
         if f_to is not None:

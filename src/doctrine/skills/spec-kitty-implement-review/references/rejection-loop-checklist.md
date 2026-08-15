@@ -4,6 +4,7 @@ Operational checklist for handling review rejections and re-implementation cycle
 
 ## On Rejection (WP moved to planned with has_feedback)
 
+- [ ] Reviewer attached a **rationale** to the rejection — a `--review-feedback-file <path>` (or `--note`). This is MANDATORY: it is recorded as the transition's `review_ref` / reason and travels on the event wire. A backward review-rejection edge (`* -> planned`, `in_review -> in_progress`) emitted WITHOUT a rationale is a contract-invalid status event — accepted locally but silently rejected by hosted sync, so the rejection never propagates.
 - [ ] Confirmed WP lane is `planned` with `review_status: has_feedback`
 - [ ] Committed status change from main: `git add kitty-specs/ && git commit -m "chore: Review feedback for WP## from <reviewer> (cycle X/3)"`
 - [ ] Noted current cycle count (1, 2, or 3)
@@ -17,7 +18,7 @@ Operational checklist for handling review rejections and re-implementation cycle
 
 ## Re-Implementation Agent Checklist
 
-- [ ] Read review feedback section in WP file FIRST
+- [ ] Read the review feedback the rejection pointed at FIRST — the referenced feedback file (the rejection's `review_ref`) and the review feedback section in the WP file
 - [ ] Updated `review_status: "acknowledged"` in frontmatter
 - [ ] Addressed EVERY feedback item (treat as mandatory TODOs)
 - [ ] Added regression tests for each issue

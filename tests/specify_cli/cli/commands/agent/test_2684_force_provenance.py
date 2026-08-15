@@ -111,20 +111,23 @@ def _persisted_force(feature_dir: Path, wp_id: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# WP02 slice: the two CLI-reachable evidence-gated edges persist force FALSY
+# #3307: the review-rejection family (`* -> planned`) force-promotes to conform
+# to the shared spec-kitty-events wire contract (the SaaS ingestion authority),
+# which declares these edges force=True-required regardless of local evidence.
+# Emitting force=False here produced contract-invalid events the SaaS silently
+# dropped at sync. The structured rewind rationale still travels on the wire.
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
     "starting_lane, target",
     [
-        ("in_progress", "planned"),  # reason evidence
-        ("approved", "planned"),  # review_ref evidence
-        ("in_review", "planned"),  # WP06 threads review_result -> force-free
-        ("in_review", "in_progress"),  # WP06 threads review_result -> force-free
+        ("in_progress", "planned"),  # review-rejection family
+        ("approved", "planned"),  # review-rejection family
+        ("in_review", "planned"),  # review-rejection family
     ],
 )
-def test_evidence_gated_backward_edge_persists_force_free(
+def test_review_rejection_family_persists_force_true(
     tmp_path: Path, starting_lane: str, target: str
 ) -> None:
     mission_slug = f"prov-{starting_lane}-{target}"
@@ -149,9 +152,47 @@ def test_evidence_gated_backward_edge_persists_force_free(
     result = _invoke(tmp_path, mission_slug, args)
 
     assert result.exit_code == 0, f"move-task failed:\n{result.output}"
+    assert _persisted_force(feature_dir, wp_id) is True, (
+        f"{starting_lane} -> {target}: review-rejection family must persist "
+        f"force=True to conform to the shared spec-kitty-events wire contract"
+    )
+
+
+# ---------------------------------------------------------------------------
+# #3307: `in_review -> in_progress` is NOT in the mandatory-force `* -> planned`
+# family, so the shared contract permits it force-free — but ONLY with a
+# `review_ref` (which WP06 threads from the structured review_result). It stays
+# force-free and carries that reference on the wire.
+# ---------------------------------------------------------------------------
+
+
+def test_in_review_to_in_progress_stays_force_free_with_review_ref(
+    tmp_path: Path,
+) -> None:
+    mission_slug = "prov-in_review-in_progress"
+    wp_id = "WP05"
+    feature_dir = _seed_wp_in_lane(
+        tmp_path, mission_slug=mission_slug, wp_id=wp_id, lane="in_review"
+    )
+
+    result = _invoke(
+        tmp_path,
+        mission_slug,
+        [
+            "move-task",
+            wp_id,
+            "--to",
+            "in_progress",
+            "--mission",
+            mission_slug,
+            "--no-auto-commit",
+        ],
+    )
+
+    assert result.exit_code == 0, f"move-task failed:\n{result.output}"
     assert _persisted_force(feature_dir, wp_id) is False, (
-        f"{starting_lane} -> {target}: persisted force must be falsy "
-        f"(evidence-gated force-free); got a false-force stamp"
+        "in_review -> in_progress is force-free-legal WITH a review_ref; "
+        "it must not be force-promoted"
     )
 
 
