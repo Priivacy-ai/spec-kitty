@@ -60,7 +60,8 @@
       "last_transition_at": "2026-08-15T07:34:58.161069+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "WP02 reviewed and approved: RED 0a96951f, GREEN 048678182, follow-up d0148304e; 39 targeted, docs-scoped 9/9, codemap 15/15 nodes 28/28 edges; runtime falsely reports inherited planning artifacts on lane."
+        "WP02 reviewed and approved: RED 0a96951f, GREEN 048678182, follow-up d0148304e; 39 targeted, docs-scoped 9/9, codemap 15/15 nodes 28/28 edges; runtime falsely reports inherited planning artifacts on lane.",
+        "Независимое ревью APPROVE: raw topology закрыт canonical helper; inventory composite rows точны; codemap JSON/HTML 15/15 узлов и 28/28 рёбер; parent acceptance targeted 39/39 и docs-scoped 9/9. Full architecture baseline содержит только unrelated existing failures. Force нужен только из-за runtime false-positive inherited planning artifacts."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
