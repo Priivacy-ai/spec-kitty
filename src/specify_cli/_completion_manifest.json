@@ -1193,6 +1193,11 @@
    "hidden": false,
    "deprecated": false
   },
+  "regen": {
+   "help": "Regenerate the committed generated agent-command + skill fixtures from source (#3447).",
+   "hidden": false,
+   "deprecated": false
+  },
   "research": {
    "help": "Execute Phase 0 research workflow to scaffold artifacts.",
    "hidden": false,
