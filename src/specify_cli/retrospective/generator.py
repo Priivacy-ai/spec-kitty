@@ -72,8 +72,16 @@ LOW_RISK_PROPOSAL_KINDS: frozenset[str] = frozenset({"flag_not_helpful"})
 # Regex to detect open clarification markers in spec.md
 _NEEDS_CLARIFICATION_RE = re.compile(r"\[NEEDS CLARIFICATION:", re.IGNORECASE)
 
-# Regex to detect FR references in WP task files
-_FR_REF_RE = re.compile(r"\b(FR-\d{3,})\b")
+# Regex to detect FR references in WP task files.
+#
+# The digit count MUST match the canonical declared-id parser's
+# ``(?:FR|NFR|C)-\d+`` (``requirement_mapping``), which ``_find_unmapped_frs``
+# uses for the spec side. A narrower ``\d{3,}`` here makes the two sides
+# disagree: a spec declaring ``FR-01`` is found on the spec side but its WP
+# reference is missed on this side, so a covered requirement is reported as
+# unmapped. Pinned by
+# ``test_unmapped_frs_digit_count_matches_the_wp_ref_scan``.
+_FR_REF_RE = re.compile(r"\b(FR-\d+)\b")
 
 _WP_ID_RE = re.compile(r"^\w{2,5}\d{2,3}$")
 

@@ -32,6 +32,8 @@ from specify_cli.retrospective.generator import (
     _EvidenceRegistry,
     _build_event_mining_findings,
     _classify_risk,
+    _collect_fr_references,
+    _find_unmapped_frs,
     generate_retrospective,
 )
 from specify_cli.status.lifecycle_events import emit_reviewer_self_approval
@@ -286,6 +288,29 @@ class TestFindingsClassification:
         unmapped_fr_ids = {g.summary.split()[0] for g in unmapped_gaps}
         assert "FR-007" in unmapped_fr_ids, "FR-007 should be flagged as unmapped"
         assert "FR-008" in unmapped_fr_ids, "FR-008 should be flagged as unmapped"
+
+    def test_unmapped_frs_digit_count_matches_the_wp_ref_scan(self) -> None:
+        """Both sides of the coverage comparison must accept the same id shapes.
+
+        ``_find_unmapped_frs`` reads spec.md through the canonical declared-id
+        parser (``(?:FR|NFR|C)-\\d+``), while ``_collect_fr_references`` scans WP
+        task files with ``_FR_REF_RE``. If the two disagree on digit count, a
+        two-digit id like ``FR-01`` is found on the spec side but missed on the WP
+        side, and a genuinely covered requirement is reported as unmapped -- a
+        false positive introduced by narrowing only one side.
+        """
+        spec = (
+            "# Spec\n\n"
+            "| ID | Description |\n"
+            "| --- | --- |\n"
+            "| FR-01 | two-digit id, covered |\n"
+            "| FR-001 | three-digit id, covered |\n"
+            "| FR-002 | genuinely uncovered |\n"
+        )
+        fr_to_wps = _collect_fr_references([("WP01.md", "implements FR-01 and FR-001")])
+
+        assert "FR-01" in fr_to_wps, "the WP-side scan must collect two-digit ids"
+        assert _find_unmapped_frs(spec, fr_to_wps) == ["FR-002"]
 
     def test_unmapped_frs_excludes_prose_citation(self, tmp_path: Path) -> None:
         """#3394/#3395 fold: a prose citation of a foreign FR is not an unmapped-FR gap.
