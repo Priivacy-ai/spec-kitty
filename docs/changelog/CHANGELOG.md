@@ -108,6 +108,24 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **Review rejections now reach the hosted dashboard instead of being silently
+  dropped by sync (`#3307` P0; `#3444`).** Before, when a reviewer sent a work
+  package back for rework — any backward review-rejection move (`* → planned`,
+  or `in_review → in_progress`) — the CLI stamped the status event `force=False`
+  and, for `in_review → in_progress`, left off the `review_ref`. Those events
+  were accepted on your machine but violated the shared `spec-kitty-events` wire
+  contract the hosted ingestion endpoint enforces, so hosted sync silently
+  rejected them: a rejection that looked applied locally never propagated to the
+  team dashboard (in the reported case a whole batch surfaced 11+ days later as
+  bulk sync failures). Root cause was two same-named `validate_transition`
+  functions giving opposite answers — the emit path consulted only the
+  CLI-local state machine, never the wire contract the server enforces. The
+  emit-force decision now gates on **both**, so the review-rejection family
+  emits `force=True` (still carrying the structured rewind rationale) and threads
+  the `review_ref` on the wire, producing events the project's own vendored
+  contract accepts. Reviewers are now told — at the `move-task` tool surface and
+  in the review skills — that a rejection rationale (`--review-feedback-file` or
+  `--note`) is mandatory, because it travels on the wire as that `review_ref`.
 - **Coordination-topology missions no longer wedge lane allocation by
   committing PRIMARY planning artifacts onto the coordination branch (mission
   `write-path-integrity-01KZZD69`; `#3371` P0, `#2549`, `#3128`, `#3373`;
