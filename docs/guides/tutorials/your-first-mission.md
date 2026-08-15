@@ -2,7 +2,7 @@
 title: 'Your First Mission: Complete Workflow'
 description: Walk through a complete Spec Kitty 3.2 mission from specification through plan, tasks, implementation, review, and merge.
 doc_status: active
-updated: '2026-08-09'
+updated: '2026-08-15'
 audience: docs/context/audience/external/project-owner.md
 type: tutorial
 related:
@@ -51,6 +51,15 @@ Expected results:
 
 - `kitty-specs/###-task-list/spec.md`
 - A new mission directory created under `kitty-specs/`
+
+**Starting from an upstream brief instead?** If your brief was exported by
+another requirements tool and carries YAML frontmatter with
+`handoff_packet: 1`, `spec-kitty intake --auto` (which also scans
+`.handoff/*.md` at the project root) picks it up automatically, and
+`/spec-kitty.specify` adopts its FR/AC ids instead of re-inventing them. This
+is optional and safe — a brief without that frontmatter behaves exactly like
+the plain-prose flow above, and the discovery interview still runs. See
+[Handoff Packet v1](../../contracts/handoff-packet-v1.md).
 
 ## Step 2: Create the Technical Plan
 

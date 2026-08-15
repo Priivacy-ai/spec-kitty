@@ -2,7 +2,7 @@
 title: Spec Kitty Mission Workflow
 description: 'End-to-end authority for a local autonomous mission: the nine phases from specify through retrospective, and the focused-PR path when the target branch is not synchronized.'
 doc_status: active
-updated: '2026-08-10'
+updated: '2026-08-15'
 type: explanation
 audience: docs/context/audience/internal/lead-developer.md
 ---
@@ -21,6 +21,15 @@ Create the mission spec from the intake prompt:
 ```
 
 Confirm the mission slug, target branch, and requirement scope before planning.
+
+If the brief carries YAML frontmatter with `handoff_packet: 1` — emitted by an
+upstream requirements tool — `spec-kitty intake` picks it up automatically
+(`intake --auto` also scans `.handoff/*.md` at the project root) and
+`/spec-kitty.specify` adopts the packet's FR/AC ids verbatim instead of
+re-minting them; the discovery-gate confirmation above still runs. This
+overlay is optional and additive: a packet-less brief, an unrecognised
+version, or malformed frontmatter all behave exactly like plain prose intake.
+See [Handoff Packet v1](../contracts/handoff-packet-v1.md).
 
 ## Phase 2: Plan
 
