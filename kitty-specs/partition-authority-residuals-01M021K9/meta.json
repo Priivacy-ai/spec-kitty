@@ -10,6 +10,7 @@
   "purpose_context": "This mission advances partition authority residuals on fix/partition-authority-residuals so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "partition authority residuals",
   "slug": "partition-authority-residuals-01M021K9",
+  "status_phase": "2",
   "target_branch": "fix/partition-authority-residuals",
   "topology": "coord",
   "vcs": "git",
