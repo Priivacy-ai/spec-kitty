@@ -19,6 +19,31 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### ✨ Added
 
+- **An agent working the mission lifecycle — hitting a merge-gate rejection,
+  an issue-matrix verdict, or an undrained SaaS sync — previously had to
+  already know the mechanics, because they lived only in a maintainer's
+  private notes (mission `self-documenting-repo` Bucket 2; `#3464`, follows
+  `#3448`).** A second audit of that private memory routed the durable
+  workflow / CI / git / status-&-sync mechanics into the repo's canonical
+  homes: `docs/development/how-to/review-gates.md` now carries the
+  (event-sourced) review-cycle + merge-gate mechanics and the issue-matrix
+  discovery surface; a new `docs/operations/sync-drain.md` documents the real
+  3-gate drain (`saas_disabled` → `missing_auth` → `missing_team`) and the
+  `sync doctor` false-green trap; `coverage-signals.md` and
+  `known-friction-points.md` gain the critical-path-move coverage remedy and
+  the CI-label skip guard; `pr-landing.md` gains true-base/stale-stack
+  diagnostics and a new `compress-mission-history.md` how-to; the
+  architecture docs correct a **live stale-doc regression** (`AGENTS.md`
+  claimed a `lanes.json`-absent `-WP##` fallback the resolver actually raises
+  `MissingLanesError` for); three review-discipline heuristics enrich the
+  doctrine tactics, and the `gh` "Closes #A,#B links only #A" trap lands in
+  the tracker toolguide. A committed
+  `agent-memory-workflow-migration-manifest.md` (with a completeness test)
+  maps all 49 audited memories to a repo home, an already-home citation, a
+  learned-fact note, or "keep-private". Dogfooding payoff: verifying against
+  current code caught several *stale* memories — the review-gate frontmatter
+  mechanism was retired for an event-sourced one, and the drain's second gate
+  was mis-remembered as `sync migrate` (retired).
 - **An agent tripping a gate, hunting the right doctrine template source, or
   recovering a split-brain mission previously had to already know the
   answer — that knowledge lived only in a maintainer's private notes, not in
