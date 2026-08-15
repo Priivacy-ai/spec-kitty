@@ -74,6 +74,8 @@ EXPECTED_PARSER_LONG_FLAGS = frozenset(
         "--keep-workspace",
         "--allow-sparse-checkout",
         "--yes",
+        "--skip-review-artifact-check",
+        "--note",
     }
 )
 
