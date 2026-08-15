@@ -4,7 +4,7 @@
 
 ## Резюме
 
-Восстановить обязательные contract и architecture gates на Windows без green-wash. Сначала устраняются платформенные дефекты тестовой обвязки (`/dev/null`, `os.geteuid`, `\` против `/`) через узкие RED-first oracles. Затем отдельно классифицируются реальные архитектурные сигналы: устаревшие inventories и raw coord-topology predicate. После зелёной targeted-проверки выполняется один полный Windows gate packet. Cross-repo E2E остаётся отдельным fail-closed состоянием и не считается пройденным без доступа к canonical репозиторию.
+Восстановить обязательные contract и architecture gates на Windows без green-wash. Сначала устраняются платформенные дефекты тестовой обвязки (`/dev/null`, `os.geteuid`, `\` против `/`) через узкие RED-first oracles. Затем отдельно классифицируются реальные архитектурные сигналы: устаревшие inventories и raw coord-topology predicate. После принятия WP01/WP02 полный architecture packet выявил ещё четыре остаточных baseline-класса; они вынесены в WP03, а локальная готовность до их закрытия остаётся `false`. Cross-repo E2E остаётся отдельным fail-closed состоянием и не считается пройденным без доступа к canonical репозиторию.
 
 ## Technical Context
 
@@ -25,7 +25,7 @@ _Технический контекст_
 **Performance Goals**: targeted-цикл до полного gate; полный architecture run запускается один раз после зелёного targeted packet
 
 **Constraints**: без blanket skip/allowlist growth; без credentials; без записи в глобальную Beads DB; внешний E2E доступ не подменяется
-**Scale/Scope**: один contract portability defect, минимум семь collection-sensitive файлов, семь репрезентативных architecture failures и полный итоговый architecture suite
+**Scale/Scope**: один contract portability defect, минимум семь collection-sensitive файлов, topology remediation, четыре подтверждённых остаточных Windows/baseline-класса и полный итоговый architecture suite
 
 ## Проверка charter
 
@@ -102,11 +102,55 @@ _Карта implementation concerns_
 - **Зависимости**: IC-01, чтобы диагностика не искажалась platform failures.
 - **Риски**: self-validating inventory update; blanket allowlist; параллельный resolver; parity/hash без независимого callers/impact/tests oracle.
 
+### IC-03 — Windows-stable architecture baselines и mission-exit floor
+
+- **Цель**: закрыть остаточные ошибки, которые не относятся к topology boundary, но
+  делают полный Windows architecture gate нечестным или нестабильным.
+- **Сигналы и disposition**:
+  - doctrine и kernel census возвращают Windows-разделители, хотя контракт хранит
+    POSIX-ключи — нормализовать только фактический repo-relative путь через
+    `.as_posix()` и оставить статический expected key независимым;
+  - glossary seed проверяется по LF blob, а Windows checkout даёт CRLF — сравнивать
+    канонизированный контент и отдельно отвергать смешанные/неожиданные переводы строк;
+  - `golden-count` ceilings отстают от merge-base (`integration=35`,
+    `specify_cli=270` против старых 33/269), а новый contract helper имеет
+    cardinality-only assertion — пометить только этот site и сгенерировать baseline
+    штатным scanner'ом с evidence;
+  - POSIX force-param получает другой numeric id на Windows — сохранить committed
+    node-id явным `id`, не скрывая capability skip.
+- **Поверхности**: `tests/architectural/test_doctrine_census.py`,
+  `test_kernel_no_doctrine_import.py`, `test_glossary_pack_no_regression.py`,
+  `test_golden_count_ban.py`, `_golden_count_baseline.json`,
+  `test_mission_exit_baseline.py`, `tests/review/test_pre_review_gate_engine.py`,
+  `tests/contract/test_machine_facing_canonical_fields.py`.
+- **Зависимости**: approved WP02; WP01-owned test surfaces могут быть продолжены
+  только последовательно в этом follow-up package.
+- **Риски**: подмена stale baseline расширением ceiling без merge-base доказательства;
+  потеря node-id из-за смены `pytest.param` id; нормализация expected и actual одной
+  функцией; изменение seed-файла вместо переносимой проверки.
+
+### IC-04 — Полная локальная приёмка после расширения
+
+- **Цель**: повторить полный contract и architecture suites на exact final SHA,
+  обновить acceptance matrix и hard-gate result только по фактическим counts.
+- **Правило**: targeted запуск с `--confcutdir`, незавершённый timeout и partial
+  collection — только диагностические доказательства; `local_ready=true` возможен
+  лишь после полного запуска без failure/error.
+- **Зависимости**: IC-03.
+- **Риск**: новый failure возвращается в owning WP через отдельный RED/GREEN, а не
+  маскируется в acceptance artifact.
+
 ## Приёмочные gates, не implementation concerns
 
 ### Local acceptance
 
-На окончательном неизменённом SHA выполняются полные contract/architecture suites, статические проверки, collection oracle, code map parity/hash/coverage и clean-tree check. Если обнаружен новый дефект, он возвращается в owning concern; после исправления новый финальный SHA проверяется повторно.
+До WP03 текущий snapshot считается `implementation_complete=true`, но
+`local_ready=false`: полный contract зелёный, а architecture run содержит
+подтверждённые residual-классы и не может быть объявлен pass. После WP03 на
+окончательном неизменённом SHA выполняются полные contract/architecture suites,
+статические проверки, collection oracle, code map parity/hash/coverage и clean-tree
+check. Если обнаружен новый дефект, он возвращается в owning concern; после
+исправления новый финальный SHA проверяется повторно.
 
 ### External E2E release gate
 
@@ -120,8 +164,16 @@ _Карта implementation concerns_
 4. IC-02: на зелёной platform base зафиксировать RED для missing sink и raw topology predicate; read-only baseline code map предшествует production edit.
 5. IC-02: исправить production boundary либо доказать узкое исключение; точечно синхронизировать inventory и code map в том же commit; проверить независимые callers/impact/tests.
 6. Local acceptance: на окончательном SHA запустить полные contract и architecture suites, static gates и clean-tree check; найденные дефекты вернуть в owning concern.
-7. External gate: проверить доступ к canonical E2E repo. При доступе выполнить documented gate; без доступа сохранить `implementation_complete=true`, но `e2e_ready=false` и `release_ready=false`.
-8. Синхронизировать фактический результат с mission, issue и reproducible handoff, привязанным к неизменённому SHA.
+7. WP03: отдельным RED зафиксировать четыре residual-класса; исправить только
+   Windows path/hash/node-id seams и документированный golden baseline; выполнить
+   mutations, targeted GREEN и затем повторить полный local gate.
+8. Обновить hard-gate result и acceptance matrix: до зелёного full architecture
+   `local_ready=false`; после зелёного exact SHA — `local_ready=true`.
+9. External gate: проверить доступ к canonical E2E repo. При доступе выполнить
+   documented gate; без доступа сохранить `implementation_complete=true`, но
+   `e2e_ready=false` и `release_ready=false`.
+10. Синхронизировать фактический результат с mission, issue и reproducible handoff,
+    привязанным к неизменённому SHA.
 
 ## Проверки
 

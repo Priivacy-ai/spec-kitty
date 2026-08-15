@@ -2,7 +2,25 @@
   "mission_slug": "windows-hard-gate-restoration-task-01M00HSC",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pass",
+  "overall_verdict": "blocked",
+  "implementation_complete": true,
+  "local_ready": false,
+  "e2e_access": "blocked",
+  "e2e_ready": false,
+  "release_ready": false,
+  "current_gate_snapshot": {
+    "verified_at": "2026-08-15T15:00:00Z",
+    "contract": "305 passed, 3 skipped",
+    "architecture_collection": "2116 collected; full assertion run not yet clean",
+    "residual_classes": [
+      "Windows separators in doctrine/kernel census keys",
+      "CRLF checkout versus LF glossary seed digest",
+      "stale golden-count ceilings and one unannotated cardinality site",
+      "Windows capability fallback changes committed mission-exit node-id"
+    ],
+    "diagnostic_only": "CLI width red under --confcutdir; official run with tests/conftest.py is 3 passed, 1 warning",
+    "next_work_package": "WP03"
+  },
   "criteria": [
     {
       "criterion_id": "FR-001",

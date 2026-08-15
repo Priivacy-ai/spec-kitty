@@ -4,7 +4,7 @@
 
 **Создано**: 2026-08-14
 
-**Статус**: Draft
+**Статус**: Replanned — ожидает выполнения WP03 и повторной локальной приёмки
 **Целевая аудитория**: сопровождающий Spec Kitty, который проверяет готовность изменения на Windows 10+
 
 ## Пользовательские сценарии и проверка
@@ -69,6 +69,24 @@
 1. **Дано** авторизованный доступ к E2E-репозиторию, **когда** запускается публикационный preflight, **тогда** он проверяет зафиксированный CLI commit совместимым E2E-набором.
 2. **Дано** доступа нет, **когда** запускается preflight, **тогда** локальная реализация может быть завершена и принята, но публикационная готовность остаётся blocked; gate не переводится в pass.
 
+### Сценарий 5 — Финальный architecture gate не скрывает остаточные baseline-дефекты (P1)
+
+После принятия первых двух пакетов сопровождающий запускает полный Windows
+architecture gate на неизменённом SHA. Если отдельные проверки ещё красные, они
+раскладываются по классу причины и получают отдельный RED-first пакет; частичный
+targeted-run или `--confcutdir` не может быть выдан за полную локальную готовность.
+
+На текущем candidate SHA подтверждены четыре остаточных класса, которые входят в
+расширенный scope: Windows-разделители в doctrine/kernel census, переносимая
+проверка целостности glossary seed, stale golden-count ceilings и изменение
+node-id у параметризованной POSIX-проверки. CLI width guard отдельно проверен
+штатным запуском и не считается дефектом: его красный результат воспроизводится
+только при урезанном окружении без корневой `tests/conftest.py`.
+
+**Независимая проверка**: для каждого реального класса существует отдельный RED,
+узкий GREEN и mutation/negative oracle; после этого полный `tests/contract` и
+`tests/architectural` повторяются на новом неизменённом SHA.
+
 ### Граничные случаи
 
 - Windows предоставляет `os.devnull`, но не `os.geteuid`; Linux/macOS-поведение не должно регрессировать.
@@ -93,6 +111,8 @@
 | FR-008 | Синхронизация code map | До production-правок и в итоговом commit обновляются `docs/codemap/codemap.json`, `.html` и `.lock`, чтобы карта отвечала, кто вызывает изменяемые boundaries, что они затрагивают и какими тестами покрыты. | Medium | Open |
 | FR-009 | Раздельный E2E preflight | Результат различает `implementation_complete`, `local_ready`, `e2e_access`, `e2e_ready` и `release_ready`; отсутствие E2E-доступа допускает завершение локальной реализации, но не публикацию. | High | Open |
 | FR-010 | Воспроизводимый handoff | Итог содержит команды, версии, commit SHA, counts и разделение исправленных, ожидаемых skip/xfail и внешних blockers. | Medium | Open |
+| FR-011 | Классификация остаточного baseline | Каждый failure финального architecture gate классифицируется по merge-base и по типу причины; ложный Windows-red исправляется в oracle, stale baseline обновляется только воспроизводимым сканером, реальный дефект получает code/test fix. | High | Open |
+| FR-012 | Стабильные пути и node-id | Repo-relative ключи имеют POSIX-представление на Windows, а существующие parametrized node-id не исчезают из committed floor только из-за platform fallback. | High | Open |
 
 ### Нефункциональные требования
 
@@ -103,6 +123,7 @@
 | NFR-003 | Кроссплатформенность | Все изменённые path/EUID/null-sink oracles проходят на Windows и не меняют ожидаемую семантику POSIX. | Совместимость | High | Open |
 | NFR-004 | Fail-closed | Ни один baseline/allowlist не расширяется без конкретного call-site, rationale и negative/mutation evidence. | Безопасность архитектуры | High | Open |
 | NFR-005 | Ограниченный цикл | Во время реализации сначала запускаются targeted suites; на окончательном неизменённом SHA выполняется не менее одного полного contract и architecture run. | Производительность | Medium | Open |
+| NFR-006 | Честная локальная готовность | `local_ready=true` запрещён, пока полный architecture gate имеет хотя бы один failure/error или collection не завершена с нулём ошибок. | Надёжность | High | Open |
 
 ### Ограничения
 
@@ -113,6 +134,7 @@
 | C-003 | Внешняя авторизация | Нельзя читать/печатать credentials или обходить GitHub permissions ради E2E. | Security | High | Open |
 | C-004 | Beads blocker | Текущий `bd 1.1.2` ошибочно выбирает глобальный `C:\Users\Ruslan\.beads` и игнорирует task-local `BEADS_DIR`; до отдельного исправления запрещено писать в эту чужую базу. Mission metadata временно остаётся единственным task-local lifecycle source. | Tooling | High | Open |
 | C-005 | Pre-existing failure issue | До реализации подтверждённые pre-existing hard-gate failures оформляются в GitHub issue с командами и доказательством происхождения согласно charter. | Governance | High | Open |
+| C-006 | Нельзя лечить артефакт запуска | Результат запуска с `--confcutdir`, урезанной fixture-цепочкой или незавершённым timeout не считается полным gate; такие результаты можно использовать только для локальной диагностики. | Governance | High | Open |
 
 ## Критерии успеха
 
@@ -123,3 +145,4 @@
 - **SC-005**: code map JSON/HTML имеет одинаковые nodes/edges/references, а `.lock` совпадает с фактическими SHA-256.
 - **SC-006**: при недоступном canonical E2E repo `implementation_complete=true` допустим, но `e2e_ready=false` и `release_ready=false`; ложный публикационный pass невозможен.
 - **SC-007**: локальная ветка остаётся clean после commit, полный handoff указывает worktree, branch, commits и все gate counts.
+- **SC-008**: четыре подтверждённых остаточных класса закрыты отдельным RED/GREEN/mutation evidence; после WP03 полный contract и architecture run имеют `0 failed`, `0 errors`, а `local_ready` отражает этот exact SHA.
