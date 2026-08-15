@@ -2206,8 +2206,20 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
     Every emit resolves its write target from ``st.feature_dir`` — resolved from
     stored topology in :func:`_mt_resolve_targets` — never ``Path.cwd()``
     (SC-008 / #2647; ``emit_inner_state_changed`` re-canonicalizes it there too).
+
+    FR-007 (#2939): the post-transition annotation is emitted through the
+    commit-durable ``emit_inner_state_changed_transactional`` — the sibling of the
+    lane hop's own ``emit_status_transition_transactional`` — so on a coordination
+    topology the coord ``status.events.jsonl`` / ``status.json`` are committed in
+    their OWN atomic status transaction (mirroring the transition), leaving no
+    dirty status tree when ``move-task`` returns. On a coord-less topology it
+    degrades to the same uncommitted write the pre-fix path used (no-op parity).
+    The generic ``emit_inner_state_changed`` stays partition-agnostic (untouched);
+    the durability decision lives at this caller/commit layer.
     """
-    from specify_cli.status import emit_inner_state_changed
+    from specify_cli.coordination.status_transition import (
+        emit_inner_state_changed_transactional,
+    )
 
     fields: dict[str, Any] = {}
     if not st.claim_emitted:
@@ -2237,7 +2249,7 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
     delta = WPInnerStateDelta(**fields)
     if delta.is_empty():
         return
-    emit_inner_state_changed(
+    emit_inner_state_changed_transactional(
         st.feature_dir,
         st.task_id,
         delta,
