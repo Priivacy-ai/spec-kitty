@@ -127,12 +127,14 @@ def evaluate_merge_gates(
 
     if policy.require_risk_check:
         evaluation.gates.append(
-            _evaluate_risk_gate(feature_dir, is_blocking)
+            _evaluate_risk_gate(feature_dir, is_blocking, repo_root, mission_slug)
         )
 
     if policy.require_deps_complete:
         evaluation.gates.append(
-            _evaluate_dependency_gate(feature_dir, wp_ids, is_blocking)
+            _evaluate_dependency_gate(
+                feature_dir, wp_ids, is_blocking, repo_root, mission_slug
+            )
         )
 
     evaluation.gates.append(
@@ -183,15 +185,29 @@ def _evaluate_evidence_gate(
 
 
 def _evaluate_risk_gate(
-    feature_dir: Path, is_blocking: bool,
+    feature_dir: Path, is_blocking: bool, repo_root: Path, mission_slug: str,
 ) -> GateResult:
-    """Check that parallelization risk score is below threshold."""
+    """Check that parallelization risk score is below threshold.
+
+    #3439 / FR-003 / C-001: LANE_STATE is a PRIMARY-partition kind. On a
+    coord-topology mission the ``feature_dir`` handed in by the merge flow is
+    the STATUS-only ``-coord`` husk, which carries no ``lanes.json`` — so a
+    direct ``read_lanes_json(feature_dir)`` returned ``None`` and the gate
+    silently SKIPped. Route the LANE_STATE read through the canonical placement
+    seam (the existing SSOT — no predicate fork) so the gate evaluates real
+    lane data on every topology. STATUS-partition reads are untouched (C-002).
+    """
     try:
+        from mission_runtime import MissionArtifactKind, placement_seam
+
         from specify_cli.lanes.persistence import read_lanes_json
         from specify_cli.policy.config import load_policy_config
         from specify_cli.policy.risk_scorer import compute_risk_report
 
-        lanes_manifest = read_lanes_json(feature_dir)
+        lane_state_dir = placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.LANE_STATE
+        )
+        lanes_manifest = read_lanes_json(lane_state_dir)
         if lanes_manifest is None:
             return GateResult(
                 gate_name="risk",
@@ -200,8 +216,8 @@ def _evaluate_risk_gate(
                 blocking=False,
             )
 
-        # Load risk policy from repo root (navigate up from feature_dir).
-        repo_root = feature_dir.parent.parent
+        # Load risk policy from the threaded repo root (never re-derived from
+        # feature_dir, which is the coord husk on a coord-topology mission).
         policy = load_policy_config(repo_root)
         report = compute_risk_report(lanes_manifest, policy=policy.risk)
 
@@ -232,16 +248,33 @@ def _evaluate_risk_gate(
 
 def _evaluate_dependency_gate(
     feature_dir: Path, wp_ids: list[str], is_blocking: bool,
+    repo_root: Path, mission_slug: str,
 ) -> GateResult:
-    """Check that all WP dependencies are in done lane."""
+    """Check that all WP dependencies are in done lane.
+
+    #3439 / FR-003 / C-001/C-002 per-leg split. The dependency GRAPH is built
+    from WORK_PACKAGE_TASK (``tasks/``) — a PRIMARY-partition kind absent on the
+    coord husk, so a direct ``build_dependency_graph(feature_dir)`` saw an EMPTY
+    graph and treated every dependency as satisfied. Route that read through the
+    placement seam (PRIMARY). The per-WP LANE snapshot stays on the coord-aware
+    STATUS_STATE surface: ``read_events`` keeps reading the handed-in
+    ``feature_dir`` (the coord husk on a coord mission) — do NOT over-correct the
+    STATUS read to PRIMARY (C-002).
+    """
     try:
+        from mission_runtime import MissionArtifactKind, placement_seam
+
         from specify_cli.core.dependency_graph import build_dependency_graph
         from specify_cli.status import reduce
         from specify_cli.status import read_events
 
-        graph = build_dependency_graph(feature_dir)
+        work_package_task_dir = placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.WORK_PACKAGE_TASK
+        )
+        graph = build_dependency_graph(work_package_task_dir)
         # Merge gate evaluation must remain read-only. Writing status.json here
-        # dirties the repo and can block repeated merge attempts.
+        # dirties the repo and can block repeated merge attempts. STATUS_STATE
+        # stays on the coord-aware feature_dir (C-002).
         snapshot = reduce(read_events(feature_dir))
 
         wp_lanes: dict[str, str] = {}
