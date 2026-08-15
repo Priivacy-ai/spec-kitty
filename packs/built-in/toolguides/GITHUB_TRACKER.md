@@ -172,6 +172,23 @@ has a separate cap; verify with `--jq 'length'` when a known large set is expect
 
 ---
 
+## Closing keywords — one issue per keyword
+
+- **`Closes #A,#B` (or `Closes #A, #B`) only links and auto-closes the
+  *first* issue number (`#A`) on merge.** GitHub's closing-keyword parser
+  scans for `<keyword> #<number>` and stops at the first match per keyword
+  instance — a comma-joined list after a single keyword is not multiple
+  links, it is one link plus inert trailing text.
+- **Fix: repeat the keyword once per issue.** Use
+  `Closes #A. Closes #B. Closes #C.` (one `Closes #<n>` per sentence) in the
+  PR body or commit message, not a single keyword with a comma-separated
+  list.
+- This is the same failure shape as the sub-issue and pagination traps
+  above: an API/parser silently does less than the surface implies, and the
+  gap only shows up after merge when only one issue closed.
+
+---
+
 ## Pitfall quick-table
 
 | Symptom | Cause | Fix |
@@ -184,3 +201,4 @@ has a separate cap; verify with `--jq 'length'` when a known large set is expect
 | Epic "missing" a child | no `--paginate` (30-item page) | add `--paginate` |
 | REST `.parent` null but child exists | REST parent is unreliable | use GraphQL `parent` |
 | `updateIssue` -> `NOT_FOUND … global id` | passed REST `.id` (database id) | use GraphQL node id (`I_…`) / REST `.node_id` |
+| Only first issue closes on merge | `Closes #A,#B` links only `#A` | one keyword per issue: `Closes #A. Closes #B.` |
