@@ -42,7 +42,7 @@ This zone is subdivided by concern:
 ## Repo-owned workflow commands
 
 Two commands a mission session runs directly, not through a `spec-kitty` CLI
-subcommand:
+subcommand — plus one not-yet-available regen path:
 
 - **Freshen the docs-inventory rollups.** After adding or refrontmattering any
   page under `docs/**`, regenerate both generated rollups and verify no drift
