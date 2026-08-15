@@ -221,6 +221,14 @@ _NON_DIVERGENT_CANONICAL_ARTIFACTS: frozenset[str] = frozenset(
         "research.md",
         "plan.md",
         "tasks.md",
+        # planning SOURCE (single-writer). #2937 WP06 classified ``wps.yaml`` to
+        # the PRIMARY-partition ``TASKS_INDEX`` kind and versions it at
+        # finalize-tasks: it is the work-package manifest SOURCE that
+        # finalize-tasks authors on the PRIMARY partition and from which
+        # ``tasks.md`` is regenerated. The target never independently edits it, so
+        # ``-X theirs`` keeping the mission copy is the intended #1732 behavior —
+        # no reconcile driver needed (same class as ``tasks.md`` above).
+        "wps.yaml",
         # derived / materialized views
         "status.json",
         "lanes.json",
