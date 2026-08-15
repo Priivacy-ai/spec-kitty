@@ -12,5 +12,6 @@
   "target_branch": "mission/write-path-integrity",
   "topology": "single_branch",
   "vcs": "git",
-  "vcs_locked_at": "2026-08-14T13:04:49.128573+00:00"
+  "vcs_locked_at": "2026-08-14T13:04:49.128573+00:00",
+  "status_phase": "1"
 }
