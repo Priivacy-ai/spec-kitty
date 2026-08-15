@@ -30,3 +30,5 @@
   href: start-branch-coord-divergence.md
 - name: Sync Daemon Orphan Cleanup
   href: sync-daemon-orphan-cleanup.md
+- name: Sync-Drain Runbook
+  href: sync-drain.md
