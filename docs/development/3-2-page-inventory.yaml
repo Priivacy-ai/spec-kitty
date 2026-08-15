@@ -2042,6 +2042,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/agent-memory-migration-manifest.md
+  tag: current
+  divio_type: reference
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/contributing.md
   tag: current
   divio_type: how-to
@@ -2900,6 +2906,30 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/operations/coord-branch-base-strand.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/operations/coord-off-main-addadd.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/operations/coord-worktree-missing.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/operations/cutover-flip-linked-worktree.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/operations/how-to-maintain.md
   tag: current
   divio_type: how-to
@@ -2949,6 +2979,18 @@
   current_target: true
   notes: null
 - path: docs/operations/ssh-deploy-keys.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/operations/stale-lane-seed.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/operations/start-branch-coord-divergence.md
   tag: current
   divio_type: none
   owning_workstream: none
