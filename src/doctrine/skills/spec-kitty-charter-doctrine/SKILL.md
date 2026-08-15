@@ -485,7 +485,7 @@ Shipped artifacts live in `packs/built-in/<kind>/`. Project-local
 overrides live in `.kittify/<kind>/`. Two-source loading merges both,
 with project artifacts taking precedence on field-level merge.
 
-**Template sets** (from `src/doctrine/missions/`):
+**Template sets** (from `packs/built-in/missions/`):
 - `software-dev-default` — Core development workflow
 - `plan-default` — Goal-oriented planning
 - `documentation-default` — Documentation creation (Divio)

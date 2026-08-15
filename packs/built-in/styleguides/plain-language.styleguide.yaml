@@ -75,6 +75,6 @@ quality_test: >
   no jargon that the named audience has not been given a gloss or link for?
 
 references:
-  - src/doctrine/missions/documentation/actions/discover/index.yaml
+  - packs/built-in/missions/documentation/actions/discover/index.yaml
   - packs/built-in/styleguides/common-docs.styleguide.yaml
   - packs/built-in/tactics/communication/glossary-curation-interview.tactic.yaml

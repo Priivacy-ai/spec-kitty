@@ -5,7 +5,7 @@
 # Contract: kitty-specs/charter-mediated-doctrine-selection-01KRTZCA/contracts/mission-type-profile.md
 #
 # template_set is intentionally null: documentation missions resolve their own
-# templates from `src/doctrine/missions/documentation/templates/`. Leaving
+# templates from `packs/built-in/missions/documentation/templates/`. Leaving
 # this empty guarantees `software-dev-default` does not leak in
 # (FR-011 / journey 4).
 #

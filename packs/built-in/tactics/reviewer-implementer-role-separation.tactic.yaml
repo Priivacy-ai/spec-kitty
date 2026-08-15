@@ -15,7 +15,7 @@ steps:
       canonical profile assignments are: implement step — implementer-ivan
       (or a language-specific variant such as python-pedro or java-jenny);
       review step — reviewer-renata. These assignments are operationalized in
-      src/doctrine/missions/software-dev/mission-runtime.yaml and the
+      packs/built-in/missions/software-dev/mission-runtime.yaml and the
       review/implement mission-step prompts — this tactic provides the
       doctrine-layer rationale and constraint, not new wiring.
   - title: Do not review your own implementation
@@ -51,11 +51,11 @@ references:
       discipline that governs who reviews each work package.
 notes: >
   The operationalized profile assignments are in
-  src/doctrine/missions/software-dev/mission-runtime.yaml:
+  packs/built-in/missions/software-dev/mission-runtime.yaml:
     implement step — agent-profile: implementer-ivan
     review step   — agent-profile: reviewer-renata
   and confirmed in the review/implement mission-step prompts under
-  src/doctrine/missions/mission-steps/software-dev/.
+  packs/built-in/missions/mission-steps/software-dev/.
   This tactic adds the doctrine-layer rationale and constraint — it does NOT
   introduce new profile wiring or override mission-runtime.yaml. Changes to
   which profile is used for implement or review must go in mission-runtime.yaml

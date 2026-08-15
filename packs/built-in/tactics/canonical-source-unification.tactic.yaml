@@ -16,7 +16,7 @@ steps:
     examples:
       - "The CLI's resolve_planning_read_dir() return value is the canonical read surface;
         a parallel path used by a gate command is the non-canonical copy."
-      - "src/doctrine/missions/<type>/templates/ is the canonical template surface; a copy
+      - "packs/built-in/missions/<type>/templates/ is the canonical template surface; a copy
         inside kitty-specs/ is a historical snapshot, not the authority."
   - title: Map all non-canonical call sites
     description: >
