@@ -41,6 +41,8 @@ frontmatter is what preserves identity across the passage.
 | `handoff_packet` present but not the integer `1` | Prose intake (unknown version) |
 | Frontmatter YAML that does not parse | Prose intake |
 | `handoff_packet: 1` with a non-list `requirements` | Prose intake |
+| `handoff_packet: 1` with a malformed `acceptance_criteria` item (missing/empty `id` or `statement`) | Prose intake |
+| `handoff_packet: 1` with a malformed `constraints` item (missing/empty `id`) | Prose intake |
 | `handoff_packet: 1` with a valid `requirements` list | Structured packet; FR/AC IDs adopted verbatim |
 
 Intake itself never exits non-zero because a packet is malformed. The file
@@ -81,8 +83,8 @@ is still ingested as a brief; only the structured overlay is dropped.
 | `requirements[].id` | yes | Spec Kitty FR id; do not renumber on ingest |
 | `requirements[].statement` | yes | One sentence; not Gherkin |
 | `requirements[].source_id` | no | Producer-native id (ticket, item, or similar) |
-| `requirements[].acceptance_criteria` | no | List |
-| `constraints` | no | List of `C-###` items |
+| `requirements[].acceptance_criteria` | no | List; when present, every item's `id` and `statement` are validated (non-empty strings) — a malformed item degrades the whole packet to prose, it is not silently dropped or miscounted |
+| `constraints` | no | List of `C-###` items; every item's `id` is validated (non-empty string) — a malformed item degrades the whole packet to prose |
 | `source_tool` / `source_mission` / `source_ref` | no | Copied into `brief-source.yaml` |
 
 Gherkin, sequencing, and Definition of Done belong in the **Markdown body**,

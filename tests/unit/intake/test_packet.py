@@ -93,6 +93,62 @@ def test_empty_requirements_list_is_valid_packet():
     assert packet.requirement_ids == ()
 
 
+def test_acceptance_criterion_missing_id_degrades_to_prose():
+    raw = (
+        "---\nhandoff_packet: 1\nrequirements:\n"
+        "  - id: FR-001\n    statement: \"Do the thing.\"\n"
+        "    acceptance_criteria:\n"
+        "      - statement: \"Missing id.\"\n"
+        "---\n\n# Bad\n"
+    )
+    assert parse_handoff_packet(raw) is None
+
+
+def test_acceptance_criterion_missing_statement_degrades_to_prose():
+    raw = (
+        "---\nhandoff_packet: 1\nrequirements:\n"
+        "  - id: FR-001\n    statement: \"Do the thing.\"\n"
+        "    acceptance_criteria:\n"
+        "      - id: AC-001\n"
+        "---\n\n# Bad\n"
+    )
+    assert parse_handoff_packet(raw) is None
+
+
+def test_constraint_missing_id_degrades_to_prose():
+    raw = (
+        "---\nhandoff_packet: 1\nrequirements: []\n"
+        "constraints:\n  - statement: \"No id here.\"\n"
+        "---\n\n# Bad\n"
+    )
+    assert parse_handoff_packet(raw) is None
+
+
+def test_valid_nested_acceptance_criteria_and_constraint_parses():
+    raw = (
+        "---\nhandoff_packet: 1\nrequirements:\n"
+        "  - id: FR-001\n    statement: \"Do the thing.\"\n"
+        "    acceptance_criteria:\n"
+        "      - id: AC-001\n        statement: \"The thing is done.\"\n"
+        "constraints:\n  - id: C-001\n    statement: \"Must not overlap.\"\n"
+        "---\n\n# Good\n"
+    )
+    packet = parse_handoff_packet(raw)
+    assert packet is not None
+    assert packet.requirement_count == 1
+    assert packet.constraint_count == 1
+
+
+def test_malformed_constraint_does_not_inflate_constraint_count():
+    """A malformed constraint degrades the whole packet, it never inflates the count."""
+    raw = (
+        "---\nhandoff_packet: 1\nrequirements: []\n"
+        "constraints:\n  - id: C-001\n    statement: ok\n  - statement: \"no id\"\n"
+        "---\n\n# Bad\n"
+    )
+    assert parse_handoff_packet(raw) is None
+
+
 def test_boolean_true_version_degrades_to_prose():
     raw = "---\nhandoff_packet: true\nrequirements: []\n---\n\n# Bad\n"
     assert parse_handoff_packet(raw) is None
