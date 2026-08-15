@@ -135,7 +135,7 @@ provenance:
 
 def _setup_simple_project(tmp_path: Path) -> Path:
     """Create a simple project with two missions (one completed, one skipped)."""
-    missions_root = tmp_path / ".kittify" / "missions"
+    missions_root = tmp_path / "kitty-specs"  # FR-013 canonical mission-instance home
     missions_root.mkdir(parents=True)
 
     d1 = missions_root / MISSION_ID_A
@@ -186,7 +186,7 @@ class TestExitCodes:
 class TestSinceFilter:
     def test_since_excludes_old_missions(self, tmp_path: Path) -> None:
         """--since 2026-04-01 should exclude 2025 missions."""
-        missions_root = tmp_path / ".kittify" / "missions"
+        missions_root = tmp_path / "kitty-specs"  # FR-013 canonical mission-instance home
         missions_root.mkdir(parents=True)
 
         # Old mission (2025)
@@ -243,7 +243,7 @@ class TestSinceFilter:
 class TestLimitTruncation:
     def test_limit_5_truncates_top_n(self, tmp_path: Path) -> None:
         """--limit 5 truncates top-N sections to at most 5 entries."""
-        missions_root = tmp_path / ".kittify" / "missions"
+        missions_root = tmp_path / "kitty-specs"  # FR-013 canonical mission-instance home
         missions_root.mkdir(parents=True)
 
         # Create 10 missions with unique not_helpful URNs
@@ -407,7 +407,7 @@ class TestJsonOut:
 class TestIncludeMalformed:
     def test_include_malformed_shows_detail(self, tmp_path: Path) -> None:
         """--include-malformed shows malformed record details in Rich output."""
-        missions_root = tmp_path / ".kittify" / "missions"
+        missions_root = tmp_path / "kitty-specs"  # FR-013 canonical mission-instance home
         missions_root.mkdir(parents=True)
 
         bad_dir = missions_root / "malformed-01KQ0000AAAAAAAAAAAAAAAA0"
@@ -430,7 +430,7 @@ class TestIncludeMalformed:
 
     def test_malformed_count_always_shown(self, tmp_path: Path) -> None:
         """Malformed count appears in both Rich and JSON output."""
-        missions_root = tmp_path / ".kittify" / "missions"
+        missions_root = tmp_path / "kitty-specs"  # FR-013 canonical mission-instance home
         missions_root.mkdir(parents=True)
 
         bad_dir = missions_root / "malformed-01KQ0000AAAAAAAAAAAAAAAA1"

@@ -1803,7 +1803,7 @@ class TestSummaryCmdExtended:
         # Mission 1: has a retrospective.yaml (will be classified)
         m1_id = "01KS049J4V9CSWBKJHTY2FB80H"
         m1_slug = "completed-with-retro"
-        m1_dir = missions_dir / m1_id
+        m1_dir = kitty_specs_dir / m1_slug  # FR-013 canonical mission-instance home
         m1_dir.mkdir(parents=True, exist_ok=True)
         _write_meta(m1_dir, m1_id, m1_slug)
         (m1_dir / "retrospective.yaml").write_text(
@@ -1814,7 +1814,7 @@ class TestSummaryCmdExtended:
         # Mission 2: no retrospective.yaml (missing)
         m2_id = "01KS049J4V9CSWBKJHTY2FB81H"
         m2_slug = "completed-without-retro"
-        m2_dir = missions_dir / m2_id
+        m2_dir = kitty_specs_dir / m2_slug  # FR-013 canonical mission-instance home
         m2_dir.mkdir(parents=True, exist_ok=True)
         _write_meta(m2_dir, m2_id, m2_slug)
 
@@ -1836,23 +1836,24 @@ class TestSummaryCmdExtended:
         """`#3194`: ``summary``'s mission enumeration must not use the
         EACCES-divergent ``Path.is_dir()`` predicate anywhere in its path.
 
-        ``build_summary()`` (``specify_cli.retrospective.summary._iter_mission_dirs``)
-        walks the SAME ``.kittify/missions/`` directory before ``summary_cmd``'s own
-        ``missions_with_state`` loop ever runs, so an unstattable candidate is
-        actually caught there first — a second instance of the identical pattern
-        found while writing this test, fixed alongside the 8 originally flagged
-        call sites. ``Path.is_dir()`` answers ``False`` for an unreadable candidate
-        on Python 3.14 only (RAISES on 3.11-3.13); routed through ``safe_is_dir``
-        the raised ``OSError`` is now the SAME on every interpreter, and
-        ``summary_cmd``'s own pre-existing ``except OSError: raise typer.Exit(2)``
-        around ``build_summary()`` turns it into a clean, actionable CLI error —
-        exactly the "surfaced as unreadable" outcome the fix is for, rather than a
-        silently-empty, misleadingly-successful summary.
+        ``build_summary()`` (``specify_cli.retrospective.summary.iter_mission_instance_dirs``)
+        walks the canonical ``kitty-specs/*`` directory (FR-013) before
+        ``summary_cmd``'s own ``missions_with_state`` loop ever runs, so an
+        unstattable candidate is actually caught there first — a second instance
+        of the identical pattern found while writing this test, fixed alongside
+        the 8 originally flagged call sites. ``Path.is_dir()`` answers ``False``
+        for an unreadable candidate on Python 3.14 only (RAISES on 3.11-3.13);
+        routed through ``safe_is_dir`` the raised ``OSError`` is now the SAME on
+        every interpreter, and ``summary_cmd``'s own pre-existing
+        ``except OSError: raise typer.Exit(2)`` around ``build_summary()`` turns
+        it into a clean, actionable CLI error — exactly the "surfaced as
+        unreadable" outcome the fix is for, rather than a silently-empty,
+        misleadingly-successful summary.
         """
-        repo_root, missions_dir, _ = _setup_project(tmp_path)
+        repo_root, _missions_dir, kitty_specs_dir = _setup_project(tmp_path)
         vault = tmp_path / "vault"
         (vault / "m-target").mkdir(parents=True)
-        (missions_dir / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
+        (kitty_specs_dir / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
 
         canary = vault / "canary"
         canary.write_text("{}", encoding="utf-8")
@@ -1976,15 +1977,11 @@ class TestSummaryCmdExtended:
 
     def test_summary_missions_with_kitty_specs_classification(self, tmp_path: Path) -> None:
         """Missions classified via kitty-specs dir when available."""
-        repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
+        repo_root, _missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
-        m1_dir = missions_dir / MISSION_ID_COMPLETED
-        m1_dir.mkdir(parents=True, exist_ok=True)
-        _write_meta(m1_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
-
-        # Create kitty-specs dir for this mission
+        # Canonical kitty-specs home carries meta.json (FR-013 discovery anchor).
         kitty_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
-        kitty_dir.mkdir(parents=True, exist_ok=True)
+        _write_kitty_meta(kitty_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
         # No retrospective.yaml → "missing"
 
         result = RUNNER.invoke(
@@ -2000,13 +1997,18 @@ class TestSummaryCmdExtended:
         assert len(matching) >= 1
 
     def test_summary_mission_with_retrospective_in_kittify(self, tmp_path: Path) -> None:
-        """Mission classified from .kittify/missions/<id>/retrospective.yaml when kitty-specs missing."""
+        """FR-013 legacy-record resolution: a mission is discovered by its
+        canonical ``kitty-specs/<slug>/`` home (meta.json), while its record was
+        never relocated out of ``.kittify/missions/<id>/retrospective.yaml``."""
         repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
+        # Canonical home (discovery anchor) — meta.json, no in-place record.
+        kitty_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
+        _write_kitty_meta(kitty_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
+
+        # Record lives ONLY in the legacy in-registry location.
         m1_dir = missions_dir / MISSION_ID_COMPLETED
         m1_dir.mkdir(parents=True, exist_ok=True)
-        _write_meta(m1_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
-        # No kitty-specs for this slug, but has retrospective.yaml in .kittify
         (m1_dir / "retrospective.yaml").write_text(
             "schema_version: '1'\nmission: {}\nstatus: completed\nhelped: []\nnot_helpful: []\ngaps: []\nproposals: []\n",
             encoding="utf-8",
@@ -2025,9 +2027,9 @@ class TestSummaryCmdExtended:
 
     def test_summary_mission_with_bad_meta_json(self, tmp_path: Path) -> None:
         """Missions with bad meta.json still appear (with fallback IDs)."""
-        repo_root, missions_dir, _ = _setup_project(tmp_path)
+        repo_root, _missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
-        m1_dir = missions_dir / "BADJSONMISSION00000000000001"
+        m1_dir = kitty_specs_dir / "BADJSONMISSION00000000000001"
         m1_dir.mkdir(parents=True, exist_ok=True)
         # Write bad JSON to meta.json
         (m1_dir / "meta.json").write_text("not valid json", encoding="utf-8")
@@ -2214,15 +2216,12 @@ class TestSummaryCmdExtended:
 
     def test_summary_mission_with_events_having_captured_type(self, tmp_path: Path) -> None:
         """Summary reads policy_source from RetrospectiveCaptured events."""
-        repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
+        repo_root, _missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
-        m1_dir = missions_dir / MISSION_ID_COMPLETED
-        m1_dir.mkdir(parents=True, exist_ok=True)
-        _write_meta(m1_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
-
-        # Create kitty-specs dir with a status.events.jsonl that has a RetrospectiveCaptured event
+        # Canonical kitty-specs home (meta.json anchor) with a status.events.jsonl
+        # carrying a RetrospectiveCaptured event.
         kitty_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
-        kitty_dir.mkdir(parents=True, exist_ok=True)
+        _write_kitty_meta(kitty_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
 
         captured_event = {
             "type": "RetrospectiveCaptured",
@@ -2268,16 +2267,14 @@ class TestSummaryCmdExtended:
         """When classify returns 'missing' but .kittify retro exists, reclassify from kittify dir."""
         repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
+        # Canonical kitty-specs home (discovery anchor), no in-place record →
+        # classify_mission_record returns "missing" initially.
+        kitty_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
+        _write_kitty_meta(kitty_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
+
+        # But there IS a retro in the legacy .kittify/missions/<id>/ registry.
         m1_dir = missions_dir / MISSION_ID_COMPLETED
         m1_dir.mkdir(parents=True, exist_ok=True)
-        _write_meta(m1_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
-
-        # No retro in kitty-specs (will classify as missing initially)
-        kitty_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
-        kitty_dir.mkdir(parents=True, exist_ok=True)
-        # No retrospective.yaml in kitty_dir → classify_mission_record returns "missing"
-
-        # But there IS a retro in .kittify/missions/<id>/
         (m1_dir / "retrospective.yaml").write_text(
             "schema_version: '1'\nmission: {}\nstatus: completed\nhelped: []\nnot_helpful: []\ngaps: []\nproposals: []\n",
             encoding="utf-8",
