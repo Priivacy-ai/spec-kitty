@@ -144,9 +144,19 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
     # read-side-placement-seam-migration WP07: routed through
     # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
     # instead of the kind-blind ``resolve_planning_read_dir``.
-    feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(
-        MissionArtifactKind.LANE_STATE
-    )
+    seam = placement_seam(main_repo_root, mission_slug)
+    feature_dir = seam.read_dir(MissionArtifactKind.LANE_STATE)
+    # FR-006 (#2698): the per-WP LANE rendered into the review handoff is a
+    # STATUS_STATE/COORD-partition kind, NOT a PRIMARY-partition one. Reading it
+    # off ``feature_dir`` (the PRIMARY dir above) renders every WP as stale
+    # ``planned`` on a coord-topology mission, because status transitions land on
+    # the coord husk, never the PRIMARY status log. Route the lane read through
+    # the SAME seam's STATUS_STATE projection — the coord husk for a coord
+    # mission, and identical to ``feature_dir`` for flat topologies (structural
+    # no-op). Identity/lanes.json/tasks stay on ``feature_dir`` (C-002: only the
+    # STATUS-partition read moves; PRIMARY reads are untouched). Per-leg pattern
+    # mirrors ``tasks_dependency_graph._check_dependent_warnings``.
+    status_feature_dir = seam.read_dir(MissionArtifactKind.STATUS_STATE)
     identity = resolve_mission_identity(feature_dir)
     lanes_manifest = read_lanes_json(feature_dir)
     graph = build_dependency_graph(feature_dir)
@@ -204,7 +214,7 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
                     )
                 ),
                 dependencies=graph.get(wp_id, []),
-                lane=_read_canonical_lane_or_default(feature_dir, wp_id),
+                lane=_read_canonical_lane_or_default(status_feature_dir, wp_id),
                 worktree_exists=worktree_exists,
                 commits_ahead_of_base=commits_ahead,
             )
