@@ -66,7 +66,13 @@ def _seed_digest() -> str:
     # normalization for charter markdown; also the wrong layer for a doctrine
     # seed test to import). TID251 explicitly carves out "file-integrity
     # checks" as a justified non-charter use of hashlib directly.
-    return hashlib.sha256(_SEED_PATH.read_bytes()).hexdigest()  # noqa: TID251
+    raw = _SEED_PATH.read_bytes()
+    if b"\r\n" in raw and b"\n" in raw.replace(b"\r\n", b""):
+        raise ValueError("mixed newline styles in glossary seed")
+    if b"\r" in raw.replace(b"\r\n", b""):
+        raise ValueError("bare carriage return in glossary seed")
+    normalized = raw.replace(b"\r\n", b"\n")
+    return hashlib.sha256(normalized).hexdigest()  # noqa: TID251
 
 
 def test_seed_digest_normalizes_crlf_without_mutating_source(

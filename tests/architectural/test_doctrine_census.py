@@ -267,7 +267,7 @@ def reached_doctrine_paths() -> dict[str, set[str]]:
         for child in tree.body:
             visitor.visit(child)
         if visitor.paths:
-            result[str(path.relative_to(_REPO_ROOT))] = visitor.paths
+            result[path.relative_to(_REPO_ROOT).as_posix()] = visitor.paths
     return result
 
 

@@ -159,7 +159,7 @@ def _scan_file(path: Path, relative_to: Path) -> list[tuple[str, int, str]]:
     found: list[tuple[str, int, str]] = []
     tree = ast.parse(path.read_text(encoding="utf-8"))
     docstring_ids = _docstring_nodes(tree)
-    rel = str(path.relative_to(relative_to))
+    rel = path.relative_to(relative_to).as_posix()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
