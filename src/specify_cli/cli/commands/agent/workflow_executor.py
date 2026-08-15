@@ -1571,7 +1571,12 @@ def review_resolve_wp_and_lane_gate(
 
 
 def review_enforce_bulk_edit_gate(
-    *, feature_dir: Path, main_repo_root: Path, target_branch: str, review_workspace: ResolvedWorkspace
+    *,
+    feature_dir: Path,
+    main_repo_root: Path,
+    mission_slug: str,
+    target_branch: str,
+    review_workspace: ResolvedWorkspace,
 ) -> None:
     """Bulk edit occurrence classification + per-file diff compliance gate (FR-006/7/8)."""
     from specify_cli.bulk_edit.gate import (
@@ -1591,6 +1596,7 @@ def review_enforce_bulk_edit_gate(
         _wf()._enforce_bulk_edit_diff_compliance(
             feature_dir=feature_dir,
             main_repo_root=main_repo_root,
+            mission_slug=mission_slug,
             target_branch=target_branch,
             review_workspace=review_workspace,
             check_review_diff_compliance=check_review_diff_compliance,
