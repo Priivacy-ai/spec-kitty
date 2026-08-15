@@ -1,8 +1,8 @@
 ---
-title: 'Review Gates: Pre-PR / Pre-Review Checklist'
-description: The pre-PR/pre-review hygiene checklist contributors run locally — environment sync and test gates — so review focuses on substance, not avoidable environment drift.
+title: 'Review Gates: Pre-PR Hygiene, Review-Cycle Mechanics, and the Merge Gate'
+description: The review-cycle-artifact and merge-gate mechanics, the --skip-review-artifact-check override, and the issue-matrix discovery surface, so review and merge focus on substance.
 doc_status: active
-updated: '2026-07-31'
+updated: '2026-08-15'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -10,12 +10,19 @@ related:
 - docs/development/how-to/pr-landing.md
 - docs/development/contributing.md
 ---
-# Review Gates: Pre-PR / Pre-Review Checklist
+# Review Gates: Pre-PR Hygiene, Review-Cycle Mechanics, and the Merge Gate
 
-This page documents the small set of hygiene steps a contributor should run
-locally before requesting review or opening a PR. The goal is to catch
-trivial environment drift here, so the actual review focuses on the
-substance of the change and not on confusing failures unrelated to it.
+This page documents (1) the small set of hygiene steps a contributor should
+run locally before requesting review or opening a PR, so the actual review
+focuses on the substance of the change and not on confusing failures
+unrelated to it; and (2) the mechanics of the review-cycle artifact / merge
+gate and the issue-matrix discovery surface that a WP actually has to
+satisfy to reach `approved`/`done`. The verdict vocabulary, JSON schema, and
+`in-mission` semantics for the issue matrix are **already documented** in
+[`ERROR_CODES.md`](../../../src/specify_cli/cli/commands/review/ERROR_CODES.md)
+and
+[`spec-kitty-mission-review/SKILL.md`](../../../src/doctrine/skills/spec-kitty-mission-review/SKILL.md) —
+this page cites them rather than restating them.
 
 ## Environment hygiene before review/PR
 
@@ -176,6 +183,138 @@ Configuration (`.kittify/config.yaml`, under `review:`):
 > behaviour-preserving and therefore *preserves* this by design; it is tracked
 > separately and must not be mistaken for a fix or flagged as a regression. Only
 > the `for_review` pre-review facet of the repo-shape coupling is inverted here.
+
+## Review-cycle artifacts and the merge gate
+
+Every WP that reaches a terminal review lane (`approved` or `done` —
+`TERMINAL_REVIEW_LANES` in
+[`review/artifacts.py`](../../../src/specify_cli/review/artifacts.py)) is
+checked against one invariant:
+**`terminal_wp_latest_review_artifact_must_not_be_rejected`**. It is
+implemented by `find_rejected_review_artifact_conflicts` in
+[`post_merge/review_artifact_consistency.py`](../../../src/specify_cli/post_merge/review_artifact_consistency.py)
+and is the **single shared implementation** behind three call sites:
+`spec-kitty merge`
+([`merge/preflight.py`](../../../src/specify_cli/merge/preflight.py)),
+`spec-kitty merge --dry-run`
+([`merge/forecast.py`](../../../src/specify_cli/merge/forecast.py)), and
+`spec-kitty review`'s Gate 1 lane check
+([`cli/commands/review/_lane_gate.py`](../../../src/specify_cli/cli/commands/review/_lane_gate.py))
+— so the three surfaces cannot drift from one another.
+
+**The gate is purely event-sourced.** It reads the reduced status
+snapshot's `review_result` and `review` slots (via `materialize_snapshot`)
+and never parses on-disk `review-cycle-N.md` frontmatter. A WP is blocked
+only when the lane is terminal **and** the event-sourced verdict is
+`changes_requested`; a `complete` override (see below) clears the gate
+unconditionally and is checked first. An absent or damaged event slot is
+treated as "no signal" — a safety gate that only detects rejections fails
+open on missing data, never fabricates a block.
+
+**No hand-authored artifact can satisfy the gate.** Because the gate never
+reads the on-disk file, hand-editing a `review-cycle-N.md` to read
+`verdict: approved` has no effect on whether merge or review passes — only
+a genuine `move-task` transition can change the event-sourced verdict:
+
+- An ordinary `move-task --to approved` (or `--to done`) out of `in_review`
+  writes its own `approved` `ReviewResult` into the event log from the fact
+  that the transition itself is happening
+  (`_mt_plan_review_result` in
+  [`tasks_move_task.py`](../../../src/specify_cli/cli/commands/agent/tasks_move_task.py))
+  — no artifact content is read to decide this.
+- When the WP's current event-sourced verdict was `changes_requested`,
+  that same approval transition additionally synthesizes a durable
+  `review-cycle-N.md` record on disk
+  (`_persist_approved_review_cycle` in
+  [`tasks_verdict_persistence.py`](../../../src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py)),
+  with a machine-written body (`"Approved by {reviewer}: {reference}"`), so
+  the on-disk history stays consistent with the event log. This is the
+  CLI's own record of a genuine approval that already happened — never a
+  hand-authored one — and it is a no-op when there was no prior rejection to
+  close out. **Never instruct an agent to hand-write an `approved`
+  review-cycle artifact to unblock a gate**; if the latest verdict is
+  wrongly `changes_requested`, roll the WP back to `for_review` and run a
+  real, independent review cycle.
+
+**The `--skip-review-artifact-check` escape hatch.**
+`move-task --to approved --skip-review-artifact-check --note "<reason>"` is
+the arbiter-override path — `--note` is mandatory here; omitting it is
+refused before the override can fire
+(`_guard_rejected_verdict` in
+[`tasks_transition_core.py`](../../../src/specify_cli/cli/commands/agent/tasks_transition_core.py)).
+It records a `ReviewOverride {at, actor, wp_id, reason}`
+([`status/models.py`](../../../src/specify_cli/status/models.py)) via a
+single, topology-resolved `InnerStateChanged` event emit
+(`_persist_review_artifact_override` in
+[`tasks_materialization.py`](../../../src/specify_cli/cli/commands/agent/tasks_materialization.py))
+— one write, not a primary-plus-coord frontmatter mirror (that dual-write
+is retired; the reduced `review` snapshot slot is the single authority both
+partitions resolve). The gate only treats the override as clearing when
+`ReviewOverride.complete` is true, i.e. all four fields are non-empty — a
+partially-filled override still blocks. Use this only over a genuinely
+superseded rejection, never as a substitute for a real re-review.
+
+**`--review-feedback-file` provenance guard.** `move-task --to planned
+--review-feedback-file <path>` reads `<path>` as the rejection body and
+writes it into a freshly allocated, properly frontmattered
+`review-cycle-N.md`
+(`create_rejected_review_cycle` in
+[`review/cycle.py`](../../../src/specify_cli/review/cycle.py); cycle
+numbers are allocated under a lock as `max(existing) + 1`, never a file
+count, so a numbering gap can't collide). The command refuses `<path>`
+outright — by path identity **and** by content (does `<path>` itself parse
+as a `ReviewCycleArtifact`?) — when it resolves to one of this WP's own
+prior `review-cycle-N.md` files
+(`_guard_feedback_source_provenance`, same module): a verdict record must
+never be re-submitted as if it were new reviewer feedback. Plain reviewer
+prose is always admissible, even when it is byte-identical to a prior
+cycle's body (a reviewer re-reporting a recurring defect is not the attack
+this guard exists to refuse).
+
+## Issue-matrix discovery and `issue-verdict --actor`
+
+Issue-matrix **verdict vocabulary** (`fixed`, `verified-already-fixed`,
+`deferred-with-followup`, `in-mission`), the JSON **schema**, the
+`.json`-canonical rule (a legacy `.md` matrix is read via failover, never
+re-authored), and the `in-mission` semantics (accepted at per-WP `approved`,
+**rejected on the mission `done` transition**) are already documented in
+[`ERROR_CODES.md`](../../../src/specify_cli/cli/commands/review/ERROR_CODES.md)
+and the Gate 4 section of
+[`spec-kitty-mission-review/SKILL.md`](../../../src/doctrine/skills/spec-kitty-mission-review/SKILL.md)
+(C-008) — see those two for the full vocabulary and worked examples. This
+section covers only the genuinely-absent operational half: how a reference
+is *discovered*, and how a verdict is *recorded*.
+
+**Discovery runs over every mission doc, not just `spec.md`.**
+`discover_issue_references`
+([`tasks/issue_reference_discovery.py`](../../../src/specify_cli/tasks/issue_reference_discovery.py))
+scans `spec.md`, `plan.md`, `research.md`, `analysis-report.md` (each
+optional), plus every `.md` file directly under `tasks/` and `contracts/`
+(non-recursive, sorted by filename), in that fixed order. It reuses the one
+canonical `#NNNN` detector
+(`tasks.issue_matrix.detect_issue_references`) per file, so there remains
+exactly one issue-reference pattern definition in the codebase. When the
+same issue number appears in more than one file, the **first** file+line it
+appears in (in scan order) wins both the context snippet and the recorded
+`source_file` — never re-derived independently later.
+
+**The merge-time completeness gate.**
+`_evaluate_issue_matrix_completeness_gate`
+([`policy/merge_gates.py`](../../../src/specify_cli/policy/merge_gates.py))
+diffs `discover_issue_references`'s output against
+`load_issue_matrix`'s rows and fails (blocking) when a discovered `#NNNN`
+has no matrix row at all — it does not check verdicts (that is Gate 4's
+job, cited above). A mission with **zero** discovered references is a
+`PASS` — there is nothing to enforce, not a warning.
+
+**`issue-verdict` requires `--actor`.**
+`spec-kitty agent issue-verdict --mission <slug> --issue <#N> --verdict
+<verdict> --actor <identity>`
+([`cli/commands/agent/issue_verdict.py`](../../../src/specify_cli/cli/commands/agent/issue_verdict.py))
+sets or upserts one issue-matrix row. `--actor` has no default and is
+validated non-empty (`do_issue_verdict` raises `IssueVerdictError` /
+`empty_actor` otherwise) — there is no anonymous or implicit-actor path for
+recording a verdict.
 
 ## PR draft and WIP-title conventions
 
