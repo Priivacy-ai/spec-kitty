@@ -11,6 +11,7 @@ from unittest.mock import Mock
 import pytest
 
 from specify_cli.coordination.status_transition import (
+    emit_inner_state_changed_transactional,
     emit_status_transition_batch_transactional,
     emit_status_transition_transactional,
     read_current_wp_state_transactional,
@@ -552,6 +553,48 @@ def test_transactional_emit_fails_closed_when_coordination_branch_missing(
 
     assert mock_saas_sink.call_count == 0
     assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
+
+
+def test_inner_state_annotation_degrades_when_coordination_branch_missing(
+    repo: Path,
+    mock_saas_sink: Any,
+) -> None:
+    """#3460: an off-axis annotation emit must NEVER hard-fail on an
+    unresolvable coord worktree the way the authoritative lane-hop transition
+    correctly does (see ``test_transactional_emit_fails_closed_when_
+    coordination_branch_missing`` immediately above — same fixture setup,
+    deliberately opposite outcome).
+
+    Before the fix, ``emit_inner_state_changed_transactional`` routed straight
+    into ``BookkeepingTransaction.acquire`` whenever meta *declared* a
+    ``coordination_branch`` regardless of whether that branch still existed,
+    so a mission whose coord branch was deleted (or never materialized) raised
+    ``BookkeepingWorktreeMissing`` out of an otherwise-uncommitted, best-effort
+    annotation write -- the same defect class that made move-task's
+    ``_mt_emit_runtime_state`` crash (#2939 WP03 regression). The fix catches
+    ``BookkeepingWorktreeMissing`` and degrades to the uncommitted
+    ``emit_inner_state_changed`` primary write instead of propagating.
+    """
+    _git(repo, "branch", "-D", COORD_BRANCH)
+    events_path = repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl"
+
+    annotation = emit_inner_state_changed_transactional(
+        repo / "kitty-specs" / MISSION_DIRNAME,
+        "WP01",
+        WPInnerStateDelta(note="degrade-on-missing-coord-branch"),
+        actor="issue-3460-test",
+        mission_slug=MISSION_SLUG,
+        repo_root=repo,
+    )
+
+    assert isinstance(annotation, InnerStateChanged)
+    assert mock_saas_sink.call_count == 0
+    # Degraded to the PRIMARY, uncommitted write: the annotation lands on
+    # the primary checkout's event log rather than a coord ref that could
+    # never be committed to (the coord branch no longer exists).
+    assert events_path.exists()
+    assert "degrade-on-missing-coord-branch" in events_path.read_text(encoding="utf-8")
+    assert _git(repo, "status", "--short").stdout.strip() != ""
 
 
 def test_transactional_emit_fails_closed_on_malformed_meta(
