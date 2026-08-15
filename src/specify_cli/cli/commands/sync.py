@@ -1081,7 +1081,7 @@ def _empty_selection_cause(report: PerProjectStoreReport) -> str:
         return (
             f"No project in the event journal has consented to hosted sync{detail}. "
             f"Its {total} retained event(s) stay on this machine and will never be "
-            "delivered until consent is recorded — run `spec-kitty sync enable` in "
+            "delivered until consent is recorded — run `spec-kitty sync opt-in` in "
             "the project that should ship, or `spec-kitty sync doctor` for the full "
             "per-project breakdown."
         )
