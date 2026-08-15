@@ -222,9 +222,9 @@ def test_rollback_release_is_event_only_wp_file_byte_stable(
     assert len(stream.annotations) > annotations_before, "no release annotation persisted"
     release = [
         a for a in stream.annotations
-        if a.wp_id == "WP01" and (a.delta.agent == "" or a.delta.shell_pid == 0)
+        if a.wp_id == "WP01" and a.delta.release_runtime_claim
     ]
-    assert release, "no InnerStateChanged released the claim (agent=''/shell_pid=0)"
+    assert release, "no InnerStateChanged released the claim (release_runtime_claim marker)"
     # ...and the WP file bytes did not change.
     assert _content_hash(wp_file) == hash_before, "rollback rewrote tasks/WP01.md bytes"
 
