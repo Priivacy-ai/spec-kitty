@@ -48,6 +48,7 @@ __all__ = ["coord_topology_mission", "flat_topology_mission"]
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.fast
 def test_wps_yaml_classifies_to_tasks_index_primary_partition() -> None:
     """``wps.yaml`` classifies to the PRIMARY-partition ``TASKS_INDEX`` kind.
 
@@ -70,6 +71,7 @@ def test_wps_yaml_classifies_to_tasks_index_primary_partition() -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.fast
 def test_collect_finalize_artifacts_includes_wps_yaml(tmp_path: Path) -> None:
     """``_collect_finalize_artifacts`` must return ``feature_dir/wps.yaml``.
 
