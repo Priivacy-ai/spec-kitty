@@ -195,6 +195,13 @@ def _collect_finalize_artifacts(
         feature_dir / "status.events.jsonl",
         feature_dir / "status.json",
         feature_dir / TASKS_MD_FILENAME,
+        # partition-authority-residuals-01M021K9 WP06 (#2937 / FR-009 / D-001
+        # default): the wps.yaml manifest is the finalize INPUT that tasks.md is
+        # regenerated from. Version it here so the finalized checkpoint can
+        # reproduce its own state (INV-5) — it classifies to the PRIMARY-partition
+        # TASKS_INDEX kind, so the commit router routes it to target_branch with
+        # tasks.md.
+        feature_dir / "wps.yaml",
         feature_dir / "acceptance-matrix.json",
         # write-surface-coherence WP08 (#2804 / #2404 T043 / G3): sweep the
         # terminal ``issue-matrix.json`` — the retired ``issue-matrix.md`` is
@@ -1528,7 +1535,12 @@ def _commit_finalize_artifacts(
     try:
         files_to_commit = _collect_finalize_artifacts(planning_dir, tasks_dir, mission_slug, lanes_path=lanes_path)
         files_to_commit_rel = [str(path.relative_to(repo_root)) for path in files_to_commit]
-        outcome.files_committed = list(files_to_commit_rel)
+        # partition-authority-residuals-01M021K9 WP06 (#2937 / FR-009): report the
+        # TRUE committed set — ``files_committed`` is populated ONLY once the router
+        # actually lands a commit (below), never up front. Reporting the full
+        # candidate set here regardless of outcome misled automated callers on the
+        # no-change / "unchanged" paths (nothing was committed, yet every candidate
+        # was named as committed).
 
         has_relevant_changes = False
         if files_to_commit_rel:
@@ -1564,6 +1576,8 @@ def _commit_finalize_artifacts(
         if router_result.status == "committed":
             outcome.commit_hash = router_result.commit_hash
             outcome.commit_created = True
+            # WP06 (#2937 / FR-009): only now is the committed set real.
+            outcome.files_committed = list(files_to_commit_rel)
             outcome.commit_hashes = [
                 {"branch": ref, "hash": commit_hash} for ref, commit_hash in router_result.commit_hashes
             ]
