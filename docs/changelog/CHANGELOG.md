@@ -193,6 +193,19 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **A reviewer running a different agent profile than the implementer can now
+  claim a completed work package for review — the false "WP already claimed for
+  review by `<implementer>`" refusal is gone (`#3455`).** Before, claiming a WP
+  for review (`for_review → in_review`) compared the claim holder's identity,
+  which at `for_review` is structurally the *implementer* — so any cross-profile
+  reviewer (e.g. `reviewer-renata` reviewing `python-pedro`'s work) was rejected
+  as a self-review collision, and the block surfaced on the status aggregate
+  seam rather than the `move-task` command. Now the `for_review → in_review` edge
+  is allow-only, and a genuine reviewer-vs-reviewer collision is decided by a
+  single pure predicate at the `in_review` re-claim site (a real second reviewer
+  is still blocked, and the message names the holder). Role is read from the
+  reduced status slot, never by splitting the compact actor string (`#2861`).
+
 - **Coord/primary partition-authority residuals: out-of-loop callers now resolve
   the correct partition surface, so coordination-topology missions stop deadlocking
   and mis-reporting (mission `partition-authority-residuals-01M021K9`; epics `#2160`
