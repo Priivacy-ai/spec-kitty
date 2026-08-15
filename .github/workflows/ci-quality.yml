@@ -1074,115 +1074,30 @@ jobs:
   # Runs before fast-tests so breakage in foundational code is surfaced first.
   # Coverage floor: 90% (kernel is small, stable, and must be well-tested).
   # ---------------------------------------------------------------------------
+  # Delegates to the reusable module-kernel.yml workflow (mission #3447, D1(a)).
+  # The job id (kernel-tests) and gate are unchanged, so every downstream
+  # `needs: kernel-tests` (fast-tests-doctrine, diff-coverage, quality-gate,
+  # sonarcloud) still resolves, and the module's coverage-kernel.xml /
+  # kernel-test-reports artifact aggregates into this same run.
   kernel-tests:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes]
     if: >-
       always()
       && (needs.changes.outputs.kernel == 'true' || github.event_name == 'push')
-
-    steps:
-      - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v6
-
-      - name: "[ENFORCED] Set up uv"
-        uses: astral-sh/setup-uv@v8.1.0
-        with:
-          python-version: '3.12'
-
-      - name: "[ENFORCED] Install dependencies"
-        run: uv sync --frozen --all-extras
-
-      - name: "[ENFORCED] Prepare report directories"
-        run: |
-          mkdir -p out/reports/xunit-reports
-          mkdir -p out/reports/coverage
-
-      - name: "[ENFORCED] Run kernel test suite with coverage"
-        run: |
-          uv run python -m pytest \
-            -v \
-            tests/kernel/ \
-            -m "fast and not windows_ci" \
-            --timeout=240 --timeout-method=signal \
-            --cov=src/kernel \
-            --cov-report=term-missing \
-            --cov-report=xml:out/reports/coverage/coverage-kernel.xml \
-            --junitxml=out/reports/xunit-reports/xunit-result-kernel-${{ github.run_id }}.xml
-
-      - name: "[ENFORCED] Enforce kernel coverage floor (90%)"
-        run: |
-          uv run python - <<'PY'
-          import xml.etree.ElementTree as ET
-
-          report = ET.parse("out/reports/coverage/coverage-kernel.xml").getroot()
-          pct = float(report.attrib["line-rate"]) * 100.0
-          floor = 90.0
-          print(f"Kernel coverage: {pct:.2f}% (floor: {floor:.2f}%)")
-          if pct < floor:
-              raise SystemExit(
-                  f"Kernel coverage floor not met: {pct:.2f}% < {floor:.2f}%"
-              )
-          PY
-
-      - name: "[ENFORCED] Upload kernel-test artifacts"
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: kernel-test-reports
-          path: out/reports/
+    uses: ./.github/workflows/module-kernel.yml
 
   # ---------------------------------------------------------------------------
   # fast-tests-doctrine: fast suite for doctrine package only.
   # ---------------------------------------------------------------------------
+  # Delegates to the reusable module-doctrine-fast.yml workflow (#3447, D1(a)).
+  # Same job id (fast-tests-doctrine) + needs + gate, so downstream `needs:` and
+  # coverage-fast-doctrine.xml aggregation are unchanged.
   fast-tests-doctrine:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, kernel-tests]
     if: >-
       always()
       && (needs.changes.outputs.doctrine == 'true' || github.event_name == 'push')
-
-    steps:
-      - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v6
-
-      - name: "[ENFORCED] Set up uv"
-        uses: astral-sh/setup-uv@v8.1.0
-        with:
-          python-version: '3.12'
-
-      - name: "[ENFORCED] Install dependencies"
-        run: uv sync --frozen --all-extras
-
-      - name: "[ENFORCED] Prepare report directories"
-        run: |
-          mkdir -p out/reports/xunit-reports
-          mkdir -p out/reports/coverage
-
-      # PENDING-CI: T019 flip — collection-equivalence verified locally
-      # (serial == parallel nodeids); requires CI green x3 (run-twice/thrice
-      # ratchet) before trusting this flip. Safe after WP04 HOME isolation.
-      # See mission test-suite-acceleration.
-      - name: "[ENFORCED] Run fast doctrine tests with coverage"
-        run: |
-          uv run python -m pytest \
-            -v \
-            tests/doctrine/ \
-            -m "fast and not windows_ci" \
-            --timeout=240 --timeout-method=signal \
-            -n auto --dist loadfile \
-            --durations=50 \
-            --cov=doctrine --cov=charter \
-            --cov-report=term-missing \
-            --cov-report=xml:out/reports/coverage/coverage-fast-doctrine.xml \
-            --junitxml=out/reports/xunit-reports/xunit-result-fast-doctrine-${{ github.run_id }}.xml
-
-      - name: "[ENFORCED] Upload fast-doctrine artifacts"
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: fast-test-doctrine-reports
-          path: out/reports/
+    uses: ./.github/workflows/module-doctrine-fast.yml
 
   # ---------------------------------------------------------------------------
   # Tier 0 fast-tests: no inter-module dependencies
@@ -1865,40 +1780,15 @@ jobs:
   # FAILS -- a fail-safe RED, never masked (no `|| true`, no
   # `--suppress-no-test-exit-code`).
   # ---------------------------------------------------------------------------
+  # Delegates to the reusable module-packs.yml workflow (mission #3447, D1(a)).
+  # Same job id (fast-tests-corpus) + gate, so downstream `needs:` resolve and
+  # coverage-fast-corpus.xml aggregates into this run.
   fast-tests-corpus:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes]
     if: >-
       always()
       && (needs.changes.outputs.corpus == 'true' || github.event_name == 'push')
-    steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v8.1.0
-        with:
-          python-version: '3.12'
-      - run: uv sync --frozen --all-extras
-      - run: mkdir -p out/reports/coverage
-      - name: "Run fast tests — corpus"
-        run: |
-          uv run python -m pytest \
-            tests/architectural \
-            tests/charter/synthesizer \
-            tests/contract \
-            tests/doctrine \
-            tests/glossary \
-            tests/integration \
-            -m "corpus and not windows_ci" -q --tb=short \
-            --timeout=240 --timeout-method=signal \
-            -n auto --dist loadfile \
-            --durations=50 \
-            --cov=src/doctrine \
-            --cov-report=xml:out/reports/coverage/coverage-fast-corpus.xml
-      - name: "Upload fast-corpus coverage"
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: fast-test-corpus-reports
-          path: out/reports/
+    uses: ./.github/workflows/module-packs.yml
 
   # ---------------------------------------------------------------------------
   # fast-tests-docs: dedicated CHEAP job for docs-only changes (#2359). A
@@ -2503,46 +2393,14 @@ jobs:
           name: integration-test-agent-reports
           path: out/reports/
 
+  # Delegates to module-doctrine-integration.yml (#3447, D1(a)). Same job id +
+  # needs + gate; coverage-integration-doctrine.xml aggregation unchanged.
   integration-tests-doctrine:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-doctrine]
     if: >-
       always()
       && (needs.changes.outputs.doctrine == 'true' || github.event_name == 'push')
-    steps:
-      - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v6
-
-      - name: "[ENFORCED] Set up uv"
-        uses: astral-sh/setup-uv@v8.1.0
-        with:
-          python-version: '3.12'
-
-      - name: "[ENFORCED] Install dependencies"
-        run: uv sync --frozen --all-extras
-
-      - name: "[ENFORCED] Prepare report directories"
-        run: |
-          mkdir -p out/reports/xunit-reports
-          mkdir -p out/reports/coverage
-
-      - name: "[ENFORCED] Run doctrine integration tests with coverage"
-        run: |
-          uv run python -m pytest \
-            -v \
-            tests/doctrine/ \
-            -m "integration and not windows_ci" \
-            -n auto --dist loadfile -p no:cacheprovider \
-            --cov=doctrine --cov=charter \
-            --cov-report=xml:out/reports/coverage/coverage-integration-doctrine.xml \
-            --junitxml=out/reports/xunit-reports/xunit-result-integration-doctrine-${{ github.run_id }}.xml
-
-      - name: "[ENFORCED] Upload integration-doctrine artifacts"
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: integration-test-doctrine-reports
-          path: out/reports/
+    uses: ./.github/workflows/module-doctrine-integration.yml
 
   integration-tests-charter:
     runs-on: blacksmith-4vcpu-ubuntu-2404

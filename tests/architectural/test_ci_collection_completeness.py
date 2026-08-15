@@ -897,3 +897,91 @@ def test_analyze_default_still_models_every_job(
 ) -> None:
     """The ``active_jobs=None`` default is unchanged for existing callers."""
     assert gc.analyze(gates, universe) == gc.analyze(gates, universe, None)
+
+
+def _union_src_cov_targets() -> set[str]:
+    """The union of every ``--cov`` target across all modeled workflows."""
+    targets: set[str] = set()
+    for name in gc.WORKFLOW_FILES:
+        model = gc.load_workflow_model(gc.WORKFLOWS_DIR / name)
+        for job_targets in model.cov_targets.values():
+            targets.update(job_targets)
+    return targets
+
+
+def test_wp01_kernel_extraction_preserves_coverage_and_delegates() -> None:
+    """WP01 (#3447, FR-001/FR-002, C-004): the ``kernel-tests`` job delegates to
+    the reusable ``module-kernel.yml`` workflow, and ``src/kernel`` remains a
+    modeled coverage emitter after the extraction.
+
+    RED on the planning base (``module-kernel.yml`` did not exist and the
+    ``kernel-tests`` job had inline ``steps:``); GREEN once the kernel suite is
+    lifted into the reusable workflow that ci-quality invokes via ``uses:``.
+    Non-vacuous: it fails if the reusable workflow is dropped, if the delegation
+    is removed, or if the extraction loses the ``src/kernel`` coverage emitter or
+    renames ``coverage-kernel.xml`` (which the glob aggregators depend on, C-004).
+    """
+    module_kernel = gc.WORKFLOWS_DIR / "module-kernel.yml"
+    assert module_kernel.exists(), "module-kernel.yml reusable workflow is missing"
+
+    module_text = module_kernel.read_text(encoding="utf-8")
+    # Reusable-workflow trigger (no standalone push/PR trigger — runs in-run).
+    assert gc.load_workflow_model(module_kernel).push_branches == ()
+    assert "workflow_call" in module_text
+    # C-004: the coverage artifact filename is preserved for glob aggregation.
+    assert "coverage-kernel.xml" in module_text
+
+    # The reusable workflow is the one that emits the kernel coverage.
+    module_targets = {
+        target
+        for job_targets in gc.load_workflow_model(module_kernel).cov_targets.values()
+        for target in job_targets
+    }
+    assert any(gc.cov_target_repo_path(t) == "src/kernel" for t in module_targets)
+
+    # ci-quality's kernel-tests job delegates to the reusable workflow.
+    ci_quality_text = (gc.WORKFLOWS_DIR / "ci-quality.yml").read_text(encoding="utf-8")
+    assert "uses: ./.github/workflows/module-kernel.yml" in ci_quality_text
+
+    # NFR-001: the extraction did not drop src/kernel from the modeled emitters.
+    assert any(
+        gc.cov_target_repo_path(t) == "src/kernel" for t in _union_src_cov_targets()
+    )
+
+
+def test_splice_inlines_delegate_steps_into_caller() -> None:
+    """WP03 (#3447): load_spliced_workflow inlines a reusable-workflow caller's
+    delegate steps, so ci-quality's kernel-tests caller is modeled with the
+    delegate's --cov emitter AND a gate — the mechanism every CI-model guard
+    (including raw readers via load_spliced_workflow) depends on."""
+    model = gc.load_workflow_model(gc.WORKFLOWS_DIR / "ci-quality.yml")
+    kernel_targets = model.cov_targets.get("kernel-tests", frozenset())
+    assert any(gc.cov_target_repo_path(t) == "src/kernel" for t in kernel_targets)
+
+    kernel_gates = [
+        g
+        for g in gc.parse_workflow(gc.WORKFLOWS_DIR / "ci-quality.yml")
+        if g.job == "kernel-tests"
+    ]
+    assert kernel_gates
+    assert any("tests/kernel" in p for g in kernel_gates for p in g.paths)
+
+    # The reusable module is not an independent suite runner.
+    assert "module-kernel.yml" not in gc.WORKFLOW_FILES
+    assert "module-kernel.yml" not in gc.discover_pytest_workflows()
+
+
+def test_every_local_uses_target_resolves_on_disk() -> None:
+    """Review F4: every ``uses: ./.github/workflows/X`` caller in a modeled
+    workflow must resolve to a real file, else the splice silently drops the
+    caller's gate (fail-open). Guards against a dangling reusable reference."""
+    for name in gc.WORKFLOW_FILES:
+        data = gc.load_spliced_workflow(gc.WORKFLOWS_DIR / name)
+        for job in (data.get("jobs") or {}).values():
+            if not isinstance(job, dict):
+                continue
+            target = gc._job_uses_local(job)
+            if target is not None:
+                assert (gc.WORKFLOWS_DIR / target).exists(), (
+                    f"{name}: uses ./.github/workflows/{target} does not resolve"
+                )
