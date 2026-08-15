@@ -12,7 +12,7 @@ requirement_refs:
 - NFR-006
 planning_base_branch: codex/setup-plan-hard-gates
 merge_target_branch: codex/setup-plan-hard-gates
-branch_strategy: Пакет начинается только от approved WP02 и выполняется в отдельной task-owned lane.
+branch_strategy: Planning artifacts for this mission were generated on codex/setup-plan-hard-gates. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/setup-plan-hard-gates unless the human explicitly redirects the landing branch.
 subtasks:
 - T014
 - T015
