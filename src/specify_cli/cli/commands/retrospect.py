@@ -56,6 +56,7 @@ from specify_cli.retrospective.schema import GenActor, GenProvenance, Provenance
 from specify_cli.retrospective.summary import (
     classify_mission_record,
     iter_mission_instance_dirs,
+    legacy_registry_record_dir,
 )
 from specify_cli.status import read_events
 from specify_cli.status import TERMINAL_LANES
@@ -1023,7 +1024,7 @@ def summary_cmd(  # noqa: C901
 
         # Back-compat: legacy in-registry record keyed by mission_id.
         if state == "missing" and mission_id:
-            registry_dir = resolved_project / KITTIFY_DIR / "missions" / str(mission_id)
+            registry_dir = legacy_registry_record_dir(resolved_project, mission_id)
             if (registry_dir / RETROSPECTIVE_FILENAME).exists():
                 state = classify_mission_record(registry_dir)
 
