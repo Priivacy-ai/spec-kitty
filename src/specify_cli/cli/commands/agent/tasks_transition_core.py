@@ -194,6 +194,47 @@ TransitionOutcome = Emit | RefuseExit1
 # ---------------------------------------------------------------------------
 
 
+def _wire_contract_allows_force_free(
+    old_lane: str,
+    new_lane: str,
+    reason: str | None,
+    review_ref: str | None,
+) -> bool:
+    """Ask the SHARED ``spec-kitty-events`` contract whether this backward edge
+    is legal *without* ``force`` (#3307).
+
+    The emit decision must be governed by the wire contract the SaaS ingestion
+    endpoint enforces — not only the CLI-local FSM. The two historically gave
+    opposite answers for the review-rejection family (``*-> planned`` and
+    ``in_review -> in_progress``): the local FSM accepted them force-free given
+    plan-layer evidence, while the shared package declares them
+    ``force=True``-required, so contract-invalid ``force=False`` events were
+    emitted and queued silently, only to be rejected 11+ days later at sync.
+
+    Fail-closed: if the candidate cannot even be represented as a force-free
+    wire payload, treat the edge as force-required.
+    """
+    from spec_kitty_events import validate_transition as _wire_validate
+    from spec_kitty_events.status import StatusTransitionPayload
+
+    try:
+        candidate = StatusTransitionPayload(
+            mission_slug="_wire_probe",
+            wp_id="_wire_probe",
+            from_lane=old_lane,
+            to_lane=new_lane,
+            actor="cli",
+            force=False,
+            reason=reason,
+            execution_mode="direct_repo",
+            review_ref=review_ref,
+            evidence=None,
+        )
+    except (ValueError, TypeError):
+        return False
+    return bool(_wire_validate(candidate).valid)
+
+
 def build_transition_plan(
     *,
     old_lane: str,
@@ -212,21 +253,28 @@ def build_transition_plan(
     planned-rollback / arbiter side effects (they are ``None`` on the happy path).
 
     FR-015 (force provenance): a backward edge is NOT blindly auto-promoted to
-    ``emit_force=True`` anymore. Instead we **ask the FSM** whether the edge is
-    legal *force-free* given the evidence we actually carry at the plan layer
-    (``reason`` / ``review_ref``, plus ``review_result`` when the caller supplies
-    it) and only promote ``emit_force`` when the FSM genuinely rejects it. This is
-    edge-agnostic — there is deliberately **no hard-coded edge list** (it would rot
-    if the transition matrix changes; ``contracts/emit-force.md``).
+    ``emit_force=True``. We ask the FSM whether the edge is legal *force-free*
+    given the plan-layer evidence (``reason`` / ``review_ref``, plus
+    ``review_result`` when the caller supplies it). This is edge-agnostic — there
+    is deliberately **no hard-coded edge list** (it would rot if the transition
+    matrix changes; ``contracts/emit-force.md``).
+
+    #3307: the FSM verdict alone is NOT sufficient to stay force-free. The wire
+    event we emit is consumed by the SaaS ingestion endpoint, which enforces the
+    **shared** ``spec-kitty-events`` contract — and that contract declares the
+    review-rejection family (``in_progress|for_review|in_review|approved ->
+    planned`` and ``in_review -> in_progress``) ``force=True``-required
+    regardless of evidence. So we gate on BOTH: stay force-free only when the
+    internal FSM *and* the shared wire contract agree (see
+    :func:`_wire_contract_allows_force_free`); otherwise emit ``force=True`` with
+    the structured rewind rationale. This keeps the emitted event conformant with
+    the very package this project vendors, instead of producing ``force=False``
+    events its own dependency rejects.
 
     ``review_result`` is the seam WP06 threads its structured review outcome
-    (reviewer + verdict + reference) into for the two ``in_review -> *`` edges. In
-    the WP02 window it is always ``None``, so those two edges are FSM-rejected
-    force-free and honestly stay ``emit_force=True`` (WP02 supplies no valid
-    evidence for them); WP06 populates it and flips them force-free. The three
-    plan-reachable edges (``in_progress -> planned``, ``approved -> in_progress``,
-    ``approved -> planned``) resolve force-free here from the ``reason`` /
-    ``review_ref`` evidence WP02 already carries.
+    (reviewer + verdict + reference) into for the two ``in_review -> *`` edges; it
+    still feeds the internal FSM verdict, but the shared wire contract is now the
+    binding gate for the family's force flag.
     """
     canonical_lane = resolve_lane_alias(target_lane)
 
@@ -243,6 +291,18 @@ def build_transition_plan(
     # Arbiter override reuses the rejection's review_ref when no base ref applies.
     if arb_review_ref and emit_review_ref is None:
         emit_review_ref = arb_review_ref
+
+    # #3307: the shared wire contract requires a ``review_ref`` on the
+    # review-rollback edges out of ``for_review`` / ``in_review`` / ``approved``
+    # into ``in_progress`` / ``planned`` — and, for ``in_review -> in_progress``,
+    # ``force=True`` does NOT exempt it (that edge is outside the mandatory-force
+    # ``*-> planned`` family). When a structured ``review_result`` carries a
+    # reference, thread it onto the wire so the emitted event conforms instead of
+    # being rejected at sync for a missing ``review_ref``.
+    if emit_review_ref is None and review_result is not None:
+        review_result_ref = getattr(review_result, "reference", None)
+        if isinstance(review_result_ref, str) and review_result_ref.strip():
+            emit_review_ref = review_result_ref
 
     emit_reason: str | None = note_text if note_text else None
     if force and not emit_reason:
@@ -271,7 +331,16 @@ def build_transition_plan(
         legal_force_free, _ = validate_transition(
             old_lane, canonical_lane, ctx_with_evidence
         )
-        emit_force = not legal_force_free
+        # #3307: stay force-free ONLY when the internal FSM *and* the shared
+        # wire contract (the one the SaaS ingestion endpoint enforces) both
+        # accept the edge force-free. When the wire contract requires force —
+        # the review-rejection family does — emit ``force=True`` and carry the
+        # structured rewind rationale below, rather than silently emitting a
+        # contract-invalid ``force=False`` event.
+        wire_allows_force_free = _wire_contract_allows_force_free(
+            old_lane, canonical_lane, emit_reason, emit_review_ref
+        )
+        emit_force = not (legal_force_free and wire_allows_force_free)
         original_reason = (
             None
             if emit_reason is None or emit_reason.startswith("move-task: ")
