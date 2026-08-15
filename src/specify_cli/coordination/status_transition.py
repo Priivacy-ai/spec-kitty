@@ -42,6 +42,7 @@ from specify_cli.status.models import (
     Lane,
     StatusEvent,
     TransitionRequest,
+    WPInnerStateDelta,
     actor_identity_str,
 )
 from specify_cli.status.reducer import reduce as _reduce_events
@@ -1382,6 +1383,85 @@ def emit_status_transition_transactional(
             event=event,
         )
         return event
+
+
+def emit_inner_state_changed_transactional(
+    feature_dir: Path,
+    wp_id: str,
+    delta: WPInnerStateDelta,
+    *,
+    actor: str,
+    mission_slug: str,
+    at: str | None = None,
+    repo_root: Path | None = None,
+    operation: str | None = None,
+    capability: GuardCapability = GuardCapability.STANDARD,
+) -> InnerStateChanged:
+    """Persist AND commit one off-axis ``InnerStateChanged`` annotation (FR-007).
+
+    The commit-durable sibling of
+    :func:`specify_cli.status.emit.emit_inner_state_changed`. On a coordination
+    topology the annotation rides a ``BookkeepingTransaction`` — the SAME atomic
+    emit+commit seam :func:`emit_status_transition_transactional` uses for a lane
+    hop — so the coord ``status.events.jsonl`` / ``status.json`` are committed on
+    the coordination ref and a caller such as ``move-task`` returns a clean tree
+    (#2939) rather than one dirtied by a written-but-uncommitted annotation.
+
+    On a coord-less topology (``SINGLE_BRANCH`` / ``LANES`` / flat) it delegates to
+    the uncommitted ``emit_inner_state_changed`` so the primary-write behaviour is
+    byte-identical to the pre-fix path (no-op parity — the #2939 asymmetry only
+    exists on coord, where the lane hop commits but the annotation did not). The
+    coord-vs-primary decision reads the identity's own ``coordination_branch`` —
+    the same field ``_transaction_topology_available`` checks first and the field
+    that decides coord routing everywhere — never a new predicate (C-001); STATUS
+    stays on its resolved surface either way (C-002).
+
+    ``emit_inner_state_changed`` itself is UNCHANGED and stays partition-agnostic
+    (#2939): the durability decision lives here, at the commit layer.
+    """
+    request = TransitionRequest(
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        actor=actor,
+        repo_root=repo_root,
+    )
+    identity = _identity_for_request(request)
+    if identity.coordination_branch is None:
+        return _emit.emit_inner_state_changed(
+            feature_dir,
+            wp_id,
+            delta,
+            actor=actor,
+            mission_slug=mission_slug,
+            at=at,
+            repo_root=repo_root,
+        )
+
+    annotation = _annotate(
+        wp_id,
+        delta,
+        actor=actor,
+        at=at or now_utc_iso(),
+        event_id=_emit._generate_ulid(),
+    )
+    # WP04/FR-004 parity: a legacy mission (no ULID) supplies the explicit
+    # f"legacy-{slug}" worktree-lock identifier ONLY — never persisted to an event.
+    _txn_mission_id = identity.mission_id or f"legacy-{mission_slug}"
+    with BookkeepingTransaction.acquire(
+        repo_root=identity.repo_root,
+        mission_id=_txn_mission_id,
+        mission_slug=mission_slug,
+        mid8=identity.mid8,
+        destination_ref=identity.destination_ref,
+        operation=operation or f"inner-state annotation {wp_id}",
+        capability=capability,
+    ) as txn:
+        txn.append_events([annotation])
+        txn.defer_outbound(
+            _deferred_resolved_binding_fan_out(annotation, mission_slug)
+        )
+    return annotation
 
 
 def emit_status_transition_batch_transactional(
