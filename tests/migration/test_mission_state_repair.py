@@ -204,6 +204,148 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     )
 
 
+def test_repair_preserves_legacy_typed_wpstatuschanged_lane_transition(
+    tmp_path: Path,
+) -> None:
+    """#3066 (FR-015): the mutating repair MUST NOT quarantine a legacy
+    ``WPStatusChanged`` lane transition emitted by the mission's own writer
+    (top-level ``wp_id`` / ``from_lane`` / ``to_lane``).
+
+    Before the fix the repair quarantined that row and — because a preserved
+    retrospective row keeps the log non-empty, so the #2376 all-dropped backstop
+    never trips — *succeeded* while regenerating a **zero-WP** ``status.json``: a
+    silent, data-destroying repair. After the fix the typed lane row is passed
+    through, canonicalized to a flat lane event, and folded back into
+    ``status.json`` (the WP is retained). TeamSpace replay envelopes (lane
+    fields under ``payload``) and ``DecisionPoint*`` mirrors MUST stay
+    quarantined regardless.
+    """
+    repo = tmp_path
+    mission = repo / "kitty-specs" / "042-legacy-typed"
+    mission.mkdir(parents=True)
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "feature_number": "042",
+            "feature_slug": "042-legacy-typed",
+            "friendly_name": "Legacy Typed",
+            "mission": "software-dev",
+            "slug": "042-legacy-typed",
+            "target_branch": "main",
+        },
+    )
+    # The mission's own WPStatusChanged writer shape: event_type PLUS top-level
+    # wp_id/from_lane/to_lane. This is the canonical-writer row that #3066 ate.
+    legacy_typed_row = {
+        "actor": "Claude Code",
+        "at": "2026-01-01T00:00:00+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGR",
+        "event_type": "WPStatusChanged",
+        "execution_mode": "worktree",
+        "from_lane": "in_progress",
+        "mission_slug": "042-legacy-typed",
+        "to_lane": "in_review",
+        "wp_id": "WP01",
+    }
+    # TeamSpace replay envelope: same event_type, but lane fields nested under
+    # payload (top level is aggregate_id/aggregate_type). MUST stay quarantined.
+    teamspace_envelope_row = {
+        "aggregate_id": "WP01",
+        "aggregate_type": "WorkPackage",
+        "at": "2026-01-01T00:00:01+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGS",
+        "event_type": "WPStatusChanged",
+        "payload": {
+            "from_lane": "in_progress",
+            "to_lane": "in_review",
+            "wp_id": "WP01",
+        },
+    }
+    # Decision-Moment mirror: a different event_type. MUST stay quarantined.
+    decision_point_row = {
+        "at": "2026-01-01T00:00:02+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGT",
+        "event_type": "DecisionPointOpened",
+        "payload": {"decision_point_id": "DP01"},
+    }
+    # Preserved retrospective lifecycle row: keeps the canonical log non-empty so
+    # the #2376 all-dropped backstop does NOT trip and mask the real #3066 defect
+    # (a *successful* repair that silently regenerates a zero-WP status.json).
+    retrospective_row = {
+        "at": "2026-01-01T00:00:03+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGU",
+        "type": "RetrospectiveCaptured",
+        "payload": {"mission_slug": "042-legacy-typed"},
+    }
+    (mission / "status.events.jsonl").write_text(
+        "\n".join(
+            json.dumps(row, sort_keys=True)
+            for row in (
+                legacy_typed_row,
+                teamspace_envelope_row,
+                decision_point_row,
+                retrospective_row,
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = repair_repo(repo)
+
+    result = report.missions[0]
+    assert result.status == "updated"
+
+    # status.json RETAINS the WP — the zero-WP regeneration is the #3066 defect.
+    status = _read_json(mission / "status.json")
+    work_packages = cast(dict[str, object], status["work_packages"])
+    assert set(work_packages) == {"WP01"}
+    status_summary = cast(dict[str, object], status["summary"])
+    assert status_summary["in_review"] == 1
+
+    # The legacy typed lane row survived, canonicalized to a flat lane event; the
+    # preserved retrospective row is kept untouched.
+    rows = [
+        json.loads(line)
+        for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    lane_rows = [row for row in rows if row.get("wp_id") == "WP01"]
+    assert len(lane_rows) == 1
+    canonical = lane_rows[0]
+    assert canonical["from_lane"] == "in_progress"
+    assert canonical["to_lane"] == "in_review"
+    # The typed discriminator is stripped by the _build_canonical_row allowlist.
+    assert "event_type" not in canonical
+    assert retrospective_row in rows
+
+    # Only the TeamSpace envelope and the DecisionPoint mirror stay quarantined;
+    # the canonical-writer WPStatusChanged shape does NOT.
+    assert result.quarantined_rows == 2
+    quarantine = (
+        repo
+        / ".kittify"
+        / "migrations"
+        / "mission-state"
+        / "quarantine"
+        / report.run_id
+        / "042-legacy-typed"
+        / "status.events.jsonl"
+    )
+    quarantine_rows = [
+        json.loads(line)
+        for line in quarantine.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    quarantined_event_ids = {row["event_id"] for row in quarantine_rows}
+    assert quarantined_event_ids == {
+        "01KQHRB8GCFJAX7HM4ZY52AQGS",  # TeamSpace envelope
+        "01KQHRB8GCFJAX7HM4ZY52AQGT",  # DecisionPointOpened mirror
+    }
+    assert "01KQHRB8GCFJAX7HM4ZY52AQGR" not in quarantined_event_ids
+
+
 def test_repair_is_idempotent_after_first_canonicalization(tmp_path: Path) -> None:
     repo = tmp_path
     mission = repo / "kitty-specs" / "001-modern"
