@@ -1,0 +1,126 @@
+{
+  "mission_slug": "windows-hard-gate-restoration-task-01M00HSC",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Contract-\u0442\u0435\u0441\u0442\u044b \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u044e\u0442 \u043f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0435\u043d\u043d\u044b\u0439 null sink \u0438 \u0437\u0430\u043a\u0440\u044b\u0432\u0430\u0435\u043c\u044b\u0439 \u043f\u043e\u0442\u043e\u043a.",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_machine_facing_canonical_fields.py::test_contract_null_sink_is_platform_owned_and_closed",
+      "pass_fail": "pass",
+      "verified_by": "codex-parent",
+      "verified_at": "2026-08-15T12:00:00Z",
+      "notes": "WP01 targeted contract oracle \u043f\u0440\u043e\u0445\u043e\u0434\u0438\u0442."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Collection \u043d\u0435 \u0437\u0430\u0432\u0438\u0441\u0438\u0442 \u043e\u0442 \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u044e\u0449\u0438\u0445 POSIX EUID/resource/signal API.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 seven-file collect-only: 170 collected, 0 errors; capability-gated architecture packet",
+      "pass_fail": "pass",
+      "verified_by": "codex-parent",
+      "verified_at": "2026-08-15T12:00:00Z",
+      "notes": "\u041d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0435 Windows capability \u043f\u0440\u043e\u0432\u0435\u0440\u044f\u044e\u0442\u0441\u044f \u044f\u0432\u043d\u044b\u043c skip/oracle."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "\u0410\u0440\u0445\u0438\u0442\u0435\u043a\u0442\u0443\u0440\u043d\u044b\u0435 inventory \u0438 census \u0441\u0440\u0430\u0432\u043d\u0438\u0432\u0430\u044e\u0442 repo-relative \u043f\u0443\u0442\u0438 \u0432 POSIX-\u043f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0438.",
+      "proof_type": "automated_test",
+      "evidence": "WP02 targeted architecture packet: 39 passed; test_actual_repo_relative_key_matches_static_posix_oracle",
+      "pass_fail": "pass",
+      "verified_by": "codex-parent",
+      "verified_at": "2026-08-15T12:00:00Z",
+      "notes": "Windows separator mutation \u043e\u0431\u043d\u0430\u0440\u0443\u0436\u0438\u0432\u0430\u0435\u0442\u0441\u044f."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Drift \u0440\u0430\u0437\u0434\u0435\u043b\u0451\u043d \u043d\u0430 Windows-\u043f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435, stale inventory \u0438 \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0439 boundary bypass.",
+      "proof_type": "code_review",
+      "evidence": "WP02 RED 0a96951f: 6 failures/3 positive controls; GREEN 048678182 and follow-up d0148304e",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-15T12:00:00Z",
+      "notes": "\u041d\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e\u0435 \u0440\u0435\u0432\u044c\u044e APPROVE."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "mission_creation \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442 canonical topology authority \u0432\u043c\u0435\u0441\u0442\u043e \u0441\u044b\u0440\u043e\u0433\u043e predicate.",
+      "proof_type": "automated_test",
+      "evidence": "mission_creation.py AST oracle; test_topology_resolution_boundary.py; raw-predicate mutation killed",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-15T12:00:00Z",
+      "notes": "\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442\u0441\u044f is_under_worktrees_segment."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "\u0420\u0430\u043d\u0435\u0435 \u043f\u0440\u043e\u0431\u043b\u0435\u043c\u043d\u044b\u0435 Windows-\u0444\u0430\u0439\u043b\u044b \u0441\u043e\u0431\u0438\u0440\u0430\u044e\u0442\u0441\u044f \u0431\u0435\u0437 platform-specific import errors.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 seven-file collect-only: 170 collected, 0 errors",
+      "pass_fail": "pass",
+      "verified_by": "codex-parent",
+      "verified_at": "2026-08-15T12:00:00Z",
+      "notes": "Full suite baseline failures \u043d\u0435 \u043e\u0442\u043d\u043e\u0441\u044f\u0442\u0441\u044f \u043a collection portability."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "\u0418\u0441\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043d\u044b\u0435 guards \u043e\u0441\u0442\u0430\u044e\u0442\u0441\u044f non-vacuous \u0438 \u043f\u0430\u0434\u0430\u044e\u0442 \u043d\u0430 mutation/negative cases.",
+      "proof_type": "automated_test",
+      "evidence": "Inventory-row deletion and raw-predicate restoration mutations both failed as expected, then GREEN restored",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-15T12:00:00Z",
+      "notes": "Positive controls \u0442\u0430\u043a\u0436\u0435 \u043f\u0440\u043e\u0445\u043e\u0434\u044f\u0442."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "codemap JSON, HTML \u0438 lock \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u043d\u044b \u0441 callers/impact/tests.",
+      "proof_type": "automated_test",
+      "evidence": "Codemap parity: 15/15 nodes, 28/28 edges; codemap.lock SHA-256 exact",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-15T12:00:00Z",
+      "notes": "\u041a\u0430\u0440\u0442\u0430 \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0430 \u0432 \u0442\u043e\u043c \u0436\u0435 production commit."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "\u041b\u043e\u043a\u0430\u043b\u044c\u043d\u0430\u044f \u0438 \u0432\u043d\u0435\u0448\u043d\u044f\u044f \u0433\u043e\u0442\u043e\u0432\u043d\u043e\u0441\u0442\u044c \u0440\u0430\u0437\u0434\u0435\u043b\u0435\u043d\u044b: \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u0435 E2E-\u0434\u043e\u0441\u0442\u0443\u043f\u0430 \u043d\u0435 \u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u0441\u044f release-pass.",
+      "proof_type": "code_review",
+      "evidence": "contracts/hard-gate-result.md; \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0435 gates \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u044b, e2e_access=blocked, e2e_ready=false, release_ready=false",
+      "pass_fail": "pass",
+      "verified_by": "codex-parent",
+      "verified_at": "2026-08-15T12:00:00Z",
+      "notes": "\u0412\u043d\u0435\u0448\u043d\u0438\u0439 Priivacy-ai/spec-kitty-end-to-end-testing \u043d\u0435 \u043e\u0431\u044a\u044f\u0432\u043b\u044f\u0435\u0442\u0441\u044f \u043f\u0440\u043e\u0439\u0434\u0435\u043d\u043d\u044b\u043c."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Handoff \u0441\u043e\u0434\u0435\u0440\u0436\u0438\u0442 SHA, worktree, branch, \u043a\u043e\u043c\u0430\u043d\u0434\u044b, counts \u0438 baseline blockers.",
+      "proof_type": "code_review",
+      "evidence": "RED 0a96951f, GREEN 048678182, follow-up d0148304e; WP01 RED/GREEN; review APPROVE; parent gate packet",
+      "pass_fail": "pass",
+      "verified_by": "codex-parent",
+      "verified_at": "2026-08-15T12:00:00Z",
+      "notes": "Unrelated full-suite baseline failures \u043f\u0435\u0440\u0435\u0447\u0438\u0441\u043b\u0435\u043d\u044b \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e \u0438 \u043d\u0435 \u0441\u043a\u0440\u044b\u0442\u044b."
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "mission_creation \u043d\u0435 \u0441\u043e\u0434\u0435\u0440\u0436\u0438\u0442 raw topology predicate.",
+      "verification_method": "custom_command",
+      "verification_command": "AST oracle in tests/architectural/test_topology_resolution_boundary.py",
+      "result": "confirmed_absent",
+      "evidence": "Raw-predicate mutation fails 2 tests; restored GREEN passes."
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "\u041e\u0431\u0435 canonical inventory \u0441\u0442\u0440\u043e\u043a\u0438 \u0440\u0435\u0430\u043b\u044c\u043d\u043e \u043f\u043e\u043a\u0440\u044b\u0432\u0430\u044e\u0442\u0441\u044f audit \u0438 \u043d\u0435 \u044f\u0432\u043b\u044f\u044e\u0442\u0441\u044f \u0434\u0435\u043a\u043e\u0440\u0430\u0442\u0438\u0432\u043d\u044b\u043c\u0438.",
+      "verification_method": "custom_command",
+      "verification_command": "Delete-row mutation against both inventory files",
+      "result": "confirmed_absent",
+      "evidence": "Mutation produced 4 expected failures before restoration."
+    }
+  ]
+}
