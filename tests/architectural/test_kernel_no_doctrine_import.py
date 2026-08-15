@@ -176,6 +176,18 @@ def _scan_file(path: Path, relative_to: Path) -> list[tuple[str, int, str]]:
     return found
 
 
+def test_scan_file_emits_posix_relative_keys_on_windows(tmp_path: Path) -> None:
+    """Static inventory keys remain stable across host path separators."""
+    source = tmp_path / "src" / "kernel" / "bad.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("import doctrine\n", encoding="utf-8")
+
+    violations = _scan_file(source, tmp_path)
+
+    assert violations
+    assert violations[0][0] == "src/kernel/bad.py"
+
+
 def collect_forbidden_vocabulary(root: Path, *, relative_to: Path | None = None) -> list[tuple[str, int, str]]:
     """Return ``(relative_path, lineno, detail)`` for every violation under ``root``.
 

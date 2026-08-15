@@ -31,6 +31,7 @@ Two independent concerns, both required by the squad's F4 finding:
 from __future__ import annotations
 
 import hashlib
+import sys
 from pathlib import Path
 
 import pytest
@@ -66,6 +67,32 @@ def _seed_digest() -> str:
     # seed test to import). TID251 explicitly carves out "file-integrity
     # checks" as a justified non-charter use of hashlib directly.
     return hashlib.sha256(_SEED_PATH.read_bytes()).hexdigest()  # noqa: TID251
+
+
+def test_seed_digest_normalizes_crlf_without_mutating_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Git-LF and a Windows CRLF checkout represent the same seed bytes."""
+    seed = tmp_path / "seed.yaml"
+    raw = b"first: value\r\nsecond: value\r\n"
+    seed.write_bytes(raw)
+    monkeypatch.setattr(sys.modules[__name__], "_SEED_PATH", seed)
+
+    assert _seed_digest() == hashlib.sha256(b"first: value\nsecond: value\n").hexdigest()
+    assert seed.read_bytes() == raw
+
+
+def test_seed_digest_rejects_mixed_newlines(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seed = tmp_path / "seed.yaml"
+    seed.write_bytes(b"first: value\r\nsecond: value\n")
+    monkeypatch.setattr(sys.modules[__name__], "_SEED_PATH", seed)
+
+    with pytest.raises(ValueError, match="newline"):
+        _seed_digest()
 
 
 # ---------------------------------------------------------------------------

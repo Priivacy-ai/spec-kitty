@@ -212,6 +212,13 @@ def test_identical_sets_pass() -> None:
     assert not shrunk_node_ids(baseline, baseline)
 
 
+def test_windows_capability_fallback_keeps_committed_posix_node_id() -> None:
+    """Capability fallback must not silently rename the collection floor node."""
+    source = Path(__file__).with_name("..") / "review" / "test_pre_review_gate_engine.py"
+    text = source.resolve().read_text(encoding="utf-8")
+    assert 'pytest.param(True, signal.SIGKILL, id="True-9")' in text
+
+
 @pytest.mark.slow
 @pytest.mark.parametrize(
     ("issue", "node_id"),
