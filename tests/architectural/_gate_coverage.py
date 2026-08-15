@@ -646,7 +646,7 @@ def _splice_local_uses(data: dict[str, Any], workflows_dir: Path) -> dict[str, A
         target_jobs = target.get("jobs") or {}
         # Single-purpose assumption made load-bearing: flattening multiple
         # delegate jobs into one caller key would conflate their markers/coverage.
-        assert len(target_jobs) == 1, (
+        assert len(target_jobs) == 1, (  # golden-count: cardinality-is-contract
             f"reusable workflow {called} must define exactly one job to splice "
             f"into caller {name!r}; found {sorted(target_jobs)}"
         )
