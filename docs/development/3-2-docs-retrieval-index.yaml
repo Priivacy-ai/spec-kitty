@@ -4128,6 +4128,8 @@ pages:
     - {slug: "both-composition-roots", text: "Both composition roots", level: 2}
     - {slug: "the-compliance-taxonomy", text: "The compliance taxonomy", level: 2}
     - {slug: "honest-bounds", text: "Honest bounds", level: 2}
+    - {slug: "partition-move-audit-checklist", text: "Partition-Move Audit Checklist", level: 2}
+    - {slug: "two-axis-resolver-site-classification", text: "Two-Axis Resolver-Site Classification", level: 2}
     - {slug: "citations", text: "Citations", level: 2}
   - path: "docs/architecture/assessments/code-as-a-crime-scene-overview.md"
     title: "Code as a Crime Scene — High-Level Overview"
@@ -4453,9 +4455,11 @@ pages:
     abstract: "Spec Kitty's lane-based execution model: finalize-tasks computes lanes.json from dependencies and file ownership, giving each lane one worktree and branch to preserve parallelism."
     anchors:
     - {slug: "core-rules", text: "Core Rules", level: 2}
+    - {slug: "workspace-resolution-contract", text: "Workspace Resolution Contract", level: 2}
     - {slug: "naming", text: "Naming", level: 2}
     - {slug: "why-this-replaced-per-wp-worktrees", text: "Why This Replaced Per-WP Worktrees", level: 2}
     - {slug: "parallelism-preservation", text: "Parallelism Preservation", level: 2}
+    - {slug: "disjoint-ownership-vs-the-surface-heuristic-bulk-edit-missions", text: "Disjoint Ownership vs. the Surface Heuristic (bulk-edit missions)", level: 3}
     - {slug: "see-also", text: "See Also", level: 2}
     - {slug: "lane-specific-test-database-isolation-fr-006", text: "Lane-Specific Test Database Isolation (FR-006)", level: 2}
   - path: "docs/architecture/explanation-index.md"
@@ -4590,6 +4594,7 @@ pages:
     - {slug: "the-git-directory", text: "The .git Directory", level: 3}
     - {slug: "what-worktrees-share", text: "What Worktrees Share", level: 3}
     - {slug: "what-worktrees-don-t-share", text: "What Worktrees Don't Share", level: 3}
+    - {slug: "cross-mission-concurrency-is-a-different-question", text: "Cross-Mission Concurrency Is a Different Question", level: 3}
     - {slug: "worktrees-vs-cloning", text: "Worktrees vs. Cloning", level: 2}
     - {slug: "git-commands-for-worktrees", text: "Git Commands for Worktrees", level: 2}
     - {slug: "list-all-worktrees", text: "List All Worktrees", level: 3}
@@ -6501,6 +6506,16 @@ pages:
     - {slug: "g5-behavior-quirks-filed-as-bugs-wp05-t014", text: "G5 — Behavior quirks filed as bugs (WP05 / T014)", level: 2}
     - {slug: "g6-env-tracker-conventions-wp04-commit-d0ee639f6", text: "G6 — Env/tracker conventions (WP04, commit `d0ee639f6`)", level: 2}
     - {slug: "corrections-surfaced-this-run", text: "Corrections surfaced this run", level: 2}
+  - path: "docs/development/agent-memory-workflow-migration-manifest.md"
+    title: "Agent-Memory Workflow Migration Manifest (Bucket 2)"
+    divio_type: "reference"
+    abstract: "Audit manifest mapping 49 workflow/CI/git/status-and-sync mechanics memory entries to their repo-native home, an echo, a learned fact, or a private disposition."
+    anchors:
+    - {slug: "resolution-vocabulary", text: "Resolution vocabulary", level: 2}
+    - {slug: "cluster-a-8212-landing-git-17", text: "Cluster A &#8212; Landing / git (17)", level: 2}
+    - {slug: "cluster-b-8212-ci-14", text: "Cluster B &#8212; CI (14)", level: 2}
+    - {slug: "cluster-c-8212-status-mission-sync-18", text: "Cluster C &#8212; Status / mission / sync (18)", level: 2}
+    - {slug: "corrections-surfaced-this-run", text: "Corrections surfaced this run", level: 2}
   - path: "docs/development/contributing.md"
     title: "Contributing to Spec Kitty"
     divio_type: "how-to"
@@ -6566,6 +6581,16 @@ pages:
     anchors:
     - {slug: "how-to-use-it", text: "How to use it", level: 2}
     - {slug: "the-priming-prompt", text: "The priming prompt", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/development/how-to/compress-mission-history.md"
+    title: "Compress mission history: path-bucket snapshot-chain recipe"
+    divio_type: "how-to"
+    abstract: "The path-bucket git commit-tree recipe for compressing a noisy mission branch into a clean, reviewable history with a proven tree-parity guarantee, and why not git rebase -i."
+    anchors:
+    - {slug: "why-not-git-rebase-i", text: "Why not `git rebase -i`", level: 2}
+    - {slug: "the-recipe", text: "The recipe", level: 2}
+    - {slug: "handling-deletions-and-renames", text: "Handling deletions and renames", level: 2}
+    - {slug: "after-compression", text: "After compression", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/how-to/contract-pinning.md"
     title: "Contract pinning workflow (`spec-kitty-events`)"
@@ -6651,6 +6676,8 @@ pages:
     - {slug: "2-one-isolated-worktree-per-pr", text: "2. One isolated worktree per PR", level: 2}
     - {slug: "3-rebase-onto-current-upstream-main-first", text: "3. Rebase onto current upstream/main first", level: 2}
     - {slug: "4-classify-every-red-check", text: "4. Classify every red check", level: 2}
+    - {slug: "multi-wp-lanes-classify-against-the-true-base-not-the-lane-tip", text: "Multi-WP lanes: classify against the true base, not the lane tip", level: 3}
+    - {slug: "stale-stack-diagnostic-two-dot-vs-three-dot-diff", text: "Stale-stack diagnostic: two-dot vs three-dot diff", level: 3}
     - {slug: "5-folds-remediation-commits-on-the-contributor-branch", text: "5. Folds: remediation commits on the contributor branch", level: 2}
     - {slug: "clean-history-compress-bookkeeping-keep-code-separate", text: "Clean history: compress bookkeeping, keep code separate", level: 3}
     - {slug: "6-red-first-verification-for-bugfix-prs", text: "6. Red-first verification for bugfix PRs", level: 2}
@@ -6664,9 +6691,9 @@ pages:
     - {slug: "gotchas", text: "Gotchas", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/how-to/review-gates.md"
-    title: "Review Gates: Pre-PR / Pre-Review Checklist"
+    title: "Review Gates: Pre-PR Hygiene, Review-Cycle Mechanics, and the Merge Gate"
     divio_type: "how-to"
-    abstract: "The pre-PR/pre-review hygiene checklist contributors run locally — environment sync and test gates — so review focuses on substance, not avoidable environment drift."
+    abstract: "The review-cycle-artifact and merge-gate mechanics, the --skip-review-artifact-check override, and the issue-matrix discovery surface, so review and merge focus on substance."
     anchors:
     - {slug: "environment-hygiene-before-review-pr", text: "Environment hygiene before review/PR", level: 2}
     - {slug: "why", text: "Why", level: 3}
@@ -6675,6 +6702,8 @@ pages:
     - {slug: "typer-click-version-skew-spec-kitty-review-preflight", text: "Typer/click version skew (`spec-kitty review` preflight)", level: 2}
     - {slug: "running-the-ci-residual-selection-locally", text: "Running the CI residual selection locally", level: 2}
     - {slug: "pre-review-regression-gate-move-task-to-for-review", text: "Pre-review regression gate (`move-task --to for_review`)", level: 2}
+    - {slug: "review-cycle-artifacts-and-the-merge-gate", text: "Review-cycle artifacts and the merge gate", level: 2}
+    - {slug: "issue-matrix-discovery-and-issue-verdict-actor", text: "Issue-matrix discovery and `issue-verdict --actor`", level: 2}
     - {slug: "pr-draft-and-wip-title-conventions", text: "PR draft and WIP-title conventions", level: 2}
     - {slug: "pr-body-style-consumer-focused-bluf", text: "PR body style: consumer-focused BLUF", level: 2}
     - {slug: "changelog-update-and-style", text: "Changelog update and style", level: 2}
@@ -6705,6 +6734,7 @@ pages:
     anchors:
     - {slug: "the-three-signals-at-a-glance", text: "The three signals at a glance", level: 2}
     - {slug: "the-internal-gate-s-critical-path-allowlist", text: "The internal gate's critical-path allowlist", level: 3}
+    - {slug: "remedy-git-mv-into-a-critical-path-dir-needs-fast-marked-coverage", text: "Remedy: `git mv` into a critical-path dir needs `fast`-marked coverage", level: 3}
     - {slug: "why-the-numbers-differ-the-evidence", text: "Why the numbers differ (the evidence)", level: 2}
     - {slug: "the-verdict-file-set-and-philosophy-differ-but-nothing-is-misconfigured", text: "The verdict: file-set **and** philosophy differ — but nothing is misconfigured", level: 2}
     - {slug: "decision-aid-real-regression-or-expected-scope-difference", text: "Decision aid: real regression, or expected scope difference?", level: 2}
@@ -8938,6 +8968,18 @@ pages:
     - {slug: "hosted-auth-sync-test-environment-gate", text: "Hosted auth / sync test environment gate", level: 2}
     - {slug: "developer-test-quickstart", text: "Developer / test quickstart", level: 2}
     - {slug: "1071-regression-coverage", text: "#1071 regression coverage", level: 2}
+  - path: "docs/operations/sync-drain.md"
+    title: "Sync-Drain Runbook: the 3-Gate Order and the Doctor False-Green Trap"
+    divio_type: "none"
+    abstract: "Work the 3-gate sync-drain order (flag/consent, auth, teamspace) and avoid the `sync doctor` false-green trap."
+    anchors:
+    - {slug: "gate-1-is-hosted-sync-on-and-does-this-project-consent", text: "Gate 1 — is hosted sync on, and does this project consent?", level: 2}
+    - {slug: "gate-2-is-this-machine-authenticated", text: "Gate 2 — is this machine authenticated?", level: 2}
+    - {slug: "gate-3-does-the-session-resolve-a-private-teamspace", text: "Gate 3 — does the session resolve a Private Teamspace?", level: 2}
+    - {slug: "the-sync-doctor-false-green-trap", text: "The `sync doctor` false-green trap", level: 2}
+    - {slug: "a-name-you-may-see-and-can-ignore-sync-migrate", text: "A name you may see and can ignore: `sync migrate`", level: 2}
+    - {slug: "spec-kitty-home-and-the-drain", text: "`SPEC_KITTY_HOME` and the drain", level: 2}
+    - {slug: "related", text: "Related", level: 2}
   - path: "docs/plans/3-2-doc-publication/3-2-archive-migration-plan.md"
     title: "Spec Kitty 3.2 — Archive & Migration Plan"
     divio_type: "none"

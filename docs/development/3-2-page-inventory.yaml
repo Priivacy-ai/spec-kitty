@@ -2048,6 +2048,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/agent-memory-workflow-migration-manifest.md
+  tag: current
+  divio_type: reference
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/contributing.md
   tag: current
   divio_type: how-to
@@ -2067,6 +2073,12 @@
   current_target: true
   notes: null
 - path: docs/development/getting-started/onboarding-run.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/how-to/compress-mission-history.md
   tag: current
   divio_type: how-to
   owning_workstream: none
@@ -2997,6 +3009,12 @@
   current_target: true
   notes: null
 - path: docs/operations/sync-daemon-orphan-cleanup.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/operations/sync-drain.md
   tag: current
   divio_type: none
   owning_workstream: none
