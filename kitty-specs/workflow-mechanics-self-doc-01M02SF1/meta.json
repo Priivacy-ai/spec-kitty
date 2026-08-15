@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-08-15T13:23:30.984761+00:00",
+  "flattened": false,
+  "friendly_name": "Self-documenting repo (Bucket 2): workflow/CI/status mechanics",
+  "mission_id": "01M02SF118H336EA7HSKHTDPKK",
+  "mission_number": null,
+  "mission_slug": "workflow-mechanics-self-doc-01M02SF1",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Self-documenting repo (Bucket 2): workflow/CI/status mechanics on kitty/mission-workflow-self-doc so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Migrate the workflow/CI/git/status-mechanics agent-memory into canonical repo homes (#3464)",
+  "slug": "workflow-mechanics-self-doc-01M02SF1",
+  "target_branch": "kitty/mission-workflow-self-doc",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-15T14:14:04.351841+00:00"
+}
