@@ -25,7 +25,7 @@ related:
 > [ADR 2026-07-17-1](../../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md),
 > and the issue tracker.
 
-**Snapshot date: 2026-07-24 · Spec Kitty 3.2.x.** Proof that this list drifts:
+**Snapshot date: 2026-08-15 · Spec Kitty 3.2.x.** Proof that this list drifts:
 `#2772` was a known-red P0 when this note was first drafted and has since been
 closed — so the "known reds" below are already a different set than a month ago.
 
@@ -44,6 +44,32 @@ closed — so the "known reds" below are already a different set than a month ag
 - **Stale-install false reds.** Commands that shell out to `spec-kitty` (e.g.
   the `merge-driver-*` commands) only reflect your working tree after
   `pip install -e .` / `uv pip install -e .`. Re-install after every rebase.
+- **The `pr:deferred` / `pr:skip-ci` labels skip nearly every required PR
+  workflow — a green check can mean "not run," not "passed."** Most
+  `.github/workflows/*.yml` job `if:` conditions include
+  `!contains(github.event.pull_request.labels.*.name, 'pr:deferred') &&
+  !contains(..., 'pr:skip-ci')` (`ci-quality.yml`,
+  `doctrine-charter-tests.yml`, `ci-windows.yml`, `docs-freshness.yml`,
+  `ui-e2e.yml`, `canonical-producer-lint.yml`, `plugin-validate.yml`,
+  `orchestrator-boundary.yml`, `drift-detector.yml`,
+  `check-spec-kitty-events-alignment.yml`, and more). Either label makes those
+  jobs report **skipped**, not passed. Check the PR's label list before
+  treating an all-green run as evidence the change is safe; a skipped job is
+  unverified, not clean. (See [pr-landing.md §4](../how-to/pr-landing.md) for
+  how to classify checks once you *do* have real CI results to read.)
+- **`charter lint`'s project-DRG input (`.kittify/doctrine/graph.yaml`) looks
+  gitignored but is deliberately un-ignored — confirm it is tracked and
+  in-diff before filing a lint finding.** `.gitignore` blanket-excludes
+  `.kittify/doctrine/**` and then re-includes specific subpaths, including
+  `!.kittify/doctrine/graph.yaml`; the file is meant to be committed and is
+  the first candidate `charter_runtime/lint/_drg.py::_load_project_drg`
+  reads (ahead of `merged_drg.json` / `drg.json` / `compiled_drg.json`). If
+  it is stale or absent, `charter lint` silently falls back to
+  `GraphState.BUILT_IN_ONLY` (or `MISSING`) and skips project-layer checks
+  rather than failing loudly — so before treating a `charter lint` result as
+  authoritative, confirm `git ls-files .kittify/doctrine/graph.yaml` shows it
+  tracked and that `spec-kitty charter synthesize` regenerated it in your
+  diff if doctrine artifacts changed.
 - **Real-port / daemon tests are not HOME-isolated** (ports 9400–9449). Run them
   serially with `-n0`. Leaked daemons from a prior run squat those ports and fail
   singleton/reaping tests (`test_issue_1071_*`) with a "got 2 ports" assertion —
