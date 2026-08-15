@@ -471,9 +471,17 @@ def test_resolve_placement_only_rejects_pruned_target_branch_3033(
 
 
 # ---------------------------------------------------------------------------
-# WP05 (#2966 part-2): _resolve_mission_aware_target routes through the shared
-# resolve_write_target_or_degrade helper (parity with the 3 sibling committers),
-# WHILE preserving its refusal contract:
+# partition-authority-residuals (#2966 follow-up): _resolve_mission_aware_target
+# calls mission_runtime.resolve_placement_only DIRECTLY (restored -- WP05
+# briefly rerouted this through the shared resolve_write_target_or_degrade
+# helper for parity with the 3 sibling committers, but that helper's
+# _mission_meta_exists pre-gate short-circuits BEFORE resolve_placement_only
+# is ever consulted for a mission with no meta.json yet -- exactly the
+# create->first-write window a freshly-written kitty-specs/<slug>/spec.md
+# sits in (the #2063 case this function exists to fix). See
+# _resolve_mission_aware_target's docstring for the full rationale.
+#
+# Refusal contract (unchanged throughout):
 #   * CONSOLIDATED_CONTENT_ABSENT  -> raises MissionAwareCommitRefused
 #   * benign FileNotFoundError / ValueError / other ActionContextError -> None
 # ---------------------------------------------------------------------------
@@ -486,57 +494,58 @@ from specify_cli.cli.commands.safe_commit_cmd import (  # noqa: E402
 )
 
 
-def _guard_no_direct_placement_call(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Fail loudly if the fix still calls ``resolve_placement_only`` directly.
+def _guard_no_shared_helper_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fail loudly if the fix routes through the shared degrade helper.
 
-    BEFORE the WP05 fix ``_resolve_mission_aware_target`` calls
-    ``mission_runtime.resolve_placement_only`` directly (bypassing the shared
-    helper); this sentinel turns that direct call into a hard error so the
-    routing tests are genuinely red-before / green-after.
+    The shared ``resolve_write_target_or_degrade`` helper's
+    ``_mission_meta_exists`` pre-gate is the wrong contract for this call
+    site (see the module comment above); this sentinel turns a call into
+    that helper into a hard error so the routing tests catch a regression
+    back to the WP05 shape.
     """
 
     def _boom(*_a: object, **_k: object) -> object:
         raise AssertionError(
-            "_resolve_mission_aware_target must NOT call resolve_placement_only "
-            "directly -- it must route through resolve_write_target_or_degrade "
-            "(WP05 / #2966 part-2 parity with the 3 sibling committers)."
+            "_resolve_mission_aware_target must NOT route through "
+            "resolve_write_target_or_degrade -- its _mission_meta_exists "
+            "pre-gate blocks resolve_placement_only for a meta-less "
+            "kitty-specs/ artifact (the #2063 create-window case). It must "
+            "call resolve_placement_only directly."
         )
 
-    monkeypatch.setattr(_mission_runtime, "resolve_placement_only", _boom)
+    monkeypatch.setattr(_mission_runtime, "resolve_write_target_or_degrade", _boom)
 
 
-def test_resolve_mission_aware_target_routes_through_shared_helper(
+def test_resolve_mission_aware_target_calls_placement_only_directly(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """WP05 FR-008: the 4th committer resolves via the shared degrade helper.
+    """The mission-aware target resolves via a direct ``resolve_placement_only`` call.
 
-    Asserts (a) ``resolve_write_target_or_degrade`` is invoked with the same
-    fail-closed contract the siblings use (``degrade_ref=None``, kind passed
-    through) and (b) its resolved ``CommitTarget`` is returned verbatim.
+    Asserts (a) ``resolve_placement_only`` is invoked with the mission slug
+    and kind threaded through (no shared-helper indirection, no meta-gate)
+    and (b) its resolved ``CommitTarget`` is returned verbatim.
     """
-    _guard_no_direct_placement_call(monkeypatch)
+    _guard_no_shared_helper_call(monkeypatch)
     calls: list[dict[str, object]] = []
     sentinel = CommitTarget(ref="seam-resolved-branch")
 
-    def _fake_helper(
+    def _fake_resolve_placement_only(
         repo_root: Path,
         mission_slug: str,
-        kind: MissionArtifactKind,
         *,
-        degrade_ref: str | None,
+        kind: MissionArtifactKind,
     ) -> CommitTarget:
         calls.append(
             {
                 "repo_root": repo_root,
                 "mission_slug": mission_slug,
                 "kind": kind,
-                "degrade_ref": degrade_ref,
             }
         )
         return sentinel
 
     monkeypatch.setattr(
-        _mission_runtime, "resolve_write_target_or_degrade", _fake_helper
+        _mission_runtime, "resolve_placement_only", _fake_resolve_placement_only
     )
 
     result = _resolve_mission_aware_target(
@@ -549,7 +558,6 @@ def test_resolve_mission_aware_target_routes_through_shared_helper(
             "repo_root": tmp_path,
             "mission_slug": "my-mission",
             "kind": MissionArtifactKind.SPEC,
-            "degrade_ref": None,  # fail-closed parity with the 3 siblings
         }
     ]
 
@@ -557,24 +565,23 @@ def test_resolve_mission_aware_target_routes_through_shared_helper(
 def test_resolve_mission_aware_target_consolidated_absent_still_refuses(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """WP05 refusal-parity: CONSOLIDATED_CONTENT_ABSENT -> MissionAwareCommitRefused.
+    """CONSOLIDATED_CONTENT_ABSENT -> MissionAwareCommitRefused.
 
-    The shared helper re-raises a caught resolution failure as an
-    ``ActionContextError`` preserving its ``.code``; the fail-closed path
-    (``degrade_ref=None``) therefore surfaces the ``CONSOLIDATED_CONTENT_ABSENT``
-    code, which MUST still translate to the off-checkout refusal (C-004 /
-    SC-004) rather than degrade to the WRONG (HEAD) branch.
+    ``resolve_placement_only`` itself raises this structured off-checkout
+    refusal (FR-006 / SC-004); it MUST still translate to
+    ``MissionAwareCommitRefused`` rather than degrade to the WRONG (HEAD)
+    branch.
     """
-    _guard_no_direct_placement_call(monkeypatch)
+    _guard_no_shared_helper_call(monkeypatch)
 
-    def _fake_helper(*_a: object, **_k: object) -> CommitTarget:
+    def _fake_resolve_placement_only(*_a: object, **_k: object) -> CommitTarget:
         raise _mission_runtime.ActionContextError(
             _CONSOLIDATED_CONTENT_ABSENT_CODE,
             "mission is published but this checkout lacks consolidated content",
         )
 
     monkeypatch.setattr(
-        _mission_runtime, "resolve_write_target_or_degrade", _fake_helper
+        _mission_runtime, "resolve_placement_only", _fake_resolve_placement_only
     )
 
     with pytest.raises(MissionAwareCommitRefused):
@@ -597,20 +604,20 @@ def test_resolve_mission_aware_target_consolidated_absent_still_refuses(
 def test_resolve_mission_aware_target_benign_failure_still_degrades(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, raised: Exception
 ) -> None:
-    """WP05 refusal-parity: benign resolution failures still degrade to ``None``.
+    """Benign resolution failures still degrade to ``None``.
 
     A legitimate operator commit that merely *looks* mission-scoped (no
     ``meta.json`` yet, an ad-hoc fixture, or a non-CONSOLIDATED resolution
     error) must keep degrading to ``None`` so the caller falls back to the
-    generic HEAD path -- it must NOT start failing after the reroute.
+    generic HEAD path.
     """
-    _guard_no_direct_placement_call(monkeypatch)
+    _guard_no_shared_helper_call(monkeypatch)
 
-    def _fake_helper(*_a: object, **_k: object) -> CommitTarget:
+    def _fake_resolve_placement_only(*_a: object, **_k: object) -> CommitTarget:
         raise raised
 
     monkeypatch.setattr(
-        _mission_runtime, "resolve_write_target_or_degrade", _fake_helper
+        _mission_runtime, "resolve_placement_only", _fake_resolve_placement_only
     )
 
     assert (
