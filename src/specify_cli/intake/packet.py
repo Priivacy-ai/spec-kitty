@@ -65,6 +65,52 @@ def _optional_str(value: object) -> str | None:
     return stripped or None
 
 
+def _acceptance_criteria_valid(value: object) -> bool:
+    """Return ``True`` when ``value`` is absent or a well-formed AC list.
+
+    Absent ``acceptance_criteria`` is fine (it's optional). When present,
+    each item must be a dict with a non-empty string ``id`` and a
+    non-empty string ``statement`` — the contract's "adopted verbatim"
+    promise (handoff-packet-v1.md degradation table, malformed-AC row)
+    only holds if the ids are actually validated, not just counted.
+    """
+    if value is None:
+        return True
+    if not isinstance(value, list):
+        return False
+    for item in value:
+        if not isinstance(item, dict):
+            return False
+        ac_id = item.get("id")
+        ac_statement = item.get("statement")
+        if not isinstance(ac_id, str) or not ac_id.strip():
+            return False
+        if not isinstance(ac_statement, str) or not ac_statement.strip():
+            return False
+    return True
+
+
+def _valid_constraint_count(value: object) -> int | None:
+    """Return the count of well-formed constraints, or ``None`` if malformed.
+
+    Absent ``constraints`` is fine (count 0). When present, every item
+    must be a dict with a non-empty string ``id``; a malformed item
+    degrades the whole packet to prose rather than silently inflating
+    ``constraint_count`` via a bare ``len()``.
+    """
+    if value is None:
+        return 0
+    if not isinstance(value, list):
+        return None
+    for item in value:
+        if not isinstance(item, dict):
+            return None
+        constraint_id = item.get("id")
+        if not isinstance(constraint_id, str) or not constraint_id.strip():
+            return None
+    return len(value)
+
+
 def parse_handoff_packet(content: str) -> HandoffPacket | None:
     """Return a v1 packet when frontmatter is valid; otherwise ``None`` (prose).
 
@@ -111,13 +157,11 @@ def parse_handoff_packet(content: str) -> HandoffPacket | None:
             return None
         if not isinstance(statement, str) or not statement.strip():
             return None
+        if not _acceptance_criteria_valid(item.get("acceptance_criteria")):
+            return None
         ids.append(req_id.strip())
-    constraints = loaded.get("constraints")
-    if constraints is None:
-        constraint_count = 0
-    elif isinstance(constraints, list):
-        constraint_count = len(constraints)
-    else:
+    constraint_count = _valid_constraint_count(loaded.get("constraints"))
+    if constraint_count is None:
         return None
     return HandoffPacket(
         source_tool=_optional_str(loaded.get("source_tool")),
