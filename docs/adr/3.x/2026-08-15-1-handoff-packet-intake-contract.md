@@ -1,6 +1,6 @@
 ---
 title: 'ADR: Own a Tool-Agnostic, Versioned, Optional Handoff-Packet Intake Contract'
-description: 'Ratifies handoff-packet v1 — an additive, version-gated YAML-frontmatter overlay that lets upstream requirements tools seed spec-kitty intake with stable FR/AC ids, without Spec Kitty knowing any specific producer.'
+description: 'Ratifies handoff-packet v1: an additive, version-gated frontmatter overlay that seeds spec-kitty intake with stable FR/AC ids from upstream tools, degrading to prose when absent.'
 status: Accepted
 date: '2026-08-15'
 related:
