@@ -70,6 +70,10 @@ def test_live_tree_has_no_new_inert_slots() -> None:
             stacklevel=1,
         )
     assert new == [], (
-        "new schema/model slots have no live producer: "
+        "new schema/model slots declared with no live producer -- a real "
+        'store-site (e.g. cfg["key"] = value) somewhere under src/ that actually '
+        "WRITES the slot, not merely a class-body annotation or a schema "
+        "declaration. Wire a real producer for the slot, or delete the unused "
+        "declaration. New: "
         + ", ".join(f"{slot.name} ({slot.declared_at})" for slot in new)
     )
