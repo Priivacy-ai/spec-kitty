@@ -393,3 +393,38 @@ def test_map_requirements_surfaces_undeclared_requirement_citations_without_fail
     warning_text = " ".join(warnings)
     assert "FR-001" in warning_text
     assert "FR-002" in warning_text
+
+
+def test_unknown_ref_failure_still_surfaces_requirement_extraction_warnings(
+    tmp_path: Path,
+) -> None:
+    """RED-FIRST (#3394 review fold commit 1) -- the measured reviewer
+    reproduction: a spec.md whose Functional Requirements are written as bare
+    sentences (FR-001, FR-002 -- none of the four recognized declared shapes)
+    plus a map-requirements call for the (thus unknown) FR-001 must still
+    carry ``requirement_extraction_warnings`` on the BLOCKED exit-1 payload --
+    the operator who was just refused needs to see WHY nothing was found in
+    spec.md, not just that "FR-001" was not found.
+    """
+    fd = _mapping_mission(tmp_path, f"undeclared-fr-blocked-{_MID8}")
+    (fd / "spec.md").write_text(
+        "# Spec\n\n"
+        "## Functional Requirements\n\nFR-001 must hold. FR-002 too.\n\n"
+        "## Declared Functional Requirements\n\n- FR-100: The declared one.\n",
+        encoding="utf-8",
+    )
+    with setup_mocked_env(fd.parent.parent, mission_slug=fd.name):
+        result = CliRunner().invoke(
+            app,
+            ["map-requirements", "--wp", "WP01", "--refs", "FR-001",
+             "--mission", fd.name, "--no-auto-commit", "--json"],
+        )
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    assert payload["error"] == "Invalid requirement refs"
+    assert payload["unknown_refs"] == ["FR-001"]
+    warnings = payload.get("requirement_extraction_warnings")
+    assert warnings, "expected the blocked exit-1 payload to carry the extraction advisory too"
+    warning_text = " ".join(warnings)
+    assert "FR-001" in warning_text
+    assert "FR-002" in warning_text

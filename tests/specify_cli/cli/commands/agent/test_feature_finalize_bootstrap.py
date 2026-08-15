@@ -389,6 +389,91 @@ def _setup_undeclared_fr_feature(tmp_path: Path, mission_slug: str) -> Path:
     return feature_dir
 
 
+def _setup_undeclared_fr_feature_with_missing_wp_refs(tmp_path: Path, mission_slug: str) -> Path:
+    """Like :func:`_setup_undeclared_fr_feature`, but WP02 carries NO
+    ``requirement_refs`` at all -- forcing ``_validate_requirement_mapping``
+    onto the BLOCKED ``typer.Exit(1)`` path (``missing_requirement_refs_wps``)
+    instead of the success path, so the fold-commit-1 guarantee ("the advisory
+    reaches the operator on the exact failure it exists to explain") can be
+    exercised directly.
+    """
+    feature_dir = _setup_feature(tmp_path, mission_slug)
+    (feature_dir / "spec.md").write_text(
+        "---\ntitle: Test Feature\n---\n\n"
+        "## Functional Requirements\n\nFR-001 must hold. FR-002 too.\n\n"
+        "## Declared Functional Requirements\n\n"
+        "| ID | Requirement |\n|----|-------------|\n| FR-100 | The one WPs map to. |\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "tasks" / "WP01-test.md").write_text(
+        '---\nwork_package_id: "WP01"\ntitle: "Test WP01"\nrequirement_refs:\n  - FR-100\ndependencies: []\n---\n\n# WP01\n',
+        encoding="utf-8",
+    )
+    (feature_dir / "tasks" / "WP02-test.md").write_text(
+        '---\nwork_package_id: "WP02"\ntitle: "Test WP02"\nrequirement_refs: []\ndependencies: []\n---\n\n# WP02\n',
+        encoding="utf-8",
+    )
+    return feature_dir
+
+
+class TestRequirementExtractionWarningsSurviveTheBlockedPath:
+    """#3394 review fold commit 1 -- RED-FIRST: the PR's existing tests
+    (``TestRequirementExtractionWarningsInJson`` below) only assert
+    ``requirement_extraction_warnings`` on the SUCCESS envelope.
+    ``_validate_requirement_mapping`` raises ``typer.Exit(1)`` on a payload
+    that historically never carried the advisory -- the operator blocked by
+    THIS EXACT validator never sees the warning explaining why the spec's own
+    FR-001/FR-002 counted as zero coverage in the first place.
+    """
+
+    def test_bare_sentence_frs_advisory_survives_the_blocked_exit_path(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        mission_slug = "060-test-feature-blocked"
+        _setup_undeclared_fr_feature_with_missing_wp_refs(tmp_path, mission_slug)
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+
+        exit_code = 0
+        try:
+            finalize_tasks(feature=mission_slug, json_output=True, validate_only=False)
+        except typer.Exit as exc:
+            exit_code = exc.exit_code if exc.exit_code is not None else 1
+        except SystemExit as exc:
+            exit_code = exc.code if isinstance(exc.code, int) else 1
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        assert exit_code == 1, "expected the requirement-mapping validator to block this fixture"
+
+        captured = capsys.readouterr()
+        for line in captured.out.strip().splitlines():
+            try:
+                data = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if data.get("error") == "Requirement mapping validation failed":
+                assert data.get("missing_requirement_refs_wps") == ["WP02"]
+                warnings = data.get("requirement_extraction_warnings")
+                assert warnings, (
+                    "expected the BLOCKED exit-1 payload to carry the same "
+                    "non-blocking advisory the success path already gets"
+                )
+                warning_text = " ".join(warnings)
+                assert "FR-001" in warning_text
+                assert "FR-002" in warning_text
+                return
+        pytest.fail("No JSON output with the requirement-mapping failure payload found")
+
+
 class TestRequirementExtractionWarningsInJson:
     """#3394 review F1: finalize-tasks' SUCCESS path carries a non-blocking
     signal when spec.md's requirements are written in none of the four

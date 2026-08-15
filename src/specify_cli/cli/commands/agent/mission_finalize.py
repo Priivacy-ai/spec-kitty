@@ -631,6 +631,7 @@ def _validate_requirement_mapping(
     all_spec_requirement_ids: set[str],
     functional_spec_requirement_ids: set[str],
     wp_dependencies: dict[str, list[str]],
+    requirement_extraction_warnings: list[str],
     *,
     json_output: bool,
 ) -> None:
@@ -662,6 +663,12 @@ def _validate_requirement_mapping(
         "unmapped_functional_requirements": unmapped_functional_requirements,
         "dependencies_parsed": wp_dependencies,
         "requirement_refs_parsed": wp_requirement_refs,
+        # #3394 review fold commit 1: the operator blocked by THIS gate is
+        # exactly the audience the advisory exists for -- a spec whose FRs
+        # matched none of the recognized declared shapes is the most likely
+        # reason coverage looks wrong. Carry it on the failure payload too,
+        # not only on the success envelope.
+        "requirement_extraction_warnings": requirement_extraction_warnings,
     }
     if json_output:
         print(json.dumps(payload))
@@ -679,6 +686,10 @@ def _validate_requirement_mapping(
             console.print("[red]Unmapped functional requirements:[/red]")
             for req_id in unmapped_functional_requirements:
                 console.print(f"  - {req_id}")
+        if requirement_extraction_warnings:
+            console.print("[yellow]Warning:[/yellow]")
+            for warning in requirement_extraction_warnings:
+                console.print(f"  {warning}")
     raise typer.Exit(1)
 
 
@@ -1937,6 +1948,7 @@ def finalize_tasks(
             all_spec_requirement_ids,
             functional_spec_requirement_ids,
             dep_resolution.wp_dependencies,
+            requirement_extraction_warnings,
             json_output=json_output,
         )
 

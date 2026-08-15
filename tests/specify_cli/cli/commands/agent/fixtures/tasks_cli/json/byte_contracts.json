@@ -118,7 +118,7 @@
       "--no-auto-commit"
     ],
     "exit_code": 1,
-    "expected_stdout": "{\"error\": \"Invalid requirement refs\", \"unknown_refs\": [\"FR-014\"], \"hint\": \"Refs not found in spec.md. Available: FR-001, FR-002\"}\n"
+    "expected_stdout": "{\"error\": \"Invalid requirement refs\", \"unknown_refs\": [\"FR-014\"], \"hint\": \"Refs not found in spec.md. Available: FR-001, FR-002\", \"requirement_extraction_warnings\": []}\n"
   },
   "map_requirements_stale_frontmatter_error": {
     "site": "tasks.py:3585 map-requirements/error-stale-frontmatter-refs",
@@ -134,7 +134,7 @@
       "--no-auto-commit"
     ],
     "exit_code": 1,
-    "expected_stdout": "{\"error\": \"Stale or invalid refs in WP frontmatter\", \"stale_refs\": {\"WP02\": [\"FR-002a\"]}, \"stale_ref_reasons\": {\"WP02\": {\"malformed\": [\"FR-002a\"], \"unknown_spec_id\": []}}, \"parsed_spec_ids\": [\"FR-001\", \"FR-002\"], \"hint\": \"Requirement IDs must match FR-NNN, NFR-NNN, or C-NNN (e.g. FR-003, not FR-003a). 'malformed' refs violate that format; 'unknown_spec_id' refs are well-formed but not declared in spec.md (see parsed_spec_ids). Re-run with --replace to correct, e.g.: map-requirements --wp WP01 --refs FR-001 --replace\"}\n"
+    "expected_stdout": "{\"error\": \"Stale or invalid refs in WP frontmatter\", \"stale_refs\": {\"WP02\": [\"FR-002a\"]}, \"stale_ref_reasons\": {\"WP02\": {\"malformed\": [\"FR-002a\"], \"unknown_spec_id\": []}}, \"parsed_spec_ids\": [\"FR-001\", \"FR-002\"], \"hint\": \"Requirement IDs must match FR-NNN, NFR-NNN, or C-NNN (e.g. FR-003, not FR-003a). 'malformed' refs violate that format; 'unknown_spec_id' refs are well-formed but not declared in spec.md (see parsed_spec_ids). Re-run with --replace to correct, e.g.: map-requirements --wp WP01 --refs FR-001 --replace\", \"requirement_extraction_warnings\": []}\n"
   },
   "map_requirements_success": {
     "site": "tasks.py:3665 map-requirements/success",

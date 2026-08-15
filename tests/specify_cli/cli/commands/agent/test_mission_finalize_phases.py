@@ -18,6 +18,7 @@ the WP01 golden harness. The relocated ``_collect_finalize_artifacts`` /
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -120,6 +121,7 @@ def test_requirement_mapping_passes_when_all_functional_covered() -> None:
         {"FR-001"},
         {"FR-001"},
         {"WP01": []},
+        [],
         json_output=True,
     )
 
@@ -132,6 +134,7 @@ def test_requirement_mapping_rejects_unmapped_functional() -> None:
             {"FR-001", "FR-002"},
             {"FR-001", "FR-002"},
             {"WP01": []},
+            [],
             json_output=True,
         )
 
@@ -144,6 +147,7 @@ def test_requirement_mapping_rejects_missing_refs() -> None:
             {"FR-001"},
             {"FR-001"},
             {"WP01": []},
+            [],
             json_output=True,
         )
 
@@ -156,8 +160,32 @@ def test_requirement_mapping_rejects_unknown_ref() -> None:
             {"FR-001"},
             {"FR-001"},
             {"WP01": []},
+            [],
             json_output=True,
         )
+
+
+def test_requirement_mapping_failure_payload_carries_extraction_warnings(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """#3394 review fold commit 1: the exit-1 payload must carry the same
+    ``requirement_extraction_warnings`` advisory the success envelope gets --
+    the operator blocked by THIS gate is the audience the advisory exists for.
+    """
+    with pytest.raises(typer.Exit):
+        seam._validate_requirement_mapping(
+            ["WP01"],
+            {},
+            {"FR-001"},
+            {"FR-001"},
+            {"WP01": []},
+            ["Functional Requirements: FR-001 must hold. FR-002 too."],
+            json_output=True,
+        )
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert payload["requirement_extraction_warnings"] == [
+        "Functional Requirements: FR-001 must hold. FR-002 too."
+    ]
 
 
 # ---------------------------------------------------------------------------

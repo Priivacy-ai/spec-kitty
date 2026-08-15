@@ -395,6 +395,10 @@ def _mr_gate_offenders(st: _MapReqState) -> None:
             "error": "Invalid requirement refs",
             "unknown_refs": sorted(set(unknown_refs)),
             "hint": f"Refs not found in spec.md. {available_range}",
+            # #3394 review fold commit 1: the operator blocked here is exactly
+            # who needs to know spec.md's own FRs matched no recognized
+            # declared shape -- surface it on the refusal, not only success.
+            "requirement_extraction_warnings": st.requirement_extraction_warnings,
         }
         if st.json_output:
             render = _tasks.RealRender()
@@ -402,6 +406,8 @@ def _mr_gate_offenders(st: _MapReqState) -> None:
         else:
             _tasks.console.print(f"[red]Error:[/red] Unknown refs: {', '.join(sorted(set(unknown_refs)))}")
             _tasks.console.print(f"  {available_range}")
+            for warning in st.requirement_extraction_warnings:
+                _tasks.console.print(f"[yellow]Warning:[/yellow] {warning}")
         raise typer.Exit(1)
 
 
@@ -516,6 +522,10 @@ def _mr_stale_gate(st: _MapReqState) -> None:
             "(see parsed_spec_ids). Re-run with --replace to correct, "
             "e.g.: map-requirements --wp WP01 --refs FR-001 --replace"
         ),
+        # #3394 review fold commit 1: same shape as the unknown-ref gate above
+        # -- a blocked operator here is equally likely to be staring at a
+        # spec.md whose FRs matched none of the recognized declared shapes.
+        "requirement_extraction_warnings": st.requirement_extraction_warnings,
     }
     if st.json_output:
         render = _tasks.RealRender()
@@ -527,6 +537,8 @@ def _mr_stale_gate(st: _MapReqState) -> None:
             _tasks.console.print(f"  {wp_id}: {', '.join(bad_refs)}")
         _tasks.console.print(f"  Parsed spec IDs: {', '.join(parsed_spec_ids) or '(none)'}")
         _tasks.console.print("  Use --replace to correct mappings")
+        for warning in st.requirement_extraction_warnings:
+            _tasks.console.print(f"[yellow]Warning:[/yellow] {warning}")
     raise typer.Exit(1)
 
 
