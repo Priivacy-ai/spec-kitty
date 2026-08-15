@@ -12,8 +12,12 @@ import re
 from pathlib import Path
 from typing import Any, TypedDict
 
-_REF_PATTERN = re.compile(r"^(?:FR|NFR|C)-\d+$", re.IGNORECASE)
-_REF_FIND_PATTERN = re.compile(r"\b(?:FR|NFR|C)-\d+\b", re.IGNORECASE)
+# Sonar S1192: the FR/NFR/C id alternation appears 5x below (table row,
+# heading, bullet-lead, plus the standalone ref/find patterns) -- hoisted
+# once here rather than repeated as a literal in every re.compile.
+_ID_ALTERNATION = r"(?:FR|NFR|C)-\d+"
+_REF_PATTERN = re.compile(rf"^{_ID_ALTERNATION}$", re.IGNORECASE)
+_REF_FIND_PATTERN = re.compile(rf"\b{_ID_ALTERNATION}\b", re.IGNORECASE)
 
 # --- #3394: declared-requirement scoping -----------------------------------
 #
@@ -51,8 +55,8 @@ _REF_FIND_PATTERN = re.compile(r"\b(?:FR|NFR|C)-\d+\b", re.IGNORECASE)
 # durable record of the number and the rationale. See
 # :func:`find_undeclared_requirement_citations` below for the soft,
 # non-blocking warning shipped instead of that rejected hard-fail layer.
-_TABLE_ROW_ID_PATTERN = re.compile(r"^\s*\|\s*(?:\*\*|~~){0,2}((?:FR|NFR|C)-\d+)(?:\*\*|~~){0,2}\s*\|", re.IGNORECASE)
-_HEADING_ID_PATTERN = re.compile(r"^#{1,6}\s*((?:FR|NFR|C)-\d+)\b", re.IGNORECASE)
+_TABLE_ROW_ID_PATTERN = re.compile(rf"^\s*\|\s*(?:\*\*|~~){{0,2}}({_ID_ALTERNATION})(?:\*\*|~~){{0,2}}\s*\|", re.IGNORECASE)
+_HEADING_ID_PATTERN = re.compile(rf"^#{{1,6}}\s*({_ID_ALTERNATION})\b", re.IGNORECASE)
 # A leading ``-``, ``*``, or ``N.`` marker is itself the "this is a list
 # item, not a sentence" signal that makes an id a declaration. The marker
 # class includes ``*``, so a bold-led line (``**FR-001**: ...``) is
@@ -68,7 +72,7 @@ _HEADING_ID_PATTERN = re.compile(r"^#{1,6}\s*((?:FR|NFR|C)-\d+)\b", re.IGNORECAS
 # at all (``FR-001 must hold...``) matches no marker and is indistinguishable
 # from a citation sentence, so it correctly does NOT count as declared
 # (that's the #3394 bug).
-_BULLET_LEAD_ID_PATTERN = re.compile(r"^\s*(?:[-*]|\d+\.)\s*\*{0,2}((?:FR|NFR|C)-\d+)\b", re.IGNORECASE)
+_BULLET_LEAD_ID_PATTERN = re.compile(rf"^\s*(?:[-*]|\d+\.)\s*\*{{0,2}}({_ID_ALTERNATION})\b", re.IGNORECASE)
 _DECLARED_ID_PATTERNS = (
     _TABLE_ROW_ID_PATTERN,
     _HEADING_ID_PATTERN,
