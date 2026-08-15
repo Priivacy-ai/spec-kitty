@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -754,8 +755,41 @@ def _check_lane_sparse_checkout_drift(
     return findings
 
 
+def _resolve_mission_dirs(repo_root: Path, mission_filter: str | None) -> list[Path]:
+    """Return the ``kitty-specs/`` mission directories to scan.
+
+    Without a filter: every direct child of ``kitty-specs/`` (the existing
+    whole-repo scan). With a ``mission_filter`` handle (FR-012): the single
+    directory the shared mission resolver
+    (:func:`specify_cli.context.mission_resolver.resolve_mission` — the SAME
+    resolver ``doctor mission-state`` uses) maps the handle to.
+    :class:`~specify_cli.context.mission_resolver.MissionNotFoundError` /
+    :class:`~specify_cli.context.mission_resolver.AmbiguousHandleError` propagate
+    to the caller for mission-state-parity error handling — there is no silent
+    fallback.
+
+    ``safe_is_dir`` is evaluated per candidate exactly as the previous inline
+    loop did (``#3194``: an unstattable candidate RAISES rather than being
+    silently dropped).
+    """
+    specs_dir = repo_root / KITTY_SPECS_DIR
+    if not safe_is_dir(specs_dir):
+        return []
+    if mission_filter is not None:
+        from specify_cli.context.mission_resolver import resolve_mission
+
+        return [resolve_mission(mission_filter, repo_root).feature_dir]
+    return [
+        mission_dir
+        for mission_dir in sorted(specs_dir.iterdir())
+        if safe_is_dir(mission_dir)
+    ]
+
+
 def _collect_coordination_findings(
-    repo_root: Path, check_staleness: bool = False,
+    repo_root: Path,
+    check_staleness: bool = False,
+    mission_filter: str | None = None,
 ) -> list[DoctorFinding]:
     """Run all coordination + git-health checks and return the aggregated findings.
 
@@ -763,6 +797,12 @@ def _collect_coordination_findings(
     the Gap-1 coord-branch-vs-``target_branch`` staleness finding for every
     coordinated mission. Off by default so the baseline ``doctor
     coordination`` output stays unchanged.
+
+    ``mission_filter`` (FR-012, ``--mission``) scopes the per-mission
+    kitty-specs iteration to a single mission via the shared resolver; the
+    repo-level checks (git version, tracked-worktrees hygiene, stranded-revert
+    re-verification) always run. Unresolvable / ambiguous handles raise (see
+    :func:`_resolve_mission_dirs`).
     """
     findings: list[DoctorFinding] = []
     findings.extend(_check_git_version())
@@ -771,12 +811,7 @@ def _collect_coordination_findings(
     # FR-007 (#2786 / #2367-B): repo-level stranded-coord-revert re-verification.
     findings.extend(_check_stranded_coord_revert(repo_root))
 
-    specs_dir = repo_root / KITTY_SPECS_DIR
-    if not safe_is_dir(specs_dir):
-        return findings
-    for mission_dir in sorted(specs_dir.iterdir()):
-        if not safe_is_dir(mission_dir):
-            continue
+    for mission_dir in _resolve_mission_dirs(repo_root, mission_filter):
         meta = load_meta(mission_dir, on_malformed="none")
         if meta is None:
             continue
@@ -1308,25 +1343,22 @@ def _fix_one_mission_coord_staleness(
     return None
 
 
-def _apply_coord_staleness_fixes(repo_root: Path) -> list[DoctorFinding]:
+def _apply_coord_staleness_fixes(
+    repo_root: Path, mission_filter: str | None = None
+) -> list[DoctorFinding]:
     """FR-009 (Gap-1, C-003 minimized): fast-forward every coordinated mission's
     coord branch to ``target_branch`` -- and ONLY when that is unambiguously safe.
 
-    Iterates every mission under ``kitty-specs/`` and delegates to
-    :func:`_fix_one_mission_coord_staleness`. Stays the ONLY ``--fix`` behaviour
-    for Gap-1 (C-003): it never attempts a general repair of arbitrary drifted
-    coordination content. Returns the blocked-fix ``error`` findings for any
-    mission whose Gap-1 precondition was unsafe (renata LOW) so the caller can
-    fold them into the post-fix findings -- one such mission no longer aborts
-    fixing every OTHER mission in the same run.
+    Iterates every mission under ``kitty-specs/`` (or the single ``mission_filter``
+    handle, FR-012) and delegates to :func:`_fix_one_mission_coord_staleness`.
+    Stays the ONLY ``--fix`` behaviour for Gap-1 (C-003): it never attempts a
+    general repair of arbitrary drifted coordination content. Returns the
+    blocked-fix ``error`` findings for any mission whose Gap-1 precondition was
+    unsafe (renata LOW) so the caller can fold them into the post-fix findings --
+    one such mission no longer aborts fixing every OTHER mission in the same run.
     """
-    specs_dir = repo_root / KITTY_SPECS_DIR
-    if not safe_is_dir(specs_dir):
-        return []
     blocked: list[DoctorFinding] = []
-    for mission_dir in sorted(specs_dir.iterdir()):
-        if not safe_is_dir(mission_dir):
-            continue
+    for mission_dir in _resolve_mission_dirs(repo_root, mission_filter):
         meta = load_meta(mission_dir, on_malformed="none")
         if meta is None:
             continue
@@ -1360,8 +1392,29 @@ def _emit_coordination_findings(findings: list[DoctorFinding], json_output: bool
             console.print(f"  → {f.next_step}")
 
 
+def _emit_mission_resolver_error(
+    error_code: str, handle: str | None, json_output: bool
+) -> None:
+    """Emit a mission-resolver failure with ``doctor mission-state`` parity.
+
+    JSON surface: a ``{"error": <code>, "handle": <handle>}`` envelope to stdout
+    (mirrors ``_mission_state_doctor._emit_json_error``). Human surface: a red
+    one-liner. The caller raises ``typer.Exit(1)``.
+    """
+    if json_output:
+        json.dump({"error": error_code, "handle": handle}, sys.stdout)
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+    else:
+        label = "Mission not found" if error_code == "MISSION_NOT_FOUND" else "Ambiguous handle"
+        console.print(f"[red]Error:[/red] {label}: {handle!r}")
+
+
 def run_coordination_health(
-    json_output: bool, fix: bool = False, check_staleness: bool = False,
+    json_output: bool,
+    fix: bool = False,
+    check_staleness: bool = False,
+    mission: str | None = None,
 ) -> None:
     """Entry point for ``doctor coordination`` (exit 1 iff any ``error`` finding).
 
@@ -1381,6 +1434,12 @@ def run_coordination_health(
     Gap-1 coord-branch-vs-``target_branch`` staleness findings; it is purely a
     reporting toggle -- the Gap-1 ``--fix`` fast-forward above always runs
     when *fix* is set, independent of this flag.
+
+    ``mission`` (FR-012, ``--mission``) scopes every per-mission check (and the
+    ``--fix`` Gap-1 fast-forward) to the single mission the shared resolver maps
+    the handle to — the SAME resolver ``doctor mission-state`` uses. An
+    unresolvable or ambiguous handle fails closed with exit 1 and a
+    mission-state-parity error (no silent fallback).
     """
     try:
         repo_root = locate_project_root()
@@ -1391,23 +1450,39 @@ def run_coordination_health(
         console.print("[red]Error:[/red] Not in a spec-kitty project")
         raise typer.Exit(1)
 
-    findings = _collect_coordination_findings(repo_root, check_staleness=check_staleness)
+    from specify_cli.context.mission_resolver import (
+        AmbiguousHandleError,
+        MissionNotFoundError,
+    )
 
-    if fix:
-        fix_warnings = _apply_coordination_fixes(findings, repo_root)
-        # FR-009 Gap-1: a per-mission unsafe precondition (diverged / dirty)
-        # now returns a blocked-fix `error` finding (renata LOW) instead of
-        # raising, so one mission's Gap-1 problem no longer aborts fixing
-        # every OTHER mission processed in this run.
-        staleness_blocked = _apply_coord_staleness_fixes(repo_root)
-        # Re-collect findings after fix so the exit code reflects the new state,
-        # then fold in any warnings/blocked-fix findings the fixers raised for
-        # issues they could not heal (pruned worktree / unparseable /
-        # unresolvable / unsafe Gap-1 precondition) — these must not be
-        # silently dropped by the re-collect.
-        findings = _collect_coordination_findings(repo_root, check_staleness=check_staleness)
-        findings.extend(fix_warnings)
-        findings.extend(staleness_blocked)
+    try:
+        findings = _collect_coordination_findings(
+            repo_root, check_staleness=check_staleness, mission_filter=mission
+        )
+
+        if fix:
+            fix_warnings = _apply_coordination_fixes(findings, repo_root)
+            # FR-009 Gap-1: a per-mission unsafe precondition (diverged / dirty)
+            # now returns a blocked-fix `error` finding (renata LOW) instead of
+            # raising, so one mission's Gap-1 problem no longer aborts fixing
+            # every OTHER mission processed in this run.
+            staleness_blocked = _apply_coord_staleness_fixes(repo_root, mission_filter=mission)
+            # Re-collect findings after fix so the exit code reflects the new state,
+            # then fold in any warnings/blocked-fix findings the fixers raised for
+            # issues they could not heal (pruned worktree / unparseable /
+            # unresolvable / unsafe Gap-1 precondition) — these must not be
+            # silently dropped by the re-collect.
+            findings = _collect_coordination_findings(
+                repo_root, check_staleness=check_staleness, mission_filter=mission
+            )
+            findings.extend(fix_warnings)
+            findings.extend(staleness_blocked)
+    except MissionNotFoundError as exc:
+        _emit_mission_resolver_error("MISSION_NOT_FOUND", mission, json_output)
+        raise typer.Exit(1) from exc
+    except AmbiguousHandleError as exc:
+        _emit_mission_resolver_error("AMBIGUOUS_HANDLE", mission, json_output)
+        raise typer.Exit(1) from exc
 
     _emit_coordination_findings(findings, json_output)
     raise typer.Exit(1 if any(f.severity == "error" for f in findings) else 0)
