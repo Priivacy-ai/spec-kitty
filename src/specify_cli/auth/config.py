@@ -22,6 +22,14 @@ from .errors import ConfigurationError
 
 _ENV_VAR = "SPEC_KITTY_SAAS_URL"
 
+#: Illustrative hosted-SaaS URL, used only in operator-facing *examples* (error
+#: hints, remediation notes). This is NOT a functional default: per
+#: architectural decision D-5 (see module docstring) hosted activation has no
+#: hardcoded fallback — callers must set ``SPEC_KITTY_SAAS_URL``. It is shared so
+#: the example does not drift across the auth and sync surfaces that cite it
+#: (#3441). D-5 scopes the opt-in gate, not example literals like this one.
+EXAMPLE_HOSTED_SAAS_URL = "https://app.spec-kitty.ai"
+
 
 def get_saas_base_url() -> str:
     """Return the SaaS base URL from the ``SPEC_KITTY_SAAS_URL`` environment variable.
@@ -47,6 +55,6 @@ def get_saas_base_url() -> str:
         raise ConfigurationError(
             f"{_ENV_VAR} environment variable is not set. "
             f"Set it to your spec-kitty-saas instance URL (e.g. "
-            f"https://app.spec-kitty.ai) and try again."
+            f"{EXAMPLE_HOSTED_SAAS_URL}) and try again."
         )
     return url.rstrip("/")

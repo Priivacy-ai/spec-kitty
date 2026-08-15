@@ -66,6 +66,7 @@ from specify_cli.core.vcs import (
 
 from specify_cli.sync.queue import QueueStats
 from specify_cli.sync.http_status import GATEWAY_STATUSES
+from specify_cli.auth.config import EXAMPLE_HOSTED_SAAS_URL
 from specify_cli.core.saas_sync_config import saas_sync_opt_in_recorded_message
 from kernel.clock import now_utc_iso
 from specify_cli.sync.feature_flags import (
@@ -3130,7 +3131,7 @@ def _gateway_unavailable_note(server_url: str, status_code: int) -> str:
         "This is often a transient outage (for example a rolling deploy), so your "
         "queued events are kept locally and will drain once it recovers. If instead "
         "you have switched environments and this URL is decommissioned, repoint with "
-        "`spec-kitty sync server <url>` (e.g. https://app.spec-kitty.ai), then "
+        f"`spec-kitty sync server <url>` (e.g. {EXAMPLE_HOSTED_SAAS_URL}), then "
         "`spec-kitty auth login --force`."
     )
 
