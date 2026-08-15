@@ -1639,11 +1639,50 @@ def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
     )
 
 
+_LEGACY_TYPED_LANE_EVENT_TYPE = "WPStatusChanged"
+_LEGACY_TYPED_LANE_FIELDS = ("wp_id", "from_lane", "to_lane")
+
+
+def _is_legacy_typed_lane_transition(row: Mapping[str, Any]) -> bool:
+    """Return True for a legacy canonical-writer ``WPStatusChanged`` lane row.
+
+    The mission's own ``WPStatusChanged`` writer emits
+    ``event_type == "WPStatusChanged"`` alongside the TOP-LEVEL lane fields
+    ``wp_id`` / ``from_lane`` / ``to_lane`` (see
+    :func:`_status_event_to_teamspace_envelope`, which stamps the same
+    ``event_type``). Such a row is a fully-formed lane transition that merely
+    carries a typed discriminator: routing it via passthrough lets the rest of
+    the canonicalization pipeline strip ``event_type`` through the
+    ``_build_canonical_row`` allowlist and fold it into ``status.json``.
+
+    Quarantining it — the shipped defect #3066, where
+    :func:`_is_preserved_non_lane_row` omits ``WPStatusChanged`` and the
+    ``event_type`` branch of :func:`_rule_reject_non_status_event` sweeps it out
+    — drops live lane history and regenerates a **zero-WP** ``status.json``, a
+    data-destroying repair.
+
+    ONLY the flat canonical-writer shape passes here. TeamSpace replay envelopes
+    also carry ``event_type == "WPStatusChanged"`` but nest ``wp_id`` /
+    ``from_lane`` / ``to_lane`` under ``payload`` (their top level is
+    ``aggregate_id`` / ``aggregate_type``), and ``DecisionPoint*`` mirrors carry
+    a different ``event_type`` — both fail this predicate and stay quarantined.
+    """
+    if row.get("event_type") != _LEGACY_TYPED_LANE_EVENT_TYPE:
+        return False
+    return all(field in row for field in _LEGACY_TYPED_LANE_FIELDS)
+
+
 def _rule_reject_non_status_event(
     row: _Row, _ctx: MigrationContext
 ) -> CanonicalStepResult[_Row]:
     """Rule 1: route non-lane rows that share status.events.jsonl.
 
+    - Legacy typed lane transitions (:func:`_is_legacy_typed_lane_transition`:
+      the mission's own ``WPStatusChanged`` writer shape, with top-level
+      ``wp_id`` / ``from_lane`` / ``to_lane``) are PASSED THROUGH to the rest of
+      the pipeline, which strips the typed discriminator and folds them into
+      ``status.json``. This check runs FIRST, ahead of the quarantine branches,
+      so #3066's zero-WP regeneration can no longer eat live lane history.
     - Rows whose only per-mission home is this file
       (:func:`_is_preserved_non_lane_row`: retrospective + canonical lifecycle
       events) are PRESERVED in place — the runtime reader skips them during lane
@@ -1653,6 +1692,8 @@ def _rule_reject_non_status_event(
       state, if any, lives elsewhere). ``_scan_raw_status_rows`` flags the same
       class before a TeamSpace dry-run.
     """
+    if _is_legacy_typed_lane_transition(row):
+        return CanonicalStepResult.passthrough(row)
     if _is_preserved_non_lane_row(row):
         return CanonicalStepResult(
             state=row,
