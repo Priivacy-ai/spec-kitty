@@ -46,7 +46,9 @@ _REF_FIND_PATTERN = re.compile(rf"\b{_ID_ALTERNATION}\b", re.IGNORECASE)
 #
 # Corpus-validation note (#3394 review F2): the four shapes above and the
 # decision NOT to hard-fail when a document matches none of them were
-# validated against the 366-spec ``kitty-specs/`` corpus during the #3394 Op
+# validated against the ``kitty-specs/`` corpus (366 specs at time of
+# measurement -- this corpus grows with every mission, so treat the count as
+# a snapshot, not a live invariant) during the #3394 Op
 # (``01KZYBXE5G1Y8J4C5FAYV1FKN1``). A stricter, hard-failing prototype (refuse
 # whenever raw ``FR``/``NFR``/``C`` tokens are present but none match a
 # declared shape) was measured at roughly a 6% false-positive rate against
@@ -87,6 +89,19 @@ def _declared_ids(spec_content: str) -> set[str]:
     real specs also declare requirements with no enclosing section heading at
     all (e.g. a bare ``- **FR-001**: ...`` directly under the spec title), so
     scoping extraction to a heading boundary would silently drop those.
+
+    Only the FIRST id on a line is captured (``break`` below stops at the
+    first pattern match per line) -- this is load-bearing, not an oversight:
+    it is what excludes a citation of another id inside a table row's own
+    description cell from being counted as a second declaration. The
+    trade-off is that a genuine multi-id declaration line (e.g.
+    ``- **FR-001 / FR-002**: both must hold.``) silently loses every id after
+    the first. A corpus scan found 16 such multi-id, non-table declaration
+    lines across kitty-specs/*/spec.md; every lost id in all 16 was also
+    declared via a table row elsewhere in the same spec, so measured loss is
+    zero today. Do not "fix" the ``break`` without re-running that scan --
+    removing it would let a table row's description-cell citations leak back
+    in as declarations, reintroducing #3394.
     """
     found: set[str] = set()
     for line in spec_content.splitlines():
