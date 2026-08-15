@@ -2138,31 +2138,36 @@ def _mt_reassignment_binding_fields(st: _MoveTaskState) -> dict[str, Any]:
 
 
 def _build_claim_review_override(
-    st: _MoveTaskState, ports: TasksPorts, existing_fields: Mapping[str, Any]
+    st: _MoveTaskState, ports: TasksPorts
 ) -> dict[str, Any]:
     """Compute the rollback-to-``planned`` off-axis field additions.
 
     Campsite extraction (WP02, verdict-seam-boundary-hardening-01KZG179,
     T007/NFR-004): pulled out of :func:`_mt_emit_runtime_state` (cc=14, close
-    to the 15 ceiling) so that function keeps headroom. Pure with respect to
-    ``existing_fields`` — reads it to decide the claim-release defaults but
-    never mutates it; the caller merges the returned dict via
-    ``fields.update(...)``.
+    to the 15 ceiling) so that function keeps headroom.
 
     - The ``subtasks`` reset (if any) re-blocks the review gate off the
       snapshot (#2513, via the log — not the checkbox).
-    - ``#2512``: a rollback to ``planned`` RELEASES the prior claim so the
-      rolled-back WP exposes no live claim marker. Field repro: an agent
-      process was killed (macOS idle-sleep) leaving ``agent``/``shell_pid``
-      behind; the rollback reset the lane but not the claim, so the next
-      resume failed ``LANE_ALLOCATION_FAILED``. With the god-write cut the
-      claim now lives in the reduced snapshot (the claim transition's
-      ``policy_metadata``), and it was released in NEITHER surface — so the
-      release is emitted here off-axis as an ``InnerStateChanged`` clearing
-      both slots (empty ``agent`` / zero ``shell_pid`` fold to a falsy,
-      released snapshot slot). Skipped when the SAME move re-plants a fresh
-      claim (an explicit ``--agent``/``--shell-pid`` override already set the
-      field in ``existing_fields``).
+    - ``#2512`` / partition-authority-residuals (#2960 follow-up): a rollback
+      to ``planned`` RELEASES the prior claim so the rolled-back WP exposes no
+      live claim marker. Field repro: an agent process was killed (macOS
+      idle-sleep) leaving ``agent``/``shell_pid`` behind; the rollback reset
+      the lane but not the claim, so the next resume failed
+      ``LANE_ALLOCATION_FAILED``. With the god-write cut the claim now lives
+      in the reduced snapshot (the claim transition's ``policy_metadata``),
+      and it was released in NEITHER surface — so the release is emitted here
+      off-axis as an ``InnerStateChanged`` carrying the explicit
+      ``release_runtime_claim=True`` marker (see ``WPInnerStateDelta`` /
+      ``_apply_annotation_delta``), which the reducer honors as a real clear
+      of the claim triple, DISTINCT from a bare ``agent=""`` corruption
+      no-op (#2960). Set UNCONDITIONALLY — a SAME-move re-plant of a fresh
+      claim (an explicit ``--agent``/``--shell-pid`` override, already staged
+      in the caller's ``fields`` dict before this helper's return value is
+      merged in) still wins: the reducer applies the release clear BEFORE its
+      replace-slot loop, so a concrete value present in the same delta
+      overwrites the just-cleared slot. This helper therefore no longer needs
+      to inspect the caller's existing fields to decide whether to release —
+      the override precedence lives in the reducer, not here.
     - The ``review`` runtime slot records durable evidence that a REJECTED
       review was superseded by an approval override
       (``_persist_review_artifact_override``). A rollback to ``planned`` --
@@ -2179,10 +2184,7 @@ def _build_claim_review_override(
     reset = _mt_rollback_subtasks_reset(st, ports)
     if reset:
         additions["subtasks"] = reset
-    if "agent" not in existing_fields:
-        additions["agent"] = ""
-    if "shell_pid" not in existing_fields:
-        additions["shell_pid"] = 0
+    additions["release_runtime_claim"] = True
     additions["review"] = ReviewOverride(at="", actor="", wp_id="", reason="")
     return additions
 
@@ -2244,7 +2246,7 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
     if st.tracker_ref_values:
         fields["tracker_refs"] = list(st.tracker_ref_values)
     if st.target_lane == Lane.PLANNED:
-        fields.update(_build_claim_review_override(st, ports, fields))
+        fields.update(_build_claim_review_override(st, ports))
 
     delta = WPInnerStateDelta(**fields)
     if delta.is_empty():
