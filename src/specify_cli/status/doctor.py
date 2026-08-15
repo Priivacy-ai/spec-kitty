@@ -16,11 +16,22 @@ from pathlib import Path
 from typing import Any
 
 from kernel.clock import now_utc, parse_iso
-from .models import Lane
+from .models import Lane, WPInnerStateDelta
 from .reducer import SNAPSHOT_FILENAME, reduce
 from .store import read_events
 
 logger = logging.getLogger(__name__)
+
+#: Lanes for which a WP is finished — a blanked runtime slot on one of these is
+#: not actionable (the work is over), so ``check_blanked_runtime_slots`` skips
+#: them. Mirrors ``check_orphan_workspaces``' terminal set.
+_TERMINAL_LANES: frozenset[Lane] = frozenset({Lane.DONE, Lane.CANCELED})
+
+#: The string-scalar runtime slots a ``WPInnerStateDelta`` can fold into a WP
+#: snapshot. Derived from the single canonical field list (C-005: no second
+#: copy) so a new scalar slot is covered automatically. An empty string in any
+#: of these on a non-terminal WP is corrupt canonical state (#2960 / FR-014).
+_BLANKABLE_RUNTIME_SLOTS: tuple[str, ...] = WPInnerStateDelta._SCALAR_FIELDS
 
 
 class Severity(StrEnum):
@@ -38,6 +49,7 @@ class Category(StrEnum):
     SPARSE_CHECKOUT = "sparse_checkout"
     UNINITIALIZED_STATUS = "uninitialized_status"
     DUPLICATE_FRONTMATTER_KEY = "duplicate_frontmatter_key"
+    BLANKED_RUNTIME_SLOT = "blanked_runtime_slot"
 
 
 @dataclass
@@ -214,6 +226,48 @@ def check_stale_claims(
                 )
             )
 
+    return findings
+
+
+def check_blanked_runtime_slots(snapshot: dict[str, Any]) -> list[Finding]:
+    """Flag non-terminal WPs whose runtime attribution slots are blanked (#2960).
+
+    An annotation carrying ``agent: ""`` (or any empty-string scalar runtime
+    slot) that reached the snapshot means recorded attribution was clobbered
+    with a blank — corrupt canonical state that must NOT read as Healthy
+    (FR-014). The write-boundary normalization in ``WPInnerStateDelta`` and the
+    reducer no-op guard prevent new blanks; this check is the read-side net that
+    catches state already corrupt on disk (e.g. a legacy log).
+
+    Terminal WPs (``done``/``canceled``) are skipped — a blank slot on finished
+    work is not actionable.
+    """
+    findings: list[Finding] = []
+    work_packages = snapshot.get("work_packages", {})
+    for wp_id, wp_state in work_packages.items():
+        if wp_state.get("lane") in _TERMINAL_LANES:
+            continue
+        for slot in _BLANKABLE_RUNTIME_SLOTS:
+            value = wp_state.get(slot)
+            if isinstance(value, str) and value == "":
+                findings.append(
+                    Finding(
+                        severity=Severity.ERROR,
+                        category=Category.BLANKED_RUNTIME_SLOT,
+                        wp_id=wp_id,
+                        message=(
+                            f"{wp_id} runtime slot '{slot}' is an empty string — "
+                            f"recorded attribution was blanked (corrupt canonical "
+                            f"state, #2960)."
+                        ),
+                        recommended_action=(
+                            f"Re-record {wp_id}'s '{slot}' with a real value, or "
+                            f"drop the blanking annotation from the event log; the "
+                            f"reducer treats '' as a no-op so a fresh non-empty "
+                            f"annotation restores it."
+                        ),
+                    )
+                )
     return findings
 
 
@@ -604,6 +658,9 @@ def run_doctor(
         )
         result.findings.extend(check_orphan_workspaces(repo_root, mission_slug, snapshot))
         result.findings.extend(check_drift(feature_dir))
+        # FR-014 (#2960): a blanked runtime slot on an active WP is corrupt
+        # canonical state — must not read as Healthy.
+        result.findings.extend(check_blanked_runtime_slots(snapshot))
 
     result.findings.extend(check_reviewer_self_approval(feature_dir))
     # coord-commit-integrity SURFACE A #1c: route the COORD-partition issue-matrix

@@ -182,7 +182,9 @@ def _wp_state_from_event(
         if shell_pid_created_at is not None:
             state["shell_pid_created_at"] = shell_pid_created_at
         agent = meta.get("agent")
-        if agent is not None:
+        # Truthiness, not ``is not None`` (#2960 / FR-014): an empty ``agent``
+        # sidecar is a no-op, never a blank written over a real slot.
+        if agent:
             state["agent"] = agent
 
     # review_result exception (T025/T026, WP07): see the docstring above.
@@ -260,7 +262,10 @@ def _apply_annotation_delta(state: dict[str, Any], delta: WPInnerStateDelta) -> 
     """
     for name in _REPLACE_SLOTS:
         value = getattr(delta, name)
-        if value is not None:
+        # Empty strings are a no-op for string replace-slots (#2960 / FR-014):
+        # ``""`` must never clobber a real recorded value. ``value != ""`` keeps
+        # the non-string slots intact (e.g. ``shell_pid == 0`` still folds).
+        if value is not None and value != "":
             state[name] = value
     if delta.subtasks is not None:
         current_subtasks: dict[str, str] = dict(state.get("subtasks") or {})
