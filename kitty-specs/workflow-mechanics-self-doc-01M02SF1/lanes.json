@@ -1,0 +1,165 @@
+{
+  "version": 1,
+  "mission_slug": "workflow-mechanics-self-doc-01M02SF1",
+  "mission_id": "01M02SF118H336EA7HSKHTDPKK",
+  "mission_branch": "kitty/mission-workflow-mechanics-self-doc-01M02SF1",
+  "target_branch": "kitty/mission-workflow-self-doc",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/development/how-to/review-gates.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "AGENTS.md"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "packs/built-in/tactics/architectural-gate-non-vacuity.tactic.yaml",
+        "packs/built-in/tactics/canonical-source-unification.tactic.yaml",
+        "packs/built-in/tactics/reviewer-implementer-role-separation.tactic.yaml",
+        "packs/built-in/toolguides/GITHUB_TRACKER.md",
+        "packs/built-in/toolguides/github-tracker.toolguide.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        ".kittify/memory/README.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/operations/recovery-index.md",
+        "docs/operations/toc.yml"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/development/reference/coverage-signals.md",
+        "docs/development/reference/known-friction-points.md"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/development/how-to/pr-landing.md"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/architecture/artifact-placement-seam.md",
+        "docs/architecture/execution-lanes.md",
+        "docs/architecture/git-worktrees.md"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "docs/development/3-2-docs-retrieval-index.yaml",
+        "docs/development/3-2-page-inventory.yaml"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-e",
+        "lane-g",
+        "lane-h",
+        "lane-i"
+      ],
+      "parallel_group": 5
+    }
+  ],
+  "computed_at": "2026-08-15T14:08:29.486314+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "db1655b38715a29ab16f8fb0501b731dee9b2a05"
+}

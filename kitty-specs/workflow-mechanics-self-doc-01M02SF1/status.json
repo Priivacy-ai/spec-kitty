@@ -1,0 +1,285 @@
+{
+  "event_count": 54,
+  "last_event_id": "01M0317HWC4Q51YKATJ8JZMPV0",
+  "materialized_at": "2026-08-15T15:39:14.700507+00:00",
+  "mission_number": "",
+  "mission_slug": "workflow-mechanics-self-doc-01M02SF1",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 9,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "implement-command",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M02XG9WX898KFKP9ZESTBD5B",
+      "last_transition_at": "2026-08-15T14:34:07.133088+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "reviewer-renata APPROVE (opus)",
+        "reviewer-renata APPROVE (opus)",
+        "reviewer-renata APPROVE (opus)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE (opus)",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 4186812,
+      "shell_pid_created_at": "1786803237.56",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
+    },
+    "WP02": {
+      "actor": "implement-command",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M02Y7ZCR57ZTG9QBJQ2DH8X4",
+      "last_transition_at": "2026-08-15T14:47:02.808353+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "reviewer-renata APPROVE after Drain-Blockers review-fix",
+        "reviewer-renata APPROVE after Drain-Blockers review-fix",
+        "reviewer-renata APPROVE after Drain-Blockers review-fix"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE after Drain-Blockers review-fix",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 24127,
+      "shell_pid_created_at": "1786804516.88",
+      "subtasks": {
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP03": {
+      "actor": "implement-command",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M02YT42FA917S451DKACTK6X",
+      "last_transition_at": "2026-08-15T14:56:57.423031+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "reviewer-renata APPROVE (opus) — CI facts code-verified",
+        "reviewer-renata APPROVE (opus) — CI facts code-verified",
+        "reviewer-renata APPROVE (opus) — CI facts code-verified"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE (opus) — CI facts code-verified",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 38865,
+      "shell_pid_created_at": "1786805235.84",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP04": {
+      "actor": "implement-command",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M02ZABAGE3RHW30GA9C74VVN",
+      "last_transition_at": "2026-08-15T15:05:49.136038+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "reviewer-renata APPROVE (opus) + commit-tree fallback review-fix",
+        "reviewer-renata APPROVE (opus) + commit-tree fallback review-fix",
+        "reviewer-renata APPROVE (opus) + commit-tree fallback review-fix"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE (opus) + commit-tree fallback review-fix",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 50198,
+      "shell_pid_created_at": "1786805818.05",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done"
+      }
+    },
+    "WP05": {
+      "actor": "implement-command",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M02ZZWSAECZB3QS0V6MBE8CH",
+      "last_transition_at": "2026-08-15T15:17:35.146107+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "reviewer-renata APPROVE (opus) + issue-xref review-fix",
+        "reviewer-renata APPROVE (opus) + issue-xref review-fix",
+        "reviewer-renata APPROVE (opus) + issue-xref review-fix"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE (opus) + issue-xref review-fix",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 57307,
+      "shell_pid_created_at": "1786806349.76",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP06": {
+      "actor": "implement-command",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M0317HWC4Q51YKATJ8JZMPV0",
+      "last_transition_at": "2026-08-15T15:39:14.700507+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "reviewer-renata APPROVE (opus) — 49 rows resolve, test non-tautological, freshness errors=0",
+        "reviewer-renata APPROVE (opus) — 49 rows resolve, test non-tautological, freshness errors=0",
+        "reviewer-renata APPROVE (opus) — 49 rows resolve, test non-tautological, freshness errors=0"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE (opus) — 49 rows resolve, test non-tautological, freshness errors=0",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 71409,
+      "shell_pid_created_at": "1786807091.87",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
+    },
+    "WP07": {
+      "actor": "implement-command",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M02XGHMEZ4CB1EVTRDRCXHG5",
+      "last_transition_at": "2026-08-15T14:34:15.054736+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "reviewer-renata APPROVE (opus)",
+        "reviewer-renata APPROVE (opus)",
+        "reviewer-renata APPROVE (opus)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE (opus)",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 4187185,
+      "shell_pid_created_at": "1786803247.07",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done"
+      }
+    },
+    "WP08": {
+      "actor": "implement-command",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M02XGSEX3G1STMH76VGYYWDE",
+      "last_transition_at": "2026-08-15T14:34:23.069915+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "reviewer-renata APPROVE (opus)",
+        "reviewer-renata APPROVE (opus)",
+        "reviewer-renata APPROVE (opus)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE (opus)",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 4187594,
+      "shell_pid_created_at": "1786803256.51",
+      "subtasks": {
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
+    },
+    "WP09": {
+      "actor": "implement-command",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M02XHT4HK6VNHS5E8JAAW1FX",
+      "last_transition_at": "2026-08-15T14:34:56.529253+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "reviewer-renata APPROVE (opus) + alias-set review-fix",
+        "reviewer-renata APPROVE (opus) + alias-set review-fix",
+        "reviewer-renata APPROVE (opus) + alias-set review-fix"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE (opus) + alias-set review-fix",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 4187967,
+      "shell_pid_created_at": "1786803265.92",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done"
+      }
+    }
+  }
+}
