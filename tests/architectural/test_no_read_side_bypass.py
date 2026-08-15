@@ -545,8 +545,9 @@ _ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
         occurrence=None,
         rationale=(
             "Ledger :1005: a corpus-walk classifier iterating EVERY mission "
-            "under .kittify/missions/ to compute a 4-state retrospective-"
-            "coverage report -- a single problematic mission's coord-branch "
+            "under the canonical kitty-specs/* home (FR-013 #2717) to compute a "
+            "4-state retrospective-coverage report -- a single problematic "
+            "mission's coord-branch "
             "deletion must not abort the whole report (named diagnostic "
             "pattern, research.md)."
         ),
