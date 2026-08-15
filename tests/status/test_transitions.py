@@ -429,15 +429,20 @@ class TestGuardConditions:
         ok, error = validate_transition("in_progress", "planned", GuardContext(reason="reassigning to other agent"))
         assert ok is True
 
-    def test_conflict_detection_rejects_double_claim(self) -> None:
-        """for_review -> in_review rejects when a different actor already holds the review."""
+    def test_conflict_detection_allows_distinct_actor(self) -> None:
+        """for_review -> in_review is allow-only: a different actor ALLOWs.
+
+        Re-pointed (WP01): the FSM guard carries no role and never invokes the
+        collision predicate, so it cannot express a role-carrying reject — it
+        must ALLOW. The genuine reviewer-vs-reviewer reject is asserted at the
+        ``in_review`` re-claim lifecycle test, not here (NFR-002).
+        """
         ok, error = validate_transition(
             "for_review",
             "in_review",
             GuardContext(actor="reviewer-B", current_actor="reviewer-A"),
         )
-        assert ok is False
-        assert "already claimed" in error.lower()
+        assert ok is True, f"allow-only guard must permit a distinct actor; error={error}"
 
     def test_conflict_detection_allows_same_actor_reclaim(self) -> None:
         """for_review -> in_review permits idempotent re-claim by the same actor."""

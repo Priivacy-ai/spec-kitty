@@ -1275,7 +1275,7 @@
 ["for_review", "in_progress", "ws", false, "Illegal transition: for_review -> in_progress"]
 ["for_review", "in_review", "actor", true, null]
 ["for_review", "in_review", "actor_empty", false, "Transition requires actor identity"]
-["for_review", "in_review", "conflict", false, "WP already claimed for review by rev-A; cannot be claimed by rev-B"]
+["for_review", "in_review", "conflict", true, null]
 ["for_review", "in_review", "done_evidence", true, null]
 ["for_review", "in_review", "empty", false, "Transition requires actor identity"]
 ["for_review", "in_review", "evidence_only", true, null]

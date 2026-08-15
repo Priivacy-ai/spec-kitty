@@ -458,8 +458,8 @@ def test_rollback_leaves_committed_done_incoherent_with_working_tree(
 
     committed_events = _committed_coord_events(repo, feature_dir)
     working_events = _working_coord_events(repo)
-    committed_lane, _ = wp_lane_actor_from_events(committed_events, WP_ID)
-    working_lane, _ = wp_lane_actor_from_events(working_events, WP_ID)
+    committed_lane = wp_lane_actor_from_events(committed_events, WP_ID).lane
+    working_lane = wp_lane_actor_from_events(working_events, WP_ID).lane
 
     # --- Precondition: the working tree DID roll back to ``approved`` (survives
     # the fix — the working side is coherent both today and post-fix). ---

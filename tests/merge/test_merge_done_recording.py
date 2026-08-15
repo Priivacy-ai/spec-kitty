@@ -219,7 +219,7 @@ def test_mark_wp_merged_done_replays_approved_before_done_for_primary_fallback(
     monkeypatch: Any,
 ) -> None:
     """Primary fallback must replay conforming approved history before done."""
-    from specify_cli.status.models import Lane
+    from specify_cli.status.models import CurrentWpState, Lane
 
     repo_root = tmp_path
     mission_slug = "021-test"
@@ -244,7 +244,7 @@ def test_mark_wp_merged_done_replays_approved_before_done_for_primary_fallback(
     monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
     monkeypatch.setattr(
         "specify_cli.coordination.status_transition.read_current_wp_state_transactional",
-        lambda **_kw: (Lane.PLANNED, None),
+        lambda **_kw: CurrentWpState(Lane.PLANNED, None, None),
     )
     monkeypatch.setattr(
         "specify_cli.coordination.status_transition.has_transition_to_transactional",
