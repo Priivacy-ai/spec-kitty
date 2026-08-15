@@ -184,8 +184,11 @@ def parse_handoff_packet(content: str) -> HandoffPacket | None:
     )
 
 
+# Only ``parse_handoff_packet`` is consumed across module boundaries (by
+# ``cli/commands/intake.py``). ``HANDOFF_PACKET_VERSION`` and ``HandoffPacket``
+# remain importable module symbols (tests reference them directly) but are not
+# part of the exported surface — keeping them in ``__all__`` tripped the
+# dead-public-symbol gate, since no other ``src/`` file imports them.
 __all__ = [
-    "HANDOFF_PACKET_VERSION",
-    "HandoffPacket",
     "parse_handoff_packet",
 ]
