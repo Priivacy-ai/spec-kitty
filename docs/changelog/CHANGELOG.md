@@ -19,6 +19,28 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### ✨ Added
 
+- **The repo now documents itself: an agent given only the repo plus installed
+  skills/packs can fix a gate, find the right template source, recover a
+  split-brain mission, and discover the workflow commands — without relying on a
+  maintainer's private notes (mission `self-documenting-repo`; `#3448`).** A
+  maintainer audit found that a large slice of tribal knowledge lived only in
+  private agent memory because the repo did not surface it. This mission
+  migrates it in: architectural/docs gate assertions (`write-side re-derivation`,
+  `inert schema slots`, `relative-link fixer`) now print a **content-anchored
+  remedy derived from the gate's own logic**, so tripping a gate tells you how to
+  satisfy it; the stale `src/doctrine/missions/…` template-source path in the
+  contributor guide is corrected to `packs/built-in/missions/…` (with a grep
+  guard); six operator recovery runbooks for coord/lane split-brain scenarios are
+  published under `docs/operations/`, each leading with the shipped
+  `spec-kitty doctor … --fix` where one exists; and the docs-inventory freshen,
+  mission wrap-up, and env/tracker conventions are now findable in
+  `docs/development/`. A committed `agent-memory-migration-manifest.md` (with a
+  completeness test) maps every audited gap-filler to its new repo home, its
+  tracking issue, or an explicit "behaviour retired" — the audit surfaced five
+  memories that were already stale (e.g. the shard-registration guidance retired
+  by `#2671`'s auto-cover, and a `mission-gate-artifact` gate that never existed).
+  Three behaviour quirks found along the way were filed, not fixed (`#3450`,
+  `#3451`, `#3452`).
 - **An org- or project-tier doctrine pack can now contribute a mission type
   that works end to end (mission `up-mission-type-seam-01KZY1JB`; `#3424`,
   closes `#3397`).** Before, a mission type shipped by an org or project pack
