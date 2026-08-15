@@ -26,6 +26,12 @@ from specify_cli.status import materialize
 from specify_cli.status.models import Lane, ReviewOverride, ReviewResult, StatusEvent
 from specify_cli.status.store import append_event
 
+# These are fast unit/CLI tests (tmp_path + status store + CliRunner; no real
+# git worktree), so they run in ``fast-tests-merge`` (-m "fast and not
+# windows_ci"). Without a marker the file is orphaned — selected by no
+# push-to-main job (test_ci_collection_completeness / test_same_tier_uniqueness).
+pytestmark = pytest.mark.fast
+
 _MISSION_SLUG = "skip-review-artifact-2959"
 _MISSION_ID = "01KZSKIP2959000000000000AA"
 _WP_ID = "WP01"
