@@ -93,7 +93,7 @@ direction of travel — name the one meant.
   `docs/contracts/contract-registry.yaml` — that registry's `kind` vocabulary
   is currently `fallback_name` / `retired_literal` only, with no
   payload/intake-contract kind to register this record under. Adding that
-  `kind` and registering this contract is a follow-up (to be filed).
+  `kind` and registering this contract is a follow-up ([#3446](https://github.com/Priivacy-ai/spec-kitty/issues/3446)).
 
 ## Alternatives Considered
 
