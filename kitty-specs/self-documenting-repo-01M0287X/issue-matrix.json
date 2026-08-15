@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#2077": {
+      "evidence_ref": "CT7 recurrence-prevention guard closed; WP01 content-anchored gate remedies operationalize its intent",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#2671": {
+      "evidence_ref": "Auto-cover fallback (default_fallback=True, tests/_arch_shard_map.py) shipped; retires the shard-registration gap-filler memory",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#3447": {
+      "evidence_ref": "Regen automation is #3447's scope; WP04 docs point at it rather than duplicating (G4)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP04"
+    },
+    "#3448": {
+      "evidence_ref": "This mission migrates the G1-G6 gap-fillers into gates/AGENTS.md/operations runbooks; manifest in WP05",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP05"
+    }
+  },
+  "schema_version": 1
+}
