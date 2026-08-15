@@ -41,9 +41,17 @@ def _write_meta(feature_dir: Path, *, coordination_branch: str | None = None) ->
 
 
 class TestResolveLinesDirCoordTopology:
-    """Coord-worktree materialised: ``_resolve_lanes_dir`` must return coord dir."""
+    """Coord-worktree materialised: ``_resolve_lanes_dir`` must STILL return the
+    PRIMARY surface, never the coord husk.
 
-    def test_returns_coord_surface_when_worktree_and_mission_dir_exist(
+    ``lanes.json`` is the ``LANE_STATE`` artifact — a PRIMARY-partition kind with
+    INV-5 read/write symmetry — so it resolves to the primary checkout for EVERY
+    topology. This is the #3371 regression guard: WP02 writes ``lanes.json`` to
+    the PRIMARY target branch, and reading it off the coordination surface (the
+    pre-symmetry C-LANES-1 behaviour) broke coord-topology ``implement``.
+    """
+
+    def test_returns_primary_surface_even_when_coord_worktree_exists(
         self, tmp_path: Path
     ) -> None:
         # Slug embeds the mid8 so mid8_from_slug can extract it.
@@ -53,16 +61,18 @@ class TestResolveLinesDirCoordTopology:
         primary_dir = tmp_path / KITTY_SPECS_DIR / slug
         _write_meta(primary_dir, coordination_branch=_COORD_BRANCH)
 
-        # Coord worktree: mission dir exists (no meta.json — that's on primary).
+        # Coord worktree materialised (would be the WRONG home for lanes.json).
         coord_worktree_root = tmp_path / ".worktrees" / f"{slug}-coord"
         coord_mission_dir = coord_worktree_root / KITTY_SPECS_DIR / slug
         coord_mission_dir.mkdir(parents=True)
 
         result = _resolve_lanes_dir(tmp_path, slug)
 
-        assert result == coord_mission_dir
+        # PRIMARY partition — the primary checkout dir, NOT the coord husk.
+        assert result == primary_dir
+        assert result != coord_mission_dir
 
-    def test_coord_dir_is_distinct_from_primary_dir(self, tmp_path: Path) -> None:
+    def test_lanes_dir_is_never_the_coord_husk(self, tmp_path: Path) -> None:
         slug = f"my-mission-{_TEST_MID8}"
 
         primary_dir = tmp_path / KITTY_SPECS_DIR / slug
@@ -75,7 +85,9 @@ class TestResolveLinesDirCoordTopology:
 
         result = _resolve_lanes_dir(tmp_path, slug)
 
-        assert result != primary_dir
+        # The resolved lanes dir never lives under a coord worktree.
+        assert ".worktrees" not in result.parts
+        assert result == primary_dir
 
 
 class TestResolveLinesDirFlatTopology:
