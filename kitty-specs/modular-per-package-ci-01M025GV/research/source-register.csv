@@ -1,0 +1,21 @@
+source_id,type,location,why_it_matters
+S1,workflow,.github/workflows/ci-quality.yml,Monolithic CI: 54 jobs, path filters, kernel-tests/doctrine jobs, coverage->Sonar aggregation
+S2,workflow,.github/workflows/doctrine-charter-tests.yml,Existing standalone module workflow (paths-filtered; no coverage) - step-content precedent
+S3,workflow,.github/workflows/all-contributors-normalize.yml,Auto-commit-in-workflow precedent (pull_request_target + same-repo guard + bot push)
+S4,config,sonar-project.properties,Sonar projectKey/sources/tests; coverage reportPaths overwritten at scan time
+S5,packaging,src/kernel/pyproject.toml,Dormant kernel package (zero-dep root); DORMANT header - not built by CI
+S6,packaging,src/doctrine/pyproject.toml,Dormant doctrine package (depends kernel); force-includes packs via hatch_build.py
+S7,packaging,pyproject.toml,Root ships all 7 packages as one distribution (line 147) - monorepo install
+S8,adr,docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md,Governs kernel->doctrine->charter wheel cutover as ONE no-partial follow-on
+S9,code,src/specify_cli/template/asset_generator.py,render_command_template() - the 12-agent command render entrypoint
+S10,code,src/specify_cli/skills/command_renderer.py,command_renderer.render().to_skill_md() - skill snapshot render entrypoint
+S11,code,src/specify_cli/skills/command_installer.py,PROMPT_BACKED_COMMANDS(12)/CANONICAL_COMMANDS(15) command sets
+S12,code,src/specify_cli/cli/commands/doctrine.py,doctrine regenerate-graph --check - dual-mode entrypoint to model regen on
+S13,test,tests/specify_cli/regression/test_twelve_agent_parity.py,twelve-agent-parity gate + baseline version pin 3.1.2a3 + regen msg
+S14,test,tests/specify_cli/skills/test_command_renderer.py,command_renderer snapshot gate + version pin 3.0.0
+S15,fixtures,tests/specify_cli/regression/_twelve_agent_baseline/,144 committed command fixtures (the real drift target)
+S16,fixtures,tests/specify_cli/skills/__snapshots__/,24 committed skill snapshots (the real drift target)
+S17,test,tests/architectural/test_marker_job_completeness.py,Marker/route completeness oracle - the double-marker CI-home trap guard
+S18,tracker,https://github.com/Priivacy-ai/spec-kitty/issues/3447,Mission source issue
+S19,tracker,https://github.com/Priivacy-ai/spec-kitty/issues/3379,Motivating symptom - source-prompt edit tripped 12 parity + 2 snapshot failures
+S20,test,tests/architectural/test_ci_collection_completeness.py,CI-model guard that parses job graph; may assume inline steps: not uses:

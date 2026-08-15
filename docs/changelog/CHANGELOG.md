@@ -44,6 +44,34 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   repo, it does not touch anyone's private memory file. Three behaviour
   quirks found along the way were filed, not fixed (`#3450`, `#3451`,
   `#3452`).
+- **CI now builds each shippable module as its own reusable workflow, and a new
+  `spec-kitty regen` lets contributors fix generated-asset drift themselves
+  (mission `modular-per-package-ci-01M025GV`; `#3447`, closes `#3379`).** The
+  monorepo already ships separately-packaged modules (`src/kernel`,
+  `src/doctrine`, the `packs/built-in` data pack), but CI ran them as
+  path-filtered jobs inside one monolithic `ci-quality` workflow, and the
+  generated agent-command baselines + codex/vibe skill snapshots drifted
+  silently when their source prompt templates changed — a contributor's
+  one-line edit tripped a dozen parity gates a maintainer had to regenerate by
+  hand (`#3379`). Now `kernel`, `doctrine` (fast + integration legs), and
+  `packs` each build in an `on: workflow_call` module workflow invoked as a
+  `uses:` job inside `ci-quality`, so a module has its own build boundary while
+  its coverage still aggregates into the single run the Sonar reporter reads
+  (reusable workflows, not `workflow_run` — coverage never fragments across
+  runs). The architectural CI-model guards learned to resolve `uses:`
+  delegation through one seam so a reusable-workflow caller is modeled as if it
+  ran inline. `spec-kitty regen [--check]` regenerates the committed generated
+  fixtures from source, byte-identical to a `PYTEST_UPDATE_SNAPSHOTS` run, from
+  a single shared version pin; `--check` is the fork-safe freshness gate (it
+  fails with the exact command + diff, since a fork PR's read-only token cannot
+  commit back). A trust-tiered `regen-assets` workflow runs check-only on every
+  PR, auto-commits on same-repo pushes, and offers a maintainer-label
+  privileged path that ships disabled pending a security review. The 12-agent ×
+  N byte grid that caused the churn is retired for structural invariants plus
+  one canonical byte snapshot per render branch (markdown + TOML), so a
+  source-prompt edit now regenerates at most one canonical fixture instead of
+  ~14.
+
 - **An org- or project-tier doctrine pack can now contribute a mission type
   that works end to end (mission `up-mission-type-seam-01KZY1JB`; `#3424`,
   closes `#3397`).** Before, a mission type shipped by an org or project pack
