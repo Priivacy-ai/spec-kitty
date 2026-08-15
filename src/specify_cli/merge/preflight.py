@@ -382,12 +382,11 @@ def _record_review_artifact_skip_evidence(
     """
     from kernel.clock import now_utc_stamp
 
-    from specify_cli.merge.done_bookkeeping import _resolve_merge_actor
-    from specify_cli.status import (
-        ReviewOverride,
-        WPInnerStateDelta,
-        emit_inner_state_changed,
+    from specify_cli.coordination.status_transition import (
+        emit_inner_state_changed_transactional,
     )
+    from specify_cli.merge.done_bookkeeping import _resolve_merge_actor
+    from specify_cli.status import ReviewOverride, WPInnerStateDelta
 
     actor = _resolve_merge_actor(repo_root)
     timestamp = now_utc_stamp()
@@ -399,7 +398,17 @@ def _record_review_artifact_skip_evidence(
     for finding in findings:
         wp_id = finding.wp_id
         console.print(f"    - {wp_id}: skip recorded as override evidence")
-        emit_inner_state_changed(
+        # #2959 durability (squad architect-alphonso): the escape hatch advertises
+        # "durable override evidence", so the skip record must be COMMITTED, not
+        # merely written. The gate runs at a clean preflight point BEFORE any
+        # merge-state or branch-integration git mutation, so committing the coord
+        # STATUS surface here is safe. Use the commit-durable sibling
+        # (emit_inner_state_changed_transactional, the same #2939 seam a lane hop
+        # uses): on coord it rides a BookkeepingTransaction committed on the
+        # coordination ref, so the evidence survives even if the merge aborts
+        # downstream; on a coord-less topology it delegates to the untouched
+        # partition-agnostic emit (no-op parity).
+        emit_inner_state_changed_transactional(
             feature_dir,
             wp_id,
             WPInnerStateDelta(
