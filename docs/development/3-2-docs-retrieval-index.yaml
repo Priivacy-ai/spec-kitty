@@ -2847,6 +2847,21 @@ pages:
     - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "open-questions-for-scoping-a-later-pass", text: "Open questions (for scoping / a later pass)", level: 3}
+  - path: "docs/adr/3.x/2026-08-15-1-handoff-packet-intake-contract.md"
+    title: "ADR: Own a Tool-Agnostic, Versioned, Optional Handoff-Packet Intake Contract"
+    divio_type: "none"
+    abstract: "Ratifies handoff-packet v1 — an additive, version-gated YAML-frontmatter overlay that lets upstream requirements tools seed spec-kitty intake with stable FR/AC ids, without Spec Kitty knowing any specific producer."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative-and-accepted-trade-offs", text: "Negative and accepted trade-offs", level: 3}
+    - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
+    - {slug: "require-a-mandatory-structured-format", text: "Require a mandatory structured format", level: 3}
+    - {slug: "encode-producer-specific-vocabulary-in-the-schema", text: "Encode producer-specific vocabulary in the schema", level: 3}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
@@ -6453,6 +6468,18 @@ pages:
     - {slug: "orchestrator-smoke-availability-fixtures-happy-path-review-cycles-parallel", text: "Orchestrator Smoke / Availability / Fixtures / Happy Path / Review Cycles / Parallel", level: 3}
     - {slug: "core-agent-extended-agent", text: "Core Agent / Extended Agent", level: 3}
     - {slug: "exploratory", text: "Exploratory", level: 3}
+  - path: "docs/contracts/handoff-packet-v1.md"
+    title: "Handoff Packet v1"
+    divio_type: "none"
+    abstract: "Tool-agnostic optional YAML-frontmatter contract for seeding a Spec Kitty mission from an upstream requirements tool."
+    anchors:
+    - {slug: "design-rules", text: "Design rules", level: 2}
+    - {slug: "degradation-rules", text: "Degradation rules", level: 2}
+    - {slug: "frontmatter-schema-v1", text: "Frontmatter schema (v1)", level: 2}
+    - {slug: "field-notes", text: "Field notes", level: 3}
+    - {slug: "security-expectations", text: "Security expectations", level: 2}
+    - {slug: "discovery", text: "Discovery", level: 2}
+    - {slug: "worked-example", text: "Worked example", level: 2}
   - path: "docs/contracts/index.md"
     title: "Contracts"
     divio_type: "none"

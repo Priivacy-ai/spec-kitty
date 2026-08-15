@@ -980,6 +980,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-08-15-1-handoff-packet-intake-contract.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/README.md
   tag: current
   divio_type: none
@@ -2019,6 +2025,12 @@
   current_target: true
   notes: null
 - path: docs/context/testing-taxonomy.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/contracts/handoff-packet-v1.md
   tag: current
   divio_type: none
   owning_workstream: none
