@@ -123,6 +123,26 @@ Each worktree has its own:
 
 This means Agent A can have uncommitted changes to `config.py` without affecting Agent B's `config.py`.
 
+### Cross-Mission Concurrency Is a Different Question
+
+Worktree isolation covers **lanes within one mission** — each lane worktree
+has its own HEAD, index, and working directory, so parallel WPs in the same
+mission cannot collide. It does **not** cover **two different missions
+sharing the same primary checkout**. Mission-lifecycle commands (`mission
+create`, status commits, `move-task`, backfill-topology) run against the
+primary checkout's HEAD, branch, and index — the same ones every worktree's
+`.git` file ultimately points back to — and there is no cross-mission lock
+around those mutations. Two mission drivers issuing git operations from the
+same primary checkout at the same time can interleave commits onto each
+other's branch tips or strand commits on the wrong branch.
+
+`mission create` also cannot be run from inside a worktree, so a second
+concurrent mission cannot cleanly sidestep the primary checkout that way. If
+you need two missions active at once, use a **separate clone** (its own
+`.git`) for the second mission rather than assuming worktrees provide
+enough isolation — worktree isolation is per-lane-within-a-mission, not
+per-mission.
+
 ## Worktrees vs. Cloning
 
 | Aspect | Worktree | Clone |

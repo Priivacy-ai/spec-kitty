@@ -193,6 +193,100 @@ simply not re-audited for the directory-identical-routing property this mission 
 for `emit.py:71`. So the honest statement is "the one edge adjudicated and deferred," not "the
 one call site in tension."
 
+## Partition-Move Audit Checklist
+
+[ADR 2026-06-24-1](../adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md)
+establishes read/write symmetry as the governing rule for the L1 partition:
+a kind's read side and write side must resolve to the *same* partition
+(PRIMARY or COORD). That symmetry is a property of the **kind
+classification** (`_PRIMARY_ARTIFACT_KINDS` / `_PLACEMENT_ARTIFACT_KINDS`,
+`src/mission_runtime/artifacts.py`), not of any single call site — so moving
+a kind between partitions is a whole-symmetry operation. Reclassify the
+write side without correcting every reader and you get a documented, real
+production regression, not a theoretical one:
+
+**The PR #3437 (issue #3371) case.** A prior mission correctly reclassified `lanes.json`
+(`LANE_STATE`) as PRIMARY and moved its **write** target accordingly — but
+one reader, `implement._resolve_lanes_dir`, still read it via the coord
+STATUS surface. Coord-topology `implement` then couldn't find its own lane
+state and refused. Every unit suite stayed green, because none of them
+exercised the coord read path end-to-end; the only test that caught the
+break was `tests/e2e/test_cli_smoke.py::test_full_workflow_sequence`, a
+coord-topology full-workflow smoke test — pass on `main`, fail on the
+branch. **This is the standing lesson: an e2e test, not a unit test, is
+what catches a partition-move straggler**, because unit tests exercise a
+resolver function directly with an already-correct `feature_dir`, while the
+break lives in *which* `feature_dir` an out-of-loop caller hands that
+function.
+
+**The checklist**, next time a kind's partition classification moves:
+
+1. **Grep every reader** of the moved kind — every call to
+   `read_lanes_json` / `require_lanes_json` / a kind-specific `resolve_*_dir`
+   helper, not just calls through `placement_seam(...).read_dir(<kind>)`.
+   The seam is the compliant path; the point of this step is finding the
+   ones that *aren't* on it.
+2. **Classify each reader** into one of three buckets:
+   - Uses the seam (`placement_seam(repo_root, slug).read_dir(<kind>)`) —
+     compliant; moves automatically with the kind's classification.
+   - Receives its directory from an **out-of-loop coord-resolving caller**
+     (a caller that independently resolves a coord/status surface and hands
+     the result down) — trace that caller too; it is invisible to a grep
+     scoped to the moved kind's own helper names.
+   - Resolves the coord surface directly, bypassing the seam — broken by
+     construction; this was `implement._resolve_lanes_dir`'s shape in the
+     PR #3437 case.
+3. **Watch for graceful-degradation callers especially.** Some out-of-loop
+   coord-resolving callers (merge ordering, `policy/merge_gates`, the
+   bulk-edit diff-base fallback) don't crash on a stale surface — they
+   silently `SKIP` a gate or fall back to an empty graph. A caller that
+   degrades gracefully on the wrong surface hides the break instead of
+   surfacing it, which is worse than a crash for audit purposes: nothing
+   in the test output points at the mismatch. (This is the same
+   fail-open-hides-a-break shape the charter's C-009 class names elsewhere.)
+4. **Prove it with an e2e test, not just unit reads.** A unit test that
+   calls the resolver directly with a hand-built `feature_dir` cannot catch
+   a caller that resolves the *wrong* `feature_dir` upstream — by
+   construction, it never gives the caller the chance to go wrong. Run (or
+   add) a full-workflow / topology-level test that exercises the reader
+   through its real call chain, for both PRIMARY-only and coord topologies.
+
+## Two-Axis Resolver-Site Classification
+
+Auditing a resolver call site for correctness (not just for seam
+compliance) means answering two independent questions, not one:
+
+**Axis A — raise or degrade.** When the target cannot be resolved, does the
+call site raise (fail-closed — e.g. `require_lanes_json` raising
+`MissingLanesError`, or `resolve_write_target_or_degrade`
+(`src/mission_runtime/write_target_degrade.py`) called with
+`degrade_ref=None`), or does it silently degrade to a fallback ref or an
+empty/skipped result (fail-open — e.g. the same helper called with a
+caller-supplied `degrade_ref`, or the graceful-degradation callers named
+above)? Both arms are legitimate in the right place; the audit question is
+whether the *caller* chose the arm deliberately for its own correctness
+requirements, or inherited it by accident from a shared helper's default.
+
+**Axis B — anchor-root.** Does the call site route its `repo_root` through
+`get_main_repo_root()` (`src/specify_cli/core/paths.py`) before resolving —
+anchoring at the primary checkout regardless of which worktree the process
+is physically running from — or does it resolve directly off whatever
+`repo_root` (or cwd) it was handed, which may itself be a lane worktree? An
+unanchored call site invoked from inside a lane worktree silently resolves
+against that worktree's own tree instead of the primary checkout, producing
+a worktree-local answer for a question that has exactly one correct answer
+mission-wide.
+
+**The two axes are orthogonal — classify both, not just one.** A call site
+that raises loudly (Axis A) but is unanchored (Axis B) fails safe against
+the *wrong* root — a clean exception that still doesn't prove the right
+directory was ever examined. A call site that degrades quietly (Axis A) but
+is correctly anchored (Axis B) at least looks in the right place, but can
+still mask a real gap behind a plausible-looking fallback. Neither
+combination is "obviously fine because it raises" or "obviously broken
+because it degrades" — record both axes for a call site before signing off
+on it.
+
 ## Citations
 
 - [ADR 2026-06-24-1: Kind- and Topology-Aware Artifact Placement — One Partition, Read/Write

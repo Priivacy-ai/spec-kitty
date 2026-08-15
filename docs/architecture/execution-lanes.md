@@ -24,6 +24,26 @@ Spec Kitty uses a lane-based execution model.
 4. If a feature computes one lane, the feature uses one worktree.
 5. Merge always follows `lane branches -> mission branch -> target branch`.
 
+## Workspace Resolution Contract
+
+`spec-kitty implement WP##` creates/reuses the execution workspace through
+`resolve_workspace_for_wp` (`src/specify_cli/workspace/context.py`). For a
+`code_change` WP, resolution ends at one of two places:
+
+1. An **existing** lane workspace context (`find_context_for_wp`) — the lane
+   this WP's mission already allocated a worktree for.
+2. Otherwise, the mapping in `lanes.json`, read through
+   `require_lanes_json` (`src/specify_cli/lanes/persistence.py`).
+
+`require_lanes_json` is fail-closed: when `lanes.json` is absent it raises
+`MissingLanesError` rather than degrading to a name-guessed path. **There is
+no `-WP##` legacy worktree fallback** — flat, `SINGLE_BRANCH`, and `LANES`
+missions all still require a computed `lanes.json`; a mission that hasn't run
+`finalize-tasks` cannot resolve a workspace at all. (An earlier revision of
+this repo's `AGENTS.md` claimed such a fallback existed; that claim was
+false and has been corrected — see the `MissingLanesError` contract above
+for the real behavior.)
+
 ## Naming
 
 As of mission `083-mission-id-canonical-identity-migration`, every mission carries a ULID
@@ -72,6 +92,38 @@ When neither criterion forces a merge, the pipeline keeps WPs in separate lanes 
 ```
 
 Each entry in `collapse_report` lists the WPs that were merged into a single lane and the reason (file overlap or explicit dependency). Inspect this field after `finalize-tasks` to understand why two WPs share a lane.
+
+### Disjoint Ownership vs. the Surface Heuristic (bulk-edit missions)
+
+`compute_lanes` (`src/specify_cli/lanes/compute.py`) has a second collapse
+rule beyond file-overlap: two WPs that share an inferred *surface* keyword
+(e.g. both bodies mention "legacy" or "cleanup", matching the
+`legacy-cleanup` tag in `SURFACE_TAXONOMY`) are also candidates for merging
+into one lane — **unless their `owned_files` are provably disjoint**
+(`_are_disjoint`), in which case the merge is skipped.
+
+This matters most for bulk-edit missions (see the [bulk-edit occurrence
+classification guardrail
+ADR](../adr/3.x/2026-04-14-1-bulk-edit-occurrence-classification-guardrail.md)):
+a rename/replace mission routinely produces many WPs whose bodies all
+describe the *same* edit applied to *different* files, so they trip the
+same surface keyword nearly every time. Without the disjoint-ownership
+check, the surface heuristic alone would collapse every one of those WPs
+into a single giant lane, discarding the parallel partition the
+occurrence-map classification was built to produce. The disjoint check is
+what lets bulk-edit WPs with non-overlapping file scopes stay in separate
+lanes and run in parallel.
+
+It also keeps the lane dependency graph (`lane_deps`) well-formed. Lane
+depth is computed by `_compute_lane_depths`, which treats a self-loop or
+cycle as a best-effort depth-0 anchor rather than crashing — see
+[`finalize-tasks internals`](../api/finalize-tasks-internals.md#2-lane-depth-cycle-safety)
+for why that fallback exists and why it is *not* a substitute for a clean
+input graph. An over-aggressive surface-only merge across many
+similarly-worded bulk-edit WPs is exactly the kind of input that could
+otherwise produce a lane graph the depth function has to paper over instead
+of compute correctly; skipping the merge when ownership is disjoint avoids
+manufacturing that situation in the first place.
 
 ## See Also
 
