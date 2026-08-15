@@ -189,6 +189,63 @@ for the type/severity triage this leans on, and
 [testing-flakiness.md](../testing/testing-flakiness.md) for the never-retry-to-green rule
 behind the fourth bin.
 
+### Multi-WP lanes: classify against the true base, not the lane tip
+
+A mission with dependency-merged lanes (`lanes.json`, [execution-lanes.md](../../architecture/execution-lanes.md))
+gives a downstream WP's lane tip a branch that already **contains every
+upstream WP it depends on** — the tip is not close to the mission's own base,
+it is ahead of it by however many WPs merged in first. Diffing or classifying
+reds against that lane tip mixes in work this PR did not write.
+
+Always classify against the **true base**, computed fresh, not against the
+lane tip and not against a remembered branch point:
+
+```bash
+git merge-base <mission-branch> upstream/main
+```
+
+Reds that reproduce between that merge-base and the lane tip are **pre-existing
+or upstream-WP fallout**, not this WP's defect — apply the same four-bin
+classification above, but with the merge-base as the comparison point.
+
+One concrete trap this produces: a `mock.patch.object(...)` raising
+`AttributeError` inside a red you have classified as "pre-existing" is very
+often **migration fallout** — an earlier WP in the same dependency chain
+renamed or removed the attribute the mock patches — not a defect in the WP
+under review. Confirm by checking whether the patched attribute still exists
+on the target at the merge-base; if it does not, the fix belongs to whichever
+WP renamed it, not to a fold on this PR.
+
+### Stale-stack diagnostic: two-dot vs three-dot diff
+
+A "small fix" PR whose diff shows charter, doctrine, or other governance
+files it has no business touching is a symptom of a **stale stack**: the
+branch was cut before a since-merged doctrine change, and rebasing (or a
+naive two-dot diff) is smuggling that governance change back in as if it
+were part of this PR.
+
+Tell the two apart with git's own diff-base semantics:
+
+```bash
+git diff upstream/main..HEAD    # two-dot: literal tip-to-tip diff
+git diff upstream/main...HEAD   # three-dot: diff since the merge-base
+```
+
+- **Two-dot** (`..`) diffs the two commits directly — if `upstream/main` has
+  moved on, this includes both "what the PR changed" *and* "what upstream/main
+  changed since," conflated into one diff.
+- **Three-dot** (`...`) diffs from `git merge-base upstream/main HEAD` to
+  `HEAD` — only the PR branch's own commits, regardless of how far
+  `upstream/main` has since moved.
+
+If the three-dot diff is clean (only the PR's intended files) but the two-dot
+diff shows charter/governance files, the branch is stale, not defective: fetch
+and rebase onto current `upstream/main` ([step 3](#3-rebase-onto-current-upstreammain-first))
+before re-classifying. If charter/governance files still show up in the
+**three-dot** diff, that is a real defect — the PR is genuinely carrying
+governance changes it should not — and belongs in the "PR defect" bin, not the
+"stale stack" bin.
+
 ## 5. Folds: remediation commits on the contributor branch
 
 Folds are maintainer commits pushed directly to the contributor branch. This
