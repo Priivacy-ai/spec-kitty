@@ -161,6 +161,26 @@ def actor_identity_str(actor: ActorField) -> str:
 
 
 @dataclass(frozen=True)
+class CurrentWpState:
+    """Current WP state resolved from a single in-transaction reduction.
+
+    Returned by ``read_current_wp_state_transactional`` and derived by
+    ``wp_lane_actor_from_events`` from the SAME reduction (C-002: no second
+    reduce, no split-brain identity reader). ``role`` is the already-reduced
+    resolved-binding ``role`` slot — carried, never re-derived by splitting the
+    actor string (#2861). It may be blank/``None`` (a binding-less claim records
+    no role, so collision detection downstream is best-effort).
+
+    An unseeded WP (no events / absent from the snapshot) yields
+    ``CurrentWpState(Lane.GENESIS, None, None)``.
+    """
+
+    lane: Lane
+    actor: str | None
+    role: str | None
+
+
+@dataclass(frozen=True)
 class RepoEvidence:
     """Evidence of code changes in a repository."""
 

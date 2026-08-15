@@ -595,17 +595,22 @@ def _check_in_review_approval(ctx: TransitionInputs) -> tuple[bool, str | None]:
 
 
 def _check_no_review_conflict(ctx: TransitionInputs) -> tuple[bool, str | None]:
-    """Guard: for_review -> in_review rejects a conflicting reviewer claim.
+    """Guard: for_review -> in_review is HARD allow-only (never blocks).
 
-    Permits an idempotent re-claim when ``current_actor`` matches ``actor``.
+    This guard consults actor-presence only (already enforced upstream by
+    :meth:`ForReviewState.guard_for` via ``_has_actor``) and ALWAYS allows. It
+    deliberately has NO reject / ``return False`` branch: the ``for_review``
+    holder is structurally the implementer (or a *stale* reviewer after a rework
+    cycle), so any block-on-actor/role here is either the original
+    cross-profile false-positive ("WP already claimed for review by
+    <implementer>") or the stale-role false-positive. The genuine
+    reviewer-vs-reviewer collision lives solely at the ``in_review`` re-claim
+    (:func:`work_package_lifecycle.start_review_status`, via
+    ``review_claim_decision``); this guard MUST NOT import or evaluate that
+    predicate. A stale reviewer role at ``for_review`` therefore still ALLOWs by
+    construction, not by input shape.
     """
-    current_actor = ctx.current_actor
-    actor = ctx.actor or ""
-    if current_actor and current_actor.strip() and current_actor.strip() != actor.strip():
-        return (
-            False,
-            f"WP already claimed for review by {current_actor.strip()}; cannot be claimed by {actor.strip()}",
-        )
+    del ctx  # allow-only: inputs are intentionally never consulted for a block
     return True, None
 
 

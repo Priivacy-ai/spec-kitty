@@ -13,6 +13,7 @@ from typing import Any, cast
 
 from specify_cli.status.emit import TransitionError
 from specify_cli.status.locking import feature_status_lock
+from specify_cli.status.review_claim_predicate import review_claim_decision
 from specify_cli.status.models import (
     ActorField,
     Lane,
@@ -126,12 +127,14 @@ def start_implementation_status(
     lock_root = _repo_root_for_lock(feature_dir, repo_root)
 
     with feature_status_lock(lock_root, mission_slug):
-        current_lane, current_actor = read_current_wp_state_transactional(
+        current = read_current_wp_state_transactional(
             feature_dir=feature_dir,
             mission_slug=mission_slug,
             wp_id=wp_id,
             repo_root=repo_root,
         )
+        current_lane = current.lane
+        current_actor = current.actor
 
         if current_lane == Lane.GENESIS:
             raise WorkPackageStartRejected(
@@ -268,12 +271,15 @@ def start_review_status(
     lock_root = _repo_root_for_lock(feature_dir, repo_root)
 
     with feature_status_lock(lock_root, mission_slug):
-        current_lane, current_actor = read_current_wp_state_transactional(
+        current = read_current_wp_state_transactional(
             feature_dir=feature_dir,
             mission_slug=mission_slug,
             wp_id=wp_id,
             repo_root=repo_root,
         )
+        current_lane = current.lane
+        current_actor = current.actor
+        current_role = current.role
 
         if current_lane == Lane.FOR_REVIEW:
             event = emit_status_transition_transactional(
@@ -304,8 +310,20 @@ def start_review_status(
             )
 
         if current_lane == Lane.IN_REVIEW:
-            if not _actors_compatible(current_actor, actor):
-                raise WorkPackageClaimConflict(wp_id, current_actor or "unknown", actor, review=True)
+            # Role-aware collision (FR-003): the genuine reviewer-vs-reviewer
+            # gate. Role rides the in-lock ``CurrentWpState`` read (no split-brain
+            # / no guard-path plumbing). Collision is best-effort — a binding-less
+            # holder has ``current_role=None`` and degrades to ALLOW. The requester
+            # role is part of the symmetric predicate contract but is not consulted.
+            requesting_role = actor.get("role") if isinstance(actor, dict) else None
+            decision = review_claim_decision(
+                current_actor,
+                current_role,
+                _actor_key(actor),
+                requesting_role,
+            )
+            if decision.is_collision:
+                raise WorkPackageClaimConflict(wp_id, decision.holder or "unknown", actor, review=True)
             return WorkPackageStartResult(wp_id, Lane.IN_REVIEW, Lane.IN_REVIEW, actor, (), no_op=True, claimed_by=current_actor)
 
     raise WorkPackageStartRejected(f"WP {wp_id} is in '{current_lane}', cannot start review")
