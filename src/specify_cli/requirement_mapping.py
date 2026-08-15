@@ -53,22 +53,26 @@ _REF_FIND_PATTERN = re.compile(r"\b(?:FR|NFR|C)-\d+\b", re.IGNORECASE)
 # non-blocking warning shipped instead of that rejected hard-fail layer.
 _TABLE_ROW_ID_PATTERN = re.compile(r"^\s*\|\s*(?:\*\*|~~){0,2}((?:FR|NFR|C)-\d+)(?:\*\*|~~){0,2}\s*\|", re.IGNORECASE)
 _HEADING_ID_PATTERN = re.compile(r"^#{1,6}\s*((?:FR|NFR|C)-\d+)\b", re.IGNORECASE)
-# A leading bullet/number marker is itself the "this is a list item, not a
-# sentence" signal, so bold is OPTIONAL once that marker is present
-# (``- FR-001: ...`` and ``- **FR-001**: ...`` both declare FR-001).
+# A leading ``-``, ``*``, or ``N.`` marker is itself the "this is a list
+# item, not a sentence" signal that makes an id a declaration. The marker
+# class includes ``*``, so a bold-led line (``**FR-001**: ...``) is
+# recognized through this SAME pattern rather than a separate mechanism: the
+# marker slot consumes the line's first ``*`` as the bullet marker, and the
+# following ``\*{0,2}`` consumes the second ``*`` that opens the bold span --
+# ``*`` is doubling as both "bullet" and "bold-open" here. That is why
+# ``- FR-001: ...``, ``- **FR-001**: ...``, and a bold-led bare paragraph
+# like ``**FR-001 — Title.** body text`` (common across kitty-specs/) all
+# declare FR-001 through this one pattern; there is no distinct
+# bold-paragraph mechanism to reach.
+# A bare, un-marked line opening with an id and no leading ``-``/``*``/``N.``
+# at all (``FR-001 must hold...``) matches no marker and is indistinguishable
+# from a citation sentence, so it correctly does NOT count as declared
+# (that's the #3394 bug).
 _BULLET_LEAD_ID_PATTERN = re.compile(r"^\s*(?:[-*]|\d+\.)\s*\*{0,2}((?:FR|NFR|C)-\d+)\b", re.IGNORECASE)
-# With NO bullet marker, bold is REQUIRED -- a bare, un-bulleted, un-bolded
-# line opening with an id (``FR-001 must hold...``) is indistinguishable from
-# a citation sentence and must NOT count as declared (that's the #3394 bug).
-# The bold span need not close right after the id -- ``**FR-001**: text`` and
-# ``**FR-001 — Title.** body text`` (bold id+title, common across
-# kitty-specs/) both declare FR-001.
-_BOLD_PARAGRAPH_LEAD_ID_PATTERN = re.compile(r"^\s*\*\*((?:FR|NFR|C)-\d+)\b", re.IGNORECASE)
 _DECLARED_ID_PATTERNS = (
     _TABLE_ROW_ID_PATTERN,
     _HEADING_ID_PATTERN,
     _BULLET_LEAD_ID_PATTERN,
-    _BOLD_PARAGRAPH_LEAD_ID_PATTERN,
 )
 
 
