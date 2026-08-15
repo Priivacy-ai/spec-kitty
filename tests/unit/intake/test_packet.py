@@ -93,6 +93,28 @@ def test_empty_requirements_list_is_valid_packet():
     assert packet.requirement_ids == ()
 
 
+def test_boolean_true_version_degrades_to_prose():
+    raw = "---\nhandoff_packet: true\nrequirements: []\n---\n\n# Bad\n"
+    assert parse_handoff_packet(raw) is None
+
+
+def test_float_version_degrades_to_prose():
+    raw = "---\nhandoff_packet: 1.0\nrequirements: []\n---\n\n# Bad\n"
+    assert parse_handoff_packet(raw) is None
+
+
+def test_string_version_degrades_to_prose():
+    raw = '---\nhandoff_packet: "1"\nrequirements: []\n---\n\n# Bad\n'
+    assert parse_handoff_packet(raw) is None
+
+
+def test_bom_prefixed_packet_still_parses():
+    raw = "\ufeff---\nhandoff_packet: 1\nrequirements: []\n---\n\n# BOM\n"
+    packet = parse_handoff_packet(raw)
+    assert packet is not None
+    assert packet.requirement_count == 0
+
+
 def test_comment_terminator_in_source_tool_is_escaped_in_sidecar():
     raw = (
         "---\nhandoff_packet: 1\nsource_tool: \"evil --> visible\"\n"

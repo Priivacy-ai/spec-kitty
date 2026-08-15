@@ -73,7 +73,13 @@ def parse_handoff_packet(content: str) -> HandoffPacket | None:
     """
     if not content:
         return None
-    match = _FRONTMATTER_RE.match(content)
+    # A leading UTF-8 BOM defeats the ``\A---`` anchor below and would
+    # silently degrade a real packet to prose. Strip a single leading BOM
+    # from the parse view only; ``content`` itself (and thus the raw
+    # SHA-256 brief hash computed by callers over the untouched string) is
+    # never mutated.
+    view = content.removeprefix("\ufeff")
+    match = _FRONTMATTER_RE.match(view)
     if match is None:
         return None
     try:
@@ -83,7 +89,14 @@ def parse_handoff_packet(content: str) -> HandoffPacket | None:
     if not isinstance(loaded, dict):
         return None
     version = loaded.get("handoff_packet")
-    if version != HANDOFF_PACKET_VERSION:
+    # ``True == 1`` and ``1.0 == 1`` in Python, so a bare ``!=`` check would
+    # accept ``handoff_packet: true`` or ``handoff_packet: 1.0``. Only the
+    # literal int ``1`` is a valid v1 packet.
+    if (
+        not isinstance(version, int)
+        or isinstance(version, bool)
+        or version != HANDOFF_PACKET_VERSION
+    ):
         return None
     requirements = loaded.get("requirements")
     if not isinstance(requirements, list):
