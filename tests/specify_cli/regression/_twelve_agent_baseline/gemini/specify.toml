@@ -220,7 +220,31 @@ Check in priority order:
 
 1. **Read the full brief.** Do not skim.
 
-2. **Summarise for the user.** Present a single paragraph: what the brief says the goal is, who it is for, and what the key constraints are. Example: "I found a plan document from Claude Code plan mode. Here's what I understand the goal to be: [summary]. I'll extract the spec from this brief rather than running a full discovery interview."
+1b. **If the brief is a structured handoff packet, adopt its IDs verbatim.**
+    A structured packet is a Markdown file whose YAML frontmatter declares
+    `handoff_packet: 1` (contract: `docs/contracts/handoff-packet-v1.md`).
+    Also inspect `.kittify/brief-source.yaml` for `packet_version` /
+    `requirement_ids` written by `spec-kitty intake`.
+
+    When a v1 packet is present:
+    - Use each `requirements[].id` as the `FR-###` id. Do **not** renumber.
+    - Copy `requirements[].statement` as the FR statement.
+    - Preserve `requirements[].source_id` as a trace on that FR (e.g.
+      `Source: TKT-1042` or an equivalent spec.md trace field).
+    - Adopt nested `acceptance_criteria[].id` verbatim; do not mint new AC ids
+      for criteria the packet already numbered.
+    - Adopt `constraints[].id` as `C-###` (and `NFR-###` only when the
+      constraint is genuinely non-functional and unnumbered).
+    - Treat packet quality as **Comprehensive** (0–1 gap-filling questions)
+      when `requirements` is non-empty.
+    - Unknown `handoff_packet` versions, malformed YAML, or a missing
+      `requirements` list are **not** packets — fall through to prose
+      extraction below. Do not fail specify because the overlay is absent.
+
+    Still run the one-round user confirmation in step 5. Packet intake does
+    not skip the discovery gate.
+
+2. **Summarise for the user.** Present a single paragraph: what the brief says the goal is, who it is for, and what the key constraints are. Example: "I found a plan document from Claude Code plan mode. Here's what I understand the goal to be: [summary]. I'll extract the spec from this brief rather than running a full discovery interview." For a structured packet, name the `source_tool` and how many FR ids you adopted.
 
 3. **Extract requirements directly.** Map the brief's content to `FR-###`, `NFR-###`, and `C-###` IDs. Do not ask questions the brief already answers. Specifically extract:
    - Objective → Functional Requirements
@@ -254,6 +278,7 @@ Check in priority order:
 - Does not skip the quality checklist
 - Does not skip the readiness gate
 - Does not require the brief to be in any particular format — Markdown prose is fine
+- Does not renumber `FR-###` / `AC-###` ids when a v1 handoff packet supplied them
 
 ### If no brief file is found → Proceed with normal Discovery Gate
 
