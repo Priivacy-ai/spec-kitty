@@ -525,6 +525,21 @@ class WPInnerStateDelta:
         "provider",
     )
 
+    def __post_init__(self) -> None:
+        """Write-boundary normalization (#2960 / FR-014).
+
+        An empty-string scalar runtime slot is meaningless — it carries no
+        attribution. Normalize ``""`` -> ``None`` for every ``str | None`` scalar
+        field so the append-only log **never records a blanking delta**: a stray
+        ``agent: ""`` (or any blank scalar) can no longer clobber a real recorded
+        value when the reducer folds it. This is the durable net; the reducer's
+        empty-string no-op guard is the read-side belt-and-braces for logs that
+        were written before this normalization existed.
+        """
+        for name in self._SCALAR_FIELDS:
+            if getattr(self, name) == "":
+                object.__setattr__(self, name, None)
+
     def is_empty(self) -> bool:
         """True when the delta touches no slot (all fields ``None``).
 
