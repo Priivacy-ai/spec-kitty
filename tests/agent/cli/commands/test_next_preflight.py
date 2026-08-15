@@ -12,6 +12,7 @@ and don't spawn ``git status`` subprocesses.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -214,3 +215,66 @@ def test_next_command_continues_to_decide_when_preflight_passes(
         )
 
     assert excinfo.value is sentinel
+
+
+def test_next_command_invalid_mission_path_exits_without_traceback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Traversal-like mission handles are rendered as clean CLI errors."""
+    from specify_cli.cli.commands import next_cmd
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
+
+    monkeypatch.setattr(hook_mod, "run_preflight_for_dashboard", lambda *_a, **_k: _pass_result())
+    monkeypatch.setattr(next_cmd, "locate_project_root", lambda: tmp_path)
+
+    with pytest.raises(typer.Exit) as excinfo:
+        _call_next_step_unwrapped(
+            agent="claude",
+            result=None,
+            mission="../traversal",
+            json_output=False,
+            answer=None,
+            decision_id=None,
+        )
+
+    assert excinfo.value.exit_code == 1
+    captured = capsys.readouterr()
+    assert "Traceback" not in captured.err
+    assert "Traceback" not in captured.out
+    assert "Not a safe path segment: '../traversal'" in captured.err
+    assert "traversal guard" in captured.err
+
+
+def test_next_command_invalid_mission_path_json_error_has_no_traceback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """JSON mode emits a typed error payload for invalid mission handles."""
+    from specify_cli.cli.commands import next_cmd
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
+
+    monkeypatch.setattr(hook_mod, "run_preflight_for_dashboard", lambda *_a, **_k: _pass_result())
+    monkeypatch.setattr(next_cmd, "locate_project_root", lambda: tmp_path)
+
+    with pytest.raises(typer.Exit) as excinfo:
+        _call_next_step_unwrapped(
+            agent="claude",
+            result=None,
+            mission="../traversal",
+            json_output=True,
+            answer=None,
+            decision_id=None,
+        )
+
+    assert excinfo.value.exit_code == 1
+    captured = capsys.readouterr()
+    assert "Traceback" not in captured.err
+    assert "Traceback" not in captured.out
+    payload = json.loads(captured.out)
+    assert payload["result"] == "error"
+    assert payload["error_code"] == "INVALID_MISSION"
+    assert "Not a safe path segment: '../traversal'" in payload["error"]
+    assert "traversal guard" in payload["error"]

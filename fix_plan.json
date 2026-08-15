@@ -1,0 +1,20 @@
+{
+  "root_cause": "`spec-kitty next` normalizes `--mission` through `_resolve_mission_slug()`, which calls `candidate_feature_dir_for_mission()` and ultimately `_resolve_mission_read_path()`. The read-path resolver correctly calls `assert_safe_path_segment()` before composing paths, but that guard raises `ValueError` for `..` traversal input while the `next_step()` boundary only catches `StatusReadPathNotFound` and `MissionNotFoundError`; the raw `ValueError` therefore escapes Typer's normal command error path and produces a Python traceback.",
+  "target_files": [
+    "src/specify_cli/cli/commands/next_cmd.py",
+    "tests/agent/cli/commands/test_next_preflight.py"
+  ],
+  "target_functions": [
+    "next_step",
+    "_resolve_mission_slug",
+    "_emit_invalid_mission_error"
+  ],
+  "approach": "Keep the traversal guard in the resolver unchanged and translate its `ValueError` at the `next` CLI boundary. Add a small invalid-mission emitter in `next_cmd.py` (human stderr and JSON-safe payload) and catch `ValueError` from `_resolve_mission_slug()` beside the existing typed read-path handling, exiting non-zero without a traceback. Do not broaden the catch around runtime advancement or decision execution, so unrelated `ValueError`s still surface normally.",
+  "tests_to_add": [
+    "Add a regression test invoking `next_step` with `mission=\"../traversal\"` that asserts non-zero `typer.Exit`, no `Traceback` text, and the safe-path guard message is rendered cleanly.",
+    "Add the same assertion for `json_output=True` if straightforward, verifying a typed error payload rather than mixed traceback output."
+  ],
+  "expected_loc": 45,
+  "risk_notes": "Catching all `ValueError` from `_resolve_mission_slug()` could misclassify a future non-validation bug in that helper as invalid input; keep the catch scoped only around slug normalization and include the original message.",
+  "out_of_scope_observations": "The resolver's security behavior is already fail-closed; no path traversal bypass or source-template changes are needed."
+}
