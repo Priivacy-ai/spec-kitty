@@ -753,12 +753,13 @@ def test_transactional_read_falls_back_to_primary_when_coord_branch_deleted(repo
     _git(repo, "commit", "-q", "-m", "merge mission artifacts to main")
     _git(repo, "branch", "-D", COORD_BRANCH)
 
-    lane, actor = read_current_wp_state_transactional(
+    _state = read_current_wp_state_transactional(
         feature_dir=repo / "kitty-specs" / MISSION_DIRNAME,
         mission_slug=MISSION_SLUG,
         wp_id="WP01",
         repo_root=repo,
     )
+    lane, actor = _state.lane, _state.actor
     assert lane == Lane.PLANNED
     assert actor == "seed"
 
@@ -815,12 +816,13 @@ def test_transactional_wp_state_read_survives_fail_closed_surface_refusal(
 ) -> None:
     _materialize_coord_root_without_mission_dir(repo)
 
-    lane, actor = read_current_wp_state_transactional(
+    _state = read_current_wp_state_transactional(
         feature_dir=repo / "kitty-specs" / MISSION_DIRNAME,
         mission_slug=MISSION_DIRNAME,
         wp_id="WP01",
         repo_root=repo,
     )
+    lane, actor = _state.lane, _state.actor
 
     assert lane == Lane.GENESIS
     assert actor is None

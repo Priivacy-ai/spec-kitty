@@ -470,7 +470,7 @@ class TestMergeDoneTransitions:
         _write_meta(feature_dir, mission_slug, mission_id=None)
         _write_wp_file(tasks_dir, "WP01")
 
-        from specify_cli.status import Lane
+        from specify_cli.status import CurrentWpState, Lane
 
         with (
             # _mark_wp_merged_done reads the current lane via
@@ -478,7 +478,7 @@ class TestMergeDoneTransitions:
             # it so the WP reads as approved and the lightweight done-emit fires.
             patch(
                 "specify_cli.coordination.status_transition.read_current_wp_state_transactional",
-                return_value=(Lane.APPROVED, "reviewer-1"),
+                return_value=CurrentWpState(Lane.APPROVED, "reviewer-1", None),
             ),
             patch("specify_cli.cli.commands.merge._has_transition_to", return_value=False),
             patch("specify_cli.coordination.status_transition.emit_status_transition_transactional") as mock_emit,

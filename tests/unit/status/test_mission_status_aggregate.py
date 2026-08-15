@@ -497,7 +497,7 @@ class TestTransitionHappyPath:
         """
         from specify_cli.status import TransitionRequest
         from specify_cli.status.aggregate import MissionStatus
-        from specify_cli.status.models import Lane
+        from specify_cli.status.models import CurrentWpState, Lane
 
         ms = MissionStatus(
             mission_slug="034-lane-fallback",
@@ -517,7 +517,7 @@ class TestTransitionHappyPath:
 
         from_lane, current_actor = ms._resolve_current_lane(
             request=request,
-            read_current_wp_state_transactional=lambda **_: ("uninitialized", "claude"),
+            read_current_wp_state_transactional=lambda **_: CurrentWpState(Lane.UNINITIALIZED, "claude", None),
             lane_unseeded=Lane.GENESIS,
         )
 

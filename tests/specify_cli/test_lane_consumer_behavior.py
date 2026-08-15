@@ -138,12 +138,13 @@ def test_transactional_read_preserves_genesis_fallback_for_unseeded_wp(
         read_current_wp_state_transactional,
     )
 
-    lane, actor = read_current_wp_state_transactional(
+    _state = read_current_wp_state_transactional(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         wp_id="WP01",
         repo_root=repo,
     )
+    lane, actor = _state.lane, _state.actor
 
     assert lane == Lane.GENESIS
     assert actor is None

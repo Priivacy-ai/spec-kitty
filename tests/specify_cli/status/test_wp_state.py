@@ -471,15 +471,24 @@ class TestGuardEquivalence:
         ctx_no_actor = TransitionContext(actor="")
         assert state.can_transition_to(Lane.IN_REVIEW, ctx_no_actor) is False
 
-    def test_for_review_to_in_review_conflict_detection_rejects_double_claim(self):
-        """for_review -> in_review rejects a second reviewer when another already holds it."""
+    def test_for_review_to_in_review_allows_distinct_reviewer(self):
+        """for_review -> in_review is allow-only: a distinct reviewer ALLOWs.
+
+        Re-pointed (WP01): the guard no longer blocks on ``current_actor``. The
+        holder at ``for_review`` is structurally the implementer (or a stale
+        reviewer after rework), so blocking here is the cross-profile
+        false-positive this mission removes. Role is not on this guard surface,
+        so seeding it would be inert — the genuine reviewer-vs-reviewer reject
+        lives at the ``in_review`` re-claim (see
+        ``tests/status/test_work_package_lifecycle.py::test_start_review_rejects_second_reviewer``).
+        """
         state = wp_state_for("for_review")
 
-        ctx_conflict = TransitionContext(
+        ctx_distinct = TransitionContext(
             actor="reviewer-B",
             current_actor="reviewer-A",
         )
-        assert state.can_transition_to(Lane.IN_REVIEW, ctx_conflict) is False
+        assert state.can_transition_to(Lane.IN_REVIEW, ctx_distinct) is True
 
     def test_for_review_to_in_review_same_actor_reclaim_allowed(self):
         """for_review -> in_review permits idempotent re-claim by the same actor."""
@@ -498,13 +507,17 @@ class TestGuardEquivalence:
         ctx_fresh = TransitionContext(actor="reviewer-A")
         assert state.can_transition_to(Lane.IN_REVIEW, ctx_fresh) is True
 
-    def test_for_review_to_in_review_conflict_detection_guard_equivalence(self):
-        """Guard equivalence: _run_guard and WPState agree on conflict detection."""
+    def test_for_review_to_in_review_guard_equivalence_allow_only(self):
+        """Guard equivalence: _run_guard and WPState agree the guard is allow-only.
+
+        Re-pointed (WP01): a distinct actor at ``for_review`` ALLOWs on both
+        surfaces (the collision guard was removed; role is not on this surface).
+        """
         state = wp_state_for("for_review")
 
-        # Case 1: different actor -> both reject
-        ctx_conflict = TransitionContext(actor="reviewer-B", current_actor="reviewer-A")
-        assert state.can_transition_to(Lane.IN_REVIEW, ctx_conflict) is False
+        # Case 1: different actor -> both ALLOW (allow-only guard)
+        ctx_distinct = TransitionContext(actor="reviewer-B", current_actor="reviewer-A")
+        assert state.can_transition_to(Lane.IN_REVIEW, ctx_distinct) is True
         old_ok, _ = _run_guard(
             "for_review",
             "in_review",
@@ -518,7 +531,7 @@ class TestGuardEquivalence:
             force=False,
             current_actor="reviewer-A",
         )
-        assert old_ok is False
+        assert old_ok is True
 
         # Case 2: same actor -> both accept
         ctx_same = TransitionContext(actor="reviewer-A", current_actor="reviewer-A")

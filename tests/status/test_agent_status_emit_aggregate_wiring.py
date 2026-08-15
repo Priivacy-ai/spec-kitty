@@ -340,7 +340,7 @@ def test_transition_helper_maps_uninitialized_lane_to_genesis(tmp_path: Path) ->
     """
     from specify_cli.status import TransitionRequest
     from specify_cli.status.aggregate import MissionStatus
-    from specify_cli.status.models import Lane
+    from specify_cli.status.models import CurrentWpState, Lane
 
     ms = MissionStatus(
         mission_slug="017-helper-lane",
@@ -360,7 +360,7 @@ def test_transition_helper_maps_uninitialized_lane_to_genesis(tmp_path: Path) ->
 
     from_lane, current_actor = ms._resolve_current_lane(
         request=request,
-        read_current_wp_state_transactional=lambda **_: ("uninitialized", "codex"),
+        read_current_wp_state_transactional=lambda **_: CurrentWpState(Lane.UNINITIALIZED, "codex", None),
         lane_unseeded=Lane.GENESIS,
     )
 

@@ -9,9 +9,14 @@ import pytest
 
 from kernel.clock import now_utc_iso
 from specify_cli.dashboard.scanner import _KANBAN_COLUMN_FOR_LANE
-from specify_cli.status.models import Lane, StatusEvent, WPInnerStateDelta
+from specify_cli.status.models import InnerStateChanged, Lane, StatusEvent, WPInnerStateDelta
 from specify_cli.status.reducer import materialize_snapshot, reduce
-from specify_cli.status.store import append_event, read_event_stream, read_events
+from specify_cli.status.store import (
+    append_annotations_atomic_verified,
+    append_event,
+    read_event_stream,
+    read_events,
+)
 from specify_cli.status.work_package_lifecycle import (
     WorkPackageClaimConflict,
     WorkPackageStartRejected,
@@ -59,6 +64,32 @@ def _event(
         actor=actor,
         force=False,
         execution_mode="worktree",
+    )
+
+
+def _seed_reviewer_role_annotation(
+    feature_dir: Path, *, actor: str, event_id: str, wp_id: str = "WP01"
+) -> None:
+    """Fold ``role="reviewer"`` onto ``wp_id`` (the resolved-binding review claim).
+
+    The role-aware collision predicate keys off the reduced ``role`` slot, which
+    is populated only when a claim carried a resolved binding
+    (``workflow_executor`` writes ``role="reviewer"`` if ``resolved_binding`` is
+    not None). Seeding it here is what makes the ``in_review`` re-claim collision
+    fire; a binding-less holder (no such annotation) leaves ``role=None`` and
+    degrades to ALLOW (best-effort collision).
+    """
+    append_annotations_atomic_verified(
+        feature_dir,
+        [
+            InnerStateChanged(
+                event_id=event_id,
+                wp_id=wp_id,
+                at=now_utc_iso(),
+                actor=actor,
+                delta=WPInnerStateDelta(role="reviewer"),
+            )
+        ],
     )
 
 
@@ -509,11 +540,17 @@ def test_slow_review_claim_uses_in_review_not_claimed(tmp_path: Path) -> None:
 
 
 def test_start_review_noops_same_reviewer(tmp_path: Path) -> None:
+    """Same reviewer re-claiming an in_review WP is idempotent (predicate rule 3).
+
+    Re-pointed (WP01): the holder's ``role="reviewer"`` is seeded via the binding
+    annotation so the role-aware predicate is exercised; the same actor re-claim
+    resolves to ALLOW (no_op)."""
     feature_dir = _feature_dir(tmp_path)
     append_event(
         feature_dir,
         _event("01DDDD0000000000000000004D", from_lane=Lane.FOR_REVIEW, to_lane=Lane.IN_REVIEW, actor="reviewer-a"),
     )
+    _seed_reviewer_role_annotation(feature_dir, actor="reviewer-a", event_id="01DDDD00000000000000000A4E")
 
     result = start_review_status(
         feature_dir=feature_dir,
@@ -530,11 +567,18 @@ def test_start_review_noops_same_reviewer(tmp_path: Path) -> None:
 
 
 def test_start_review_rejects_second_reviewer(tmp_path: Path) -> None:
+    """Two distinct reviewers on an in_review WP collide (predicate rule 4).
+
+    Re-pointed (WP01): the reject is now role-aware. The holder's
+    ``role="reviewer"`` MUST be seeded via the binding annotation, or the
+    predicate (correctly) degrades to ALLOW. This is the SINGLE genuine reject
+    site — the FSM/guard/parity surfaces carry no role and assert ALLOW."""
     feature_dir = _feature_dir(tmp_path)
     append_event(
         feature_dir,
         _event("01DDDD0000000000000000004D", from_lane=Lane.FOR_REVIEW, to_lane=Lane.IN_REVIEW, actor="reviewer-a"),
     )
+    _seed_reviewer_role_annotation(feature_dir, actor="reviewer-a", event_id="01DDDD00000000000000000A4E")
 
     with pytest.raises(WorkPackageClaimConflict) as exc_info:
         start_review_status(
@@ -548,6 +592,35 @@ def test_start_review_rejects_second_reviewer(tmp_path: Path) -> None:
         )
 
     assert exc_info.value.claimed_by == "reviewer-a"
+
+
+def test_start_review_allows_second_reviewer_when_holder_binding_less(tmp_path: Path) -> None:
+    """Best-effort collision (WP01): a binding-less holder (no reduced role) ALLOWs.
+
+    Records the accepted degradation — when the holder claimed with a bare
+    ``--agent`` (no resolved binding), the reduced ``role`` slot is ``None`` so
+    predicate rule 2 fires and a distinct reviewer's claim is permitted rather
+    than false-blocked. This prevents the mission's primary failure mode (never
+    false-block a cross-profile review) from regressing into a hard block."""
+    feature_dir = _feature_dir(tmp_path)
+    append_event(
+        feature_dir,
+        _event("01DDDD0000000000000000004D", from_lane=Lane.FOR_REVIEW, to_lane=Lane.IN_REVIEW, actor="reviewer-a"),
+    )
+    # NOTE: deliberately NO role annotation -> current_role is None.
+
+    result = start_review_status(
+        feature_dir=feature_dir,
+        mission_slug="099-lifecycle-test",
+        wp_id="WP01",
+        actor="reviewer-b",
+        workspace_context="review:/nonexistent/repo",
+        execution_mode="worktree",
+        repo_root=tmp_path,
+    )
+
+    assert result.no_op is True
+    assert len(read_events(feature_dir)) == 1
 
 
 def test_start_review_rejects_non_review_lane(tmp_path: Path) -> None:
