@@ -215,18 +215,18 @@ def _wire_contract_allows_force_free(
     wire payload, treat the edge as force-required.
     """
     from spec_kitty_events import validate_transition as _wire_validate
-    from spec_kitty_events.status import StatusTransitionPayload
+    from spec_kitty_events.status import ExecutionMode, Lane, StatusTransitionPayload
 
     try:
         candidate = StatusTransitionPayload(
             mission_slug="_wire_probe",
             wp_id="_wire_probe",
-            from_lane=old_lane,
-            to_lane=new_lane,
+            from_lane=Lane(old_lane),
+            to_lane=Lane(new_lane),
             actor="cli",
             force=False,
             reason=reason,
-            execution_mode="direct_repo",
+            execution_mode=ExecutionMode("direct_repo"),
             review_ref=review_ref,
             evidence=None,
         )
