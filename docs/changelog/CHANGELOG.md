@@ -317,6 +317,27 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   is still blocked, and the message names the holder). Role is read from the
   reduced status slot, never by splitting the compact actor string (`#2861`).
 
+- **A `spec.md` can now cite another mission's requirement id in prose without
+  breaking its own tasks phase (`#3395`, closes `#3394`).** Before, `finalize-tasks`
+  refused to run for any spec whose prose mentioned an `FR-`/`NFR-`/`C-NNN` it did
+  not itself define — citing an already-shipped requirement as background evidence
+  counted as a declaration, was reported as `unmapped_functional_requirements`, and
+  hard-failed the phase. The only ways out were mapping a requirement the work
+  package does not implement, or editing an already-reviewed spec to break the
+  match. Now `parse_requirement_ids_from_spec_md` extracts only ids written in a
+  position that _declares_ them — a Requirements table row, a heading naming the id,
+  a bulleted or numbered list item, or a bold id leading a bare paragraph — so a
+  mid-sentence mention is excluded from both the `functional` and `all` keys. The
+  four shapes were validated against all 366 real `kitty-specs/*/spec.md` files: no
+  real declaration is lost. Because `all` is what proves a work package's
+  `requirement_refs` entry is known, a WP citing a foreign id now correctly fails
+  "unknown ref" instead of silently passing. Narrowing extraction carries the
+  opposite risk — a Requirements section matching none of the four shapes yields
+  zero declared ids — so `finalize-tasks` and `map-requirements` gained a
+  non-blocking `requirement_extraction_warnings` field (plus a console warning) and
+  the `spec-kitty next` readiness path logs an advisory. **Exit codes are
+  unchanged**; the warning never becomes a hard failure.
+
 - **Coord/primary partition-authority residuals: out-of-loop callers now resolve
   the correct partition surface, so coordination-topology missions stop deadlocking
   and mis-reporting (mission `partition-authority-residuals-01M021K9`; epics `#2160`
