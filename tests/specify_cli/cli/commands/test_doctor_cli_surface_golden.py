@@ -112,7 +112,12 @@ EXPECTED_OPTIONS: dict[str, dict[str, str]] = {
         "--allow-dirty": "flag",
     },
     "doctrine": {"--json": "flag"},
-    "coordination": {"--fix": "flag", "--json": "flag", "--check-staleness": "flag"},
+    "coordination": {
+        "--fix": "flag",
+        "--json": "flag",
+        "--check-staleness": "flag",
+        "--mission": "value",
+    },
     "cutover": {"--json": "flag"},
     "review-cycle-reconcile": {"--mission": "value", "--json": "flag"},
 }
@@ -398,11 +403,15 @@ EXPECTED_HELP: dict[str, list[str]] = {
         '100%-done missions before ``spec-kitty next`` or ``spec-kitty merge``.',
         'With ``--check-staleness``, also reports Gap-1 coord-branch-vs-target',
         'staleness (FR-008) — non-blocking either way.',
+        'With ``--mission <handle>``, scopes every per-mission check (and the',
+        '``--fix`` Gap-1 fast-forward) to the single mission the shared resolver maps',
+        'the handle to. An unresolvable / ambiguous handle fails closed with exit 1.',
         'Examples:',
         'spec-kitty doctor coordination',
         'spec-kitty doctor coordination --fix',
         'spec-kitty doctor coordination --json',
         'spec-kitty doctor coordination --check-staleness',
+        'spec-kitty doctor coordination --mission 083-my-mission',
         'Options',
         '--fix Remove stale coordination_branch keys from meta.json for missions '
         'whose coord branch was never created, then re-derive topology via '
@@ -411,6 +420,8 @@ EXPECTED_HELP: dict[str, list[str]] = {
         '--check-staleness Also report coord-branch-vs-target-branch staleness '
         '(Gap-1, FR-008): non-blocking, whether the coord branch is behind or has '
         "diverged from its mission's target_branch.",
+        '--mission TEXT Scope the checks to a single mission handle (mission_id / '
+        'mid8 / slug), resolved via the same resolver as `doctor mission-state`.',
         '--help -h Show this message and exit.',
     ],
     'cutover': [
