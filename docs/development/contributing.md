@@ -2,13 +2,15 @@
 title: Contributing to Spec Kitty
 description: The full contributor guide for Spec Kitty — developer setup, running tests, submitting pull requests, AI-assistance disclosure, and the release process.
 doc_status: active
-updated: '2026-07-31'
+updated: '2026-08-15'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
 - docs/guides/index.md
 - docs/development/how-to/review-gates.md
 - docs/development/how-to/pr-landing.md
+- docs/development/how-to/manage-issue-tracker.md
+- docs/development/how-to/create-a-doctrine-artifact.md
 - docs/development/testing/testing-parallel.md
 - docs/guides/how-to/installation/diagnose-installation.md
 ---
@@ -397,6 +399,14 @@ Here are a few things you can do that will increase the likelihood of your pull 
 ## Maintainer guides
 
 - [Landing contributor PRs](how-to/pr-landing.md) — the maintainer runbook for taking a contributor PR from "open with red CI" to "merge-ready, evidence posted, operator merges": claim, isolated worktree, rebase, red classification, folds, red-first verification, push discipline, and hand-off.
+- [Managing the issue tracker](how-to/manage-issue-tracker.md) — epics vs. meta-trackers,
+  native sub-issue parenting, and triage conventions. Notably: the `bug` label is retired
+  repo-wide — kind is set via the GitHub **native issue type** (`Task` / `Bug` / `Feature`),
+  never a label.
+- [Create a doctrine artifact](how-to/create-a-doctrine-artifact.md) — includes how to model
+  relationships between doctrine artifacts, including
+  [design-opposing tension](how-to/create-a-doctrine-artifact.md#modeling-relationships-between-artifacts-including-tension)
+  (`in_tension_with` / `reconciles_tension`; the legacy `opposed_by` field is retired).
 
 ## Development workflow
 

@@ -2,7 +2,7 @@
 title: 'Known Current Friction Points'
 description: 'A time-stamped, fast-drifting list of current repo and tooling friction points a maintainer or agent hits mid-mission; re-verify against the tracker before trusting specifics.'
 doc_status: active
-updated: '2026-07-24'
+updated: '2026-08-15'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -76,6 +76,30 @@ closed — so the "known reds" below are already a different set than a month ag
   `src/runtime/next/_internal_runtime/`; `src/specify_cli/next/` is a shim
   removed in 3.3.0. Consume events / tracker only via `spec_kitty_events.*` /
   `spec_kitty_tracker.*`.
+- **A pyenv-scoped editable `spec-kitty-cli` install shadows a pipx install.**
+  Recurring: if `pyenv` manages the Python version active for this repo (a
+  `.python-version` file, or `pyenv local`), an editable install left in that
+  pyenv version's `site-packages` (an `_editable_impl_spec_kitty_cli.pth`
+  pointing at some checkout's `src/`) resolves ahead of the pipx-installed
+  `spec-kitty` on `PATH`, so the CLI silently runs a stale or unrelated
+  checkout instead of the one you are working in. Detect:
+  `which spec-kitty` (a pyenv shim, e.g. `~/.pyenv/shims/spec-kitty`, instead
+  of the pipx shim under `~/.local/bin`) and `pip show -f spec-kitty-cli` in
+  that pyenv version (an `_editable_impl_spec_kitty_cli.pth` / editable
+  project-location entry is the tell). Fix: `pip uninstall spec-kitty-cli`
+  inside the offending pyenv version, or reorder `PATH` so the pipx shim wins.
+- **`.git/hooks/pre-commit` pins an absolute python interpreter.** The
+  commit-guard hook Spec Kitty installs (`specify_cli.policy.hook_installer`)
+  captures `sys.executable` at install time and hardcodes it into the hook —
+  by design, so the hook does not depend on `PATH` (FR-009). Moving,
+  deleting, or rebuilding `.venv` at a different location (a renamed clone, a
+  relocated checkout) leaves the pinned path dangling. Symptom: `git commit`
+  fails because the hook's interpreter path no longer exists. Fix: if only
+  the interpreter binary vanished, `uv sync --frozen --all-extras` rebuilds
+  `.venv` at the same path and the existing hook resolves again; if the
+  checkout itself moved, delete `.git/hooks/pre-commit` and re-run
+  `spec-kitty implement <any-WP>` (or any path that allocates a lane
+  worktree) to regenerate the hook pinned to the new location.
 
 ## Maintaining this page
 
