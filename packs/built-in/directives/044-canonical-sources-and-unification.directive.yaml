@@ -18,7 +18,7 @@ scope: >
 procedures:
   - "Rule 1 — Use canonical sources: always use the canonical template, skill, or CLI
     command surface rather than copying from a prior mission in kitty-specs/ or constructing
-    an ad-hoc substitute. Templates under src/doctrine/missions/<type>/templates/ are the
+    an ad-hoc substitute. Templates under packs/built-in/missions/<type>/templates/ are the
     single source of truth, resolved through the charter/doctrine chain. Prior missions are
     historical snapshots — they drift and must never be used as copy sources."
   - "Rule 2 — Unification not parity: when a split-brain surface is found — the same

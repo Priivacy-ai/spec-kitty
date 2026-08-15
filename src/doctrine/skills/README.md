@@ -132,5 +132,5 @@ copies (`.claude/skills/`, `.agents/skills/`, etc.) are generated during
 
 - Issue #327: Doctrine mission compiler proposal
 - PR #305 / #348: Doctrine artifact domain, agent profiles, charter bootstrap
-- `src/doctrine/missions/`: Mission type definitions with action indices
+- `packs/built-in/missions/`: Mission type definitions with action indices
 - `src/doctrine/agent_profiles/`: Agent profile repository and shipped profiles

@@ -169,7 +169,7 @@ documenting a specific component or API.
 
 ## Mission Type Definition Files
 
-Each mission type lives in `src/doctrine/missions/{mission-key}/` with:
+Each mission type lives in `packs/built-in/missions/{mission-key}/` with:
 
 ### mission-runtime.yaml (Runtime DAG)
 
@@ -363,7 +363,7 @@ Each mission action has an index that declares which doctrine artifacts are
 relevant to that step:
 
 ```yaml
-# src/doctrine/missions/software-dev/actions/implement/index.yaml
+# packs/built-in/missions/software-dev/actions/implement/index.yaml
 action: implement
 directives: [TEST_FIRST]
 tactics: [tdd-red-green-refactor, zombies-tdd, acceptance-test-first]
@@ -403,7 +403,7 @@ mission-step prompt:
 
 | Scope | Path | Purpose |
 |---|---|---|
-| Package | `src/doctrine/missions/mission-steps/<mission>/<step>/prompt.md` | Built-in default |
+| Package | `packs/built-in/missions/mission-steps/<mission>/<step>/prompt.md` | Built-in default |
 | Project doctrine | `.kittify/doctrine/...` | Project-local doctrine overrides where supported |
 | Org doctrine | org doctrine pack | Shared organization doctrine where installed |
 

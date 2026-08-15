@@ -85,8 +85,8 @@ quality_test: >
   walks a first-run — with cross-links (not merges) to the adjacent needs?
 
 references:
-  - src/doctrine/missions/documentation/templates/divio/tutorial-template.md
-  - src/doctrine/missions/documentation/templates/divio/howto-template.md
-  - src/doctrine/missions/documentation/templates/divio/reference-template.md
-  - src/doctrine/missions/documentation/templates/divio/explanation-template.md
+  - packs/built-in/missions/documentation/templates/divio/tutorial-template.md
+  - packs/built-in/missions/documentation/templates/divio/howto-template.md
+  - packs/built-in/missions/documentation/templates/divio/reference-template.md
+  - packs/built-in/missions/documentation/templates/divio/explanation-template.md
   - packs/built-in/styleguides/common-docs.styleguide.yaml
