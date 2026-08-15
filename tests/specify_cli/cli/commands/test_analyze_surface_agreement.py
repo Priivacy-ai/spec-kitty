@@ -66,10 +66,14 @@ _CANONICAL_PROMPT = Path(
 )
 _CANONICAL_COMMAND = "agent mission record-analysis"
 
-_SKILL_SNAPSHOTS: tuple[Path, ...] = (
-    Path("tests/specify_cli/skills/__snapshots__/codex/analyze.SKILL.md"),
-    Path("tests/specify_cli/skills/__snapshots__/vibe/analyze.SKILL.md"),
-)
+# The generated ``analyze`` SKILL.md agents receive is rendered fresh via the
+# production ``command_renderer.render`` path rather than read from a committed
+# byte snapshot: mission modular-per-package-ci (#3447) retired the per-agent
+# snapshot grid down to a single canonical (``codex/specify.SKILL.md``), so this
+# #3096 guard renders the surface it checks instead of pinning a fixture that no
+# longer exists. codex + vibe are the two skill-family render agents this guard
+# historically covered.
+_SKILL_RENDER_AGENTS: tuple[str, ...] = ("codex", "vibe")
 
 
 def _repo_root() -> Path:
@@ -154,21 +158,31 @@ def test_canonical_analyze_prompt_source_names_record_analysis() -> None:
     )
 
 
-@pytest.mark.parametrize("snapshot_path", _SKILL_SNAPSHOTS)
-def test_rendered_skill_snapshot_names_record_analysis(snapshot_path: Path) -> None:
+@pytest.mark.parametrize("agent_key", _SKILL_RENDER_AGENTS)
+def test_rendered_skill_snapshot_names_record_analysis(agent_key: str) -> None:
     """The actual generated SKILL.md agents receive agrees with the source.
 
-    These snapshots (``tests/specify_cli/skills/__snapshots__``) are what
-    ``command_renderer.py`` produces at ``.agents/skills/spec-kitty.analyze/
-    SKILL.md`` in a consumer project — the surface #3096 was filed against.
+    Rendered fresh through the production ``command_renderer.render`` path —
+    the same output ``command_renderer.py`` produces at
+    ``.agents/skills/spec-kitty.analyze/SKILL.md`` in a consumer project, the
+    surface #3096 was filed against. (Previously read from a committed byte
+    snapshot; #3447 retired that snapshot grid, so the guard renders the
+    surface it checks rather than pinning a fixture that no longer exists.)
     """
+    from specify_cli.skills.command_renderer import render
+    from specify_cli.skills.render_versions import FIXTURE_SKILL_RENDER_VERSION
+
     root = _repo_root()
-    text = (root / snapshot_path).read_text(encoding="utf-8")
+    template = root / _CANONICAL_PROMPT
+    assert template.exists(), f"canonical analyze prompt missing: {template}"
+    text = render(template, agent_key, FIXTURE_SKILL_RENDER_VERSION).to_skill_md()
     assert _CANONICAL_COMMAND in text, (
-        f"{snapshot_path} must direct users to `spec-kitty {_CANONICAL_COMMAND}`."
+        f"rendered {agent_key} analyze SKILL.md must direct users to "
+        f"`spec-kitty {_CANONICAL_COMMAND}`."
     )
     assert not _BARE_ANALYZE_COMMAND_RE.search(text), (
-        f"{snapshot_path} must not advertise a bare `spec-kitty analyze` CLI invocation."
+        f"rendered {agent_key} analyze SKILL.md must not advertise a bare "
+        "`spec-kitty analyze` CLI invocation."
     )
 
 
