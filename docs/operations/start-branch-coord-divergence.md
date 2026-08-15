@@ -16,11 +16,11 @@ conflict on `lanes.json`, even after re-finalizing tasks.
 
 ## Why this happens
 
-`spec-kitty mission create --start-branch <feature-branch>` (pr-bound) plus
+`spec-kitty mission create --start-branch <start-branch>` (pr-bound) plus
 coord topology produces a coordination branch (`kitty/mission-<slug>`) that
 does **not** contain the primary planning commit: coord branches from the
 old base and gets its own planning snapshot, while spec/plan/tasks and
-`lanes.json` land on `<feature-branch>`. Lanes seed from coord and merge the
+`lanes.json` land on `<start-branch>`. Lanes seed from coord and merge the
 primary `planning_commit_sha` — an add/add conflict on `lanes.json` (it
 embeds the SHA) on every claim. Re-finalizing does not converge: the
 allocator regenerates coord's snapshot on each claim, and re-finalize
@@ -44,11 +44,13 @@ not reconcile two branches that both hold independent planning commits.
 
 ## Manual fix (operator-approved)
 
-Reconcile coord FROM primary — merge the feature branch into the coord
-branch, not the other way round:
+Reconcile coord FROM the start branch — merge the start branch into the
+coord branch, not the other way round. (`spec-kitty doctor coordination`
+prints the exact `.worktrees/<slug>-<mid8>-coord` path for your mission —
+use that instead of hand-constructing it.)
 
 ```bash
-git -C .worktrees/<slug>-coord merge <feature-branch>
+git -C .worktrees/<slug>-<mid8>-coord merge <start-branch>
 ```
 
 Spec Kitty's union merge drivers auto-reconcile `status.events.jsonl`,

@@ -67,6 +67,10 @@ spec-kitty migrate backfill-runtime-state --mission <slug>
    )
    ```
 
+   `validate=False` is deliberate and narrow here — you're setting only the
+   single `status_phase` field the flip would set; do not reuse this bypass
+   for broader `meta.json` edits.
+
 3. Confirm:
 
    ```python
