@@ -38,6 +38,15 @@ _LEGACY_WALKER_ALLOWLIST = frozenset(
         "src/specify_cli/cli/commands/migrate/charter_encoding.py",
         "src/specify_cli/cli/commands/migrate/backfill_provenance.py",
         "src/specify_cli/retrospective/generator.py",
+        # #2717 WP09: ``iter_mission_instance_dirs`` — the single canonical
+        # cross-mission corpus iterator shared by BOTH retrospective diagnostic
+        # discovery sites (``build_summary`` + the ``retrospect summary`` table,
+        # C-005). It is a whole-corpus retrospective walk over ``kitty-specs/*``,
+        # not a single-mission resolve, so it is sanctioned here alongside its
+        # ``generator.py`` retrospective sibling rather than routed through the
+        # single-mission MissionResolver. #2717 centralized the previously
+        # scattered discovery into this one iterator.
+        "src/specify_cli/retrospective/summary.py",
         "src/specify_cli/tasks/issue_matrix_migration.py",
     }
 )
