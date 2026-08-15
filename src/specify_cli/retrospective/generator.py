@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from specify_cli.mission_metadata import load_meta_or_empty
+from specify_cli.requirement_mapping import parse_requirement_ids_from_spec_md
 from specify_cli.retrospective.schema import (
     FindingsStatus,
     GenActor,
@@ -563,8 +564,21 @@ def _collect_fr_references(wp_files: list[tuple[str, str]]) -> dict[str, set[str
 
 
 def _find_unmapped_frs(spec_text: str, fr_to_wps: dict[str, set[str]]) -> list[str]:
-    """Find FR ids mentioned in spec.md but not referenced in any WP task file."""
-    spec_frs = set(_FR_REF_RE.findall(spec_text))
+    """Find FR ids DECLARED in spec.md but not referenced in any WP task file.
+
+    Uses the canonical declared-id parser (#3394 / #3395), not a doc-wide
+    ``_FR_REF_RE`` scan: a spec's prose may cite another mission's
+    already-shipped FR as background context, and that citation is not a
+    requirement THIS spec's work packages must cover. Scanning the whole
+    document for any ``FR-\\d+`` token (the pre-#3394 behavior) reported that
+    kind of citation as an unmapped FR with no WP coverage -- a false
+    positive. See :func:`_collect_fr_references` below, which deliberately
+    keeps the doc-wide ``_FR_REF_RE`` scan: it reads WP task files, a
+    genuinely different input where a citation-style scan is correct because
+    a WP legitimately references FRs it implements via free-text mentions,
+    not only declaration shapes.
+    """
+    spec_frs = set(parse_requirement_ids_from_spec_md(spec_text)["functional"])
     return sorted(fr for fr in spec_frs if fr not in fr_to_wps)
 
 

@@ -287,6 +287,55 @@ class TestFindingsClassification:
         assert "FR-007" in unmapped_fr_ids, "FR-007 should be flagged as unmapped"
         assert "FR-008" in unmapped_fr_ids, "FR-008 should be flagged as unmapped"
 
+    def test_unmapped_frs_excludes_prose_citation(self, tmp_path: Path) -> None:
+        """#3394/#3395 fold: a prose citation of a foreign FR is not an unmapped-FR gap.
+
+        spec.md DECLARES FR-001 in a Requirements table row (a recognized declaration
+        shape) and merely CITES FR-999 -- another mission's already-shipped
+        requirement -- in a background sentence. Only the declared-but-uncovered
+        FR-001 should surface as a "no WP coverage" gap; the FR-999 citation must not,
+        because ``_find_unmapped_frs`` must scan spec.md via the canonical declared-id
+        parser (``parse_requirement_ids_from_spec_md``), not the doc-wide ``_FR_REF_RE``
+        citation scan.
+        """
+        feature_dir = tmp_path / "kitty-specs" / "citation-fold-demo"
+        feature_dir.mkdir(parents=True)
+        meta = {
+            "mission_id": "01FFFFFFFFFFFFFFFFFFFFFFF6",
+            "mission_slug": "citation-fold-demo",
+            "friendly_name": "Citation Fold Demo",
+            "mission_type": "software-dev",
+            "target_branch": "main",
+        }
+        (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+        (feature_dir / "spec.md").write_text(
+            "# Spec: Citation Fold Demo\n\n"
+            "## Requirements\n\n"
+            "| ID | Description |\n"
+            "| --- | --- |\n"
+            "| FR-001 | The system shall implement widget export. |\n\n"
+            "## Background\n\n"
+            "See FR-999's default-pack materialization for prior art from another mission.\n",
+            encoding="utf-8",
+        )
+        (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir()
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\n---\n\nImplement widget export.\n", encoding="utf-8"
+        )
+        policy = make_policy()
+        record = generate_retrospective("citation-fold-demo", policy, tmp_path)
+
+        unmapped_gaps = [g for g in record.gaps if "no WP coverage" in g.summary]
+        unmapped_fr_ids = {g.summary.split()[0] for g in unmapped_gaps}
+        assert "FR-001" in unmapped_fr_ids, "declared FR-001 with no WP coverage should be flagged"
+        assert "FR-999" not in unmapped_fr_ids, "prose citation of FR-999 must not be flagged as unmapped"
+        assert not any("FR-999" in g.summary for g in record.gaps), (
+            "FR-999 citation must produce no gap finding of any kind"
+        )
+
     def test_large_with_gaps_has_lane_friction(self) -> None:
         """large-with-gaps: WP02 and WP04 had backward moves without reviewer feedback."""
         policy = make_policy()
