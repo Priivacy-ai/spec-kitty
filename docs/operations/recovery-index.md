@@ -16,6 +16,7 @@ state after a failure or interruption.
 ## In this section
 
 - [Logged-out teamspace](logged-out-teamspace.md) — restore access when your teamspace session has logged out.
+- [Sync-drain runbook](sync-drain.md) — work the 3-gate drain order (flag/consent, auth, teamspace) and avoid the `sync doctor` false-green trap.
 
 ### Coord/lane split-brain recovery
 
