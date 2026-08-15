@@ -3403,6 +3403,7 @@ pages:
     - {slug: "spec-kitty-profiles-list", text: "spec-kitty profiles list", level: 2}
     - {slug: "spec-kitty-profiles-show", text: "spec-kitty profiles show", level: 2}
     - {slug: "spec-kitty-reconcile", text: "spec-kitty reconcile", level: 2}
+    - {slug: "spec-kitty-regen", text: "spec-kitty regen", level: 2}
     - {slug: "spec-kitty-research", text: "spec-kitty research", level: 2}
     - {slug: "spec-kitty-retrospect", text: "spec-kitty retrospect", level: 2}
     - {slug: "spec-kitty-retrospect-backfill", text: "spec-kitty retrospect backfill", level: 2}

@@ -3958,6 +3958,28 @@ _Reconcile a mission dossier against its recorded snapshot (exit 0=parity, non-z
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty regen
+
+_Regenerate the committed generated agent-command + skill fixtures from source (#3447)._
+
+```
+ Usage: spec-kitty regen [OPTIONS]
+
+ Regenerate the committed generated agent-command + skill fixtures from source
+ (#3447).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --check            Do not write; render into memory and byte-compare against │
+│                    the committed fixtures. Exit 1 when stale (prints the     │
+│                    diff + the exact regen command), 0 when fresh. This is    │
+│                    the fork-PR-safe freshness gate — a read-only token       │
+│                    cannot commit back, so contributors run `spec-kitty       │
+│                    regen` locally and push the result.                       │
+│ --json             Emit a machine-readable JSON result instead of text.      │
+│ --help   -h        Show this message and exit.                               │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty research
 
 ```
