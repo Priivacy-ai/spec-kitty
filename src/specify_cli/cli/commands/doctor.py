@@ -1281,6 +1281,16 @@ def coordination_health(
             ),
         ),
     ] = False,
+    mission: Annotated[
+        str | None,
+        typer.Option(
+            "--mission",
+            help=(
+                "Scope the checks to a single mission handle (mission_id / mid8 "
+                "/ slug), resolved via the same resolver as `doctor mission-state`."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Run the WP04 #1348 coordination + sparse-checkout health checks.
 
@@ -1303,13 +1313,18 @@ def coordination_health(
     With ``--check-staleness``, also reports Gap-1 coord-branch-vs-target
     staleness (FR-008) — non-blocking either way.
 
+    With ``--mission <handle>``, scopes every per-mission check (and the
+    ``--fix`` Gap-1 fast-forward) to the single mission the shared resolver maps
+    the handle to. An unresolvable / ambiguous handle fails closed with exit 1.
+
     Examples:
         spec-kitty doctor coordination
         spec-kitty doctor coordination --fix
         spec-kitty doctor coordination --json
         spec-kitty doctor coordination --check-staleness
+        spec-kitty doctor coordination --mission 083-my-mission
     """
-    run_coordination_health(json_output, fix, check_staleness)
+    run_coordination_health(json_output, fix, check_staleness, mission)
 
 
 # ---------------------------------------------------------------------------

@@ -21,30 +21,58 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from specify_cli.mission_metadata import MissionMetaOptional, MissionMetaRequired
+
 from .detectors import FORBIDDEN_KEYS, LEGACY_KEYS
 from .models import MissionFinding, Severity
+
+# ---------------------------------------------------------------------------
+# meta.json known-key set — DERIVED from the canonical writer schema (C-005 /
+# FR-011), never a hand-maintained second copy. A hand-rolled frozenset drifted
+# from the writer and reported canonical coordination keys
+# (``coordination_branch`` / ``topology`` / ``flattened`` / ``pr_bound``) as
+# ``UNKNOWN_SHAPE`` false positives (#2696). Three canonical sources compose it:
+#
+#   1. The mission-metadata writer TypedDicts (``MissionMetaRequired`` +
+#      ``MissionMetaOptional`` in ``specify_cli.mission_metadata``) — the single
+#      source of truth for the field set ``write_meta`` persists.
+#   2. The coordination write-path keys, stamped onto ``meta.json`` by the
+#      coordination/flatten primitives (``flatten_coordination_metadata``) and
+#      the branch-strategy ``pr_bound`` write-back — intentionally OUTSIDE the
+#      required/optional writer contract.
+#   3. The canonical identity keys (identity model 083+): ``mission_id`` /
+#      ``mission_number``, minted at ``mission create`` and likewise outside the
+#      writer TypedDicts.
+#
+# ``tests/audit/test_shape_registry_writer_parity.py`` asserts the writer keys
+# stay a subset of this set, so the two can never re-drift (NFR-004).
+# ---------------------------------------------------------------------------
+
+#: Coordination write-path keys — persisted to ``meta.json`` by the coordination
+#: topology/flatten primitives and the branch-strategy ``pr_bound`` write-back.
+META_COORDINATION_KEYS: frozenset[str] = frozenset(
+    {"coordination_branch", "topology", "flattened", "pr_bound"}
+)
+
+#: Canonical identity keys (identity model 083+), minted at mission create and
+#: not part of the ``MissionMeta*`` writer TypedDicts.
+_META_IDENTITY_KEYS: frozenset[str] = frozenset({"mission_id", "mission_number"})
+
+#: Every field the canonical mission-metadata writer persists.
+_META_WRITER_KEYS: frozenset[str] = frozenset(
+    MissionMetaRequired.__annotations__
+) | frozenset(MissionMetaOptional.__annotations__)
+
+_META_KNOWN_KEYS: frozenset[str] = (
+    _META_WRITER_KEYS | META_COORDINATION_KEYS | _META_IDENTITY_KEYS
+)
 
 # ---------------------------------------------------------------------------
 # Known key sets per artifact type
 # ---------------------------------------------------------------------------
 
 KNOWN_TOP_LEVEL_KEYS_BY_ARTIFACT: dict[str, frozenset[str]] = {
-    "meta.json": frozenset(
-        {
-            "mission_id",
-            "mission_number",
-            "mission_slug",
-            "slug",
-            "friendly_name",
-            "purpose_tldr",
-            "purpose_context",
-            "mission_type",
-            "target_branch",
-            "vcs",
-            "created_at",
-            "source_description",
-        }
-    ),
+    "meta.json": _META_KNOWN_KEYS,
     "status.json": frozenset(
         {
             "mission_slug",
