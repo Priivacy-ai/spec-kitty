@@ -474,6 +474,53 @@ class TestRequirementExtractionWarningsSurviveTheBlockedPath:
         pytest.fail("No JSON output with the requirement-mapping failure payload found")
 
 
+class TestRequirementExtractionAdvisoryComputationNeverGatesFinalize:
+    """#3394 review fold commit 2: a crash INSIDE the advisory computation
+    (``find_undeclared_requirement_citations``) must never surface as a
+    blocked / non-zero exit from ``finalize-tasks`` -- before this fold the
+    call sat unwrapped inside ``finalize_tasks``'s enclosing
+    ``except Exception as e: ... raise typer.Exit(1) from None``, so an
+    advisory-computation crash became a hard exit-1. The other two callers
+    (``tasks_map_requirements.py``, ``runtime_bridge.py``) are pinned in
+    their own suites.
+    """
+
+    def test_finalize_tasks_succeeds_even_when_the_advisory_computation_crashes(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        mission_slug = "060-test-feature"
+        _setup_feature(tmp_path, mission_slug)
+
+        def _boom(*_args: object, **_kwargs: object) -> list[str]:
+            raise RuntimeError("simulated advisory crash")
+
+        from specify_cli import requirement_mapping as rm
+
+        monkeypatch.setattr(rm, "find_undeclared_requirement_citations", _boom)
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+
+        exit_code = 0
+        try:
+            finalize_tasks(feature=mission_slug, json_output=True, validate_only=False)
+        except typer.Exit as exc:
+            exit_code = exc.exit_code if exc.exit_code is not None else 1
+        except SystemExit as exc:
+            exit_code = exc.code if isinstance(exc.code, int) else 1
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        assert exit_code == 0, "an advisory-computation crash must not block finalize-tasks"
+
+
 class TestRequirementExtractionWarningsInJson:
     """#3394 review F1: finalize-tasks' SUCCESS path carries a non-blocking
     signal when spec.md's requirements are written in none of the four

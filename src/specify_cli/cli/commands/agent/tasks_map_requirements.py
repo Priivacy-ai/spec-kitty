@@ -274,10 +274,8 @@ def _mr_resolve_read_dirs(st: _MapReqState, ports: TasksPorts) -> None:
     blind primitive + the C-002 fold stay co-located INSIDE that adapter method.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
-    from specify_cli.requirement_mapping import (
-        find_undeclared_requirement_citations,
-        parse_requirement_ids_from_spec_md,
-    )
+    from specify_cli.requirement_mapping import parse_requirement_ids_from_spec_md
+    from runtime.next.runtime_bridge import find_undeclared_requirement_citations_safely
 
     # #2064: resolve the WP ``tasks/`` dir through the SAME seam finalize uses.
     st.feature_dir = _tasks._map_requirements_feature_dir(st.main_repo_root, st.mission_slug)
@@ -308,7 +306,9 @@ def _mr_resolve_read_dirs(st: _MapReqState, ports: TasksPorts) -> None:
     st.all_spec_ids = set(spec_ids["all"])
     st.functional_ids = set(spec_ids["functional"])
     # #3394 review F1: non-blocking signal, never a gate -- see _mr_emit_output.
-    st.requirement_extraction_warnings = find_undeclared_requirement_citations(spec_content)
+    # review fold commit 2: the SAFE wrapper -- a computation crash here must
+    # not reach this function's enclosing `except Exception: raise typer.Exit(1)`.
+    st.requirement_extraction_warnings = find_undeclared_requirement_citations_safely(spec_content)
 
     _mr_build_new_mappings(st)
 

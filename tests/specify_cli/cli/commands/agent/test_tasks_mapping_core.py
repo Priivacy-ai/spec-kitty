@@ -428,3 +428,35 @@ def test_unknown_ref_failure_still_surfaces_requirement_extraction_warnings(
     warning_text = " ".join(warnings)
     assert "FR-001" in warning_text
     assert "FR-002" in warning_text
+
+
+def test_advisory_computation_crash_never_gates_map_requirements(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#3394 review fold commit 2: a crash INSIDE the advisory computation
+    (``find_undeclared_requirement_citations``) must never surface as a
+    blocked / non-zero exit from ``map-requirements`` -- before this fold the
+    call sat unwrapped inside ``_do_map_requirements``'s enclosing
+    ``except Exception as exc: ... raise typer.Exit(1) from None``, so an
+    advisory-computation crash became a hard exit-1. The other two callers
+    (``mission_finalize.py``, ``runtime_bridge.py``) are pinned in their own
+    suites.
+    """
+    fd = _mapping_mission(tmp_path, f"advisory-crash-safe-{_MID8}")
+
+    def _boom(*_args: object, **_kwargs: object) -> list[str]:
+        raise RuntimeError("simulated advisory crash")
+
+    from specify_cli import requirement_mapping as rm
+
+    monkeypatch.setattr(rm, "find_undeclared_requirement_citations", _boom)
+
+    with setup_mocked_env(fd.parent.parent, mission_slug=fd.name):
+        result = CliRunner().invoke(
+            app,
+            ["map-requirements", "--wp", "WP01", "--refs", "FR-001",
+             "--mission", fd.name, "--no-auto-commit", "--json"],
+        )
+    assert result.exit_code == 0, (
+        f"an advisory-computation crash must not block map-requirements: {result.output}"
+    )
