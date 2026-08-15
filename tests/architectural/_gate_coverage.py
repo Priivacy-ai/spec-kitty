@@ -88,6 +88,14 @@ WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 # ``discover_pytest_workflows`` (FR-008 fail-closed) stays equal to this
 # allowlist and the ``tests/ui/`` e2e carrier is a covered — not orphan —
 # surface (so the ``e2e`` marker keeps its ROUTED-BY-PATH home).
+# ``module-kernel.yml`` (mission #3447) is a reusable ``on: workflow_call``
+# workflow that ci-quality invokes for the ``kernel-tests`` job. It is NOT an
+# independent suite runner: :func:`_splice_local_uses` inlines its steps into
+# ci-quality's ``kernel-tests`` caller, so its ``pytest tests/kernel/`` gate and
+# ``--cov=src/kernel`` emitter are modeled AS PART OF ci-quality (decision D1(a):
+# same run). It is therefore deliberately absent from this allowlist and
+# excluded from ``discover_pytest_workflows`` (reusable-only workflows), which
+# keeps that fail-closed probe equal to this list without double-counting.
 WORKFLOW_FILES: tuple[str, ...] = (
     "ci-quality.yml",
     "ci-windows.yml",
@@ -315,7 +323,7 @@ def parse_pytest_invocation(
 
 def parse_workflow(path: Path) -> list[Gate]:
     """Parse one workflow file into the gates it defines."""
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data = load_spliced_workflow(path)
     gates: list[Gate] = []
     for job_name, job, step in _iter_run_steps(data):
         includes = _matrix_includes(job)
@@ -490,6 +498,10 @@ class WorkflowModel:
       (mission doctrine-silence-guards WP10, FR-013).
     - ``push_branches``: ``on.push.branches``, so the collection-completeness
       model can tell which workflows a push to a given branch even starts.
+
+    ``uses:`` reusable-workflow delegation (#3447) is resolved BEFORE this model
+    is built, by :func:`load_spliced_workflow` — a caller job is seen with its
+    delegate's steps inlined — so there is no per-job delegation field here.
     """
 
     path: Path
@@ -589,6 +601,81 @@ def _job_if_scalar(job: dict[str, Any]) -> str | bool | None:
     return str(value)
 
 
+_LOCAL_REUSABLE_PREFIX = "./.github/workflows/"
+
+
+def _job_uses_local(job: dict[str, Any]) -> str | None:
+    """The local reusable-workflow file a ``uses:`` job delegates to, if any.
+
+    Only ``./.github/workflows/<file>`` refs resolve to a workflow in this model
+    (a same-repo reusable workflow, mission #3447); an external
+    ``org/repo/.github/workflows/x@ref`` ref returns ``None`` because its jobs
+    are not modeled here.
+    """
+    uses = job.get("uses")
+    if isinstance(uses, str) and uses.startswith(_LOCAL_REUSABLE_PREFIX):
+        return uses.rsplit("/", 1)[-1]
+    return None
+
+
+def _splice_local_uses(data: dict[str, Any], workflows_dir: Path) -> dict[str, Any]:
+    """Inline a local ``uses:`` caller job's delegate steps (mission #3447).
+
+    A reusable-workflow caller job (``uses: ./.github/workflows/<file>``) carries
+    no ``steps:`` of its own — its ``--cov`` emitters, test paths and markers
+    live in the called workflow. This resolver returns a copy of ``data`` where
+    each such caller job gains the called workflow's job steps, so every model
+    consumer sees the caller as if it ran the delegate inline (its own
+    ``if``/``needs``/name are preserved). The called reusable workflow is
+    therefore NOT an independent suite runner — it is excluded from
+    :func:`discover_pytest_workflows` and absent from :data:`WORKFLOW_FILES` —
+    which avoids double-counting its gate. One level is resolved (module
+    workflows are single-purpose, non-nested — enforced below).
+    """
+    jobs = data.get("jobs")
+    if not isinstance(jobs, dict):
+        return data
+    spliced: dict[str, Any] = {}
+    for name, job in jobs.items():
+        called = _job_uses_local(job) if isinstance(job, dict) else None
+        target_path = workflows_dir / called if called else None
+        if target_path is None or not target_path.exists():
+            spliced[name] = job
+            continue
+        target = yaml.safe_load(target_path.read_text(encoding="utf-8")) or {}
+        target_jobs = target.get("jobs") or {}
+        # Single-purpose assumption made load-bearing: flattening multiple
+        # delegate jobs into one caller key would conflate their markers/coverage.
+        assert len(target_jobs) == 1, (
+            f"reusable workflow {called} must define exactly one job to splice "
+            f"into caller {name!r}; found {sorted(target_jobs)}"
+        )
+        delegate_steps: list[Any] = []
+        for delegate_job in target_jobs.values():
+            if isinstance(delegate_job, dict):
+                delegate_steps.extend(delegate_job.get("steps") or [])
+        merged = dict(job)
+        merged["steps"] = list(job.get("steps") or []) + delegate_steps
+        spliced[name] = merged
+    resolved = dict(data)
+    resolved["jobs"] = spliced
+    return resolved
+
+
+def load_spliced_workflow(path: Path) -> dict[str, Any]:
+    """Parse a workflow file with local ``uses:`` delegation resolved (#3447).
+
+    EVERY reader of a workflow that may contain reusable-workflow caller jobs
+    must load through this — not a raw ``yaml.safe_load`` — so a ``uses:`` caller
+    job is seen with its delegate's steps inlined. Raw readers that bypass this
+    see the caller with no ``steps:`` and mis-model it (missing timeouts,
+    ``KeyError: 'steps'``, dropped gates).
+    """
+    return _splice_local_uses(
+        yaml.safe_load(path.read_text(encoding="utf-8")), path.parent
+    )
+
+
 def _trigger_tuple(on_section: dict[str, Any], event: str, key: str) -> tuple[str, ...]:
     """``on.<event>.<key>`` as a string tuple; ``()`` when absent."""
     event_section = on_section.get(event)
@@ -599,7 +686,7 @@ def _trigger_tuple(on_section: dict[str, Any], event: str, key: str) -> tuple[st
 
 def load_workflow_model(path: Path) -> WorkflowModel:
     """Parse one workflow file into its :class:`WorkflowModel` relations."""
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data = load_spliced_workflow(path)
     jobs: dict[str, Any] = data.get("jobs") or {}
     run_texts = {name: _job_run_text(job) for name, job in jobs.items()}
     on_section = _on_section(data)
@@ -671,10 +758,28 @@ def discover_pytest_workflows(workflows_dir: Path | None = None) -> frozenset[st
     diverge in what "runs the suite" means. The consumer invariant asserts
     this set equals the allowlist, failing closed when a fifth suite-running
     workflow appears without entering the model.
+
+    Reusable ``on: workflow_call``-only workflows are excluded (mission #3447):
+    they are not independent suite runners — their steps are spliced into the
+    caller job (:func:`_splice_local_uses`) and modeled there, so counting them
+    separately would break the ``discover == WORKFLOW_FILES`` invariant.
     """
     directory = workflows_dir or WORKFLOWS_DIR
     candidates = sorted(directory.glob("*.yml")) + sorted(directory.glob("*.yaml"))
-    return frozenset(path.name for path in candidates if parse_workflow(path))
+    return frozenset(
+        path.name
+        for path in candidates
+        if parse_workflow(path) and not _is_reusable_only(path)
+    )
+
+
+def _is_reusable_only(path: Path) -> bool:
+    """Whether a workflow's only trigger is ``workflow_call`` (a reusable module)."""
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    on_section = data.get("on", data.get(True))
+    if isinstance(on_section, dict):
+        return set(on_section) == {"workflow_call"}
+    return False
 
 
 def registered_markers(pytest_ini: Path | None = None) -> tuple[str, ...]:
@@ -1006,6 +1111,9 @@ def active_job_keys(
                 if_value, event_name=event_name, active_groups=active_groups,
             ):
                 active.add((name, job))
+    # NOTE: ``uses:`` reusable-workflow delegation needs no resolution here — the
+    # caller job already carries its delegate's steps/gates (load_spliced_workflow),
+    # so it is emitted with the right paths/markers by the normal loop above (#3447).
     return frozenset(active)
 
 

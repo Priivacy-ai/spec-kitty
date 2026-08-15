@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-import yaml
 
 from tests.architectural import _gate_coverage as gc
 
@@ -62,7 +61,10 @@ def _marker_tokens(path: Path) -> dict[str, frozenset[str]]:
 
 
 def _jobs(path: Path = _WORKFLOW_PATH) -> dict[str, JobInfo]:
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    # Resolve `uses:` reusable-workflow delegation so a caller job is seen with
+    # its delegate's steps (timeout/marker) inlined (#3447) — raw yaml.safe_load
+    # would see the converted caller jobs with no steps and false-flag them.
+    data = gc.load_spliced_workflow(path)
     tokens = _marker_tokens(path)
     return {
         job_id: JobInfo(

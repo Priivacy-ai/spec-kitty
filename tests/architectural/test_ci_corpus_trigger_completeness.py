@@ -165,7 +165,12 @@ _CORPUS_MARKED_MODULES = frozenset(
 
 
 def _load_workflow() -> dict[Any, Any]:
-    data: dict[Any, Any] = yaml.safe_load(_WORKFLOW.read_text(encoding="utf-8"))
+    # Resolve `uses:` reusable-workflow delegation (#3447) so fast-tests-corpus —
+    # now a caller job whose steps live in module-packs.yml — is seen inline.
+    # A raw yaml.safe_load would KeyError on the caller's absent `steps`.
+    from tests.architectural import _gate_coverage as gc
+
+    data: dict[Any, Any] = gc.load_spliced_workflow(_WORKFLOW)
     return data
 
 
