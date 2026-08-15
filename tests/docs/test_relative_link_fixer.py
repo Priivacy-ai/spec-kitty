@@ -482,7 +482,13 @@ class TestLiveTreeGate:
     def test_assembled_tree_has_no_unexpected_dead_links(self) -> None:
         dead = {(u.file, u.link) for u in check_dead_body_links(_REPO_ROOT)}
         unexpected = dead - self._KNOWN_GAPS
-        assert unexpected == set(), f"unexpected dead bare-relative body links: {sorted(unexpected)}"
+        assert unexpected == set(), (
+            "Run `python -m scripts.docs.relative_link_fixer --repo-root .` to "
+            "rewrite each resolvable link via the moves:/on-disk-basename spine, "
+            "or -- for a genuinely unfixable repo-root escape or permanently "
+            "non-resolving target -- add a justified entry to _KNOWN_GAPS. "
+            f"Unexpected dead bare-relative body links: {sorted(unexpected)}"
+        )
 
     def test_full_tree_no_exclude_is_green(self) -> None:
         """C-007: the full docs/ scope with exclude_prefixes=() has no unexpected dead links.
@@ -495,7 +501,15 @@ class TestLiveTreeGate:
         """
         dead = {(u.file, u.link) for u in check_dead_body_links(_REPO_ROOT, exclude_prefixes=())}
         unexpected = dead - self._KNOWN_GAPS
-        assert unexpected == set(), f"C-007 full-scope gate (exclude_prefixes=()): unexpected dead bare-relative body links: {sorted(unexpected)}"
+        assert unexpected == set(), (
+            "C-007 full-scope gate (exclude_prefixes=()). Run "
+            "`python -m scripts.docs.relative_link_fixer --repo-root .` to "
+            "rewrite each resolvable link (the fixer's write mode already covers "
+            "the full tree -- exclude_prefixes only narrows the --check scan), or "
+            "-- for a genuinely unfixable repo-root escape or permanently "
+            "non-resolving target -- add a justified entry to _KNOWN_GAPS. "
+            f"Unexpected dead bare-relative body links: {sorted(unexpected)}"
+        )
 
     def test_live_tree_links_examined_meets_non_vacuity_floor(self) -> None:
         # FR-004: ensure the scan is not vacuously narrow on the real docs/ tree.
