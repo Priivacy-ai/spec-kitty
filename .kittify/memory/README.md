@@ -62,6 +62,23 @@ that pointer itself is non-obvious.
   lost its curator once already and became an uncurated grab-bag — that is the failure
   mode this convention exists to prevent.
 
+## Note format
+
+One note per fact, one `.md` file per note, filename `kebab-case-summary.md`. Every note
+opens with:
+
+1. A top-level heading naming the fact.
+2. A **"Why it's here"** line or short paragraph (bold-labelled, as the very first
+   content after the heading) stating why this specific fact needed a durable, shared
+   home instead of living only in a session's context — e.g. what it already cost to
+   re-discover, or what silently regresses if it is forgotten.
+
+After that, the body is free-form, but must stay pointer-based per the routing table
+above: cite a canonical source (ADR, code path, issue) instead of restating its content,
+and cross-reference other notes here instead of duplicating them. A note that cannot
+state its own "why it's here" in one line is a signal it does not belong in this store —
+route it per the table above instead.
+
 ## Index
 
 Tracked files as of this writing (confirm with `git ls-files .kittify/memory`):
