@@ -1,6 +1,43 @@
 ---
 description: Validate dependencies, finalize WP metadata, and commit all task artifacts.
 ---
+<!-- spec-kitty-command-version: 3.1.2a3 -->
+
+## Startup Upgrade Check
+
+Run this at most once per active agent session before the first Spec Kitty command workflow.
+If you already ran `spec-kitty upgrade --agent-check --json` in this session, reuse that result and skip this block.
+Do not run or announce an upgrade check again for later Spec Kitty commands in the same session.
+Otherwise, before continuing, run:
+
+```bash
+spec-kitty upgrade --agent-check --json
+```
+
+If JSON `action` is `none`, continue.
+If `action` is `auto_upgrade`, run `upgrade_command` before continuing. If it fails, tell the user and continue with the current Spec Kitty version.
+If `action` is `guidance`, show `upgrade_note` briefly, then continue.
+If `action` is `prompt`, ask the user with the host-native question UI when available:
+
+`Spec Kitty {latest_version} is available. You are on {installed_version}. Upgrade now?`
+
+Use these choices:
+
+1. Upgrade now (recommended) - record `upgrade_now`, run `upgrade_command`, then continue.
+2. Always keep me up to date - record `always`, run `upgrade_command`, then continue.
+3. Not now - record `not_now`, then continue.
+4. Never ask again - record `never_ask`, then continue.
+
+Record the selected choice before continuing:
+
+```bash
+spec-kitty upgrade --agent-choice <upgrade_now|always|not_now|never_ask> --agent-latest <latest_version> --json
+```
+
+If no host-native question UI is available, present the same four choices in plain text and wait for the user.
+In non-interactive hosts, choose `not_now` and continue.
+
+
 # /spec-kitty.tasks-finalize - Finalize Tasks
 
 **Version**: 3.2.0
@@ -8,11 +45,11 @@ description: Validate dependencies, finalize WP metadata, and commit all task ar
 ## Purpose
 
 Run the finalization command to parse dependencies from `tasks.md`, validate
-them, update WP frontmatter, and commit all task artifacts to the target branch.
+them, update WP<!-- glossary:glossary:wp --> frontmatter, and commit all task artifacts to the target branch<!-- glossary:glossary:target-branch -->.
 
 ---
 
-## 📍 WORKING DIRECTORY: Stay in planning repository
+## 📍 WORKING DIRECTORY: Stay in planning repository<!-- glossary:glossary:repository --><!-- glossary:glossary:planning-repository -->
 
 **IMPORTANT**: This step works in the planning repository. NO worktrees created.
 
@@ -30,7 +67,7 @@ $ARGUMENTS
 finalization:
 
 ```bash
-spec-kitty agent mission finalize-tasks --validate-only --mission <mission-slug> --json
+spec-kitty agent mission<!-- glossary:glossary:mission --> finalize-tasks --validate-only --mission <mission-slug> --json
 ```
 
 This command will:
@@ -63,13 +100,13 @@ not a defect in the slicing. Handle it as follows:
 
 1. **Linearize shared surfaces (execution safety).** Work packages that touch the
    same files MUST be made dependent/linear (via `Depends on WPxx`) so they
-   execute sequentially in one lane and **share a single worktree** (or run
+   execute sequentially in one lane<!-- glossary:glossary:lane --> and **share a single worktree** (or run
    direct-to-branch). Limited parallelism is acceptable and expected for these
    missions — do not force artificial parallelism. Note: linearization protects
    the *worktree* from concurrent edits; it does **not** by itself satisfy
    ownership validation (see step 3).
 2. **Declare cross-cutting WPs codebase-wide (the exemption).** A WP that is
-   expected to overlap broadly should carry `scope: codebase-wide` in its
+   expected to overlap broadly should carry `scope<!-- glossary:glossary:scope -->: codebase-wide` in its
    frontmatter; the ownership validator exempts codebase-wide WPs from overlap
    and authoritative-surface checks. Keep the genuinely-targeted WPs (single test
    file, single module) narrow and mutually disjoint.
@@ -164,7 +201,7 @@ mission's requirement, no action is needed.
 Provide a concise outcome summary:
 
 - Path to `tasks.md`
-- Work package count and per-package subtask tallies
+- Work package<!-- glossary:glossary:work-package --> count and per-package subtask tallies
 - Parallelization highlights
 - MVP scope recommendation
 - Finalization status (dependencies parsed, X WP files updated, committed to target branch)
