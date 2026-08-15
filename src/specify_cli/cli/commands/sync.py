@@ -65,6 +65,7 @@ from specify_cli.core.vcs import (
 )
 
 from specify_cli.sync.queue import QueueStats
+from specify_cli.sync.http_status import GATEWAY_STATUSES
 from specify_cli.core.saas_sync_config import saas_sync_opt_in_recorded_message
 from kernel.clock import now_utc_iso
 from specify_cli.sync.feature_flags import (
@@ -3115,25 +3116,6 @@ def sync_workspace(  # noqa: C901
     console.print()
 
 
-#: Gateway-class HTTP statuses. A configured sync server that answers with one
-#: of these is unavailable at the edge rather than returning an application-level
-#: error — either a transient outage (a rolling deploy or maintenance window) or
-#: a genuinely decommissioned endpoint (a dead platform env, a torn-down preview,
-#: DNS pointing at a retired load balancer). This is the exact shape that
-#: stranded a first sync against a stale ``*.platformsh.site`` URL: the probe saw
-#: HTTP 502 and reported a bare "Unexpected status", giving the operator no
-#: signal that the URL itself might be the fault or how to repoint it. FR-003 of
-#: the first-sync preflight mission (#3406).
-#:
-#: NB the delivery ledger / offline queue classifies these same statuses as
-#: *transient* (``failed_transient`` — the queue row is left untouched, never
-#: dead-lettered; see ``sync/batch.py`` and ``sync/queue.py``). The probe is a
-#: read-only health report and must stay consistent with that contract: it may
-#: surface repoint guidance for the decommissioned case, but must not imply
-#: queued events are lost.
-_GATEWAY_STATUS: frozenset[int] = frozenset({502, 503, 504})
-
-
 def _gateway_unavailable_note(server_url: str, status_code: int) -> str:
     """Remediation note for a sync server returning a gateway-class status.
 
@@ -3256,7 +3238,12 @@ def _check_server_connection(server_url: str) -> tuple[str, str]:
                 "[yellow]Permission denied[/yellow]",
                 "Check team membership for this project.",
             )
-        elif response.status_code in _GATEWAY_STATUS:
+        elif response.status_code in GATEWAY_STATUSES:
+            # Gateway 5xx = the edge says the endpoint is unavailable (FR-003,
+            # #3406). Reclassify out of the generic "Unexpected" branch so a
+            # first sync against a stale/decommissioned URL gets an actionable
+            # signal, while staying consistent with the queue's transient
+            # (never-dead-lettered) disposition — see _gateway_unavailable_note.
             return (
                 "[red]Server unavailable[/red]",
                 _gateway_unavailable_note(server_url, response.status_code),
