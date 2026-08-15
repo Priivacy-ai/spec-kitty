@@ -140,18 +140,16 @@ commit's tree plus this bucket's final paths — so the *terminal* commit's tree
 reconstructs the full `$FINAL` tree (not just the last bucket):
 
 ```bash
-export GIT_INDEX_FILE=$(mktemp)            # a scratch index, kept across buckets
-git read-tree <prev-new-commit>^{tree}     # seed from the previous bucket's tree
-git checkout-index -a --prefix=/dev/null 2>/dev/null || true
-# overlay this bucket's final paths onto the cumulative index:
-git read-tree --prefix= "$FINAL"^{tree} -- <bucket pathspec>  # or update-index per path
+export GIT_INDEX_FILE=$(mktemp)          # scratch index, cumulative across buckets
+git read-tree "$FINAL"^{tree}            # seed the full final tree
 TREE=$(git write-tree)
-git commit-tree "$TREE" -p <prev-new-commit> -F msg.txt       # → next commit sha
+git commit-tree "$TREE" -p <prev-new-commit> -F msg.txt   # → next commit sha
 ```
 
-Because each commit overlays on the prior tree, the final commit equals `$FINAL`
-— then **re-run the step-4 tree-parity check** (`git diff "$FINAL" "$NEW_HEAD"` must
-be empty), which is the real guarantee regardless of how the trees were built.
+Each commit's tree is built from `$FINAL` cumulatively, so the *terminal* commit
+already equals `$FINAL` — then **re-run the step-4 tree-parity check**
+(`git diff "$FINAL" "$NEW_HEAD"` must be empty), which is the real guarantee
+regardless of how the trees were built.
 This matters only once a rename or deletion means "the final content of this
 bucket's paths" is not simply
 "whatever is currently on disk at those paths."

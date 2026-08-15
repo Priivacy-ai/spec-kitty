@@ -247,7 +247,7 @@ It records a `ReviewOverride {at, actor, wp_id, reason}`
 single, topology-resolved `InnerStateChanged` event emit
 (`_persist_review_artifact_override` in
 [`tasks_materialization.py`](../../../src/specify_cli/cli/commands/agent/tasks_materialization.py))
-— one write, not a primary-plus-coord frontmatter mirror (that dual-write
+— one write, not a **PRIMARY-partition-plus-coord** frontmatter mirror (that dual-write
 is retired; the reduced `review` snapshot slot is the single authority both
 partitions resolve). The gate only treats the override as clearing when
 `ReviewOverride.complete` is true, i.e. all four fields are non-empty — a
