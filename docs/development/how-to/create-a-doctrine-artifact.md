@@ -183,30 +183,22 @@ check.
 
 Every relationship between doctrine artifacts — obligation (`requires`,
 `suggests`), lineage (`specializes_from`), augmentation (`enhances`,
-`overrides`) — is an authored **DRG edge** in a `graph.yaml` fragment, never a
-field on the artifact body. The full authoring reference, with worked
-examples for every relation, is
-[Doctrine relationships](../../architecture/doctrine-relationships.md).
+`overrides`), and tension (`in_tension_with`, `reconciles_tension`,
+`rejects`) — is an authored **DRG edge** in a `graph.yaml` fragment, never a
+field on the artifact body. The full authoring reference — worked examples
+for every relation, plus the URN-ordering mechanic for `in_tension_with` — is
+[Doctrine relationships](../../architecture/doctrine-relationships.md); see
+its ["Tension vocabulary" section](../../architecture/doctrine-relationships.md)
+for how to model two co-valid artifacts that disagree (for example
+DIRECTIVE_024's locality-of-change vs. DIRECTIVE_025's boy-scout rule) and
+how to bridge a tension pair with a reconciler.
 
-Two co-valid artifacts can also **disagree** — both stay active and correct,
-but they compete on the same decision (for example DIRECTIVE_024's
-locality-of-change vs. DIRECTIVE_025's boy-scout rule). Model that as an
-`in_tension_with` edge (symmetric, non-transitive — author one canonical
-edge, from the lexicographically-smaller URN), and bridge it with a
-`reconciles_tension` edge from whichever artifact carries the resolution
-guidance. Rejecting a named anti-pattern (not a competing equal, a bad
-practice) is a different relation, `rejects`, directional and pointed at a
-`tags: [anti-pattern]`-marked node. See the
-["Tension vocabulary" section](../../architecture/doctrine-relationships.md)
-for the full semantics.
-
-**`opposed_by` is retired, not an authoring option.** It predates the DRG,
-was mis-encoded as `replaces`, and is removed from the built-in schema — a
-new built-in or project-tier artifact must use `in_tension_with` / `rejects`
-edges instead. It survives only as a legacy input an unmigrated org/downstream
-pack may still carry; `spec-kitty migrate rewrite-opposed-by --pack <path>`
-rewrites those legacy entries into the correct typed edges (idempotent, safe
-to run repeatedly).
+**`opposed_by` is retired, not an authoring option.** Use `in_tension_with` /
+`reconciles_tension` / `rejects` instead — see the linked reference above for
+the full semantics. It survives only as a legacy input an unmigrated
+org/downstream pack may still carry; `spec-kitty migrate rewrite-opposed-by
+--pack <path>` rewrites those legacy entries into the correct typed edges
+(idempotent, safe to run repeatedly).
 
 ## Undoing this
 
