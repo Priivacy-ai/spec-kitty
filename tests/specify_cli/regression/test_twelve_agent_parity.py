@@ -48,6 +48,7 @@ import pytest
 
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
 from specify_cli.skills.command_installer import PROMPT_BACKED_COMMANDS
+from specify_cli.skills.render_versions import FIXTURE_COMMAND_RENDER_VERSION
 from specify_cli.template.asset_generator import render_command_template
 
 # ---------------------------------------------------------------------------
@@ -76,8 +77,9 @@ NON_MIGRATED_AGENTS: tuple[str, ...] = tuple(AGENT_COMMAND_CONFIG.keys())
 CANONICAL_COMMANDS: tuple[str, ...] = PROMPT_BACKED_COMMANDS
 
 # Fixed version for rendering (must match what was used when capturing the
-# baseline; see _twelve_agent_baseline/__init__.py).
-_BASELINE_VERSION = "3.1.2a3"
+# baseline; see _twelve_agent_baseline/__init__.py). Sourced from the shared
+# pin so this suite and `spec-kitty regen` can never diverge (#3447, FR-005).
+_BASELINE_VERSION = FIXTURE_COMMAND_RENDER_VERSION
 
 # Whether to update baselines instead of asserting.
 _UPDATE = os.environ.get("PYTEST_UPDATE_SNAPSHOTS", "0") not in ("", "0", "false", "False")
@@ -125,18 +127,28 @@ def _render_for_agent(agent: str, command: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("agent", NON_MIGRATED_AGENTS)
-@pytest.mark.parametrize("command", CANONICAL_COMMANDS)
-def test_command_output_unchanged(agent: str, command: str) -> None:
-    """Rendered output must be byte-identical to the committed baseline.
+# Narrowed gate (#3447 WP05, SC-005): the full 12x12 byte grid is replaced by ONE
+# canonical byte snapshot PER DISTINCT RENDER BRANCH + a structural invariant over
+# every rendering, so a one-line source-prompt edit regenerates at most one
+# canonical fixture per branch instead of ~14. There are exactly two render
+# branches (adversarial-review finding): the markdown serialization (claude et al.)
+# and the TOML serialization (gemini/qwen, a distinct code path in asset_generator).
+# Both are byte-pinned so a TOML-only serialization regression cannot slip through
+# as "parseable but wrong".
+CANONICAL_BASELINES: tuple[tuple[str, str], ...] = (
+    ("claude", "specify"),  # markdown render branch
+    ("gemini", "specify"),  # TOML render branch
+)
 
-    Failure means a source template changed in a way that affects the
-    twelve non-migrated agents.  If the change is intentional, regenerate
-    the baseline with ``PYTEST_UPDATE_SNAPSHOTS=1 pytest`` and commit the
-    updated files alongside the template change.
+
+@pytest.mark.parametrize(("agent", "command"), CANONICAL_BASELINES)
+def test_canonical_command_snapshot(agent: str, command: str) -> None:
+    """Each render branch's canonical rendered command is byte-stable.
+
+    Regenerate with ``spec-kitty regen`` (or ``PYTEST_UPDATE_SNAPSHOTS=1``) when
+    an intended template change alters it.
     """
     snap = _baseline_path(agent, command)
-
     produced = _render_for_agent(agent, command)
 
     if _UPDATE:
@@ -144,18 +156,47 @@ def test_command_output_unchanged(agent: str, command: str) -> None:
         snap.write_text(produced, encoding="utf-8")
         return
 
-    if not snap.exists():
-        pytest.fail(f"Baseline missing for {agent}/{command} at {snap}.\nRegenerate with: PYTEST_UPDATE_SNAPSHOTS=1 pytest tests/specify_cli/regression/ -v")
-
-    expected = snap.read_text(encoding="utf-8")
-    assert produced == expected, (
-        f"Command-file output for {agent}/{command} changed.\n"
-        f"This mission must not modify the twelve non-migrated agents.\n"
-        f"If the change is intentional (e.g. a cross-agent template edit),\n"
-        f"regenerate the baseline with:\n"
-        f"  PYTEST_UPDATE_SNAPSHOTS=1 pytest tests/specify_cli/regression/ -v\n"
-        f"then commit the updated baseline files alongside the template change."
+    assert snap.exists(), f"Canonical baseline missing at {snap}.\nRun: spec-kitty regen"
+    assert produced == snap.read_text(encoding="utf-8"), (
+        f"Canonical command render ({agent}/{command}) drifted from its committed "
+        "snapshot.\nIf the change is intentional, run: spec-kitty regen"
     )
+
+
+@pytest.mark.parametrize("agent", NON_MIGRATED_AGENTS)
+@pytest.mark.parametrize("command", CANONICAL_COMMANDS)
+def test_command_renders_with_expected_structure(agent: str, command: str) -> None:
+    """Structural invariant for every (agent, command): a well-formed render.
+
+    Replaces the per-(agent,command) byte grid — it catches a broken render
+    (empty output, a missing version marker, an unsubstituted placeholder) for
+    every agent without pinning bytes, so an intended source edit does not fan
+    out to ~14 fixture diffs.
+    """
+    produced = _render_for_agent(agent, command)
+    assert produced.strip(), f"Empty render for {agent}/{command}"
+    assert "spec-kitty-command-version:" in produced, (
+        f"Render for {agent}/{command} is missing the version marker"
+    )
+    # An unsubstituted template placeholder is a real render regression the old
+    # byte grid caught (adversarial-review F3); assert none leaked through.
+    for placeholder in ("__AGENT__", "{SCRIPT}", "{AGENT_SCRIPT}"):
+        assert placeholder not in produced, (
+            f"Render for {agent}/{command} leaked an unsubstituted {placeholder}"
+        )
+
+
+def test_structural_gate_rejects_a_broken_render(monkeypatch: pytest.MonkeyPatch) -> None:
+    """WP05 T001: the narrowed gate still catches a BROKEN render (empty / no
+    version marker / leftover placeholder). Note it does not — and cannot —
+    prove a valid-but-wrong render is caught for a non-canonical agent; that
+    content-drift coverage is provided by the per-branch canonical snapshots."""
+    monkeypatch.setattr(
+        "tests.specify_cli.regression.test_twelve_agent_parity.render_command_template",
+        lambda **kwargs: "prompt body with no version marker",
+    )
+    with pytest.raises(AssertionError):
+        test_command_renders_with_expected_structure("claude", "specify")
 
 
 @pytest.mark.parametrize(
@@ -200,47 +241,20 @@ def test_vibe_not_in_agent_command_config() -> None:
     assert "vibe" not in AGENT_COMMAND_CONFIG, "vibe was found in AGENT_COMMAND_CONFIG. Vibe uses the Agent Skills pipeline, not the command-file pipeline."
 
 
-@pytest.mark.parametrize("agent", NON_MIGRATED_AGENTS)
-def test_agent_baseline_directory_exists(agent: str) -> None:
-    """Each non-migrated agent must have a baseline directory."""
-    agent_dir = BASELINE_DIR / agent
-    assert agent_dir.is_dir(), (
-        f"Baseline directory missing for agent '{agent}' at {agent_dir}.\nRegenerate with: PYTEST_UPDATE_SNAPSHOTS=1 pytest tests/specify_cli/regression/ -v"
-    )
+def test_only_canonical_baseline_is_committed() -> None:
+    """Post-narrowing, exactly one canonical command baseline is committed.
 
-
-def test_no_orphan_baseline_directories() -> None:
-    """The baseline tree holds exactly the non-migrated agents — no more, no less.
-
-    Guards against a migrated agent (e.g. ``roo``, which moved to the Agent
-    Skills / shim delivery path and is absent from ``AGENT_COMMAND_CONFIG``)
-    leaving behind an ungated baseline directory that silently drifts because
-    no parametrized test ever renders or asserts it.
+    The full 12-agent byte grid was retired (WP05); only the canonical
+    ``claude/specify`` fixture remains under version control. A stray extra
+    baseline file means a leftover from the old grid or an ungated drift source.
     """
-    baseline_dirs = {
-        d.name for d in BASELINE_DIR.iterdir() if d.is_dir() and not d.name.startswith("__")
-    }
-    expected = set(NON_MIGRATED_AGENTS)
-    orphans = baseline_dirs - expected
-    missing = expected - baseline_dirs
-    assert not orphans and not missing, (
-        f"Baseline directories must match NON_MIGRATED_AGENTS exactly.\n"
-        f"  Orphan dirs (present but not a non-migrated agent — prune them): {sorted(orphans)}\n"
-        f"  Missing dirs (expected but absent — regenerate them): {sorted(missing)}"
+    committed = sorted(
+        p.relative_to(BASELINE_DIR).as_posix()
+        for p in BASELINE_DIR.rglob("*")
+        if p.is_file() and p.name != "__init__.py"
     )
-
-
-@pytest.mark.parametrize("agent", NON_MIGRATED_AGENTS)
-def test_agent_baseline_file_count(agent: str) -> None:
-    """Each agent baseline directory must contain one file per prompt-backed command."""
-    agent_dir = BASELINE_DIR / agent
-    if not agent_dir.is_dir():
-        pytest.skip(f"Baseline dir missing for {agent}")
-    files = [f for f in agent_dir.iterdir() if f.is_file() and not f.name.startswith(".")]
-    assert len(files) == len(CANONICAL_COMMANDS), (
-        f"Agent '{agent}' baseline has {len(files)} files, "
-        f"expected {len(CANONICAL_COMMANDS)} (one per canonical command).\n"
-        f"Files found: {sorted(f.name for f in files)}"
+    assert committed == ["claude/specify.md", "gemini/specify.toml"], (
+        f"Expected only the per-branch canonical baselines, found: {committed}"
     )
 
 
@@ -254,16 +268,13 @@ def test_agent_outputs_contain_arg_placeholder(agent: str) -> None:
     """
     config = AGENT_COMMAND_CONFIG[agent]
     expected_placeholder = config["arg_format"]
-    # Only commands that forward user args will have the placeholder —
-    # check every prompt-backed template and verify at least one contains it.
+    # Render fresh (WP05: the per-agent baseline grid was retired) and verify at
+    # least one prompt-backed command carries the agent's arg placeholder.
     found_any = False
     for command in CANONICAL_COMMANDS:
-        snap = _baseline_path(agent, command)
-        if snap.exists():
-            content = snap.read_text(encoding="utf-8")
-            if expected_placeholder in content:
-                found_any = True
-                break
+        if expected_placeholder in _render_for_agent(agent, command):
+            found_any = True
+            break
     assert found_any, (
         f"Agent '{agent}' has arg_format '{expected_placeholder}' "
         f"but no baseline file contains that placeholder. "
