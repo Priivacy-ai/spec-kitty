@@ -183,12 +183,19 @@ def test_runtime_state_persistence_error_propagates(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A move cannot report success when its authoritative annotation is lost."""
-    import specify_cli.status as status_module
+    import specify_cli.coordination.status_transition as status_transition_module
 
     def _fail(*_args: object, **_kwargs: object) -> None:
         raise OSError("disk full")
 
-    monkeypatch.setattr(status_module, "emit_inner_state_changed", _fail)
+    # FR-007 (#2939): ``_mt_emit_runtime_state`` now routes the post-transition
+    # annotation through the commit-durable ``emit_inner_state_changed_transactional``
+    # seam (which commits on a coord topology, delegates to the uncommitted
+    # ``emit_inner_state_changed`` otherwise). The propagation contract is unchanged;
+    # only the intercept point moves to the new seam.
+    monkeypatch.setattr(
+        status_transition_module, "emit_inner_state_changed_transactional", _fail
+    )
     st = SimpleNamespace(
         claim_emitted=False,
         agent="codex",
