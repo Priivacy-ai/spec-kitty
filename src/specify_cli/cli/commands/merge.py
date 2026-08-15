@@ -474,6 +474,14 @@ def merge(
             "\"<reason>\" so the bypass is recorded as override evidence."
         )
         raise typer.Exit(2)
+    # --note only carries meaning as the reason for a skip; passed alone it is
+    # inert. Warn rather than fail so a stray flag never blocks a merge (squad note).
+    if note and note.strip() and not skip_review_artifact_check:
+        console.print(
+            "[yellow]Note:[/yellow] --note has no effect without "
+            "--skip-review-artifact-check; it is only recorded when the "
+            "review-artifact gate is bypassed."
+        )
 
     if not json_output:
         show_banner()
