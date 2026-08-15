@@ -326,6 +326,19 @@ def iter_mission_instance_dirs(project_path: Path) -> Generator[Path, None, None
             yield entry
 
 
+def legacy_registry_record_dir(project_path: Path, mission_id: str) -> Path:
+    """Legacy in-registry mission-record directory keyed by ``mission_id``.
+
+    Back-compat only: records never relocated out of
+    ``.kittify/missions/<mission_id>/`` (pre-#1771). The canonical mission-record
+    home is ``kitty-specs/<slug>/`` — see :func:`iter_mission_instance_dirs`.
+    Single-sourced (C-005) so both retrospective diagnostic discovery sites
+    (``_resolve_summary_record_path`` and ``retrospect summary``'s per-mission
+    table) derive the legacy path identically instead of hand-rolling it twice.
+    """
+    return project_path / KITTIFY_DIR / "missions" / str(mission_id)
+
+
 def _resolve_summary_record_path(project_path: Path, mission_dir: Path) -> Path:
     """Resolve the retrospective.yaml path to read for a discovered mission dir.
 
@@ -361,7 +374,7 @@ def _resolve_summary_record_path(project_path: Path, mission_dir: Path) -> Path:
     mission_id = meta.get("mission_id")
     if mission_id:
         legacy_registry: Path = (
-            project_path / KITTIFY_DIR / "missions" / str(mission_id) / RETROSPECTIVE_FILENAME
+            legacy_registry_record_dir(project_path, mission_id) / RETROSPECTIVE_FILENAME
         )
         if legacy_registry.exists():
             return legacy_registry
