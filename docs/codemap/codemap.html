@@ -15,6 +15,12 @@
 <tr data-node="status-and-acceptance"><td>status-and-acceptance</td><td>src/specify_cli/status/aggregate.py; src/specify_cli/acceptance</td><td>Reads status and acceptance evidence from the selected Mission anchor without changing managed-worktree behavior.</td></tr>
 <tr data-node="caller-owned-integration-tests"><td>caller-owned-integration-tests</td><td>tests/integration/test_caller_owned_worktree_lifecycle.py</td><td>Covers conflict safety, two linked worktrees, lifecycle commands, indexing cost, and primary-checkout immutability.</td></tr>
 <tr data-node="operation-root-guard"><td>operation-root-guard</td><td>tests/architectural/test_mission_operation_root_boundary.py; tests/architectural/fixtures/mission_root_authority_allowlist.tsv</td><td>Scans every production source and prevents lifecycle consumers from introducing a second Mission-root authority outside a shrink-only reviewed allowlist.</td></tr>
+<tr data-node="mission-anchor-composer"><td>mission-anchor-composer</td><td>src/specify_cli/missions/_read_path_resolver.py</td><td>Validates the Mission slug and composes it under a caller-resolved Mission anchor without reselecting the repository root.</td></tr>
+<tr data-node="mission-anchor-runtime-callers"><td>mission-anchor-runtime-callers</td><td>src/mission_runtime/resolution.py; src/mission_runtime/write_target_degrade.py</td><td>Calls the anchor composer after Mission resolution for read, placement, status-surface, artifact-surface, and degraded write-target flows.</td></tr>
+<tr data-node="mission-creation-boundary"><td>mission-creation-boundary</td><td>src/specify_cli/core/mission_creation.py</td><td>Controls external mission-creation placement and delegates managed-worktree path-shape classification to the canonical surface resolver.</td></tr>
+<tr data-node="mission-creation-callers"><td>mission-creation-callers</td><td>src/specify_cli/cli/commands/agent/mission_create.py; src/specify_cli/tracker/origin.py</td><td>Invokes the shared mission-creation boundary from interactive CLI and tracker-origin flows.</td></tr>
+<tr data-node="canonical-worktree-topology-authority"><td>canonical-worktree-topology-authority</td><td>src/specify_cli/coordination/surface_resolver.py</td><td>Owns the managed-worktree segment proposal and registry-backed coordination-versus-lane topology classification.</td></tr>
+<tr data-node="wp02-architecture-contracts"><td>wp02-architecture-contracts</td><td>tests/architectural/test_surface_resolution_audit.py; tests/architectural/test_untrusted_path_containment.py; tests/architectural/test_topology_resolution_boundary.py; tests/architectural/surface_resolution_audit/inventory.md; tests/architectural/untrusted_path_audit/inventory.md</td><td>Pins exact anchor-composer inventory identities, rejects raw mission-creation topology predicates, and independently verifies code-map callers, impact, parity, and hashes.</td></tr>
 </tbody>
 </table>
 <h2>Edges</h2>
@@ -38,6 +44,15 @@
 <li>operation-root-guard guards placement-and-commit</li>
 <li>operation-root-guard guards status-transaction-dual-root</li>
 <li>operation-root-guard guards tasks-operation-boundary</li>
+<li>mission-anchor-runtime-callers calls mission-anchor-composer</li>
+<li>mission-anchor-composer supplies anchored paths status-transaction-dual-root</li>
+<li>mission-creation-callers calls mission-creation-boundary</li>
+<li>mission-creation-boundary delegates shape classification canonical-worktree-topology-authority</li>
+<li>mission-creation-boundary guards creation placement git-preflight-checkout-selection</li>
+<li>wp02-architecture-contracts covers mission-anchor-composer</li>
+<li>wp02-architecture-contracts covers mission-anchor-runtime-callers</li>
+<li>wp02-architecture-contracts covers mission-creation-boundary</li>
+<li>wp02-architecture-contracts guards canonical-worktree-topology-authority</li>
 </ul>
 </body>
 </html>

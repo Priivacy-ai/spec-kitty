@@ -69,6 +69,7 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Final
 
@@ -199,12 +200,25 @@ BASELINE_SITES: frozenset[str] = frozenset(_row_key(row) for row in _baseline_ro
 
 def _census(paths: Sequence[Path]) -> CensusResult:
     """One analysis pass over *paths*, using WP03's analyzer and resolver."""
-    return run_census(
+    result = run_census(
         paths,
         default_first_party_roots(_REPO_ROOT),
         frozenset(PATCH_FORMS),
         SEAM_MODULE,
     )
+    result.files_scanned = {
+        Path(path).as_posix(): count for path, count in result.files_scanned.items()
+    }
+    result.sites = [replace(site, file=Path(site.file).as_posix()) for site in result.sites]
+    result.assertions = [
+        replace(assertion, file=Path(assertion.file).as_posix())
+        for assertion in result.assertions
+    ]
+    result.drives = [
+        replace(assertion, file=Path(assertion.file).as_posix())
+        for assertion in result.drives
+    ]
+    return result
 
 
 def _read_keys(result: CensusResult) -> set[tuple[str, str, str]]:
@@ -293,6 +307,14 @@ def test_the_gate_names_the_files_it_opened() -> None:
         "floor without opening `tests/sync/tracker/` measures nothing about this "
         "mission's defect class."
     )
+
+
+def test_census_actual_paths_match_static_posix_oracle() -> None:
+    """Actual scanner paths must compare directly with static POSIX inventory."""
+    opened = frozenset(site.file for site in _census([ENFORCED_SCOPE]).sites)
+    expected = "tests/sync/tracker/test_saas_client.py"
+    assert expected in opened, f"actual paths did not contain static expected {expected!r}"
+    assert all("\\" not in path for path in opened), sorted(opened)
 
 
 # ---------------------------------------------------------------------------

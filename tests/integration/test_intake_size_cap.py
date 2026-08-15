@@ -12,8 +12,8 @@ These tests exercise :func:`specify_cli.intake.scanner.read_brief` and
 from __future__ import annotations
 
 import io
+import importlib.util
 import os
-import resource
 import sys
 from pathlib import Path
 
@@ -29,16 +29,24 @@ from specify_cli.intake.scanner import (
 
 pytestmark = [pytest.mark.integration, pytest.mark.fast]
 
+_RESOURCE_AVAILABLE = importlib.util.find_spec("resource") is not None
+
 
 def _peak_rss_bytes() -> int:
     """Return process peak RSS in bytes.  ``ru_maxrss`` is bytes on macOS,
     KiB on Linux — normalise to bytes."""
+    import resource
+
     rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     if sys.platform == "darwin":
         return int(rss)
     return int(rss) * 1024
 
 
+@pytest.mark.skipif(
+    not _RESOURCE_AVAILABLE,
+    reason="requires the POSIX resource module for peak-RSS measurement",
+)
 def test_50mb_file_rejected_with_bounded_memory(tmp_path):
     """NFR-003: 50 MB rejection must keep peak RSS below 1.5 × cap."""
     cap = DEFAULT_MAX_BRIEF_BYTES  # 5 MB

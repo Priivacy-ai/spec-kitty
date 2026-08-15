@@ -130,7 +130,14 @@ def _iter_runtime_python_files() -> list[Path]:
 
 
 def _rel_to_repo(path: Path) -> str:
-    return str(path.relative_to(_REPO_ROOT))
+    return path.relative_to(_REPO_ROOT).as_posix()
+
+
+def test_actual_repo_relative_key_matches_static_posix_oracle() -> None:
+    """Windows ``Path`` output must match the independent POSIX inventory form."""
+    actual = _rel_to_repo(_REPO_ROOT / "src" / "specify_cli" / "doctrine" / "config.py")
+    expected = "src/specify_cli/doctrine/config.py"
+    assert actual == expected, f"actual={actual!r}, expected={expected!r}"
 
 
 def _format_boundary_failure(

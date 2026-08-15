@@ -337,7 +337,7 @@ def _calls_in_tree(root_str: str, target: str) -> CallFindings:
         if tree is None:
             continue
         scanned += 1
-        collector = _CallCollector(str(path.relative_to(root)), target)
+        collector = _CallCollector(path.relative_to(root).as_posix(), target)
         collector.visit(tree)
         calls.extend(collector.calls)
         del tree  # release this module's AST before parsing the next one
@@ -347,6 +347,17 @@ def _calls_in_tree(root_str: str, target: str) -> CallFindings:
 def analyze_calls_in_tree(root: Path, target: str) -> CallFindings:
     """Root-path entry point: find every *target* call under *root*, reporting files scanned."""
     return _calls_in_tree(str(root), target)
+
+
+def test_call_census_actual_path_matches_static_posix_oracle(tmp_path: Path) -> None:
+    """The actual census key is canonical; the expected literal is not normalized."""
+    module = tmp_path / "nested" / "probe.py"
+    module.parent.mkdir()
+    module.write_text("def probe():\n    tracker_egress_verdict()\n", encoding="utf-8")
+
+    findings = analyze_calls_in_tree(tmp_path, VERDICT_FN)
+
+    assert {call.module for call in findings.calls} == {"nested/probe.py"}
 
 
 def _announce(guard: str, input_count: int, **facts: object) -> None:
@@ -525,7 +536,7 @@ def test_g1_build_connector_perimeter_is_exactly_beads_and_fp() -> None:
     _announce(
         "G1",
         real.input_count,
-        file=str(_FACTORY_PATH.relative_to(REPO_ROOT)),
+        file=_FACTORY_PATH.relative_to(REPO_ROOT).as_posix(),
         providers_found=sorted(real.providers or ()),
         literal_elements=real.element_count,
     )
@@ -875,7 +886,7 @@ def test_g3_build_engine_callers_are_the_three_gated_methods() -> None:
     _announce(
         "G3",
         real.input_count,
-        file=str(_LOCAL_SERVICE_PATH.relative_to(REPO_ROOT)),
+        file=_LOCAL_SERVICE_PATH.relative_to(REPO_ROOT).as_posix(),
         callers=sorted(real.callers),
         gate_is_first_statement=real.gate_is_first,
     )
@@ -1729,7 +1740,7 @@ def _patch_sites_in_tree(root_str: str, target: str) -> PatchFindings:
         if tree is None:
             continue
         scanned += 1
-        f, n = _collect_patch_sites(tree, str(path.relative_to(root)), target)
+        f, n = _collect_patch_sites(tree, path.relative_to(root).as_posix(), target)
         fixed |= f
         naive |= n
         del tree  # release this module's AST before parsing the next one
@@ -1739,6 +1750,23 @@ def _patch_sites_in_tree(root_str: str, target: str) -> PatchFindings:
 def analyze_patch_sites_in_tree(root: Path, *, target: str = "_build_engine") -> PatchFindings:
     """Root-path entry point: census of *target* patch sites across the whole ``tests/`` tree."""
     return _patch_sites_in_tree(str(root), target)
+
+
+def test_patch_census_actual_path_matches_static_posix_oracle(tmp_path: Path) -> None:
+    """Patch-site census uses the same canonical actual-path boundary."""
+    module = tmp_path / "nested" / "probe.py"
+    module.parent.mkdir()
+    module.write_text(
+        "from unittest.mock import patch\n"
+        "def probe():\n"
+        "    with patch.object(service, '_build_engine'):\n"
+        "        pass\n",
+        encoding="utf-8",
+    )
+
+    findings = analyze_patch_sites_in_tree(tmp_path)
+
+    assert findings.sites == {"nested/probe.py::probe"}
 
 
 #: The **control**: structurally identical to the mutants below, but patching something that is

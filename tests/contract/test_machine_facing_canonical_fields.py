@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import ast
 import json
+import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -329,19 +331,20 @@ def test_verify_enhanced_feature_detection_emits_canonical_mission_fields(tmp_pa
         encoding="utf-8",
     )
 
-    console = Console(file=open("/dev/null", "w"))  # noqa: SIM115
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(stdout="main\n", returncode=0)
-        payload = run_enhanced_verify(
-            repo_root=project_root,
-            project_root=project_root,
-            cwd=project_root,
-            feature=mission_dir.name,
-            json_output=True,
-            check_files=False,
-            console=console,
-            feature_dir=mission_dir,
-        )
+    with open(os.devnull, "w", encoding="utf-8") as null_sink:
+        console = Console(file=null_sink)
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(stdout="main\n", returncode=0)
+            payload = run_enhanced_verify(
+                repo_root=project_root,
+                project_root=project_root,
+                cwd=project_root,
+                feature=mission_dir.name,
+                json_output=True,
+                check_files=False,
+                console=console,
+                feature_dir=mission_dir,
+            )
 
     detected = payload["feature_detection"]
     assert detected["mission_slug"] == mission_dir.name
@@ -480,3 +483,155 @@ def test_aggregate_type_mission_unchanged() -> None:
         "aggregate_type renamed to MissionRun in: "
         f"{offending}. Forbidden by §3.3."
     )
+
+
+_COLLECTION_SENSITIVE_TESTS = (
+    "tests/cli/commands/test_sync_doctor_consent_health_3030.py",
+    "tests/integration/test_intake_size_cap.py",
+    "tests/review/test_pre_review_gate_engine.py",
+    "tests/specify_cli/core/test_target_branch_primitive.py",
+    "tests/sync/test_consent_fault_vocabulary_3030.py",
+    "tests/sync/test_consent_write_refusal_3030.py",
+    "tests/sync/test_issue_598_hang_fixes.py",
+)
+
+
+def _module_scope_roots(tree: ast.Module) -> list[ast.AST]:
+    """Return import-time expressions without descending into test bodies."""
+    roots: list[ast.AST] = []
+    for statement in tree.body:
+        if isinstance(statement, ast.FunctionDef | ast.AsyncFunctionDef):
+            roots.extend(statement.decorator_list)
+            roots.extend(statement.args.defaults)
+            roots.extend(default for default in statement.args.kw_defaults if default)
+            if statement.returns is not None:
+                roots.append(statement.returns)
+        elif isinstance(statement, ast.ClassDef):
+            roots.extend(statement.decorator_list)
+            roots.extend(statement.bases)
+            roots.extend(keyword.value for keyword in statement.keywords)
+        else:
+            roots.append(statement)
+    return roots
+
+
+def _import_time_platform_hazards(path: Path) -> list[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=path.as_posix())
+    hazards: list[str] = []
+    for root in _module_scope_roots(tree):
+        for node in ast.walk(root):
+            if isinstance(node, ast.Import):
+                hazards.extend(
+                    alias.name
+                    for alias in node.names
+                    if alias.name in {"fcntl", "resource"}
+                )
+            elif (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "os"
+                and node.func.attr in {"geteuid", "getuid"}
+            ):
+                hazards.append(f"os.{node.func.attr}()")
+            elif (
+                isinstance(node, ast.Attribute)
+                and isinstance(node.value, ast.Name)
+                and node.value.id == "signal"
+                and node.attr == "SIGKILL"
+            ):
+                hazards.append("signal.SIGKILL")
+    return hazards
+
+
+def test_contract_null_sink_is_platform_owned_and_closed() -> None:
+    """The contract suite must never open the POSIX-only null-device literal."""
+    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    forbidden = "/dev" + "/null"
+    literal_sinks = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant) and node.value == forbidden
+    ]
+    platform_sinks = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "os"
+        and node.attr == "devnull"
+    ]
+
+    assert not literal_sinks, "contract test still opens the POSIX-only null device"
+    assert platform_sinks, "contract test does not use os.devnull"
+
+
+def test_collection_sensitive_inventory_keeps_all_seven_files() -> None:
+    """Static completeness oracle for the bounded Windows collection packet."""
+    assert _COLLECTION_SENSITIVE_TESTS == (
+        "tests/cli/commands/test_sync_doctor_consent_health_3030.py",
+        "tests/integration/test_intake_size_cap.py",
+        "tests/review/test_pre_review_gate_engine.py",
+        "tests/specify_cli/core/test_target_branch_primitive.py",
+        "tests/sync/test_consent_fault_vocabulary_3030.py",
+        "tests/sync/test_consent_write_refusal_3030.py",
+        "tests/sync/test_issue_598_hang_fixes.py",
+    )
+
+
+def test_permission_oracle_helper_preserves_injected_posix_semantics() -> None:
+    """Execute only the helper AST so the broken target module stays unimported."""
+    repo_root = Path(__file__).resolve().parents[2]
+    target = repo_root / "tests/cli/commands/test_sync_doctor_consent_health_3030.py"
+    tree = ast.parse(target.read_text(encoding="utf-8"), filename=target.as_posix())
+    helpers = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "_posix_permission_oracle_unavailable"
+    ]
+    assert len(helpers) == 1
+
+    helper_module = ast.fix_missing_locations(ast.Module(body=helpers, type_ignores=[]))
+    namespace = {
+        "os": __import__("os"),
+        "Callable": __import__("collections.abc", fromlist=["Callable"]).Callable,
+    }
+    exec(compile(helper_module, target.as_posix(), "exec"), namespace)
+    helper = namespace["_posix_permission_oracle_unavailable"]
+
+    assert helper(None)
+    assert helper(lambda: 0)
+    assert not helper(lambda: 1000)
+
+
+def test_architecture_path_oracle_keeps_expected_value_static() -> None:
+    """The expected POSIX key must not reuse the actual-path normalizer."""
+    repo_root = Path(__file__).resolve().parents[2]
+    oracle_path = repo_root / "tests/architectural/test_runtime_charter_doctrine_boundary.py"
+    tree = ast.parse(oracle_path.read_text(encoding="utf-8"), filename=oracle_path.as_posix())
+    function = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "test_actual_repo_relative_key_matches_static_posix_oracle"
+    )
+    expected_assignment = next(
+        node
+        for node in function.body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "expected" for target in node.targets)
+    )
+
+    assert isinstance(expected_assignment.value, ast.Constant)
+    assert expected_assignment.value.value == "src/specify_cli/doctrine/config.py"
+
+
+@pytest.mark.parametrize("relative_path", _COLLECTION_SENSITIVE_TESTS)
+def test_collection_sensitive_modules_have_no_import_time_platform_hazard(
+    relative_path: str,
+) -> None:
+    """Parse every module without importing it and reject Windows-only failures."""
+    repo_root = Path(__file__).resolve().parents[2]
+    hazards = _import_time_platform_hazards(repo_root / relative_path)
+    assert not hazards, f"{relative_path} has import-time hazards: {hazards}"
