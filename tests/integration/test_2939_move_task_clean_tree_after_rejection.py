@@ -213,6 +213,63 @@ def test_for_review_move_task_with_note_leaves_clean_coord_tree(tmp_path: Path) 
 
 
 # ---------------------------------------------------------------------------
+# #2959 sibling: the merge escape-hatch skip evidence is committed on coord
+# (same emit_inner_state_changed_transactional durability seam as #2939 above).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_skip_review_artifact_evidence_is_committed_on_coord(tmp_path: Path) -> None:
+    """``--skip-review-artifact-check`` records "durable override evidence"; on a
+    coord mission that ReviewOverride must be COMMITTED, not merely written, so it
+    survives even if the merge aborts downstream (squad architect-alphonso, #2959).
+
+    The gate runs at a clean preflight point BEFORE any merge-state / branch-
+    integration git mutation, so committing the coord STATUS surface here is safe.
+
+    RED before the fix: ``_record_review_artifact_skip_evidence`` emitted via the
+    non-transactional ``emit_inner_state_changed``, leaving the coord status tree
+    dirty (evidence written + materialized, never committed) — porcelain NON-empty.
+    """
+    from specify_cli.merge.preflight import _record_review_artifact_skip_evidence
+    from specify_cli.post_merge.review_artifact_consistency import (
+        ReviewArtifactFinding,
+    )
+
+    ctx = _build_coord_topology(tmp_path, write_husk_meta=False)
+    _disable_branch_protection_for_coord_cell(ctx.repo)
+    _seed_coord_wp_in_review(ctx, _WP_ID)
+    _commit_coord_baseline(ctx, "test: commit coord in_review baseline")
+
+    assert _coord_status_porcelain(ctx) == "", (
+        "precondition failed: coord status tree must be clean before recording evidence"
+    )
+
+    finding = ReviewArtifactFinding(
+        wp_id=_WP_ID,
+        lane="in_review",
+        artifact_path=None,
+        cycle_number=1,
+        verdict="changes_requested",
+    )
+    _record_review_artifact_skip_evidence(
+        repo_root=ctx.repo,
+        feature_dir=ctx.coord_feature_dir,
+        mission_slug=ctx.slug,
+        findings=[finding],
+        note="Operator override: gate false-positive on a stale rejection (#2959).",
+    )
+
+    porcelain = _coord_status_porcelain(ctx)
+    assert porcelain == "", (
+        "skip-evidence left the coord status tree DIRTY — the ReviewOverride was "
+        "written+materialized but never committed, so the '--skip-review-artifact-"
+        f"check' escape hatch's 'durable override evidence' claim fails on coord:\n{porcelain}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Non-coord control (edge case: no coord surface → no behaviour change)
 # ---------------------------------------------------------------------------
 
