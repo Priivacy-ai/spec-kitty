@@ -6487,6 +6487,19 @@ pages:
     anchors:
     - {slug: "files", text: "Files", level: 2}
     - {slug: "validation", text: "Validation", level: 2}
+  - path: "docs/development/agent-memory-migration-manifest.md"
+    title: "Agent-Memory Migration Manifest"
+    divio_type: "reference"
+    abstract: "Audit manifest mapping every migrated agent-memory entry to its repo-native home, tracker issue, or retirement, with the completeness test that enforces it."
+    anchors:
+    - {slug: "resolution-vocabulary", text: "Resolution vocabulary", level: 2}
+    - {slug: "g1-gate-fix-guidance-wp01-commit-family-7488ab819", text: "G1 — Gate-fix guidance (WP01, commit family `7488ab819`)", level: 2}
+    - {slug: "g2-claude-md-stale-wp02-commit-ab25bacfe", text: "G2 — CLAUDE.md stale (WP02, commit `ab25bacfe`)", level: 2}
+    - {slug: "g3-recovery-runbooks-wp03", text: "G3 — Recovery runbooks (WP03)", level: 2}
+    - {slug: "g4-discoverable-commands-wp04-commit-d0ee639f6", text: "G4 — Discoverable commands (WP04, commit `d0ee639f6`)", level: 2}
+    - {slug: "g5-behavior-quirks-filed-as-bugs-wp05-t014", text: "G5 — Behavior quirks filed as bugs (WP05 / T014)", level: 2}
+    - {slug: "g6-env-tracker-conventions-wp04-commit-d0ee639f6", text: "G6 — Env/tracker conventions (WP04, commit `d0ee639f6`)", level: 2}
+    - {slug: "corrections-surfaced-this-run", text: "Corrections surfaced this run", level: 2}
   - path: "docs/development/contributing.md"
     title: "Contributing to Spec Kitty"
     divio_type: "how-to"
@@ -6576,6 +6589,7 @@ pages:
     - {slug: "step-4-confirm-the-artifact-is-discovered", text: "Step 4: Confirm the artifact is discovered", level: 2}
     - {slug: "step-5-activate-it", text: "Step 5: Activate it", level: 2}
     - {slug: "step-6-verify-it-took-effect", text: "Step 6: Verify it took effect", level: 2}
+    - {slug: "modeling-relationships-between-artifacts-including-tension", text: "Modeling relationships between artifacts, including tension", level: 2}
     - {slug: "undoing-this", text: "Undoing this", level: 2}
     - {slug: "author-an-asset-a-shipped-blob", text: "Author an asset (a shipped blob)", level: 2}
     - {slug: "step-a-place-the-blob", text: "Step A: place the blob", level: 3}
@@ -6672,6 +6686,7 @@ pages:
     anchors:
     - {slug: "start-here", text: "Start here", level: 2}
     - {slug: "non-page-artifacts", text: "Non-page artifacts", level: 2}
+    - {slug: "repo-owned-workflow-commands", text: "Repo-owned workflow commands", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/inline-meta-read-allowlist-baseline-deviation.md"
     title: "Deviation: inline-meta-read allow-list governed without a count baseline"
@@ -7928,7 +7943,8 @@ pages:
     title: "Recovery & Troubleshooting"
     divio_type: "explanation"
     abstract: "Recover from implementation crashes and interrupted merges, and troubleshoot merge failures."
-    anchors: []
+    anchors:
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/guides/how-to/recovery/recover-from-implementation-crash.md"
     title: "Recover from an Implementation Crash"
     divio_type: "how-to"
@@ -8683,6 +8699,44 @@ pages:
     - {slug: "idempotency", text: "Idempotency", level: 2}
     - {slug: "verifying", text: "Verifying", level: 2}
     - {slug: "rationale-references", text: "Rationale / References", level: 2}
+  - path: "docs/operations/coord-branch-base-strand.md"
+    title: "Recovery: Coordination Branch Stranded After a Base Rebase"
+    divio_type: "none"
+    abstract: "Recovery when a coord-topology mission was created on an old base and the working branch was later rebased, leaving lanes forking from a stale coord branch."
+    anchors:
+    - {slug: "why-this-happens", text: "Why this happens", level: 2}
+    - {slug: "lead-with-the-diagnostic-the-shipped-fix-only-auto-heals-the-simple-case", text: "Lead with the diagnostic — the shipped `--fix` only auto-heals the simple case", level: 2}
+    - {slug: "manual-fix-operator-approved", text: "Manual fix (operator-approved)", level: 2}
+    - {slug: "consequence-for-parity-golden-checks", text: "Consequence for parity/golden checks", level: 2}
+    - {slug: "related", text: "Related", level: 2}
+  - path: "docs/operations/coord-off-main-addadd.md"
+    title: "Recovery: Coordination Branch Created Off main (Add/Add Conflict)"
+    divio_type: "none"
+    abstract: "Recovery when a coord-topology mission's coordination branch was created off main instead of the target branch, causing an add/add merge conflict."
+    anchors:
+    - {slug: "why-this-happens", text: "Why this happens", level: 2}
+    - {slug: "no-shipped-fix-for-this-case", text: "No shipped `--fix` for this case", level: 2}
+    - {slug: "manual-fix-operator-approved-needs-an-explicit-grant", text: "Manual fix (operator-approved, needs an explicit grant)", level: 2}
+    - {slug: "related", text: "Related", level: 2}
+  - path: "docs/operations/coord-worktree-missing.md"
+    title: "Recovery: Coordination Branch Declared but Worktree Missing"
+    divio_type: "none"
+    abstract: "Recovery when a mission's meta.json declares coordination_branch but the -coord worktree was never created, using spec-kitty doctor coordination --fix."
+    anchors:
+    - {slug: "why-this-happens", text: "Why this happens", level: 2}
+    - {slug: "lead-with-the-shipped-fix", text: "Lead with the shipped fix", level: 2}
+    - {slug: "if-you-don-t-want-coordination-for-this-mission", text: "If you don't want coordination for this mission", level: 2}
+    - {slug: "related", text: "Related", level: 2}
+  - path: "docs/operations/cutover-flip-linked-worktree.md"
+    title: "Recovery: Cutover Flip Fails From a Linked Worktree"
+    divio_type: "none"
+    abstract: "Recovery when the runtime-state cutover flip fails closed with PlacementMismatchError inside a linked git worktree, even though migration events seeded."
+    anchors:
+    - {slug: "why-this-happens", text: "Why this happens", level: 2}
+    - {slug: "no-shipped-fix-for-this-case", text: "No shipped `--fix` for this case", level: 2}
+    - {slug: "fix-run-from-the-primary-checkout-preferred", text: "Fix: run from the primary checkout (preferred)", level: 2}
+    - {slug: "fix-apply-the-flip-s-exact-net-write-directly-when-you-can-t-leave-the-worktree", text: "Fix: apply the flip's exact net write directly (when you can't leave the worktree)", level: 2}
+    - {slug: "related", text: "Related", level: 2}
   - path: "docs/operations/how-to-maintain.md"
     title: "How to Maintain — Spec Kitty Issue Tracker"
     divio_type: "how-to"
@@ -8828,9 +8882,10 @@ pages:
   - path: "docs/operations/recovery-index.md"
     title: "Recovery guides"
     divio_type: "none"
-    abstract: "Recovery procedures for Spec Kitty operational states, such as restoring access after a logged-out teamspace session."
+    abstract: "Recovery procedures for Spec Kitty operational states, such as restoring access after a logged-out teamspace session or a coord/lane split-brain."
     anchors:
     - {slug: "in-this-section", text: "In this section", level: 2}
+    - {slug: "coord-lane-split-brain-recovery", text: "Coord/lane split-brain recovery", level: 3}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/operations/ssh-deploy-keys.md"
     title: "SSH Deploy Key Setup for CI/CD"
@@ -8846,6 +8901,25 @@ pages:
     - {slug: "verification", text: "Verification", level: 2}
     - {slug: "troubleshooting", text: "Troubleshooting", level: 2}
     - {slug: "key-rotation", text: "Key Rotation", level: 2}
+  - path: "docs/operations/stale-lane-seed.md"
+    title: "Recovery: Stale Lane Seed After Re-Finalizing Tasks"
+    divio_type: "none"
+    abstract: "Recovery for a post-finalize planning commit that stale-seeds a lane, plus the related sparse-checkout false-positive and sync-fan-out hang seen at the same step."
+    anchors:
+    - {slug: "why-this-happens", text: "Why this happens", level: 2}
+    - {slug: "no-shipped-fix-for-this-case-and-one-to-avoid", text: "No shipped `--fix` for this case — and one to avoid", level: 2}
+    - {slug: "manual-fix-flatten-this-mission-only", text: "Manual fix: flatten this mission only", level: 2}
+    - {slug: "two-related-implement-time-false-positives", text: "Two related implement-time false positives", level: 2}
+    - {slug: "related", text: "Related", level: 2}
+  - path: "docs/operations/start-branch-coord-divergence.md"
+    title: "Recovery: --start-branch Coordination Divergence"
+    divio_type: "none"
+    abstract: "Recovery when mission create --start-branch plus coord topology diverges the coordination branch from the primary planning commit, blocking every lane claim."
+    anchors:
+    - {slug: "why-this-happens", text: "Why this happens", level: 2}
+    - {slug: "no-shipped-fix-for-this-case", text: "No shipped `--fix` for this case", level: 2}
+    - {slug: "manual-fix-operator-approved", text: "Manual fix (operator-approved)", level: 2}
+    - {slug: "related", text: "Related", level: 2}
   - path: "docs/operations/sync-daemon-orphan-cleanup.md"
     title: "Sync Daemon Orphan Cleanup — Operator Runbook"
     divio_type: "none"
