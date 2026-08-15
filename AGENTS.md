@@ -303,8 +303,8 @@ Full docs: [CONTRIBUTING.md](CONTRIBUTING.md#release-process)
   everything to primary. Planning commands may be invoked from the repo root — no worktree is
   required to run `/spec-kitty.specify` / `/spec-kitty.plan` / `/spec-kitty.tasks`.
 - `spec-kitty implement WP##` creates/reuses the execution workspace via
-  `resolve_workspace_for_wp` (`src/specify_cli/workspace/context.py`), which
-  resolves `.worktrees/<feature>-lane-<id>` from `lanes.json`. There is no
+  `resolve_workspace_for_wp` (`src/specify_cli/workspace/context.py`),
+  resolving `.worktrees/<feature>-lane-<id>` from `lanes.json`. There is no
   `-WP##` fallback: flat / `SINGLE_BRANCH` / `LANES` missions all still
   require `lanes.json`; a missing manifest fails closed with
   `MissingLanesError` (`src/specify_cli/lanes/persistence.py`).

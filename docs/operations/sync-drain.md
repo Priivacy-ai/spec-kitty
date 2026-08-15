@@ -18,12 +18,9 @@ gates, evaluated **in this order** by the drain (see
 in `src/specify_cli/sync/emitter.py`, `DRAIN_BLOCKED_REASONS`). The order is
 deliberate: an operator whose checkout is opted out should see "the checkout
 is opted out" (gate 1), not a downstream symptom like "no Private Teamspace"
-(gate 3). To diagnose which gate is blocking, read the **Event Sync** and
-**Per-Project Event Journal** surfaces below (`spec-kitty sync status` /
-`sync doctor`) — the three reason tokens themselves live in
-`DRAIN_BLOCKED_REASONS`; a dedicated "Drain Blockers" renderer exists
-(`_render_drain_blockers`) but is not yet wired into any command's output, so
-don't go looking for that table in `sync status`.
+(gate 3).
+
+**To find which gate is blocking an event, run `spec-kitty sync status` (Event Sync section) or `spec-kitty sync doctor` (Per-Project Event Journal block).** The three reason tokens live in `DRAIN_BLOCKED_REASONS`; a "Drain Blockers" renderer (`_render_drain_blockers`) exists but is not yet wired into any command, so don't look for that table in `sync status`.
 
 ## Gate 1 — is hosted sync on, and does this project consent?
 
