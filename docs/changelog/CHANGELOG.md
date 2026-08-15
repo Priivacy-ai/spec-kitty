@@ -115,6 +115,32 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **Coord/primary partition-authority residuals: out-of-loop callers now resolve
+  the correct surface (mission `partition-authority-residuals-01M021K9`; epic
+  `#2160` / `#2720`).** A cluster of out-of-loop and cross-function callers still
+  read PRIMARY-partition artifacts off the `-coord` husk (or wrote lifecycle
+  evidence to the wrong partition) under coordination topology, degrading
+  silently or deadlocking. Eleven fixes, each a caller reroute through the
+  canonical `mission_runtime.artifacts` placement seam (no predicate fork; STATUS
+  reads stay on COORD): the coord **merge deadlock** — a review-override written
+  to PRIMARY while the merge gate read COORD — is fixed and `spec-kitty merge`
+  gains a `--skip-review-artifact-check`/`--note` escape hatch (`#2959`); merge
+  risk/dependency gates resolve `lanes.json`/`tasks/` via the seam instead of
+  silently SKIPping / seeing an empty graph on coord missions, and the C-009 pin
+  is lifted (`#3439`); the review handoff renders true per-WP lanes instead of a
+  blanket stale `planned` (`#2698`); `move-task` commits its post-transition
+  annotation atomically so it no longer leaves a dirty status tree (`#2939`); the
+  fourth safe-commit target resolver routes through the shared degrade helper with
+  refusal-parity preserved (`#2966`); and `finalize-tasks` versions `wps.yaml`
+  (`#2937`). Diagnostic output fidelity (`#2720`): `check-prerequisites` reports a
+  truthful planning-artifact inventory sourced from writer metadata (`#2692`);
+  mission doctors validate `meta.json` against the canonical writer schema and
+  `doctor coordination` gains `--mission` scoping (`#2696`); `retrospect summary`
+  discovers missions under the canonical `kitty-specs/*` root (`#2717`); `status
+  doctor` no longer reports Healthy over blanked runtime attribution, and empty
+  strings can no longer clobber recorded `agent`/identity slots (`#2960`); and the
+  mission-state repair no longer quarantines legacy `WPStatusChanged` transitions
+  into a zero-WP `status.json` (`#3066`, ports `#3067`).
 - **Review rejections now reach the hosted dashboard instead of being silently
   dropped by sync (`#3307` P0; `#3444`).** Before, when a reviewer sent a work
   package back for rework — any backward review-rejection move (`* → planned`,
