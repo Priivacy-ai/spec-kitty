@@ -275,7 +275,7 @@ def _mr_resolve_read_dirs(st: _MapReqState, ports: TasksPorts) -> None:
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
     from specify_cli.requirement_mapping import parse_requirement_ids_from_spec_md
-    from runtime.next.runtime_bridge import find_undeclared_requirement_citations_safely
+    from specify_cli.requirement_mapping import find_undeclared_requirement_citations_safely
 
     # #2064: resolve the WP ``tasks/`` dir through the SAME seam finalize uses.
     st.feature_dir = _tasks._map_requirements_feature_dir(st.main_repo_root, st.mission_slug)

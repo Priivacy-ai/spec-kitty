@@ -8,9 +8,12 @@ falling back to tasks.md text parsing for pre-API projects.
 
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 from typing import Any, TypedDict
+
+logger = logging.getLogger(__name__)
 
 # Sonar S1192: the FR/NFR/C id alternation appears 5x below (table row,
 # heading, bullet-lead, plus the standalone ref/find patterns) -- hoisted
@@ -193,6 +196,36 @@ def find_undeclared_requirement_citations(spec_content: str) -> list[str]:
                 _undeclared_citation_warning(sorted(section_raw_tokens), scope=f"The {heading_text!r} section")
             )
     return warnings
+
+
+def find_undeclared_requirement_citations_safely(spec_content: str) -> list[str]:
+    """:func:`find_undeclared_requirement_citations`, guaranteed never to raise.
+
+    The advisory is non-blocking by contract, but three callers compute it
+    from inside their own broad ``except Exception`` handlers that fail
+    closed -- ``runtime_bridge._check_requirement_mapping_ready`` (gate
+    failure), ``mission_finalize.finalize_tasks`` and
+    ``tasks_map_requirements._do_map_requirements`` (both ``typer.Exit(1)``).
+    An exception raised by the advisory *computation* would therefore turn a
+    soft signal into a hard failure in every one of them.
+
+    This is the single guaranteed-safe entry point all three route through,
+    so "the advisory can never gate" holds by construction rather than by
+    each caller separately remembering to wrap the call. It lives here, next
+    to the function it guards, because both the CLI and the runtime layer
+    already import this module -- putting it in either of those layers would
+    make the other depend on its sibling for a pure parsing concern.
+
+    Any exception is swallowed and logged at DEBUG, never re-raised.
+    """
+    try:
+        return find_undeclared_requirement_citations(spec_content)
+    except Exception:
+        logger.debug(
+            "Requirement-citation advisory computation failed; skipping (non-blocking)",
+            exc_info=True,
+        )
+        return []
 
 
 class CoverageSummary(TypedDict):

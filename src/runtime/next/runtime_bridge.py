@@ -832,51 +832,13 @@ def _log_requirement_extraction_warnings(feature_dir: Path, warnings: list[str])
         logger.warning("[%s] %s", feature_dir.name, warning)
 
 
-def find_undeclared_requirement_citations_safely(spec_content: str) -> list[str]:
-    """Compute the #3394 F1 advisory without ever raising (review fold commit 2).
-
-    #3394 focused-review F3 (severity 2) made THIS module's
-    ``_check_requirement_mapping_ready`` caller safe: the advisory call used
-    to sit directly inside that function's broad ``except Exception``, which
-    exists to fail-closed on genuine extraction crashes
-    (``parse_requirement_ids_from_spec_md``, the WPs manifest load, the
-    tasks.md ref parse). An exception raised by the advisory *computation*
-    itself -- not its content, which is never appended to any returned
-    failures list -- would propagate to that handler and turn into a
-    "Requirement mapping preflight failed" gate failure, contradicting the
-    "advisory can never gate" property.
-
-    The #3394 review's landing pass found the OTHER two callers
-    (``mission_finalize.py`` via
-    ``mission_parsing._find_undeclared_requirement_citations``, and
-    ``tasks_map_requirements.py``'s map-requirements read-dirs phase) called
-    the raw, unwrapped ``find_undeclared_requirement_citations`` directly
-    inside their OWN broad ``except Exception: ... raise typer.Exit(1)``
-    handlers -- so an advisory-computation crash there became a hard exit-1,
-    exactly the outcome this module's F3 fix declared unacceptable.
-
-    This function is now the SINGLE guaranteed-safe entry point all three
-    callers route through, so the guarantee holds by construction rather
-    than by each caller separately remembering to wrap the call. Any
-    exception here is swallowed and logged at DEBUG, never re-raised.
-    """
-    try:
-        from specify_cli.requirement_mapping import find_undeclared_requirement_citations
-
-        return find_undeclared_requirement_citations(spec_content)
-    except Exception:
-        logger.debug(
-            "Requirement-citation advisory computation failed; skipping (non-blocking)",
-            exc_info=True,
-        )
-        return []
-
-
 def _log_requirement_extraction_warnings_safely(feature_dir: Path, spec_content: str) -> None:
     """Log the #3394 F1 advisory -- computation safety lives in
-    :func:`find_undeclared_requirement_citations_safely` (review fold commit
-    2); this reduces to the logging loop.
+    :func:`specify_cli.requirement_mapping.find_undeclared_requirement_citations_safely`,
+    next to the function it guards; this reduces to the logging loop.
     """
+    from specify_cli.requirement_mapping import find_undeclared_requirement_citations_safely
+
     _log_requirement_extraction_warnings(feature_dir, find_undeclared_requirement_citations_safely(spec_content))
 
 

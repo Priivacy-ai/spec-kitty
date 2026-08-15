@@ -9,7 +9,7 @@ and ``test_json_envelope_strict.py`` pin the envelope keys (INV-2).
 
 INV-8: imports lower layers only (``core``, ``status``, ``requirement_mapping``,
 ``kernel``, and -- since the #3394 review fold commit 2 -- the ``runtime``
-layer's ``find_undeclared_requirement_citations_safely`` guaranteed-safe
+module's ``find_undeclared_requirement_citations_safely`` guaranteed-safe
 entry point) — never back into ``mission`` or another seam.
 """
 
@@ -149,14 +149,14 @@ def _find_undeclared_requirement_citations(spec_content: str) -> list[str]:
     surface the result as a console warning + a JSON field, not a gate.
 
     #3394 review fold commit 2: routes through
-    ``runtime_bridge.find_undeclared_requirement_citations_safely`` -- the
+    ``requirement_mapping.find_undeclared_requirement_citations_safely`` -- the
     shared guaranteed-safe entry point -- so THIS docstring's "never raises"
     claim is true by construction, not by (the caller's) discipline. Before
     this fold, ``mission_finalize.py``'s enclosing
     ``except Exception: ... raise typer.Exit(1)`` was the only thing
     standing between a computation crash here and a hard exit-1.
     """
-    from runtime.next.runtime_bridge import find_undeclared_requirement_citations_safely
+    from specify_cli.requirement_mapping import find_undeclared_requirement_citations_safely
 
     return find_undeclared_requirement_citations_safely(spec_content)
 
