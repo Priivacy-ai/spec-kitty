@@ -50,11 +50,17 @@ the mission you care about, or restore unrelated missions with
 
 ## Manual fix (operator-approved)
 
+Safe when the divergence is a clean base-rebase (the working/planning branch
+moved to a newer base, nothing has published off the stale coord tip) and the
+discarded coord commits are re-bootstrappable status-seed events — step 4
+below re-creates them. Not safe if the coord branch carries commits that
+exist nowhere else.
+
 1. Clean the failed-claim residue on the working checkout:
 
    ```bash
-   git checkout -- <mission>/meta.json <mission>/status.events.jsonl <mission>/tasks/WP##*.md
-   rm -f <mission>/status.json
+   git checkout -- kitty-specs/<mission>/meta.json kitty-specs/<mission>/status.events.jsonl kitty-specs/<mission>/tasks/WP##*.md
+   rm -f kitty-specs/<mission>/status.json
    ```
 
 2. Remove the stale lane worktree and branch:
@@ -65,10 +71,12 @@ the mission you care about, or restore unrelated missions with
    ```
 
 3. Reset the coordination branch onto the (now-rebased) target branch, from
-   inside the coord worktree using an absolute path:
+   inside the coord worktree using an absolute path. (`spec-kitty doctor
+   coordination` prints the exact `.worktrees/<slug>-<mid8>-coord` path for
+   your mission — use that instead of hand-constructing it.)
 
    ```bash
-   git -C <repo-root>/.worktrees/<slug>-coord reset --hard <target_branch>
+   git -C <repo-root>/.worktrees/<slug>-<mid8>-coord reset --hard <target_branch>
    ```
 
    `git reset --hard` is a destructive operation — get explicit operator

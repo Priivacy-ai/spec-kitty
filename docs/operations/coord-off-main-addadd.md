@@ -53,17 +53,20 @@ fix below.
 
 Safe when nothing has been implemented yet and the coord branch is
 local-only (fully reversible). Record the old coord tip first, then reset
-coord onto the target and restore the coord-owned lifecycle files:
+coord onto the target and restore the coord-owned lifecycle files.
+(`spec-kitty doctor coordination` prints the exact
+`.worktrees/<slug>-<mid8>-coord` path for your mission — use that instead of
+hand-constructing it.)
 
 ```bash
 # from the coordination worktree
-git -C .worktrees/<slug>-coord reset --hard <target-branch>
-git -C .worktrees/<slug>-coord checkout <old-coord-tip> -- \
+git -C .worktrees/<slug>-<mid8>-coord reset --hard <target-branch>
+git -C .worktrees/<slug>-<mid8>-coord checkout <old-coord-tip> -- \
   kitty-specs/<mission>/acceptance-matrix.json \
   kitty-specs/<mission>/issue-matrix.json \
   kitty-specs/<mission>/status.events.jsonl \
   kitty-specs/<mission>/status.json
-git -C .worktrees/<slug>-coord commit -m "chore(coord): re-base coordination strand onto primary + restore lifecycle"
+git -C .worktrees/<slug>-<mid8>-coord commit -m "chore(coord): re-base coordination strand onto <target-branch> + restore lifecycle"
 ```
 
 Then remove the stale lane worktree and branch, and re-run `implement`:

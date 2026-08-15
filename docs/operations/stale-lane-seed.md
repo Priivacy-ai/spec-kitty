@@ -37,9 +37,13 @@ it by mistake, restore the unrelated missions with
 
 ## Manual fix: flatten this mission only
 
+(`spec-kitty doctor coordination` prints the exact
+`.worktrees/<mission>-<mid8>-coord` path for your mission — use that instead
+of hand-constructing it.)
+
 ```bash
 git worktree remove .worktrees/<mission>-lane-a --force
-git worktree remove .worktrees/<mission>-coord --force
+git worktree remove .worktrees/<mission>-<mid8>-coord --force
 git branch -D kitty/mission-<mission>-lane-a kitty/mission-<mission>
 ```
 
