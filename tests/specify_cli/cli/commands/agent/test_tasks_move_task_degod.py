@@ -216,6 +216,11 @@ def test_runtime_state_persistence_error_propagates(
         mission_slug="demo",
         main_repo_root=tmp_path,
         json_output=True,
+        # #3460: ``_mt_emit_runtime_state`` now branches on ``resolved_auto_commit``
+        # to pick the transactional vs. uncommitted emitter. This test exercises
+        # the durable-commit leg (the patched ``emit_inner_state_changed_transactional``),
+        # so it must be True here.
+        resolved_auto_commit=True,
     )
 
     with pytest.raises(OSError, match="disk full"):

@@ -2209,19 +2209,33 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
     stored topology in :func:`_mt_resolve_targets` — never ``Path.cwd()``
     (SC-008 / #2647; ``emit_inner_state_changed`` re-canonicalizes it there too).
 
-    FR-007 (#2939): the post-transition annotation is emitted through the
-    commit-durable ``emit_inner_state_changed_transactional`` — the sibling of the
-    lane hop's own ``emit_status_transition_transactional`` — so on a coordination
+    FR-007 (#2939): on a durable-commit move-task (``st.resolved_auto_commit``
+    True) the post-transition annotation is emitted through the commit-durable
+    ``emit_inner_state_changed_transactional`` — the sibling of the lane hop's
+    own ``emit_status_transition_transactional`` — so on a coordination
     topology the coord ``status.events.jsonl`` / ``status.json`` are committed in
     their OWN atomic status transaction (mirroring the transition), leaving no
     dirty status tree when ``move-task`` returns. On a coord-less topology it
     degrades to the same uncommitted write the pre-fix path used (no-op parity).
+
+    ``st.resolved_auto_commit`` False (``--no-auto-commit`` / a caller that
+    intentionally bypasses the commit/router leg entirely) skips the
+    transactional path altogether and calls the plain, uncommitted
+    ``emit_inner_state_changed`` directly — the annotation still gets
+    written+materialized, it just is not routed through a
+    ``BookkeepingTransaction`` that would try to resolve/materialize a coord
+    worktree the caller never asked to touch (regression #3460: a coord
+    mission with a declared-but-not-yet-materialized coordination worktree
+    made the transactional emit raise ``BookkeepingWorktreeMissing`` even
+    though auto_commit was off and no commit was ever wanted).
+
     The generic ``emit_inner_state_changed`` stays partition-agnostic (untouched);
     the durability decision lives at this caller/commit layer.
     """
     from specify_cli.coordination.status_transition import (
         emit_inner_state_changed_transactional,
     )
+    from specify_cli.status import emit_inner_state_changed
 
     fields: dict[str, Any] = {}
     if not st.claim_emitted:
@@ -2251,7 +2265,12 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
     delta = WPInnerStateDelta(**fields)
     if delta.is_empty():
         return
-    emit_inner_state_changed_transactional(
+    emitter = (
+        emit_inner_state_changed_transactional
+        if st.resolved_auto_commit
+        else emit_inner_state_changed
+    )
+    emitter(
         st.feature_dir,
         st.task_id,
         delta,
