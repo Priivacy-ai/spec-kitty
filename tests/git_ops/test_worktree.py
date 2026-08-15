@@ -462,19 +462,30 @@ class TestValidateFeatureStructure:
         assert "paths" in result
         assert result["paths"]["spec_file"] == str(feature_dir / "spec.md")
         assert result["paths"]["checklists_dir"] == str(feature_dir / "checklists")
-        assert result["paths"]["research_dir"] == str(feature_dir / "research")
         assert result["paths"]["tasks_dir"] == str(feature_dir / "tasks")
         assert result["paths"]["feature_dir"] == str(feature_dir)
+        # FR-010 (research_dir file-vs-dir fix): the research planning artifact is
+        # the FILE ``research.md``, not the legacy ``research/`` directory. A bare
+        # ``research/`` directory must NOT be surfaced as an artifact directory.
+        assert "research_dir" not in result["paths"]
+        assert "research_dir" not in result["artifact_dirs"]
 
     def test_includes_typed_artifact_maps_and_compat_aliases(self, tmp_path: Path) -> None:
-        """Should expose deterministic file/dir maps with compatibility aliases."""
+        """Should expose deterministic file/dir maps with compatibility aliases.
+
+        FR-010: the inventory is sourced from the canonical mission writer
+        metadata, so writer-produced planning artifacts (``research.md``,
+        ``data-model.md``) that exist on disk are reported truthfully, not
+        omitted by a hardcoded spec/plan/tasks set.
+        """
         feature_dir = tmp_path / "001-test"
         feature_dir.mkdir()
         (feature_dir / "spec.md").write_text("spec")
         (feature_dir / "plan.md").write_text("plan")
         (feature_dir / "tasks.md").write_text("tasks")
+        (feature_dir / "research.md").write_text("research")
+        (feature_dir / "data-model.md").write_text("data model")
         (feature_dir / "checklists").mkdir()
-        (feature_dir / "research").mkdir()
         (feature_dir / "tasks").mkdir()
 
         result = validate_feature_structure(feature_dir, check_tasks=True)
@@ -482,11 +493,95 @@ class TestValidateFeatureStructure:
         assert result["artifact_files"]["spec_file"] == str(feature_dir / "spec.md")
         assert result["artifact_files"]["plan_file"] == str(feature_dir / "plan.md")
         assert result["artifact_files"]["tasks_file"] == str(feature_dir / "tasks.md")
+        assert result["artifact_files"]["research_file"] == str(feature_dir / "research.md")
+        assert result["artifact_files"]["data_model_file"] == str(feature_dir / "data-model.md")
         assert result["artifact_dirs"]["feature_dir"] == str(feature_dir)
         assert result["artifact_dirs"]["tasks_dir"] == str(feature_dir / "tasks")
-        assert sorted(result["available_docs"]) == ["plan.md", "spec.md", "tasks.md"]
+        assert sorted(result["available_docs"]) == [
+            "data-model.md",
+            "plan.md",
+            "research.md",
+            "spec.md",
+            "tasks.md",
+        ]
         assert result["FEATURE_DIR"] == str(feature_dir)
-        assert sorted(result["AVAILABLE_DOCS"]) == ["plan.md", "spec.md", "tasks.md"]
+        assert sorted(result["AVAILABLE_DOCS"]) == [
+            "data-model.md",
+            "plan.md",
+            "research.md",
+            "spec.md",
+            "tasks.md",
+        ]
+
+    def test_inventory_reports_writer_artifacts_and_omits_absent(self, tmp_path: Path) -> None:
+        """FR-010 red-first: research.md / data-model.md / quickstart.md are
+        reported ONLY when present, sourced from the writer metadata.
+
+        Before the fix the inventory hardcoded spec/plan/tasks and OMITTED these
+        writer-produced planning artifacts even when present. After the fix they
+        appear (present) and are correctly absent when not on disk.
+        """
+        feature_dir = tmp_path / "001-test"
+        feature_dir.mkdir()
+        (feature_dir / "spec.md").write_text("spec")
+        (feature_dir / "plan.md").write_text("plan")
+        (feature_dir / "research.md").write_text("research")
+        (feature_dir / "data-model.md").write_text("data model")
+        # quickstart.md deliberately NOT created.
+
+        result = validate_feature_structure(feature_dir)
+
+        assert "research.md" in result["available_docs"]
+        assert "data-model.md" in result["available_docs"]
+        assert result["artifact_files"]["research_file"] == str(feature_dir / "research.md")
+        assert result["artifact_files"]["data_model_file"] == str(feature_dir / "data-model.md")
+        # Absent optional artifacts stay out of the inventory (no false positives).
+        assert "quickstart.md" not in result["available_docs"]
+        assert "quickstart_file" not in result["artifact_files"]
+
+    def test_inventory_reports_writer_directory_artifacts(self, tmp_path: Path) -> None:
+        """FR-010: directory artifacts declared by the writer metadata
+        (``contracts/``) are inventoried as artifact directories when present."""
+        feature_dir = tmp_path / "001-test"
+        feature_dir.mkdir()
+        (feature_dir / "spec.md").write_text("spec")
+        (feature_dir / "contracts").mkdir()
+
+        result = validate_feature_structure(feature_dir)
+
+        assert result["artifact_dirs"]["contracts_dir"] == str(feature_dir / "contracts")
+
+    def test_inventory_does_not_drift_from_writer_metadata(self, tmp_path: Path) -> None:
+        """NFR-004 / C-005 regression guard: the file-artifact inventory is
+        derived from the canonical mission writer metadata, not a hardcoded set.
+
+        Materialize every file artifact the software-dev writer declares and
+        assert each shows up in ``available_docs``. If a future change re-hardcodes
+        the inventory (dropping a writer-declared artifact), this goes red — the
+        two-copy trap NFR-004 forbids.
+        """
+        from specify_cli.mission import get_mission_by_name
+
+        mission = get_mission_by_name("software-dev")
+        writer_files = [
+            name
+            for name in (*mission.get_required_artifacts(), *mission.get_optional_artifacts())
+            if not name.endswith("/")
+        ]
+        assert writer_files, "writer metadata must declare at least one file artifact"
+
+        feature_dir = tmp_path / "001-test"
+        feature_dir.mkdir()
+        for name in writer_files:
+            (feature_dir / name).write_text(name)
+
+        result = validate_feature_structure(feature_dir, check_tasks=True)
+
+        for name in writer_files:
+            assert name in result["available_docs"], (
+                f"writer-declared artifact {name!r} missing from inventory "
+                "(inventory drifted from mission writer metadata)"
+            )
 
 
 class TestVCSAbstraction:

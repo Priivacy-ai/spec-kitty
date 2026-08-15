@@ -16,6 +16,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import platform
+import re
 import shutil
 import subprocess
 import warnings
@@ -609,6 +610,97 @@ spec-kitty agent tasks move-task WP01 --to doing
             spec_file.touch()
 
 
+# Structural directories that anchor a mission's layout regardless of the
+# writer-declared artifact set (WP prompt files, checklist stubs). These are
+# NOT the artifact inventory (which is sourced from the mission writer metadata
+# in ``_feature_writer_artifacts``); they are recommended-layout anchors whose
+# presence/absence drives warnings and the ``*_dir`` path aliases.
+_RECOMMENDED_LAYOUT_DIRS: tuple[str, ...] = ("checklists", "research", "tasks")
+_STRUCTURAL_ARTIFACT_DIRS: tuple[str, ...] = ("checklists", "tasks")
+
+
+def _artifact_inventory_key(artifact_name: str, suffix: str) -> str:
+    """Derive a stable inventory key (e.g. ``research_file``, ``contracts_dir``).
+
+    ``spec.md`` -> ``spec_file``; ``data-model.md`` -> ``data_model_file``;
+    ``contracts/`` -> ``contracts_dir``. Non-alphanumerics collapse to ``_`` so
+    the key is a valid, deterministic identifier.
+    """
+    stem = artifact_name.rstrip("/")
+    if not artifact_name.endswith("/"):
+        stem = stem.rsplit(".", 1)[0]
+    slug = re.sub(r"[^0-9a-zA-Z]+", "_", stem).strip("_").lower()
+    return f"{slug}_{suffix}"
+
+
+def _feature_writer_artifacts(feature_dir: Path) -> tuple[list[str], list[str]]:
+    """Return ``(file_artifacts, dir_artifacts)`` from the canonical mission
+    writer metadata (mission.yaml ``artifacts``) for ``feature_dir``'s mission.
+
+    Sources the inventory from a single canonical writer schema (C-005 / FR-010),
+    never a hardcoded key set. Resolves the mission recorded in the feature's
+    ``meta.json``; when it cannot be resolved (no ``.kittify`` / typeless legacy
+    feature) it falls back to the packaged ``software-dev`` writer metadata —
+    still a canonical source, not a second hardcoded copy. Directory artifacts
+    are distinguished from file artifacts by a trailing ``/`` in the metadata.
+    """
+    from specify_cli.mission import (
+        MISSION_TYPE_SOFTWARE_DEV,
+        MissionError,
+        get_mission_by_name,
+        get_mission_for_feature,
+    )
+
+    try:
+        mission = get_mission_for_feature(feature_dir)
+    except MissionError:
+        try:
+            mission = get_mission_by_name(MISSION_TYPE_SOFTWARE_DEV)
+        except MissionError:
+            return [], []
+
+    artifacts = [*mission.get_required_artifacts(), *mission.get_optional_artifacts()]
+    file_artifacts = [name for name in artifacts if not name.endswith("/")]
+    dir_artifacts = [name for name in artifacts if name.endswith("/")]
+    return file_artifacts, dir_artifacts
+
+
+def _inventory_writer_artifacts(
+    feature_dir: Path,
+    *,
+    paths: dict[str, str],
+    artifact_files: dict[str, str],
+    artifact_dirs: dict[str, str],
+    available_docs: list[str],
+) -> None:
+    """Populate the artifact inventory from the mission writer metadata.
+
+    Only artifacts that exist on disk are recorded (no false positives). Keys are
+    derived deterministically so callers/templates see stable ``*_file`` /
+    ``*_dir`` aliases (FR-010).
+    """
+    file_artifacts, dir_artifacts = _feature_writer_artifacts(feature_dir)
+
+    for name in file_artifacts:
+        candidate = feature_dir / name
+        if not candidate.is_file():
+            continue
+        candidate_str = str(candidate)
+        key = _artifact_inventory_key(name, "file")
+        paths.setdefault(key, candidate_str)
+        artifact_files.setdefault(key, candidate_str)
+        available_docs.append(name)
+
+    for name in dir_artifacts:
+        candidate = feature_dir / name.rstrip("/")
+        if not candidate.is_dir():
+            continue
+        candidate_str = str(candidate)
+        key = _artifact_inventory_key(name, "dir")
+        paths.setdefault(key, candidate_str)
+        artifact_dirs.setdefault(key, candidate_str)
+
+
 def validate_feature_structure(feature_dir: Path, check_tasks: bool = False) -> dict[str, Any]:
     """Validate feature directory structure and required files.
 
@@ -675,13 +767,17 @@ def validate_feature_structure(feature_dir: Path, check_tasks: bool = False) -> 
         artifact_files["plan_file"] = plan_file_str
         available_docs.append("plan.md")
 
-    # Check directory structure
-    recommended_dirs = ["checklists", "research", "tasks"]
-    for dir_name in recommended_dirs:
-        dir_path = feature_dir / dir_name
-        if not dir_path.exists():
+    # Check recommended directory structure (warnings only). ``research`` is
+    # warned about for legacy-layout familiarity, but the research *artifact* is
+    # the file ``research.md`` (inventoried from writer metadata below), NOT a
+    # directory — so a bare ``research/`` directory is deliberately excluded from
+    # the ``*_dir`` inventory (FR-010 research_dir file-vs-dir fix).
+    for dir_name in _RECOMMENDED_LAYOUT_DIRS:
+        if not (feature_dir / dir_name).exists():
             warnings_list.append(f"Missing recommended directory: {dir_name}/")
-        else:
+    for dir_name in _STRUCTURAL_ARTIFACT_DIRS:
+        dir_path = feature_dir / dir_name
+        if dir_path.exists():
             dir_path_str = str(dir_path)
             paths[f"{dir_name}_dir"] = dir_path_str
             artifact_dirs[f"{dir_name}_dir"] = dir_path_str
@@ -710,20 +806,17 @@ def validate_feature_structure(feature_dir: Path, check_tasks: bool = False) -> 
     paths["feature_dir"] = feature_dir_str
     artifact_dirs["feature_dir"] = feature_dir_str
 
-    checklists_dir = feature_dir / "checklists"
-    if checklists_dir.exists():
-        checklists_dir_str = str(checklists_dir)
-        artifact_dirs.setdefault("checklists_dir", checklists_dir_str)
-
-    research_dir = feature_dir / "research"
-    if research_dir.exists():
-        research_dir_str = str(research_dir)
-        artifact_dirs.setdefault("research_dir", research_dir_str)
-
-    tasks_dir = feature_dir / "tasks"
-    if tasks_dir.exists():
-        tasks_dir_str = str(tasks_dir)
-        artifact_dirs.setdefault("tasks_dir", tasks_dir_str)
+    # Inventory the planning artifacts the mission writer actually produces
+    # (research.md, data-model.md, quickstart.md, contracts/, …) from the
+    # canonical writer metadata rather than a hardcoded spec/plan/tasks set
+    # (FR-010 / C-005). Only artifacts present on disk are recorded.
+    _inventory_writer_artifacts(
+        feature_dir,
+        paths=paths,
+        artifact_files=artifact_files,
+        artifact_dirs=artifact_dirs,
+        available_docs=available_docs,
+    )
 
     available_docs = sorted(set(available_docs))
 
