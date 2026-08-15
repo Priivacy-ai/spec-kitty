@@ -3116,26 +3116,38 @@ def sync_workspace(  # noqa: C901
 
 
 #: Gateway-class HTTP statuses. A configured sync server that answers with one
-#: of these is almost always decommissioned or down at the edge (a dead
-#: platform env, a torn-down preview, DNS pointing at a retired load balancer) —
-#: not an application-level error. This is the exact shape that stranded a first
-#: sync against a stale ``*.platformsh.site`` URL: the probe saw HTTP 502 and
-#: reported a bare "Unexpected status", giving the operator no signal that the
-#: URL itself was the fault or how to repoint it. FR-003 of the first-sync
-#: preflight mission (#3406).
+#: of these is unavailable at the edge rather than returning an application-level
+#: error — either a transient outage (a rolling deploy or maintenance window) or
+#: a genuinely decommissioned endpoint (a dead platform env, a torn-down preview,
+#: DNS pointing at a retired load balancer). This is the exact shape that
+#: stranded a first sync against a stale ``*.platformsh.site`` URL: the probe saw
+#: HTTP 502 and reported a bare "Unexpected status", giving the operator no
+#: signal that the URL itself might be the fault or how to repoint it. FR-003 of
+#: the first-sync preflight mission (#3406).
+#:
+#: NB the delivery ledger / offline queue classifies these same statuses as
+#: *transient* (``failed_transient`` — the queue row is left untouched, never
+#: dead-lettered; see ``sync/batch.py`` and ``sync/queue.py``). The probe is a
+#: read-only health report and must stay consistent with that contract: it may
+#: surface repoint guidance for the decommissioned case, but must not imply
+#: queued events are lost.
 _GATEWAY_STATUS: frozenset[int] = frozenset({502, 503, 504})
 
 
-def _dead_endpoint_note(server_url: str, status_code: int) -> str:
+def _gateway_unavailable_note(server_url: str, status_code: int) -> str:
     """Remediation note for a sync server returning a gateway-class status.
 
-    Names the dead URL explicitly and gives the exact repoint command, since the
-    common cause is a configured server that no longer exists rather than a
-    transient outage.
+    Frames the transient case first (a gateway 5xx is most often a rolling
+    deploy or maintenance blip), reassures the operator their queued events are
+    retained and will drain on recovery — consistent with the offline queue's
+    ``failed_transient`` disposition — and only then offers the repoint recovery
+    for the case where the URL is genuinely decommissioned.
     """
     return (
-        f"HTTP {status_code} from {server_url} — the endpoint looks decommissioned "
-        "or down. If you switched environments, repoint with "
+        f"HTTP {status_code} from {server_url} — the sync endpoint is unavailable. "
+        "This is often a transient outage (for example a rolling deploy), so your "
+        "queued events are kept locally and will drain once it recovers. If instead "
+        "you have switched environments and this URL is decommissioned, repoint with "
         "`spec-kitty sync server <url>` (e.g. https://app.spec-kitty.ai), then "
         "`spec-kitty auth login --force`."
     )
@@ -3246,8 +3258,8 @@ def _check_server_connection(server_url: str) -> tuple[str, str]:
             )
         elif response.status_code in _GATEWAY_STATUS:
             return (
-                "[red]Server endpoint down[/red]",
-                _dead_endpoint_note(server_url, response.status_code),
+                "[red]Server unavailable[/red]",
+                _gateway_unavailable_note(server_url, response.status_code),
             )
         else:
             return (
