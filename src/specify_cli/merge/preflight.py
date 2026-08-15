@@ -39,6 +39,9 @@ from specify_cli.status import REVIEWER_SELF_APPROVAL
 
 if TYPE_CHECKING:
     from specify_cli.merge.push_preflight import TargetBranchSyncStatus
+    from specify_cli.post_merge.review_artifact_consistency import (
+        ReviewArtifactFinding,
+    )
 
 _PUSH_PREFLIGHT_EXPORTS = {
     "TargetBranchRefreshStatus",
@@ -358,12 +361,67 @@ def _enforce_canonical_status_history(
     raise typer.Exit(1)
 
 
+def _record_review_artifact_skip_evidence(
+    *,
+    repo_root: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    findings: list[ReviewArtifactFinding],
+    note: str,
+) -> None:
+    """Record a ``--skip-review-artifact-check`` bypass as durable evidence.
+
+    WP01 (#2959) escape hatch: an operator skip is NEVER silent. For every WP the
+    gate would have blocked, emit a complete :class:`ReviewOverride` carrying the
+    operator ``note`` as the reason into the append-only status log — the SAME
+    override annotation the gate honors, so the bypass is auditable exactly like an
+    ordinary review override. ``feature_dir`` here is already the coord-aware
+    ``STATUS_STATE`` surface the merge flow resolved, so the override lands where
+    the gate reads it (the partition-correctness this WP also fixes on the write
+    side of :func:`_persist_review_artifact_override`).
+    """
+    from kernel.clock import now_utc_stamp
+
+    from specify_cli.merge.done_bookkeeping import _resolve_merge_actor
+    from specify_cli.status import (
+        ReviewOverride,
+        WPInnerStateDelta,
+        emit_inner_state_changed,
+    )
+
+    actor = _resolve_merge_actor(repo_root)
+    timestamp = now_utc_stamp()
+    console.print(
+        "[yellow]⚠️  Review-artifact consistency gate BYPASSED via "
+        "--skip-review-artifact-check.[/yellow]"
+    )
+    console.print(f"    Reason (recorded as override evidence): {note}")
+    for finding in findings:
+        wp_id = finding.wp_id
+        console.print(f"    - {wp_id}: skip recorded as override evidence")
+        emit_inner_state_changed(
+            feature_dir,
+            wp_id,
+            WPInnerStateDelta(
+                review=ReviewOverride(
+                    at=timestamp, actor=actor, wp_id=wp_id, reason=note
+                )
+            ),
+            actor=actor,
+            mission_slug=mission_slug,
+            at=timestamp,
+            repo_root=repo_root,
+        )
+
+
 def _enforce_review_artifact_consistency(
     *,
     repo_root: Path,
     feature_dir: Path,
     mission_slug: str,
     wp_ids: list[str],
+    skip_review_artifact_check: bool = False,
+    skip_note: str | None = None,
 ) -> None:
     """Block terminal signoff when the latest review artifact is rejected.
 
@@ -373,11 +431,29 @@ def _enforce_review_artifact_consistency(
     and performs no independent frontmatter re-parse of its own. The event-sourced
     ``review_result`` reducer slot T029 wired into the gate therefore reaches this
     call site automatically — no additional code change is needed here.
+
+    WP01 (#2959) escape hatch: when ``skip_review_artifact_check`` is set the gate
+    does NOT raise. Instead the skip is recorded as durable ``ReviewOverride``
+    evidence (:func:`_record_review_artifact_skip_evidence`) carrying ``skip_note``
+    — a bypass that is auditable, never silent. ``skip_note`` is guaranteed
+    non-empty by the CLI boundary; the belt-and-suspenders fallback below keeps the
+    evidence honest if a programmatic caller forgets it.
     """
     preflight = run_review_artifact_consistency_preflight(feature_dir, wp_ids=wp_ids)
     if preflight.passed:
         return
     findings = list(preflight.findings)
+
+    if skip_review_artifact_check:
+        _record_review_artifact_skip_evidence(
+            repo_root=repo_root,
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            findings=findings,
+            note=(skip_note or "").strip()
+            or "review-artifact gate skipped via --skip-review-artifact-check",
+        )
+        return
 
     console.print("[red]Error:[/red] Review artifact consistency gate failed.")
     for finding in findings:

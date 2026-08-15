@@ -1636,6 +1636,8 @@ def _run_lane_based_merge_locked(
     remove_worktree: bool,
     strategy: MergeStrategy = MergeStrategy.SQUASH,
     assume_yes: bool = False,
+    skip_review_artifact_check: bool = False,
+    skip_note: str | None = None,
 ) -> None:
     """Inner merge flow, called with the global merge lock held.
 
@@ -1667,6 +1669,8 @@ def _run_lane_based_merge_locked(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         wp_ids=all_wp_ids,
+        skip_review_artifact_check=skip_review_artifact_check,
+        skip_note=skip_note,
     )
 
     state, is_resume = _load_or_create_merge_state(
@@ -1731,6 +1735,8 @@ def _run_lane_based_merge(
     strategy: MergeStrategy = MergeStrategy.SQUASH,
     allow_sparse_checkout: bool = False,
     assume_yes: bool = False,
+    skip_review_artifact_check: bool = False,
+    skip_note: str | None = None,
 ) -> None:
     """Execute the lane-only merge flow with MergeState lifecycle for recovery.
 
@@ -1861,6 +1867,8 @@ def _run_lane_based_merge(
             remove_worktree=remove_worktree,
             strategy=strategy,
             assume_yes=assume_yes,
+            skip_review_artifact_check=skip_review_artifact_check,
+            skip_note=skip_note,
         )
     finally:
         release_merge_lock(_GLOBAL_MERGE_LOCK_ID, main_repo)
