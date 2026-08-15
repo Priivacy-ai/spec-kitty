@@ -17,6 +17,11 @@ The prose body is the compatibility surface: today's unmodified
 `spec-kitty intake` already accepts any Markdown file. Optional YAML
 frontmatter is what preserves identity across the passage.
 
+This intake-side **handoff packet** (input to `spec-kitty intake`, this
+contract) is a distinct artifact from the mission-side **handoff
+package** (the dossier/replay export produced from `src/specify_cli/dossier/`,
+mission 045) — the former seeds a mission, the latter is emitted after one.
+
 ## Design rules
 
 1. **Frontmatter is optional and additive.** A packet-less Markdown brief

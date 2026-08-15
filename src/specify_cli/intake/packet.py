@@ -20,6 +20,16 @@ from specify_cli.intake.provenance import escape_for_comment
 
 HANDOFF_PACKET_VERSION = 1
 
+# This regex — not ``specify_cli.frontmatter.FrontmatterManager`` — does the
+# frontmatter split here deliberately. ``FrontmatterManager`` operates on a
+# file path and raises ``FrontmatterError`` on malformed input; this module
+# operates on an in-memory string handed to us by the caller and must NEVER
+# raise — every malformed shape degrades to prose (``return None``), per the
+# module docstring. Consequently we also do not share ``FrontmatterManager``'s
+# ``allow_duplicate_keys=False`` posture: a duplicate-key packet here simply
+# fails ``yaml.safe_load``'s last-key-wins parse or trips a downstream
+# validation check and degrades to prose, which is an acceptable outcome for
+# an optional, best-effort overlay.
 _FRONTMATTER_RE = re.compile(
     r"\A---\r?\n(?P<yaml>.*?)\r?\n---(?:\r?\n(?P<body>.*))?\Z",
     re.DOTALL,
