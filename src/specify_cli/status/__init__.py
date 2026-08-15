@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .models import (
     AgentAssignment,
+    CurrentWpState,
     DoneEvidence,
     EventStream,
     GuardContext,
@@ -332,6 +333,7 @@ __all__ = [
     # the facade instead of re-implementing the decode locally (C-002).
     "review_result_from_state",
     "AgentAssignment",
+    "CurrentWpState",
     "actor_identity_str",
     "ALLOWED_TRANSITIONS",
     "EventStream",

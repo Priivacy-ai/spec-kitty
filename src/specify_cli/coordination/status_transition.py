@@ -38,6 +38,7 @@ from specify_cli.lanes.branch_naming import (
 from specify_cli.status import emit as _emit
 from specify_cli.status.adapters import fire_dossier_sync
 from specify_cli.status.models import (
+    CurrentWpState,
     DoneEvidence,
     EventStream,
     GuardContext,
@@ -982,8 +983,15 @@ def read_current_wp_state_transactional(
     mission_slug: str,
     wp_id: str,
     repo_root: Path | None = None,
-) -> tuple[Lane, str | None]:
-    """Read current WP lane/actor from the transaction's write target."""
+) -> CurrentWpState:
+    """Read the current WP lane/actor/role from the transaction's write target.
+
+    Reads the full event STREAM (transitions + annotations) so the reduced
+    ``role`` slot is available on the returned :class:`CurrentWpState` from the
+    single in-transaction reduction (C-002). The role rides this value object
+    only to the in-lock re-claim collision site; it is never threaded onto the
+    guard input contract.
+    """
     identity = _identity_for_request(
         TransitionRequest(
             feature_dir=feature_dir,
@@ -995,7 +1003,8 @@ def read_current_wp_state_transactional(
         )
     )
     contract = _read_contract_from_transaction_target(identity, mission_slug)
-    events = read_event_log(contract)
+    stream = read_event_stream_log(contract)
+    events = stream.transitions
     if not events and not _transaction_topology_available(identity, mission_slug):
         from specify_cli.status.lane_reader import (  # noqa: PLC0415
             CanonicalStatusNotFoundError,
@@ -1017,7 +1026,7 @@ def read_current_wp_state_transactional(
             # signals, ...) is a real error and MUST propagate — the former
             # broad ``except Exception`` silently converted genesis-corruption
             # signals into "unseeded WP" (#1736 dormant mask 1).
-            return Lane.GENESIS, None
+            return CurrentWpState(Lane.GENESIS, None, None)
         if resolved_lane == Lane.UNINITIALIZED:
             # #2675/WP05: ``Lane.UNINITIALIZED`` is now a real ``Lane`` member,
             # so ``Lane("uninitialized")`` no longer raises here and the
@@ -1026,11 +1035,11 @@ def read_current_wp_state_transactional(
             # explicitly instead of relying on the now-dead ``ValueError``
             # branch: an absent-from-snapshot WP still means "unseeded" ->
             # GENESIS, per FR-008d/R7.
-            return Lane.GENESIS, None
-        return resolved_lane, None
-    # Local annotation re-narrows the cross-module (``Any``) helper result.
-    lane_actor: tuple[Lane, str | None] = wp_lane_actor_from_events(events, wp_id)
-    return lane_actor
+            return CurrentWpState(Lane.GENESIS, None, None)
+        return CurrentWpState(resolved_lane, None, None)
+    # Single in-transaction reduction (transitions + annotations) surfaces the
+    # reduced role slot alongside lane/actor on the value object (C-002).
+    return wp_lane_actor_from_events(events, wp_id, stream.annotations)
 
 
 def _read_contract_routes_through_coordination(

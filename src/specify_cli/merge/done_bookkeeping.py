@@ -302,12 +302,12 @@ def _mark_wp_merged_done(
         event_stream.annotations,
     ).work_packages.get(wp_id, {})
 
-    lane, _actor = read_current_wp_state_transactional(
+    lane = read_current_wp_state_transactional(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         wp_id=wp_id,
         repo_root=repo_root,
-    )
+    ).lane
     coord_lane = lane
     if lane == _Lane.DONE:
         return
@@ -595,7 +595,7 @@ def _durable_done_wps_on_coordination_ref(
         return set()
     done: set[str] = set()
     for wp_id in candidate_wps:
-        lane, _actor = wp_lane_actor_from_events(events, wp_id)
+        lane = wp_lane_actor_from_events(events, wp_id).lane
         if lane == Lane.DONE:
             done.add(wp_id)
     return done
