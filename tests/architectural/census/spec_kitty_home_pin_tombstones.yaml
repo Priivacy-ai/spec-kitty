@@ -113,3 +113,12 @@ tombstones:
       - monkeypatch . setenv ( , str ( home ) )
     reason: *saas_home
     evidence: *r1b_op5
+  - key:
+      - sync/test_daemon_publish_consent_3030.py
+      - _isolated_home
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: >-
+      Converge-with-residual: the HOME dimension moved onto canonical_home (fixture now requests it),
+      but SPEC_KITTY_ENABLE_SAAS_SYNC=1 and SPEC_KITTY_SAAS_URL are RETAINED — no autouse restores the
+      URL and these daemon-publish tests need it. Ablation-certified provable member (arm-2 RED / in P).
+    evidence: "kitty/fix-home-pin-census-owner-adoption-3121 R1b op6"
