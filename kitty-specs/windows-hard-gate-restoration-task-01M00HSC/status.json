@@ -1,19 +1,19 @@
 {
-  "event_count": 22,
-  "last_event_id": "01M04AWFHQY9DZBJA130XJTV3R",
-  "materialized_at": "2026-08-16T03:47:12.055445+00:00",
+  "event_count": 23,
+  "last_event_id": "01M04AYD9ZQZZX0NRNF4PD04RJ",
+  "materialized_at": "2026-08-16T03:48:15.295051+00:00",
   "mission_number": "",
   "mission_slug": "windows-hard-gate-restoration-task-01M00HSC",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 2,
+    "approved": 3,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 3
   },
   "work_packages": {
@@ -84,15 +84,15 @@
       ]
     },
     "WP03": {
-      "actor": "codex-review",
+      "actor": "user",
       "agent": "codex-review",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "assignee": "codex",
       "force_count": 0,
-      "lane": "in_review",
-      "last_event_id": "01M04AWFHQY9DZBJA130XJTV3R",
-      "last_transition_at": "2026-08-16T03:47:12.055445+00:00",
+      "lane": "approved",
+      "last_event_id": "01M04AYD9ZQZZX0NRNF4PD04RJ",
+      "last_transition_at": "2026-08-16T03:48:15.295051+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Полный architecture gate выявил четыре follow-up класса; WP03 targeted-GREEN сохранён, local_ready=false.",
@@ -101,6 +101,11 @@
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
+      "review_result": {
+        "reference": "WP03 scope reviewed and approved: RED/GREEN, mutations, targeted gates and exact full-gate evidence verified. Full architecture still has 8 out-of-scope residual failures, explicitly classified and handed to WP04–WP05; local_ready remains false.",
+        "reviewer": "rusliksu",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 3876,
       "shell_pid_created_at": "1786852027.041123",
