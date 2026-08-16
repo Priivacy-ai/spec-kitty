@@ -590,7 +590,7 @@ def test_permission_oracle_helper_preserves_injected_posix_semantics() -> None:
         if isinstance(node, ast.FunctionDef)
         and node.name == "_posix_permission_oracle_unavailable"
     ]
-    assert len(helpers) == 1
+    assert len(helpers) == 1  # golden-count: cardinality-is-contract
 
     helper_module = ast.fix_missing_locations(ast.Module(body=helpers, type_ignores=[]))
     namespace = {

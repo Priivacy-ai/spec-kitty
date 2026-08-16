@@ -490,10 +490,11 @@ def test_windows_signal_targets_owned_descendant_tree(
 @pytest.mark.parametrize(
     ("force", "expected_signal"),
     [
-        (False, signal.SIGTERM),
+        pytest.param(False, signal.SIGTERM, id="False-15"),
         pytest.param(
             True,
             _FORCE_KILL_SIGNAL,
+            id="True-9",
             marks=pytest.mark.skipif(
                 not _HAS_SIGKILL,
                 reason="requires the POSIX SIGKILL signal",

@@ -49,6 +49,8 @@ closes that gap. See ``test_adopted_and_residual_modules_have_no_checkout_derive
 from __future__ import annotations
 
 import ast
+import shutil
+import subprocess
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -69,6 +71,7 @@ from tests.architectural._ratchet_keys import (
     descriptor_still_live,
     resolve_descriptor,
 )
+from tests.characterization.test_trio_json_envelope import _build_mission_repo
 
 pytestmark = pytest.mark.architectural
 
@@ -295,6 +298,96 @@ def test_adopted_modules_have_no_write_side_rederivation() -> None:
         "the public resolvers, not hand-rolled walks. Offenders:\n"
         + "\n".join(offenders)
     )
+
+
+def test_wp04_status_transition_has_no_root_walk() -> None:
+    """WP04 RED/GREEN oracle: status identity must use the resolver seam."""
+    module = _SRC / "coordination" / "status_transition.py"
+    findings = [finding for finding in _scan_module(module) if finding.kind == "root_walk"]
+    assert not findings, (
+        "status_transition must not derive a Mission anchor with parent.parent; "
+        f"route caller-owned identity through the canonical operation resolver: {findings}"
+    )
+
+
+def test_wp04_caller_owned_identity_calls_operation_resolver(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The caller-owned status path goes through the production resolver seam.
+
+    This is deliberately a real temporary Git worktree, not a source-only
+    fixture: the status identity builder must consult the operation-context
+    resolver before it projects the caller-owned Mission anchor.  A regression
+    back to the former ``feature_dir.parent.parent`` shortcut would still
+    produce a plausible path, but it would never make this resolver call.
+    """
+    repo_root, mission_slug = _build_mission_repo(
+        tmp_path,
+        monkeypatch,
+        coord=False,
+        mission_slug="wp04-caller-owned-identity",
+        wp_lane="planned",
+    )
+    caller_root = tmp_path / "caller-worktree"
+    subprocess.run(
+        ["git", "-C", str(repo_root), "worktree", "add", "-q", "-b", "caller", str(caller_root)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    caller_feature_dir = caller_root / "kitty-specs" / mission_slug
+    # Keep the mission materialized only on the caller-owned branch.  If the
+    # primary copy also exists, the legacy feature-dir canonicalizer quite
+    # correctly redirects to that primary copy before the caller-owned seam
+    # gets a chance to run; this fixture intentionally exercises the branch
+    # where the caller owns the only materialized Mission surface.
+    shutil.rmtree(repo_root / "kitty-specs" / mission_slug)
+    from specify_cli.core.paths import is_worktree_context
+
+    assert is_worktree_context(caller_feature_dir)
+
+    import specify_cli.coordination.status_transition as status_transition
+    from specify_cli.context.mission_resolver import FsMissionResolver
+    import specify_cli.missions.operation_context as operation_context
+    from specify_cli.status.models import TransitionRequest
+
+    calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+    operations: list[object] = []
+    errors: list[str] = []
+    original_resolver = operation_context.resolve_mission_operation_context
+
+    def traced_resolver(*args: object, **kwargs: object) -> object:
+        calls.append((args, kwargs))
+        try:
+            result = original_resolver(*args, **kwargs)
+        except Exception as exc:
+            errors.append(repr(exc))
+            raise
+        operations.append(result)
+        return result
+
+    monkeypatch.setattr(
+        operation_context, "resolve_mission_operation_context", traced_resolver
+    )
+    identity = status_transition._identity_for_request(
+        TransitionRequest(
+            feature_dir=caller_feature_dir,
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="test",
+            repo_root=caller_root,
+        )
+    )
+    caller_missions = FsMissionResolver(caller_root).all_missions()
+    assert [mission.mission_slug for mission in caller_missions] == [mission_slug]
+
+    assert calls, "caller-owned identity must consult the operation-context resolver"
+    assert calls[0][0][0] == repo_root
+    assert calls[0][1]["cwd"] == caller_feature_dir
+    assert caller_missions, list((caller_root / "kitty-specs").iterdir())
+    assert identity.mission_anchor_root == caller_root, (calls, operations, errors)
+    assert identity.feature_dir == caller_feature_dir
 
 
 # ---------------------------------------------------------------------------

@@ -267,8 +267,31 @@ def reached_doctrine_paths() -> dict[str, set[str]]:
         for child in tree.body:
             visitor.visit(child)
         if visitor.paths:
-            result[str(path.relative_to(_REPO_ROOT))] = visitor.paths
+            result[path.relative_to(_REPO_ROOT).as_posix()] = visitor.paths
     return result
+
+
+def test_reached_doctrine_paths_emits_posix_keys_for_windows_checkout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The inventory key is a portable contract, not ``str(Path)`` output."""
+    runtime_root = tmp_path / "src" / "specify_cli"
+    consumer = runtime_root / "consumer.py"
+    consumer.parent.mkdir(parents=True)
+    consumer.write_text(
+        "def load():\n    from doctrine.api import ArtifactKind\n    return ArtifactKind\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("tests.architectural.test_doctrine_census._REPO_ROOT", tmp_path)
+    monkeypatch.setattr(
+        "tests.architectural.test_doctrine_census._RUNTIME_ROOT", runtime_root
+    )
+
+    reached = reached_doctrine_paths()
+
+    assert "src/specify_cli/consumer.py" in reached
+    assert all("\\" not in key for key in reached)
 
 
 def undoored_paths(reached: set[str], disposition: dict[str, str]) -> set[str]:

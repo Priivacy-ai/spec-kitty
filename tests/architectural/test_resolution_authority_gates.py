@@ -1890,6 +1890,23 @@ def test_allowlist_no_stale_entries() -> None:
     )
 
 
+def test_wp04_coord_router_entry_matches_exact_live_token() -> None:
+    """WP04 RED/GREEN oracle for the legitimate coord-owned write site."""
+    keys = load_allowlist(ALLOWLIST_PATH)
+    live = _live_coord_authority_keys(SRC_ROOT)
+    target = [
+        key
+        for key in keys["coord_authority"]
+        if key.rel_path == "src/specify_cli/agent_tasks_ports.py"
+        and key.enclosing_qualname == "RealCoordCommitRouter.feature_write_dir"
+    ]
+    assert len(target) == 1, f"expected one pinned coord router entry, got {target}"
+    assert target[0] in live, (
+        "the coord router allowlist entry must match the exact live call-site token; "
+        f"stored={target[0]!r}, live={list(live)!r}"
+    )
+
+
 def test_allowlist_shrink_only() -> None:
     """NFR-003: the seeded allowlist never inflates beyond the pre-sweep baseline.
 
