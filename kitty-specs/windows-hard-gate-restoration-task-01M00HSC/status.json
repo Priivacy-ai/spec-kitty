@@ -182,7 +182,7 @@
     },
     "WP06": {
       "actor": "user",
-      "agent": "codex",
+      "agent": "",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -190,10 +190,20 @@
       "last_event_id": "01M04HW91DVTQ2GZ0P5AMW26PH",
       "last_transition_at": "2026-08-16T05:49:25.421693+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Полный gate выявил WP04 residual; WP06 отложен до отдельного WP07"
+      ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "role": "implementer",
-      "shell_pid": 3876,
-      "shell_pid_created_at": "1786854539.4400413"
+      "shell_pid": 0,
+      "shell_pid_created_at": "1786854539.4400413",
+      "subtasks": {
+        "T029": "planned",
+        "T030": "planned",
+        "T031": "planned",
+        "T032": "planned"
+      }
     },
     "WP07": {
       "actor": "finalize-tasks",
