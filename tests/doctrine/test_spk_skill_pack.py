@@ -41,6 +41,7 @@ SPK_SKILLS = {
     "spk-run-next",
     "spk-run-program-orchestrate",
     "spk-run-review-wp",
+    "spk-run-verdict-capture",
     "spk-start-agent-surface",
     "spk-start-command-map",
     "spk-start-first-feature",
