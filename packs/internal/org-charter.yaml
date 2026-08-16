@@ -1,12 +1,4 @@
 org_name: spec-kitty-internal
-description: |
-  Spec Kitty's own internal doctrine — governance for contributors, maintainers,
-  and the core team of the Spec Kitty project itself. Loaded as an org-tier pack
-  overlaying the public built-in product doctrine; NOT shipped to consumers.
-
-  First-step scaffold (catfooding the pack approach): one internal glossary_pack
-  and one maintainer procedure distilled from docs/development/. Reference edges
-  point at built-in doctrine rather than duplicating it.
 required_procedures:
   - landing-contributor-prs
 required_glossary_packs:
