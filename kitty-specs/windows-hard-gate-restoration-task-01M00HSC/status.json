@@ -131,7 +131,8 @@
       "last_transition_at": "2026-08-16T04:19:58.667647+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "WP04 GREEN: resolver-first caller-owned anchor, exact authority token; RED 09effe185, GREEN 4ad526e5c; targeted 5/5, integration 22 passed; two unrelated Windows path-diagnostic residuals handed to WP05; codemap graph already covers mission-operation-context -> status-transaction-dual-root, so no map delta."
+        "WP04 GREEN: resolver-first caller-owned anchor, exact authority token; RED 09effe185, GREEN 4ad526e5c; targeted 5/5, integration 22 passed; two unrelated Windows path-diagnostic residuals handed to WP05; codemap graph already covers mission-operation-context -> status-transaction-dual-root, so no map delta.",
+        "Ревью пройдено: production caller-owned identity теперь вызывает canonical operation-context resolver; static root-walk guard и exact authority-token guard зелёные. Добавлен сквозной временный Git-worktree тест с call-count и anchor/feature assertions. Проверки: 5 targeted, 22 status integration, direct caller-owned harness, Ruff, py_compile, diff-check; 74/76 architecture tests, оставшиеся 2 Windows path-format residuals и codemap lock переданы WP05; pre-review no_coverage — известное неблокирующее предупреждение."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
