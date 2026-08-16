@@ -2876,6 +2876,7 @@ pages:
     - {slug: "3-lineage-delegates-never-re-walks", text: "3. Lineage delegates, never re-walks", level: 3}
     - {slug: "bridge-is-a-migration-tactic-not-a-destination", text: "Bridge is a migration tactic, not a destination", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "delivery-status-this-slice", text: "Delivery status (this slice)", level: 2}
   - path: "docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md"
     title: "ADR: Open-packs Is the Source of Truth for Built-in Doctrine; CI Re-vendors It Into the Core Release"
     divio_type: "none"
