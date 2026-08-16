@@ -159,7 +159,7 @@ def _scan_file(path: Path, relative_to: Path) -> list[tuple[str, int, str]]:
     found: list[tuple[str, int, str]] = []
     tree = ast.parse(path.read_text(encoding="utf-8"))
     docstring_ids = _docstring_nodes(tree)
-    rel = str(path.relative_to(relative_to))
+    rel = path.relative_to(relative_to).as_posix()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -174,6 +174,18 @@ def _scan_file(path: Path, relative_to: Path) -> list[tuple[str, int, str]]:
             if isinstance(node.value, str) and _matches_forbidden_vocabulary(node.value):
                 found.append((rel, node.lineno, f"string literal {node.value!r}"))
     return found
+
+
+def test_scan_file_emits_posix_relative_keys_on_windows(tmp_path: Path) -> None:
+    """Static inventory keys remain stable across host path separators."""
+    source = tmp_path / "src" / "kernel" / "bad.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("import doctrine\n", encoding="utf-8")
+
+    violations = _scan_file(source, tmp_path)
+
+    assert violations
+    assert violations[0][0] == "src/kernel/bad.py"
 
 
 def collect_forbidden_vocabulary(root: Path, *, relative_to: Path | None = None) -> list[tuple[str, int, str]]:

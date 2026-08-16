@@ -50,14 +50,119 @@ Spec source: FR-009, NFR-003, contracts/authority-seams.md §C-SEAM-1/§C-SEAM-2
 from __future__ import annotations
 
 import ast
+import hashlib
+import json
+from html.parser import HTMLParser
 from pathlib import Path
+from typing import Any
 
 import pytest
 
-pytestmark = pytest.mark.architectural
+pytestmark = [pytest.mark.architectural, pytest.mark.docs_scoped]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC_ROOT = _REPO_ROOT / "src"
+_CODEMAP_DIR = _REPO_ROOT / "docs" / "codemap"
+
+_WP02_CODEMAP_PATHS: dict[str, str] = {
+    "mission-anchor-composer": "src/specify_cli/missions/_read_path_resolver.py",
+    "mission-anchor-runtime-callers": (
+        "src/mission_runtime/resolution.py; src/mission_runtime/write_target_degrade.py"
+    ),
+    "mission-creation-boundary": "src/specify_cli/core/mission_creation.py",
+    "mission-creation-callers": (
+        "src/specify_cli/cli/commands/agent/mission_create.py; "
+        "src/specify_cli/tracker/origin.py"
+    ),
+    "canonical-worktree-topology-authority": (
+        "src/specify_cli/coordination/surface_resolver.py"
+    ),
+    "wp02-architecture-contracts": (
+        "tests/architectural/test_surface_resolution_audit.py; "
+        "tests/architectural/test_untrusted_path_containment.py; "
+        "tests/architectural/test_topology_resolution_boundary.py; "
+        "tests/architectural/surface_resolution_audit/inventory.md; "
+        "tests/architectural/untrusted_path_audit/inventory.md"
+    ),
+}
+
+_WP02_CODEMAP_EDGES: frozenset[tuple[str, str, str]] = frozenset(
+    {
+        ("mission-anchor-runtime-callers", "mission-anchor-composer", "calls"),
+        (
+            "mission-anchor-composer",
+            "status-transaction-dual-root",
+            "supplies anchored paths",
+        ),
+        ("mission-creation-callers", "mission-creation-boundary", "calls"),
+        (
+            "mission-creation-boundary",
+            "canonical-worktree-topology-authority",
+            "delegates shape classification",
+        ),
+        (
+            "mission-creation-boundary",
+            "git-preflight-checkout-selection",
+            "guards creation placement",
+        ),
+        ("wp02-architecture-contracts", "mission-anchor-composer", "covers"),
+        (
+            "wp02-architecture-contracts",
+            "mission-anchor-runtime-callers",
+            "covers",
+        ),
+        ("wp02-architecture-contracts", "mission-creation-boundary", "covers"),
+        (
+            "wp02-architecture-contracts",
+            "canonical-worktree-topology-authority",
+            "guards",
+        ),
+    }
+)
+
+
+class _CodemapHTMLParser(HTMLParser):
+    """Extract node/reference rows and edge labels from the checked-in HTML."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.nodes: list[tuple[str, str, str]] = []
+        self.edges: list[str] = []
+        self._node_id: str | None = None
+        self._cells: list[str] = []
+        self._cell_parts: list[str] | None = None
+        self._edge_parts: list[str] | None = None
+
+    def handle_starttag(
+        self, tag: str, attrs: list[tuple[str, str | None]]
+    ) -> None:
+        attr_map = dict(attrs)
+        if tag == "tr" and attr_map.get("data-node"):
+            self._node_id = attr_map["data-node"]
+            self._cells = []
+        elif tag == "td" and self._node_id is not None:
+            self._cell_parts = []
+        elif tag == "li":
+            self._edge_parts = []
+
+    def handle_data(self, data: str) -> None:
+        if self._cell_parts is not None:
+            self._cell_parts.append(data)
+        if self._edge_parts is not None:
+            self._edge_parts.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "td" and self._cell_parts is not None:
+            self._cells.append("".join(self._cell_parts).strip())
+            self._cell_parts = None
+        elif tag == "tr" and self._node_id is not None:
+            if len(self._cells) == 3:
+                self.nodes.append(tuple(self._cells))
+            self._node_id = None
+            self._cells = []
+        elif tag == "li" and self._edge_parts is not None:
+            self.edges.append("".join(self._edge_parts).strip())
+            self._edge_parts = None
 
 
 def _iter_src_python_files() -> list[Path]:
@@ -66,6 +171,69 @@ def _iter_src_python_files() -> list[Path]:
 
 def _rel(path: Path) -> str:
     return path.relative_to(_REPO_ROOT).as_posix()
+
+
+def _load_codemap() -> dict[str, Any]:
+    return json.loads((_CODEMAP_DIR / "codemap.json").read_text(encoding="utf-8"))
+
+
+def test_wp02_codemap_records_independent_callers_impact_and_tests() -> None:
+    """Hard-coded WP02 coverage fails if a required semantic edge is removed."""
+    codemap = _load_codemap()
+    actual_paths = {node["id"]: node["path"] for node in codemap["nodes"]}
+    for node_id, expected_path in _WP02_CODEMAP_PATHS.items():
+        assert actual_paths.get(node_id) == expected_path
+
+    actual_edges = {
+        (edge["from"], edge["to"], edge["kind"]) for edge in codemap["edges"]
+    }
+    assert actual_edges >= _WP02_CODEMAP_EDGES
+
+
+def test_codemap_json_and_html_have_exact_node_edge_reference_parity() -> None:
+    """The HTML view is an exact semantic rendering of JSON nodes and edges."""
+    codemap = _load_codemap()
+    parser = _CodemapHTMLParser()
+    parser.feed((_CODEMAP_DIR / "codemap.html").read_text(encoding="utf-8"))
+
+    json_nodes = {
+        (node["id"], node["path"], node["role"]) for node in codemap["nodes"]
+    }
+    assert set(parser.nodes) == json_nodes
+
+    json_edges = {
+        f"{edge['from']} {edge['kind']} {edge['to']}" for edge in codemap["edges"]
+    }
+    assert set(parser.edges) == json_edges
+
+
+def test_codemap_lock_uses_sha256_and_matches_checked_in_views() -> None:
+    """The canonical lock fingerprints both checked-in code-map views."""
+    lock = dict(
+        line.split("=", 1)
+        for line in (_CODEMAP_DIR / "codemap.lock").read_text(encoding="utf-8").splitlines()
+        if "=" in line
+    )
+    assert lock["version"] == "1"
+    assert lock["algorithm"] == "sha256"
+    for filename in ("codemap.json", "codemap.html"):
+        digest = hashlib.sha256(  # noqa: TID251 -- raw file-integrity fingerprint matches codemap.lock.
+            (_CODEMAP_DIR / filename).read_bytes().replace(b"\r\n", b"\n")
+        ).hexdigest()
+        assert lock[filename] == digest
+
+
+def test_codemap_lock_uses_lf_normalized_bytes() -> None:
+    """The lock contract is independent of a CRLF checkout."""
+    lock = dict(
+        line.split("=", 1)
+        for line in (_CODEMAP_DIR / "codemap.lock").read_text(encoding="utf-8").splitlines()
+        if "=" in line
+    )
+    for filename in ("codemap.json", "codemap.html"):
+        canonical = (_CODEMAP_DIR / filename).read_bytes().replace(b"\r\n", b"\n")
+        digest = hashlib.sha256(canonical).hexdigest()  # noqa: TID251 -- LF-normalized file-integrity oracle.
+        assert lock[filename] == digest
 
 
 # ===========================================================================
@@ -198,6 +366,29 @@ def _is_worktrees_token(node: ast.expr) -> bool:
     return False
 
 
+def _coord_predicate_relpaths() -> set[str]:
+    """Return actual raw-predicate modules with repository-relative POSIX paths."""
+    return {_rel(path) for path in _iter_src_python_files() if _coord_predicate_sites(path)}
+
+
+def test_coord_predicate_detector_catches_synthetic_neighbor(tmp_path: Path) -> None:
+    """Positive control: a neighboring raw predicate cannot evade the AST ratchet."""
+    rogue = tmp_path / "neighbor.py"
+    rogue.write_text(
+        "def neighbor(checkout_root):\n"
+        "    return WORKTREES_DIR in checkout_root.parts\n",
+        encoding="utf-8",
+    )
+    assert _coord_predicate_sites(rogue)
+
+
+def test_mission_creation_delegates_worktree_shape_to_canonical_authority() -> None:
+    """Mission creation may call the seam but may not gain a file-wide exception."""
+    target = "src/specify_cli/core/mission_creation.py"
+    assert target not in _ALLOWLISTED_COORD_PREDICATE_SITES
+    assert target not in _coord_predicate_relpaths()
+
+
 def test_coord_path_predicate_only_in_blessed_modules() -> None:
     """Raw coord-topology path-shape predicates live only in blessed sites.
 
@@ -205,10 +396,7 @@ def test_coord_path_predicate_only_in_blessed_modules() -> None:
     un-allowlisted file means a coord-vs-lane routing decision was inferred from
     path shape instead of the git-registry authority — a C-SEAM-1 regression.
     """
-    actual: set[str] = set()
-    for path in _iter_src_python_files():
-        if _coord_predicate_sites(path):
-            actual.add(_rel(path))
+    actual = _coord_predicate_relpaths()
 
     blessed = {_BLESSED_COORD_PREDICATE_MODULE} | set(_ALLOWLISTED_COORD_PREDICATE_SITES)
     unexpected = actual - blessed

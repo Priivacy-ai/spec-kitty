@@ -48,9 +48,15 @@ reconciliation rewrite the index the next case is about to measure.
 from __future__ import annotations
 
 import os
+import tomllib
+from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
+
+if TYPE_CHECKING:
+    from specify_cli.sync.config import SyncConfig
 
 pytestmark = pytest.mark.fast
 
@@ -63,8 +69,17 @@ PROJECT_B = "bbbbbbbb-0000-0000-0000-000000000002"
 BYSTANDER = "cccccccc-0000-0000-0000-000000000003"
 
 #: A second bystander record of a different *type*, so the assertion is not limited to
-#: the one table the consent writers happen to touch.
-BYSTANDER_CHECKOUT = "/some/other/checkout"
+#: the one table the consent writers happen to touch.  ``resolve()`` mirrors the
+#: canonical key stored by ``SyncConfig`` on both Windows and POSIX.
+BYSTANDER_CHECKOUT = Path("some/other/checkout").resolve()
+_BYSTANDER_CHECKOUT_SERIALIZED = str(BYSTANDER_CHECKOUT).replace("\\", "\\\\")
+
+
+def _posix_permission_oracle_unavailable(
+    geteuid: Callable[[], int] | None = getattr(os, "geteuid", None),
+) -> bool:
+    """Return whether chmod-based unreadability cannot be observed faithfully."""
+    return geteuid is None or geteuid() == 0
 
 
 @pytest.fixture(autouse=True)
@@ -92,20 +107,37 @@ def _plant_records() -> Path:
     config = SyncConfig()
     config.set_project_consent(PROJECT_A, True)
     config.set_project_consent(BYSTANDER, True)
-    config.set_checkout_sync_enabled(Path(BYSTANDER_CHECKOUT), True)
+    config.set_checkout_sync_enabled(BYSTANDER_CHECKOUT, True)
 
     path = _index_path()
     text = path.read_text(encoding="utf-8")
     assert BYSTANDER in text, "precondition: the bystander's grant is on disk"
-    assert BYSTANDER_CHECKOUT in text, "precondition: the bystander override is on disk"
+    assert _bystander_checkout_survives(text), "precondition: the bystander override is on disk"
     return path
+
+
+def _bystander_checkout_survives(text: str) -> bool:
+    """Recognize the planted override independently of TOML separator escaping."""
+    try:
+        parsed = tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return _BYSTANDER_CHECKOUT_SERIALIZED in text
+    sync = parsed.get("sync", {})
+    overrides = sync.get("checkout_overrides", {}) if isinstance(sync, dict) else {}
+    if not isinstance(overrides, dict):
+        return False
+    for path, entry in overrides.items():
+        parts = tuple(part for part in str(path).replace("\\", "/").split("/") if part)
+        if parts[-3:] == ("some", "other", "checkout") and isinstance(entry, dict):
+            return entry.get("enabled") is True
+    return False
 
 
 def _assert_bystanders_survive(path: Path, what: str) -> None:
     """The consequence, asserted on records nothing under test ever names."""
     text = path.read_text(encoding="utf-8") if path.exists() else "<the index file is gone>"
     assert BYSTANDER in text, f"{what} rebuilt the unreadable index from an empty document: an uninvolved project's grant is gone and cannot be recovered"
-    assert BYSTANDER_CHECKOUT in text, f"{what} discarded an uninvolved checkout override"
+    assert _bystander_checkout_survives(text), f"{what} discarded an uninvolved checkout override"
 
 
 def _corrupt_keeping_the_records(path: Path) -> str:
@@ -169,7 +201,10 @@ def test_the_refusal_names_the_file_and_carries_the_fault() -> None:
     assert excinfo.value.fault.kind == "unparseable"
 
 
-@pytest.mark.skipif(os.geteuid() == 0, reason="root reads a chmod 000 file regardless")
+@pytest.mark.skipif(
+    _posix_permission_oracle_unavailable(),
+    reason="requires a non-root POSIX permission oracle",
+)
 def test_a_chmod_000_index_is_refused_rather_than_replaced() -> None:
     """The other file-level fault, on a file whose bytes are perfectly valid.
 
@@ -251,6 +286,14 @@ def test_an_empty_index_file_still_accepts_a_grant() -> None:
 # --------------------------------------------------------------------------- #
 
 
+def _mark_bystander_unresolved(config: SyncConfig) -> None:
+    """Use the stored key when readable, but still exercise refusal on a fault."""
+    stored_paths = list(config.get_all_checkout_sync_records())
+    config.mark_checkout_records_unresolved(
+        stored_paths or [str(BYSTANDER_CHECKOUT)],
+    )
+
+
 def _writers() -> list[tuple[str, object]]:
     from specify_cli.sync.config import BackgroundDaemonPolicy
 
@@ -259,7 +302,10 @@ def _writers() -> list[tuple[str, object]]:
         ("set_project_consent_bulk", lambda c: c.set_project_consent_bulk({PROJECT_B: True})),
         ("set_checkout_sync_enabled", lambda c: c.set_checkout_sync_enabled(Path("/new/checkout"), True)),
         ("set_repository_sync_enabled", lambda c: c.set_repository_sync_enabled("acme/repo", True)),
-        ("mark_checkout_records_unresolved", lambda c: c.mark_checkout_records_unresolved([BYSTANDER_CHECKOUT])),
+        (
+            "mark_checkout_records_unresolved",
+            _mark_bystander_unresolved,
+        ),
         ("set_server_url", lambda c: c.set_server_url("https://example.invalid")),
         ("set_max_queue_size", lambda c: c.set_max_queue_size(42)),
         ("set_background_daemon", lambda c: c.set_background_daemon(BackgroundDaemonPolicy.MANUAL)),

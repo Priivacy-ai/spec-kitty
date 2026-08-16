@@ -14,6 +14,7 @@ hand-built substrate instead of the live workflow file.
 from __future__ import annotations
 
 import contextlib
+import json
 import signal
 import subprocess
 import sys
@@ -42,6 +43,10 @@ from specify_cli.review.scope_source import DeclaredCommandScopeSource, GateCove
 # tests (``run_scoped_tests_at_head`` spawns real pytest) OUT of the fast lane — a
 # module-level ``fast`` would have wrongly dragged them in.
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+_HAS_SIGKILL = hasattr(signal, "SIGKILL")
+_FORCE_KILL_SIGNAL = getattr(signal, "SIGKILL", signal.SIGTERM)
+_HAS_KILLPG = hasattr(pre_review_gate.os, "killpg")
 
 # ---------------------------------------------------------------------------
 # Synthetic filter-group / composite-routing fixtures (mirror the real
@@ -478,9 +483,24 @@ def test_windows_signal_targets_owned_descendant_tree(
 
 
 @pytest.mark.fast
+@pytest.mark.skipif(
+    not _HAS_KILLPG,
+    reason="requires the POSIX os.killpg process-group primitive",
+)
 @pytest.mark.parametrize(
     ("force", "expected_signal"),
-    [(False, signal.SIGTERM), (True, signal.SIGKILL)],
+    [
+        pytest.param(False, signal.SIGTERM, id="False-15"),
+        pytest.param(
+            True,
+            _FORCE_KILL_SIGNAL,
+            id="True-9",
+            marks=pytest.mark.skipif(
+                not _HAS_SIGKILL,
+                reason="requires the POSIX SIGKILL signal",
+            ),
+        ),
+    ],
 )
 def test_posix_signal_targets_owned_process_group(
     monkeypatch: pytest.MonkeyPatch,
@@ -1060,8 +1080,10 @@ _NON_PYTEST_FAILING_SCRIPT = "print('FAIL test_widget: widget broke')\n"
 def _write_declared_command_config(repo_root: Path, script_path: Path) -> None:
     kittify_dir = repo_root / ".kittify"
     kittify_dir.mkdir(parents=True, exist_ok=True)
+    command = f'"{Path(sys.executable).as_posix()}" "{script_path.as_posix()}"'
     (kittify_dir / "config.yaml").write_text(
-        f'review:\n  test_command: "{sys.executable} {script_path}"\n', encoding="utf-8",
+        f"review:\n  test_command: {json.dumps(command)}\n",
+        encoding="utf-8",
     )
 
 

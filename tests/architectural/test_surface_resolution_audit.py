@@ -48,6 +48,12 @@ def _load_audit() -> ModuleType:
 
 audit = _load_audit()
 
+_MISSION_ANCHOR_COMPOSER_KEY: tuple[str, str, str] = (
+    "specify_cli/missions/_read_path_resolver.py",
+    "_compose_mission_anchor_feature_dir",
+    "return Path ( mission_anchor_root . resolve ( ) / KITTY_SPECS_DIR / mission_slug )",
+)
+
 
 # ===========================================================================
 # Public-shape guard — the REAL coupling with the frozen resolver test.
@@ -93,6 +99,21 @@ def test_public_shape_composite_key_is_the_added_comparand() -> None:
 def test_allowlisted_selection_callsites_stays_str_keyed_and_empty() -> None:
     """The FR-006a allowlist keeps its ``dict[str, str]`` shape (frozen guard reads it)."""
     assert audit.ALLOWLISTED_SELECTION_CALLSITES == {}
+
+
+def test_mission_anchor_composer_has_exact_inventory_row() -> None:
+    """The sanctioned anchor leaf is discovered and documented by exact identity."""
+    discovered = {row.composite_key() for row in audit.discover_rows()}
+    assert _MISSION_ANCHOR_COMPOSER_KEY in discovered
+
+    inventory_rows = audit._parse_inventory_rows(
+        audit.INVENTORY_PATH.read_text(encoding="utf-8")
+    )
+    _active, inventory_keys, parse_errors = audit._inventory_composites(
+        inventory_rows, "read-resolution"
+    )
+    assert not parse_errors
+    assert _MISSION_ANCHOR_COMPOSER_KEY in inventory_keys
 
 
 # ===========================================================================

@@ -33,7 +33,7 @@ that hole, and a later relocation would orphan the helper with the suite still g
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
@@ -51,6 +51,20 @@ PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
 # Rich wraps at the console width; the assertions normalise whitespace, but a width
 # this generous keeps a mid-phrase break from splitting a short asserted string.
 _WIDE_TERMINAL = "220"
+
+
+def _posix_permission_oracle_unavailable(
+    geteuid: Callable[[], int] | None = getattr(os, "geteuid", None),
+) -> bool:
+    """Return whether chmod-based unreadability cannot be observed faithfully."""
+    return geteuid is None or geteuid() == 0
+
+
+def test_permission_oracle_capability_boundary_preserves_posix_branch() -> None:
+    """Injected capabilities keep Windows, root and non-root semantics distinct."""
+    assert _posix_permission_oracle_unavailable(None)
+    assert _posix_permission_oracle_unavailable(lambda: 0)
+    assert not _posix_permission_oracle_unavailable(lambda: 1000)
 
 
 @pytest.fixture(autouse=True)
@@ -495,7 +509,10 @@ def test_a_raising_consent_read_is_reported_rather_than_hiding_the_section(
     assert "Issues found" in result.output
 
 
-@pytest.mark.skipif(os.geteuid() == 0, reason="root reads a chmod 000 file regardless")
+@pytest.mark.skipif(
+    _posix_permission_oracle_unavailable(),
+    reason="requires a non-root POSIX permission oracle",
+)
 def test_a_chmod_000_index_is_reported_as_a_fault(tmp_path: Path) -> None:
     """The FR-020 measurement itself: healthy -> granted, unreadable -> undetermined.
 

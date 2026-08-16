@@ -422,6 +422,15 @@ def test_convert_sites_do_not_exceed_frozen_baseline() -> None:
     assert violations == [], "Golden-count regrowth detected:\n" + "\n".join(violations)
 
 
+def test_contract_helper_cardinality_site_is_explicitly_annotated() -> None:
+    """The one structural helper count is an explicit, reviewed exception."""
+    target = _REPO_ROOT / "tests" / "contract" / "test_machine_facing_canonical_fields.py"
+    lines = target.read_text(encoding="utf-8").splitlines()
+    matches = [line for line in lines if "assert len(helpers) == 1" in line]
+    assert len(matches) == 1
+    assert ESCAPE_HATCH_MARKER in matches[0]
+
+
 # ---------------------------------------------------------------------------
 # CLI: inventory emission + baseline (re)freeze.
 # ---------------------------------------------------------------------------

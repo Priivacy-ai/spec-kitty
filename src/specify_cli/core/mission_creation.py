@@ -7,7 +7,7 @@ command ``create()`` is a thin wrapper around this function.
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import contextlib
 import logging
 import re
@@ -23,6 +23,7 @@ from mission_runtime import (
     MissionTopology,
     resolve_write_target_or_degrade,
 )
+from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.git_ops import get_current_branch, is_git_repo
 from specify_cli.core.mission_payload import (
@@ -244,7 +245,7 @@ def _is_safe_external_creation_worktree(
     checkout_root = resolved_root.resolve()
     if cwd != checkout_root and checkout_root not in cwd.parents:
         return False
-    if WORKTREES_DIR in checkout_root.parts:
+    if is_under_worktrees_segment(checkout_root):
         return False
     return not (is_lane_branch(current_branch) or is_mission_branch(current_branch))
 

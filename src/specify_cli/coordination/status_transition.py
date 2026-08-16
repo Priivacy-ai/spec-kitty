@@ -14,7 +14,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from kernel.clock import now_utc, now_utc_iso, timedelta
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from specify_cli.coordination.outbound import queue_saas_emission
 from specify_cli.core.commit_guard import GuardCapability
@@ -648,6 +648,43 @@ def _canonical_primary_feature_dir(
     return resolved.primary_anchor
 
 
+def _caller_owned_mission_anchor(
+    *,
+    repository_root: Path,
+    mission_slug: str,
+    feature_dir: Path,
+) -> Path | None:
+    """Return a caller-owned Mission anchor from the canonical operation resolver.
+
+    Status transitions receive both a feature directory and a repository root,
+    but must not infer a third root from path layout. The operation-context
+    resolver already owns the managed-vs-caller-owned distinction and its
+    ``MissionNotFoundError`` fallback is the only legacy degradation permitted
+    here. Conflicts and malformed/ambiguous identity errors intentionally remain
+    fail-loud.
+    """
+    from specify_cli.core.paths import is_worktree_context  # noqa: PLC0415
+    from specify_cli.context.mission_resolver import MissionNotFoundError  # noqa: PLC0415
+    from specify_cli.missions.operation_context import (  # noqa: PLC0415
+        CheckoutKind,
+        resolve_mission_operation_context,
+    )
+
+    if not is_worktree_context(feature_dir):
+        return None
+    try:
+        operation = resolve_mission_operation_context(
+            repository_root,
+            mission_slug,
+            cwd=feature_dir,
+        )
+    except MissionNotFoundError:
+        return None
+    if operation.checkout_kind is not CheckoutKind.CALLER_OWNED:
+        return None
+    return cast(Path, operation.mission_anchor_root)
+
+
 def _resolve_write_target(
     repo_root: Path,
     mission_slug: str,
@@ -781,9 +818,11 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
         and (raw_feature_dir / "meta.json").is_file()
         and not _is_coord_worktree_status_surface(raw_feature_dir)
     ):
-        candidate_anchor = raw_feature_dir.parent.parent
-        if candidate_anchor != canonical_repo_root and (candidate_anchor / ".git").exists():
-            mission_anchor_root = candidate_anchor
+        mission_anchor_root = _caller_owned_mission_anchor(
+            repository_root=canonical_repo_root,
+            mission_slug=mission_slug,
+            feature_dir=raw_feature_dir,
+        )
     feature_dir = _canonical_primary_feature_dir(
         canonical_repo_root,
         mission_slug,
