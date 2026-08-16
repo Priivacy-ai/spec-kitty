@@ -1,5 +1,4 @@
 {
-  "accept_commit": "c4a1d1ebe1320668a1530e64d0df51c42ed1acb7",
   "acceptance_history": [
     {
       "accept_commit": "0d5cf625ba69c1ad88f6f676b843066dab926919",
@@ -21,12 +20,18 @@
       "accepted_at": "2026-08-16T16:08:09.890975+00:00",
       "accepted_by": "Руслан",
       "accepted_from_commit": "5f1d53bae96a2e9b90d4f7838ae701c982197622"
+    },
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-16T16:09:50.065200+00:00",
+      "accepted_by": "Руслан",
+      "accepted_from_commit": "e8e532a7121158715864e1088f76427033e23ed2"
     }
   ],
   "acceptance_mode": "pr",
-  "accepted_at": "2026-08-16T16:08:09.890975+00:00",
+  "accepted_at": "2026-08-16T16:09:50.065200+00:00",
   "accepted_by": "Руслан",
-  "accepted_from_commit": "5f1d53bae96a2e9b90d4f7838ae701c982197622",
+  "accepted_from_commit": "e8e532a7121158715864e1088f76427033e23ed2",
   "created_at": "2026-08-14T16:30:52.474276+00:00",
   "flattened": false,
   "friendly_name": "Восстановить hard-gates Spec Kitty на Windows",
