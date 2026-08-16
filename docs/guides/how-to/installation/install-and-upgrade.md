@@ -2,11 +2,12 @@
 title: How to Install and Upgrade Spec Kitty
 description: 'How to install and upgrade spec kitty with Spec Kitty 3.2: Spec Kitty has two distinct upgrade concepts:.'
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-08-16'
 type: how-to
 audience: docs/context/audience/external/project-owner.md
 related:
 - docs/guides/how-to/installation/non-interactive-init.md
+- docs/adr/3.x/2026-08-16-4-rc-release-channel.md
 ---
 # How to Install and Upgrade Spec Kitty
 
@@ -108,6 +109,42 @@ spec-kitty upgrade --yes    # or --force; both work
 ```
 
 Migrations are idempotent and applied in version order.
+
+---
+
+## Opt in to the rc (pre-release) channel
+
+By default the CLI only ever advises you toward the latest **stable** release, even when a
+newer release candidate (`rcN`) exists on the configured index. Early adopters and internal
+team members who want to catfood rc builds can opt in with `SPEC_KITTY_PRERELEASE`:
+
+```bash
+export SPEC_KITTY_PRERELEASE=1
+spec-kitty upgrade --agent-check
+```
+
+Or, once, with no per-shell export — write it into `.kitty.env`:
+
+```bash
+# .kittify/.kitty.env (per-repo) or ${SPEC_KITTY_HOME}/.kitty.env (machine-wide)
+SPEC_KITTY_PRERELEASE=1
+```
+
+With the channel on, the newest pre-release is surfaced and the proposed upgrade command is a
+**pinned** install (`pip install spec-kitty-cli==3.2.6rc3`, for example) — never a floating
+`--pre` flag, so you always know exactly which candidate you are about to install. Check which
+channel is active at any time:
+
+```bash
+spec-kitty doctor channel
+```
+
+Stable-channel users (the default, and the overwhelming majority) never see an rc advisory —
+this is a structural guarantee, not a UX nicety. See [ADR: default-off rc release
+channel](../../../adr/3.x/2026-08-16-4-rc-release-channel.md) for the design rationale, and
+[Environment Variables Reference § The `.kitty.env`
+file](../../../api/environment-variables.md#the-kittyenv-file) for the general
+per-repo/machine-wide config mechanism this preference uses.
 
 ---
 
@@ -263,3 +300,4 @@ Expected — the nag is suppressed in CI but the compatibility gate is not. Add
 - [Getting Started Tutorial](../../tutorials/getting-started.md)
 - [Non-Interactive Init](non-interactive-init.md)
 - [Fork packaging hooks](fork-packaging-hooks.md) — renamed / private-index distributors
+- [ADR: default-off rc release channel](../../../adr/3.x/2026-08-16-4-rc-release-channel.md)

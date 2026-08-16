@@ -76,6 +76,7 @@ boundary rule and layout).
 - [Architecture: centralized feature detection](feature-detection.md) — how Spec Kitty detects project frameworks and capabilities.
 - [Doctrine artifact kinds](doctrine-kinds.md) — what each of the eight doctrine artifact kinds is for, with a built-in example of each.
 - [SPDD and the REASONS Canvas](spdd-reasons.md) — the opt-in Structured-Prompt-Driven Development doctrine pack and its change-intent canvas.
+- [Team Kitty (SaaS): the end-to-end hosted-sync flow](team-kitty-saas.md) — opt-in/consent → project-store migration → admission/delivery-target → auth → history disclosure → `sync now`, with the full-flow interaction diagram.
 
 ## Status, trail & workflow models
 

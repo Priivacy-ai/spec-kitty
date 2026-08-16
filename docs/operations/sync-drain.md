@@ -2,12 +2,13 @@
 title: 'Sync-Drain Runbook: the 3-Gate Order and the Doctor False-Green Trap'
 description: 'Work the 3-gate sync-drain order (flag/consent, auth, teamspace) and avoid the `sync doctor` false-green trap.'
 doc_status: active
-updated: '2026-08-15'
+updated: '2026-08-16'
 related:
 - docs/operations/internal-hosted-readiness.md
 - docs/operations/logged-out-teamspace.md
 - docs/operations/recovery-index.md
 - docs/api/environment-variables.md
+- docs/architecture/team-kitty-saas.md
 ---
 
 # Sync-Drain Runbook: the 3-Gate Order and the Doctor False-Green Trap
@@ -117,6 +118,13 @@ because you asked the wrong store. Confirm `SPEC_KITTY_HOME` (or its
 default, `~/.spec-kitty`, when unset) matches between the daemon and the
 diagnostic shell before trusting either reading.
 
+`SPEC_KITTY_HOME` also locates the home-tier `.kitty.env` file
+(`${SPEC_KITTY_HOME}/.kitty.env`) — a different `SPEC_KITTY_HOME` between two
+shells means each one reads a *different* `.kitty.env` too, not just a
+different state root. Run `spec-kitty doctor env-file` alongside `sync
+doctor` to see which tier is actually supplying gate-relevant vars like
+`SPEC_KITTY_ENABLE_SAAS_SYNC` in the shell you are diagnosing from.
+
 ## Related
 
 - [Internal Hosted-Readiness Mode](internal-hosted-readiness.md) — gate 1's
@@ -124,5 +132,9 @@ diagnostic shell before trusting either reading.
 - [Recovery: Logged out on a connected teamspace](logged-out-teamspace.md) —
   the gate-3-adjacent logged-out recovery path.
 - [Environment Variables Reference](../api/environment-variables.md) —
-  `SPEC_KITTY_HOME`, `SPEC_KITTY_ENABLE_SAAS_SYNC`.
+  `SPEC_KITTY_HOME`, `SPEC_KITTY_ENABLE_SAAS_SYNC`, and [The `.kitty.env`
+  file](../api/environment-variables.md#the-kittyenv-file) for setting either
+  once instead of per-shell.
+- [Team Kitty (SaaS) architecture](../architecture/team-kitty-saas.md) — how
+  this drain fits into the full opt-in → sync flow.
 - [Recovery guides](recovery-index.md)

@@ -992,13 +992,13 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md
+- path: docs/adr/3.x/2026-08-16-2-rc-release-channel.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md
+- path: docs/adr/3.x/2026-08-16-3-operator-config-env-expansion-seam.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -1649,6 +1649,12 @@
 - path: docs/architecture/status-model.md
   tag: current
   divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/architecture/team-kitty-saas.md
+  tag: current
+  divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
