@@ -1,7 +1,7 @@
 {
   "rows": {
     "#3121": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Acute arch_shard_3 census red fixed via owner-adoption in commit ea030c62f (census 29-green, was 6-red). #3121 itself stays open per operator halt-and-rescope (2026-08-07); broader R1b convergence deferred, tracked under #3121 / epic #3148.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,8 +9,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
     },
     "#3497": {
       "evidence_ref": "<link or commit>",
