@@ -528,13 +528,13 @@ def _run_charter_preflight_for_next(repo_root, *, advancing: bool, json_output: 
         if json_output:
             stderr_buffer = io.StringIO()
             error_payload: dict[str, str] | None = None
+            advisory_output = ""
             with (
                 contextlib.redirect_stdout(sys.stderr),
                 contextlib.redirect_stderr(stderr_buffer),
             ):
                 try:
                     run_preflight_or_abort(repo_root, consumer="next")
-                    return
                 except typer.Exit:
                     message = stderr_buffer.getvalue().strip() or "charter preflight failed"
                     blocked_reason = message.removeprefix("Error: ").strip()
@@ -543,18 +543,27 @@ def _run_charter_preflight_for_next(repo_root, *, advancing: bool, json_output: 
                         "error": message,
                         "blocked_reason": blocked_reason,
                     }
+                else:
+                    advisory_output = stderr_buffer.getvalue()
+            if advisory_output:
+                sys.stderr.write(advisory_output)
             if error_payload is not None:
                 print(json.dumps(error_payload))
                 raise typer.Exit(1)
+            return
         run_preflight_or_abort(repo_root, consumer="next")
         return
 
-    from specify_cli.charter_runtime.preflight.hook import run_preflight_for_dashboard
+    from specify_cli.charter_runtime.preflight.hook import (
+        emit_advisory_warnings,
+        run_preflight_for_dashboard,
+    )
 
     # Query mode is read-only: warn-and-continue, like dashboard.
     stdout_redirect = contextlib.redirect_stdout(sys.stderr) if json_output else contextlib.nullcontext()
     with stdout_redirect:
-        run_preflight_for_dashboard(repo_root)
+        result = run_preflight_for_dashboard(repo_root)
+    emit_advisory_warnings(result)
 
 
 def _resolve_mission_slug(

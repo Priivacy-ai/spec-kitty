@@ -27,7 +27,17 @@
 # into context_result_builders.py, where `charter_path` arrives as a parameter
 # rather than a `<root> / CHARTER_MD` literal -- so the keyed literal site is
 # genuinely gone from the census (not relocated). FLOOR lowered in the gate too.
-charter_path_literal_baseline: 48
+# GREW 2026-08-16 (mission charter-preflight-missing-charter-advisory-01M050PD,
+# #3498/#2831): 48 -> 49. New clause-(b) site in preflight/runner.py's
+# _is_legacy_charter_bundle -- reads charter.md's presence to pick which of two
+# already-non-blocking advisory warnings to attach, but only after the canonical
+# predicate has required missing source + missing synced bundle + missing or
+# built-in-only DRG. The pass/blocked decision is never driven by charter.md.
+# Same "informational selection, not an authority gate" shape as the existing
+# _collect_charter_sync_status precedent below. Reviewed and accepted during
+# post-merge mission review; see that mission's kitty-specs/ report for the
+# full clause-(a)-vs-(b) analysis.
+charter_path_literal_baseline: 49
 
 charter_path_literals:
 - file: src/charter/compiler.py
@@ -402,3 +412,10 @@ charter_path_literals:
   clause: "b"
   token: "if charter_md_path . exists ( ) :"
   rationale: "Paired with the :168 _CHARTER_FILENAME constant declaration -- merge_defaults probes charter.md only to decide whether to back it up before writing activation defaults; the write target itself is resolved via resolve_activation_write_target against charter.yaml/config.yaml, never charter.md."
+- file: src/specify_cli/charter_runtime/preflight/runner.py
+  qualname: _is_legacy_charter_bundle
+  line: 281
+  literal: "charter.md"
+  clause: "b"
+  token: "return bool ( ( repo_root / CHARTER_MD ) . exists ( ) )"
+  rationale: "Mission charter-preflight-missing-charter-advisory-01M050PD (#3498/#2831): called only after _is_optional_missing_charter_stack has required canonical states source=missing, synced=missing, DRG=missing|built_in_only; reads charter.md only to choose advisory copy. Stale/invalid/other partial residue blocks regardless of prose presence, so this is informational selection, not a presence/authority gate."

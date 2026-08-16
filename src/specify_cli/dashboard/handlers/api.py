@@ -94,7 +94,7 @@ class APIHandler(DashboardHandler):
 
         # FR-006 caller contract (T025): surface the persisted charter
         # preflight blocked_reason so the SPA can render a critical
-        # banner. The field is omitted entirely on success.
+        # banner. The field is omitted only when no blocking/advisory warning exists.
         try:
             from specify_cli.charter_runtime.preflight.dashboard_warning import (
                 read_preflight_warning,

@@ -43,6 +43,17 @@ def _fail_result(reason: str = "doctrine stale; run: spec-kitty charter sync") -
     )
 
 
+def _advisory_result(warning: str = "project charter advisory") -> CharterPreflightResult:
+    return CharterPreflightResult(
+        passed=True,
+        checks=[],
+        auto_refresh_applied=False,
+        auto_refresh_actions=[],
+        blocked_reason=None,
+        warnings=[warning],
+    )
+
+
 def test_hook_returns_result_when_preflight_passes(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -98,7 +109,74 @@ def test_null_project_config_enabled_still_runs_preflight(
     result = hook_mod.run_preflight_or_abort(tmp_path, consumer="next")
 
     assert result.passed is True
-    assert runner_calls == [{"repo_root": tmp_path, "auto_refresh": False, "strict": False}]
+    assert runner_calls == [
+        {
+            "repo_root": tmp_path,
+            "auto_refresh": False,
+            "allow_missing_charter": True,
+            "strict": False,
+        }
+    ]
+
+
+def test_hook_does_not_abort_on_fully_absent_charter(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """#3498: a fully-absent charter (fresh project) must be advisory, not blocking.
+
+    Uses the REAL runner (no mocking of ``run_charter_preflight``) so this
+    exercises the actual ``allow_missing_charter`` wiring the hook must
+    pass through. Currently RED: ``run_preflight_or_abort`` does not yet
+    forward ``allow_missing_charter=True``, so this raises ``typer.Exit``
+    instead of returning.
+    """
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
+
+    result = hook_mod.run_preflight_or_abort(tmp_path, consumer="next")
+
+    assert result.passed is True
+    assert result.blocked_reason is None
+    assert "project charter is not initialized" in capsys.readouterr().err
+
+
+def test_hook_does_not_abort_on_legacy_charter_bundle(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """#3498/#2831: a legacy ``charter.md``-only bundle must also be advisory.
+
+    Uses the REAL runner for the same reason as the fully-absent case above.
+    """
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
+
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True)
+    (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")
+
+    result = hook_mod.run_preflight_or_abort(tmp_path, consumer="next")
+
+    assert result.passed is True
+    assert result.blocked_reason is None
+    warning = capsys.readouterr().err
+    assert "charter.md-only bundle" in warning
+    assert "spec-kitty charter generate --no-from-interview" in warning
+
+
+def test_hook_still_aborts_on_invalid_charter_yaml(
+    tmp_path: Path,
+) -> None:
+    """Non-regression: genuinely broken charter state still blocks (real runner)."""
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
+
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True)
+    (charter_dir / "charter.yaml").write_text("not: [valid: yaml: at: all", encoding="utf-8")
+
+    with pytest.raises(typer.Exit) as excinfo:
+        hook_mod.run_preflight_or_abort(tmp_path, consumer="next")
+
+    assert excinfo.value.exit_code == 1
 
 
 def test_hook_aborts_with_exit_1_when_preflight_fails(
@@ -214,3 +292,59 @@ def test_next_command_continues_to_decide_when_preflight_passes(
         )
 
     assert excinfo.value is sentinel
+
+
+def test_next_json_advancing_preserves_advisory_on_stderr(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """JSON mode keeps stdout machine-clean without swallowing passed advisories."""
+    from specify_cli.cli.commands import next_cmd
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
+
+    warning = "legacy charter advisory"
+    monkeypatch.setattr(
+        hook_mod,
+        "run_charter_preflight",
+        lambda **_: _advisory_result(warning),
+    )
+
+    next_cmd._run_charter_preflight_for_next(
+        tmp_path,
+        advancing=True,
+        json_output=True,
+    )
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert f"Warning: {warning}" in captured.err
+
+
+@pytest.mark.parametrize("json_output", [False, True])
+def test_next_query_preserves_advisory_on_stderr(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    json_output: bool,
+) -> None:
+    """Read-only next also renders dashboard-style advisory results."""
+    from specify_cli.cli.commands import next_cmd
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
+
+    warning = "legacy charter advisory"
+    monkeypatch.setattr(
+        hook_mod,
+        "run_charter_preflight",
+        lambda **_: _advisory_result(warning),
+    )
+
+    next_cmd._run_charter_preflight_for_next(
+        tmp_path,
+        advancing=False,
+        json_output=json_output,
+    )
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert f"Warning: {warning}" in captured.err

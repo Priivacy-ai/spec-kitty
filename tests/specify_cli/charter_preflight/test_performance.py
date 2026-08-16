@@ -14,6 +14,8 @@ modern laptops) so this is robust against CI noise.
 
 from __future__ import annotations
 
+import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -25,6 +27,26 @@ from ._fixtures import make_fresh_repo
 
 
 pytestmark = [pytest.mark.integration]
+
+
+def test_runner_cold_import_under_500ms() -> None:
+    """The next hot path must not eagerly load the heavyweight charter package."""
+    probe = (
+        "import time; "
+        "start = time.perf_counter(); "
+        "import specify_cli.charter_runtime.preflight.runner; "
+        "print((time.perf_counter() - start) * 1000)"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", probe],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    elapsed_ms = float(completed.stdout.strip())
+    assert elapsed_ms < 500.0, (
+        f"NFR-001 cold-import budget exceeded: {elapsed_ms:.1f} ms >= 500 ms"
+    )
 
 @pytest.mark.integration
 def test_warm_path_under_300ms(tmp_path: Path) -> None:

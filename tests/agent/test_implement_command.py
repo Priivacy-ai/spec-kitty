@@ -617,26 +617,26 @@ class TestImplementCommand:
             assert kwargs["resolved_workspace"].execution_mode == "planning_artifact"
 
 
-class TestImplementCoordTopologyLanesJson:
-    """Regression tests for #1991: lanes.json read from coord worktree.
+class TestImplementPrimaryTopologyLanesJson:
+    """Regression tests for #3371: lanes.json read from the primary partition.
 
-    finalize-tasks writes lanes.json to the coordination branch and deletes
-    the primary-checkout copy via _stage_finalize_artifacts_in_coord_worktree.
-    The implement validate block must read it from the coord-aware surface
-    (_lanes_feature_dir), not from the meta-anchored primary feature_dir.
+    LANE_STATE is PRIMARY-partition authority. The implement validate block
+    must read it from the primary placement surface even when STATUS remains
+    coord-owned.
     """
 
-    def test_lanes_json_read_from_coord_dir_not_primary(
+    def test_lanes_json_read_from_primary_dir_not_coord(
         self,
         tmp_path: Path,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        """lanes.json in coord dir only — implement must NOT fail with MissingLanesError."""
+        """lanes.json in primary only — implement must NOT fail with MissingLanesError."""
         mission_slug = "010-feature"
 
-        # Primary checkout: meta.json + WP file + status — NO lanes.json
+        # Primary checkout: meta.json + WP file + canonical lanes.json.
         primary_dir = tmp_path / "kitty-specs" / mission_slug
         create_meta_json(primary_dir)
+        create_lanes_json(primary_dir, wp_ids=("WP01",))
         wp_file = primary_dir / "tasks" / "WP01-setup.md"
         wp_file.parent.mkdir(parents=True)
         wp_file.write_text(
@@ -647,10 +647,9 @@ class TestImplementCoordTopologyLanesJson:
         )
         _seed_planned(primary_dir, "WP01")
 
-        # Coord dir: lanes.json + status — NO meta.json (mirrors real coord topology)
+        # Coord dir: status only — LANE_STATE remains primary-owned.
         coord_dir = tmp_path / ".worktrees" / f"{mission_slug}-coord" / "kitty-specs" / mission_slug
         coord_dir.mkdir(parents=True)
-        create_lanes_json(coord_dir, wp_ids=("WP01",))
         _seed_planned(coord_dir, "WP01")
 
         # Status surface points to coord (finalize-tasks seeds events there)
@@ -689,8 +688,8 @@ class TestImplementCoordTopologyLanesJson:
             # (``read_dir(SPEC)``), which is topology-blind and resolves the
             # primary dir directly (``tmp_path/kitty-specs/010-feature``,
             # exercised for real — no stub needed). ``_lanes_feature_dir``
-            # stays independently resolved onto ``coord_dir`` via the status
-            # surface below (the #1991 fix this test pins).
+            # independently resolves through LANE_STATE placement authority,
+            # while the status surface remains ``coord_dir`` (#3371).
             patch(
                 "specify_cli.cli.commands.implement.resolve_feature_target_branch",
                 return_value="main",
@@ -727,8 +726,8 @@ class TestImplementCoordTopologyLanesJson:
 
         # KEY assertion: the pre-fix error must NOT appear
         assert "lanes.json is required" not in error, (
-            f"Implement read lanes.json from the primary dir (deleted by finalize-tasks) "
-            f"instead of the coord dir — #1991 regression. Got: {error!r}"
+            f"Implement failed to read primary-partition lanes.json while STATUS "
+            f"was coord-owned — #3371 regression. Got: {error!r}"
         )
         # We reached the workspace-create step, which confirms lanes.json was found
         assert "__workspace_create_sentinel__" in error, (
