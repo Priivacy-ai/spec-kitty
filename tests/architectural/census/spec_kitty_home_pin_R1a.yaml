@@ -80,13 +80,6 @@ rows:
   kind: fixture
   home_partition: B1
 - key:
-  - delivery/test_body_queue_purge_differential_3030.py
-  - _isolated_home
-  - monkeypatch . setenv ( , str ( tmp_path / ) )
-  lineno: 19
-  kind: fixture
-  home_partition: A
-- key:
   - delivery/test_dispatch_window_consent_3030.py
   - _consent_records
   - monkeypatch . setenv ( , str ( home ) )
