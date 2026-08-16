@@ -7,13 +7,17 @@ import os
 import sqlite3
 import subprocess
 import sys
-import threading
 from pathlib import Path
 from typing import cast
 
 import pytest
 
-from specify_cli.sync.layout_generation import LayoutDestination, LayoutMode
+from specify_cli.sync.layout_generation import (
+    LayoutDestination,
+    LayoutMode,
+    LayoutTestHooks,
+    LayoutWritePermit,
+)
 from specify_cli.sync.daemon_protocol import (
     DaemonCutoverProtocol,
     QuiesceAcknowledgement,
@@ -211,7 +215,17 @@ def test_writer_redirects_once_when_cutover_wins(
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
     store = ProjectSyncStore(PROJECT)
     authority = store.layout_generation()
-    permit = authority.issue_write_permit()
+    # Post cutover-flip (WP03/IC-02) ``issue_write_permit`` no longer hands back a
+    # raw LEGACY permit — it resolves greenfield roots straight to project_only.
+    # Bind a permit to the legacy generation directly to model a writer that
+    # obtained it before cutover advanced, which is what this barrier exercises.
+    state = authority.read_state()
+    assert state.mode is LayoutMode.LEGACY
+    permit = LayoutWritePermit(
+        project_uuid=store.project_uuid,
+        generation=state.generation,
+        destination=LayoutDestination.LEGACY,
+    )
     assert permit.destination is LayoutDestination.LEGACY
     authority.begin_cutover("migration-writer")
     authority.publish_project_only("migration-writer", verify_exact=lambda: True)
@@ -241,7 +255,7 @@ def test_commit_immediately_before_cutover_is_in_winning_snapshot(
         )
         connection.commit()
         connection.close()
-        return original(cast("object", manifest), hooks=hooks)  # type: ignore[arg-type]
+        return original(manifest, hooks=hooks)
 
     monkeypatch.setattr(migration, "_cutover", commit_then_cutover)
     completed = migration.migrate("migration-late-before-cutover")
@@ -258,68 +272,62 @@ def test_writer_waiting_post_verify_redirects_once_after_publication(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
-    source = tmp_path / "legacy.db"
-    _source(source)
+    """A live capture that waits out a cutover window redirects exactly once to the
+    project store after publication — it is never silently dropped to legacy (INV-5).
+
+    WP03/IC-02 replaced the old lock-blocking writer barrier with a *bounded*
+    block-and-retry whose deterministic sync point is the ``before_revalidate`` hook
+    (the migration publishes mid-wait). This reconciles the pin to that model: hold
+    the machine CUTOVER_PENDING under a foreign (operator-owned) migration id so the
+    capture resolves to a LEGACY (pending) permit, publish project_only during the
+    wait, and assert the event lands in the project store — a capture only succeeds
+    against a project_store permit — with no legacy db left behind.
+    """
+    from specify_cli.event_journal.journal import EventJournal
+    from specify_cli.event_journal.models import Event
+
+    runtime = tmp_path / "runtime"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime))
     store = ProjectSyncStore(PROJECT)
     authority = store.layout_generation()
-    permit = authority.issue_write_permit()
-    entered = threading.Event()
-    finished = threading.Event()
+    authority.begin_cutover("held-by-operator-migration")
+
     observed: list[LayoutDestination] = []
 
-    def writer(current: object) -> None:
-        destination = cast("object", current).destination  # type: ignore[attr-defined]
-        observed.append(destination)
-        if destination is not LayoutDestination.PROJECT_STORE:
-            raise AssertionError("post-verify writer was not redirected")
-        connection = sqlite3.connect(store.database_path)
-        epoch_id = int(connection.execute("SELECT MAX(epoch_id) FROM consent_epochs").fetchone()[0])
-        sequence = int(connection.execute("SELECT COALESCE(MAX(capture_sequence), 0) + 1 FROM journal_entries").fetchone()[0])
-        connection.execute(
-            "INSERT INTO journal_entries "
-            "(entry_id, project_uuid, epoch_id, capture_sequence, payload_json, created_at) "
-            "VALUES ('event-redirected', ?, ?, ?, ?, '2026-08-01T00:00:02Z')",
-            (PROJECT, epoch_id, sequence, json.dumps({"event_id": "event-redirected", "project_uuid": PROJECT})),
-        )
-        connection.execute(
-            "INSERT INTO capture_sequences (project_uuid, next_sequence) VALUES (?, ?) "
-            "ON CONFLICT(project_uuid) DO UPDATE SET next_sequence = excluded.next_sequence",
-            (PROJECT, sequence),
-        )
-        connection.commit()
-        connection.close()
+    def publish_mid_wait(permit: LayoutWritePermit) -> None:
+        if observed:
+            return
+        observed.append(permit.destination)
+        authority.publish_project_only("held-by-operator-migration", verify_exact=lambda: True)
 
-    def run_writer() -> None:
-        entered.set()
-        authority.execute_write(permit, writer)
-        finished.set()
-
-    thread: threading.Thread | None = None
-
-    def start_waiting_writer() -> None:
-        nonlocal thread
-        thread = threading.Thread(target=run_writer)
-        thread.start()
-        assert entered.wait(timeout=2)
-        assert not finished.is_set(), "writer crossed the machine lock before publication"
-
-    LegacyProjectStoreMigration(tmp_path / "runtime", (source,)).migrate(
-        "migration-continuous-lock",
-        hooks=MigrationTestHooks(before_project_only_publish=start_waiting_writer),
+    event = Event(
+        event_id="event-redirected",
+        event_type="WPStatusChanged",
+        payload=json.dumps({"event_id": "event-redirected", "project_uuid": PROJECT}).encode(),
+        occurred_at="2026-08-01T00:00:02+00:00",
+        created_at="2026-08-01T00:00:02+00:00",
+        project_uuid=PROJECT,
+        project_slug="continuous-lock",
+        repo_slug="continuous-lock",
     )
-    assert thread is not None
-    thread.join(timeout=5)
-    assert finished.is_set()
-    assert observed == [LayoutDestination.PROJECT_STORE]
+
+    with store.unit_of_work() as unit:
+        receipt = EventJournal(unit, authority).append(
+            event,
+            test_hooks=LayoutTestHooks(before_revalidate=publish_mid_wait),
+        )
+        assert EventJournal(unit, authority).count() == 1
+
+    # The permit the capture waited on was LEGACY (pending); after publication the
+    # write redirected once and landed against a project_store permit.
+    assert observed == [LayoutDestination.LEGACY]
+    assert receipt.inserted is True
     with ProjectSyncStore(PROJECT).unit_of_work() as unit:
-        assert unit.execute("SELECT entry_id FROM journal_entries ORDER BY entry_id").fetchall() == [
-            ("event-1",),
-            ("event-redirected",),
-        ]
-    connection = sqlite3.connect(source)
-    assert connection.execute("SELECT event_id FROM event_journal ORDER BY event_id").fetchall() == [("event-1",)]
-    connection.close()
+        assert unit.execute(
+            "SELECT entry_id FROM journal_entries ORDER BY entry_id"
+        ).fetchall() == [("event-redirected",)]
+    # Only the project store db exists — nothing was dropped to a legacy queue.
+    assert list(runtime.rglob("*.db")) == [store.database_path]
 
 
 def test_new_migration_identity_cannot_rematerialize_post_cutover_residue(

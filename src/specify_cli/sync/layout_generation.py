@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import contextlib
+import hashlib
 import json
 import os
-from collections.abc import Callable
+import sqlite3
+import threading
+from collections.abc import Callable, Iterator
 from dataclasses import asdict, dataclass
 from kernel.clock import now_utc_iso
 from enum import StrEnum
@@ -15,6 +19,39 @@ from uuid import uuid4
 from filelock import FileLock, Timeout
 
 from specify_cli.sync.project_identity import CanonicalProjectUUID
+
+#: Operator escape hatch: when set, a legacy-with-data root is NOT auto-migrated on
+#: first write. Read at resolution time (never import time) so tests toggle per case.
+NO_AUTO_CUTOVER_ENV = "SPEC_KITTY_NO_AUTO_CUTOVER"
+
+#: The manual command an operator runs when the escape hatch refuses auto-cutover.
+_MANUAL_MIGRATE_COMMAND = "sync project-store-migrate"
+
+#: Bounded, deterministic retry budget for a live write that arrives while a
+#: migration is in flight (``CUTOVER_PENDING``). Iterations — never wall-clock — so
+#: the block-and-retry is reproducible; the ``before_revalidate`` hook is the sync
+#: point a test uses to publish (or not) mid-wait.
+_CUTOVER_WAIT_ATTEMPTS = 8
+
+#: Thread-local marker set while THIS thread is driving the auto-cutover copy. A
+#: migrating writer is authorized to write into the project store during
+#: ``CUTOVER_PENDING``; every other (live) writer blocks-and-retries instead.
+_drive_state = threading.local()
+
+
+def _in_cutover_drive() -> bool:
+    return bool(getattr(_drive_state, "active", False))
+
+
+@contextlib.contextmanager
+def _cutover_drive() -> Iterator[None]:
+    """Mark the current thread as the authorized migrating writer for its duration."""
+    previous = getattr(_drive_state, "active", False)
+    _drive_state.active = True
+    try:
+        yield
+    finally:
+        _drive_state.active = previous
 
 
 class LayoutMode(StrEnum):
@@ -50,6 +87,19 @@ class LayoutVerificationError(LayoutAuthorityError):
 
 class StaleLayoutWritePermitError(LayoutAuthorityError):
     """A permit no longer matches the current machine layout generation."""
+
+
+class LayoutAutoCutoverRefusedError(LayoutAuthorityError):
+    """Auto-cutover was refused by ``SPEC_KITTY_NO_AUTO_CUTOVER`` on a legacy root."""
+
+
+class LayoutCutoverIncompleteError(LayoutAuthorityError):
+    """A live write arrived while cutover was in flight and could not yet publish.
+
+    Distinguishable from a silent LEGACY swallow: the write is surfaced loudly so
+    the caller (the emitter observability surface, IC-05) has something to report,
+    rather than being routed to LEGACY and dropped (INV-5).
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -269,16 +319,39 @@ class LayoutGenerationAuthority:
     def _destination(state: LayoutGenerationState) -> LayoutDestination:
         if state.mode is LayoutMode.PROJECT_ONLY:
             return LayoutDestination.PROJECT_STORE
+        # The migrating writer copies legacy rows INTO the project store while the
+        # machine is CUTOVER_PENDING; a silent LEGACY route here would defeat cutover.
+        if state.mode is LayoutMode.CUTOVER_PENDING and _in_cutover_drive():
+            return LayoutDestination.PROJECT_STORE
         return LayoutDestination.LEGACY
 
     def issue_write_permit(self) -> LayoutWritePermit:
-        """Issue a generation-bound permit for this store's canonical UUID."""
-        state = self.read_state()
+        """Resolve the layout for a first live write, then issue a bound permit.
+
+        Resolution (greenfield → ``PROJECT_ONLY`` before any LEGACY persist; legacy
+        data → auto-cutover; escape hatch → loud refusal) runs here because this is
+        the sole write-path seam the journal/outbox invoke. A migrating writer
+        re-entering during its own copy skips resolution and reads the live state.
+        """
+        state = self.read_state() if _in_cutover_drive() else self._resolved_state_for_write()
         return LayoutWritePermit(
             project_uuid=self._project_uuid,
             generation=state.generation,
             destination=self._destination(state),
         )
+
+    def _resolved_state_for_write(self) -> LayoutGenerationState:
+        """Resolve layout for a write; a still-pending cutover is not fatal here.
+
+        A ``LayoutCutoverIncompleteError`` (contention or a foreign in-flight
+        migration) is caught so ``execute_write`` can block-and-retry then surface
+        it loudly — never a silent LEGACY write. The escape-hatch refusal and an
+        exact-verification failure propagate (they are the loud outcome themselves).
+        """
+        try:
+            return self.resolve_layout_for_write()
+        except LayoutCutoverIncompleteError:
+            return self.read_state()
 
     def _permit_matches(
         self,
@@ -310,6 +383,11 @@ class LayoutGenerationAuthority:
         """
         if permit.project_uuid != self._project_uuid:
             raise ValueError("layout permit project UUID does not match this store")
+        if not _in_cutover_drive():
+            # INV-5: a live write arriving during CUTOVER_PENDING blocks-and-retries
+            # for the migration to publish, then surfaces loudly on timeout — it is
+            # never handed a silent LEGACY permit via _destination.
+            self._await_publish_or_loud(permit, test_hooks)
         if test_hooks is not None and test_hooks.before_revalidate is not None:
             test_hooks.before_revalidate(permit)
 
@@ -389,6 +467,235 @@ class LayoutGenerationAuthority:
 
         return self._under_lock(publish)
 
+    # --- layout resolution + canonical crash-safe auto-cutover (WP03/IC-02) ----
+
+    def _spec_kitty_dir(self) -> Path:
+        """The machine runtime root that holds the legacy ``queues/`` + ``queue.db``.
+
+        ``record_path`` is ``<runtime_root>/projects/.layout-generation.json`` — the
+        legacy sources ``discover_source_dbs`` reads sit one level up, at the root.
+        """
+        return self._record_path.parent.parent
+
+    def auto_migration_id(self) -> str:
+        """Deterministic, root-derived migration identity for lazy auto-cutover.
+
+        Stable across process restarts (a crash-and-retry re-enters the SAME
+        migration, so ``begin_cutover``'s idempotent branch is taken) and distinct
+        across roots. Never ``uuid4`` — a fresh id per run would brick a crashed
+        root by tripping "another migration owns cutover".
+        """
+        # noqa rationale: this is a deterministic, non-cryptographic identifier
+        # derivation from a stable root path — not content integrity or a charter
+        # digest — so charter.hasher.hash_content() does not apply (cf. the same
+        # correlation-hash pattern in project_store_migration._safe_failure).
+        digest = hashlib.sha256(str(self._spec_kitty_dir()).encode("utf-8")).hexdigest()  # noqa: TID251
+        return f"auto-cutover-{digest[:32]}"
+
+    def has_legacy_data(self) -> bool:
+        """Answer "does this root hold legacy data?" via the real reader.
+
+        Uses ``discover_source_dbs`` + queued-row counts (never the retired
+        ``queue.py`` stubs, which raise). A present-but-empty source DB is NOT
+        legacy data awaiting migration; a malformed queue filename is skipped by
+        the discoverer. An unreadable source fails closed as legacy-present so a
+        root that may hold un-migrated data is never silently greenfielded.
+        """
+        from specify_cli.sync.migrate_journal import _read_queued_rows, discover_source_dbs
+
+        for source in discover_source_dbs(self._spec_kitty_dir()):
+            try:
+                if _read_queued_rows(source.path):
+                    return True
+            except sqlite3.Error:
+                return True
+        return False
+
+    @staticmethod
+    def _auto_cutover_disabled() -> bool:
+        """Read the escape hatch at resolution time (never import time)."""
+        return bool(os.environ.get(NO_AUTO_CUTOVER_ENV))
+
+    def resolve_layout_for_write(
+        self,
+        *,
+        cutover_copy: Callable[[str], bool] | None = None,
+    ) -> LayoutGenerationState:
+        """Resolve the machine layout for a first live write.
+
+        The mission-critical property (INV-1): no state returns capture-success
+        while journaling zero events. A greenfield root publishes ``PROJECT_ONLY``
+        *before* any LEGACY persist; a legacy-with-data root auto-migrates via the
+        canonical engines under a deterministic id; the escape hatch refuses loudly.
+        """
+        if _in_cutover_drive():
+            return self.peek_state()
+        snapshot = self.peek_state()
+        if snapshot.mode is LayoutMode.PROJECT_ONLY:
+            return snapshot  # already migrated — no write, bytes untouched (NFR-003)
+        if snapshot.mode is LayoutMode.CUTOVER_PENDING:
+            return self._resume_pending(snapshot, cutover_copy)
+        if not self.has_legacy_data():
+            return self._publish_greenfield()
+        if self._auto_cutover_disabled():
+            raise LayoutAutoCutoverRefusedError(
+                f"legacy queue data is present and auto-cutover is disabled "
+                f"({NO_AUTO_CUTOVER_ENV}); run `{_MANUAL_MIGRATE_COMMAND}` to migrate it explicitly"
+            )
+        return self._begin_and_drive(cutover_copy)
+
+    def _resume_pending(
+        self,
+        snapshot: LayoutGenerationState,
+        cutover_copy: Callable[[str], bool] | None,
+    ) -> LayoutGenerationState:
+        """Re-enter a CUTOVER_PENDING root; complete OUR migration, defer a foreign one.
+
+        The escape hatch gates *initiating* auto-cutover, not *finishing* one already
+        authorized — so an in-flight cutover still converges even with the hatch set.
+        """
+        if snapshot.migration_id != self.auto_migration_id():
+            return snapshot  # an operator-owned migration holds cutover; do not interfere
+        return self._drive(self.auto_migration_id(), cutover_copy)
+
+    def _begin_and_drive(
+        self,
+        cutover_copy: Callable[[str], bool] | None,
+    ) -> LayoutGenerationState:
+        migration_id = self.auto_migration_id()
+        self.begin_cutover(migration_id)
+        return self._drive(migration_id, cutover_copy)
+
+    def _drive(
+        self,
+        migration_id: str,
+        cutover_copy: Callable[[str], bool] | None,
+    ) -> LayoutGenerationState:
+        """Copy via the canonical engine, then publish only after exact verification.
+
+        Never bricks the root: a store-lock contention (e.g. driven from inside a
+        live write's own unit of work) or an unresolved copy conflict leaves the
+        record CUTOVER_PENDING so a later run re-enters the same id and completes.
+        """
+        from specify_cli.sync.project_store import ProjectStoreLockedError
+
+        copy = cutover_copy if cutover_copy is not None else self._default_cutover_copy
+        try:
+            with _cutover_drive():
+                blocked = copy(migration_id)
+        except ProjectStoreLockedError:
+            return self.read_state()  # contended — re-enter later, never brick
+        if blocked:
+            return self.read_state()  # unresolved conflict — do not publish over it
+        self.publish_project_only(migration_id, verify_exact=self._conservation_ok)
+        return self.read_state()
+
+    def _publish_greenfield(self) -> LayoutGenerationState:
+        """Publish PROJECT_ONLY on a no-legacy-data root WITHOUT persisting LEGACY.
+
+        Closes Hazard (b): the greenfield decision is made and published ahead of
+        ``_read_locked``'s LEGACY persist, so a fresh root's "never migrated" signal
+        never self-destructs and its first event lands in the journal (FR-002).
+        """
+
+        def advance() -> LayoutGenerationState:
+            initialized = self._read_marker_locked()
+            if self._record_path.exists():
+                current = self._read_existing_record_locked(
+                    initialized=initialized,
+                    materialize_marker=False,
+                )
+                if current.mode is LayoutMode.PROJECT_ONLY:
+                    return current
+                if current.mode is not LayoutMode.LEGACY:
+                    raise LayoutAuthorityError("greenfield publish requires an unresolved or legacy record")
+                generation = current.generation + 1
+            else:
+                generation = 1
+            updated = LayoutGenerationState(
+                generation=generation,
+                mode=LayoutMode.PROJECT_ONLY,
+                migration_id=None,
+                updated_at=_utc_now(),
+            )
+            self._write_locked(updated)
+            self._write_marker_locked()
+            return updated
+
+        return self._under_lock(advance)
+
+    def _default_cutover_copy(self, migration_id: str) -> bool:
+        """Copy legacy queues into the journal via the canonical engine (reuse only).
+
+        Returns ``True`` iff the migration is blocked (an unresolved divergent-payload
+        conflict), in which case the drive must NOT publish. Dedup, provenance,
+        quarantine, and ownerless-row attribution all live in the engine — never
+        re-derived here.
+        """
+        del migration_id  # the engine keys provenance on (event_id, source_digest)
+        from specify_cli.event_journal.journal import EventJournal
+        from specify_cli.sync.migrate_journal import (
+            AUDIT_DB_NAME,
+            MigrationAudit,
+            migrate_queues_to_journal,
+        )
+        from specify_cli.sync.project_store import ProjectSyncStore
+
+        spec_kitty_dir = self._spec_kitty_dir()
+        store = ProjectSyncStore(self._project_uuid)
+        audit = MigrationAudit(spec_kitty_dir / AUDIT_DB_NAME)
+        try:
+            with store.unit_of_work() as unit:
+                journal = EventJournal(unit, store.layout_generation())
+                result = migrate_queues_to_journal(spec_kitty_dir, journal=journal, audit=audit)
+            return bool(result.blocked)
+        finally:
+            with contextlib.suppress(sqlite3.Error):
+                audit.close()
+
+    def _conservation_ok(self) -> bool:
+        """Exact-copy verification: every queued legacy event is present exactly once.
+
+        The ``verify_exact`` callback ``publish_project_only`` gates on — a non-exact
+        copy refuses publication (``LayoutVerificationError``) and the root stays
+        CUTOVER_PENDING for a later, converging run.
+        """
+        from specify_cli.event_journal.journal import EventJournal
+        from specify_cli.sync.migrate_journal import _read_queued_rows, discover_source_dbs
+        from specify_cli.sync.project_store import ProjectSyncStore
+
+        expected: set[str] = set()
+        for source in discover_source_dbs(self._spec_kitty_dir()):
+            with contextlib.suppress(sqlite3.Error):
+                expected.update(row.event_id for row in _read_queued_rows(source.path))
+        store = ProjectSyncStore(self._project_uuid)
+        with store.unit_of_work() as unit:
+            present = {event.event_id for event in EventJournal(unit, store.layout_generation()).read_all()}
+        return expected <= present
+
+    def _await_publish_or_loud(
+        self,
+        permit: LayoutWritePermit,
+        test_hooks: LayoutTestHooks | None,
+    ) -> None:
+        """Block-and-retry a live write while CUTOVER_PENDING, then surface loudly.
+
+        Deterministic (bounded iterations, never wall-clock): the ``before_revalidate``
+        hook is the synchronization point a test uses to publish (or withhold) the
+        migration mid-wait. On timeout the write is routed to the loud surface via
+        ``LayoutCutoverIncompleteError`` — never a silent LEGACY swallow (INV-5).
+        """
+        for _ in range(_CUTOVER_WAIT_ATTEMPTS):
+            if self.read_state().mode is not LayoutMode.CUTOVER_PENDING:
+                return
+            if test_hooks is not None and test_hooks.before_revalidate is not None:
+                test_hooks.before_revalidate(permit)
+        if self.read_state().mode is LayoutMode.CUTOVER_PENDING:
+            raise LayoutCutoverIncompleteError(
+                "machine layout cutover did not publish within the bounded wait; "
+                "the event is routed to the loud surface rather than dropped to legacy"
+            )
+
 
 def _new_layout_generation_authority(
     *,
@@ -410,6 +717,9 @@ def _new_layout_generation_authority(
 
 
 __all__ = [
+    "NO_AUTO_CUTOVER_ENV",
+    "LayoutAutoCutoverRefusedError",
+    "LayoutCutoverIncompleteError",
     "LayoutDestination",
     "LayoutMode",
     "LayoutTestHooks",

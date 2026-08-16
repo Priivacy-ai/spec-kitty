@@ -17,6 +17,7 @@ from specify_cli.sync.layout_generation import (
     LayoutMode,
     LayoutTestHooks,
     LayoutVerificationError,
+    LayoutWritePermit,
     StaleLayoutWritePermitError,
 )
 from specify_cli.sync.project_store import ProjectSyncStore
@@ -30,6 +31,30 @@ PROJECT_UUID = "aaaaaaaa-0000-0000-0000-000000000001"
 def _store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
     return ProjectSyncStore(PROJECT_UUID)
+
+
+def _legacy_generation_permit(
+    store: ProjectSyncStore,
+    authority: LayoutGenerationAuthority,
+) -> LayoutWritePermit:
+    """Bind a permit to the machine's initial legacy generation.
+
+    Post cutover-flip (WP03/IC-02) ``issue_write_permit`` is the write-path
+    resolution seam: on a greenfield root it publishes ``project_only`` *before*
+    any legacy persist, and on a legacy-data root it auto-migrates — so it no
+    longer hands back a raw ``LEGACY`` permit. These barrier tests exercise how
+    ``execute_write`` treats a permit a writer obtained *under the legacy
+    generation, before cutover advanced*. ``read_state`` establishes that
+    generation on disk (mode ``legacy``, generation 1) and we bind a permit to it
+    directly, modelling exactly that pre-cutover writer.
+    """
+    state = authority.read_state()
+    assert state.mode is LayoutMode.LEGACY
+    return LayoutWritePermit(
+        project_uuid=store.project_uuid,
+        generation=state.generation,
+        destination=LayoutDestination.LEGACY,
+    )
 
 
 def test_layout_authority_can_only_be_constructed_by_project_store(
@@ -88,7 +113,7 @@ def test_cutover_requires_exact_verification_and_project_only_has_no_legacy_path
 ) -> None:
     store = _store(tmp_path, monkeypatch)
     authority = store.layout_generation()
-    legacy = authority.issue_write_permit()
+    legacy = _legacy_generation_permit(store, authority)
     assert legacy.destination is LayoutDestination.LEGACY
     assert legacy.project_uuid == store.project_uuid
     assert legacy.redirect_count == 0
@@ -121,14 +146,14 @@ def test_stale_permit_never_reaches_insert_and_redirects_exactly_once(
 ) -> None:
     store = _store(tmp_path, monkeypatch)
     authority = store.layout_generation()
-    stale = authority.issue_write_permit()
+    stale = _legacy_generation_permit(store, authority)
     authority.begin_cutover("migration-1")
     authority.publish_project_only("migration-1", verify_exact=lambda: True)
 
     with pytest.raises(StaleLayoutWritePermitError):
         authority.revalidate(stale)
 
-    inserts = []
+    inserts: list[LayoutWritePermit] = []
     refreshed = authority.execute_write(stale, inserts.append)
     assert inserts == [refreshed]
     assert refreshed.destination is LayoutDestination.PROJECT_STORE
@@ -136,7 +161,7 @@ def test_stale_permit_never_reaches_insert_and_redirects_exactly_once(
     assert refreshed.generation == authority.read_state().generation
 
     already_redirected = replace(stale, redirect_count=1)
-    unexpected_inserts = []
+    unexpected_inserts: list[LayoutWritePermit] = []
     with pytest.raises(StaleLayoutWritePermitError):
         authority.execute_write(already_redirected, unexpected_inserts.append)
     assert unexpected_inserts == []
@@ -148,10 +173,10 @@ def test_writer_racing_generation_advance_is_redirected_without_loss_or_double_w
 ) -> None:
     store = _store(tmp_path, monkeypatch)
     authority = store.layout_generation()
-    writer_a_permit = authority.issue_write_permit()
+    writer_a_permit = _legacy_generation_permit(store, authority)
     permit_acquired = threading.Event()
     allow_revalidation = threading.Event()
-    inserted = []
+    inserted: list[LayoutWritePermit] = []
     failures: list[BaseException] = []
 
     def pause_after_permit(_permit: object) -> None:
@@ -192,12 +217,12 @@ def test_writer_first_holds_layout_lock_until_legacy_insert_finishes(
 ) -> None:
     store = _store(tmp_path, monkeypatch)
     authority = store.layout_generation()
-    permit = authority.issue_write_permit()
+    permit = _legacy_generation_permit(store, authority)
     writer_entered = threading.Event()
     release_writer = threading.Event()
     cutover_attempting = threading.Event()
     cutover_done = threading.Event()
-    inserts = []
+    inserts: list[LayoutWritePermit] = []
     failures: list[BaseException] = []
 
     def writer_callback(candidate: object) -> None:
@@ -250,9 +275,11 @@ def test_published_record_loss_fails_closed_without_legacy_reset(
 ) -> None:
     store = _store(tmp_path, monkeypatch)
     authority = store.layout_generation()
-    authority.issue_write_permit()
-    authority.begin_cutover("migration-1")
-    authority.publish_project_only("migration-1", verify_exact=lambda: True)
+    # Post-flip, the first write on a greenfield root resolves straight to
+    # project_only (auto-published before any legacy persist), which writes both
+    # the authority record and its durable initialization marker.
+    permit = authority.issue_write_permit()
+    assert permit.destination is LayoutDestination.PROJECT_STORE
     assert authority.marker_path.is_file()
     authority.record_path.unlink()
 

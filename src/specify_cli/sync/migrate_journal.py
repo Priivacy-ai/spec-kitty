@@ -66,6 +66,11 @@ from typing import TYPE_CHECKING, Any
 
 from kernel.clock import from_epoch, now_utc_iso
 from specify_cli.event_journal import Event, EventJournal, JournalTransaction
+from specify_cli.sync.project_store_migration import (
+    QuarantineReason,
+    _canonical_project,
+    _payload_project_uuid,
+)
 
 if TYPE_CHECKING:  # pragma: no cover - typing-only (avoid the queue<->authority cycle)
     from specify_cli.sync.project_identity import IdentityBackfillResult
@@ -450,6 +455,43 @@ def _payload_sha(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()  # noqa: TID251
 
 
+# --- ownerless-row attribution (IC-00) ------------------------------------
+
+
+def _attribute_owner(data: str, owner_uuid: str) -> tuple[str | None, QuarantineReason | None]:
+    """Resolve the ``project_uuid`` an attributable legacy row acquires on copy.
+
+    The queue→journal copy lands every source event into ONE UUID-owned
+    destination journal, whose :meth:`EventJournal.append` refuses any event that
+    does not already declare that owner (``journal.py`` owner guard). Legacy rows
+    written before per-project ownership carry no ``project_uuid`` and would trip
+    that guard, so IC-00 attributes them **before** the copy — reusing
+    ``project_store_migration``'s canonicalization surface
+    (:func:`_payload_project_uuid` + :func:`_canonical_project`) rather than
+    re-deriving identity here.
+
+    Returns ``(attributed_uuid, reason)``:
+
+    * **missing / nil** declared uuid → ``(owner_uuid, MISSING|NIL)`` — an
+      ownerless row is attributed to the destination owner. The distinct reason is
+      preserved (never collapsed) so an operator can tell *why* it was ownerless.
+    * **matches** the destination owner → ``(owner_uuid, None)`` — passes through.
+    * **conflicts** with the destination owner (a different, or malformed, declared
+      uuid) → ``(None, CONFLICTING|MALFORMED)`` — refused, **never** force-attributed
+      into the wrong store. A ``None`` first element is the copy path's signal to
+      quarantine rather than append.
+    """
+    declared = _payload_project_uuid({"data": data})
+    canonical, reason = _canonical_project(declared)
+    if reason in (QuarantineReason.MISSING_PROJECT_UUID, QuarantineReason.NIL_PROJECT_UUID):
+        return owner_uuid, reason  # ownerless legacy row → attribute destination owner
+    if reason is not None:
+        return None, reason  # malformed declared identity — refuse, do not force it
+    if canonical != owner_uuid:
+        return None, QuarantineReason.CONFLICTING_PROJECT_UUID
+    return canonical, None
+
+
 def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
     cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", (table,))
     return cur.fetchone() is not None
@@ -488,8 +530,13 @@ def _row_to_queued(row: tuple[Any, ...], has_coalesce: bool) -> _QueuedRow:
     )
 
 
-def _build_event(row: _QueuedRow, payload: bytes) -> Event:
-    """Build a journal :class:`Event`, carrying ``event_id`` verbatim (C-005)."""
+def _build_event(row: _QueuedRow, payload: bytes, project_uuid: str) -> Event:
+    """Build a journal :class:`Event`, carrying ``event_id`` verbatim (C-005).
+
+    ``project_uuid`` is the destination store owner resolved by
+    :func:`_attribute_owner` — set here (never inside the payload bytes, which stay
+    the canonical dedup key) so the event satisfies the ``append`` owner guard.
+    """
     when = from_epoch(row.timestamp).isoformat() if row.timestamp is not None else now_utc_iso()
     return Event(
         event_id=row.event_id,
@@ -498,6 +545,7 @@ def _build_event(row: _QueuedRow, payload: bytes) -> Event:
         occurred_at=when,
         created_at=when,
         coalesce_key=row.coalesce_key,
+        project_uuid=project_uuid,
     )
 
 
@@ -565,21 +613,38 @@ class _SourceStaging:
 
 
 def _classify_and_apply(row: _QueuedRow, txn: JournalTransaction, source_digest: str) -> _RowImport:
-    """Append/dedupe/quarantine one row against the staged journal batch.
+    """Attribute/append/dedupe/quarantine one row against the journal.
 
-    * unseen ``event_id`` → stage the canonical payload (``imported``);
+    * ownerless / owner-matching ``event_id`` → attribute the destination owner
+      (IC-00) then, for an unseen id, append the canonical payload (``imported``);
     * identical canonical payload → no second row (``deduped``);
     * divergent canonical payload → never overwrite; emit a conflict so the
-      existing journal payload stays immutable (FR-018, C-005).
+      existing journal payload stays immutable (FR-018, C-005);
+    * a foreign / malformed declared owner → never force-attribute; emit a
+      conflict so the row is quarantined rather than landed in the wrong store.
 
-    The append is *staged* on *txn* (not committed); the source loop commits the
-    whole batch alongside provenance, so a later provenance failure rolls the
-    staged row back rather than orphaning it (atomicity).
+    The append targets the store-owned unit of work (:meth:`EventJournal.append`
+    persists within the outer transaction); provenance is recorded per row and the
+    audit store is committed once the whole source loop succeeds.
     """
     payload = _canonical_payload(row.data)
+    attributed_uuid, _reason = _attribute_owner(row.data, txn.project_uuid)
+    if attributed_uuid is None:
+        # Foreign/malformed declared owner — refuse rather than mis-attribute.
+        # ``existing_sha``/``incoming_sha`` carry the two conflicting owner tokens
+        # for this reason class (the payload is not what diverges); ``detail``
+        # names the closed reason so the distinct causes stay legible.
+        conflict = MigrationConflict(
+            event_id=row.event_id,
+            source_digest=source_digest,
+            existing_sha=txn.project_uuid,
+            incoming_sha=_payload_sha(payload),
+            detail=f"{_reason}: legacy row owner does not match destination store owner",
+        )
+        return _RowImport(action="conflict", event_id=row.event_id, conflict=conflict)
     existing = txn.read_by_id(row.event_id)
     if existing is None:
-        txn.append(_build_event(row, payload))
+        txn.append(_build_event(row, payload, attributed_uuid))
         return _RowImport(action="imported", event_id=row.event_id)
     if existing.payload == payload:
         return _RowImport(action="deduped", event_id=row.event_id)
@@ -602,21 +667,19 @@ def _import_source(
     result: MigrationResult,
     is_known: bool,
 ) -> SourceOutcome:
-    """Migrate one source DB **atomically** (T058); collect per-row outcomes.
+    """Migrate one source DB (T058); collect per-row outcomes.
 
-    The journal rows and their provenance are written as one all-or-nothing unit
-    per source: every append is *staged* on a deferred journal transaction and
-    every provenance/conflict row is staged on the audit store, then **both** are
-    committed only after the whole source loop succeeds. On any
-    :class:`sqlite3.Error` (e.g. a provenance write failing) **both** are rolled
-    back — the staged journal batch is dropped and ``audit.rollback()`` discards
-    the provenance — so a provenance failure can never leave an orphan committed
-    journal row with no matching provenance (atomicity guarantee).
+    The destination journal is a view over the caller's store-owned unit of work
+    (:meth:`EventJournal.transaction` is a grouping seam only — the outer
+    ``unit_of_work`` owns the SQLite transaction and commits on clean exit), so
+    each :meth:`EventJournal.append` persists as it runs. Provenance/conflict rows
+    are recorded on the separate audit store and committed once the whole source
+    loop succeeds; on a :class:`sqlite3.Error` the audit writes for this source are
+    rolled back and the source is reported as errored without aborting the run.
 
-    Provenance is committed *before* the journal batch so that a committed
-    journal row always implies its provenance is already durable. Both writes are
-    idempotent (journal ``INSERT OR IGNORE`` on ``event_id``; audit keyed on
-    ``(event_id, source_digest)``), so an interrupted source re-runs cleanly with
+    Both writes are idempotent — the journal short-circuits a replayed ``event_id``
+    (``append`` returns the existing assignment) and the audit is keyed on
+    ``(event_id, source_digest)`` — so an interrupted source re-runs cleanly with
     no duplication (NFR-005). The source DB is opened read-only and is untouched.
     """
     outcome = SourceOutcome(digest=source.digest, is_legacy=source.is_legacy)
@@ -630,13 +693,11 @@ def _import_source(
         try:
             for row in rows:
                 _apply_row(row, source, txn, audit, target_id, staging, is_known)
-            audit.commit()  # provenance durable first …
-            txn.commit()  # … then the journal batch (no orphan journal row)
-        except sqlite3.Error as exc:  # roll BOTH back: drop staged journal + provenance
-            txn.rollback()
+            audit.commit()  # provenance/conflicts durable alongside the journal writes
+        except sqlite3.Error as exc:  # drop this source's provenance; report, do not abort
             audit.rollback()
             outcome.error = str(exc)
-            return outcome  # discard staging — nothing was committed for this source
+            return outcome  # discard staging — provenance rolled back for this source
     staging.merge_into(result, outcome)
     return outcome
 
@@ -658,6 +719,16 @@ def _apply_row(
     imported = _classify_and_apply(row, txn, source.digest)
     if imported.conflict is not None:
         audit.record_conflict(imported.conflict)
+        # Archive the superseded/refused source payload before its row is ever
+        # cleaned up, so keep-journal resolution never loses data (idempotent on
+        # ``(event_id, source_digest)``).
+        audit.quarantine_conflict(
+            event_id=imported.conflict.event_id,
+            source_digest=imported.conflict.source_digest,
+            payload=_canonical_payload(row.data),
+            existing_sha=imported.conflict.existing_sha,
+            incoming_sha=imported.conflict.incoming_sha,
+        )
         staging.conflicts.append(imported.conflict)
         return
     audit.record_provenance(

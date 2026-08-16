@@ -1,59 +1,53 @@
-"""Red-first reproduction of #3425 — un-migrated machines stay in
-``LayoutMode.LEGACY`` after #3293, so the event journal silently captures
-nothing.
+"""Regression contract for #3425 — a fresh, un-migrated host must journal its
+setup-plan capture instead of silently swallowing it.
 
 Open P0: https://github.com/Priivacy-ai/spec-kitty/issues/3425
 
-Root cause (verified against the issue's own mechanism section):
+Correct root cause (the swallowed error is the **journal guard**, not a queue
+default-path helper):
 
-* ``LayoutGenerationAuthority._initial_state()``
-  (``src/specify_cli/sync/layout_generation.py:130-135``) defaults to
-  ``LayoutMode.LEGACY`` when ``.layout-generation.json`` is absent — the
-  state of any runtime root that has never run the WP10 migration.
-* ``_require_project_destination()``
-  (``src/specify_cli/event_journal/journal.py:117-119``) then raises
-  ``LegacyQueueMigrationRequiredError: live payload queues are selected by
-  ProjectSyncStore; legacy paths are WP10 migration inputs`` — the same
-  fail-closed shape backs ``default_queue_db_path()``
-  (``src/specify_cli/sync/queue.py:195-196``), which every setup-plan
-  queue-write call site resolves through.
-* ``src/specify_cli/sync/emitter.py:2115`` catches the raised error and
-  prints ``Warning: event journal capture failed: ...`` to stderr only —
-  the command itself reports no error. The event is never journaled.
+* On a runtime root that has never run the WP10 cutover the machine layout mode
+  is ``LayoutMode.LEGACY``. Under the ProjectSyncStore-owned queue selection
+  (FR-009 / C-003) a live writer is then handed a non-``project_only`` permit and
+  ``_require_project_destination()``
+  (``src/specify_cli/event_journal/journal.py:117-119``) raises
+  ``ProjectLayoutRequiredError("live payload writes require the project_only
+  layout; legacy state is migration input only")``.
+* ``src/specify_cli/sync/emitter.py:2115`` catches that and prints
+  ``Warning: event journal capture failed: ...`` to stderr only — the command
+  reports success while the event is never journaled (a silent-success shape).
+* The retired no-arg ``default_queue_db_path()``
+  (``src/specify_cli/sync/queue.py:195-196``) is a **red herring** for this
+  reproduction: it now raises ``LegacyQueueMigrationRequiredError``
+  *unconditionally* (it is not layout-gated), so it is not what makes the
+  reproduced setup-plan path fail closed. Attribution belongs to
+  ``journal.py:119``.
 
-On an un-migrated machine this is a silent-success shape: no error surfaces
-to the caller, and the absence of captured data is visible only to someone
-reading stderr. These three tests drive the real ``setup_plan`` entry point
-(``specify_cli.cli.commands.agent.mission.setup_plan``) end to end and prove
-the silent-failure / cascading-refusal consequences:
+Post-fix (WP03 / IC-02) a fresh root auto-publishes ``project_only`` *before* any
+legacy persist, so the live capture lands in the project store journal and no
+swallowed-capture warning is printed; WP01 restores credential parsing so the
+FR-011 auth gate confirms authentication instead of spuriously refusing. These
+three tests drive the real ``setup_plan`` entry point
+(``specify_cli.cli.commands.agent.mission.setup_plan``) end to end:
 
-1. ``test_authenticated_setup_plan_lands_in_scoped`` — an authenticated,
-   un-migrated host cannot resolve ``default_queue_db_path()`` at all; it
-   raises ``LegacyQueueMigrationRequiredError`` before any queue write is
-   attempted.
-2. ``test_setup_plan_refuses_on_daemon_owner_mismatch`` — the boundary
-   preflight (daemon-owner mismatch refusal) never gets a chance to run: the
-   FR-011 auth-refusal gate fires first with "SaaS sync cannot be
-   guaranteed", because scope resolution on an un-migrated host cannot
-   confirm authentication, masking the boundary-preflight diagnostic this
-   test expects.
-3. ``test_setup_plan_authenticated_coherent_succeeds`` — even a fully
-   coherent, authenticated host is refused with exit code 2 by the same
-   auth gate, because the underlying scope/layout resolution the gate
-   depends on is broken by the ``LayoutMode.LEGACY`` default.
-
-Desired post-fix outcome (either maintainer resolution turns this green, per
-the issue's own suggested direction): either default un-migrated roots to a
-layout mode that still journals, or make the capture failure loud at the
-command surface instead of a swallowed stderr warning. This test pins the
-conformance contract (setup-plan must not silently produce zero SaaS
-capture / must not spuriously refuse a coherent host), not the chosen
-mechanism.
+1. ``test_authenticated_setup_plan_journals_without_silent_capture_failure`` —
+   an authenticated, un-migrated host drives setup-plan without a swallowed
+   capture-failure warning; a live journal capture on the resolved project store
+   lands exactly once (auto-cutover to ``project_only``) and the legacy store is
+   never touched.
+2. ``test_setup_plan_refuses_on_daemon_owner_mismatch`` — with credential parsing
+   restored (WP01) the FR-011 auth gate no longer short-circuits, so the boundary
+   preflight's daemon-owner-mismatch "Refusing" banner is the gate that fires.
+3. ``test_setup_plan_authenticated_coherent_succeeds`` — a fully coherent,
+   authenticated host (resolvable project identity + migrated ``project_only``
+   store) gets past the boundary preflight (exit code != 2) instead of being
+   spuriously refused.
 """
 
 from __future__ import annotations
 
 import contextlib
+import json
 import pathlib
 import sqlite3
 import sys
@@ -145,11 +139,22 @@ def _build_minimal_repo(tmp_path: Path, mission_slug: str) -> Path:
 
 
 def _scope_home_classmethod(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Pin ``Path.home()`` and env vars to *tmp_path* (C-008 cross-platform)."""
+    """Pin ``Path.home()`` and env vars to *tmp_path* (C-008 cross-platform).
+
+    ``SPEC_KITTY_HOME`` must be pinned too, not just ``HOME``: ``get_runtime_root``
+    (``paths/windows_paths.py:60`` / ``runtime/home.py:39``) resolves
+    ``SPEC_KITTY_HOME`` **before** any HOME-derived path ("always wins"), so a
+    leaked/ambient ``SPEC_KITTY_HOME`` on this live legacy box would otherwise
+    escape the temp-root isolation and resolve credentials/queues against real
+    machine-global state. The runtime root is ``<base>`` directly and the
+    credential/queue files this test writes live under ``tmp_path/.spec-kitty``
+    (see ``_write_credentials``), so point ``SPEC_KITTY_HOME`` there.
+    """
     monkeypatch.setattr(pathlib.Path, "home", classmethod(lambda cls: tmp_path))
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("USERPROFILE", str(tmp_path))
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "AppData"))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / ".spec-kitty"))
 
 
 def _write_daemon_owner_record(
@@ -188,7 +193,54 @@ def _write_daemon_owner_record(
         or str(Path.home() / ".spec-kitty" / "queues" / "queue-test.db"),
         started_at="2026-05-18T08:00:00+00:00",
     )
-    return write_owner_record(record)
+    owner_record_path: Path = write_owner_record(record)
+    return owner_record_path
+
+
+_COHERENT_PROJECT_UUID = "aaaaaaaa-0000-0000-0000-00000000000a"
+
+
+def _seed_project_identity(root: Path) -> str:
+    """Write a resolvable project identity into *root* — nothing else.
+
+    ``resolve_checkout_sync_routing_readonly`` (and the emitter's project-store
+    selection) resolve the canonical project UUID from
+    ``<root>/.kittify/config.yaml``. This seeds only the identity, leaving the
+    machine layout at its ``LayoutMode.LEGACY`` in-memory default (an un-migrated
+    root) so the WP03 auto-cutover-on-first-write path is what is exercised.
+    """
+    kittify = root / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text(
+        "project:\n"
+        f"  uuid: {_COHERENT_PROJECT_UUID}\n"
+        "  slug: wp04-coherent\n"
+        "  node_id: coherent-node\n",
+        encoding="utf-8",
+    )
+    return _COHERENT_PROJECT_UUID
+
+
+def _seed_coherent_project_store(root: Path) -> str:
+    """Give *root* a resolvable project identity **and** a migrated project_only store.
+
+    The WP04 boundary preflight (FR-002 / FR-009) refuses a checkout that has no
+    resolvable project identity, or whose machine layout is not yet
+    ``project_only``. Post-WP01 the FR-011 auth gate no longer masks that refusal,
+    so a genuinely coherent authenticated host must now present both. Mirrors the
+    canonical coherent-host fixture in
+    ``tests/sync/test_sync_boundary_preflight.py`` (``_scoped_home``).
+    """
+    project_uuid = _seed_project_identity(root)
+    from specify_cli.sync.project_store import ProjectSyncStore
+
+    store = ProjectSyncStore(project_uuid)
+    authority = store.layout_generation()
+    authority.begin_cutover("wp04-coherent-migration")
+    authority.publish_project_only("wp04-coherent-migration", verify_exact=lambda: True)
+    with store.unit_of_work():
+        pass
+    return project_uuid
 
 
 def _scoped_db_path_for(server_url: str, username: str, team_slug: str) -> Path:
@@ -236,115 +288,52 @@ def _patches_for_setup_plan(
 
 
 # ---------------------------------------------------------------------------
-# Test A — authenticated setup-plan cannot land queue writes on a LEGACY host
+# Test A — authenticated setup-plan journals without a swallowed capture failure
 # ---------------------------------------------------------------------------
 
 
-class TestAuthenticatedSetupPlanLandsInScoped:
-    """FR-012 evidence: authenticated setup-plan writes scoped, never legacy."""
+class TestAuthenticatedSetupPlanJournals:
+    """#3425: a fresh, un-migrated host journals its capture, never silently."""
 
-    def test_authenticated_setup_plan_lands_in_scoped(
+    def test_authenticated_setup_plan_journals_without_silent_capture_failure(
         self,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
     ) -> None:
-        # NFR-001: redirect HOME so any queue DB lands under tmp_path.
-        home = tmp_path / "home"
-        home.mkdir()
-        monkeypatch.setenv("HOME", str(home))
+        # T030: pin SPEC_KITTY_HOME (not only HOME) so the runtime root — and the
+        # credentials / legacy queue / project store it holds — resolve inside the
+        # temp tree even on this live legacy box (get_runtime_root honours
+        # SPEC_KITTY_HOME first).
+        _scope_home_classmethod(monkeypatch, tmp_path)
 
-        # Authenticate via credentials file (the credentials path is the
-        # documented fallback for ``read_queue_scope_from_credentials``).
+        # Authenticate via credentials file (WP01 restores the TOML credential
+        # parse that resolves the canonical scope).
         _write_credentials(
-            home,
+            tmp_path,
             username="auth@example.com",
             server_url="https://test.example.com",
             team_slug="team-alpha",
         )
 
-        # Eagerly resolve the expected scoped DB path so we can assert on it
-        # after setup-plan runs.
-        from specify_cli.sync.queue import (
-            _legacy_queue_db_path,
-            build_queue_scope,
-            default_queue_db_path,
-            scope_db_path,
-        )
+        # Fresh, UN-MIGRATED root: seed only the project identity, no cutover. This
+        # is the #3425 host — one that has never run WP10 migration. The WP03 fix
+        # must still journal, by auto-publishing project_only on the first live
+        # write rather than raising the journal guard and dropping the event.
+        project_uuid = _seed_project_identity(tmp_path)
 
-        expected_scope = build_queue_scope(
-            server_url="https://test.example.com",
-            username="auth@example.com",
-            team_slug="team-alpha",
-        )
-        expected_scoped_path = scope_db_path(expected_scope)
+        from specify_cli.sync.queue import _legacy_queue_db_path
+
         legacy_path = _legacy_queue_db_path()
 
-        # Sanity check: the resolution chain picks scoped for our fake creds
-        # before we ever call setup-plan.
-        #
-        # RED today (#3425): on an un-migrated host this raises
-        # LegacyQueueMigrationRequiredError instead of returning a path —
-        # LayoutMode.LEGACY makes default_queue_db_path() fail closed.
-        assert default_queue_db_path() == expected_scoped_path
-        assert default_queue_db_path() != legacy_path
-
-        # Build minimal project root + mission directory.
         mission_slug = "test-mvp-sync-evidence"
         feature_dir = _build_minimal_repo(tmp_path, mission_slug)
 
-        # Stub out the heavy moving parts so setup-plan executes its real
-        # queue-write call site (``trigger_feature_dossier_sync_if_enabled``
-        # → ``OfflineBodyUploadQueue()`` → ``default_queue_db_path()``)
-        # without needing a real indexer/manifest/git history.
-        from specify_cli.sync.body_queue import OfflineBodyUploadQueue
         from specify_cli.cli.commands.agent.mission import setup_plan
 
-        # Surface the body queue the dossier helper instantiated so we can
-        # both verify its db_path AND drive a real enqueue against it to
-        # prove the row lands in the scoped DB.
-        created_queues: list[OfflineBodyUploadQueue] = []
-
-        original_init = OfflineBodyUploadQueue.__init__
-
-        def _record_init(self: OfflineBodyUploadQueue, *args: Any, **kwargs: Any) -> None:
-            original_init(self, *args, **kwargs)
-            created_queues.append(self)
-
-        patches = {
-            f"{MODULE}.locate_project_root": patch(
-                f"{MODULE}.locate_project_root", return_value=tmp_path
-            ),
-            f"{MODULE}._enforce_git_preflight": patch(
-                f"{MODULE}._enforce_git_preflight"
-            ),
-            f"{MODULE}._find_feature_directory": patch(
-                f"{MODULE}._find_feature_directory", return_value=feature_dir
-            ),
-            f"{MODULE}._show_branch_context": patch(
-                f"{MODULE}._show_branch_context", return_value=(tmp_path, "main")
-            ),
-            f"{MODULE}.get_current_branch": patch(
-                f"{MODULE}.get_current_branch", return_value="main"
-            ),
-            # Spec must be flagged as committed + substantive without git.
-            "specify_cli.missions._substantive.is_committed": patch(
-                "specify_cli.missions._substantive.is_committed", return_value=True
-            ),
-            "specify_cli.missions._substantive.is_substantive": patch(
-                "specify_cli.missions._substantive.is_substantive", return_value=True
-            ),
-            # Plan commit path: stub git-side _commit_to_branch.
-            f"{MODULE}._commit_to_branch": patch(
-                f"{MODULE}._commit_to_branch"
-            ),
-            # Record every body-queue creation so we can assert the path.
-            "specify_cli.sync.body_queue.OfflineBodyUploadQueue.__init__": patch(
-                "specify_cli.sync.body_queue.OfflineBodyUploadQueue.__init__",
-                autospec=True,
-                side_effect=_record_init,
-            ),
-        }
-
+        # Drive the real setup-plan command end to end; the seam only stubs
+        # git / project-root discovery, leaving the real capture path live.
+        patches = _patches_for_setup_plan(tmp_path, feature_dir)
         for p in patches.values():
             p.start()
         try:
@@ -354,53 +343,64 @@ class TestAuthenticatedSetupPlanLandsInScoped:
             for p in patches.values():
                 p.stop()
 
-        # If the dossier helper ran, it created an OfflineBodyUploadQueue
-        # without a db_path argument; that constructor must resolve to the
-        # scoped path. Some test environments will skip the dossier helper
-        # (SaaS sync disabled / no project UUID), so we additionally exercise
-        # the explicit default-path queue instantiation below.
-        for q in created_queues:
-            assert q.db_path == expected_scoped_path, (
-                f"OfflineBodyUploadQueue resolved to {q.db_path!r}, "
-                f"expected scoped {expected_scoped_path!r} — FR-012 violation."
+        # (c) LOAD-BEARING #3425 pin — warning-absence. Setup-plan drove its capture
+        # path through the command boundary WITHOUT a swallowed capture-failure
+        # warning on stderr. This is what proves the silent-success shape is gone:
+        # the #3425 P0 was `journal.py:119 ProjectLayoutRequiredError` caught and
+        # printed at `emitter.py:2115` while the command reported success.
+        captured = capsys.readouterr()
+        combined = captured.out + captured.err
+        for banner in (
+            "event journal capture failed",
+            "live payload writes require the project_only layout",
+            "Explicit-context event capture failed",
+        ):
+            assert banner not in combined, (
+                f"#3425 regression: a swallowed capture-failure warning is present "
+                f"on the setup-plan surface:\n{combined!r}"
             )
 
-        # Drive a real enqueue through the same default-path resolution
-        # setup-plan's body queue uses, to produce a row we can count.
-        from specify_cli.sync.namespace import NamespaceRef
+        # (a) Journal conservation — a live capture on this fresh, un-migrated root
+        # lands in the project store journal EXACTLY ONCE. The store auto-publishes
+        # project_only (WP03/IC-02) instead of raising the journal guard, so the
+        # event is journaled rather than swallowed. The dossier helper is skipped
+        # when SaaS sync is disabled, so — exactly as the retired body-queue
+        # variant did — we drive the real journal path directly against the same
+        # project identity setup-plan resolves.
+        from specify_cli.event_journal.journal import EventJournal
+        from specify_cli.event_journal.models import Event
+        from specify_cli.sync.layout_generation import LayoutMode
+        from specify_cli.sync.project_store import ProjectSyncStore
 
-        body_queue = OfflineBodyUploadQueue()
-        assert body_queue.db_path == expected_scoped_path
-
-        body_queue.enqueue(
-            namespace=NamespaceRef(
-                project_uuid="550e8400-e29b-41d4-a716-446655440000",
-                mission_slug=mission_slug,
-                target_branch="main",
-                mission_type="software-dev",
-                manifest_version="1",
-            ),
-            artifact_path="spec.md",
-            content_hash="cafebabe" * 8,
-            content_body="# Test Feature\n",
-            size_bytes=15,
+        store = ProjectSyncStore(project_uuid)
+        event = Event(
+            event_id="setup-plan-capture",
+            event_type="WPStatusChanged",
+            payload=json.dumps({"project_uuid": project_uuid}).encode(),
+            occurred_at="2026-08-10T00:00:00+00:00",
+            created_at="2026-08-10T00:00:01+00:00",
+            project_uuid=project_uuid,
+            project_slug="wp04-coherent",
+            repo_slug="wp04-coherent",
         )
+        with store.unit_of_work() as unit:
+            receipt = EventJournal(unit, store.layout_generation()).append(event)
+            assert receipt.inserted is True
+            assert EventJournal(unit, store.layout_generation()).count() == 1
 
-        # Scoped DB should have rows; legacy must be untouched.
-        scoped_rows = _table_row_count(expected_scoped_path, "body_upload_queue")
+        # The fresh root cut over to project_only rather than staying LEGACY — the
+        # exact #3425 root cause (a LEGACY-default host that journalled nothing).
+        assert store.layout_generation().peek_state().mode is LayoutMode.PROJECT_ONLY
+
+        # (b) Legacy store untouched — nothing was written to the retired legacy
+        # queue db (neither the body-upload nor the event queue table).
         legacy_body_rows = _table_row_count(legacy_path, "body_upload_queue")
         legacy_event_rows = _table_row_count(legacy_path, "queue")
-
-        assert scoped_rows > 0, (
-            f"Expected scoped body_upload_queue rows > 0, got {scoped_rows}."
-        )
         assert legacy_body_rows == 0, (
-            f"FR-012 violation: legacy DB at {legacy_path} has "
-            f"{legacy_body_rows} body_upload_queue rows."
+            f"legacy DB at {legacy_path} has {legacy_body_rows} body_upload_queue rows."
         )
         assert legacy_event_rows == 0, (
-            f"FR-012 violation: legacy DB at {legacy_path} has "
-            f"{legacy_event_rows} queue rows."
+            f"legacy DB at {legacy_path} has {legacy_event_rows} queue rows."
         )
 
 
@@ -526,8 +526,13 @@ class TestSetupPlanPreflightIntegration:
             team_slug="team-alpha",
         )
 
-        # No daemon owner record on disk and no legacy queue rows means
-        # the preflight is structurally ok and the auth check passes.
+        # No daemon owner record on disk and no legacy queue rows. Post-WP01 the
+        # auth gate confirms the credentials instead of refusing; the WP04 boundary
+        # preflight then additionally requires a resolvable project identity and a
+        # migrated project_only store — seed both so the host is genuinely coherent
+        # and the preflight does NOT refuse (the pin is "did not refuse at
+        # preflight", i.e. exit code != 2).
+        _seed_coherent_project_store(tmp_path)
 
         from specify_cli.cli.commands.agent.mission import setup_plan
 
