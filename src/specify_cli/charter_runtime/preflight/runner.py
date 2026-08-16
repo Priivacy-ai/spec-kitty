@@ -86,6 +86,18 @@ _FRESH_PROJECT_MISSING_CHARTER_WARNING = (
     "when this project is ready for charter-governed workflows"
 )
 
+#: Distinct from ``_FRESH_PROJECT_MISSING_CHARTER_WARNING`` per FR-003 — a
+#: legacy ``charter.md``-only bundle means governance intent already
+#: existed and needs migration, not initial setup, so the message names the
+#: legacy file and the exact migration command explicitly.
+_LEGACY_CHARTER_BUNDLE_WARNING = (
+    "a legacy charter.md-only bundle was detected "
+    "(.kittify/charter/charter.md exists but .kittify/charter/charter.yaml "
+    "does not); this project has governance intent that predates the "
+    "charter.yaml bundle format — run "
+    "`spec-kitty charter generate --no-from-interview` to migrate it forward"
+)
+
 # Refresh-step timeout.  Overridable via env so very slow CI runners can
 # extend the deadline without code changes (risk note in WP03 spec).
 _REFRESH_TIMEOUT_ENV = "SPEC_KITTY_PREFLIGHT_TIMEOUT_SECS"
@@ -131,10 +143,11 @@ def run_charter_preflight(
             checks rather than exceptions.
         auto_refresh: When ``True`` AND the worktree has no uncommitted
             generated artifacts, attempt the safe refresh sequence.
-        allow_missing_charter: Treat a fully absent charter stack as advisory.
-            Read-only/dashboard consumers may enable this for fresh projects;
-            mutation gates leave it disabled so missing governance still fails
-            closed when the workflow requires charter-derived state.
+        allow_missing_charter: Treat a canonically missing charter stack as
+            advisory. Dashboard, next, and implement enable this for projects
+            that have no charter source or synced bundle and whose synthesized
+            layer is either absent or built-in-only. Stale, invalid, or other
+            partial state still fails closed.
         strict: Accepted for API symmetry with the CLI flag.  The runner
             itself does not change behaviour based on ``strict`` — the CLI
             wrapper translates ``passed=False`` + ``strict=True`` into exit
@@ -149,22 +162,23 @@ def run_charter_preflight(
     freshness = compute_freshness(repo_root)
     checks = _build_checks(freshness)
 
-    if allow_missing_charter and _is_optional_missing_charter_fresh_project(checks):
-        return CharterPreflightResult(
-            passed=True,
-            checks=[
-                CharterPreflightCheck(
-                    name=c.name,
-                    state="skipped",
-                    detail="project charter is not initialized",
-                    remediation=None,
-                )
-                for c in checks
-            ],
-            auto_refresh_applied=False,
-            auto_refresh_actions=[],
-            blocked_reason=None,
-            warnings=[_FRESH_PROJECT_MISSING_CHARTER_WARNING],
+    # C-001 / FR-016: only canonical freshness states decide pass/block.
+    # charter.md is display-only and may select advisory copy only after the
+    # canonical state has independently qualified for the exemption.
+    if allow_missing_charter and _is_optional_missing_charter_stack(checks):
+        legacy_bundle = _is_legacy_charter_bundle(repo_root)
+        return _advisory_missing_charter_result(
+            checks,
+            detail=(
+                "legacy charter.md-only bundle; charter.yaml not yet migrated"
+                if legacy_bundle
+                else "project charter is not initialized"
+            ),
+            warning=(
+                _LEGACY_CHARTER_BUNDLE_WARNING
+                if legacy_bundle
+                else _FRESH_PROJECT_MISSING_CHARTER_WARNING
+            ),
         )
 
     passed = all(c.state in _PASS_STATES for c in checks)
@@ -226,19 +240,77 @@ def _build_checks(freshness: CharterFreshness) -> list[CharterPreflightCheck]:
     return result
 
 
-def _is_optional_missing_charter_fresh_project(checks: list[CharterPreflightCheck]) -> bool:
-    """Return True for a never-initialized charter stack.
+def _is_optional_missing_charter_stack(checks: list[CharterPreflightCheck]) -> bool:
+    """Return True only for canonically safe missing-charter states.
 
-    Missing project charter is optional in a fresh project.  Treat only the
-    fully absent stack as advisory; partial/generated residue still blocks so
-    stale charter state remains visible.
+    The source and synced bundle must both be absent. The synthesized layer
+    may also be absent, or may be ``built_in_only`` (a passing state carrying
+    no project charter content). Any stale, invalid, or other partial residue
+    remains blocking.
     """
     states = {c.name: c.state for c in checks}
-    return states == {
-        "charter_source": "missing",
-        "synced_bundle": "missing",
-        "synthesized_drg": "missing",
-    }
+    return (
+        states.get("charter_source") == "missing"
+        and states.get("synced_bundle") == "missing"
+        and states.get("synthesized_drg") in {"missing", "built_in_only"}
+    )
+
+
+def _is_legacy_charter_bundle(repo_root: Path) -> bool:
+    """Return whether display-only legacy prose exists for advisory copy.
+
+    A project may carry governance intent captured in
+    ``.kittify/charter/charter.md`` from before the charter.yaml-based
+    bundle inversion. This predicate runs only after
+    ``_is_optional_missing_charter_stack`` has decided the outcome from
+    canonical freshness state. It chooses warning text and never changes
+    pass/block behavior.
+
+    NFR-001: this adds exactly one additional filesystem existence check
+    (``Path.exists()`` on ``charter.md``) beyond the existing freshness
+    computation.
+
+    FR-016 clause (b): this allow-listed ``.exists()`` call is an
+    informational readout, matching ``_collect_charter_sync_status``; the
+    canonical state predicate above has already fixed the outcome.
+    """
+    # Keep this chokepoint import off the `next` startup path. Importing any
+    # charter.* submodule executes charter.__init__ and its heavyweight graph.
+    from charter.bundle import CHARTER_MD
+
+    return bool((repo_root / CHARTER_MD).exists())
+
+
+def _advisory_missing_charter_result(
+    checks: list[CharterPreflightCheck],
+    *,
+    detail: str,
+    warning: str,
+) -> CharterPreflightResult:
+    """Build the shared "advisory, not blocking" missing-charter result shape.
+
+    Both warning presentations of the canonical missing-charter exemption
+    produce an identical result shape (every check marked ``"skipped"``, no
+    ``blocked_reason``) differing only in the per-check ``detail`` text and
+    which warning constant is attached — factored out once a second call
+    site made the duplication real (DIRECTIVE_025 Boy Scout Rule).
+    """
+    return CharterPreflightResult(
+        passed=True,
+        checks=[
+            CharterPreflightCheck(
+                name=c.name,
+                state="skipped",
+                detail=detail,
+                remediation=None,
+            )
+            for c in checks
+        ],
+        auto_refresh_applied=False,
+        auto_refresh_actions=[],
+        blocked_reason=None,
+        warnings=[warning],
+    )
 
 
 def _default_detail(label: str, state: str, last_change: str | None) -> str:

@@ -72,7 +72,7 @@ class HealthResponse(TypedDict, total=False):
     sync: SyncInfo
     websocket_status: str
     token: str  # conditionally present
-    preflight_warning: str  # FR-006 dashboard banner; present only on failure
+    preflight_warning: str  # FR-006 banner; blocking reason or passed advisory
 
 
 # ---------------------------------------------------------------------------

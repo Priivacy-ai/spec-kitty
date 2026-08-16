@@ -427,6 +427,16 @@ class TestSyncNowExitCodes:
             "specify_cli.sync.preflight.run_preflight",
             lambda **kwargs: PreflightResult(ok=True, auth_present=True),
         )
+        monkeypatch.setattr(
+            sync_mod,
+            "_event_sync_retained_work_present",
+            lambda: False,
+        )
+        monkeypatch.setattr(
+            sync_mod,
+            "_run_event_sync_dispatch",
+            lambda: DispatchSummary.empty(),
+        )
 
     def _make_service(self, queue_size: int, result: MagicMock) -> MagicMock:
         """Build a mock sync service with given queue size and result."""

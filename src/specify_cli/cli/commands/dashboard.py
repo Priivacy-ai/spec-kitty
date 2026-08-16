@@ -69,7 +69,8 @@ def dashboard(
     # dashboard starts. On failure we STILL launch the server so the
     # operator can see the running state, but we persist the
     # ``blocked_reason`` so the API surface can expose it as a critical
-    # banner. On success we clear any stale warning from a previous run.
+    # banner. Passed advisory warnings use the same persistence channel; a
+    # clean success clears stale warning state.
     from specify_cli.charter_runtime.preflight.dashboard_warning import (
         clear_preflight_warning,
         write_preflight_warning,
@@ -77,9 +78,14 @@ def dashboard(
     from specify_cli.charter_runtime.preflight.hook import run_preflight_for_dashboard
 
     preflight_result = run_preflight_for_dashboard(project_root)
-    if not preflight_result.passed and preflight_result.blocked_reason:
-        write_preflight_warning(project_root, preflight_result.blocked_reason)
-        console.print(f"[yellow]⚠ Charter preflight warning:[/yellow] {preflight_result.blocked_reason}")
+    warning = (
+        preflight_result.blocked_reason
+        if not preflight_result.passed
+        else "\n".join(preflight_result.warnings) or None
+    )
+    if warning:
+        write_preflight_warning(project_root, warning)
+        console.print(f"[yellow]⚠ Charter preflight warning:[/yellow] {warning}")
     else:
         clear_preflight_warning(project_root)
 

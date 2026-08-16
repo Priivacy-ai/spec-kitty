@@ -118,6 +118,224 @@ def test_missing_charter_blocks_mutation_gates_by_default(tmp_path: Path) -> Non
 
 
 # ---------------------------------------------------------------------------
+# Legacy charter.md-only bundle (T001, #3498, contracts/missing-charter-
+# advisory-matrix.md)
+# ---------------------------------------------------------------------------
+
+
+def test_legacy_charter_bundle_is_advisory_not_blocking(tmp_path: Path) -> None:
+    """A ``charter.md``-only bundle (pre-inversion, #2831's shape) is advisory.
+
+    ``.kittify/charter/charter.md`` present, ``.kittify/charter/charter.yaml``
+    absent, no synced bundle, no synthesized DRG (contract row 2 shape).
+    """
+    init_git_repo(tmp_path)
+    seed_charter(tmp_path)  # writes charter.md only; charter.yaml stays absent.
+
+    result = run_charter_preflight(
+        tmp_path,
+        auto_refresh=False,
+        allow_missing_charter=True,
+    )
+
+    assert result.passed is True
+    assert result.blocked_reason is None
+    assert [c.state for c in result.checks] == ["skipped", "skipped", "skipped"]
+    assert result.warnings != [
+        "project charter is not initialized; run `spec-kitty charter generate` "
+        "when this project is ready for charter-governed workflows"
+    ]
+    assert len(result.warnings) == 1
+    assert "charter.md" in result.warnings[0]
+    assert "spec-kitty charter generate --no-from-interview" in result.warnings[0]
+
+
+def test_charter_md_selects_legacy_copy_after_canonical_row2_passes(tmp_path: Path) -> None:
+    """Contract row 2: canonical state passes before prose selects warning copy."""
+    init_git_repo(tmp_path)
+    seed_charter(tmp_path)
+
+    result = run_charter_preflight(
+        tmp_path,
+        auto_refresh=False,
+        allow_missing_charter=True,
+    )
+
+    # Layer states are identical to the fresh-project shape...
+    assert [c.state for c in result.checks] == ["skipped", "skipped", "skipped"]
+    # ...but the warning must be the legacy-bundle one, not fresh-project's.
+    fresh_project_warning = (
+        "project charter is not initialized; run `spec-kitty charter generate` "
+        "when this project is ready for charter-governed workflows"
+    )
+    assert fresh_project_warning not in result.warnings
+
+
+def test_built_in_only_missing_stack_with_charter_md_uses_legacy_advisory(tmp_path: Path) -> None:
+    """Contract row 4: built-in-only is canonically safe; prose selects legacy copy."""
+    init_git_repo(tmp_path)
+    seed_charter(tmp_path)
+    seed_manifest(tmp_path, built_in_only=True)
+
+    result = run_charter_preflight(
+        tmp_path,
+        auto_refresh=False,
+        allow_missing_charter=True,
+    )
+
+    assert result.passed is True
+    assert result.blocked_reason is None
+    assert "charter.md" in result.warnings[0]
+
+
+def test_legacy_charter_bundle_blocks_when_not_opted_in(tmp_path: Path) -> None:
+    """Non-regression: mutation gates still fail closed by default (allow_missing_charter=False)."""
+    init_git_repo(tmp_path)
+    seed_charter(tmp_path)
+
+    result = run_charter_preflight(tmp_path, auto_refresh=False)
+
+    assert result.passed is False
+    assert result.blocked_reason is not None
+    assert [c.state for c in result.checks] == ["missing", "missing", "missing"]
+
+
+def test_built_in_only_missing_stack_is_advisory_without_charter_md(tmp_path: Path) -> None:
+    """A canonical built-in-only stack passes independently of prose presence."""
+    init_git_repo(tmp_path)
+    seed_manifest(tmp_path, built_in_only=True)  # no charter.md, no charter.yaml
+
+    result = run_charter_preflight(
+        tmp_path,
+        auto_refresh=False,
+        allow_missing_charter=True,
+    )
+
+    assert result.passed is True
+    assert result.blocked_reason is None
+    assert "not initialized" in result.warnings[0]
+
+
+@pytest.mark.parametrize(
+    ("synced_state", "drg_state"),
+    [
+        ("stale", "missing"),
+        ("missing", "stale"),
+        ("missing", "invalid"),
+    ],
+)
+def test_charter_md_never_exempts_stale_or_invalid_residue(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    synced_state: str,
+    drg_state: str,
+) -> None:
+    """C-001/FR-016: prose presence cannot turn broken canonical state into a pass."""
+    from specify_cli.charter_runtime.freshness import CharterFreshness, FreshnessSubState
+    from specify_cli.charter_runtime.preflight import runner as runner_mod
+
+    init_git_repo(tmp_path)
+    seed_charter(tmp_path)
+    monkeypatch.setattr(
+        runner_mod,
+        "compute_freshness",
+        lambda _root: CharterFreshness(
+            charter_source=FreshnessSubState(
+                state="missing",
+                last_change=None,
+                remediation="spec-kitty charter sync",
+            ),
+            synced_bundle=FreshnessSubState(
+                state=synced_state,
+                last_change=None,
+                remediation="spec-kitty charter sync",
+            ),
+            synthesized_drg=FreshnessSubState(
+                state=drg_state,
+                last_change=None,
+                remediation="spec-kitty charter synthesize",
+            ),
+        ),
+    )
+
+    result = runner_mod.run_charter_preflight(
+        tmp_path,
+        auto_refresh=False,
+        allow_missing_charter=True,
+    )
+
+    assert result.passed is False
+    assert result.blocked_reason is not None
+    assert result.warnings == []
+
+
+def test_legacy_warning_remediation_command_generates_charter_yaml(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The command emitted for a charter.md-only bundle must clear the missing source."""
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.charter import charter_app
+
+    init_git_repo(tmp_path)
+    seed_charter(tmp_path)
+    (tmp_path / ".kittify" / "config.yaml").write_text("{}\n", encoding="utf-8")
+
+    preflight = run_charter_preflight(
+        tmp_path,
+        auto_refresh=False,
+        allow_missing_charter=True,
+    )
+    assert "`spec-kitty charter generate --no-from-interview`" in preflight.warnings[0]
+
+    monkeypatch.chdir(tmp_path)
+    generated = CliRunner().invoke(
+        charter_app,
+        ["generate", "--no-from-interview"],
+    )
+
+    assert generated.exit_code == 0, generated.output
+    assert (tmp_path / ".kittify" / "charter" / "charter.yaml").exists()
+
+
+def test_legacy_bundle_detection_costs_at_most_one_additional_exists_call(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """NFR-001: legacy-bundle detection adds at most one filesystem existence check.
+
+    We count ``Path.exists()`` invocations against the exact ``charter.md``
+    path during a full ``run_charter_preflight`` call and assert the count
+    is at most one -- pinning the "single additional Path.exists() check"
+    budget as an automated assertion, not just a review note.
+    """
+    init_git_repo(tmp_path)
+    seed_charter(tmp_path)
+
+    charter_md_path = tmp_path / ".kittify" / "charter" / "charter.md"
+    real_exists = Path.exists
+    call_count = 0
+
+    def counting_exists(self: Path) -> bool:
+        nonlocal call_count
+        if self == charter_md_path:
+            call_count += 1
+        return real_exists(self)
+
+    monkeypatch.setattr(Path, "exists", counting_exists, raising=True)
+
+    result = run_charter_preflight(
+        tmp_path,
+        auto_refresh=False,
+        allow_missing_charter=True,
+    )
+
+    assert result.passed is True
+    assert call_count <= 1
+
+
+# ---------------------------------------------------------------------------
 # Failure paths — no auto-refresh
 # ---------------------------------------------------------------------------
 
