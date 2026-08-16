@@ -425,6 +425,59 @@ def test_t023_a_tombstone_over_a_live_pin_still_reds_the_discovered_class() -> N
     assert repo_rooted(discovered_keys()) - repo_rooted(exempt_keys()) != anchor() - tombstoned
 
 
+def non_anchor_tombstones(
+    tombstones: frozenset[scan.MemberKey], anchored: frozenset[scan.MemberKey]
+) -> frozenset[scan.MemberKey]:
+    """Tombstones that are **not** members of the frozen C-011 anchor — the excuse-authority leak."""
+    return tombstones - anchored
+
+
+def test_t023_every_tombstone_is_a_frozen_c011_anchor_member() -> None:
+    """A tombstone may only excuse a member of the frozen 40-key C-011 anchor (#3510 landing fold).
+
+    ``anchor - tombstoned`` (the two t023 equalities) and limb (g) of the ``_home_pin_gate`` verdict
+    oracle both grant *excuse authority* to the tombstone manifest — a tombstoned key is dropped
+    from the anchor target / excused from the end-SHA recompute. But subtraction is a no-op for a
+    NON-member, so without this limb a fabricated tombstone key (a real file, a fake
+    ``(qualname, token_line)``, ``∉ anchor``) slips every other guard: ``anchor - {real ∪ fake} ==
+    anchor - real``, ``main()`` only reds a tombstone over a *live* member, and ``census ∪
+    tombstones`` silently grows past the frozen 40. This is the one invariant the excuse needs and
+    the rest of the ratchet does not enforce — **every tombstone is one of the frozen 40** — closing
+    the buy-off an adversarial review of #3510 demonstrated (``census ∪ tombstones`` = 41 > 40).
+
+    Read from the **manifest** (``load_tombstone_keys`` — the auditable source limb (g) consults
+    directly), lifted into the anchor's repo-root space. The second assertion binds the manifest to
+    the **baseline** the census reads (``tombstoned_keys``), so the two tombstone consumers cannot
+    diverge silently (t022 only catches an un-regenerated baseline, not a manifest edit).
+    """
+    manifest = repo_rooted(scan.load_tombstone_keys())
+    assert non_anchor_tombstones(manifest, anchor()) == frozenset(), (
+        "a tombstone names a key outside the frozen C-011 anchor — an excuse must trace to a "
+        "frozen-evidence member, never fabricate one"
+    )
+    assert manifest == tombstoned_keys(), (
+        "the tombstone manifest (limb g's source) and the baseline (the census's source) disagree — "
+        "regenerate the baseline from the manifest so the two consumers of 'tombstoned' stay in sync"
+    )
+
+
+def test_t023_a_non_anchor_tombstone_is_rejected() -> None:
+    """The positive control for the limb above: a fabricated non-anchor tombstone is caught.
+
+    Without this run, ``non_anchor_tombstones == set()`` over the real (forgery-free) manifest is
+    indistinguishable from a check that never fires. The fabricated key names a real file with a
+    qualname/token that occurs nowhere — exactly the shape the adversarial review used to grow
+    ``census ∪ tombstones`` past the frozen 40.
+    """
+    fake = (
+        f"{TESTS_ROOT.as_posix()}/architectural/_home_pin_scan.py",
+        "totally_fake_qualname",
+        "no . such ( token )",
+    )
+    assert fake not in anchor()
+    assert non_anchor_tombstones(anchor() | {fake}, anchor()) == frozenset({fake})
+
+
 def test_t023_the_anchor_and_e_are_disjoint() -> None:
     """``anchor ∩ E == set()`` — stated **explicitly**, not relied upon.
 
