@@ -191,9 +191,20 @@ def counts_by_kind(constituents: Sequence[Constituent]) -> dict[str, int]:
     """Return per-kind artifact counts derived from *constituents*.
 
     Keyed by the artifact kind's **plural** directory name (``directives``,
-    ``tactics``, …) so the result is a drop-in for the retired stored
-    ``artifact_counts`` block — consumers need no change (IC-03 / T006). Kinds
-    with zero constituents are simply absent, matching the stored convention.
+    ``tactics``, …), shaped like the retired stored ``artifact_counts`` block
+    (IC-03 / T006). Kinds with zero constituents are simply absent, matching the
+    stored convention.
+
+    **NOT count-equivalent to the stored block across every kind-domain.** The
+    derived view only ever contains kinds present in ``constituents``, and the
+    built-in enumeration (``builtin_manifest.enumerate_constituents``) *excludes*
+    graph-only kinds (``mission_step_contract``, ``template``, ``anti_pattern``)
+    and never emits a ``drg_fragments`` bucket, whereas the stored view
+    (``snapshot._count_artifacts``) includes ``mission_step_contracts`` and folds
+    DRG fragments into ``drg_fragments``. So for a pack carrying those kinds this
+    is *not* a silent drop-in — the deferred integration WP must reconcile the two
+    enumeration domains **before** flipping any snapshot from stored to derived
+    (:func:`resolve_counts`), or those buckets vanish silently.
     """
     counts: Counter[str] = Counter()
     for constituent in constituents:
@@ -211,6 +222,11 @@ def resolve_counts(
     non-``None`` list, even if empty); otherwise fall back to the stored
     ``artifact_counts`` block (migration input) so a pack whose generator has
     not yet run does not read ``0``.
+
+    **Caution (deferred integration):** the two branches are not count-equivalent
+    for graph-only kinds / DRG fragments — see :func:`counts_by_kind`. Flipping a
+    live consumer from the stored branch to the derived branch is a behaviour
+    change for such packs, not a no-op; reconcile the enumeration domains first.
     """
     if constituents is not None:
         return counts_by_kind(constituents)
