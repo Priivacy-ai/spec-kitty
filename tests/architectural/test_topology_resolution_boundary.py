@@ -223,6 +223,19 @@ def test_codemap_lock_uses_sha256_and_matches_checked_in_views() -> None:
         assert lock[filename] == digest
 
 
+def test_codemap_lock_uses_lf_normalized_bytes() -> None:
+    """The lock contract is independent of a CRLF checkout."""
+    lock = dict(
+        line.split("=", 1)
+        for line in (_CODEMAP_DIR / "codemap.lock").read_text(encoding="utf-8").splitlines()
+        if "=" in line
+    )
+    for filename in ("codemap.json", "codemap.html"):
+        canonical = (_CODEMAP_DIR / filename).read_bytes().replace(b"\r\n", b"\n")
+        digest = hashlib.sha256(canonical).hexdigest()
+        assert lock[filename] == digest
+
+
 # ===========================================================================
 # (1) Coord-topology path-shape predicate allowlist (C-SEAM-1).
 # ===========================================================================

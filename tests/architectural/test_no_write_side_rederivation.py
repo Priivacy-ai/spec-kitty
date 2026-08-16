@@ -1180,6 +1180,16 @@ def test_whole_tree_scan_catches_bypass_in_formerly_out_of_scope_module(rel_path
     )
 
 
+def test_checkout_grammar_offender_key_is_posix_stable() -> None:
+    """Diagnostic keys stay comparable across Windows and POSIX checkouts."""
+    module = _REPO_ROOT / "src" / "specify_cli" / "doc_analysis" / "doc_state.py"
+    offenders = _checkout_grammar_offenders(
+        [(module, _T030_INJECTED_BYPASS_SOURCE)]
+    )
+    assert offenders
+    assert offenders[0].startswith("src/specify_cli/doc_analysis/doc_state.py:")
+
+
 def test_whole_tree_scan_control_still_flags_formerly_in_scope_module() -> None:
     """T030 regression-parity control (NFR-004): a synthetic bypass planted in
     a module that WAS already in the retired 17-module allowlist still reds
