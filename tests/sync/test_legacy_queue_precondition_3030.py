@@ -85,8 +85,8 @@ def test_an_unexpected_error_type_propagates_instead_of_being_swallowed(tmp_path
         _service()._assert_legacy_queue_converged()
 
 
+@pytest.mark.usefixtures("canonical_home")  # R1b (#3121): owner pins SPEC_KITTY_HOME (then _route_project re-pins to tmp_path/runtime, as before)
 def test_a_credentials_read_failure_is_not_evidence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
     _project_only(tmp_path, monkeypatch)
     with patch("specify_cli.sync.queue.read_queue_scope_from_credentials", side_effect=OSError("unused")):
         _service()._assert_legacy_queue_converged()

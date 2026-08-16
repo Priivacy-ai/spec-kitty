@@ -295,9 +295,9 @@ def _seed_journal_row(journal: Any, event_id: str, project_uuid: str | None, ind
     )
 
 
-def test_opt_out_purge_targets_the_same_stores_the_drain_reads(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.usefixtures("canonical_home")  # R1b (#3121): the canonical owner pins SPEC_KITTY_HOME=tmp_path/home
+def test_opt_out_purge_targets_the_same_stores_the_drain_reads() -> None:
     """Journal, ledger, and retention share one verified physical project store."""
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
     project_uuid = str(uuid4())
     store = ProjectSyncStore(project_uuid)
     _project_only(store)
