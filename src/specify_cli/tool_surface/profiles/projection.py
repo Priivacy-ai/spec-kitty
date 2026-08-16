@@ -17,7 +17,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from charter.profiles import AgentProfile, AgentProfileRepository
-from doctrine.provenance import to_portable_source_path
+from charter.provenance import to_portable_source_path
 
 from specify_cli.invocation.org_profiles import resolve_activated_org_profiles
 
@@ -54,7 +54,7 @@ def _manifest_source_path(source_path: Path | None, project_root: Path) -> str |
     """Return the manifest-stored SOURCE provenance string for *source_path*.
 
     Routed through the shared portable-provenance normalizer
-    (:func:`doctrine.provenance.to_portable_source_path`, C-PRV-1/2/6): a
+    (:func:`charter.provenance.to_portable_source_path`, C-PRV-1/2/6): a
     built-in-pack profile source becomes a
     ``${SPEC_KITTY_PACKS_ROOT}/built-in/...`` token, an in-tree (project/org)
     source becomes repo-relative, anything else stays absolute. This is the
