@@ -2862,6 +2862,20 @@ pages:
     - {slug: "require-a-mandatory-structured-format", text: "Require a mandatory structured format", level: 3}
     - {slug: "encode-producer-specific-vocabulary-in-the-schema", text: "Encode producer-specific vocabulary in the schema", level: 3}
     - {slug: "references", text: "References", level: 2}
+  - path: "docs/adr/3.x/2026-08-16-1-pack-metadata-manifest-unification.md"
+    title: "ADR: Unify Pack Metadata on a Single Manifest — Enumerated Constituents + Delegated Lineage"
+    divio_type: "none"
+    abstract: "Unifies the two divergent pack manifests (counts vs enumerated) onto one canonical pack-manifest schema for every pack type, splitting authored lineage from generated constituents."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "1-one-schema-enumerated-constituents-charter-profile", text: "1. One schema, enumerated constituents, charter profile", level: 3}
+    - {slug: "2-two-files-authored-identity-lineage-vs-generated-constituents", text: "2. Two files: authored identity/lineage vs generated constituents", level: 3}
+    - {slug: "3-lineage-delegates-never-re-walks", text: "3. Lineage delegates, never re-walks", level: 3}
+    - {slug: "bridge-is-a-migration-tactic-not-a-destination", text: "Bridge is a migration tactic, not a destination", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
@@ -12085,6 +12099,46 @@ pages:
     - {slug: "open-items-non-blocking-first-pass-findings-retained", text: "Open items (non-blocking, first-pass findings retained)", level: 3}
     - {slug: "open-items-non-blocking-post-restoration", text: "Open items (non-blocking, post-restoration)", level: 3}
     - {slug: "mission-level-assessment", text: "Mission-level assessment", level: 3}
+  - path: "docs/plans/investigations/2026-08-consumer-repo-layout-portability.md"
+    title: "Consumer-repo layout portability: disposition and sequencing"
+    divio_type: "none"
+    abstract: "Planner disposition for the consumer-repo layout blind spot (#3016/#2330): a bounded 3.2.x correctness down-payment now, broad portability deferred to mission-types-as-doctrine."
+    anchors:
+    - {slug: "problem", text: "Problem", level: 2}
+    - {slug: "evidence", text: "Evidence", level: 2}
+    - {slug: "options-considered", text: "Options considered", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "architect-recommendation", text: "Architect recommendation", level: 2}
+    - {slug: "recommended-tracker-actions", text: "Recommended tracker actions", level: 2}
+    - {slug: "sequencing", text: "Sequencing", level: 2}
+    - {slug: "open-questions-for-the-operator", text: "Open questions for the operator", level: 2}
+  - path: "docs/plans/investigations/2026-08-pack-level-metadata-manifest.md"
+    title: "Pack-level metadata manifest: constituent parts + lineage"
+    divio_type: "none"
+    abstract: "Corroborates one pack-level manifest recording each pack's enumerated constituents and parent/lineage — a consolidation of two divergent existing manifests, not a new format."
+    anchors:
+    - {slug: "the-proposal", text: "The proposal", level: 2}
+    - {slug: "verdict-sound-with-one-reframe", text: "Verdict: SOUND, with one reframe", level: 2}
+    - {slug: "what-already-exists-reuse-don-t-reinvent", text: "What already exists (reuse, don't reinvent)", level: 3}
+    - {slug: "the-one-genuinely-thin-spot-the-charter-doctrine-binding", text: "The one genuinely thin spot — the charter↔doctrine binding", level: 3}
+    - {slug: "recommended-design", text: "Recommended design", level: 2}
+    - {slug: "readiness-read", text: "Readiness read", level: 2}
+    - {slug: "gaps-ordered-load-bearing-first", text: "Gaps (ordered, load-bearing first)", level: 2}
+    - {slug: "decision-needed-from-the-operator", text: "Decision needed from the operator", level: 2}
+    - {slug: "open-questions-for-the-operator", text: "Open questions for the operator", level: 2}
+  - path: "docs/plans/investigations/2026-08-retrospective-surface-disposition.md"
+    title: "Retrospective-learning surface: disposition and sequencing"
+    divio_type: "none"
+    abstract: "Planner disposition for the retrospect-surface blind spot (#1239/#2267/#3072): milestone the two orphans now, then mint one lightweight epic on the dual-schema reconciliation."
+    anchors:
+    - {slug: "problem", text: "Problem", level: 2}
+    - {slug: "evidence", text: "Evidence", level: 2}
+    - {slug: "options-considered", text: "Options considered", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "architect-recommendation", text: "Architect recommendation", level: 2}
+    - {slug: "recommended-tracker-actions", text: "Recommended tracker actions", level: 2}
+    - {slug: "sequencing", text: "Sequencing", level: 2}
+    - {slug: "open-questions-for-the-operator", text: "Open questions for the operator", level: 2}
   - path: "docs/plans/investigations/2497-external-observability-endpoints-assessment.md"
     title: "RFC #2497 — External Observability Endpoints: Squad Assessment"
     divio_type: "none"

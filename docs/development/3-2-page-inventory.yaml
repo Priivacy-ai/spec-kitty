@@ -986,6 +986,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-08-16-1-pack-metadata-manifest-unification.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/README.md
   tag: current
   divio_type: none
@@ -4155,6 +4161,24 @@
   current_target: true
   notes: null
 - path: docs/plans/investigations/2026-04-14-windows-compatibility-hardening-mission-review.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/2026-08-consumer-repo-layout-portability.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/2026-08-pack-level-metadata-manifest.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/2026-08-retrospective-surface-disposition.md
   tag: current
   divio_type: none
   owning_workstream: none
