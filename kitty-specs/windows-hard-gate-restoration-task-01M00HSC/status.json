@@ -1,7 +1,7 @@
 {
-  "event_count": 35,
-  "last_event_id": "01M04D96DES6D33H1T85CE2ZT7",
-  "materialized_at": "2026-08-16T04:29:05.836570+00:00",
+  "event_count": 36,
+  "last_event_id": "01M04HSEDJ4TBMYAYWQ37D0J52",
+  "materialized_at": "2026-08-16T05:47:52.626616+00:00",
   "mission_number": "",
   "mission_slug": "windows-hard-gate-restoration-task-01M00HSC",
   "mission_type": "software-dev",
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 1,
     "in_review": 0,
-    "planned": 0
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -194,6 +194,13 @@
       "role": "implementer",
       "shell_pid": 3876,
       "shell_pid_created_at": "1786854539.4400413"
+    },
+    "WP07": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M04HSEDJ4TBMYAYWQ37D0J52",
+      "last_transition_at": "2026-08-16T05:47:52.626616+00:00"
     }
   }
 }
