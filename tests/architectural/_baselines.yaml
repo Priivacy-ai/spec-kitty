@@ -59,11 +59,12 @@ test_no_dead_modules:
   # tasks_support's ~35 test sites onto specify_cli.task_utils and deleted the
   # module, draining the last row: 1->0 SHRINK. Category fully drained.)
   category_4_backcompat_shims: 0
-  # justification: 0 compat-shim WP-in-flight adapters. charter.extractor
-  # (the last entry) is fully deleted by charter-deadcode-noop-campsite
-  # WP02 -- module removed, test-only refs retired/reconstructed. Category
-  # fully drained (1->0 SHRINK).
-  category_5_wp_in_flight_adapters: 0
+  # justification: 2 not-yet-wired adapter modules (specify_cli.doctrine.pack_descriptor,
+  # specify_cli.doctrine.pack_lineage) from the pack-metadata library-first slice
+  # (#3500-#3503, ADR 2026-08-16-1); production wiring is the deferred integration WP
+  # tracked in #3518. Grown 0->2 for PR #3507 (charter.extractor previously drained
+  # this category to 0).
+  category_5_wp_in_flight_adapters: 2
   # justification: 3 frozen-contract internal re-exports under
   # next/_internal_runtime/ frozen by shared-package-boundary-cutover.
   category_6_frozen_runtime_reexports: 3
@@ -186,7 +187,13 @@ test_no_dead_symbols:
   # wired" carry-over. WP02 left their public-API contracts intact;
   # a future mission must wire / prune / delete each. 13->12: shrank when
   # WP03 (org-doctrine close-out) wired one Cat-A symbol; locked in here.
-  category_a_slice_f_deferred: 12
+  # 12->31 (PR #3507): +19 deferred public symbols from the pack-metadata
+  # library-first slice (#3500-#3503, ADR 2026-08-16-1) — the
+  # pack_manifest/pack_lineage/builtin_manifest schema+lineage+hash API plus
+  # org_pack_config.ensure_pack_identity and charter.synthesizer.manifest.
+  # compute_manifest_hash — declared now, wired by the deferred integration WP
+  # (#3518). Operator-confirmed: land the full declared surface as deferred API.
+  category_a_slice_f_deferred: 31
   # justification: 271 pre-existing public symbols across doctrine +
   # specify_cli whose ``__all__`` predates the WP02 gate. C-007 /
   # FR-121 scopes WP02 to charter+kernel; this category is the

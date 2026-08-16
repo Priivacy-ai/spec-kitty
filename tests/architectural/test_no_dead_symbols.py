@@ -121,6 +121,30 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         SymbolKey("extract_section_anchors", "98ff665e1c40a10a69f25707ce30f4be7366667f472fb3abb3f457b8370e6633"),  # charter.compact::extract_section_anchors
         SymbolKey("StagedArtifact", "e5cac178a00a1ab09ab3a43c31edee223c69f455e050f12dd172742c15e25f8b"),  # charter.synthesizer.write_pipeline::StagedArtifact
         SymbolKey("is_re2_active", "1f449ff66fa7793bd2911da921304f2668c6c449879c96292bf8c6a8a8b2efe9"),  # kernel._safe_re::is_re2_active
+        # pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the
+        # unified pack-manifest schema/lineage/hash public API, declared now but not
+        # wired to production callers until the deferred integration WP (#3518).
+        # library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+        # suites exercise these meanwhile. Operator-confirmed deferred-API landing.
+        SymbolKey("compute_manifest_hash", "976c4625daa4d8bc9612ad055b4076e879ab68aa5df7cba27c16ce90f5c51ef4"),  # charter.synthesizer.manifest
+        SymbolKey("ensure_pack_identity", "ca9b5b99abe23a15555eca6452a326aede2faf85c70518c1a17b8dc345b349bb"),  # doctrine.drg.org_pack_config
+        SymbolKey("GENERATED_BY", "124f8f0fc76bb7fc39e58268421f79fe2044c7901abf8ed50a4dfd4a64556322"),  # specify_cli.doctrine.builtin_manifest
+        SymbolKey("MANIFEST_FILENAME", "8d9c9bfddfbfe8e93bbc740dd033d34cb77d0b373b30e7118a1c93649bc3590a"),  # specify_cli.doctrine.builtin_manifest
+        SymbolKey("build_builtin_manifest", "f9a428de9a2dc22e79265005c2e7629c49c9e707ae3079911bda1081d598f976"),  # specify_cli.doctrine.builtin_manifest
+        SymbolKey("enumerate_constituents", "d063e2da3dc64d421fb3a141db384b7515a09939629c536376de32c4ac42bfab"),  # specify_cli.doctrine.builtin_manifest
+        SymbolKey("PackLineageCycleError", "0e7c672a0f7e02520fb8b8dcb5e48c08c6745831760be28b3eec4277ce7635d1"),  # specify_cli.doctrine.pack_lineage
+        SymbolKey("UnresolvedDoctrinePackError", "606f77e976b58a6cdc360bdc40a563b024e6598f01ad6866e1ca48477a60f097"),  # specify_cli.doctrine.pack_lineage
+        SymbolKey("UnresolvedPackParentError", "d61ea19665cc7e37035675c8ac779074707d253b3597f848db168c500df73c92"),  # specify_cli.doctrine.pack_lineage
+        SymbolKey("resolve_accompanying_doctrine_pack", "dbc882bbbfa45f20c1ee4f86ffe0561d6955f067279c82e5e0768807874870bf"),  # specify_cli.doctrine.pack_lineage
+        SymbolKey("resolve_pack_lineage_order", "f9b3114c48e1e4ad07968ce4e752d697bd5272f58f40626b6ff363b2517102c9"),  # specify_cli.doctrine.pack_lineage
+        SymbolKey("CharterProfile", "e819b8ef6ee1d90a233d35df96668e478d793c8edcf11a3320587042e9e58377"),  # specify_cli.doctrine.pack_manifest
+        SymbolKey("HASH_EXCLUDED_FIELDS", "3c3581a0092e43f9586c79cf55dccee76fa9d480fa58e469fd3118c5e47747e3"),  # specify_cli.doctrine.pack_manifest
+        SymbolKey("SCHEMA_VERSION", "d5eae924852db12511f61d775992ee1a06e6d9021b5a9623c442e387b873f9db"),  # specify_cli.doctrine.pack_manifest
+        SymbolKey("absorb_synthesis_manifest", "00945ab34f76cd761d46fb785c6bd556bc4804a61935760698d83877c9886693"),  # specify_cli.doctrine.pack_manifest
+        SymbolKey("compute_pack_manifest_hash", "829680a1fb5a9d2159fcfecba012118a2d8d0ea486b9fc2a94394acd9db71b3c"),  # specify_cli.doctrine.pack_manifest
+        SymbolKey("counts_by_kind", "7251aec17a859f0c24347f77d55f59328003829e77f87437a2f15dedc656738d"),  # specify_cli.doctrine.pack_manifest
+        SymbolKey("load_pack_manifest", "beddcbcf37b0a4e7fc2be56adc9149fce863e53e05e51bd1f2d4e8dad26847b2"),  # specify_cli.doctrine.pack_manifest
+        SymbolKey("sort_constituents", "00ba026bae02e3ad0d3d368cc78afe8806b62e71e5c407e8a102841315aa0fe2"),  # specify_cli.doctrine.pack_manifest
     }
 )
 
