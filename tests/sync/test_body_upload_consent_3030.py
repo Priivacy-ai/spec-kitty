@@ -58,16 +58,14 @@ CONFIDENTIAL_BODY = "# Spec\n\nAcme Holdings carve-out: draft the disclosure sch
 
 
 @pytest.fixture(autouse=True)
-def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def _isolated_home(canonical_home: None, monkeypatch: pytest.MonkeyPatch) -> None:
     """Per-case machine state, plus the incident's own mechanism left armed.
 
     ``SPEC_KITTY_ENABLE_SAAS_SYNC`` was exported machine-wide on 2026-07-27. It arms
     the machine and must never grant per-project consent, so leaving it set here keeps
     every assertion below honest about what it proves.
     """
-    home = tmp_path / "home"
-    home.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    del canonical_home  # R1b (#3121): home isolation provided by the canonical SPEC_KITTY_HOME owner
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     # ``locate_project_root`` treats this var as authoritative when set; an inherited
     # value would silently turn the "root does not resolve" case into a different test.

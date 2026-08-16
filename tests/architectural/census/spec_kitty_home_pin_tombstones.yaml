@@ -91,3 +91,25 @@ tombstones:
       tmp_path/"home". The seven sibling non-member pins in this file (str(home/".spec-kitty"),
       a different value) are left untouched. Surgical JC member.
     evidence: *r1b_op4
+  - key:
+      - sync/test_body_drain_consent_3030.py
+      - _isolated_home
+      - monkeypatch . setenv ( , str ( tmp_path / ) )
+    reason: &saas_home >-
+      Converged the HOME dimension onto canonical_home (the fixture now requests it and drops its own
+      SPEC_KITTY_HOME pin). The deliberate machine-armed premise (setenv SPEC_KITTY_ENABLE_SAAS_SYNC=1,
+      and for body_upload the delenv SPECIFY_REPO_ROOT) is PRESERVED — only the census-member home pin
+      moved. JC member.
+    evidence: &r1b_op5 "kitty/fix-home-pin-census-owner-adoption-3121 R1b op5"
+  - key:
+      - delivery/test_nfr003_predicate_cost_3030.py
+      - _consent
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: *saas_home
+    evidence: *r1b_op5
+  - key:
+      - sync/test_body_upload_consent_3030.py
+      - _isolated_home
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: *saas_home
+    evidence: *r1b_op5

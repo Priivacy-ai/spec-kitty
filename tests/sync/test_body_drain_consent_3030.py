@@ -46,9 +46,8 @@ CONFIDENTIAL_BODY = "# Spec\n\nAcme Corp engagement: migrate the payroll ledger.
 
 
 @pytest.fixture(autouse=True)
-def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
-    (tmp_path / "home").mkdir(parents=True, exist_ok=True)
+def _isolated_home(canonical_home: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    del canonical_home  # R1b (#3121): home isolation provided by the canonical SPEC_KITTY_HOME owner
     # The incident's actual mechanism: the env var was exported machine-wide. It
     # arms the machine and must never grant per-project consent, so leaving it set
     # here keeps these tests honest about what they prove.
