@@ -1,0 +1,77 @@
+{
+  "mission_slug": "home-pin-census-r1b-tombstone-subsystem-01M05FS1",
+  "snapshot_id": "668ceefd-fc18-40e1-8314-0ce71bd35a07",
+  "total_artifacts": 4,
+  "required_artifacts": 1,
+  "required_present": 1,
+  "required_missing": 0,
+  "optional_artifacts": 3,
+  "optional_present": 3,
+  "completeness_status": "complete",
+  "parity_hash_sha256": "sha256:3f8f6fa8e65355dbeaeb949d3b2e265b4492eb38ab763e140c45bf6a04d6d631",
+  "parity_hash_components": [
+    "01c3af5bd58df00a312284181134f2cda48dae5b11739fe17ef8d7be0f0dab21",
+    "1acaf50125ae144a52d4973d92c3e87a55bf5a811b373a17f3a53ff2253afbe5",
+    "9aa16535657d1f8ff5794a57d5cd4267eea4e1b587a3af25d56baf3fbd7d205a",
+    "b0645cd31f139c9effff356287e90e59f80c82e7786410f145a819710b0ecc8b"
+  ],
+  "artifact_summaries": [
+    {
+      "artifact_key": "artifact.meta",
+      "artifact_class": "output",
+      "relative_path": "meta.json",
+      "content_hash_sha256": "01c3af5bd58df00a312284181134f2cda48dae5b11739fe17ef8d7be0f0dab21",
+      "size_bytes": 737,
+      "wp_id": null,
+      "step_id": null,
+      "required_status": "optional",
+      "is_present": true,
+      "error_reason": null,
+      "indexed_at": "2026-08-16T14:31:57.098732+00:00",
+      "provenance": null
+    },
+    {
+      "artifact_key": "artifact.readme",
+      "artifact_class": "output",
+      "relative_path": "tasks/README.md",
+      "content_hash_sha256": "1acaf50125ae144a52d4973d92c3e87a55bf5a811b373a17f3a53ff2253afbe5",
+      "size_bytes": 1572,
+      "wp_id": null,
+      "step_id": null,
+      "required_status": "optional",
+      "is_present": true,
+      "error_reason": null,
+      "indexed_at": "2026-08-16T14:31:57.099142+00:00",
+      "provenance": null
+    },
+    {
+      "artifact_key": "artifact.status.events",
+      "artifact_class": "output",
+      "relative_path": "status.events.jsonl",
+      "content_hash_sha256": "9aa16535657d1f8ff5794a57d5cd4267eea4e1b587a3af25d56baf3fbd7d205a",
+      "size_bytes": 1502,
+      "wp_id": null,
+      "step_id": null,
+      "required_status": "optional",
+      "is_present": true,
+      "error_reason": null,
+      "indexed_at": "2026-08-16T14:31:57.098858+00:00",
+      "provenance": null
+    },
+    {
+      "artifact_key": "input.spec.main",
+      "artifact_class": "input",
+      "relative_path": "spec.md",
+      "content_hash_sha256": "b0645cd31f139c9effff356287e90e59f80c82e7786410f145a819710b0ecc8b",
+      "size_bytes": 4716,
+      "wp_id": null,
+      "step_id": null,
+      "required_status": "required",
+      "is_present": true,
+      "error_reason": null,
+      "indexed_at": "2026-08-16T14:31:57.098934+00:00",
+      "provenance": null
+    }
+  ],
+  "computed_at": "2026-08-16 14:32:12.183800+00:00"
+}
