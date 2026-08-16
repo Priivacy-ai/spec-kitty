@@ -217,7 +217,13 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   provable class was converged onto the canonical owner — census `40 → 26` — with
   the ~23 genuinely-different seams documented out of scope (`#3121`'s confirmed
   thesis: a name collision, not a duplicated seam). The subsystem is a no-op while
-  the manifest is empty (committed artefacts byte-identical).
+  the manifest is empty (committed artefacts byte-identical). The same convergence
+  also greens a second, separate gate — limb (g) of the §0.9 `_home_pin_gate`
+  verdict oracle (`arch-adversarial (arch_shard_2)`), which recomputes the
+  published end-SHA sites against the tree — by teaching it the same tombstone
+  term: a converged member's site is excused only when it is in the manifest, and
+  the anti-vacuity floor now counts keys that recompute _live_ so the gate can't be
+  bought off by tombstoning the population away.
 
 - **Machines that never ran the layout migration silently captured zero sync
   events while reporting success — now they capture for real (`#3425`;
