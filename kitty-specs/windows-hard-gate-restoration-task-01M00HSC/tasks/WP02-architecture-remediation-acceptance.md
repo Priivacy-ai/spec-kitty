@@ -12,7 +12,7 @@ requirement_refs:
 - FR-010
 planning_base_branch: codex/setup-plan-hard-gates
 merge_target_branch: codex/setup-plan-hard-gates
-branch_strategy: Пакет начинается только от approved WP01, исполняется в отдельной lane и после review возвращается в codex/setup-plan-hard-gates.
+branch_strategy: Planning artifacts for this mission were generated on codex/setup-plan-hard-gates. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/setup-plan-hard-gates unless the human explicitly redirects the landing branch.
 subtasks:
 - T007
 - T008
@@ -22,6 +22,9 @@ subtasks:
 - T012
 - T013
 phase: Фаза 2 — architecture remediation и acceptance
+agent: codex
+shell_pid: 11036
+shell_pid_created_at: '1786739900.4438202'
 history:
 - at: '2026-08-14T16:36:00Z'
   actor: codex

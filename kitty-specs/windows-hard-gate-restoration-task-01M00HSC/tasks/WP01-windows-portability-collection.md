@@ -10,7 +10,7 @@ requirement_refs:
 - FR-007
 planning_base_branch: codex/setup-plan-hard-gates
 merge_target_branch: codex/setup-plan-hard-gates
-branch_strategy: Пакет исполняется в отдельной lane от task-local planning branch и после review возвращается в codex/setup-plan-hard-gates.
+branch_strategy: Planning artifacts for this mission were generated on codex/setup-plan-hard-gates. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/setup-plan-hard-gates unless the human explicitly redirects the landing branch.
 subtasks:
 - T001
 - T002
@@ -19,6 +19,9 @@ subtasks:
 - T005
 - T006
 phase: Фаза 1 — Windows portability
+agent: codex-review
+shell_pid: 26716
+shell_pid_created_at: '1786739803.8896844'
 history:
 - at: '2026-08-14T16:35:00Z'
   actor: codex
