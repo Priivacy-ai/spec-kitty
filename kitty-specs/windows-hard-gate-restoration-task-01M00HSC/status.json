@@ -1,7 +1,7 @@
 {
-  "event_count": 33,
-  "last_event_id": "01M04D8NXE3CHHN1BTFNW1W072",
-  "materialized_at": "2026-08-16T04:28:48.942167+00:00",
+  "event_count": 35,
+  "last_event_id": "01M04D96DES6D33H1T85CE2ZT7",
+  "materialized_at": "2026-08-16T04:29:05.836570+00:00",
   "mission_number": "",
   "mission_slug": "windows-hard-gate-restoration-task-01M00HSC",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -161,7 +161,8 @@
       "last_transition_at": "2026-08-16T04:28:48.942167+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Готово к ревью: diagnostic keys POSIX-stable, codemap lock LF-normalized, JSON/HTML parity and mutation gates green; scope 3 product/test files, no semantic codemap drift."
+        "Готово к ревью: diagnostic keys POSIX-stable, codemap lock LF-normalized, JSON/HTML parity and mutation gates green; scope 3 product/test files, no semantic codemap drift.",
+        "Ревью пройдено: .as_posix() фиксирует POSIX diagnostic keys без изменения filesystem semantics; codemap lock и oracle используют LF-normalized bytes, JSON↔HTML parity сохранена. RED cb3c2f02f и GREEN 6cc416c42, 39/39 owned architecture tests, обе mutation-проверки пойманы, независимый SHA/parity oracle, Ruff, py_compile, diff-check, clean lane. Shared WP04 test file изменён последовательно; no_coverage — известное неблокирующее предупреждение. Anti-patterns PASS: dead code N/A, production-path scanner tests, no silent returns, FR coverage, frozen/locked/shared/fragility gates."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
@@ -180,11 +181,19 @@
       }
     },
     "WP06": {
-      "actor": "finalize-tasks",
+      "actor": "codex",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M04AM0C8XGQA69F38C9GDT0A",
-      "last_transition_at": "2026-08-16T03:42:34.376830+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01M04D96DES6D33H1T85CE2ZT7",
+      "last_transition_at": "2026-08-16T04:29:05.836570+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 3876,
+      "shell_pid_created_at": "1786854539.4400413"
     }
   }
 }
