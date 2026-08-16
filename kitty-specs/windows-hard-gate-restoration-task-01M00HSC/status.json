@@ -1,19 +1,19 @@
 {
-  "event_count": 46,
-  "last_event_id": "01M05MVHCSWYJA73M2QM92CRSG",
-  "materialized_at": "2026-08-16T16:00:41.369349+00:00",
+  "event_count": 47,
+  "last_event_id": "01M05N1VYJC4T65Z1WFQNCP0PE",
+  "materialized_at": "2026-08-16T16:04:08.786957+00:00",
   "mission_number": "",
   "mission_slug": "windows-hard-gate-restoration-task-01M00HSC",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 6,
+    "approved": 7,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {
@@ -181,14 +181,14 @@
       }
     },
     "WP06": {
-      "actor": "codex",
+      "actor": "user",
       "agent": "codex",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
-      "lane": "in_review",
-      "last_event_id": "01M05MVHCSWYJA73M2QM92CRSG",
-      "last_transition_at": "2026-08-16T16:00:41.369349+00:00",
+      "lane": "approved",
+      "last_event_id": "01M05N1VYJC4T65Z1WFQNCP0PE",
+      "last_transition_at": "2026-08-16T16:04:08.786957+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Полный gate выявил WP04 residual; WP06 отложен до отдельного WP07",
@@ -196,6 +196,11 @@
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
+      "review_result": {
+        "reference": "Review passed: final local acceptance docs match immutable bcc33914d; contract 305/3 skip and architecture 2120/5/2 xfail with zero failures/errors; E2E remains blocked",
+        "reviewer": "rusliksu",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 24180,
       "shell_pid_created_at": "1786896035.0336635",
