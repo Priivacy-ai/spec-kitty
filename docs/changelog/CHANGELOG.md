@@ -262,7 +262,28 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   intact); and credential parsing is restored as a pure auth signal (never a
   physical-store selector), so an already-authenticated host stops being
   refused.
-
+- **`spec-kitty next`/`implement` no longer block on a fully-absent or legacy
+  `charter.md`-only charter — both are now advisory, matching `specify`/`plan`'s
+  existing tolerance (`#3498`).** The shared preflight hook
+  (`run_preflight_or_abort` in `charter_runtime/preflight/hook.py`) never
+  forwarded `allow_missing_charter=True` to the runner, so a brand-new project
+  with no `.kittify/charter/` contents at all, or a pre-inversion project
+  carrying only `.kittify/charter/charter.md` (`charter.yaml` absent, #2831's
+  shape), hard-blocked `next`/`implement` even though the dashboard already
+  tolerated both states. `run_charter_preflight()`
+  (`charter_runtime/preflight/runner.py`) gains a new `_is_legacy_charter_bundle`
+  wording selector and a distinct, more detailed warning constant for the
+  legacy-bundle case. Canonical layer state alone decides the exemption:
+  source and synced bundle must be `missing`, and synthesized DRG must be
+  `missing` or `built_in_only`; display-only `charter.md` only selects warning
+  copy after that decision. Stale, invalid, or other partial residue therefore
+  keeps blocking even when `charter.md` exists. Advancing/query and human/JSON
+  `next` modes plus `implement` emit the advisory to stderr without polluting
+  JSON stdout; dashboard persists/renders it. The canonical `CHARTER_MD` import
+  stays lazy so `next` does not pull the heavyweight charter graph at startup.
+  The legacy warning
+  names the executable migration command explicitly:
+  `spec-kitty charter generate --no-from-interview`.
 - **A reviewer running a different agent profile than the implementer can now
   claim a completed work package for review — the false "WP already claimed for
   review by `<implementer>`" refusal is gone (`#3455`).** Before, claiming a WP
