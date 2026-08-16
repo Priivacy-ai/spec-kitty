@@ -17,7 +17,7 @@
     "tests/runtime": 11,
     "tests/specify_cli": 265,
     "tests/status": 36,
-    "tests/sync": 74,
+    "tests/sync": 75,
     "tests/test_dashboard": 13,
     "tests/unit": 17
   }
