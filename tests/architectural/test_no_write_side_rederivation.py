@@ -297,6 +297,16 @@ def test_adopted_modules_have_no_write_side_rederivation() -> None:
     )
 
 
+def test_wp04_status_transition_has_no_root_walk() -> None:
+    """WP04 RED/GREEN oracle: status identity must use the resolver seam."""
+    module = _SRC / "coordination" / "status_transition.py"
+    findings = [finding for finding in _scan_module(module) if finding.kind == "root_walk"]
+    assert not findings, (
+        "status_transition must not derive a Mission anchor with parent.parent; "
+        f"route caller-owned identity through the canonical operation resolver: {findings}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # "Ratchet bites" — the guard is not inert.
 # ---------------------------------------------------------------------------
