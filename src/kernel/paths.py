@@ -280,6 +280,66 @@ def get_built_in_pack_root() -> Path:
     )
 
 
+def get_packs_root_default() -> Path:
+    """Return the default value for the ``${SPEC_KITTY_PACKS_ROOT}`` env token.
+
+    The token names the **parent** of the built-in pack directory:
+    ``get_built_in_pack_root()`` resolves ``.../packs/built-in``, so the
+    token's default is ``.../packs`` -- one ``.parent`` hop, not the
+    resolver's own return value. Using the resolver's return directly as the
+    default would double-join ``/built-in`` when a downstream template
+    appends it back on (e.g. ``${SPEC_KITTY_PACKS_ROOT}/built-in/...``), per
+    the ``_PACKS_ROOT_ENV`` override shape documented above
+    (:func:`get_built_in_pack_root`).
+
+    This is the single kernel-floor authority for that default -- callers
+    needing the ``${SPEC_KITTY_PACKS_ROOT}`` default (e.g.
+    :mod:`kernel.env_expand`'s default-injection registry) resolve through
+    this function rather than hand-rolling ``get_built_in_pack_root().parent``
+    at each call site.
+
+    Returns:
+        Path: The parent of the built-in pack root.
+    """
+    return get_built_in_pack_root().parent
+
+
+def get_runtime_state_root() -> Path:
+    """Return the spec-kitty runtime STATE root for the current platform.
+
+    This is a **different** root from :func:`get_kittify_home` (the
+    ``.kittify`` ASSET home) -- the two are deliberately kept separate and
+    this function must never collapse them. It exists so a pre-import loader
+    (e.g. a future ``.kitty.env`` reader) can resolve the runtime state root
+    using stdlib + ``kernel.paths`` only, without importing ``specify_cli``.
+
+    Resolution order (mirrors
+    ``specify_cli.paths.windows_paths.get_runtime_root().base`` exactly, so
+    both resolve to the same directory):
+
+    1. ``SPEC_KITTY_HOME`` environment variable, used verbatim (all
+       platforms).
+    2. Windows: ``platformdirs.user_data_dir("spec-kitty", appauthor=False,
+       roaming=False)`` (non-roaming ``%LOCALAPPDATA%\\spec-kitty``).
+    3. POSIX: ``~/.spec-kitty``.
+
+    This function is pure -- it performs no I/O and creates no directories.
+
+    Returns:
+        Path: Absolute path to the runtime state root.
+    """
+    if env_home := os.environ.get("SPEC_KITTY_HOME"):
+        return Path(env_home)
+
+    if _is_windows():
+        # platformdirs is the only sanctioned third-party import in kernel/.
+        from platformdirs import user_data_dir  # noqa: PLC0415
+
+        return Path(str(user_data_dir("spec-kitty", appauthor=False, roaming=False)))
+
+    return Path.home() / ".spec-kitty"
+
+
 def get_package_asset_root() -> Path:
     """Return the path to the package's bundled mission assets.
 
@@ -440,6 +500,8 @@ __all__ = [
     "get_built_in_pack_root",
     "get_kittify_home",
     "get_package_asset_root",
+    "get_packs_root_default",
+    "get_runtime_state_root",
     "render_runtime_path",
     "repo_tree_path",
     "to_posix",

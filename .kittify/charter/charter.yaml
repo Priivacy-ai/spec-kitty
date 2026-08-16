@@ -121,49 +121,49 @@ catalog:
     kind: paradigm
     title: Atomic Design
     summary: "Compose interfaces from a five-level hierarchy (atoms, molecules, organisms, templates, pages) where each level owns its appropriate concern. State ownership, reactive stream scope, and centralized store usage are bounded by the same compositional levels that govern visual structure.\n"
-    source_path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/packs/built-in/paradigms/atomic-design.paradigm.yaml
+    source_path: ${SPEC_KITTY_PACKS_ROOT}/built-in/paradigms/atomic-design.paradigm.yaml
     local_path: _LIBRARY/paradigm-atomic-design.md
   - id: PARADIGM:behaviour-driven-development
     kind: paradigm
     title: Behaviour-Driven Development
     summary: "BDD is a collaboration practice, not a testing methodology. It operates through three cyclical phases: Discovery (structured Three Amigos conversations — product owner, developer, tester — produce concrete, validated behavioral examples before any code is written), Formulation (validated examples are expressed in plain-language Given/When/Then specifications that serve as the canonical behavioral contract), and Automation (formulated specifications are connected to executable tests that fail when the system diverges from the spec, producing living documentation that cannot become stale). BDD does not replace unit testing — it sits above the test pyramid and is reserved for behaviors with genuine cross-functional business value. The Three Amigos is the minimum collaboration unit: one person representing the business need, one who will build it, one who will verify it. Distinct from Specification by Example (the broader technique); BDD mandates the collaboration process and executable automation as the canonical specification form.\n"
-    source_path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/packs/built-in/paradigms/behaviour-driven-development.paradigm.yaml
+    source_path: ${SPEC_KITTY_PACKS_ROOT}/built-in/paradigms/behaviour-driven-development.paradigm.yaml
     local_path: _LIBRARY/paradigm-behaviour-driven-development.md
   - id: PARADIGM:brownfield-onboarding
     kind: paradigm
     title: Brownfield Onboarding
     summary: "DRAFT / PROVISIONAL (2026-05-08). Approach a mature, in-use codebase as a teacher rather than a problem. Legacy code is the durable record of constraints, edge cases, and prior decisions the team has already paid for; it deserves epistemic humility before it deserves restructuring. Brownfield onboarding treats investigation as a precondition to non-trivial change: forensic methods (git-history mining, hotspot and change-coupling analysis via tactic:forensic-repository-audit) surface \"what\" and \"where\"; qualitative methods (SME interviews, decision archaeology) answer \"why\"; structural overlays (DDD strategic classification, deep-module analysis) give the findings a vocabulary the team can act on. None of these methods alone is sufficient. The durable artifact of the engagement is not a refactor plan but a hierarchical reference bundle -- system overview, subsystem maps, click paths, terminology aliases, design paradigms inferred from the code -- that lowers bus-factor risk before code shape is touched. Knowledge transfer is load-bearing: the DM-D principle (\"document and transfer first, then refactor\") protects the implicit invariants that restructure would otherwise erase. Respect for prior decisions and willingness to change are held in tension on purpose: refusing to remove what you do not yet understand is Chesterton's-fence discipline; refusing to change because change is hard is preservation by inertia. The paradigm walks the line between them by gating structural moves on captured understanding, not on courage or on caution alone.\n"
-    source_path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/packs/built-in/paradigms/brownfield-onboarding.paradigm.yaml
+    source_path: ${SPEC_KITTY_PACKS_ROOT}/built-in/paradigms/brownfield-onboarding.paradigm.yaml
     local_path: _LIBRARY/paradigm-brownfield-onboarding.md
   - id: PARADIGM:c4-incremental-detail-modeling
     kind: paradigm
     title: C4 Incremental Detail Modeling
     summary: "Architecture communication through progressive zoom -- from the broadest system landscape down to individual components -- so that each audience sees the right level of detail without drowning in irrelevance. Inspired by Simon Brown's C4 model, the approach defines four hierarchical abstraction levels (Software System, Container, Component, Code) and a small set of supporting diagram types (System Landscape, Dynamic, Deployment). Each level answers a different question for a different stakeholder: Level 1 (Context) shows actors and boundaries for business sponsors; Level 2 (Containers) shows deployable units and technology choices for architects and DevOps; Level 3 (Components) shows logical structure for developers; Level 4 (Code) shows implementation detail only when automated generation makes it cheap. The paradigm is notation- independent and tooling-independent -- Mermaid, PlantUML, Structurizr, or whiteboard sketches all qualify, provided every diagram carries a title, a legend, labelled elements with descriptions, and labelled unidirectional relationships. The guiding heuristic: produce only the levels that add value and keep each diagram reviewable in under five minutes.\n"
-    source_path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/packs/built-in/paradigms/c4-incremental-detail-modeling.paradigm.yaml
+    source_path: ${SPEC_KITTY_PACKS_ROOT}/built-in/paradigms/c4-incremental-detail-modeling.paradigm.yaml
     local_path: _LIBRARY/paradigm-c4-incremental-detail-modeling.md
   - id: PARADIGM:deep-module-design
     kind: paradigm
     title: Deep Module Design
     summary: "Shape modules so a small, stable interface gives callers high leverage over a substantial implementation. The interface includes every fact a caller must know to use the module correctly: names, types, invariants, ordering, error modes, configuration, and performance expectations. Deep modules improve locality because changes, bugs, and knowledge concentrate behind the interface instead of spreading across callers and tests.\n"
-    source_path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/packs/built-in/paradigms/deep-module-design.paradigm.yaml
+    source_path: ${SPEC_KITTY_PACKS_ROOT}/built-in/paradigms/deep-module-design.paradigm.yaml
     local_path: _LIBRARY/paradigm-deep-module-design.md
   - id: PARADIGM:domain-driven-design
     kind: paradigm
     title: Domain-Driven Design
     summary: "Software design guided by a deep model of the business domain. Strategic design decomposes a system into Bounded Contexts connected through explicit Context Mapping patterns (ACL, OHS, Shared Kernel, Published Language, etc.). Within each context a Ubiquitous Language keeps code, model, and domain expert communication aligned. Tactical patterns (Aggregates, Entities, Value Objects, Domain Events, Repositories, Domain Services) enforce invariants at the model boundary. DDD treats the domain model as the primary artifact — code is a direct expression of that model, not a translation layer above a database schema or UI framework.\n"
-    source_path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/packs/built-in/paradigms/domain-driven-design.paradigm.yaml
+    source_path: ${SPEC_KITTY_PACKS_ROOT}/built-in/paradigms/domain-driven-design.paradigm.yaml
     local_path: _LIBRARY/paradigm-domain-driven-design.md
   - id: PARADIGM:specification-by-example
     kind: paradigm
     title: Specification by Example
     summary: "Shared understanding of behavior is built from concrete, business-readable examples that become the canonical source of truth for requirements, acceptance checks, and living documentation. Teams refine examples collaboratively, turn stable examples into executable acceptance tests, and keep narrative specs in sync whenever behavior changes.\n"
-    source_path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/packs/built-in/paradigms/specification-by-example.paradigm.yaml
+    source_path: ${SPEC_KITTY_PACKS_ROOT}/built-in/paradigms/specification-by-example.paradigm.yaml
     local_path: _LIBRARY/paradigm-specification-by-example.md
   - id: PARADIGM:structured-prompt-driven-development
     kind: paradigm
     title: Structured-Prompt-Driven Development
     summary: "Treat structured prompts and REASONS canvases as governed change-intent and decision-boundary artifacts. Code remains the source of truth for current behavior; canvases record approved intent, boundaries, and safeguards for a mission or work package. Applies to high-risk and multi-WP missions where change-boundary clarity reduces drift; not appropriate for tiny fixes, throwaway spikes, or purely visual exploration where canvas authoring is overhead.\n"
-    source_path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/packs/built-in/paradigms/structured-prompt-driven-development.paradigm.yaml
+    source_path: ${SPEC_KITTY_PACKS_ROOT}/built-in/paradigms/structured-prompt-driven-development.paradigm.yaml
     local_path: _LIBRARY/paradigm-structured-prompt-driven-development.md
   - id: DIRECTIVE:DIRECTIVE_001
     kind: directive

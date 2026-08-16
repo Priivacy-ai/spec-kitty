@@ -75,7 +75,13 @@ class UpgradeProbeResult:
     """The value ``get_cli_version()`` returned at probe time."""
 
     latest_pypi_version: str | None
-    """``info.version`` from PyPI, or ``None`` when the probe failed."""
+    """``info.version`` from PyPI, or ``None`` when the probe failed.
+
+    Channel-aware (T022, C-CHN-2): when the rc channel is opted into (see
+    ``prerelease`` on :func:`probe_pypi`), this is instead the highest
+    version across ``releases`` (pre-releases included). Default-off (the
+    common case) this is byte-identical to ``info.version``.
+    """
 
     channel: UpgradeChannel
     """Classification of ``installed_version`` relative to PyPI metadata."""
@@ -99,6 +105,7 @@ def probe_pypi(
     *,
     timeout_s: float = DEFAULT_TIMEOUT_S,
     transport: httpx.BaseTransport | None = None,
+    prerelease: bool | None = None,
 ) -> UpgradeProbeResult:
     """Query PyPI and classify the installed CLI version.
 
@@ -107,6 +114,16 @@ def probe_pypi(
         timeout_s: Hard timeout on the network call. Defaults to 2 s.
         transport: Optional httpx transport for tests (``MockTransport`` etc.).
             Production callers should leave this unset.
+        prerelease: Channel override for tests. ``None`` (the production
+            default) resolves the single read via
+            ``core.channel.prerelease_enabled()`` — this function is the top
+            of its own call graph (the notifier caller doesn't thread the
+            channel through), so it is the one place the flag is read rather
+            than accepted as a required argument. When True (T022, C-CHN-2),
+            classification uses the highest version across all published
+            releases (pre-releases included) instead of PyPI's stable
+            ``info.version``, so an installed rc build is classified against
+            its own channel instead of always reading ``AHEAD_OF_PYPI``.
 
     Returns:
         A well-formed ``UpgradeProbeResult``. Never raises.
@@ -118,6 +135,11 @@ def probe_pypi(
           failures must not break the user's command invocation. The error
           message is captured in ``UpgradeProbeResult.error`` for debugging.
     """
+    if prerelease is None:
+        from specify_cli.core.channel import prerelease_enabled
+
+        prerelease = prerelease_enabled()
+
     user_agent = (
         f"spec-kitty-cli/{cli_version} "
         "(https://github.com/Priivacy-ai/spec-kitty)"
@@ -155,10 +177,11 @@ def probe_pypi(
             )
         releases = tuple(releases_dict.keys())
 
-        channel = _classify(cli_version, latest, releases)
+        channel_latest = _channel_latest(latest, releases, prerelease=prerelease)
+        channel = _classify(cli_version, channel_latest, releases)
         return UpgradeProbeResult(
             installed_version=cli_version,
-            latest_pypi_version=latest,
+            latest_pypi_version=channel_latest,
             channel=channel,
             probed_at=probed_at,
             error=None,
@@ -167,6 +190,25 @@ def probe_pypi(
 
     except Exception as exc:  # noqa: BLE001 — fail-safe-default per secure-design-checklist
         return _unknown(cli_version, probed_at, f"{type(exc).__name__}: {exc}")
+
+
+def _channel_latest(stable_latest: str, releases: tuple[str, ...], *, prerelease: bool) -> str:
+    """Return the "latest" version to classify against, per the active channel.
+
+    Default (``prerelease=False``, C-CHN-1): *stable_latest* — PyPI's
+    maintainer-designated ``info.version`` — unchanged. Opted in
+    (``prerelease=True``, C-CHN-2): the highest version across *releases*
+    (pre-releases included), reusing ``simple_index._highest_version`` as the
+    single source of truth so this module and ``compat.provider`` never
+    drift on "highest version, rc's included" semantics.
+    """
+    if not prerelease:
+        return stable_latest
+
+    from specify_cli.distribution.simple_index import _highest_version
+
+    highest = _highest_version([stable_latest, *releases], include_prerelease=True)
+    return highest if highest is not None else stable_latest
 
 
 def _unknown(cli_version: str, probed_at: datetime, error: str) -> UpgradeProbeResult:

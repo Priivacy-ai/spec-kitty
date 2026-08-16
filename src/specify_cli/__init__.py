@@ -19,10 +19,25 @@ Usage:
     spec-kitty init --here
 """
 
-import os
-import sys
-from pathlib import Path
-from typing import TYPE_CHECKING, Any
+# Pre-import ``.kitty.env`` two-tier loader (FR-004/FR-004a/FR-005;
+# contracts/kitty-env-loader.md C-LDR-1..7). Runs as the FIRST statements of
+# this module -- before the SPEC_KITTY_TEST_MODE read below and before any
+# other spec-kitty submodule is imported (C-LDR-2) -- so operator-configured
+# env vars (incl. import-time-gated ones like SPEC_KITTY_SYNC_MINIMAL_IMPORT,
+# see specify_cli/sync/__init__.py) are already in os.environ by the time
+# anything downstream reads them. specify_cli.bootstrap.env_file's own
+# transitive imports are stdlib + kernel ONLY (arch-gated by
+# tests/architectural/test_bootstrap_import_purity.py) -- it does not import
+# specify_cli.core, which would force that package's heavy __init__ to run
+# before this loader has even finished (see that module's docstring).
+from specify_cli.bootstrap.env_file import load_operator_env_file  # noqa: E402
+
+load_operator_env_file()
+
+import os  # noqa: E402
+import sys  # noqa: E402
+from pathlib import Path  # noqa: E402
+from typing import TYPE_CHECKING, Any  # noqa: E402
 
 
 import typer  # noqa: E402

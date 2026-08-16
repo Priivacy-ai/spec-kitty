@@ -22,7 +22,7 @@ import sys
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 
 from kernel.clock import datetime, now_utc
 
@@ -830,6 +830,34 @@ def plan(
         )
 
 
+def _call_provider_get_latest(provider: Any, package: str, *, prerelease: bool) -> Any:
+    """Call ``provider.get_latest``, threading *prerelease* only when supported (T022).
+
+    ``LatestVersionProvider`` is a structural ``Protocol`` (``compat/
+    provider.py``) whose stock implementations (``PyPIProvider``,
+    ``SimpleIndexProvider``, ``NoNetworkProvider``, ``FakeLatestVersion
+    Provider``) all accept ``prerelease`` as of this WP. A handful of ad-hoc
+    test doubles elsewhere in the suite predate that parameter and are
+    outside this WP's file ownership, so the call introspects the target's
+    signature rather than assuming the new keyword exists everywhere —
+    an unconditional ``prerelease=`` call would raise ``TypeError`` against
+    those legacy doubles.
+    """
+    import inspect
+
+    params: Mapping[str, inspect.Parameter]
+    try:
+        params = inspect.signature(provider.get_latest).parameters
+    except (TypeError, ValueError):  # pragma: no cover - defensive
+        params = {}
+    accepts_prerelease = "prerelease" in params or any(
+        p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()
+    )
+    if accepts_prerelease:
+        return provider.get_latest(package, prerelease=prerelease)
+    return provider.get_latest(package)
+
+
 def _resolve_latest_version(
     *,
     cache_data_fresh: bool,
@@ -840,6 +868,7 @@ def _resolve_latest_version(
     nag_cache: Any,
     installed_version: str,
     now: datetime,
+    prerelease: bool = False,
 ) -> tuple[str | None, Literal["pypi", "simple_index", "none"], datetime | None]:
     """Return ``(latest_version, cli_source, fetched_at)`` for the CLI status.
 
@@ -849,6 +878,15 @@ def _resolve_latest_version(
     provider returns nothing useful. Extracted from ``_plan_impl`` (keeps it
     under the complexity ceiling and gives the fetch/source-classification a
     directly testable seam).
+
+    Args:
+        installed_version: The cache key written to ``NagCacheRecord.
+            cli_version_key`` on a fetch. Callers pass the channel-folded
+            composite key (T023) here, not necessarily the raw installed CLI
+            version string — see ``_cache_version_key``.
+        prerelease: Single-read channel bool (T021/T022), threaded down to
+            ``latest_version_provider.get_latest`` unchanged. Default False
+            reproduces the pre-WP05 provider call byte-for-byte (C-CHN-1).
     """
     if cache_data_fresh:
         # Cache data is fresh — trust it; no network call.
@@ -859,7 +897,9 @@ def _resolve_latest_version(
         return latest_version, cli_source, None
 
     # Cache stale or missing — fetch from provider.
-    latest_result = latest_version_provider.get_latest(profile.package_name)
+    latest_result = _call_provider_get_latest(
+        latest_version_provider, profile.package_name, prerelease=prerelease
+    )
     source = latest_result.source
     latest_version = latest_result.version
 
@@ -897,6 +937,24 @@ def _resolve_latest_version(
     return latest_version, cli_source, fetched_at
 
 
+_PRERELEASE_CACHE_KEY_SUFFIX = "#prerelease"
+
+
+def _cache_version_key(installed_version: str, *, prerelease: bool) -> str:
+    """Fold the release channel into the nag-cache version key (T023).
+
+    Default (stable, ``prerelease=False``) returns *installed_version*
+    unchanged — the nag-cache freshness check is byte-identical to the
+    pre-WP05 behaviour (C-CHN-1). When the rc channel is opted into, a
+    suffix is appended so a cache record written under the other channel no
+    longer matches ``cli_version_key``: the FR-025-style invalidation check
+    in ``_plan_impl`` then treats the cache as stale and forces a fresh
+    provider call instead of silently reusing stable-channel (or stale
+    rc-channel) data across a channel toggle.
+    """
+    return f"{installed_version}{_PRERELEASE_CACHE_KEY_SUFFIX}" if prerelease else installed_version
+
+
 def _plan_impl(
     invocation: Invocation,
     *,
@@ -915,6 +973,7 @@ def _plan_impl(
     )
     from specify_cli.compat.safety import classify
     from specify_cli.compat.upgrade_hint import build_upgrade_hint
+    from specify_cli.core.channel import prerelease_enabled
     from specify_cli.distribution import resolve_distribution_profile
 
     # Defaults
@@ -943,6 +1002,11 @@ def _plan_impl(
     # --- Step 1: Build CliStatus ---
     installed_version = _get_installed_version()
 
+    # T021: single channel read, threaded down through the cache key (T023)
+    # and the provider call (T022) rather than re-read at each site.
+    channel_prerelease = prerelease_enabled()
+    cache_version_key = _cache_version_key(installed_version, prerelease=channel_prerelease)
+
     # Fresh-cache fast path (NFR-001): read cache first; only call the provider
     # if the version data in the cache is stale or absent.  This avoids a
     # network round-trip on every interactive invocation.
@@ -968,7 +1032,7 @@ def _plan_impl(
     # preserve user preferences such as snooze/auto/never-ask for the next
     # write. Those preferences are anchored to the remote version, not to the
     # currently installed CLI version.
-    if cache_record is not None and cache_record.cli_version_key != installed_version:
+    if cache_record is not None and cache_record.cli_version_key != cache_version_key:
         cache_record = None
 
     data_throttle_seconds = (
@@ -982,7 +1046,7 @@ def _plan_impl(
         cache_record,
         throttle_seconds=data_throttle_seconds,
         now=now,
-        current_cli_version=installed_version,
+        current_cli_version=cache_version_key,
     )
 
     # Separately, check whether the NAG should be suppressed (throttle display).
@@ -990,7 +1054,7 @@ def _plan_impl(
         cache_record,
         throttle_seconds=config.throttle_seconds,
         now=now,
-        current_cli_version=installed_version,
+        current_cli_version=cache_version_key,
     )
 
     latest_version, cli_source, fetched_at = _resolve_latest_version(
@@ -1000,8 +1064,9 @@ def _plan_impl(
         latest_version_provider=latest_version_provider,
         profile=profile,
         nag_cache=nag_cache,
-        installed_version=installed_version,
+        installed_version=cache_version_key,
         now=now,
+        prerelease=channel_prerelease,
     )
 
     is_outdated = _version_is_outdated(installed_version, latest_version)

@@ -22,6 +22,8 @@ from ulid import ULID
 
 logger = logging.getLogger(__name__)
 
+from kernel.env_expand import expand_raw_template, find_empty_env_token, find_unresolved_token
+
 __all__ = [
     "OrgPackConfig",
     "OrgPackEnvVarUnsetError",
@@ -83,15 +85,18 @@ class OrgPackEnvVarUnsetError(ValueError):
         )
 
 
-# ``re.ASCII`` is required, not cosmetic: ``os.path.expandvars`` (via
-# ``posixpath``/``ntpath``) recognizes only ASCII variable-name characters
-# internally (``re.compile(_varpattern, re.ASCII)``). Without this flag,
-# ``\w`` would match Unicode word characters too, so this detector could
-# report a longer/different token than the one ``expandvars`` actually
-# considered for non-ASCII input (e.g. ``$naïve`` — ``expandvars`` only
-# looks up ``na``, but plain ``\w+`` would greedily match ``naïve``). The
-# flag keeps ``\w`` exactly equivalent to the previous ``[A-Za-z0-9_]``.
-_ENV_VAR_TOKEN_RE = re.compile(r"\$\{[^}]+\}|\$[A-Za-z_]\w*", re.ASCII)
+# WP01 (kernel-env-expansion-seam, T004): the pure transform and the two
+# detection primitives below now DELEGATE to kernel.env_expand -- the single
+# ``${VAR}``/``$VAR`` expansion authority shared by every layer above kernel
+# (contracts/env-expander.md C-EXP-4). This module keeps its own function
+# names, its own ``OrgPackEnvVarUnsetError`` exception TYPE, and its own
+# set-but-blank fail-loud guard -- all byte-preserved -- because kernel's
+# raising primitive (``expand_env_template(..., inject_defaults=False)``)
+# would raise ``UnresolvedEnvTokenError`` before this module ever got a
+# chance to construct its OWN structured exception. Only the pure transform
+# and the shared detector regex are shared; the raise policy for THIS caller
+# stays here. See ``kernel.env_expand``'s module docstring for the fuller
+# rationale.
 
 
 def _expand_path_template(raw: str) -> str:
@@ -100,25 +105,27 @@ def _expand_path_template(raw: str) -> str:
     Pure string transform — no filesystem access, no exceptions raised here
     for the happy path. Callers are responsible for detecting any
     unresolved ``$``-tokens left behind by an unset variable (see
-    :class:`OrgPackEnvVarUnsetError`).
+    :class:`OrgPackEnvVarUnsetError`). Delegates to
+    :func:`kernel.env_expand.expand_raw_template` (WP01 T004).
     """
-    return os.path.expanduser(os.path.expandvars(raw))
+    return expand_raw_template(raw)
 
 
 def _unresolved_env_token(expanded: str) -> str | None:
-    """Return the first unresolved ``${VAR}``/``$VAR`` token, if any survives."""
-    match = _ENV_VAR_TOKEN_RE.search(expanded)
-    return match.group(0) if match else None
+    """Return the first unresolved ``${VAR}``/``$VAR`` token, if any survives.
+
+    Delegates to :func:`kernel.env_expand.find_unresolved_token` (WP01 T004)
+    -- the single shared token detector.
+    """
+    return find_unresolved_token(expanded)
 
 
 def _empty_expanded_env_token(raw: str) -> str | None:
-    """Return the first env-var token expanded to empty string (var set but blank)."""
-    for match in _ENV_VAR_TOKEN_RE.finditer(raw):
-        token = match.group(0)
-        var_name = token[2:-1] if token.startswith("${") else token[1:]
-        if os.environ.get(var_name) == "":
-            return token
-    return None
+    """Return the first env-var token expanded to empty string (var set but blank).
+
+    Delegates to :func:`kernel.env_expand.find_empty_env_token` (WP01 T004).
+    """
+    return find_empty_env_token(raw)
 
 
 def resolve_relative_path_within_root(root: Path, relative_path: str) -> Path:
