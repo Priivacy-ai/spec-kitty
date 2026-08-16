@@ -1515,6 +1515,71 @@ _Project health diagnostics_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty doctor provenance
+
+```
+ Usage: spec-kitty doctor provenance [OPTIONS]
+
+ Flag committed absolute built-in-pack source_path leaks (C-PRV-5).
+
+ Scans .kittify/charter/charter.yaml's catalog and
+ .kittify/agent_profiles_manifest.json for a source_path that should
+ be a ${SPEC_KITTY_PACKS_ROOT}/built-in/... token but is not, and
+ prints a heal hint for each. Read-only -- never mutates state.
+
+ Examples:
+     spec-kitty doctor provenance
+     spec-kitty doctor provenance --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Machine-readable JSON output                               │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctor env-file
+
+```
+ Usage: spec-kitty doctor env-file [OPTIONS]
+
+ Report .kitty.env operator env-file health (presence/tier/ignore).
+
+ Reads the repo- and home-tier .kitty.env files and the config.yaml
+ env_file pointer, and reports which governed vars are set and from
+ which tier -- names/presence only for anything not on the
+ printable-var allowlist (C-SEC-1), values never leaked. Read-only --
+ never mutates state.
+
+ Examples:
+     spec-kitty doctor env-file
+     spec-kitty doctor env-file --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Machine-readable JSON output                               │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctor channel
+
+```
+ Usage: spec-kitty doctor channel [OPTIONS]
+
+ Report the active release channel (stable vs. prerelease-opt-in).
+
+ Reads SPEC_KITTY_PRERELEASE (default OFF -- stable channel). Never
+ mutates state.
+
+ Examples:
+     spec-kitty doctor channel
+     spec-kitty doctor channel --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Machine-readable JSON output                               │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty doctor restart-daemon
 
 ```

@@ -172,6 +172,7 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-08-04 | [The Egress-Consent Boundary — Consent Is Keyed on the Record Being Sent, Never on Ambient Context](2026-08-04-1-egress-consent-boundary.md) |
 | 2026-08-05 | [Sequence Charter-Activation-Driven Mission-Type Availability Ahead of Mission-Type-as-ArtifactKind; Land It With Mission-Tree Resolution Unification as One Slice](2026-08-05-1-mission-type-availability-before-kind-promotion.md) |
 | 2026-08-07 | [A Mission-Halting Instrument Is Worth Its Cost — It Runs Before the Mission, and Its Verdict Is Acted On](2026-08-07-1-a-mission-halting-instrument-is-worth-its-cost.md) |
+| 2026-08-09 | [One Project UUID Owns One Sync Store and One Consent Decision](2026-08-09-1-project-sync-store-boundary.md) |
 | 2026-08-12 | [Local, No-Egress PlantUML Rendering for Code-Grounded Doctrine Schema Diagrams](2026-08-12-1-plantuml-schema-diagram-rendering.md) |
 | 2026-08-12 | [Explicit Checkout Ownership for Mission Create and Next](2026-08-12-1-checkout-ownership-for-mission-create-and-next.md) |
 | 2026-08-13 | [The built-in mission subtree stays nested and self-contained; retire the legacy step-contract surface](2026-08-13-1-built-in-mission-subtree-stays-nested-retire-legacy-step-contracts.md) |
@@ -185,3 +186,5 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-08-16 | [Unify Pack Metadata on a Single Manifest — Enumerated Constituents + Delegated Lineage](2026-08-16-1-pack-metadata-manifest-unification.md) |
 | 2026-08-16 | [Open-packs Is the Source of Truth for Built-in Doctrine; CI Re-vendors It Into the Core Release](2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md) |
 | 2026-08-16 | [spec-kitty-internal Is One Public Org Pack, Consumed via the Org Tier, Never Force-Shipped](2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md) |
+| 2026-08-16 | [Default-off pre-release (rc) consumer channel, gated by SPEC_KITTY_PRERELEASE](2026-08-16-4-rc-release-channel.md) |
+| 2026-08-16 | [Operator configuration resolves through one kernel env-expansion seam; committed provenance stores tokens](2026-08-16-5-operator-config-env-expansion-seam.md) |

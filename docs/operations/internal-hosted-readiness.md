@@ -2,10 +2,12 @@
 title: Internal Hosted-Readiness Mode (Pre-Launch)
 description: 'How to internal hosted-readiness mode (pre-launch) with Spec Kitty 3.2: Internal Hosted-Readiness Mode (Pre-Launch).'
 doc_status: active
-updated: '2026-07-22'
+updated: '2026-08-16'
 type: how-to
 related:
 - docs/guides/how-to/installation/upgrade-cli.md
+- docs/adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md
+- docs/api/environment-variables.md
 audience: internal / pre-launch operators
 ---
 # Internal Hosted-Readiness Mode (Pre-Launch)
@@ -45,7 +47,7 @@ tooling.
 
 ## Enable hosted readiness locally
 
-Run this in the shell where you want hosted output:
+For a one-off shell session:
 
 ```bash
 export SPEC_KITTY_ENABLE_SAAS_SYNC=1
@@ -66,6 +68,26 @@ unset SPEC_KITTY_ENABLE_SAAS_SYNC
 
 The coordinator goes back to no-op on the next command.
 
+**For a durable setting that survives across shells**, write it into
+`.kitty.env` instead of exporting it per session — `.kittify/.kitty.env` scopes
+the setting to this checkout only, `${SPEC_KITTY_HOME}/.kitty.env` scopes it to
+every project on the machine:
+
+```bash
+# .kittify/.kitty.env — this checkout only
+SPEC_KITTY_ENABLE_SAAS_SYNC=1
+```
+
+The pre-import loader seeds it into the process environment before any
+`spec-kitty` module is imported, so it behaves exactly like the shell
+`export` above with no code-path difference — just no need to remember to
+re-export it in a new terminal. See [Environment Variables Reference § The
+`.kitty.env` file](../api/environment-variables.md#the-kittyenv-file) and
+[ADR: operator config env-expansion
+seam](../adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md) for the
+mechanism, and `spec-kitty doctor env-file` to confirm which tier is
+supplying the value.
+
 ## Point at a dev or staging hosted environment
 
 The internal dev / staging environments live at non-default URLs.
@@ -76,6 +98,14 @@ sync clients dial.
 export SPEC_KITTY_ENABLE_SAAS_SYNC=1
 export SPEC_KITTY_SAAS_URL=https://spec-kitty-dev.fly.dev
 spec-kitty auth login
+```
+
+Or, durably, in `.kitty.env`:
+
+```bash
+# .kittify/.kitty.env
+SPEC_KITTY_ENABLE_SAAS_SYNC=1
+SPEC_KITTY_SAAS_URL=https://spec-kitty-dev.fly.dev
 ```
 
 > **Important framing.** `SPEC_KITTY_SAAS_URL` is an internal **dev /
@@ -156,7 +186,12 @@ the CLI's subprocess. Re-export and retry.
 - [Recovery: Logged out on a connected teamspace](../operations/logged-out-teamspace.md)
 - [Environment variables reference](../api/environment-variables.md)
   — full entries for `SPEC_KITTY_ENABLE_SAAS_SYNC` and
-  `SPEC_KITTY_SAAS_URL`.
+  `SPEC_KITTY_SAAS_URL`, and [The `.kitty.env`
+  file](../api/environment-variables.md#the-kittyenv-file) for the durable,
+  no-per-shell-export config mechanism.
+- [Team Kitty (SaaS) architecture](../architecture/team-kitty-saas.md) — the
+  end-to-end opt-in → auth → sync flow this page's hosted readiness mode
+  feeds into.
 - [Upgrade the Spec Kitty CLI](../guides/how-to/installation/upgrade-cli.md) — for the
   `spec-kitty upgrade --cli` probe shown in the upgrade-required
   scenario above.

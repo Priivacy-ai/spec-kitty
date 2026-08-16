@@ -2876,11 +2876,10 @@ pages:
     - {slug: "3-lineage-delegates-never-re-walks", text: "3. Lineage delegates, never re-walks", level: 3}
     - {slug: "bridge-is-a-migration-tactic-not-a-destination", text: "Bridge is a migration tactic, not a destination", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
-    - {slug: "delivery-status-this-slice", text: "Delivery status (this slice)", level: 2}
-  - path: "docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md"
-    title: "ADR: Open-packs Is the Source of Truth for Built-in Doctrine; CI Re-vendors It Into the Core Release"
+  - path: "docs/adr/3.x/2026-08-16-2-rc-release-channel.md"
+    title: "Default-off pre-release (rc) consumer channel, gated by SPEC_KITTY_PRERELEASE"
     divio_type: "none"
-    abstract: "Inverts built-in doctrine ownership: content is authored in spec-kitty-open-packs, and CI re-vendors it into the core wheel at release so consumers see no change."
+    abstract: "A default-off SPEC_KITTY_PRERELEASE preference makes update checks pre-release-aware and offers a pinned rc install command, without ever nagging stable users. Consumer slice only — CI rc-cadence and publication stay in #3047."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2889,14 +2888,15 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
-    - {slug: "a-status-quo-built-in-in-core", text: "A — Status quo (built-in in core)", level: 3}
-    - {slug: "b-invert-with-ci-re-vendor", text: "B — Invert with CI re-vendor", level: 3}
-    - {slug: "c-published-data-dependency", text: "C — Published data dependency", level: 3}
+    - {slug: "a-no-consumer-opt-in", text: "A. No consumer opt-in", level: 3}
+    - {slug: "b-pre-style-always-latest-prerelease-flag", text: "B. `--pre`-style always-latest-prerelease flag", level: 3}
+    - {slug: "c-default-off-persisted-spec-kitty-prerelease-pinned-install-chosen", text: "C. Default-off persisted `SPEC_KITTY_PRERELEASE` + pinned install (chosen)", level: 3}
+    - {slug: "d-fold-into-spec-kitty-enable-saas-sync", text: "D. Fold into `SPEC_KITTY_ENABLE_SAAS_SYNC`", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
-  - path: "docs/adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md"
-    title: "ADR: spec-kitty-internal Is One Public Org Pack, Consumed via the Org Tier, Never Force-Shipped"
+  - path: "docs/adr/3.x/2026-08-16-3-operator-config-env-expansion-seam.md"
+    title: "Operator configuration resolves through one kernel env-expansion seam; committed provenance stores tokens"
     divio_type: "none"
-    abstract: "The internal maintainer pack is one public artifact (open-packs catalog #16), consumed as an org-tier pack and kept out of the core wheel — not secret, just not shipped."
+    abstract: "One kernel ${VAR} expander plus a two-tier .kitty.env seed the process env before any spec-kitty import; committed charter/manifest provenance stores SPEC_KITTY_* tokens, never resolved machine paths."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2905,9 +2905,10 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
-    - {slug: "a-distinct-private-pack", text: "A — Distinct private pack", level: 3}
-    - {slug: "b-one-public-org-pack-not-force-shipped", text: "B — One public org pack, not force-shipped", level: 3}
-    - {slug: "c-ship-it-like-built-in", text: "C — Ship it like built-in", level: 3}
+    - {slug: "a-repo-relative-provenance-no-env-file", text: "A. Repo-relative provenance, no env-file", level: 3}
+    - {slug: "b-env-templated-provenance-no-expander", text: "B. Env-templated provenance, no expander", level: 3}
+    - {slug: "c-kernel-expander-token-provenance-two-tier-kitty-env-chosen", text: "C. Kernel expander + token provenance + two-tier `.kitty.env` (chosen)", level: 3}
+    - {slug: "d-new-spec-kitty-config-home-locator-var", text: "D. New `SPEC_KITTY_CONFIG_HOME` locator var", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
@@ -3354,6 +3355,7 @@ pages:
     - {slug: "spec-kitty-doctor-mission-type", text: "spec-kitty doctor mission-type", level: 2}
     - {slug: "spec-kitty-doctor-ops", text: "spec-kitty doctor ops", level: 2}
     - {slug: "spec-kitty-doctor-orphan-daemons", text: "spec-kitty doctor orphan-daemons", level: 2}
+    - {slug: "spec-kitty-doctor-provenance", text: "spec-kitty doctor provenance", level: 2}
     - {slug: "spec-kitty-doctor-restart-daemon", text: "spec-kitty doctor restart-daemon", level: 2}
     - {slug: "spec-kitty-doctor-review-cycle-reconcile", text: "spec-kitty doctor review-cycle-reconcile", level: 2}
     - {slug: "spec-kitty-doctor-shim-registry", text: "spec-kitty doctor shim-registry", level: 2}
@@ -3513,8 +3515,9 @@ pages:
   - path: "docs/api/configuration.md"
     title: "Configuration Reference"
     divio_type: "none"
-    abstract: "Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, docfx.json, toc.yml, and agent settings."
+    abstract: "Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, docfx.json, toc.yml, config.yaml's env_file pointer, and agent settings."
     anchors:
+    - {slug: "env-file-pointer", text: "env_file Pointer", level: 2}
     - {slug: "meta-json-feature-metadata", text: "meta.json (Feature Metadata)", level: 2}
     - {slug: "work-package-frontmatter", text: "work package frontmatter", level: 2}
     - {slug: "docfx-json-documentation-build", text: "docfx.json (Documentation Build)", level: 2}
@@ -3544,6 +3547,7 @@ pages:
     anchors:
     - {slug: "runtime-and-installation", text: "Runtime and Installation", level: 2}
     - {slug: "spec-kitty-home", text: "SPEC_KITTY_HOME", level: 3}
+    - {slug: "spec-kitty-packs-root", text: "SPEC_KITTY_PACKS_ROOT", level: 3}
     - {slug: "spec-kitty-template-root", text: "SPEC_KITTY_TEMPLATE_ROOT", level: 3}
     - {slug: "spec-kitty-pack-home", text: "SPEC_KITTY_PACK_HOME", level: 3}
     - {slug: "specify-template-repo", text: "SPECIFY_TEMPLATE_REPO", level: 3}
@@ -3552,6 +3556,9 @@ pages:
     - {slug: "hosted-auth-and-sync", text: "Hosted Auth and Sync", level: 2}
     - {slug: "spec-kitty-enable-saas-sync", text: "SPEC_KITTY_ENABLE_SAAS_SYNC", level: 3}
     - {slug: "spec-kitty-saas-url", text: "SPEC_KITTY_SAAS_URL", level: 3}
+    - {slug: "release-channel", text: "Release Channel", level: 2}
+    - {slug: "spec-kitty-prerelease", text: "SPEC_KITTY_PRERELEASE", level: 3}
+    - {slug: "the-kitty-env-file", text: "The `.kitty.env` file", level: 2}
     - {slug: "output-and-ux", text: "Output and UX", level: 2}
     - {slug: "spec-kitty-no-nag", text: "SPEC_KITTY_NO_NAG", level: 3}
     - {slug: "spec-kitty-nag-throttle-seconds", text: "SPEC_KITTY_NAG_THROTTLE_SECONDS", level: 3}
@@ -4996,6 +5003,17 @@ pages:
     - {slug: "file-layout-per-feature", text: "File Layout (per feature)", level: 2}
     - {slug: "troubleshooting", text: "Troubleshooting", level: 2}
     - {slug: "pre-3-0-layout-rejection", text: "Pre-3.0 layout rejection", level: 3}
+  - path: "docs/architecture/team-kitty-saas.md"
+    title: "Team Kitty (SaaS): the end-to-end hosted-sync flow"
+    divio_type: "none"
+    abstract: "The opt-in-to-delivery interaction model for hosted Team Kitty sync — consent, project-store migration, admission/delivery-target resolution, auth, drain-to-ledger history disclosure, and the 3-gate sync now drain — with a full-flow Mermaid sequence diagram."
+    anchors:
+    - {slug: "scope-and-ownership", text: "Scope and ownership", level: 2}
+    - {slug: "the-six-stages-in-delivery-order", text: "The six stages, in delivery order", level: 2}
+    - {slug: "interaction-diagram-opt-in-sync", text: "Interaction diagram: opt-in → sync", level: 2}
+    - {slug: "where-to-go-for-the-operator-facing-detail-on-each-stage", text: "Where to go for the operator-facing detail on each stage", level: 2}
+    - {slug: "operator-configuration-for-this-flow", text: "Operator configuration for this flow", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/architecture/trail-model.md"
     title: "Trail Model"
     divio_type: "explanation"
@@ -7572,6 +7590,7 @@ pages:
     - {slug: "install-the-cli", text: "Install the CLI", level: 2}
     - {slug: "upgrade-the-cli", text: "Upgrade the CLI", level: 2}
     - {slug: "migrate-the-current-project", text: "Migrate the current project", level: 2}
+    - {slug: "opt-in-to-the-rc-pre-release-channel", text: "Opt in to the rc (pre-release) channel", level: 2}
     - {slug: "the-throttled-nag", text: "The throttled nag", level: 2}
     - {slug: "the-lazy-gate", text: "The lazy gate", level: 2}
     - {slug: "behavior-in-ci", text: "Behavior in CI", level: 2}

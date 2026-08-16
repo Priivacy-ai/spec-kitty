@@ -61,7 +61,75 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   (`spec-kitty agent tasks move-task <WP> --to approved|planned
   --review-feedback-file`) and its verdict vocabulary, and `spk-run-review-wp`
   now references it.
-
+- **Committed doctrine provenance is now portable across machines, checkouts,
+  and wheels — no more baked-in absolute paths (mission
+  `operator-config-ergonomics`, WP01/WP03/WP04; `#3494`;
+  `FR-001`/`FR-002`/`FR-003`/`FR-006`/`FR-007`/`FR-008`).** Committed
+  `charter.yaml` and `agent_profiles_manifest.json` used to record each
+  built-in doctrine pack under the authoring machine's absolute filesystem
+  path, so the same files broke on a teammate's checkout, an installed wheel,
+  or CI. Both provenance carriers now emit a portable
+  `${SPEC_KITTY_PACKS_ROOT}/built-in/...` token through one shared normalizer
+  and **never** a resolved path — even when `SPEC_KITTY_PACKS_ROOT` is already
+  exported to an absolute path at emit time (the re-bake case is
+  regression-guarded). A single kernel expansion seam (`src/kernel/env_expand.py`,
+  `expand_env_template`) backs both this token and the `.kitty.env` pointer
+  below, and `SPEC_KITTY_PACKS_ROOT` is its canonical packs-root authority. An
+  idempotent `spec-kitty upgrade` migration (`m_3_2_7_heal_provenance_paths`)
+  rewrites any already-committed absolute built-in path back to the portable
+  token with zero manual steps — this repo's own leaked paths in
+  `.kittify/charter/charter.yaml` and `.kittify/agent_profiles_manifest.json`
+  were healed the same way. A new `doctor provenance` facet reports any
+  remaining leak with a heal hint.
+- **Operator environment (SaaS tokens, org slugs, path overrides) now has one
+  file to point at, loaded before anything else runs (mission
+  `operator-config-ergonomics`, WP02; `#3495`; `FR-004`/`FR-004a`/`FR-005`).**
+  Previously these values had to live in your real shell environment or be
+  re-typed per project. A two-tier `.kitty.env` file — `${SPEC_KITTY_HOME}/.kitty.env`
+  machine-wide, overridden by `<repo>/.kittify/.kitty.env` per-repo — is now
+  loaded into `os.environ` **before** any other `spec-kitty` module is
+  imported, so even import-time-gated behaviour picks it up. Precedence is
+  **real-env > per-repo > home**: an explicit shell value always wins, and a
+  per-repo file only arms the project it lives in (unlike a global `export`,
+  which arms every project the shell later touches). `.kittify/config.yaml`
+  gains a single `env_file` pointer (default `${SPEC_KITTY_HOME}/.kitty.env`).
+  Fail policy is explicit: an absent file is skipped (the default for almost
+  every project today); a present-but-unreadable `env_file` fails loud and
+  names the file, because it gates auth; a malformed `KEY=VALUE` line is
+  skipped; and a `SPEC_KITTY_HOME=` line inside the file is dropped with a
+  warning to prevent locator recursion. An idempotent `spec-kitty upgrade`
+  migration (`m_3_2_8_provision_kitty_env`) seeds the per-repo scaffold,
+  registers the `env_file` pointer, and adds `.gitignore`/`.claudeignore`
+  rules — seeding only values already present in the environment, never a live
+  secret (secret-shaped vars are written as commented, blank templates). A new
+  `doctor env-file` facet reports presence, tier, readability, pointer, and
+  ignore-rule health with every value redacted through a fail-closed allowlist.
+- **Opt-in release-candidate channel — catfood an rc without ever nagging
+  operators who did not ask (mission `operator-config-ergonomics`, WP05;
+  `#3496`; `FR-009`/`FR-010`).** A default-off `SPEC_KITTY_PRERELEASE`
+  preference makes every "latest version" surface — `spec-kitty upgrade
+  --agent-check` and the throttled startup nag — pre-release-aware only when
+  explicitly opted in. Left unset (the default, unchanged for every existing
+  project), only the latest **stable** release is ever surfaced, even when a
+  newer rc exists on the index. Opted in, the newest PEP 440 pre-release is
+  surfaced and the proposed upgrade is a **pinned** `spec-kitty-cli==<rc>`
+  install, never a floating `--pre` flag. A new `doctor channel` facet reports
+  the active channel. This ships the consumer half only; CI's rc build/publish
+  cadence stays in `#3047`.
+- **New architecture references tie the SaaS opt-in, `.kitty.env`, and rc-channel
+  decisions together (mission `operator-config-ergonomics`, WP06; `FR-011`).**
+  Two ADRs record the decisions:
+  [`2026-08-16-5-operator-config-env-expansion-seam.md`](../adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md)
+  (the kernel env-expansion seam, token provenance, and `.kitty.env` layering)
+  and
+  [`2026-08-16-4-rc-release-channel.md`](../adr/3.x/2026-08-16-4-rc-release-channel.md)
+  (the default-off rc channel). A new
+  [`team-kitty-saas.md`](../architecture/team-kitty-saas.md) architecture doc
+  walks the full opt-in → project-store migration → admission/delivery-target →
+  auth → history-disclosure → `sync now` flow with an end-to-end Mermaid
+  interaction diagram. Consumption docs and the `spk-team-{sync,auth,tracker}`
+  skills now point operators at the durable `.kitty.env` mechanism instead of a
+  per-shell `export`.
 - **An agent working the mission lifecycle — hitting a merge-gate rejection,
   an issue-matrix verdict, or an undrained SaaS sync — previously had to
   already know the mechanics, because they lived only in a maintainer's
