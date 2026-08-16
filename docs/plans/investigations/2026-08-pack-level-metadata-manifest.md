@@ -1,13 +1,20 @@
 ---
 title: 'Pack-level metadata manifest: constituent parts + lineage'
 description: 'Corroborates one pack-level manifest recording each pack''s enumerated constituents and parent/lineage — a consolidation of two divergent existing manifests, not a new format.'
-doc_status: proposed
+doc_status: deprecated
 updated: '2026-08-16'
 related:
 - docs/plans/3-2-x-milestone-roadmap.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
 - docs/plans/index.md
+- docs/adr/3.x/2026-08-16-1-pack-metadata-manifest-unification.md
 ---
+
+> **RETIRED (shipped)** — this investigation's unify-vs-bridge proposal was ratified in ADR
+> [`2026-08-16-1`](../../adr/3.x/2026-08-16-1-pack-metadata-manifest-unification.md) and
+> shipped (library-first slice) by mission `pack-metadata-manifest-unification-01M052PT`
+> (PR #3507; closes #3500–#3503, slice of keystone #2467). Retained for historical
+> reference; do not consult for current behavior.
 
 # Pack-level metadata manifest: constituent parts + lineage
 

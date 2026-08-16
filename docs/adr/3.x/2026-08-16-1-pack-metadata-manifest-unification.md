@@ -131,3 +131,37 @@ manifest is the verifiability carrier). The broad "compound packs" work in #2467
 separate slice. Implementation decomposes into: WP-core (unify schema + built-in writer),
 WP-identity (`pack_id`), WP-lineage (`parent_pack` delegation + `accompanies_doctrine_pack`),
 WP-split (authored vs generated files).
+
+## Delivery status (this slice)
+
+Mission `pack-metadata-manifest-unification-01M052PT` shipped this ADR's schema and the
+built-in-pack writer as a **library-first slice**; it does not yet mean all 4 pack types
+emit the unified manifest on disk. Read the ADR's present tense above as "the decision," not
+"the rollout" — the rollout is partial by design, tracked here:
+
+**Shipped:**
+- The unified `pack-manifest` schema and its models.
+- The single hasher used for `manifest_hash` / `content_hash`.
+- The built-in pack's generated `pack-manifest.yaml` (via `spec-kitty doctrine
+  regenerate-graph`) plus its authored `pack.yaml` / `pack.md`.
+- The lineage adapter — delegates to `org_extends.resolve_extends_order`, fail-closed — and
+  its non-vacuous architectural ratchet guarding against a second walker.
+- The `counts_by_kind` derive seam (a computed view over `constituents[]`).
+- `pack_version` derive-else-fallback (authored value wins; generated value covers packs
+  without one).
+
+**Deferred to a future integration WP:**
+- Org and fetched pack manifest **writers**, and the charter pack's on-disk unified
+  emission — absorption ships as an **in-memory bridge only**, to keep NFR-005 readers
+  green without forcing an on-disk format change yet.
+- On-disk retirement of stored `artifact_counts` for org/fetched packs — still stored today
+  because `_has_recognisable_pack_manifest` requires the key.
+- The `pack_id`-keyed resolver cutover and the retirement of name-based lookup — `pack_id`
+  ships now as an optional field plus a validator and an idempotent backfill, not yet the
+  resolution key.
+- Wiring the lineage / `accompanies_doctrine_pack` resolvers and `absorb_synthesis_manifest`
+  into production callers.
+- The `accompanies_doctrine_pack` cutover away from per-activation `doctrine_pack_id`.
+
+A downstream reader should not assume all 4 pack types already emit the unified manifest —
+only the built-in pack does, as of this slice.
