@@ -22,7 +22,7 @@ history:
 - at: '2026-08-16T03:33:31Z'
   actor: codex
   action: Follow-up создан после полного architecture gate WP03; четыре residual-класса отделены от WP03.
-agent_profile: python-pedro
+agent_profile: reviewer-renata
 authoritative_surface: src/specify_cli/coordination/
 create_intent: []
 execution_mode: code_change
@@ -32,7 +32,7 @@ owned_files:
 - tests/architectural/test_no_write_side_rederivation.py
 - tests/architectural/test_resolution_authority_gates.py
 - tests/architectural/resolution_gate_allowlist.yaml
-role: implementer
+role: reviewer
 tags:
 - architecture
 - resolver
