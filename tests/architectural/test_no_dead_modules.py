@@ -377,6 +377,17 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
         # left behind, Extractor/_detect_catalog_references) is fully deleted
         # by charter-deadcode-noop-campsite WP02 -- module removed, test-only
         # references retired/reconstructed. Category fully drained (1->0).
+        #
+        # pack-metadata-manifest-unification (#3500-#3503 / ADR 2026-08-16-1,
+        # 2026-08-16): this is a deliberately library-first schema slice. The
+        # unified-schema *models* land here; their production wiring (org/fetched
+        # writers, the pack_id-keyed resolver cutover, the lineage/accompanies
+        # production callers) is the deferred integration WP, tracked in #3518.
+        # These two modules are the not-yet-wired adapters awaiting that WP; the
+        # AST ratchet test_pack_lineage_no_parallel_resolver.py + the schema/
+        # identity/counts unit suites exercise them meanwhile.
+        "specify_cli.doctrine.pack_descriptor",
+        "specify_cli.doctrine.pack_lineage",
     }
 )
 
