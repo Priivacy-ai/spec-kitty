@@ -7,8 +7,17 @@ tombstones:
 - - delivery/test_body_queue_purge_differential_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
+- - delivery/test_nfr003_predicate_cost_3030.py
+  - _consent
+  - monkeypatch . setenv ( , str ( home ) )
 - - delivery/test_per_project_report_3030.py
   - _home
+  - monkeypatch . setenv ( , str ( home ) )
+- - sync/test_body_drain_consent_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+- - sync/test_body_upload_consent_3030.py
+  - _isolated_home
   - monkeypatch . setenv ( , str ( home ) )
 - - sync/test_legacy_queue_precondition_3030.py
   - test_a_credentials_read_failure_is_not_evidence

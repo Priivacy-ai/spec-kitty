@@ -69,10 +69,8 @@ BATCH = 40
 
 
 @pytest.fixture(autouse=True)
-def _consent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    home = tmp_path / "home"
-    home.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+def _consent(canonical_home: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    del canonical_home  # R1b (#3121): home isolation provided by the canonical SPEC_KITTY_HOME owner
     # The WP06 transport lease binds egress eligibility only while the machine
     # kill switch is armed (arming is NOT consent — #3030; the per-project
     # consent rows below still decide what ships).
