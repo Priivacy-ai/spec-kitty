@@ -28,6 +28,8 @@ from doctrine.drg.org_pack_config import (
     load_pack_registry,
 )
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.doctrine]
+
 
 # =============================================================================
 # T008: PackDescriptor model validation
