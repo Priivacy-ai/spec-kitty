@@ -1,0 +1,11 @@
+# R1b (#3121) tombstone manifest — adjudicated-away SPEC_KITTY_HOME census members.
+#
+# Each entry records a member the R1b convergence has adjudicated away, with a recorded cause:
+#   - key:      [relpath, keyed-def qualname, normalized token-line]  (the frozen anchor 3-tuple,
+#               walk-root-relative — e.g. "delivery/foo.py", never a live line number)
+#     reason:   why this member left the census (e.g. "converged onto canonical_home")
+#     evidence: a commit / ref for the adjudication
+#
+# This is the auditable source of truth for tombstones, read by
+# tests/architectural/_home_pin_scan.py::load_tombstone_keys during regeneration. render_baseline
+# emits the keys into the baseline's `tombstones: []

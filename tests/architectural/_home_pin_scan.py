@@ -1221,6 +1221,7 @@ REGENERATION_COMMAND = (
 )
 CENSUS_PATH = "tests/architectural/census/spec_kitty_home_pin_R1a.yaml"
 BASELINE_PATH = "tests/architectural/spec_kitty_home_pin_baseline.yaml"
+TOMBSTONE_MANIFEST_PATH = "tests/architectural/census/spec_kitty_home_pin_tombstones.yaml"
 #: The invariant half of the census header's ``fragility_note``. The variable half is DERIVED
 #: from :func:`fragility_register` — see :func:`_render_fragility_note`.
 FRAGILITY_NOTE_BASE = (
@@ -1382,7 +1383,35 @@ def render_census(
     return yaml.safe_dump(document, sort_keys=False, default_flow_style=False, allow_unicode=True)
 
 
-def render_baseline(members: Iterable[Member], *, exempt: ExemptSet) -> str:
+def load_tombstone_keys(path: Path | str = TOMBSTONE_MANIFEST_PATH) -> frozenset[MemberKey]:
+    """R1b's (#3121) adjudicated-away members, read from the checked-in tombstone manifest.
+
+    The manifest is the auditable source of truth for tombstones: each entry carries the member's
+    frozen 3-tuple ``key`` plus a recorded ``reason``/``evidence``. Absent or empty yields the empty
+    set — the R1a state, in which the whole subsystem is a no-op. Keys are in the walk-root-relative
+    space the census uses (``delivery/foo.py``), matching ``census`` keys and the baseline's own
+    ``tombstones`` list. A wrong arity raises here rather than producing a tuple that silently
+    compares unequal downstream.
+    """
+    manifest = Path(path)
+    if not manifest.exists():
+        return frozenset()
+    document = yaml.safe_load(manifest.read_text(encoding="utf-8")) or {}
+    keys: set[MemberKey] = set()
+    for entry in document.get("tombstones", []):
+        raw = entry["key"]
+        if not isinstance(raw, list) or len(raw) != 3:
+            raise SystemExit(f"tombstone manifest key must be a 3-element list, got {raw!r}")
+        keys.add((str(raw[0]), str(raw[1]), str(raw[2])))
+    return frozenset(keys)
+
+
+def render_baseline(
+    members: Iterable[Member],
+    *,
+    exempt: ExemptSet,
+    tombstones: frozenset[MemberKey] = frozenset(),
+) -> str:
     """The direction mechanism: a hash of the **sorted key set**, never of the file bytes.
 
     ``sha256(path.read_bytes())`` passes any "a hash exists" review and fails on day thirty: it
@@ -1390,13 +1419,20 @@ def render_baseline(members: Iterable[Member], *, exempt: ExemptSet) -> str:
     set — the thing the ratchet compares — untouched. The tombstone list lives **here**, because
     FR-004(1) is "paths, named, not described" and putting it in the census header would collide
     with that header's asserted key set.
+
+    R1b (#3121): ``tombstones`` are the adjudicated-away members (sourced from the manifest via
+    :func:`load_tombstone_keys`). The hash is frozen over ``census_keys ∪ tombstones`` — so as a
+    member is converged (leaves the census) and tombstoned, the union stays pinned to the freeze-time
+    key set and the hash does not move. Empty tombstones (the R1a state) leave both the hash and the
+    ``tombstones`` list identical to before this subsystem existed, so regeneration is byte-identical.
     """
+    member_keys = {m.key for m in members}
     document = {
         "generated_by": GENERATED_BY,
         "regeneration_command": REGENERATION_COMMAND,
-        "census_key_set_sha256": _sha256_of(_key_set_payload(m.key for m in members)),
+        "census_key_set_sha256": _sha256_of(_key_set_payload(member_keys | tombstones)),
         "exempt_set_sha256": _sha256_of(_key_set_payload(entry.key for entry in exempt)),
-        "tombstones": [],
+        "tombstones": [list(key) for key in sorted(tombstones)],
     }
     return yaml.safe_dump(document, sort_keys=False, default_flow_style=False, allow_unicode=True)
 
@@ -1445,6 +1481,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     exempt_keys = {entry.key for entry in exempt}
     census_members = {member for member in discover(args.root) if member.key not in exempt_keys}
 
+    #: R1b (#3121): tombstones are the adjudicated-away members. Fail closed if any tombstoned key
+    #: is still a live census member — a tombstone records an adjudication that removed the pin, so a
+    #: tombstone over a pin still in the tree is exactly the "bought-off ratchet" the guard refuses
+    #: (mirrors t024's :477 / t023's anti-abuse limb at generation time).
+    tombstones = load_tombstone_keys()
+    live_tombstones = tombstones & {member.key for member in census_members}
+    if live_tombstones:
+        raise SystemExit(
+            "tombstone manifest names members whose pin is still in the tree (a tombstone requires a "
+            f"real removal, not a hidden one): {sorted(live_tombstones)}"
+        )
+
     args.census_out.parent.mkdir(parents=True, exist_ok=True)
     args.baseline_out.parent.mkdir(parents=True, exist_ok=True)
     args.census_out.write_text(
@@ -1456,7 +1504,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         ),
         encoding="utf-8",
     )
-    args.baseline_out.write_text(render_baseline(census_members, exempt=exempt), encoding="utf-8")
+    args.baseline_out.write_text(
+        render_baseline(census_members, exempt=exempt, tombstones=tombstones), encoding="utf-8"
+    )
     return 0
 
 
