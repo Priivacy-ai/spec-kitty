@@ -374,6 +374,31 @@ def assemble_pack(
 # ---------------------------------------------------------------------------
 
 
+def _read_authored_pack_version(pack_root: Path) -> str | None:
+    """Read ``pack_version`` from an authored ``pack.yaml`` sibling, if any.
+
+    IC-06 / FR-008 (pack-metadata-manifest-unification-01M052PT, WP04):
+    the built-in pack's ``pack_version`` is authored in ``pack.yaml`` and its
+    generator never writes it to the generated ``pack-manifest.yaml``.
+    Fetched/org packs have no ``pack.yaml`` (yet — backfill is deferred, Q2)
+    and keep ``pack_version`` as generated provenance. Returns ``None`` when
+    no authored descriptor exists, it fails to parse, or it carries no
+    ``pack_version`` field — callers fall back to the generated value
+    (derive-else-fallback).
+    """
+    descriptor = pack_root / "pack.yaml"
+    if not descriptor.is_file():
+        return None
+    try:
+        data = _yaml().load(descriptor)
+    except (YAMLError, OSError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    version = data.get("pack_version")
+    return str(version) if version else None
+
+
 def _has_recognisable_pack_manifest(output_dir: Path) -> bool:
     manifest = output_dir / "pack-manifest.yaml"
     if not manifest.is_file():
@@ -387,13 +412,20 @@ def _has_recognisable_pack_manifest(output_dir: Path) -> bool:
     required_keys = {
         "artifact_counts",
         "fetched_at",
-        "pack_version",
         "source_type",
         "source_url",
     }
     if not required_keys.issubset(payload):
         return False
     if not isinstance(payload.get("artifact_counts"), dict):
+        return False
+    # pack_version is derive-else-fallback (IC-06/FR-008): an authored
+    # pack.yaml sibling (the built-in split) satisfies recognisability even
+    # when the generated manifest omits the key; fetched/org packs still
+    # carry it on the generated file (snapshot.py's writer is unchanged), so
+    # this is additive — it never makes a previously-recognisable manifest
+    # unrecognisable.
+    if "pack_version" not in payload and _read_authored_pack_version(output_dir) is None:
         return False
     return payload.get("source_type") in {"assemble", "git", "https", "api"}
 
