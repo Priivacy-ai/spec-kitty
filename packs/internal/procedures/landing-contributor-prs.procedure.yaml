@@ -100,12 +100,3 @@ steps:
       Close claim comments, note follow-up issues for any deferred debt, and leave the
       landing queue in a state the next maintainer can read.
     actor: agent
-references:
-  - type: procedure
-    id: red-main-release-discipline
-    reason: >
-      Red-classification and green-on-base rules for adjudicating CI failures during
-      a landing pass. Source prose: docs/development/how-to/pr-landing.md.
-  - type: tactic
-    id: pr-agent-worktree-isolation
-    reason: One isolated worktree per PR; never mix a landing pass with hand-edits.
