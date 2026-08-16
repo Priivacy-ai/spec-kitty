@@ -11,11 +11,13 @@ deterministic regardless of where this checkout happens to live on disk.
 
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import pytest
 
+import doctrine.provenance as provenance_module
 from doctrine.provenance import is_built_in_pack_path, to_portable_source_path
+from kernel.sibling_paths import SiblingPathNotFound
 
 pytestmark = [pytest.mark.unit]
 
@@ -176,3 +178,66 @@ class TestReBakeGate:
         result_b = to_portable_source_path(source_b, project_root=tmp_path)
 
         assert result_a == result_b == "${SPEC_KITTY_PACKS_ROOT}/built-in/paradigms/example.paradigm.yaml"
+
+
+class TestUnavailableBuiltInInstall:
+    """``_resolve_built_in_root`` must tolerate a genuinely unresolvable
+    built-in pack root -- e.g. a doctrine-layer caller (a test fixture, a
+    stripped-down deployment) with no packaged ``packs/built-in`` sibling
+    reachable from ``kernel.paths``' anchor. Classes (b)/(c) still have to
+    work when ``get_built_in_pack_root`` raises ``SiblingPathNotFound``
+    (the fail-closed kernel error) instead of resolving -- this is the
+    ``except SiblingPathNotFound: return None`` fallthrough documented on
+    ``_resolve_built_in_root``.
+    """
+
+    @staticmethod
+    def _raise_sibling_not_found() -> Path:
+        raise SiblingPathNotFound(
+            PurePosixPath("packs", "built-in"),
+            Path("/opt/spec-kitty-cli/src/kernel/paths.py"),
+        )
+
+    def test_falls_through_to_repo_relative_when_root_unresolvable(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            provenance_module, "get_built_in_pack_root", self._raise_sibling_not_found
+        )
+
+        project_root = tmp_path / "operator-config-ergonomics"
+        source = project_root / ".kittify" / "doctrine" / "local.directive.yaml"
+        source.parent.mkdir(parents=True)
+        source.write_text("id: local\n", encoding="utf-8")
+
+        result = to_portable_source_path(source, project_root=project_root)
+
+        assert result == ".kittify/doctrine/local.directive.yaml"
+
+    def test_falls_through_to_absolute_without_project_root(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            provenance_module, "get_built_in_pack_root", self._raise_sibling_not_found
+        )
+
+        source = tmp_path / "org-packs" / "acme-directives" / "release-gate.directive.yaml"
+        source.parent.mkdir(parents=True)
+        source.write_text("id: release-gate\n", encoding="utf-8")
+
+        result = to_portable_source_path(source, project_root=None)
+
+        assert result == str(source.resolve())
+
+    def test_is_built_in_pack_path_false_when_root_unresolvable(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            provenance_module, "get_built_in_pack_root", self._raise_sibling_not_found
+        )
+
+        source = tmp_path / "org-packs" / "acme-directives" / "release-gate.directive.yaml"
+        source.parent.mkdir(parents=True)
+        source.write_text("id: release-gate\n", encoding="utf-8")
+
+        assert is_built_in_pack_path(source) is False
