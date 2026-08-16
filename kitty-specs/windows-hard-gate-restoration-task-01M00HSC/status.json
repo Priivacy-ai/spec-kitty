@@ -1,19 +1,19 @@
 {
-  "event_count": 41,
-  "last_event_id": "01M04JDMSPQ0HGT2Y29TES5CNY",
-  "materialized_at": "2026-08-16T05:58:54.518294+00:00",
+  "event_count": 42,
+  "last_event_id": "01M04JFTS3W0M7C65GEHVN5W19",
+  "materialized_at": "2026-08-16T06:00:06.179613+00:00",
   "mission_number": "",
   "mission_slug": "windows-hard-gate-restoration-task-01M00HSC",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 5,
+    "approved": 6,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 1
   },
   "work_packages": {
@@ -206,19 +206,24 @@
       }
     },
     "WP07": {
-      "actor": "codex",
+      "actor": "user",
       "agent": "codex",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "in_review",
-      "last_event_id": "01M04JDMSPQ0HGT2Y29TES5CNY",
-      "last_transition_at": "2026-08-16T05:58:54.518294+00:00",
+      "lane": "approved",
+      "last_event_id": "01M04JFTS3W0M7C65GEHVN5W19",
+      "last_transition_at": "2026-08-16T06:00:06.179613+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "RED 25-site failure; GREEN marker leaves 24; mutation, targeted gate, Ruff, py_compile and diff-check passed; commit eae4dc006"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: eae4dc006; marker-only cardinality closure, RED/GREEN/mutation and targeted gates verified",
+        "reviewer": "rusliksu",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 20156,
       "shell_pid_created_at": "1786859929.0267124",
