@@ -10,3 +10,21 @@ tombstones:
 - - delivery/test_per_project_report_3030.py
   - _home
   - monkeypatch . setenv ( , str ( home ) )
+- - upgrade/migrations/test_m_0_6_7_ensure_missions.py
+  - test_detect_skips_when_global_runtime_is_configured
+  - monkeypatch . setenv ( , str ( home ) )
+- - upgrade/migrations/test_m_0_6_7_ensure_missions.py
+  - test_detect_still_repairs_metadata_less_legacy_repo
+  - monkeypatch . setenv ( , str ( home ) )
+- - upgrade/test_compat.py
+  - test_uses_centralized_runtime_does_not_assume_metadata_less_repo_is_2x
+  - monkeypatch . setenv ( , str ( home ) )
+- - upgrade/test_compat.py
+  - test_uses_centralized_runtime_treats_metadata_less_worktree_as_runtime_managed
+  - monkeypatch . setenv ( , str ( home ) )
+- - upgrade/test_m_0_12_0_documentation_mission_unit.py
+  - test_detect_skips_when_global_runtime_is_configured
+  - monkeypatch . setenv ( , str ( home ) )
+- - upgrade/test_m_0_12_0_documentation_mission_unit.py
+  - test_detect_still_repairs_metadata_less_legacy_repo
+  - monkeypatch . setenv ( , str ( home ) )

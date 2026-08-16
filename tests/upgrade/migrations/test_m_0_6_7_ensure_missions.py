@@ -15,16 +15,15 @@ from specify_cli.upgrade.migrations.m_0_6_7_ensure_missions import (
 pytestmark = pytest.mark.fast
 
 
+@pytest.mark.usefixtures("canonical_home")  # R1b (#3121): the canonical owner pins SPEC_KITTY_HOME=tmp_path/home
 def test_detect_skips_when_global_runtime_is_configured(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """2.x runtime-managed installs do not require project-local missions."""
     # Arrange
     home = tmp_path / "home"
-    (home / "cache").mkdir(parents=True)
+    (home / "cache").mkdir(parents=True, exist_ok=True)
     (home / "cache" / "version.lock").write_text("2.0.5", encoding="utf-8")
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
 
     project = tmp_path / "project"
     (project / ".kittify").mkdir(parents=True)
@@ -46,16 +45,15 @@ def test_detect_skips_when_global_runtime_is_configured(
     assert result is False
 
 
+@pytest.mark.usefixtures("canonical_home")  # R1b (#3121): the canonical owner pins SPEC_KITTY_HOME=tmp_path/home
 def test_detect_still_repairs_metadata_less_legacy_repo(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A 0.x repo with .kittify but no metadata should not be treated as 2.x."""
     # Arrange
     home = tmp_path / "home"
-    (home / "cache").mkdir(parents=True)
+    (home / "cache").mkdir(parents=True, exist_ok=True)
     (home / "cache" / "version.lock").write_text("2.0.6", encoding="utf-8")
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
 
     project = tmp_path / "project"
     (project / ".kittify").mkdir(parents=True)

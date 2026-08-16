@@ -34,3 +34,41 @@ tombstones:
       usefixtures; the local _home autouse fixture set the identical tmp_path/"home" and did
       nothing else load-bearing. Provable-class member (pure home pin).
     evidence: "kitty/fix-home-pin-census-owner-adoption-3121 R1b op2"
+  - key:
+      - upgrade/migrations/test_m_0_6_7_ensure_missions.py
+      - test_detect_skips_when_global_runtime_is_configured
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: &upgrade_home >-
+      Converged onto canonical_home via per-test usefixtures; the inline SPEC_KITTY_HOME pin set the
+      identical tmp_path/"home" (kept locally for the version.lock cache write). Provable JC member.
+    evidence: &r1b_op3 "kitty/fix-home-pin-census-owner-adoption-3121 R1b op3"
+  - key:
+      - upgrade/migrations/test_m_0_6_7_ensure_missions.py
+      - test_detect_still_repairs_metadata_less_legacy_repo
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: *upgrade_home
+    evidence: *r1b_op3
+  - key:
+      - upgrade/test_compat.py
+      - test_uses_centralized_runtime_does_not_assume_metadata_less_repo_is_2x
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: *upgrade_home
+    evidence: *r1b_op3
+  - key:
+      - upgrade/test_compat.py
+      - test_uses_centralized_runtime_treats_metadata_less_worktree_as_runtime_managed
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: *upgrade_home
+    evidence: *r1b_op3
+  - key:
+      - upgrade/test_m_0_12_0_documentation_mission_unit.py
+      - test_detect_skips_when_global_runtime_is_configured
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: *upgrade_home
+    evidence: *r1b_op3
+  - key:
+      - upgrade/test_m_0_12_0_documentation_mission_unit.py
+      - test_detect_still_repairs_metadata_less_legacy_repo
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: *upgrade_home
+    evidence: *r1b_op3
