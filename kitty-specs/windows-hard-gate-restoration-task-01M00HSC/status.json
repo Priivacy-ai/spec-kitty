@@ -97,7 +97,8 @@
       "notes": [
         "Полный architecture gate выявил четыре follow-up класса; WP03 targeted-GREEN сохранён, local_ready=false.",
         "WP03 scope itself завершён targeted-GREEN; full-gate residuals вынесены в WP04–WP05, продолжаю независимый review перед последовательным follow-up.",
-        "WP03 subtasks T014–T020 выполнены: targeted-GREEN, полный gate сохранён дословно, acceptance matrix/hard-gate result обновлены в fail-closed состоянии. Восемь full-architecture residual failures переданы в follow-up WP04–WP05."
+        "WP03 subtasks T014–T020 выполнены: targeted-GREEN, полный gate сохранён дословно, acceptance matrix/hard-gate result обновлены в fail-closed состоянии. Восемь full-architecture residual failures переданы в follow-up WP04–WP05.",
+        "WP03 scope reviewed and approved: RED/GREEN, mutations, targeted gates and exact full-gate evidence verified. Full architecture still has 8 out-of-scope residual failures, explicitly classified and handed to WP04–WP05; local_ready remains false."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
