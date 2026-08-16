@@ -28,7 +28,8 @@
       "last_transition_at": "2026-08-16T13:44:20.793364+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Owner-adoption fix applied; census suite green, behaviour test green, ratchet-bite proof red-on-inject; ruff+mypy clean; diff confined to one test file."
+        "Owner-adoption fix applied; census suite green, behaviour test green, ratchet-bite proof red-on-inject; ruff+mypy clean; diff confined to one test file.",
+        "Review passed: census 29 green (was 6 red); behaviour test 4 green; ratchet-bite proof red-on-inject; ruff+mypy clean; diff confined to owned test file; no frozen-artefact edits (C-001..C-005 upheld)."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
