@@ -25,6 +25,7 @@ detailed workflows or aliases while new public operating skills use `spk-*`.
 - `spk-run-program-orchestrate`: multi-mission program orchestration.
 - `spk-run-implement-review`: WP implementation/review orchestration.
 - `spk-run-review-wp`: single WP review.
+- `spk-run-verdict-capture`: record a WP review verdict via the deterministic event-log seam.
 - `spk-run-blocked-recovery`: blocked-state repair.
 
 ## Gate
