@@ -12,11 +12,11 @@ from specify_cli.sync.body_queue import OfflineBodyUploadQueue
 from specify_cli.sync.namespace import NamespaceRef
 from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.fast, pytest.mark.usefixtures("canonical_home")]
 
-@pytest.fixture(autouse=True)
-def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
+# R1b (#3121): home isolation is provided by the canonical SPEC_KITTY_HOME owner
+# (``canonical_home``, root conftest) via the module-level ``usefixtures`` mark above, replacing a
+# local ``_isolated_home`` autouse fixture that pinned the identical ``tmp_path/"home"``.
 
 
 PROJECT_A = "aaaaaaaa-0000-0000-0000-000000000001"

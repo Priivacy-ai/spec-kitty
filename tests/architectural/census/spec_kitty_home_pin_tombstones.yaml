@@ -8,4 +8,20 @@
 #
 # This is the auditable source of truth for tombstones, read by
 # tests/architectural/_home_pin_scan.py::load_tombstone_keys during regeneration. render_baseline
-# emits the keys into the baseline's `tombstones: []
+# emits the keys into the baseline tombstone list and freezes census_key_set_sha256 over
+# census_keys union tombstone_keys, so census plus tombstones stays pinned to the frozen 40-key set.
+#
+# A tombstoned member's pin MUST be gone from the tree: main() fails closed if a tombstoned key is
+# still a live census member, and t023's discover-side equality reds otherwise.
+#
+# Empty = the R1a state (the whole subsystem is a no-op; artefacts are byte-identical).
+tombstones:
+  - key:
+      - delivery/test_body_queue_purge_differential_3030.py
+      - _isolated_home
+      - monkeypatch . setenv ( , str ( tmp_path / ) )
+    reason: >-
+      Converged onto the canonical SPEC_KITTY_HOME owner (canonical_home) via module-level
+      usefixtures; the local _isolated_home autouse fixture pinned the identical tmp_path/"home"
+      and did nothing else load-bearing. Ablation-certified provable member (arm-2 RED / in P).
+    evidence: "kitty/fix-home-pin-census-owner-adoption-3121 R1b op1"
