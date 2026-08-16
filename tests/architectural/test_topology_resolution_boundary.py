@@ -218,7 +218,7 @@ def test_codemap_lock_uses_sha256_and_matches_checked_in_views() -> None:
     assert lock["algorithm"] == "sha256"
     for filename in ("codemap.json", "codemap.html"):
         digest = hashlib.sha256(  # noqa: TID251 -- raw file-integrity fingerprint matches codemap.lock.
-            (_CODEMAP_DIR / filename).read_bytes()
+            (_CODEMAP_DIR / filename).read_bytes().replace(b"\r\n", b"\n")
         ).hexdigest()
         assert lock[filename] == digest
 
@@ -232,7 +232,7 @@ def test_codemap_lock_uses_lf_normalized_bytes() -> None:
     )
     for filename in ("codemap.json", "codemap.html"):
         canonical = (_CODEMAP_DIR / filename).read_bytes().replace(b"\r\n", b"\n")
-        digest = hashlib.sha256(canonical).hexdigest()
+        digest = hashlib.sha256(canonical).hexdigest()  # noqa: TID251 -- LF-normalized file-integrity oracle.
         assert lock[filename] == digest
 
 

@@ -1007,7 +1007,7 @@ def _checkout_grammar_offenders(
             if finding.as_allow_key() in _CHECKOUT_GRAMMAR_ALLOW_LIST:
                 continue
             offenders.append(
-                f"{finding.path.relative_to(_REPO_ROOT)}:{finding.lineno} "
+                f"{finding.path.relative_to(_REPO_ROOT).as_posix()}:{finding.lineno} "
                 f"{finding.callee}(...) constructs a ref from a non-seam-derived "
                 "expression — route it through placement_seam(...).write_target(kind) "
                 "or allow-list it with a tracked rationale"
