@@ -17,8 +17,8 @@ C-011, tracked by #3121) is a **hard, shrink-only ratchet** enforcing three join
 silhouette; `E` is a fixed two-entry exempt set (the canonical owner + a retained-pin probe);
 the anchor is frozen from an immutable third-party evidence file
 (`.../research/spec_kitty_home_pin_evidence/members.json`, 40 members, resolved at
-`fe5d492ed…`). By explicit design (`spec.md` FR-004(b), C-007) the census is
-**monotonically non-increasing — "additions are not expressible."**
+`fe5d492ed…`). By explicit design (the R1a mission's shrink-only requirement and
+constraint) the census is **monotonically non-increasing — "additions are not expressible."**
 
 A single legitimate isolation pin landed after the freeze, in commit `1b6386b20` (#3497):
 
