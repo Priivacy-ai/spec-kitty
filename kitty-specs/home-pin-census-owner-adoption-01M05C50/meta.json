@@ -10,5 +10,7 @@
   "purpose_tldr": "home pin census owner adoption",
   "slug": "home-pin-census-owner-adoption-01M05C50",
   "target_branch": "kitty/fix-home-pin-census-owner-adoption-3121",
-  "topology": "single_branch"
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-16T13:37:28.350605+00:00"
 }
