@@ -149,6 +149,9 @@ and should not wait on the mechanism decision.
 
 ## Architect recommendation
 
+> **Operator-accepted (2026-08-16).** The recommendation below is adopted as the
+> decision; the ratifying ADR records it rather than re-opening it.
+
 The override-mechanism choice this disposition deferred to architect review has been
 made (architect-alphonso, 2026-08-15):
 

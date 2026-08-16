@@ -147,6 +147,9 @@ proposal-application deferred pending the operator input below.
 
 ## Architect recommendation
 
+> **Operator-accepted (2026-08-16).** The recommendation below is adopted as the
+> decision; the epic's first-deliverable ADR ratifies it rather than re-opening it.
+
 The record-contract choice this disposition deferred to architect review has been
 made (architect-alphonso, 2026-08-15):
 
