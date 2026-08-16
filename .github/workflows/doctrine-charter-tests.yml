@@ -41,8 +41,9 @@
 #                                                          software-dev/analyze/prompt.md to the
 #                                                          canonical `agent mission
 #                                                          record-analysis` command -- #3096/FR-011)
-#   The first four selections run `-m "fast and not windows_ci"` only: this is
-#   a FAST unit-level signal, not the integration tier. The
+#   The first four selections run
+#   `-m "fast and not windows_ci and not timing"` only: this is a FAST
+#   unit-level signal, not the integration or serial timing tier. The
 #   test_analyze_surface_agreement.py file is `integration`/`git_repo`-marked
 #   (it shells out to `git grep` and exercises the real Typer CLI), so it is
 #   run in a SEPARATE step below under `-m "integration and not windows_ci"`.
@@ -211,7 +212,7 @@ jobs:
             tests/specify_cli/invocation/ \
             tests/specify_cli/cli/commands/charter/ \
             tests/invocation/ \
-            -m "fast and not windows_ci" \
+            -m "fast and not windows_ci and not timing" \
             -q --tb=short \
             -n auto --dist loadfile \
             --durations=50

@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "1911a6cc3b6441cb44dc26b1c3bbcf5e9ff8b339",
-  "coordination_branch": "kitty/mission-ci-local-preflight-parity-01KWXWY0",
   "created_at": "2026-07-07T09:00:50.259974+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Local pre-PR CI parity: venv lock-check + residual runner + contract-boundary decision",
   "mission_id": "01KWXWY0PKH9SVDS0V6JT00J3P",
   "mission_number": 167,
@@ -14,7 +13,7 @@
   "slug": "ci-local-preflight-parity-01KWXWY0",
   "status_phase": "1",
   "target_branch": "feat/ci-delivery-topology",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-07T09:41:58.679494+00:00"
 }

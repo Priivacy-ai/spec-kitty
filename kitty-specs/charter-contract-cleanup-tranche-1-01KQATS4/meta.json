@@ -1,5 +1,6 @@
 {
   "created_at": "2026-04-28T19:59:10.045914+00:00",
+  "flattened": false,
   "friendly_name": "Charter Contract Cleanup Tranche 1",
   "mission_id": "01KQATS4HJS0HY02VF05FCP57T",
   "mission_number": 106,
@@ -10,6 +11,7 @@
   "slug": "charter-contract-cleanup-tranche-1-01KQATS4",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-04-29T05:21:27.186558+00:00"
 }

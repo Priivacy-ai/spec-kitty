@@ -83,7 +83,7 @@ def _write_project_config(
     *,
     repo_slug: str = _REPO_SLUG,
     sync_enabled: bool | None = None,
-) -> None:
+) -> str:
     """Write a ``.kittify/config.yaml`` with a complete project identity.
 
     Mirrors the identity block a real checkout carries (``project.uuid`` /
@@ -96,9 +96,10 @@ def _write_project_config(
     """
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
+    project_uuid = str(uuid4())
     lines = [
         "project:",
-        f"  uuid: {uuid4()}",
+        f"  uuid: {project_uuid}",
         "  slug: engagement-assistant",
         "  node_id: node12345678",
         f"  repo_slug: {repo_slug}",
@@ -107,6 +108,7 @@ def _write_project_config(
     if sync_enabled is not None:
         lines += ["sync:", f"  enabled: {str(sync_enabled).lower()}"]
     (config_dir / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return project_uuid
 
 
 @pytest.fixture
@@ -342,8 +344,14 @@ def test_machine_global_opt_in_does_not_leak_to_sibling_projects(
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
 
-    _write_project_config(consenting, repo_slug="my-org/intended-project")
+    consenting_uuid = _write_project_config(consenting, repo_slug="my-org/intended-project")
     _write_project_config(unrelated, repo_slug="client-org/confidential-work")
+
+    # The only grant path left is the explicit UUID-owned per-project opt-in;
+    # machine-global config is non-authoritative (diagnostic only). Record the
+    # legacy machine-global entry anyway to prove it neither grants for the
+    # sibling nor is needed for the opted-in project.
+    from specify_cli.sync.consent import record_project_opt_in
 
     config_file = home / ".spec-kitty" / "config.toml"
     config_file.parent.mkdir(parents=True, exist_ok=True)
@@ -351,6 +359,7 @@ def test_machine_global_opt_in_does_not_leak_to_sibling_projects(
         '[sync.repo_defaults."my-org/intended-project"]\nenabled = true\n',
         encoding="utf-8",
     )
+    record_project_opt_in(consenting_uuid, actor="tester")
 
     monkeypatch.chdir(consenting)
     assert is_sync_enabled_for_checkout() is True, (

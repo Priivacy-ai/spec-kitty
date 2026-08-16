@@ -93,7 +93,7 @@ def test_warm_chokepoint_does_not_shell_out_to_git_on_cache_hit(warm_bundle: Pat
     # First call warms the resolver cache.
     ensure_charter_bundle_fresh(warm_bundle)
 
-    with patch("charter.resolution.subprocess.run") as spy:
+    with patch("kernel.git_topology.subprocess.run") as spy:
         result = ensure_charter_bundle_fresh(warm_bundle)
     assert result is not None
     assert result.synced is False

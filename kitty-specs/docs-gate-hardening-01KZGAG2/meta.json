@@ -12,5 +12,6 @@
   "purpose_tldr": "Make three docs quality gates fail loud instead of shipping silent drift or gaps.",
   "slug": "docs-gate-hardening-01KZGAG2",
   "status_phase": "1",
-  "target_branch": "docs/3253-docs-gaps"
+  "target_branch": "docs/3253-docs-gaps",
+  "topology": "lanes"
 }

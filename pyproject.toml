@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "3.2.6"
+version = "3.2.6rc2"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -131,7 +131,13 @@ lint = [
 spec-kitty = "specify_cli:main"
 
 [build-system]
-requires = ["hatchling"]
+# Pin the build backend to the uv.lock-recorded hatchling. Unpinned, the
+# isolated build pulls whatever hatchling is newest on PyPI, and post-1.31
+# releases emit `Metadata-Version: 2.5`, which the release pipeline's pinned
+# `twine==6.*` (pkginfo) rejects as "not a valid metadata version" — failing
+# `twine check` before publish. hatchling 1.31.0 emits the widely-accepted
+# `2.4`. Keep this in lockstep with uv.lock's hatchling entry.
+requires = ["hatchling==1.31.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.metadata]

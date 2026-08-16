@@ -50,6 +50,6 @@ class MetaTracesMergeDriverMigration(MergeDriverSeedingMigration):
 
     migration_id = "3.2.6_meta_traces_merge_drivers"
     description = "Install semantic git merge drivers for meta.json and traces/*.md"
-    target_version = "3.2.6"
+    target_version = "3.2.6rc1"
     drivers = _DRIVERS
     dry_run_summary = "Would install meta.json + traces/*.md merge drivers and .gitattributes entries"

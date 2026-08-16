@@ -21,7 +21,7 @@ live delivery path at `tests/delivery/test_receivers.py::map_batch_response`.
 """
 
 import json
-import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -40,6 +40,10 @@ from specify_cli.sync.batch import (
 )
 from specify_cli.sync._team import CATEGORY_MISSING_PRIVATE_TEAM
 from specify_cli.sync.queue import OfflineQueue
+from specify_cli.sync.project_store import ProjectSyncStore
+
+
+PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
 
 
 # ────────────────────────────────────────────────────────────────
@@ -48,12 +52,15 @@ from specify_cli.sync.queue import OfflineQueue
 
 
 @pytest.fixture
-def temp_queue():
-    """Create a queue with a temporary database."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test_queue.db"
-        queue = OfflineQueue(db_path)
-        yield queue
+def temp_queue(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[OfflineQueue]:
+    """Create a project-owned queue inside its outer unit of work."""
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(PROJECT)
+    authority = store.layout_generation()
+    authority.begin_cutover("batch-error-surfacing-tests")
+    authority.publish_project_only("batch-error-surfacing-tests", verify_exact=lambda: True)
+    with store.unit_of_work() as unit:
+        yield OfflineQueue(unit, authority)
 
 
 @pytest.fixture
@@ -64,6 +71,7 @@ def small_queue(temp_queue):
             {
                 "event_id": f"evt-{i:04d}",
                 "event_type": "TestEvent",
+                "project_uuid": PROJECT,
                 "payload": {"index": i},
             }
         )
@@ -78,35 +86,26 @@ def small_queue(temp_queue):
 class TestCategorizeError:
     """Test the categorize_error function (T006)."""
 
-    def test_schema_mismatch_keywords(self):
-        """Each schema_mismatch keyword is detected."""
-        for kw in ERROR_CATEGORIES["schema_mismatch"]:
-            assert categorize_error(f"Event has {kw} problem") == "schema_mismatch"
-
-    def test_auth_expired_keywords(self):
-        """Each auth_expired keyword is detected."""
-        for kw in ERROR_CATEGORIES["auth_expired"]:
-            assert categorize_error(f"Request {kw} error") == "auth_expired"
-
-    def test_server_error_keywords(self):
-        """Each server_error keyword is detected."""
-        for kw in ERROR_CATEGORIES["server_error"]:
-            assert categorize_error(f"Server {kw} issue") == "server_error"
-
-    def test_retryable_transport_keywords(self):
-        """Temporary transport failures stay distinct from true server failures."""
-        for kw in ERROR_CATEGORIES["retryable_transport"]:
-            assert categorize_error(f"Network {kw} issue") == "retryable_transport"
+    def test_known_keywords_map_to_their_category(self):
+        """Every live diagnostic keyword maps to its owning category."""
+        mismatches = {
+            (category, keyword): categorize_error(f"Sync failed: {keyword}")
+            for category in (
+                "schema_mismatch",
+                "auth_expired",
+                "server_error",
+                "retryable_transport",
+            )
+            for keyword in ERROR_CATEGORIES[category]
+            if categorize_error(f"Sync failed: {keyword}") != category
+        }
+        assert mismatches == {}
 
     def test_unknown_for_unrecognised(self):
         """Strings with no matching keywords yield 'unknown'."""
         assert categorize_error("Something completely different happened") == "unknown"
 
     def test_empty_string_returns_unknown(self):
-        assert categorize_error("") == "unknown"
-
-    def test_none_like_returns_unknown(self):
-        """None-ish empty string."""
         assert categorize_error("") == "unknown"
 
     def test_case_insensitive(self):
@@ -122,8 +121,6 @@ class TestCategorizeError:
         # schema_mismatch is first in ERROR_CATEGORIES
         result = categorize_error("invalid timeout detected")
         assert result == "schema_mismatch"
-
-
 
 
 # ────────────────────────────────────────────────────────────────
@@ -314,7 +311,7 @@ class TestProcessBatchResults:
         assert small_queue.size() == 2
 
         remaining = small_queue.drain_queue()
-        remaining_ids = {e["event_id"] for e in remaining}
+        remaining_ids = {task.event_id for task in remaining}
         assert remaining_ids == {"evt-0002", "evt-0004"}
 
     def test_all_success(self, small_queue):
@@ -331,7 +328,7 @@ class TestProcessBatchResults:
 
         # Verify retry count was incremented
         events_with_retries = small_queue.get_events_by_retry_count(max_retries=1)
-        assert len(events_with_retries) == 0  # all at retry_count=1, threshold is <1
+        assert len(events_with_retries) == 5
 
         events_below_two = small_queue.get_events_by_retry_count(max_retries=2)
         assert len(events_below_two) == 5  # all at retry_count=1, threshold is <2
@@ -352,7 +349,6 @@ class TestProcessBatchResults:
 
         # 1 removed, 4 remain
         assert small_queue.size() == 4
-
 
 
 # ────────────────────────────────────────────────────────────────

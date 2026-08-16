@@ -1,0 +1,96 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+mission: org-activation-scan-dirs-01KZY1PT
+round: 2
+note: >
+  R6 gate: reviews/spec-verify.yaml (round 1) showed all 5 confirmed findings resolved
+  (no unresolved carried forward). reviews/spec-fresh.yaml (round 1's fresh sweep) found
+  3 new findings against the round-1 fix commit (b33138a42) — per protocol, ANY fresh-sweep
+  finding triggers another R4->R5 round regardless of severity. This file is those 3
+  findings, carried forward verbatim as the round-2 fix target (no re-refutation was run
+  on fresh-sweep findings; the protocol routes them straight to fix).
+derived_from:
+  - reviews/spec-fresh.yaml
+findings:
+  - id: SPEC-FRESH-001
+    source: fresh-sweep-round1
+    lens: fresh-sweep
+    severity: 4
+    title: "New Acceptance Scenario 5 contradicts the unchanged 'Net effect' problem narrative it sits beside"
+    evidence:
+      - artifact: "spec.md:114-119 (unchanged 'Net effect' paragraph, part of the still-authoritative Problem-restated section)"
+      - artifact: "spec.md:178-186 (new Acceptance Scenario 5, added by this revision)"
+      - artifact: "spec.md:138-141 (revised 'Why this priority', narrowed by this revision)"
+      - code: "src/charter/pack_manager.py:601-616 (CharterPackManager.activate calls plan_activation with default_ids = _load_default_pack().get(yaml_key, []))"
+      - code: "src/charter/pack_manager.py:511-518 (_load_default_pack reads the STATIC shipped src/charter/packs/default.yaml)"
+      - code: "src/charter/packs/default.yaml:1-3 ('Default charter pack — shipped with spec-kitty. Contains all built-in artifact IDs across all 9 activation kinds.')"
+      - code: "src/charter/activation_engine.py:255-266 (FR-021: when the kind has no explicit activation set, default_ids are materialized into the plan before the requested artifact_id is appended)"
+    claim: >
+      The unchanged 'Net effect' paragraph (untouched by round 1) says: "activating
+      *any single* built-in or project artifact by stem silently evicts **every** org-pack
+      artifact of that kind from the filtered DRG" — phrased as the whole defect this mission
+      fixes. But the mission's own new Acceptance Scenario 5 (added in round 1) explicitly
+      states the opposite for that exact case: "Activating **only** the unrelated built-in
+      stem, without ever activating the org stem itself, does **not** surface the org node
+      ... selective by design, not a defect this mission changes." Tracing the code confirms
+      Scenario 5, not the Net-effect paragraph: FR-021's default-pack materialization (fired
+      on the first-ever activation for a kind) draws from a STATIC shipped `default.yaml`
+      that by definition can never contain a third-party org pack's own artifact ID — so
+      activating one unrelated built-in stem, with the org stem never explicitly activated,
+      evicts the org artifact regardless of whether `_org_scan_dirs` is fixed. This mission's
+      fix only helps when the operator explicitly activates the org artifact's own stem. The
+      round-1 revision fixed the acceptance criteria but left the motivating narrative making
+      the broader, now-falsified claim right next to a scenario that says the opposite.
+    remediation: >
+      Correct the "Net effect" paragraph (and the "Why this priority" text if still needed)
+      to state the actual, narrower defect: activating the org pack's *own* artifact by its
+      own config-stem can never succeed / never survives filtering, because `_org_scan_dirs`
+      cannot find it — not the broader "activating any single unrelated artifact evicts every
+      org artifact" framing, which is a distinct (and, per FR-021's static default-pack
+      materialization, not-fixed-by-this-mission) scenario now explicitly disclaimed by
+      Acceptance Scenario 5.
+
+  - id: SPEC-FRESH-002
+    source: fresh-sweep-round1
+    lens: fresh-sweep
+    severity: 2
+    title: "User Story 1's Independent Test cites FR-003 as needing the DRG-graph fixture, contradicting FR-003's own text"
+    evidence:
+      - artifact: "spec.md:143-149 (User Story 1 Independent Test, round-1 text: 'a root-level `*.graph.yaml` declaring the org directive as a DRG node (fixture-construction detail per FR-002/FR-003; test data only...)')"
+      - artifact: "spec.md § Requirements, FR-003 (round-1 closing sentence: 'unlike FR-002's activation-filter-level test, it needs no DRG-graph (`*.graph.yaml`) fixture')"
+    claim: >
+      Both passages were introduced/edited by round 1. The Independent Test paragraph for
+      User Story 1 attributes the new DRG-node `*.graph.yaml` fixture requirement to
+      "FR-002/FR-003" jointly, but FR-003's own (also newly revised) text explicitly states
+      the opposite — that FR-003's unit-level `_org_scan_dirs` / `resolve_artifact_urn` tests
+      need no DRG-graph fixture at all, unlike FR-002's activation-filter-level test. SC-003
+      (also revised) likewise never mentions a DRG-graph fixture for the FR-003 coverage. The
+      "per FR-002/FR-003" citation is simply wrong and should read "per FR-002" only.
+    remediation: >
+      Drop "/FR-003" from the "(fixture-construction detail per FR-002/FR-003; ...)" clause
+      in User Story 1's Independent Test paragraph so it reads "per FR-002" only, matching
+      FR-003's own explicit disclaimer and SC-003's unchanged (fixture-free) description of
+      FR-003's coverage.
+
+  - id: SPEC-FRESH-003
+    source: fresh-sweep-round1
+    lens: fresh-sweep
+    severity: 2
+    title: "Functional Requirements table header is missing a column for the requirement-detail cell (pre-existing, not introduced by round 1)"
+    evidence:
+      - artifact: "spec.md:288 (### Functional Requirements header: '| ID | Title | User Story | Priority | Status |' — 5 columns)"
+      - artifact: "spec.md:290-292 (FR-001/FR-002/FR-003 data rows: ID, Title, requirement-detail text, User Story, Priority, Status — 6 columns each)"
+      - artifact: "spec.md:305 (### Contingent Verification Criteria header, added in round 1: '| ID | Title | Verification Criterion | User Story | Priority | Status |' — 6 columns, correctly matching its 6-column VC-001/VC-002 rows)"
+    claim: >
+      The Functional Requirements table's header row has 5 columns but every data row
+      (FR-001, FR-002, FR-003) has 6 cells — a requirement-detail/description column exists
+      in every row but is never named in the header. This predates round 1 (the header line
+      is untouched by that diff). Flagged per the fresh-sweep mandate to report any real
+      finding regardless of when introduced; weighted as pre-existing per the review-protocol's
+      unresolved-in-verify + fresh-sweep gate rule, but still a real finding requiring fix
+      per the "fix-everything" rule (severity gates halting, not fixing).
+    remediation: >
+      Add a description-column header to the Functional Requirements table, e.g.
+      "| ID | Title | Requirement | User Story | Priority | Status |", mirroring the
+      corrected shape already used in the new Contingent Verification Criteria table.

@@ -77,7 +77,7 @@ pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 # backfill nudge off the ``warnings`` channel (NFR-006) while preserving the
 # signal — consistent with this repo's convention for report-only
 # diagnostics (see ``test_migration_chain_integrity.py``,
-# ``test_gate_coverage.py``, ``test_retired_contracts_absent.py``).
+# ``test_ci_collection_completeness.py``, ``test_retired_contracts_absent.py``).
 RecordPropertyFn = Callable[[str, object], None]
 
 # ---------------------------------------------------------------------------
@@ -833,7 +833,7 @@ def test_legacy_contract_backfill_nudges_are_reported(
     ``record_property`` instead of ``warnings.warn``, consistent with this
     repo's convention for report-only diagnostics (NFR-006: the warnings
     channel stays first-party-clean; see ``test_migration_chain_integrity.py``,
-    ``test_gate_coverage.py``, ``test_retired_contracts_absent.py``). Never
+    ``test_ci_collection_completeness.py``, ``test_retired_contracts_absent.py``). Never
     fails: the legacy allowlist shrinks over time (C-004 burn-down), tracked
     separately via the allowlist count baseline in
     ``tests/architectural/_baselines.yaml``.

@@ -24,6 +24,7 @@
       "lane": "done",
       "last_event_id": "01KS4G6BJZT40M271PYCQNK2GY",
       "last_transition_at": "2026-05-21T05:30:05.791649+00:00",
+      "review_result": null,
       "subtasks": {
         "T001": "done",
         "T002": "done",

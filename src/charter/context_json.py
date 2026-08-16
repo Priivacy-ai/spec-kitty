@@ -112,7 +112,8 @@ def _project_charter_json_block(repo_root: Path) -> dict[str, object]:
     if not metadata_path.exists():
         return block
 
-    from charter.context import YAML  # noqa: PLC0415 — patch seam, see module docstring
+    # Patch seam, see module docstring.
+    from charter.context import YAML  # noqa: PLC0415
 
     try:
         data = YAML(typ="safe").load(metadata_path.read_text(encoding="utf-8")) or {}

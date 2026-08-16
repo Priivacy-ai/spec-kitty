@@ -20,92 +20,299 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYNAC0RWC6FKP1Q94FYN5ZXE",
       "last_transition_at": "2026-07-28T21:33:54.332793+00:00",
-      "shell_pid": 1804653,
-      "shell_pid_created_at": "1785239316.02"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Suite deliberately red per design (FR-023). All 7 subtasks done. ruff clean; mypy --strict (project mode, src/specify_cli+charter+doctrine) clean, 1088 files; zero src/ changes. Six C-008 gates run together: 166 passed / 3 expected failed / 0 collection errors, reconciled exactly against kitty-specs/.../research/expected-reds.md ## WP01 (landed on the planning branch after the lane-branch guard correctly rejected it here, mirroring WP02's precedent).",
+        "Cycle 1 fix: B1 closed -- added _primary_partition_seam_invoked_in (kind-discriminated seam-idiom thin-adapter signal) so reads_via_primary matches the ACTUAL post-WP08 shape of all 3 real write-arm surfaces (hand-dir-to-read_target_branch_from_meta, no literal meta.json join). AST mutation table verified against the live tree: baseline green, M1(candidate rename) bites, M2(unrelated resolver) bites, M3(seam idiom -- the fix target) now GREEN (was bites), M4(read_dir(STATUS_STATE), same shape) still bites -- kind discipline holds, on all 3 surfaces (core/paths.py::get_feature_target_branch, core/git_ops.py::resolve_target_branch, mission_finalize.py::finalize_tasks). Corrected the false 'surviving spelling' docstring claim. Folded non-blocking N2/N3 into test_trio_seam_only.py. Six C-008 gates: 168 passed / 3 failed / 0 collection errors -- same 3 reds node-for-node as review-cycle-1's reconciliation. ruff clean (exit 0); mypy --strict clean (exit 0, no src/ changes). Zero src/ changes.",
+        "Review passed (reviewer-renata, opus, cycle-3 artifact): both cycle-1 blockers closed and mutation-verified; issue-matrix gate satisfied by coordinator seeding 4c024024e."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata, opus, cycle-3 artifact): both cycle-1 blockers closed and mutation-verified; issue-matrix gate satisfied by coordinator seeding 4c024024e.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1863746,
+      "shell_pid_created_at": "1785240010.4",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYNAC1KDSK7AGSAP005NGHEP",
       "last_transition_at": "2026-07-28T21:33:55.181927+00:00",
-      "shell_pid": 1764775,
-      "shell_pid_created_at": "1785238743.44"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ledger grammar (6 G1 rules enforced + mutation-tested: 2nd-table/mid-col-insert/dup-key/non-numeric all RED via dedicated pytest tests), per-site primitive discriminator (G2, 4-site qualname fixture status/aggregate.py::_find_meta_path verified), censused callees 2->4 with 4 FR-005 foundation sanctions (3 per-site + 1 existing module sanction), resolve_feature_dir_for_mission fully classified (1 migrate-fail-loud/STATUS_STATE, 7 stay-lenient, 0 sanction-infra). Gates: ruff 0, mypy --strict (src/specify_cli+charter+doctrine) 0 issues/1088 files, terminology guard 4 passed, 6 C-008 gates 188 passed/1 EXPECTED-red. The expected red (test_no_read_side_bypass_outside_sanctioned_and_allow_listed) carries exactly 32 findings (31 primary_feature_dir_for_mission + 1 resolve_feature_dir_for_mission) matching the ledger's own count -- this is US8/FR-023's deliberate acceptance signal, not a defect. Foreign honest-red confirmed and untouched: tests/sync/test_sync_consent_default_deny.py (5 tests, #3031, ADR 2026-07-17-1). Posted corrected census to #3014 and closed it (was stale at 40/21; corrected to 34/19 in gate scan scope). CONTRADICTION FLAGGED (not silently resolved): T011 pt.7 instructs writing kitty-specs/.../research/expected-reds.md from this lane, but the move-task guard hard-blocks kitty-specs/ changes on lane branches -- removed it from the lane commit, preserved its content in the handoff report, needs landing on the planning branch by the operator/coordinator. Also flagged: mark-status reports success but I could not verify a persisted git-visible state change for T008-T014 in this environment.",
+        "Cycle 1 fixes: Blocker 1 (index key gains trailing site-token column, 4-tuple key, re-authored four-site test proves old-shape fail/new-shape pass) + Blocker 2 (Live census summary now end-state; reconciliation red recorded, WP08-owned) + non-blocking folds. ruff=0, mypy --strict src=0, six C-008 gates=188 passed/1 failed (expected 32-offender ratchet, unchanged), test_no_legacy_terminology=4 passed.",
+        "Review passed (reviewer-renata, opus, cycle-3 artifact): both cycle-1 blockers closed and mutation-verified; issue-matrix gate satisfied by coordinator seeding 4c024024e."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata, opus, cycle-3 artifact): both cycle-1 blockers closed and mutation-verified; issue-matrix gate satisfied by coordinator seeding 4c024024e.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1889886,
+      "shell_pid_created_at": "1785240176.22",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      },
+      "tracker_refs": [
+        "3014"
+      ]
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYNAC2CP5FTCVQASV4THNJYV",
       "last_transition_at": "2026-07-28T21:33:55.990496+00:00",
-      "shell_pid": 2507942,
-      "shell_pid_created_at": "1785252719.43"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Recovered from agent death (spend limit) and committed as 77226250f. Orchestrator-verified: no RecursionError (173 passed); 1478 passed/0 failed behaviour preservation; six C-008 gates 168 passed/3 failed = exactly WP01's expected reds, zero new; ruff 0; mypy --strict clean (1088 files). Two deviations recorded in the commit body: Half A/B not split (safety evidence lost), and forced out-of-map edits to WP01's allow-list (token-text coupling). T021 per-stub verdicts NOT reported — reviewer must verify independently.",
+        "Cycle-1 fixes: B1 retrospective/writer.py:85 re-pointed at the module-private leaf _compose_primary_feature_dir (forced out-of-map edit, closes the read_dir(RETROSPECTIVE)->wrapper->read_dir cycle, NFR-009, proved via sys.setprofile trace across 6 fixtures x 16 kinds = zero wrapper entries); B2 foundation-site record reported in handoff for the orchestrator to land; B3 write-leg backfill-recovery/double-fold delta verified GONE (leaf==write_leg, single canonicalize call); B4 ## WP03 expected-reds.md content reported in handoff. N1-N3 folded: red-first proof de-circularized, Class-C fixture now binds distinct mocks for wrapper vs leaf, stale docstring corrected. ruff clean, mypy --strict clean, 1629 passed across missions/retrospective/coordination/status/merge, six C-008 gates: 168 passed / 3 failed (WP01's recorded expected reds, zero new).",
+        "APPROVED (cycle 2; artifact review-cycle-3.md — review-cycle-2.md is the known double-increment phantom). B1 CLOSED, both trace directions re-run independently: green = 0 wrapper entries over 6 fixtures x 16 kinds (96 traced read_dir calls, 12 passed); red = reverted resolve_retrospective_home to its pre-e023fc0bf body at runtime via a plugin (no worktree edit) -> EXACTLY 6 entries, one per fixture, all RETROSPECTIVE, clean AssertionError, still no RecursionError. Trace is code-object scoped (frame.f_code is wrapper.__code__) and the red run proves it, since the 6 hits came through the writer's own function-local import binding. Further kind short-circuits: NONE — read_dir has exactly one (RETROSPECTIVE) then an unconditional resolve_artifact_surface; that subtree's only wrapper caller, surface_resolver.py:739, sits in resolve_status_surface_with_anchor which resolve_artifact_surface never calls, and _resolve_status_surface_dir is reached only from _assemble_core_fragments. Leaf still absent from __all__ and is a pure join (no seam import, cannot re-enter read_dir). B3 write-leg delta GONE, verified live on a real backfilled git fixture against an independently re-derived pre-WP03 answer: write leg == pre-WP03 == leaf, != recovered bare dir, canonicalizer called exactly once (double-fold gone). Ex-bug-enforcing guard tests/retrospective/test_home_resolution_single_authority.py BITES: 4 passed as shipped, and reds with 'assert _compose_primary_feature_dir in {...primary_feature_dir_for_mission}' when pointed at the pre-fix source; forced tightening, no authority coverage traded. N1 red-first now non-circular (patches the binding the positive test calls bare, load-bearing), N2 distinct leaf/wrapper mocks with wrapper.call_count==0 in both topologies (5 passed), N3 docstring fixed. Reconciliation re-measured: ruff exit 0; mypy (project strict) clean on 3 src files; six C-008 gates 168 passed / 3 failed, node-identical to WP01's expected reds, zero new; 964 passed / 1 skipped / 0 failed across tests/retrospective+missions+mission_runtime+post_merge. Cycle-1 V1-V8 not regressed. Not blocked on: stale _AUTHORITY_NAMES entry (WP08 deletes the symbol) and the pre-existing backfilled RETROSPECTIVE-vs-PRIMARY_METADATA read asymmetry."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED (cycle 2; artifact review-cycle-3.md — review-cycle-2.md is the known double-increment phantom). B1 CLOSED, both trace directions re-run independently: green = 0 wrapper entries over 6 fixtures x 16 kinds (96 traced read_dir calls, 12 passed); red = reverted resolve_retrospective_home to its pre-e023fc0bf body at runtime via a plugin (no worktree edit) -> EXACTLY 6 entries, one per fixture, all RETROSPECTIVE, clean AssertionError, still no RecursionError. Trace is code-object scoped (frame.f_code is wrapper.__code__) and the red run proves it, since the 6 hits came through the writer's own function-local import binding. Further kind short-circuits: NONE — read_dir has exactly one (RETROSPECTIVE) then an unconditional resolve_artifact_surface; that subtree's only wrapper caller, surface_resolver.py:739, sits in resolve_status_surface_with_anchor which resolve_artifact_surface never calls, and _resolve_status_surface_dir is reached only from _assemble_core_fragments. Leaf still absent from __all__ and is a pure join (no seam import, cannot re-enter read_dir). B3 write-leg delta GONE, verified live on a real backfilled git fixture against an independently re-derived pre-WP03 answer: write leg == pre-WP03 == leaf, != recovered bare dir, canonicalizer called exactly once (double-fold gone). Ex-bug-enforcing guard tests/retrospective/test_home_resolution_single_authority.py BITES: 4 passed as shipped, and reds with 'assert _compose_primary_feature_dir in {...primary_feature_dir_for_mission}' when pointed at the pre-fix source; forced tightening, no authority coverage traded. N1 red-first now non-circular (patches the binding the positive test calls bare, load-bearing), N2 distinct leaf/wrapper mocks with wrapper.call_count==0 in both topologies (5 passed), N3 docstring fixed. Reconciliation re-measured: ruff exit 0; mypy (project strict) clean on 3 src files; six C-008 gates 168 passed / 3 failed, node-identical to WP01's expected reds, zero new; 964 passed / 1 skipped / 0 failed across tests/retrospective+missions+mission_runtime+post_merge. Cycle-1 V1-V8 not regressed. Not blocked on: stale _AUTHORITY_NAMES entry (WP08 deletes the symbol) and the pre-existing backfilled RETROSPECTIVE-vs-PRIMARY_METADATA read asymmetry.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2562837,
+      "shell_pid_created_at": "1785257436.49",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYNAC35M5S32M1B72WH7FY6Z",
       "last_transition_at": "2026-07-28T21:33:56.788811+00:00",
-      "shell_pid": 2583894,
-      "shell_pid_created_at": "1785258427.96"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Routed 3/4 T022+T023 primary-primitive sites (agent_tasks_ports.py:266, mission_type.py:610,1069) onto placement_seam(...).read_dir(PRIMARY_METADATA); decisions/emit.py:71 deliberately left unrouted -- collides with test_resolution_authority_gates.py's own coord-authority PERMANENT sanction of that call, verified empirically (4 gate tests break if routed), reported as cross-WP ledger/gate conflict. T024 closes #2886: both _run_documentation_wiring reads + the audit write now share one seam resolve. #2707 verified stale (already fixed by PR #2689). T025 husk guarantee pinned red-first for 2 sites directly + close_cmd's site via existing test_mission_close_discard_coord_teardown.py (hand-verified red on revert). Gates: ruff clean, mypy --strict clean (1088 files), test strategy suite 1689 passed/2 xfailed, test_coord_read_residuals_closeout.py 11/11 green (non-vacuous), read-side bypass ratchet verified zero-additions (32->28, exactly my 3 sites removed). Full report to orchestrator.",
+        "APPROVED (reviewer-renata). Independently verified. KINDS: all 3 routed sites correctly PRIMARY_METADATA. Probed the P-1 partition invariant live on a coord-husk fixture: PRIMARY_METADATA/SPEC/LANE_STATE/TASKS_INDEX all resolve to the identical primary dir while STATUS_STATE routes to coord, so kind choice is load-bearing only at partition level and all 3 sites read PRIMARY-partition artifacts (close_cmd:610 -> meta.json 2 lines down; _resolve_mission_handle:1069 -> _safe_load_meta; primary_anchor_dir:266 -> consumer reads spec.md + resolve_mission_identity). All 3 are also answer-identical to the wrapper they left, whose WP03 body IS placement_seam(...).read_dir(PRIMARY_METADATA). T024: read _run_documentation_wiring myself -- ONE seam call binds primary_dir; get_mission_type(primary_dir), meta_file=primary_dir/meta.json (fed to BOTH helpers) and the gap-analysis.md write all share it; feature_dir param dropped, sole caller updated. Reverting mission_setup_plan.py to its parent blob reproduces the red on test_fr007_arm_live_identity_scan_is_clean -- genuine red->green. RATCHET: measured independently via the gate's own scanner = 28 offenders, delta from 31 is exactly agent_tasks_ports.py:266 + mission_type.py:610 + mission_type.py:1069, ZERO additions (only 3 src files in the diff, so no addition is possible elsewhere). GATES: 190 passed / 4 failed reproduced exactly; closeout 11/11 with its non-vacuity floor green; ruff clean; mypy --strict 1088 files clean; WP suites 1689 passed / 2 xfailed. EMIT.PY:71 CONFLICT -- my read for the adjudicator: WP02's ledger is RIGHT (migrate-fail-loud / STATUS_STATE) and WP04 was right to refuse. I reproduced the 4 gate reds by name exactly. But I also probed the routing's behaviour: read_dir(STATUS_STATE) is DIRECTORY-IDENTICAL to the lenient resolver in all three coord cells (materialized -> coord worktree, create-window -> primary, deleted -> raises); the only delta is the exception type on deleted-coord (ActionContextError -> CoordinationBranchDeleted), i.e. strictly the fail-loud gain the ledger claims. So the two authorities are NOT in semantic conflict: the coord-authority sanction ('legitimate coord-owned write bypassing commit_for_mission') stays TRUE after routing. The blocker is purely gate machinery -- the allow-list entry is keyed on a frozen token naming the legacy primitive and COORD_AUTHORITY_WRITE_FLOOR=4 counts kind-blind calls, so the gate structurally obliges a deprecated primitive to keep being used. That is the identical name-vs-kind discrimination defect WP01's own cycle-1 review fixed on the write arm (_anchor_invoked_in -> _primary_partition_seam_invoked_in). End state: teach the coord leg the seam idiom (recognise placement_seam(...).read_dir(<COORD kind>) as a coord-owned write), re-token the YAML entry, retire/transfer the floor per the DIRECTIVE_043 precedent -- then route. Gate-owner work, not WP04's. NON-BLOCKING (3): (1) expected-reds WP04 says close_cmd was 'hand-verified by reverting the routed line and observing 4 of 9 reds' -- I reverted WP04's routed line (seam -> wrapper) and got 9/9 GREEN; the 4 reds appear only when the whole #2120 primary re-anchor is removed, which is what the test module docstring actually says. The husk-guarantee claim is TRUE and reproduced (4 named reds); the wording overstates it as evidence for WP04's own change. No behavioural red-first is possible here since the routing is answer-identical by construction. Please correct the sentence. (2) the same section justifies agent_tasks_ports.py:266 by 'a meta.json read one or two lines downstream' -- there is none; the method returns the anchor and its consumer reads spec.md first. Kind still correct, justification inaccurate. (3) T024 has no behavioural test: both wiring tests monkeypatch the helpers AND get_mission_type, so nothing asserts the resolved dir; the guard against re-opening the one-of-two hole is the static gate, which by its own message subjects only get_mission_type(feature_dir). Suggest a follow-up test that a documentation mission on a coord husk writes gap-analysis.md into the primary dir. Also noted: the WP04 Activity Log per-site kind table (a DoD bullet) is absent -- the substance is in research/expected-reds.md, consequence of the pre-adjudicated kitty-specs-on-a-lane guard. Confirmed the test_sanctioned_modules_are_non_vacuous red is independent of this diff (7e89619cc touches no mission_runtime file; git diff HEAD -- resolution.py empty) -- WP08's, not counted here. Worktree verified clean after every temporary revert."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED (reviewer-renata). Independently verified. KINDS: all 3 routed sites correctly PRIMARY_METADATA. Probed the P-1 partition invariant live on a coord-husk fixture: PRIMARY_METADATA/SPEC/LANE_STATE/TASKS_INDEX all resolve to the identical primary dir while STATUS_STATE routes to coord, so kind choice is load-bearing only at partition level and all 3 sites read PRIMARY-partition artifacts (close_cmd:610 -> meta.json 2 lines down; _resolve_mission_handle:1069 -> _safe_load_meta; primary_anchor_dir:266 -> consumer reads spec.md + resolve_mission_identity). All 3 are also answer-identical to the wrapper they left, whose WP03 body IS placement_seam(...).read_dir(PRIMARY_METADATA). T024: read _run_documentation_wiring myself -- ONE seam call binds primary_dir; get_mission_type(primary_dir), meta_file=primary_dir/meta.json (fed to BOTH helpers) and the gap-analysis.md write all share it; feature_dir param dropped, sole caller updated. Reverting mission_setup_plan.py to its parent blob reproduces the red on test_fr007_arm_live_identity_scan_is_clean -- genuine red->green. RATCHET: measured independently via the gate's own scanner = 28 offenders, delta from 31 is exactly agent_tasks_ports.py:266 + mission_type.py:610 + mission_type.py:1069, ZERO additions (only 3 src files in the diff, so no addition is possible elsewhere). GATES: 190 passed / 4 failed reproduced exactly; closeout 11/11 with its non-vacuity floor green; ruff clean; mypy --strict 1088 files clean; WP suites 1689 passed / 2 xfailed. EMIT.PY:71 CONFLICT -- my read for the adjudicator: WP02's ledger is RIGHT (migrate-fail-loud / STATUS_STATE) and WP04 was right to refuse. I reproduced the 4 gate reds by name exactly. But I also probed the routing's behaviour: read_dir(STATUS_STATE) is DIRECTORY-IDENTICAL to the lenient resolver in all three coord cells (materialized -> coord worktree, create-window -> primary, deleted -> raises); the only delta is the exception type on deleted-coord (ActionContextError -> CoordinationBranchDeleted), i.e. strictly the fail-loud gain the ledger claims. So the two authorities are NOT in semantic conflict: the coord-authority sanction ('legitimate coord-owned write bypassing commit_for_mission') stays TRUE after routing. The blocker is purely gate machinery -- the allow-list entry is keyed on a frozen token naming the legacy primitive and COORD_AUTHORITY_WRITE_FLOOR=4 counts kind-blind calls, so the gate structurally obliges a deprecated primitive to keep being used. That is the identical name-vs-kind discrimination defect WP01's own cycle-1 review fixed on the write arm (_anchor_invoked_in -> _primary_partition_seam_invoked_in). End state: teach the coord leg the seam idiom (recognise placement_seam(...).read_dir(<COORD kind>) as a coord-owned write), re-token the YAML entry, retire/transfer the floor per the DIRECTIVE_043 precedent -- then route. Gate-owner work, not WP04's. NON-BLOCKING (3): (1) expected-reds WP04 says close_cmd was 'hand-verified by reverting the routed line and observing 4 of 9 reds' -- I reverted WP04's routed line (seam -> wrapper) and got 9/9 GREEN; the 4 reds appear only when the whole #2120 primary re-anchor is removed, which is what the test module docstring actually says. The husk-guarantee claim is TRUE and reproduced (4 named reds); the wording overstates it as evidence for WP04's own change. No behavioural red-first is possible here since the routing is answer-identical by construction. Please correct the sentence. (2) the same section justifies agent_tasks_ports.py:266 by 'a meta.json read one or two lines downstream' -- there is none; the method returns the anchor and its consumer reads spec.md first. Kind still correct, justification inaccurate. (3) T024 has no behavioural test: both wiring tests monkeypatch the helpers AND get_mission_type, so nothing asserts the resolved dir; the guard against re-opening the one-of-two hole is the static gate, which by its own message subjects only get_mission_type(feature_dir). Suggest a follow-up test that a documentation mission on a coord husk writes gap-analysis.md into the primary dir. Also noted: the WP04 Activity Log per-site kind table (a DoD bullet) is absent -- the substance is in research/expected-reds.md, consequence of the pre-adjudicated kitty-specs-on-a-lane guard. Confirmed the test_sanctioned_modules_are_non_vacuous red is independent of this diff (7e89619cc touches no mission_runtime file; git diff HEAD -- resolution.py empty) -- WP08's, not counted here. Worktree verified clean after every temporary revert.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2892573,
+      "shell_pid_created_at": "1785262475.75",
+      "subtasks": {
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      },
+      "tracker_refs": [
+        "2886",
+        "2707"
+      ]
     },
     "WP05": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYNAC3YZQ4VAY06D8VZT3QHF",
       "last_transition_at": "2026-07-28T21:33:57.599217+00:00",
-      "shell_pid": 2583894,
-      "shell_pid_created_at": "1785258427.96"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Routed all 10 primary_feature_dir_for_mission sites in the trio (workflow.py x2 ANALYSIS_REPORT/PRIMARY_METADATA, workflow_executor.py x3 PRIMARY_METADATA, implement.py x4 WORK_PACKAGE_TASK/PRIMARY_METADATA x3, acceptance/__init__.py x1 PRIMARY_METADATA) through placement_seam(...).read_dir(kind); corrected 5 husk/#2824 comments (none re-assert lanes.json-on-COORD); test_trio_seam_only.py green (22/22), verified green because the positive assertion holds via plant-and-revert (planted import reds both target nodes, revert restores green). New tests/specify_cli/acceptance/test_trio_read_seam_migration.py pins NFR-001/NFR-002. Zero-additions ratchet: bypass gate's live offender count is 21 = 32 recorded - 10 routed - 1 (retrospective/writer.py, already WP03-reclassified); none of my 10 sites present. Gate exits: ruff=0, mypy=0, acceptance+cli/commands pytest=1 (3270 passed/1 skipped/2 xfailed, 1 pre-existing WP03-caused RecursionError confirmed red at lane's true start commit 01ee37a8c, not my file), six C-008 gates=1 (191 passed/3 failed: WP02's by-design bypass-gate red, a WP03-caused sanctioned-module non-vacuity gap (WP08-owned, flagged by orchestrator), and WP01's recorded FR-007 identity residual (WP04's site) -- none touch my owned files). #2465 assessed + commented on GitHub (no closing keyword).",
+        "APPROVED (reviewer-renata, independent verification). Plant-and-revert: both trio nodes green clean; planted 'from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission' into workflow.py -> BOTH test_trio_imports_route_only_through_seam_wrappers AND test_allowed_read_path_resolver_names_are_currently_used RED; git checkout -> both GREEN, git status clean. Gate is load-bearing, not vacuous. Kind selection: all 10 sites correct, verified against src/mission_runtime/artifacts.py partition sets - WORK_PACKAGE_TASK (find_wp_file tasks/ dir), ANALYSIS_REPORT (_analysis_report_gate_dir), PRIMARY_METADATA (7 meta.json/identity reads); all four are PRIMARY-partition kinds resolving to the identical PRIMARY mission dir (NFR-001 preserved) and none flattened. 5 comments corrected (3 workflow_executor.py husk comments + 2 acceptance/__init__.py #2824 residual); the #2824 comment now states LANE_STATE is PRIMARY per C-001 and does NOT re-assert lanes.json-on-COORD. Ratchet: bypass-gate offender count = 21, zero WP05 sites present, zero additions; no trio file imports either drained name (2 remaining hits are comment/docstring text). 31 migration tests pass (NFR-002 no-new-raise). Stale test remediation test_record_analysis_coord_worktree.py (outside owned_files, no ownership overlap, DIRECTIVE_041 STALE) is legitimate and sharpened to positively assert kind==ANALYSIS_REPORT. Ruff clean on all changed files. NON-BLOCKING: DoD-required per-site kind table absent from Activity Log (only seed entry); equivalent info lives in commit 1006add25 message and was independently re-verified, so the table's purpose was met - flag for hygiene on future WPs."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED (reviewer-renata, independent verification). Plant-and-revert: both trio nodes green clean; planted 'from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission' into workflow.py -> BOTH test_trio_imports_route_only_through_seam_wrappers AND test_allowed_read_path_resolver_names_are_currently_used RED; git checkout -> both GREEN, git status clean. Gate is load-bearing, not vacuous. Kind selection: all 10 sites correct, verified against src/mission_runtime/artifacts.py partition sets - WORK_PACKAGE_TASK (find_wp_file tasks/ dir), ANALYSIS_REPORT (_analysis_report_gate_dir), PRIMARY_METADATA (7 meta.json/identity reads); all four are PRIMARY-partition kinds resolving to the identical PRIMARY mission dir (NFR-001 preserved) and none flattened. 5 comments corrected (3 workflow_executor.py husk comments + 2 acceptance/__init__.py #2824 residual); the #2824 comment now states LANE_STATE is PRIMARY per C-001 and does NOT re-assert lanes.json-on-COORD. Ratchet: bypass-gate offender count = 21, zero WP05 sites present, zero additions; no trio file imports either drained name (2 remaining hits are comment/docstring text). 31 migration tests pass (NFR-002 no-new-raise). Stale test remediation test_record_analysis_coord_worktree.py (outside owned_files, no ownership overlap, DIRECTIVE_041 STALE) is legitimate and sharpened to positively assert kind==ANALYSIS_REPORT. Ruff clean on all changed files. NON-BLOCKING: DoD-required per-site kind table absent from Activity Log (only seed entry); equivalent info lives in commit 1006add25 message and was independently re-verified, so the table's purpose was met - flag for hygiene on future WPs.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3014793,
+      "shell_pid_created_at": "1785263378.68",
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done"
+      },
+      "tracker_refs": [
+        "2465",
+        "2824"
+      ]
     },
     "WP06": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYNAC4R4VGNBMTCSAFJ8SM0G",
       "last_transition_at": "2026-07-28T21:33:58.404864+00:00",
-      "shell_pid": 2583894,
-      "shell_pid_created_at": "1785258427.96"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Routed 9 sites (mission_feature_resolution.py, mission_finalize.py, tasks_move_task.py x2, accept.py, next_cmd.py x3, merge/executor.py) onto placement_seam(...).read_dir(kind); verified retrospective/writer.py:85 calls the leaf (guard non-vacuous, no cycle); corrected the 1 authorized ledger row (retrospective/writer.py -> sanction-infra) + the next_cmd.py husk comment. Zero-additions ratchet confirmed: baseline 31 findings -> 22, exactly the 9 routed sites removed. ruff=0, mypy=0, tests/specify_cli/cli/commands+tests/merge+tests/retrospective=4276 passed/1 pre-existing red (confirmed identical on base). C-008 gates: 189 passed/5 failed, all 5 pre-existing/owned elsewhere (1 read-side-bypass shrunk correctly, 1 WP08 sanctioned-non-vacuity, 1 WP04 FR-007 identity arm, 2 WP05 trio).",
+        "APPROVED. All 10 sites handled correctly. Kind selection verified against actual downstream reads: (1) tasks_move_task._mt_issue_matrix_facts=SPEC (not ISSUE_MATRIX) is CORRECT and load-bearing — read _issue_matrix_approval_blocker: primary_feature_dir feeds ONLY spec_feature_dir->spec.md (a PRIMARY-partition artifact); issue-matrix.md is read from st.feature_dir (the caller's already-COORD surface), so ISSUE_MATRIX would have wrongly routed the spec probe to the coord partition. (2) mission_finalize.finalize_tasks=WORK_PACKAGE_TASK CORRECT — planning_dir globs tasks/WP*.md + _load_manifest(wps.yaml), never meta.json. (3) retrospective/writer.py:85 verify-only correct: calls leaf _compose_primary_feature_dir (not wrapper), leaf is cycle-free (returns primary_dir), standing guard test_writer_authority_gates_on_primary_partition_kind is non-vacuous (asserts leaf-in AND wrapper-not-in). (4) Single authorized ledger row: only writer.py reclassified to sanction-infra(verify-only); no other verdict row touched; 4 ledger-parser gates green. (5) Both rewired collateral tests BITE — empirically reverted _mt_issue_matrix_facts to the pre-WP06 wrapper route: test reds with 'DID NOT RAISE _SentinelHit'; accept test pins kind via seam.read_kinds==[PRIMARY_METADATA]. (6) Ratchet lands at exactly 22 offenders (claim 31->22); none of WP06's owned sites remain as bypass offenders. Ruff clean; imports resolve; 22 targeted tests pass. NON-BLOCKING notes: (a) DoD per-site kind table is placed as inline per-site comments (one per site, kind+downstream-justification) rather than in the Activity Log, which has no implementation entries — load-bearing content present and fully checkable inline. (b) agent/tasks.py (WP08-owned) got a comment-only edit falsified by WP06's own change; WP08 depends on WP06 and deletes that re-export, no destructive overlap. Node #3031 red by design; RecursionError coord_doctor test is WP03-delegation/WP08-owned, not WP06's."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED. All 10 sites handled correctly. Kind selection verified against actual downstream reads: (1) tasks_move_task._mt_issue_matrix_facts=SPEC (not ISSUE_MATRIX) is CORRECT and load-bearing — read _issue_matrix_approval_blocker: primary_feature_dir feeds ONLY spec_feature_dir->spec.md (a PRIMARY-partition artifact); issue-matrix.md is read from st.feature_dir (the caller's already-COORD surface), so ISSUE_MATRIX would have wrongly routed the spec probe to the coord partition. (2) mission_finalize.finalize_tasks=WORK_PACKAGE_TASK CORRECT — planning_dir globs tasks/WP*.md + _load_manifest(wps.yaml), never meta.json. (3) retrospective/writer.py:85 verify-only correct: calls leaf _compose_primary_feature_dir (not wrapper), leaf is cycle-free (returns primary_dir), standing guard test_writer_authority_gates_on_primary_partition_kind is non-vacuous (asserts leaf-in AND wrapper-not-in). (4) Single authorized ledger row: only writer.py reclassified to sanction-infra(verify-only); no other verdict row touched; 4 ledger-parser gates green. (5) Both rewired collateral tests BITE — empirically reverted _mt_issue_matrix_facts to the pre-WP06 wrapper route: test reds with 'DID NOT RAISE _SentinelHit'; accept test pins kind via seam.read_kinds==[PRIMARY_METADATA]. (6) Ratchet lands at exactly 22 offenders (claim 31->22); none of WP06's owned sites remain as bypass offenders. Ruff clean; imports resolve; 22 targeted tests pass. NON-BLOCKING notes: (a) DoD per-site kind table is placed as inline per-site comments (one per site, kind+downstream-justification) rather than in the Activity Log, which has no implementation entries — load-bearing content present and fully checkable inline. (b) agent/tasks.py (WP08-owned) got a comment-only edit falsified by WP06's own change; WP08 depends on WP06 and deletes that re-export, no destructive overlap. Node #3031 red by design; RecursionError coord_doctor test is WP03-delegation/WP08-owned, not WP06's.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3023067,
+      "shell_pid_created_at": "1785263410.93",
+      "subtasks": {
+        "T029": "done",
+        "T030": "done",
+        "T031": "done"
+      }
     },
     "WP07": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYNAC5HA5HPNBG2CE2J7GR4J",
       "last_transition_at": "2026-07-28T21:33:59.210737+00:00",
-      "shell_pid": 2583894,
-      "shell_pid_created_at": "1785258427.96"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T032-T034 done. Runtime bridge (2 sites) + runtime_bridge_identity (1) + commit_router (1) + aggregate.py (3 of 4) routed through placement_seam(...).read_dir(PRIMARY_METADATA). Bypass-gate findings 31->24 (7 routed, zero additions). aggregate.py:522 deliberately left unrouted -- PERMANENT canonicalizer-allowlist fixture predating this mission; renaming would orphan that pin. 4 FR-005 foundation sites (core/paths.py x2, core/git_ops.py, coordination/surface_resolver.py) recorded by name, left calling the wrapper unchanged -- attempted re-point to _compose_primary_feature_dir breaks test_no_read_side_bypass.py's _FOUNDATION_SANCTION_SEED (collection-time DescriptorResolutionError), no sanctioned exception to fix that WP02-owned file; deferred to WP08. New WP02 gap found+reported: test_index_discriminator_represents_a_four_site_qualname hardcodes a live-tree scan expecting all 3 primary_feature_dir_for_mission sites in _find_meta_path to stay unrouted forever -- contradicts this WP's routing mandate. ruff 0, mypy 0, status/coordination/mission_runtime suites 1065 passed, 6 C-008 gate reds (3 pre-existing WP01/WP02/WP03, 3 mine as designed: main ratchet + non-vacuity gap + four-site fixture).",
+        "APPROVED (reviewer-renata). 7/8 sites routed through placement_seam(...).read_dir(PRIMARY_METADATA); ruff+mypy clean; new test 5/5 green; ratchet verified exactly 24 offenders (only WP07 offender = by-design :522), zero additions. :522 AFFIRMATIVE-CHECK RE-RUN by reviewer: planted a candidate_feature_dir_for_mission read next to :522, read-side-bypass findings in aggregate.py went 2->3 (scanner live/non-vacuous over _find_meta_path); :522 also appears live in the 24 offenders (examined, not green-by-omission). Leaving :522 unrouted is CORRECT not avoidance: WP01's own test_canonicalizer_permanent_allowlist_is_exactly_3 explicitly names MissionStatus._find_meta_path as a permanent post-WP07 entry, the allowlist entry predates this mission, and both canonicalizer gates pass; routing it would orphan the pinned entry and red WP01-owned gates WP07 may not edit. FOUNDATION-SITE DEFERRAL JUDGED SOUND: all 4 sites carry per-site rationale comments (1/4-4/4), left 100% behavior-preserving; re-pointing to the _compose leaf breaks WP02's _FOUNDATION_SANCTION_SEED with a DescriptorResolutionError at COLLECTION (~50 tests) and WP07 has no sanctioned exception for that WP02-owned file, while routing them = the NFR-009 cycle. Acyclicity holds structurally (unrouted+unchanged; WP03 already proved read_dir production-acyclic). :543 backfill test genuinely red-first (blind-compose asserted non-existent) and resolves the EXISTING bare dir via the real seam. Discriminator uses the ledger's (rel_path,qualname,primitive,site_token) 4-tuple. WP02 gaps (index four-site test red; foundation-seed) correctly reported, not worked around. FORWARD RISK for orchestrator/WP08 (not a WP07 blocker): WP08's owned_files + pre-authorized out-of-map list currently cover only _read_path_resolver.py, the ledger doc, and tests/ modules -- NOT core/paths.py, core/git_ops.py, coordination/surface_resolver.py, nor the seed token update; WP08 must be re-scoped to re-point the four foundation sites AND update _FOUNDATION_SANCTION_SEED atomically with the wrapper deletion or the CLI ImportErrors."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED (reviewer-renata). 7/8 sites routed through placement_seam(...).read_dir(PRIMARY_METADATA); ruff+mypy clean; new test 5/5 green; ratchet verified exactly 24 offenders (only WP07 offender = by-design :522), zero additions. :522 AFFIRMATIVE-CHECK RE-RUN by reviewer: planted a candidate_feature_dir_for_mission read next to :522, read-side-bypass findings in aggregate.py went 2->3 (scanner live/non-vacuous over _find_meta_path); :522 also appears live in the 24 offenders (examined, not green-by-omission). Leaving :522 unrouted is CORRECT not avoidance: WP01's own test_canonicalizer_permanent_allowlist_is_exactly_3 explicitly names MissionStatus._find_meta_path as a permanent post-WP07 entry, the allowlist entry predates this mission, and both canonicalizer gates pass; routing it would orphan the pinned entry and red WP01-owned gates WP07 may not edit. FOUNDATION-SITE DEFERRAL JUDGED SOUND: all 4 sites carry per-site rationale comments (1/4-4/4), left 100% behavior-preserving; re-pointing to the _compose leaf breaks WP02's _FOUNDATION_SANCTION_SEED with a DescriptorResolutionError at COLLECTION (~50 tests) and WP07 has no sanctioned exception for that WP02-owned file, while routing them = the NFR-009 cycle. Acyclicity holds structurally (unrouted+unchanged; WP03 already proved read_dir production-acyclic). :543 backfill test genuinely red-first (blind-compose asserted non-existent) and resolves the EXISTING bare dir via the real seam. Discriminator uses the ledger's (rel_path,qualname,primitive,site_token) 4-tuple. WP02 gaps (index four-site test red; foundation-seed) correctly reported, not worked around. FORWARD RISK for orchestrator/WP08 (not a WP07 blocker): WP08's owned_files + pre-authorized out-of-map list currently cover only _read_path_resolver.py, the ledger doc, and tests/ modules -- NOT core/paths.py, core/git_ops.py, coordination/surface_resolver.py, nor the seed token update; WP08 must be re-scoped to re-point the four foundation sites AND update _FOUNDATION_SANCTION_SEED atomically with the wrapper deletion or the CLI ImportErrors.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3027830,
+      "shell_pid_created_at": "1785263441.8",
+      "subtasks": {
+        "T032": "done",
+        "T033": "done",
+        "T034": "done"
+      }
     },
     "WP08": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYNAC6AXYAMX5S9NP34CJ4FB",
       "last_transition_at": "2026-07-28T21:34:00.029384+00:00",
-      "shell_pid": 3061819,
-      "shell_pid_created_at": "1785264500.05"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T035-T039 done. Wrapper primary_feature_dir_for_mission DELETED (ImportError confirmed); 5 foundation sites (core/paths.py x2, core/git_ops.py, coordination/surface_resolver.py, status/aggregate.py permanent fixture) repointed to _compose_primary_feature_dir in same commit as seed/YAML updates. _canonicalize_primary_read_handle drained from 12 business-logic sites (8 files); 5 permanent foundation files keep it (core/paths.py, core/git_ops.py, surface_resolver.py, retrospective/writer.py + resolution.py self-ref). agent/tasks.py re-export deleted, 1 live test rewritten (WP06 pre-emptively fixed the other). inventory.md hand-edited (no rekey script), MIN_DISCOVERED_ROWS 20->15. All 6 reconciliation items resolved: #1 M1 build-break fixed, #2 non-vacuity drop done (resolution.py + surface_resolver.py), #3 index-discriminator rewritten as synthetic fixture, #4 RecursionError test repointed to leaf, #5 emit.py:71 ALLOW-LISTED as sanctioned coord-owned write (tracker issue #3055 filed for gate-owner routing work), #6 T024 behavioral test ADDED (not skipped). test_no_read_side_bypass.py fully green (52/52, zero offenders except primary_feature_dir_for_mission's permanent-by-design Total-row exemption). All 6 C-008 gates green: 195 passed/0 failed. ruff clean, mypy --strict clean (1088 files). tests/specify_cli/status+coordination + tests/mission_runtime + surface_resolution_audit: 1065 passed/0 failed. research/expected-reds.md WP08 section content reported to orchestrator for landing (not written to kitty-specs from this lane per move-task guard).",
+        "APPROVED. Structural claim verified: primary_feature_dir_for_mission import raises ImportError, no shim/alias/__getattr__; _compose leaf + _canonicalize present, both absent from __all__. _LEAF_PRIMITIVE_ALIASES bite-test PASSED: planted a rogue _compose_primary_feature_dir call in a non-sanctioned module; the read-side census did NOT flag it (leaf is deliberately not in _TARGET_CALLEE_NAMES) BUT test_resolution_authority_gates.py::test_canonicalizer_gate_green_against_seeded_allowlist DID red it -- so the leaf caller-set is genuinely enforced, and the alias is consulted only by _entry_primitive over static seed tuples (never live findings), so it cannot launder a live bypass; positive control (candidate_feature_dir_for_mission) reded the census as expected. Census green HONESTLY, not by laundering. T036 drain is a genuine no-op: seam PRIMARY leg folds the same handle internally and the fold is idempotent (spot-checked agent_tasks_ports.py + next_cmd.py). 5th-site (status/aggregate.py) re-point was structurally forced (called the deleted wrapper) with correct YAML re-token. surface_resolver.py + resolution.py non-vacuity drops correct (both mapped only to the now-deleted primitive; zero live calls, nothing suppressed). Synthetic index-discriminator rewrite preserves the 4-site G2 property, two-sided (proves 3-col shape reds and 4-col passes) via the gate's own key funcs -- not a tautology. emit.py:71 allow-list honest: real per-site rationale, cross-gate corroboration, #3055 tracked. audit.py exit 0 (15 rows = retired floor). Six C-008 gates 195/195; ruff + project-mode mypy (1088 files) clean; tree clean. NON-BLOCKING note: comment at test_single_mission_surface_resolver.py:203-206 imprecisely says the census tracks the leaf via _LEAF_PRIMITIVE_ALIASES -- the live scan does not; actual leaf enforcement is the canonicalizer gate. Coverage exists, only the attribution is imprecise."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED. Structural claim verified: primary_feature_dir_for_mission import raises ImportError, no shim/alias/__getattr__; _compose leaf + _canonicalize present, both absent from __all__. _LEAF_PRIMITIVE_ALIASES bite-test PASSED: planted a rogue _compose_primary_feature_dir call in a non-sanctioned module; the read-side census did NOT flag it (leaf is deliberately not in _TARGET_CALLEE_NAMES) BUT test_resolution_authority_gates.py::test_canonicalizer_gate_green_against_seeded_allowlist DID red it -- so the leaf caller-set is genuinely enforced, and the alias is consulted only by _entry_primitive over static seed tuples (never live findings), so it cannot launder a live bypass; positive control (candidate_feature_dir_for_mission) reded the census as expected. Census green HONESTLY, not by laundering. T036 drain is a genuine no-op: seam PRIMARY leg folds the same handle internally and the fold is idempotent (spot-checked agent_tasks_ports.py + next_cmd.py). 5th-site (status/aggregate.py) re-point was structurally forced (called the deleted wrapper) with correct YAML re-token. surface_resolver.py + resolution.py non-vacuity drops correct (both mapped only to the now-deleted primitive; zero live calls, nothing suppressed). Synthetic index-discriminator rewrite preserves the 4-site G2 property, two-sided (proves 3-col shape reds and 4-col passes) via the gate's own key funcs -- not a tautology. emit.py:71 allow-list honest: real per-site rationale, cross-gate corroboration, #3055 tracked. audit.py exit 0 (15 rows = retired floor). Six C-008 gates 195/195; ruff + project-mode mypy (1088 files) clean; tree clean. NON-BLOCKING note: comment at test_single_mission_surface_resolver.py:203-206 imprecisely says the census tracks the leaf via _LEAF_PRIMITIVE_ALIASES -- the live scan does not; actual leaf enforcement is the canonicalizer gate. Coverage exists, only the attribution is imprecise.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3240625,
+      "shell_pid_created_at": "1785270955.93",
+      "subtasks": {
+        "T035": "done",
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T039": "done"
+      },
+      "tracker_refs": [
+        "3011"
+      ]
     },
     "WP09": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYNAC74389CG6H5Y7EEDCAJM",
       "last_transition_at": "2026-07-28T21:34:00.835311+00:00",
-      "shell_pid": 3268180,
-      "shell_pid_created_at": "1785272093.96"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Placement seam architecture page written (verified L2 two-function split, L4 selects not assembles), branch-target-routing.md narrowed to branch sense, Routing glossary disambiguation + CLAUDE.md Terminology Canon line added, both registries regenerated, docs test added, frozen glossary stores untouched-green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED. Durable deliverable meets its purpose. L2-two-functions: page shows L2a declared_read_surface (materialization-BLIND, resolution.py:1545) and L2b _classify_artifact_surface (materialization-AWARE, :1588) as SEPARATE rows, explaining the blindness is why surface_cannot_hold (#2885) can fire. L4-selects: assembly attributed to L3 ('where paths are built'); L4 translate_surface 'selects a field off an already-populated record and refuses when absent' — correct. All 20+ module:symbol citations resolve exactly at cited lines in the tree as landed (WP08 wrapper deleted): declared_read_surface:1545, _classify_artifact_surface:1588, translate_surface:1503, placement_seam:1850, resolve_artifact_surface:1718, resolve_placement_only:1241, execution_context surface_cannot_hold:194, TopologySurface:22, resolve_retrospective_home:37, decisions/emit.py:71. Honest-bounds bypass counts INDEPENDENTLY re-derived and EXACTLY correct: write 12 bypass + 1 seam = 13 (excludes 3 docstring/comment false-positives in transaction.py:373, executor.py:483, tasks_shared.py:358); read 6 + 2 = 8. #2885-guard BITE CONFIRMED: inserting #2906 next to surface_cannot_hold reds test_honest_bounds_cites_correct_tickets; page restored clean. Competing page narrowed (SC-017): branch-target-routing.md drops per-kind placement table + 'primary target branch' alias, links out, retains branch sense. Frozen stores untouched (parity + no-regression gates untouched-green; diff does not touch them). check_docs_freshness --ci: 0 errors. 40 docs/terminology/glossary tests green. CLAUDE.md is a symlink to AGENTS.md (owned-file edit correct); test_single_mission_surface_resolver.py change is comment-only rationale leeway, no overlap on last WP. HUMAN COMPREHENSION (US7) answered from page alone: (a) 'routing' here = placement sense — mapping artifact kind + mission topology to a TopologySurface/physical tree; distinct from branch-target routing = which git branch a commit lands on. (b) Placement is decided by L2 over L1's partition classification: L1 classifies partition topology-blind, L2a declares the architectural home (materialization-blind), L2b affirms where it resolves now (materialization-aware); L3 assembles the path, L4 merely selects/translates an already-discovered location. (c) A canonical handle is not compliance because canonicality and routing-compliance are orthogonal axes — a site can pass a perfectly canonical handle yet pick its own surface via a kind-blind resolver instead of asking the seam ('semi-compliance': looks routed, isn't, invisible to a handle-hygiene gate).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3328710,
+      "shell_pid_created_at": "1785273775.76",
+      "subtasks": {
+        "T040": "done",
+        "T041": "done",
+        "T042": "done",
+        "T043": "done",
+        "T044": "done"
+      },
+      "tracker_refs": [
+        "2653"
+      ]
     }
   }
 }

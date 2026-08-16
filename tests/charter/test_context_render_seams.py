@@ -312,6 +312,97 @@ class TestBootstrapTextSeam:
         )
         assert lines == []
 
+    # -- S3776 decomposition helpers (bootstrap_text.py:165 -> 19, WP03) --
+
+    def test_append_policy_summary_lines_with_summary_caps_at_eight(self) -> None:
+        lines: list[str] = []
+        bootstrap_text._append_policy_summary_lines(lines, [f"item-{i}" for i in range(12)])
+        assert len(lines) == 8  # golden-count: cardinality-is-contract (caps at eight)
+        assert lines[0] == "  - item-0"
+        assert lines[-1] == "  - item-7"
+
+    def test_append_policy_summary_lines_empty_summary_uses_fallback(self) -> None:
+        lines: list[str] = []
+        bootstrap_text._append_policy_summary_lines(lines, [])
+        assert lines == [bootstrap_text.NO_POLICY_SUMMARY_MESSAGE]
+
+    def test_append_block_non_empty_adds_separator_and_block(self) -> None:
+        lines: list[str] = ["existing"]
+        bootstrap_text._append_block(lines, "new block")
+        assert lines == ["existing", "", "new block"]
+
+    def test_append_block_empty_is_a_no_op(self) -> None:
+        lines: list[str] = ["existing"]
+        bootstrap_text._append_block(lines, "")
+        assert lines == ["existing"]
+
+    def test_resolve_authority_block_missing_repo_root_returns_empty(self) -> None:
+        selection = DoctrineSelectionConfig()
+        assert bootstrap_text._resolve_authority_block(None, selection) == ""
+
+    def test_resolve_authority_block_missing_selection_returns_empty(self, tmp_path: Path) -> None:
+        assert bootstrap_text._resolve_authority_block(tmp_path, None) == ""
+
+    def test_resolve_authority_block_delegates_to_renderer(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        selection = DoctrineSelectionConfig()
+        captured: dict[str, Any] = {}
+
+        def _fake_render(repo_root: Path, doctrine_selection: DoctrineSelectionConfig) -> str:
+            captured["repo_root"] = repo_root
+            captured["doctrine_selection"] = doctrine_selection
+            return "authority-block-sentinel"
+
+        monkeypatch.setattr(bootstrap_text, "render_authority_paths", _fake_render)
+
+        result = bootstrap_text._resolve_authority_block(tmp_path, selection)
+
+        assert result == "authority-block-sentinel"
+        assert captured == {"repo_root": tmp_path, "doctrine_selection": selection}
+
+    def test_resolve_reference_block_missing_repo_root_returns_empty(self) -> None:
+        selection = DoctrineSelectionConfig()
+        assert bootstrap_text._resolve_reference_block(None, selection) == ""
+
+    def test_resolve_reference_block_missing_selection_returns_empty(self, tmp_path: Path) -> None:
+        assert bootstrap_text._resolve_reference_block(tmp_path, None) == ""
+
+    def test_resolve_reference_block_delegates_to_renderer(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        selection = DoctrineSelectionConfig(governance_references=["spec/constitution.md"])
+        captured: dict[str, Any] = {}
+
+        def _fake_render(repo_root: Path, references: list[str]) -> str:
+            captured["repo_root"] = repo_root
+            captured["references"] = references
+            return "reference-block-sentinel"
+
+        monkeypatch.setattr(bootstrap_text, "render_governance_references", _fake_render)
+
+        result = bootstrap_text._resolve_reference_block(tmp_path, selection)
+
+        assert result == "reference-block-sentinel"
+        assert captured == {"repo_root": tmp_path, "references": ["spec/constitution.md"]}
+
+    def test_append_reference_docs_lines_empty_uses_fallback(self) -> None:
+        lines: list[str] = []
+        bootstrap_text._append_reference_docs_lines(lines, [])
+        assert lines == [bootstrap_text.MISSING_REFERENCES_MESSAGE]
+
+    def test_append_reference_docs_lines_renders_each_pointer(self, tmp_path: Path) -> None:
+        lines: list[str] = []
+        selected = [
+            ({"id": "DIRECTIVE_001", "title": "Some Directive"}, tmp_path / "directive.md"),
+            ({"title": "No Id"}, tmp_path / "other.md"),
+        ]
+        bootstrap_text._append_reference_docs_lines(lines, selected)
+        assert lines == [
+            f"  - DIRECTIVE_001: Some Directive ({tmp_path / 'directive.md'})",
+            f"  - unknown: No Id ({tmp_path / 'other.md'})",
+        ]
+
 
 # ---------------------------------------------------------------------------
 # compact_governance.py

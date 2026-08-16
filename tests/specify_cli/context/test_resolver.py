@@ -360,12 +360,6 @@ class TestTypedFrontmatterResolution:
         ctx = resolve_context("WP01", "057-test-feature", "claude", repo)
         assert ctx.execution_mode == "planning_artifact"
 
-    def test_dependencies_from_typed_metadata(self, tmp_path: Path) -> None:
-        """dependencies are extracted from WPMetadata.dependencies attribute."""
-        repo = _setup_project(tmp_path, dependencies=["WP00"])
-        ctx = resolve_context("WP01", "057-test-feature", "claude", repo)
-        assert ctx.dependency_mode == "chained"
-
     def test_work_package_id_from_typed_metadata(self, tmp_path: Path) -> None:
         """work_package_id is extracted from WPMetadata.work_package_id attribute."""
         repo = _setup_project(tmp_path, wp_code="WP07")

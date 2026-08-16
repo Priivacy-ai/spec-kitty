@@ -211,6 +211,17 @@ _PLACEMENT_ARTIFACT_KINDS: frozenset[MissionArtifactKind] = frozenset(
 _MISSION_FILE_KIND_BY_BASENAME: dict[str, MissionArtifactKind] = {
     "plan.md": MissionArtifactKind.FINALIZED_EXECUTION_PLAN,
     "tasks.md": MissionArtifactKind.TASKS_INDEX,
+    # partition-authority-residuals-01M021K9 WP06 (#2937 / FR-009): wps.yaml is
+    # the finalize INPUT manifest (the structured source ``finalize-tasks``
+    # regenerates ``tasks.md`` from). It lives at ``feature_dir/wps.yaml`` on the
+    # PRIMARY surface, travels with ``tasks.md`` → classify to the PRIMARY-partition
+    # ``TASKS_INDEX`` kind so finalize versions it (INV-5: read-from-PRIMARY must
+    # be written-back-to-PRIMARY, else the finalized checkpoint cannot reproduce
+    # its own state). A membership ADD for a previously-unclassified file (the
+    # ``None``→PRIMARY fallback coincidence is now a derivable classification) —
+    # NOT a predicate fork, and TASKS_INDEX is already in ``_PRIMARY_ARTIFACT_KINDS``
+    # so the P-1 partition invariant is unchanged.
+    "wps.yaml": MissionArtifactKind.TASKS_INDEX,
     "lanes.json": MissionArtifactKind.LANE_STATE,
     "acceptance-matrix.json": MissionArtifactKind.ACCEPTANCE_MATRIX,
     "issue-matrix.md": MissionArtifactKind.ISSUE_MATRIX,

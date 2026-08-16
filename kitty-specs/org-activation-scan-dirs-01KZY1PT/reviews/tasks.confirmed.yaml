@@ -1,0 +1,118 @@
+# review-findings/v1 — confirmed subset of reviews/tasks.merged.yaml, per R3 refutation
+# (reviews/tasks-refute-1.yaml). Both findings survived refutation; nothing refuted this round.
+schema: review-findings/v1
+complete: true
+phase: tasks
+mission: org-activation-scan-dirs-01KZY1PT
+round: 1
+findings:
+  - id: TASKS-VERIFY-001
+    lens: Per-AC test strategy concrete
+    severity: 3
+    title: Acceptance Scenario 2 (direct resolve_artifact_urn call on a flat-only fixture) is not traced to any concrete subtask assertion
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenarios, item 2"
+      - artifact: "tasks/WP01-org-scan-dirs-flat-layout-fix.md § Subtask T005, step 2 (bullet list) and § \"Which test proves which scenario\""
+      - code: "src/charter/kind_vocabulary.py:200-209 (_org_scan_dirs, the function under test)"
+    claim: >
+      spec.md's Acceptance Scenario 2 requires a direct call —
+      `resolve_artifact_urn(ArtifactKind.DIRECTIVE, <org-directive-stem>,
+      doctrine_root=doctrine_root, org_roots=[org_root])` — against "the same org root"
+      as Scenario 1, i.e. a fixture with ONLY the flat layout present (no legacy
+      `built-in/` directory), asserting it returns the org directive's URN rather than
+      raising `UnknownArtifactIdError`. WP01's T005 "Flat-only" bullet ("only
+      `<root>/<plural>` exists → returns one entry, `recursive=False`") asserts only on
+      `_org_scan_dirs`'s own return value (an internal helper), not on
+      `resolve_artifact_urn`'s return. The only test case in WP01 that actually calls
+      `resolve_artifact_urn` directly and asserts its return value is the "same-config-stem
+      precedence" case, which requires BOTH the flat and legacy directories to be present
+      (`id: DIRECTIVE_FLAT` vs `id: DIRECTIVE_LEGACY`) — that fixture shape is Acceptance
+      Scenario 4's, not Acceptance Scenario 2's (Scenario 2 has no legacy directory in play
+      at all). WP01's own "Which test proves which scenario" note for T005 claims only "FR-003
+      directly and User Story 2's Acceptance Scenarios 1-2" — User Story 1's Acceptance
+      Scenario 2 is never explicitly named as proven by any subtask. An implementer following
+      T005 literally would produce 5 cases that collectively prove FR-003 and AS4, but no case
+      that proves AS2 as spec.md states it (flat-only, direct call, no-raise).
+    remediation: >
+      Add an explicit sixth case to T005 (or fold it into the "Flat-only" bullet) that, on a
+      flat-only fixture (no `built-in/` directory), calls
+      `resolve_artifact_urn(ArtifactKind.DIRECTIVE, <stem>, doctrine_root=doctrine_root,
+      org_roots=[org_root])` directly and asserts it returns the org directive's URN without
+      raising `UnknownArtifactIdError` — and update the "Which test proves which scenario" note
+      to name this case as the proof of User Story 1 Acceptance Scenario 2, distinct from the
+      precedence case's proof of Acceptance Scenario 4.
+    refute_verdict: confirmed
+    refute_reason: >-
+      Verified against the live WP01 file — T005's five new cases contain exactly one direct
+      `resolve_artifact_urn` call, and it requires both directories present (the precedence
+      case), never a flat-only fixture; the "Which test proves which scenario" note never names
+      User Story 1's Acceptance Scenario 2.
+
+  - id: TASKS-VERIFY-002
+    lens: Red-first executability
+    severity: 3
+    title: T001 does not specify how the org directive's DRG node reaches the graph filter_graph_by_activation operates on, risking a test that is red for a reason unrelated to _org_scan_dirs
+    evidence:
+      - artifact: "tasks/WP01-org-scan-dirs-flat-layout-fix.md § Subtask T001, steps 3-6"
+      - artifact: "plan.md § Red-First Discipline (WP Sequencing), step 2"
+      - artifact: "tasks/WP01-org-scan-dirs-flat-layout-fix.md § Risks (\"Red run misattributed as UnknownArtifactIdError\") — refuter notes this content lives in WP01.md's Risks section, not plan.md's (plan.md has no Risks heading); quoted content itself is verbatim accurate"
+      - code: "src/charter/_drg_helpers.py:39-51 (_resolve_org_root — charter-layer implementation always returns None) and :55-97 (load_validated_graph, org_root: Path | None = None parameter)"
+      - code: "src/charter/action_doctrine_bundle.py:152-165 (the only call site anywhere in src/ or tests/ that passes a non-None org_root= into load_validated_graph, and the sole place filter_graph_by_activation is chained after it on a live graph)"
+      - code: "src/charter/pack_manager.py:238-253 (_resolve_org_layer_dir — already checks the flat `root / kind.plural` layout FIRST, falling back to the legacy nested shape; CharterPackManager.activate()'s own artifact-availability check, an entirely different, already-flat-tolerant resolution path from _org_scan_dirs)"
+    claim: >
+      T001 instructs "Register the fixture org root and run the full `charter activate
+      directive <org-directive-stem>` round trip ... Assert the org directive's node is
+      present in the graph returned by `filter_graph_by_activation`" but does not say which
+      function produces the graph passed to `filter_graph_by_activation`, nor that the org
+      pack's DRG fragment (the root-level `*.graph.yaml`) is merged into that graph ONLY when
+      `org_root` is passed EXPLICITLY to `charter._drg_helpers.load_validated_graph` — the
+      charter-layer `_resolve_org_root` helper it otherwise falls back to is a permanent no-op
+      (always returns `None`, by its own docstring). Grepping the full tree shows exactly one
+      call site anywhere (`action_doctrine_bundle.py:165`, itself a C-002 read-only,
+      #3384-adjacent surface) that ever passes a non-None `org_root=` into
+      `load_validated_graph`; no existing test does — including the two sibling org-pack
+      fixture files T001 cites as its convention model
+      (`test_org_activations_resolution.py`, `test_org_activations_reach_context.py`), both of
+      which bypass the real graph merge entirely via
+      `patch("charter._drg_helpers.load_validated_graph", ...)`. Separately,
+      `CharterPackManager.activate()` (invoked by the `charter activate directive <stem>` round
+      trip T001 specifies) validates the artifact id via
+      `list_available`/`_scan_layer_dirs`/`_resolve_org_layer_dir` — a THIRD, independent
+      org-root resolution path that already checks the flat `<root>/<plural>` layout first
+      (FR-013 precedent, already cited in plan.md's own "Related, Not Fixed" section) and is
+      therefore unaffected by this mission's `_org_scan_dirs` fix. So `charter activate`
+      succeeding and writing `activated_directives` proves nothing about the defect being
+      fixed; the org node's presence/absence in `filter_graph_by_activation`'s output depends
+      entirely on how the test wires the DRG-graph merge, which T001 never names. If an
+      implementer builds the merged graph via `load_validated_graph(repo_root)` (no explicit
+      `org_root`) or otherwise omits merging the org pack's `*.graph.yaml` fragment, the org
+      node is never in the graph at all — pre-fix OR post-fix — so T004's expected green never
+      arrives, and the T002 red is attributable to a missing graph-merge wiring step, not to
+      `_org_scan_dirs`. WP01's own Risks section anticipates only the "wrong exception type"
+      failure mode (`UnknownArtifactIdError` vs. missing-node assertion) and does not name this
+      more likely "test can never go green because the graph merge was never wired to
+      org_root" failure mode, even though it is the more probable way T001 goes wrong given zero
+      test precedent for this exact wiring anywhere in the suite.
+    remediation: >
+      Add an explicit step to T001 (or a cross-reference to plan.md) naming the mechanism: call
+      `charter._drg_helpers.load_validated_graph(repo_root, org_root=<org_root>)` (or build the
+      merge directly via `doctrine.drg.loader.load_built_in_graph()` +
+      `load_graph_or_dir(org_root)` + `merge_layers(...)`, mirroring
+      `tests/charter/test_merged_graph_on_live_path.py`'s existing patching style) to obtain the
+      graph passed into `filter_graph_by_activation`, and state explicitly that omitting the
+      `org_root` argument silently drops the org DRG node regardless of the `_org_scan_dirs` fix.
+      Also add a line to WP01's own Risks section naming the "graph-merge never wired to
+      org_root → test stays red after the fix, for an unrelated reason" failure mode alongside
+      the existing "wrong exception type" risk, and a note that `charter activate`'s own
+      artifact-availability check (`_resolve_org_layer_dir`) already tolerates the flat layout
+      today, so a successful `activate()` call is not itself evidence that the fix under test
+      did anything.
+    refute_verdict: confirmed
+    refute_reason: >-
+      Verified against current code — `_resolve_org_root` is a hardcoded no-op, exactly one
+      call site anywhere passes a real `org_root=` into `load_validated_graph`, no test does
+      (including the two sibling fixture files T001 cites as its own model, both of which patch
+      around the real merge), and `pack_manager.py`'s independent resolution path already
+      tolerates the flat layout — so `charter activate` succeeding proves nothing about this
+      fix, and neither T001 nor WP01's Risks section names the graph-merge mechanism or its
+      failure mode.

@@ -369,7 +369,7 @@ def _working_coord_events(repo: Path) -> list[StatusEvent]:
 
 
 def _lane_on(events: list[StatusEvent], wp_id: str) -> Lane:
-    lane, _actor = wp_lane_actor_from_events(events, wp_id)
+    lane = wp_lane_actor_from_events(events, wp_id).lane
     return lane
 
 

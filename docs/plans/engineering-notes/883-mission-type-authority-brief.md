@@ -1,7 +1,7 @@
 ---
 title: 'Mission #883 Brief: Doctrine as Mission-Type Authority'
 description: 'Lead-architect debrief for mission #883 — intent, operator guidance, research, adversarial second opinion, and a conversation transcript for maintainer review.'
-doc_status: active
+doc_status: deprecated
 type: explanation
 updated: '2026-07-14'
 related:
@@ -11,6 +11,8 @@ related:
 ---
 
 # Mission #883 Brief: Doctrine as Mission-Type Authority
+
+> **Retired (deprecated).** Superseded via ADR `2026-07-14-2-doctrine-to-core-mission-type-resolution-unification` and canonical `docs/architecture/mission-type-resolution.md` (#883). Preserved as a historical record.
 
 This brief captures the intent, operator guidance, research, and adversarial
 review that shaped mission #883 **before** the spec stage, so maintainers can

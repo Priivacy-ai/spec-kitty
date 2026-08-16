@@ -15,9 +15,8 @@
   "accepted_from_commit": "2d3b0a9a73b6f7e6c56183135bfe3ff1bd2ce2df",
   "baseline_merge_commit": "e04470ae4cd35b6f9b0bce2a6166e913e4da7b84",
   "change_mode": "bulk_edit",
-  "coordination_branch": "kitty/mission-doctrine-built-in-seam-consolidation-01KYW3TX",
   "created_at": "2026-07-31T12:54:23.940116+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Built-In Doctrine Seam Consolidation",
   "mission_id": "01KYW3TXY32JQ6BXH5WCV6XR9Z",
   "mission_number": null,
@@ -30,7 +29,7 @@
   "source_description": "Research-led finalization mission (Mission 1 of 2) completing the packs/built-in relocation and consolidating built-in doctrine location onto one fail-closed seam. Closes #3090/#3119/#3106/#3116/#3120 (the relocation #3090 rides this PR per C-003). Research+design synthesis in scratchpad mission-inputs/research-synthesis.md.",
   "status_phase": "1",
   "target_branch": "feat/relocate-builtin-doctrine-packs",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-31T16:56:52.193710+00:00"
 }

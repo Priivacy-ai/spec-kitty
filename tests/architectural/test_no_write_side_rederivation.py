@@ -294,9 +294,12 @@ def test_adopted_modules_have_no_write_side_rederivation() -> None:
 
     assert not offenders, (
         "Write-side re-derivation found in adopted modules (FR-005 / C-BOUNDARY). "
-        "Identity/root/target MUST flow from the factory-projected fragments via "
-        "the public resolvers, not hand-rolled walks. Offenders:\n"
-        + "\n".join(offenders)
+        "Route each offender through a public resolver -- resolve_canonical_root / "
+        "resolve_status_surface / resolve_placement_only / resolve_lanes_dir -- "
+        "instead of a hand-rolled walk; if the finding is a genuinely deferred "
+        "residual, add a rationale-carrying entry to _ALLOW_LIST_SEED keyed on its "
+        "(rel_path, qualname, token_substring) instead of leaving it bare. "
+        "Offenders:\n" + "\n".join(offenders)
     )
 
 
@@ -1041,8 +1044,10 @@ def test_adopted_and_residual_modules_have_no_checkout_derived_commit_target() -
 
     assert not offenders, (
         "Checkout-derived CommitTarget/safe_commit construction found (T033 / "
-        "FR-011). Route through the placement seam or add a tracked, "
-        "rationale-carrying allow-list entry. Offenders:\n" + "\n".join(offenders)
+        "FR-011). Route the ref/destination_ref argument through "
+        "placement_seam(...).write_target(kind) instead of a checkout read, or add "
+        "a tracked, rationale-carrying entry to _CHECKOUT_GRAMMAR_ALLOW_LIST_SEED. "
+        "Offenders:\n" + "\n".join(offenders)
     )
 
 

@@ -9,6 +9,7 @@ Verifies that all shipped reference profiles:
 - Have non-empty purpose and specialization.primary_focus
 """
 
+import re
 from pathlib import Path
 
 import pytest
@@ -261,6 +262,32 @@ class TestShippedProfilesContent:
         profile = repo.get(profile_id)
         assert profile is not None
         assert profile.name.strip(), f"Profile '{profile_id}' has empty name"
+
+    @pytest.mark.parametrize("profile_id", sorted(EXPECTED_PROFILE_IDS))
+    def test_self_identity_prose_matches_name(self, repo: AgentProfileRepository, profile_id: str):
+        """Any "<role-word> <Token>"-shaped self-identity phrase in purpose/init prose
+        must equal the profile's own name.
+
+        DIRECTIVE_043 (Close Defect Classes by Construction): the profile's own
+        ``name:`` field is the single source of truth for identity. Prose that
+        restates identity (e.g. "Researcher Robbie reduces uncertainty...", "I am
+        Researcher Robbie...") is free to do so, but it must not drift from
+        ``name`` the way researcher-robbie's purpose/init once drifted to
+        "Researcher Rosa". This does not require every profile to declare an
+        identity at all -- several (generic-agent, human-in-charge,
+        retrospective-facilitator) phrase their prose differently and are left
+        untouched by this check.
+        """
+        profile = repo.get(profile_id)
+        assert profile is not None
+        role_word = profile.name.split()[0]
+        prose = f"{profile.purpose}\n{profile.initialization_declaration}"
+        pattern = re.compile(rf"\b{re.escape(role_word)}\s+[A-Z][A-Za-z'-]*\b")
+        for match in pattern.finditer(prose):
+            assert match.group(0) == profile.name, (
+                f"Profile '{profile_id}' prose declares identity '{match.group(0)}' "
+                f"which does not match its own name '{profile.name}'"
+            )
 
     @pytest.mark.parametrize(
         "profile_id,expected_priority",

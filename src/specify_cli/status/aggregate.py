@@ -773,15 +773,16 @@ class MissionStatus:
         """
         from specify_cli.status.models import Lane as _Lane
 
-        from_lane_enum, current_actor = read_current_wp_state_transactional(
+        current = read_current_wp_state_transactional(
             feature_dir=self.read_dir,
             mission_slug=self.mission_slug,
             wp_id=request.wp_id or "",
             repo_root=self.repo_root,
         )
+        from_lane_enum = current.lane
         if from_lane_enum == _Lane.UNINITIALIZED:
             from_lane_enum = lane_unseeded
-        return str(from_lane_enum), current_actor
+        return str(from_lane_enum), current.actor
 
     def _resolve_workspace_context(self, request: TransitionRequest) -> str:
         """Return the workspace context string used by transition guards."""

@@ -21,24 +21,21 @@ _LEGACY_MIGRATION_ID_MAP: dict[str, str] = {
 
 
 def _mask_volatile_metadata(text: str) -> str:
-    """Return ``text`` with volatile metadata lines neutralized for
-    compare-before-write (issue #1871).
+    """Return ``text`` with the volatile ``last_upgraded_at`` timestamp
+    neutralized for compare-before-write (issue #1871).
 
-    Two fields must not, by themselves, force a rewrite of ``metadata.yaml``:
+    ``last_upgraded_at`` is bumped by the migrations-applied upgrade path on
+    every successful run, even a no-op; masking its value lets a no-op save
+    compare equal and skip, keeping the on-disk timestamp stable.
 
-    - ``last_upgraded_at`` — the migrations-applied upgrade path bumps it on
-      every successful run, even a no-op; masking its value lets a no-op save
-      compare equal and skip, keeping the on-disk timestamp stable.
-    - ``schema_version`` — ``ProjectMetadata.save`` does not emit it (it is
-      written separately by ``_stamp_schema_version``), so the on-disk file
-      carries it while freshly-rendered content does not; dropping the line
-      keeps the comparison apples-to-apples.
+    ``schema_version`` is intentionally NOT masked (#3334): ``ProjectMetadata``
+    round-trips it like any other field (see ``load``/``save`` below), so a
+    legitimate ``schema_version`` change must be visible to the
+    compare-before-write and force a write rather than being silently dropped.
     """
     masked: list[str] = []
     for line in text.splitlines():
         stripped = line.lstrip()
-        if stripped.startswith("schema_version:"):
-            continue
         if stripped.startswith("last_upgraded_at:"):
             indent = line[: len(line) - len(stripped)]
             masked.append(f"{indent}last_upgraded_at: <masked>")
@@ -68,6 +65,13 @@ class ProjectMetadata:
     platform: str = ""
     platform_version: str = ""
     applied_migrations: list[MigrationRecord] = field(default_factory=list)
+    # schema_version round-trips spec_kitty.schema_version (#3334): load()
+    # populates it from disk and save() writes it back unconditionally, so no
+    # save() caller (success path, failed-migration recording, doctor,
+    # regeneration, ...) can silently strip it. ``None`` means the field is
+    # genuinely absent (a pre-3.x project that has never been migrated) and
+    # must continue to write no key, preserving LEGACY classification.
+    schema_version: int | None = None
 
     @classmethod
     def load(cls, kittify_dir: Path) -> ProjectMetadata | None:
@@ -123,6 +127,15 @@ class ProjectMetadata:
         except ValueError:
             last_upgraded_at = None
 
+        raw_schema_version = spec_kitty.get("schema_version")
+        schema_version: int | None
+        try:
+            schema_version = int(raw_schema_version) if raw_schema_version is not None else None
+        except (TypeError, ValueError):
+            # Malformed schema_version on disk is treated as absent rather
+            # than raising, consistent with the other defensive parses above.
+            schema_version = None
+
         metadata = cls(
             version=spec_kitty.get("version", "unknown"),
             initialized_at=initialized_at,
@@ -131,6 +144,7 @@ class ProjectMetadata:
             platform=env.get("platform", ""),
             platform_version=env.get("platform_version", ""),
             applied_migrations=applied,
+            schema_version=schema_version,
         )
         # Note: legacy ID normalization is NOT performed on load.
         # It must be triggered explicitly via normalize_and_save_legacy_ids()
@@ -167,14 +181,21 @@ class ProjectMetadata:
         """Save metadata to .kittify/metadata.yaml.
 
         Performs a masked compare-before-write (issue #1871): if the only
-        differences between the rendered content and the file already on disk
-        are the volatile ``last_upgraded_at`` timestamp (which the migrations-
-        applied upgrade path bumps unconditionally) and ``schema_version``
-        (written separately by ``_stamp_schema_version`` and intentionally
-        omitted here), the write is skipped. This stops no-op upgrades from
-        churning the file/mtime or advancing ``last_upgraded_at``, and closes
-        the class for every ``save()`` caller (upgrade/doctor/regeneration)
-        rather than adding per-path guards.
+        difference between the rendered content and the file already on disk
+        is the volatile ``last_upgraded_at`` timestamp (which the migrations-
+        applied upgrade path bumps unconditionally), the write is skipped.
+        This stops no-op upgrades from churning the file/mtime or advancing
+        ``last_upgraded_at``, and closes the class for every ``save()``
+        caller (upgrade/doctor/regeneration) rather than adding per-path
+        guards.
+
+        ``schema_version`` round-trips through this method like any other
+        field (#3334): when ``self.schema_version`` is not ``None`` it is
+        written into the ``spec_kitty`` block, so a caller that loads
+        metadata, mutates something unrelated (e.g. records a failed
+        migration), and saves again can no longer silently strip the stamp
+        and wedge the project into ``LEGACY`` classification. ``None`` (a
+        genuinely unmigrated pre-3.x project) still writes no key.
 
         Args:
             kittify_dir: Path to the .kittify directory
@@ -185,12 +206,16 @@ class ProjectMetadata:
         """
         metadata_path = kittify_dir / "metadata.yaml"
 
+        spec_kitty_block: dict[str, str | int | None] = {
+            "version": self.version,
+            "initialized_at": self.initialized_at.isoformat(),
+            "last_upgraded_at": (self.last_upgraded_at.isoformat() if self.last_upgraded_at else None),
+        }
+        if self.schema_version is not None:
+            spec_kitty_block["schema_version"] = self.schema_version
+
         data = {
-            "spec_kitty": {
-                "version": self.version,
-                "initialized_at": self.initialized_at.isoformat(),
-                "last_upgraded_at": (self.last_upgraded_at.isoformat() if self.last_upgraded_at else None),
-            },
+            "spec_kitty": spec_kitty_block,
             "environment": {
                 "python_version": self.python_version,
                 "platform": self.platform,

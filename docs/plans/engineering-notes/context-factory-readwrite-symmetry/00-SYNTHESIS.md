@@ -1,10 +1,12 @@
 ---
 title: Execution Context Factory — Read/Write Symmetry & Multi-Mission Approach
 description: Design refinement (2026-06-16) on the execution context factory's read/write symmetry and multi-mission approach, informing the read-path-error-fidelity mission.
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-17'
 ---
 # Execution Context Factory — Read/Write Symmetry & Multi-Mission Approach
+
+> **Retired (deprecated).** Read-side design shipped/superseded via merged mission `read-path-error-fidelity-adoption-01KV8NPC` (`kitty-specs/read-path-error-fidelity-adoption-01KV8NPC/`); write-side (#1716 / #1878) deferred. Preserved as a historical record.
 
 **Date:** 2026-06-16
 **Status:** design refinement (informs the read-path mission `read-path-error-fidelity-adoption-01KV8NPC`

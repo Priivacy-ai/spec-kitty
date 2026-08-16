@@ -1,451 +1,190 @@
-"""Delivery Target Registry & identity (WP04, IC-03; FR-002, FR-012, C-002).
+"""Project-owned delivery-target repository; never a connection owner."""
 
-A **Delivery Target** is one endpoint identity: a canonical URL hash plus
-user/team scope, enforced by ``UNIQUE(url_hash, team_slug, user_email)``
-(**C-002**). Identity inputs are derived from WP01's
-:class:`~specify_cli.sync.target_authority.ResolvedSyncTarget` — never
-re-resolved here (that would re-introduce the split-brain the mission kills).
-
-Design decisions (documented per the WP's validation checklist):
-
-* **Hash algorithm** — ``url_hash`` is the SHA-256 hexdigest (64 ASCII hex
-  chars) of the canonical URL. It is a one-way digest; the URL is not
-  recoverable from it.
-* **Canonicalization** — :func:`canonicalize_url` lowercases scheme + host,
-  IDNA/ASCII-encodes a non-ASCII host, drops the default port (``:443``/``:80``),
-  strips a trailing path slash, and **drops query + fragment**. For an
-  events-batch endpoint the path is identity-significant but query/fragment are
-  not, so two cosmetic spellings of the same endpoint hash identically.
-* **Empty-scope normalization** — a ``None`` and an empty-string ``team_slug``
-  (or ``user_email``) both normalize to ``""`` so the same anonymous (pre-auth)
-  endpoint never forks into two identities.
-* **Deployment metadata is provenance, never identity** (**C-002**):
-  ``server_instance_id``/``deployment_id``/``environment_name``/``git_sha`` are
-  recorded on the identity row and updated in place on re-register. The identity
-  key excludes every deployment field.
-* **Advisory reset detection** (**FR-012**): :meth:`SqliteDeliveryTargetRegistry.detect_reset`
-  compares the stored *stable* fields against incoming metadata. A changed
-  stable field (``server_instance_id``/``environment_name``/``git_sha``) returns
-  a :class:`~specify_cli.delivery.interfaces.ResetSignal`; a ``deployment_id``-only
-  change is normal Upsun redeploy noise and returns ``None``. Detection is
-  read-only — it does no I/O, no identity fork, and no SaaS ``/health`` call
-  (IC-09, out of scope — C-004).
-
-Per **C-001** nothing here imports ``sync/queue.py`` or ``specify_cli.events``;
-the only inbound dependency is WP01's ``ResolvedSyncTarget`` value object,
-imported under ``TYPE_CHECKING`` so the domain stays import-light.
-"""
 from __future__ import annotations
 
 import hashlib
-import re
-import sqlite3
-from dataclasses import replace
-from typing import TYPE_CHECKING
 from urllib.parse import urlsplit, urlunsplit
 
-from kernel.clock import now_utc_iso
-from specify_cli.delivery.interfaces import (
-    DeliveryTarget,
-    DeploymentMetadata,
-    ResetSignal,
-    TargetIdentity,
-)
-
-if TYPE_CHECKING:  # pragma: no cover - typing-only import (C-001: no runtime edge)
-    from specify_cli.sync.target_authority import ResolvedSyncTarget
-
-# All recorded deployment-metadata fields (provenance only — never identity).
-_METADATA_FIELDS: tuple[str, ...] = (
-    "server_instance_id",
-    "deployment_id",
-    "environment_name",
-    "git_sha",
-)
-
-# Fields whose change signals a possible environment reset (FR-012). Crucially
-# excludes ``deployment_id``: Upsun re-stamps it on every push, so a
-# ``deployment_id``-only change is redeploy noise, not a reset.
-_STABLE_RESET_FIELDS: tuple[str, ...] = (
-    "server_instance_id",
-    "environment_name",
-    "git_sha",
-)
-
-_RESET_RECOMMENDATION = (
-    "Deployment identity changed under a stable URL; the target may have been "
-    "reset. Consider re-draining retained events to this target."
-)
-
-# Explicit ASCII allowlist for human-readable identifier components (charter
-# Identifier Safety). Compiled with ``re.ASCII`` so it never falls back to the
-# Unicode ``\w`` semantics that would let accented input leak through.
-_NON_IDENTIFIER_CHARS = re.compile(r"[^A-Za-z0-9_]", re.ASCII)
+from specify_cli.delivery.interfaces import DeliveryTarget, TargetIdentity
+from specify_cli.sync.project_context import AdmissionState
+from specify_cli.sync.project_identity import CanonicalProjectUUID
+from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork, SQLiteRow
+from specify_cli.sync.target_authority import AdmissionAudience
 
 _DEFAULT_PORTS = {"https": 443, "http": 80}
 
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS delivery_targets (
-    target_id          TEXT PRIMARY KEY,
-    canonical_url      TEXT NOT NULL,
-    url_hash           TEXT NOT NULL,
-    team_slug          TEXT NOT NULL,
-    user_email         TEXT NOT NULL,
-    server_instance_id TEXT,
-    deployment_id      TEXT,
-    environment_name   TEXT,
-    git_sha            TEXT,
-    first_seen_at      TEXT NOT NULL,
-    last_seen_at       TEXT NOT NULL,
-    UNIQUE(url_hash, team_slug, user_email)
-);
-"""
-
 
 class InvalidTargetUrlError(ValueError):
-    """Raised when a target URL is empty or has no scheme/host to canonicalize."""
-
-
-# ---------------------------------------------------------------------------
-# Pure helpers (no I/O) — T022 canonicalization + hashing, identifier safety
-# ---------------------------------------------------------------------------
-
-
-def _ascii_token(value: str) -> str:
-    """Sanitize *value* to an ASCII-only deterministic token (Identifier Safety).
-
-    Uses an explicit ``[A-Za-z0-9_]`` allowlist (``re.ASCII``); every other code
-    point — including accented Latin — is replaced with ``_`` so the result is
-    always ``.isascii()``.
-    """
-    return _NON_IDENTIFIER_CHARS.sub("_", value)
-
-
-def _sha256_hex(text: str) -> str:
-    """Return the SHA-256 hexdigest of *text* (always ASCII)."""
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()  # noqa: TID251 - production raw SHA-256 owner (delivery-target identity digest, not the charter freshness hash)
-
-
-def _canonical_host(host: str) -> str:
-    """Lowercase *host* and guarantee an ASCII rendering (IDNA, then escape).
-
-    A non-ASCII host (IDN) is IDNA-encoded to its punycode form; if that fails
-    the host is sanitized via the ASCII allowlist so the canonical URL — a
-    storage-facing identifier — is always ``.isascii()``.
-    """
-    lowered = host.lower()
-    if lowered.isascii():
-        return lowered
-    try:
-        return lowered.encode("idna").decode("ascii")
-    except (UnicodeError, ValueError):
-        return _ascii_token(lowered)
+    """A target URL cannot be normalized safely."""
 
 
 def canonicalize_url(raw_url: str) -> str:
-    """Canonicalize an endpoint URL deterministically (T022). Pure, no I/O.
-
-    Lowercases scheme + host, ASCII-encodes a non-ASCII host, drops the default
-    port and a trailing path slash, and drops query + fragment. Raises
-    :class:`InvalidTargetUrlError` on empty/malformed input rather than hashing
-    garbage.
-    """
+    """Backward-compatible endpoint canonicalization helper (pure, no I/O)."""
     if not raw_url or not raw_url.strip():
         raise InvalidTargetUrlError("target URL must be a non-empty string")
     parts = urlsplit(raw_url.strip())
     if not parts.scheme or not parts.hostname:
-        raise InvalidTargetUrlError(f"target URL is missing scheme or host: {raw_url!r}")
+        raise InvalidTargetUrlError("target URL is missing scheme or host")
     scheme = parts.scheme.lower()
-    netloc = _canonical_host(parts.hostname)
     try:
+        host = parts.hostname.encode("idna").decode("ascii").lower()
         port = parts.port
-    except ValueError as exc:  # malformed port component
-        raise InvalidTargetUrlError(f"target URL has an invalid port: {raw_url!r}") from exc
+    except (UnicodeError, ValueError) as exc:
+        raise InvalidTargetUrlError("target URL has an invalid host or port") from exc
+    netloc = host
     if port is not None and _DEFAULT_PORTS.get(scheme) != port:
-        netloc = f"{netloc}:{port}"
-    path = parts.path.rstrip("/")
-    return urlunsplit((scheme, netloc, path, "", ""))
+        netloc = f"{host}:{port}"
+    return urlunsplit((scheme, netloc, parts.path.rstrip("/"), "", ""))
 
 
 def compute_url_hash(canonical_url: str) -> str:
-    """Return the one-way SHA-256 ``url_hash`` of an already-canonical URL."""
-    return _sha256_hex(canonical_url)
+    return hashlib.sha256(canonical_url.encode("utf-8")).hexdigest()  # noqa: TID251 - target identity digest, not charter freshness
 
 
-def _normalize_scope(value: str | None) -> str:
-    """Normalize a scope value: ``None`` and ``""`` both collapse to ``""`` (C-002)."""
-    return value or ""
-
-
-def _derive_target_id(identity: TargetIdentity) -> str:
-    """Build a deterministic ASCII surrogate id for *identity*.
-
-    The id embeds a sanitized scope token (Identifier Safety) plus a digest of
-    the full identity tuple, so distinct identities never collide and the result
-    is always ``.isascii()`` even for accented scope input.
-    """
-    digest = _sha256_hex(
-        "\x00".join((identity.url_hash, identity.team_slug, identity.user_email))
-    )[:32]
-    scope = _ascii_token(identity.team_slug) or "anon"
-    return f"tgt_{scope}_{digest}"
-
-
-def _select_metadata(deployment_metadata: DeploymentMetadata | None) -> dict[str, str | None]:
-    """Project *deployment_metadata* onto the known fields that are present.
-
-    Only keys present in the incoming mapping are returned, so a partial update
-    overwrites just those fields and leaves the rest of the stored provenance
-    intact (T023: partial metadata is storable).
-    """
-    if not deployment_metadata:
-        return {}
-    return {
-        field: deployment_metadata[field]
-        for field in _METADATA_FIELDS
-        if field in deployment_metadata
-    }
-
-
-def _stable_changes(
-    stored: DeliveryTarget, incoming: dict[str, str | None]
-) -> tuple[str, ...]:
-    """Return the stable fields that meaningfully changed (FR-012).
-
-    A field counts as changed only when both the stored and incoming values are
-    present (non-``None``) and differ — so first-appearing or disappearing
-    metadata never trips a false reset. ``deployment_id`` is excluded entirely.
-    """
-    changed: list[str] = []
-    for field in _STABLE_RESET_FIELDS:
-        new_value = incoming.get(field)
-        old_value = getattr(stored, field)
-        if new_value is None or old_value is None:
-            continue
-        if new_value != old_value:
-            changed.append(field)
-    return tuple(changed)
-
-
-# ---------------------------------------------------------------------------
-# SQLite-backed registry (T021/T023/T024)
-# ---------------------------------------------------------------------------
-
-
-def _row_to_target(row: sqlite3.Row) -> DeliveryTarget:
-    """Build a :class:`DeliveryTarget` from a ``delivery_targets`` row."""
-    identity = TargetIdentity(
-        url_hash=_as_str(row["url_hash"]),
-        team_slug=_as_str(row["team_slug"]),
-        user_email=_as_str(row["user_email"]),
+def compute_target_id(
+    *,
+    target_identity: str,
+    account_identity: str,
+    private_teamspace_id: str,
+    project_uuid: CanonicalProjectUUID,
+    configuration_generation: int,
+) -> str:
+    """Derive the canonical project-owned target key from its authority tuple."""
+    material = "\x00".join(
+        (
+            target_identity,
+            account_identity,
+            private_teamspace_id,
+            project_uuid.storage_token,
+            str(configuration_generation),
+        )
     )
+    return f"tgt_{hashlib.sha256(material.encode('utf-8')).hexdigest()[:32]}"  # noqa: TID251 - target identity digest, not charter freshness
+
+
+def target_id_for_audience(audience: AdmissionAudience) -> str:
+    """Return the canonical target key for an admission audience."""
+    return compute_target_id(
+        target_identity=audience.target_identity,
+        account_identity=audience.account_identity,
+        private_teamspace_id=audience.private_teamspace_id,
+        project_uuid=audience.project_uuid,
+        configuration_generation=audience.configuration_generation,
+    )
+
+
+def _row_to_target(row: SQLiteRow) -> DeliveryTarget:
+    values = tuple(row)
+    project_uuid = CanonicalProjectUUID.parse(str(values[0]))
+    generation = values[6]
     return DeliveryTarget(
-        target_id=_as_str(row["target_id"]),
-        canonical_url=_as_str(row["canonical_url"]),
-        identity=identity,
-        server_instance_id=_as_opt_str(row["server_instance_id"]),
-        deployment_id=_as_opt_str(row["deployment_id"]),
-        environment_name=_as_opt_str(row["environment_name"]),
-        git_sha=_as_opt_str(row["git_sha"]),
-        first_seen_at=_as_str(row["first_seen_at"]),
-        last_seen_at=_as_str(row["last_seen_at"]),
+        target_id=target_id_for_audience(
+            AdmissionAudience(
+                normalized_server_origin=str(values[1]),
+                account_identity=str(values[2]),
+                private_teamspace_id=str(values[3]),
+                project_uuid=project_uuid,
+                configuration_generation=int(values[4]),
+            )
+        ),
+        identity=TargetIdentity(
+            target_identity=str(values[1]),
+            account_identity=str(values[2]),
+            private_teamspace_id=str(values[3]),
+            project_uuid=project_uuid,
+            configuration_generation=int(values[4]),
+        ),
+        admission_state=AdmissionState(str(values[5])),
+        admission_generation=None if generation is None else int(str(generation)),
+        binding_audience=None if values[7] is None else str(values[7]),
+        last_error_category=None if values[8] is None else str(values[8]),
     )
 
 
-def _as_str(value: object) -> str:
-    return str(value)
+class ProjectDeliveryTargetRegistry:
+    """Repository over one :class:`ProjectSyncStore` and caller-owned UoW."""
 
+    __slots__ = ("_store",)
 
-def _as_opt_str(value: object) -> str | None:
-    return None if value is None else str(value)
+    def __init__(self, store: ProjectSyncStore) -> None:
+        if not isinstance(store, ProjectSyncStore):
+            raise TypeError("delivery target registry requires ProjectSyncStore")
+        self._store = store
 
+    def _verify(self, unit: ProjectUnitOfWork, audience: AdmissionAudience | None = None) -> None:
+        if unit.project_uuid != self._store.project_uuid:
+            raise ValueError("unit of work belongs to another project store")
+        if audience is not None and audience.project_uuid != self._store.project_uuid:
+            raise ValueError("target audience belongs to another project")
 
-class SqliteDeliveryTargetRegistry:
-    """SQLite-backed :class:`~specify_cli.delivery.interfaces.DeliveryTargetRegistry`.
-
-    Pass ``":memory:"`` (default) for an isolated in-process registry or a file
-    path for a persistent one. Implements the C-002 identity model and FR-012
-    advisory reset detection.
-    """
-
-    def __init__(self, db_path: str = ":memory:") -> None:
-        self._conn = sqlite3.connect(db_path)
-        self._conn.row_factory = sqlite3.Row
-        self._conn.executescript(_SCHEMA)
-        self._conn.commit()
-
-    # -- lifecycle ---------------------------------------------------------
-    def close(self) -> None:
-        self._conn.close()
-
-    def __enter__(self) -> SqliteDeliveryTargetRegistry:
-        return self
-
-    def __exit__(self, *exc: object) -> None:
-        self.close()
-
-    # -- identity helpers --------------------------------------------------
-    def _identity(self, url: str, team_slug: str | None, user_email: str | None) -> TargetIdentity:
-        canonical = canonicalize_url(url)
-        return TargetIdentity(
-            url_hash=compute_url_hash(canonical),
-            team_slug=_normalize_scope(team_slug),
-            user_email=_normalize_scope(user_email),
-        )
-
-    # -- registry surface --------------------------------------------------
-    def register(
-        self,
-        *,
-        url: str,
-        team_slug: str | None,
-        user_email: str | None,
-        deployment_metadata: DeploymentMetadata | None = None,
-    ) -> DeliveryTarget:
-        """Idempotently register a target on its ``(url_hash, scope)`` identity.
-
-        Canonicalizes *url*, normalizes scope, and upserts on the UNIQUE identity
-        key. A second register of the same identity updates provenance + the
-        ``last_seen_at`` timestamp on the existing row (no fork). Returns the
-        stored :class:`DeliveryTarget`.
-        """
-        canonical = canonicalize_url(url)
-        identity = TargetIdentity(
-            url_hash=compute_url_hash(canonical),
-            team_slug=_normalize_scope(team_slug),
-            user_email=_normalize_scope(user_email),
-        )
-        now = now_utc_iso()
-        provided = _select_metadata(deployment_metadata)
-        existing = self.get(identity.url_hash, identity.team_slug, identity.user_email)
-        if existing is None:
-            target = DeliveryTarget(
-                target_id=_derive_target_id(identity),
-                canonical_url=canonical,
-                identity=identity,
-                server_instance_id=provided.get("server_instance_id"),
-                deployment_id=provided.get("deployment_id"),
-                environment_name=provided.get("environment_name"),
-                git_sha=provided.get("git_sha"),
-                first_seen_at=now,
-                last_seen_at=now,
-            )
-            self._insert(target)
-            return target
-        merged = {field: getattr(existing, field) for field in _METADATA_FIELDS}
-        merged.update(provided)
-        target = replace(existing, last_seen_at=now, **merged)
-        self._update_provenance(target)
-        return target
-
-    def register_from_resolved(
-        self,
-        resolved: ResolvedSyncTarget,
-        *,
-        deployment_metadata: DeploymentMetadata | None = None,
-    ) -> DeliveryTarget:
-        """Register the identity carried by WP01's :class:`ResolvedSyncTarget`.
-
-        Derives the canonical URL from ``resolved_server_url`` and the scope from
-        ``team_slug`` and ``user_id`` (an email in practice). This is the only
-        sanctioned identity-input source (C-007/SC-008: no second resolver).
-        """
-        return self.register(
-            url=resolved.resolved_server_url,
-            team_slug=resolved.team_slug,
-            user_email=resolved.user_id,
-            deployment_metadata=deployment_metadata,
-        )
-
-    def get(
-        self, url_hash: str, team_slug: str | None, user_email: str | None
-    ) -> DeliveryTarget | None:
-        """Return the target for a normalized identity, or ``None`` if unknown."""
-        cursor = self._conn.execute(
-            "SELECT * FROM delivery_targets "
-            "WHERE url_hash = ? AND team_slug = ? AND user_email = ?",
-            (url_hash, _normalize_scope(team_slug), _normalize_scope(user_email)),
-        )
-        row = cursor.fetchone()
+    def get_current(self, unit: ProjectUnitOfWork) -> DeliveryTarget | None:
+        self._verify(unit)
+        row = unit.execute(
+            "SELECT project_uuid, target_identity, account_identity, "
+            "private_teamspace_id, configuration_generation, admission_state, "
+            "admission_generation, binding_audience, last_error_category "
+            "FROM project_target_admissions WHERE project_uuid = ?",
+            (self._store.project_uuid.storage_token,),
+        ).fetchone()
         return None if row is None else _row_to_target(row)
 
-    def detect_reset(
+    def register(
         self,
-        *,
-        url: str,
-        team_slug: str | None,
-        user_email: str | None,
-        new_deployment_metadata: DeploymentMetadata | None,
-    ) -> ResetSignal | None:
-        """Advisory reset detection on deployment-metadata change (**FR-012**).
-
-        Read-only: compares the stored stable fields for the matched identity
-        against *new_deployment_metadata*. Returns a :class:`ResetSignal` when a
-        stable field changed, else ``None`` (including the first-registration,
-        no-prior-metadata, absent-incoming, and ``deployment_id``-only cases).
-        Never forks identity, mutates state, or calls a ``/health`` endpoint.
-        """
-        identity = self._identity(url, team_slug, user_email)
-        stored = self.get(identity.url_hash, identity.team_slug, identity.user_email)
-        if stored is None:
-            return None
-        incoming = _select_metadata(new_deployment_metadata)
-        changed = _stable_changes(stored, incoming)
-        if not changed:
-            return None
-        previous = {field: getattr(stored, field) for field in changed}
-        current = {field: incoming.get(field) for field in changed}
-        return ResetSignal(
-            target_id=stored.target_id,
-            changed_fields=changed,
-            previous=previous,
-            current=current,
-            recommendation=_RESET_RECOMMENDATION,
-        )
-
-    def list_targets(self) -> list[DeliveryTarget]:
-        """Return every registered target (ordering: first-seen, then id)."""
-        cursor = self._conn.execute(
-            "SELECT * FROM delivery_targets ORDER BY first_seen_at, target_id"
-        )
-        return [_row_to_target(row) for row in cursor.fetchall()]
-
-    # -- persistence -------------------------------------------------------
-    def _insert(self, target: DeliveryTarget) -> None:
-        self._conn.execute(
-            "INSERT INTO delivery_targets ("
-            "target_id, canonical_url, url_hash, team_slug, user_email, "
-            "server_instance_id, deployment_id, environment_name, git_sha, "
-            "first_seen_at, last_seen_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        unit: ProjectUnitOfWork,
+        audience: AdmissionAudience,
+    ) -> DeliveryTarget:
+        self._verify(unit, audience)
+        current = self.get_current(unit)
+        if current is not None:
+            same_tuple = (
+                current.target_identity == audience.target_identity
+                and current.account_identity == audience.account_identity
+                and current.private_teamspace_id == audience.private_teamspace_id
+            )
+            if same_tuple and current.configuration_generation == audience.configuration_generation:
+                return current
+            if audience.configuration_generation <= current.configuration_generation:
+                raise ValueError("target configuration generation must advance on audience change")
+        unit.execute(
+            "INSERT INTO project_target_admissions ("
+            "project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, "
+            "binding_audience, last_error_category) VALUES (?, ?, ?, ?, ?, 'pending', NULL, NULL, NULL) "
+            "ON CONFLICT(project_uuid) DO UPDATE SET "
+            "target_identity = excluded.target_identity, "
+            "account_identity = excluded.account_identity, "
+            "private_teamspace_id = excluded.private_teamspace_id, "
+            "configuration_generation = excluded.configuration_generation, "
+            "admission_state = 'pending', admission_generation = NULL, "
+            "binding_audience = NULL, last_error_category = NULL",
             (
-                target.target_id,
-                target.canonical_url,
-                target.url_hash,
-                target.team_slug,
-                target.user_email,
-                target.server_instance_id,
-                target.deployment_id,
-                target.environment_name,
-                target.git_sha,
-                target.first_seen_at,
-                target.last_seen_at,
+                audience.project_uuid.storage_token,
+                audience.target_identity,
+                audience.account_identity,
+                audience.private_teamspace_id,
+                audience.configuration_generation,
             ),
         )
-        self._conn.commit()
+        target = self.get_current(unit)
+        if target is None:  # pragma: no cover - INSERT is verified in the same transaction
+            raise RuntimeError("target registration did not persist")
+        return target
 
-    def _update_provenance(self, target: DeliveryTarget) -> None:
-        self._conn.execute(
-            "UPDATE delivery_targets SET "
-            "server_instance_id = ?, deployment_id = ?, environment_name = ?, "
-            "git_sha = ?, last_seen_at = ? WHERE target_id = ?",
-            (
-                target.server_instance_id,
-                target.deployment_id,
-                target.environment_name,
-                target.git_sha,
-                target.last_seen_at,
-                target.target_id,
-            ),
-        )
-        self._conn.commit()
+    def list_targets(self, unit: ProjectUnitOfWork) -> list[DeliveryTarget]:
+        current = self.get_current(unit)
+        return [] if current is None else [current]
+
+
+# Migration alias: the historical class name now denotes the same connection-free
+# project repository. It no longer accepts a path or owns close/commit lifecycle.
+SqliteDeliveryTargetRegistry = ProjectDeliveryTargetRegistry
+
+
+__all__ = [
+    "InvalidTargetUrlError",
+    "ProjectDeliveryTargetRegistry",
+    "SqliteDeliveryTargetRegistry",
+    "canonicalize_url",
+    "compute_target_id",
+    "compute_url_hash",
+]

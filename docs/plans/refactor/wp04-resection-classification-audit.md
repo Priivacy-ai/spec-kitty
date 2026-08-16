@@ -1,9 +1,12 @@
 ---
 title: WP04 re-section classification audit
 description: 'Per-file durable-vs-ephemeral classification record for the docs/development + docs/engineering_notes re-section (Mission B, FR-012, #2054).'
-doc_status: draft
-updated: '2026-06-27'
+doc_status: deprecated
+updated: '2026-08-12'
 ---
+
+> ⚠ **Retired 2026-08-12 (`doc_status: deprecated`).** Re-section classification audit; the #2054 re-section shipped in the 3.2.3 release (tag `v3.2.3`). Content preserved as an audit-trail record.
+
 # WP04 re-section classification audit (FR-012 / #2054)
 
 This note is the **auditable per-file record** for WP04's re-section of the

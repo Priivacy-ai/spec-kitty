@@ -20,62 +20,130 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZA2WWZYNAMQERGS5VJCVPEE",
       "last_transition_at": "2026-08-05T23:07:21.982661+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: profiles relocated, contract complete, routing narrowed (red-first), 031/mahad/larry reconciled, DRG frontmatter wired",
+        "Review passed: RED-first confirmed (pre-narrowing ca7946b tree -> test_bare_design_verb + test_bare_classify_verb genuinely RED: diagram-daisy beat designer-dagmar, comms-cleo beat incumbent curators; GREEN 9/9 after roles[0] narrowing in 7084ee5). Verb-deviation validated: wireframe/organize map to DESIGNER/CURATOR in CANONICAL_VERB_MAP and are unclaimed by any profile canonical-verbs (design claimed by architect-alphonso, classify by paula-patterns@65 -> both avoided); narrowing is verb-agnostic (roles[0] no longer designer/curator). T002 verbs (diagram/chart/visualize; draft-comms/edit-copy/calibrate-tone; synthesize/reconcile/integrate) do not re-open a bucket. T001 old path empty, 7 profiles present, both READMEs list 25 ids. T002 all 7 doctrine-validate clean. T005 no 031/arch-ban, C4/mermaid/plantuml refs present. T006 mahad over-claims removed. T007 Larry=glossary-diagnostician + carla boundary, carla file untouched. T008 047-050/writing-audience-catalog under context-sources.directives/tactic-references, cross-lane ids declared not pruned. Terminology gate 10/10. Scope clean (7 profiles + 2 READMEs + 1 test). FR-011 Co-Authored-By Zohar Stolar on both commits."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: RED-first confirmed (pre-narrowing ca7946b tree -> test_bare_design_verb + test_bare_classify_verb genuinely RED: diagram-daisy beat designer-dagmar, comms-cleo beat incumbent curators; GREEN 9/9 after roles[0] narrowing in 7084ee5). Verb-deviation validated: wireframe/organize map to DESIGNER/CURATOR in CANONICAL_VERB_MAP and are unclaimed by any profile canonical-verbs (design claimed by architect-alphonso, classify by paula-patterns@65 -> both avoided); narrowing is verb-agnostic (roles[0] no longer designer/curator). T002 verbs (diagram/chart/visualize; draft-comms/edit-copy/calibrate-tone; synthesize/reconcile/integrate) do not re-open a bucket. T001 old path empty, 7 profiles present, both READMEs list 25 ids. T002 all 7 doctrine-validate clean. T005 no 031/arch-ban, C4/mermaid/plantuml refs present. T006 mahad over-claims removed. T007 Larry=glossary-diagnostician + carla boundary, carla file untouched. T008 047-050/writing-audience-catalog under context-sources.directives/tactic-references, cross-lane ids declared not pruned. Terminology gate 10/10. Scope clean (7 profiles + 2 READMEs + 1 test). FR-011 Co-Authored-By Zohar Stolar on both commits.",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 1169964,
-      "shell_pid_created_at": "1785965842.37"
+      "role": "reviewer",
+      "shell_pid": 1316450,
+      "shell_pid_created_at": "1785968460.25",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZA2WYMBWNF2N14MVD641Y3E",
       "last_transition_at": "2026-08-05T23:07:23.659649+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: 047-050 relocated + reconciled (047 repointed, 048 boundary, 049 advisory, 050 prevention-first)",
+        "Review passed (reviewer-renata, independent): T009-T013 grep/validate verified; issue-matrix gate resolved (#2467 already-fixed, #2918 in-mission, #2950 already-fixed)."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed (reviewer-renata, independent): T009-T013 grep/validate verified; issue-matrix gate resolved (#2467 already-fixed, #2918 in-mission, #2950 already-fixed).",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 1217650,
-      "shell_pid_created_at": "1785966810.79"
+      "role": "reviewer",
+      "shell_pid": 1252695,
+      "shell_pid_created_at": "1785967445.09",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZA2X048NC9GPVH8F0A2P5T9",
       "last_transition_at": "2026-08-05T23:07:25.192106+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: procedures/styleguides/tactic relocated, assets inverted, minutes trust boundaries stated + claims scoped",
+        "Review passed (reviewer-renata, independent): all T014-T019 verified — relocation+inversion clean, 5 trust boundaries substantive, enforcement claims removed, composer refs resolve, type:asset kept. issue-matrix gate resolved."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed (reviewer-renata, independent): all T014-T019 verified — relocation+inversion clean, 5 trust boundaries substantive, enforcement claims removed, composer refs resolve, type:asset kept. issue-matrix gate resolved.",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 1221485,
-      "shell_pid_created_at": "1785966910.8"
+      "role": "reviewer",
+      "shell_pid": 1263065,
+      "shell_pid_created_at": "1785967637.2",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "python-pedro",
+      "agent_profile_version": "1.0",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KZA2X1KW4622A2PP075V20P5",
       "last_transition_at": "2026-08-05T23:07:26.716685+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: DRG regenerated (324/892 -> 345/930, +21 node delta verified), gates refreshed (25 profiles, 7 ids), reachability re-measured with one genuine pin move (_PROFILE_UNREACHABLE 60->59, secure-design-checklist via new minutes-maker-mahad->DIRECTIVE_050 chain) + ledger row; validation sweep green (pack validate 0 errors incl type:asset, doctor 25/25 healthy 0 skipped, terminology green)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "reference": "Review passed: node_count=345 verified empirically (324+21), edge_count=930>=913, regenerate --check clean (generated_by drg-migration-v1, additions-only), doctor 25/25 invalid=[] skipped=[] org_drg.errors=[], pack validate 0 errors, pin move 60->59 genuine+ledgered (minutes-maker-mahad--requires-->DIRECTIVE_050--suggests-->secure-design-checklist verified in frontmatter+graph+ledger row), gates+terminology green. NOTE for WP03 follow-up: 4 of 5 writing-audience assets are DRG orphans (0 inbound) - the writing-audience-catalog tactic references only software-engineer and defers rest to README; not WP04-owned, not gate-flagged, non-blocking.",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 1354105,
-      "shell_pid_created_at": "1785969105.12"
+      "role": "reviewer",
+      "shell_pid": 1430640,
+      "shell_pid_created_at": "1785970374.83",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done"
+      }
     }
   }
 }

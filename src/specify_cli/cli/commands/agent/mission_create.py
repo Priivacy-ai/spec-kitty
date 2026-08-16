@@ -258,6 +258,7 @@ def _run_create_core_phase(
     purpose_tldr: str | None,
     purpose_context: str | None,
     force_recreate_coordination_branch: bool,
+    owned_checkout: Path | None,
     json_output: bool,
     topology: MissionTopology = MissionTopology.COORD,
 ) -> MissionCreationResult:
@@ -268,10 +269,12 @@ def _run_create_core_phase(
     a ``MissionCreationError`` (with worktree navigation hint), or any other
     unexpected exception.
     """
+    from charter.pack_context import CharterPackConfigError
     from specify_cli.core.mission_creation import (
         MissionCreationError,
         create_mission_core,
     )
+    from specify_cli.core.checkout_ownership import CheckoutOwnershipError
     from specify_cli.missions._create import CoordinationBranchDiverged
 
     try:
@@ -285,6 +288,7 @@ def _run_create_core_phase(
             purpose_context=purpose_context,
             topology=topology,
             force_recreate_coordination_branch=force_recreate_coordination_branch,
+            owned_checkout=owned_checkout.resolve() if owned_checkout is not None else None,
         )
     except CoordinationBranchDiverged as exc:
         # Structured error path (NFR-007): emit a stable error_code payload
@@ -294,6 +298,23 @@ def _run_create_core_phase(
         else:
             console.print(f"[bold red]Error:[/bold red] {exc}")
         raise typer.Exit(1) from exc
+    except CheckoutOwnershipError as exc:
+        error_msg = str(exc)
+        if json_output:
+            # Shared ownership refusal contract (mirrors
+            # next_cmd._emit_checkout_ownership_error): exactly
+            # {success, error_code, error} — no redundant `message` key from
+            # StructuredError.to_dict().
+            _emit_json(
+                {
+                    "success": False,
+                    "error_code": exc.error_code,
+                    "error": error_msg,
+                }
+            )
+        else:
+            console.print(f"[bold red]Error:[/bold red] {error_msg}")
+        raise typer.Exit(1) from exc
     except MissionCreationError as exc:
         error_msg = str(exc)
         if json_output:
@@ -301,6 +322,24 @@ def _run_create_core_phase(
         else:
             console.print(f"[bold red]Error:[/bold red] {error_msg}")
             _print_worktree_navigation_hint(mission_slug, error_msg)
+        raise typer.Exit(1) from exc
+    except CharterPackConfigError as exc:
+        # FR-010 (#3337): the fail-closed charter-pack gate raises a
+        # ``KittyInternalConsistencyError`` whose ``str(exc)`` is only the
+        # stable ``.code`` — the actionable remediation lives on ``.body``. The
+        # generic handler below would emit ``{"error": "<CODE>"}`` and drop the
+        # remediation entirely, so carry both the code and the body into the
+        # --json envelope for scripted callers.
+        if json_output:
+            _emit_json(
+                {
+                    "error_code": exc.code,
+                    "error": exc.body,
+                    "remediation": exc.body,
+                }
+            )
+        else:
+            console.print(f"[bold red]Error:[/bold red] {exc.body}")
         raise typer.Exit(1) from exc
     except Exception as e:
         if json_output:
@@ -328,7 +367,7 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
     spec_file = feature_dir / "spec.md"
     meta_file = feature_dir / "meta.json"
     tasks_readme = feature_dir / "tasks" / "README.md"
-    return {
+    payload: dict[str, object] = {
         "result": "success",
         "mission_slug": result.mission_slug,
         "mission_number": result.mission_number,
@@ -362,6 +401,10 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
         # surfaced so `specify --json` callers can read it without re-deriving.
         "topology": str(result.meta.get("topology", "")),
     }
+    if result.owned_checkout is not None:
+        payload["owned_checkout"] = str(result.owned_checkout)
+        payload["canonical_repo_root"] = str(result.canonical_repo_root)
+    return payload
 
 
 def _emit_create_result_phase(
@@ -458,6 +501,17 @@ def create_mission(
             ),
         ),
     ] = False,
+    owned_checkout: Annotated[
+        Path | None,
+        typer.Option(
+            "--owned-checkout",
+            help=(
+                "Explicitly declare a checkout root owned by this invocation. "
+                "The path must be the primary checkout or a validated linked "
+                "worktree of the resolved primary repository."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Create new mission directory structure in the project root checkout.
 
@@ -473,9 +527,10 @@ def create_mission(
     from specify_cli.cli.commands.agent import mission as _mission
 
     repo_root = resolve_mission_creation_root(_mission.locate_project_root())
+    command_checkout = owned_checkout.resolve() if owned_checkout is not None else repo_root
 
     _resolve_start_branch_phase(
-        repo_root=repo_root,
+        repo_root=command_checkout,
         start_branch=start_branch,
         target_branch=target_branch,
         json_output=json_output,
@@ -487,7 +542,7 @@ def create_mission(
         json_output=json_output,
     )
 
-    current_branch = _mission.get_current_branch(repo_root)
+    current_branch = _mission.get_current_branch(command_checkout)
     _enforce_branch_strategy_gate_phase(
         pr_bound=pr_bound,
         current_branch=current_branch,
@@ -499,7 +554,7 @@ def create_mission(
 
     resolved_topology = _resolve_default_topology_phase(
         explicit_topology=topology,
-        repo_root=repo_root,
+        repo_root=command_checkout,
         current_branch=current_branch,
         pr_bound=pr_bound,
     )
@@ -523,6 +578,7 @@ def create_mission(
         purpose_context=purpose_context,
         topology=resolved_topology,
         force_recreate_coordination_branch=force_recreate_coordination_branch,
+        owned_checkout=owned_checkout,
         json_output=json_output,
     )
 

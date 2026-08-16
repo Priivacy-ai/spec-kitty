@@ -1,10 +1,12 @@
 ---
 title: '#391 Doctrine Usage Test (WP11 dogfood)'
 description: 'The #391 doctrine-usage dogfood test (WP11) for the doctrine-glossary-architecture-consolidation mission, exercising FR-012 and success criteria SC-1/SC-6.'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-12'
 ---
 # #391 Doctrine Usage Test (WP11 dogfood)
+
+> **Retired (deprecated).** Design shipped via the org-doctrine-layer three-layer model (all 8 layer-rule tests pass; PRs #305/#348; drivers #832/#883/#1013/#391). Preserved as a historical record.
 
 Mission: `doctrine-glossary-architecture-consolidation-01KTNWFC` — FR-012, SC-1/SC-6.
 Date: 2026-06-11. Operator: curator-carla. Tracker: `Priivacy-ai/spec-kitty`.

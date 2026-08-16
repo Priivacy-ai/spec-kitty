@@ -72,11 +72,36 @@ steps:
     examples:
       - "assert canonical_call_count >= 1, 'At least one call must go through the canonical resolver'"
       - "assert len([f for f in allowlisted if has_calls(f)]) >= MIN_ROUTED_FILES"
+  - title: Prove the gate reads its authority at runtime (authority-parse vacuity)
+    description: >
+      A census/authority gate (one that reads a list of protected branches, an
+      allowlist file, a policy config, or any other externalized "authority"
+      source) can pass vacuously even when it satisfies the self-mutation and
+      concrete-floor elements above, if the read of that authority is itself
+      defeatable. This is a distinct vacuity axis from the self-mutation step:
+      self-mutation proves the gate detects a violation introduced in the
+      scanned code; authority-parse vacuity proves the gate actually consumes
+      the authority source it claims to enforce, rather than a cached,
+      hardcoded, or stale copy of it.
+
+      Prove this by mutating the authority source in a scratch copy (a temp
+      file, a monkeypatched config loader, or an env-var override) and
+      asserting the gate's verdict flips — it must go red when the authority
+      says something different than what the gate's cached assumption says.
+      An alias or re-export of the authority module (e.g. `from real_module
+      import protected_branches as _protected_branches` re-exported and then
+      imported by the gate) defeats a census gate that only checks "is this
+      name imported from module X" — the alias satisfies the name check while
+      never being invoked, or while wrapping a different implementation.
+    examples:
+      - "Write the gate's authority (e.g. a protected-branches list) to a scratch copy, mutate one entry, point the gate at the scratch copy, and assert the gate's pass/fail verdict changes."
+      - "Add a re-export alias (`from policy import rule as _rule`) in a sibling module and confirm a census gate that greps for `import rule` still catches the real call sites — not just the alias's presence."
 failure_modes:
   - "Vacuous gate: all relevant calls are removed; gate trivially passes with zero violations and zero compliant calls."
   - "Self-blind gate: the gate module lives outside the scan scope; a violation introduced in the gate file is not detected."
   - "Allowlist growth without rationale: a new permitted call site is silently added, expanding rather than shrinking the allowlist."
   - "Routed-count absent: all existing calls are allowlisted; the canonical path has zero callers; gate still passes."
+  - "Authority-parse vacuity: the gate's authority source is mutated but the gate's verdict does not change, because the gate reads a cached, hardcoded, or aliased copy instead of the live authority — a re-export or alias satisfies a name-based census check without ever being invoked. Distinct from the self-mutation failure mode above: self-mutation is about the gate detecting a violation in scanned code, authority-parse vacuity is about the gate actually consuming the authority it claims to enforce."
 notes: >
   Live exemplar: tests/architectural/test_protection_resolver_call_sites.py
   (FR-010 / #1868). Shrink-only numeric ratchet companion:

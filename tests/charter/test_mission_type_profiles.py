@@ -20,10 +20,13 @@ from unittest.mock import patch
 import pytest
 
 from charter.mission_type_profiles import (
+    MissionTypeEmptyActionSequenceError,
     MissionTypeProfile,
     UnknownMissionTypeError,
     resolve_mission_type_context,
 )
+from charter.pack_context import PackContext
+from doctrine.missions.mission_type_repository import MissionTypeRepository
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -411,3 +414,394 @@ class TestResolveMissionTypeGovernanceValidation:
         assert bundle.governance is None
         assert bundle.governance_text == ""
         assert bundle.action_sequence == []
+
+
+# ---------------------------------------------------------------------------
+# WP04/T010 — thread the real PackContext into action-sequence/template-set
+# projection (FR-002). Written and committed FIRST, RED against the
+# pre-WP04 code (``_resolve_action_slot`` still calling
+# ``MissionTypeRepository.default()``, ``_resolve_template_set_slot`` still
+# hardcoding ``pack_context=None``), per C-011 red-first discipline.
+# ---------------------------------------------------------------------------
+
+
+def _write_layered_mission_type_yaml(
+    directory: Path,
+    filename: str,
+    mission_type_id: str,
+    *,
+    action_sequence: list[str] | None = None,
+) -> None:
+    """Write a minimal mission-type YAML for the layered lookup (WP03 shape).
+
+    Mirrors ``tests/doctrine/missions/test_mission_type_repository.py``'s
+    own ``_mission_type_yaml`` helper. ``action_sequence=None`` omits the
+    field entirely (the CL-003 empty-action-sequence edge case).
+    """
+    directory.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "schema_version: 1",
+        f"id: {mission_type_id}",
+        f"display_name: {mission_type_id.title()}",
+    ]
+    if action_sequence is not None:
+        lines.append("action_sequence:")
+        lines.extend(f"  - {step}" for step in action_sequence)
+    (directory / filename).write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _write_org_mission_step_yaml(
+    org_root: Path,
+    mission_type_id: str,
+    step_id: str,
+    *,
+    artifact_key: str,
+    template_file: str,
+    sequence_index: int = 0,
+) -> None:
+    """Write a step.yaml in the org-pack layout carrying a template ref.
+
+    Org-pack layout convention (mirrors
+    ``tests/doctrine/missions/test_mission_step_resolver.py::_write_org_step``):
+    ``{org_root}/mission-steps/{mission_type_id}/{step_id}/step.yaml``.
+    """
+    step_dir = org_root / "mission-steps" / mission_type_id / step_id
+    step_dir.mkdir(parents=True, exist_ok=True)
+    (step_dir / "step.yaml").write_text(
+        f"id: {step_id}\n"
+        f"display_name: {step_id.title()}\n"
+        "step_type: agent\n"
+        "prompt_template: prompt.md\n"
+        "in_action_sequence: true\n"
+        f"sequence_index: {sequence_index}\n"
+        "template:\n"
+        f"  artifact_key: {artifact_key}\n"
+        f"  template_file: {template_file}\n",
+        encoding="utf-8",
+    )
+
+
+class TestPackContextProjection:
+    """FR-002 (WP04/T010): ``resolve_mission_type_context`` threads the real
+    ``PackContext`` it already constructs into both the action-sequence and
+    template-set projection slots, so an org/project mission type resolves
+    real, non-empty projected fields instead of degrading to built-in-only
+    defaults (User Story 1 AC2).
+
+    RED-first (C-011): both tests below fail against the pre-WP04 code --
+    ``_resolve_action_slot`` calls the built-in-only
+    ``MissionTypeRepository.default()`` with no ``pack_context`` parameter
+    at all, so an org-pack-only type id resolves to ``mission is None`` and
+    raises :class:`UnknownMissionTypeError` instead of returning the
+    org-pack's declared fields.
+    """
+
+    def setup_method(self) -> None:
+        # PR-TESTS-002 (pre-merge squad, mission up-mission-type-seam-01KZY1JB):
+        # every other test file that patches ``PackContext.from_config`` and
+        # drives resolution through ``resolve_layered_mission_types``'s
+        # module-level cache also clears it before/after -- this class
+        # previously relied only on the incidental fact that ``PackContext``
+        # is a frozen, field-hashed dataclass built from pytest's
+        # per-test-unique ``tmp_path``, so no two tests here could construct
+        # an *equal* cache key. Explicit discipline now, matching
+        # ``tests/cli/test_charter_mission_type_commands.py`` and
+        # ``tests/doctrine/missions/test_mission_type_repository.py``.
+        MissionTypeRepository.cache_clear()
+
+    def teardown_method(self) -> None:
+        MissionTypeRepository.cache_clear()
+
+    def test_org_pack_type_projects_real_action_sequence_and_template_set(
+        self, tmp_path: Path
+    ) -> None:
+        """An org-pack type with a populated action_sequence, activated in a
+        test project, resolves through ``resolve_mission_type_context`` with
+        real, non-empty projected fields matching the org-pack's declared
+        steps exactly -- not empty, not silently substituted with a
+        built-in default (spec.md User Story 1 AC2).
+        """
+        _git_init_minimal(tmp_path)
+        org_root = tmp_path / "org-pack"
+        _write_layered_mission_type_yaml(
+            org_root / "mission_types",
+            "qa.yaml",
+            "qa",
+            action_sequence=["design", "implement"],
+        )
+        _write_org_mission_step_yaml(
+            org_root,
+            "qa",
+            "design",
+            artifact_key="spec",
+            template_file="qa-spec-template.md",
+        )
+        pack_context = PackContext(
+            activated_kinds=frozenset(),
+            activated_mission_types=frozenset({"qa"}),
+            pack_roots=(tmp_path / "unused-builtin-placeholder", org_root),
+            org_pack_names=("org-pack",),
+            repo_root=tmp_path,
+        )
+
+        with patch(
+            "charter.pack_context.PackContext.from_config", return_value=pack_context
+        ):
+            bundle = resolve_mission_type_context(tmp_path, mission_type="qa")
+
+        assert bundle.action_sequence == ["design", "implement"]
+        assert bundle.template_set is not None
+        assert dict(bundle.template_set) == {"spec": "qa-spec-template.md"}
+
+    def test_project_layer_omitting_action_sequence_raises_named_error(
+        self, tmp_path: Path
+    ) -> None:
+        """A project-layer file overriding an org-layer entry with the same
+        ``id``, where the project-layer file omits ``action_sequence``, must
+        raise :class:`MissionTypeEmptyActionSequenceError` naming the
+        ``project`` layer -- not a field-merged inherit of the org-layer's
+        populated value (spec.md Edge Cases, full per-compound-key
+        replacement -- MissionTypeRepository does not inherit
+        BaseDoctrineRepository, so the field-merge ADR
+        ``docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md`` does
+        not govern it) and not a silent resolve to ``[]`` (CL-003/FR-004,
+        closed by WP06).
+
+        Before WP06 this test asserted ``bundle.action_sequence == []`` --
+        its own docstring at the time said so explicitly ("This test does
+        not yet assert the eventual loud failure ... that is WP06's job").
+        That was always documented as the CL-003 silent-degradation gap
+        WP06 closes, not a contract this test intended to freeze, so it is
+        re-pinned to the loud-failure contract here (DIRECTIVE_041: judge
+        the test, not git-blame) rather than deleted -- the setup (project
+        overriding org, full-replace semantics) remains valid coverage.
+        """
+        _git_init_minimal(tmp_path)
+        org_root = tmp_path / "org-pack"
+        _write_layered_mission_type_yaml(
+            org_root / "mission_types",
+            "shared.yaml",
+            "shared",
+            action_sequence=["org-step"],
+        )
+        _write_layered_mission_type_yaml(
+            tmp_path / ".kittify" / "missions" / "mission_types",
+            "shared.yaml",
+            "shared",
+            action_sequence=None,
+        )
+        pack_context = PackContext(
+            activated_kinds=frozenset(),
+            activated_mission_types=frozenset({"shared"}),
+            pack_roots=(tmp_path / "unused-builtin-placeholder", org_root),
+            org_pack_names=("org-pack",),
+            repo_root=tmp_path,
+        )
+
+        with (
+            patch("charter.pack_context.PackContext.from_config", return_value=pack_context),
+            pytest.raises(MissionTypeEmptyActionSequenceError) as exc_info,
+        ):
+            resolve_mission_type_context(tmp_path, mission_type="shared")
+
+        # Full-replace, not field-merge: the project layer's own missing
+        # action_sequence wins outright -- it must NOT silently inherit the
+        # org layer's populated ["org-step"], and it must not silently
+        # resolve to [] either (CL-003/FR-004).
+        err = exc_info.value
+        assert isinstance(err, MissionTypeEmptyActionSequenceError)
+        assert err.mission_type_id == "shared"
+        assert err.layer == "project"
+
+
+# ---------------------------------------------------------------------------
+# WP06/T013-T014 — loud-fail for the empty-action-sequence degradation
+# (FR-004/CL-003/NFR-005). The regression test below was committed RED
+# first (NFR-005): at that commit MissionTypeEmptyActionSequenceError did
+# not exist in production code and _resolve_action_slot still returned
+# `list(mission.action_sequence or [])` unconditionally, silently
+# degrading to `[]` -- confirmed by running this test in isolation before
+# the fix commit landed (see this WP's commit history for the verbatim RED
+# output). The fix commit (T014) added the exception class and its raise
+# site and made this test GREEN.
+# ---------------------------------------------------------------------------
+
+
+class TestResolveActionSequenceLayerHelper:
+    """Direct coverage of ``resolve_action_sequence_layer``'s own two
+    remaining branches (WP06 diff-coverage): the protected-pack-root skip
+    and the built-in fallback. Neither is reachable through the full
+    ``resolve_mission_type_context()`` pipeline, given that helper's own
+    precondition -- it is only ever called once a type's action sequence is
+    already known to be empty, which no built-in type's is (see
+    :class:`MissionTypeEmptyActionSequenceError`'s docstring) -- so this
+    exercises the private helper directly, mirroring this file's own
+    ``_action_sequence()``-direct-import convention in
+    ``test_action_sequence_dispatch.py``.
+    """
+
+    def test_protected_pack_root_is_skipped_and_falls_through_to_builtin(
+        self, tmp_path: Path
+    ) -> None:
+        """A ``pack_root`` equal to the built-in-equivalent directory's
+        parent is skipped (already covered by that layer), and when no
+        other layer has the file either, the helper falls through to the
+        honest ``"built-in"`` default rather than raising a second error.
+        """
+        from charter.mission_type_profiles import resolve_action_sequence_layer
+
+        mission_types_dirs = (tmp_path / "builtin-equivalent" / "mission_types",)
+        pack_context = PackContext(
+            activated_kinds=frozenset(),
+            activated_mission_types=frozenset(),
+            pack_roots=(tmp_path / "builtin-equivalent",),
+            org_pack_names=(),
+            repo_root=tmp_path,
+        )
+
+        layer = resolve_action_sequence_layer(
+            "no-such-type",
+            mission_types_dirs=mission_types_dirs,
+            pack_context=pack_context,
+        )
+
+        assert layer == "built-in"
+
+
+class TestEmptyActionSequenceLoudFail:
+    """FR-004/CL-003 (WP06): resolving a non-built-in-layer mission type
+    whose YAML carries only ``schema_version``/``id``/``display_name`` (no
+    ``action_sequence``) must raise :class:`MissionTypeEmptyActionSequenceError`
+    naming both the mission-type id and the resolving layer -- not silently
+    degrade to ``[]``. This is the mission's own dominant risk (CL-003): a
+    mission of that type would otherwise resolve "successfully" and plan
+    nothing, with no error anywhere.
+    """
+
+    def setup_method(self) -> None:
+        # PR-TESTS-002: see ``TestPackContextProjection.setup_method``.
+        MissionTypeRepository.cache_clear()
+
+    def teardown_method(self) -> None:
+        MissionTypeRepository.cache_clear()
+
+    def test_org_layer_type_with_no_action_sequence_raises_named_error(
+        self, tmp_path: Path
+    ) -> None:
+        """The canonical CL-003 example: an org-pack mission-type YAML with
+        no ``action_sequence`` key at all resolves loudly, naming the id and
+        the ``org`` layer it resolved from -- not a clean resolve to ``[]``.
+        """
+        _git_init_minimal(tmp_path)
+        org_root = tmp_path / "org-pack"
+        _write_layered_mission_type_yaml(
+            org_root / "mission_types",
+            "qa.yaml",
+            "qa",
+            action_sequence=None,
+        )
+        pack_context = PackContext(
+            activated_kinds=frozenset(),
+            activated_mission_types=frozenset({"qa"}),
+            pack_roots=(tmp_path / "unused-builtin-placeholder", org_root),
+            org_pack_names=("org-pack",),
+            repo_root=tmp_path,
+        )
+
+        with (
+            patch("charter.pack_context.PackContext.from_config", return_value=pack_context),
+            pytest.raises(MissionTypeEmptyActionSequenceError) as exc_info,
+        ):
+            resolve_mission_type_context(tmp_path, mission_type="qa")
+
+        err = exc_info.value
+        assert isinstance(err, MissionTypeEmptyActionSequenceError)
+        assert err.mission_type_id == "qa"
+        assert err.layer == "org"
+        assert "qa" in str(err)
+        assert "org" in str(err)
+
+
+# ---------------------------------------------------------------------------
+# WP06/T015 — mission create propagates the same exception TYPE (User Story
+# 2 AC2). isinstance-only, never message substring-matching.
+# ---------------------------------------------------------------------------
+
+
+class TestMissionCreatePropagatesEmptyActionSequenceError:
+    """``mission create`` against a misconfigured org/project mission type
+    propagates :class:`MissionTypeEmptyActionSequenceError` -- the SAME
+    exception type FR-004's resolver-level raise produces, asserted via
+    ``isinstance`` (User Story 2 AC2), not message substring-matching.
+
+    Call-path trace confirming no intermediate ``except Exception`` swallows
+    or re-wraps the exception: ``create_mission_core``
+    (``src/specify_cli/core/mission_creation.py``) calls
+    ``resolve_mission_type_context`` directly at its mission-type-resolution
+    step, with no surrounding try/except of its own -- the only two
+    ``except Exception`` blocks in that function guard unrelated
+    best-effort event emission far downstream, after the point this call
+    never reaches once it raises. ``create_mission_core``'s own docstring
+    states it is "the programmatic API ... [it] returns a structured result
+    and raises domain exceptions instead of calling ``typer.Exit()``" --
+    unlike the Typer CLI command wrapper
+    (``specify_cli/cli/commands/agent/mission_create.py``'s
+    ``_run_create_core_phase``), which DOES catch ``except Exception`` and
+    convert to ``typer.Exit(1)`` at the CLI presentation boundary. This test
+    calls ``create_mission_core`` directly for that reason -- it is the
+    documented entry point that raises the real exception type rather than
+    a process exit code.
+    """
+
+    def setup_method(self) -> None:
+        # PR-TESTS-002: see ``TestPackContextProjection.setup_method``.
+        MissionTypeRepository.cache_clear()
+
+    def teardown_method(self) -> None:
+        MissionTypeRepository.cache_clear()
+
+    def test_create_mission_propagates_named_exception_type(self, tmp_path: Path) -> None:
+        from specify_cli.core.mission_creation import create_mission_core  # noqa: PLC0415
+
+        _git_init_minimal(tmp_path)
+        subprocess.run(
+            ["git", "commit", "-m", "init", "--allow-empty"],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+        )
+        org_root = tmp_path / "org-pack"
+        _write_layered_mission_type_yaml(
+            org_root / "mission_types",
+            "qa.yaml",
+            "qa",
+            action_sequence=None,
+        )
+        pack_context = PackContext(
+            activated_kinds=frozenset(),
+            activated_mission_types=frozenset({"qa"}),
+            pack_roots=(tmp_path / "unused-builtin-placeholder", org_root),
+            org_pack_names=("org-pack",),
+            repo_root=tmp_path,
+        )
+
+        with (
+            patch("charter.pack_context.PackContext.from_config", return_value=pack_context),
+            pytest.raises(MissionTypeEmptyActionSequenceError) as exc_info,
+        ):
+            create_mission_core(
+                tmp_path,
+                "qa-mission",
+                mission="qa",
+                friendly_name="QA Mission",
+                purpose_tldr="Exercise the misconfigured qa type.",
+                purpose_context=(
+                    "Confirms create_mission_core propagates FR-004's exception "
+                    "type end to end, not a re-wrapped generic error."
+                ),
+            )
+
+        err = exc_info.value
+        assert isinstance(err, MissionTypeEmptyActionSequenceError)
+        assert err.mission_type_id == "qa"
+        assert err.layer == "org"

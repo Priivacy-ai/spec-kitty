@@ -35,14 +35,11 @@ and a different question from completeness. The practical consequence: an
 uncollected count from this model is exact on a green run and a LOWER BOUND on a
 red one.
 
-THE MODEL IS BASELINE-FREE (deliberate, and checked below). The sibling ratchet
-``test_gate_coverage.py`` freezes today's orphan surface in
-``_gate_coverage_baseline.json`` and its own failure message ends "regenerate
-the baseline with ``--update-baseline``". Bolting gating-awareness onto that
-ratchet would have produced a four-figure orphan list plus one documented
-command that erases it. This gate therefore reads no baseline, owns no
-allowlist, and has no regeneration path: the only way to make it green is to
-make a job collect the test.
+THE MODEL IS BASELINE-FREE (deliberate, and checked below). Sanitation removes
+the legacy orphan-file baseline and its update/check CLI rather than leaving a
+mutable, unenforced second authority beside this oracle. This gate reads no
+baseline, owns no allowlist, and has no regeneration path: the only way to make
+it green is to make a job collect the test.
 
 WHY THE WORST-CASE FILTER STATE, AND WHY ONE EVALUATION SUFFICES. See
 :func:`tests.architectural._gate_coverage.main_push_active_jobs` — the
@@ -70,7 +67,7 @@ from tests.architectural import _gate_coverage as gc
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-pytestmark = pytest.mark.architectural
+pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 
 _THIS_FILE = Path(__file__)
 
@@ -308,21 +305,13 @@ def baseline_reaches(source: str) -> set[str]:
     module, ``from … import`` of a baseline symbol, ``getattr`` with a string
     constant, and path construction from a baseline filename.
 
-    Residual, stated rather than papered over: **any binding this static reader
-    cannot follow** defeats it — a name assembled at runtime
+    Residual, stated rather than papered over: a name assembled at runtime
     (``"load_" + "baseline"``), a filename bound to a variable before reaching
     ``Path``, ``importlib.import_module``, ``__import__``, ``sys.modules[…]``, a
     module returned from a function, and tuple-unpack or walrus alias binding
-    (``a, b = gc, None``; ``(alias := gc)``). Review enumerated these; chasing
-    them statically is unbounded.
-
-    **The behavioural half is the load-bearing half**, and the module-identity
-    family above is precisely what it covers: every one of those bindings
-    resolves to the same module object, so
-    :func:`test_gate_reads_no_ratchet_baseline`'s ``monkeypatch.setattr`` on
-    ``load_baseline`` bites them all and still requires the computation to
-    complete. The static half exists to make an *accidental* reintroduction
-    legible in review, not to defeat a determined adversary.
+    (``a, b = gc, None``; ``(alias := gc)``) are outside this source checker.
+    The load-bearing companion assertion is structural: the removed orphan
+    baseline APIs and sidecar must not exist on the live model at all.
     """
     tree = ast.parse(source)
     aliases = _module_aliases(tree)
@@ -375,6 +364,46 @@ def test_every_test_node_is_collected_on_a_push_to_main(
         "intact, as `slow-tests` and `e2e-cross-cutting` already do. There is "
         "no baseline and no allowlist to add the file to."
     )
+
+
+def test_oracle_has_independent_pr_route_and_operator_gate(
+    universe: list[gc.TestRecord],
+    gates: list[gc.Gate],
+    models: dict[str, gc.WorkflowModel],
+) -> None:
+    """A selector regression cannot deselect both this oracle and its route proof.
+
+    ``arch-adversarial`` is an in-repository operator gate through
+    ``quality-gate``; it is not represented here as a GitHub branch-protection
+    required context.  The module also carries ``fast`` so workflow changes run
+    this proof independently in ``fast-tests-core-misc``.
+    """
+    nodeid = (
+        "tests/architectural/test_ci_collection_completeness.py::"
+        "test_every_test_node_is_collected_on_a_push_to_main"
+    )
+    record = next((item for item in universe if item["nodeid"] == nodeid), None)
+    assert record is not None, f"retained oracle did not collect as {nodeid}"
+
+    selecting = {
+        gate.job
+        for gate in gates
+        if gc.CompiledGate(gate).selects(
+            record["relpath"], record["nodeid"], set(record["markers"])
+        )
+    }
+    assert "arch-adversarial" in selecting
+    assert "fast-tests-core-misc" in selecting, (
+        "the route proof lost its independent fast owner; an arch-selector "
+        "regression could now deselect both the oracle and this proof"
+    )
+
+    ci = models["ci-quality.yml"]
+    assert gc.gate_is_always_on_modulo_full_ci_block(
+        ci.job_if["arch-adversarial"], require_always=True
+    )
+    assert ci.job_needs["arch-adversarial"] == ()
+    assert "arch-adversarial" in ci.job_needs["quality-gate"]
 
 
 def test_issue_2957_named_files_are_collected_on_a_push_to_main(
@@ -534,16 +563,12 @@ def test_gate_reads_no_ratchet_baseline(
     universe: list[gc.TestRecord],
     gates: list[gc.Gate],
     models: dict[str, gc.WorkflowModel],
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
 ) -> None:
-    """Baseline-free, proved twice: by source and by behaviour.
+    """Baseline-free by source and by successful live computation.
 
-    ``test_gate_coverage.py``'s orphan ratchet ends its failure message with
-    "regenerate the baseline with ``--update-baseline``". If this gate could
-    reach that file, a four-figure finding would be one documented command away
-    from vanishing. So: this module names no baseline surface, and the
-    computation still completes with the baseline reader sabotaged.
+    A resurrected baseline/update surface would make a large finding one command
+    away from vanishing. This module may name those forbidden shapes only in its
+    static fault probes; the live oracle must compute without them.
     """
     forbidden = baseline_reaches(_THIS_FILE.read_text(encoding="utf-8"))
     assert not forbidden, (
@@ -551,13 +576,20 @@ def test_gate_reads_no_ratchet_baseline(
         "baseline-backed completeness gate can be silenced by regenerating the "
         "baseline, which is the greenwashing path WP10 exists to avoid"
     )
+    removed_surfaces = {
+        "BASELINE_PATH",
+        "_baseline_payload",
+        "_print_check",
+        "check",
+        "load_baseline",
+        "update_baseline",
+    }
+    resurrected = sorted(name for name in removed_surfaces if hasattr(gc, name))
+    assert not resurrected, f"removed orphan-baseline API resurfaced: {resurrected}"
+    assert not _THIS_FILE.with_name(_BASELINE_FILENAMES[0]).exists(), (
+        "removed mutable orphan baseline sidecar resurfaced"
+    )
 
-    def _refuse() -> dict[str, object]:
-        message = "the completeness gate must not read the orphan ratchet baseline"
-        raise AssertionError(message)
-
-    monkeypatch.setattr(gc, "load_baseline", _refuse)
-    monkeypatch.setattr(gc, "BASELINE_PATH", tmp_path / "absent.json")
     report = gc.main_push_uncollected(universe, gates, models)
     assert report.total == len(universe)
 
@@ -865,3 +897,91 @@ def test_analyze_default_still_models_every_job(
 ) -> None:
     """The ``active_jobs=None`` default is unchanged for existing callers."""
     assert gc.analyze(gates, universe) == gc.analyze(gates, universe, None)
+
+
+def _union_src_cov_targets() -> set[str]:
+    """The union of every ``--cov`` target across all modeled workflows."""
+    targets: set[str] = set()
+    for name in gc.WORKFLOW_FILES:
+        model = gc.load_workflow_model(gc.WORKFLOWS_DIR / name)
+        for job_targets in model.cov_targets.values():
+            targets.update(job_targets)
+    return targets
+
+
+def test_wp01_kernel_extraction_preserves_coverage_and_delegates() -> None:
+    """WP01 (#3447, FR-001/FR-002, C-004): the ``kernel-tests`` job delegates to
+    the reusable ``module-kernel.yml`` workflow, and ``src/kernel`` remains a
+    modeled coverage emitter after the extraction.
+
+    RED on the planning base (``module-kernel.yml`` did not exist and the
+    ``kernel-tests`` job had inline ``steps:``); GREEN once the kernel suite is
+    lifted into the reusable workflow that ci-quality invokes via ``uses:``.
+    Non-vacuous: it fails if the reusable workflow is dropped, if the delegation
+    is removed, or if the extraction loses the ``src/kernel`` coverage emitter or
+    renames ``coverage-kernel.xml`` (which the glob aggregators depend on, C-004).
+    """
+    module_kernel = gc.WORKFLOWS_DIR / "module-kernel.yml"
+    assert module_kernel.exists(), "module-kernel.yml reusable workflow is missing"
+
+    module_text = module_kernel.read_text(encoding="utf-8")
+    # Reusable-workflow trigger (no standalone push/PR trigger — runs in-run).
+    assert gc.load_workflow_model(module_kernel).push_branches == ()
+    assert "workflow_call" in module_text
+    # C-004: the coverage artifact filename is preserved for glob aggregation.
+    assert "coverage-kernel.xml" in module_text
+
+    # The reusable workflow is the one that emits the kernel coverage.
+    module_targets = {
+        target
+        for job_targets in gc.load_workflow_model(module_kernel).cov_targets.values()
+        for target in job_targets
+    }
+    assert any(gc.cov_target_repo_path(t) == "src/kernel" for t in module_targets)
+
+    # ci-quality's kernel-tests job delegates to the reusable workflow.
+    ci_quality_text = (gc.WORKFLOWS_DIR / "ci-quality.yml").read_text(encoding="utf-8")
+    assert "uses: ./.github/workflows/module-kernel.yml" in ci_quality_text
+
+    # NFR-001: the extraction did not drop src/kernel from the modeled emitters.
+    assert any(
+        gc.cov_target_repo_path(t) == "src/kernel" for t in _union_src_cov_targets()
+    )
+
+
+def test_splice_inlines_delegate_steps_into_caller() -> None:
+    """WP03 (#3447): load_spliced_workflow inlines a reusable-workflow caller's
+    delegate steps, so ci-quality's kernel-tests caller is modeled with the
+    delegate's --cov emitter AND a gate — the mechanism every CI-model guard
+    (including raw readers via load_spliced_workflow) depends on."""
+    model = gc.load_workflow_model(gc.WORKFLOWS_DIR / "ci-quality.yml")
+    kernel_targets = model.cov_targets.get("kernel-tests", frozenset())
+    assert any(gc.cov_target_repo_path(t) == "src/kernel" for t in kernel_targets)
+
+    kernel_gates = [
+        g
+        for g in gc.parse_workflow(gc.WORKFLOWS_DIR / "ci-quality.yml")
+        if g.job == "kernel-tests"
+    ]
+    assert kernel_gates
+    assert any("tests/kernel" in p for g in kernel_gates for p in g.paths)
+
+    # The reusable module is not an independent suite runner.
+    assert "module-kernel.yml" not in gc.WORKFLOW_FILES
+    assert "module-kernel.yml" not in gc.discover_pytest_workflows()
+
+
+def test_every_local_uses_target_resolves_on_disk() -> None:
+    """Review F4: every ``uses: ./.github/workflows/X`` caller in a modeled
+    workflow must resolve to a real file, else the splice silently drops the
+    caller's gate (fail-open). Guards against a dangling reusable reference."""
+    for name in gc.WORKFLOW_FILES:
+        data = gc.load_spliced_workflow(gc.WORKFLOWS_DIR / name)
+        for job in (data.get("jobs") or {}).values():
+            if not isinstance(job, dict):
+                continue
+            target = gc._job_uses_local(job)
+            if target is not None:
+                assert (gc.WORKFLOWS_DIR / target).exists(), (
+                    f"{name}: uses ./.github/workflows/{target} does not resolve"
+                )

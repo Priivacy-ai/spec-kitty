@@ -415,6 +415,9 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     # #2335: the for_review deliverable-recovery pair (lane porcelain parser +
     # pre-guard auto-commit) joins the family surface like every other def.
     _lane_deliverable_paths as _lane_deliverable_paths,
+    # write-path-integrity WP02 (#2549, FR-003): the Seam-A residue filter for
+    # the raw lane-deliverable commit joins the family surface like every other def.
+    _drop_lane_coord_residue as _drop_lane_coord_residue,
     _mt_approval_facts as _mt_approval_facts,
     _mt_build_request as _mt_build_request,
     # WP06 (wp-runtime-state-eviction, FR-006/FR-008, T023): the god-write cut
@@ -639,7 +642,16 @@ def move_task(
     shell_pid: Annotated[str | None, typer.Option("--shell-pid", help="Shell PID")] = None,
     note: Annotated[str | None, typer.Option("--note", help="History note")] = None,
     review_feedback_file: Annotated[
-        Path | None, typer.Option("--review-feedback-file", help="Path to review feedback file (required for --to planned, including with --force)")
+        Path | None,
+        typer.Option(
+            "--review-feedback-file",
+            help=(
+                "Path to review feedback file. Required for review-rejection edges "
+                "(--to planned, incl. with --force; and in_review->in_progress). "
+                "Recorded as the transition's on-wire review_ref rationale; omitting "
+                "it makes the status event contract-invalid and hosted sync drops it."
+            ),
+        ),
     ] = None,
     approval_ref: Annotated[str | None, typer.Option("--approval-ref", help="Approval reference for approval/done transitions (e.g., PR#42)")] = None,
     reviewer: Annotated[str | None, typer.Option("--reviewer", help="Reviewer name (auto-detected from git if omitted)")] = None,
@@ -698,6 +710,13 @@ def move_task(
     ] = False,
 ) -> None:
     """Move task between lanes (planned → doing → for_review → approved → done).
+
+    Review-rejection edges (a backward move out of review — ``--to planned`` from
+    in_progress/for_review/in_review/approved, or ``in_review → in_progress``) MUST
+    carry a rationale: pass ``--review-feedback-file`` (or ``--note``). That
+    rationale is emitted as the status event's ``review_ref``/reason and is
+    required by the shared status contract; a rejection emitted without it is
+    accepted locally but silently rejected by hosted sync, so it never propagates.
 
     Examples:
         spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json

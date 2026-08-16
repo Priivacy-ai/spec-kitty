@@ -30,12 +30,18 @@ from __future__ import annotations
 import ast
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
 
 import pytest
 
-from specify_cli.tracker.saas_client import SaaSTrackerClient, SaaSTrackerClientError
+from specify_cli.tracker.saas_client import (
+    SaaSTrackerClient,
+    SaaSTrackerClientError,
+    _HostedTrackerAuthority,
+)
+from specify_cli.sync.consent import record_project_opt_in
+from specify_cli.sync.project_store import ProjectSyncStore
 
 pytestmark = pytest.mark.fast
 
@@ -158,9 +164,10 @@ def write_project_config(
     """
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
+    project_uuid = str(uuid4())
     lines = [
         "project:",
-        f"  uuid: {uuid4()}",
+        f"  uuid: {project_uuid}",
         f"  slug: {PROJECT_SLUG}",
         "  node_id: node12345678",
         f"  repo_slug: acme-holdings/{PROJECT_SLUG}",
@@ -175,6 +182,17 @@ def write_project_config(
     if sync_enabled is not None:
         lines += ["sync:", f"  enabled: {str(sync_enabled).lower()}"]
     (config_dir / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    if sync_enabled is True:
+        record_project_opt_in(project_uuid, actor="tracker-consent-positive")
+        with ProjectSyncStore(project_uuid).unit_of_work() as unit:
+            unit.execute(
+                "INSERT INTO project_target_admissions "
+                "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+                "configuration_generation, admission_state, admission_generation, binding_audience) "
+                "VALUES (?, 'https://app.spec-kitty.ai', 'account-test', 'private-test', 1, "
+                "'admitted', 'admission-test', 'binding-test')",
+                (project_uuid,),
+            )
 
 
 @pytest.fixture
@@ -196,8 +214,12 @@ def sink(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
         lambda: "valid-token",
     )
     monkeypatch.setattr(
-        "specify_cli.tracker.saas_client._current_team_slug_sync",
-        lambda: "acme-team",
+        "specify_cli.tracker.saas_client._hosted_authority_for_token",
+        lambda _token: _HostedTrackerAuthority(
+            account_identity="account-test",
+            private_teamspace_id="private-test",
+            collaborative_team_slug="acme-team",
+        ),
     )
     return recorded
 
@@ -210,8 +232,13 @@ def isolated_machine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     home.mkdir()
     repo_root.mkdir()
     monkeypatch.setenv("HOME", str(home))
-    monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".spec-kitty"))
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    # Pin the resolved hosted target to the admitted target row these tests
+    # write. Without this the resolved URL is whatever the developer's shell
+    # (or DEFAULT_SERVER_URL) says, and the WP05 target-authority check
+    # refuses with target_authority_mismatch on machines/CI where they differ.
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://app.spec-kitty.ai")
     monkeypatch.chdir(repo_root)
     return repo_root
 
@@ -235,15 +262,18 @@ def refusal_of(call: Any, client: SaaSTrackerClient) -> SaaSTrackerClientError |
 
 def bind_call(client: SaaSTrackerClient) -> dict[str, Any]:
     """The POST that fires non-interactively during mission creation."""
-    return client.bind_mission_origin(
-        "linear",
-        PROJECT_SLUG,
-        mission_id=MISSION_ID,
-        mission_slug=MISSION_SLUG,
-        external_issue_id="issue-456",
-        external_issue_key="ENG-99",
-        external_issue_url="https://linear.app/acme/ENG-99",
-        title=ISSUE_TITLE,
+    return cast(
+        dict[str, Any],
+        client.bind_mission_origin(
+            "linear",
+            PROJECT_SLUG,
+            mission_id=MISSION_ID,
+            mission_slug=MISSION_SLUG,
+            external_issue_id="issue-456",
+            external_issue_key="ENG-99",
+            external_issue_url="https://linear.app/acme/ENG-99",
+            title=ISSUE_TITLE,
+        ),
     )
 
 
@@ -252,9 +282,7 @@ def bind_call(client: SaaSTrackerClient) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def test_consenting_project_still_transmits_the_engagement_name(
-    isolated_machine: Path, sink: list[dict[str, Any]]
-) -> None:
+def test_consenting_project_still_transmits_the_engagement_name(isolated_machine: Path, sink: list[dict[str, Any]]) -> None:
     """POSITIVE CONTROL: a project that opted in ships, and the harness sees it.
 
     This test must pass both before and after the fix. It proves the recording
@@ -271,13 +299,8 @@ def test_consenting_project_still_transmits_the_engagement_name(
     # records exactly one request, and ``transmitted_text`` still finds the
     # engagement name — in the lookup's URL. The count cannot tell those apart,
     # so the control would go on certifying a transport that binds nothing.
-    assert [record["method"] for record in sink] == ["POST"], (
-        f"consenting project must transmit the authoritative bind POST; recorded {sink!r}"
-    )
-    assert MISSION_SLUG in transmitted_text(sink), (
-        "the control must actually carry the engagement name, or the absence "
-        "assertions in this file prove nothing"
-    )
+    assert [record["method"] for record in sink] == ["POST"], f"consenting project must transmit the authoritative bind POST; recorded {sink!r}"
+    assert MISSION_SLUG in transmitted_text(sink), "the control must actually carry the engagement name, or the absence assertions in this file prove nothing"
 
 
 # ---------------------------------------------------------------------------
@@ -285,9 +308,7 @@ def test_consenting_project_still_transmits_the_engagement_name(
 # ---------------------------------------------------------------------------
 
 
-def test_unconsented_project_transmits_no_engagement_name(
-    isolated_machine: Path, sink: list[dict[str, Any]]
-) -> None:
+def test_unconsented_project_transmits_no_engagement_name(isolated_machine: Path, sink: list[dict[str, Any]]) -> None:
     """THE LEAK: a project with no consent record must ship nothing.
 
     Identical to the control except that no consent was ever recorded — the
@@ -299,27 +320,17 @@ def test_unconsented_project_transmits_no_engagement_name(
     refusal = refusal_of(bind_call, SaaSTrackerClient(project_root=isolated_machine))
 
     body = transmitted_text(sink)
-    assert ENGAGEMENT not in body, (
-        f"the client engagement name reached the transport: {sink!r}"
-    )
-    assert MISSION_SLUG not in body, (
-        f"the mission slug — an engagement name — reached the transport: {sink!r}"
-    )
+    assert ENGAGEMENT not in body, f"the client engagement name reached the transport: {sink!r}"
+    assert MISSION_SLUG not in body, f"the mission slug — an engagement name — reached the transport: {sink!r}"
     assert ISSUE_TITLE not in body, f"the issue title reached the transport: {sink!r}"
-    assert sink == [], (
-        "a project that never opted in must not reach the transport at all; "
-        f"recorded {sink!r}"
-    )
+    assert sink == [], f"a project that never opted in must not reach the transport at all; recorded {sink!r}"
     assert refusal is not None, "the call must refuse, not silently no-op"
     assert refusal.error_code == "project_consent_denied", (
-        "a refusal must be distinguishable from an auth or transport failure, or "
-        "the operator will go and check their token"
+        "a refusal must be distinguishable from an auth or transport failure, or the operator will go and check their token"
     )
 
 
-def test_machine_global_arming_is_not_a_grant(
-    isolated_machine: Path, sink: list[dict[str, Any]], monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_machine_global_arming_is_not_a_grant(isolated_machine: Path, sink: list[dict[str, Any]], monkeypatch: pytest.MonkeyPatch) -> None:
     """The incident's own mechanism must not authorize a send.
 
     ``SPEC_KITTY_ENABLE_SAAS_SYNC`` is machine-global *arming*. One exported
@@ -331,31 +342,23 @@ def test_machine_global_arming_is_not_a_grant(
 
     refusal = refusal_of(bind_call, SaaSTrackerClient(project_root=isolated_machine))
 
-    assert ENGAGEMENT not in transmitted_text(sink), (
-        f"machine-global arming carried the engagement name off the machine: {sink!r}"
-    )
+    assert ENGAGEMENT not in transmitted_text(sink), f"machine-global arming carried the engagement name off the machine: {sink!r}"
     assert sink == [], "machine-global arming must never stand in for project consent"
     assert refusal is not None
 
 
-def test_project_local_refusal_is_honoured(
-    isolated_machine: Path, sink: list[dict[str, Any]]
-) -> None:
+def test_project_local_refusal_is_honoured(isolated_machine: Path, sink: list[dict[str, Any]]) -> None:
     """A committed, reviewable ``sync.enabled: false`` denies."""
     write_project_config(isolated_machine, sync_enabled=False)
 
     refusal = refusal_of(bind_call, SaaSTrackerClient(project_root=isolated_machine))
 
-    assert ENGAGEMENT not in transmitted_text(sink), (
-        f"a committed refusal was overridden and the engagement name shipped: {sink!r}"
-    )
+    assert ENGAGEMENT not in transmitted_text(sink), f"a committed refusal was overridden and the engagement name shipped: {sink!r}"
     assert sink == []
     assert refusal is not None
 
 
-def test_undetermined_project_denies(
-    isolated_machine: Path, sink: list[dict[str, Any]]
-) -> None:
+def test_undetermined_project_denies(isolated_machine: Path, sink: list[dict[str, Any]]) -> None:
     """An unresolvable project is a refusal, not a proceed (FR-003 / NFR-001).
 
     A client constructed without being told whose data it carries cannot resolve
@@ -370,14 +373,8 @@ def test_undetermined_project_denies(
     # this test would prove nothing.
     refusal = refusal_of(bind_call, SaaSTrackerClient(project_root=None))
 
-    assert ENGAGEMENT not in transmitted_text(sink), (
-        "an unattributed transport shipped the engagement name under a nearby "
-        f"project's consent: {sink!r}"
-    )
-    assert sink == [], (
-        "a transport with no project attribution must refuse even when a "
-        "consenting project happens to exist nearby"
-    )
+    assert ENGAGEMENT not in transmitted_text(sink), f"an unattributed transport shipped the engagement name under a nearby project's consent: {sink!r}"
+    assert sink == [], "a transport with no project attribution must refuse even when a consenting project happens to exist nearby"
     assert refusal is not None
     assert "could not be determined" in str(refusal)
 
@@ -399,10 +396,7 @@ TRACKER_CONSTRUCTION_SITE_FLOOR = 3
 #: *boundary* guard. This predicate counts every match regardless of call form —
 #: it accepts an attribute receiver as well as a bare name — and so has no
 #: positional blind spot.
-TRACKER_PREDICATE_BOUND = (
-    "literal class-name match on `SaaSTrackerClient`; aliases, factories and "
-    "injected transports are out of scope"
-)
+TRACKER_PREDICATE_BOUND = "literal class-name match on `SaaSTrackerClient`; aliases, factories and injected transports are out of scope"
 
 
 def _tracker_site_attribution(node: ast.Call) -> tuple[bool, bool]:
@@ -503,11 +497,8 @@ def test_every_production_construction_site_attributes_its_project() -> None:
     # this exercises the SAME code the failure message uses rather than a copy of
     # it. A wrong base otherwise manifests only INSIDE a red, where no green can
     # catch it.
-    assert _repo_relative(_SRC_TREE / "specify_cli" / "egress.py") == (
-        "src/specify_cli/egress.py"
-    ), (
-        "_repo_relative no longer yields repo-relative paths, so every path this "
-        "guard names in a failure would be wrong — and only on a red."
+    assert _repo_relative(_SRC_TREE / "specify_cli" / "egress.py") == ("src/specify_cli/egress.py"), (
+        "_repo_relative no longer yields repo-relative paths, so every path this guard names in a failure would be wrong — and only on a red."
     )
 
     for path in files:
@@ -657,9 +648,7 @@ def test_no_attribution_is_a_refusal_at_the_gate_itself() -> None:
     assert "could not be determined" in refusal
 
 
-def test_sc016_denied_wording_is_pinned_for_this_transport(
-    isolated_machine: Path, sink: list[dict[str, Any]]
-) -> None:
+def test_sc016_denied_wording_is_pinned_for_this_transport(isolated_machine: Path, sink: list[dict[str, Any]]) -> None:
     """SC-016 / FR-024: the ``DENIED`` branch's merged wording, pinned here.
 
     **Added alongside the four pre-existing ``could not be determined``
@@ -695,22 +684,15 @@ def test_sc016_denied_wording_is_pinned_for_this_transport(
 
     # SC-004 clause 2 — this transport's OWN identifier set, and no foreign kind.
     assert TRACKER_EGRESS_IDENTIFIER_KINDS in text, text
-    assert TRACKER_EGRESS_IDENTIFIER_KINDS == "mission and engagement identifiers", (
-        "the tracker fragment changed; both DENIED strings survive Q2 verbatim"
-    )
-    assert "decision identifiers" not in text, (
-        "this transport carries no decision_id, so naming one overstates the "
-        f"exposure to an operator (US2-AS2): {text!r}"
-    )
+    assert TRACKER_EGRESS_IDENTIFIER_KINDS == "mission and engagement identifiers", "the tracker fragment changed; both DENIED strings survive Q2 verbatim"
+    assert "decision identifiers" not in text, f"this transport carries no decision_id, so naming one overstates the exposure to an operator (US2-AS2): {text!r}"
 
     # SC-004 clause 1 — the non-fragment portion came from the ONE shared
     # template.
     # ``endswith`` rather than ``==`` so a transport that prefixes its own
     # context onto the refusal (as the SaaS client's error type does) still
     # pins the whole rendered string.
-    rendered = _DENIED_TEMPLATE.format(
-        project_root=isolated_machine, identifiers=TRACKER_EGRESS_IDENTIFIER_KINDS
-    )
+    rendered = _DENIED_TEMPLATE.format(project_root=isolated_machine, identifiers=TRACKER_EGRESS_IDENTIFIER_KINDS)
     assert text.endswith(rendered), (
         "the rendered refusal is not this transport's fragment in the shared "
         f"template — a second presentation of the policy exists:\n"
@@ -718,9 +700,7 @@ def test_sc016_denied_wording_is_pinned_for_this_transport(
     )
 
 
-def test_a_directory_that_is_not_a_project_denies(
-    tmp_path: Path, sink: list[dict[str, Any]], monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_a_directory_that_is_not_a_project_denies(tmp_path: Path, sink: list[dict[str, Any]], monkeypatch: pytest.MonkeyPatch) -> None:
     """A path with no project identity is unidentifiable, so never consentable."""
     home = tmp_path / "home"
     stray = tmp_path / "not-a-spec-kitty-project"
@@ -731,9 +711,7 @@ def test_a_directory_that_is_not_a_project_denies(
 
     refusal = refusal_of(bind_call, SaaSTrackerClient(project_root=stray))
 
-    assert ENGAGEMENT not in transmitted_text(sink), (
-        f"an unidentifiable checkout shipped the engagement name: {sink!r}"
-    )
+    assert ENGAGEMENT not in transmitted_text(sink), f"an unidentifiable checkout shipped the engagement name: {sink!r}"
     assert sink == []
     assert refusal is not None
 
@@ -770,9 +748,7 @@ ENDPOINT_CALLS: dict[str, Any] = {
 
 
 @pytest.mark.parametrize("endpoint", sorted(ENDPOINT_CALLS))
-def test_every_endpoint_refuses_without_consent(
-    endpoint: str, isolated_machine: Path, sink: list[dict[str, Any]]
-) -> None:
+def test_every_endpoint_refuses_without_consent(endpoint: str, isolated_machine: Path, sink: list[dict[str, Any]]) -> None:
     """No endpoint may transmit for a project that has not consented.
 
     The reported instance named three POSTs. Consent is a property of the
@@ -785,9 +761,7 @@ def test_every_endpoint_refuses_without_consent(
 
     refusal = refusal_of(ENDPOINT_CALLS[endpoint], client)
 
-    assert ENGAGEMENT not in transmitted_text(sink), (
-        f"{endpoint} put the engagement name on the wire without consent: {sink!r}"
-    )
+    assert ENGAGEMENT not in transmitted_text(sink), f"{endpoint} put the engagement name on the wire without consent: {sink!r}"
     assert sink == [], f"{endpoint} transmitted without consent: {sink!r}"
     assert refusal is not None, f"{endpoint} did not refuse"
 
@@ -800,21 +774,13 @@ def test_endpoint_coverage_is_exhaustive() -> None:
     ``test_auth_transport_singleton``'s no-stale-entries check, which exists for
     the same reason.
     """
-    public = {
-        name
-        for name in vars(SaaSTrackerClient)
-        if not name.startswith("_") and callable(vars(SaaSTrackerClient)[name])
-    }
+    public = {name for name in vars(SaaSTrackerClient) if not name.startswith("_") and callable(vars(SaaSTrackerClient)[name])}
     missing = public - set(ENDPOINT_CALLS)
     stale = set(ENDPOINT_CALLS) - public
     assert not missing, (
-        f"public SaaSTrackerClient endpoints with no consent-gate test: {sorted(missing)}. "
-        "Add them to ENDPOINT_CALLS — every sender must be proven gated."
+        f"public SaaSTrackerClient endpoints with no consent-gate test: {sorted(missing)}. Add them to ENDPOINT_CALLS — every sender must be proven gated."
     )
-    assert not stale, (
-        f"ENDPOINT_CALLS names methods that no longer exist: {sorted(stale)}. "
-        "A stale entry makes the coverage assertion above pass vacuously."
-    )
+    assert not stale, f"ENDPOINT_CALLS names methods that no longer exist: {sorted(stale)}. A stale entry makes the coverage assertion above pass vacuously."
 
 
 # ---------------------------------------------------------------------------
@@ -866,18 +832,17 @@ def write_feature_dir(repo_root: Path) -> Path:
     return feature_dir
 
 
-def test_mission_creation_bind_transmits_for_a_consenting_project(
-    isolated_machine: Path, sink: list[dict[str, Any]]
-) -> None:
+def test_mission_creation_bind_transmits_for_a_consenting_project(isolated_machine: Path, sink: list[dict[str, Any]]) -> None:
     """POSITIVE CONTROL for the non-interactive path.
 
     Drives the real chain — ``consume_pending_origin_impl`` →
     ``tracker/origin.bind_mission_origin`` → the transport — with no client
     injected, so the production construction site is the one under test.
     """
-    from specify_cli.sync.runtime import reset_runtime
+    import specify_cli.sync.runtime as runtime_mod
     from specify_cli.tracker.origin_consumer import consume_pending_origin_impl
 
+    runtime_before = runtime_mod._runtime
     write_project_config(isolated_machine, sync_enabled=True)
     write_pending_origin(isolated_machine)
     feature_dir = write_feature_dir(isolated_machine)
@@ -893,24 +858,19 @@ def test_mission_creation_bind_transmits_for_a_consenting_project(
         # never reaches the bind POST reports ``True`` with one request recorded and the
         # slug in that request's URL. Naming the method is what separates "the bind
         # happened" from "something happened".
-        assert [record["method"] for record in sink] == ["POST"], (
-            f"the non-interactive path must reach the bind POST; recorded {sink!r}"
-        )
-        assert MISSION_SLUG in transmitted_text(sink), (
-            "the control must carry the engagement name for the refusal test below "
-            "to mean anything"
-        )
+        assert [record["method"] for record in sink] == ["POST"], f"the non-interactive path must reach the bind POST; recorded {sink!r}"
+        assert MISSION_SLUG in transmitted_text(sink), "the control must carry the engagement name for the refusal test below to mean anything"
     finally:
-        # #3130 fold: consume_pending_origin_impl's production call chain sets
-        # the sync.runtime._runtime singleton (E26) with no restoring finally
-        # of its own; reset it so this test does not leave it set for the
-        # rest of the worker process.
-        reset_runtime()
+        # Preserve the incoming process-global state.  Unconditionally resetting
+        # here made this test order-dependent: when an earlier test had already
+        # created the runtime, teardown changed that live singleton to ``None``.
+        if runtime_before is None:
+            runtime_mod.reset_runtime()
+        else:
+            assert runtime_mod._runtime is runtime_before
 
 
-def test_mission_creation_bind_leaks_nothing_without_consent(
-    isolated_machine: Path, sink: list[dict[str, Any]]
-) -> None:
+def test_mission_creation_bind_leaks_nothing_without_consent(isolated_machine: Path, sink: list[dict[str, Any]]) -> None:
     """THE ONE THAT MATTERS: no operator action is required to reach this send.
 
     ``core/mission_creation.py`` → ``core.adapters.consume_pending_origin`` →
@@ -928,20 +888,14 @@ def test_mission_creation_bind_leaks_nothing_without_consent(
     write_pending_origin(isolated_machine)
     feature_dir = write_feature_dir(isolated_machine)
 
-    attempted, succeeded, error_msg, _meta = consume_pending_origin_impl(
-        isolated_machine, feature_dir, {"mission_id": MISSION_ID, "mission_slug": MISSION_SLUG}
-    )
+    attempted, succeeded, error_msg, _meta = consume_pending_origin_impl(isolated_machine, feature_dir, {"mission_id": MISSION_ID, "mission_slug": MISSION_SLUG})
 
-    assert sink == [], (
-        "mission creation must not transmit an engagement name for a project "
-        f"that never opted in; recorded {sink!r}"
-    )
+    assert sink == [], f"mission creation must not transmit an engagement name for a project that never opted in; recorded {sink!r}"
     assert ENGAGEMENT not in transmitted_text(sink)
     assert ISSUE_TITLE not in transmitted_text(sink)
 
     assert attempted is True
     assert succeeded is False
     assert error_msg is not None and "consent" in error_msg.lower(), (
-        "the refusal must reach the operator through origin_binding_error rather "
-        f"than failing silently; got {error_msg!r}"
+        f"the refusal must reach the operator through origin_binding_error rather than failing silently; got {error_msg!r}"
     )

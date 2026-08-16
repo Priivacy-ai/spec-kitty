@@ -10,17 +10,14 @@ Covers all nine behaviours from the WP05 spec (T024):
 5. amended commit (same build_id) replaces prior pending entry
 6. load from non-existent file returns empty SyncState (no exception)
 7. save / load round-trip preserves all fields
-8. flush skips frame whose git_hash matches last_saas_confirmed_hash
+8. a global git-hash watermark cannot suppress an exact pending frame
 9. record_local_commit_ack leaves other pending entries intact
 
-These are the **lifecycle** behaviours — amend replacement, chronological ordering,
-ack bookkeeping, PII absence. As of #3030 T027 both the emit and the flush path are
-gated on per-project hosted-sync consent, so the fixtures below give the temporary
-checkout a real identity and a recorded grant. That is setup, not a relaxation: an
-identity-less ``tmp_path`` now correctly *denies*, and asserting ordering or amend
-semantics against a project that is refusing egress would assert nothing at all. The
-gate itself is pinned separately in ``test_local_commit_consent_3030.py``, which
-covers the deny cases these tests deliberately step out of.
+These are the **lifecycle** behaviours — local capture, amend replacement,
+chronological ordering, exact Ack bookkeeping, and PII absence. The flush cases
+give the temporary project a real opt-in because hosted egress, unlike capture,
+requires it. Denial and frame-owned identity are pinned separately in
+``test_local_commit_consent_3030.py``.
 """
 
 from __future__ import annotations
@@ -28,9 +25,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
+from jsonschema import FormatChecker
 
 from specify_cli.sync.local_commit import (
     SyncState,
@@ -39,6 +36,7 @@ from specify_cli.sync.local_commit import (
     load_sync_state,
     record_local_commit_ack,
     save_sync_state,
+    validate_rfc3339_datetime,
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -91,6 +89,15 @@ def _make_frame(
     }
 
 
+class _RecordingClient:
+    def __init__(self) -> None:
+        self.sent: list[dict[str, Any]] = []
+
+    async def send_local_commit(self, frame: dict[str, Any]) -> bool:
+        self.sent.append(frame)
+        return True
+
+
 def _kittify(tmp_path: Path) -> None:
     """Make *tmp_path* a checkout that has identity and has opted in to hosted sync.
 
@@ -98,14 +105,12 @@ def _kittify(tmp_path: Path) -> None:
     """
     (tmp_path / ".kittify").mkdir(exist_ok=True)
     (tmp_path / ".kittify" / "config.yaml").write_text(
-        "project:\n"
-        f"  uuid: {_PROJECT_UUID}\n"
-        "  slug: local-commit-fixture\n"
-        "  node_id: 0123456789ab\n"
-        "sync:\n"
-        "  enabled: true\n",
+        f"project:\n  uuid: {_PROJECT_UUID}\n  slug: local-commit-fixture\n  node_id: 0123456789ab\nsync:\n  enabled: true\n",
         encoding="utf-8",
     )
+    from specify_cli.sync.consent import record_project_opt_in
+
+    record_project_opt_in(_PROJECT_UUID, actor="test:local-commit")
 
 
 # ---------------------------------------------------------------------------
@@ -199,16 +204,14 @@ def test_emit_stages_the_frame_and_performs_no_immediate_send(tmp_path: Path) ->
     the *flush* sends. A future immediate send re-added here reds this test.
     """
     _kittify(tmp_path)
-    with patch("specify_cli.sync.local_commit._send_event") as mock_send:
-        emit_local_commit(
-            tmp_path,
-            _HASH_A,
-            _MISSION_ID,
-            _BUILD_ID_1,
-            _FILES,
-            _AT_1,
-        )
-        mock_send.assert_not_called()
+    emit_local_commit(
+        tmp_path,
+        _HASH_A,
+        _MISSION_ID,
+        _BUILD_ID_1,
+        _FILES,
+        _AT_1,
+    )
 
     # Frame still stored as pending (for the on-connect flush + ack-based removal).
     state = load_sync_state(tmp_path)
@@ -264,17 +267,14 @@ def test_flush_sends_in_chronological_order(tmp_path: Path) -> None:
     )
     save_sync_state(tmp_path, state)
 
-    send_order: list[str] = []
+    client = _RecordingClient()
+    flush_pending_local_commits(tmp_path, client)
 
-    def _fake_send(client: Any, frame: dict[str, Any]) -> None:
-        send_order.append(frame["git_hash"])
-
-    mock_client = MagicMock()
-
-    with patch("specify_cli.sync.local_commit._send_event", side_effect=_fake_send):
-        flush_pending_local_commits(tmp_path, mock_client)
-
-    assert send_order == [_HASH_A, _HASH_B, _HASH_C]
+    assert [frame["git_hash"] for frame in client.sent] == [
+        _HASH_A,
+        _HASH_B,
+        _HASH_C,
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -282,7 +282,9 @@ def test_flush_sends_in_chronological_order(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_flush_skips_confirmed_hash(tmp_path: Path) -> None:
+def test_flush_does_not_use_global_hash_watermark_as_project_authority(
+    tmp_path: Path,
+) -> None:
     _kittify(tmp_path)
     state = SyncState(
         last_saas_confirmed_hash=_HASH_A,
@@ -293,16 +295,12 @@ def test_flush_skips_confirmed_hash(tmp_path: Path) -> None:
     )
     save_sync_state(tmp_path, state)
 
-    sent: list[str] = []
+    client = _RecordingClient()
+    flush_pending_local_commits(tmp_path, client)
 
-    def _fake_send(client: Any, frame: dict[str, Any]) -> None:
-        sent.append(frame["git_hash"])
-
-    with patch("specify_cli.sync.local_commit._send_event", side_effect=_fake_send):
-        flush_pending_local_commits(tmp_path, MagicMock())
-
-    # Only the unconfirmed frame should be sent
-    assert sent == [_HASH_B]
+    # A bare historical hash has no project/build authority. Pending exact rows
+    # remain eligible until their own full acknowledgement removes them.
+    assert [frame["git_hash"] for frame in client.sent] == [_HASH_A, _HASH_B]
 
 
 # ---------------------------------------------------------------------------
@@ -319,12 +317,119 @@ def test_ack_removes_entry_and_updates_confirmed_hash(tmp_path: Path) -> None:
     )
     save_sync_state(tmp_path, state)
 
-    record_local_commit_ack(tmp_path, _HASH_A)
+    frame = state.pending_local_commits[0]
+    acknowledgement = {
+        **{field: frame[field] for field in ("git_hash", "build_id", "project_uuid")},
+        "type": "LocalCommitAck",
+        "status": "accepted",
+        "admission_generation": 9,
+        "binding_audience": "private-teamspace:teamspace-1",
+        "received_at": "2026-08-11T12:00:01+00:00",
+    }
+    expected = {
+        **frame,
+        "admission_generation": 9,
+        "binding_audience": "private-teamspace:teamspace-1",
+    }
+    assert record_local_commit_ack(
+        tmp_path,
+        acknowledgement,
+        expected_frame=expected,
+    )
 
     updated = load_sync_state(tmp_path)
     assert updated.last_saas_confirmed_hash == _HASH_A
     assert len(updated.pending_local_commits) == 1
     assert updated.pending_local_commits[0]["git_hash"] == _HASH_B
+
+
+@pytest.mark.parametrize(
+    "received_at",
+    [
+        "2026-08-11T12:00:01",
+        "2026-08-11 12:00:01+00:00",
+        "2026-02-30T12:00:01Z",
+    ],
+)
+def test_invalid_ack_datetime_does_not_remove_queue(
+    tmp_path: Path,
+    received_at: str,
+) -> None:
+    frame = _make_frame(_HASH_A, build_id=_BUILD_ID_1, committed_at=_AT_1)
+    save_sync_state(tmp_path, SyncState(pending_local_commits=[frame]))
+    acknowledgement = {
+        **{field: frame[field] for field in ("git_hash", "build_id", "project_uuid")},
+        "type": "LocalCommitAck",
+        "status": "accepted",
+        "admission_generation": 9,
+        "binding_audience": "private-teamspace:teamspace-1",
+        "received_at": received_at,
+    }
+    expected = {
+        **frame,
+        "admission_generation": 9,
+        "binding_audience": "private-teamspace:teamspace-1",
+    }
+
+    assert not record_local_commit_ack(
+        tmp_path,
+        acknowledgement,
+        expected_frame=expected,
+    )
+    assert load_sync_state(tmp_path).pending_local_commits == [frame]
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "2026-08-11T12:00:01Z",
+        "2026-08-11T14:00:01+02:00",
+        "2026-08-11t12:00:01+00:00",
+        "2026-08-11T12:00:01z",
+        "2026-08-11t12:00:01z",
+    ],
+)
+def test_strict_rfc3339_validator_accepts_contract_controls(value: str) -> None:
+    assert validate_rfc3339_datetime(value, field_name="test") == value
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "2026-08-11T12:00:01",
+        "2026-08-11 12:00:01+00:00",
+        "2026-02-30T12:00:01Z",
+    ],
+)
+def test_strict_rfc3339_validator_rejects_loose_iso_forms(value: str) -> None:
+    with pytest.raises(ValueError, match="strict RFC3339"):
+        validate_rfc3339_datetime(value, field_name="test")
+
+
+@pytest.mark.parametrize(
+    ("value", "accepted"),
+    [
+        ("2026-08-11T12:00:01Z", True),
+        ("2026-08-11T14:00:01+02:00", True),
+        ("2026-08-11t12:00:01+00:00", True),
+        ("2026-08-11T12:00:01z", True),
+        ("2026-08-11t12:00:01z", True),
+        ("2026-08-11T12:00:01", False),
+        ("2026-08-11 12:00:01+00:00", False),
+        ("2026-02-30T12:00:01Z", False),
+    ],
+)
+def test_strict_validator_matches_live_jsonschema_format_checker(
+    value: str,
+    accepted: bool,
+) -> None:
+    checker_accepts = FormatChecker().conforms(value, "date-time")
+    assert checker_accepts is accepted
+    if accepted:
+        assert validate_rfc3339_datetime(value, field_name="test") == value
+    else:
+        with pytest.raises(ValueError):
+            validate_rfc3339_datetime(value, field_name="test")
 
 
 # ---------------------------------------------------------------------------
@@ -348,9 +453,7 @@ def test_no_pii_in_frame_or_state_file(tmp_path: Path) -> None:
     frame = data["pending_local_commits"][0]
 
     pii_keys = {"machine_name", "hostname", "workspace_path", "username", "email"}
-    assert not pii_keys.intersection(frame.keys()), (
-        f"PII fields found in frame: {pii_keys.intersection(frame.keys())}"
-    )
+    assert not pii_keys.intersection(frame.keys()), f"PII fields found in frame: {pii_keys.intersection(frame.keys())}"
 
 
 # ---------------------------------------------------------------------------

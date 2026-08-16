@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KXM5YX1VYXKP51CAT368E3ME",
       "last_transition_at": "2026-07-16T00:41:53.979373+00:00",
+      "review_result": {
+        "reference": "Review passed: Direction-A shard-registry default fallback correct and scoped. Only 3 owned files touched (tests/_shard_registry.py, tests/_arch_shard_map.py, tests/test_shard_registry_fallback.py); zero baseline-file churn confirmed. Mechanism verified against live registry: per-group opt-in (arch default_fallback=True yields a valid shard for a brand-new under-root file; next stays None), deterministic sha1%n+1 hash-bucket (formula match confirmed, spreads across shards, not lightest-shard), hard root-membership gate (out-of-root -> None), explicit dir/file_assignment still wins, GC-1 union invariant retained (completeness gate green). Root-cause orphan fix: pytest.mark.fast (registered in pytest.ini, mirrors tests/test_worker_home_isolation.py) makes the new root-level file gate-selected, not a baseline suppression; a throwaway tests/architectural/*.py now auto-covers (shard 1). 43/43 gate+fallback tests green (test_shard_registry_fallback + test_arch_shard_marker_completeness + test_gate_coverage). ruff + mypy clean, no new suppressions. FR-011 doctrine header rewritten to document automatic-default + explicit-override model.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3810609,
       "shell_pid_created_at": "1784160240.79"
     },
@@ -34,6 +39,11 @@
       "lane": "done",
       "last_event_id": "01KXM5YXSEY5JVS9V8Y1TF2C70",
       "last_transition_at": "2026-07-16T00:41:54.734123+00:00",
+      "review_result": {
+        "reference": "Review passed: #2673+#2638 mission_creation.py bite-battery isolated to tmp copy via _IsolatedSourceMutation + process-local monkeypatch of audit-module root globals; real mission_creation.py byte-unchanged (empty base..HEAD log, T010 primary gate green deterministically incl. mid-window hash). Detection preserved through real root-agnostic discover_rows() with anti-tautology baseline; #2638 immunity proven via two-module-instance cross-scan. C-006 tight/mid-file-localized, _SourceMutation left untouched. ruff+mypy clean; TID251 noqas narrowly justified. Parallel 3-file smoke green 6x (initial 'failures' were reviewer kill-contamination of agent/context.py, restored). NOTE: sibling untouched live-mutation batteries (agent/context.py, _COORD_MID8_FILE) still carry the same LOCAL cross-worker/kill-fragility class out of WP02 scope — candidate follow-up.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3768044,
       "shell_pid_created_at": "1784159197.68"
     },
@@ -44,6 +54,11 @@
       "lane": "done",
       "last_event_id": "01KXM5YYF3HPHNB0NXWSV9C94E",
       "last_transition_at": "2026-07-16T00:41:55.427806+00:00",
+      "review_result": {
+        "reference": "Review passed: color flake fixed RED->GREEN (empirically proven: FORCE_COLOR=3 raw stdout fails old assertion, test-local NO_COLOR=1 + ANSI-strip pass; no global os.environ mutation). Manifest-mutation is an honest regression guard -- verified the --dry-run-evidence path raises typer.Exit(0) at synthesize.py:343/324 before synthesize(), so no real mutation today; byte-equality assertion is non-vacuous over the real 286-byte manifest + try/finally fixture. git status of manifest empty; console.py inspected-only (untouched); ruff+mypy clean; scope limited to owned test file. Coord: initialized #2672 issue-matrix row (in-mission, evidence 7429768cd).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3690324,
       "shell_pid_created_at": "1784158279.46"
     },
@@ -54,6 +69,11 @@
       "lane": "done",
       "last_event_id": "01KXM5YZ4368EEYVF3V5NHN7V4",
       "last_transition_at": "2026-07-16T00:41:56.099030+00:00",
+      "review_result": {
+        "reference": "Review passed: RED-first C-005 empirically verified (new test file fails against base with ImportError: ALL_REMEDIATION_TEXTS absent; base guards were dict-only). Guard now scans full ALL_REMEDIATION_TEXTS registry; 3 inline-only commands (doctor orphan-daemons, sync migrate, auth login) present + resolve under --help (whack-a-field avoided). Byte-identical proven via literal-snapshot test independent of constants. No duplicated remedy literal remains; no new noqa/type-ignore; ruff+mypy clean; 7/7 tests green; WP commit touches only 2 owned files.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3692082,
       "shell_pid_created_at": "1784158296.51"
     },
@@ -64,6 +84,11 @@
       "lane": "done",
       "last_event_id": "01KXM5YZRWB0W9XBDV1QSK337M",
       "last_transition_at": "2026-07-16T00:41:56.764243+00:00",
+      "review_result": {
+        "reference": "Review passed: Lane.UNINITIALIZED landed as full unification (not a coerce shim). RED genuine (member absent at base -> AttributeError). UninitializedState.allowed_targets()=frozenset() -> ALLOWED_TRANSITIONS==29 held (test_transitions green). Registered in _STATE_MAP so 'import status.transitions' is safe. CANONICAL_LANES untouched; parity test exempts UNINITIALIZED mirroring GENESIS. All FIVE display-filter sites (reducer x2, wp_metadata, tasks_status_view, lifecycle fifth-site) route through single NON_DISPLAY_LANES authority; no inline 'is not Lane.GENESIS' display idiom remains; no 'uninitialized':0 leak. get_wp_lane -> pure Lane, get_all_wp_lanes -> dict[str,Lane]. Semantics distinct from GENESIS (tested). Green gate passes (10 apparent fails were reviewer's SPEC_KITTY_SYNC_MINIMAL_IMPORT env var, verified green without it). mypy: sole error is pre-existing progress.py to_dict no-any-return (confirmed identical at base, untouched by WP). ruff clean, no new suppressions. Leeway edits (progress.py weight, status/__init__ re-export) owned by no other WP and test-backed. Anti-pattern checklist all PASS.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3761962,
       "shell_pid_created_at": "1784159093.94"
     },
@@ -74,6 +99,11 @@
       "lane": "done",
       "last_event_id": "01KXM5Z12V7B6FSCKZ247687KS",
       "last_transition_at": "2026-07-16T00:41:58.107838+00:00",
+      "review_result": {
+        "reference": "Review passed: genuine red-first verified (reverting WP06 fix -> both primary tests fail with exact flips (Lane.UNINITIALIZED,True) and Lane.UNINITIALIZED). done_bookkeeping site-1 preserves (coord_lane,False) force-done-False; site-2 not-done; status_transition:557 preserves Lane.GENESIS explicitly; worktree_topology/aggregate/workspace equality clears behavior-preserving. workflow_executor: single sanctioned _locate_wp cast (4 callers), assert agent backed by real caller guard (verified), ReviewCycleArtifact|None + event:StatusEvent|None annotations, NO extraction. CI-authoritative mypy --strict src/specify_cli src/charter src/doctrine: 16 errors all pre-existing in non-WP06 files, WP06 surfaces clean. ruff clean, import smoke OK, no new suppressions beyond the 1 cast. dashboard/scanner.py unchanged as expected. Sphinx test failure pre-existing/unrelated. merge(568)+lane_uninitialized+parity suites green.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3863044,
       "shell_pid_created_at": "1784161725.33"
     },
@@ -84,6 +114,11 @@
       "lane": "done",
       "last_event_id": "01KXM5Z0DNWJAB3PTZHRJQ73RW",
       "last_transition_at": "2026-07-16T00:41:57.429515+00:00",
+      "review_result": {
+        "reference": "Review passed (code): decision_id narrow-once seam consolidated into existing widen/interview_helpers.py; 3 in-scope mypy errors cleared (baseline 11->8 pre-existing); 2 retained casts verified load-bearing (flip to no-any-return); 0 new suppressions; ruff clean; 2 RED-first gate tests + 421 runtime tests green.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3700776,
       "shell_pid_created_at": "1784158387.03"
     }

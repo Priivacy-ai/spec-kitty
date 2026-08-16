@@ -1214,6 +1214,11 @@ def _enforce_saas_sync_auth_refusal(*, json_output: bool) -> None:
         read_queue_scope_from_session,
     )
 
+    # ``_scope`` is consumed purely as a boolean **auth signal** ("is this host
+    # authenticated?") — it is never passed to ``scope_db_path`` or any store
+    # selector here. The credential parse (queue.read_queue_scope_from_credentials)
+    # is deliberately inert for physical-store selection (FR-009 / C-003); the
+    # authoritative queue DB is owned by ProjectSyncStore via ``_derive_queue_scope``.
     _scope = read_queue_scope_from_session() or read_queue_scope_from_credentials()
     if _scope:
         return

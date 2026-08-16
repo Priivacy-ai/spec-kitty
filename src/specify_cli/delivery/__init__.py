@@ -6,6 +6,7 @@ their exchanged value objects live in :mod:`specify_cli.delivery.interfaces`
 :mod:`specify_cli.delivery.targets`. Importing this package never touches the
 filesystem or a database.
 """
+
 from __future__ import annotations
 
 from specify_cli.delivery.interfaces import (
@@ -13,13 +14,12 @@ from specify_cli.delivery.interfaces import (
     DeliveryReceiver,
     DeliveryTarget,
     DeliveryTargetRegistry,
-    DeploymentMetadata,
     Dispatcher,
-    ResetSignal,
     TargetIdentity,
 )
 from specify_cli.delivery.targets import (
     InvalidTargetUrlError,
+    ProjectDeliveryTargetRegistry,
     SqliteDeliveryTargetRegistry,
     canonicalize_url,
     compute_url_hash,
@@ -34,9 +34,8 @@ __all__ = [
     # Value objects (interfaces.py)
     "TargetIdentity",
     "DeliveryTarget",
-    "ResetSignal",
-    "DeploymentMetadata",
     # Concrete registry + pure helpers (targets.py)
+    "ProjectDeliveryTargetRegistry",
     "SqliteDeliveryTargetRegistry",
     "canonicalize_url",
     "compute_url_hash",

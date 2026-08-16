@@ -92,6 +92,13 @@ class _FakeTxn:
     def commit(self, _msg: str) -> None:
         return None
 
+    def commit_idempotent(self, _msg: str) -> None:
+        # write-path-integrity WP02 switched the production commit call from
+        # ``txn.commit`` to ``txn.commit_idempotent`` (FR-001 crash-recovery
+        # re-drive); the fake mirrors that so the write-side ref-derivation
+        # characterization exercises the same seam (WP04 fold).
+        return None
+
 
 def _fake_bookkeeping_transaction(calls: list[tuple[str, list[str]]]) -> type:
     class _FakeBookkeepingTransaction:

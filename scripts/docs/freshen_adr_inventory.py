@@ -7,7 +7,7 @@ requires two index updates the ``docs-freshness`` CI gate enforces:
    ``docs/development/3-2-page-inventory.yaml`` — a **generated lockfile**,
    regenerated from every page's frontmatter.
 2. A table row ``| YYYY-MM-DD | [Title](filename.md) |`` in the era's
-   ``docs/adr/<era>/README.md`` index.
+   ``docs/adr/<era>/index.md`` index (or its legacy ``README.md`` index).
 
 Agents repeatedly trip the gate (``LEAK-MISSING-INVENTORY``,
 ``INVENTORY-INCOMPLETE``, ``INVENTORY-LOCKFILE-DRIFT``) by forgetting one of
@@ -24,7 +24,7 @@ Usage::
 * **Inventory:** the page inventory is regenerated wholesale from frontmatter
   (``render_lockfile(generate_inventory(...))``), so it auto-picks up every new
   doc — including new ADRs. On a clean tree this is a no-op.
-* **ADR README rows:** for each target ADR the era README's index table gets a
+* **ADR index rows:** for each target ADR the era landing page's index table gets a
   new row, inserted date-ascending, idempotently (a basename already linked
   **within the index table** is skipped; a prose link elsewhere does not count).
 """
@@ -60,6 +60,7 @@ __all__ = [
 # --------------------------------------------------------------------------- #
 
 _ADR_SUBDIR: Final[str] = "adr"
+_INDEX_NAME: Final[str] = "index.md"
 _README_NAME: Final[str] = "README.md"
 _ERA_RE: Final[re.Pattern[str]] = re.compile(r"^\d+\.x$")
 _TITLE_PREFIX: Final[str] = "ADR: "
@@ -73,6 +74,9 @@ _TABLE_HEADER_RE: Final[re.Pattern[str]] = re.compile(
 )
 _TABLE_SEP_RE: Final[re.Pattern[str]] = re.compile(r"^\s*\|[\s:|-]*-[\s:|-]*\|\s*$")
 _TABLE_ROW_RE: Final[re.Pattern[str]] = re.compile(r"^\s*\|.*\|\s*$")
+_INDEX_HEADING_RE: Final[re.Pattern[str]] = re.compile(
+    r"^\s*##\s+Index\s*$", re.IGNORECASE
+)
 
 
 class FreshenError(Exception):
@@ -108,12 +112,12 @@ class FreshenResult:
 
 
 # --------------------------------------------------------------------------- #
-# Era README resolution
+# Era index resolution
 # --------------------------------------------------------------------------- #
 
 
-def _era_readme_for(adr_path: Path, docs_root: Path) -> Path:
-    """Resolve the era ``README.md`` for an ADR at ``docs/adr/<era>/<name>.md``.
+def _era_index_for(adr_path: Path, docs_root: Path) -> Path:
+    """Resolve the era index for an ADR at ``docs/adr/<era>/<name>.md``.
 
     Validates the ADR lives **inside** ``docs_root`` at exactly
     ``adr/<era>/<file>.md`` (``<era>`` matching ``N.x``). Checking the directory
@@ -135,6 +139,9 @@ def _era_readme_for(adr_path: Path, docs_root: Path) -> Path:
             f"{adr_path} is not under {docs_root.name}/{_ADR_SUBDIR}/<era>/<file>.md "
             f"(era must match N.x and the path must live inside the docs root)"
         )
+    canonical_index = adr_path.parent / _INDEX_NAME
+    if canonical_index.exists():
+        return canonical_index
     return adr_path.parent / _README_NAME
 
 
@@ -191,6 +198,11 @@ def _find_adr_table(lines: list[str]) -> tuple[int, int]:
                 data_end += 1
             return data_start, data_end
     raise FreshenError("no ADR index table (`| Date | Title |`) found")
+
+
+def _declares_adr_index(lines: list[str]) -> bool:
+    """True iff a landing page declares a maintained ADR index section."""
+    return any(_INDEX_HEADING_RE.match(line) for line in lines)
 
 
 def _row_date(row: str) -> str:
@@ -250,33 +262,35 @@ def _insert_readme_row(readme_text: str, meta: AdrMeta) -> tuple[str, bool]:
 
 
 def _freshen_readme_row(adr_path: Path, docs_root: Path) -> str | None:
-    """Add ``adr_path``'s row to its era README. Return basename if changed."""
+    """Add ``adr_path``'s row to its era index. Return basename if changed."""
     meta = _read_adr_meta(adr_path)
-    readme = _era_readme_for(adr_path, docs_root)
-    if not readme.exists():
-        raise FreshenError(f"era README not found: {readme}")
-    original = readme.read_text(encoding="utf-8")
+    era_index = _era_index_for(adr_path, docs_root)
+    if not era_index.exists():
+        raise FreshenError(f"era index not found: {era_index}")
+    original = era_index.read_text(encoding="utf-8")
     updated, changed = _insert_readme_row(original, meta)
     if changed:
-        readme.write_text(updated, encoding="utf-8")
+        era_index.write_text(updated, encoding="utf-8")
         return meta.basename
     return None
 
 
 def _readme_has_row(adr_path: Path, docs_root: Path) -> bool:
-    """True iff ``adr_path``'s basename is linked in its era README index table.
+    """True iff ``adr_path``'s basename is linked in its era index table.
 
     Table-aware (reuses :func:`_find_adr_table` + :func:`_rows_link_basename`) so
     ``--check`` agrees with write-mode: a prose link outside the table is not a
     row, and a README without a table has no row.
     """
-    readme = _era_readme_for(adr_path, docs_root)
-    if not readme.exists():
+    era_index = _era_index_for(adr_path, docs_root)
+    if not era_index.exists():
         return False
-    lines = readme.read_text(encoding="utf-8").splitlines()
+    lines = era_index.read_text(encoding="utf-8").splitlines()
     try:
         data_start, data_end = _find_adr_table(lines)
     except FreshenError:
+        if _declares_adr_index(lines):
+            raise
         return False
     return _rows_link_basename(lines[data_start:data_end], adr_path.name)
 
@@ -324,21 +338,21 @@ def _inventory_is_stale(docs_root: Path, repo_root: Path) -> bool:
 # --------------------------------------------------------------------------- #
 
 
-def _era_has_table(readme: Path) -> bool:
-    """True iff ``readme`` exists and contains an ADR index table."""
-    if not readme.exists():
+def _era_has_table(era_index: Path) -> bool:
+    """True iff ``era_index`` exists and contains an ADR index table."""
+    if not era_index.exists():
         return False
     try:
-        _find_adr_table(readme.read_text(encoding="utf-8").splitlines())
+        _find_adr_table(era_index.read_text(encoding="utf-8").splitlines())
     except FreshenError:
         return False
     return True
 
 
 def detect_missing_adrs(docs_root: Path) -> list[Path]:
-    """Every ADR under ``docs/adr/<era>/`` missing from its era README table.
+    """Every ADR under ``docs/adr/<era>/`` missing from its era index table.
 
-    Only eras whose README actually maintains an index table are considered —
+    Only eras whose landing page actually maintains an index table are considered —
     legacy eras without a table (e.g. 1.x/2.x) are intentionally skipped rather
     than back-filled with a table they never carried.
     """
@@ -349,10 +363,18 @@ def detect_missing_adrs(docs_root: Path) -> list[Path]:
     for era_dir in sorted(p for p in adr_root.iterdir() if p.is_dir()):
         if not _ERA_RE.match(era_dir.name):
             continue
-        if not _era_has_table(era_dir / _README_NAME):
+        canonical_index = era_dir / _INDEX_NAME
+        if canonical_index.exists() and not _era_has_table(canonical_index):
+            canonical_lines = canonical_index.read_text(encoding="utf-8").splitlines()
+            if _declares_adr_index(canonical_lines):
+                raise FreshenError(
+                    f"canonical era index has no ADR table: {canonical_index}"
+                )
+        era_index = canonical_index if canonical_index.exists() else era_dir / _README_NAME
+        if not _era_has_table(era_index):
             continue
         for adr_path in sorted(era_dir.glob("*.md")):
-            if adr_path.name == _README_NAME:
+            if adr_path.name in {_INDEX_NAME, _README_NAME}:
                 continue
             if not _readme_has_row(adr_path, docs_root):
                 missing.append(adr_path)
@@ -497,9 +519,8 @@ def main(argv: list[str] | None = None) -> int:
     repo_root: Path = args.repo_root
     docs_root: Path = args.docs_root if args.docs_root is not None else repo_root / "docs"
 
-    targets = _resolve_targets(args, docs_root)
-
     try:
+        targets = _resolve_targets(args, docs_root)
         result = freshen(
             targets, docs_root=docs_root, repo_root=repo_root, check=args.check
         )

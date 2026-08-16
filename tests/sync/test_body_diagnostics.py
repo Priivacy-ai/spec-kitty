@@ -11,12 +11,16 @@ from specify_cli.sync.body_queue import BodyQueueStats, OfflineBodyUploadQueue
 from specify_cli.sync.diagnose import diagnose_body_queue, print_body_queue_summary
 from specify_cli.sync.body_upload import log_upload_outcomes
 from specify_cli.sync.namespace import NamespaceRef, UploadOutcome, UploadStatus
+from specify_cli.sync.project_store import ProjectSyncStore
 
 pytestmark = pytest.mark.fast
 
+PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
+
+
 def _ns() -> NamespaceRef:
     return NamespaceRef(
-        project_uuid="uuid-1",
+        project_uuid=PROJECT,
         mission_slug="047-feat",
         target_branch="main",
         mission_type="software-dev",
@@ -37,10 +41,20 @@ def _enqueue(queue: OfflineBodyUploadQueue, path: str = "spec.md") -> None:
 # --- diagnose_body_queue ---
 
 
+@pytest.fixture
+def body_queue(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(PROJECT)
+    authority = store.layout_generation()
+    authority.begin_cutover("body-diagnostics-tests")
+    authority.publish_project_only("body-diagnostics-tests", verify_exact=lambda: True)
+    with store.unit_of_work() as unit:
+        yield OfflineBodyUploadQueue(unit, authority)
+
+
 class TestDiagnoseBodyQueue:
-    def test_empty_queue(self, tmp_path: Path) -> None:
-        queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
-        result = diagnose_body_queue(queue)
+    def test_empty_queue(self, body_queue: OfflineBodyUploadQueue) -> None:
+        result = diagnose_body_queue(body_queue)
 
         assert result["body_queue"]["total_tasks"] == 0
         assert result["body_queue"]["ready_to_send"] == 0
@@ -51,12 +65,11 @@ class TestDiagnoseBodyQueue:
         assert result["body_queue"]["recorded_failure_count"] == 0
         assert result["body_queue"]["recent_failures"] == []
 
-    def test_populated_queue(self, tmp_path: Path) -> None:
-        queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
-        _enqueue(queue, "spec.md")
-        _enqueue(queue, "plan.md")
+    def test_populated_queue(self, body_queue: OfflineBodyUploadQueue) -> None:
+        _enqueue(body_queue, "spec.md")
+        _enqueue(body_queue, "plan.md")
 
-        result = diagnose_body_queue(queue)
+        result = diagnose_body_queue(body_queue)
 
         assert result["body_queue"]["total_tasks"] == 2
         assert result["body_queue"]["ready_to_send"] == 2
@@ -64,42 +77,42 @@ class TestDiagnoseBodyQueue:
         assert result["body_queue"]["oldest_task_age_seconds"] is not None
         assert result["body_queue"]["oldest_task_age_seconds"] >= 0
 
-    def test_with_retried_tasks(self, tmp_path: Path) -> None:
-        queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
-        _enqueue(queue, "spec.md")
+    def test_with_retried_tasks(self, body_queue: OfflineBodyUploadQueue) -> None:
+        _enqueue(body_queue, "spec.md")
 
         # Mark as failed retryable to increment retry count
-        tasks = queue.drain(limit=10)
-        queue.mark_failed_retryable(tasks[0].row_id, "connection_error")
+        tasks = body_queue.drain(limit=10)
+        body_queue.mark_failed_retryable(tasks[0].row_id, "connection_error")
 
-        result = diagnose_body_queue(queue)
+        result = diagnose_body_queue(body_queue)
 
         assert result["body_queue"]["total_tasks"] == 1
         assert result["body_queue"]["max_retry_count"] == 1
         assert result["body_queue"]["in_backoff"] == 1
         assert 1 in result["body_queue"]["retry_distribution"]
 
-    def test_returns_dict_structure(self, tmp_path: Path) -> None:
-        queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
-        result = diagnose_body_queue(queue)
+    def test_returns_dict_structure(self, body_queue: OfflineBodyUploadQueue) -> None:
+        result = diagnose_body_queue(body_queue)
 
         assert "body_queue" in result
         expected_keys = {
-            "total_tasks", "ready_to_send", "in_backoff",
-            "max_retry_count", "oldest_task_age_seconds",
-            "retry_distribution", "recorded_failure_count",
+            "total_tasks",
+            "ready_to_send",
+            "in_backoff",
+            "max_retry_count",
+            "oldest_task_age_seconds",
+            "retry_distribution",
+            "recorded_failure_count",
             "recent_failures",
         }
         assert set(result["body_queue"].keys()) == expected_keys
 
-    def test_recent_failures_included(self, tmp_path: Path) -> None:
-        queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
-        _enqueue(queue, "spec.md")
-        task = queue.drain(limit=1)[0]
-        queue.record_permanent_failure(task, "bad_request: content_body: This field may not be blank.")
-        queue.mark_failed_permanent(task.row_id, "bad_request: content_body: This field may not be blank.")
+    def test_recent_failures_included(self, body_queue: OfflineBodyUploadQueue) -> None:
+        _enqueue(body_queue, "spec.md")
+        task = body_queue.drain(limit=1)[0]
+        body_queue.record_permanent_failure(task, "bad_request: content_body: This field may not be blank.")
 
-        result = diagnose_body_queue(queue)
+        result = diagnose_body_queue(body_queue)
 
         assert result["body_queue"]["recorded_failure_count"] == 1
         assert len(result["body_queue"]["recent_failures"]) == 1
@@ -112,27 +125,39 @@ class TestDiagnoseBodyQueue:
 class TestPrintBodyQueueSummary:
     def test_empty_queue_output(self) -> None:
         stats = BodyQueueStats(
-            total_count=0, ready_count=0, backoff_count=0,
-            oldest_created_at=None, newest_created_at=None,
-            max_retry_count=0, retry_histogram={},
+            total_count=0,
+            ready_count=0,
+            backoff_count=0,
+            oldest_created_at=None,
+            newest_created_at=None,
+            max_retry_count=0,
+            retry_histogram={},
         )
         # Should not raise
         print_body_queue_summary(stats)
 
     def test_populated_queue_output(self) -> None:
         stats = BodyQueueStats(
-            total_count=5, ready_count=3, backoff_count=2,
-            oldest_created_at=1000.0, newest_created_at=2000.0,
-            max_retry_count=3, retry_histogram={0: 3, 1: 1, 3: 1},
+            total_count=5,
+            ready_count=3,
+            backoff_count=2,
+            oldest_created_at=1000.0,
+            newest_created_at=2000.0,
+            max_retry_count=3,
+            retry_histogram={0: 3, 1: 1, 3: 1},
         )
         # Should not raise
         print_body_queue_summary(stats)
 
     def test_no_retries_skips_max_line(self, capsys) -> None:
         stats = BodyQueueStats(
-            total_count=1, ready_count=1, backoff_count=0,
-            oldest_created_at=1000.0, newest_created_at=1000.0,
-            max_retry_count=0, retry_histogram={0: 1},
+            total_count=1,
+            ready_count=1,
+            backoff_count=0,
+            oldest_created_at=1000.0,
+            newest_created_at=1000.0,
+            max_retry_count=0,
+            retry_histogram={0: 1},
         )
         print_body_queue_summary(stats)
         captured = capsys.readouterr()

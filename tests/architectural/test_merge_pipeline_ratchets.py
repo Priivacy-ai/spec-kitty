@@ -159,13 +159,13 @@ def _read_state(tmp_path: Path) -> tuple[Lane, str | None]:
 
     feature_dir = tmp_path / "kitty-specs" / "099-mask-test"
     feature_dir.mkdir(parents=True, exist_ok=True)
-    state: tuple[Lane, str | None] = read_current_wp_state_transactional(
+    current = read_current_wp_state_transactional(
         feature_dir=feature_dir,
         mission_slug="099-mask-test",
         wp_id="WP01",
         repo_root=tmp_path,  # not a git repo → transaction topology unavailable
     )
-    return state
+    return current.lane, current.actor
 
 
 def _absent_log_error() -> Exception:

@@ -41,6 +41,14 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # consumer was correctly retyped to MissionStepContractStep (executor.py);
         # the symbol remains an explicit PEP 484 re-export for direct importers.
         # See contracts/charter-facade-modules.md addendum.
+        #
+        # MissionStepRepository retired from this facade's contract 2026-08-14:
+        # WP02 of mission ``up-mission-type-seam-01KZY1JB`` deleted
+        # ``resolve_mission_steps`` (src/charter/resolver.py), which was the
+        # only src/ importer reached through *this* facade; the symbol remains
+        # an explicit PEP 484 re-export for direct importers and is still
+        # identity-checked (with a live src/ importer) via the
+        # ``charter.missions`` facade table entry below.
         ("MissionStepContract", "doctrine.missions.step_contracts"),
         ("MissionStepInput", "doctrine.missions.step_contracts"),
         ("MissionStepContractRepository", "doctrine.missions.step_contracts"),
@@ -48,10 +56,6 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # Widened by mission ``doctrine-public-api-surface-01KZPDSR`` WP03
         # (T011): the gate-binding model on a mission-step contract. FACADE-ONLY.
         ("GateBinding", "doctrine.missions.step_contracts"),
-        # Tabled during the #3321 landing squad (inverse-containment hardening):
-        # advertised in this facade's ``__all__`` but previously only tabled
-        # under ``charter.missions`` — so identity was unchecked HERE.
-        ("MissionStepRepository", "doctrine.missions.mission_step_repository"),
     ],
     "charter.drg": [
         # PUBLIC: re-exported from the curated public surface ``doctrine.api``
@@ -115,6 +119,16 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("builtin_mission_type_ids", "doctrine.missions.mission_type_repository"),
         ("project_template_set", "doctrine.missions.step_projection"),
         ("MissionStepRepository", "doctrine.missions.mission_step_repository"),
+        # Added by mission ``up-mission-type-seam-01KZY1JB`` WP07 (FR-006):
+        # the CLI layer (``specify_cli.cli.commands.charter.mission_type``)
+        # needs direct reach to the FR-001 layered factory to report a real
+        # per-id ``source_layer``, not just an activation-scoped action
+        # sequence -- ``specify_cli`` may only reach a FACADE-ONLY doctrine
+        # module (``tests/architectural/test_doctrine_census.py``'s
+        # disposition for ``doctrine.missions.mission_type_repository``)
+        # through a charter door, so this door is widened rather than a new
+        # direct ``doctrine.*`` import added to a CLI command file.
+        ("resolve_layered_mission_types", "doctrine.missions.mission_type_repository"),
     ],
     # New door (WP03/T013): symbol-level model→task routing surface. PUBLIC —
     # re-exported from ``doctrine.api`` (leaf callables/types only, NOT the

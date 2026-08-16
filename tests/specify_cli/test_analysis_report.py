@@ -277,7 +277,7 @@ def test_charter_hash_propagates_git_common_dir_unavailable(tmp_path):
 
     resolve_canonical_repo_root.cache_clear()
     with (
-        patch("charter.resolution.subprocess.run", side_effect=FileNotFoundError("git")),
+        patch("kernel.git_topology.subprocess.run", side_effect=FileNotFoundError("git")),
         pytest.raises(GitCommonDirUnavailableError),
     ):
         collect_input_artifact_hashes(feature_dir, tmp_path)

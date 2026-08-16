@@ -257,7 +257,7 @@ def coord_incoherent_done_wps(
     return [
         wp_id
         for wp_id in candidate_wps
-        if wp_lane_actor_from_events(events, wp_id)[0] == Lane.DONE
+        if wp_lane_actor_from_events(events, wp_id).lane == Lane.DONE
     ]
 
 

@@ -1,7 +1,7 @@
 ---
 title: 3.2.3 Architectural Investigation — Alphonso (SSOT / topology-alignment verdict)
 description: Architect Alphonso's SSOT/topology-alignment verdict on the 3.2.3 surface-resolution regressions, read-only on the fix branch under the architectural-integrity directive.
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-26'
 ---
 # 3.2.3 Architectural Investigation — Alphonso (SSOT / topology-alignment verdict)

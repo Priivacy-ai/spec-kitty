@@ -376,6 +376,8 @@ def _run_real_merge(
     push: bool,
     allow_sparse_checkout: bool,
     yes: bool,
+    skip_review_artifact_check: bool = False,
+    skip_note: str | None = None,
 ) -> None:
     """Run the real lane-based merge + post-merge retrospective / next-step hints."""
     try:
@@ -389,6 +391,8 @@ def _run_real_merge(
             strategy=resolved_strategy,
             allow_sparse_checkout=allow_sparse_checkout,
             assume_yes=yes,
+            skip_review_artifact_check=skip_review_artifact_check,
+            skip_note=skip_note,
         )
     except SparseCheckoutPreflightError as exc:
         # WP05/T020: surface sparse-checkout preflight as a user-facing error and
@@ -444,9 +448,40 @@ def merge(
         ),
     ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Proceed after merge warnings without prompts"),
+    skip_review_artifact_check: bool = typer.Option(
+        False,
+        "--skip-review-artifact-check",
+        help=(
+            "Bypass the review-artifact consistency gate (the #2959 escape hatch). "
+            "Requires --note; the skip is recorded as durable override evidence in "
+            "the status log, never a silent bypass."
+        ),
+    ),
+    note: str | None = typer.Option(
+        None,
+        "--note",
+        help="Reason recorded as override evidence when using --skip-review-artifact-check (required with it).",
+    ),
 ) -> None:
     """Merge a lane-based mission into its target branch."""
     del context_token, keep_workspace
+
+    # #2959 escape hatch — a skip is never silent: refuse it without a reason
+    # BEFORE any merge work runs, so the evidence record always carries a note.
+    if skip_review_artifact_check and not (note and note.strip()):
+        console.print(
+            "[red]Error:[/red] --skip-review-artifact-check requires --note "
+            "\"<reason>\" so the bypass is recorded as override evidence."
+        )
+        raise typer.Exit(2)
+    # --note only carries meaning as the reason for a skip; passed alone it is
+    # inert. Warn rather than fail so a stray flag never blocks a merge (squad note).
+    if note and note.strip() and not skip_review_artifact_check:
+        console.print(
+            "[yellow]Note:[/yellow] --note has no effect without "
+            "--skip-review-artifact-check; it is only recorded when the "
+            "review-artifact gate is bypassed."
+        )
 
     if not json_output:
         show_banner()
@@ -547,6 +582,8 @@ def merge(
         push=push,
         allow_sparse_checkout=allow_sparse_checkout,
         yes=yes,
+        skip_review_artifact_check=skip_review_artifact_check,
+        skip_note=note,
     )
 
 

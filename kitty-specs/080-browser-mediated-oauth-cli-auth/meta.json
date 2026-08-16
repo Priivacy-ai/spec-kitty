@@ -3,6 +3,7 @@
   "dependencies": [
     "epic #49 (SaaS OAuth contract)"
   ],
+  "flattened": false,
   "friendly_name": "Browser-Mediated OAuth/OIDC CLI Authentication",
   "mission_id": "01KNS7C9AZP1MPCFZWM25KV6TM",
   "mission_number": 80,
@@ -21,5 +22,6 @@
   "source_description": "Replace password-based human CLI auth with browser-mediated OAuth/OIDC (Authorization Code + PKCE) against spec-kitty-saas. Device Authorization Flow fallback for headless human environments. Hard cutover: no password fallback. Centralized TokenManager converges all HTTP/batch/background/tracker/websocket auth. Keychain-first secure storage with file fallback for degraded environments.",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git"
 }

@@ -123,7 +123,7 @@ def _union_activations(
 
 
 def _render_activation_block(
-    doctrine_selection: DoctrineSelectionConfig | None,  # noqa: ARG001
+    _doctrine_selection: DoctrineSelectionConfig | None,
     repo_root: Path | None,
     service: object,
     *,
@@ -135,6 +135,13 @@ def _render_activation_block(
     WP04 owns the wire; WP05 owns the body.  This helper centralises the
     boilerplate (governance load + safe-call) so the call site in
     :func:`_render_bootstrap_text` is a single line.
+
+    ``_doctrine_selection`` is accepted (and always passed positionally by
+    every caller — see ``bootstrap_text.py`` and the test seams below) but
+    not read here: the WP05 stanza renderer draws its selection state from
+    *service*/*mission_type*/*action* instead. Kept in the signature to
+    match the call-site shape shared with the sibling
+    :func:`_render_selection_block` wire.
 
     WP01 (#2365) adds the org∪project resolve-time union: the org read
     (:func:`_read_org_activations`) is a SEPARATE call from the project

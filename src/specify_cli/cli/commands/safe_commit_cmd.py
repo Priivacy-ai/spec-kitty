@@ -294,6 +294,29 @@ def _resolve_mission_aware_target(
     WP04 / T016 (FR-006 / SC-004): a resolver refusal carrying code
     ``CONSOLIDATED_CONTENT_ABSENT`` is NOT folded into that ``None`` fallback
     — see :class:`MissionAwareCommitRefused`'s docstring for why.
+
+    WP05 (#2966 part-2 / FR-008) briefly rerouted this call through the shared
+    :func:`mission_runtime.resolve_write_target_or_degrade` helper for
+    call-site parity with its three siblings (``coordination.status_transition``,
+    ``events.decision_log``, ``git.bookkeeping_commit``). That reroute was
+    reverted (partition-authority-residuals / #2966 follow-up): the shared
+    helper's ``_mission_meta_exists`` pre-gate short-circuits BEFORE
+    :func:`~mission_runtime.resolve_placement_only` is ever consulted whenever
+    a mission has no ``meta.json`` yet — exactly the create→first-write window
+    a freshly-written ``kitty-specs/<slug>/spec.md`` sits in (the #2063 case
+    this function exists to fix). That pre-gate is CORRECT for the three
+    siblings, whose OWN fallback is a caller-supplied ``degrade_ref`` threaded
+    INTO the helper (so the helper must decide, up front, whether to trust
+    ``resolve_placement_only``'s internal silent-default-branch behaviour or
+    hand back the caller's explicit ref) — but it is the WRONG contract here:
+    this call site's fallback lives entirely in the CALLER
+    (:func:`_resolve_commit_target`'s generic HEAD path), so there is nothing
+    to gate — ``resolve_placement_only`` is the single source of truth on
+    whether a ``kitty-specs/`` artifact resolves, meta.json or not, and this
+    function already translates every failure mode it can raise (see below).
+    Calling it directly (as before WP05) is therefore the minimal correct
+    fix, not a weakening of the pre-gate (which stays intact, unmodified, for
+    its three original callers).
     """
     from mission_runtime import ActionContextError, resolve_placement_only
 

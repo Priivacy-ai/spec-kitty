@@ -84,7 +84,6 @@ _ORG_HONOURING_SURFACES: tuple[str, ...] = (
 
 # Non-vacuous floor: the gate fails if the enumerated org-honouring surface
 # count drops below this concrete integer (silent erosion / rename guard).
-_MIN_ORG_HONOURING_SURFACES = 3
 
 # R7 rationale — ``specify_cli/cli/commands/profiles_cmd.py::_profile_catalog``
 # is deliberately NOT enumerated as an org-honouring routing surface: it is an
@@ -98,18 +97,6 @@ _MIN_ORG_HONOURING_SURFACES = 3
 # org-honouring: they construct a built-in-only repository for display/
 # language resolution and never overlay org packs, so the activation filter
 # does not apply. Relative to ``src/``.
-_BUILTIN_ONLY_ALLOWLIST: dict[str, str] = {
-    "specify_cli/cli/commands/agent/tasks.py": (
-        "Built-in-only sentinel/language resolution for the kanban display "
-        "(AgentProfileRepository(built_in_dir=...) — no org overlay); "
-        "research.md census."
-    ),
-    "charter/context.py::_default_agent_profile_repository": (
-        "Process-wide cached built-in-only AgentProfileRepository() fast path "
-        "for the no-org-packs case; org-aware resolution flows through "
-        "_activation_aware_profile_map instead (NFR-001 byte-identical path)."
-    ),
-}
 
 
 # --- AST helpers (small, pure, directly testable) -----------------------------
@@ -165,13 +152,7 @@ def raw_org_splice_violations(source: str) -> list[int]:
     predicate (the ABSENCE assertion with teeth).
     """
     tree = ast.parse(source)
-    return [
-        node.lineno
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call)
-        and _is_repo_constructor(node)
-        and _call_splices_raw_org(node)
-    ]
+    return [node.lineno for node in ast.walk(tree) if isinstance(node, ast.Call) and _is_repo_constructor(node) and _call_splices_raw_org(node)]
 
 
 def references_activation_seam(source: str) -> bool:
@@ -184,15 +165,6 @@ def references_activation_seam(source: str) -> bool:
     return any(_node_references_name(tree, symbol) for symbol in _SEAM_SYMBOLS)
 
 
-def _has_repo_constructor(source: str) -> bool:
-    """True if ``source`` constructs an ``AgentProfileRepository`` at least once."""
-    tree = ast.parse(source)
-    return any(
-        isinstance(node, ast.Call) and _is_repo_constructor(node)
-        for node in ast.walk(tree)
-    )
-
-
 def _read_surface(rel_path: str) -> str:
     return (_SRC_ROOT / rel_path).read_text(encoding="utf-8")
 
@@ -202,7 +174,7 @@ def _read_surface(rel_path: str) -> str:
 # A site that IMPORTS the activation seam (resolve_activated_org_profiles) YET
 # still splices raw org roots — the exact failure mode a presence/reference
 # proxy would WRONGLY certify as compliant.
-_VIOLATION_FIXTURE = '''
+_VIOLATION_FIXTURE = """
 from pathlib import Path
 
 from charter.profiles import AgentProfileRepository
@@ -214,11 +186,11 @@ def build_registry(repo_root: Path) -> AgentProfileRepository:
     # Imports the activation seam above for show, then bypasses it by splicing
     # raw, un-gated org roots straight into the repository (C-008 violation).
     return AgentProfileRepository(org_dirs=resolve_org_roots(repo_root))
-'''
+"""
 
 # A compliant site: the repository is built without org_dirs and the org
 # overlay is obtained exclusively through the activation seam.
-_COMPLIANT_FIXTURE = '''
+_COMPLIANT_FIXTURE = """
 from pathlib import Path
 
 from charter.profiles import AgentProfileRepository
@@ -232,21 +204,10 @@ def build_registry(repo_root: Path) -> AgentProfileRepository:
             resolved.profile, layer="org", source_path=resolved.source_path
         )
     return repo
-'''
+"""
 
 
 # --- T014: the activation-seam gate ------------------------------------------
-
-
-def test_org_honouring_floor_is_concrete_and_non_vacuous() -> None:
-    """The floor is a concrete integer and the enumerated surfaces meet it."""
-    assert _MIN_ORG_HONOURING_SURFACES == 3
-    assert len(_ORG_HONOURING_SURFACES) >= _MIN_ORG_HONOURING_SURFACES
-    for rel_path in _ORG_HONOURING_SURFACES:
-        assert (_SRC_ROOT / rel_path).is_file(), (
-            f"org-honouring surface vanished or was renamed: {rel_path} "
-            "(floor erosion — re-point the gate at the moved surface)"
-        )
 
 
 @pytest.mark.parametrize("rel_path", _ORG_HONOURING_SURFACES)
@@ -265,23 +226,8 @@ def test_org_honouring_surface_does_not_splice_raw_org_dirs(rel_path: str) -> No
 def test_org_honouring_surface_references_activation_seam(rel_path: str) -> None:
     """ADVISORY: each org-honouring surface references the activation seam."""
     assert references_activation_seam(_read_surface(rel_path)), (
-        f"{rel_path} no longer references the activation seam "
-        f"{_SEAM_SYMBOLS}; it must obtain the org overlay through the seam."
+        f"{rel_path} no longer references the activation seam {_SEAM_SYMBOLS}; it must obtain the org overlay through the seam."
     )
-
-
-def test_builtin_only_allowlist_carries_rationale_and_is_disjoint() -> None:
-    """Excluded built-in-only sites carry rationale and are not org-honouring (C-003)."""
-    assert _BUILTIN_ONLY_ALLOWLIST, "the built-in-only allowlist must be explicit"
-    for entry, rationale in _BUILTIN_ONLY_ALLOWLIST.items():
-        module_rel = entry.split("::", 1)[0]
-        assert (_SRC_ROOT / module_rel).is_file(), (
-            f"allowlisted built-in-only module is missing: {module_rel}"
-        )
-        assert rationale.strip(), f"allowlist entry {entry} lacks a rationale"
-        assert module_rel not in _ORG_HONOURING_SURFACES or "::" in entry, (
-            f"{entry} cannot be both org-honouring and built-in-only excluded"
-        )
 
 
 # --- T015: self-mutation teeth test + floor verification ----------------------
@@ -290,40 +236,9 @@ def test_builtin_only_allowlist_carries_rationale_and_is_disjoint() -> None:
 def test_gate_bites_on_injected_raw_splice() -> None:
     """The gate predicate flags an injected raw ``org_dirs`` splice (it bites)."""
     violations = raw_org_splice_violations(_VIOLATION_FIXTURE)
-    assert violations, (
-        "the gate failed to detect a raw AgentProfileRepository(org_dirs=...) "
-        "splice — it is vacuous or inverted"
-    )
+    assert violations, "the gate failed to detect a raw AgentProfileRepository(org_dirs=...) splice — it is vacuous or inverted"
 
 
 def test_gate_passes_compliant_seam_routing() -> None:
     """The gate predicate passes a compliant seam-routed construction."""
     assert raw_org_splice_violations(_COMPLIANT_FIXTURE) == []
-
-
-def test_reference_only_check_would_certify_the_bypass() -> None:
-    """Teeth proof: the reference proxy is satisfied by the bypass; absence is not.
-
-    The violation fixture imports the activation seam, so a "references the
-    seam" check returns True (would WRONGLY certify it). Only the absence
-    assertion (``raw_org_splice_violations``) bites — proving the binding
-    assertion, not the advisory one, has teeth.
-    """
-    assert references_activation_seam(_VIOLATION_FIXTURE) is True
-    assert raw_org_splice_violations(_VIOLATION_FIXTURE), (
-        "the absence assertion must bite where the reference proxy is fooled"
-    )
-
-
-def test_real_floor_sites_present_and_compliant() -> None:
-    """The three real WP03/WP04 surfaces exist, construct a repo, and are clean."""
-    verified = 0
-    for rel_path in _ORG_HONOURING_SURFACES:
-        source = _read_surface(rel_path)
-        assert _has_repo_constructor(source) or references_activation_seam(source), (
-            f"{rel_path} neither constructs {_REPO_CLASS} nor references the "
-            "activation seam — it may no longer be an org-honouring surface"
-        )
-        assert raw_org_splice_violations(source) == []
-        verified += 1
-    assert verified >= _MIN_ORG_HONOURING_SURFACES

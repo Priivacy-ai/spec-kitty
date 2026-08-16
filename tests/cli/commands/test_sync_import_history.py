@@ -25,10 +25,38 @@ from specify_cli.cli.commands import sync as sync_command
 from specify_cli.cli.commands.sync import app
 from specify_cli.delivery.config import EventSyncConfig, Mode
 from specify_cli.delivery.receivers import _TEAMSPACE_GATES
+from specify_cli.migration.envelope_seam import build_teamspace_envelope
 
 pytestmark = pytest.mark.fast
 
 runner = CliRunner()
+_CONFIRMED_ACTION_ID = "history-confirmed-action"
+_APPLY_ARGS = [
+    "import-history",
+    "--apply",
+    "--history-action-id",
+    _CONFIRMED_ACTION_ID,
+]
+
+
+def _stored_history_event(event_id: str, project_uuid: str) -> dict[str, object]:
+    """Serialize the legacy four-field row from the canonical envelope owner."""
+    canonical = build_teamspace_envelope(
+        event_id=event_id,
+        event_type="MissionCreated",
+        aggregate_id=event_id,
+        aggregate_type="Mission",
+        payload={},
+        timestamp="2026-08-01T00:00:00+00:00",
+        build_id="history-import-test",
+        node_id="history-import-test",
+        lamport_clock=1,
+        project_uuid=project_uuid,
+        project_slug="history-import-test",
+        repo_slug=None,
+        correlation_id=event_id,
+    ).model_dump()
+    return {key: canonical[key] for key in ("event_id", "event_type", "project_uuid", "payload")}
 
 
 # ── seam helpers ─────────────────────────────────────────────────────────────
@@ -77,13 +105,19 @@ def _strip_ansi(text: str) -> str:
 
 
 def test_command_is_wired_with_its_flags():
-    """``import-history --help`` renders and advertises its three flags."""
+    """``import-history --help`` renders every public selection/authority flag."""
     result = runner.invoke(app, ["import-history", "--help"])
     assert result.exit_code == 0
     plain = _strip_ansi(result.output)
     assert "--apply" in plain
     assert "--dry-run" in plain
     assert "--mission" in plain
+    assert "--history-action-id" in plain
+    assert "--confirm-history" in plain
+    assert "Step 1" in plain
+    assert "Step 2" in plain
+    assert "Step 3" in plain
+    assert "requires --history-action-id" in plain
 
 
 def test_apply_and_dry_run_are_mutually_exclusive():
@@ -91,6 +125,15 @@ def test_apply_and_dry_run_are_mutually_exclusive():
     result = runner.invoke(app, ["import-history", "--apply", "--dry-run"])
     assert result.exit_code == 2
     assert "mutually exclusive" in _strip_ansi(result.output)
+
+
+def test_history_action_id_is_rejected_without_apply():
+    result = runner.invoke(
+        app,
+        ["import-history", "--history-action-id", "history-not-for-preview"],
+    )
+    assert result.exit_code == 2
+    assert "valid only with --apply" in _strip_ansi(result.output)
 
 
 # ── stage 1: selection ───────────────────────────────────────────────────────
@@ -176,17 +219,167 @@ def test_apply_fails_closed_when_unauthenticated(monkeypatch):
     assert "Not authenticated" in _strip_ansi(result.output)
 
 
-def _wire_apply_seams(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Wire the auth/config/receiver seams so --apply reaches apply_import."""
+def test_apply_requires_an_explicit_confirmed_history_action(tmp_path, monkeypatch):
+    _wire_apply_seams(monkeypatch, tmp_path)
+    result = runner.invoke(app, ["import-history", "--apply"])
+    assert result.exit_code == 1
+    assert "History confirmation required" in _strip_ansi(result.output)
+
+
+def test_public_apply_consumes_real_store_minted_history_authority(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The public command consumes persisted authority, not an ambient helper."""
+    import json
+
+    from specify_cli.delivery.interfaces import DeliveryTarget, TargetIdentity
+    from specify_cli.delivery.targets import compute_target_id
+    from specify_cli.sync.consent import allocate_capture_sequence, record_project_opt_in
+    from specify_cli.sync.history_disclosure import (
+        confirm_history_disclosure,
+        preview_sealed_history,
+    )
+    from specify_cli.sync.history_import.upload import UploadReport
+    from specify_cli.sync.project_context import AdmissionState
+    from specify_cli.sync.project_identity import CanonicalProjectUUID
+    from specify_cli.sync.project_store import ProjectSyncStore
+
+    project_uuid = "11111111-2222-4333-8444-555555555555"
+    server_url = "https://app.spec-kitty.ai"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    store = ProjectSyncStore(project_uuid)
+    with store.unit_of_work() as unit:
+        assignment = allocate_capture_sequence(unit)
+        unit.execute(
+            "INSERT INTO journal_entries (entry_id, project_uuid, epoch_id, capture_sequence, payload_json) VALUES ('history-event-1', ?, ?, ?, ?)",
+            (
+                project_uuid,
+                assignment.epoch_id,
+                assignment.capture_sequence,
+                json.dumps(
+                    _stored_history_event("history-event-1", project_uuid),
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+            ),
+        )
+    record_project_opt_in(project_uuid, actor="operator:test")
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO project_target_admissions "
+            "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, binding_audience) "
+            "VALUES (?, ?, 'account-1', 'teamspace-1', 1, 'admitted', '7', "
+            "'private-teamspace:teamspace-1')",
+            (project_uuid, server_url),
+        )
+    context = store.create_context()
+    confirmed = confirm_history_disclosure(
+        store,
+        preview_sealed_history(store),
+        actor="operator:test",
+        idempotency_key="public-import-history",
+        context=context,
+    )
+    identity = TargetIdentity(
+        target_identity=server_url,
+        account_identity="account-1",
+        private_teamspace_id="teamspace-1",
+        project_uuid=CanonicalProjectUUID.parse(project_uuid),
+        configuration_generation=1,
+    )
+    target = DeliveryTarget(
+        target_id=compute_target_id(
+            target_identity=identity.target_identity,
+            account_identity=identity.account_identity,
+            private_teamspace_id=identity.private_teamspace_id,
+            project_uuid=identity.project_uuid,
+            configuration_generation=identity.configuration_generation,
+        ),
+        identity=identity,
+        admission_state=AdmissionState.ADMITTED,
+        admission_generation=7,
+        binding_audience="private-teamspace:teamspace-1",
+        last_error_category=None,
+    )
+    runtime = SimpleNamespace(
+        target=SimpleNamespace(resolved_server_url=server_url, team_slug="team"),
+        store=store,
+        context=context,
+        delivery_target=target,
+        close=lambda: None,
+    )
     monkeypatch.setattr(sync_command, "_event_sync_access_token", lambda: "tok")
-    target = SimpleNamespace(
-        resolved_server_url="http://x",
-        team_slug="team",
+    monkeypatch.setattr(sync_command, "_open_project_dispatch_runtime", lambda: runtime)
+    monkeypatch.setattr(
+        sync_command,
+        "_load_event_sync_config",
+        lambda: EventSyncConfig.from_mode(Mode.TEAMSPACE),
     )
     monkeypatch.setattr(
         sync_command,
-        "_open_event_sync_runtime",
-        lambda: SimpleNamespace(target=target, close=lambda: None),
+        "_resolve_active_receiver",
+        lambda *a, **k: SimpleNamespace(endpoint_url=f"{server_url}/batch", gates=lambda: ()),
+    )
+    _patch_checkout(monkeypatch, tmp_path)
+    seen: dict[str, object] = {}
+
+    def apply_import(repo_root: Path, **kwargs: object) -> object:
+        seen.update(kwargs)
+        assert repo_root == tmp_path
+        return _canned_apply_result(UploadReport(success=1))
+
+    import specify_cli.sync.history_import as history_import
+
+    monkeypatch.setattr(history_import, "apply_import", apply_import)
+
+    result = runner.invoke(
+        app,
+        ["import-history", "--apply", "--history-action-id", confirmed.action_id],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert seen["project_context"] is context
+    assert seen["target"] is target
+    capability = seen["history_capability"]
+    assert capability == confirmed
+
+
+def _wire_apply_seams(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> tuple[SimpleNamespace, object]:
+    """Wire the auth/config/receiver seams so --apply reaches apply_import."""
+    monkeypatch.setattr(sync_command, "_event_sync_access_token", lambda: "tok")
+    resolved_target = SimpleNamespace(
+        resolved_server_url="http://x",
+        team_slug="team",
+    )
+    capability = object()
+    runtime = SimpleNamespace(
+        target=resolved_target,
+        store=object(),
+        context=object(),
+        delivery_target=object(),
+        close=lambda: None,
+    )
+    monkeypatch.setattr(
+        sync_command,
+        "_open_project_dispatch_runtime",
+        lambda: runtime,
+    )
+    import specify_cli.sync.history_disclosure as history_disclosure
+
+    monkeypatch.setattr(
+        history_disclosure,
+        "consume_history_disclosure",
+        lambda store, *, action_id, context: (
+            capability
+            if store is runtime.store and action_id == _CONFIRMED_ACTION_ID and context is runtime.context
+            else pytest.fail("public command did not consume exact history authority")
+        ),
     )
     monkeypatch.setattr(
         sync_command,
@@ -199,6 +392,7 @@ def _wire_apply_seams(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         lambda *a, **k: SimpleNamespace(endpoint_url="http://x/batch", gates=lambda: ()),
     )
     _patch_checkout(monkeypatch, tmp_path)
+    return runtime, capability
 
 
 def _canned_apply_result(report):
@@ -233,6 +427,236 @@ def _canned_apply_result(report):
     return ApplyResult(plan=plan, manifest=manifest, report=report)
 
 
+def _real_confirmation_plan(project_uuid: str):
+    """Build one contract-valid synthesized plan for the public confirmation ATDD."""
+    from specify_cli.sync.history_import import ImportIdentity, ImportPlan
+    from specify_cli.sync.history_import.scan import MissionScan, PrefixSource
+    from specify_cli.sync.history_import.synthesize import synthesize_streams
+
+    scan = MissionScan(
+        mission_slug="m-1",
+        canonical_mission_id=None,
+        mission_number=None,
+        name="M One",
+        mission_type="software-dev",
+        purpose_tldr=None,
+        purpose_context=None,
+        target_branch="develop",
+        created_at=None,
+        prefix_source=PrefixSource.SYNTHESIZED,
+        work_packages=(),
+        lane_transitions=(),
+    )
+    identity = ImportIdentity(
+        project_uuid=uuid.UUID(project_uuid),
+        project_slug="m-1",
+        repo_slug="m-1",
+        is_synthetic=False,
+    )
+    envelopes = tuple(
+        synthesize_streams(
+            (scan,),
+            project_uuid=identity.project_uuid,
+            project_slug=identity.project_slug,
+            repo_slug=identity.repo_slug,
+        )
+    )
+    return ImportPlan(identity=identity, scans=(scan,), envelopes=envelopes)
+
+
+def test_public_dry_run_confirm_apply_sequence_uses_no_seeded_history_authority(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only explicit confirmation stages rows; its printed ID drives --apply."""
+    import json
+
+    from specify_cli.delivery.interfaces import DeliveryTarget, TargetIdentity
+    from specify_cli.delivery.targets import compute_target_id
+    from specify_cli.sync.consent import record_project_opt_in
+    from specify_cli.sync.history_import.upload import UploadReport
+    from specify_cli.sync.project_context import AdmissionState
+    from specify_cli.sync.project_identity import CanonicalProjectUUID
+    from specify_cli.sync.project_store import ProjectSyncStore
+
+    project_uuid = "11111111-2222-4333-8444-555555555555"
+    server_url = "https://app.spec-kitty.ai"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    store = ProjectSyncStore(project_uuid)
+    record_project_opt_in(project_uuid, actor="operator:test")
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO project_target_admissions "
+            "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, binding_audience) "
+            "VALUES (?, ?, 'account-1', 'teamspace-1', 1, 'admitted', '7', "
+            "'private-teamspace:teamspace-1')",
+            (project_uuid, server_url),
+        )
+    context = store.create_context()
+    identity = TargetIdentity(
+        target_identity=server_url,
+        account_identity="account-1",
+        private_teamspace_id="teamspace-1",
+        project_uuid=CanonicalProjectUUID.parse(project_uuid),
+        configuration_generation=1,
+    )
+    target = DeliveryTarget(
+        target_id=compute_target_id(
+            target_identity=identity.target_identity,
+            account_identity=identity.account_identity,
+            private_teamspace_id=identity.private_teamspace_id,
+            project_uuid=identity.project_uuid,
+            configuration_generation=identity.configuration_generation,
+        ),
+        identity=identity,
+        admission_state=AdmissionState.ADMITTED,
+        admission_generation=7,
+        binding_audience="private-teamspace:teamspace-1",
+        last_error_category=None,
+    )
+    runtime = SimpleNamespace(
+        target=SimpleNamespace(resolved_server_url=server_url, team_slug="team"),
+        store=store,
+        context=context,
+        delivery_target=target,
+        close=lambda: None,
+    )
+    plan = _real_confirmation_plan(project_uuid)
+    import specify_cli.sync.history_import as history_import
+    import specify_cli.sync.history_import.pipeline as history_pipeline
+    from specify_cli.sync.history_disclosure import HistoryDisclosureError
+
+    monkeypatch.setattr(history_import, "build_import_plan", lambda *a, **k: plan)
+    monkeypatch.setattr(history_pipeline, "build_import_plan", lambda *a, **k: plan)
+    monkeypatch.setattr(sync_command, "_open_project_dispatch_runtime", lambda: runtime)
+    monkeypatch.setattr(sync_command, "_event_sync_access_token", lambda: "tok")
+    monkeypatch.setattr(
+        sync_command,
+        "_load_event_sync_config",
+        lambda: EventSyncConfig.from_mode(Mode.TEAMSPACE),
+    )
+    monkeypatch.setattr(
+        sync_command,
+        "_resolve_active_receiver",
+        lambda *a, **k: SimpleNamespace(endpoint_url=f"{server_url}/batch", gates=lambda: ()),
+    )
+    _patch_checkout(monkeypatch, tmp_path)
+
+    with pytest.raises(HistoryDisclosureError, match="admitted account"):
+        history_pipeline.confirm_import_history(
+            tmp_path,
+            mission="m-1",
+            store=store,
+            context=context,
+            account_identity="other-account",
+        )
+    with store.unit_of_work() as unit:
+        assert unit.execute("SELECT COUNT(*) FROM journal_entries").fetchone() == (0,)
+
+    dry_run = runner.invoke(app, ["import-history", "--dry-run", "--mission", "m-1"])
+    assert dry_run.exit_code == 0, dry_run.output
+    with store.unit_of_work() as unit:
+        assert unit.execute("SELECT COUNT(*) FROM journal_entries").fetchone() == (0,)
+        assert unit.execute("SELECT COUNT(*) FROM history_disclosure_actions").fetchone() == (0,)
+
+    confirmation = runner.invoke(
+        app,
+        ["import-history", "--confirm-history", "--mission", "m-1"],
+    )
+    assert confirmation.exit_code == 0, confirmation.output
+    match = re.search(r"History action ID: (history-[0-9a-f]+)", _strip_ansi(confirmation.output))
+    assert match is not None
+    action_id = match.group(1)
+    assert f"--mission m-1 --history-action-id {action_id}" in _strip_ansi(confirmation.output)
+    confirmation_retry = runner.invoke(
+        app,
+        ["import-history", "--confirm-history", "--mission", "m-1"],
+    )
+    assert confirmation_retry.exit_code == 0, confirmation_retry.output
+    assert f"History action ID: {action_id}" in _strip_ansi(confirmation_retry.output)
+    with store.unit_of_work() as unit:
+        assert unit.execute("SELECT COUNT(*) FROM journal_entries").fetchone() == (len(plan.envelopes),)
+        assert unit.execute("SELECT COUNT(*) FROM outbox_tasks").fetchone() == (0,)
+        assert unit.execute("SELECT COUNT(*) FROM history_disclosure_actions").fetchone() == (1,)
+        assert unit.execute(
+            "SELECT state FROM consent_epochs WHERE project_uuid = ? ORDER BY epoch_id",
+            (project_uuid,),
+        ).fetchall() == [("eligible",), ("sealed",)]
+
+    calls: list[object] = []
+
+    def apply_import(repo_root: Path, **kwargs: object) -> object:
+        assert repo_root == tmp_path
+        calls.append(kwargs["history_capability"])
+        return _canned_apply_result(UploadReport(success=1))
+
+    monkeypatch.setattr(history_import, "apply_import", apply_import)
+    applied = runner.invoke(
+        app,
+        [
+            "import-history",
+            "--apply",
+            "--mission",
+            "m-1",
+            "--history-action-id",
+            action_id,
+        ],
+    )
+    assert applied.exit_code == 0, applied.output
+    assert len(calls) == 1
+
+    staged_payload = json.dumps(
+        plan.envelopes[0],
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "UPDATE journal_entries SET payload_json = '{\"changed\":true}' WHERE project_uuid = ? AND entry_id = ?",
+            (project_uuid, plan.envelopes[0]["event_id"]),
+        )
+    changed = runner.invoke(
+        app,
+        [
+            "import-history",
+            "--apply",
+            "--mission",
+            "m-1",
+            "--history-action-id",
+            action_id,
+        ],
+    )
+    assert changed.exit_code == 1
+    assert "cohort changed" in _strip_ansi(changed.output)
+    assert len(calls) == 1
+
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "UPDATE journal_entries SET payload_json = ? WHERE project_uuid = ? AND entry_id = ?",
+            (staged_payload, project_uuid, plan.envelopes[0]["event_id"]),
+        )
+        unit.execute(
+            "UPDATE project_target_admissions SET admission_generation = '8' WHERE project_uuid = ?",
+            (project_uuid,),
+        )
+    stale = runner.invoke(
+        app,
+        [
+            "import-history",
+            "--apply",
+            "--mission",
+            "m-1",
+            "--history-action-id",
+            action_id,
+        ],
+    )
+    assert stale.exit_code == 1
+    assert "preview again" in _strip_ansi(stale.output)
+    assert len(calls) == 1
+
+
 def test_apply_uploads_and_reports_on_success(tmp_path, monkeypatch):
     """The wired --apply resolves the authed receiver, runs apply_import, and
     reports the upload tally (exit 0). apply_import is stubbed with a canned
@@ -240,17 +664,26 @@ def test_apply_uploads_and_reports_on_success(tmp_path, monkeypatch):
     import specify_cli.sync.history_import as history_import
     from specify_cli.sync.history_import import UploadReport
 
-    _wire_apply_seams(monkeypatch, tmp_path)
+    runtime, capability = _wire_apply_seams(monkeypatch, tmp_path)
     canned = _canned_apply_result(UploadReport(success=1))
-    monkeypatch.setattr(history_import, "apply_import", lambda *a, **k: canned)
+    captured: dict[str, object] = {}
 
-    result = runner.invoke(app, ["import-history", "--apply"])
+    def _apply(*args, **kwargs):
+        captured.update(kwargs)
+        return canned
+
+    monkeypatch.setattr(history_import, "apply_import", _apply)
+
+    result = runner.invoke(app, _APPLY_ARGS)
     assert result.exit_code == 0
     plain = _strip_ansi(result.output)
     assert "Imported:" in plain
     assert "1 created" in plain
     # The provenance manifest is surfaced, not silently discarded (#2884).
     assert "Provenance: 1 envelope(s) hashed" in plain
+    assert captured["project_context"] is runtime.context
+    assert captured["target"] is runtime.delivery_target
+    assert captured["history_capability"] is capability
 
 
 # ── --apply: mode-authority fail-closed (P1, #2884) ──────────────────────────
@@ -274,10 +707,8 @@ def test_apply_refuses_when_persisted_mode_is_not_teamspace(tmp_path, monkeypatc
     """A non-TEAMSPACE persisted mode refuses the upload outright (exit 1),
     naming both the requirement and the operator's current mode."""
     _wire_apply_seams(monkeypatch, tmp_path)
-    monkeypatch.setattr(
-        sync_command, "_load_event_sync_config", lambda: _config_for_mode(mode)
-    )
-    result = runner.invoke(app, ["import-history", "--apply"])
+    monkeypatch.setattr(sync_command, "_load_event_sync_config", lambda: _config_for_mode(mode))
+    result = runner.invoke(app, _APPLY_ARGS)
     assert result.exit_code == 1
     plain = _strip_ansi(result.output)
     assert "requires event-sync mode TEAMSPACE" in plain
@@ -290,13 +721,11 @@ def test_apply_proceeds_when_persisted_mode_is_teamspace(tmp_path, monkeypatch):
     from specify_cli.sync.history_import import UploadReport
 
     _wire_apply_seams(monkeypatch, tmp_path)
-    monkeypatch.setattr(
-        sync_command, "_load_event_sync_config", lambda: EventSyncConfig.from_mode(Mode.TEAMSPACE)
-    )
+    monkeypatch.setattr(sync_command, "_load_event_sync_config", lambda: EventSyncConfig.from_mode(Mode.TEAMSPACE))
     canned = _canned_apply_result(UploadReport(success=1))
     monkeypatch.setattr(history_import, "apply_import", lambda *a, **k: canned)
 
-    result = runner.invoke(app, ["import-history", "--apply"])
+    result = runner.invoke(app, _APPLY_ARGS)
     assert result.exit_code == 0
 
 
@@ -310,18 +739,12 @@ def test_apply_proceeds_when_persisted_mode_is_teamspace(tmp_path, monkeypatch):
 # exercised.
 
 
-def _wire_apply_seams_real_gates(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, saas_enabled: bool, team_slug: str
-) -> None:
+def _wire_apply_seams_real_gates(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, saas_enabled: bool, team_slug: str) -> None:
     """Like ``_wire_apply_seams`` but the receiver declares the real Teamspace
     gate tuple, so ``evaluate_gates`` genuinely evaluates saas/private/auth."""
     monkeypatch.setattr(sync_command, "_event_sync_access_token", lambda: "tok")
-    target = SimpleNamespace(resolved_server_url="http://x", team_slug=team_slug)
-    monkeypatch.setattr(
-        sync_command,
-        "_open_event_sync_runtime",
-        lambda: SimpleNamespace(target=target, close=lambda: None),
-    )
+    runtime, _capability = _wire_apply_seams(monkeypatch, tmp_path)
+    runtime.target.team_slug = team_slug
     monkeypatch.setattr(
         sync_command,
         "_load_event_sync_config",
@@ -331,18 +754,15 @@ def _wire_apply_seams_real_gates(
     monkeypatch.setattr(
         sync_command,
         "_resolve_active_receiver",
-        lambda *a, **k: SimpleNamespace(
-            endpoint_url="http://x/batch", gates=lambda: _TEAMSPACE_GATES
-        ),
+        lambda *a, **k: SimpleNamespace(endpoint_url="http://x/batch", gates=lambda: _TEAMSPACE_GATES),
     )
-    _patch_checkout(monkeypatch, tmp_path)
 
 
 def test_apply_fails_closed_when_real_gates_are_unsatisfied(tmp_path, monkeypatch):
     """A GateContext short on saas_enabled and private_teamspace genuinely blocks
     through the real Teamspace gate tuple, naming both unsatisfied gates."""
     _wire_apply_seams_real_gates(monkeypatch, tmp_path, saas_enabled=False, team_slug="")
-    result = runner.invoke(app, ["import-history", "--apply"])
+    result = runner.invoke(app, _APPLY_ARGS)
     assert result.exit_code == 1
     plain = _strip_ansi(result.output)
     assert "gated" in plain
@@ -361,7 +781,7 @@ def test_apply_proceeds_when_real_gates_are_satisfied(tmp_path, monkeypatch):
     canned = _canned_apply_result(UploadReport(success=1))
     monkeypatch.setattr(history_import, "apply_import", lambda *a, **k: canned)
 
-    result = runner.invoke(app, ["import-history", "--apply"])
+    result = runner.invoke(app, _APPLY_ARGS)
     assert result.exit_code == 0
 
 
@@ -369,7 +789,7 @@ def test_apply_fails_closed_when_receiver_is_none(tmp_path, monkeypatch):
     """No resolvable receiver (e.g. an unrecognized target) refuses to upload."""
     _wire_apply_seams(monkeypatch, tmp_path)
     monkeypatch.setattr(sync_command, "_resolve_active_receiver", lambda *a, **k: None)
-    result = runner.invoke(app, ["import-history", "--apply"])
+    result = runner.invoke(app, _APPLY_ARGS)
     assert result.exit_code == 1
     assert "not configured" in _strip_ansi(result.output)
 
@@ -382,7 +802,7 @@ def test_apply_fails_closed_when_endpoint_url_missing(tmp_path, monkeypatch):
         "_resolve_active_receiver",
         lambda *a, **k: SimpleNamespace(endpoint_url="", gates=lambda: ()),
     )
-    result = runner.invoke(app, ["import-history", "--apply"])
+    result = runner.invoke(app, _APPLY_ARGS)
     assert result.exit_code == 1
     assert "not configured" in _strip_ansi(result.output)
 
@@ -400,7 +820,7 @@ def _invoke_apply_raising(tmp_path, monkeypatch, exc: BaseException):
         raise exc
 
     monkeypatch.setattr(history_import, "apply_import", _boom)
-    return runner.invoke(app, ["import-history", "--apply"])
+    return runner.invoke(app, _APPLY_ARGS)
 
 
 def test_apply_renders_audit_blockers(tmp_path, monkeypatch):
@@ -476,7 +896,7 @@ def _invoke_apply_with_report(tmp_path, monkeypatch, report):
     _wire_apply_seams(monkeypatch, tmp_path)
     canned = _canned_apply_result(report)
     monkeypatch.setattr(history_import, "apply_import", lambda *a, **k: canned)
-    return runner.invoke(app, ["import-history", "--apply"])
+    return runner.invoke(app, _APPLY_ARGS)
 
 
 def test_apply_renders_rejected_tally_and_samples(tmp_path, monkeypatch):

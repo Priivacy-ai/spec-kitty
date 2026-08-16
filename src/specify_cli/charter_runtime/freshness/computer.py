@@ -113,6 +113,11 @@ __all__ = [
 
 FreshnessState = Literal["fresh", "stale", "missing", "built_in_only", "invalid"]
 
+# S1192: shared remediation command strings, referenced by every sub-state
+# builder below that recommends a recovery command.
+_REMEDIATE_CHARTER_SYNC = "spec-kitty charter sync"
+_REMEDIATE_CHARTER_SYNTHESIZE = "spec-kitty charter synthesize"
+
 
 # ---------------------------------------------------------------------------
 # Data models
@@ -306,7 +311,7 @@ def _compute_charter_source(repo_root: Path) -> FreshnessSubState:
         return FreshnessSubState(
             state="missing",
             last_change=None,
-            remediation="spec-kitty charter sync",
+            remediation=_REMEDIATE_CHARTER_SYNC,
         )
 
     last_change = _mtime_iso(charter_yaml_path)
@@ -315,7 +320,7 @@ def _compute_charter_source(repo_root: Path) -> FreshnessSubState:
         return FreshnessSubState(
             state="invalid",
             last_change=last_change,
-            remediation="spec-kitty charter sync",
+            remediation=_REMEDIATE_CHARTER_SYNC,
             detail="charter.yaml exists but cannot be parsed",
         )
 
@@ -345,7 +350,7 @@ def _compute_synced_bundle(
         return FreshnessSubState(
             state="missing",
             last_change=None,
-            remediation="spec-kitty charter sync",
+            remediation=_REMEDIATE_CHARTER_SYNC,
         )
 
     last_change = _latest_mtime(existing)
@@ -354,7 +359,7 @@ def _compute_synced_bundle(
         return FreshnessSubState(
             state="stale",
             last_change=last_change,
-            remediation="spec-kitty charter sync",
+            remediation=_REMEDIATE_CHARTER_SYNC,
         )
 
     return FreshnessSubState(state="fresh", last_change=last_change, remediation=None)
@@ -444,7 +449,7 @@ def _synthesized_drg_missing_graph_state(repo_root: Path) -> FreshnessSubState:
     return FreshnessSubState(
         state="missing",
         last_change=None,
-        remediation="spec-kitty charter synthesize",
+        remediation=_REMEDIATE_CHARTER_SYNTHESIZE,
     )
 
 
@@ -475,7 +480,7 @@ def _synthesized_drg_graph_state(
         return FreshnessSubState(
             state="stale",
             last_change=graph_mtime_iso,
-            remediation="spec-kitty charter synthesize",
+            remediation=_REMEDIATE_CHARTER_SYNTHESIZE,
         )
 
     # NFR-003: defer the ``charter.bundle`` import until this branch actually
@@ -488,7 +493,7 @@ def _synthesized_drg_graph_state(
         return FreshnessSubState(
             state="stale",
             last_change=graph_mtime_iso,
-            remediation="spec-kitty charter synthesize",
+            remediation=_REMEDIATE_CHARTER_SYNTHESIZE,
         )
 
     return FreshnessSubState(state="fresh", last_change=graph_mtime_iso, remediation=None)

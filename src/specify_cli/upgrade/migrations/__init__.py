@@ -48,6 +48,19 @@ def auto_discover_migrations() -> None:
 
                 # Check if module was already imported
                 if module_full_name in sys.modules:
+                    # base.py holds the shared migration base classes
+                    # (BaseMigration, MigrationResult, PartialWrite) that both
+                    # the migration modules and external callers hold live
+                    # references to. It registers no migration, so it would
+                    # ALWAYS fall through the "not registered -> reload" branch
+                    # below -- and reloading it mints fresh class objects,
+                    # silently breaking isinstance()/identity across the process
+                    # (e.g. a reloaded m_zz constructs the new base.PartialWrite
+                    # while a caller still holds the original). base only ever
+                    # needs its one-time fresh import, never a reload.
+                    if module_name == "base":
+                        continue
+
                     # Only reload if the migration isn't already registered
                     # This handles test scenarios where MigrationRegistry.clear()
                     # was called but modules are still in sys.modules

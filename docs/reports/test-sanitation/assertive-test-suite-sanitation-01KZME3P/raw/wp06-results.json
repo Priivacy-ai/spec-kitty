@@ -1,0 +1,200 @@
+{
+  "schema_version": "wp06-results/v1",
+  "mission": "assertive-test-suite-sanitation-01KZME3P",
+  "work_package": "WP06",
+  "captured_at": "2026-08-10T15:12:52Z",
+  "immutable_base": "28ae75ea998c898aba57364db7a06d2088bd2af2",
+  "harness": {
+    "dependency": "WP02 exact final repaired harness files from c8494d69451cdea7c15866db2b6552979d2db279 overlaid on immutable base in a detached worktree",
+    "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+    "install": "uv sync --frozen --all-extras",
+    "python": "CPython 3.11.15",
+    "os": "macOS 15.7.7 arm64"
+  },
+  "issue_3284_reconciliation": {
+    "issue_result": "24 failed, 37298 passed, 108 skipped, 5 xfailed, 2 errors in 1689.48s",
+    "issue_untracked": {"failed": 23, "errors": 2},
+    "wp06_owned": {"failed": 22, "errors": 2},
+    "handoffs": [
+      {
+        "nodeid": "tests/architectural/test_ci_quality_path_filters.py::test_core_misc_shards_plus_e2e_owner_cover_legacy_selection",
+        "owner": "WP07",
+        "outcome": "failed",
+        "reason": "explicit CI-route authority handoff"
+      }
+    ],
+    "excluded_existing_owner": {
+      "nodeid": "tests/regression/test_issue_2782_sync_strict_json_ingress_skip.py::test_mission_create_json_strict_when_sync_skips_ingress",
+      "owner": "WP03",
+      "issue": "#2782"
+    },
+    "terminal_wp06_product_reds": 0,
+    "base_green_head_red": 0
+  },
+  "outcome_provenance": {
+    "original_suite": {
+      "commit": "28ae75ea998c898aba57364db7a06d2088bd2af2",
+      "scope": "full immutable-base suite; aggregate plus explicit non-pass rows",
+      "result": "27 failed, 37295 passed, 108 skipped, 5 xfailed, 9 not run",
+      "artifact": "raw/base-full-suite-summary.txt",
+      "artifact_sha256": "169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1"
+    },
+    "base_plus_wp02": {
+      "commit": "28ae75ea998c898aba57364db7a06d2088bd2af2",
+      "harness_source": "c8494d69451cdea7c15866db2b6552979d2db279",
+      "scope": "45 exact selected WP06 nodes, including all 21 initially proposed sync removals (2 were restored and strengthened in final review)",
+      "result": "12 failed, 33 passed in 171.37s",
+      "artifact": "raw/wp06-base-wp02-junit.xml",
+      "artifact_sha256": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+    },
+    "wp06_head": {
+      "commit": "a23819fb1fda7d5326ddc6975b49b9578299db62",
+      "scope": "141 surviving WP06-owned nodes under xdist loadfile, including two lean strengthened persistence oracles restored by final review",
+      "result": "141 passed in 50.384s",
+      "artifact": "raw/wp06-head-junit.xml",
+      "artifact_sha256": "4a1376c1ce4d7c61b2957be6e7f2c0df871f2809d7af27952d5cb89da35bc736"
+    },
+    "removed_sync_survivors": {
+      "scope": "20 exact biting survivor nodes for 18 deleted duplicate mappings; one synthetic workflow node is separately non-causal; two unsupported mappings were restored as strengthened tests",
+      "result": "20 passed in 0.88s",
+      "artifact": "raw/wp06-sync-survivor-junit.xml",
+      "artifact_sha256": "4c4ce85768768e9a01efb5e11835937b818d8387452b7dbee8adfadca07bafad",
+      "mapping": "raw/wp06-sync-survivor-map.json",
+      "mapping_sha256": "95decfac07315d5f60a37afe2a63882830e476bc8317cb7e578a973b0edefa87"
+    }
+  },
+  "isolated_replay": {
+    "topology": "one exact node per pytest process, serial, repaired WP02 harness",
+    "reproduced_failed": [
+      "tests/charter/test_config_stem_parity.py::test_config_declares_exactly_the_expected_directive_count",
+      "tests/charter/test_config_stem_parity.py::test_every_activated_directive_stem_round_trips_to_canonical_urn[reconcile-change-scope-tensions]",
+      "tests/charter/test_config_stem_parity.py::test_every_activated_directive_stem_round_trips_to_canonical_urn[use-c4-model-techniques]",
+      "tests/doctrine/drg/test_reachability.py::TestActionChannelReachability::test_unreachable_at_d1_is_the_pinned_membership",
+      "tests/doctrine/drg/test_reachability.py::TestActionChannelReachability::test_unreachable_at_d2_is_the_pinned_membership",
+      "tests/doctrine/drg/test_reachability.py::TestC009NormalizationSwingExcluded::test_normalization_delta_is_the_declared_25_swing",
+      "tests/doctrine/drg/test_reachability.py::TestProfileChannelReachability::test_profile_unreachable_is_the_pinned_membership",
+      "tests/doctrine/drg/migration/test_extractor_projection.py::TestDRGZeroDelta::test_activated_but_unreachable_orphans_are_really_activated",
+      "tests/cli/test_cli_console.py::test_set_plain_false_restores_colour",
+      "tests/cli/test_cli_console.py::test_set_plain_true_strips_colour_from_human_output",
+      "tests/cli/test_cli_console.py::test_vanilla_console_print_json_would_leak_ansi",
+      "tests/cli/commands/test_agent_mission_commit_to_branch.py::test_commit_to_branch_treats_empty_safe_commit_shape_as_unchanged_when_dirty"
+    ],
+    "not_reproduced_under_repaired_harness": {
+      "completion_latency": "all selected issue candidates passed in isolation",
+      "doctor_restart": "passed",
+      "mission_template_resolution": "3 passed",
+      "compact_threshold": "passed",
+      "charter_e2e": "passed in 40.61s",
+      "upgrade_e2e": "passed in 17.97s",
+      "dual_write_teardown": "candidate call passed and no teardown error",
+      "identity_teardown": "candidate call passed and no teardown error"
+    },
+    "classification": {
+      "stale_or_non_causal_delete": [
+        "exact directive count",
+        "four exact reachability membership/swing pins",
+        "activated orphan acceptability pin",
+        "three 500ms completion thresholds",
+        "two compact-size parameter nodes",
+        "safe-commit hook-failure masking oracle"
+      ],
+      "harness_or_oracle_repair": [
+        "console terminal negotiation",
+        "global mission-template home isolation",
+        "doctor restart functional-health oracle",
+        "daemon port ownership",
+        "lean alias and force-metadata persistence oracles restored after final review rejected non-biting survivor mappings"
+      ],
+      "dependency_repair_keep": ["charter E2E", "upgrade E2E"],
+      "dominated_duplicate_delete": [
+        "tests/sync/test_sync_e2e_integration.py (17 nodes)",
+        "tests/sync/test_dual_write_integration.py (2 dominated nodes deleted; 2 unique persistence nodes retained and strengthened)"
+      ]
+    }
+  },
+  "flake_matrix": {
+    "candidate": "tests/sync/test_daemon_self_retirement.py::TestRunSyncDaemonWiring::test_sigterm_exits_without_deadlocking_server_shutdown",
+    "seeds": [11, 22, 33, 44, 55],
+    "artifact": "raw/wp06-daemon-matrix.json",
+    "artifact_sha256": "845faa10256247b51f228b2de713c50c785eabcddc25bf8429daa68fec722d08",
+    "pre_repair": {
+      "original_observation": "one actual failure occurred in the unlabelled cycle-1 loop; seed and repetition remain explicitly unknown",
+      "labelled_natural_calibration": {"isolated_passes": 20, "parallel_passes": 10, "failures": 0},
+      "controlled_causal_replay": {
+        "seed": 11,
+        "repetition": 1,
+        "topology": "controlled isolated port claim",
+        "result": "1 failed in 99.85s: OSError [Errno 48] Address already in use",
+        "artifact": "raw/wp06-daemon-pre-repair-fault-junit.xml",
+        "artifact_sha256": "528426755658a8f127f56e7a705bc02bca9596e6e122ee416bdfa2d1bb20ccf3",
+        "fault_patch": "raw/wp06-daemon-pre-repair-fault.patch",
+        "fault_patch_sha256": "a37607431a63adc0179a0512ac732956fe039976ffff70335e1c50bb77dd7b23",
+        "source": "raw/wp06-daemon-matrix.json#/source_trees/controlled_base_plus_wp02",
+        "source_commit": "28ae75ea998c898aba57364db7a06d2088bd2af2",
+        "source_tree": "0cce985c48ae3fcacd192d68f26ba3acfbc88aea",
+        "daemon_test_blob": "9e6d0eba419d7fa6a3d7e76aee30c662fe54f13c",
+        "wp02_harness_commit": "c8494d69451cdea7c15866db2b6552979d2db279"
+      }
+    },
+    "root_cause": "parent selected then released a supposedly free TCP port before the daemon subprocess bound it",
+    "repair": "parent binds/listens once and transfers the live socket fd to the POSIX child; no retry, skip, xfail, timeout inflation, or product edit",
+    "post_repair": {
+      "isolated": {"passes": 20, "failures": 0, "seeds": [11, 22, 33, 44, 55], "repetitions_per_seed": 4, "rows": "raw/wp06-daemon-matrix.json#/post_repair/isolated_rows"},
+      "ci_parallel": {"passes": 10, "failures": 0, "seeds": [11, 22, 33, 44, 55], "repetitions_per_seed": 2, "topology": "ten concurrent pytest -n 2 --dist loadfile processes", "rows": "raw/wp06-daemon-matrix.json#/post_repair/parallel_rows"},
+      "persistent_fault_behavior": "any startup, health, SIGTERM, cleanup, or exit failure remains immediately visible"
+    }
+  },
+  "reduction": {
+    "owned_cohort_nodes_before": 177,
+    "owned_cohort_nodes_after": 141,
+    "nodes_removed": 36,
+    "files_deleted": 1,
+    "test_diff_insertions": 136,
+    "test_diff_deletions": 1789,
+    "net_test_loc": -1653,
+    "focused_after_seconds": {
+      "serial_initial": 62.40,
+      "ci_parallel_final": 50.384
+    },
+    "deleted_call_time_seconds": null,
+    "deleted_call_time_note": "The immutable #3284 artifact retained suite wall time and outcome hashes, not per-node call durations; no duration was fabricated."
+  },
+  "verification": [
+    {
+      "command": "PWHEADLESS=1 PYTHONHASHSEED=11 .venv/bin/pytest -q --junit-xml=<artifact> <45 exact selected nodes> --tb=short (immutable base plus exact WP02 harness)",
+      "result": "12 failed, 33 passed in 171.37s; all 21 initially proposed sync removals passed"
+    },
+    {
+      "command": ".venv/bin/pytest -q <12 surviving owned files> --tb=short",
+      "result": "138 passed, 1 harness-oracle failure in 62.40s; targeted console repair then 12/12 console nodes passed"
+    },
+    {
+      "command": ".venv/bin/pytest -q -n auto --dist loadfile <12 surviving owned files> --tb=short",
+      "result": "141 passed in 50.384s at source commit a23819fb1fda7d5326ddc6975b49b9578299db62"
+    },
+    {
+      "command": "PWHEADLESS=1 PYTHONHASHSEED=11 .venv/bin/pytest -q <20 exact biting survivor nodes>",
+      "result": "20 passed in 0.88s"
+    },
+    {
+      "command": "exact daemon matrix commands recorded in raw/wp06-daemon-matrix.json",
+      "result": "20/20 isolated and 10/10 parallel post-repair; all 60 pre/post row hashes verify against persisted UTF-8 bytes; exact immutable-base plus WP02 controlled pre-repair port-claim replay failed as expected"
+    },
+    {
+      "command": ".venv/bin/ruff check <12 surviving owned files>",
+      "result": "All checks passed"
+    },
+    {
+      "command": ".venv/bin/pytest --collect-only -q <12 surviving owned files>",
+      "result": "141 tests collected"
+    }
+  ],
+  "safety": {
+    "production_files_changed": [],
+    "skips_added": 0,
+    "xfails_added": 0,
+    "quarantines_added": 0,
+    "retries_added": 0,
+    "timeouts_inflated": 0
+  }
+}

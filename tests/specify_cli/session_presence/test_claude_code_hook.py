@@ -231,11 +231,6 @@ class TestIsRegistered:
         reg = ClaudeCodeHookRegistrar()
         assert reg.is_registered(claude_project, _CMD) is False
 
-    def test_returns_false_when_file_absent(self, claude_project: Path) -> None:
-        reg = ClaudeCodeHookRegistrar()
-        assert reg.is_registered(claude_project, _CMD) is False
-
-
 class TestAtomicWrite:
     def test_temp_file_cleaned_up_on_write_error(self, claude_project: Path) -> None:
         """All writes are atomic: temp file is removed on error."""

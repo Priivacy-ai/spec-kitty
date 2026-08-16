@@ -2,13 +2,16 @@
 title: Install Spec Kitty — macOS, Linux, and Windows Installation Guide
 description: Step-by-step guide to install Spec Kitty on macOS, Linux, and Windows. Set up the CLI, initialize your project, and configure AI coding agents.
 doc_status: active
-updated: '2026-06-14'
+updated: '2026-08-11'
 type: how-to
 audience: docs/context/audience/external/project-owner.md
 related:
 - docs/api/slash-commands.md
 - docs/guides/how-to/installation/install-and-upgrade.md
 - docs/guides/how-to/collaboration/manage-agents.md
+- docs/guides/how-to/installation/install-linux.md
+- docs/guides/how-to/installation/install-macos.md
+- docs/guides/how-to/installation/install-windows.md
 - docs/guides/how-to/installation/non-interactive-init.md
 - docs/guides/how-to/monitoring/use-dashboard.md
 ---
@@ -17,6 +20,13 @@ related:
 > Spec Kitty is inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit). Installation commands below target the spec-kitty distribution while crediting the original project.
 
 > **📖 Looking for the complete workflow?** See the [README: Getting Started guide](https://github.com/Priivacy-ai/spec-kitty#-getting-started-complete-workflow) for the full lifecycle from CLI installation through feature development and merging.
+
+![Install Spec Kitty — Mission Kitty as a detective with a toolbox and gears](../../../assets/images/install-spec-kitty-mission-kitty.png)
+
+_Stylized splash — decorative only. Platform install paths and CLI steps are in the text below._
+
+> [!TIP]
+> Platform-specific notes: [Linux](install-linux.md) · [macOS](install-macos.md) · [Windows](install-windows.md)
 
 ## Prerequisites
 

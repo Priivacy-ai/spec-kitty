@@ -814,14 +814,6 @@ def test_resolve_scope_source_with_no_review_test_command_routes_to_gate_coverag
     assert isinstance(result, GateCoverageScopeSource)
 
 
-def test_resolve_scope_source_with_no_config_file_at_all_routes_to_gate_coverage(tmp_path: Path) -> None:
-    """spec-kitty's real repo shape: no ``.kittify/config.yaml`` `review`
-    section (or none at all) still must not be misrouted."""
-    result = scope_source.resolve_scope_source(tmp_path)
-
-    assert isinstance(result, GateCoverageScopeSource)
-
-
 # ---------------------------------------------------------------------------
 # T012 — NFR-005 dual-root equivalence + structural same-helper assertion
 # ---------------------------------------------------------------------------

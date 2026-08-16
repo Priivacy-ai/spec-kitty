@@ -38,6 +38,7 @@ seam rather than by a spawned daemon: ``handle_sync_publish`` decodes the payloa
 checks the daemon token and calls ``runtime.publish_event`` — that call is its only
 egress action, and the gate sits inside it.
 """
+
 from __future__ import annotations
 
 import json
@@ -49,7 +50,10 @@ from unittest.mock import MagicMock
 import pytest
 
 from specify_cli.sync import events as events_module
+from specify_cli.sync.consent import record_project_opt_in, record_project_opt_out
+from specify_cli.sync.layout_generation import LayoutAuthorityError
 from specify_cli.sync.project_identity import NIL_PROJECT_UUID
+from specify_cli.sync.project_store import ProjectSyncStore
 from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.runtime import SyncRuntime
 
@@ -76,7 +80,15 @@ def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home = tmp_path / "home"
     home.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://app.spec-kitty.ai")
+    manager = SimpleNamespace(
+        get_current_session=lambda: SimpleNamespace(
+            email="account-1",
+            teams=[SimpleNamespace(id="teamspace-1", is_private_teamspace=True)],
+        )
+    )
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: manager)
 
 
 def _checkout(tmp_path: Path, name: str, *, uuid: str, consents: bool | None) -> Path:
@@ -92,6 +104,36 @@ def _checkout(tmp_path: Path, name: str, *, uuid: str, consents: bool | None) ->
         lines += ["sync:", f"  enabled: {str(consents).lower()}"]
     (root / ".kittify" / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return root
+
+
+def _project_only(store: ProjectSyncStore) -> None:
+    authority = store.layout_generation()
+    try:
+        authority.begin_cutover("wp09-daemon-regression")
+    except LayoutAuthorityError as exc:
+        if "already project-only" not in str(exc):
+            raise
+    else:
+        authority.publish_project_only(
+            "wp09-daemon-regression",
+            verify_exact=lambda: True,
+        )
+
+
+def _admit_project(project_uuid: str) -> ProjectSyncStore:
+    record_project_opt_in(project_uuid, actor="wp09-daemon-regression")
+    store = ProjectSyncStore(project_uuid)
+    _project_only(store)
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO project_target_admissions "
+            "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, binding_audience) "
+            "VALUES (?, 'https://app.spec-kitty.ai', 'account-1', 'teamspace-1', 4, "
+            "'admitted', '1', 'private-teamspace:teamspace-1')",
+            (project_uuid,),
+        )
+    return store
 
 
 def _envelope(project_uuid: str | None, *, slug: str, mission: str) -> dict[str, Any]:
@@ -174,7 +216,7 @@ def runtime_and_client() -> Any:
     runtime = SyncRuntime()
     client = _RecordingWsClient()
     runtime._ensure_async_loop()
-    runtime.ws_client = client  # type: ignore[assignment]
+    runtime.ws_client = client
     runtime.started = True
     try:
         yield runtime, client
@@ -200,10 +242,8 @@ def test_the_loop_and_client_fixture_can_actually_publish(runtime_and_client: An
     its fixture was wrong is how this mission previously collected five apparent
     successes that proved nothing. If this test fails, no refusal below means anything.
     """
-    from specify_cli.sync.consent import set_project_consent
-
     runtime, client = runtime_and_client
-    set_project_consent(UUID_A, True)
+    _admit_project(UUID_A)
 
     assert runtime.publish_event(_envelope_a()) is True
     assert client.published_uuids == [UUID_A]
@@ -219,26 +259,18 @@ def test_publish_event_withholds_an_unconsented_projects_envelope(
     consent record anywhere. Only A's envelope may reach the client, and B's
     engagement name must appear nowhere in the bytes the transport received.
     """
-    from specify_cli.sync.consent import set_project_consent
-
     runtime, client = runtime_and_client
-    set_project_consent(UUID_A, True)
+    _admit_project(UUID_A)
 
     published_b = runtime.publish_event(_envelope_b())
     published_a = runtime.publish_event(_envelope_a())
 
     assert client.published_uuids == [UUID_A], (
-        "the WebSocket publish must be decided from the event's own project_uuid. "
-        f"Project B never opted in anywhere, yet: {client.published_uuids}"
+        f"the WebSocket publish must be decided from the event's own project_uuid. Project B never opted in anywhere, yet: {client.published_uuids}"
     )
-    assert CARVE_OUT not in client.wire_bytes, (
-        "project B's engagement name left the machine inside the published envelope: "
-        f"{client.wire_bytes}"
-    )
+    assert CARVE_OUT not in client.wire_bytes, f"project B's engagement name left the machine inside the published envelope: {client.wire_bytes}"
     assert published_b is False, "a refused publish must report that it did not publish"
-    assert published_a is True, (
-        "the positive control must still publish; this gate is not a kill switch"
-    )
+    assert published_a is True, "the positive control must still publish; this gate is not a kill switch"
 
 
 @pytest.mark.parametrize(
@@ -251,9 +283,7 @@ def test_publish_event_withholds_an_unconsented_projects_envelope(
         ("not a mapping", "MissionCreated for acme-holdings-carve-out"),
     ],
 )
-def test_an_unresolvable_project_uuid_denies_the_publish(
-    runtime_and_client: Any, label: str, event: Any
-) -> None:
+def test_an_unresolvable_project_uuid_denies_the_publish(runtime_and_client: Any, label: str, event: Any) -> None:
     """FR-003's rule at an egress point: cannot determine is never consent.
 
     NFR-001's second half is that an event whose project cannot be identified can
@@ -268,9 +298,7 @@ def test_an_unresolvable_project_uuid_denies_the_publish(
     assert client.sent == [], f"{label}: an unidentifiable envelope was published"
 
 
-def test_a_consent_read_that_raises_refuses_the_publish(
-    runtime_and_client: Any, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_a_consent_read_that_raises_refuses_the_publish(runtime_and_client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     """The ``except`` branch is pinned, not trusted.
 
     ``publish_event`` is best-effort by contract and swallows failures so emission
@@ -278,42 +306,35 @@ def test_a_consent_read_that_raises_refuses_the_publish(
     into egress. A guard whose ``except`` quietly starts returning True reports clean
     forever.
     """
-    from specify_cli.sync.consent import set_project_consent
-
     runtime, client = runtime_and_client
-    set_project_consent(UUID_A, True)
+    _admit_project(UUID_A)
 
     def _explode(*_a: object, **_kw: object) -> frozenset[str]:
         raise RuntimeError("consent index unreadable")
 
-    monkeypatch.setattr("specify_cli.sync.consent.consented_project_uuids", _explode)
+    monkeypatch.setattr("specify_cli.sync.project_store.ProjectSyncStore.create_context", _explode)
 
     assert runtime.publish_event(_envelope_a()) is False
     assert client.sent == []
 
 
-def test_the_projects_own_committed_refusal_outranks_an_index_grant(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, runtime_and_client: Any
-) -> None:
+def test_the_projects_own_committed_refusal_outranks_an_index_grant(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, runtime_and_client: Any) -> None:
     """C-003: the decision goes down the one existing chain, not to the index.
 
     FR-013/FR-019 — a refusal committed in the project's own ``.kittify/config.yaml``
     beats a stale machine-global grant. A second, local copy of the precedence rules
     would take the index's answer and publish.
     """
-    from specify_cli.sync.consent import set_project_consent
-
     runtime, client = runtime_and_client
-    set_project_consent(UUID_A, True)
+    _admit_project(UUID_A)
+    record_project_opt_out(UUID_A, actor="wp09-daemon-regression")
     monkeypatch.chdir(_checkout(tmp_path, "project-a", uuid=UUID_A, consents=False))
 
     assert runtime.publish_event(_envelope_a()) is False
     assert client.sent == []
 
 
-def test_machine_global_arming_never_grants_the_publish(
-    runtime_and_client: Any, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_machine_global_arming_never_grants_the_publish(runtime_and_client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     """The incident's own mechanism must not authorise anything.
 
     ``SPEC_KITTY_ENABLE_SAAS_SYNC`` armed the machine on 2026-07-27 and five
@@ -326,9 +347,7 @@ def test_machine_global_arming_never_grants_the_publish(
     assert client.sent == []
 
 
-def test_a_refused_publish_does_not_start_the_runtime(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_a_refused_publish_does_not_start_the_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """The refusal precedes every side effect of the publish, including ``start()``.
 
     ``publish_event`` starts the runtime and opens a WebSocket when it is not running
@@ -394,21 +413,15 @@ def relay_egress(monkeypatch: pytest.MonkeyPatch) -> _RecordingUrlopen:
     monkeypatch.setattr(events_module, "is_saas_sync_enabled", lambda: True)
     monkeypatch.setattr(
         "specify_cli.sync.daemon.get_sync_daemon_status",
-        lambda **_kw: SimpleNamespace(
-            healthy=True, url="http://127.0.0.1:9401", token="daemon-token"
-        ),
+        lambda **_kw: SimpleNamespace(healthy=True, url="http://127.0.0.1:9401", token="daemon-token"),
     )
     monkeypatch.setattr("urllib.request.urlopen", recorder)
     return recorder
 
 
-def test_the_fanout_relay_can_actually_post(
-    tmp_path: Path, relay_egress: _RecordingUrlopen
-) -> None:
+def test_the_fanout_relay_can_actually_post(tmp_path: Path, relay_egress: _RecordingUrlopen) -> None:
     """The relay harness's positive control — the daemon POST does happen."""
-    from specify_cli.sync.consent import set_project_consent
-
-    set_project_consent(UUID_A, True)
+    _admit_project(UUID_A)
     root = _checkout(tmp_path, "project-a", uuid=UUID_A, consents=True)
 
     events_module._publish_event_via_sync_daemon(_envelope_a(), root)
@@ -416,9 +429,7 @@ def test_the_fanout_relay_can_actually_post(
     assert relay_egress.published_uuids == [UUID_A]
 
 
-def test_the_fanout_does_not_relay_another_projects_envelope(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relay_egress: _RecordingUrlopen
-) -> None:
+def test_the_fanout_does_not_relay_another_projects_envelope(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relay_egress: _RecordingUrlopen) -> None:
     """The reported scenario: a daemon-scope grant authorising project B's publish.
 
     ``_lifecycle_saas_fanout_handler`` relays a ``MissionCreated`` through the
@@ -427,59 +438,42 @@ def test_the_fanout_does_not_relay_another_projects_envelope(
     project A while the envelope belongs to never-opted-in project B: the M1-1 shape
     one level up.
     """
-    from specify_cli.sync.consent import set_project_consent
-
-    set_project_consent(UUID_A, True)
+    _admit_project(UUID_A)
     consenting_a = _checkout(tmp_path, "project-a", uuid=UUID_A, consents=True)
     monkeypatch.chdir(consenting_a)
 
     events_module._publish_event_via_sync_daemon(_envelope_b(), consenting_a)
     events_module._publish_event_via_sync_daemon(_envelope_a(), consenting_a)
 
-    assert relay_egress.published_uuids == [UUID_A], (
-        "project A's scope relayed project B's envelope to the daemon: "
-        f"{relay_egress.published_uuids}"
-    )
-    assert CARVE_OUT not in relay_egress.wire_bytes, (
-        f"project B's engagement name was handed to the daemon: {relay_egress.wire_bytes}"
-    )
+    assert relay_egress.published_uuids == [UUID_A], f"project A's scope relayed project B's envelope to the daemon: {relay_egress.published_uuids}"
+    assert CARVE_OUT not in relay_egress.wire_bytes, f"project B's engagement name was handed to the daemon: {relay_egress.wire_bytes}"
 
 
-def test_the_fanout_refuses_an_unidentifiable_envelope(
-    tmp_path: Path, relay_egress: _RecordingUrlopen
-) -> None:
+def test_the_fanout_refuses_an_unidentifiable_envelope(tmp_path: Path, relay_egress: _RecordingUrlopen) -> None:
     """Same FR-003 rule on the relay: no resolvable uuid, no relay."""
     root = _checkout(tmp_path, "project-a", uuid=UUID_A, consents=True)
 
-    events_module._publish_event_via_sync_daemon(
-        _envelope(None, slug=CARVE_OUT, mission="m"), root
-    )
+    events_module._publish_event_via_sync_daemon(_envelope(None, slug=CARVE_OUT, mission="m"), root)
 
     assert relay_egress.posts == []
 
 
-def test_a_consent_read_that_raises_refuses_the_relay(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relay_egress: _RecordingUrlopen
-) -> None:
+def test_a_consent_read_that_raises_refuses_the_relay(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relay_egress: _RecordingUrlopen) -> None:
     """The relay's ``except`` swallows everything; it must not swallow into egress."""
-    from specify_cli.sync.consent import set_project_consent
-
-    set_project_consent(UUID_A, True)
+    _admit_project(UUID_A)
     root = _checkout(tmp_path, "project-a", uuid=UUID_A, consents=True)
 
     def _explode(*_a: object, **_kw: object) -> frozenset[str]:
         raise RuntimeError("consent index unreadable")
 
-    monkeypatch.setattr("specify_cli.sync.consent.consented_project_uuids", _explode)
+    monkeypatch.setattr("specify_cli.sync.project_store.ProjectSyncStore.create_context", _explode)
 
     events_module._publish_event_via_sync_daemon(_envelope_a(), root)
 
     assert relay_egress.posts == []
 
 
-def test_a_refused_relay_retains_the_event_in_the_local_outbox(
-    tmp_path: Path, relay_egress: _RecordingUrlopen
-) -> None:
+def test_a_refused_relay_retains_the_event_in_the_local_outbox(tmp_path: Path, relay_egress: _RecordingUrlopen) -> None:
     """The recorded decision: retained-and-ignored, never dropped.
 
     Every caller of this relay has already written the envelope to the machine-global
@@ -495,16 +489,20 @@ def test_a_refused_relay_retains_the_event_in_the_local_outbox(
     either direction: a "fix" that dropped the row would fail it, and a relay that
     published anyway fails the assertion above it.
     """
-    queue = OfflineQueue(db_path=tmp_path / "queue.db")
+    record_project_opt_out(UUID_B, actor="wp09-daemon-regression")
+    store = ProjectSyncStore(UUID_B)
+    _project_only(store)
     envelope = _envelope_b()
-    queue.queue_event(envelope)
+    with store.unit_of_work() as unit:
+        queue = OfflineQueue(unit, store.layout_generation())
+        queue.queue_event(envelope)
 
     events_module._publish_event_via_sync_daemon(envelope, tmp_path)
 
     assert relay_egress.posts == []
-    assert queue.size() == 1, (
-        "refusing egress must not become a second way to lose the operator's data"
-    )
+    with store.unit_of_work() as unit:
+        retained = OfflineQueue(unit, store.layout_generation()).size()
+    assert retained == 1, "refusing egress must not become a second way to lose the operator's data"
 
 
 def test_the_first_refusal_names_its_cause_and_later_ones_stop_warning(
@@ -523,28 +521,22 @@ def test_the_first_refusal_names_its_cause_and_later_ones_stop_warning(
     from specify_cli.sync import runtime as runtime_module
 
     runtime_module._reported_publish_refusals.discard(UUID_B)
+    record_project_opt_out(UUID_B, actor="wp09-daemon-regression")
     with caplog.at_level(logging.DEBUG, logger=runtime_module.logger.name):
         assert runtime_module.event_project_consents_to_publish(_envelope_b()) is False
         assert runtime_module.event_project_consents_to_publish(_envelope_b()) is False
 
     warnings = [r for r in caplog.records if r.levelno >= logging.WARNING]
-    assert len(warnings) == 1, (
-        f"expected exactly one operator-visible refusal per project: {warnings}"
-    )
+    assert len(warnings) == 1, f"expected exactly one operator-visible refusal per project: {warnings}"
     reported = warnings[0].getMessage()
     assert UUID_B in reported, f"the refusal must name the project it withheld: {reported}"
-    assert "sync opt-in" in reported, (
-        f"the refusal must name the real remedy, not a guess: {reported}"
-    )
+    assert "sync opt-in" in reported, f"the refusal must name the real remedy, not a guess: {reported}"
     assert "SPEC_KITTY_ENABLE_SAAS_SYNC" in reported, (
-        "the message must say that arming the machine is not consent — that is the "
-        f"misunderstanding the 2026-07-27 incident ran on: {reported}"
+        f"the message must say that arming the machine is not consent — that is the misunderstanding the 2026-07-27 incident ran on: {reported}"
     )
 
 
-def test_the_gate_does_not_mutate_the_envelope_it_refuses(
-    tmp_path: Path, relay_egress: _RecordingUrlopen
-) -> None:
+def test_the_gate_does_not_mutate_the_envelope_it_refuses(tmp_path: Path, relay_egress: _RecordingUrlopen) -> None:
     """A refused envelope is handed back to its caller unchanged.
 
     The callers keep using the returned dict (``_request_dashboard_sync``, the

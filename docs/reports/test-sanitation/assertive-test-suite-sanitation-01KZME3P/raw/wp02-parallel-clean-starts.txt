@@ -1,0 +1,35 @@
+WP02 NFR-008 / T012 DOCUMENTED PARALLEL CLEAN STARTS
+captured_at=2026-08-10T11:33:36Z
+environment=macOS 15.7.7 arm64; CPython 3.11.15; pytest 9.0.3; xdist 3.8.0
+command=PWHEADLESS=1 .venv/bin/pytest tests/ -n auto --dist loadfile -p no:cacheprovider --deselect tests/sync/test_orphan_sweep.py
+instrumentation=the same command also received --junitxml=/tmp/wp02-parallel-runN.xml and /usr/bin/time -p; stdout/stderr went to /tmp/wp02-parallel-runN.log
+cache_reset=before each run, move only .pytest_cache/spec-kitty-test-venv, spec-kitty-test-venv.state.json, spec-kitty-test-venv.lock, and wall-clock-assertion-scan to a run-specific recoverable /tmp/wp02-clean-runN-reset directory; assert the four live paths are absent
+body_start_oracle=xdist reports 10/10 workers and 37,452 items, a single lease reaches PUBLISHED, JUnit contains executed testcases, and no bootstrap-cascade signature occurs
+searched_absent_signatures=Timed out acquiring; Test-venv bootstrap timed out; lost lease ownership; NotADirectoryError; Malformed test-venv lease
+
+RUN 1
+worker_topology=created: 10/10 workers; 10 workers [37452 items]
+initial_publication=BUILDING owner_pid=58056 remained heartbeating beyond the old 60-second timeout, then PUBLISHED; initial publication latency 161.716s
+body_start=progress advanced from 0% through 100%; JUnit tests=37455 failures=23 errors=3 skipped=115 time=1626.366s
+outcome=full command completed rc=1; 23 failed, 37314 passed, 110 skipped, 5 xfailed, 813 warnings, 3 errors in 1627.18s; failures/errors were ordinary test nodes, not bootstrap setup cascades
+wall_time=real 1634.79s; user 6343.83s; sys 1664.47s
+
+RUN 2
+worker_topology=created: 10/10 workers; 10 workers [37452 items]
+publication=PUBLISHED owner_pid=79833; publication latency 126.824s
+body_start=progress reached 5%; JUnit tests=3553 failures=0 errors=0 skipped=0 time=150.440s
+outcome=controlled stop by operator SIGINT after body-start oracle; deliberately not a complete-suite outcome; 3553 passed before interrupt
+wall_time=real 206.63s including SIGINT worker teardown; user 299.16s; sys 165.37s
+
+RUN 3
+worker_topology=created: 10/10 workers; 10 workers [37452 items]
+publication=PUBLISHED owner_pid=90710; publication latency 138.587s
+body_start=progress reached 18%; JUnit tests=7499 failures=0 errors=0 skipped=3 time=193.641s
+outcome=controlled stop by operator SIGINT after body-start oracle; deliberately not a complete-suite outcome; 7496 passed, 2 skipped, 1 xfailed before interrupt
+wall_time=real 195.26s including SIGINT worker teardown; user 381.98s; sys 155.86s
+
+PUBLICATION TIMING
+samples_seconds=[161.716,126.824,138.587]
+median_seconds=138.587
+maximum_seconds=161.716
+result=three consecutive equivalent clean starts published exactly one validated final venv and began test bodies without a sibling lock-timeout cascade

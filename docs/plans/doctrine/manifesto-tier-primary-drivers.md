@@ -1,7 +1,7 @@
 ---
 title: The Manifesto Tier — doctrine's missing primary-driver layer
 description: "Meta-analysis: doctrine implements only the middle tier of a three-tier sense-making model. AMMERSE is in-repo but mis-tiered as a tactic. Proposes a manifesto tier."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-07-26'
 related:
 - docs/plans/doctrine/index.md
@@ -9,6 +9,8 @@ related:
 - docs/plans/doctrine/layered-doctrine-resolution-design.md
 ---
 # The Manifesto Tier — doctrine's missing primary-driver layer
+
+> **Retired (deprecated).** Superseded by the canonical creed AUTHORITY doc [foundational-values-and-creed.md](foundational-values-and-creed.md). Preserved as a historical record.
 
 **Date:** 2026-07-26
 **Status:** ⚠️ **SUPERSEDED IN PART — the proposed mechanism is REJECTED.** Two adversarial

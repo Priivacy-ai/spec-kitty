@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KXC8QR1RDRGFGS9Z2XK0TDBQ",
       "last_transition_at": "2026-07-12T22:56:29.752510+00:00",
+      "review_result": {
+        "reference": "Review passed: registry generalized (not cloned), arch pole byte-stable + 1047 collect verified, next markers non-vacuous",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1254317,
       "shell_pid_created_at": "1783883745.81",
       "subtasks": {
@@ -41,6 +46,11 @@
       "lane": "done",
       "last_event_id": "01KXC8QVJY4KSYZ9SFVJ23K9EE",
       "last_transition_at": "2026-07-12T22:56:33.374934+00:00",
+      "review_result": {
+        "reference": "Review passed. Suite 29 passed/120s/exit0 (well under limits; no trace of prior 42-fail/12-min defect). GC-2b scoped to exactly 3 selection-changing jobs (integration-tests-next, slow-tests, fast-tests-core-misc); baseline is REAL native --collect-only -q honoring -m (marker-dump-unfiltered bug fixed in collect_job_nodeids). Guard honest: current=model vs baseline=real ground truth, so any mis-model REDs (no shared-bug match). Model-fidelity is a single scoped next-tier spot-check (no all-22 anchor); next-tier check conditional-on-presence + anti-vacuous synthetic canary (no xfail); both fault-injections bite (producer-side strict-subset < is self-proving); cross-job disjointness live; ruff+mypy clean; only owned files. NON-BLOCKING follow-up: _gate_coverage.py module comment (~L1401-1423) + collect_real_union_for_target docstring describe GC-2b as real-vs-real / 'no model-fidelity anchor needed' and test docstrings say '22 parametrized cases/all 22 targets' (now 3) — stale from the first cut; reconcile prose to the shipped modeled-current-vs-real-baseline design. Zero behavioral impact.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1426907,
       "shell_pid_created_at": "1783889626.36",
       "subtasks": {
@@ -56,6 +66,11 @@
       "lane": "done",
       "last_event_id": "01KXC8QRTNWWJ1HPD4GS6KGKVR",
       "last_transition_at": "2026-07-12T22:56:30.549053+00:00",
+      "review_result": {
+        "reference": "Review passed (cycle 1): pending-WP06 guard now strict-xfail (#2590), suite 6 passed/1 xfailed/0 failed; other guards live",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1270406,
       "shell_pid_created_at": "1783884003.4",
       "subtasks": {
@@ -71,6 +86,11 @@
       "lane": "done",
       "last_event_id": "01KXC8QW8RZX6WDNF58C5YCB11",
       "last_transition_at": "2026-07-12T22:56:34.072738+00:00",
+      "review_result": {
+        "reference": "Review passed: GC-4 a/b/c live-green + fault-injected, check-d strict-xfail (#2590), GC-5 no-growth via canonical collector; 0 failed",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1311607,
       "shell_pid_created_at": "1783885200.62",
       "subtasks": {
@@ -85,6 +105,11 @@
       "lane": "done",
       "last_event_id": "01KXC8QSH2NBCRT0X1TW9JNBDE",
       "last_transition_at": "2026-07-12T22:56:31.266531+00:00",
+      "review_result": {
+        "reference": "Review passed: collection-equivalence verified 14->14, ruff clean, monolith removed",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1250658,
       "shell_pid_created_at": "1783883705.3",
       "subtasks": {
@@ -98,6 +123,11 @@
       "lane": "done",
       "last_event_id": "01KXC8QWYBDAMTB3TEWVGSX6JD",
       "last_transition_at": "2026-07-12T22:56:34.763127+00:00",
+      "review_result": {
+        "reference": "Review passed: 6 jobs re-topologized, GC-2b unions == original baselines (baseline regen verified pure path-noise), #2590 closed + guards de-xfailed honestly, YAML/roster valid; guard suite 0 failed",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1588895,
       "shell_pid_created_at": "1783893446.59",
       "subtasks": {
@@ -117,6 +147,11 @@
       "lane": "done",
       "last_event_id": "01KXC8QT6WA4T9XWY5S3AM1AZD",
       "last_transition_at": "2026-07-12T22:56:31.964888+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata): coverage.exclusions glue-only, next/** dropped, sonar.exclusions untouched, no core-Python caught; matrix now filled",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1171170,
       "shell_pid_created_at": "1783882894.57",
       "subtasks": {
@@ -130,6 +165,11 @@
       "lane": "done",
       "last_event_id": "01KXC8QTWZJ5V8T2P99FH5FMTF",
       "last_transition_at": "2026-07-12T22:56:32.671302+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata): FR-013a --cov=src/specify_cli/dashboard correctly scoped (not widened) + xml report out/reports/coverage/coverage-ui-e2e.xml + upload-artifact ui-e2e-coverage-reports (matches ci-quality *-reports pattern); YAML valid; cross-workflow Sonar-consumption gap explicitly recorded as WP06 fast-follow (hardened DoD honored, not rejected for it); T024 JS-coverage decision recorded DEFERRED with rationale (static/** interim via WP07); no edit to sonar-project.properties or ci-quality.yml; sole owned file .github/workflows/ui-e2e.yml changed.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1200912,
       "shell_pid_created_at": "1783883208.12",
       "subtasks": {
@@ -144,6 +184,11 @@
       "lane": "done",
       "last_event_id": "01KXC8QXMJ513RG2WDFVVDTT21",
       "last_transition_at": "2026-07-12T22:56:35.474424+00:00",
+      "review_result": {
+        "reference": "Review passed: committed coverage-union audit (real evidence; surfaced+filed #2607 baseline-portability), honest timings (wall-clock PENDING CI), accurate topology docs; terminology/links/freshness green",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1819151,
       "shell_pid_created_at": "1783896399.9",
       "subtasks": {

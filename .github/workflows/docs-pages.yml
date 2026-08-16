@@ -11,6 +11,9 @@ on:
       - 'scripts/docs/seo_postprocess.py'
       - 'scripts/docs/seo_verify.py'
       - 'scripts/docs/glossary_linker.py'
+      - 'scripts/docs/plantuml_render.py'
+      - 'scripts/docs/plantuml_invoke.py'
+      - 'scripts/docs/plantuml_pins.json'
       - 'scripts/docs/redirect_stub_generator.py'
       - 'scripts/docs/redirect_map.yaml'
       - 'scripts/docs/redirect_baseline_urls.json'
@@ -36,6 +39,15 @@ concurrency:
 jobs:
   build:
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    # The docs scripts import first-party src-layout packages: seo_postprocess.py
+    # imports `kernel.clock` (src/kernel/), and glossary_linker.py / seo_verify.py
+    # import `scripts.docs.*` (seo_verify transitively pulls in seo_postprocess ->
+    # kernel.clock too). This job runs raw `python3 scripts/docs/*.py` without
+    # installing the package, so both roots must be on PYTHONPATH or the Build and
+    # Verify steps die with `ModuleNotFoundError: No module named 'kernel'`. Mirrors
+    # docs-build-pr.yml's `PYTHONPATH: .`, extended with `src` for the kernel import.
+    env:
+      PYTHONPATH: .:src
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -66,6 +78,35 @@ jobs:
       # injected. See scripts/docs/glossary_linker.py's module docstring.
       - name: Auto-link glossary terms (FR-011)
         run: python3 scripts/docs/glossary_linker.py --site-dir docs/_site
+
+      # Render @startyaml schema diagrams to inline SVG — AFTER glossary_linker,
+      # BEFORE redirect-stub/seo_verify. Host-native stdlib-only Python; the pinned
+      # jar runs ONLY inside a digest-pinned JRE under docker --network=none (zero
+      # doctrine egress; no setup-java, no pip install). See the schema-diagram ADR.
+      - name: Render PlantUML schema diagrams (FR-001, no-egress)
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, pathlib, subprocess, time, urllib.request
+          pins = json.loads(pathlib.Path("scripts/docs/plantuml_pins.json").read_text())
+          jar = pathlib.Path("plantuml.jar")
+          if not jar.exists():
+              last = None
+              for attempt in range(5):  # GitHub release downloads flake with RemoteDisconnected
+                  try:
+                      urllib.request.urlretrieve(pins["plantuml_jar_url"], jar)
+                      last = None
+                      break
+                  except Exception as exc:  # noqa: BLE001 - retry any transient download error
+                      last = exc
+                      time.sleep(2 * (attempt + 1))
+              if last is not None:
+                  raise SystemExit(f"plantuml.jar download failed after retries: {last}")
+          got = hashlib.sha256(jar.read_bytes()).hexdigest()
+          if got != pins["plantuml_jar_sha256"].lower():
+              raise SystemExit(f"plantuml.jar sha256 mismatch: {got}")
+          subprocess.run(["docker", "pull", pins["jre_image_digest"]], check=True)
+          PY
+          python3 scripts/docs/plantuml_render.py docs/_site
 
       # DocFX/GitHub Pages has no native redirect (FR-006). Inject a
       # <meta http-equiv="refresh"> stub at every moved old URL into the built

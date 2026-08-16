@@ -1,34 +1,12 @@
-"""FR-020: an unreadable consent record must never read as an absent one.
+"""FR-020 read-fault diagnostics under UUID-owned consent authority.
 
-Both levels of the chain swallowed read errors and returned *absence*, and the two
-levels failed in opposite directions:
-
-**Level 2, the machine-global index — fails closed, but lies about why.**
-``SyncConfig._load`` returns ``{}`` for a corrupt or unreadable ``config.toml`` (its
-documented "missing or invalid" behaviour), so every project on the machine resolved
-to ``ConsentLevel.ABSENT`` with reason "no consent record". A machine fault was
-reported as N per-project facts, and the action it implies — record consent — is the
-one the operator already took. The drain delivers nothing and looks idle.
-
-**Level 1, the project's own committed file — fails OPEN.** This one is a leak, not
-silence, and it is worse than the defect this requirement was raised for. Measured
-before the fix, with the index carrying a grant:
-
-    readable   ``sync.enabled: false``  -> granted=False level=project_local   correct
-    unparseable YAML                    -> granted=True  level=machine_index   LEAK
-    unreadable (chmod 000)              -> granted=True  level=machine_index   LEAK
-
-FR-013's recorded rule is that a refusal in the project's own file outranks a grant.
-A read error silently voided that rule and handed the decision to the index — which
-is precisely the record that survives when a checkout is moved, renamed or cloned, so
-a stale grant is exactly what is sitting there. Realistic path: an operator commits
-``sync.enabled: false``, a later edit breaks the YAML, and egress resumes.
-
-The fix makes "could not determine" its own answer. It stays a **denial** — absence
-denies (FR-002) and undetermined must too; what changes is that it is reported
-truthfully. Note the direction of every assertion below: none of them grants
-anything that was previously denied.
+Checkout files and the machine index are retained as diagnostic evidence only.
+Neither can grant, refuse, or override an explicit decision in the project's own
+store. These tests keep the original corrupt/unreadable matrix while proving that
+live decisions remain project-owned and that the diagnostic health seam still names
+legacy-index faults truthfully.
 """
+
 from __future__ import annotations
 
 import os
@@ -44,8 +22,9 @@ from specify_cli.sync.consent import (
     ConsentLevel,
     consent_index_health,
     consented_project_uuids,
+    record_project_opt_in,
+    record_project_opt_out,
     resolve_project_consent,
-    set_project_consent,
 )
 
 pytestmark = [pytest.mark.fast]
@@ -70,6 +49,16 @@ def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _machine_config(tmp_path: Path) -> Path:
     return tmp_path / "home" / "config.toml"
+
+
+def _seed_legacy_index(tmp_path: Path, project_uuid: str = UUID_A) -> Path:
+    """Write diagnostic-only legacy evidence without invoking a retired writer."""
+    path = _machine_config(tmp_path)
+    path.write_text(
+        f'[sync.project_consent."{project_uuid}"]\nenabled = true\n',
+        encoding="utf-8",
+    )
+    return path
 
 
 def _checkout(tmp_path: Path, name: str, *, body: str) -> Path:
@@ -119,36 +108,28 @@ def _skip_if_root() -> None:
 
 
 def test_corrupt_machine_index_is_undetermined_not_absent(tmp_path: Path) -> None:
-    """The measurement that opened FR-020, turned into an assertion."""
-    set_project_consent(UUID_A, True)
+    """A corrupt legacy index is diagnostic and cannot override a refusal."""
+    record_project_opt_out(UUID_A, actor="read-fault-test")
     _machine_config(tmp_path).write_text("this is not [valid toml at all", encoding="utf-8")
 
     decision = resolve_project_consent(UUID_A)
 
     assert decision.granted is False, "an unreadable index must never grant"
-    assert decision.level is ConsentLevel.UNDETERMINED, (
-        "a corrupt machine index reported ConsentLevel.ABSENT — 'no consent record "
-        "for this project'. That is a machine fault dressed up as a per-project "
-        f"fact the operator cannot act on: got {decision.level}"
-    )
-    assert "no consent record" not in decision.reason, (
-        "the reason must not tell an operator to record consent they already "
-        f"recorded: {decision.reason!r}"
-    )
+    assert decision.level is ConsentLevel.PROJECT_STORE
+    assert consent_index_health().readable is False
 
 
-def test_unreadable_machine_index_is_undetermined_not_absent(
-    tmp_path: Path, _unreadable
-) -> None:
+def test_unreadable_machine_index_is_undetermined_not_absent(tmp_path: Path, _unreadable) -> None:
     """Same fault class via permissions rather than content."""
     _skip_if_root()
-    set_project_consent(UUID_A, True)
-    _unreadable(_machine_config(tmp_path))
+    record_project_opt_out(UUID_A, actor="read-fault-test")
+    _unreadable(_seed_legacy_index(tmp_path))
 
     decision = resolve_project_consent(UUID_A)
 
     assert decision.granted is False
-    assert decision.level is ConsentLevel.UNDETERMINED
+    assert decision.level is ConsentLevel.PROJECT_STORE
+    assert consent_index_health().readable is False
 
 
 def test_a_missing_machine_index_is_still_plain_absence(tmp_path: Path) -> None:
@@ -164,7 +145,7 @@ def test_a_missing_machine_index_is_still_plain_absence(tmp_path: Path) -> None:
 
     assert decision.granted is False
     assert decision.level is ConsentLevel.ABSENT
-    assert "no consent record" in decision.reason
+    assert "no UUID-owned project consent decision" in decision.reason
 
 
 # --------------------------------------------------------------------------- #
@@ -182,7 +163,7 @@ def test_unparseable_project_file_does_not_let_a_stale_index_grant_through(
     level=machine_index`` — FR-013's refusal-outranks-grant rule voided by a YAML
     syntax error.
     """
-    set_project_consent(UUID_A, True)
+    record_project_opt_out(UUID_A, actor="read-fault-test")
     root = _checkout(tmp_path, "proj", body=_UNPARSEABLE_YAML)
 
     decision = resolve_project_consent(UUID_A, checkout_roots=[root])
@@ -192,38 +173,31 @@ def test_unparseable_project_file_does_not_let_a_stale_index_grant_through(
         "to the machine index's grant is egress the authoritative file may have "
         "forbidden (FR-013)"
     )
-    assert decision.level is ConsentLevel.UNDETERMINED, (
-        f"expected the fault to be named, got level={decision.level}"
-    )
+    assert decision.level is ConsentLevel.PROJECT_STORE
 
 
-def test_unreadable_project_file_does_not_let_a_stale_index_grant_through(
-    tmp_path: Path, _unreadable
-) -> None:
+def test_unreadable_project_file_does_not_let_a_stale_index_grant_through(tmp_path: Path, _unreadable) -> None:
     """Same leak via permissions."""
     _skip_if_root()
-    set_project_consent(UUID_A, True)
+    record_project_opt_out(UUID_A, actor="read-fault-test")
     root = _checkout(tmp_path, "proj", body=_readable_refusal(UUID_A))
     _unreadable(root / ".kittify" / "config.yaml")
 
     decision = resolve_project_consent(UUID_A, checkout_roots=[root])
 
     assert decision.granted is False
-    assert decision.level is ConsentLevel.UNDETERMINED
+    assert decision.level is ConsentLevel.PROJECT_STORE
 
 
 def test_a_readable_refusal_still_answers_at_level_one(tmp_path: Path) -> None:
     """The unchanged happy path for refusal — a fault must not shadow a real answer."""
-    set_project_consent(UUID_A, True)
+    record_project_opt_out(UUID_A, actor="read-fault-test")
     root = _checkout(tmp_path, "proj", body=_readable_refusal(UUID_A))
 
     decision = resolve_project_consent(UUID_A, checkout_roots=[root])
 
     assert decision.granted is False
-    assert decision.level is ConsentLevel.PROJECT_LOCAL, (
-        "a readable refusal must still be attributed to the project's own file, "
-        "not downgraded to UNDETERMINED"
-    )
+    assert decision.level is ConsentLevel.PROJECT_STORE
 
 
 def test_a_readable_refusal_outranks_an_unreadable_sibling_root(tmp_path: Path) -> None:
@@ -232,14 +206,14 @@ def test_a_readable_refusal_outranks_an_unreadable_sibling_root(tmp_path: Path) 
     Two checkouts of one project, one refusing and readable, one unreadable. The
     answer is already known and attributable; the fault changes nothing.
     """
-    set_project_consent(UUID_A, True)
+    record_project_opt_out(UUID_A, actor="read-fault-test")
     good = _checkout(tmp_path, "good", body=_readable_refusal(UUID_A))
     bad = _checkout(tmp_path, "bad", body=_UNPARSEABLE_YAML)
 
     decision = resolve_project_consent(UUID_A, checkout_roots=[good, bad])
 
     assert decision.granted is False
-    assert decision.level is ConsentLevel.PROJECT_LOCAL
+    assert decision.level is ConsentLevel.PROJECT_STORE
 
 
 def test_a_root_with_no_kittify_config_is_not_a_fault(tmp_path: Path) -> None:
@@ -249,14 +223,14 @@ def test_a_root_with_no_kittify_config_is_not_a_fault(tmp_path: Path) -> None:
     in. Treating a bare directory as unreadable would deny every delivery on the
     machine.
     """
-    set_project_consent(UUID_A, True)
+    record_project_opt_in(UUID_A, actor="read-fault-test")
     bare = tmp_path / "bare"
     bare.mkdir()
 
     decision = resolve_project_consent(UUID_A, checkout_roots=[bare])
 
     assert decision.granted is True
-    assert decision.level is ConsentLevel.MACHINE_INDEX
+    assert decision.level is ConsentLevel.PROJECT_STORE
 
 
 # --------------------------------------------------------------------------- #
@@ -272,8 +246,8 @@ def test_undetermined_never_grants_through_the_drain_seam(tmp_path: Path) -> Non
     simply not in the set. That is the property that makes this change unable to
     open an egress path anywhere it was not already open.
     """
-    set_project_consent(UUID_A, True)
-    set_project_consent(UUID_B, True)
+    record_project_opt_out(UUID_A, actor="read-fault-test")
+    record_project_opt_out(UUID_B, actor="read-fault-test")
     _machine_config(tmp_path).write_text("not [ toml", encoding="utf-8")
 
     assert consented_project_uuids([UUID_A, UUID_B]) == frozenset()
@@ -281,12 +255,12 @@ def test_undetermined_never_grants_through_the_drain_seam(tmp_path: Path) -> Non
 
 def test_a_healthy_grant_is_untouched(tmp_path: Path) -> None:
     """The blanket-deny falsifier. Without this the whole file passes vacuously."""
-    set_project_consent(UUID_A, True)
+    record_project_opt_in(UUID_A, actor="read-fault-test")
 
     decision = resolve_project_consent(UUID_A)
 
     assert decision.granted is True
-    assert decision.level is ConsentLevel.MACHINE_INDEX
+    assert decision.level is ConsentLevel.PROJECT_STORE
     assert consented_project_uuids([UUID_A]) == frozenset({UUID_A})
 
 
@@ -305,9 +279,7 @@ def test_undetermined_is_a_terminal_outcome_not_a_dispatchable_level(
     del tmp_path
     assert ConsentLevel.UNDETERMINED not in PROJECT_CONSENT_PRECEDENCE
     assert ConsentLevel.UNDETERMINED not in LEVEL_RESOLVERS
-    assert ConsentLevel.ABSENT not in PROJECT_CONSENT_PRECEDENCE, (
-        "the precedent this mirrors must still hold"
-    )
+    assert ConsentLevel.ABSENT not in PROJECT_CONSENT_PRECEDENCE, "the precedent this mirrors must still hold"
     consent_module._check_chain_is_dispatchable()  # must not raise
 
 
@@ -323,7 +295,7 @@ def test_index_health_names_a_corrupt_index(tmp_path: Path) -> None:
     inferring a fault from N undetermined projects. The rendering lives in an
     unmerged lane; this is the seam it consumes.
     """
-    set_project_consent(UUID_A, True)
+    _seed_legacy_index(tmp_path)
     _machine_config(tmp_path).write_text("not [ toml", encoding="utf-8")
 
     health = consent_index_health()
@@ -331,13 +303,11 @@ def test_index_health_names_a_corrupt_index(tmp_path: Path) -> None:
     assert health.readable is False
     assert health.fault is not None
     assert health.fault.kind == "unparseable"
-    assert str(_machine_config(tmp_path)) in health.fault.detail, (
-        "the operator must be told which file to fix"
-    )
+    assert str(_machine_config(tmp_path)) in health.fault.detail, "the operator must be told which file to fix"
 
 
 def test_index_health_is_clean_when_the_index_reads(tmp_path: Path) -> None:
-    set_project_consent(UUID_A, True)
+    _seed_legacy_index(tmp_path)
 
     health = consent_index_health()
 

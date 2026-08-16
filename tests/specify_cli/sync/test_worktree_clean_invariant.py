@@ -471,24 +471,43 @@ def _drive_daemon_tick(_repo_root: Path, _config_path: Path) -> None:
     ``_body_queue`` unwired — asserted below so a future default cannot turn this
     driver into a live network call. This is the variant that runs serially (-n0).
     """
+    from uuid import uuid4
+
     from specify_cli.sync.background import BackgroundSyncService
     from specify_cli.sync.config import SyncConfig
+    from specify_cli.sync.layout_generation import LayoutMode
+    from specify_cli.sync.project_store import ProjectSyncStore
     from specify_cli.sync.queue import OfflineQueue
 
     reset_emitter()
-    service = BackgroundSyncService(queue=OfflineQueue(), config=SyncConfig())
-    assert service._body_queue is None, (
-        "this driver is network-free only while the body-upload drain is unwired; "
-        "a wired _body_queue would make the tick POST artifact bodies for real"
-    )
-    with patch(
-        "specify_cli.sync.background._fetch_access_token_sync",
-        return_value="stub-token",
-    ):
-        # ``_perform_sync`` is the single-batch per-tick body the daemon timer
-        # invokes (``_on_timer`` → ``_perform_sync`` → ``_sync_once``); calling it
-        # directly performs exactly one tick.
-        service._perform_sync()
+    # Per-project-store construction (canonical pattern, see
+    # tests/sync/conftest.py::temp_queue): a throwaway project UUID is fine here
+    # because this driver only proves the tick stays network-free, not that the
+    # queue holds specific rows. Guard the cutover like
+    # tests/sync/test_final_sync_diagnostics.py::_queued_service — a shared
+    # per-worker SPEC_KITTY_HOME may already be project-only.
+    store = ProjectSyncStore(str(uuid4()))
+    authority = store.layout_generation()
+    if authority.read_state().mode is LayoutMode.LEGACY:
+        authority.begin_cutover("worktree-clean-invariant-daemon-tick")
+        authority.publish_project_only(
+            "worktree-clean-invariant-daemon-tick", verify_exact=lambda: True
+        )
+    with store.unit_of_work() as unit:
+        queue = OfflineQueue(unit, authority)
+        service = BackgroundSyncService(queue=queue, config=SyncConfig())
+        assert service._body_queue is None, (
+            "this driver is network-free only while the body-upload drain is unwired; "
+            "a wired _body_queue would make the tick POST artifact bodies for real"
+        )
+        with patch(
+            "specify_cli.sync.background._fetch_access_token_sync",
+            return_value="stub-token",
+        ):
+            # ``_perform_sync`` is the single-batch per-tick body the daemon timer
+            # invokes (``_on_timer`` → ``_perform_sync`` → ``_sync_once``); calling
+            # it directly performs exactly one tick.
+            service._perform_sync()
 
 
 # (name, driver). One line per covered command — extend here to add coverage.

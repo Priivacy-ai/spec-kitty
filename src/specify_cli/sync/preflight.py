@@ -34,7 +34,6 @@ from __future__ import annotations
 
 import os
 import sys
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
@@ -110,44 +109,27 @@ _UNSET_PLACEHOLDER = "<unset>"
 # bullet. Placeholder names are aligned with the inline builder's kwargs
 # so `.format(...)` produces byte-identical rendered text to before.
 _RESTART_DAEMON_REMEDY: str = (
-    "Run `spec-kitty doctor restart-daemon` to restart the daemon at the "
-    "foreground version/source, then verify with `spec-kitty sync status "
-    "--check`."
+    "Run `spec-kitty doctor restart-daemon` to restart the daemon at the foreground version/source, then verify with `spec-kitty sync status --check`."
 )
 
-_SERVER_URL_REMEDY: str = (
-    "Reauthenticate (`spec-kitty auth login`) or restart the daemon "
-    "against the matching server."
-)
+_SERVER_URL_REMEDY: str = "Reauthenticate (`spec-kitty auth login`) or restart the daemon against the matching server."
 
 _TEAM_OR_USER_REMEDY: str = (
-    "Re-authenticate as the foreground team/user (`spec-kitty auth "
-    "logout` then `spec-kitty auth login`) and then run `spec-kitty "
-    "doctor restart-daemon`."
+    "Re-authenticate as the foreground team/user (`spec-kitty auth logout` then `spec-kitty auth login`) and then run `spec-kitty doctor restart-daemon`."
 )
 
-_ORPHAN_REMEDY: str = (
-    "Run `spec-kitty doctor orphan-daemons` to clean up {count} orphan "
-    "daemon record(s)."
-)
+_ORPHAN_REMEDY: str = "Run `spec-kitty doctor orphan-daemons` to clean up {count} orphan daemon record(s)."
 
-_SYNC_MIGRATE_REMEDY: str = (
-    "Run `spec-kitty sync migrate` to migrate {rows} legacy queue row(s) "
-    "into the event journal so the boundary becomes coherent."
-)
+_SYNC_MIGRATE_REMEDY: str = "Run `spec-kitty sync migrate` to migrate {rows} legacy queue row(s) into the event journal so the boundary becomes coherent."
 
-_AUTH_LOGIN_REMEDY: str = (
-    "Run `spec-kitty auth login` — SaaS sync enabled but no authenticated "
-    "identity is available."
-)
+_AUTH_LOGIN_REMEDY: str = "Run `spec-kitty auth login` — SaaS sync enabled but no authenticated identity is available."
 
 # #3030: the daemon owner record exists but cannot be read, so the foreground
 # cannot tell which daemon (if any) holds the queue lease. Restarting rewrites
 # the record from the daemon's own identity, which is the one action that
 # resolves the unknown rather than assuming it away.
 _UNREADABLE_OWNER_REMEDY: str = (
-    "Run `spec-kitty doctor restart-daemon` to rewrite the unreadable daemon "
-    "owner record, then verify with `spec-kitty sync status --check`."
+    "Run `spec-kitty doctor restart-daemon` to rewrite the unreadable daemon owner record, then verify with `spec-kitty sync status --check`."
 )
 
 ALL_REMEDIATION_TEXTS: tuple[str, ...] = (
@@ -216,6 +198,7 @@ class PreflightResult:
     # (there is no daemon value to disagree with) and not an orphan (we cannot
     # even name the PID) — its own named failure.
     unreadable_owner_record: UnreadableOwnerRecord | None = None
+    project_store_diagnostic: str | None = None
     # Defensive: keep an internal field reserved for future expansion without
     # breaking the frozen-dataclass equality contract.
     _reserved: tuple[()] = field(default=(), repr=False, compare=False)
@@ -243,16 +226,13 @@ class PreflightResult:
         n_orphan = len(self.orphan_records)
         k_legacy = self.legacy_rows_for_scope
 
-        console.print(
-            f"Sync boundary refused: {n_mis} mismatched field(s); "
-            f"{n_orphan} orphan daemon record(s); {k_legacy} legacy rows "
-            f"in scope."
-        )
+        console.print(f"Sync boundary refused: {n_mis} mismatched field(s); {n_orphan} orphan daemon record(s); {k_legacy} legacy rows in scope.")
 
         if self.unreadable_owner_record is not None:
-            console.print(
-                f"Daemon owner record: {self.unreadable_owner_record.describe()}"
-            )
+            console.print(f"Daemon owner record: {self.unreadable_owner_record.describe()}")
+
+        if self.project_store_diagnostic is not None:
+            console.print(f"Project store: {self.project_store_diagnostic}")
 
         if self.mismatches:
             console.print(_build_mismatch_table(self.mismatches))
@@ -310,14 +290,13 @@ class PreflightResult:
                 }
                 for m in self.mismatches
             ],
-            "orphan_records": [
-                _orphan_record_to_dict(record) for record in self.orphan_records
-            ],
+            "orphan_records": [_orphan_record_to_dict(record) for record in self.orphan_records],
             "legacy_event_rows": self.legacy_event_rows,
             "legacy_body_upload_rows": self.legacy_body_upload_rows,
             "legacy_rows_for_scope": self.legacy_rows_for_scope,
             "auth_present": self.auth_present,
             "auth_required": self.auth_required,
+            "project_store_diagnostic": self.project_store_diagnostic,
             # Never carries the record's bytes — ``owner.json`` holds the
             # daemon's bearer token (see ``owner.UnreadableOwnerRecord``).
             "unreadable_owner_record": (
@@ -691,65 +670,39 @@ def _build_mismatches(
 def _count_legacy_rows_for_scope(
     foreground: ForegroundIdentity,
 ) -> tuple[int, int]:
-    """Return ``(legacy_event_rows, legacy_body_upload_rows)`` for the scope.
+    """Return live legacy-row counts after the WP10 project-store cutover.
 
-    Composes the existing ``detect_legacy_rows_for_scope`` helper. WP02
-    extended that helper to return a structured ``LegacyRowCounts`` value
-    with named subtotals, so this wrapper just reads them off directly
-    instead of bucketing per-table counts itself. We keep the
-    ``isinstance``/getattr probing for forward compatibility with the
-    backwards-compat dict shape exposed by ``LegacyRowCounts``.
+    Legacy SQLite residue is quarantine/diagnostic evidence, never a live queue.
+    Layout availability is checked independently and fail-closed below; this
+    compatibility projection therefore stays at exact zero and never invokes the
+    retired detector.
     """
-    from specify_cli.sync.queue import (
-        build_queue_scope,
-        detect_legacy_rows_for_scope,
-    )
+    del foreground
+    return (0, 0)
 
-    scope = _build_legacy_scope(foreground, build_queue_scope)
+
+def _project_store_layout_diagnostic(repo_root: Path) -> str | None:
+    """Return ``None`` only for a readable PROJECT_ONLY checkout authority."""
+    from specify_cli.sync.layout_generation import LayoutMode
+    from specify_cli.sync.project_store import ProjectSyncStore
+    from specify_cli.sync.routing import resolve_checkout_sync_routing_readonly
 
     try:
-        counts = detect_legacy_rows_for_scope(scope)
-    # Defensive: never block preflight on a legacy-row query error.
-    except Exception:
-        return (0, 0)
+        routing = resolve_checkout_sync_routing_readonly(repo_root)
+        if routing is None:
+            return "no existing project identity resolves from this checkout; sync boundary authority is unavailable"
+        store = ProjectSyncStore(routing.project_uuid)
+        state = store.layout_generation().peek_state()
+    except Exception as exc:  # noqa: BLE001 - unreadable authority is a refusal
+        return f"layout authority is unreadable: {type(exc).__name__}: {exc}"
 
-    # Preferred path: the structured ``LegacyRowCounts`` exposes the
-    # subtotals directly. Older fakes in tests may still return a plain
-    # ``dict`` keyed by table name; handle both shapes.
-    event_rows_attr = getattr(counts, "event_rows", None)
-    body_rows_attr = getattr(counts, "body_upload_rows", None)
-    if isinstance(event_rows_attr, int) and isinstance(body_rows_attr, int):
-        return event_rows_attr, body_rows_attr
-
-    event_rows = 0
-    body_rows = 0
-    items_fn = getattr(counts, "items", None)
-    if items_fn is None:
-        return (0, 0)
-    for table_name, count in items_fn():
-        if not isinstance(count, int):
-            continue
-        if table_name == "body_upload_queue":
-            body_rows += count
-        else:
-            # All other migration tables (sync_events, etc.) are event-class.
-            event_rows += count
-    return event_rows, body_rows
-
-
-def _build_legacy_scope(
-    foreground: ForegroundIdentity,
-    build_queue_scope: Callable[[str, str, str], str],
-) -> str:
-    """Build the scope string used for legacy-queue inspection."""
-    if not foreground.server_url or not foreground.team_or_user:
-        return ""
-
-    if "/" in foreground.team_or_user:
-        principal, team = foreground.team_or_user.split("/", 1)
-    else:
-        principal, team = foreground.team_or_user, "no-team"
-    return build_queue_scope(foreground.server_url, principal, team)
+    if state.mode is LayoutMode.PROJECT_ONLY:
+        try:
+            store.verify_existing_readonly()
+        except Exception as exc:  # noqa: BLE001 - missing/foreign/corrupt is refusal
+            return f"routed project store is unavailable: {type(exc).__name__}: {exc}"
+        return None
+    return f"layout is {state.mode.value}; run `spec-kitty sync project-store-migrate` before producing hosted work"
 
 
 # ---------------------------------------------------------------------------
@@ -792,6 +745,7 @@ class BoundaryFailureSet:
     legacy_event_rows: int = 0
     legacy_body_upload_rows: int = 0
     unreadable_owner_record: UnreadableOwnerRecord | None = None
+    project_store_diagnostic: str | None = None
 
     @property
     def legacy_rows_for_scope(self) -> int:
@@ -807,6 +761,7 @@ class BoundaryFailureSet:
             # says "no daemon owns sync". Inability to determine ownership is
             # never permission to proceed.
             and self.unreadable_owner_record is None
+            and self.project_store_diagnostic is None
         )
 
     @property
@@ -858,12 +813,8 @@ def build_boundary_failure_set(
     #    stat-then-read race this line carried. The *decision* stays here,
     #    because refusing is a property of this gate, not of the reader.
     owner_state = classify_owner_record()
-    record: DaemonOwnerRecord | None = (
-        owner_state if isinstance(owner_state, DaemonOwnerRecord) else None
-    )
-    unreadable_owner_record: UnreadableOwnerRecord | None = (
-        owner_state if isinstance(owner_state, UnreadableOwnerRecord) else None
-    )
+    record: DaemonOwnerRecord | None = owner_state if isinstance(owner_state, DaemonOwnerRecord) else None
+    unreadable_owner_record: UnreadableOwnerRecord | None = owner_state if isinstance(owner_state, UnreadableOwnerRecord) else None
 
     # 2. Mismatches: only when a record exists AND the daemon process is
     #    not itself orphaned (an orphan is surfaced via ``orphan_records``
@@ -877,6 +828,7 @@ def build_boundary_failure_set(
 
     # 4. Legacy-row counts for the current scope.
     legacy_event_rows, legacy_body_upload_rows = _count_legacy_rows_for_scope(fg)
+    project_store_diagnostic = _project_store_layout_diagnostic(repo_root if repo_root is not None else Path.cwd())
 
     return BoundaryFailureSet(
         foreground=fg,
@@ -886,6 +838,7 @@ def build_boundary_failure_set(
         legacy_event_rows=legacy_event_rows,
         legacy_body_upload_rows=legacy_body_upload_rows,
         unreadable_owner_record=unreadable_owner_record,
+        project_store_diagnostic=project_store_diagnostic,
     )
 
 
@@ -938,4 +891,5 @@ def run_preflight(
         auth_present=auth_present,
         auth_required=require_auth,
         unreadable_owner_record=failure_set.unreadable_owner_record,
+        project_store_diagnostic=failure_set.project_store_diagnostic,
     )

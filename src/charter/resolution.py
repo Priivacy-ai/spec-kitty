@@ -21,14 +21,23 @@ wrappers, no type aliases.
 """
 from __future__ import annotations
 
-import subprocess
-from functools import lru_cache
 from pathlib import Path
 
 # Charter facade re-exports for doctrine.resolver — see mission
 # charter-mediated-doctrine-selection-01KRTZCA, contract
 # contracts/charter-facade-modules.md.
 from doctrine.resolver import ResolutionResult, ResolutionTier
+
+# The single git-topology probe (mission write-path-integrity-01KZZD69 WP01,
+# #3373). This resolver is the richest historical copy — cached, classifying
+# not-a-repo, ``.git``-interior detecting — and now consumes the unified
+# primitive so the whole write path shares ONE canonicalization contract.
+from kernel.git_topology import (
+    GitTopologyUnavailableError,
+    NotAGitRepositoryError,
+    clear_caches as _clear_topology_caches,
+    git_common_dir,
+)
 
 
 class NotInsideRepositoryError(RuntimeError):
@@ -63,54 +72,6 @@ class GitCommonDirUnavailableError(RuntimeError):
         )
 
 
-@lru_cache(maxsize=256)
-def _resolve_cached(abs_path_str: str) -> str:
-    """Cache-amortized implementation of the six-step resolver algorithm.
-
-    The cache key is the stringified absolute path to keep ``functools.lru_cache``
-    hashable. The public ``resolve_canonical_repo_root`` resolves the input
-    ``Path`` to its absolute form before stringifying.
-    """
-    path = Path(abs_path_str)
-
-    # Step 1: normalize file input to parent directory.
-    cwd = path.parent if path.is_file() else path
-
-    # Step 2: invoke git exactly once.
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--git-common-dir"],
-            cwd=str(cwd),
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except FileNotFoundError as exc:
-        raise GitCommonDirUnavailableError(path, "git binary not found on PATH") from exc
-
-    # Step 3: classify exit code.
-    if result.returncode != 0:
-        stderr = (result.stderr or "").lower()
-        if "not a git repository" in stderr:
-            raise NotInsideRepositoryError(path)
-        raise GitCommonDirUnavailableError(path, (result.stderr or "").strip())
-
-    # Step 4: parse stdout; resolve relative-to-cwd when not absolute.
-    raw = result.stdout.strip()
-    common_dir = Path(raw)
-    if not common_dir.is_absolute():
-        common_dir = (cwd / common_dir).resolve()
-    else:
-        common_dir = common_dir.resolve()
-
-    # Step 5: explicit ``.git/``-interior detection.
-    if path == common_dir or common_dir in path.parents:
-        raise NotInsideRepositoryError(path)
-
-    # Step 6: canonical root is the parent of the common dir.
-    return str(common_dir.parent)
-
-
 def resolve_canonical_repo_root(path: Path) -> Path:
     """Resolve ``path`` to the canonical (main-checkout) project root.
 
@@ -118,6 +79,13 @@ def resolve_canonical_repo_root(path: Path) -> Path:
     behavioral matrix and error surface. The function performs at most one
     ``git rev-parse --git-common-dir`` invocation per cold call and zero on
     warm (LRU-cached) calls.
+
+    The probe itself is delegated to the unified
+    :func:`kernel.git_topology.git_common_dir` primitive (mission
+    write-path-integrity-01KZZD69 WP01, #3373); this facade preserves the
+    repo-**root** return shape (the parent of the common dir), the cache, and
+    the historical error surface by mapping the primitive's typed errors onto
+    :class:`NotInsideRepositoryError` / :class:`GitCommonDirUnavailableError`.
 
     Args:
         path: Any path (file or directory). May be absolute or relative. File
@@ -133,13 +101,21 @@ def resolve_canonical_repo_root(path: Path) -> Path:
             ``git rev-parse --git-common-dir`` failed for any other reason.
     """
     abs_path = path.resolve()
-    return Path(_resolve_cached(str(abs_path)))
+    try:
+        common_dir = git_common_dir(abs_path)
+    except NotAGitRepositoryError as exc:
+        raise NotInsideRepositoryError(exc.path) from exc
+    except GitTopologyUnavailableError as exc:
+        raise GitCommonDirUnavailableError(exc.path, exc.detail) from exc
+    # Canonical root is the parent of the common dir (repo-root return shape).
+    return common_dir.parent
 
 
 # Expose ``cache_clear`` on the public surface so tests that mutate the
-# filesystem layout mid-run can reset the LRU cache without reaching into
-# the private helper.
-resolve_canonical_repo_root.cache_clear = _resolve_cached.cache_clear  # type: ignore[attr-defined]
+# filesystem layout mid-run can reset the shared topology cache without
+# reaching into the primitive. The attribute-assignment pattern is a
+# deliberate, pre-existing shape mypy cannot model on a plain function.
+resolve_canonical_repo_root.cache_clear = _clear_topology_caches  # type: ignore[attr-defined]
 
 
 __all__ = [

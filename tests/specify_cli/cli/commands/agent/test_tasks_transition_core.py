@@ -733,9 +733,13 @@ def test_non_force_backward_without_evidence_stays_forced() -> None:
     assert plan.emit_reason.startswith("backward rewind: approved -> in_progress")
 
 
-def test_in_progress_to_planned_reason_evidence_is_force_free() -> None:
-    """FR-015: ``in_progress -> planned`` is force-free with a ``reason`` (the
-    always-synthesised rewind reason satisfies the FSM's reason-only guard)."""
+def test_in_progress_to_planned_is_force_promoted_for_wire_contract() -> None:
+    """#3307: ``in_progress -> planned`` is a review-rejection family edge that the
+    shared ``spec-kitty-events`` wire contract declares ``force=True``-required
+    regardless of evidence. The CLI-local FSM would accept it force-free on a
+    ``reason``, but ``build_transition_plan`` now gates on BOTH validators, so it
+    emits ``force=True`` with the structured rewind reason (never a contract-invalid
+    ``force=False`` event the SaaS would silently drop)."""
     plan = build_transition_plan(
         old_lane="in_progress",
         target_lane="planned",
@@ -744,14 +748,15 @@ def test_in_progress_to_planned_reason_evidence_is_force_free() -> None:
         arb_review_ref=None,
         note_text=None,
     )
-    assert plan.emit_force is False
+    assert plan.emit_force is True
     assert plan.transition_targets == ["planned"]
     assert plan.emit_reason is not None
     assert plan.emit_reason.startswith("backward rewind: in_progress -> planned")
 
 
-def test_approved_to_planned_review_ref_evidence_is_force_free() -> None:
-    """FR-015: ``approved -> planned`` is force-free with ``review_ref`` evidence
+def test_approved_to_planned_is_force_promoted_and_carries_review_ref() -> None:
+    """#3307: ``approved -> planned`` is force-promoted to conform to the shared
+    wire contract, and still carries the ``review_ref`` rationale on the wire
     (threaded via ``review_feedback_pointer`` on the planned-rollback path)."""
     plan = build_transition_plan(
         old_lane="approved",
@@ -761,7 +766,7 @@ def test_approved_to_planned_review_ref_evidence_is_force_free() -> None:
         arb_review_ref=None,
         note_text=None,
     )
-    assert plan.emit_force is False
+    assert plan.emit_force is True
     assert plan.transition_targets == ["planned"]
     assert plan.emit_review_ref == "feedback://WP01/review-cycle-1.md"
 

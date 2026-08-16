@@ -66,9 +66,8 @@ from specify_cli.tracker.local_service import LOCAL_SUBPROCESS_EGRESS_IDENTIFIER
 from specify_cli.tracker.saas_client import TRACKER_EGRESS_IDENTIFIER_KINDS
 
 # `integration`, not `[unit, fast]`: this file spawns subprocesses (the module-level
-# no-import-time-`specify_cli.sync` probe, T005) and drives the machine-global,
-# home-scoped consent index (T001's `granted_machine_index` row) -- both are Rule-2
-# violators of the `fast` lane's sub-second, no-subprocess-fan-out contract, per
+# no-import-time-`specify_cli.sync` probe, T005), which is a Rule-2
+# violator of the `fast` lane's sub-second, no-subprocess-fan-out contract, per
 # `tests/architectural/test_pytest_marker_correctness.py`.
 pytestmark = [pytest.mark.integration]
 
@@ -208,9 +207,9 @@ def _isolated_sync_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
     """Isolated ``SPEC_KITTY_HOME`` per test, and the env-var consent level disarmed by
     default (mirrors ``tests/sync/test_consent_resolver_3030.py``'s own autouse fixture).
 
-    Required because T001's ``granted_machine_index`` row writes to the machine-global,
-    uuid-keyed consent index, and several T004 cases assert on the env-armed / disarmed
-    boundary explicitly -- neither may bleed into the real ``~/.spec-kitty`` or across tests.
+    Required because T001's explicit opt-in row writes project-owned consent state, and
+    several T004 cases assert on the env-armed / disarmed boundary explicitly -- neither
+    may bleed into the real ``~/.spec-kitty`` or across tests.
     """
     home = tmp_path / "spec-kitty-home"
     home.mkdir(parents=True, exist_ok=True)
@@ -229,14 +228,14 @@ def _isolated_sync_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
 # regardless of how the diagnostic-reporting internals are refactored.
 # ---------------------------------------------------------------------------
 
-#: One row per consent-precedence level (project-local / machine-index / env) plus the
-#: three refusal shapes NFR-001 names explicitly. `env` can never itself grant
+#: The config-compatible project-local row, the canonical explicit project-owned opt-in,
+#: and the refusal shapes NFR-001 names explicitly. `env` can never itself grant
 #: (`consent.py::_answer_env` always returns `None` -- machine-global arming, never a
 #: per-project decision), so its row proves the *refusal* is unchanged with that level
 #: armed rather than proving an unreachable "granted via env" state.
 _CHANNEL1_ROW_LABELS: tuple[str, ...] = (
     "granted_project_local",
-    "granted_machine_index",
+    "granted_explicit_opt_in",
     "no_record",
     "no_record_env_armed",
     "recorded_refusal",
@@ -260,12 +259,12 @@ def _build_channel1_root(tmp_path: Path, label: str, monkeypatch: pytest.MonkeyP
     root = tmp_path / "checkout"
     if label == "granted_project_local":
         _write_config(root, "sync:\n  enabled: true\n", project_block=_project_block())
-    elif label == "granted_machine_index":
+    elif label == "granted_explicit_opt_in":
         uuid = str(uuid_module.uuid4())
         _write_config(root, project_block=_project_block(uuid))
-        from specify_cli.sync.consent import set_project_consent
+        from specify_cli.sync.consent import record_project_opt_in
 
-        set_project_consent(uuid, True)
+        record_project_opt_in(uuid, actor="tracker-egress-single-authority-test")
     elif label == "no_record":
         _write_config(root, project_block=_project_block())
     elif label == "no_record_env_armed":
@@ -358,7 +357,7 @@ class TestT001EnforcementEquivalenceMatrix:
 
         exercised_channel1_labels = {cell[0] for cell in _T001_CELLS_EXERCISED}
         assert exercised_channel1_labels == set(_CHANNEL1_ROW_LABELS), (
-            "every consent-precedence-level row (project-local/machine-index/env) and both "
+            "every project-local/explicit-opt-in/env row and both "
             "refusal-shape rows must have executed"
         )
         exercised_channel2_labels = {cell[1] for cell in _T001_CELLS_EXERCISED}

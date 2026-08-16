@@ -19,8 +19,11 @@ from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 from urllib.parse import urlsplit
+
+if TYPE_CHECKING:
+    from specify_cli.status.dup_key_repair import ArtifactRepairPlan, DuplicateKeyFinding
 
 from packaging.version import Version
 from pydantic import BaseModel, ConfigDict
@@ -587,6 +590,173 @@ def repair_repo(
             policy=_build_policy(),
         )
         atomic_write(manifest_abs, report.to_json(), mkdir=True)
+        return report
+
+
+# ---------------------------------------------------------------------------
+# Duplicate-key artifact repair (FR-008, #3372)
+#
+# Legacy dual-key ``review_feedback`` artifacts (an empty ``''`` write followed
+# by a real ``review-cycle://`` pointer) are invalid YAML that fails closed at
+# the frontmatter boundary and trips an upgrade. This heals them BEFORE upgrade,
+# reusing this module's ADR 2026-05-10-1 repair framework (git-safety preflight,
+# run lock, ``atomic_write``, ``FileChange`` / ``RepairReport`` evidence). The
+# detector is the raw-text scanner in ``specify_cli.status.dup_key_repair`` (the
+# boundary cannot parse a dup-key file to detect it).
+# ---------------------------------------------------------------------------
+
+_DUP_KEY_MANIFEST_PREFIX = "dup-key-"
+_DUP_KEY_POLICY_TRACKED: tuple[str, ...] = ("kitty-specs/**/*.md",)
+
+
+def _build_dup_key_policy() -> dict[str, list[str]]:
+    """Return the dup-key repair manifest ``policy`` block (deterministic)."""
+    return {
+        "tracked": sorted(_DUP_KEY_POLICY_TRACKED),
+        "optional": [],
+        "ignored": sorted(_POLICY_IGNORED),
+    }
+
+
+def _dup_key_scan_dir(resolved_repo_root: Path, scan_root: Path | None) -> Path:
+    """Resolve the directory tree scanned for dual-key artifacts."""
+    return (scan_root or resolved_repo_root / "kitty-specs").resolve()
+
+
+def _plan_duplicate_key_batch(
+    findings: Sequence[DuplicateKeyFinding],
+) -> list[ArtifactRepairPlan]:
+    """Plan + validate EVERY affected artifact before any write (NFR-004).
+
+    One un-repairable artifact raises ``DuplicateKeyRepairError`` here, before
+    the caller has mutated a single file — the batch-atomic abort.
+    """
+    from specify_cli.status import plan_artifact_repair
+
+    plans: list[ArtifactRepairPlan] = []
+    seen: set[Path] = set()
+    for finding in findings:
+        if finding.path in seen:
+            continue
+        seen.add(finding.path)
+        plan = plan_artifact_repair(finding.path, finding.path.read_text(encoding="utf-8"))
+        if plan is not None:
+            plans.append(plan)
+    return plans
+
+
+def _dup_key_mission_slug(scan_dir: Path, path: Path) -> str:
+    """Best-effort mission slug for report grouping (first path segment)."""
+    try:
+        rel = path.resolve().relative_to(scan_dir)
+    except ValueError:
+        return path.parent.name
+    return rel.parts[0] if len(rel.parts) > 1 else path.name
+
+
+def _compute_dup_key_run_id(repo_root: Path, plans: Sequence[ArtifactRepairPlan]) -> str:
+    """Deterministic run id derived from the repaired-content set."""
+    payload = "spec-kitty:dup-key-repair:v1\n"
+    for plan in sorted(plans, key=lambda item: str(item.path)):
+        payload += _repo_relpath(repo_root, plan.path) + "\0" + plan.repaired_text + "\0"
+    return _sha256_text(payload)[:16]
+
+
+def _write_duplicate_key_plans(
+    repo_root: Path, plans: Sequence[ArtifactRepairPlan]
+) -> list[FileChange]:
+    """Write every validated plan atomically, returning digest evidence."""
+    changes: list[FileChange] = []
+    for plan in plans:
+        before = _file_fingerprint(plan.path)
+        atomic_write(plan.path, plan.repaired_text)
+        after = _file_fingerprint(plan.path)
+        if before != after:
+            changes.append(_file_change(repo_root, plan.path, before, after))
+    return changes
+
+
+def _safe_argv() -> list[str]:
+    try:
+        return list(sys.argv[1:])
+    except Exception:  # pragma: no cover - defensive
+        return []
+
+
+def _build_dup_key_report(
+    repo_root: Path,
+    scan_dir: Path,
+    run_id: str,
+    plans: Sequence[ArtifactRepairPlan],
+    file_changes: Sequence[FileChange],
+    manifest_abs: Path,
+) -> RepairReport:
+    """Assemble the shared :class:`RepairReport` grouped by mission slug."""
+    changes_by_path = {change.path: change for change in file_changes}
+    grouped: dict[str, MissionRepairResult] = {}
+    for plan in plans:
+        slug = _dup_key_mission_slug(scan_dir, plan.path)
+        result = grouped.setdefault(
+            slug,
+            MissionRepairResult(mission_slug=slug, mission_id=None, status="unchanged"),
+        )
+        change = changes_by_path.get(_repo_relpath(repo_root, plan.path))
+        if change is not None:
+            result.file_changes.append(change)
+            result.status = "updated"
+    return RepairReport(
+        run_id=run_id,
+        repo_head=_git_head(repo_root),
+        target_missions=sorted(grouped),
+        manifest_path=_repo_relpath(repo_root, manifest_abs),
+        missions=[grouped[slug] for slug in sorted(grouped)],
+        cli_version=_resolve_cli_version(),
+        command_args=_scrub_secret_args(_safe_argv()),
+        generated_ids=[run_id],
+        policy=_build_dup_key_policy(),
+    )
+
+
+def repair_duplicate_key_artifacts(
+    repo_root: Path,
+    *,
+    scan_root: Path | None = None,
+    manifest_path: Path | None = None,
+    allow_dirty: bool = False,
+) -> RepairReport:
+    """Heal legacy dual-key ``review_feedback`` artifacts (FR-008, #3372).
+
+    BATCH-ATOMIC (NFR-004): every artifact's repair is planned and validated
+    before ANY file is written; a single un-repairable artifact raises
+    ``DuplicateKeyRepairError`` and the corpus is left untouched. NON-DESTRUCTIVE
+    (NFR-002): the keep-last-non-empty policy preserves the recorded pointer.
+    Opt-in — reached only from ``doctor mission-state --fix`` (``doctor`` itself
+    is unconditionally SAFE).
+    """
+    from specify_cli.status import detect_duplicate_key_artifacts
+
+    resolved_repo_root = _anchor_repair_root(repo_root, scan_root=scan_root)
+    scan_dir = _dup_key_scan_dir(resolved_repo_root, scan_root)
+
+    # Detect + plan + validate the entire batch BEFORE taking the lock or
+    # writing anything (NFR-004 batch-atomicity). Any un-repairable artifact
+    # raises out of the planner here, so nothing on disk is touched.
+    plans = _plan_duplicate_key_batch(detect_duplicate_key_artifacts(scan_dir))
+    run_id = _compute_dup_key_run_id(resolved_repo_root, plans)
+    manifest_rel = manifest_path or MANIFEST_ROOT / f"{_DUP_KEY_MANIFEST_PREFIX}{run_id}.json"
+    manifest_abs = _resolve_repo_relative(resolved_repo_root, manifest_rel)
+
+    rel_paths = [_repo_relpath(resolved_repo_root, plan.path) for plan in plans]
+    _assert_git_safe(
+        resolved_repo_root, [*rel_paths, str(MANIFEST_ROOT)], allow_dirty=allow_dirty
+    )
+    with _git_lock(resolved_repo_root):
+        file_changes = _write_duplicate_key_plans(resolved_repo_root, plans)
+        report = _build_dup_key_report(
+            resolved_repo_root, scan_dir, run_id, plans, file_changes, manifest_abs
+        )
+        if file_changes:
+            atomic_write(manifest_abs, report.to_json(), mkdir=True)
         return report
 
 
@@ -1469,11 +1639,50 @@ def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
     )
 
 
+_LEGACY_TYPED_LANE_EVENT_TYPE = "WPStatusChanged"
+_LEGACY_TYPED_LANE_FIELDS = ("wp_id", "from_lane", "to_lane")
+
+
+def _is_legacy_typed_lane_transition(row: Mapping[str, Any]) -> bool:
+    """Return True for a legacy canonical-writer ``WPStatusChanged`` lane row.
+
+    The mission's own ``WPStatusChanged`` writer emits
+    ``event_type == "WPStatusChanged"`` alongside the TOP-LEVEL lane fields
+    ``wp_id`` / ``from_lane`` / ``to_lane`` (see
+    :func:`_status_event_to_teamspace_envelope`, which stamps the same
+    ``event_type``). Such a row is a fully-formed lane transition that merely
+    carries a typed discriminator: routing it via passthrough lets the rest of
+    the canonicalization pipeline strip ``event_type`` through the
+    ``_build_canonical_row`` allowlist and fold it into ``status.json``.
+
+    Quarantining it — the shipped defect #3066, where
+    :func:`_is_preserved_non_lane_row` omits ``WPStatusChanged`` and the
+    ``event_type`` branch of :func:`_rule_reject_non_status_event` sweeps it out
+    — drops live lane history and regenerates a **zero-WP** ``status.json``, a
+    data-destroying repair.
+
+    ONLY the flat canonical-writer shape passes here. TeamSpace replay envelopes
+    also carry ``event_type == "WPStatusChanged"`` but nest ``wp_id`` /
+    ``from_lane`` / ``to_lane`` under ``payload`` (their top level is
+    ``aggregate_id`` / ``aggregate_type``), and ``DecisionPoint*`` mirrors carry
+    a different ``event_type`` — both fail this predicate and stay quarantined.
+    """
+    if row.get("event_type") != _LEGACY_TYPED_LANE_EVENT_TYPE:
+        return False
+    return all(field in row for field in _LEGACY_TYPED_LANE_FIELDS)
+
+
 def _rule_reject_non_status_event(
     row: _Row, _ctx: MigrationContext
 ) -> CanonicalStepResult[_Row]:
     """Rule 1: route non-lane rows that share status.events.jsonl.
 
+    - Legacy typed lane transitions (:func:`_is_legacy_typed_lane_transition`:
+      the mission's own ``WPStatusChanged`` writer shape, with top-level
+      ``wp_id`` / ``from_lane`` / ``to_lane``) are PASSED THROUGH to the rest of
+      the pipeline, which strips the typed discriminator and folds them into
+      ``status.json``. This check runs FIRST, ahead of the quarantine branches,
+      so #3066's zero-WP regeneration can no longer eat live lane history.
     - Rows whose only per-mission home is this file
       (:func:`_is_preserved_non_lane_row`: retrospective + canonical lifecycle
       events) are PRESERVED in place — the runtime reader skips them during lane
@@ -1483,6 +1692,8 @@ def _rule_reject_non_status_event(
       state, if any, lives elsewhere). ``_scan_raw_status_rows`` flags the same
       class before a TeamSpace dry-run.
     """
+    if _is_legacy_typed_lane_transition(row):
+        return CanonicalStepResult.passthrough(row)
     if _is_preserved_non_lane_row(row):
         return CanonicalStepResult(
             state=row,
@@ -2122,6 +2333,7 @@ __all__ = [
     "MissionStateRepairError",
     "TeamspaceDryRunReport",
     "rebuild_mission_event_log",
+    "repair_duplicate_key_artifacts",
     "repair_repo",
     "teamspace_dry_run",
 ]

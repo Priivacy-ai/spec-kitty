@@ -13,7 +13,6 @@ from charter.resolver import (
     GovernanceResolutionError,
     collect_governance_diagnostics,
     resolve_governance_for_profile,
-    resolve_mission_steps,
     resolve_project_governance,
 )
 
@@ -741,10 +740,3 @@ def test_resolve_governance_for_profile_raises_when_profile_not_in_dict() -> Non
             interview=interview,
         )
 
-
-def test_resolve_mission_steps_returns_dict_for_known_type() -> None:
-    """resolve_mission_steps returns a dict for a known mission type."""
-    result = resolve_mission_steps("software-dev")
-
-    assert isinstance(result, dict)
-    assert len(result) > 0

@@ -197,6 +197,35 @@ class TestCheckServerConnectionValidToken:
         assert "Unexpected" in status
         assert "500" in note
 
+    @pytest.mark.parametrize("gateway_status", [502, 503, 504])
+    @patch("specify_cli.auth.http.request_with_fallback_sync")
+    def test_gateway_status_reports_unavailable_with_repoint(self, mock_request, gateway_status):
+        """A 502/503/504 is a gateway-class outage, not a generic 'unexpected' status.
+
+        Regression for FR-003 (#3406): a configured server pointing at a
+        decommissioned host answered 502 and the probe reported a bare
+        "Unexpected status", giving no signal that the URL was the fault. The
+        note must name the unreachable URL and offer the repoint command.
+
+        DLQ-contract consistency: a gateway 5xx is classified *transient* by the
+        offline queue (``failed_transient`` — events stay queued, never
+        dead-lettered), so the note must also reassure that queued events are
+        retained rather than implying data loss.
+        """
+        mock_request.side_effect = _mock_response_for_probe(get_status=gateway_status)
+        fake_tm = _fake_token_manager(access_token="valid-token")
+
+        with patch("specify_cli.auth.get_token_manager", return_value=fake_tm):
+            status, note = _check_server_connection(SERVER_URL)
+
+        assert "Unexpected" not in status
+        assert "unavailable" in status.lower()
+        assert str(gateway_status) in note
+        assert SERVER_URL in note
+        assert "sync server" in note
+        # Consistent with the queue's transient-retry disposition.
+        assert "queued" in note.lower()
+
 
 class TestCheckServerConnectionUnreachable:
     """Test behavior when server is unreachable."""

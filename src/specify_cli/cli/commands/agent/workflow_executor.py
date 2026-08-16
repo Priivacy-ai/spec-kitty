@@ -1138,8 +1138,8 @@ def implement_try_render_fix_mode_prompt(
 
         # WP05 (verdict-seam-write-unification-01KZ9Q35, T024): routed through
         # the T058 owner function instead of a raw ``feature_dir / "tasks" /
-        # wp_slug`` join -- one of the three sites WP04's own
-        # ``verdict_seam_IC04.yaml`` fragment flagged as unrouted (alongside
+        # wp_slug`` join -- one of the three sites WP04's review flagged as
+        # unrouted (alongside
         # ``workflow_cores.py::has_prior_rejection`` and ``workflow.py::
         # review``). This function's own ``.from_file``/``.latest`` calls
         # below remain content/cycle-number loaders (squad #1 — KEPT, not
@@ -1604,7 +1604,12 @@ def review_resolve_wp_and_lane_gate(
 
 
 def review_enforce_bulk_edit_gate(
-    *, feature_dir: Path, main_repo_root: Path, target_branch: str, review_workspace: ResolvedWorkspace
+    *,
+    feature_dir: Path,
+    main_repo_root: Path,
+    mission_slug: str,
+    target_branch: str,
+    review_workspace: ResolvedWorkspace,
 ) -> None:
     """Bulk edit occurrence classification + per-file diff compliance gate (FR-006/7/8)."""
     from specify_cli.bulk_edit.gate import (
@@ -1624,6 +1629,7 @@ def review_enforce_bulk_edit_gate(
         _wf()._enforce_bulk_edit_diff_compliance(
             feature_dir=feature_dir,
             main_repo_root=main_repo_root,
+            mission_slug=mission_slug,
             target_branch=target_branch,
             review_workspace=review_workspace,
             check_review_diff_compliance=check_review_diff_compliance,

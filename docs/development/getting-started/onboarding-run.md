@@ -2,7 +2,7 @@
 title: 'Onboarding Run: Priming a Co-Maintainer Mission Session'
 description: 'A reusable priming prompt and 12-step cadence for running a full Spec-Driven Development mission the way this team runs them — for onboarding prospective co-maintainers.'
 doc_status: active
-updated: '2026-07-24'
+updated: '2026-08-15'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -169,3 +169,6 @@ operator before proceeding.
 - [Landing contributor PRs](../how-to/pr-landing.md) — the maintainer landing runbook the
   cadence hands off into.
 - [Quality & tech-debt standing orders](../reference/quality-and-tech-debt-standing-orders.md).
+- [`mission-wrap-up-sequence` procedure](../../../packs/built-in/procedures/mission-wrap-up-sequence.procedure.yaml)
+  and [DIRECTIVE_046](../../../packs/built-in/directives/046-readable-consistent-prs.directive.yaml) — the
+  canonical close-out sequence and readable/consistent-PR standard step 12 of the cadence follows.

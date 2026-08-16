@@ -914,6 +914,84 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-08-07-1-a-mission-halting-instrument-is-worth-its-cost.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-08-09-1-project-sync-store-boundary.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-08-12-1-checkout-ownership-for-mission-create-and-next.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-08-12-1-plantuml-schema-diagram-rendering.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-08-13-1-built-in-mission-subtree-stays-nested-retire-legacy-step-contracts.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-08-13-1-mission-type-roster-layering-seam.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-08-13-3-gate-execution-targets-through-kernel-surface-selector.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-08-13-4-executable-doctrine-runs-only-from-trusted-publishers.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-08-13-5-local-daemon-amortizes-doctrine-parse-and-caches-gate-verdicts.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-08-15-1-handoff-packet-intake-contract.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-08-16-1-pack-metadata-manifest-unification.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/README.md
   tag: current
   divio_type: none
@@ -1490,6 +1568,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/architecture/mission-gates.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/architecture/mission-system.md
   tag: current
   divio_type: none
@@ -1703,6 +1787,12 @@
 - path: docs/changelog/release-goals.md
   tag: current
   divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/changelog/release-notes-3.2.6rc1.md
+  tag: current
+  divio_type: reference
   owning_workstream: none
   current_target: true
   notes: null
@@ -1946,9 +2036,27 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/contracts/handoff-packet-v1.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/contracts/index.md
   tag: current
   divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/agent-memory-migration-manifest.md
+  tag: current
+  divio_type: reference
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/agent-memory-workflow-migration-manifest.md
+  tag: current
+  divio_type: reference
   owning_workstream: none
   current_target: true
   notes: null
@@ -1971,6 +2079,12 @@
   current_target: true
   notes: null
 - path: docs/development/getting-started/onboarding-run.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/how-to/compress-mission-history.md
   tag: current
   divio_type: how-to
   owning_workstream: none
@@ -2618,6 +2732,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/guides/project-sync-consent.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/guides/tutorials/charter-governed-workflow.md
   tag: current
   divio_type: tutorial
@@ -2804,6 +2924,30 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/operations/coord-branch-base-strand.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/operations/coord-off-main-addadd.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/operations/coord-worktree-missing.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/operations/cutover-flip-linked-worktree.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/operations/how-to-maintain.md
   tag: current
   divio_type: how-to
@@ -2858,13 +3002,25 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/operations/stale-lane-seed.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/operations/start-branch-coord-divergence.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/operations/sync-daemon-orphan-cleanup.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/2497-external-observability-endpoints-assessment.md
+- path: docs/operations/sync-drain.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -2954,7 +3110,13 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/charter-sole-door-deferred-issues.md
+- path: docs/plans/code-quality/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/code-quality/targeted-cleanup-scoping.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -2985,6 +3147,12 @@
   current_target: true
   notes: null
 - path: docs/plans/doctrine/charter-path-resolution-gaps.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/charter-sole-door-deferred-issues.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -3153,6 +3321,36 @@
   current_target: true
   notes: null
 - path: docs/plans/doctrine/wp-prompt-governance-atdd-findings.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/domains/api-dashboard-domain-plan.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/domains/doctrine-charter-domain-plan.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/domains/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/domains/packs-extraction-domain-plan.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/domains/saas-hosted-sync-domain-plan.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -3926,13 +4124,7 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/initiatives/README.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/initiatives/next-mission-mappings/README.md
+- path: docs/plans/initiatives/index.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -3974,6 +4166,30 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/investigations/2026-08-consumer-repo-layout-portability.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/2026-08-pack-level-metadata-manifest.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/2026-08-retrospective-surface-disposition.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/2497-external-observability-endpoints-assessment.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/investigations/2684-task-move-cluster-scoping.md
   tag: current
   divio_type: none
@@ -3999,6 +4215,12 @@
   current_target: true
   notes: null
 - path: docs/plans/investigations/issue-1111-analysis.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/loop-friction-fastfollow-spec.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -4082,13 +4304,7 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/loop-friction-fastfollow-spec.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/next-mission-mappings/README.md
+- path: docs/plans/next-mission-mappings/index.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -4172,6 +4388,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/research/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/research/session-presence-harness-gaps.md
   tag: current
   divio_type: none
@@ -4203,12 +4425,6 @@
   current_target: true
   notes: null
 - path: docs/plans/reviews/test-plan-pr305.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/test-change-coupling-caacs.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -4256,6 +4472,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/testing/test-change-coupling-caacs.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/testing/test-suite-acceleration-plan.md
   tag: current
   divio_type: none
@@ -4298,19 +4520,37 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/user_journey/README.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/plans/user_journey/evaluation.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/user_journey/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/user_journey/init-doctrine-flow.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/final-report.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/issue-matrix.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/workflow-evidence.md
   tag: current
   divio_type: none
   owning_workstream: none

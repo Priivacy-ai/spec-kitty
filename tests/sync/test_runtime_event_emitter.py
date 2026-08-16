@@ -101,7 +101,7 @@ class TestSyncRuntimeEventEmitter:
         assert decision_calls == ["DecisionInputRequested", "DecisionInputAnswered"], "Adapter must forward both decision events to the inner emitter"
 
         # Queue holds the non-decision lifecycle events only.
-        events = temp_queue.drain_queue()
+        events = [task.event for task in temp_queue.drain_queue()]
         assert [event["event_type"] for event in events] == [
             "MissionRunStarted",
             "MissionStarted",
@@ -149,5 +149,5 @@ class TestSyncRuntimeEventEmitter:
             )
         )
 
-        events = temp_queue.drain_queue()
+        events = [task.event for task in temp_queue.drain_queue()]
         assert [event["event_type"] for event in events] == ["NextStepIssued"]

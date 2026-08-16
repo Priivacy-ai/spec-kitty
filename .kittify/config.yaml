@@ -4,6 +4,7 @@ agents:
   available:
   - claude
   - codex
+  - cursor
   auto_commit: false
   lint_on_edit: true
 project:
@@ -19,3 +20,8 @@ charter: .kittify/charter/charter.yaml
 # Lane -> mission merges always use merge commits regardless of this setting.
 merge:
   strategy: squash
+mission_type_activations:
+- software-dev
+- documentation
+- research
+- plan

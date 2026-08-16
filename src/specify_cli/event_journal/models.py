@@ -182,10 +182,11 @@ def select_identity_projection_sql(project_count: int) -> str:
     reads are separate predicates that share only ``_IDENTITY_PROJECTION_COLUMNS``
     (deliberately, and pinned by
     ``test_both_identity_projections_expose_the_project_slug``), so editing one
-    filter cannot silently change the other. A caller that wants every row has to
-    *name* ``SELECT_IDENTITY_PROJECTION_ALL_SQL`` or
-    ``EventJournal.read_identity_projection_for_report``, which is a visible choice
-    in a review diff rather than an argument change.
+    filter cannot silently change the other. A caller that wants every row of a
+    store has to *name* ``EventJournal.read_identity_projection_for_report``
+    (the machine-global ``SELECT_IDENTITY_PROJECTION_ALL_SQL`` was retired with
+    the #3262 per-project cutover), which is a visible choice in a review diff
+    rather than an argument change.
 
     **What it does NOT buy — retracted 2026-07-31.** This docstring used to end "so
     there is no way to ask this module for a scan". That was true when the capability
@@ -244,10 +245,13 @@ def select_identity_projection_sql(project_count: int) -> str:
 # `sync doctor` / `sync status` / `sync migrate`, never on a drain tick. Keeping the
 # two statements distinct is what lets a reader tell at a glance which one a caller
 # is allowed to use.
-SELECT_IDENTITY_PROJECTION_ALL_SQL = (
-    f"SELECT {_IDENTITY_PROJECTION_COLUMNS} FROM {TABLE_NAME} "  # noqa: S608 — identifiers are static module constants
-    f"ORDER BY {COL_CREATED_AT} ASC, {COL_EVENT_ID} ASC"
-)
+# ``SELECT_IDENTITY_PROJECTION_ALL_SQL`` was retired with the per-project store
+# cutover (#3262): each store holds exactly one project's rows, so the machine-
+# global "every row of every project" statement has no table to run against and
+# the capability is removed by construction, not by convention.
+# ``EventJournal.read_identity_projection_for_report`` survives as the operator
+# reporting read of ONE explicit store and remains gated per-consumer by
+# ``tests/architectural/test_unfiltered_journal_read_boundary.py``.
 
 
 def select_by_ids_sql(id_count: int) -> str:
@@ -405,20 +409,6 @@ def row_to_event(row: tuple[Any, ...]) -> Event:
 
 
 __all__ = [
-    "COUNT_MISSING_IDENTITY_SQL",
-    "CREATE_COALESCE_INDEX_SQL",
-    "CREATE_PROJECT_INDEX_SQL",
-    "CREATE_TABLE_SQL",
-    "CREATE_TYPE_INDEX_SQL",
-    "COUNT_SQL",
-    "DISTINCT_PROJECT_UUIDS_SQL",
-    "IDENTITY_COLUMNS",
-    "SELECT_MISSING_IDENTITY_SQL",
-    "SET_IDENTITY_SQL",
-    "TABLE_NAME",
-    "select_by_ids_sql",
-    "SELECT_IDENTITY_PROJECTION_ALL_SQL",
-    "select_identity_projection_sql",
     "DRAIN_BLOCKED_DAEMON_LOCK",
     "DRAIN_BLOCKED_MISSING_AUTH",
     "DRAIN_BLOCKED_MISSING_TEAM",
@@ -427,9 +417,6 @@ __all__ = [
     "DRAIN_BLOCKED_REASONS",
     "DRAIN_BLOCKED_SAAS_DISABLED",
     "Event",
-    "INSERT_SQL",
-    "MARK_ARCHIVED_SQL",
-    "OLDEST_CREATED_AT_SQL",
     # ORDERED_COLUMNS stays exported: the allowlist grant in
     # tests/architectural/test_no_dead_symbols.py records the reason (the
     # journal's canonical column-order contract, consumed inside this module by
@@ -438,9 +425,6 @@ __all__ = [
     # surfaced it as an offender; the key is refreshed there rather than the
     # export being revoked. ``TABLE_NAME`` was listed twice — duplicate dropped.
     "ORDERED_COLUMNS",
-    "SELECT_ALL_SQL",
-    "SELECT_BLOCKED_SQL",
-    "SELECT_BY_ID_SQL",
     "event_to_params",
     "row_to_event",
 ]

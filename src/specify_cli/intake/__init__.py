@@ -2,6 +2,8 @@
 
 This package centralises the boundary helpers used by ``spec-kitty intake``:
 
+* :mod:`packet` — optional handoff-packet frontmatter parser (v1); malformed
+  or unknown versions degrade to prose intake.
 * :mod:`provenance` — escape strings before writing them into provenance
   comments / YAML so untrusted source paths cannot break out of the
   comment context or smuggle markdown into the brief.
@@ -31,6 +33,7 @@ from .errors import (
     IntakeRootInconsistentError,
     IntakeTooLargeError,
 )
+from .packet import parse_handoff_packet
 from .provenance import escape_for_comment
 from .scanner import (
     DEFAULT_MAX_BRIEF_BYTES,
@@ -56,6 +59,7 @@ __all__ = [
     "assert_under_root",
     "escape_for_comment",
     "load_max_brief_bytes",
+    "parse_handoff_packet",
     "read_brief",
     "read_stdin_capped",
 ]

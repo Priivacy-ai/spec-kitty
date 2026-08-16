@@ -163,6 +163,11 @@
         "APPROVE cycle 5. All five cycle-4 findings closed by independent measurement: status pin kills the frame-dispatched mutant (4 suppressed binds, 4 reds, 12 doctor green); label-to-selector composition verified across 7 collision shapes with no shape resolving to a wrong project; invariant retraction accurate; ''-uuid counted exactly once; flagship pin still reds on the leak assertion under a consent-strip mutant. Four prose residuals recorded as must-fix-on-touch."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVE cycle 5. All five cycle-4 findings closed by independent measurement: status pin kills the frame-dispatched mutant (4 suppressed binds, 4 reds, 12 doctor green); label-to-selector composition verified across 7 collision shapes with no shape resolving to a wrong project; invariant retraction accurate; ''-uuid counted exactly once; flagship pin still reds on the leak assertion under a consent-strip mutant. Four prose residuals recorded as must-fix-on-touch.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "shell_pid": 195305,
       "shell_pid_created_at": "1785370891.81",

@@ -1,8 +1,8 @@
 ---
 title: Spec Kitty 3.2 Documentation Publication Checklist
 description: 'The publication checklist for the Spec Kitty 3.2 documentation refresh (WP14 / FR-021): the steps the docs release engineer runs before publishing.'
-doc_status: draft
-updated: '2026-06-12'
+doc_status: deprecated
+updated: '2026-08-12'
 related:
 - docs/context/index.md
 - docs/plans/3-2-doc-publication/3-2-archive-migration-plan.md
@@ -13,6 +13,9 @@ related:
 - docs/plans/3-2-doc-publication/3-2-navigation-plan.md
 - docs/plans/3-2-doc-publication/3-2-version-taxonomy.md
 ---
+
+> ⚠ **Retired 2026-08-12 (`doc_status: deprecated`).** Working note for the 3.2 documentation mission `spec-kitty-3-2-docs-01KS4KSZ` (14/14 WPs done 2026-05-21); the docs are published (now 3.2.6). Content preserved as an audit-trail record.
+
 # Spec Kitty 3.2 Documentation Publication Checklist
 
 **Mission:** `spec-kitty-3-2-docs-01KS4KSZ` (WP14 / FR-021)

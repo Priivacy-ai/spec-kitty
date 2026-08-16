@@ -42,7 +42,7 @@ def test_warm_resolver_p95_under_5ms(tmp_repo: Path) -> None:
 
 def test_warm_resolver_makes_zero_git_invocations(tmp_repo: Path) -> None:
     resolve_canonical_repo_root(tmp_repo)  # Prime cache.
-    with patch("charter.resolution.subprocess.run") as spy:
+    with patch("kernel.git_topology.subprocess.run") as spy:
         for _ in range(100):
             resolve_canonical_repo_root(tmp_repo)
     assert spy.call_count == 0, (
@@ -54,7 +54,7 @@ def test_cold_resolver_makes_exactly_one_git_invocation(tmp_repo: Path) -> None:
     resolve_canonical_repo_root.cache_clear()
     real_run = subprocess.run
     spy = MagicMock(side_effect=lambda *a, **kw: real_run(*a, **kw))
-    with patch("charter.resolution.subprocess.run", spy):
+    with patch("kernel.git_topology.subprocess.run", spy):
         resolve_canonical_repo_root(tmp_repo)
     assert spy.call_count == 1, (
         f"Cold resolver invoked subprocess.run {spy.call_count} times; expected 1."

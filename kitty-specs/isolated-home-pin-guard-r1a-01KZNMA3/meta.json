@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "617f26171c5dc3d37b41a3337542c1e55d06afca",
+  "coordination_branch": "kitty/mission-isolated-home-pin-guard-r1a-01KZNMA3",
+  "created_at": "2026-08-10T10:43:19.311045+00:00",
+  "flattened": false,
+  "friendly_name": "R1a — the guard half: freeze the SPEC_KITTY_HOME behaviour class",
+  "mission_id": "01KZNMA3ME8T2NTAHWZH2S3VX0",
+  "mission_number": 193,
+  "mission_slug": "isolated-home-pin-guard-r1a-01KZNMA3",
+  "mission_type": "software-dev",
+  "purpose_context": "Mission isolated-home-pin-convergence-01KZCTWC halted on its own pre-convergence gate (|P| = 5). The operator signed off on halt-and-re-scope; R1a is the guard half of that re-scope. It ships a gate that can halt it, an owner, a binding-resolving classifier with a mandatory byte pre-filter, a frozen 40-row census, and a reduced record. It adjudicates nothing and adopts nothing — that is R1b.",
+  "purpose_tldr": "Install a census-backed AST guard that reds when the 40-member SPEC_KITTY_HOME behaviour class changes, plus the owner that gives a legitimate 41st member a green path.",
+  "slug": "isolated-home-pin-guard-r1a-01KZNMA3",
+  "status_phase": "1",
+  "target_branch": "feat/isolated-home-pin-guard",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-11T11:20:14.782135+00:00"
+}

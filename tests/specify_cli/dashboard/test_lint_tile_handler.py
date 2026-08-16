@@ -100,6 +100,20 @@ class TestLintTileHandlerReportExists:
 class TestLintTileHandlerReportMissing:
     """No lint-report.json → has_data: false, all counts 0."""
 
+    def test_missing_project_dir_returns_has_data_false(self, tmp_path):
+        """Returns has_data=false when project_dir is not configured."""
+        from specify_cli.dashboard.handlers.lint import LintTileHandler
+
+        handler = _make_handler(tmp_path)
+        handler.project_dir = None
+        LintTileHandler.handle_charter_lint(handler)
+
+        handler.send_response.assert_called_once_with(200)
+        data = _read_response(handler)
+        assert data["has_data"] is False
+        assert data["total_count"] == 0
+        assert data["high_severity_count"] == 0
+
     def test_missing_report_returns_has_data_false(self, tmp_path):
         """Returns has_data=false when lint-report.json does not exist."""
         from specify_cli.dashboard.handlers.lint import LintTileHandler

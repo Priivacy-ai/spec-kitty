@@ -1595,7 +1595,7 @@ def resolve_feature_dir_for_slug(repo_root: Path, mission_slug: str) -> Path:
     coord-aware primitive (dozens of tests call it directly to prove the
     coord-vs-primary split — see ``tests/retrospective/``,
     ``tests/integration/test_coord_loop_*``,
-    ``tests/architectural/test_gate_read_literal_ban.py``), so it is NOT
+    ``tests/architectural/_gate_read_callshape.py``), so it is NOT
     deleted — only dropped from ``__all__`` (below) since it no longer has a
     cross-module ``src/`` importer (the symbol-level dead-code gate,
     ``tests/architectural/test_no_dead_symbols.py``, requires one for an

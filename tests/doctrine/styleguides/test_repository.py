@@ -56,14 +56,6 @@ class TestStyleguideRepository:
         ids = [sg.id for sg in repo.list_all()]
         assert "sub-style" in ids
 
-    def test_load_from_custom_shipped_dir(
-        self, tmp_styleguide_dir: Path
-    ) -> None:
-        repo = StyleguideRepository(built_in_dir=tmp_styleguide_dir)
-        styleguides = repo.list_all()
-        assert {s.id for s in styleguides} == {"test-style"}
-        assert styleguides[0].id == "test-style"
-
     def test_malformed_yaml_skipped_with_warning(self, tmp_path: Path) -> None:
         shipped = tmp_path / "built-in"
         shipped.mkdir()

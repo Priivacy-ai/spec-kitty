@@ -36,8 +36,17 @@ from uuid import uuid4
 
 import pytest
 
+from specify_cli.delivery.interfaces import DeliveryTarget, TargetIdentity
 from specify_cli.delivery.receivers import TeamspaceReceiver
+from specify_cli.delivery.targets import compute_target_id
+from specify_cli.sync.consent import allocate_capture_sequence, record_project_opt_in
+from specify_cli.sync.history_disclosure import (
+    confirm_history_disclosure,
+    preview_sealed_history,
+)
 from specify_cli.sync.history_import.upload import run_import_upload, upload_envelopes
+from specify_cli.sync.project_context import AdmissionState
+from specify_cli.sync.project_store import ProjectSyncStore
 
 pytestmark = pytest.mark.fast
 
@@ -45,7 +54,7 @@ pytestmark = pytest.mark.fast
 # It is the string whose presence on the wire is the confidentiality breach.
 _ENGAGEMENT = "acme-holdings-carve-out"
 _PROJECT_SLUG = "acme-holdings"
-_SERVER = "https://spec-kitty-dev.example"
+_SERVER = "https://app.spec-kitty.ai"
 
 
 # ── the recording ingress ─────────────────────────────────────────────────────
@@ -72,11 +81,12 @@ class _RecordingIngress:
         self.requests: list[tuple[str, bytes]] = []
 
     def __call__(self, url: str, *, data: bytes, headers: dict[str, str], timeout: float) -> _Response:
+        del timeout
         self.requests.append((url, data))
-        body = json.loads(gzip.decompress(data).decode("utf-8"))
+        raw = gzip.decompress(data) if headers.get("Content-Encoding") == "gzip" else data
+        body = json.loads(raw.decode("utf-8"))
         return _Response(
             {
-                "accepted": True,
                 "results": [{"event_id": env["event_id"], "status": "success"} for env in body["events"]],
             }
         )
@@ -84,7 +94,7 @@ class _RecordingIngress:
     @property
     def transmitted(self) -> str:
         """Every byte that crossed the transport, decompressed, as one string."""
-        return "".join(gzip.decompress(data).decode("utf-8") for _, data in self.requests)
+        return "".join((data.decode("utf-8") if url.endswith("/preflight/") else gzip.decompress(data).decode("utf-8")) for url, data in self.requests)
 
 
 # ── fixtures: a real checkout, a real consent chain ───────────────────────────
@@ -151,12 +161,77 @@ def _receiver(ingress: _RecordingIngress) -> TeamspaceReceiver:
     return TeamspaceReceiver(resolved_server_url=_SERVER, auth_token="secret-token", poster=ingress)
 
 
+def _history_authority(
+    project_uuid: str,
+    envelopes: list[dict[str, Any]],
+) -> dict[str, object]:
+    """Persist and explicitly confirm the positive-control cohort."""
+    store = ProjectSyncStore(project_uuid)
+    with store.unit_of_work() as unit:
+        for envelope in envelopes:
+            assignment = allocate_capture_sequence(unit)
+            unit.execute(
+                "INSERT INTO journal_entries (entry_id, project_uuid, epoch_id, capture_sequence, payload_json) VALUES (?, ?, ?, ?, ?)",
+                (
+                    envelope["event_id"],
+                    project_uuid,
+                    assignment.epoch_id,
+                    assignment.capture_sequence,
+                    json.dumps(envelope, sort_keys=True, separators=(",", ":")),
+                ),
+            )
+    record_project_opt_in(project_uuid, actor="test:positive-control")
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO project_target_admissions "
+            "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, binding_audience) "
+            "VALUES (?, ?, 'account-1', 'teamspace-1', 1, 'admitted', '1', "
+            "'private-teamspace:teamspace-1')",
+            (project_uuid, _SERVER),
+        )
+    context = store.create_context()
+    capability = confirm_history_disclosure(
+        store,
+        preview_sealed_history(store),
+        actor="test:positive-control",
+        idempotency_key="consent-suite-positive",
+        context=context,
+    )
+    audience = context.target_audience
+    assert audience is not None
+    identity = TargetIdentity(
+        target_identity=audience.target_identity,
+        account_identity=audience.account_identity,
+        private_teamspace_id=audience.private_teamspace_id,
+        project_uuid=audience.project_uuid,
+        configuration_generation=audience.configuration_generation,
+    )
+    target = DeliveryTarget(
+        target_id=compute_target_id(
+            target_identity=identity.target_identity,
+            account_identity=identity.account_identity,
+            private_teamspace_id=identity.private_teamspace_id,
+            project_uuid=identity.project_uuid,
+            configuration_generation=identity.configuration_generation,
+        ),
+        identity=identity,
+        admission_state=AdmissionState.ADMITTED,
+        admission_generation=1,
+        binding_audience="private-teamspace:teamspace-1",
+        last_error_category=None,
+    )
+    return {
+        "project_context": context,
+        "target": target,
+        "history_capability": capability,
+    }
+
+
 # ── the leak ──────────────────────────────────────────────────────────────────
 
 
-def test_import_history_makes_no_request_for_a_project_with_no_consent_record(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_import_history_makes_no_request_for_a_project_with_no_consent_record(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A never-opted-in project's history must not reach the wire (FR-028, NFR-001).
 
     The incident's exact state: a checkout with a valid identity and **no**
@@ -175,21 +250,16 @@ def test_import_history_makes_no_request_for_a_project_with_no_consent_record(
     )
 
     assert ingress.requests == [], (
-        f"import-history transmitted {len(ingress.requests)} request(s) for a project with no "
-        f"consent record; URLs: {[url for url, _ in ingress.requests]}"
+        f"import-history transmitted {len(ingress.requests)} request(s) for a project with no consent record; URLs: {[url for url, _ in ingress.requests]}"
     )
-    assert _ENGAGEMENT not in ingress.transmitted, (
-        "the client engagement name reached the transport for a never-opted-in project"
-    )
+    assert _ENGAGEMENT not in ingress.transmitted, "the client engagement name reached the transport for a never-opted-in project"
     assert not report.ok, "a refused import must not report a clean run"
     assert any(_PROJECT_SLUG in sample or project_uuid in sample for sample in report.rejected_samples), (
         f"the refusal must name the project it refused; samples were {report.rejected_samples}"
     )
 
 
-def test_import_history_makes_no_request_when_the_project_config_refuses(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_import_history_makes_no_request_when_the_project_config_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A committed, reviewable ``sync.enabled: false`` must stop the import (FR-019)."""
     repo_root, project_uuid = _checkout(tmp_path, monkeypatch, sync_enabled=False)
     ingress = _RecordingIngress()
@@ -207,9 +277,7 @@ def test_import_history_makes_no_request_when_the_project_config_refuses(
     assert _ENGAGEMENT not in ingress.transmitted
 
 
-def test_upload_envelopes_makes_no_request_for_a_project_with_no_consent_record(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_upload_envelopes_makes_no_request_for_a_project_with_no_consent_record(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The preflight-free entry point is gated too — both are public (``__init__``)."""
     repo_root, project_uuid = _checkout(tmp_path, monkeypatch, sync_enabled=None)
     ingress = _RecordingIngress()
@@ -224,9 +292,7 @@ def test_upload_envelopes_makes_no_request_for_a_project_with_no_consent_record(
     assert _ENGAGEMENT not in ingress.transmitted
 
 
-def test_the_preflight_sink_is_gated_not_only_the_delivery_sink(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_the_preflight_sink_is_gated_not_only_the_delivery_sink(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``run_server_preflight`` POSTs the whole stream *before* ``_deliver_chunks``.
 
     Placing the gate at the ``receiver.deliver`` call alone would leave this
@@ -253,9 +319,7 @@ def test_the_preflight_sink_is_gated_not_only_the_delivery_sink(
 # ── the positive control ──────────────────────────────────────────────────────
 
 
-def test_import_history_transmits_for_a_consented_project(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_import_history_transmits_for_a_consented_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """POSITIVE CONTROL: with consent recorded, the same harness *does* transmit.
 
     Without this, every refusal above would be satisfied by a harness that
@@ -263,18 +327,21 @@ def test_import_history_transmits_for_a_consented_project(
     This test must pass on the pre-fix tree and on the post-fix tree alike.
     """
     repo_root, project_uuid = _checkout(tmp_path, monkeypatch, sync_enabled=True)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     ingress = _RecordingIngress()
+    envelopes = _envelopes(project_uuid)
 
     report = run_import_upload(
-        _envelopes(project_uuid),
+        envelopes,
         receiver=_receiver(ingress),
         server_url=_SERVER,
         auth_token="secret-token",
         poster=ingress,
         checkout_root=repo_root,
+        **_history_authority(project_uuid, envelopes),
     )
 
-    assert ingress.requests, "the harness must be able to transmit, or the refusals prove nothing"
+    assert ingress.requests, f"the harness must be able to transmit, or the refusals prove nothing; report={report}"
     assert _ENGAGEMENT in ingress.transmitted, "the consented project's engagement name must reach the wire"
     assert report.ok, f"a consented import must run clean; samples: {report.rejected_samples}"
     assert report.success == 3

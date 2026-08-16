@@ -12,6 +12,7 @@ import contextlib
 import logging
 import re
 import shutil
+import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -21,7 +22,14 @@ from ulid import ULID
 from mission_runtime import (
     MissionArtifactKind,
     MissionTopology,
+    resolve_create_time_write_target,
     resolve_write_target_or_degrade,
+)
+from specify_cli.core.checkout_ownership import (
+    OwnershipClaim,
+    OwnershipValidationResult,
+    error_for_claim,
+    resolve_ownership_claim,
 )
 from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
 from specify_cli.core.commit_guard import GuardCapability
@@ -34,7 +42,6 @@ from specify_cli.core.paths import (
     get_main_repo_root,
     is_worktree_context,
     locate_project_root,
-    resolve_mission_creation_root,
 )
 from kernel.clock import now_utc_iso
 from specify_cli.git import safe_commit
@@ -53,6 +60,12 @@ logger = logging.getLogger(__name__)
 # reads) hoisted to named constants rather than restated as literals.
 _META_KEY_MISSION_TYPE = "mission_type"
 _META_KEY_CREATED_AT = "created_at"
+
+# WP12 (FR-011 / #3339): coordination branches are the only branch refs a
+# mission-create mints, and their names are all ``kitty/mission-<slug>-<mid8>``.
+# The glob lets the failure-atomic rollback diff pre- vs post-create refs so it
+# deletes exactly the orphan branch an aborted create left behind.
+_COORDINATION_BRANCH_GLOB = "kitty/mission-*"
 
 
 class MissionCreationError(RuntimeError):
@@ -79,6 +92,8 @@ class MissionCreationResult:
     # freshly-minted branch from an idempotent reuse on re-run.
     coordination_branch: str | None = None
     coordination_branch_created: bool = False
+    owned_checkout: Path | None = None
+    canonical_repo_root: Path | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -173,6 +188,9 @@ def _commit_feature_file(
     artifact_type: str,
     repo_root: Path,
     planning_branch: str,
+    *,
+    worktree_root: Path | None = None,
+    create_time_target: object | None = None,
 ) -> None:
     """Commit a single planning artifact to its seam-resolved primary home.
 
@@ -203,26 +221,99 @@ def _commit_feature_file(
     # plans on a protected branch, WP05's placement projection routes the
     # commit; this caller does not duplicate that decision (T010).
     commit_msg = f"Add {artifact_type} for feature {mission_slug}"
-    # A mission created in a caller-owned linked worktree is not visible from
-    # the canonical primary checkout until its first commit.  Resolve against
-    # that primary surface so the shared bootstrap-window helper degrades to
-    # the explicit planning branch instead of silently falling back to the
-    # repository's default branch.  Once metadata is visible on the primary
-    # surface, the same helper delegates to the normal placement authority.
-    seam_target = resolve_write_target_or_degrade(
-        get_main_repo_root(repo_root),
-        mission_slug,
-        MissionArtifactKind.SPEC,
-        degrade_ref=planning_branch,
+    effective_worktree = worktree_root or repo_root
+    seam_target = (
+        create_time_target
+        if create_time_target is not None
+        else resolve_write_target_or_degrade(
+            get_main_repo_root(repo_root),
+            mission_slug,
+            MissionArtifactKind.SPEC,
+            degrade_ref=planning_branch,
+        )
     )
     safe_commit(
         repo_root=repo_root,
-        worktree_root=repo_root,
+        worktree_root=effective_worktree,
         target=seam_target,
         message=commit_msg,
         paths=(file_path,),
         capability=GuardCapability.STANDARD,
     )
+
+
+# ---------------------------------------------------------------------------
+# Failure-atomic git rollback (WP12 / FR-011 / #3339)
+# ---------------------------------------------------------------------------
+
+
+def _list_coordination_branches(repo_root: Path) -> frozenset[str]:
+    """Return the local ``kitty/mission-*`` branch names in ``repo_root``.
+
+    Used to diff the coordination branches present before vs after a
+    mission-create so the rollback deletes exactly the ref an aborted create
+    minted, never a pre-existing one. A non-git or failing ``git`` invocation
+    yields an empty set (nothing to roll back).
+    """
+    result = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo_root),
+            "branch",
+            "--list",
+            _COORDINATION_BRANCH_GLOB,
+            "--format=%(refname:short)",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return frozenset()
+    return frozenset(line.strip() for line in result.stdout.splitlines() if line.strip())
+
+
+def _restore_git_state_after_failed_create(
+    repo_root: Path,
+    *,
+    original_branch: str | None,
+    pre_existing_coordination_branches: frozenset[str],
+) -> None:
+    """Best-effort rollback of a failed mission-create's git side-effects.
+
+    Restores the operator's original checkout and deletes any coordination
+    branch this create-run minted (FR-011, #3339), so a failed create leaves
+    the operator on their original branch with no orphan branch.
+
+    Rollback is best-effort and never raises — it must not mask the original
+    creation failure. The checkout is restored *before* any branch delete
+    because git refuses to delete a branch that is currently checked out.
+
+    Single-writer assumption: mission-create is an operator action, so the
+    coordination-branch diff (present now minus present before) identifies
+    exactly the ref this call minted.
+    """
+    # 1. Restore the operator's checkout first (a checked-out branch cannot be
+    #    deleted).
+    if original_branch is not None:
+        current = get_current_branch(repo_root)
+        if current is not None and current != original_branch:
+            subprocess.run(
+                ["git", "-C", str(repo_root), "checkout", original_branch],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+    # 2. Delete only the coordination branches that appeared during this create.
+    orphaned = _list_coordination_branches(repo_root) - pre_existing_coordination_branches
+    for branch in sorted(orphaned):
+        subprocess.run(
+            ["git", "-C", str(repo_root), "branch", "-D", branch],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -262,6 +353,62 @@ def create_mission_core(
     topology: MissionTopology = MissionTopology.COORD,
     force_recreate_coordination_branch: bool = False,
     allow_worktree_context: bool = False,
+    owned_checkout: Path | None = None,
+) -> MissionCreationResult:
+    """Create a new mission, restoring git state if creation fails (FR-011).
+
+    Failure-atomic wrapper around :func:`_create_mission_core_impl`. It captures
+    the operator's branch/checkout and the pre-existing coordination branches
+    *before* any git mutation, and on ANY failure restores the original checkout
+    and deletes the orphan coordination branch the aborted run minted (#3339).
+    See :func:`_create_mission_core_impl` for the full parameter contract.
+    """
+    rollback_root = repo_root if repo_root is not None else locate_project_root()
+    original_branch: str | None = None
+    pre_existing_coordination_branches: frozenset[str] = frozenset()
+    if rollback_root is not None and is_git_repo(rollback_root):
+        original_branch = get_current_branch(rollback_root)
+        pre_existing_coordination_branches = _list_coordination_branches(rollback_root)
+
+    try:
+        return _create_mission_core_impl(
+            repo_root,
+            mission_slug,
+            mission=mission,
+            target_branch=target_branch,
+            friendly_name=friendly_name,
+            purpose_tldr=purpose_tldr,
+            purpose_context=purpose_context,
+            topology=topology,
+            force_recreate_coordination_branch=force_recreate_coordination_branch,
+            allow_worktree_context=allow_worktree_context,
+            owned_checkout=owned_checkout,
+        )
+    except BaseException:
+        # Re-raised below; the rollback is pure cleanup and must not swallow or
+        # replace the original failure (that is why we re-raise unconditionally).
+        if rollback_root is not None:
+            _restore_git_state_after_failed_create(
+                rollback_root,
+                original_branch=original_branch,
+                pre_existing_coordination_branches=pre_existing_coordination_branches,
+            )
+        raise
+
+
+def _create_mission_core_impl(
+    repo_root: Path | None,
+    mission_slug: str,
+    *,
+    mission: str | None = None,
+    target_branch: str | None = None,
+    friendly_name: str | None = None,
+    purpose_tldr: str | None = None,
+    purpose_context: str | None = None,
+    topology: MissionTopology = MissionTopology.COORD,
+    force_recreate_coordination_branch: bool = False,
+    allow_worktree_context: bool = False,
+    owned_checkout: Path | None = None,
 ) -> MissionCreationResult:
     """Create a new feature with all scaffolding.
 
@@ -311,6 +458,11 @@ def create_mission_core(
         isolated (often temporary) repository while the test process itself
         happens to be running from within a lane worktree checkout, which is
         this project's normal execution context for its own test suite.
+    owned_checkout:
+        Explicit checkout root owned by this invocation. The path is validated
+        against the independently resolved primary checkout before the existing
+        worktree-context guard can be bypassed. ``None`` preserves the existing
+        guard and write-root behavior exactly.
 
     Returns
     -------
@@ -357,15 +509,33 @@ def create_mission_core(
     # 2. Context guards
     # ------------------------------------------------------------------
     cwd = Path.cwd().resolve()
-    project_root = repo_root if repo_root is not None else locate_project_root()
-    resolved_root = resolve_mission_creation_root(project_root, cwd)
+    ownership_claim: OwnershipClaim | None = None
+    resolved_root = repo_root
+
+    if owned_checkout is None:
+        if resolved_root is None:
+            resolved_root = locate_project_root()
+    else:
+        if resolved_root is None:
+            resolved_root = locate_project_root()
+        if resolved_root is not None:
+            resolved_root = resolved_root.resolve()
+            ownership_claim = resolve_ownership_claim(
+                owned_checkout.resolve(),
+                resolved_primary=resolved_root,
+            )
+            ownership_error = error_for_claim(ownership_claim)
+            if ownership_error is not None:
+                raise ownership_error
+
     if resolved_root is None:
         raise MissionCreationError("Could not locate project root. Run from within spec-kitty repository.")
 
     in_worktree = is_worktree_context(cwd)
     checkout_root = resolved_root.resolve()
     if (
-        not allow_worktree_context
+        owned_checkout is None
+        and not allow_worktree_context
         and in_worktree
         and cwd != checkout_root
         and checkout_root not in cwd.parents
@@ -374,14 +544,22 @@ def create_mission_core(
             "Cannot create missions from inside a worktree. Run from the project root checkout."
         )
 
+    effective_root = (
+        ownership_claim.claimed_checkout
+        if ownership_claim is not None
+        and ownership_claim.validation_result is OwnershipValidationResult.OWNED
+        else resolved_root
+    )
+
     if not is_git_repo(resolved_root):
         raise MissionCreationError("Not in a git repository. Mission creation requires git.")
 
-    current_branch = get_current_branch(resolved_root)
+    current_branch = get_current_branch(effective_root)
     if not current_branch or current_branch == "HEAD":
         raise MissionCreationError("Must be on a branch to create missions (detached HEAD detected).")
     if (
-        not allow_worktree_context
+        owned_checkout is None
+        and not allow_worktree_context
         and in_worktree
         and not _is_safe_external_creation_worktree(cwd, resolved_root, current_branch)
     ):
@@ -393,6 +571,12 @@ def create_mission_core(
     # 3. Resolve planning branch
     # ------------------------------------------------------------------
     planning_branch = target_branch if target_branch else current_branch
+    create_time_target = (
+        resolve_create_time_write_target(planning_branch)
+        if ownership_claim is not None
+        and ownership_claim.validation_result is OwnershipValidationResult.OWNED
+        else None
+    )
     if not normalized_friendly_name:
         normalized_friendly_name = default_mission_display_name(mission_slug)
 
@@ -466,7 +650,7 @@ def create_mission_core(
         mid8=resolve_mid8("", mission_id=mission_id),
     )
 
-    feature_dir = resolved_root / KITTY_SPECS_DIR / mission_slug_formatted
+    feature_dir = effective_root / KITTY_SPECS_DIR / mission_slug_formatted
     feature_dir.mkdir(parents=True, exist_ok=True)
 
     (feature_dir / "checklists").mkdir(exist_ok=True)
@@ -587,6 +771,8 @@ def create_mission_core(
             "meta",
             resolved_root,
             planning_branch,
+            worktree_root=effective_root,
+            create_time_target=create_time_target,
         )
 
     # ------------------------------------------------------------------
@@ -611,6 +797,8 @@ def create_mission_core(
                 "meta",
                 resolved_root,
                 planning_branch,
+                worktree_root=effective_root,
+                create_time_target=create_time_target,
             )
 
     # ------------------------------------------------------------------
@@ -666,8 +854,8 @@ def create_mission_core(
             event_type=SPECIFY_STARTED,
             mission_slug=mission_slug_formatted,
             actor="spec-kitty mission create",
-            artifact_path=str(spec_file.relative_to(resolved_root))
-            if spec_file.is_relative_to(resolved_root)
+            artifact_path=str(spec_file.relative_to(effective_root))
+            if spec_file.is_relative_to(effective_root)
             else "spec.md",
         )
     except Exception as _phase_evt_exc:  # noqa: BLE001
@@ -718,6 +906,13 @@ def create_mission_core(
         origin_binding_error=origin_binding_error,
         coordination_branch=coordination_branch_value,
         coordination_branch_created=coordination_branch_created_flag,
+        owned_checkout=(
+            ownership_claim.claimed_checkout
+            if ownership_claim is not None
+            and ownership_claim.validation_result is OwnershipValidationResult.OWNED
+            else None
+        ),
+        canonical_repo_root=resolved_root,
     )
 
 

@@ -8,6 +8,9 @@ intercepts the ``FileFallbackStorage`` boundary used by the queue scope path.
 See:
 - src/specify_cli/sync/_team.py — the resolver under test
 - src/specify_cli/sync/queue.py:read_queue_scope_from_session — queue site
+  (post per-project-store cutover this site performs NO membership rehydrate at
+  all: live payload queues are selected by ``ProjectSyncStore`` and the queue
+  scope is a recorded legacy artifact, read without ingress I/O)
 - src/specify_cli/sync/emitter.py:EventEmitter._current_team_slug — emitter site
 - kitty-specs/private-teamspace-ingress-safeguards-01KQH03Y/contracts/api.md §4
 """
@@ -101,10 +104,14 @@ def token_manager_with_shared_only_session() -> TokenManager:
 # ---------------------------------------------------------------------------
 # Queue ingress path
 #
-# read_queue_scope_from_session() reads from FileFallbackStorage and
-# constructs a transient TokenManager that calls the shared helper. We patch
-# the storage boundary and TokenManager construction so the rehydrate path
-# uses our fixture URL (so respx intercepts) and our shared-only session.
+# Since the per-project-store cutover, read_queue_scope_from_session() no
+# longer consults TokenManager or the shared resolver at all: it reads the
+# recorded ``active_queue_scope`` / session ``queue_scope`` artifacts under
+# SPEC_KITTY_HOME without any ingress I/O, and default_queue_db_path() refuses
+# outright (live payload queues are selected by ProjectSyncStore; legacy paths
+# are WP10 migration inputs). The tests below pin exactly that: a token
+# manager is available and respx is armed, and the queue site still never
+# issues a membership rehydrate GET.
 # ---------------------------------------------------------------------------
 
 
@@ -128,11 +135,19 @@ def _patched_token_manager(
 
 
 @respx.mock
-def test_queue_ingress_rehydrates_and_sends_private(
+def test_queue_scope_reads_recorded_scope_without_ingress(
+    canonical_home: None,
     token_manager_with_shared_only_session: TokenManager,
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
 ) -> None:
-    """Queue ingress path: rehydrate-success surfaces the private team id in scope."""
+    """Queue scope path: the recorded scope is returned with zero ingress I/O.
+
+    The pre-cutover contract here was "rehydrate-success surfaces the private
+    team id in scope". The queue site no longer resolves teams at all — the
+    recorded ``active_queue_scope`` artifact answers, and even with a token
+    manager available and a private team on offer, no membership GET is issued.
+    """
     me_route = respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
         return_value=httpx.Response(
             200,
@@ -150,23 +165,15 @@ def test_queue_ingress_rehydrates_and_sends_private(
         )
     )
 
-    # Make FileFallbackStorage().read() return our shared-only session so the
-    # queue scope path enters the helper.
-    fake_storage = MagicMock()
-    fake_storage.read.return_value = (
-        token_manager_with_shared_only_session.get_current_session()
-    )
-    monkeypatch.setattr(
-        "specify_cli.auth.secure_storage.file_fallback.FileFallbackStorage",
-        lambda *args, **kwargs: fake_storage,  # noqa: ARG005
-    )
     _patched_token_manager(monkeypatch, token_manager_with_shared_only_session)
+    from specify_cli.sync.queue import write_active_scope
+
+    write_active_scope("scope-recorded-by-login")
 
     scope = read_queue_scope_from_session()
 
-    assert scope is not None
-    assert "t-private" in scope
-    assert me_route.call_count == 1
+    assert scope == "scope-recorded-by-login"
+    assert me_route.call_count == 0
 
 
 @respx.mock
@@ -225,20 +232,33 @@ def test_default_queue_db_path_local_only_skips_rehydrate(
 
     _patched_token_manager(monkeypatch, token_manager_with_shared_only_session)
 
-    path = default_queue_db_path(allow_rehydrate=False)
+    from specify_cli.sync.queue import LegacyQueueMigrationRequiredError
 
-    assert path.name == "queue.db"
+    # Post-cutover there is no legacy queue path to resolve at all: live payload
+    # queues are selected by ProjectSyncStore, and the retired resolver refuses
+    # rather than answering — still with zero membership rehydrate I/O.
+    with pytest.raises(LegacyQueueMigrationRequiredError):
+        default_queue_db_path(allow_rehydrate=False)
+
     assert me_route.call_count == 0
 
 
 @respx.mock
 def test_queue_ingress_skipped_on_no_private_team(
+    canonical_home: None,
     token_manager_with_shared_only_session: TokenManager,
     monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
+    tmp_path,
 ) -> None:
-    """Queue ingress path: rehydrate-fails returns None + structured warning."""
-    respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
+    """Queue scope path: no recorded scope resolves to None with zero ingress I/O.
+
+    Pre-cutover this asserted the resolver's structured warning at the queue
+    site. The queue site no longer calls the resolver at all — no scope on
+    record means ``None``, and no membership rehydrate GET is ever attempted,
+    which is strictly safer than warn-and-skip. The structured-warning contract
+    itself is still pinned below at the emitter site.
+    """
+    me_route = respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
         return_value=httpx.Response(
             200,
             json={
@@ -255,32 +275,12 @@ def test_queue_ingress_skipped_on_no_private_team(
         )
     )
 
-    fake_storage = MagicMock()
-    fake_storage.read.return_value = (
-        token_manager_with_shared_only_session.get_current_session()
-    )
-    monkeypatch.setattr(
-        "specify_cli.auth.secure_storage.file_fallback.FileFallbackStorage",
-        lambda *args, **kwargs: fake_storage,  # noqa: ARG005
-    )
     _patched_token_manager(monkeypatch, token_manager_with_shared_only_session)
 
-    with caplog.at_level(logging.WARNING, logger="specify_cli.sync._team"):
-        scope = read_queue_scope_from_session()
+    scope = read_queue_scope_from_session()
 
     assert scope is None
-    matching = [
-        record
-        for record in caplog.records
-        if "direct_ingress_missing_private_team" in record.getMessage()
-    ]
-    assert matching, "expected structured warning with category direct_ingress_missing_private_team"
-    record = matching[0]
-    # Structured payload travels via ``extra`` and is exposed as record attrs.
-    assert getattr(record, "category", None) == "direct_ingress_missing_private_team"
-    assert getattr(record, "rehydrate_attempted", None) is True
-    assert getattr(record, "ingress_sent", None) is False
-    assert getattr(record, "endpoint", None) == "/api/v1/events/batch/"
+    assert me_route.call_count == 0
 
 
 # ---------------------------------------------------------------------------
@@ -370,15 +370,18 @@ def test_emitter_ingress_skipped_on_no_private_team(
 def test_emitter_emit_queues_event_when_no_private_team_no_remote_ingress(
     token_manager_with_shared_only_session: TokenManager,
     monkeypatch: pytest.MonkeyPatch,
-    tmp_path,
+    temp_queue,
+    temp_clock,
+    mock_identity,
+    mock_git_resolver,
 ) -> None:
     """Local durability holds, ingress safety holds (issue #1072 / FR-002).
 
     When the strict resolver returns ``None``:
 
     1. The public emit method now RETURNS the event (it is locally durable),
-       with ``team_slug = None`` and ``drain_blocked_reason in {"no_team",
-       "no_auth"}`` so the drain side knows not to ship it remotely.
+       with ``team_slug = None`` and ``drain_blocked_reason in {"missing_team",
+       "missing_auth"}`` so the drain side knows not to ship it remotely.
     2. The event IS appended to the durable ``OfflineQueue`` — it would
        otherwise be lost if auth/team conditions never resolve in this
        process.
@@ -387,11 +390,6 @@ def test_emitter_emit_queues_event_when_no_private_team_no_remote_ingress(
        the team on every tick and skips POSTing while the resolver still
        returns ``None`` (see ``tests/sync/test_batch_*`` for that surface).
     """
-    from unittest.mock import MagicMock
-
-    from specify_cli.sync.clock import LamportClock
-    from specify_cli.sync.queue import OfflineQueue
-
     respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
         return_value=httpx.Response(
             200,
@@ -418,24 +416,33 @@ def test_emitter_emit_queues_event_when_no_private_team_no_remote_ingress(
     # to sit here was removed with #3030 M1-1: the emitter no longer imports that
     # cwd-derived name, so patching it steered nothing.
 
-    queue = OfflineQueue(db_path=tmp_path / "queue.db")
-    clock = LamportClock(value=0, node_id="test", _storage_path=tmp_path / "c.json")
+    # ``OfflineQueue`` no longer takes ``db_path``: the shared ``temp_queue``
+    # fixture supplies a project-store outbox over an active unit of work whose
+    # owner matches ``mock_identity`` (events must carry their store owner's
+    # project uuid to be accepted).
     config = MagicMock()
     ws_client = MagicMock()
     ws_client.send_event = MagicMock()
     ws_client.connected = True  # ensure the WS short-circuit is checked
 
-    emitter = EventEmitter(clock=clock, config=config, queue=queue, ws_client=ws_client)
+    emitter = EventEmitter(
+        clock=temp_clock,
+        config=config,
+        queue=temp_queue,
+        ws_client=ws_client,
+        _identity=mock_identity,
+        _git_resolver=mock_git_resolver,
+    )
 
     event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
 
     # 1. Locally durable: event is produced and queued for later drain.
     assert event is not None
     assert event["team_slug"] is None
-    assert event["drain_blocked_reason"] in {"no_team", "no_auth"}
+    assert event["drain_blocked_reason"] in {"missing_team", "missing_auth"}
 
     # 2. Persisted on disk.
-    assert queue.size() == 1
+    assert temp_queue.size() == 1
 
     # 3. Ingress safety: no opportunistic WS publish for a blocked event.
     ws_client.send_event.assert_not_called()

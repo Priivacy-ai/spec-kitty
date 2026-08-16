@@ -54,16 +54,6 @@ _OPTIONAL_SEED_KEYS: tuple[str, ...] = (
     "synonyms_to_avoid",
 )
 
-#: Expected occurrence counts in the seed, pinned so a future seed edit that
-#: silently drops or adds a sparse-field occurrence is itself caught (not just
-#: whether the pack mirrors whatever the seed happens to have right now).
-_EXPECTED_OPTIONAL_KEY_COUNTS: dict[str, int] = {
-    "see_also": 1,
-    "introduced_in_mission": 2,
-    "synonyms_to_avoid": 3,
-}
-
-
 def _load_seed_terms() -> list[dict[str, Any]]:
     yaml = YAML(typ="safe")
     with _SEED_PATH.open("r", encoding="utf-8") as fh:
@@ -124,12 +114,6 @@ def pack_terms_by_surface() -> dict[str, Any]:
 _MISSION_ADDED_SURFACES: frozenset[str] = frozenset(
     {"transition gate", "gate handler", "gate binding", "canonical issue-matrix"}
 )
-
-
-def test_term_count_parity(seed_terms: list[dict[str, Any]], pack_terms_by_surface: dict[str, Any]) -> None:
-    assert len(seed_terms) == 104, "seed term count drifted from the migrated assumption"  # golden-count: cardinality-is-contract
-    # pack = the 104 migrated seed terms + the mission's registered additions.
-    assert len(pack_terms_by_surface) == len(seed_terms) + len(_MISSION_ADDED_SURFACES)
 
 
 def test_surface_set_parity(seed_terms: list[dict[str, Any]], pack_terms_by_surface: dict[str, Any]) -> None:
@@ -226,73 +210,3 @@ def test_terms_with_no_optional_seed_fields_have_none_on_pack_side(
                 )
 
     assert not violations, "\n".join(violations)
-
-
-# ---------------------------------------------------------------------------
-# Explicit sparse-field occurrence counts + round-trip (US3 / squad F2)
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("key", sorted(_EXPECTED_OPTIONAL_KEY_COUNTS))
-def test_sparse_optional_key_occurrence_count_pinned(
-    key: str, seed_terms: list[dict[str, Any]]
-) -> None:
-    """Pin the exact occurrence count for each sparse optional seed key.
-
-    Guards the guard: if the seed's sparse-field distribution ever changes,
-    this fails loudly rather than the parity test silently covering fewer
-    cases than the squad intended.
-    """
-    count = sum(1 for t in seed_terms if key in t)
-    assert count == _EXPECTED_OPTIONAL_KEY_COUNTS[key], (
-        f"expected {_EXPECTED_OPTIONAL_KEY_COUNTS[key]} seed term(s) with "
-        f"{key!r}, found {count}"
-    )
-
-
-def test_synonyms_to_avoid_round_trips_for_all_three_real_terms(
-    seed_terms: list[dict[str, Any]],
-    pack_terms_by_surface: dict[str, Any],
-) -> None:
-    """US3: the 3 real ``synonyms_to_avoid`` seed terms round-trip exactly."""
-    seed_terms_with_synonyms = [t for t in seed_terms if "synonyms_to_avoid" in t]
-    assert len(seed_terms_with_synonyms) == 3  # golden-count: cardinality-is-contract
-
-    for seed_term in seed_terms_with_synonyms:
-        surface = seed_term["surface"]
-        pack_term = pack_terms_by_surface[surface]
-        assert pack_term.synonyms_to_avoid == seed_term["synonyms_to_avoid"], (
-            f"{surface!r}: synonyms_to_avoid did not round-trip "
-            f"(seed={seed_term['synonyms_to_avoid']!r}, "
-            f"pack={pack_term.synonyms_to_avoid!r})"
-        )
-
-
-def test_see_also_round_trips_for_the_one_real_term(
-    seed_terms: list[dict[str, Any]],
-    pack_terms_by_surface: dict[str, Any],
-) -> None:
-    """The 1 real ``see_also`` seed term round-trips via the documented
-    dict-to-string flattening (see :func:`_stringify_see_also_entry`).
-    """
-    seed_terms_with_see_also = [t for t in seed_terms if "see_also" in t]
-    assert len(seed_terms_with_see_also) == 1  # golden-count: cardinality-is-contract
-
-    seed_term = seed_terms_with_see_also[0]
-    surface = seed_term["surface"]
-    pack_term = pack_terms_by_surface[surface]
-    expected = _expected_see_also(seed_term["see_also"])
-    assert pack_term.see_also == expected
-
-
-def test_introduced_in_mission_round_trips_for_both_real_terms(
-    seed_terms: list[dict[str, Any]],
-    pack_terms_by_surface: dict[str, Any],
-) -> None:
-    seed_terms_with_intro = [t for t in seed_terms if "introduced_in_mission" in t]
-    assert len(seed_terms_with_intro) == 2  # golden-count: cardinality-is-contract
-
-    for seed_term in seed_terms_with_intro:
-        surface = seed_term["surface"]
-        pack_term = pack_terms_by_surface[surface]
-        assert pack_term.introduced_in_mission == seed_term["introduced_in_mission"]

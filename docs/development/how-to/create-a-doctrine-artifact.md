@@ -2,11 +2,12 @@
 title: Create a doctrine artifact
 description: A concrete, followable walkthrough for authoring a new doctrine artifact end to end — file location, schema, activation, and the loose-contract asset kind.
 doc_status: active
-updated: '2026-08-10'
+updated: '2026-08-15'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
 - docs/architecture/doctrine-kinds.md
+- docs/architecture/doctrine-relationships.md
 - docs/context/doctrine.md
 - docs/guides/how-to/governance/synthesize-doctrine.md
 - docs/guides/how-to/governance/setup-governance.md
@@ -178,6 +179,27 @@ synthesis workflow. If something looks wrong at any step, `spec-kitty doctor doc
 [Troubleshooting Charter Failures](../../guides/how-to/governance/troubleshoot-charter.md) are the first places to
 check.
 
+## Modeling relationships between artifacts, including tension
+
+Every relationship between doctrine artifacts — obligation (`requires`,
+`suggests`), lineage (`specializes_from`), augmentation (`enhances`,
+`overrides`), and tension (`in_tension_with`, `reconciles_tension`,
+`rejects`) — is an authored **DRG edge** in a `graph.yaml` fragment, never a
+field on the artifact body. The full authoring reference — worked examples
+for every relation, plus the URN-ordering mechanic for `in_tension_with` — is
+[Doctrine relationships](../../architecture/doctrine-relationships.md); see
+its ["Tension vocabulary" section](../../architecture/doctrine-relationships.md)
+for how to model two co-valid artifacts that disagree (for example
+DIRECTIVE_024's locality-of-change vs. DIRECTIVE_025's boy-scout rule) and
+how to bridge a tension pair with a reconciler.
+
+**`opposed_by` is retired, not an authoring option.** Use `in_tension_with` /
+`reconciles_tension` / `rejects` instead — see the linked reference above for
+the full semantics. It survives only as a legacy input an unmigrated
+org/downstream pack may still carry; `spec-kitty migrate rewrite-opposed-by
+--pack <path>` rewrites those legacy entries into the correct typed edges
+(idempotent, safe to run repeatedly).
+
 ## Undoing this
 
 ```bash
@@ -261,6 +283,9 @@ There is nothing to undo — no activation entry was written. Delete the blob an
 
 - [Doctrine artifact kinds](../../architecture/doctrine-kinds.md) — what each of the eight kinds is for, with a
   real example of each.
+- [Doctrine relationships](../../architecture/doctrine-relationships.md) — the full DRG relation
+  reference, including the tension vocabulary (`in_tension_with`, `reconciles_tension`,
+  `rejects`) that supersedes the retired `opposed_by` field.
 - [Understanding the Org Doctrine Layer](../../architecture/org-doctrine-layer.md) — how to package
   and share doctrine artifacts across multiple projects instead of authoring them project-local.
 - [How to Synthesize and Maintain Doctrine](../../guides/how-to/governance/synthesize-doctrine.md) — the broader

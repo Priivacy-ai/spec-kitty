@@ -1,0 +1,613 @@
+{
+  "event_count": 219,
+  "last_event_id": "01KZQSMC9V9YJPSX3DKFVN9TN5",
+  "materialized_at": "2026-08-11T06:54:47.611783+00:00",
+  "mission_number": "",
+  "mission_slug": "assertive-test-suite-sanitation-01KZME3P",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 14,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 1
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "agent": "root-arbiter",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KZNGT2C33VBGPDSR35SSTXTB",
+      "last_transition_at": "2026-08-10T09:42:08.003212+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Evidence commit 146ba5a4c; lane policy cleanup 5c26ceb8c; snapshot exit 0 (37444 nodes/29755 units, 22.2 MiB); validate exit 0; selftest 13/13 exit 0; ruff exit 0; mypy exit 0; workflow validation exit 0",
+        "Review cycle 2: hardened recursive census discovery, truthful deselection/error capture, strict fail-closed census/workload/disposition validation, controlled aggregate errors, exact workload environments, and adversarial selftests. Evidence: commit f081a5023; 29,766 source units; 37,444 nodes; 173 strict groups/365 members; 22/22 selftests; ruff and mypy --strict clean; validator valid; tests/docs 1,381 passed.",
+        "Review cycle 3: field-specific typed validation now accepts empty marker/env collections while rejecting invalid action/evidence/survivor/TEMPORARY/equivalence records; divergent families require exact fully typed member/census node rows; duplicate environments/edges/candidate IDs and malformed measurements fail closed; sibling E2E environment frozen from observed prepared checkout. Evidence: commit a1b7ec246; 62/62 runtime selftests; canonical 29,766 source units, 37,444 nodes, 173 strict groups/365 members; artifact validation, ruff, mypy --strict green; tests/docs 1,381 passed.",
+        "Review cycle 4: evidence rows now have nonvacuous command/reference/RouteMembership/comparison and named-result schemas; compact census builds collected+deselected node/member authority; every observation reconciles to census and candidate membership; frozen workload builds route/environment authority; candidate/evidence route IDs, environments, and roles reconcile. Evidence: commit 7863a9a22; 85/85 selftests including committed positive DELETE shard and exact combined-bypass rejection; ruff, mypy --strict, base validation green; tests/docs 1,381 passed. Snapshot semantics/raw artifacts unchanged.",
+        "Ready for cycle-5 review: pinned route/CI provenance; exact 37,444-identity baseline with external raw SHA; 140/140 selftests; ruff, strict mypy, validator, content equivalence, and 1,381 docs tests pass.",
+        "Arbiter APPROVE after user-mandated three-review cap. Commit 8f43d185d closes the two final reproduced fail-open classes: exact immutable eight-route authority and independently pinned 37,444-node execution evidence. Root reverified canonical validation, 149/149 adversarial checks including all nine prior bypass probes, ruff, mypy --strict, diff scope, and clean lane. No further review cycle permitted."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-coord/kitty-specs/assertive-test-suite-sanitation-01KZME3P/tasks/WP01-census-evidence-foundation/review-cycle-5.md",
+        "reference": "review-cycle://assertive-test-suite-sanitation-01KZME3P/WP01-census-evidence-foundation/review-cycle-5.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "changes_requested"
+      },
+      "role": "implementer",
+      "shell_pid": 28365,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      },
+      "tracker_refs": [
+        "#1931",
+        "#2645",
+        "#3284"
+      ]
+    },
+    "WP02": {
+      "actor": "user",
+      "agent": "root-arbiter",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KZNSARYMQ7XZAS61SRDSSAJR",
+      "last_transition_at": "2026-08-10T12:11:04.020610+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: recoverable cross-platform lease, bounded cached scanner, exact replay and matched evidence",
+        "Cycle 2 ready: invalid final entries recover safely; scanner rows authenticated across processes; causal pre-fix raw evidence and three documented clean starts recorded",
+        "Final cycle 3 ready for arbiter: external HMAC cache authority rejects recomputed self-signatures; lexical no-follow stale-lease symlink recovery preserves target",
+        "Arbiter APPROVE after three-review cap; no cycle4. Bootstrap lease/publication recovery, symlink-safe stale-lease repair, exact replay, three clean starts, 126 focused passes/2 platform skips, integration, Ruff/mypy and scanner concurrency are proven. Residual accepted under #2645: coherent active rewriting of both readable authority key and cache rows can forge results; authority-key directory corruption errors closed instead of rescanning. Ordinary/schema-valid row corruption is authenticated and rescans; no silent accidental bypass. Availability/security hardening is follow-up, not a fourth mission cycle."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-coord/kitty-specs/assertive-test-suite-sanitation-01KZME3P/tasks/WP02-test-venv-bootstrap/review-cycle-3.md",
+        "reference": "review-cycle://assertive-test-suite-sanitation-01KZME3P/WP02-test-venv-bootstrap/review-cycle-3.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "changes_requested"
+      },
+      "role": "reviewer",
+      "shell_pid": 0,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T050": "done"
+      },
+      "tracker_refs": [
+        "#3283",
+        "#2645"
+      ]
+    },
+    "WP03": {
+      "actor": "user",
+      "agent": "wp03-reviewer",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZNY7RWEWBN0KCF6NN1HZGFJ",
+      "last_transition_at": "2026-08-10T13:36:48.526100+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Arbiter-authorized DIR-013 attribution: automatic scoped gate timed out after 300s. Identical manual scope reached 1432 passed and 14 skipped before repaired-base plus HEAD pre-existing Rich-wrap red at tests/agent/cli/commands/test_charter_synthesize_cli.py::TestSynthesizeErrorPaths::test_pack_config_error_surfaces_diagnostic_body (does newline not exist), tracked by GitHub issue #3284 and WP04 raw base/head pre-review receipts. Ctrl-C produced the secondary exit-130 create-feature failure and is operator-induced. WP03-owned gates and evidence are green; ready for review.",
+        "Review cycle 1 passed: exact repaired-base 205 to HEAD 181 (-24); 12 permanent skips, placeholder, strict xfail, and stale historical nodes removed; zero forbidden inert markers remain; 120/120 identical base/HEAD matrix runs green; five causal probes killed intended faults; 180 retained guards pass; exactly one blocking #2782 red reproduces CHARTER_PACK_CONFIG_INVALID; frozen census/workload ledger validates 30 dispositions/35 members; ruff and diff checks pass. Anti-patterns: dead code N/A, synthetic fixture PASS, silent empty return N/A, FR coverage PASS, frozen surface PASS, locked decisions PASS, shared ownership PASS, production fragility N/A. Pre-review gate red is external #3284 Rich-wrap baseline as durably attributed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review cycle 1 passed: exact repaired-base 205 to HEAD 181 (-24); 12 permanent skips, placeholder, strict xfail, and stale historical nodes removed; zero forbidden inert markers remain; 120/120 identical base/HEAD matrix runs green; five causal probes killed intended faults; 180 retained guards pass; exactly one blocking #2782 red reproduces CHARTER_PACK_CONFIG_INVALID; frozen census/workload ledger validates 30 dispositions/35 members; ruff and diff checks pass. Anti-patterns: dead code N/A, synthetic fixture PASS, silent empty return N/A, FR coverage PASS, frozen surface PASS, locked decisions PASS, shared ownership PASS, production fragility N/A. Pre-review gate red is external #3284 Rich-wrap baseline as durably attributed.",
+        "reviewer": "Robert Douglass",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28365,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      },
+      "tracker_refs": [
+        "#2309",
+        "#2316",
+        "#2342",
+        "#2782",
+        "#3184"
+      ]
+    },
+    "WP04": {
+      "actor": "user",
+      "agent": "root-arbiter",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KZNTW6X2BVMGVGQYH1F0TY4T",
+      "last_transition_at": "2026-08-10T12:38:03.938644+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: consolidated 82 exact duplicate groups; removed 104 collected nodes; retained unique import, platform, and causal seams. Gate override rationale: workflow scoped run times out without JUnit exactly as WP04 baseline records; independent 727-node affected cohort is green (725 passed, 2 skipped), validator/ruff/5 fault sentinels green.",
+        "Cycle 2 evidence reconciled: 110/110 gross removed definitions ledgered (82 exact + 9 semantic families), 706->602 selected cohort with base 704p/2s and HEAD 600p/2s, 43 intended causal oracle failures across 3 campaigns, validator green, ruff green, focused smoke 6 passed. Canonical scoped gate truthfully timed out at 300.011s/17%; raw receipt persisted. Its early F is explicitly base-red/head-red under identical exact-node selector/environment; both receipts persisted.",
+        "Final cycle 3: source-derived member input/callable/oracle/fault contracts persisted for all 25 KEEP rows; 18 honestly resolve source-equivalent and are flagged for final arbiter because cycle scope forbids new deletions. Replayable hashed live-authority injection is persisted: 4 campaigns, 64 selected executions, 64 intended call-phase failures, 0 passes; 65 deleting rows name replayed survivors and one cache delete-all has explicit non-causal counterexample proof. Historical 109 result rows (actual 61/23/25) deduplicated to 91 unique (57/9/25); executable verifier rejects duplicate/count drift. Validator, Ruff, replay verification, and evidence consistency are green. No cycle 4 permitted.",
+        "Arbiter APPROVE after three-review cap; no cycle4. Verified exact reduction 706→602 (-104 collected nodes), HEAD 600 passed/2 platform skips, 91 unique dispositions, 64/64 intended call-phase fault failures, Ruff/diff/ownership clean, no production diff. Accept 18 source-equivalent KEEP groups as explicit residual debt: 38 members contain 20 further dominated nodes not deleted in this bounded package. This residual is not represented as causal diversity and must remain visible in mission closure/follow-up; it does not invalidate the proven -104 reduction."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-coord/kitty-specs/assertive-test-suite-sanitation-01KZME3P/tasks/WP04-duplicate-consolidation/review-cycle-3.md",
+        "reference": "review-cycle://assertive-test-suite-sanitation-01KZME3P/WP04-duplicate-consolidation/review-cycle-3.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "changes_requested"
+      },
+      "role": "reviewer",
+      "shell_pid": 0,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      },
+      "tracker_refs": [
+        "#1931"
+      ]
+    },
+    "WP05": {
+      "actor": "user",
+      "agent": "root-arbiter",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KZNSYBGWE98XG70W69M1RX19",
+      "last_transition_at": "2026-08-10T12:21:45.628204+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Retired 54 spent structural nodes; all 28 retained scanner files green; disposition audit valid.",
+        "Cycle-2 review ready. Pre-review wrapper timed out at its fixed 300s; identical retained cohort passed 307/307 in 297.93s (raw sha256 fb0077aaf7ea80ed34d3e824dc802e523dbca694900939de5ca2b4803bb649dc). Exact-name scaffold retired; 27 node-level survivor proofs; 8 executed two-sided probes.",
+        "Final cycle-3 review ready: persisted six content-addressed artifacts covering 13 labeled mutations at exact base, with deterministic materializers, exact commands/results, restore/clean proofs; all six materializers verified changed paths and restored clean; artifact hashes verified; 11 self-scanning guards passed; ledger valid. Skip avoids previously-attributed fixed 300s wrapper timeout; cycle-2 reviewer independently ran 307/307 green. No deletion or test implementation change. No cycle 4; arbitrate after review 3.",
+        "Arbiter APPROVE after three-review cap; no cycle4. Exact reduction 368→307 (61 nodes, eight files, net -2681 LOC); 307 survivors pass; validator/Ruff/ownership/diff clean; six artifacts hash/restore clean and 12/13 mutations reproduce intended red. Explicitly exclude the non-causal legacy-emitter mutation from acceptance: it imports approved coordination status_transition while guard correctly forbids only legacy status.emit. Remaining 12 valid causal probes plus live behavior and exact per-node survivor evidence satisfy WP05."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-coord/kitty-specs/assertive-test-suite-sanitation-01KZME3P/tasks/WP05-structural-scaffold-retirement/review-cycle-3.md",
+        "reference": "review-cycle://assertive-test-suite-sanitation-01KZME3P/WP05-structural-scaffold-retirement/review-cycle-3.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "changes_requested"
+      },
+      "role": "reviewer",
+      "shell_pid": 0,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done"
+      },
+      "tracker_refs": [
+        "#1931"
+      ]
+    },
+    "WP06": {
+      "actor": "user",
+      "agent": "root-arbiter",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "assignee": "wp06-impl",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KZP586ZHDXTW4JQ0RT4QSKHN",
+      "last_transition_at": "2026-08-10T15:39:22.994005+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Bounded pre-review override after two terminal 300s gate timeouts with no failing node/stderr. Exact owned cohort: 139 passed in 45.68s under xdist; daemon matrix 20/20 isolated + 10/10 CI-parallel; Ruff, ledger validator, JSON, diff checks green; zero src edits; #2782 remains WP03 and CI route node remains WP07. 38 nodes removed, net -1794 test LOC.",
+        "Cycle 2 evidence correction: exact base+WP02/HEAD provenance, all 21 sync-node survivors, and replayable daemon matrices",
+        "Final implementation cycle 3 per review-cycle-2; two unsupported mappings restored as strengthened biting oracles",
+        "Bounded gate override after terminal 300s timeout with zero observed failures: focused 141/141, survivors 20/20, matrix hashes 60/60, validator 30 dispositions/46 nodes valid, Ruff/diff clean",
+        "Arbiter APPROVE after third/final review; no cycle4. Exact 177→141 (-36), 141 focused passes, 20/20 biting deleted-node survivors, 60/60 daemon row hashes with reproducible pre-repair failure, no production edits/masking. Final reviewer confirms five omitted reachability membership/count/meta-pin identities are valid zero-signal deletions; assign their machine-readable terminal aggregation to WP08 closure rather than restoring them."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": {
+        "actor": "operator",
+        "at": "2026-08-10T15:39:22Z",
+        "reason": "Arbiter APPROVE after third/final review; no cycle4. Exact 177→141 (-36), 141 focused passes, 20/20 biting deleted-node survivors, 60/60 daemon row hashes with reproducible pre-repair failure, no production edits/masking. Final reviewer confirms five omitted reachability membership/count/meta-pin identities are valid zero-signal deletions; assign their machine-readable terminal aggregation to WP08 closure rather than restoring them.",
+        "wp_id": "WP06"
+      },
+      "review_result": {
+        "feedback_path": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-coord/kitty-specs/assertive-test-suite-sanitation-01KZME3P/tasks/WP06-baseline-red-adjudication/review-cycle-3.md",
+        "reference": "review-cycle://assertive-test-suite-sanitation-01KZME3P/WP06-baseline-red-adjudication/review-cycle-3.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "changes_requested"
+      },
+      "role": "reviewer",
+      "shell_pid": 0,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T032": "done",
+        "T033": "done",
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done",
+        "T038": "done"
+      },
+      "tracker_refs": [
+        "#3284"
+      ]
+    },
+    "WP07": {
+      "actor": "reviewer-renata",
+      "agent": "codex",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KZPVCX1K3GD3HCH1T15CX4S1",
+      "last_transition_at": "2026-08-10T22:06:25.331117+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implemented proportional regression/quarantine owner manifests; reconciled integrated shard maps, live baselines, and retired sidecars; replaced recursive #3284 probe; four-stage three-repetition timing evidence records honest criterion outcomes; full architectural hard gate 748 passed, 2 xfailed. Commit b700f116c.",
+        "Cycle 2 ready. Implementation db82a6aef; cleanup ccd656a84. Ordinary pre-review gate was attempted exactly once with durable capture and returned: timed_out — scoped test run timed out after 300s; stderr tail empty; zero observed failures; transition not applied. Skip is narrowly justified by completed stronger/focused evidence: full architecture 748 passed + 2 expected xfailed; focused routing/ratchet 47 passed; #3284 oracle 1 passed; auditor valid; Ruff/diff clean; actionlint delta zero. Timing streams are serialized/hash-verified; known-cut DAG critical path 62.25s→61.39s =1.3815% MISS; full frozen DAG MISS_NOT_ESTABLISHED. Force is only for history-sensitive kitty-specs guard: clean tip has zero kitty-specs diff vs canonical target; no dependency DAG rewrite.",
+        "FINAL cycle 3/3 evidence-only correction aa776e84a; planning-artifact cleanup dbf50af2e. Exact focused five-file command passed 47 in 53.93s; 12 timing streams plus manifest/workflow hashes reproduce; auditor valid; JSON/YAML parse and diff-check clean. Full architecture from unchanged code remains 748 passed + 2 expected xfailed. MISS_NOT_ESTABLISHED preserved; unsupported directionality removed. Force is narrowly required because history-sensitive kitty-specs guard flags integrated historical artifacts even though clean tip has zero kitty-specs diff vs canonical target. Pre-review gate skipped under the established exact prior receipt: scoped gate timed out after 300s with empty stderr and zero observed failures; cycle 3 changed evidence JSON only, no code/test/workflow/deletion surface.",
+        "Review passed: final cycle 3 independently verified aa776e84a's evidence-only two-line correction; exact five-file gate 47 passed; 12 timing and 4 artifact hashes, auditor, frozen DAG/selector ownership, 58+3 map reconciliation, and #3284 live-universe fault proof pass; cycle-2 full architecture surface is byte-identical (748 passed, 2 xfailed). No cycle 4. Force used only to bypass known lane planning-artifact guard caused by runtime integration/rebase metadata."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "review-cycle://assertive-test-suite-sanitation-01KZME3P/WP07-proportional-ci-routing/review-cycle-3.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28365,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T039": "done",
+        "T040": "done",
+        "T041": "done",
+        "T042": "done",
+        "T043": "done"
+      },
+      "tracker_refs": [
+        "#2645",
+        "#2782",
+        "#3284"
+      ]
+    },
+    "WP08": {
+      "actor": "user",
+      "agent": "",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 2,
+      "lane": "planned",
+      "last_event_id": "01KZQSMC9V9YJPSX3DKFVN9TN5",
+      "last_transition_at": "2026-08-11T06:54:47.611783+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Root-authorized integrated lane override: lane contains approved dependency implementation/planning ancestry by construction. Ready for independent review. Exact full suite green 35,912/88/4; orphan/Ruff/contract/architecture green. Explicit misses: inherited origin/main mypy 10, sibling E2E 3p/1x/2 environment-boundary failures, SC-003 1.3815%, exact-commit three-OS proof absent. No waiver/cycle 4.",
+        "Cycle 2 ready: report frontmatter generated; reports section sanctioned; runtime backfill flipped 1/verify true and cutover guard passed; narrow contract_drift nested-wheel-build exception signed by Robert Douglass; daemon restarted once and dependent scenario passed 1/1; Windows PR CI success bound with Linux/macOS current links; SC-003 remains explicit 1.3815% FAIL accepted by root under user KISS directive, not fabricated pass. Commit d53ce658b."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/kitty-specs/assertive-test-suite-sanitation-01KZME3P/tasks/WP08-aggregate-closure/review-cycle-2.md",
+        "reference": "review-cycle://assertive-test-suite-sanitation-01KZME3P/WP08-aggregate-closure/review-cycle-2.md",
+        "reviewer": "user",
+        "verdict": "changes_requested"
+      },
+      "role": "reviewer",
+      "shell_pid": 0,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T044": "planned",
+        "T045": "planned",
+        "T046": "planned",
+        "T047": "planned",
+        "T048": "planned",
+        "T049": "planned"
+      },
+      "tracker_refs": [
+        "#1931",
+        "#2309",
+        "#2316",
+        "#2342",
+        "#2645",
+        "#2782",
+        "#3184",
+        "#3283",
+        "#3284"
+      ]
+    },
+    "WP09": {
+      "actor": "reviewer-renata",
+      "agent": "wp09-reviewer3",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KZPD720ZTCYMCCZ5WHGADD0E",
+      "last_transition_at": "2026-08-10T17:58:33.759928+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Pre-review composite scope timed out at its 300s ceiling (outcome=timed_out, block_enabled=false, zero observed new failures). WP09 focused 35/35 and imported support consumer 11/11 pass; fault evidence and WP07 handoff committed in be201db03.",
+        "Cycle 2 ready. Default pre-review gate exceeded its fixed 300s budget; bounded authoritative cohort passed 35/35 in 182.65s. collection.tables.paths reconciliation: 418 frozen, 35 current, 383 removed; exact 418-node map and Windows route equivalence included; ruff clean.",
+        "Cycle 3 final: 418->36 (-382). Restored only GC-2/C-007 live disjointness guard. Healthy 9-node serial selection intersects parallel pool at zero; disposable ci-quality.yml removal of actual pool ignore produces exact 9-node overlap. Full retained cohort 36 passed in 251.22s; focused final guard 1 passed in 102.97s; ruff/mypy clean. Automatic scoped gate separately timed out at its fixed 300s cap, so transition uses documented skip after equivalent direct pass.",
+        "Review cycle 3 passed: independent census join proves 418 frozen to 36 current (-382) with 418 terminal mappings; only minimal GC-2/C-007 guard restored; live workflow proof gives serial=9, healthy overlap=0, actual ignore-removal overlap=9; 36 passed, ruff/mypy/diff/scope clean, no production/workflow/shared-map or marker regression."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "review-cycle://assertive-test-suite-sanitation-01KZME3P/WP09-structural-cohort-b/review-cycle-3.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28365,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T051": "done",
+        "T052": "done",
+        "T053": "done",
+        "T054": "done",
+        "T055": "done"
+      },
+      "tracker_refs": [
+        "#1931"
+      ]
+    },
+    "WP10": {
+      "actor": "root-arbiter",
+      "agent": "",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KZPAQE7TY2NYCRMZVKVQA9DV",
+      "last_transition_at": "2026-08-10T17:15:04.826764+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Pre-review scoped gate timed out at fixed 300s with zero failures. Override justified by 535 passed/2 xfailed full WP cohort, 137-node changed-file coverage, clean lint/type/evidence audit; WP07 shard-map handoff recorded.",
+        "Cycle 2: 42 deep KEEP rows and 12 deletion mappings bound to SHA256 replay evidence; guard/dossier probes now traverse exact live enforcement oracles. Fresh full 535 passed/2 xfailed, selected 55 passed, oracle pair 8 passed; validator, Ruff, mypy, JSON/YAML, diff checks clean. Skipped duplicate pre-review gate after recording fresh full/focused executions; fixed gate timed out in cycle 1.",
+        "Cycle 2 changes requested: survivor proof passes; split heterogeneous deletion families and bind exact successor/no-authority evidence",
+        "Ready for final cycle-3 review. Default scoped gate produced no failure output and timed out at its 300s ceiling; bounded final evidence is green: 41 successor tests passed in 61.35s plus 2 supplemental in 61.94s, artifacts parse/hash clean, exact -304 node patch unchanged, no production/test edits in cycle 3.",
+        "Arbiter decision after final cycle: substantive sanitation approved at 841→537 (-304); all 54 paths terminal and three disputed files split into 26 exact families. WP08 must fail closed until stale WP10 evidence hashes are rebound to current artifacts or immutable historical blobs. No cycle 4."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": {
+        "actor": "operator",
+        "at": "2026-08-10T17:15:04Z",
+        "reason": "Arbiter decision after final cycle: substantive sanitation approved at 841→537 (-304); all 54 paths terminal and three disputed files split into 26 exact families. WP08 must fail closed until stale WP10 evidence hashes are rebound to current artifacts or immutable historical blobs. No cycle 4.",
+        "wp_id": "WP10"
+      },
+      "review_result": {
+        "reference": "review-cycle://assertive-test-suite-sanitation-01KZME3P/WP10-structural-cohort-c/arbiter-decision.md",
+        "reviewer": "root-arbiter",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 0,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T056": "planned",
+        "T057": "planned",
+        "T058": "planned",
+        "T059": "planned",
+        "T060": "planned"
+      },
+      "tracker_refs": [
+        "#1931"
+      ]
+    },
+    "WP11": {
+      "actor": "user",
+      "agent": "wp11-reviewer3",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZP3ZDQT97ZG948VF0K335D6",
+      "last_transition_at": "2026-08-10T15:17:06.426316+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: canonical gate timed out after 300s on unrelated planning-repo tests; WP11 owned gate passed 2662/2662 with 1 skip; removed 477 dominated nodes; 77-group ledger and causal receipts validate",
+        "Cycle 2 evidence-only correction. Full bounded owned suite: 2662 passed, 1 skipped in 123.162s (300s deadline). WP11 schema: 77 dispositions/164 unique members/0 errors. Combined WP04+WP11: 168 dispositions/386 unique members/0 errors. Coherence: 15 DELETE groups, 40 terminal deleted members, 70 actual collected survivor rows, 7 honest no-survivor rows. Production fault: 100 intended failures; static fault: 358 intended failures. Commit 1c559fa22. Skip used because the canonical planning-repo pre-review gate previously exhausted its 300s deadline on this unchanged -477-test patch.",
+        "FINAL cycle 3; no cycle 4. Commit 1c16f789f. Preserved 3140→2663 (−477). Fail-closed deletion equality: 143 AST-removed −11 dashboard migrations =132 true deletions =89 prior +43 final; 132 source functions expand to all 477 removed pytest nodes. Six normalized records/10 SPLIT contradictions reconciled. VCS survivor explicitly preserves (None,{})→False and ({},{})→False inside its existing 8-node table. Bounded gates: focused 2662 passed/1 skipped/2663 collected in 123.95s; targeted baseline 26 passed; production faults 21/21; structural faults 5/5; WP11 schema 120 dispositions/207 unique/0 errors; combined WP04+WP11 211/429/0; Ruff and diff-check passed. Canonical pre-review gate skipped because prior planning-repo gate exhausts 300s; equivalent bounded gate receipt is embedded.",
+        "Review passed (cycle 3/final): independently replayed 143-11=132=89+43 exact deletion equality, 132 functions to 477 nodes, 43 final terminal rows, six normalized records/10 former SPLIT contradictions, both VCS empty partitions, current 120-row schema validation, focused 2662 passed/1 skipped, 26/26 survivor baseline, 21/21 production faults, 5/5 structural faults, Ruff/diff clean, no production edits or unique boundary loss."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Review passed (cycle 3/final): independently replayed 143-11=132=89+43 exact deletion equality, 132 functions to 477 nodes, 43 final terminal rows, six normalized records/10 former SPLIT contradictions, both VCS empty partitions, current 120-row schema validation, focused 2662 passed/1 skipped, 26/26 survivor baseline, 21/21 production faults, 5/5 structural faults, Ruff/diff clean, no production edits or unique boundary loss.",
+        "reviewer": "Robert Douglass",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28365,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T076": "done",
+        "T077": "done",
+        "T078": "done",
+        "T079": "done",
+        "T080": "done"
+      },
+      "tracker_refs": [
+        "#1931"
+      ]
+    },
+    "WP12": {
+      "actor": "user",
+      "agent": "wp12-reviewer",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZP22EXHR23FCNR5D04N9HCW",
+      "last_transition_at": "2026-08-10T14:43:48.785469+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: 79 source tests consolidated/removed into 10 causal result-matrix successors; focused 472/472 green; audit ledger valid. Canonical broad pre-review scope timed out after 300s without failure output, so explicit skip-pre-review-gate override applied.",
+        "Review passed cycle 1: independent 541→472 (-69) replay; 79 deletions/10 successors; 25-row ledger covers 98 unique members and every deletion once; 18/18 changed plus 17/17 retained-expanded causal faults failed after Act; network, persistence, teardown, provider, platform, timeout, error, and migration-version boundaries retained; focused 472 passed; ruff/diff clean; broad 300s pre-review timeout attributable to unbounded no-coverage gate, not WP failures."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed cycle 1: independent 541→472 (-69) replay; 79 deletions/10 successors; 25-row ledger covers 98 unique members and every deletion once; 18/18 changed plus 17/17 retained-expanded causal faults failed after Act; network, persistence, teardown, provider, platform, timeout, error, and migration-version boundaries retained; focused 472 passed; ruff/diff clean; broad 300s pre-review timeout attributable to unbounded no-coverage gate, not WP failures.",
+        "reviewer": "Robert Douglass",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28365,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T081": "done",
+        "T082": "done",
+        "T083": "done",
+        "T084": "done",
+        "T085": "done"
+      },
+      "tracker_refs": [
+        "#1931"
+      ]
+    },
+    "WP13": {
+      "actor": "reviewer-renata",
+      "agent": "wp13-review3",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KZPGX6EX29PZ0YHNC1QMYS49",
+      "last_transition_at": "2026-08-10T19:03:04.925317+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: exact 24-file survivor gate passed 131 tests in 69.77s with 0 skips; built-in sequential scoped gate exceeded its fixed 300s timeout; evidence in wp13-results.json",
+        "Ready for review cycle 2: runtime broad gate timed out at its fixed 300s ceiling with no failure output; exact WP13 cohort passed 133/133 in 68.38s, collection 133, ruff/mypy clean, layer 17/17, artifact validator exact; restored two authority gates as one node each and retained 393-node reduction",
+        "Review cycle 2 passed: restored minimal accepted-ADR protection authority gate and resolver-first profile-guidance gate; 42/42 paths terminal, 526→133 (-393), 133 passed/0 skipped, WP07 handoff exact, ruff/mypy/layer/ownership clean",
+        "Final cycle 3 ready: evidence-only canonical test-sanitation/v1 normalization at ca0a747c9; 409 exact source identities cover 526 base nodes; canonical standalone and WP15-integrated auditor passes; focused cohort 133/133 passed in 69.30s; no code/test changes. Mandatory broad pre-review gate was attempted and reached its fixed 300s ceiling with no reported failure output, so transition uses the documented timeout override.",
+        "Final cycle 3 approved: ca0a747c9 is evidence-only; canonical test-sanitation/v1 audit has 0 errors across 42 terminal function-granularity rows and 409 exact identities/526 base nodes; only KEEP/DELETE verdicts; 526->133 unchanged; WP13+WP15 validates 510 unique members with zero overlap; fresh collection 133 and pytest 133 passed/0 skipped in 74.06s. Anti-patterns: dead code N/A, synthetic fixture N/A, silent empty return N/A, FR coverage PASS from accepted cycle-2 implementation, frozen surface PASS, locked decision PASS, shared ownership PASS, production fragility N/A."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "review-cycle://assertive-test-suite-sanitation-01KZME3P/WP13-doctrine-structural/review-cycle-3.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28365,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T061": "done",
+        "T062": "done",
+        "T063": "done",
+        "T064": "done",
+        "T065": "done"
+      },
+      "tracker_refs": [
+        "#1931"
+      ]
+    },
+    "WP14": {
+      "actor": "reviewer-renata",
+      "agent": "wp14-review2",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZPG68STH7QJAG4J7JZJPEQ7",
+      "last_transition_at": "2026-08-10T18:50:33.658692+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for independent review after broad gate timeout: canonical scoped gate exceeded 300s without failure output. Exact WP14 cohort is 390/390 green in 84.62s; final causal probes 2/2; collection 390; Ruff clean; mypy 60→41 with zero new signatures; 46/46 terminal; no production or central-map edits. Known parallel #3283 pre-Act cascade is owned by approved WP02.",
+        "Cycle 2 ready: frozen 698->390/-308; 25 live-production fault families red as intended; focused control 390 passed; canonical ledger 557 exact members/0 errors. Mandatory broad pre-review gate attempted and timed out at 300s with 0 reported failures, so transition uses documented timeout override. Commit 069445033.",
+        "Review cycle 2 passed: independently confirmed 698->390 (-308); canonical test-sanitation/v1 shard validates with 557 exact identities, 698 observations, and zero WP01-auditor errors; no production/route/non-owned changes; CPython 3.11.15; all 25 detached live-production fault families replayed to their exact intended call/assertion failures (41 failed, 349 passed, zero collection/setup errors), while the unchanged 25-family control passed 390/390; diff-scoped ruff and git diff --check pass. Anti-patterns: dead code N/A, synthetic fixture PASS via live corpus mutation, silent empty return N/A, FR coverage PASS, frozen surface PASS, locked decisions PASS, shared ownership PASS, production fragility N/A."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "review-cycle://assertive-test-suite-sanitation-01KZME3P/WP14-runtime-structural/review-cycle-2.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28365,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T066": "done",
+        "T067": "done",
+        "T068": "done",
+        "T069": "done",
+        "T070": "done"
+      },
+      "tracker_refs": [
+        "#1931"
+      ]
+    },
+    "WP15": {
+      "actor": "reviewer-renata",
+      "agent": "wp15-reviewer",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZPDMW5Y1PETGASEWFBTG848",
+      "last_transition_at": "2026-08-10T18:06:06.526548+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implemented 12-path packaging/CLI sanitation: 109 to 10 nodes; focused 10 passed; WP01 auditor, ruff, mypy, diff clean; overlap 111 passed with 3 inherited ANSI assumptions. Runtime pre-review cli/docs shard produced zero failures but timed out at 300s, so transition uses the explicit skip-pre-review-gate override.",
+        "Review cycle 1 passed (reviewer-renata): all 12 owned paths terminal; WP01 auditor 12 dispositions/101 identities; exact 109->10 (-99), six deleted/six reduced; nested enrolment inventory retained with live nonempty bijection plus fault/control; every survivor consumes live packaging/CLI/artifact authority; 10 passed; ruff and strict mypy clean; diff check clean; no production or shard-map edits; three overlap ANSI failures reproduced in untouched test/source and are inherited; deterministic WP07 handoff present. Anti-patterns: dead code PASS, synthetic fixture PASS, silent empty return N/A, FR coverage PASS, frozen surface PASS, locked decision PASS, shared-file ownership PASS, production fragility N/A."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "review-cycle://assertive-test-suite-sanitation-01KZME3P/WP15-packaging-structural/review-cycle-1.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28365,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T071": "done",
+        "T072": "done",
+        "T073": "done",
+        "T074": "done",
+        "T075": "done"
+      },
+      "tracker_refs": [
+        "#1931"
+      ]
+    }
+  }
+}

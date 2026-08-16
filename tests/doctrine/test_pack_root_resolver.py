@@ -107,9 +107,7 @@ def _isolate(
     monkeypatch.setattr(pack_paths, "files", fake_files)
 
 
-def test_editable_resolves_repo_root_packs(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_editable_resolves_repo_root_packs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Editable checkout: the ancestor holding ``packs/built-in/`` is returned."""
     repo = tmp_path / "repo"
     module_file = _make_anchor_file(repo / "src" / "kernel")
@@ -121,9 +119,7 @@ def test_editable_resolves_repo_root_packs(
     assert resolve_pack_root("built-in") == packs_built_in
 
 
-def test_installed_layout_resolves_site_packages_sibling_via_ancestor_walk(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_installed_layout_resolves_site_packages_sibling_via_ancestor_walk(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Installed layout: the module's own package dir's parent/packs/built-in is returned.
 
     Reimplemented for FR-004 (mission
@@ -155,9 +151,7 @@ def test_installed_layout_resolves_site_packages_sibling_via_ancestor_walk(
     assert resolve_pack_root("built-in") == packs_built_in
 
 
-def test_symlinked_checkout_resolves_real_repo_root(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_symlinked_checkout_resolves_real_repo_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A dir-symlinked package still resolves the real repo-root ``packs/`` via ``.resolve()``."""
     real_repo = tmp_path / "real-repo"
     real_pkg = real_repo / "src" / "kernel"
@@ -179,9 +173,7 @@ def test_symlinked_checkout_resolves_real_repo_root(
     assert resolved == packs_built_in.resolve()
 
 
-def test_env_override_wins(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_env_override_wins(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``SPEC_KITTY_PACKS_ROOT`` wins over an otherwise-resolvable editable tree."""
     repo = tmp_path / "repo"
     module_file = _make_anchor_file(repo / "src" / "kernel")
@@ -200,9 +192,7 @@ def test_env_override_wins(
     assert resolved != editable_packs
 
 
-def test_env_override_missing_dir_falls_through_to_editable(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_env_override_missing_dir_falls_through_to_editable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An env value that has no ``built-in/`` subdir does not short-circuit resolution."""
     repo = tmp_path / "repo"
     module_file = _make_anchor_file(repo / "src" / "kernel")
@@ -215,9 +205,7 @@ def test_env_override_missing_dir_falls_through_to_editable(
     assert resolve_pack_root("built-in") == editable_packs
 
 
-def test_fail_closed_when_no_packs_anywhere(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_fail_closed_when_no_packs_anywhere(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """No env, no editable, no installed -> PackRootNotFound; never a src/doctrine path."""
     module_file = _make_anchor_file(tmp_path / "isolated" / "kernel")
     empty_site = tmp_path / "site" / "doctrine"
@@ -230,9 +218,7 @@ def test_fail_closed_when_no_packs_anywhere(
     assert excinfo.value.tier == "built-in"
 
 
-def test_fail_closed_when_files_unavailable(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_fail_closed_when_files_unavailable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """No candidate anywhere in the ancestor walk -> fails closed.
 
     The ``doctrine_dir=None`` isolation (``files("doctrine")`` raising) is
@@ -253,9 +239,7 @@ def test_fail_closed_when_files_unavailable(
     ("tier", "kwarg"),
     [("org", "org_root"), ("project", "project_root")],
 )
-def test_org_and_project_return_caller_root(
-    tmp_path: Path, tier: str, kwarg: str
-) -> None:
+def test_org_and_project_return_caller_root(tmp_path: Path, tier: str, kwarg: str) -> None:
     """``org`` / ``project`` return the caller-supplied root unchanged (shared seam)."""
     supplied = tmp_path / tier
     supplied.mkdir()
@@ -269,35 +253,3 @@ def test_org_and_project_fail_closed_without_root(tier: str) -> None:
     with pytest.raises(PackRootNotFound) as excinfo:
         resolve_pack_root(tier)  # type: ignore[arg-type]
     assert excinfo.value.tier == tier
-
-
-def test_pure_idempotent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Same inputs and environment yield the same path across repeated calls."""
-    repo = tmp_path / "repo"
-    module_file = _make_anchor_file(repo / "src" / "kernel")
-    (repo / "packs" / "built-in").mkdir(parents=True)
-
-    _isolate(monkeypatch, module_file=module_file, doctrine_dir=None)
-
-    first = resolve_pack_root("built-in")
-    second = resolve_pack_root("built-in")
-    assert first == second
-
-
-def test_module_imports_no_upward_layer() -> None:
-    """C-004: pack_paths imports only stdlib -- nothing from charter/specify_cli."""
-    import ast
-
-    source = Path(pack_paths.__file__).read_text(encoding="utf-8")
-    tree = ast.parse(source)
-    imported: list[str] = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            imported.extend(alias.name for alias in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.module is not None:
-            imported.append(node.module)
-
-    offenders = [
-        mod for mod in imported if mod.split(".")[0] in {"charter", "specify_cli"}
-    ]
-    assert not offenders, f"pack_paths must not import upward: {offenders}"

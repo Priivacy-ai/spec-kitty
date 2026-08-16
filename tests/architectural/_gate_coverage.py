@@ -7,18 +7,17 @@ The authoring taxonomy (``pytest.ini`` documents ``unit`` as "the category
 default for module-scoped tests"; ``contract`` for contract tests) diverges
 from that *selection* taxonomy: **no gate selects ``-m unit`` or
 ``-m contract``**, and several test directories are touched by no gate at all.
-The result is that a large fraction of the suite is selected by **zero** gates —
-"untested-but-green": those tests never run in CI, so a regression in them is
-invisible (no red), only a silent coverage hole.
+Historically, that mismatch left tests selected by **zero** gates —
+"untested-but-green". This model now keeps that orphan surface at zero.
 
 This module is the *enforcement substrate* for that gap. It does not re-tier or
 re-shard CI (that is the maintainer's migration, against this guardrail). It
 statically:
 
-1. Parses every ``pytest`` invocation across the five workflow files that run
-   the suite (``ci-quality`` / ``ci-windows`` / ``drift-detector`` /
-   ``release`` / ``ui-e2e``), expanding the ``integration-tests-core-misc``
-   shard matrix.
+1. Parses every ``pytest`` invocation across the six workflow files that run
+   the suite (``ci-quality`` / ``ci-windows`` / ``doctrine-charter-tests`` /
+   ``drift-detector`` / ``release`` / ``ui-e2e``), expanding the
+   ``integration-tests-core-misc`` shard matrix.
 2. Models each invocation as a :class:`Gate` = ``(paths, ignores, marker_expr)``.
 3. Evaluates every collected test against every gate, using pytest's own
    marker-expression evaluator, to count how many gates select it.
@@ -27,15 +26,18 @@ A test selected by **0** gates is an *orphan* (coverage hole); a test selected
 by **>=2** gates is a *duplicate* (intentional overlap is allowed — reported,
 not enforced).
 
-The companion ratchet (``test_gate_coverage.py`` +
-``_gate_coverage_baseline.json``) freezes today's orphan surface as a visible
-worklist and fails only on a **new** ungated file — so no *new* test can leak
-into zero gates by construction, without blocking on the existing backlog.
+The companion end-to-end oracle
+(``test_ci_collection_completeness.py``) requires zero primary-push orphans.
+It runs in the PR operator path through ``arch-adversarial`` → ``quality-gate``
+and has an independent ``fast-tests-core-misc`` owner for route-affecting
+changes. GitHub branch protection currently requires only ``drift-detector``;
+this module does not misrepresent the operator gate as a required context.
 
-Run directly to refresh the baseline or check drift::
+Run directly to refresh/verify the topology census or the separate retained E3
+job-selection baselines::
 
-    uv run python -m tests.architectural._gate_coverage --update-baseline
-    uv run python -m tests.architectural._gate_coverage --check
+    uv run python -m tests.architectural._gate_coverage --emit-census
+    uv run python -m tests.architectural._gate_coverage --verify-census
     uv run python -m tests.architectural._gate_coverage --freeze-baselines
 """
 
@@ -86,6 +88,14 @@ WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 # ``discover_pytest_workflows`` (FR-008 fail-closed) stays equal to this
 # allowlist and the ``tests/ui/`` e2e carrier is a covered — not orphan —
 # surface (so the ``e2e`` marker keeps its ROUTED-BY-PATH home).
+# ``module-kernel.yml`` (mission #3447) is a reusable ``on: workflow_call``
+# workflow that ci-quality invokes for the ``kernel-tests`` job. It is NOT an
+# independent suite runner: :func:`_splice_local_uses` inlines its steps into
+# ci-quality's ``kernel-tests`` caller, so its ``pytest tests/kernel/`` gate and
+# ``--cov=src/kernel`` emitter are modeled AS PART OF ci-quality (decision D1(a):
+# same run). It is therefore deliberately absent from this allowlist and
+# excluded from ``discover_pytest_workflows`` (reusable-only workflows), which
+# keeps that fail-closed probe equal to this list without double-counting.
 WORKFLOW_FILES: tuple[str, ...] = (
     "ci-quality.yml",
     "ci-windows.yml",
@@ -95,7 +105,6 @@ WORKFLOW_FILES: tuple[str, ...] = (
     "ui-e2e.yml",
 )
 
-BASELINE_PATH = Path(__file__).with_name("_gate_coverage_baseline.json")
 _COLLECT_PLUGIN = "tests.architectural._gate_collect_plugin"
 _TESTS_ROOT = "tests"
 
@@ -314,7 +323,7 @@ def parse_pytest_invocation(
 
 def parse_workflow(path: Path) -> list[Gate]:
     """Parse one workflow file into the gates it defines."""
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data = load_spliced_workflow(path)
     gates: list[Gate] = []
     for job_name, job, step in _iter_run_steps(data):
         includes = _matrix_includes(job)
@@ -489,6 +498,10 @@ class WorkflowModel:
       (mission doctrine-silence-guards WP10, FR-013).
     - ``push_branches``: ``on.push.branches``, so the collection-completeness
       model can tell which workflows a push to a given branch even starts.
+
+    ``uses:`` reusable-workflow delegation (#3447) is resolved BEFORE this model
+    is built, by :func:`load_spliced_workflow` — a caller job is seen with its
+    delegate's steps inlined — so there is no per-job delegation field here.
     """
 
     path: Path
@@ -588,6 +601,81 @@ def _job_if_scalar(job: dict[str, Any]) -> str | bool | None:
     return str(value)
 
 
+_LOCAL_REUSABLE_PREFIX = "./.github/workflows/"
+
+
+def _job_uses_local(job: dict[str, Any]) -> str | None:
+    """The local reusable-workflow file a ``uses:`` job delegates to, if any.
+
+    Only ``./.github/workflows/<file>`` refs resolve to a workflow in this model
+    (a same-repo reusable workflow, mission #3447); an external
+    ``org/repo/.github/workflows/x@ref`` ref returns ``None`` because its jobs
+    are not modeled here.
+    """
+    uses = job.get("uses")
+    if isinstance(uses, str) and uses.startswith(_LOCAL_REUSABLE_PREFIX):
+        return uses.rsplit("/", 1)[-1]
+    return None
+
+
+def _splice_local_uses(data: dict[str, Any], workflows_dir: Path) -> dict[str, Any]:
+    """Inline a local ``uses:`` caller job's delegate steps (mission #3447).
+
+    A reusable-workflow caller job (``uses: ./.github/workflows/<file>``) carries
+    no ``steps:`` of its own — its ``--cov`` emitters, test paths and markers
+    live in the called workflow. This resolver returns a copy of ``data`` where
+    each such caller job gains the called workflow's job steps, so every model
+    consumer sees the caller as if it ran the delegate inline (its own
+    ``if``/``needs``/name are preserved). The called reusable workflow is
+    therefore NOT an independent suite runner — it is excluded from
+    :func:`discover_pytest_workflows` and absent from :data:`WORKFLOW_FILES` —
+    which avoids double-counting its gate. One level is resolved (module
+    workflows are single-purpose, non-nested — enforced below).
+    """
+    jobs = data.get("jobs")
+    if not isinstance(jobs, dict):
+        return data
+    spliced: dict[str, Any] = {}
+    for name, job in jobs.items():
+        called = _job_uses_local(job) if isinstance(job, dict) else None
+        target_path = workflows_dir / called if called else None
+        if target_path is None or not target_path.exists():
+            spliced[name] = job
+            continue
+        target = yaml.safe_load(target_path.read_text(encoding="utf-8")) or {}
+        target_jobs = target.get("jobs") or {}
+        # Single-purpose assumption made load-bearing: flattening multiple
+        # delegate jobs into one caller key would conflate their markers/coverage.
+        assert len(target_jobs) == 1, (  # golden-count: cardinality-is-contract
+            f"reusable workflow {called} must define exactly one job to splice "
+            f"into caller {name!r}; found {sorted(target_jobs)}"
+        )
+        delegate_steps: list[Any] = []
+        for delegate_job in target_jobs.values():
+            if isinstance(delegate_job, dict):
+                delegate_steps.extend(delegate_job.get("steps") or [])
+        merged = dict(job)
+        merged["steps"] = list(job.get("steps") or []) + delegate_steps
+        spliced[name] = merged
+    resolved = dict(data)
+    resolved["jobs"] = spliced
+    return resolved
+
+
+def load_spliced_workflow(path: Path) -> dict[str, Any]:
+    """Parse a workflow file with local ``uses:`` delegation resolved (#3447).
+
+    EVERY reader of a workflow that may contain reusable-workflow caller jobs
+    must load through this — not a raw ``yaml.safe_load`` — so a ``uses:`` caller
+    job is seen with its delegate's steps inlined. Raw readers that bypass this
+    see the caller with no ``steps:`` and mis-model it (missing timeouts,
+    ``KeyError: 'steps'``, dropped gates).
+    """
+    return _splice_local_uses(
+        yaml.safe_load(path.read_text(encoding="utf-8")), path.parent
+    )
+
+
 def _trigger_tuple(on_section: dict[str, Any], event: str, key: str) -> tuple[str, ...]:
     """``on.<event>.<key>`` as a string tuple; ``()`` when absent."""
     event_section = on_section.get(event)
@@ -598,7 +686,7 @@ def _trigger_tuple(on_section: dict[str, Any], event: str, key: str) -> tuple[st
 
 def load_workflow_model(path: Path) -> WorkflowModel:
     """Parse one workflow file into its :class:`WorkflowModel` relations."""
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data = load_spliced_workflow(path)
     jobs: dict[str, Any] = data.get("jobs") or {}
     run_texts = {name: _job_run_text(job) for name, job in jobs.items()}
     on_section = _on_section(data)
@@ -670,10 +758,28 @@ def discover_pytest_workflows(workflows_dir: Path | None = None) -> frozenset[st
     diverge in what "runs the suite" means. The consumer invariant asserts
     this set equals the allowlist, failing closed when a fifth suite-running
     workflow appears without entering the model.
+
+    Reusable ``on: workflow_call``-only workflows are excluded (mission #3447):
+    they are not independent suite runners — their steps are spliced into the
+    caller job (:func:`_splice_local_uses`) and modeled there, so counting them
+    separately would break the ``discover == WORKFLOW_FILES`` invariant.
     """
     directory = workflows_dir or WORKFLOWS_DIR
     candidates = sorted(directory.glob("*.yml")) + sorted(directory.glob("*.yaml"))
-    return frozenset(path.name for path in candidates if parse_workflow(path))
+    return frozenset(
+        path.name
+        for path in candidates
+        if parse_workflow(path) and not _is_reusable_only(path)
+    )
+
+
+def _is_reusable_only(path: Path) -> bool:
+    """Whether a workflow's only trigger is ``workflow_call`` (a reusable module)."""
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    on_section = data.get("on", data.get(True))
+    if isinstance(on_section, dict):
+        return set(on_section) == {"workflow_call"}
+    return False
 
 
 def registered_markers(pytest_ini: Path | None = None) -> tuple[str, ...]:
@@ -1005,6 +1111,9 @@ def active_job_keys(
                 if_value, event_name=event_name, active_groups=active_groups,
             ):
                 active.add((name, job))
+    # NOTE: ``uses:`` reusable-workflow delegation needs no resolution here — the
+    # caller job already carries its delegate's steps/gates (load_spliced_workflow),
+    # so it is emitted with the right paths/markers by the normal loop above (#3447).
     return frozenset(active)
 
 
@@ -1877,8 +1986,8 @@ def _verify_census() -> int:
 # positional path DIVERGES from the real baseline and GC-2b reds — the real
 # baseline IS the fidelity check for these three jobs. A separate scoped
 # model-fidelity anchor (modeled == a FRESH real collect) is kept for the
-# sharded ``next`` tier in ``test_gate_coverage.py`` to catch a mis-model on the
-# job most at risk of one.
+# sharded ``next`` tier in ``test_ci_collection_completeness.py`` to catch a
+# mis-model on the job most at risk of one.
 # ---------------------------------------------------------------------------
 
 BASELINES_DIR = Path(__file__).with_name("baselines")
@@ -1902,21 +2011,11 @@ class BaselineTarget:
     job: str
 
 
-# T008: the three jobs WP06 actually changes the SELECTION for (see the scope
-# note above) — the pre-WP06 (pre-change) state GC-2b protects.
+# Only the still-owned slow-tests authoring baseline remains. The two deleted
+# selection baselines had no reader and were removed by sanitation WP07.
 BASELINE_TARGETS: tuple[BaselineTarget, ...] = (
-    BaselineTarget("integration-tests-next", "ci-quality.yml", "integration-tests-next"),
     BaselineTarget("slow-tests", "ci-quality.yml", "slow-tests"),
-    BaselineTarget("fast-tests-core-misc", "ci-quality.yml", "fast-tests-core-misc"),
 )
-
-
-def target_by_slug(slug: str) -> BaselineTarget:
-    """The single :data:`BASELINE_TARGETS` entry named ``slug``."""
-    for target in BASELINE_TARGETS:
-        if target.slug == slug:
-            return target
-    raise KeyError(f"no BaselineTarget with slug {slug!r}")
 
 
 def gates_for_target(gates: Sequence[Gate], target: BaselineTarget) -> list[Gate]:
@@ -1956,16 +2055,6 @@ def _baseline_header(target: BaselineTarget) -> str:
         "comment (data-model E3) when a WP legitimately changes this job's "
         "selection: uv run python -m tests.architectural._gate_coverage "
         "--freeze-baselines"
-    )
-
-
-def load_baseline_nodeids(target: BaselineTarget) -> frozenset[str]:
-    """The committed E3 baseline node-id set for one target (``#``-comment lines skipped)."""
-    lines = _baseline_path(target).read_text(encoding="utf-8").splitlines()
-    return frozenset(
-        stripped
-        for stripped in (line.strip() for line in lines)
-        if stripped and not stripped.startswith("#")
     )
 
 
@@ -2014,101 +2103,9 @@ def freeze_baselines(repo_root: Path | None = None) -> dict[str, int]:
     return counts
 
 
-def baseline_diff(
-    current: Iterable[str],
-    baseline: Iterable[str],
-) -> tuple[frozenset[str], frozenset[str]]:
-    """Pure GC-2b comparator: ``(dropped, added)`` — the symmetric-difference halves.
-
-    ``dropped`` = in ``baseline`` but not ``current`` (a real coverage loss);
-    ``added`` = in ``current`` but not ``baseline`` (an un-provenanced
-    selection widening, or a tampered/stale baseline). Both empty ==
-    the GC-2b invariant holds. Deliberately takes plain iterables (not a
-    :class:`BaselineTarget`/gates) so the fault-injection tests can feed it a
-    synthetic pair directly, with no I/O or subprocess involved.
-    """
-    current_set, baseline_set = frozenset(current), frozenset(baseline)
-    return baseline_set - current_set, current_set - baseline_set
-
-
-def gc2b_orphaned_drift(
-    dropped: Iterable[str],
-    orphan_nodeids: Iterable[str],
-) -> frozenset[str]:
-    """The subset of a GC-2b ``dropped`` set that is a GENUINE orphan today.
-
-    Mission test-suite-friction-remediation-01KXDKBX WP15 (#2616): GC-2b used to
-    require ``dropped`` (and ``added``) to be empty outright, which fires on
-    routine test-file add/remove — this mission alone adds/removes guard files
-    4-5x, forcing a baseline refreeze every time even though nothing regressed.
-
-    Most ``dropped`` entries are exactly that noise: the file was deleted
-    (it no longer exists in today's collected universe, so it cannot be an
-    orphan) or its coverage moved to a DIFFERENT CI gate (still selected by
-    >=1 of the ~40 gates, just not this target's) — neither is a coverage
-    problem. The load-bearing GC-2b signal this ratchet must still catch is a
-    node-id that still exists in the suite AND is now selected by ZERO gates
-    (``orphan_nodeids`` — the same whole-suite orphan set :func:`analyze`
-    computes): a genuine coverage-hole regression, not membership churn.
-    Intersecting ``dropped`` with ``orphan_nodeids`` scopes the ratchet to
-    exactly that signal.
-    """
-    return frozenset(dropped) & frozenset(orphan_nodeids)
-
-
 # ---------------------------------------------------------------------------
-# Baseline I/O + CLI
+# CLI
 # ---------------------------------------------------------------------------
-
-
-def load_baseline() -> dict[str, Any]:
-    baseline: dict[str, Any] = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
-    return baseline
-
-
-def _baseline_payload(report: CoverageReport) -> dict[str, Any]:
-    return {
-        "_comment": (
-            "Gate-coverage ratchet baseline (Issue #2034 / #1933). Frozen set of "
-            "test FILES that contain >=1 test selected by zero CI gates — the "
-            "visible #1931 worklist. The ratchet (test_gate_coverage.py) fails on "
-            "any NEW orphan file not listed here. Regenerate with: "
-            "uv run python -m tests.architectural._gate_coverage --update-baseline"
-        ),
-        "total_tests": report.total,
-        "orphan_test_count": report.orphan_count,
-        "duplicate_test_count": len(report.duplicate_nodeids),
-        "orphan_files": report.orphan_files,
-    }
-
-
-def update_baseline() -> CoverageReport:
-    report = analyze(load_gates(), collect_universe())
-    BASELINE_PATH.write_text(
-        json.dumps(_baseline_payload(report), indent=2) + "\n", encoding="utf-8",
-    )
-    return report
-
-
-def _print_check(report: CoverageReport, new_files: list[str]) -> None:
-    pct = 100 * report.orphan_count / report.total if report.total else 0.0
-    print(f"total tests          : {report.total}")
-    print(f"orphans (0 gates)    : {report.orphan_count} ({pct:.1f}%)")
-    print(f"duplicates (>=2)     : {len(report.duplicate_nodeids)}")
-    print(f"orphan files         : {len(report.orphan_files)}")
-    if new_files:
-        print(f"\nNEW ungated files ({len(new_files)}):")
-        for f in new_files:
-            print(f"  {f}")
-
-
-def check() -> int:
-    """Recompute coverage and fail (1) if a new orphan file appeared."""
-    report = analyze(load_gates(), collect_universe())
-    baseline_files = set(load_baseline().get("orphan_files", []))
-    new_files = sorted(set(report.orphan_files) - baseline_files)
-    _print_check(report, new_files)
-    return 1 if new_files else 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -2117,13 +2114,6 @@ def main(argv: list[str] | None = None) -> int:
         return _emit_census()
     if "--verify-census" in args:
         return _verify_census()
-    if "--update-baseline" in args:
-        report = update_baseline()
-        print(f"baseline updated: {report.orphan_count} orphans across "
-              f"{len(report.orphan_files)} files -> {BASELINE_PATH}")
-        return 0
-    if "--check" in args:
-        return check()
     if "--freeze-baselines" in args:
         counts = freeze_baselines()
         for slug, count in counts.items():

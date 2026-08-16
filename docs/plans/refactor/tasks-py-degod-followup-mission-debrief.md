@@ -1,9 +1,11 @@
 ---
 title: "Follow-up mission preparation debrief — tasks.py render-seam + shim relocation"
 description: "Scope, inventory, approach, and risks for the follow-up mission finishing the tasks.py degod (render seam + shim relocation), deferred from tasks-py-degod-01KWF08S."
-doc_status: active
-updated: '2026-07-02'
+doc_status: deprecated
+updated: '2026-08-12'
 ---
+
+> ⚠ **Retired 2026-08-12 (`doc_status: deprecated`).** Follow-up preparation debrief; shipped as mission `tasks-py-degod-wave2-01KWH9EQ` (PR #2308, closing #2305 / #2116). Content preserved as an audit-trail record.
 
 # Follow-up mission preparation debrief — tasks.py render-seam + shim relocation
 
@@ -18,11 +20,13 @@ The predecessor delivered the *high-value, high-risk* work: the change-magnet **
 ## Scope (two work streams)
 
 ### Stream A — Render seam unification (former FR-008)
+
 - **13 inline `json.dumps` sites** in `tasks.py` (live at predecessor time: lines 442/480/493/2035/2235/2726/2751/2765/2854/2926/3022/3264/3605 — **re-census at start**, they will have moved) → route through the `Render` port (`Render.json_envelope` / `Render.human`).
 - The generic `RealRender.json_envelope` uses **compact** `json.dumps` (byte-identical to the many compact inline sites). `status` is the **one** site needing `indent=2` — the predecessor scoped a `_StatusRender(RealRender)` override for it. **Unify**: parameterize the Render seam's indent (or a `json_envelope_indented` capability) so the status override collapses into the generic seam. Byte-identity per site is the bar.
 - Add an **AST-based** "0 inline `json.dumps`/aliased `dumps`" gate (a literal grep is bypassed by `from json import dumps`).
 
 ### Stream B — Shim relocation (former SC-005/NFR-004 ≤1400)
+
 - Relocate out of `tasks.py` to sibling modules (the `mission.py`-degod per-command-module pattern is the template):
   - the `_do_<cmd>` **orchestrators** (`_do_move_task`, `_do_map_requirements`, `_do_status`, `_do_mark_status`, `_do_finalize_tasks`) + their `_mt_*`/`_mr_*`/`_st_*`/`_ms_*` **glue helpers**;
   - the **port-seam adapter classes** `_MoveTaskCoordRouter`, `_MapReqCoordRouter`, `_MarkStatusCoordRouter`, `_StatusRender` — fold these into `tasks_ports.py` (or a `tasks_command_adapters.py`), removing the "bound-to-tasks.py-module-symbols for `@patch`" trick if the tests can be re-pointed, OR preserve it deliberately.

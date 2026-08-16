@@ -25,12 +25,12 @@ For action-scoped detail, load the doctrine context via `spec-kitty charter cont
 
 | What | Location | Action |
 |------|----------|--------|
-| **SOURCE templates** | `src/doctrine/missions/mission-steps/` | ✅ EDIT THESE |
+| **SOURCE templates** | `packs/built-in/missions/mission-steps/` | ✅ EDIT THESE |
 | **Agent copies** | `.claude/`, `.amazonq/`, `.augment/`, etc. | ❌ DO NOT EDIT |
 
 Agent directories are **generated copies** deployed to consumer projects via `spec-kitty upgrade`. Template flow:
 ```
-src/doctrine/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURCE)
+packs/built-in/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURCE)
     ↓ spec-kitty upgrade
 .claude/commands/, .amazonq/prompts/, ... (12 agent dirs + .agents/skills/)  (GENERATED)
 ```
@@ -41,7 +41,7 @@ src/doctrine/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURCE)
 
 **Always use the canonical templates, skills, commands, and code surfaces rather than improvising or using older artefacts as examples.**
 
-- Spec/plan/tasks templates come from `src/doctrine/missions/<type>/templates/` (resolved through the charter/doctrine chain) — never copy structure from an older mission in `kitty-specs/`.
+- Spec/plan/tasks templates come from `packs/built-in/missions/<type>/templates/` (resolved through the charter/doctrine chain) — never copy structure from an older mission in `kitty-specs/`.
 - Workflows run through the documented `spec-kitty` CLI commands and the published skills — do not hand-roll equivalents or reconstruct paths the resolver should provide.
 - When a canonical command, template, or code surface appears missing or broken, **trace the source and file an upstream gap** — do not silently work around it with an improvised substitute.
 
@@ -302,9 +302,12 @@ Full docs: [CONTRIBUTING.md](CONTRIBUTING.md#release-process)
   outlines). Missions with no coordination topology (`SINGLE_BRANCH` / `LANES`) route
   everything to primary. Planning commands may be invoked from the repo root — no worktree is
   required to run `/spec-kitty.specify` / `/spec-kitty.plan` / `/spec-kitty.tasks`.
-- `spec-kitty implement WP##` creates/reuses the execution workspace.
-  - `lanes.json` present → `.worktrees/<feature>-lane-<id>`
-  - `lanes.json` absent → legacy: `.worktrees/<feature>-WP##`
+- `spec-kitty implement WP##` creates/reuses the execution workspace via
+  `resolve_workspace_for_wp` (`src/specify_cli/workspace/context.py`),
+  resolving `.worktrees/<feature>-lane-<id>` from `lanes.json`. There is no
+  `-WP##` fallback: flat / `SINGLE_BRANCH` / `LANES` missions all still
+  require `lanes.json`; a missing manifest fails closed with
+  `MissingLanesError` (`src/specify_cli/lanes/persistence.py`).
 
 **Planning artifacts** (land on the primary partition):
 - `/spec-kitty.specify` → `kitty-specs/<mission>/`

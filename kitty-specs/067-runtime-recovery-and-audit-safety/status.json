@@ -1,5 +1,5 @@
 {
-  "event_count": 55,
+  "event_count": 56,
   "last_event_id": "01KNKE62G31S673B0CSTMW7ZPC",
   "materialized_at": "2026-04-07T07:40:48.515835+00:00",
   "mission_number": "67",
@@ -105,6 +105,12 @@
       "lane": "done",
       "last_event_id": "01KNKE62G31S673B0CSTMW7ZPC",
       "last_transition_at": "2026-04-07T07:40:48.515835+00:00",
+      "review_result": {
+        "feedback_path": "/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260809-175108-qc7maU/spec-kitty/kitty-specs/067-runtime-recovery-and-audit-safety/tasks/WP06-canonical-progress-reporting/review-cycle-2.md",
+        "reference": "review-cycle://067-runtime-recovery-and-audit-safety/WP06-canonical-progress-reporting/review-cycle-2.md",
+        "reviewer": "unknown",
+        "verdict": "changes_requested"
+      },
       "shell_pid": 33319,
       "subtasks": {
         "T027": "done",

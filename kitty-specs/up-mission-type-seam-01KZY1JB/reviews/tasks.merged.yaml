@@ -1,0 +1,238 @@
+# tasks.merged/v1 — R2 merge of tasks-decomp/tasks-seq/tasks-verify findings.
+# Mechanical concatenation only (per review-protocol.md's R2 rule) — no finding dropped or
+# reworded, no dedup performed because no two findings cite the same artifact section/file:line
+# making substantially the same claim. Original ids preserved verbatim; nothing renumbered.
+schema: tasks.merged/v1
+phase: tasks
+mission: up-mission-type-seam-01KZY1JB
+source_files:
+  - reviews/tasks-decomp.findings.yaml
+  - reviews/tasks-seq.findings.yaml
+  - reviews/tasks-verify.findings.yaml
+findings:
+  - id: TASKS-DECOMP-001
+    lens: "Work packages single-concern and reviewable in one sitting — concrete, non-re-derivable descriptions"
+    severity: 3
+    title: WP01's Branch Strategy cites a "tasks.md's PR-shape section" that does not exist anywhere in this mission
+    evidence:
+      - artifact: "tasks/WP01-adr-availability-slice.md § Branch Strategy, lines 121-123"
+      - artifact: "tasks.md (full file, 82 lines) — auto-generated WP list only, no prose section on PR shape"
+      - artifact: "plan.md — grepped for 'PR shape'/'PR-shape'/'single PR'; the only 'this PR' hits are inside the Gate Set table (lines 497, 503, 526), never a dedicated reasoned section"
+    claim: >
+      WP01's Branch Strategy section states: "the mission's own `target_branch` (`meta.json`)
+      is `main` — the coordination branch is where WP work lands first, `main` is where the
+      mission's single PR eventually targets (see `tasks.md`'s PR-shape section)." No such
+      section exists: `tasks.md` is the finalize-tasks-generated WP manifest (title + WP01-WP07
+      one-paragraph blocks only, verified by reading the full 82-line file) and contains zero
+      prose about PR shape. `plan.md` likewise never states or reasons about "ship as one PR"
+      as an explicit, named decision — it only assumes "this PR" implicitly throughout the Gate
+      Set's coverage-scoping discussion. This is exactly the check my lens instructs me to make
+      ("If the mission is shipping one PR — tasks.md's own stated recommendation — check it
+      states this explicitly and reasons about it"): it does not. The single-PR shape is real
+      (it is the `sk-implement` skill's stated default: "One PR per mission by default"), but
+      no artifact in this mission actually documents or reasons about that choice, and WP01
+      points a future reader at a section that was never authored. This is the one WP file in
+      the mission that carries this extra sentence — WP02–WP07's Branch Strategy sections use
+      the shorter boilerplate without it (verified: only WP01-adr-availability-slice.md matches
+      `grep -rn "PR-shape" tasks/`).
+    remediation: >
+      Either (a) delete the dangling "(see `tasks.md`'s PR-shape section)" clause from WP01's
+      Branch Strategy and replace it with a real citation (e.g. the `sk-implement` skill's
+      one-PR-per-mission default, or a newly-authored short "PR shape" note added to tasks.md
+      itself explaining why this L-sized, 7-WP mission ships as one PR rather than per-WP PRs),
+      or (b) actually author the referenced section in tasks.md with the stated reasoning, so
+      the citation resolves. Do not leave a WP prompt pointing at a section a future implementer
+      or reviewer cannot find.
+
+  - id: TASKS-DECOMP-002
+    lens: "Work packages single-concern and reviewable in one sitting — no padding, no vacuous tasks, complete/concrete descriptions"
+    severity: 3
+    title: WP07 prompt body defines and repeatedly cites Subtask T020 (the mission's SC-001 capstone test), but T020 is absent from WP07's own declared subtask registry everywhere else
+    evidence:
+      - artifact: "tasks/WP07-cli-surface-fixes.md frontmatter, line 18-22 (`subtasks: [T016, T017, T018, T019]`)"
+      - artifact: "tasks/WP07-cli-surface-fixes.md § Subtask T020 (capstone), lines 225-242 — full subtask definition, referenced again at lines 246, 254, 305"
+      - artifact: "wps.yaml § WP07, line 221-225 (`subtasks: [T016, T017, T018, T019]`)"
+      - artifact: "tasks.md § WP07, line 78 (`**Subtasks**: T016, T017, T018, T019`)"
+    claim: >
+      WP07's own prompt body defines "Subtask T020 (capstone) – SC-001 end-to-end regression
+      test" (lines 225-242) and describes it as the mission's own headline proof: "the mission's
+      own headline success criterion, assembled last." The Test Strategy section (line 246) and
+      Review Guidance (line 305) both cite T020 as load-bearing for SC-001. Yet T020 appears in
+      none of the three places a WP's subtask list is otherwise recorded: WP07's own YAML
+      frontmatter `subtasks:` field, `wps.yaml`'s WP07 entry, or `tasks.md`'s generated WP07
+      summary — all three list exactly T016-T019 and stop there (verified by grep across all
+      three files: `T020` appears only inside the WP07 markdown body, never in a `subtasks:`
+      list anywhere in the mission). Any tooling or reviewer that enumerates "this WP's
+      subtasks" from the structured frontmatter/manifest (rather than reading the full prose
+      body) will not see the capstone test as a tracked unit of work, even though it is the
+      mission's own stated proof of SC-001 ("An org-pack mission type... resolves through
+      `mission create`, `charter mission-type list`, `mission-type show`, and `doctrine
+      mission-type list` with correct, non-empty, non-`"unknown"` output... verified by an
+      end-to-end regression test exercising all four" — spec.md SC-001).
+    remediation: >
+      Add `T020` to WP07's frontmatter `subtasks:` list and to `wps.yaml`'s WP07
+      `subtasks:` list (and regenerate `tasks.md`'s WP07 summary line via
+      `spec-kitty agent mission finalize-tasks` or the equivalent tasks-packages step) so the
+      capstone test is a first-class, trackable subtask consistent everywhere the mission
+      records WP07's scope of work, not only inside the prose body.
+
+  - id: TASKS-SEQ-001
+    lens: Phasing / Chokepoints
+    severity: 4
+    title: lanes.json's depends_on_lanes graph is cyclic (lane-a <-> lane-b, lane-a <-> lane-c), and nothing in the mission artifacts flags or mitigates it for WP07's implementer
+    evidence:
+      - artifact: "lanes.json (full file)"
+      - code: "kitty-specs/up-mission-type-seam-01KZY1JB/lanes.json:7-96 — lane-a (WP02,WP03,WP07) declares depends_on_lanes: [lane-b, lane-c, lane-planning]; lane-b (WP04,WP06) declares depends_on_lanes: [lane-a]; lane-c (WP05) declares depends_on_lanes: [lane-a]"
+      - artifact: "lanes.json collapse_report (lines 103-129) — write_scope_overlap merged WP02+WP03 (shared src/doctrine/missions/mission_type_repository.py) and WP02+WP07 (shared src/specify_cli/cli/commands/mission_type.py + tests/cli/test_charter_mission_type_commands.py) into one lane"
+      - code: "src/specify_cli/lanes/compute.py:624-629 — _compute_lane_depths's own docstring: \"Self-loops and cycles in lane_deps are detected via the in_progress guard and treated as depth-0 anchors rather than recursing infinitely. Cycle detection is best-effort... Callers that need cycle-accurate depths should validate the lane graph before invoking.\""
+      - code: "src/specify_cli/lanes/compute.py:279-576 (compute_lanes) — no caller performs that validation; confirmed no logging/warning/rejection path exists for a cyclic lane_deps graph anywhere in compute_lanes or its only call site (src/specify_cli/cli/commands/agent/mission_finalize.py:1352)"
+      - code: "src/specify_cli/lanes/worktree_allocator.py:419-514 (_merge_dependency_lane_tips), called from allocate_lane_worktree at :204-206/:255-257/:290-292 — depends_on_lanes IS mechanically acted on: it git-merges each dependency lane's branch tip into the dependent lane's worktree at allocation time"
+    claim: >
+      lanes.json (one of this review's primary artifacts) encodes a real, mechanically-actionable
+      cycle in its lane-dependency graph, not merely an odd-looking-but-harmless byproduct. The
+      write_scope_overlap collapse rule in compute_lanes unions WP02 (the mission's first WP),
+      WP03 (a middle WP depended on by WP04/WP06 in a different lane), and WP07 (the mission's
+      last WP, dependent on WP05/WP06 in the two other lanes) into a single lane ("lane-a") purely
+      because WP02 and WP03 share one file (mission_type_repository.py) and WP02 and WP07 share
+      two files (mission_type.py, its test file). Because that merged lane spans the full temporal
+      extent of the mission, the lane-level dependency projection (compute.py:466-501, "Lane B
+      depends on lane A if any WP in B depends on any WP in A") produces both lane-a -> lane-b/c
+      (via WP07's real dependency on WP05/WP06) and lane-b/c -> lane-a (via WP04/WP05's real
+      dependency on WP03/WP02) simultaneously — a genuine cycle, not an artifact-formatting quirk.
+      Per-WP claim/start gating (dependency_readiness_for_wp) is unaffected and correctly reads
+      wps.yaml's own acyclic WP-level graph, so this is not a scheduling deadlock. But
+      worktree_allocator.py's _merge_dependency_lane_tips DOES mechanically consume
+      depends_on_lanes for real git-merge operations at worktree-allocation time, in both
+      directions of the cycle: when lane-a's worktree is allocated (to run WP02, then later
+      WP07), the allocator will attempt to merge lane-b's and lane-c's tips per lane-a's own
+      depends_on_lanes — content that, for the WP02 portion of lane-a's work, does not exist yet
+      because lane-b/lane-c themselves declare depends_on_lanes: [lane-a] and are waiting on
+      lane-a's WP02/WP03 commits. This is exactly the class of "silent success" / unvalidated
+      graph state NFR-002 and the charter's Standing Order #9 exist to catch elsewhere in this
+      mission's own domain logic, but it appears unaddressed in the mission's own execution
+      scaffolding. Nothing in tasks.md, wps.yaml's header comment, or WP07's prompt (which
+      otherwise goes out of its way to document every other deviation from plan.md, e.g. the
+      WP06-dependency rationale) flags this lane-graph inconsistency or gives WP07's implementer
+      any guidance for handling lane-a's worktree allocation when it is reached.
+    remediation: >
+      (1) Add an explicit note in wps.yaml's header comment and/or WP07's prompt's "Branch
+      Strategy" section warning that lane-a's automatic worktree allocation may hit a
+      depends_on_lanes cycle, and that the operator/implementer should verify lane-a's worktree
+      base already contains lane-b's and lane-c's merged tips (or bypass automatic lane-based
+      allocation for WP07 and construct its workspace directly against the mission coordination
+      branch) rather than trusting the automatic merge to succeed cleanly. (2) File an upstream
+      spec-kitty gap against src/specify_cli/lanes/compute.py: either have compute_lanes reject
+      (fail loudly, per this codebase's own NFR-002 ethos) a cyclic depends_on_lanes graph at
+      generation time instead of silently emitting it, or refine the write_scope_overlap collapse
+      rule so it does not union two WPs across an intervening cross-lane dependency edge (i.e.
+      detect that unioning WP02+WP03+WP07 would create exactly this cycle and either keep them
+      as three lanes with a documented sequential-write-scope-overlap warning, or serialize the
+      whole union into parallel_group order without emitting contradictory depends_on_lanes
+      entries). (3) Record this as a tooling-friction entry in this mission's
+      tracer-tooling-friction.md so later missions with a similar first-WP/last-WP file-overlap
+      shape don't hit the same unflagged gap.
+
+  - id: TASKS-SEQ-002
+    lens: "[MISSION-DERIVED] Write-scope disjointness"
+    severity: 3
+    title: WP07 owns src/specify_cli/cli/commands/doctrine.py, which collides with two live, open, non-draft upstream PRs — no open-PR collision check is documented anywhere in the mission artifacts
+    evidence:
+      - artifact: "wps.yaml § WP07 owned_files (lines 203-211); tasks/WP07-cli-surface-fixes.md frontmatter owned_files (lines 35-43)"
+      - code: "gh pr list --state open --json number,title,headRefName,files (run live against this repo's GitHub remote) → PR #3166 \"feat(doctrine): ETag skip + Artifactory version for HTTPS fetch\" (OPEN, non-draft, updated 2026-08-11) modifies src/specify_cli/cli/commands/doctrine.py; PR #2719 \"feat: doctrine org init from local/git template\" (OPEN, non-draft, updated 2026-08-11) also modifies src/specify_cli/cli/commands/doctrine.py"
+      - artifact: "grep -rn \"gh pr\\|open pull\\|PR collision\\|in-flight PR\\|concurrent PR\" across kitty-specs/up-mission-type-seam-01KZY1JB/ → zero hits"
+    claim: >
+      WP07 (tasks/WP07-cli-surface-fixes.md, T018) claims src/specify_cli/cli/commands/doctrine.py
+      as an owned file to implement FR-008 (extend the `rows` collection in
+      `_collect_built_in_mission_types`/`mission_type_list`). Two open, non-draft, recently-updated
+      upstream PRs (#3166, #2719) independently modify this exact same file for unrelated reasons
+      (HTTPS-fetch caching, org-init-from-template). The mission's own preflight discipline
+      (evidenced by tasks.ruling.md's careful handling of the spec.md:77 FR-032 false-positive)
+      shows this mission takes tooling landmines seriously when they are surfaced — but no artifact
+      in this mission (tasks.md, wps.yaml, or WP07's own prompt) documents having run the mandated
+      `gh pr list` open-PR collision preflight, and none flags this real collision to WP07's
+      implementer. Without that flag, WP07's implementer is likely to hit an unexpected merge
+      conflict (or, worse, a silent semantic conflict if `_collect_built_in_mission_types`'s
+      surrounding code shifts under one of those PRs before this mission's PR lands) with no
+      advance warning, causing rework specifically inside WP07 — the mission's capstone,
+      integration-point WP.
+    remediation: >
+      Add a note to WP07's prompt (Context & Constraints or Risks & Mitigations section) naming
+      PRs #3166 and #2719 as known open, file-overlapping PRs against
+      src/specify_cli/cli/commands/doctrine.py, instructing the implementer to re-run
+      `gh pr list --search "doctrine.py in:file"` (or equivalent) immediately before starting T018,
+      and to rebase/re-verify the `_collect_built_in_mission_types`/`mission_type_list` line numbers
+      and surrounding code shape against main's current state (both PRs may have merged or drifted
+      by the time WP07 is implemented) rather than trusting plan.md's/this WP's live-verified line
+      numbers to still hold.
+
+  - id: TASKS-VERIFY-001
+    lens: "Red-first stated per WP"
+    severity: 3
+    title: "WP04 sequences its behavior-proving test (T010) explicitly AFTER the implementation subtasks (T008/T009), reversing red-first order"
+    evidence:
+      - artifact: "tasks/WP04-pack-context-projection.md § Subtasks & Detailed Guidance, T008/T009/T010"
+      - artifact: "tasks/WP04-pack-context-projection.md § Test Strategy (no red-first/commit-ordering statement present)"
+      - code: "src/charter/mission_type_profiles.py:762 (_resolve_action_slot), :841 (_resolve_template_set_slot) — the two functions T008/T009 edit"
+    claim: >
+      WP04 is an `execution_mode: code_change` / `task_type: implement` WP that changes production
+      behavior: T008 threads a real `PackContext` into `_resolve_template_set_slot` (replacing a
+      hardcoded `pack_context=None`) and T009 adds a `pack_context` parameter to
+      `_resolve_action_slot` and swaps its repository call from `MissionTypeRepository.default()` to
+      WP03's new layered factory. T010, the subtask that adds the tests proving this new behavior
+      (full-replace precedence, org-pack real-projection, golden-parity regression), is explicitly
+      marked "Sequenced after T008/T009 (needs the threading in place to test against)" — i.e. the
+      WP's own subtask ordering has implementation land before any test exists to pin the new
+      behavior. WP04's Test Strategy section states no RED/GREEN commit ordering at all. This directly
+      contradicts the charter's binding ATDD-First Discipline (C-011: "The WP cannot start coding
+      until at least one failing-first ATDD test exists that pins the user-observable behaviour the
+      WP delivers... committed as a separate commit... BEFORE any implementation commits") and is
+      inconsistent with how the same mission's sibling implementation WPs handle this exact
+      requirement: WP03/T005 is explicitly labelled "Red-first" and instructs proving the test fails
+      before the fix; WP05/T012 step 1 instructs "write this test to fail against the current
+      (pre-T011) `_resolve_layer_candidate` body first, then confirm it passes after T011's fix";
+      WP06 has the mission's own hard two-ordered-commits requirement (NFR-005). WP04 is the only
+      behavior-changing implementation WP in this mission with no red-first instruction of any kind,
+      and its explicit ordering statement affirmatively contradicts one.
+    remediation: >
+      Reorder WP04's guidance (or at minimum its Subtasks framing) so the tests in T010 — the
+      org-pack real-projection test, the full-replace precedence test, and the golden-parity
+      extension — are written first and confirmed to fail against the pre-WP04 code (T008/T009 not
+      yet applied), then T008/T009's implementation edits are made and confirmed to turn those tests
+      green. State explicitly in WP04's Test Strategy section which test(s) are RED-first and which
+      commit makes them GREEN, mirroring WP03/WP05/WP06's phrasing, so a reviewer can verify red-first
+      compliance the same way they do for this mission's other implementation WPs.
+
+  - id: TASKS-VERIFY-002
+    lens: "Red-first stated per WP"
+    severity: 3
+    title: "None of WP07's four CLI-surface behavior fixes (T016–T019) states red-first test-before-fix ordering"
+    evidence:
+      - artifact: "tasks/WP07-cli-surface-fixes.md § Subtasks & Detailed Guidance, T016 Steps"
+      - artifact: "tasks/WP07-cli-surface-fixes.md § Subtasks & Detailed Guidance, T017 Steps (\"the highest-risk subtask in this WP\")"
+      - artifact: "tasks/WP07-cli-surface-fixes.md § Subtasks & Detailed Guidance, T019 Steps (step 1 = fix, step 2 = \"Add the edge-case test\")"
+    claim: >
+      WP07 (`task_type: implement`) fixes four independent silent-lying CLI behaviors (FR-006
+      through FR-009) — the exact class of "tolerate-and-lie" regression this mission exists to
+      close (CL-003's dominant risk, restated at the WP07 Objectives level as "Stop each of the four
+      consumer surfaces from tolerating-and-lying about a non-built-in mission type"). Yet none of
+      T016, T017, T018, or T019 instructs writing the new/extended test first and confirming it fails
+      against the current (pre-fix) code before making the fix — every subtask's Steps list the code
+      change first (or, for T017, list the three fix-sites in steps 1–3 with test-writing only
+      appearing as step 4, describing a required test *property* rather than a *commit-ordering*
+      instruction) and T019 literally orders "1. Replace the bare `except Exception: current_seq =
+      []`... 2. Add the edge-case test..." — fix, then test. This is the same class of gap as
+      TASKS-VERIFY-001, but here it spans WP07's entire subtask set, including T017, which the WP's
+      own Risks section calls "the highest-risk subtask in this WP" and explicitly ties to
+      PLAN-FRESH2-001, the exact severity-4 finding that HALTed the plan phase once for an
+      incomplete fix. Unlike WP03 (T005, "Red-first"), WP05 (T012 step 1, explicit fail-first
+      instruction), and WP06 (NFR-005's mandatory two-ordered-commits), WP07 gives its implementer no
+      mechanism to demonstrate any of these four fixes were red-first, and its own Review Guidance
+      section never asks a reviewer to check for it either.
+    remediation: >
+      Add an explicit red-first instruction to each of T016–T019 (and ideally T020, the SC-001
+      capstone): write the relevant test extension first, run it against the current code, confirm it
+      fails for the reason the fix is supposed to correct (the `"unknown"` source_layer branch for
+      T016; each of the three `show_mission_type` sites for T017 — the case the plan phase HALTed
+      over once already; the missing org/project rows for T018; the swallowed-exception path for
+      T019), then implement the fix and confirm green. Add a corresponding Review Guidance bullet
+      asking the reviewer to check this, matching the pattern already used in WP03/WP05/WP06.

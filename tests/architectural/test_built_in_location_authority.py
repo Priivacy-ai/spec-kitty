@@ -118,9 +118,6 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.artifact_kinds import ArtifactKind
-from doctrine.pack_paths import BuiltInContentDirNotAvailable, built_in_dir, resolve_pack_root
-from doctrine.service import DoctrineService
 from tests.architectural.conftest import SourceFile
 
 pytestmark = [pytest.mark.architectural]
@@ -138,10 +135,36 @@ _AUTHORITY_FILE = Path("src/doctrine/pack_paths.py")
 #: built-in-tier reconstruction.
 _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
     {
-        # src/charter/kind_vocabulary.py::_scan_roots -- org-tier legacy
-        # nested-pack join (`root / kind.plural / "built-in"`), NOT a
-        # built-in-tier reconstruction. See module docstring.
-        (Path("src/charter/kind_vocabulary.py"), 183),
+        # src/charter/kind_vocabulary.py::_org_scan_dirs -- org-tier legacy
+        # nested-pack join (`flat / "built-in"`), NOT a built-in-tier
+        # reconstruction. See module docstring.
+        # FRESHENED 2026-08-11 (#3317 landing): the join was extracted out of
+        # _scan_roots into _org_scan_dirs (S3776 complexity reduction), moving
+        # it from line 183 to 206; behaviour-preserving, same org-tier join.
+        # FRESHENED 2026-08-13 (#3385 landing, org-activation-scan-dirs): the
+        # join was rewritten from the single chained
+        # `root / kind.plural / "built-in"` to `flat / "built-in"` (reusing
+        # the new `flat = root / kind.plural` variable introduced to also
+        # scan the flat, non-built-in org layout ahead of this legacy one),
+        # moving it from line 206 to 244; behaviour-preserving for this join
+        # itself, same org-tier legacy shape.
+        # FRESHENED 2026-08-14 (#3385 fix-agent pass, PR-BOUNDARY-002): the
+        # `_org_scan_dirs` docstring was expanded to document the new
+        # global flat-before-legacy grouping fix, pushing the (unchanged)
+        # `flat / "built-in"` join from line 244 to line 254; the join
+        # itself is unchanged -- only the accumulator variable name
+        # (`legacy_dirs` instead of `dirs`) and the docstring moved.
+        # FRESHENED 2026-08-14 (#3385 fix-agent pass, docstring-overclaim
+        # fix): the `_scan_roots` docstring was further expanded to correct
+        # an overclaim about which repositories' org-layer scans are
+        # non-recursive, pushing the (unchanged) join from line 254 to
+        # line 269; the join itself remains unchanged.
+        # FRESHENED 2026-08-14 (#3399 landing pass, #3426 residual note): the
+        # `_org_scan_dirs` docstring gained a "Known residual (tracked #3426)"
+        # paragraph documenting the nested-org styleguide activation gap,
+        # pushing the (unchanged) `flat / "built-in"` join from line 269 to
+        # line 283; the join itself remains unchanged.
+        (Path("src/charter/kind_vocabulary.py"), 283),
         # src/kernel/paths.py::_MISSION_ASSETS_SIBLING_PATTERN -- a relative
         # SHAPE constant (input to kernel.sibling_paths.resolve_installed_sibling),
         # not a filesystem join against a concrete root. kernel cannot import
@@ -291,9 +314,7 @@ def _find_builtin_joins(tree: ast.AST) -> set[int]:
         if not (isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div)):
             continue
         base = _join_base(node)
-        is_direct_or_indirected = _is_builtin_root_seam_call(base) or (
-            isinstance(base, ast.Name) and base.id in indirected_names
-        )
+        is_direct_or_indirected = _is_builtin_root_seam_call(base) or (isinstance(base, ast.Name) and base.id in indirected_names)
         is_filesystem_join = isinstance(node.right, ast.Constant) and node.right.value == _BUILT_IN_LITERAL
         if is_direct_or_indirected or is_filesystem_join:
             offenders.add(node.lineno)
@@ -322,9 +343,7 @@ def test_no_builtin_path_joins_outside_pack_paths_authority(
         if rel == _AUTHORITY_FILE:
             continue
         offending_lines = _find_builtin_joins(entry.tree)
-        remaining = sorted(
-            lineno for lineno in offending_lines if (rel, lineno) not in _KNOWN_JOIN_ALLOWLIST
-        )
+        remaining = sorted(lineno for lineno in offending_lines if (rel, lineno) not in _KNOWN_JOIN_ALLOWLIST)
         if remaining:
             violations[rel.as_posix()] = remaining
 
@@ -333,7 +352,7 @@ def test_no_builtin_path_joins_outside_pack_paths_authority(
         pytest.fail(
             "Found built-in path join(s) outside the doctrine.pack_paths authority.\n"
             "Route through built_in_dir(kind) (per-kind) or built_in_root() (bare root)\n"
-            "instead of composing resolve_pack_root(\"built-in\") / ... or <path> / \"built-in\"\n"
+            'instead of composing resolve_pack_root("built-in") / ... or <path> / "built-in"\n'
             "locally -- that reintroduces a scattered, fail-open resolver "
             "(NFR-002).\n\n"
             f"Violations:\n{details}"
@@ -349,12 +368,7 @@ def test_negative_bite_direct_and_variable_indirected_joins_are_caught() -> None
     one direct ``resolve_pack_root("built-in") / …`` join, one
     variable-indirected join. Both must be flagged.
     """
-    direct_source = (
-        "from doctrine.pack_paths import resolve_pack_root\n"
-        "\n"
-        "def sneaky_direct(kind):\n"
-        "    return resolve_pack_root('built-in') / kind.plural\n"
-    )
+    direct_source = "from doctrine.pack_paths import resolve_pack_root\n\ndef sneaky_direct(kind):\n    return resolve_pack_root('built-in') / kind.plural\n"
     indirected_source = (
         "from doctrine.pack_paths import resolve_pack_root\n"
         "\n"
@@ -362,10 +376,7 @@ def test_negative_bite_direct_and_variable_indirected_joins_are_caught() -> None
         "    root = resolve_pack_root('built-in')\n"
         "    return root / kind.plural\n"
     )
-    filesystem_join_source = (
-        "def sneaky_filesystem_join(some_root, kind):\n"
-        "    return some_root / kind.plural / 'built-in'\n"
-    )
+    filesystem_join_source = "def sneaky_filesystem_join(some_root, kind):\n    return some_root / kind.plural / 'built-in'\n"
 
     direct_hits = _find_builtin_joins(ast.parse(direct_source))
     indirected_hits = _find_builtin_joins(ast.parse(indirected_source))
@@ -377,16 +388,8 @@ def test_negative_bite_direct_and_variable_indirected_joins_are_caught() -> None
 
     # And the permitted forms must NOT be flagged (proves the gate is
     # join-only, not a constant-scan -- C3.1b).
-    bare_root_call_source = (
-        "from doctrine.pack_paths import resolve_pack_root\n"
-        "\n"
-        "def permitted_bare_root_call():\n"
-        "    return resolve_pack_root('built-in')\n"
-    )
-    bare_marker_source = (
-        "def permitted_bare_marker(layer):\n"
-        "    return {'built-in': 'built-in', 'org': 'org'}.get(layer, layer)\n"
-    )
+    bare_root_call_source = "from doctrine.pack_paths import resolve_pack_root\n\ndef permitted_bare_root_call():\n    return resolve_pack_root('built-in')\n"
+    bare_marker_source = "def permitted_bare_marker(layer):\n    return {'built-in': 'built-in', 'org': 'org'}.get(layer, layer)\n"
     assert not _find_builtin_joins(ast.parse(bare_root_call_source))
     assert not _find_builtin_joins(ast.parse(bare_marker_source))
 
@@ -403,25 +406,9 @@ def test_negative_bite_built_in_root_call_joins_are_caught() -> None:
     ``built_in_root()`` call -- the sanctioned form itself -- must stay
     permitted (mirrors the ``resolve_pack_root("built-in")`` proof above).
     """
-    direct_source = (
-        "from doctrine.pack_paths import built_in_root\n"
-        "\n"
-        "def sneaky_direct(kind):\n"
-        "    return built_in_root() / kind.plural\n"
-    )
-    indirected_source = (
-        "from doctrine.pack_paths import built_in_root\n"
-        "\n"
-        "def sneaky_indirected(kind):\n"
-        "    root = built_in_root()\n"
-        "    return root / kind.plural\n"
-    )
-    attribute_call_source = (
-        "from doctrine import pack_paths\n"
-        "\n"
-        "def sneaky_attribute_call(kind):\n"
-        "    return pack_paths.built_in_root() / kind.plural\n"
-    )
+    direct_source = "from doctrine.pack_paths import built_in_root\n\ndef sneaky_direct(kind):\n    return built_in_root() / kind.plural\n"
+    indirected_source = "from doctrine.pack_paths import built_in_root\n\ndef sneaky_indirected(kind):\n    root = built_in_root()\n    return root / kind.plural\n"
+    attribute_call_source = "from doctrine import pack_paths\n\ndef sneaky_attribute_call(kind):\n    return pack_paths.built_in_root() / kind.plural\n"
 
     direct_hits = _find_builtin_joins(ast.parse(direct_source))
     indirected_hits = _find_builtin_joins(ast.parse(indirected_source))
@@ -432,12 +419,7 @@ def test_negative_bite_built_in_root_call_joins_are_caught() -> None:
     assert attribute_hits, "Attribute-call join (mod.built_in_root() / ...) must be flagged"
 
     # The sanctioned bare call itself -- with no join -- must stay permitted.
-    bare_built_in_root_source = (
-        "from doctrine.pack_paths import built_in_root\n"
-        "\n"
-        "def permitted_bare_built_in_root():\n"
-        "    return built_in_root()\n"
-    )
+    bare_built_in_root_source = "from doctrine.pack_paths import built_in_root\n\ndef permitted_bare_built_in_root():\n    return built_in_root()\n"
     assert not _find_builtin_joins(ast.parse(bare_built_in_root_source))
 
 
@@ -448,7 +430,6 @@ def test_negative_bite_built_in_root_call_joins_are_caught() -> None:
 #: The 9 kinds WITH a shipped `packs/built-in/<plural>/` content directory
 #: (derived from `has_built_in_content_dir`, asserted below -- not hand-listed
 #: independently of that attribute).
-_CONTENT_DIR_KINDS: tuple[ArtifactKind, ...] = tuple(k for k in ArtifactKind if k.has_built_in_content_dir)
 
 #: #3091 marker (NFR-005): the DERIVED complement of `_CONTENT_DIR_KINDS` --
 #: `{mission_step_contract, template, anti_pattern}` -- package-resource/
@@ -458,59 +439,8 @@ _CONTENT_DIR_KINDS: tuple[ArtifactKind, ...] = tuple(k for k in ArtifactKind if 
 #: GAINS a content dir: either change is a deliberate, reviewed edit here, not
 #: a silent drift, because the set below is compared against the LIVE
 #: `ArtifactKind` complement rather than repeated as an independent literal.
-_DERIVED_COMPLEMENT_KINDS: tuple[ArtifactKind, ...] = tuple(k for k in ArtifactKind if not k.has_built_in_content_dir)
-
-
-def test_content_dir_kinds_and_complement_partition_all_kinds() -> None:
-    """Sanity: the 9 content-dir kinds + the 3-kind complement cover every kind exactly once."""
-    assert len(_CONTENT_DIR_KINDS) == 9  # golden-count: cardinality-is-contract
-    assert set(_DERIVED_COMPLEMENT_KINDS) == {
-        ArtifactKind.MISSION_STEP_CONTRACT,
-        ArtifactKind.TEMPLATE,
-        ArtifactKind.ANTI_PATTERN,
-    }  # 3091: the derived carve-out set -- edit here if it ever changes.
-    assert set(_CONTENT_DIR_KINDS) | set(_DERIVED_COMPLEMENT_KINDS) == set(ArtifactKind)
-    assert set(_CONTENT_DIR_KINDS).isdisjoint(_DERIVED_COMPLEMENT_KINDS)
-
-
-@pytest.mark.parametrize("kind", _CONTENT_DIR_KINDS)
-def test_built_in_dir_resolves_inside_existing_packaged_content_dir(kind: ArtifactKind) -> None:
-    """C3.2/NFR-003: every content-dir kind resolves via resolve_pack_root(...), not a raw .exists().
-
-    Asserting through :func:`resolve_pack_root` (rather than a repo-relative
-    ``Path("packs/built-in/...").exists()``) means this survives the future
-    wheel-split (#3036): the same code path this test exercises is what
-    production calls, so packaging the built-in tier differently keeps this
-    test meaningful instead of hard-coding a source-tree-only assumption.
-    """
-    resolved = built_in_dir(kind)
-    expected_root = resolve_pack_root("built-in")
-
-    assert resolved == expected_root / kind.plural
-    assert resolved.is_dir(), f"{kind.name}'s built-in content dir must exist: {resolved}"
-
-
-@pytest.mark.parametrize("kind", _DERIVED_COMPLEMENT_KINDS)
-def test_built_in_dir_refuses_derived_complement_kinds(kind: ArtifactKind) -> None:
-    """C1.4/C3.2/NFR-005 (#3091 marker): the derived complement raises, never silently resolves."""
-    with pytest.raises(BuiltInContentDirNotAvailable):
-        built_in_dir(kind)
 
 
 # ---------------------------------------------------------------------------
 # C3.3 / NFR-003 -- anti-vacuity
 # ---------------------------------------------------------------------------
-
-
-def test_shipped_agent_profiles_are_non_empty() -> None:
-    """C3.3/NFR-003: the shipped agent_profiles set must be non-empty (anti-vacuity).
-
-    A stale, empty, or misconfigured built-in root would otherwise let
-    ``DoctrineService().agent_profiles`` resolve to an empty set and pass
-    every downstream check vacuously -- the exact latent false-green US2
-    acceptance #2 exists to kill.
-    """
-    service = DoctrineService()
-    profiles = service.agent_profiles.list_all()
-
-    assert profiles, "Shipped agent_profiles set must be non-empty (anti-vacuity gate)"

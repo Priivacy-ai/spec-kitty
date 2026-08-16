@@ -17,6 +17,8 @@ import json
 from collections.abc import Sequence
 from io import StringIO
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 from rich.console import Console
@@ -33,10 +35,10 @@ from specify_cli.delivery.receivers import (
     StubReceiver,
 )
 from specify_cli.delivery.status_report import ADDITIVE_SECTION_KEYS
-from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
-from specify_cli.event_journal.journal import EventJournal, resolve_journal_path
+from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
 from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
+from specify_cli.sync.project_store import ProjectSyncStore
 
 
 pytestmark = pytest.mark.fast
@@ -72,50 +74,119 @@ class _OkPreflight:
         return None
 
 
-#: #3030 WP06: selection requires a consented project identity, so every journal
-#: event these CLI tests seed carries this uuid and ``_consent_to_cli_project``
-#: records consent for it. These tests exercise `sync now`'s dispatch/report
-#: plumbing, not consent; the consent behaviour itself is pinned in
-#: tests/delivery/test_incident_reproduction_3030.py and its siblings.
+#: Selection requires one exact project-owned consent/admission tuple, so every
+#: event these CLI tests seed carries this UUID. These tests exercise `sync now`'s
+#: dispatch/report plumbing; consent behavior is covered in the consent suites.
 _CLI_PROJECT_UUID = "ffffffff-0000-0000-0000-00000000000f"
 
 
-def _consent_to_cli_project() -> None:
-    """Record hosted-sync consent for the uuid these tests' events carry."""
-    from specify_cli.sync.consent import set_project_consent
+def _canonical_cli_store(
+    monkeypatch: pytest.MonkeyPatch,
+) -> ProjectSyncStore:
+    from specify_cli.sync.consent import record_project_opt_in
+    import specify_cli.sync.routing as routing
 
-    set_project_consent(_CLI_PROJECT_UUID, True)
-
-
-def _populate_journal(count: int = 3) -> EventJournal:
-    """Append *count* JSON-object events to the CLI-resolved journal."""
-    _consent_to_cli_project()
-    journal = EventJournal(resolve_journal_path())
-    for index in range(count):
-        journal.append(
-            Event(
-                event_id=f"evt-{index}",
-                event_type="mission.updated",
-                payload=json.dumps({"n": index}).encode("utf-8"),
-                occurred_at="2026-06-29T00:00:00+00:00",
-                created_at=f"2026-06-29T00:00:0{index}+00:00",
-                project_uuid=_CLI_PROJECT_UUID,
-            )
+    record_project_opt_in(_CLI_PROJECT_UUID, actor="sync-command-test")
+    store = ProjectSyncStore(_CLI_PROJECT_UUID)
+    authority = store.layout_generation()
+    authority.begin_cutover("cli-status-retention")
+    authority.publish_project_only(
+        "cli-status-retention",
+        verify_exact=lambda: True,
+    )
+    with store.unit_of_work():
+        pass
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO project_target_admissions "
+            "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, binding_audience) "
+            "VALUES (?, 'https://app.spec-kitty.ai', 'account-test', 'team-test', 1, "
+            "'admitted', '1', 'private-teamspace:team-test')",
+            (_CLI_PROJECT_UUID,),
         )
-    return journal
+    routed = SimpleNamespace(
+        project_uuid=store.project_uuid,
+        project_slug="sync-command-test",
+        repo_slug=None,
+        build_id=None,
+    )
+    monkeypatch.setattr(
+        routing,
+        "resolve_checkout_sync_routing_readonly",
+        lambda: routed,
+    )
+    monkeypatch.setattr(routing, "resolve_checkout_sync_routing", lambda: routed)
+    monkeypatch.setattr(
+        sync_command,
+        "_current_event_sync_scope",
+        lambda: SimpleNamespace(user_id=None, team_slug=None),
+    )
+    monkeypatch.setattr(
+        sync_command,
+        "_assert_event_sync_runtime_authority",
+        lambda **_: None,
+    )
+    return store
 
 
-def _enable_now_machinery(monkeypatch: pytest.MonkeyPatch) -> None:
+def _populate_journal(store: ProjectSyncStore, count: int = 3) -> None:
+    """Append *count* JSON-object events to the canonical project journal."""
+    _append_project_events(store, count)
+
+
+def _journal_count(store: ProjectSyncStore) -> int:
+    with store.unit_of_work() as unit:
+        return int(EventJournal(unit, store.layout_generation()).count())
+
+
+def _delivered_anywhere(store: ProjectSyncStore, event_id: str) -> bool:
+    with store.unit_of_work() as unit:
+        return bool(
+            SqliteDeliveryLedger(
+                unit,
+                store.layout_generation(),
+            ).delivered_anywhere(event_id)
+        )
+
+
+def _admit_server(
+    store: ProjectSyncStore,
+    server_url: str,
+    *,
+    generation: int,
+) -> None:
+    """Advance the exact admitted target instead of mutating ambient config alone."""
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "UPDATE project_target_admissions SET target_identity = ?, configuration_generation = ?, admission_generation = ? WHERE project_uuid = ?",
+            (server_url, generation, str(generation), _CLI_PROJECT_UUID),
+        )
+
+
+def _append_project_events(store: ProjectSyncStore, count: int) -> None:
+    with store.unit_of_work() as unit:
+        journal = EventJournal(unit, store.layout_generation())
+        for index in range(count):
+            journal.append(
+                Event(
+                    event_id=f"evt-{index}",
+                    event_type="mission.updated",
+                    payload=json.dumps({"n": index}).encode("utf-8"),
+                    occurred_at="2026-06-29T00:00:00+00:00",
+                    created_at=f"2026-06-29T00:00:0{index}+00:00",
+                    project_uuid=_CLI_PROJECT_UUID,
+                )
+            )
+
+
+def _enable_now_machinery(monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
     """Neutralise the legacy ``sync now`` preflight/queue/gate so the test can
     exercise the additive event-sync dispatch path in isolation."""
     monkeypatch.setenv(SAAS_SYNC_ENV_VAR, "1")
     monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: True)
-    monkeypatch.setattr(
-        sync_command, "enforce_teamspace_mission_state_ready", lambda **_: None
-    )
-    monkeypatch.setattr(
-        "specify_cli.sync.preflight.run_preflight", lambda **_: _OkPreflight()
-    )
+    monkeypatch.setattr(sync_command, "enforce_teamspace_mission_state_ready", lambda **_: None)
+    monkeypatch.setattr("specify_cli.sync.preflight.run_preflight", lambda **_: _OkPreflight())
 
     class _EmptyQueue:
         def size(self) -> int:
@@ -129,9 +200,8 @@ def _enable_now_machinery(monkeypatch: pytest.MonkeyPatch) -> None:
             # entry point and never runs the destructive legacy event drain.
             return None
 
-    monkeypatch.setattr(
-        "specify_cli.sync.background.get_sync_service", lambda: _Service()
-    )
+    monkeypatch.setattr("specify_cli.sync.background.get_sync_service", lambda: _Service())
+    return _canonical_cli_store(monkeypatch)
 
 
 def _patch_stub_receiver(monkeypatch: pytest.MonkeyPatch) -> list[StubReceiver]:
@@ -148,18 +218,6 @@ def _patch_stub_receiver(monkeypatch: pytest.MonkeyPatch) -> list[StubReceiver]:
     return created
 
 
-def _open_ledger() -> SqliteDeliveryLedger:
-    ledger_path = sync_command._ledger_db_path()
-    ledger_path.parent.mkdir(parents=True, exist_ok=True)
-    return SqliteDeliveryLedger(str(ledger_path))
-
-
-def _open_registry() -> SqliteDeliveryTargetRegistry:
-    registry_path = sync_command._registry_db_path()
-    registry_path.parent.mkdir(parents=True, exist_ok=True)
-    return SqliteDeliveryTargetRegistry(str(registry_path))
-
-
 def _set_server_url(url: str) -> None:
     from specify_cli.sync.config import SyncConfig
 
@@ -174,38 +232,37 @@ def _set_server_url(url: str) -> None:
 def test_sync_now_dispatches_and_retains_journal(monkeypatch: pytest.MonkeyPatch) -> None:
     """``sync now`` delivers via the dispatcher, writes ledger rows, and keeps
     every journal payload (success is non-destructive — FR-001)."""
-    _enable_now_machinery(monkeypatch)
+    store = _enable_now_machinery(monkeypatch)
     stubs = _patch_stub_receiver(monkeypatch)
-    journal = _populate_journal(3)
+    _populate_journal(store, 3)
 
     result = runner.invoke(app, ["now"])
     assert result.exit_code == 0, result.output
     assert "delivered 3" in result.output
 
     # Journal payloads were NOT deleted on success.
-    assert journal.count() == 3
+    assert _journal_count(store) == 3
     # The stub actually received all three events.
     assert set(stubs[-1].received_event_ids()) == {"evt-0", "evt-1", "evt-2"}
     # Ledger recorded terminal-success delivery for each event.
-    ledger = _open_ledger()
     for index in range(3):
-        assert ledger.delivered_anywhere(f"evt-{index}") is True
+        assert _delivered_anywhere(store, f"evt-{index}") is True
 
 
 def test_sync_now_posts_retained_events_in_1000_event_batches(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Large retained sets are chunked before POSTing to a receiver."""
-    _enable_now_machinery(monkeypatch)
+    store = _enable_now_machinery(monkeypatch)
 
-    class _BatchSpyReceiver(StubReceiver):
+    class _BatchSpyReceiver(StubReceiver):  # type: ignore[misc]
         def __init__(self) -> None:
             super().__init__()
             self.batch_sizes: list[int] = []
 
         def deliver(self, batch: ConsentedBatch) -> Sequence[DeliveryResult]:
             self.batch_sizes.append(len(list(batch)))
-            return super().deliver(batch)
+            return cast(Sequence[DeliveryResult], super().deliver(batch))
 
     receiver = _BatchSpyReceiver()
     monkeypatch.setattr(
@@ -213,12 +270,12 @@ def test_sync_now_posts_retained_events_in_1000_event_batches(
         "_resolve_active_receiver",
         lambda *_args, **_kwargs: receiver,
     )
-    journal = _populate_journal(1001)
+    _populate_journal(store, 1001)
 
     result = runner.invoke(app, ["now"])
     assert result.exit_code == 0, result.output
     assert receiver.batch_sizes == [1000, 1]
-    assert journal.count() == 1001
+    assert _journal_count(store) == 1001
 
 
 def test_sync_now_empty_journal_is_noop(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -235,10 +292,10 @@ def test_sync_now_gate_block_does_not_call_receiver(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Unsatisfied receiver gates block before any POST/deliver call."""
-    _enable_now_machinery(monkeypatch)
-    _populate_journal(1)
+    store = _enable_now_machinery(monkeypatch)
+    _populate_journal(store, 1)
 
-    class _AuthGatedReceiver(StubReceiver):
+    class _AuthGatedReceiver(StubReceiver):  # type: ignore[misc]
         delivered = False
 
         def gates(self) -> tuple[ReceiverGate, ...]:
@@ -246,7 +303,7 @@ def test_sync_now_gate_block_does_not_call_receiver(
 
         def deliver(self, batch: ConsentedBatch) -> Sequence[DeliveryResult]:
             self.delivered = True
-            return super().deliver(batch)
+            return cast(Sequence[DeliveryResult], super().deliver(batch))
 
     receiver = _AuthGatedReceiver()
     monkeypatch.setattr(sync_command, "_event_sync_access_token", lambda: "")
@@ -266,8 +323,8 @@ def test_sync_now_strict_fails_when_retained_work_dispatch_is_unavailable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Retained journal work cannot disappear into a strict success on infra failure."""
-    _enable_now_machinery(monkeypatch)
-    _populate_journal(1)
+    store = _enable_now_machinery(monkeypatch)
+    _populate_journal(store, 1)
     monkeypatch.setattr(sync_command, "_run_event_sync_dispatch", lambda: None)
 
     result = runner.invoke(app, ["now"])
@@ -283,12 +340,8 @@ def test_sync_now_success_path_runs_dispatch_and_body_drain(monkeypatch: pytest.
     body uploads via the body-ONLY entry point."""
     monkeypatch.setenv(SAAS_SYNC_ENV_VAR, "1")
     monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: True)
-    monkeypatch.setattr(
-        sync_command, "enforce_teamspace_mission_state_ready", lambda **_: None
-    )
-    monkeypatch.setattr(
-        "specify_cli.sync.preflight.run_preflight", lambda **_: _OkPreflight()
-    )
+    monkeypatch.setattr(sync_command, "enforce_teamspace_mission_state_ready", lambda **_: None)
+    monkeypatch.setattr("specify_cli.sync.preflight.run_preflight", lambda **_: _OkPreflight())
 
     drained = {"body": False}
 
@@ -299,17 +352,16 @@ def test_sync_now_success_path_runs_dispatch_and_body_drain(monkeypatch: pytest.
     class _Service:
         queue = _Queue()
 
-        def sync_now(self, *_, **__):  # pragma: no cover - must never be called
+        def sync_now(self, *_: object, **__: object) -> None:  # pragma: no cover - must never be called
             raise AssertionError("legacy destructive event drain must not run")
 
         def drain_body_uploads_only(self) -> None:
             drained["body"] = True
 
-    monkeypatch.setattr(
-        "specify_cli.sync.background.get_sync_service", lambda: _Service()
-    )
+    monkeypatch.setattr("specify_cli.sync.background.get_sync_service", lambda: _Service())
+    store = _canonical_cli_store(monkeypatch)
     stubs = _patch_stub_receiver(monkeypatch)
-    journal = _populate_journal(2)
+    _populate_journal(store, 2)
 
     result = runner.invoke(app, ["now"])
     assert result.exit_code == 0, result.output
@@ -319,9 +371,9 @@ def test_sync_now_success_path_runs_dispatch_and_body_drain(monkeypatch: pytest.
     # Body uploads still drained (the body-ONLY entry point).
     assert drained["body"] is True
     # Event journal delivered + retained (non-destructive).
-    assert journal.count() == 2
+    assert _journal_count(store) == 2
     assert set(stubs[-1].received_event_ids()) == {"evt-0", "evt-1"}
-    assert _open_ledger().delivered_anywhere("evt-0") is True
+    assert _delivered_anywhere(store, "evt-0") is True
 
 
 # ---------------------------------------------------------------------------
@@ -331,24 +383,26 @@ def test_sync_now_success_path_runs_dispatch_and_body_drain(monkeypatch: pytest.
 
 def test_server_switch_replays_retained_events(monkeypatch: pytest.MonkeyPatch) -> None:
     """Setting a new server re-delivers the same retained events to it (FR-005)."""
-    _enable_now_machinery(monkeypatch)
+    store = _enable_now_machinery(monkeypatch)
     stubs = _patch_stub_receiver(monkeypatch)
-    journal = _populate_journal(3)
+    _populate_journal(store, 3)
 
     _set_server_url("https://target-a.example")
+    _admit_server(store, "https://target-a.example", generation=2)
     first = runner.invoke(app, ["now"])
     assert first.exit_code == 0, first.output
     assert set(stubs[-1].received_event_ids()) == {"evt-0", "evt-1", "evt-2"}
 
     # Switch the active target; the same retained events re-select for B.
     _set_server_url("https://target-b.example")
+    _admit_server(store, "https://target-b.example", generation=3)
     second = runner.invoke(app, ["now"])
     assert second.exit_code == 0, second.output
     assert "delivered 3" in second.output
     assert set(stubs[-1].received_event_ids()) == {"evt-0", "evt-1", "evt-2"}
 
     # Still fully retained after BOTH drains.
-    assert journal.count() == 3
+    assert _journal_count(store) == 3
 
 
 def test_sync_server_no_arg_shows_url() -> None:
@@ -368,7 +422,8 @@ def test_sync_server_no_arg_shows_url() -> None:
 def test_status_check_json_is_additive(monkeypatch: pytest.MonkeyPatch) -> None:
     """``sync status --check --json`` keeps the legacy top-level fields and adds
     the seven WP11 sections (FR-009, FR-019, NFR-006)."""
-    _populate_journal(2)
+    store = _canonical_cli_store(monkeypatch)
+    _append_project_events(store, 2)
 
     result = runner.invoke(app, ["status", "--check", "--json"])
     assert result.exit_code in (0, 2), result.output
@@ -419,18 +474,16 @@ def test_sync_gc_purges_only_delivered(monkeypatch: pytest.MonkeyPatch) -> None:
     ``gc`` now derives its target universe from the registry
     (``known_target_ids``): a payload is reclaimable only once it has a
     terminal-success delivery to every registered target."""
-    journal = _populate_journal(3)
-    # Register the single known target so gc has a non-empty target universe.
-    registry = _open_registry()
-    target = registry.register(
-        url="https://gc-target.example", team_slug=None, user_email=None
-    )
-    registry.close()
-    # Mark evt-0 and evt-1 delivered to that known target; evt-2 stays undelivered.
-    ledger = _open_ledger()
-    ledger.record_success("evt-0", target.target_id)
-    ledger.record_success("evt-1", target.target_id)
-    ledger.close()
+    from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
+
+    store = _canonical_cli_store(monkeypatch)
+    _append_project_events(store, 3)
+    with store.unit_of_work() as unit:
+        target = ProjectDeliveryTargetRegistry(store).get_current(unit)
+        assert target is not None
+        ledger = SqliteDeliveryLedger(unit, store.layout_generation())
+        ledger.record_success("evt-0", target.target_id)
+        ledger.record_success("evt-1", target.target_id)
 
     result = runner.invoke(app, ["gc"])
     assert result.exit_code == 0, result.output
@@ -438,43 +491,61 @@ def test_sync_gc_purges_only_delivered(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "skipped 1" in result.output
 
     # Delivered payloads gone; undelivered payload retained (durability).
-    assert journal.read_by_id("evt-0") is None
-    assert journal.read_by_id("evt-1") is None
-    assert journal.read_by_id("evt-2") is not None
-    # Ledger history survives the purge.
-    reopened = _open_ledger()
-    assert reopened.delivered_anywhere("evt-0") is True
+    with store.unit_of_work() as unit:
+        journal = EventJournal(unit, store.layout_generation())
+        assert journal.read_by_id("evt-0") is None
+        assert journal.read_by_id("evt-1") is None
+        assert journal.read_by_id("evt-2") is not None
+        assert (
+            SqliteDeliveryLedger(
+                unit,
+                store.layout_generation(),
+            ).delivered_anywhere("evt-0")
+            is True
+        )
 
 
-def test_sync_gc_purges_nothing_without_known_targets() -> None:
+def test_sync_gc_purges_nothing_without_known_targets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """With no registered targets the universe is empty, so gc reclaims nothing
     (the safe purge-nothing default — it cannot establish full delivery)."""
-    journal = _populate_journal(2)
-    ledger = _open_ledger()
-    ledger.record_success("evt-0", "phantom-target")
-    ledger.close()
+    store = _canonical_cli_store(monkeypatch)
+    _append_project_events(store, 2)
+    with store.unit_of_work() as unit:
+        SqliteDeliveryLedger(unit, store.layout_generation()).record_success(
+            "evt-0",
+            "phantom-target",
+        )
 
     result = runner.invoke(app, ["gc"])
     assert result.exit_code == 0, result.output
     assert "purged 0" in result.output
     # Nothing was deleted because no known target universe exists.
-    assert journal.read_by_id("evt-0") is not None
-    assert journal.read_by_id("evt-1") is not None
+    with store.unit_of_work() as unit:
+        journal = EventJournal(unit, store.layout_generation())
+        assert journal.read_by_id("evt-0") is not None
+        assert journal.read_by_id("evt-1") is not None
 
 
-def test_sync_archive_is_nondestructive() -> None:
+def test_sync_archive_is_nondestructive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """``sync archive`` stamps the archive marker but deletes no bytes (FR-010)."""
-    journal = _populate_journal(3)
+    store = _canonical_cli_store(monkeypatch)
+    _append_project_events(store, 3)
 
     result = runner.invoke(app, ["archive"])
     assert result.exit_code == 0, result.output
     assert "archived 3" in result.output
 
     # Nothing deleted — every row still present, now archived.
-    assert journal.count() == 3
-    for index in range(3):
-        stored = journal.read_by_id(f"evt-{index}")
-        assert stored is not None and stored.archived_at is not None
+    with store.unit_of_work() as unit:
+        journal = EventJournal(unit, store.layout_generation())
+        assert journal.count() == 3
+        for index in range(3):
+            stored = journal.read_by_id(f"evt-{index}")
+            assert stored is not None and stored.archived_at is not None
 
 
 # ---------------------------------------------------------------------------
@@ -516,17 +587,29 @@ def test_sync_mode_external_requires_endpoint() -> None:
 
 def test_local_retention_mode_attempts_no_delivery(monkeypatch: pytest.MonkeyPatch) -> None:
     """Under LOCAL_RETENTION, ``sync now`` journals but does not deliver."""
-    _enable_now_machinery(monkeypatch)
+    store = _enable_now_machinery(monkeypatch)
     # Do NOT patch the receiver: the real resolver returns None for delivery NONE.
     runner.invoke(app, ["mode", "local_retention"])
-    _populate_journal(2)
+    _populate_journal(store, 2)
 
     result = runner.invoke(app, ["now"])
     assert result.exit_code == 0, result.output
     assert "retention only" in result.output.lower()
     # No ledger delivery rows were written.
-    ledger = _open_ledger()
-    assert ledger.delivered_anywhere("evt-0") is False
+    assert _delivered_anywhere(store, "evt-0") is False
+
+
+def test_opt_out_default_strict_refuses_retained_work(monkeypatch: pytest.MonkeyPatch) -> None:
+    """OPT_OUT has no receiver but cannot turn retained work into strict success."""
+    store = _enable_now_machinery(monkeypatch)
+    mode_result = runner.invoke(app, ["mode", "opt_out"])
+    assert mode_result.exit_code == 0, mode_result.output
+    _populate_journal(store, 2)
+
+    result = runner.invoke(app, ["now"])
+    assert result.exit_code == 1, result.output
+    assert "retention only" in result.output.lower()
+    assert _delivered_anywhere(store, "evt-0") is False
 
 
 def test_opt_out_surfaces_c008_note() -> None:
@@ -550,9 +633,7 @@ def test_resolve_active_receiver_per_mode() -> None:
     class _Target:
         resolved_server_url = "https://t.example"
 
-    teamspace = sync_command._resolve_active_receiver(
-        _Target(), EventSyncConfig.from_mode(Mode.TEAMSPACE)
-    )
+    teamspace = sync_command._resolve_active_receiver(_Target(), EventSyncConfig.from_mode(Mode.TEAMSPACE))
     assert isinstance(teamspace, TeamspaceReceiver)
 
     external = sync_command._resolve_active_receiver(
@@ -561,9 +642,7 @@ def test_resolve_active_receiver_per_mode() -> None:
     )
     assert isinstance(external, ExternalReceiver)
 
-    local = sync_command._resolve_active_receiver(
-        _Target(), EventSyncConfig.from_mode(Mode.LOCAL_RETENTION)
-    )
+    local = sync_command._resolve_active_receiver(_Target(), EventSyncConfig.from_mode(Mode.LOCAL_RETENTION))
     assert local is None
 
 
@@ -626,9 +705,7 @@ def test_mode_external_persists_endpoint_over_existing_config() -> None:
     from specify_cli.delivery.config import Mode
 
     _set_server_url("https://present.example")  # ensure config.toml already exists
-    result = runner.invoke(
-        app, ["mode", "external_receiver", "--endpoint", "https://recv.example/e"]
-    )
+    result = runner.invoke(app, ["mode", "external_receiver", "--endpoint", "https://recv.example/e"])
     assert result.exit_code == 0, result.output
     loaded = sync_command._load_event_sync_config()
     assert loaded.mode is Mode.EXTERNAL_RECEIVER
@@ -654,8 +731,8 @@ def test_open_active_body_queue_degrades_to_none(monkeypatch: pytest.MonkeyPatch
     def _boom(*_: object, **__: object) -> object:
         raise RuntimeError("no queue")
 
-    monkeypatch.setattr("specify_cli.sync.queue.OfflineQueue", _boom)
-    assert sync_command._open_active_body_queue() is None
+    runtime = SimpleNamespace(store=SimpleNamespace(layout_generation=_boom))
+    assert sync_command._open_active_body_queue(cast(Any, runtime), object(), max_queue_size=100) is None
 
 
 def test_run_event_sync_dispatch_noop_when_saas_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -670,11 +747,17 @@ def test_run_event_sync_dispatch_degrades_on_failure(monkeypatch: pytest.MonkeyP
     """An infrastructure failure prints a notice and never raises (NFR-006)."""
     buf = _captured_console(monkeypatch)
     monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr(
+        sync_command,
+        "_current_event_sync_scope",
+        lambda: sync_command._EventSyncScope(team_slug="team-test"),
+    )
+    monkeypatch.setattr(sync_command, "_event_sync_access_token", lambda: "token")
 
     def _boom() -> object:
         raise RuntimeError("runtime down")
 
-    monkeypatch.setattr(sync_command, "_open_event_sync_runtime", _boom)
+    monkeypatch.setattr(sync_command, "_open_project_dispatch_runtime", _boom)
     sync_command._run_event_sync_dispatch()  # must not raise
     assert "Event sync unavailable" in buf.getvalue()
 
@@ -754,7 +837,9 @@ def test_status_check_json_keeps_sections_on_runtime_failure(
     }
 
 
-def test_status_check_json_surfaces_migration_conflicts() -> None:
+def test_status_check_json_surfaces_migration_conflicts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """A recorded migration conflict surfaces in ``migration_conflicts`` with the
     cleanup-blocked flag set, sourced from the on-disk audit store (SC-011)."""
     from specify_cli.paths import get_runtime_root
@@ -764,7 +849,7 @@ def test_status_check_json_surfaces_migration_conflicts() -> None:
         MigrationConflict,
     )
 
-    _populate_journal(1)  # ensure the runtime opens cleanly (happy path)
+    _canonical_cli_store(monkeypatch)
 
     audit_path = get_runtime_root().base / AUDIT_DB_NAME
     audit = MigrationAudit(audit_path)
@@ -806,12 +891,8 @@ def test_sync_now_posts_exactly_once_and_drains_body(
 
     monkeypatch.setenv(SAAS_SYNC_ENV_VAR, "1")
     monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: True)
-    monkeypatch.setattr(
-        sync_command, "enforce_teamspace_mission_state_ready", lambda **_: None
-    )
-    monkeypatch.setattr(
-        "specify_cli.sync.preflight.run_preflight", lambda **_: _OkPreflight()
-    )
+    monkeypatch.setattr(sync_command, "enforce_teamspace_mission_state_ready", lambda **_: None)
+    monkeypatch.setattr("specify_cli.sync.preflight.run_preflight", lambda **_: _OkPreflight())
 
     posts: list[str] = []
 
@@ -829,9 +910,7 @@ def test_sync_now_posts_exactly_once_and_drains_body(
         body = json.loads(_gzip.decompress(data).decode("utf-8"))
         return _Resp([event["event_id"] for event in body["events"]])
 
-    receiver = TeamspaceReceiver(
-        resolved_server_url="https://t.example", auth_token="tok", poster=_poster
-    )
+    receiver = TeamspaceReceiver(resolved_server_url="https://t.example", auth_token="tok", poster=_poster)
     monkeypatch.setattr(sync_command, "_event_sync_access_token", lambda: "tok")
     monkeypatch.setattr(
         sync_command,
@@ -852,25 +931,28 @@ def test_sync_now_posts_exactly_once_and_drains_body(
         def drain_body_uploads_only(self) -> None:
             drained["body"] = True
 
-    monkeypatch.setattr(
-        "specify_cli.sync.background.get_sync_service", lambda: _Service()
-    )
+    monkeypatch.setattr("specify_cli.sync.background.get_sync_service", lambda: _Service())
 
     # The wire envelope is the event's own JSON payload (``event_id`` is carried
     # on the OutboundEvent, not the body), so embed it in the payload here so the
     # fake server can echo a per-event success result keyed on it.
-    _consent_to_cli_project()
-    journal = EventJournal(resolve_journal_path(team_slug="team"))
-    journal.append(
-        Event(
-            event_id="evt-solo",
-            event_type="mission.updated",
-            payload=json.dumps({"event_id": "evt-solo", "n": 1}).encode("utf-8"),
-            occurred_at="2026-06-29T00:00:00+00:00",
-            created_at="2026-06-29T00:00:00+00:00",
-            project_uuid=_CLI_PROJECT_UUID,
-        )
+    store = _canonical_cli_store(monkeypatch)
+    monkeypatch.setattr(
+        sync_command,
+        "_current_event_sync_scope",
+        lambda: sync_command._EventSyncScope(team_slug="team"),
     )
+    with store.unit_of_work() as unit:
+        EventJournal(unit, store.layout_generation()).append(
+            Event(
+                event_id="evt-solo",
+                event_type="mission.updated",
+                payload=json.dumps({"event_id": "evt-solo", "n": 1}).encode("utf-8"),
+                occurred_at="2026-06-29T00:00:00+00:00",
+                created_at="2026-06-29T00:00:00+00:00",
+                project_uuid=_CLI_PROJECT_UUID,
+            )
+        )
 
     result = runner.invoke(app, ["now"])
     assert result.exit_code == 0, result.output
@@ -888,39 +970,20 @@ def test_sync_now_posts_exactly_once_and_drains_body(
 # ---------------------------------------------------------------------------
 
 
-def test_sync_migrate_imports_queue_db_into_journal() -> None:
-    """``sync migrate`` lifts currently-queued legacy ``queue.db`` rows into the
-    event journal and renders the migration result (the otherwise-dead WP10
-    migration now has a production CLI caller)."""
-    import sqlite3
-
-    from specify_cli.paths import get_runtime_root
-
-    base = get_runtime_root().base
-    base.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(base / "queue.db"))
-    conn.execute(
-        "CREATE TABLE queue (id INTEGER PRIMARY KEY, event_id TEXT, "
-        "event_type TEXT, data TEXT, timestamp INTEGER)"
+def test_sync_migrate_imports_queue_db_into_journal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The retired alias refuses before opening the old shared runtime."""
+    monkeypatch.setattr(
+        sync_command,
+        "_open_event_sync_runtime",
+        lambda: pytest.fail("retired migrate opened the shared runtime"),
     )
-    conn.executemany(
-        "INSERT INTO queue (event_id, event_type, data, timestamp) VALUES (?, ?, ?, ?)",
-        [
-            ("evt-m0", "mission.updated", json.dumps({"a": 1}), 1700000000),
-            ("evt-m1", "mission.updated", json.dumps({"a": 2}), 1700000001),
-        ],
-    )
-    conn.commit()
-    conn.close()
-
     result = runner.invoke(app, ["migrate"])
-    assert result.exit_code == 0, result.output
-    assert "imported 2" in result.output
 
-    # Rows actually landed in the CLI-resolved journal.
-    journal = EventJournal(resolve_journal_path())
-    assert journal.read_by_id("evt-m0") is not None
-    assert journal.read_by_id("evt-m1") is not None
+    assert result.exit_code == 1
+    assert "shared-store `sync migrate` path is retired" in result.output
+    assert "project-store-preview" in result.output
 
 
 # ---------------------------------------------------------------------------
@@ -937,61 +1000,45 @@ def _seed_legacy_queue(rows: Sequence[tuple[str, str]]) -> None:
     base = get_runtime_root().base
     base.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(base / "queue.db"))
-    conn.execute(
-        "CREATE TABLE queue (id INTEGER PRIMARY KEY, event_id TEXT, "
-        "event_type TEXT, data TEXT, timestamp INTEGER)"
-    )
+    conn.execute("CREATE TABLE queue (id INTEGER PRIMARY KEY, event_id TEXT, event_type TEXT, data TEXT, timestamp INTEGER)")
     conn.executemany(
         "INSERT INTO queue (event_id, event_type, data, timestamp) VALUES (?, ?, ?, ?)",
-        [
-            (event_id, "mission.updated", payload, 1700000000 + index)
-            for index, (event_id, payload) in enumerate(rows)
-        ],
+        [(event_id, "mission.updated", payload, 1700000000 + index) for index, (event_id, payload) in enumerate(rows)],
     )
     conn.commit()
     conn.close()
 
 
-def test_sync_migrate_reports_the_per_project_composition_of_what_it_moved() -> None:
-    """FR-015's third surface. `sync migrate` produced the incident's false-green.
-
-    It emptied the legacy queue `doctor` reads while pooling every local project's
-    payloads into one machine-global journal, and printed nothing but aggregate
-    import/dedupe counts — so the operator was never told *whose* events had just
-    been lifted. Red before the fix: `sync migrate` had a zero diff for this WP and
-    printed no composition at all.
-
-    The composition of legacy rows is also a substantive finding rather than a
-    formality: `migrate_journal._build_event` sets no identity columns, so every
-    migrated row lands with a NULL ``project_uuid`` and is therefore unselectable
-    until an identity backfill runs. FR-011 exists so that is visible instead of
-    silent.
-    """
-    _seed_legacy_queue(
-        [
-            ("evt-m0", json.dumps({"event_id": "evt-m0"})),
-            ("evt-m1", json.dumps({"event_id": "evt-m1"})),
-        ]
+def test_sync_migrate_reports_the_per_project_composition_of_what_it_moved(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The old conflict-resolution variant is also retired without source I/O."""
+    monkeypatch.setattr(
+        sync_command,
+        "_open_event_sync_runtime",
+        lambda: pytest.fail("retired conflict resolution opened a source"),
     )
 
-    result = runner.invoke(app, ["migrate"])
+    result = runner.invoke(
+        app,
+        ["migrate", "--resolve-conflicts", "keep-journal"],
+    )
 
-    assert result.exit_code == 0, result.output
-    assert "imported 2" in result.output
-    assert "Migrated events by project" in result.output
-    # Two identity-less rows, grouped and counted rather than dropped (FR-011).
-    assert "identity unresolved" in result.output
-    assert "no stored project identity" in result.output
+    assert result.exit_code == 1
+    assert "source evidence" in result.output
+    assert "project-store-migrate" in result.output
 
 
-def test_sync_migrate_says_so_when_it_moved_nothing() -> None:
-    """A re-run must state that explicitly, not omit the section.
+def test_sync_migrate_says_so_when_it_moved_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The retired grant-backfill flag cannot manufacture consent."""
+    monkeypatch.setattr(
+        sync_command,
+        "_run_consent_index_backfill",
+        lambda: pytest.fail("retired migrate wrote legacy consent"),
+    )
+    result = runner.invoke(app, ["migrate", "--backfill-consent-index"])
 
-    An absent section is how the first cut of this WP's `doctor` renderer failed:
-    "nothing to move" and "the composition could not be read" looked identical.
-    """
-    result = runner.invoke(app, ["migrate"])
-
-    assert result.exit_code == 0, result.output
-    assert "Migrated events by project" in result.output
-    assert "nothing imported on this run" in result.output
+    assert result.exit_code == 1
+    assert "promote legacy consent" in result.output

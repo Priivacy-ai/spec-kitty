@@ -18,14 +18,9 @@ original claim above — that this is the **exactly one** mutation point for a
 review-cycle verdict across the whole runtime — was already false when
 written, and more so after this mission's WP07/WP10/WP12 landed. The
 authoritative count of verdict writers, location resolvers, and frontmatter
-readers is no longer restated as a number in this docstring at all — it is
-whatever ``tests/architectural/verdict_seam_census.yaml`` (the WP16-folded,
-machine-checked census; see ``tests/architectural/test_verdict_seam_census.py``)
-currently enumerates as ``status: active`` rows per category, because that
-file is verified against the live AST on every run and this docstring is
-not. Consult the census directly for the current count instead of trusting a
-number restated here, which is exactly the kind of claim that goes stale
-silently.
+readers is no longer restated as a number in this docstring. Live code is the
+authority; this docstring intentionally carries no second frozen count that
+can go stale silently.
 
 Sites in this module that **mention** ``review-cycle-*`` artifacts but do
 **not** mutate the counter or write any artifact:
@@ -186,6 +181,7 @@ def _enforce_bulk_edit_diff_compliance(
     *,
     feature_dir: Path,
     main_repo_root: Path,
+    mission_slug: str,
     target_branch: str,
     review_workspace: ResolvedWorkspace,
     check_review_diff_compliance: Callable[..., DiffCheckResult | None],
@@ -203,10 +199,23 @@ def _enforce_bulk_edit_diff_compliance(
     # still resolves because the mission branch exists until merge
     # cleanup. If the branch cannot be resolved, fall back to the
     # target_branch captured earlier in this function.
+    #
+    # #3439 / FR-004 / C-001: LANE_STATE is a PRIMARY-partition kind. On a
+    # coord-topology mission ``feature_dir`` is the STATUS-only ``-coord`` husk,
+    # which carries no ``lanes.json`` — a direct ``read_lanes_json(feature_dir)``
+    # returned ``None`` and silently fell back to ``target_branch``, diffing the
+    # entire target-branch delta and false-blocking the gate. Route the read
+    # through the placement seam (the existing SSOT — no predicate fork) so the
+    # canonical mission_branch base is resolved on every topology.
     try:
+        from mission_runtime import MissionArtifactKind, placement_seam
+
         from specify_cli.lanes.persistence import read_lanes_json as _read_lanes_json
 
-        _lanes_manifest = _read_lanes_json(feature_dir)
+        _lane_state_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+            MissionArtifactKind.LANE_STATE
+        )
+        _lanes_manifest = _read_lanes_json(_lane_state_dir)
         _base_ref = _lanes_manifest.mission_branch if _lanes_manifest is not None else target_branch
     except Exception:
         _base_ref = target_branch
@@ -1810,6 +1819,7 @@ def review(
         _executor.review_enforce_bulk_edit_gate(
             feature_dir=feature_dir,
             main_repo_root=main_repo_root,
+            mission_slug=mission_slug,
             target_branch=target_branch,
             review_workspace=review_workspace,
         )

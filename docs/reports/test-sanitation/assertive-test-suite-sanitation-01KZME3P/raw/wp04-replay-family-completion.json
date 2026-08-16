@@ -1,0 +1,264 @@
+{
+  "argv": [
+    ".venv/bin/python",
+    "-m",
+    "pytest",
+    "-q",
+    "-p",
+    "no:cacheprovider",
+    "-p",
+    "wp04_fault_plugin",
+    "--junitxml=/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/wp04-replay-7ip7xzau/junit.xml",
+    "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch::test_non_matching_language_returns_false",
+    "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_bool_false_disables",
+    "tests/kernel/test_paths.py::TestGetPackageAssetRootPacksRoot::test_packs_root_without_missions_tree_fails_closed",
+    "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_null_falls_through_to_mission_config",
+    "tests/kernel/test_paths.py::TestGetPackageAssetRoot::test_template_root_existing_invalid_dir_raises",
+    "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_step_metadata_overrides_mission_config",
+    "tests/doctrine/missions/test_primitives.py::TestStrictnessResolution::test_invalid_strictness_returns_none",
+    "tests/kernel/test_paths.py::TestGetPackageAssetRoot::test_template_root_legacy_package_asset_root_with_mission_yaml",
+    "tests/architectural/test_shim_registry_schema.py::TestOptionalFields::test_missing_optional_fields_is_valid",
+    "tests/kernel/test_paths.py::TestGetPackageAssetRoot::test_template_root_direct_legacy_missions_remaps_to_sibling_doctrine",
+    "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_no_match",
+    "tests/kernel/test_paths.py::TestGetPackageAssetRoot::test_template_root_legacy_package_asset_root_with_command_templates",
+    "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_partial_id_not_matched",
+    "tests/kernel/test_paths.py::TestGetPackageAssetRootPacksRoot::test_packs_root_wins_over_template_root",
+    "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch::test_empty_active_scope_returns_false",
+    "tests/doctrine/shared/test_scoping.py::TestNormalizeLanguages::test_none_returns_empty_tuple",
+    "tests/git_ops/test_git_ops_unit.py::test_exclude_from_git_index_non_git_repo",
+    "tests/agent/glossary/test_pipeline.py::TestPipelineErrorHandling::test_none_context_raises_value_error",
+    "tests/doctrine/missions/test_primitives.py::TestTokenAliasing::test_retry_token_populates_checkpoint_token",
+    "tests/doctrine/shared/test_scoping.py::TestNormalizeLanguages::test_deduplicates"
+  ],
+  "campaign": "family-completion",
+  "configured_timeout_seconds": 300.0,
+  "elapsed_seconds": 46.939,
+  "ended_at": "2026-08-10T12:09:56.830373+00:00",
+  "environment": {
+    "PYTHONPATH_prefix": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-d/docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw",
+    "WP04_REPLAY_CAMPAIGN": "family-completion",
+    "platform": "macOS-15.7.7-arm64-arm-64bit",
+    "python": "3.11.15"
+  },
+  "exit_code": 1,
+  "failed_nodeids": [
+    "None::tests.doctrine.shared.test_scoping.TestAppliesToLanguagesMatch::test_non_matching_language_returns_false",
+    "None::tests.doctrine.missions.test_primitives.TestGlossaryEnablementContract::test_bool_false_disables",
+    "None::tests.kernel.test_paths.TestGetPackageAssetRootPacksRoot::test_packs_root_without_missions_tree_fails_closed",
+    "None::tests.doctrine.missions.test_primitives.TestGlossaryEnablementContract::test_null_falls_through_to_mission_config",
+    "None::tests.kernel.test_paths.TestGetPackageAssetRoot::test_template_root_existing_invalid_dir_raises",
+    "None::tests.doctrine.missions.test_primitives.TestGlossaryEnablementContract::test_step_metadata_overrides_mission_config",
+    "None::tests.doctrine.missions.test_primitives.TestStrictnessResolution::test_invalid_strictness_returns_none",
+    "None::tests.kernel.test_paths.TestGetPackageAssetRoot::test_template_root_legacy_package_asset_root_with_mission_yaml",
+    "None::tests.architectural.test_shim_registry_schema.TestOptionalFields::test_missing_optional_fields_is_valid",
+    "None::tests.kernel.test_paths.TestGetPackageAssetRoot::test_template_root_direct_legacy_missions_remaps_to_sibling_doctrine",
+    "None::tests.specify_cli.cli.commands.agent.test_tasks_outline::test_is_pipe_table_task_row_no_match",
+    "None::tests.kernel.test_paths.TestGetPackageAssetRoot::test_template_root_legacy_package_asset_root_with_command_templates",
+    "None::tests.specify_cli.cli.commands.agent.test_tasks_outline::test_is_pipe_table_task_row_partial_id_not_matched",
+    "None::tests.kernel.test_paths.TestGetPackageAssetRootPacksRoot::test_packs_root_wins_over_template_root",
+    "None::tests.doctrine.shared.test_scoping.TestAppliesToLanguagesMatch::test_empty_active_scope_returns_false",
+    "None::tests.doctrine.shared.test_scoping.TestNormalizeLanguages::test_none_returns_empty_tuple",
+    "None::tests.git_ops.test_git_ops_unit::test_exclude_from_git_index_non_git_repo",
+    "None::tests.agent.glossary.test_pipeline.TestPipelineErrorHandling::test_none_context_raises_value_error",
+    "None::tests.doctrine.missions.test_primitives.TestTokenAliasing::test_retry_token_populates_checkpoint_token",
+    "None::tests.doctrine.shared.test_scoping.TestNormalizeLanguages::test_deduplicates"
+  ],
+  "materialized_faults": [
+    {
+      "authority": "doctrine.shared.scoping.applies_to_languages_match",
+      "binding": "applies_to_languages_match",
+      "contract": "fixtures=[]; concrete_inputs=[\"applies_to_languages_match(['python'], ['rust'])\"]; asserted_observables=[\"assert applies_to_languages_match(['python'], ['rust']) is False\"]",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch::test_non_matching_language_returns_false"
+    },
+    {
+      "authority": "doctrine.missions.primitives.PrimitiveExecutionContext.is_glossary_enabled",
+      "binding": "PrimitiveExecutionContext.is_glossary_enabled",
+      "contract": "fixtures=[]; concrete_inputs=[\"_make_context({'glossary_check': False})\"]; asserted_observables=['assert ctx.is_glossary_enabled() is False']",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_bool_false_disables"
+    },
+    {
+      "authority": "kernel.paths.get_package_asset_root",
+      "binding": "get_package_asset_root",
+      "contract": "fixtures=['monkeypatch', 'tmp_path']; concrete_inputs=[\"(packs_root / 'built-in').mkdir(True)\", \"monkeypatch.delenv('SPEC_KITTY_TEMPLATE_ROOT', False)\", \"monkeypatch.setenv('SPEC_KITTY_PACKS_ROOT')\"]; asserted_observables=['pytest.raises(FileNotFoundError)']",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/kernel/test_paths.py::TestGetPackageAssetRootPacksRoot::test_packs_root_without_missions_tree_fails_closed"
+    },
+    {
+      "authority": "doctrine.missions.primitives.PrimitiveExecutionContext.is_glossary_enabled",
+      "binding": "PrimitiveExecutionContext.is_glossary_enabled",
+      "contract": "fixtures=[]; concrete_inputs=[\"_make_context({'glossary_check': None}, {'glossary': {'enabled': False}})\"]; asserted_observables=['assert ctx.is_glossary_enabled() is False']",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_null_falls_through_to_mission_config"
+    },
+    {
+      "authority": "kernel.paths.get_package_asset_root",
+      "binding": "get_package_asset_root",
+      "contract": "fixtures=['monkeypatch', 'tmp_path']; concrete_inputs=[\"monkeypatch.setenv('SPEC_KITTY_TEMPLATE_ROOT')\", \"pytest.raises('does not contain mission assets')\"]; asserted_observables=[\"pytest.raises(FileNotFoundError, match='does not contain mission assets')\"]",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/kernel/test_paths.py::TestGetPackageAssetRoot::test_template_root_existing_invalid_dir_raises"
+    },
+    {
+      "authority": "doctrine.missions.primitives.PrimitiveExecutionContext.is_glossary_enabled",
+      "binding": "PrimitiveExecutionContext.is_glossary_enabled",
+      "contract": "fixtures=[]; concrete_inputs=[\"_make_context({'glossary_check': 'disabled'}, {'glossary': {'enabled': True}})\"]; asserted_observables=['assert ctx.is_glossary_enabled() is False']",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_step_metadata_overrides_mission_config"
+    },
+    {
+      "authority": "doctrine.missions.primitives.PrimitiveExecutionContext.mission_strictness",
+      "binding": "PrimitiveExecutionContext.mission_strictness",
+      "contract": "fixtures=[]; concrete_inputs=[\"_make_context({'glossary': {'strictness': 'invalid'}})\"]; asserted_observables=['assert ctx.mission_strictness is None']",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "property",
+      "nodeid": "tests/doctrine/missions/test_primitives.py::TestStrictnessResolution::test_invalid_strictness_returns_none"
+    },
+    {
+      "authority": "kernel.paths.get_package_asset_root",
+      "binding": "get_package_asset_root",
+      "contract": "fixtures=['monkeypatch', 'tmp_path']; concrete_inputs=['mission.mkdir(True)', \"(mission / 'mission.yaml').write_text('name: software-dev\\\\n', 'utf-8')\", \"monkeypatch.setenv('SPEC_KITTY_TEMPLATE_ROOT')\", \"pytest.raises('does not contain mission assets')\"]; asserted_observables=[\"pytest.raises(FileNotFoundError, match='does not contain mission assets')\"]",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/kernel/test_paths.py::TestGetPackageAssetRoot::test_template_root_legacy_package_asset_root_with_mission_yaml"
+    },
+    {
+      "authority": "specify_cli.compat.registry.validate_registry",
+      "binding": "validate_registry",
+      "contract": "fixtures=[]; concrete_inputs=[\"validate_registry({'shims': [_entry()]})\"]; asserted_observables=[]",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/architectural/test_shim_registry_schema.py::TestOptionalFields::test_missing_optional_fields_is_valid"
+    },
+    {
+      "authority": "kernel.paths.get_package_asset_root",
+      "binding": "get_package_asset_root",
+      "contract": "fixtures=['monkeypatch', 'tmp_path']; concrete_inputs=['stale_software_dev.mkdir(True)', \"(stale_software_dev / 'mission.yaml').write_text('name: software-dev\\\\n', 'utf-8')\", 'templates.mkdir(True)', \"(templates / 'plan-template.md').write_text('# Plan\\\\n', 'utf-8')\", \"monkeypatch.setenv('SPEC_KITTY_TEMPLATE_ROOT')\"]; asserted_observables=['assert get_package_asset_root() == doctrine_missions']",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/kernel/test_paths.py::TestGetPackageAssetRoot::test_template_root_direct_legacy_missions_remaps_to_sibling_doctrine"
+    },
+    {
+      "authority": "specify_cli.cli.commands.agent.tasks_outline._is_pipe_table_task_row",
+      "binding": "_is_pipe_table_task_row",
+      "contract": "fixtures=[]; concrete_inputs=[\"_is_pipe_table_task_row('| T002 | description |', 'T001')\"]; asserted_observables=[\"assert _is_pipe_table_task_row('| T002 | description |', 'T001') is False\"]",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_no_match"
+    },
+    {
+      "authority": "kernel.paths.get_package_asset_root",
+      "binding": "get_package_asset_root",
+      "contract": "fixtures=['monkeypatch', 'tmp_path']; concrete_inputs=['command_templates.mkdir(True)', \"(command_templates / 'implement.md').write_text('# Implement\\\\n', 'utf-8')\", \"monkeypatch.setenv('SPEC_KITTY_TEMPLATE_ROOT')\"]; asserted_observables=['assert get_package_asset_root() == package_assets']",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/kernel/test_paths.py::TestGetPackageAssetRoot::test_template_root_legacy_package_asset_root_with_command_templates"
+    },
+    {
+      "authority": "specify_cli.cli.commands.agent.tasks_outline._is_pipe_table_task_row",
+      "binding": "_is_pipe_table_task_row",
+      "contract": "fixtures=[]; concrete_inputs=[\"_is_pipe_table_task_row('| T0012 | desc |', 'T001')\"]; asserted_observables=[\"assert _is_pipe_table_task_row('| T0012 | desc |', 'T001') is False\"]",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_partial_id_not_matched"
+    },
+    {
+      "authority": "kernel.paths.get_package_asset_root",
+      "binding": "get_package_asset_root",
+      "contract": "fixtures=['monkeypatch', 'tmp_path']; concrete_inputs=['packs_missions.mkdir(True)', 'template_templates.mkdir(True)', \"(template_templates / 'plan-template.md').write_text('# Plan\\\\n', 'utf-8')\", \"monkeypatch.setenv('SPEC_KITTY_PACKS_ROOT')\", \"monkeypatch.setenv('SPEC_KITTY_TEMPLATE_ROOT')\"]; asserted_observables=['assert get_package_asset_root() == packs_missions']",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/kernel/test_paths.py::TestGetPackageAssetRootPacksRoot::test_packs_root_wins_over_template_root"
+    },
+    {
+      "authority": "doctrine.shared.scoping.applies_to_languages_match",
+      "binding": "applies_to_languages_match",
+      "contract": "fixtures=[]; concrete_inputs=[\"applies_to_languages_match(['python'], [])\"]; asserted_observables=[\"assert applies_to_languages_match(['python'], []) is False\"]",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch::test_empty_active_scope_returns_false"
+    },
+    {
+      "authority": "doctrine.shared.scoping.normalize_languages",
+      "binding": "normalize_languages",
+      "contract": "fixtures=[]; concrete_inputs=['normalize_languages(None)']; asserted_observables=['assert normalize_languages(None) == ()']",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/doctrine/shared/test_scoping.py::TestNormalizeLanguages::test_none_returns_empty_tuple"
+    },
+    {
+      "authority": "specify_cli.core.git_ops.exclude_from_git_index",
+      "binding": "exclude_from_git_index",
+      "contract": "fixtures=['tmp_path']; concrete_inputs=[\"exclude_from_git_index(['.worktrees/'])\"]; asserted_observables=[\"assert not (non_repo / '.git').exists()\"]",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/git_ops/test_git_ops_unit.py::test_exclude_from_git_index_non_git_repo"
+    },
+    {
+      "authority": "glossary.pipeline.GlossaryMiddlewarePipeline.process",
+      "binding": "GlossaryMiddlewarePipeline.process",
+      "contract": "fixtures=[]; concrete_inputs=['GlossaryMiddlewarePipeline([])', \"pytest.raises('must not be None')\", 'pipeline.process(None)']; asserted_observables=[\"pytest.raises(ValueError, match='must not be None')\"]",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/agent/glossary/test_pipeline.py::TestPipelineErrorHandling::test_none_context_raises_value_error"
+    },
+    {
+      "authority": "doctrine.missions.primitives.PrimitiveExecutionContext.__post_init__",
+      "binding": "PrimitiveExecutionContext.__post_init__",
+      "contract": "fixtures=[]; concrete_inputs=[\"_make_context('tok-123')\"]; asserted_observables=[\"assert ctx.retry_token == 'tok-123'\", \"assert ctx.checkpoint_token == 'tok-123'\"]",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/doctrine/missions/test_primitives.py::TestTokenAliasing::test_retry_token_populates_checkpoint_token"
+    },
+    {
+      "authority": "doctrine.shared.scoping.normalize_languages",
+      "binding": "normalize_languages",
+      "contract": "fixtures=[]; concrete_inputs=[\"normalize_languages(['python', 'python', 'Python'])\", \"result.count('python')\"]; asserted_observables=[\"assert result.count('python') == 1\"]",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/doctrine/shared/test_scoping.py::TestNormalizeLanguages::test_deduplicates"
+    }
+  ],
+  "orchestrator_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-replay.py",
+  "orchestrator_sha256": "658d33bedc1c399ffc379e191c29ce7aeb6036f8b2145be1475e1e6ed1a708f4",
+  "passed_nodeids": [],
+  "runner_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py",
+  "runner_sha256": "dbb2a53398e39203d31eddf4001164b36830a67accde721107efb07d8da9c43e",
+  "schema_version": "wp04-replay-receipt/v1",
+  "selected_nodeids": [
+    "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch::test_non_matching_language_returns_false",
+    "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_bool_false_disables",
+    "tests/kernel/test_paths.py::TestGetPackageAssetRootPacksRoot::test_packs_root_without_missions_tree_fails_closed",
+    "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_null_falls_through_to_mission_config",
+    "tests/kernel/test_paths.py::TestGetPackageAssetRoot::test_template_root_existing_invalid_dir_raises",
+    "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_step_metadata_overrides_mission_config",
+    "tests/doctrine/missions/test_primitives.py::TestStrictnessResolution::test_invalid_strictness_returns_none",
+    "tests/kernel/test_paths.py::TestGetPackageAssetRoot::test_template_root_legacy_package_asset_root_with_mission_yaml",
+    "tests/architectural/test_shim_registry_schema.py::TestOptionalFields::test_missing_optional_fields_is_valid",
+    "tests/kernel/test_paths.py::TestGetPackageAssetRoot::test_template_root_direct_legacy_missions_remaps_to_sibling_doctrine",
+    "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_no_match",
+    "tests/kernel/test_paths.py::TestGetPackageAssetRoot::test_template_root_legacy_package_asset_root_with_command_templates",
+    "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_partial_id_not_matched",
+    "tests/kernel/test_paths.py::TestGetPackageAssetRootPacksRoot::test_packs_root_wins_over_template_root",
+    "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch::test_empty_active_scope_returns_false",
+    "tests/doctrine/shared/test_scoping.py::TestNormalizeLanguages::test_none_returns_empty_tuple",
+    "tests/git_ops/test_git_ops_unit.py::test_exclude_from_git_index_non_git_repo",
+    "tests/agent/glossary/test_pipeline.py::TestPipelineErrorHandling::test_none_context_raises_value_error",
+    "tests/doctrine/missions/test_primitives.py::TestTokenAliasing::test_retry_token_populates_checkpoint_token",
+    "tests/doctrine/shared/test_scoping.py::TestNormalizeLanguages::test_deduplicates"
+  ],
+  "spec_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-replay-spec.json",
+  "spec_sha256": "d4dc56fb8d526ff0a1bc751339803c63a88de3beda258ab79b34df637f616872",
+  "started_at": "2026-08-10T12:09:09.880173+00:00",
+  "stderr": "",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout": "FFFFFFFFFFFFFFFFFFFF                                                     [100%]\n=================================== FAILURES ===================================\n_____ TestAppliesToLanguagesMatch.test_non_matching_language_returns_false _____\ntests/doctrine/shared/test_scoping.py:78: in test_non_matching_language_returns_false\n    assert applies_to_languages_match([\"python\"], [\"rust\"]) is False\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n___________ TestGlossaryEnablementContract.test_bool_false_disables ____________\ntests/doctrine/missions/test_primitives.py:69: in test_bool_false_disables\n    assert ctx.is_glossary_enabled() is False\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n_ TestGetPackageAssetRootPacksRoot.test_packs_root_without_missions_tree_fails_closed _\ntests/kernel/test_paths.py:420: in test_packs_root_without_missions_tree_fails_closed\n    get_package_asset_root()\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n___ TestGlossaryEnablementContract.test_null_falls_through_to_mission_config ___\ntests/doctrine/missions/test_primitives.py:88: in test_null_falls_through_to_mission_config\n    assert ctx.is_glossary_enabled() is False\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n____ TestGetPackageAssetRoot.test_template_root_existing_invalid_dir_raises ____\ntests/kernel/test_paths.py:275: in test_template_root_existing_invalid_dir_raises\n    get_package_asset_root()\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n__ TestGlossaryEnablementContract.test_step_metadata_overrides_mission_config __\ntests/doctrine/missions/test_primitives.py:61: in test_step_metadata_overrides_mission_config\n    assert ctx.is_glossary_enabled() is False\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n________ TestStrictnessResolution.test_invalid_strictness_returns_none _________\ntests/doctrine/missions/test_primitives.py:122: in test_invalid_strictness_returns_none\n    assert ctx.mission_strictness is None\n           ^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:69: in <lambda>\n    return _replace_attr(owner, name, property(lambda _self: _fault()))\n                                                             ^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n_ TestGetPackageAssetRoot.test_template_root_legacy_package_asset_root_with_mission_yaml _\ntests/kernel/test_paths.py:257: in test_template_root_legacy_package_asset_root_with_mission_yaml\n    get_package_asset_root()\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n___________ TestOptionalFields.test_missing_optional_fields_is_valid ___________\ntests/architectural/test_shim_registry_schema.py:190: in test_missing_optional_fields_is_valid\n    validate_registry({\"shims\": [_entry()]})\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n_ TestGetPackageAssetRoot.test_template_root_direct_legacy_missions_remaps_to_sibling_doctrine _\ntests/kernel/test_paths.py:230: in test_template_root_direct_legacy_missions_remaps_to_sibling_doctrine\n    assert get_package_asset_root() == doctrine_missions\n           ^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n_____________________ test_is_pipe_table_task_row_no_match _____________________\ntests/specify_cli/cli/commands/agent/test_tasks_outline.py:87: in test_is_pipe_table_task_row_no_match\n    assert _is_pipe_table_task_row(\"| T002 | description |\", \"T001\") is False\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n_ TestGetPackageAssetRoot.test_template_root_legacy_package_asset_root_with_command_templates _\ntests/kernel/test_paths.py:243: in test_template_root_legacy_package_asset_root_with_command_templates\n    assert get_package_asset_root() == package_assets\n           ^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n______________ test_is_pipe_table_task_row_partial_id_not_matched ______________\ntests/specify_cli/cli/commands/agent/test_tasks_outline.py:97: in test_is_pipe_table_task_row_partial_id_not_matched\n    assert _is_pipe_table_task_row(\"| T0012 | desc |\", \"T001\") is False\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n___ TestGetPackageAssetRootPacksRoot.test_packs_root_wins_over_template_root ___\ntests/kernel/test_paths.py:438: in test_packs_root_wins_over_template_root\n    assert get_package_asset_root() == packs_missions\n           ^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n______ TestAppliesToLanguagesMatch.test_empty_active_scope_returns_false _______\ntests/doctrine/shared/test_scoping.py:72: in test_empty_active_scope_returns_false\n    assert applies_to_languages_match([\"python\"], []) is False\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n_____________ TestNormalizeLanguages.test_none_returns_empty_tuple _____________\ntests/doctrine/shared/test_scoping.py:31: in test_none_returns_empty_tuple\n    assert normalize_languages(None) == ()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n___________________ test_exclude_from_git_index_non_git_repo ___________________\ntests/git_ops/test_git_ops_unit.py:98: in test_exclude_from_git_index_non_git_repo\n    exclude_from_git_index(non_repo, [\".worktrees/\"])\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n________ TestPipelineErrorHandling.test_none_context_raises_value_error ________\ntests/agent/glossary/test_pipeline.py:270: in test_none_context_raises_value_error\n    pipeline.process(None)\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n________ TestTokenAliasing.test_retry_token_populates_checkpoint_token _________\ntests/doctrine/missions/test_primitives.py:155: in test_retry_token_populates_checkpoint_token\n    ctx = _make_context(retry_token=\"tok-123\")\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntests/doctrine/missions/test_primitives.py:34: in _make_context\n    return PrimitiveExecutionContext(**defaults)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n<string>:17: in __init__\n    ???\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n___________________ TestNormalizeLanguages.test_deduplicates ___________________\ntests/doctrine/shared/test_scoping.py:46: in test_deduplicates\n    result = normalize_languages([\"python\", \"python\", \"Python\"])\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n=========================== short test summary info ============================\nFAILED tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch::test_non_matching_language_returns_false\nFAILED tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_bool_false_disables\nFAILED tests/kernel/test_paths.py::TestGetPackageAssetRootPacksRoot::test_packs_root_without_missions_tree_fails_closed\nFAILED tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_null_falls_through_to_mission_config\nFAILED tests/kernel/test_paths.py::TestGetPackageAssetRoot::test_template_root_existing_invalid_dir_raises\nFAILED tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_step_metadata_overrides_mission_config\nFAILED tests/doctrine/missions/test_primitives.py::TestStrictnessResolution::test_invalid_strictness_returns_none\nFAILED tests/kernel/test_paths.py::TestGetPackageAssetRoot::test_template_root_legacy_package_asset_root_with_mission_yaml\nFAILED tests/architectural/test_shim_registry_schema.py::TestOptionalFields::test_missing_optional_fields_is_valid\nFAILED tests/kernel/test_paths.py::TestGetPackageAssetRoot::test_template_root_direct_legacy_missions_remaps_to_sibling_doctrine\nFAILED tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_no_match\nFAILED tests/kernel/test_paths.py::TestGetPackageAssetRoot::test_template_root_legacy_package_asset_root_with_command_templates\nFAILED tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_partial_id_not_matched\nFAILED tests/kernel/test_paths.py::TestGetPackageAssetRootPacksRoot::test_packs_root_wins_over_template_root\nFAILED tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch::test_empty_active_scope_returns_false\nFAILED tests/doctrine/shared/test_scoping.py::TestNormalizeLanguages::test_none_returns_empty_tuple\nFAILED tests/git_ops/test_git_ops_unit.py::test_exclude_from_git_index_non_git_repo\nFAILED tests/agent/glossary/test_pipeline.py::TestPipelineErrorHandling::test_none_context_raises_value_error\nFAILED tests/doctrine/missions/test_primitives.py::TestTokenAliasing::test_retry_token_populates_checkpoint_token\nFAILED tests/doctrine/shared/test_scoping.py::TestNormalizeLanguages::test_deduplicates\n20 failed in 45.43s\n",
+  "stdout_sha256": "e74ca151228fa599e89e55ba9858e86eca74d34ac4d98ed5d01ac3545a721e54",
+  "timed_out": false
+}

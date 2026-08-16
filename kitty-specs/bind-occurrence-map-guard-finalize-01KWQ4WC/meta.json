@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "59b16c8fc98529733eeb4340c0b6e8299dc82de1",
-  "coordination_branch": "kitty/mission-bind-occurrence-map-guard-finalize-01KWQ4WC",
   "created_at": "2026-07-04T18:05:04.520894+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Bind Occurrence-Map Guard at Finalize",
   "mission_id": "01KWQ4WCM8AB4XD3ARYMQ5X99C",
   "mission_number": 163,
@@ -14,7 +13,7 @@
   "slug": "bind-occurrence-map-guard-finalize-01KWQ4WC",
   "status_phase": "1",
   "target_branch": "feat/bind-occurrence-map-guard-finalize",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-04T19:15:59.980269+00:00"
 }

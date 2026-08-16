@@ -1,0 +1,429 @@
+schema_version: test-sanitation/v1
+
+_architectural_route: &architectural_route
+  route_id: architectural
+  role: owner
+  required: true
+  events: [local]
+  selector:
+    paths: [tests/architectural/]
+    markers: []
+    ignores: []
+    environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+
+_full_parallel_route: &full_parallel_route
+  route_id: full-parallel
+  role: owner
+  required: true
+  events: [local]
+  selector:
+    paths: [tests/]
+    markers: []
+    ignores: [tests/sync/test_orphan_sweep.py]
+    environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+
+_architectural_observation: &architectural_observation
+  environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+  nodeid: null
+  collection_state: collected
+  outcome: passed
+  skip_reason: null
+  markers: []
+  duration: {collection: 0.0, setup: 0.0, call: 0.0, cost_class: fast}
+  artifact_hash: ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988
+
+_full_parallel_observation: &full_parallel_observation
+  environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+  nodeid: null
+  collection_state: collected
+  outcome: passed
+  skip_reason: null
+  markers: []
+  duration: {collection: 0.0, setup: 0.0, call: 0.0, cost_class: fast}
+  artifact_hash: ad8113a5e77c06fe9febb8e2d36bb1f64515c121a4fc2072474a1868e582d988
+
+_review: &review
+  implementer: architect-alphonso/WP05
+  independent_reviewer: pending-WP05-review
+  verdict: implementation-complete-awaiting-review
+  timestamp: '2026-08-10T02:10:00Z'
+
+dispositions:
+  - candidate:
+      id: WP05-batch-drain-history-scaffold
+      members:
+        - tests/architectural/test_batch_drain_retired_3167.py::test_live_batch_symbols_are_still_visible
+        - tests/architectural/test_batch_drain_retired_3167.py::test_no_transmit_primitive_remains_in_batch
+        - tests/architectural/test_batch_drain_retired_3167.py::test_retired_drain_symbols_are_absent
+        - tests/architectural/test_batch_drain_retired_3167.py::test_watch_list_still_matches_the_frozen_manifest
+      granularity: function
+      source_paths: [tests/architectural/test_batch_drain_retired_3167.py]
+      production_paths: [src/specify_cli/sync]
+      oracle: No production module constructs or exports the retired queue-backed drain.
+      contract_claim: Current egress path must not reintroduce queue-backed drain construction.
+      authority:
+        - docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md
+        - tests/sync/test_no_queue_drain_constructed_3030.py
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: tests/architectural/test_batch_drain_retired_3167.py::test_live_batch_symbols_are_still_visible
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/sync/test_no_queue_drain_constructed_3030.py
+          result: Stronger survivor scans live src, rejects import/call construction, and checks public/lazy export surfaces.
+      causal_probe:
+        kind: equivalent-survivor-realistic-ast-fault
+        fault: Add a queue-backed drain import and invocation to a production-shaped sync module.
+        authority_violated: Queue-backed drain construction is retired from current sync egress.
+        act_reached: true
+        intended_oracle: The survivor reports the importing/calling production path.
+        intended_oracle_failed: true
+        command: Apply patch 241dddc5 in detached f8ab59dbe^ worktree; run exact survivor node; restore patch; rerun exact node.
+        environment: CPython 3.11 detached disposable worktree, cache disabled
+        raw_artifact_path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp05-probes/batch-drain.json
+        raw_artifact_hash: e2d7774f0e8c9d8d4bdf552e9451e4773fe5e51d002c46a9ebe34495257e702f
+    verdict: DELETE
+    state: terminal
+    action: Delete frozen symbol/count/history scaffold; keep stronger live negative invariant.
+    survivor: tests/sync/test_no_queue_drain_constructed_3030.py
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP05-contract-registry-historical-parity-driver
+      members:
+        - tests/architectural/test_contract_registry_parity.py::test_path_gate_still_blocks_planted_and_passes_benign
+        - tests/architectural/test_contract_registry_parity.py::test_path_literal_driver_is_superset_over_comment_line
+        - tests/architectural/test_contract_registry_parity.py::test_path_literal_driver_matches_enforcing_gate_over_divergence_free_envelope
+        - tests/architectural/test_contract_registry_parity.py::test_terminology_driver_matches_enforcing_gate_over_divergence_free_envelope
+        - tests/architectural/test_contract_registry_parity.py::test_terminology_gate_still_blocks_planted_and_passes_benign
+      granularity: function
+      source_paths: [tests/architectural/test_contract_registry_parity.py]
+      production_paths: []
+      oracle: null
+      contract_claim: null
+      authority: [kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: tests/architectural/test_contract_registry_parity.py::test_path_gate_still_blocks_planted_and_passes_benign
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+          result: Historical parity/comparison drivers are not permanent guards without current product authority.
+      causal_probe:
+        kind: non-causal-driver-probe
+        fault: Change an enforcing path/terminology gate while leaving its private comparison driver unchanged.
+        authority_violated: The enforcing consumer, not the advisory parity driver, owns the current oracle.
+        act_reached: true
+        intended_oracle: Product-shaped gate tests fail independently; driver agreement does not establish product correctness.
+        intended_oracle_failed: true
+        command: Apply patch ca9d643a in detached f8ab59dbe^ worktree; run contract parity plus exact live terminology gate; restore; rerun.
+        environment: CPython 3.11 detached disposable worktree, cache disabled
+        raw_artifact_path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp05-probes/contract-parity.json
+        raw_artifact_hash: 69e5e8fd1ba2d4fda18c3924444103a009b871d3bf54101fd5e736e95e9151df
+    verdict: DELETE
+    state: terminal
+    action: Delete historical parity driver duplicated by enforcing consumer tests.
+    survivor: null
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP05-golden-count-prose-ratchet
+      members:
+        - tests/architectural/test_golden_count_ban.py::test_baseline_file_exists_and_parses
+        - tests/architectural/test_golden_count_ban.py::test_convert_counts_by_dir_excludes_escaped_and_keep_sites
+        - tests/architectural/test_golden_count_ban.py::test_convert_sites_do_not_exceed_frozen_baseline
+        - tests/architectural/test_golden_count_ban.py::test_dynamic_runtime_measured_quantity_is_kept
+        - tests/architectural/test_golden_count_ban.py::test_escape_hatch_on_own_line_excludes_site
+        - tests/architectural/test_golden_count_ban.py::test_fresh_unannotated_golden_count_is_classified_convert
+        - tests/architectural/test_golden_count_ban.py::test_fresh_unannotated_site_in_new_directory_fails_ratchet
+        - tests/architectural/test_golden_count_ban.py::test_site_within_frozen_ceiling_passes_ratchet
+        - tests/architectural/test_golden_count_ban.py::test_zero_length_check_is_always_kept
+      granularity: function
+      source_paths: [tests/architectural/test_golden_count_ban.py]
+      production_paths: []
+      oracle: null
+      contract_claim: null
+      authority: [kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: tests/architectural/test_golden_count_ban.py::test_baseline_file_exists_and_parses
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+          result: Exact counts and heuristic source prose require current product authority and a plausible product fault; neither exists here.
+      causal_probe:
+        kind: behavior-preserving-count-change
+        fault: Add a legitimate measured count assertion in a new test directory without changing product behavior.
+        authority_violated: No product authority is violated; only the frozen heuristic ceiling changes.
+        act_reached: true
+        intended_oracle: Product behavior remains green while the structural count ratchet fails.
+        intended_oracle_failed: true
+        command: Apply patch 2937c3d2 in detached f8ab59dbe^ worktree; run exact count gate; restore; rerun.
+        environment: CPython 3.11 detached disposable worktree, cache disabled
+        raw_artifact_path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp05-probes/shape-ratchets-combined.json
+        raw_artifact_hash: 171e90f915ef970184c29156b05ec1a4fed312760404b3553be008404d2648b1
+    verdict: DELETE
+    state: terminal
+    action: Delete heuristic prose classifier and frozen directory-count ceilings.
+    survivor: null
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP05-mission-exit-self-census-floor
+      members:
+        - tests/architectural/test_mission_exit_baseline.py::test_baseline_file_is_non_empty
+        - tests/architectural/test_mission_exit_baseline.py::test_committed_floor_present_in_live_collection
+        - tests/architectural/test_mission_exit_baseline.py::test_growth_is_not_a_violation
+        - tests/architectural/test_mission_exit_baseline.py::test_identical_sets_pass
+        - tests/architectural/test_mission_exit_baseline.py::test_known_baseline_failure_pin
+        - tests/architectural/test_mission_exit_baseline.py::test_known_baseline_pins_are_in_the_floor
+        - tests/architectural/test_mission_exit_baseline.py::test_shrink_detection_fault_injection
+      granularity: function
+      source_paths: [tests/architectural/test_mission_exit_baseline.py]
+      production_paths: []
+      oracle: null
+      contract_claim: null
+      authority: [kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-016]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: tests/architectural/test_mission_exit_baseline.py::test_baseline_file_is_non_empty
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-016
+          result: Historical WP/mission proof and node-count floors are explicitly non-permanent.
+      causal_probe:
+        kind: behavior-preserving-suite-reduction
+        fault: Delete a spent historical test while preserving all current product oracles.
+        authority_violated: No product authority is violated; the self-census floor forbids legitimate sanitation.
+        act_reached: true
+        intended_oracle: Focused current behavior remains green while baseline subset comparison fails.
+        intended_oracle_failed: true
+        command: Apply patch 2937c3d2 behavior-preserving node rename in detached f8ab59dbe^ worktree; run exact floor; restore; rerun.
+        environment: CPython 3.11 detached disposable worktree, cache disabled
+        raw_artifact_path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp05-probes/shape-ratchets-combined.json
+        raw_artifact_hash: 171e90f915ef970184c29156b05ec1a4fed312760404b3553be008404d2648b1
+    verdict: DELETE
+    state: terminal
+    action: Delete historical collected-node floor and its known-failure pins.
+    survivor: null
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP05-advisory-retired-contract-sweep
+      members:
+        - tests/architectural/test_retired_contracts_absent.py::test_loader_accepts_benign_fragment_join
+        - tests/architectural/test_retired_contracts_absent.py::test_loader_rejects_fragment_join_file_line
+        - tests/architectural/test_retired_contracts_absent.py::test_retired_anchors_absence_sweep_is_advisory
+        - tests/architectural/test_retired_contracts_absent.py::test_seeded_anchors_are_content_not_file_line
+        - tests/architectural/test_retired_contracts_absent.py::test_sweep_flags_planted_reappearance_of_each_seeded_record
+        - tests/architectural/test_retired_contracts_absent.py::test_sweep_flags_symbol_anchor_reappearance
+        - tests/architectural/test_retired_contracts_absent.py::test_sweep_respects_exemptions_no_over_flag
+      granularity: function
+      source_paths: [tests/architectural/test_retired_contracts_absent.py]
+      production_paths: []
+      oracle: null
+      contract_claim: null
+      authority: [kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: tests/architectural/test_retired_contracts_absent.py::test_retired_anchors_absence_sweep_is_advisory
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/architectural/test_retired_contracts_absent.py::test_retired_anchors_absence_sweep_is_advisory
+          result: Live findings are only record_property diagnostics; no assertion consumes or fails on them.
+      causal_probe:
+        kind: advisory-non-causality
+        fault: Reintroduce a seeded retired anchor in a live scanned file.
+        authority_violated: The scanner identifies a finding but its production-facing test does not enforce it.
+        act_reached: true
+        intended_oracle: A required negative invariant must fail; advisory record_property remains green instead.
+        intended_oracle_failed: true
+        command: Apply patch 2937c3d2 with live retired anchor; run advisory node; restore; rerun.
+        environment: CPython 3.11 detached disposable worktree, cache disabled
+        raw_artifact_path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp05-probes/shape-ratchets-combined.json
+        raw_artifact_hash: 171e90f915ef970184c29156b05ec1a4fed312760404b3553be008404d2648b1
+    verdict: DELETE
+    state: terminal
+    action: Delete never-fail advisory sweep and self-tests of its private scanner.
+    survivor: null
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP05-write-target-positive-shape-scaffold
+      members:
+        - tests/architectural/test_wp05_write_target_drain.py::test_drained_selector_token_no_longer_present_in_source
+        - tests/architectural/test_wp05_write_target_drain.py::test_fallback_still_short_circuits_to_coord_branch_when_present
+        - tests/architectural/test_wp05_write_target_drain.py::test_negative_probe_no_longer_reaches_current_branch_when_placement_unresolvable
+        - tests/architectural/test_wp05_write_target_drain.py::test_real_unresolvable_slug_never_reaches_the_except_arm_at_all
+      granularity: function
+      source_paths: [tests/architectural/test_wp05_write_target_drain.py]
+      production_paths: [src/specify_cli/coordination/status_transition.py]
+      oracle: Write targets remain CWD-invariant and resolve from stored mission topology.
+      contract_claim: Current write-side behavior must not fall back to Git HEAD.
+      authority:
+        - docs/adr/3.x/2026-06-22-1-mission-topology-ssot.md
+        - docs/adr/3.x/2026-06-24-2-write-branch-resolution-primary-anchor.md
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: tests/architectural/test_wp05_write_target_drain.py::test_drained_selector_token_no_longer_present_in_source
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/specify_cli/write_side/test_characterization_write_target.py::test_mutation_reintroducing_git_head_selector_keeps_oracle_red
+          result: Behavioral survivor detects realistic Git-HEAD selector reintroduction without pinning helper existence or source tokens.
+      causal_probe:
+        kind: equivalent-survivor-behavioral-fault
+        fault: Reintroduce Git HEAD as write-target selector while stored topology points elsewhere.
+        authority_violated: Stored topology and ExecutionContext own write-target resolution.
+        act_reached: true
+        intended_oracle: Behavioral mutation test remains red and names target divergence.
+        intended_oracle_failed: true
+        command: Apply patch 2937c3d2 with Git-HEAD selector reintroduction; run behavioral survivor; restore; rerun.
+        environment: CPython 3.11 detached disposable worktree and temporary Git repository
+        raw_artifact_path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp05-probes/shape-ratchets-combined.json
+        raw_artifact_hash: 171e90f915ef970184c29156b05ec1a4fed312760404b3553be008404d2648b1
+    verdict: DELETE
+    state: terminal
+    action: Delete source-token/test-only-helper scaffold and retain behavioral write-target oracle.
+    survivor: tests/specify_cli/write_side/test_characterization_write_target.py
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP05-private-name-parity-scaffold
+      members:
+        - tests/architectural/test_no_parity_scaffold.py::test_no_parity_scaffold_artifact_survives
+        - tests/architectural/test_no_parity_scaffold.py::test_plan_legacy_selector_is_confined_to_typeless_compatibility_branch
+        - tests/architectural/test_no_parity_scaffold.py::test_production_readers_use_configured_mapping_seam
+        - tests/architectural/test_no_parity_scaffold.py::test_scaffold_bytecode_is_not_hidden_by_self_artifact_exception
+        - tests/architectural/test_no_parity_scaffold.py::test_typeless_guard_helper_rejects_inverse_mutation
+        - tests/architectural/test_no_parity_scaffold.py::test_typeless_guard_helper_rejects_wrong_receiver
+      granularity: function
+      source_paths: [tests/architectural/test_no_parity_scaffold.py]
+      production_paths: [src/specify_cli/cli/commands/agent/mission_setup_plan.py]
+      oracle: Configured template mapping is used for typed missions; typeless missions alone take legacy selection.
+      contract_claim: Plan-template selection behavior must preserve configured and typeless branches independent of private local names.
+      authority:
+        - tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py::test_resolve_plan_template_uses_context_and_configured_seam
+        - tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py::test_resolve_plan_template_preserves_missing_meta_legacy_boundary
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: tests/architectural/test_no_parity_scaffold.py::test_plan_legacy_selector_is_confined_to_typeless_compatibility_branch
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py
+          result: Two behavioral nodes execute both authoritative plan-template branches without inspecting private AST names.
+      causal_probe:
+        kind: behavior-preserving-private-local-rename
+        fault: Rename resolved_mission_type to resolved_context consistently inside plan-template selection.
+        authority_violated: No product authority is violated; both configured and typeless behavioral nodes pass.
+        act_reached: true
+        intended_oracle: A valid structural guard should remain green under a private local rename.
+        intended_oracle_failed: true
+        command: Apply patch db326e55 in detached f8ab59dbe^ worktree; run old AST node plus two behavioral nodes; restore; rerun all three.
+        environment: CPython 3.11 detached disposable worktree, cache disabled
+        raw_artifact_path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp05-probes/private-name-plan.json
+        raw_artifact_hash: 676a2e5c77a1c100f4056ec34aab416a68181d592f27d3795f631bc729531bfc
+    verdict: DELETE
+    state: terminal
+    action: Delete exact-name AST and self-presence scaffold; retain direct configured/typeless behavioral coverage.
+    survivor: tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP05-retrospective-constant-placement-scaffold
+      members:
+        - tests/core/test_retrospective_filename_constant.py::test_no_bare_literal_in_hoisted_modules
+        - tests/core/test_retrospective_filename_constant.py::test_retrospective_filename_constant_value
+        - tests/core/test_retrospective_filename_constant.py::test_retrospective_filename_in_all
+      granularity: function
+      source_paths: [tests/core/test_retrospective_filename_constant.py]
+      production_paths: []
+      oracle: null
+      contract_claim: null
+      authority: [kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006]
+      duplicate_group: null
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *full_parallel_observation
+          nodeid: tests/core/test_retrospective_filename_constant.py::test_no_bare_literal_in_hoisted_modules
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: docs/adr/3.x/2026-05-19-1-retrospective-default-policy-architecture.md
+          result: Retrospective behavior is authoritative; constant export/name/literal placement is not prescribed.
+      causal_probe:
+        kind: behavior-preserving-refactor
+        fault: Inline, rename, or move the retrospective filename constant while preserving every reader/writer result.
+        authority_violated: No behavioral authority is violated; only positive shape and literal-location assertions fail.
+        act_reached: true
+        intended_oracle: Retrospective behavioral consumers stay green while the placement scaffold fails.
+        intended_oracle_failed: true
+        command: Apply patch 7a194861 behavior-preserving constant rename in detached f8ab59dbe^ worktree; run old shape guard plus behavioral round-trip; restore; rerun.
+        environment: CPython 3.11 detached disposable worktree, cache disabled
+        raw_artifact_path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp05-probes/retrospective-constant.json
+        raw_artifact_hash: fb3bb6a679d7ae7312ce59205ad51bda9d0e05d36f67eb30740d396310b6591d
+    verdict: DELETE
+    state: terminal
+    action: Delete positive constant value/export/literal-placement scaffold.
+    survivor: null
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review

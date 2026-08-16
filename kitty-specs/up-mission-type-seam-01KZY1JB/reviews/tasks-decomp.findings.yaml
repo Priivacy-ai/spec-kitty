@@ -1,0 +1,72 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: decomp
+mission: up-mission-type-seam-01KZY1JB
+findings:
+  - id: TASKS-DECOMP-001
+    lens: "Work packages single-concern and reviewable in one sitting — concrete, non-re-derivable descriptions"
+    severity: 3
+    title: WP01's Branch Strategy cites a "tasks.md's PR-shape section" that does not exist anywhere in this mission
+    evidence:
+      - artifact: "tasks/WP01-adr-availability-slice.md § Branch Strategy, lines 121-123"
+      - artifact: "tasks.md (full file, 82 lines) — auto-generated WP list only, no prose section on PR shape"
+      - artifact: "plan.md — grepped for 'PR shape'/'PR-shape'/'single PR'; the only 'this PR' hits are inside the Gate Set table (lines 497, 503, 526), never a dedicated reasoned section"
+    claim: >
+      WP01's Branch Strategy section states: "the mission's own `target_branch` (`meta.json`)
+      is `main` — the coordination branch is where WP work lands first, `main` is where the
+      mission's single PR eventually targets (see `tasks.md`'s PR-shape section)." No such
+      section exists: `tasks.md` is the finalize-tasks-generated WP manifest (title + WP01-WP07
+      one-paragraph blocks only, verified by reading the full 82-line file) and contains zero
+      prose about PR shape. `plan.md` likewise never states or reasons about "ship as one PR"
+      as an explicit, named decision — it only assumes "this PR" implicitly throughout the Gate
+      Set's coverage-scoping discussion. This is exactly the check my lens instructs me to make
+      ("If the mission is shipping one PR — tasks.md's own stated recommendation — check it
+      states this explicitly and reasons about it"): it does not. The single-PR shape is real
+      (it is the `sk-implement` skill's stated default: "One PR per mission by default"), but
+      no artifact in this mission actually documents or reasons about that choice, and WP01
+      points a future reader at a section that was never authored. This is the one WP file in
+      the mission that carries this extra sentence — WP02–WP07's Branch Strategy sections use
+      the shorter boilerplate without it (verified: only WP01-adr-availability-slice.md matches
+      `grep -rn "PR-shape" tasks/`).
+    remediation: >
+      Either (a) delete the dangling "(see `tasks.md`'s PR-shape section)" clause from WP01's
+      Branch Strategy and replace it with a real citation (e.g. the `sk-implement` skill's
+      one-PR-per-mission default, or a newly-authored short "PR shape" note added to tasks.md
+      itself explaining why this L-sized, 7-WP mission ships as one PR rather than per-WP PRs),
+      or (b) actually author the referenced section in tasks.md with the stated reasoning, so
+      the citation resolves. Do not leave a WP prompt pointing at a section a future implementer
+      or reviewer cannot find.
+
+  - id: TASKS-DECOMP-002
+    lens: "Work packages single-concern and reviewable in one sitting — no padding, no vacuous tasks, complete/concrete descriptions"
+    severity: 3
+    title: WP07 prompt body defines and repeatedly cites Subtask T020 (the mission's SC-001 capstone test), but T020 is absent from WP07's own declared subtask registry everywhere else
+    evidence:
+      - artifact: "tasks/WP07-cli-surface-fixes.md frontmatter, line 18-22 (`subtasks: [T016, T017, T018, T019]`)"
+      - artifact: "tasks/WP07-cli-surface-fixes.md § Subtask T020 (capstone), lines 225-242 — full subtask definition, referenced again at lines 246, 254, 305"
+      - artifact: "wps.yaml § WP07, line 221-225 (`subtasks: [T016, T017, T018, T019]`)"
+      - artifact: "tasks.md § WP07, line 78 (`**Subtasks**: T016, T017, T018, T019`)"
+    claim: >
+      WP07's own prompt body defines "Subtask T020 (capstone) – SC-001 end-to-end regression
+      test" (lines 225-242) and describes it as the mission's own headline proof: "the mission's
+      own headline success criterion, assembled last." The Test Strategy section (line 246) and
+      Review Guidance (line 305) both cite T020 as load-bearing for SC-001. Yet T020 appears in
+      none of the three places a WP's subtask list is otherwise recorded: WP07's own YAML
+      frontmatter `subtasks:` field, `wps.yaml`'s WP07 entry, or `tasks.md`'s generated WP07
+      summary — all three list exactly T016-T019 and stop there (verified by grep across all
+      three files: `T020` appears only inside the WP07 markdown body, never in a `subtasks:`
+      list anywhere in the mission). Any tooling or reviewer that enumerates "this WP's
+      subtasks" from the structured frontmatter/manifest (rather than reading the full prose
+      body) will not see the capstone test as a tracked unit of work, even though it is the
+      mission's own stated proof of SC-001 ("An org-pack mission type... resolves through
+      `mission create`, `charter mission-type list`, `mission-type show`, and `doctrine
+      mission-type list` with correct, non-empty, non-`"unknown"` output... verified by an
+      end-to-end regression test exercising all four" — spec.md SC-001).
+    remediation: >
+      Add `T020` to WP07's frontmatter `subtasks:` list and to `wps.yaml`'s WP07
+      `subtasks:` list (and regenerate `tasks.md`'s WP07 summary line via
+      `spec-kitty agent mission finalize-tasks` or the equivalent tasks-packages step) so the
+      capstone test is a first-class, trackable subtask consistent everywhere the mission
+      records WP07's scope of work, not only inside the prose body.

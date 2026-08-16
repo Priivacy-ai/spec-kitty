@@ -1,0 +1,226 @@
+# R2 — mechanical merge/dedup of pr.boundary.findings.yaml, pr.contract.findings.yaml,
+# pr.tests.findings.yaml. No two findings cited the same artifact section or file:line
+# with substantially the same claim, so no dedup collapse occurred — all 4 source findings
+# pass through unchanged, ids preserved, nothing renumbered.
+schema: review-merged/v1
+complete: true
+phase: pr
+mission: org-activation-scan-dirs-01KZY1PT
+source_files:
+  - reviews/pr.boundary.findings.yaml
+  - reviews/pr.contract.findings.yaml
+  - reviews/pr.tests.findings.yaml
+findings:
+  - id: PR-BOUNDARY-001
+    lens_group: boundary
+    lens: layout-authority consistency
+    severity: 3
+    title: >-
+      "kept only for backward compatibility" docstring claim is inaccurate --
+      the live loader (doctrine.base.BaseDoctrineRepository / DoctrineService)
+      has never read from an org pack's <root>/<plural>/built-in/ subdirectory,
+      before or after this diff
+    evidence:
+      - artifact: "diff origin/main...HEAD"
+      - code: "src/charter/kind_vocabulary.py:206-217 (_org_scan_dirs docstring: 'the legacy <root>/<plural>/built-in layout ... kept only for backward compatibility')"
+      - code: "src/doctrine/service.py:47-55 (DoctrineService._org_dirs returns [root / artifact for root in self._org_roots] -- one flat dir per root, no built-in-subdir concept at all)"
+      - code: "src/doctrine/base.py:153-159 (_project_scan default is non-recursive `project_dir.glob(self._glob)`; no subclass in src/doctrine/*.py overrides it, verified via grep)"
+      - code: "src/doctrine/base.py:227-260 (_apply_overlay_layer, used for both org and project layers, calls self._project_scan(overlay_dir) -- so org dirs are ALWAYS scanned non-recursively, never via rglob)"
+      - code: "src/doctrine/base.py:364-366 (_load calls self._apply_overlay_layer(self._org_dirs, 'org', ...) -- org_dirs sourced from DoctrineService._org_dirs, i.e. flat dirs only)"
+    claim: >-
+      _org_scan_dirs's new docstring (kind_vocabulary.py:206-217) and the
+      _scan_roots docstring (kind_vocabulary.py:158-164) both assert the
+      legacy <root>/<plural>/built-in scan is retained "for backward
+      compatibility" -- language that implies real org packs, or the real
+      loader, once relied on that shape and still might. Verified against
+      the actual live loader: DoctrineService._org_dirs (service.py:47-55)
+      only ever constructs `<root>/<artifact>` (flat), and
+      BaseDoctrineRepository's org-layer application
+      (_apply_overlay_layer -> _project_scan, base.py:153-159/227-260) is
+      always a non-recursive glob directly on that flat directory -- no
+      subclass overrides _project_scan to use rglob, so this holds for
+      every kind, not just some. The live loader has therefore NEVER read
+      an org pack's nested built-in/ subdirectory, either before or after
+      this diff (confirmed the pre-diff _org_scan_dirs already made the
+      identical unverified claim -- origin/main:src/charter/kind_vocabulary.py:200-209
+      said "this nested layout is still live for org packs", which was
+      already false). kind_vocabulary.py's resolve_artifact_urn /
+      resolve_config_id now assert (and the new tests pin as contractual
+      behavior, e.g. test_legacy_only_dir_returned_recursive) that an org
+      artifact placed under <root>/<plural>/built-in/ is a valid,
+      resolvable location -- i.e. two competing definitions of "where org
+      artifacts live" (flat, matching the loader; and nested built-in/,
+      matching nothing the loader implements). An org-pack author who
+      structures their pack like a built-in pack (nested under built-in/,
+      by analogy with how built-in tactics/styleguides/toolguides are laid
+      out) would see `charter activate` succeed via kind_vocabulary's URN
+      resolution + a DRG graph fragment, while the artifact's actual
+      content silently never loads through DoctrineService -- the exact
+      "activation succeeds, content quietly missing" defect class this
+      mission was chartered to close, now left open for the nested-legacy
+      shape. This is not a new regression (the mismatch between
+      kind_vocabulary's org resolution and base.py's org loading predates
+      this diff for the nested case), but the diff had the loader-vs-module
+      comparison in hand (it cites DoctrineService._org_dirs and
+      BaseDoctrineRepository by name to justify the flat fix) and chose to
+      keep, rather than correct or flag, the inaccurate "backward
+      compatibility" framing for the part that still doesn't match the
+      loader.
+    remediation: >-
+      Either (a) drop the legacy nested-built-in scan from _org_scan_dirs
+      entirely, since no real org pack uses it and the live loader has
+      never supported it -- collapsing kind_vocabulary's org resolution to
+      the single flat definition that actually matches DoctrineService /
+      BaseDoctrineRepository (directive 044, canonical single-surface); or
+      (b) if the nested scan must be retained for some concrete backward-
+      compatibility need, correct the docstring to say plainly that this
+      shape is NOT, and never was, loaded by the live doctrine loader
+      (DoctrineService/BaseDoctrineRepository), so a config-stem resolving
+      successfully via this path does not guarantee the artifact's content
+      is actually usable at runtime -- and file a follow-up issue to close
+      that gap (e.g. reject/warn on nested-only org artifacts at activation
+      time) rather than silently legitimizing it as an equally-valid
+      location.
+
+  - id: PR-BOUNDARY-002
+    lens_group: boundary
+    lens: first-match-wins ordering
+    severity: 3
+    title: >-
+      Flat-wins precedence guarantee (FR-001) holds only within a single org
+      root; with multiple org roots, a legacy built-in/ file in an earlier
+      root can still win over a flat file in a later root, contradicting the
+      documented and tested contract
+    evidence:
+      - artifact: "diff origin/main...HEAD"
+      - code: "src/charter/kind_vocabulary.py:203-227 (_org_scan_dirs: for root in org_roots: appends (flat, False) then (legacy, True) -- interleaved per root, not grouped flat-then-legacy globally)"
+      - code: "src/charter/kind_vocabulary.py:249-268 (_iter_artifact_paths iterates _scan_roots()'s dirs in order, sorted(matches) applied only within each scan_dir, not globally)"
+      - code: "src/charter/kind_vocabulary.py:271-318 (resolve_artifact_urn returns on the first _config_stem match in that combined, per-scan-dir-ordered list)"
+      - code: "tests/charter/test_kind_vocabulary_scan_roots.py:203-232 (test_same_config_stem_precedence_flat_wins exercises only a SINGLE org root -- 'never a result that depends on incidental scan order' is asserted but not tested for >1 org root)"
+      - artifact: "empirical repro: resolve_artifact_urn(DIRECTIVE, stem, org_roots=[rootA, rootB]) with rootA having only <rootA>/directives/built-in/<stem>.directive.yaml (id: DIRECTIVE_LEGACY_A) and rootB having only <rootB>/directives/<stem>.directive.yaml (id: DIRECTIVE_FLAT_B, flat) returns 'directive:DIRECTIVE_LEGACY_A' -- the legacy entry from the earlier root wins over the flat entry from the later root"
+    claim: >-
+      _org_scan_dirs builds its dir list per org root, in order (flat_1,
+      legacy_1, flat_2, legacy_2, ...) rather than grouping all flat dirs
+      before all legacy dirs across roots. _iter_artifact_paths then
+      concatenates each scan_dir's own sorted() matches in that same
+      per-root-interleaved order, and resolve_artifact_urn returns on the
+      first config-stem match in the combined list. The module's own
+      docstring and the new unit test both assert flat-always-wins as a
+      global precedence rule ("FR-001's precedence rule", "never a result
+      that depends on incidental scan order" -- kind_vocabulary.py:214-217,
+      test_kind_vocabulary_scan_roots.py:203-208), but that guarantee is
+      only actually established for a same-config-stem collision within one
+      org root. multi-org-root configuration is a real, live shape in this
+      codebase (PackContext.org_roots = pack_roots[1:], consumed by
+      src/charter/consistency_check.py and src/charter/drg.py, both of
+      which call resolve_artifact_urn with a multi-element org_roots list),
+      so this is not a purely hypothetical edge case: with two org packs,
+      one still using the legacy nested built-in/ layout and another using
+      the flat layout, a same-config-stem collision across the two packs
+      resolves to whichever pack's directory happens to sort earlier in
+      org_roots, and can pick the legacy file over the flat one --
+      contradicting the documented invariant. Verified empirically (see
+      evidence): with org_roots=[rootA (legacy-only), rootB (flat-only)]
+      and a colliding stem, resolve_artifact_urn returns rootA's legacy
+      artifact's ID, not rootB's flat one.
+    remediation: >-
+      Change _org_scan_dirs (or _scan_roots) to group by scan-shape across
+      all org roots rather than interleaving per root -- e.g. first append
+      every org root's flat dir (in org_roots order), then every org root's
+      legacy dir (in org_roots order) -- so that within the org-roots
+      contribution to _scan_roots, all flat entries are guaranteed to
+      precede all legacy entries regardless of root count or ordering. Add
+      a regression test with >=2 org_roots and a same-config-stem collision
+      straddling a flat dir in one root and a legacy dir in another, in
+      both root orderings, asserting the flat file always wins.
+
+  - id: PR-CONTRACT-001
+    lens_group: contract
+    lens: architectural single-authority ratchet (line-pinned allowlist)
+    severity: 4
+    title: >-
+      The diff moves the org-tier "built-in" filesystem join to a new source
+      line without updating the exact-(file,lineno) allowlist entry that
+      pins it in tests/architectural/test_built_in_location_authority.py,
+      so that CI ratchet test will fail on this branch
+    evidence:
+      - artifact: "diff origin/main...HEAD"
+      - code: "src/charter/kind_vocabulary.py:224 (post-diff: `legacy = flat / \"built-in\"`, a `<path> / \"built-in\"` filesystem-join BinOp)"
+      - code: "tests/architectural/test_built_in_location_authority.py:206 (`_KNOWN_JOIN_ALLOWLIST` entry: `(Path(\"src/charter/kind_vocabulary.py\"), 206)` -- pinned to the OLD line, last refreshed 2026-08-11 per the entry's own comment: \"the join was extracted out of _scan_roots into _org_scan_dirs ... moving it from line 183 to 206\")"
+      - code: "tests/architectural/test_built_in_location_authority.py:270-298 (_find_builtin_joins: flags any `ast.BinOp` with `op=Div` whose right operand is the `ast.Constant` \"built-in\" -- explicitly designed to catch variable-indirected joins like `flat / \"built-in\"`, not just the direct `root / kind.plural / \"built-in\"` chain)"
+      - code: "tests/architectural/test_built_in_location_authority.py:305-325 (test_no_builtin_path_joins_outside_pack_paths_authority: `remaining = sorted(lineno for lineno in offending_lines if (rel, lineno) not in _KNOWN_JOIN_ALLOWLIST)`; fails if `remaining` is non-empty)"
+      - artifact: "empirical AST verification (python3, no pytest/uv invocation, no tree mutation): parsed the current src/charter/kind_vocabulary.py with the stdlib ast module and re-implemented the test's exact BinOp/Constant('built-in') detection -- confirmed the sole offending join in this file is now at line 224, not 206"
+    claim: >-
+      Pre-diff, `_org_scan_dirs` built its one candidate directory as a
+      single chained join `root / kind.plural / "built-in"` at line 206 of
+      origin/main:src/charter/kind_vocabulary.py (confirmed via `git show
+      origin/main:src/charter/kind_vocabulary.py | grep -n "candidate = root"`
+      -> line 206), which is exactly the line the architectural ratchet's
+      `_KNOWN_JOIN_ALLOWLIST` names as the one deliberately-exempted
+      org-tier "built-in" join in this file. The diff splits that single
+      join into two statements -- `flat = root / kind.plural` (line 221,
+      not itself a "built-in" join, so it is invisible to the C3.1 filesystem-
+      join limb) and `legacy = flat / "built-in"` (line 224, which IS a
+      `<path> / "built-in"` filesystem join and gets flagged). The
+      allowlist entry was not moved to the new line. Since the allowlist
+      check is `(rel, lineno) not in _KNOWN_JOIN_ALLOWLIST` with an exact
+      line-number key (not a per-file exemption, by explicit design --
+      "Each site below is allowlisted by exact (file, lineno), not by file,
+      so any FUTURE join added to these files still fails the gate"), the
+      newly-relocated join at line 224 is treated as an undocumented sixth
+      resolver being reborn and `test_no_builtin_path_joins_outside_pack_paths_authority`
+      will fail on this branch. This is a real, mechanical regression this
+      diff introduces (verified by re-running the test's own AST-detection
+      logic directly against the post-diff file with a standalone python3
+      script -- no pytest/uv invocation was needed or used, respecting the
+      run constraint), not a hypothetical: the allowlist comment itself
+      documents that this exact site was "FRESHENED 2026-08-11 (#3317
+      landing)" the last time its line number drifted, establishing that
+      this file is actively watched and expected to be kept in sync on
+      every touch.
+    remediation: >-
+      Update the `_KNOWN_JOIN_ALLOWLIST` entry in
+      tests/architectural/test_built_in_location_authority.py from
+      `(Path("src/charter/kind_vocabulary.py"), 206)` to
+      `(Path("src/charter/kind_vocabulary.py"), 224)` (the new location of
+      the `flat / "built-in"` join), and refresh the adjacent "FRESHENED"
+      comment to record this mission's landing and the new rationale (the
+      join now reads the pre-existing `flat` variable rather than
+      re-deriving `root / kind.plural` inline, but is otherwise the same
+      org-tier legacy-shape join this allowlist entry has always covered).
+      Confirm with `uv run pytest tests/architectural/test_built_in_location_authority.py -q`
+      once the shared-venv lock contention (#3283) clears, outside this
+      squad's restricted run window.
+
+  - id: PR-TESTS-001
+    lens_group: tests
+    lens: "mission-specific lens 4 (function-body-only revert of _org_scan_dirs)"
+    severity: 2
+    title: "test_neither_dir_present_returns_empty_list does not regress under a function-body-only revert -- non-discriminating, and duplicates pre-existing coverage"
+    evidence:
+      - artifact: "empirical: git diff against src/charter/kind_vocabulary.py, function body only, reverted to origin/main shape (candidate = root / kind.plural / \"built-in\"; if candidate.is_dir(): dirs.append((candidate, True))), then restored"
+      - code: "tests/charter/test_kind_vocabulary_scan_roots.py:225-227 (test_neither_dir_present_returns_empty_list)"
+      - artifact: "command: uv run pytest tests/charter/test_kind_vocabulary_scan_roots.py tests/charter/test_org_scan_dirs_activation_regression.py -q -- outcome with body reverted: '........FFFF.F.....FF' -> 7 failed, 14 passed. test_neither_dir_present_returns_empty_list is NOT among the 7 failures (test_existing_org_built_in_dir_returned, test_flat_only_dir_returned_non_recursive, test_flat_only_resolves_via_resolve_artifact_urn_without_raising, test_legacy_only_dir_returned_recursive, test_same_config_stem_precedence_flat_wins, and the two activation-regression tests all failed; test_neither_dir_present_returns_empty_list stayed green)"
+      - code: "tests/charter/test_kind_vocabulary_scan_roots.py:127-131 (pre-existing, untouched by this diff: test_none_org_roots_returns_empty_list, test_missing_org_built_in_dir_skipped -- both already cover the 'root missing/empty' case and also pass under both the pre-fix and post-fix bodies)"
+    claim: >
+      Of the 5 new/modified tests in TestOrgScanDirsHelper named by the mission brief,
+      4 genuinely regress when just the _org_scan_dirs function body is reverted to its
+      pre-fix form (confirming they exercise the fix), but
+      test_neither_dir_present_returns_empty_list does not -- it asserts _org_scan_dirs
+      returns [] when the org root itself does not exist on disk, a code path where
+      is_dir() returns False for every candidate under both the old and the new
+      implementation, so the assertion is trivially true regardless of whether the
+      flat/legacy-split fix is present, absent, or itself broken. It provides no
+      regression protection specific to this mission's change and duplicates the
+      pre-existing test_missing_org_built_in_dir_skipped (empty existing root) /
+      test_none_org_roots_returns_empty_list (None org_roots), which already cover
+      functionally the same "nothing to scan" outcome. This is not a wrong assertion --
+      the test is factually correct in both versions -- but it adds no discriminating
+      signal, and its docstring/positioning among the FR-003 enumerated cases could
+      read as if it validates fix behavior when it does not.
+    remediation: >
+      Either remove test_neither_dir_present_returns_empty_list as redundant with the
+      two pre-existing tests covering the same "nothing to scan" outcome, or -- if kept
+      for FR-003's enumeration completeness -- add a one-line comment noting it is a
+      non-discriminating boundary case (identical under pre-fix and post-fix
+      implementations) so a future reader does not mistake it for fix-specific coverage.

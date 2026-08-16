@@ -1,7 +1,7 @@
 ---
 title: 'Charter Activation vs DRG Reachability: Which Path Actually Reaches an Agent'
 description: Why 185 charter-activated doctrine artefacts never surface at the action-context boundary, the three parallel activation vocabularies behind it, and the recommended fix ordering.
-doc_status: active
+doc_status: deprecated
 updated: '2026-07-28'
 type: explanation
 related:
@@ -11,6 +11,8 @@ related:
 - docs/adr/3.x/2026-07-26-1-drg-edges-are-the-canonical-relationship-authority.md
 ---
 # Charter Activation vs DRG Reachability
+
+> **Retired (deprecated).** Shipped as the landing pass for PR #3007 (#3009); superseded by the delivery-reachability wiring table. Preserved as a historical record.
 
 **Origin.** Written during the landing pass for PR #3007 (mission
 `doctrine-silence-guards-01KYFV7Q`), in response to an operator question:
@@ -121,7 +123,7 @@ consult V1 at all.** Activation influences what is *compiled* and what can be
 
 ## 4. Why this reframes #3009
 
-#3009's remedy 2 says each of the nine orphans needs *"either an inbound edge from
+Issue #3009's remedy 2 says each of the nine orphans needs *"either an inbound edge from
 whatever should reach it, or an explicit 'reachable by direct activation only, by
 design' note."*
 
@@ -207,7 +209,7 @@ Operator rulings taken 2026-07-28:
 
 ### R5 — Measure reachability, not incidence
 
-#3009's third point stands and is the most important thing to do before B2. The
+Issue #3009's third point stands and is the most important thing to do before B2. The
 pinned orphan metric counts *incidence* (nodes touching no edge, currently 30).
 The operationally meaningful numbers are worse and unpinned:
 

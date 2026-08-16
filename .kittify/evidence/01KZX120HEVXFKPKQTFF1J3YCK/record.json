@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KZX120HEVXFKPKQTFF1J3YCK",
+  "completed_at": "2026-08-13T07:47:35.462638+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "191/191 matrix tests passed; 67 passed + 2 pre-existing xfails on other owned suites; ruff+mypy clean; WP09 moved to approved"
+}

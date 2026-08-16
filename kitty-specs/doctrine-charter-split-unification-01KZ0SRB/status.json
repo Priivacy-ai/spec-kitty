@@ -2,7 +2,7 @@
   "event_count": 84,
   "last_event_id": "01KZ1JYGF7815QXQ325M29CBEB",
   "materialized_at": "2026-08-02T15:54:42.023679+00:00",
-  "mission_number": "",
+  "mission_number": "188",
   "mission_slug": "doctrine-charter-split-unification-01KZ0SRB",
   "mission_type": "software-dev",
   "summary": {
@@ -20,142 +20,290 @@
     "WP01": {
       "actor": "merge",
       "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KZ1JXXS36DJJBG593Z5HZ57S",
       "last_transition_at": "2026-08-02T15:54:22.883211+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001/T002/T003 complete per WP01 DoD (four-cell characterization pins, precedence assertion, comment clarification). Force-used: mark-status subtask-ID collision bug (tooling-friction tracer).",
+        "Independent Opus review APPROVE (see prior for_review note for full evidence). Issue-matrix now unblocked via in-mission interim verdicts for #3140/#3150."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 867897,
-      "shell_pid_created_at": "1785665388.45"
+      "shell_pid_created_at": "1785665388.45",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
       "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KZ1JXZC3NE1X2AHKE2TYBRDK",
       "last_transition_at": "2026-08-02T15:54:24.515706+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001-T003 complete after 1 rework round: presence function wired into scanner.py+api.py production callers (was orphaned), cross-mission baseline regen scrutinized+confirmed legitimate. Force-used: mark-status subtask-ID collision bug.",
+        "Independent Opus review APPROVE (2nd pass after REJECT+rework). Reviewer personally reproduced the empirical fix (yaml-only project now reports exists:True) and both mutation proofs (revert scanner.py -> red, revert api.py -> red). Cross-mission baseline touch (unified-charter-bundle-chokepoint-01KP5Q2G) confirmed as legitimate, mechanically-regenerated, purely-additive fallout of this fix, not scope creep. 263 tests pass."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 869054,
-      "shell_pid_created_at": "1785665425.83"
+      "shell_pid_created_at": "1785665425.83",
+      "tracker_refs": [
+        "3150"
+      ]
     },
     "WP03": {
       "actor": "merge",
       "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KZ1JY0SG37P8M3N0NQYT9BBF",
       "last_transition_at": "2026-08-02T15:54:25.968269+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001/T002 complete per WP03 DoD (ATDD red->green, both charter.md hash entries removed). Force-used: mark-status subtask-ID collision bug (tooling-friction tracer).",
+        "Independent Opus review APPROVE (see prior for_review note for full evidence). Issue-matrix now unblocked via in-mission interim verdicts for #3140/#3150."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 873803,
       "shell_pid_created_at": "1785665545.52"
     },
     "WP04": {
       "actor": "merge",
       "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KZ1JY26S08WBVH7Z1RAVKNJD",
       "last_transition_at": "2026-08-02T15:54:27.417544+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation complete per WP04 DoD (T001 characterization pin green-first, T002 scope+document); mark-status subtask-check is a known upstream gap (logged in tooling-friction tracer: non-unique T001/T002 across WPs, first-match-wins always resolves WP01).",
+        "Independent Opus review APPROVE (see prior for_review note for full evidence). Issue-matrix now unblocked via in-mission interim verdicts for #3140/#3150."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 873803,
       "shell_pid_created_at": "1785665545.52"
     },
     "WP05": {
       "actor": "merge",
       "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KZ1JY3MMD677H1X38SZZ7CMA",
       "last_transition_at": "2026-08-02T15:54:28.884165+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001-T004 complete: RetrospectiveGovernance schema (pure-data, no specify_cli import), emitter wiring, pruner byte-stability fix verified via md5 diff. Force-used: mark-status subtask-ID collision bug.",
+        "Independent Opus review APPROVE (see prior for_review note for full evidence). Issue-matrix now unblocked via in-mission interim verdicts for #3140/#3150."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 873803,
       "shell_pid_created_at": "1785665545.52"
     },
     "WP06": {
       "actor": "merge",
       "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KZ1JYAR76VYJJEJTDKYHBKRM",
       "last_transition_at": "2026-08-02T15:54:36.167035+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001-T003 complete: yaml-first precedence with partial-override merge, C-003 backward compat verified, single shared _CHARTER_REL. Force-used: mark-status subtask-ID collision bug.",
+        "Independent Opus review APPROVE. Reviewer independently constructed and executed a partial-override precedence test case (yaml claims 1 key, md claims others, confirmed correct per-key merge), traced all 3 C-003 legacy shapes by executing them, confirmed 11/3 red split via throwaway worktree checkout, 540 tests pass, ruff/mypy clean. Non-blocking: CHANGELOG NFR-005 entry deferred to mission close-out."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 994872,
       "shell_pid_created_at": "1785667899.42"
     },
     "WP07": {
       "actor": "merge",
       "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KZ1JY52MH5WWNWHC7W4HASYK",
       "last_transition_at": "2026-08-02T15:54:30.356227+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001-T004 complete per WP07 DoD: two red tests green, one public reader (function-local import verified via AST guard), census 192==192 grep-count reconciled (set-diff verified zero symmetric difference by reviewer). Force-used: mark-status subtask-ID collision bug.",
+        "Independent Opus review APPROVE (see prior for_review note for full evidence). Issue-matrix now unblocked via in-mission interim verdicts for #3140/#3150."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 873803,
-      "shell_pid_created_at": "1785665545.52"
+      "shell_pid_created_at": "1785665545.52",
+      "tracker_refs": [
+        "3140"
+      ]
     },
     "WP08": {
       "actor": "merge",
       "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KZ1JYC67PA7WY1ABHPPBSEV2",
       "last_transition_at": "2026-08-02T15:54:37.639696+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001/T002 complete after 1 rework round (4 defects found+fixed: stale ValueError-contract tests re-pinned, dead OSError branch fixed, ATDD test rewritten to genuinely exercise routing). Force-used: mark-status subtask-ID collision bug.",
+        "Independent Opus review APPROVE (2nd pass after REJECT+rework). Reviewer personally reproduced the defect-3 mutation proof (revert->red->restore->green) and the defect-4 exception-chain fix, 111 tests pass, ruff clean, mypy zero new src/ issues. Minor non-blocking notes logged."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 994872,
-      "shell_pid_created_at": "1785667899.42"
+      "shell_pid_created_at": "1785667899.42",
+      "tracker_refs": [
+        "3140"
+      ]
     },
     "WP09": {
       "actor": "merge",
       "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KZ1JYDKSPZ3NA0F69FT35ANW",
       "last_transition_at": "2026-08-02T15:54:39.097903+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001-T003 complete after 1 severe rework round: rebuilt contract test with real AST-based independent discovery (was previously census-circular and let raw ValueError pass), fixed aliased-import blind spot, found+fixed a genuine WP07 census gap. Force-used: mark-status subtask-ID collision bug.",
+        "Independent Opus review APPROVE (2nd pass, after severe REJECT+rework). Reviewer personally reproduced all 3 required mutation proofs plus an additional global non-vacuity probe, confirmed the census-gap discovery is real, verified 5 regression fixes, confirmed 28 test failures across a broader scope are all pre-existing at merge-base bcc42107c."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 994872,
-      "shell_pid_created_at": "1785667899.42"
+      "shell_pid_created_at": "1785667899.42",
+      "tracker_refs": [
+        "3140"
+      ]
     },
     "WP10": {
       "actor": "merge",
       "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KZ1JY6G0JSBTEZ0MTYP6D4DN",
       "last_transition_at": "2026-08-02T15:54:31.808961+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001/T002/T003 complete per WP10 DoD (edge deleted, non-vacuous AST gate, self-mutation proof). Force-used: mark-status subtask-ID collision bug (tooling-friction tracer).",
+        "Independent Opus review APPROVE (see prior for_review note for full evidence). Issue-matrix now unblocked via in-mission interim verdicts for #3140/#3150."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 873803,
       "shell_pid_created_at": "1785665545.52"
     },
     "WP11": {
       "actor": "merge",
       "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KZ1JYGF7815QXQ325M29CBEB",
       "last_transition_at": "2026-08-02T15:54:42.023679+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001-T003 complete: 38-entry allowlist keyed on (file,qualname,token,literal,clause), found+fixed a real swap vulnerability, correctly policed src/doctrine/** rather than excluding it. Force-used: mark-status subtask-ID collision bug."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 1285193,
       "shell_pid_created_at": "1785680633.12"
     },
     "WP12": {
       "actor": "merge",
       "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KZ1JY7WZ1BJBCHBP518BA1FM",
       "last_transition_at": "2026-08-02T15:54:33.247210+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001-T004 complete: kernel pyproject minted, doctrine kernel-dep+build-hook, real hatch build executed and recorded in research.md D7 (RESOLVED). Force-used: mark-status subtask-ID collision bug.",
+        "Independent Opus review APPROVE (see prior for_review note for full evidence). Issue-matrix now unblocked via in-mission interim verdicts for #3140/#3150."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 873803,
       "shell_pid_created_at": "1785665545.52"
     },
     "WP13": {
       "actor": "merge",
       "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KZ1JYF145HDA9YMJ7TCE2DCA",
       "last_transition_at": "2026-08-02T15:54:40.548363+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001/T002 complete. Went through 2 rejection rounds (leaked tool-XML, then imprecise pytestarch rationale in 2 more spots) - orchestrator fixed directly each time, 3rd review APPROVE. Force-used: mark-status subtask-ID collision bug.",
+        "Independent Opus review APPROVE (3rd pass, after orchestrator fixed 2 rounds of reviewer-caught defects): extractability claim precisely scoped, pytestarch mechanism now verified accurate against actual ImportConverter source, extends 2026-04-25-1 pattern, deferred issue list exact, C-002 stated, terminology guard passes, zero leaked tool-XML."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 990710,
       "shell_pid_created_at": "1785667786.89"
     },
     "WP14": {
       "actor": "merge",
       "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KZ1JY9AJY7S2CGCQACF8JD6N",
       "last_transition_at": "2026-08-02T15:54:34.706369+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "FR-012/013/014/015 complete per WP14 DoD; reviewer confirmed FR-013 not-skipped guard via mutation test. Force-used: mark-status subtask-ID collision bug (tooling-friction tracer).",
+        "Independent Opus review APPROVE (see prior for_review note for full evidence). Issue-matrix now unblocked via in-mission interim verdicts for #3140/#3150."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 873803,
-      "shell_pid_created_at": "1785665545.52"
+      "shell_pid_created_at": "1785665545.52",
+      "tracker_refs": [
+        "3149",
+        "3107",
+        "3102",
+        "2831",
+        "2992"
+      ]
     }
   }
 }

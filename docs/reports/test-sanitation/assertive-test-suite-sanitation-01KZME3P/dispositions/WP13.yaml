@@ -1,0 +1,3170 @@
+schema_version: test-sanitation/v1
+mission: assertive-test-suite-sanitation-01KZME3P
+work_package: WP13
+profile: architect-alphonso
+generated_at: '2026-08-10T18:38:55Z'
+planning_base: 28ae75ea998c898aba57364db7a06d2088bd2af2
+census_sha256: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+_architectural_route:
+  route_id: architectural
+  role: owner
+  required: true
+  events:
+  - local
+  selector:
+    paths:
+    - tests/architectural/
+    environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+_full_parallel_route:
+  route_id: full-parallel
+  role: owner
+  required: true
+  events:
+  - local
+  selector:
+    paths:
+    - tests/
+    ignores:
+    - tests/sync/test_orphan_sweep.py
+    environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+_retired_shape_evidence: &id001
+  profile: structural
+  authority_evidence:
+  - reference: kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+    result: Exact names, layouts, prose, counts, completed migration parity, and current-to-current shape have no distinct
+      current product oracle.
+  causal_probe:
+    kind: behavior-preserving-structural-change
+    fault: Rename, relocate, or simplify the pinned implementation while preserving every live consumer boundary.
+    authority_violated: No current authority; only retired structural prestige changes.
+    act_reached: true
+    intended_oracle: Live consumers remain green while the deleted scaffold would reject the harmless structural change.
+    intended_oracle_failed: true
+    command: Classify against current authorities and consumers, delete the scaffold, then run every WP13 survivor.
+    environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+    raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+_review: &id002
+  implementer: architect-alphonso/WP13
+  independent_reviewer: pending-WP13-review
+  verdict: implementation-complete-awaiting-review
+  timestamp: '2026-08-10T18:38:55Z'
+dispositions:
+- candidate:
+    id: WP13-charter-test-charter-ownership-invariant
+    members:
+    - tests/charter/test_charter_ownership_invariant.py::test_charter_ownership_invariant
+    granularity: function
+    source_paths:
+    - tests/charter/test_charter_ownership_invariant.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+    scanner_kinds:
+    - ast
+    - source
+    base_source_units: 1
+    base_nodes: 1
+    head_nodes: 0
+    route_memberships:
+    - &id003
+      route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/charter/test_charter_ownership_invariant.py::test_charter_ownership_invariant
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence: *id001
+  verdict: DELETE
+  state: terminal
+  action: Delete self-ownership/import-list invariant; it pins the test scaffold, not a current consumer boundary.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-charter-test-chokepoint-coverage
+    members:
+    - tests/charter/test_chokepoint_coverage.py::test_carve_out_files_exist
+    - tests/charter/test_chokepoint_coverage.py::test_chokepoint_symbol_is_defined_in_charter_sync
+    - tests/charter/test_chokepoint_coverage.py::test_every_manifest_reader_routes_through_chokepoint
+    granularity: function
+    source_paths:
+    - tests/charter/test_chokepoint_coverage.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+    scanner_kinds:
+    - ast
+    - source
+    - text
+    base_source_units: 3
+    base_nodes: 3
+    head_nodes: 0
+    route_memberships:
+    - *id003
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/charter/test_chokepoint_coverage.py::test_carve_out_files_exist
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence: *id001
+  verdict: DELETE
+  state: terminal
+  action: Delete historical chokepoint module/count coverage and prose coupling; retained sole-door guards exercise live prohibited
+    constructions.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-charter-test-context-decomposition-completion
+    members:
+    - tests/charter/test_context_decomposition_completion.py::TestResidualLocCeiling.test_context_py_at_most_600_lines
+    - tests/charter/test_context_decomposition_completion.py::TestResidualLocCeiling.test_context_py_below_the_pre_wp06_baseline
+    - tests/charter/test_context_decomposition_completion.py::TestSeamExistenceManifest.test_seam_module_exists
+    - tests/charter/test_context_decomposition_completion.py::TestSeamExistenceManifest.test_seam_module_has_non_context_caller
+    granularity: function
+    source_paths:
+    - tests/charter/test_context_decomposition_completion.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+    scanner_kinds:
+    - ast
+    - source
+    base_source_units: 4
+    base_nodes: 36
+    head_nodes: 0
+    route_memberships:
+    - *id003
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/charter/test_context_decomposition_completion.py::TestResidualLocCeiling::test_context_py_at_most_600_lines
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence: *id001
+  verdict: DELETE
+  state: terminal
+  action: Delete completed-decomposition parity and exact surface-presence matrix.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-charter-test-surface-calibration
+    members:
+    - tests/charter/test_surface_calibration.py::TestCalibrationInequalities.test_surface_calibration_inequalities
+    - tests/charter/test_surface_calibration.py::TestCalibrationInequalities.test_surface_report
+    - tests/charter/test_surface_calibration.py::TestDRGOnlyKnob.test_build_charter_context_has_no_action_conditionals
+    - tests/charter/test_surface_calibration.py::TestDRGOnlyKnob.test_build_charter_context_has_no_action_name_maps
+    - tests/charter/test_surface_calibration.py::TestDRGOnlyKnob.test_query_functions_accept_generic_urns
+    - tests/charter/test_surface_calibration.py::TestDRGOnlyKnob.test_query_module_has_no_action_specific_logic
+    - tests/charter/test_surface_calibration.py::TestSurfaceMeasurement.test_detailed_breakdown_keys_are_valid_kinds
+    - tests/charter/test_surface_calibration.py::TestSurfaceMeasurement.test_detailed_breakdown_sums_to_total
+    - tests/charter/test_surface_calibration.py::TestSurfaceMeasurement.test_each_action_has_positive_surface
+    granularity: function
+    source_paths:
+    - tests/charter/test_surface_calibration.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+    scanner_kinds:
+    - ast
+    - source
+    base_source_units: 9
+    base_nodes: 9
+    head_nodes: 0
+    route_memberships:
+    - *id003
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/charter/test_surface_calibration.py::TestCalibrationInequalities::test_surface_calibration_inequalities
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence: *id001
+  verdict: DELETE
+  state: terminal
+  action: Delete calibration counts, historical facade inventory, and advisory surface report.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-activation-registry-schema
+    members:
+    - tests/architectural/test_activation_registry_schema.py::test_activation_context_action_vocabulary_is_closed
+    - tests/architectural/test_activation_registry_schema.py::test_activation_context_mission_type_vocabulary_is_closed
+    - tests/architectural/test_activation_registry_schema.py::test_activation_entry_schema_exists_and_carries_required_fields
+    - tests/architectural/test_activation_registry_schema.py::test_activation_entry_validates_membership_of_vocabulary
+    granularity: function
+    source_paths:
+    - tests/architectural/test_activation_registry_schema.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+    scanner_kinds:
+    - structural
+    base_source_units: 4
+    base_nodes: 4
+    head_nodes: 0
+    route_memberships:
+    - &id004
+      route_id: architectural
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/architectural/
+        markers: []
+        ignores: []
+        environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_activation_registry_schema.py::test_activation_context_action_vocabulary_is_closed
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence: *id001
+  verdict: DELETE
+  state: terminal
+  action: Delete positive activation-registry schema/field shape; live charter-to-DRG parity owns activation coherence.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-charter-facades-reexport-doctrine
+    members:
+    - tests/architectural/test_charter_facades_reexport_doctrine.py::test_facade_all_lists_every_reexport
+    - tests/architectural/test_charter_facades_reexport_doctrine.py::test_facade_reexports_doctrine_symbol_by_identity
+    granularity: function
+    source_paths:
+    - tests/architectural/test_charter_facades_reexport_doctrine.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+    scanner_kinds:
+    - structural
+    base_source_units: 2
+    base_nodes: 34
+    head_nodes: 0
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_charter_facades_reexport_doctrine.py::test_facade_all_lists_every_reexport[charter.drg]
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence: *id001
+  verdict: DELETE
+  state: terminal
+  action: Delete exact re-export identity matrix; current runtime-to-charter and sole-door boundaries own layer access.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-charter-references-resolve
+    members:
+    - tests/architectural/test_charter_references_resolve.py::test_charter_reference_extraction_is_non_vacuous
+    - tests/architectural/test_charter_references_resolve.py::test_dangling_baseline_is_shrink_only
+    - tests/architectural/test_charter_references_resolve.py::test_mission_tokens_resolve_and_are_not_baselined
+    - tests/architectural/test_charter_references_resolve.py::test_no_new_charter_reference_danglers
+    granularity: function
+    source_paths:
+    - tests/architectural/test_charter_references_resolve.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+    scanner_kinds:
+    - source
+    - structural
+    - text
+    base_source_units: 4
+    base_nodes: 4
+    head_nodes: 0
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_charter_references_resolve.py::test_charter_reference_extraction_is_non_vacuous
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence: *id001
+  verdict: DELETE
+  state: terminal
+  action: Delete prose-token reference extraction and shrink-only historical dangling baseline.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-charter-runtime-canonical-paths
+    members:
+    - tests/architectural/test_charter_runtime_canonical_paths.py::test_canonical_paths_import
+    - tests/architectural/test_charter_runtime_canonical_paths.py::test_legacy_charter_paths_are_gone
+    granularity: function
+    source_paths:
+    - tests/architectural/test_charter_runtime_canonical_paths.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+    scanner_kinds:
+    - structural
+    base_source_units: 2
+    base_nodes: 2
+    head_nodes: 0
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_charter_runtime_canonical_paths.py::test_canonical_paths_import
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence: *id001
+  verdict: DELETE
+  state: terminal
+  action: Delete exact constant names/locations for runtime charter paths.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-doctrine-artefact-layout
+    members:
+    - tests/architectural/test_doctrine_artefact_layout.py::TestGateNonVacuity.test_accepts_pack_at_root_and_nested_category
+    - tests/architectural/test_doctrine_artefact_layout.py::TestGateNonVacuity.test_rejects_artefact_at_doctrine_root
+    - tests/architectural/test_doctrine_artefact_layout.py::TestGateNonVacuity.test_rejects_artefact_directly_under_type_dir
+    - tests/architectural/test_doctrine_artefact_layout.py::TestGateNonVacuity.test_rejects_category_above_pack
+    - tests/architectural/test_doctrine_artefact_layout.py::TestGateNonVacuity.test_rejects_novel_type_dir
+    - tests/architectural/test_doctrine_artefact_layout.py::TestGateNonVacuity.test_rejects_right_pack_wrong_type_dir
+    - tests/architectural/test_doctrine_artefact_layout.py::TestMissionTierExceptions.test_artifact_tier_kinds_are_still_covered
+    - tests/architectural/test_doctrine_artefact_layout.py::TestMissionTierExceptions.test_mission_tier_set_is_exactly_pinned
+    - tests/architectural/test_doctrine_artefact_layout.py::TestMissionTierExceptions.test_no_standalone_anti_pattern_artifact_file_exists
+    - tests/architectural/test_doctrine_artefact_layout.py::TestMissionTierExceptions.test_no_step_contract_lives_anywhere_else
+    - tests/architectural/test_doctrine_artefact_layout.py::TestMissionTierExceptions.test_step_contracts_live_at_their_authoritative_mission_tier_path
+    - tests/architectural/test_doctrine_artefact_layout.py::TestPromotedPowershellToolguideIsReachable.test_guide_path_points_at_the_relocated_markdown
+    - tests/architectural/test_doctrine_artefact_layout.py::TestPromotedPowershellToolguideIsReachable.test_toolguide_loads_from_the_pack_layer
+    - tests/architectural/test_doctrine_artefact_layout.py::TestShippedTreeIsCompliant.test_allowlist_is_empty
+    - tests/architectural/test_doctrine_artefact_layout.py::TestShippedTreeIsCompliant.test_every_governed_kind_has_at_least_one_scanned_file
+    - tests/architectural/test_doctrine_artefact_layout.py::TestShippedTreeIsCompliant.test_no_artefact_outside_the_pack_layer
+    - tests/architectural/test_doctrine_artefact_layout.py::TestShippedTreeIsCompliant.test_no_phantom_shipped_pack_dir_exists
+    granularity: function
+    source_paths:
+    - tests/architectural/test_doctrine_artefact_layout.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+    scanner_kinds:
+    - source
+    - structural
+    base_source_units: 17
+    base_nodes: 17
+    head_nodes: 0
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_doctrine_artefact_layout.py::TestGateNonVacuity::test_accepts_pack_at_root_and_nested_category
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence: *id001
+  verdict: DELETE
+  state: terminal
+  action: Delete exact folder taxonomy, tier inventory, promoted filename, and phantom-directory checks.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-glossary-canonical-terms
+    members:
+    - tests/architectural/test_glossary_canonical_terms.py::test_docs_adr_exemption_is_narrow
+    - tests/architectural/test_glossary_canonical_terms.py::test_fenced_line_numbers_marks_block_interior_and_fences
+    - tests/architectural/test_glossary_canonical_terms.py::test_glossary_terms_use_canonical_casing
+    - tests/architectural/test_glossary_canonical_terms.py::test_single_word_terms_are_excluded_from_scan
+    - tests/architectural/test_glossary_canonical_terms.py::test_strip_inline_code_excludes_backticked_literals
+    - tests/architectural/test_glossary_canonical_terms.py::test_term_pattern_does_not_flag_canonical_form
+    - tests/architectural/test_glossary_canonical_terms.py::test_term_pattern_does_not_match_inside_longer_words
+    - tests/architectural/test_glossary_canonical_terms.py::test_term_pattern_flags_miscased_occurrence
+    - tests/architectural/test_glossary_canonical_terms.py::test_term_pattern_normalizes_internal_whitespace
+    granularity: function
+    source_paths:
+    - tests/architectural/test_glossary_canonical_terms.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+    scanner_kinds:
+    - source
+    - structural
+    base_source_units: 9
+    base_nodes: 9
+    head_nodes: 0
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_glossary_canonical_terms.py::test_docs_adr_exemption_is_narrow
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence: *id001
+  verdict: DELETE
+  state: terminal
+  action: Delete static glossary term/count/prose inventory; glossary package dependency boundary remains.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-glossary-pack-no-regression
+    members:
+    - tests/architectural/test_glossary_pack_no_regression.py::test_glossary_canonical_terms_gate_still_passes_with_pack_shipped
+    - tests/architectural/test_glossary_pack_no_regression.py::test_no_legacy_terminology_gate_has_no_new_hits_from_wp03
+    - tests/architectural/test_glossary_pack_no_regression.py::test_seed_file_exists_and_is_untouched
+    - tests/architectural/test_glossary_pack_no_regression.py::test_seed_loader_still_resolves_the_seed
+    - tests/architectural/test_glossary_pack_no_regression.py::test_seed_term_count_is_unchanged
+    granularity: function
+    source_paths:
+    - tests/architectural/test_glossary_pack_no_regression.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+    scanner_kinds:
+    - source
+    - structural
+    base_source_units: 5
+    base_nodes: 5
+    head_nodes: 0
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_glossary_pack_no_regression.py::test_glossary_canonical_terms_gate_still_passes_with_pack_shipped
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence: *id001
+  verdict: DELETE
+  state: terminal
+  action: Delete frozen glossary pack positive-shape/no-regression scaffold.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-glossary-pack-urn
+    members:
+    - tests/architectural/test_glossary_pack_urn.py::TestGlossaryPackNodeKindValue.test_node_kind_value_is_underscore
+    - tests/architectural/test_glossary_pack_urn.py::TestGlossaryPackUrnAccepted.test_underscore_urn_is_accepted
+    - tests/architectural/test_glossary_pack_urn.py::TestGlossaryPackUrnRejected.test_hyphen_prefix_fails_urn_regex_layer
+    - tests/architectural/test_glossary_pack_urn.py::TestGlossaryPackUrnRejected.test_hyphen_prefix_rejected_by_model_validation
+    - tests/architectural/test_glossary_pack_urn.py::TestGlossaryPackUrnRejected.test_prefix_mismatch_layer_rejects_wrong_prefix
+    granularity: function
+    source_paths:
+    - tests/architectural/test_glossary_pack_urn.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+    scanner_kinds:
+    - structural
+    base_source_units: 5
+    base_nodes: 5
+    head_nodes: 0
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_glossary_pack_urn.py::TestGlossaryPackNodeKindValue::test_node_kind_value_is_underscore
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence: *id001
+  verdict: DELETE
+  state: terminal
+  action: Delete exact enum spelling and URN prefix layout checks already consumed by DRG validation/mapping.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-profile-load-resolver-guidance
+    members:
+    - tests/architectural/test_profile_load_resolver_guidance.py::test_guard_allows_caveated_read_only_directory_fallback
+    - tests/architectural/test_profile_load_resolver_guidance.py::test_guard_allows_only_the_caveated_read_only_fallback
+    - tests/architectural/test_profile_load_resolver_guidance.py::test_guard_rejects_a_planted_primary_raw_read_and_names_its_path
+    - tests/architectural/test_profile_load_resolver_guidance.py::test_guard_rejects_exact_raw_directory_lookup_wording
+    - tests/architectural/test_profile_load_resolver_guidance.py::test_profile_guidance_scan_has_concrete_denominator
+    - tests/architectural/test_profile_load_resolver_guidance.py::test_raw_profile_reads_are_not_primary_guidance
+    granularity: function
+    source_paths:
+    - tests/architectural/test_profile_load_resolver_guidance.py
+    production_paths:
+    - src/doctrine/skills/spk-doctrine-profile-load/SKILL.md
+    - src/doctrine/skills/spk-doctrine-profile-load/references/profile-load-mechanics.md
+    oracle: Shipped profile-loading guidance uses the resolver; only a fully caveated CLI-less read-only fallback may name
+      raw profile files.
+    contract_claim: Agent guidance cannot bypass profile precedence, lineage, overlays, or override resolution.
+    authority:
+    - src/doctrine/skills/spk-doctrine-profile-load/SKILL.md
+    - src/doctrine/skills/spk-doctrine-profile-load/references/profile-load-mechanics.md
+    scanner_kinds:
+    - source
+    - structural
+    base_source_units: 6
+    base_nodes: 6
+    head_nodes: 1
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_profile_load_resolver_guidance.py::test_guard_allows_caveated_read_only_directory_fallback
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: src/doctrine/skills/spk-doctrine-profile-load/SKILL.md
+      result: Raw .agent.yaml reads cannot substitute for resolver-backed profile loading.
+    - reference: src/doctrine/skills/spk-doctrine-profile-load/references/profile-load-mechanics.md#4-read-only-harness-fallback
+      result: The only raw-file fallback is CLI-less, read-only, divergence-caveated, and non-mutating.
+    corpus:
+      description: Nonzero shipped doctrine and built-in pack guidance plus planted primary-read and bounded-fallback controls.
+      nonzero: true
+      collected_nodes: 1
+    consumers:
+    - agents loading project governance
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Tell an agent to read a raw .agent.yaml file as its primary profile source.
+      authority_violated: Agent guidance cannot bypass profile precedence, lineage, overlays, or override resolution.
+      act_reached: true
+      intended_oracle: Primary raw-profile guidance is rejected while the bounded fallback remains accepted.
+      intended_oracle_failed: true
+      command: .venv/bin/pytest -q -p no:cacheprovider tests/architectural/test_profile_load_resolver_guidance.py
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep one semantic resolver-first gate; remove numeric floors and exact prose coupling.
+  survivor: tests/architectural/test_profile_load_resolver_guidance.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-protection-resolver-call-sites
+    members:
+    - tests/architectural/test_protection_resolver_call_sites.py::test_protected_branches_calls_confined_to_resolver_and_delegate
+    granularity: function
+    source_paths:
+    - tests/architectural/test_protection_resolver_call_sites.py
+    production_paths:
+    - src/specify_cli/git/protection_policy.py
+    - src/specify_cli/git/commit_helpers.py
+    oracle: Bare protected_branches calls stay confined to the resolver/delegate authority seam.
+    contract_claim: Protected-branch decisions cannot bypass ProtectionPolicy.resolve.
+    authority:
+    - docs/adr/3.x/2026-06-26-1-single-authority-seam-and-call-site-gate.md
+    scanner_kinds:
+    - ast
+    - source
+    - structural
+    base_source_units: 1
+    base_nodes: 1
+    head_nodes: 1
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_protection_resolver_call_sites.py::test_protected_branches_calls_confined_to_resolver_and_delegate
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-06-26-1-single-authority-seam-and-call-site-gate.md
+      result: Accepted decision names this AST gate as the trusted precedent for the single-authority seam.
+    corpus:
+      description: Every live src Python module plus planted bypass, attribute-control, and sanctioned-delegate files.
+      nonzero: true
+      collected_nodes: 1
+    consumers:
+    - src/specify_cli/git/protection_policy.py
+    - src/specify_cli/git/commit_helpers.py
+    - all protected-branch callers
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Add a bare protected_branches(repo) call outside the resolver/delegate allowlist.
+      authority_violated: Protected-branch decisions cannot bypass ProtectionPolicy.resolve.
+      act_reached: true
+      intended_oracle: Only the planted bypass is reported with its exact line.
+      intended_oracle_failed: true
+      command: .venv/bin/pytest -q -p no:cacheprovider tests/architectural/test_protection_resolver_call_sites.py
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep one accepted-ADR authority gate with live scan and explicit prohibited/compliant bite.
+  survivor: tests/architectural/test_protection_resolver_call_sites.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-resolution-activation-foundation
+    members:
+    - tests/architectural/test_resolution_activation_foundation.py::test_activation_vocabulary_scanner_catches_a_synthetic_consult
+    - tests/architectural/test_resolution_activation_foundation.py::test_backfill_scanner_catches_a_synthetic_builtin_call
+    - tests/architectural/test_resolution_activation_foundation.py::test_build_discovery_context_does_not_consult_the_activation_set
+    - tests/architectural/test_resolution_activation_foundation.py::test_built_in_dir_gains_no_mission_type_kind_entry
+    - tests/architectural/test_resolution_activation_foundation.py::test_create_mission_core_has_the_activation_fail_closed_gate
+    - tests/architectural/test_resolution_activation_foundation.py::test_create_mission_core_raises_on_empty_activation_set
+    - tests/architectural/test_resolution_activation_foundation.py::test_gate_scanner_does_not_match_an_unrelated_if_raise
+    - tests/architectural/test_resolution_activation_foundation.py::test_get_package_asset_root_has_exactly_one_implementation_body
+    - tests/architectural/test_resolution_activation_foundation.py::test_list_available_missions_does_not_consult_the_activation_set
+    - tests/architectural/test_resolution_activation_foundation.py::test_mission_type_is_not_promoted_to_an_artifact_kind
+    - tests/architectural/test_resolution_activation_foundation.py::test_mission_type_universe_extension_is_intact
+    - tests/architectural/test_resolution_activation_foundation.py::test_packs_root_env_read_lives_only_in_kernel_paths
+    - tests/architectural/test_resolution_activation_foundation.py::test_read_activated_mission_types_has_no_implicit_builtin_backfill
+    - tests/architectural/test_resolution_activation_foundation.py::test_scanner_catches_every_named_read_shape
+    - tests/architectural/test_resolution_activation_foundation.py::test_scanner_ignores_docstrings_constant_definition_and_unrelated_calls
+    - tests/architectural/test_resolution_activation_foundation.py::test_scanner_resolves_local_constant_indirection
+    - tests/architectural/test_resolution_activation_foundation.py::test_sibling_kinds_fallback_stays_out_of_scope_and_untouched
+    - tests/architectural/test_resolution_activation_foundation.py::test_specify_cli_missions_tree_is_still_present_on_disk
+    granularity: function
+    source_paths:
+    - tests/architectural/test_resolution_activation_foundation.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+    scanner_kinds:
+    - ast
+    - source
+    - structural
+    - text
+    base_source_units: 18
+    base_nodes: 20
+    head_nodes: 0
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_resolution_activation_foundation.py::test_activation_vocabulary_scanner_catches_a_synthetic_consult
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence: *id001
+  verdict: DELETE
+  state: terminal
+  action: Delete completed migration foundation, exact symbol/layout, and positive parity scaffold.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-surface-resolution-audit
+    members:
+    - tests/architectural/test_surface_resolution_audit.py::test_allowlisted_selection_callsites_stays_str_keyed_and_empty
+    - tests/architectural/test_surface_resolution_audit.py::test_audit_passes_on_current_tree
+    - tests/architectural/test_surface_resolution_audit.py::test_audit_passes_on_current_tree_immune_to_isolated_bite_mutation
+    - tests/architectural/test_surface_resolution_audit.py::test_check_overcount_flags_inventory_ghost_rows
+    - tests/architectural/test_surface_resolution_audit.py::test_check_overcount_green_when_all_live
+    - tests/architectural/test_surface_resolution_audit.py::test_check_undercount_flags_discovered_absent_from_inventory
+    - tests/architectural/test_surface_resolution_audit.py::test_check_undercount_green_when_all_documented
+    - tests/architectural/test_surface_resolution_audit.py::test_main_drift_immune_documented_sink_stays_green
+    - tests/architectural/test_surface_resolution_audit.py::test_main_external_selection_call_is_red
+    - tests/architectural/test_surface_resolution_audit.py::test_main_fail_closed_on_missing_stored_identity
+    - tests/architectural/test_surface_resolution_audit.py::test_main_ghost_inventory_row_is_red
+    - tests/architectural/test_surface_resolution_audit.py::test_main_inventory_only_tag_exempts_ghost_row
+    - tests/architectural/test_surface_resolution_audit.py::test_main_selection_ghost_row_is_red
+    - tests/architectural/test_surface_resolution_audit.py::test_main_undocumented_sink_is_red
+    - tests/architectural/test_surface_resolution_audit.py::test_public_shape_composite_key_is_the_added_comparand
+    - tests/architectural/test_surface_resolution_audit.py::test_public_shape_resolution_row_fields_and_locator_key
+    - tests/architectural/test_surface_resolution_audit.py::test_public_shape_selection_row_fields_and_locator_key
+    granularity: function
+    source_paths:
+    - tests/architectural/test_surface_resolution_audit.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+    scanner_kinds:
+    - source
+    - structural
+    - text
+    base_source_units: 17
+    base_nodes: 17
+    head_nodes: 0
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_surface_resolution_audit.py::test_allowlisted_selection_callsites_stays_str_keyed_and_empty
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence: *id001
+  verdict: DELETE
+  state: terminal
+  action: Delete generated topology/report/prose audit and exact route inventory.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-topology-resolution-boundary
+    members:
+    - tests/architectural/test_topology_resolution_boundary.py::test_coord_path_predicate_only_in_blessed_modules
+    - tests/architectural/test_topology_resolution_boundary.py::test_fabricated_mid8_idiom_has_zero_references
+    - tests/architectural/test_topology_resolution_boundary.py::test_legacy_mission_branch_compose_is_allowlisted
+    granularity: function
+    source_paths:
+    - tests/architectural/test_topology_resolution_boundary.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+    scanner_kinds:
+    - ast
+    - source
+    - structural
+    base_source_units: 3
+    base_nodes: 3
+    head_nodes: 0
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_topology_resolution_boundary.py::test_coord_path_predicate_only_in_blessed_modules
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence: *id001
+  verdict: DELETE
+  state: terminal
+  action: Delete exact resolver module topology and current-to-current implementation parity.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-urn-resolver-scalar-fence
+    members:
+    - tests/architectural/test_urn_resolver_scalar_fence.py::TestURNResolverScalarFence.test_name_lane_still_owns_the_scalar_reference
+    - tests/architectural/test_urn_resolver_scalar_fence.py::TestURNResolverScalarFence.test_urn_lane_converges_on_the_same_stage_two_resolver
+    - tests/architectural/test_urn_resolver_scalar_fence.py::TestURNResolverScalarFence.test_urn_lane_never_accesses_template_set_attribute
+    - tests/architectural/test_urn_resolver_scalar_fence.py::TestURNResolverScalarFence.test_urn_lane_source_text_never_mentions_template_set_literal
+    granularity: function
+    source_paths:
+    - tests/architectural/test_urn_resolver_scalar_fence.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+    scanner_kinds:
+    - ast
+    - source
+    - structural
+    base_source_units: 4
+    base_nodes: 4
+    head_nodes: 0
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_urn_resolver_scalar_fence.py::TestURNResolverScalarFence::test_name_lane_still_owns_the_scalar_reference
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence: *id001
+  verdict: DELETE
+  state: terminal
+  action: Delete scalar return-annotation/implementation-shape fence; resolver behavior tests own the contract.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-charter-test-append-promotion-primitive
+    members:
+    - tests/charter/test_append_promotion_primitive.py::test_activation_engine_module_has_no_specify_cli_import
+    - tests/charter/test_append_promotion_primitive.py::test_promote_arbitrary_kinds_appends_exactly_those_ids
+    - tests/charter/test_append_promotion_primitive.py::test_promote_arbitrary_kinds_writes_via_commit_plan_only
+    - tests/charter/test_append_promotion_primitive.py::test_promote_dedupes_ids_within_a_single_call
+    - tests/charter/test_append_promotion_primitive.py::test_promote_into_absent_key_never_writes_bare_restrictive_list
+    - tests/charter/test_append_promotion_primitive.py::test_promote_into_absent_key_preserves_all_builtins_active
+    - tests/charter/test_append_promotion_primitive.py::test_promote_into_present_key_ignores_default_ids
+    - tests/charter/test_append_promotion_primitive.py::test_promote_is_idempotent_on_repeated_calls
+    granularity: function
+    source_paths:
+    - tests/charter/test_append_promotion_primitive.py
+    production_paths:
+    - src/charter/primitives.py
+    - src/doctrine/resolution/activation_engine.py
+    oracle: Promotion appends only requested IDs, remains idempotent, preserves built-ins for an absent key, and ignores defaults
+      for an explicit key.
+    contract_claim: Promotion appends only requested IDs, remains idempotent, preserves built-ins for an absent key, and ignores
+      defaults for an explicit key.
+    authority:
+    - docs/context/governance.md#Activated-vs-Available
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003
+    scanner_kinds:
+    - ast
+    - source
+    base_source_units: 8
+    base_nodes: 8
+    head_nodes: 4
+    route_memberships:
+    - *id003
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/charter/test_append_promotion_primitive.py::test_activation_engine_module_has_no_specify_cli_import
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/context/governance.md#Activated-vs-Available
+      result: Promotion appends only requested IDs, remains idempotent, preserves built-ins for an absent key, and ignores
+        defaults for an explicit key.
+    corpus:
+      description: Temporary charter YAML plus real promotion primitive.
+      nonzero: true
+      collected_nodes: 4
+    consumers:
+    - src/charter/primitives.py
+    - src/doctrine/resolution/activation_engine.py
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Repeat promotion, omit an activation key, or pass default IDs beside an explicit activation list.
+      authority_violated: Promotion appends only requested IDs, remains idempotent, preserves built-ins for an absent key,
+        and ignores defaults for an explicit key.
+      act_reached: true
+      intended_oracle: Promotion appends only requested IDs, remains idempotent, preserves built-ins for an absent key, and
+        ignores defaults for an explicit key.
+      intended_oracle_failed: true
+      command: tests/charter/test_append_promotion_primitive.py retained family; focused WP13 run and embedded fault/control
+        probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/charter/test_append_promotion_primitive.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-charter-test-mission-type-key
+    members:
+    - tests/charter/test_mission_type_key.py::TestCanonicalMissionTypeKey.test_does_not_lowercase_or_otherwise_rewrite_the_key
+    - tests/charter/test_mission_type_key.py::TestCanonicalMissionTypeKey.test_recognised_and_arbitrary_keys_normalize_to_stripped_value
+    - tests/charter/test_mission_type_key.py::TestCanonicalMissionTypeKey.test_typeless_input_degrades_to_none_never_software_dev
+    - tests/charter/test_mission_type_key.py::TestCanonicalizerBoundarySafety.test_module_has_no_module_level_specify_cli_import
+    granularity: function
+    source_paths:
+    - tests/charter/test_mission_type_key.py
+    production_paths:
+    - src/charter/mission_types.py
+    oracle: Mission-type keys normalize explicit values and typeless input never silently defaults to software-dev.
+    contract_claim: Mission-type keys normalize explicit values and typeless input never silently defaults to software-dev.
+    authority:
+    - docs/adr/3.x/2026-08-05-1-mission-type-availability-before-kind-promotion.md
+    - docs/context/mission-types.md
+    scanner_kinds:
+    - ast
+    - source
+    base_source_units: 4
+    base_nodes: 11
+    head_nodes: 9
+    route_memberships:
+    - *id003
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/charter/test_mission_type_key.py::TestCanonicalMissionTypeKey::test_does_not_lowercase_or_otherwise_rewrite_the_key
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-08-05-1-mission-type-availability-before-kind-promotion.md
+      result: Mission-type keys normalize explicit values and typeless input never silently defaults to software-dev.
+    corpus:
+      description: Recognized, arbitrary, blank, and absent mission-type inputs.
+      nonzero: true
+      collected_nodes: 9
+    consumers:
+    - src/charter/mission_types.py
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Restore a software-dev default or stop trimming explicit keys.
+      authority_violated: Mission-type keys normalize explicit values and typeless input never silently defaults to software-dev.
+      act_reached: true
+      intended_oracle: Mission-type keys normalize explicit values and typeless input never silently defaults to software-dev.
+      intended_oracle_failed: true
+      command: tests/charter/test_mission_type_key.py retained family; focused WP13 run and embedded fault/control probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/charter/test_mission_type_key.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-charter-test-operational-context
+    members:
+    - tests/charter/test_operational_context.py::TestAssemblerPurity.test_assembler_body_has_no_attribute_state_reads
+    - tests/charter/test_operational_context.py::TestAssemblerPurity.test_module_does_not_import_specify_cli
+    - tests/charter/test_operational_context.py::TestBuildOperationalContextAssembler.test_keyword_only_signature
+    - tests/charter/test_operational_context.py::TestBuildOperationalContextAssembler.test_no_arg_call_returns_all_none
+    - tests/charter/test_operational_context.py::TestBuildOperationalContextAssembler.test_packages_all_explicit_values
+    - tests/charter/test_operational_context.py::TestBuildOperationalContextAssembler.test_partial_values_only
+    - tests/charter/test_operational_context.py::TestBuildOperationalContextAssembler.test_tech_stack_accepts_iterable_and_freezes
+    - tests/charter/test_operational_context.py::TestBuildOperationalContextAssembler.test_tech_stack_none_normalised_to_empty_frozenset
+    - tests/charter/test_operational_context.py::TestGuardsActionable.test_error_is_runtime_error
+    - tests/charter/test_operational_context.py::TestGuardsActionable.test_hint_optional_for_other_guards
+    - tests/charter/test_operational_context.py::TestGuardsActionable.test_require_active_profile_raises_with_actionable_hint
+    - tests/charter/test_operational_context.py::TestGuardsActionable.test_require_active_profile_returns_when_present
+    - tests/charter/test_operational_context.py::TestGuardsActionable.test_require_active_role_raises_with_actionable_hint
+    - tests/charter/test_operational_context.py::TestGuardsActionable.test_require_active_role_returns_when_present
+    granularity: function
+    source_paths:
+    - tests/charter/test_operational_context.py
+    production_paths:
+    - src/charter/operational_context.py
+    oracle: Explicit operational context round-trips and missing required identity fails actionably.
+    contract_claim: Explicit operational context round-trips and missing required identity fails actionably.
+    authority:
+    - docs/context/charter-overview.md
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003
+    scanner_kinds:
+    - ast
+    - source
+    base_source_units: 14
+    base_nodes: 14
+    head_nodes: 2
+    route_memberships:
+    - *id003
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/charter/test_operational_context.py::TestAssemblerPurity::test_assembler_body_has_no_attribute_state_reads
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/context/charter-overview.md
+      result: Explicit operational context round-trips and missing required identity fails actionably.
+    corpus:
+      description: Real OperationalContext model with explicit and missing identity.
+      nonzero: true
+      collected_nodes: 2
+    consumers:
+    - src/charter/operational_context.py
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Accept missing mission/action/profile identity or rewrite a supplied value.
+      authority_violated: Explicit operational context round-trips and missing required identity fails actionably.
+      act_reached: true
+      intended_oracle: Explicit operational context round-trips and missing required identity fails actionably.
+      intended_oracle_failed: true
+      command: tests/charter/test_operational_context.py retained family; focused WP13 run and embedded fault/control probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/charter/test_operational_context.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-cli-test-charter-mission-type-commands
+    members:
+    - tests/cli/test_charter_mission_type_commands.py::test_charter_mission_type_list_json_action_sequence_is_list
+    - tests/cli/test_charter_mission_type_commands.py::test_charter_mission_type_list_json_has_required_keys
+    - tests/cli/test_charter_mission_type_commands.py::test_charter_mission_type_list_json_is_valid
+    - tests/cli/test_charter_mission_type_commands.py::test_charter_mission_type_list_returns_activated_types
+    - tests/cli/test_charter_mission_type_commands.py::test_charter_mission_type_list_shows_action_sequence
+    - tests/cli/test_charter_mission_type_commands.py::test_charter_mission_type_list_shows_display_name
+    - tests/cli/test_charter_mission_type_commands.py::test_charter_mission_type_list_shows_source_layer
+    - tests/cli/test_charter_mission_type_commands.py::test_charter_mission_type_module_does_not_import_specify_cli
+    - tests/cli/test_charter_mission_type_commands.py::test_charter_mission_type_subgroup_registered
+    - tests/cli/test_charter_mission_type_commands.py::test_mission_type_list_alias_exits_0
+    - tests/cli/test_charter_mission_type_commands.py::test_mission_type_list_alias_json_matches_charter
+    - tests/cli/test_charter_mission_type_commands.py::test_mission_type_list_alias_shows_activated_types
+    - tests/cli/test_charter_mission_type_commands.py::test_mission_type_show_displays_action_sequence
+    - tests/cli/test_charter_mission_type_commands.py::test_mission_type_show_displays_display_name
+    - tests/cli/test_charter_mission_type_commands.py::test_mission_type_show_displays_id
+    - tests/cli/test_charter_mission_type_commands.py::test_mission_type_show_displays_source_layer
+    - tests/cli/test_charter_mission_type_commands.py::test_mission_type_show_json_action_sequence_is_list
+    - tests/cli/test_charter_mission_type_commands.py::test_mission_type_show_json_has_required_fields
+    - tests/cli/test_charter_mission_type_commands.py::test_mission_type_show_json_id_matches_argument
+    - tests/cli/test_charter_mission_type_commands.py::test_mission_type_show_json_is_valid
+    - tests/cli/test_charter_mission_type_commands.py::test_mission_type_show_json_source_layer_built_in
+    - tests/cli/test_charter_mission_type_commands.py::test_mission_type_show_software_dev_exits_0
+    - tests/cli/test_charter_mission_type_commands.py::test_mission_type_show_unknown_exits_1
+    - tests/cli/test_charter_mission_type_commands.py::test_mission_type_show_unknown_lists_registered_ids
+    - tests/cli/test_charter_mission_type_commands.py::test_mission_type_show_unknown_prints_error_message
+    granularity: function
+    source_paths:
+    - tests/cli/test_charter_mission_type_commands.py
+    production_paths:
+    - src/specify_cli/cli/commands/charter.py
+    - src/charter/mission_types.py
+    oracle: Public list/show commands emit the consumed JSON catalog, alias reaches it, and unknown IDs fail.
+    contract_claim: Public list/show commands emit the consumed JSON catalog, alias reaches it, and unknown IDs fail.
+    authority:
+    - docs/adr/3.x/2026-08-05-1-mission-type-availability-before-kind-promotion.md
+    - docs/context/mission-types.md
+    scanner_kinds:
+    - ast
+    - source
+    base_source_units: 25
+    base_nodes: 25
+    head_nodes: 4
+    route_memberships:
+    - *id003
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/cli/test_charter_mission_type_commands.py::test_charter_mission_type_list_json_action_sequence_is_list
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-08-05-1-mission-type-availability-before-kind-promotion.md
+      result: Public list/show commands emit the consumed JSON catalog, alias reaches it, and unknown IDs fail.
+    corpus:
+      description: Typer CLI runner against live built-in mission-type catalog.
+      nonzero: true
+      collected_nodes: 4
+    consumers:
+    - src/specify_cli/cli/commands/charter.py
+    - src/charter/mission_types.py
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Accept an unknown ID, drop required JSON identity, or diverge alias routing.
+      authority_violated: Public list/show commands emit the consumed JSON catalog, alias reaches it, and unknown IDs fail.
+      act_reached: true
+      intended_oracle: Public list/show commands emit the consumed JSON catalog, alias reaches it, and unknown IDs fail.
+      intended_oracle_failed: true
+      command: tests/cli/test_charter_mission_type_commands.py retained family; focused WP13 run and embedded fault/control
+        probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/cli/test_charter_mission_type_commands.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-doctrine-drg-test-kind-mapping-totality
+    members:
+    - tests/doctrine/drg/test_kind_mapping_totality.py::test_authority_missing_a_member_is_flagged_by_the_guard
+    - tests/doctrine/drg/test_kind_mapping_totality.py::test_charter_project_kind_dirs_copies_no_longer_declared
+    - tests/doctrine/drg/test_kind_mapping_totality.py::test_cli_project_dir_and_singular_plural_copies_are_retired
+    - tests/doctrine/drg/test_kind_mapping_totality.py::test_exempt_partials_are_discovered_and_genuinely_partial
+    - tests/doctrine/drg/test_kind_mapping_totality.py::test_kind_keyed_dicts_are_total_or_exempt
+    - tests/doctrine/drg/test_kind_mapping_totality.py::test_mixed_enum_and_plain_keys_raise_instead_of_silently_skipping
+    - tests/doctrine/drg/test_kind_mapping_totality.py::test_naive_total_only_guard_would_false_fail_on_current_tree
+    - tests/doctrine/drg/test_kind_mapping_totality.py::test_project_kind_dirs_authority_is_discovered_and_total
+    - tests/doctrine/drg/test_kind_mapping_totality.py::test_stub_templates_mapping_is_discovered_and_exempt
+    - tests/doctrine/drg/test_kind_mapping_totality.py::test_synthetic_partial_dict_is_flagged_and_exempt_names_are_skippable
+    granularity: function
+    source_paths:
+    - tests/doctrine/drg/test_kind_mapping_totality.py
+    production_paths:
+    - src/doctrine/drg/models.py
+    - src/doctrine/drg/kinds.py
+    oracle: Live kind-keyed mappings are total or explicitly exempt; mixed key domains fail closed.
+    contract_claim: Live kind-keyed mappings are total or explicitly exempt; mixed key domains fail closed.
+    authority:
+    - docs/context/doctrine.md
+    - docs/adr/3.x/2026-07-21-1-glossary-first-order-doctrine-artefact.md
+    scanner_kinds:
+    - ast
+    - source
+    - text
+    base_source_units: 10
+    base_nodes: 10
+    head_nodes: 3
+    route_memberships:
+    - *id003
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/doctrine/drg/test_kind_mapping_totality.py::test_authority_missing_a_member_is_flagged_by_the_guard
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/context/doctrine.md
+      result: Live kind-keyed mappings are total or explicitly exempt; mixed key domains fail closed.
+    corpus:
+      description: All Python modules under the live doctrine DRG package plus injected mapping snippets.
+      nonzero: true
+      collected_nodes: 3
+    consumers:
+    - src/doctrine/drg/models.py
+    - src/doctrine/drg/kinds.py
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Remove one NodeKind member from an authority mapping or mix enum/plain keys.
+      authority_violated: Live kind-keyed mappings are total or explicitly exempt; mixed key domains fail closed.
+      act_reached: true
+      intended_oracle: Live kind-keyed mappings are total or explicitly exempt; mixed key domains fail closed.
+      intended_oracle_failed: true
+      command: tests/doctrine/drg/test_kind_mapping_totality.py retained family; focused WP13 run and embedded fault/control
+        probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/doctrine/drg/test_kind_mapping_totality.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-doctrine-test-activation-parity-guard
+    members:
+    - tests/doctrine/test_activation_parity_guard.py::test_activation_reads_charter_yaml_pointer_not_stale_config
+    - tests/doctrine/test_activation_parity_guard.py::test_config_directive_absent_from_references_bites
+    - tests/doctrine/test_activation_parity_guard.py::test_config_directive_present_in_references_is_coherent
+    - tests/doctrine/test_activation_parity_guard.py::test_config_kind_absent_from_graph_bites
+    - tests/doctrine/test_activation_parity_guard.py::test_config_kind_present_in_activated_kinds_is_coherent
+    - tests/doctrine/test_activation_parity_guard.py::test_consistency_check_does_not_import_freshness_or_specify_cli
+    - tests/doctrine/test_activation_parity_guard.py::test_corrupt_references_yaml_fails_closed
+    - tests/doctrine/test_activation_parity_guard.py::test_dangling_charter_pointer_fails_closed_for_activation
+    - tests/doctrine/test_activation_parity_guard.py::test_drg_load_failure_fails_closed
+    - tests/doctrine/test_activation_parity_guard.py::test_org_overlay_activated_artefact_resolves_for_parity
+    - tests/doctrine/test_activation_parity_guard.py::test_orphan_paradigm_reference_bites
+    - tests/doctrine/test_activation_parity_guard.py::test_paradigm_canonical_id_equals_config_stem_invariant
+    - tests/doctrine/test_activation_parity_guard.py::test_references_yaml_absent_is_still_a_clean_skip
+    - tests/doctrine/test_activation_parity_guard.py::test_references_yaml_malformed_schema_fails_closed
+    - tests/doctrine/test_activation_parity_guard.py::test_this_project_charter_pack_is_coherent
+    granularity: function
+    source_paths:
+    - tests/doctrine/test_activation_parity_guard.py
+    production_paths:
+    - src/doctrine/resolution/activation_engine.py
+    - src/doctrine/drg/loader.py
+    oracle: Charter selections resolve through references and the merged DRG; missing/corrupt inputs fail closed where activation
+      is required.
+    contract_claim: Charter selections resolve through references and the merged DRG; missing/corrupt inputs fail closed where
+      activation is required.
+    authority:
+    - docs/context/governance.md#Activated-vs-Available
+    - docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
+    scanner_kinds:
+    - ast
+    - source
+    base_source_units: 15
+    base_nodes: 15
+    head_nodes: 11
+    route_memberships:
+    - *id003
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/doctrine/test_activation_parity_guard.py::test_activation_reads_charter_yaml_pointer_not_stale_config
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/context/governance.md#Activated-vs-Available
+      result: Charter selections resolve through references and the merged DRG; missing/corrupt inputs fail closed where activation
+        is required.
+    corpus:
+      description: Repository charter plus temporary built-in/org/project references and DRG graphs.
+      nonzero: true
+      collected_nodes: 11
+    consumers:
+    - src/doctrine/resolution/activation_engine.py
+    - src/doctrine/drg/loader.py
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Plant absent directives/kinds, orphan references, dangling charter pointers, corrupt YAML, or DRG load failure.
+      authority_violated: Charter selections resolve through references and the merged DRG; missing/corrupt inputs fail closed
+        where activation is required.
+      act_reached: true
+      intended_oracle: Charter selections resolve through references and the merged DRG; missing/corrupt inputs fail closed
+        where activation is required.
+      intended_oracle_failed: true
+      command: tests/doctrine/test_activation_parity_guard.py retained family; focused WP13 run and embedded fault/control
+        probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/doctrine/test_activation_parity_guard.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-doctrine-test-pack-root-resolver
+    members:
+    - tests/doctrine/test_pack_root_resolver.py::test_editable_resolves_repo_root_packs
+    - tests/doctrine/test_pack_root_resolver.py::test_env_override_missing_dir_falls_through_to_editable
+    - tests/doctrine/test_pack_root_resolver.py::test_env_override_wins
+    - tests/doctrine/test_pack_root_resolver.py::test_fail_closed_when_files_unavailable
+    - tests/doctrine/test_pack_root_resolver.py::test_fail_closed_when_no_packs_anywhere
+    - tests/doctrine/test_pack_root_resolver.py::test_installed_layout_resolves_site_packages_sibling_via_ancestor_walk
+    - tests/doctrine/test_pack_root_resolver.py::test_module_imports_no_upward_layer
+    - tests/doctrine/test_pack_root_resolver.py::test_org_and_project_fail_closed_without_root
+    - tests/doctrine/test_pack_root_resolver.py::test_org_and_project_return_caller_root
+    - tests/doctrine/test_pack_root_resolver.py::test_pure_idempotent
+    - tests/doctrine/test_pack_root_resolver.py::test_symlinked_checkout_resolves_real_repo_root
+    granularity: function
+    source_paths:
+    - tests/doctrine/test_pack_root_resolver.py
+    production_paths:
+    - src/doctrine/pack_paths.py
+    oracle: Pack roots resolve across editable, installed, symlinked, override, org/project, and unavailable layouts with
+      fail-closed errors.
+    contract_claim: Pack roots resolve across editable, installed, symlinked, override, org/project, and unavailable layouts
+      with fail-closed errors.
+    authority:
+    - docs/adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md
+    - docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md
+    scanner_kinds:
+    - ast
+    - source
+    base_source_units: 11
+    base_nodes: 13
+    head_nodes: 11
+    route_memberships:
+    - *id003
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/doctrine/test_pack_root_resolver.py::test_editable_resolves_repo_root_packs
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md
+      result: Pack roots resolve across editable, installed, symlinked, override, org/project, and unavailable layouts with
+        fail-closed errors.
+    corpus:
+      description: Temporary POSIX-style filesystem trees, symlinked checkout, environment override, and tier roots.
+      nonzero: true
+      collected_nodes: 11
+    consumers:
+    - src/doctrine/pack_paths.py
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Point override at a missing root, remove every candidate root, or omit required org/project root.
+      authority_violated: Pack roots resolve across editable, installed, symlinked, override, org/project, and unavailable
+        layouts with fail-closed errors.
+      act_reached: true
+      intended_oracle: Pack roots resolve across editable, installed, symlinked, override, org/project, and unavailable layouts
+        with fail-closed errors.
+      intended_oracle_failed: true
+      command: tests/doctrine/test_pack_root_resolver.py retained family; focused WP13 run and embedded fault/control probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/doctrine/test_pack_root_resolver.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-specify-cli-cli-commands-test-doctrine-collect
+    members:
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_attach_pack_health_attaches_to_present_packs
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_attach_pack_health_no_org_layer
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_build_pack_entries_absent_snapshot
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_build_pack_entries_present_snapshot
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_build_selection_block_dedup_and_order
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_collect_org_layer_data_returns_dict_with_keys
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_collect_profile_health_records_crash
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_collector_symbols_reexported_from_doctor
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_count_pack_artifacts
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_count_pack_artifacts_empty
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_doctrine_collect_does_not_import_doctor
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_read_org_required_degrades_on_missing_config
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_read_project_selections_malformed_degrades
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_read_project_selections_missing_file
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_read_project_selections_reads_lists
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_resolve_artifact_source_charter_fallback
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_resolve_artifact_source_from_provenance
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_resolve_artifact_source_org_required_fallback
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_resolve_artifact_source_unknown
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_resolve_pack_version_git_describe
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_resolve_pack_version_git_describe_empty
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_resolve_pack_version_git_describe_failure
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_resolve_pack_version_manifest
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_resolve_pack_version_manifest_malformed
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_resolve_pack_version_no_sources
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_summarize_org_charter_absent
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py::test_summarize_org_charter_module_unavailable
+    granularity: function
+    source_paths:
+    - tests/specify_cli/cli/commands/test_doctrine_collect.py
+    production_paths:
+    - src/specify_cli/cli/commands/doctrine.py
+    oracle: Doctrine collection emits stable pack/version/health/selection data and records malformed or crashing inputs honestly.
+    contract_claim: Doctrine collection emits stable pack/version/health/selection data and records malformed or crashing
+      inputs honestly.
+    authority:
+    - docs/context/doctrine.md
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003
+    scanner_kinds:
+    - ast
+    - source
+    base_source_units: 27
+    base_nodes: 29
+    head_nodes: 15
+    route_memberships:
+    - *id003
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/specify_cli/cli/commands/test_doctrine_collect.py::test_attach_pack_health_attaches_to_present_packs
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/context/doctrine.md
+      result: Doctrine collection emits stable pack/version/health/selection data and records malformed or crashing inputs
+        honestly.
+    corpus:
+      description: Temporary manifests, pack trees, provenance, selection files, fake services, and live collector helpers.
+      nonzero: true
+      collected_nodes: 15
+    consumers:
+    - src/specify_cli/cli/commands/doctrine.py
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Malformed manifest/selections, unavailable charter module, failed git describe, or health collector crash.
+      authority_violated: Doctrine collection emits stable pack/version/health/selection data and records malformed or crashing
+        inputs honestly.
+      act_reached: true
+      intended_oracle: Doctrine collection emits stable pack/version/health/selection data and records malformed or crashing
+        inputs honestly.
+      intended_oracle_failed: true
+      command: tests/specify_cli/cli/commands/test_doctrine_collect.py retained family; focused WP13 run and embedded fault/control
+        probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/specify_cli/cli/commands/test_doctrine_collect.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-specify-cli-test-doctrine-service-factory
+    members:
+    - tests/specify_cli/test_doctrine_service_factory.py::test_absent_key_returns_all_builtins
+    - tests/specify_cli/test_doctrine_service_factory.py::test_empty_set_returns_nothing
+    - tests/specify_cli/test_doctrine_service_factory.py::test_explicit_set_returns_only_those_ids
+    - tests/specify_cli/test_doctrine_service_factory.py::test_layer_safety_charter_and_doctrine_do_not_import_specify_cli
+    - tests/specify_cli/test_doctrine_service_factory.py::test_returns_charter_resolver_wrapper
+    granularity: function
+    source_paths:
+    - tests/specify_cli/test_doctrine_service_factory.py
+    production_paths:
+    - src/specify_cli/doctrine_service.py
+    - src/charter/activation.py
+    oracle: Runtime factory returns the charter activation wrapper, not a raw doctrine service.
+    contract_claim: Runtime factory returns the charter activation wrapper, not a raw doctrine service.
+    authority:
+    - docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
+    scanner_kinds:
+    - ast
+    - source
+    base_source_units: 5
+    base_nodes: 5
+    head_nodes: 1
+    route_memberships:
+    - *id003
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/specify_cli/test_doctrine_service_factory.py::test_absent_key_returns_all_builtins
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
+      result: Runtime factory returns the charter activation wrapper, not a raw doctrine service.
+    corpus:
+      description: Live factory with temporary repository root.
+      nonzero: true
+      collected_nodes: 1
+    consumers:
+    - src/specify_cli/doctrine_service.py
+    - src/charter/activation.py
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Return the raw DoctrineService and bypass CharterActivationService.
+      authority_violated: Runtime factory returns the charter activation wrapper, not a raw doctrine service.
+      act_reached: true
+      intended_oracle: Runtime factory returns the charter activation wrapper, not a raw doctrine service.
+      intended_oracle_failed: true
+      command: tests/specify_cli/test_doctrine_service_factory.py retained family; focused WP13 run and embedded fault/control
+        probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/specify_cli/test_doctrine_service_factory.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-built-in-location-authority
+    members:
+    - tests/architectural/test_built_in_location_authority.py::test_built_in_dir_refuses_derived_complement_kinds
+    - tests/architectural/test_built_in_location_authority.py::test_built_in_dir_resolves_inside_existing_packaged_content_dir
+    - tests/architectural/test_built_in_location_authority.py::test_content_dir_kinds_and_complement_partition_all_kinds
+    - tests/architectural/test_built_in_location_authority.py::test_negative_bite_built_in_root_call_joins_are_caught
+    - tests/architectural/test_built_in_location_authority.py::test_negative_bite_direct_and_variable_indirected_joins_are_caught
+    - tests/architectural/test_built_in_location_authority.py::test_no_builtin_path_joins_outside_pack_paths_authority
+    - tests/architectural/test_built_in_location_authority.py::test_shipped_agent_profiles_are_non_empty
+    granularity: function
+    source_paths:
+    - tests/architectural/test_built_in_location_authority.py
+    production_paths:
+    - src/doctrine/pack_paths.py
+    - src/charter
+    oracle: Only pack_paths reconstructs the built-in pack root.
+    contract_claim: Only pack_paths reconstructs the built-in pack root.
+    authority:
+    - docs/adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md
+    scanner_kinds:
+    - ast
+    - source
+    - structural
+    base_source_units: 7
+    base_nodes: 17
+    head_nodes: 3
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_built_in_location_authority.py::test_built_in_dir_refuses_derived_complement_kinds[anti_pattern]
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md
+      result: Only pack_paths reconstructs the built-in pack root.
+    corpus:
+      description: Nonzero live src Python tree plus synthetic direct, indirect, and resolver-call joins.
+      nonzero: true
+      collected_nodes: 3
+    consumers:
+    - src/doctrine/pack_paths.py
+    - src/charter
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Plant direct/variable-indirected built-in path joins outside pack_paths.
+      authority_violated: Only pack_paths reconstructs the built-in pack root.
+      act_reached: true
+      intended_oracle: Only pack_paths reconstructs the built-in pack root.
+      intended_oracle_failed: true
+      command: tests/architectural/test_built_in_location_authority.py retained family; focused WP13 run and embedded fault/control
+        probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/architectural/test_built_in_location_authority.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-builtin-override-policy
+    members:
+    - tests/architectural/test_builtin_override_policy.py::test_allowlisted_non_directive_override_passes
+    - tests/architectural/test_builtin_override_policy.py::test_builtin_overrides_are_sanctioned
+    - tests/architectural/test_builtin_override_policy.py::test_directive_override_with_reason_passes
+    - tests/architectural/test_builtin_override_policy.py::test_directive_override_without_reason_is_unsanctioned
+    - tests/architectural/test_builtin_override_policy.py::test_real_merge_override_is_detected_and_governed
+    - tests/architectural/test_builtin_override_policy.py::test_unlisted_override_is_unsanctioned
+    granularity: function
+    source_paths:
+    - tests/architectural/test_builtin_override_policy.py
+    production_paths:
+    - src/doctrine/drg/override_policy.py
+    - src/doctrine/drg/merge.py
+    oracle: Org/project overrides of built-in URNs require an explicit replaceable-builtins policy entry.
+    contract_claim: Org/project overrides of built-in URNs require an explicit replaceable-builtins policy entry.
+    authority:
+    - docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
+    scanner_kinds:
+    - structural
+    base_source_units: 6
+    base_nodes: 6
+    head_nodes: 2
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_builtin_override_policy.py::test_allowlisted_non_directive_override_passes
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
+      result: Org/project overrides of built-in URNs require an explicit replaceable-builtins policy entry.
+    corpus:
+      description: Live built-in/org/project graph plus a synthetic merged override.
+      nonzero: true
+      collected_nodes: 2
+    consumers:
+    - src/doctrine/drg/override_policy.py
+    - src/doctrine/drg/merge.py
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Override a built-in tactic without a sanctioned policy entry.
+      authority_violated: Org/project overrides of built-in URNs require an explicit replaceable-builtins policy entry.
+      act_reached: true
+      intended_oracle: Org/project overrides of built-in URNs require an explicit replaceable-builtins policy entry.
+      intended_oracle_failed: true
+      command: tests/architectural/test_builtin_override_policy.py retained family; focused WP13 run and embedded fault/control
+        probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/architectural/test_builtin_override_policy.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-charter-no-specify-cli-import
+    members:
+    - tests/architectural/test_charter_no_specify_cli_import.py::test_charter_never_imports_specify_cli
+    - tests/architectural/test_charter_no_specify_cli_import.py::test_walker_catches_in_function_import
+    - tests/architectural/test_charter_no_specify_cli_import.py::test_walker_catches_module_level_and_from_imports
+    - tests/architectural/test_charter_no_specify_cli_import.py::test_walker_ignores_non_violating_imports
+    granularity: function
+    source_paths:
+    - tests/architectural/test_charter_no_specify_cli_import.py
+    production_paths:
+    - src/charter
+    oracle: Charter never imports the higher runtime package.
+    contract_claim: Charter never imports the higher runtime package.
+    authority:
+    - docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md
+    scanner_kinds:
+    - ast
+    - source
+    - structural
+    base_source_units: 4
+    base_nodes: 4
+    head_nodes: 3
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_charter_no_specify_cli_import.py::test_charter_never_imports_specify_cli
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md
+      result: Charter never imports the higher runtime package.
+    corpus:
+      description: Nonzero live src/charter Python tree plus injected module/function imports.
+      nonzero: true
+      collected_nodes: 3
+    consumers:
+    - src/charter
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Plant an in-function specify_cli import in charter.
+      authority_violated: Charter never imports the higher runtime package.
+      act_reached: true
+      intended_oracle: Charter never imports the higher runtime package.
+      intended_oracle_failed: true
+      command: tests/architectural/test_charter_no_specify_cli_import.py retained family; focused WP13 run and embedded fault/control
+        probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/architectural/test_charter_no_specify_cli_import.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-charter-path-literal-authority
+    members:
+    - tests/architectural/test_charter_path_literal_authority.py::test_allowlist_accounts_for_every_live_site
+    - tests/architectural/test_charter_path_literal_authority.py::test_allowlist_entries_are_still_live
+    - tests/architectural/test_charter_path_literal_authority.py::test_allowlist_shrink_only
+    - tests/architectural/test_charter_path_literal_authority.py::test_allowlisted_yaml_site_cannot_be_swapped_to_md
+    - tests/architectural/test_charter_path_literal_authority.py::test_allowlisting_one_literal_does_not_waive_the_module
+    - tests/architectural/test_charter_path_literal_authority.py::test_census_stays_under_ceiling
+    - tests/architectural/test_charter_path_literal_authority.py::test_charter_path_key_is_value_keyed
+    - tests/architectural/test_charter_path_literal_authority.py::test_detector_allows_charter_yaml_presence_gate
+    - tests/architectural/test_charter_path_literal_authority.py::test_detector_flags_direct_charter_md_presence_gate
+    - tests/architectural/test_charter_path_literal_authority.py::test_detector_flags_named_charter_md_presence_gate
+    - tests/architectural/test_charter_path_literal_authority.py::test_detector_flags_path_construction_contexts
+    - tests/architectural/test_charter_path_literal_authority.py::test_detector_ignores_prose_mentions
+    - tests/architectural/test_charter_path_literal_authority.py::test_gate_green_against_seeded_allowlist
+    - tests/architectural/test_charter_path_literal_authority.py::test_gate_runs_under_fast_tier_budget
+    - tests/architectural/test_charter_path_literal_authority.py::test_injected_charter_literal_is_flagged
+    - tests/architectural/test_charter_path_literal_authority.py::test_is_charter_path_literal_accepts
+    - tests/architectural/test_charter_path_literal_authority.py::test_is_charter_path_literal_rejects
+    - tests/architectural/test_charter_path_literal_authority.py::test_loader_rejects_entry_without_literal
+    - tests/architectural/test_charter_path_literal_authority.py::test_loader_rejects_entry_without_rationale
+    - tests/architectural/test_charter_path_literal_authority.py::test_loader_rejects_entry_without_token
+    - tests/architectural/test_charter_path_literal_authority.py::test_loader_rejects_glob_shaped_file_entry
+    - tests/architectural/test_charter_path_literal_authority.py::test_loader_rejects_non_integer_line
+    - tests/architectural/test_charter_path_literal_authority.py::test_loader_rejects_non_mapping_entry
+    - tests/architectural/test_charter_path_literal_authority.py::test_loader_rejects_unknown_clause
+    - tests/architectural/test_charter_path_literal_authority.py::test_scan_excludes_the_authority_module
+    - tests/architectural/test_charter_path_literal_authority.py::test_speculative_allowlist_entry_is_caught_as_stale
+    granularity: function
+    source_paths:
+    - tests/architectural/test_charter_path_literal_authority.py
+    production_paths:
+    - src/charter
+    - src/specify_cli
+    oracle: Charter bundle path literals remain centralized and exact allowlist sites cannot hide new literals.
+    contract_claim: Charter bundle path literals remain centralized and exact allowlist sites cannot hide new literals.
+    authority:
+    - docs/adr/3.x/2026-07-18-1-charter-yaml-authoring-authority-and-extractor-retirement.md
+    scanner_kinds:
+    - ast
+    - source
+    - structural
+    base_source_units: 26
+    base_nodes: 41
+    head_nodes: 4
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_charter_path_literal_authority.py::test_allowlist_accounts_for_every_live_site
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-07-18-1-charter-yaml-authoring-authority-and-extractor-retirement.md
+      result: Charter bundle path literals remain centralized and exact allowlist sites cannot hide new literals.
+    corpus:
+      description: Nonzero live src tree, seeded allowlist, and injected literal constructions.
+      nonzero: true
+      collected_nodes: 4
+    consumers:
+    - src/charter
+    - src/specify_cli
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Plant charter.md/charter.yaml construction or swap an allowlisted YAML site to MD.
+      authority_violated: Charter bundle path literals remain centralized and exact allowlist sites cannot hide new literals.
+      act_reached: true
+      intended_oracle: Charter bundle path literals remain centralized and exact allowlist sites cannot hide new literals.
+      intended_oracle_failed: true
+      command: tests/architectural/test_charter_path_literal_authority.py retained family; focused WP13 run and embedded fault/control
+        probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/architectural/test_charter_path_literal_authority.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-charter-sole-door-agent-profile-repository
+    members:
+    - tests/architectural/test_charter_sole_door_agent_profile_repository.py::test_census_is_non_empty_and_includes_the_doctrine_owner
+    - tests/architectural/test_charter_sole_door_agent_profile_repository.py::test_detector_follows_as_alias
+    - tests/architectural/test_charter_sole_door_agent_profile_repository.py::test_detector_follows_function_local_rebinding
+    - tests/architectural/test_charter_sole_door_agent_profile_repository.py::test_detector_follows_module_level_rebinding
+    - tests/architectural/test_charter_sole_door_agent_profile_repository.py::test_detector_follows_module_qualified_call
+    - tests/architectural/test_charter_sole_door_agent_profile_repository.py::test_detector_ignores_a_same_named_unrelated_class
+    - tests/architectural/test_charter_sole_door_agent_profile_repository.py::test_every_exclusion_carries_a_written_rationale
+    - tests/architectural/test_charter_sole_door_agent_profile_repository.py::test_every_exclusion_resolves_to_exactly_one_live_site
+    - tests/architectural/test_charter_sole_door_agent_profile_repository.py::test_excluding_one_site_does_not_waive_its_module
+    - tests/architectural/test_charter_sole_door_agent_profile_repository.py::test_exclusions_match_real_census_sites
+    - tests/architectural/test_charter_sole_door_agent_profile_repository.py::test_facade_spellings_collapse_to_one_canonical_origin
+    - tests/architectural/test_charter_sole_door_agent_profile_repository.py::test_gate_runs_under_fast_tier_budget
+    - tests/architectural/test_charter_sole_door_agent_profile_repository.py::test_injected_closure_construction_resolves_via_the_enclosing_scope
+    - tests/architectural/test_charter_sole_door_agent_profile_repository.py::test_injected_function_local_construction_is_flagged
+    - tests/architectural/test_charter_sole_door_agent_profile_repository.py::test_injected_nested_try_except_construction_is_flagged
+    - tests/architectural/test_charter_sole_door_agent_profile_repository.py::test_no_raw_agent_profile_repository_construction_outside_the_sole_door
+    - tests/architectural/test_charter_sole_door_agent_profile_repository.py::test_no_unresolved_agent_profile_candidates
+    - tests/architectural/test_charter_sole_door_agent_profile_repository.py::test_scan_reaches_a_broad_slice_of_src
+    granularity: function
+    source_paths:
+    - tests/architectural/test_charter_sole_door_agent_profile_repository.py
+    production_paths:
+    - src/charter/profiles.py
+    - src/doctrine/agent_profiles
+    oracle: Raw agent-profile repositories are constructed only at the charter-owned door.
+    contract_claim: Raw agent-profile repositories are constructed only at the charter-owned door.
+    authority:
+    - docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
+    scanner_kinds:
+    - source
+    - structural
+    base_source_units: 18
+    base_nodes: 18
+    head_nodes: 6
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_charter_sole_door_agent_profile_repository.py::test_census_is_non_empty_and_includes_the_doctrine_owner
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
+      result: Raw agent-profile repositories are constructed only at the charter-owned door.
+    corpus:
+      description: Nonzero live source census plus injected local construction.
+      nonzero: true
+      collected_nodes: 6
+    consumers:
+    - src/charter/profiles.py
+    - src/doctrine/agent_profiles
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Plant function-local AgentProfileRepository construction outside charter.
+      authority_violated: Raw agent-profile repositories are constructed only at the charter-owned door.
+      act_reached: true
+      intended_oracle: Raw agent-profile repositories are constructed only at the charter-owned door.
+      intended_oracle_failed: true
+      command: tests/architectural/test_charter_sole_door_agent_profile_repository.py retained family; focused WP13 run and
+        embedded fault/control probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/architectural/test_charter_sole_door_agent_profile_repository.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-charter-sole-door-doctrine-service
+    members:
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_builder_call_route_is_tracked_and_currently_compliant
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_builder_call_via_the_charter_context_patch_seam_is_flagged
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_detector_follows_function_local_rebinding
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_dropping_the_wrap_at_an_excluded_site_reds_the_gate
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_every_locality_exclusion_carries_a_written_rationale
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_every_locality_exclusion_resolves_to_exactly_one_live_site
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_excluding_one_site_does_not_waive_its_module
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_gate_runs_under_fast_tier_budget
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_injected_aliased_nested_raw_service_is_flagged
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_injected_unwrapped_builder_call_outside_charter_is_flagged
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_injected_unwrapped_function_local_raw_service_is_flagged
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_inline_wrap_shape_is_recognised
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_locality_exclusions_match_real_census_sites
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_no_raw_doctrine_service_construction_outside_the_sole_door
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_no_unresolved_doctrine_service_candidates
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_no_unwrapped_raw_doctrine_service_escapes_anywhere
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_raw_census_finds_the_unified_builders_own_constructions
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_the_two_classes_have_distinct_canonical_qualnames
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_unfiltered_diagnostic_sites_pass_none_pack_context
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_wrapped_builder_call_outside_charter_is_not_flagged
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_wrapped_raw_construction_passes_policy_a_but_not_policy_b
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_wrapper_constructions_are_never_flagged_as_raw
+    - tests/architectural/test_charter_sole_door_doctrine_service.py::test_wrapper_only_construction_is_not_flagged
+    granularity: function
+    source_paths:
+    - tests/architectural/test_charter_sole_door_doctrine_service.py
+    production_paths:
+    - src/charter/activation.py
+    - src/specify_cli/doctrine_service.py
+    oracle: Raw DoctrineService instances do not escape and construction stays behind the charter wrapper.
+    contract_claim: Raw DoctrineService instances do not escape and construction stays behind the charter wrapper.
+    authority:
+    - docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
+    scanner_kinds:
+    - ast
+    - source
+    - structural
+    - text
+    base_source_units: 23
+    base_nodes: 23
+    head_nodes: 8
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_charter_sole_door_doctrine_service.py::test_builder_call_route_is_tracked_and_currently_compliant
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
+      result: Raw DoctrineService instances do not escape and construction stays behind the charter wrapper.
+    corpus:
+      description: Nonzero live source census plus injected raw services, wrapper calls, and dropped wraps.
+      nonzero: true
+      collected_nodes: 8
+    consumers:
+    - src/charter/activation.py
+    - src/specify_cli/doctrine_service.py
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Plant an unwrapped raw service/builder outside charter or drop wrapping at an excluded site.
+      authority_violated: Raw DoctrineService instances do not escape and construction stays behind the charter wrapper.
+      act_reached: true
+      intended_oracle: Raw DoctrineService instances do not escape and construction stays behind the charter wrapper.
+      intended_oracle_failed: true
+      command: tests/architectural/test_charter_sole_door_doctrine_service.py retained family; focused WP13 run and embedded
+        fault/control probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/architectural/test_charter_sole_door_doctrine_service.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-charter-sole-door-hardcoded-paths
+    members:
+    - tests/architectural/test_charter_sole_door_hardcoded_paths.py::test_detector_flags_dunder_file_relative_shape
+    - tests/architectural/test_charter_sole_door_hardcoded_paths.py::test_detector_ignores_non_matching_shapes
+    - tests/architectural/test_charter_sole_door_hardcoded_paths.py::test_gate_is_zero_tolerance_against_the_live_tree
+    - tests/architectural/test_charter_sole_door_hardcoded_paths.py::test_gate_runs_under_fast_tier_budget
+    - tests/architectural/test_charter_sole_door_hardcoded_paths.py::test_injected_combined_literal_with_separator_is_flagged
+    - tests/architectural/test_charter_sole_door_hardcoded_paths.py::test_injected_function_local_tainted_root_variable_is_flagged
+    - tests/architectural/test_charter_sole_door_hardcoded_paths.py::test_injected_hardcode_is_flagged_naming_the_exact_line
+    - tests/architectural/test_charter_sole_door_hardcoded_paths.py::test_injected_joinpath_call_is_flagged
+    - tests/architectural/test_charter_sole_door_hardcoded_paths.py::test_injected_module_level_tainted_root_variable_is_flagged
+    - tests/architectural/test_charter_sole_door_hardcoded_paths.py::test_scan_excludes_the_promoted_authority_module
+    - tests/architectural/test_charter_sole_door_hardcoded_paths.py::test_untainted_root_variable_is_not_flagged
+    granularity: function
+    source_paths:
+    - tests/architectural/test_charter_sole_door_hardcoded_paths.py
+    production_paths:
+    - src/doctrine/missions/repository.py
+    - src/charter
+    oracle: Mission roots come from MissionTemplateRepository rather than reconstructed paths.
+    contract_claim: Mission roots come from MissionTemplateRepository rather than reconstructed paths.
+    authority:
+    - docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md
+    scanner_kinds:
+    - ast
+    - source
+    - structural
+    base_source_units: 11
+    base_nodes: 16
+    head_nodes: 3
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_charter_sole_door_hardcoded_paths.py::test_detector_flags_dunder_file_relative_shape[from
+        pathlib import Path/ndef f():/n    return Path(__file__).parent.parent / "doctrine" / "missions"/n]
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md
+      result: Mission roots come from MissionTemplateRepository rather than reconstructed paths.
+    corpus:
+      description: Nonzero live source tree plus injected tainted and untainted roots.
+      nonzero: true
+      collected_nodes: 3
+    consumers:
+    - src/doctrine/missions/repository.py
+    - src/charter
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Plant a repo-root/missions hardcode outside the repository authority.
+      authority_violated: Mission roots come from MissionTemplateRepository rather than reconstructed paths.
+      act_reached: true
+      intended_oracle: Mission roots come from MissionTemplateRepository rather than reconstructed paths.
+      intended_oracle_failed: true
+      command: tests/architectural/test_charter_sole_door_hardcoded_paths.py retained family; focused WP13 run and embedded
+        fault/control probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/architectural/test_charter_sole_door_hardcoded_paths.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-charter-sole-door-inner-reacharound
+    members:
+    - tests/architectural/test_charter_sole_door_inner_reacharound.py::test_annotated_assign_reacharound_is_flagged
+    - tests/architectural/test_charter_sole_door_inner_reacharound.py::test_dict_subscript_reach_around_is_flagged
+    - tests/architectural/test_charter_sole_door_inner_reacharound.py::test_dunder_getattribute_reach_around_is_flagged
+    - tests/architectural/test_charter_sole_door_inner_reacharound.py::test_gate_does_not_flag_unrelated_inner_attributes
+    - tests/architectural/test_charter_sole_door_inner_reacharound.py::test_gate_scan_scope_now_reaches_the_tests_directory
+    - tests/architectural/test_charter_sole_door_inner_reacharound.py::test_gate_scan_scope_reaches_known_files
+    - tests/architectural/test_charter_sole_door_inner_reacharound.py::test_getattr_on_untainted_receiver_is_not_flagged
+    - tests/architectural/test_charter_sole_door_inner_reacharound.py::test_getattr_string_reach_around_is_flagged
+    - tests/architectural/test_charter_sole_door_inner_reacharound.py::test_injected_from_package_import_module_is_flagged
+    - tests/architectural/test_charter_sole_door_inner_reacharound.py::test_no_inner_reacharound_on_doctrine_service_outside_charter
+    - tests/architectural/test_charter_sole_door_inner_reacharound.py::test_planted_inline_construction_reacharound_is_detected
+    - tests/architectural/test_charter_sole_door_inner_reacharound.py::test_planted_reacharound_at_function_local_scope_is_detected
+    - tests/architectural/test_charter_sole_door_inner_reacharound.py::test_planted_unrelated_inner_attribute_is_not_detected
+    - tests/architectural/test_charter_sole_door_inner_reacharound.py::test_tuple_unpack_reacharound_is_flagged
+    - tests/architectural/test_charter_sole_door_inner_reacharound.py::test_walrus_reacharound_is_flagged
+    granularity: function
+    source_paths:
+    - tests/architectural/test_charter_sole_door_inner_reacharound.py
+    production_paths:
+    - src/charter
+    - src/specify_cli
+    oracle: Runtime cannot reach through charter wrappers via _inner attributes.
+    contract_claim: Runtime cannot reach through charter wrappers via _inner attributes.
+    authority:
+    - docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
+    scanner_kinds:
+    - ast
+    - source
+    - structural
+    base_source_units: 15
+    base_nodes: 15
+    head_nodes: 4
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_charter_sole_door_inner_reacharound.py::test_annotated_assign_reacharound_is_flagged
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
+      result: Runtime cannot reach through charter wrappers via _inner attributes.
+    corpus:
+      description: Nonzero live source census plus injected direct/getattr reacharounds.
+      nonzero: true
+      collected_nodes: 4
+    consumers:
+    - src/charter
+    - src/specify_cli
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Plant a function-local _inner or getattr('_inner') access on a tainted wrapper.
+      authority_violated: Runtime cannot reach through charter wrappers via _inner attributes.
+      act_reached: true
+      intended_oracle: Runtime cannot reach through charter wrappers via _inner attributes.
+      intended_oracle_failed: true
+      command: tests/architectural/test_charter_sole_door_inner_reacharound.py retained family; focused WP13 run and embedded
+        fault/control probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/architectural/test_charter_sole_door_inner_reacharound.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-charter-sole-door-resolver-imports
+    members:
+    - tests/architectural/test_charter_sole_door_resolver_imports.py::test_detector_finds_the_real_sanctioned_imports
+    - tests/architectural/test_charter_sole_door_resolver_imports.py::test_detector_ignores_a_similarly_named_module
+    - tests/architectural/test_charter_sole_door_resolver_imports.py::test_detector_ignores_prose_mentioning_the_module
+    - tests/architectural/test_charter_sole_door_resolver_imports.py::test_detector_ignores_the_sanctioned_facade_import
+    - tests/architectural/test_charter_sole_door_resolver_imports.py::test_gate_runs_under_fast_tier_budget
+    - tests/architectural/test_charter_sole_door_resolver_imports.py::test_injected_aliased_from_package_import_is_flagged
+    - tests/architectural/test_charter_sole_door_resolver_imports.py::test_injected_aliased_module_import_is_flagged
+    - tests/architectural/test_charter_sole_door_resolver_imports.py::test_injected_from_package_import_module_is_flagged
+    - tests/architectural/test_charter_sole_door_resolver_imports.py::test_injected_function_local_import_is_flagged
+    - tests/architectural/test_charter_sole_door_resolver_imports.py::test_injected_nested_try_except_import_is_flagged
+    - tests/architectural/test_charter_sole_door_resolver_imports.py::test_injected_plain_module_import_is_flagged
+    - tests/architectural/test_charter_sole_door_resolver_imports.py::test_injected_submodule_import_is_flagged
+    - tests/architectural/test_charter_sole_door_resolver_imports.py::test_no_direct_doctrine_resolver_import_outside_the_owning_layers
+    - tests/architectural/test_charter_sole_door_resolver_imports.py::test_owning_layer_prefix_is_directory_keyed_not_file_keyed
+    - tests/architectural/test_charter_sole_door_resolver_imports.py::test_scan_reaches_a_broad_slice_of_src
+    - tests/architectural/test_charter_sole_door_resolver_imports.py::test_the_documented_consumer_uses_the_facade_not_the_owner
+    - tests/architectural/test_charter_sole_door_resolver_imports.py::test_the_facade_route_preserves_class_identity
+    granularity: function
+    source_paths:
+    - tests/architectural/test_charter_sole_door_resolver_imports.py
+    production_paths:
+    - src/charter
+    - src/doctrine/resolver.py
+    - src/specify_cli
+    oracle: Direct doctrine resolver imports remain inside owning layers; runtime uses charter facade.
+    contract_claim: Direct doctrine resolver imports remain inside owning layers; runtime uses charter facade.
+    authority:
+    - docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
+    scanner_kinds:
+    - ast
+    - source
+    - structural
+    base_source_units: 17
+    base_nodes: 17
+    head_nodes: 4
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_charter_sole_door_resolver_imports.py::test_detector_finds_the_real_sanctioned_imports
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
+      result: Direct doctrine resolver imports remain inside owning layers; runtime uses charter facade.
+    corpus:
+      description: Nonzero live source census plus injected function import.
+      nonzero: true
+      collected_nodes: 4
+    consumers:
+    - src/charter
+    - src/doctrine/resolver.py
+    - src/specify_cli
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Plant a direct doctrine.resolver import outside charter/doctrine.
+      authority_violated: Direct doctrine resolver imports remain inside owning layers; runtime uses charter facade.
+      act_reached: true
+      intended_oracle: Direct doctrine resolver imports remain inside owning layers; runtime uses charter facade.
+      intended_oracle_failed: true
+      command: tests/architectural/test_charter_sole_door_resolver_imports.py retained family; focused WP13 run and embedded
+        fault/control probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/architectural/test_charter_sole_door_resolver_imports.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-doctrine-wheel-closure
+    members:
+    - tests/architectural/test_doctrine_wheel_closure.py::test_doctrine_pyproject_declares_kernel_dependency
+    - tests/architectural/test_doctrine_wheel_closure.py::test_doctrine_pyproject_wires_the_packs_build_hook
+    - tests/architectural/test_doctrine_wheel_closure.py::test_kernel_pyproject_exists_and_parses
+    - tests/architectural/test_doctrine_wheel_closure.py::test_kernel_pyproject_has_zero_first_party_dependencies
+    - tests/architectural/test_doctrine_wheel_closure.py::test_kernel_version_satisfies_doctrine_declared_specifier
+    - tests/architectural/test_doctrine_wheel_closure.py::test_no_ci_workflow_builds_nested_doctrine_wheel_standalone
+    granularity: function
+    source_paths:
+    - tests/architectural/test_doctrine_wheel_closure.py
+    production_paths:
+    - src/kernel/pyproject.toml
+    - src/doctrine/pyproject.toml
+    - src/doctrine/hatch_build.py
+    oracle: Kernel has zero first-party dependencies; doctrine declares kernel and carries packs via its build hook.
+    contract_claim: Kernel has zero first-party dependencies; doctrine declares kernel and carries packs via its build hook.
+    authority:
+    - docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md
+    scanner_kinds:
+    - source
+    - structural
+    base_source_units: 6
+    base_nodes: 6
+    head_nodes: 3
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_doctrine_wheel_closure.py::test_doctrine_pyproject_declares_kernel_dependency
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md
+      result: Kernel has zero first-party dependencies; doctrine declares kernel and carries packs via its build hook.
+    corpus:
+      description: Live pyproject TOML and doctrine build-hook source.
+      nonzero: true
+      collected_nodes: 3
+    consumers:
+    - src/kernel/pyproject.toml
+    - src/doctrine/pyproject.toml
+    - src/doctrine/hatch_build.py
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Add an upward kernel dependency, remove doctrine's kernel dependency, or remove the packs build hook.
+      authority_violated: Kernel has zero first-party dependencies; doctrine declares kernel and carries packs via its build
+        hook.
+      act_reached: true
+      intended_oracle: Kernel has zero first-party dependencies; doctrine declares kernel and carries packs via its build
+        hook.
+      intended_oracle_failed: true
+      command: tests/architectural/test_doctrine_wheel_closure.py retained family; focused WP13 run and embedded fault/control
+        probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/architectural/test_doctrine_wheel_closure.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-glossary-pack-boundary
+    members:
+    - tests/architectural/test_glossary_pack_boundary.py::test_glossary_packs_package_has_no_runtime_glossary_imports
+    - tests/architectural/test_glossary_pack_boundary.py::test_guard_does_not_flag_glossary_packs_sibling_package
+    - tests/architectural/test_glossary_pack_boundary.py::test_guard_flags_injected_runtime_glossary_import
+    - tests/architectural/test_glossary_pack_boundary.py::test_guard_would_fail_on_a_real_offending_module
+    granularity: function
+    source_paths:
+    - tests/architectural/test_glossary_pack_boundary.py
+    production_paths:
+    - src/doctrine/glossary_packs
+    oracle: Doctrine glossary-pack model never imports runtime glossary implementation.
+    contract_claim: Doctrine glossary-pack model never imports runtime glossary implementation.
+    authority:
+    - docs/adr/3.x/2026-07-21-1-glossary-first-order-doctrine-artefact.md
+    scanner_kinds:
+    - ast
+    - source
+    - structural
+    base_source_units: 4
+    base_nodes: 10
+    head_nodes: 9
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_glossary_pack_boundary.py::test_glossary_packs_package_has_no_runtime_glossary_imports
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-07-21-1-glossary-first-order-doctrine-artefact.md
+      result: Doctrine glossary-pack model never imports runtime glossary implementation.
+    corpus:
+      description: Nonzero live glossary_packs package plus injected import forms.
+      nonzero: true
+      collected_nodes: 9
+    consumers:
+    - src/doctrine/glossary_packs
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Plant absolute/relative runtime glossary imports.
+      authority_violated: Doctrine glossary-pack model never imports runtime glossary implementation.
+      act_reached: true
+      intended_oracle: Doctrine glossary-pack model never imports runtime glossary implementation.
+      intended_oracle_failed: true
+      command: tests/architectural/test_glossary_pack_boundary.py retained family; focused WP13 run and embedded fault/control
+        probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/architectural/test_glossary_pack_boundary.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-kernel-no-doctrine-import
+    members:
+    - tests/architectural/test_kernel_no_doctrine_import.py::test_kernel_holds_no_doctrine_or_specify_cli_vocabulary
+    - tests/architectural/test_kernel_no_doctrine_import.py::test_pre_existing_exemption_is_still_a_real_violation
+    - tests/architectural/test_kernel_no_doctrine_import.py::test_walker_catches_dotted_module_path_string_literal
+    - tests/architectural/test_kernel_no_doctrine_import.py::test_walker_catches_in_function_call_argument
+    - tests/architectural/test_kernel_no_doctrine_import.py::test_walker_catches_module_level_import
+    - tests/architectural/test_kernel_no_doctrine_import.py::test_walker_ignores_docstrings_and_prose
+    granularity: function
+    source_paths:
+    - tests/architectural/test_kernel_no_doctrine_import.py
+    production_paths:
+    - src/kernel
+    oracle: Kernel contains no doctrine/specify_cli code references outside prose.
+    contract_claim: Kernel contains no doctrine/specify_cli code references outside prose.
+    authority:
+    - docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md
+    - docs/adr/3.x/2026-04-25-1-shared-package-boundary.md
+    scanner_kinds:
+    - ast
+    - source
+    - structural
+    base_source_units: 6
+    base_nodes: 6
+    head_nodes: 4
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_kernel_no_doctrine_import.py::test_kernel_holds_no_doctrine_or_specify_cli_vocabulary
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md
+      result: Kernel contains no doctrine/specify_cli code references outside prose.
+    corpus:
+      description: Nonzero live kernel tree plus injected calls, strings, and docstrings.
+      nonzero: true
+      collected_nodes: 4
+    consumers:
+    - src/kernel
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Plant a doctrine/specify_cli reference in executable code.
+      authority_violated: Kernel contains no doctrine/specify_cli code references outside prose.
+      act_reached: true
+      intended_oracle: Kernel contains no doctrine/specify_cli code references outside prose.
+      intended_oracle_failed: true
+      command: tests/architectural/test_kernel_no_doctrine_import.py retained family; focused WP13 run and embedded fault/control
+        probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/architectural/test_kernel_no_doctrine_import.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-org-activation-seam
+    members:
+    - tests/architectural/test_org_activation_seam.py::test_builtin_only_allowlist_carries_rationale_and_is_disjoint
+    - tests/architectural/test_org_activation_seam.py::test_gate_bites_on_injected_raw_splice
+    - tests/architectural/test_org_activation_seam.py::test_gate_passes_compliant_seam_routing
+    - tests/architectural/test_org_activation_seam.py::test_org_honouring_floor_is_concrete_and_non_vacuous
+    - tests/architectural/test_org_activation_seam.py::test_org_honouring_surface_does_not_splice_raw_org_dirs
+    - tests/architectural/test_org_activation_seam.py::test_org_honouring_surface_references_activation_seam
+    - tests/architectural/test_org_activation_seam.py::test_real_floor_sites_present_and_compliant
+    - tests/architectural/test_org_activation_seam.py::test_reference_only_check_would_certify_the_bypass
+    granularity: function
+    source_paths:
+    - tests/architectural/test_org_activation_seam.py
+    production_paths:
+    - src/specify_cli/doctrine_service.py
+    - src/specify_cli/cli/commands/doctrine.py
+    - src/specify_cli/cli/commands/charter.py
+    oracle: Org-aware runtime surfaces route through activation instead of splicing raw org directories.
+    contract_claim: Org-aware runtime surfaces route through activation instead of splicing raw org directories.
+    authority:
+    - docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
+    scanner_kinds:
+    - ast
+    - source
+    - structural
+    base_source_units: 8
+    base_nodes: 12
+    head_nodes: 8
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_org_activation_seam.py::test_builtin_only_allowlist_carries_rationale_and_is_disjoint
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
+      result: Org-aware runtime surfaces route through activation instead of splicing raw org directories.
+    corpus:
+      description: Three live org-honouring surfaces plus injected raw/compliant snippets.
+      nonzero: true
+      collected_nodes: 8
+    consumers:
+    - src/specify_cli/doctrine_service.py
+    - src/specify_cli/cli/commands/doctrine.py
+    - src/specify_cli/cli/commands/charter.py
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Plant raw org-directory construction in an org-aware surface.
+      authority_violated: Org-aware runtime surfaces route through activation instead of splicing raw org directories.
+      act_reached: true
+      intended_oracle: Org-aware runtime surfaces route through activation instead of splicing raw org directories.
+      intended_oracle_failed: true
+      command: tests/architectural/test_org_activation_seam.py retained family; focused WP13 run and embedded fault/control
+        probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/architectural/test_org_activation_seam.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-runtime-charter-doctrine-boundary
+    members:
+    - tests/architectural/test_runtime_charter_doctrine_boundary.py::test_runtime_has_no_new_direct_doctrine_imports
+    granularity: function
+    source_paths:
+    - tests/architectural/test_runtime_charter_doctrine_boundary.py
+    production_paths:
+    - src/specify_cli
+    - src/charter
+    oracle: Runtime imports doctrine only through charter, excluding the intentional pack-management package.
+    contract_claim: Runtime imports doctrine only through charter, excluding the intentional pack-management package.
+    authority:
+    - docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
+    scanner_kinds:
+    - ast
+    - source
+    - structural
+    base_source_units: 1
+    base_nodes: 1
+    head_nodes: 2
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_runtime_charter_doctrine_boundary.py::test_runtime_has_no_new_direct_doctrine_imports
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
+      result: Runtime imports doctrine only through charter, excluding the intentional pack-management package.
+    corpus:
+      description: Nonzero live src/specify_cli tree plus injected direct/charter imports.
+      nonzero: true
+      collected_nodes: 2
+    consumers:
+    - src/specify_cli
+    - src/charter
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Plant a module-level doctrine resolver import in runtime.
+      authority_violated: Runtime imports doctrine only through charter, excluding the intentional pack-management package.
+      act_reached: true
+      intended_oracle: Runtime imports doctrine only through charter, excluding the intentional pack-management package.
+      intended_oracle_failed: true
+      command: tests/architectural/test_runtime_charter_doctrine_boundary.py retained family; focused WP13 run and embedded
+        fault/control probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/architectural/test_runtime_charter_doctrine_boundary.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+- candidate:
+    id: WP13-architectural-test-single-mission-surface-resolver
+    members:
+    - tests/architectural/test_single_mission_surface_resolver.py::test_all_allowlisted_entries_have_rationale
+    - tests/architectural/test_single_mission_surface_resolver.py::test_allowlist_entries_are_not_stale
+    - tests/architectural/test_single_mission_surface_resolver.py::test_discovered_row_count_meets_floor
+    - tests/architectural/test_single_mission_surface_resolver.py::test_discovered_rows_non_empty
+    - tests/architectural/test_single_mission_surface_resolver.py::test_drained_keys_are_not_in_allowlist
+    - tests/architectural/test_single_mission_surface_resolver.py::test_independent_floor_kitty_specs_dir_files
+    - tests/architectural/test_single_mission_surface_resolver.py::test_no_direct_selection_call_outside_seam
+    - tests/architectural/test_single_mission_surface_resolver.py::test_non_seam_resolver_sources_are_not_auto_blessed_for_selection
+    - tests/architectural/test_single_mission_surface_resolver.py::test_ratchet_would_have_failed_on_pre_mission_tree
+    - tests/architectural/test_single_mission_surface_resolver.py::test_raw_handle_reinjection_is_caught
+    - tests/architectural/test_single_mission_surface_resolver.py::test_raw_join_bite_battery_new_unsanctioned_join_reds
+    - tests/architectural/test_single_mission_surface_resolver.py::test_raw_join_bite_battery_real_file_byte_unchanged_during_mutation
+    - tests/architectural/test_single_mission_surface_resolver.py::test_raw_join_motion_battery_zero_false_reds
+    - tests/architectural/test_single_mission_surface_resolver.py::test_raw_join_same_qualname_sibling_bites
+    - tests/architectural/test_single_mission_surface_resolver.py::test_read_cli_raw_joins_are_drained
+    - tests/architectural/test_single_mission_surface_resolver.py::test_resolution_internal_read_converged_onto_seam
+    - tests/architectural/test_single_mission_surface_resolver.py::test_seam_empty_mid8_fail_closed_gate_raises
+    - tests/architectural/test_single_mission_surface_resolver.py::test_seam_source_contains_fail_closed_gate
+    - tests/architectural/test_single_mission_surface_resolver.py::test_selection_discriminator_is_independent_of_raw_join_scanner
+    - tests/architectural/test_single_mission_surface_resolver.py::test_selection_ratchet_bites_on_injected_direct_call
+    - tests/architectural/test_single_mission_surface_resolver.py::test_slug_names_net_is_frozen
+    - tests/architectural/test_single_mission_surface_resolver.py::test_trio_split_files_are_covered_by_the_live_walker
+    - tests/architectural/test_single_mission_surface_resolver.py::test_trio_split_files_carry_no_raw_bypass_rows
+    - tests/architectural/test_single_mission_surface_resolver.py::test_zero_functional_raw_bypass_on_collapsed_tree
+    granularity: function
+    source_paths:
+    - tests/architectural/test_single_mission_surface_resolver.py
+    production_paths:
+    - src/specify_cli/core/mission_resolver.py
+    - src/specify_cli
+    oracle: Mission reads resolve through one seam; raw joins/direct selections are zero and resolver fails closed.
+    contract_claim: Mission reads resolve through one seam; raw joins/direct selections are zero and resolver fails closed.
+    authority:
+    - docs/adr/3.x/2026-06-22-1-mission-topology-ssot.md
+    - docs/adr/3.x/2026-07-08-1-mission-resolver-port.md
+    scanner_kinds:
+    - source
+    - structural
+    base_source_units: 24
+    base_nodes: 24
+    head_nodes: 8
+    route_memberships:
+    - *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_single_mission_surface_resolver.py::test_all_allowlisted_entries_have_rationale
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+    duplicate_group: null
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-06-22-1-mission-topology-ssot.md
+      result: Mission reads resolve through one seam; raw joins/direct selections are zero and resolver fails closed.
+    corpus:
+      description: Nonzero live runtime source audit plus injected raw joins/direct calls and empty resolver result.
+      nonzero: true
+      collected_nodes: 8
+    consumers:
+    - src/specify_cli/core/mission_resolver.py
+    - src/specify_cli
+    causal_probe:
+      kind: realistic-prohibited-change
+      fault: Plant unsanctioned KITTY_SPECS_DIR/raw_handle join, direct selection, or empty non-fail-closed resolution.
+      authority_violated: Mission reads resolve through one seam; raw joins/direct selections are zero and resolver fails
+        closed.
+      act_reached: true
+      intended_oracle: Mission reads resolve through one seam; raw joins/direct selections are zero and resolver fails closed.
+      intended_oracle_failed: true
+      command: tests/architectural/test_single_mission_surface_resolver.py retained family; focused WP13 run and embedded
+        fault/control probe
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  verdict: KEEP
+  state: terminal
+  action: Keep only the live boundary/behavior and its prohibited-change plus compliant-control proof; delete positive shape,
+    history, prose, and advisory assertions.
+  survivor: tests/architectural/test_single_mission_surface_resolver.py
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review: *id002
+normalization:
+  review_cycle: 3
+  scope: evidence-only
+  base_source_identities: 409
+  base_collection_nodes: 526
+  head_collection_nodes: 133
+  test_files_changed: 0
+  production_files_changed: 0

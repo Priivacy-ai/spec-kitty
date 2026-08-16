@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#3379": {
+      "evidence_ref": "012f7c456,242356332",
+      "fr": "FR-003,FR-004,FR-005",
+      "nfr": "NFR-004,NFR-005",
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": "SC-002,SC-003",
+      "scope": "in-scope",
+      "source_file": "spec.md",
+      "title": "Source-prompt edit -> silent generated-copy drift -> late parity-gate failure",
+      "verdict": "in-mission",
+      "wp": "WP02"
+    },
+    "#3447": {
+      "evidence_ref": "spec.md,plan.md,tasks.md,research.md",
+      "fr": "FR-001,FR-002,FR-003,FR-004,FR-005,FR-006,FR-007,FR-008,FR-009,FR-010,FR-011,FR-012,FR-013",
+      "nfr": "NFR-001,NFR-002,NFR-003,NFR-004,NFR-005",
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": "SC-001,SC-002,SC-003,SC-004,SC-005,SC-006",
+      "scope": "in-scope",
+      "source_file": "spec.md",
+      "title": "Modular per-package CI (kernel/doctrine/packs own workflows -> Sonar) + automated asset/prompt regeneration",
+      "verdict": "in-mission",
+      "wp": "WP01,WP02,WP03,WP04,WP05,WP06"
+    }
+  },
+  "schema_version": 1
+}

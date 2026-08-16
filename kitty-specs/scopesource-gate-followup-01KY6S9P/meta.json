@@ -14,9 +14,8 @@
   "accepted_by": "stijn",
   "accepted_from_commit": "8acfff533f01e09744571c83a62ff3bff6e81595",
   "baseline_merge_commit": "6a4faa81955f70d0a73bd2c0757cc80d3d3da73b",
-  "coordination_branch": "kitty/mission-scopesource-gate-followup-01KY6S9P",
   "created_at": "2026-07-23T06:06:10.138751+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "ScopeSource gate follow-up: cleanup & correctness",
   "mission_id": "01KY6S9P6T2N0SJ84YXYSJ4P3W",
   "mission_number": null,
@@ -28,5 +27,5 @@
   "slug": "scopesource-gate-followup-01KY6S9P",
   "status_phase": "1",
   "target_branch": "fix/scopesource-gate-followup",
-  "topology": "coord"
+  "topology": "lanes"
 }

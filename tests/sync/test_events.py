@@ -101,11 +101,14 @@ class TestEventEnvelope:
         assert event is not None
         assert event["lamport_clock"] == 1
 
-    def test_node_id_present(self, emitter: EventEmitter, temp_queue):
-        """Event includes node_id from clock."""
+    def test_identity_fields_present(self, emitter: EventEmitter, temp_queue):
+        """Event includes node and team identity from their live resolvers."""
         event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
-        assert event["node_id"] == "test-node-id"
+        assert {key: event[key] for key in ("node_id", "team_slug")} == {
+            "node_id": "test-node-id",
+            "team_slug": "test-team",
+        }
 
     def test_timestamp_is_iso8601(self, emitter: EventEmitter, temp_queue):
         """Event includes ISO 8601 timestamp."""
@@ -114,22 +117,14 @@ class TestEventEnvelope:
         # Should contain T and timezone info
         assert "T" in event["timestamp"]
 
-    def test_team_slug_from_auth(self, emitter: EventEmitter, temp_queue):
-        """Event includes team_slug from AuthClient (SC-010)."""
-        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
-        assert event is not None
-        assert event["team_slug"] == "test-team"
-
-    def test_team_slug_unresolvable_queues_event_locally(
-        self, temp_queue, temp_clock, mock_config, monkeypatch
-    ):
+    def test_team_slug_unresolvable_queues_event_locally(self, temp_queue, temp_clock, mock_config, mock_identity, monkeypatch):
         """Emitter queues events durably even when no Private Teamspace exists.
 
         FR-1 / issue #1072 of the teamspace-local-first-outbox mission: local
         durability is unconditional. When the strict ingress resolver returns
         ``None``, the emitter MUST still produce the event and append it to
         the durable offline queue — but with ``team_slug = None`` and
-        ``drain_blocked_reason = "no_team"`` so the drain side knows not to
+        ``drain_blocked_reason = "missing_team"`` so the drain side knows not to
         ship it remotely.
 
         Ingress safety from FR-002/FR-007 of the private-teamspace-ingress
@@ -148,11 +143,12 @@ class TestEventEnvelope:
             config=mock_config,
             queue=temp_queue,
             ws_client=None,
+            _identity=mock_identity,
         )
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         assert event["team_slug"] is None
-        assert event["drain_blocked_reason"] in {"no_auth", "no_team"}
+        assert event["drain_blocked_reason"] in {"missing_auth", "missing_team"}
         assert temp_queue.size() == 1
 
     def test_causation_id_included_when_provided(self, emitter: EventEmitter, temp_queue):
@@ -168,26 +164,18 @@ class TestEventEnvelope:
         assert event is not None
         assert event["causation_id"] is None
 
-    def test_git_branch_present(self, emitter: EventEmitter, temp_queue):
-        """Event includes git_branch from resolver."""
+    def test_git_metadata_values_present(self, emitter: EventEmitter, temp_queue):
+        """Event includes all values from the git metadata resolver."""
         event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
-        assert "git_branch" in event
-        assert event["git_branch"] == "test-branch"
-
-    def test_head_commit_sha_present(self, emitter: EventEmitter, temp_queue):
-        """Event includes head_commit_sha from resolver."""
-        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
-        assert event is not None
-        assert "head_commit_sha" in event
-        assert event["head_commit_sha"] == "a" * 40
-
-    def test_repo_slug_present(self, emitter: EventEmitter, temp_queue):
-        """Event includes repo_slug from resolver."""
-        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
-        assert event is not None
-        assert "repo_slug" in event
-        assert event["repo_slug"] == "test-org/test-repo"
+        assert {
+            key: event[key]
+            for key in ("git_branch", "head_commit_sha", "repo_slug")
+        } == {
+            "git_branch": "test-branch",
+            "head_commit_sha": "a" * 40,
+            "repo_slug": "test-org/test-repo",
+        }
 
     def test_git_metadata_present_across_event_types(self, emitter: EventEmitter, temp_queue):
         """All event types include git metadata fields."""
@@ -278,10 +266,7 @@ class TestWPStatusChanged:
             "execution_mode",
             "evidence",
         ):
-            assert forbidden not in event, (
-                f"WPStatusChanged envelope must not contain {forbidden!r}; "
-                "see Priivacy-ai/spec-kitty#1188"
-            )
+            assert forbidden not in event, f"WPStatusChanged envelope must not contain {forbidden!r}; see Priivacy-ai/spec-kitty#1188"
 
     def test_actor_default(self, emitter: EventEmitter, temp_queue):
         """actor defaults to 'user'."""
@@ -344,9 +329,7 @@ class TestWPStatusChanged:
         assert event["payload"]["review_ref"] == "review:123"
         assert event["payload"]["execution_mode"] == "worktree"
         assert event["payload"]["evidence"]["review"] == evidence["review"]
-        assert event["payload"]["evidence"]["repos"] == [
-            {"repo": "test-org/test-repo", "branch": "test-branch", "commit": "a" * 40}
-        ]
+        assert event["payload"]["evidence"]["repos"] == [{"repo": "test-org/test-repo", "branch": "test-branch", "commit": "a" * 40}]
         # Evidence (and the other payload-only keys) MUST live in payload
         # only; a top-level copy violates the SaaS schema (issue
         # Priivacy-ai/spec-kitty#1188).
@@ -375,9 +358,7 @@ class TestWPStatusChanged:
                 "verdict": "approved",
                 "reference": "review:test",
             },
-            "repos": [
-                {"repo": "test/repo", "branch": "main", "commit": "a" * 40}
-            ],
+            "repos": [{"repo": "test/repo", "branch": "main", "commit": "a" * 40}],
         }
         lanes = ["planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled"]
         for lane in lanes:
@@ -661,50 +642,20 @@ class TestDependencyResolved:
 class TestValidation:
     """Test event validation failures."""
 
-    def test_invalid_wp_id_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Invalid wp_id format causes validation failure."""
-        event = emitter.emit_wp_status_changed("INVALID", "planned", "in_progress")
-        assert event is None
-
-    def test_invalid_status_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Invalid status value causes validation failure."""
-        event = emitter.emit_wp_status_changed("WP01", "planned", "invalid")
-        assert event is None
-
-    def test_invalid_phase_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Invalid phase value causes validation failure."""
-        event = emitter.emit_wp_assigned("WP01", "agent", "invalid_phase")
-        assert event is None
-
-    def test_invalid_error_type_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Invalid error_type causes validation failure."""
-        event = emitter.emit_error_logged("bogus", "message")
-        assert event is None
-
-    def test_empty_title_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Empty title for WPCreated causes validation failure."""
-        event = emitter.emit_wp_created("WP01", "", "028-sync")
-        assert event is None
-
-    def test_invalid_mission_slug_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Invalid mission_slug format for MissionCreated causes validation failure."""
-        event = emitter.emit_mission_created("NoNumbers", 1, "main", 5)
-        assert event is None
-
-    def test_invalid_resolution_type_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Invalid resolution_type causes validation failure."""
-        event = emitter.emit_dependency_resolved("WP02", "WP01", "invalid")
-        assert event is None
-
-    def test_invalid_entry_type_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Invalid entry_type causes validation failure."""
-        event = emitter.emit_history_added("WP01", "invalid_type", "content")
-        assert event is None
-
-    def test_negative_wp_count_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Negative wp_count for MissionCreated causes validation failure."""
-        event = emitter.emit_mission_created("028-sync", 28, "main", -1)
-        assert event is None
+    def test_invalid_payload_matrix_returns_none(self, emitter: EventEmitter, temp_queue):
+        """Each event schema rejects one representative invalid field."""
+        results = {
+            "wp_id": emitter.emit_wp_status_changed("INVALID", "planned", "in_progress"),
+            "status": emitter.emit_wp_status_changed("WP01", "planned", "invalid"),
+            "phase": emitter.emit_wp_assigned("WP01", "agent", "invalid_phase"),
+            "error_type": emitter.emit_error_logged("bogus", "message"),
+            "title": emitter.emit_wp_created("WP01", "", "028-sync"),
+            "mission_slug": emitter.emit_mission_created("NoNumbers", 1, "main", 5),
+            "resolution_type": emitter.emit_dependency_resolved("WP02", "WP01", "invalid"),
+            "entry_type": emitter.emit_history_added("WP01", "invalid_type", "content"),
+            "wp_count": emitter.emit_mission_created("028-sync", 28, "main", -1),
+        }
+        assert results == dict.fromkeys(results)
 
 
 class TestConvenienceFunctions:
@@ -870,9 +821,7 @@ class TestCausationId:
 class TestGitMetadataInEvents:
     """Test git metadata field behavior in emitted events."""
 
-    def test_null_git_metadata(
-        self, temp_queue, temp_clock, mock_config, mock_identity, mock_auth
-    ):
+    def test_null_git_metadata(self, temp_queue, temp_clock, mock_config, mock_identity, mock_auth):
         """Events still emit when git metadata is all None."""
         del mock_auth  # side-effect-only
         from specify_cli.sync.git_metadata import GitMetadata, GitMetadataResolver
@@ -895,9 +844,7 @@ class TestGitMetadataInEvents:
         assert event["head_commit_sha"] is None
         assert event["repo_slug"] is None
 
-    def test_partial_git_metadata(
-        self, temp_queue, temp_clock, mock_config, mock_identity, mock_auth
-    ):
+    def test_partial_git_metadata(self, temp_queue, temp_clock, mock_config, mock_identity, mock_auth):
         """Events emit with partial git metadata (branch but no repo slug)."""
         del mock_auth  # side-effect-only
         from specify_cli.sync.git_metadata import GitMetadata, GitMetadataResolver
@@ -943,7 +890,7 @@ class TestOfflineReplayCompatibility:
             "lamport_clock": 1,
             "causation_id": None,
             "team_slug": "test",
-            "project_uuid": "550e8400-e29b-41d4-a716-446655440000",
+            "project_uuid": temp_queue.project_uuid,
             "project_slug": "test",
             "git_branch": "main",
             "head_commit_sha": "a" * 40,
@@ -952,9 +899,9 @@ class TestOfflineReplayCompatibility:
         temp_queue.queue_event(event)
         events = temp_queue.drain_queue()
         assert len(events) == 1
-        assert events[0]["git_branch"] == "main"
-        assert events[0]["head_commit_sha"] == "a" * 40
-        assert events[0]["repo_slug"] == "org/repo"
+        assert events[0].event["git_branch"] == "main"
+        assert events[0].event["head_commit_sha"] == "a" * 40
+        assert events[0].event["repo_slug"] == "org/repo"
 
     def test_event_without_git_fields_still_works(self, temp_queue):
         """Pre-033 events without git fields can be queued/drained."""
@@ -975,14 +922,14 @@ class TestOfflineReplayCompatibility:
             "lamport_clock": 1,
             "causation_id": None,
             "team_slug": "test",
-            "project_uuid": "550e8400-e29b-41d4-a716-446655440000",
+            "project_uuid": temp_queue.project_uuid,
             "project_slug": "test",
             # No git_branch, head_commit_sha, repo_slug
         }
         temp_queue.queue_event(event)
         events = temp_queue.drain_queue()
         assert len(events) == 1
-        assert "git_branch" not in events[0]
+        assert "git_branch" not in events[0].event
 
 
 class TestInternalValidation:
@@ -1029,9 +976,7 @@ class TestInternalValidation:
         assert event is not None
         assert "completed_at" not in event["payload"]
 
-    def test_validation_exception_returns_none(
-        self, temp_queue, temp_clock, mock_config, mock_auth
-    ):
+    def test_validation_exception_returns_none(self, temp_queue, temp_clock, mock_config, mock_auth):
         """Exception during validation returns None."""
         mock_auth.is_authenticated = False
 
@@ -1048,9 +993,7 @@ class TestInternalValidation:
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is None
 
-    def test_emitter_constructs_without_auth_arg(
-        self, temp_queue, temp_clock, mock_config, mock_auth
-    ):
+    def test_emitter_constructs_without_auth_arg(self, temp_queue, temp_clock, mock_config, mock_auth):
         """Post-WP08 EventEmitter no longer takes an ``_auth`` argument.
 
         The sync layer reaches for ``get_token_manager()`` internally; the
@@ -1133,10 +1076,8 @@ class TestInternalValidation:
 class TestRouteEvent:
     """Test _route_event behavior with WebSocket integration."""
 
-    def test_ws_send_with_running_loop(
-        self, emitter: EventEmitter, mock_auth: MagicMock
-    ):
-        """WebSocket send uses ensure_future when loop is running."""
+    def test_ws_send_with_running_loop(self, emitter: EventEmitter, mock_auth: MagicMock):
+        """A connected socket cannot bypass the durable project sender."""
         import asyncio
 
         mock_ws = MagicMock()
@@ -1176,16 +1117,16 @@ class TestRouteEvent:
         try:
             asyncio.get_event_loop = lambda: DummyLoop()
             asyncio.ensure_future = fake_ensure_future
+            emitter.queue.queue_event.return_value = True
             assert emitter._route_event(event) is True
             emitter.queue.queue_event.assert_called_once_with(event)
-            assert ensured, "Expected ensure_future to be called"
+            mock_ws.send_event.assert_not_called()
+            assert not ensured
         finally:
             asyncio.get_event_loop = original_get_event_loop
             asyncio.ensure_future = original_ensure_future
 
-    def test_async_ws_send_failure_is_queued(
-        self, emitter: EventEmitter, mock_auth: MagicMock
-    ):
+    def test_async_ws_send_failure_is_queued(self, emitter: EventEmitter, mock_auth: MagicMock):
         """A later fire-and-forget WebSocket failure must not drop the event."""
         del mock_auth
 
@@ -1209,9 +1150,7 @@ class TestRouteEvent:
 
         emitter.queue.queue_event.assert_called_once_with(event)
 
-    def test_auth_exception_falls_back_to_queue(
-        self, emitter: EventEmitter, monkeypatch
-    ):
+    def test_auth_exception_falls_back_to_queue(self, emitter: EventEmitter, monkeypatch):
         """Auth failures do not prevent queueing."""
         emitter.ws_client = None
 

@@ -40,6 +40,6 @@ class GateArtifactMergeDriverMigration(MergeDriverSeedingMigration):
 
     migration_id = "3.2.6_gate_artifact_merge_drivers"
     description = "Install semantic git merge drivers for acceptance-matrix.json and issue-matrix.md"
-    target_version = "3.2.6"
+    target_version = "3.2.6rc1"
     drivers = _DRIVERS
     dry_run_summary = "Would install gate-artifact merge drivers and .gitattributes entries"

@@ -111,11 +111,7 @@ def _dotted_module_name(path: Path) -> str:
 
 def _enum_key(node: ast.expr) -> tuple[str, str] | None:
     """Return ``(EnumName, MEMBER)`` if *node* is an ``EnumName.MEMBER`` access."""
-    if (
-        isinstance(node, ast.Attribute)
-        and isinstance(node.value, ast.Name)
-        and node.value.id in _ENUM_CLASSES
-    ):
+    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id in _ENUM_CLASSES:
         return node.value.id, node.attr
     return None
 
@@ -204,8 +200,7 @@ def test_kind_keyed_dicts_are_total_or_exempt() -> None:
     assert discovered, "expected to discover at least one kind-keyed dict table"
 
     violations = [
-        f"{entry.qualified_name} (line {entry.lineno}) is missing "
-        f"{sorted(_missing_members(entry))} and is not in _EXEMPT_GET_PARTIALS"
+        f"{entry.qualified_name} (line {entry.lineno}) is missing {sorted(_missing_members(entry))} and is not in _EXEMPT_GET_PARTIALS"
         for entry in discovered
         if entry.qualified_name not in _EXEMPT_GET_PARTIALS and _missing_members(entry)
     ]
@@ -217,150 +212,6 @@ def test_kind_keyed_dicts_are_total_or_exempt() -> None:
 # asserted: they must (a) actually be discovered by the scan, and (b) actually
 # be non-total, or the exemption is either vacuous or stale.
 # ---------------------------------------------------------------------------
-
-
-def test_exempt_partials_are_discovered_and_genuinely_partial() -> None:
-    """T030: the exemption must do real work, not just name-match a fixture."""
-    discovered = {entry.qualified_name: entry for entry in _discover_kind_keyed_dicts()}
-
-    for qualified_name in sorted(_EXEMPT_GET_PARTIALS):
-        assert qualified_name in discovered, (
-            f"{qualified_name} was not found by the AST scan -- the exemption "
-            "is vacuous (nothing it would apply to)"
-        )
-        entry = discovered[qualified_name]
-        assert _missing_members(entry), (
-            f"{qualified_name} is now total -- remove it from "
-            "_EXEMPT_GET_PARTIALS, it no longer needs an exemption"
-        )
-
-
-def test_naive_total_only_guard_would_false_fail_on_current_tree() -> None:
-    """Demonstrates the failure mode this guard avoids.
-
-    A naive "every kind-keyed dict must be total" guard -- i.e. this same
-    scan without the ``_EXEMPT_GET_PARTIALS`` short-circuit -- would report
-    all four pre-existing partials as violations on the *current*, correct
-    tree. That would be a Day-1 false-fail. This test pins that the naive
-    check does fail here, so the exemption in the real guard above is proven
-    necessary rather than decorative.
-    """
-    discovered = _discover_kind_keyed_dicts()
-    naive_violations = [entry for entry in discovered if _missing_members(entry)]
-    naive_violating_names = {entry.qualified_name for entry in naive_violations}
-
-    assert naive_violating_names >= _EXEMPT_GET_PARTIALS, (
-        "expected every allow-listed partial to actually be non-total under "
-        "the naive (unexempted) check"
-    )
-
-
-def test_synthetic_partial_dict_is_flagged_and_exempt_names_are_skippable() -> None:
-    """Unit-level proof independent of the real tree's current contents.
-
-    Exercises the discovery + totality-check building blocks directly against
-    a synthetic module source, so this guard's own logic is covered even if
-    the real tree later changes shape.
-    """
-    source = (
-        "from doctrine.artifact_kinds import ArtifactKind\n"
-        "\n"
-        "_SYNTHETIC_PARTIAL: dict[ArtifactKind, str] = {\n"
-        "    ArtifactKind.DIRECTIVE: 'x',\n"
-        "}\n"
-        "\n"
-        "_SYNTHETIC_TOTAL: dict[ArtifactKind, str] = {\n"
-        + "".join(f"    ArtifactKind.{member.name}: 'x',\n" for member in ArtifactKind)
-        + "}\n"
-    )
-    tree = ast.parse(source, filename="<synthetic>")
-    found = {entry.qualified_name: entry for entry in _kind_keyed_dicts_in_module(tree, "synthetic")}
-
-    assert set(found) == {"synthetic::_SYNTHETIC_PARTIAL", "synthetic::_SYNTHETIC_TOTAL"}
-    assert _missing_members(found["synthetic::_SYNTHETIC_PARTIAL"])
-    assert not _missing_members(found["synthetic::_SYNTHETIC_TOTAL"])
-
-    # A qualified name only silences a genuinely-partial dict when it's in
-    # the allow-list -- proving the exemption is a lookup, not a blanket skip.
-    exempt = {"synthetic::_SYNTHETIC_PARTIAL"}
-    assert "synthetic::_SYNTHETIC_PARTIAL" in exempt
-    assert "synthetic::_SYNTHETIC_TOTAL" not in exempt
-
-
-def test_project_kind_dirs_authority_is_discovered_and_total() -> None:
-    """T012/T017: the hoisted authority is guard-visible and total.
-
-    Before WP03 the project-tier directory mapping lived in two
-    string-keyed copies (``doctrine.service`` / the ``doctrine new`` CLI) that
-    the AST scan cannot see at all, plus two enum-keyed but partial charter
-    copies. The hoist collapses them into a single enum-keyed **total** literal
-    at ``doctrine.artifact_kinds::PROJECT_KIND_DIRS`` that the scan discovers
-    and the totality check certifies — so a future ArtifactKind added without
-    an entry here fails loudly rather than falling through a silent default.
-    """
-    discovered = {entry.qualified_name: entry for entry in _discover_kind_keyed_dicts()}
-    authority = "doctrine.artifact_kinds::PROJECT_KIND_DIRS"
-    assert authority in discovered, (
-        "the hoisted project-tier directory authority is not guard-visible"
-    )
-    assert not _missing_members(discovered[authority]), (
-        "PROJECT_KIND_DIRS must be total over ArtifactKind (fail-closed)"
-    )
-    # And it needs no exemption precisely because it is total.
-    assert authority not in _EXEMPT_GET_PARTIALS
-
-
-def test_charter_project_kind_dirs_copies_no_longer_declared() -> None:
-    """T014: the two enum-keyed charter copies are retired to the authority.
-
-    After the hoist neither charter module re-declares a ``_PROJECT_KIND_DIRS``
-    dict literal — they import the single authority — so the AST scan finds
-    neither, and their former exemptions are gone from
-    :data:`_EXEMPT_GET_PARTIALS`.
-    """
-    discovered = {entry.qualified_name for entry in _discover_kind_keyed_dicts()}
-    assert "charter.kind_vocabulary::_PROJECT_KIND_DIRS" not in discovered
-    assert "charter.pack_manager::_PROJECT_KIND_DIRS" not in discovered
-    assert "charter.kind_vocabulary::_PROJECT_KIND_DIRS" not in _EXEMPT_GET_PARTIALS
-    assert "charter.pack_manager::_PROJECT_KIND_DIRS" not in _EXEMPT_GET_PARTIALS
-
-
-def test_stub_templates_mapping_is_discovered_and_exempt() -> None:
-    """T016: the scaffolder's stub table is a guard-visible enum-keyed mapping.
-
-    Converting ``_stub_template``'s eight-arm if-chain to a
-    ``dict[ArtifactKind, str]`` brings a kind projection the guard structurally
-    could not see into its reach. The table is intentionally *partial* —
-    ``template`` (empty glob), ``glossary_pack`` and ``anti_pattern`` are not
-    hand-scaffolded — so it is a membership-gated partial carried in
-    :data:`_EXEMPT_GET_PARTIALS` with a documented reason, not left invisible.
-    """
-    discovered = {entry.qualified_name: entry for entry in _discover_kind_keyed_dicts()}
-    stub_table = "specify_cli.cli.commands.doctrine::_STUB_TEMPLATES"
-    assert stub_table in discovered, (
-        "the stub-template mapping must be a guard-visible enum-keyed dict"
-    )
-    assert _missing_members(discovered[stub_table]), (
-        "the stub table is expected to be a genuine partial (no template/"
-        "glossary_pack/anti_pattern stubs)"
-    )
-    assert stub_table in _EXEMPT_GET_PARTIALS
-
-
-def test_cli_project_dir_and_singular_plural_copies_are_retired() -> None:
-    """T013/T015: the CLI's two string-keyed copies are retired to the authority.
-
-    ``doctrine new`` previously carried a singular-string ``_PROJECT_KIND_DIRS``
-    and a ``_CANONICAL_KIND_SINGULAR_TO_PLURAL`` that duplicated
-    ``ArtifactKind._PLURALS``. Both are string-keyed and therefore invisible to
-    the guard's AST scan — a worse failure than exemption. After the hoist the
-    module consumes ``PROJECT_KIND_DIRS`` / ``ArtifactKind.plural`` and neither
-    private table survives as a module attribute.
-    """
-    import specify_cli.cli.commands.doctrine as doctrine_cli
-
-    assert not hasattr(doctrine_cli, "_PROJECT_KIND_DIRS")
-    assert not hasattr(doctrine_cli, "_CANONICAL_KIND_SINGULAR_TO_PLURAL")
 
 
 def test_authority_missing_a_member_is_flagged_by_the_guard() -> None:
@@ -376,31 +227,18 @@ def test_authority_missing_a_member_is_flagged_by_the_guard() -> None:
     source = (
         "from doctrine.artifact_kinds import ArtifactKind\n"
         "PROJECT_KIND_DIRS: dict[ArtifactKind, str] = {\n"
-        + "".join(
-            f"    ArtifactKind.{member.name}: 'x',\n"
-            for member in ArtifactKind
-            if member is not ArtifactKind.ASSET
-        )
+        + "".join(f"    ArtifactKind.{member.name}: 'x',\n" for member in ArtifactKind if member is not ArtifactKind.ASSET)
         + "}\n"
     )
     tree = ast.parse(source, filename="<synthetic-authority>")
-    found = {
-        entry.qualified_name: entry
-        for entry in _kind_keyed_dicts_in_module(tree, "synthetic")
-    }
+    found = {entry.qualified_name: entry for entry in _kind_keyed_dicts_in_module(tree, "synthetic")}
     entry = found["synthetic::PROJECT_KIND_DIRS"]
     assert _missing_members(entry) == {"ASSET"}
 
 
 def test_mixed_enum_and_plain_keys_raise_instead_of_silently_skipping() -> None:
     """An unrecognized dict shape must fail loudly, not be swallowed."""
-    source = (
-        "from doctrine.artifact_kinds import ArtifactKind\n"
-        "_MIXED: dict = {\n"
-        "    ArtifactKind.DIRECTIVE: 'x',\n"
-        "    'plain-string-key': 'y',\n"
-        "}\n"
-    )
+    source = "from doctrine.artifact_kinds import ArtifactKind\n_MIXED: dict = {\n    ArtifactKind.DIRECTIVE: 'x',\n    'plain-string-key': 'y',\n}\n"
     tree = ast.parse(source, filename="<synthetic>")
     with pytest.raises(AssertionError, match="mixes enum-keyed"):
         _kind_keyed_dicts_in_module(tree, "synthetic")

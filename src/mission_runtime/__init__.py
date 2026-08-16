@@ -49,6 +49,10 @@ from mission_runtime.artifacts import (
     kind_for_mission_file,
     kind_is_coordination_residue,
 )
+from mission_runtime.checkout_identity import (
+    CheckoutIdentityError,
+    enforce_checkout_identity,
+)
 from mission_runtime.identity import mid8_from_slug, resolve_mid8
 from mission_runtime.resolution import (
     ActionContextError,
@@ -61,6 +65,7 @@ from mission_runtime.resolution import (
     placement_seam,
     resolve_action_context,
     resolve_artifact_surface,
+    resolve_create_time_write_target,
     resolve_placement_only,
     resolve_topology,
     translate_surface,
@@ -72,6 +77,7 @@ __all__ = [
     "ActionContextError",
     "ArtifactPlacementFragment",
     "BranchRefFragment",
+    "CheckoutIdentityError",
     "CommitTarget",
     "ExecutionMode",
     "IdentityFragment",
@@ -92,6 +98,7 @@ __all__ = [
     "classify_topology",
     "coord_read_dir_for",
     "declared_read_surface",
+    "enforce_checkout_identity",
     "is_primary_artifact_kind",
     "kind_for_mission_file",
     "kind_is_coordination_residue",
@@ -100,6 +107,7 @@ __all__ = [
     "placement_seam",
     "resolve_action_context",
     "resolve_artifact_surface",
+    "resolve_create_time_write_target",
     "resolve_mid8",
     "resolve_placement_only",
     "resolve_topology",

@@ -14,9 +14,8 @@
   "accepted_by": "stijn",
   "accepted_from_commit": "ec7d45f83dc25c6ecc9fcfa3e8c81dea6dfe8113",
   "baseline_merge_commit": "7209ee871eef7def3bbcd6b48c3a619dd48441ec",
-  "coordination_branch": "kitty/mission-charter-sole-door-bypass-closure-01KZ3WAA",
   "created_at": "2026-08-03T13:16:55.159151+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Charter as Sole Door: Close Bypass Access Paths",
   "mission_id": "01KZ3WAAFPWQAG3R21P1RY0M6R",
   "mission_number": 189,
@@ -28,7 +27,7 @@
   "slug": "charter-sole-door-bypass-closure-01KZ3WAA",
   "status_phase": "1",
   "target_branch": "feat/charter-sole-door-bypass-closure",
-  "topology": "coord",
+  "topology": "single_branch",
   "vcs": "git",
   "vcs_locked_at": "2026-08-03T15:43:21.488709+00:00"
 }

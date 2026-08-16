@@ -1,6 +1,6 @@
 {
-  "coordination_branch": "kitty/mission-merge-preflight-remote-state-boundary-separation-01KTBE5M",
   "created_at": "2026-06-05T08:25:08.047298+00:00",
+  "flattened": true,
   "friendly_name": "Merge Preflight Remote-State Boundary Separation",
   "mission_id": "01KTBE5MPD24VTVFHXKCF8MGHN",
   "mission_number": null,
@@ -11,6 +11,7 @@
   "slug": "merge-preflight-remote-state-boundary-separation-01KTBE5M",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-06-05T10:12:28.466987+00:00"
 }

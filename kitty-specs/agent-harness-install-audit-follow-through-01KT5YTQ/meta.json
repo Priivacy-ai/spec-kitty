@@ -1,6 +1,6 @@
 {
-  "coordination_branch": "kitty/mission-agent-harness-install-audit-follow-through-01KT5YTQ",
   "created_at": "2026-06-03T05:20:49.459024+00:00",
+  "flattened": true,
   "friendly_name": "Agent Harness Install Audit Follow-Through",
   "mission_id": "01KT5YTQ9HXWAFSEHSFZ61K3HX",
   "mission_number": null,
@@ -12,5 +12,6 @@
   "source_description": "GitHub issue #1649: Epic: Agent plugin and harness install verification follow-through",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git"
 }

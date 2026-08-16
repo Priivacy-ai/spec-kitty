@@ -171,3 +171,15 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-08-03 | [Review-Cycle Artifacts Are COORD-Partition Per-WP Bookkeeping](2026-08-03-1-review-cycle-artifacts-are-coord-partition.md) |
 | 2026-08-04 | [The Egress-Consent Boundary — Consent Is Keyed on the Record Being Sent, Never on Ambient Context](2026-08-04-1-egress-consent-boundary.md) |
 | 2026-08-05 | [Sequence Charter-Activation-Driven Mission-Type Availability Ahead of Mission-Type-as-ArtifactKind; Land It With Mission-Tree Resolution Unification as One Slice](2026-08-05-1-mission-type-availability-before-kind-promotion.md) |
+| 2026-08-07 | [A Mission-Halting Instrument Is Worth Its Cost — It Runs Before the Mission, and Its Verdict Is Acted On](2026-08-07-1-a-mission-halting-instrument-is-worth-its-cost.md) |
+| 2026-08-12 | [Local, No-Egress PlantUML Rendering for Code-Grounded Doctrine Schema Diagrams](2026-08-12-1-plantuml-schema-diagram-rendering.md) |
+| 2026-08-12 | [Explicit Checkout Ownership for Mission Create and Next](2026-08-12-1-checkout-ownership-for-mission-create-and-next.md) |
+| 2026-08-13 | [The built-in mission subtree stays nested and self-contained; retire the legacy step-contract surface](2026-08-13-1-built-in-mission-subtree-stays-nested-retire-legacy-step-contracts.md) |
+| 2026-08-13 | [Transition gates are declarative, asset-backed, first-class doctrine artefacts](2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md) |
+| 2026-08-13 | [Gate execution targets a surface through a kernel selector and the topology placement seam](2026-08-13-3-gate-execution-targets-through-kernel-surface-selector.md) |
+| 2026-08-13 | [Executable doctrine runs only from trusted publishers (signed built-in; TOFU for the rest)](2026-08-13-4-executable-doctrine-runs-only-from-trusted-publishers.md) |
+| 2026-08-13 | [A local loopback daemon amortizes doctrine parse and caches deterministic gate verdicts (direction)](2026-08-13-5-local-daemon-amortizes-doctrine-parse-and-caches-gate-verdicts.md) |
+| 2026-08-13 | [Gate outcomes carry a typed severity; an operator-configured error-handling strategy decides the CLI effect](2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md) |
+| 2026-08-13 | [Mission-Type Roster Layering Is the Availability Slice, Not the Kind-Promotion Slice](2026-08-13-1-mission-type-roster-layering-seam.md) |
+| 2026-08-15 | [Own a Tool-Agnostic, Versioned, Optional Handoff-Packet Intake Contract](2026-08-15-1-handoff-packet-intake-contract.md) |
+| 2026-08-16 | [Unify Pack Metadata on a Single Manifest — Enumerated Constituents + Delegated Lineage](2026-08-16-1-pack-metadata-manifest-unification.md) |

@@ -20,72 +20,219 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KYS0152P9VZ7HSZYXN3CBFS2",
       "last_transition_at": "2026-07-30T07:50:10.262161+00:00",
-      "shell_pid": 1378716,
-      "shell_pid_created_at": "1785388605.47"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP01 ready: profile-channel suggests-walk + when delivery. A0-A6 GREEN (tests/doctrine/drg/test_profile_suggests_delivery.py, 13 tests); ruff+mypy clean. Wired forward-API cross-file: agent_profile_seed_urns (repository.py fail-closed guard). Two EXPECTED WP03-owned reds by plan split-ownership: test_reachability.py::test_profile_unreachable_is_the_pinned_membership (_PROFILE_UNREACHABLE pin now live) and test_no_dead_symbols::test_no_public_symbol_in_all_is_unimported (agent_profile_seed_urns stale allowlist + PROFILE_CHANNEL_RELATIONS re-pin). Do NOT green-wash — WP03 reconciles pins+frozenset after WP01+WP02.",
+        "Review passed (reviewer-renata, opus-independent): A0-A6 green, D10 (profile channel not resolve_context) + D11 (link_references roots=seeds, no re-walk) honored, requires-precedence diamond dedup, links-not-bodies, renderer wired (not dead code); 136 tests + ruff + mypy clean. The two reds (pin-shrink + dead-symbols) are WP03-owned per split ownership. cycle-1.md was a stale relocation-recovery artifact (reviewer_agent unknown), not a real rejection.",
+        "Re-review to write a proper APPROVED review-cycle artifact — the prior cycle-1 'rejected' was a spurious relocation-recovery note (reviewer_agent unknown), not a real review; WP01 code already passed independent opus review on the merits."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": {
+        "actor": "operator",
+        "at": "2026-07-30T06:07:51Z",
+        "reason": "Review passed (reviewer-renata, opus-independent): A0-A6 green, D10 (profile channel not resolve_context) + D11 (link_references roots=seeds, no re-walk) honored, requires-precedence diamond dedup, links-not-bodies, renderer wired (not dead code); 136 tests + ruff + mypy clean. The two reds (pin-shrink + dead-symbols) are WP03-owned per split ownership. cycle-1.md was a stale relocation-recovery artifact (reviewer_agent unknown), not a real rejection.",
+        "wp_id": "WP01"
+      },
+      "review_result": {
+        "reference": "Re-review passed (proper approved artifact): A0-A6 green, D10/D11 seam correct, renderer wired into _render_profile_sections, ruff+mypy clean. Supersedes the removed spurious relocation cycle-1.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1631355,
+      "shell_pid_created_at": "1785397394.02",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYS0188SYJSE1YDTTFH61ATW",
       "last_transition_at": "2026-07-30T07:50:13.529891+00:00",
-      "shell_pid": 1499859,
-      "shell_pid_created_at": "1785391707.82"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP02 ready: T006 Family-A when backfill (3 profile->DDD suggests edges); T007 3 C4 template:instantiates topology edges (delivers via WP01 suggests-walk, not this edge); T008/T009 7 anti_patterns + 7 tactic REJECTS edges (11 ungrounded refactoring tactics DEFERRED per C-004, listed in code comment); T010 shipped goldens 317/882->324/892 (pure 311/764 unchanged), instantiates 8->11 in models.py+doc, ledger entries (14) in both count modules; T011 new C4/anti-pattern topology ATDD. Fragments regenerated canonically (freshness --check green). Pre-existing WP03-owned reachability pin left unmodified (verified byte-neutral). ruff+mypy clean, 95 targeted tests green.",
+        "Review passed: C-004 grounding verified — all 7 anti-patterns trace to attested Family-B when text (spot-checked encapsulate-record/unencapsulated-record, move-method/feature-envy, strangler-fig/big-bang-rewrite); 11 deferrals genuinely ungrounded (inline-temp/introduce-null-object/retry-pattern have no Family-B edge nor problem/when/trigger field). REJECTS direction tactic->anti_pattern matches corpus+validator. T011 profile_channel_reachable proves 3 C4 templates reach architect-alphonso (WP01-dependent, non-vacuous) + guard proves instantiates is not the delivery vector. Goldens: 317/882->324/892, pure 311/764 unchanged, instantiates 8->11 mirrored in models.py+doc (parity green)+non-vacuity discriminator; ledger entries (14) specific+accurate in both count modules. 78 golden/parity/T011 tests green, 39 validator/anti_pattern green, regenerate-graph --check fresh, ruff+mypy clean, terminology guard green. No query.py/reachability.py edit (D13 respected). Out-of-map edits (agent_profile.graph.yaml regen, A3 re-target) documented; A3 re-target is stronger not weaker."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: C-004 grounding verified — all 7 anti-patterns trace to attested Family-B when text (spot-checked encapsulate-record/unencapsulated-record, move-method/feature-envy, strangler-fig/big-bang-rewrite); 11 deferrals genuinely ungrounded (inline-temp/introduce-null-object/retry-pattern have no Family-B edge nor problem/when/trigger field). REJECTS direction tactic->anti_pattern matches corpus+validator. T011 profile_channel_reachable proves 3 C4 templates reach architect-alphonso (WP01-dependent, non-vacuous) + guard proves instantiates is not the delivery vector. Goldens: 317/882->324/892, pure 311/764 unchanged, instantiates 8->11 mirrored in models.py+doc (parity green)+non-vacuity discriminator; ledger entries (14) specific+accurate in both count modules. 78 golden/parity/T011 tests green, 39 validator/anti_pattern green, regenerate-graph --check fresh, ruff+mypy clean, terminology guard green. No query.py/reachability.py edit (D13 respected). Out-of-map edits (agent_profile.graph.yaml regen, A3 re-target) documented; A3 re-target is stronger not weaker.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1554427,
+      "shell_pid_created_at": "1785393590.11",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYS019SNTY8TRWP4PV72037A",
       "last_transition_at": "2026-07-30T07:50:15.093702+00:00",
-      "shell_pid": 1572730,
-      "shell_pid_created_at": "1785394017.5"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP03 ready: pins reconciled to MEASURED set via canonical helpers (C-001): _PROFILE_UNREACHABLE 153->60, _PROFILE_RESCUES 2->30, _ACTION_UNREACHABLE_D2 measured-unchanged 50 (WP02 action-inert, untouched). Per-member ledger for all 30 rescues + 20 neither-channel deferred in wiring-table profile-channel walk-activation section. D19: re-measurement shows action deferred=50 correct (60 is pre-Family-D snapshot); mission lowers neither-channel deferred 48->20 via profile channel. Allowlist: agent_profile_seed_urns removed (genuine src consumer), PROFILE_CHANNEL_RELATIONS hash refreshed, 7 kept-noted; baselines mirror 19->18. T015 cross-check added (red-first proven). Gates green (reachability/dead-symbols/no_authored_applies_edge); ruff clean; mypy only pre-existing fixtures import error. REVIEW-GATE D18: per-member ledger-vs-diff is sole non-delegable gate.",
+        "Review passed (terminal, NFR-002 review-gated). Independently RE-MEASURED via canonical helpers only (profile_channel_reachable/action_channel_reachable): PROFILE_UNREACHABLE=60, ACTION_UNREACHABLE_D2=50, PROFILE_RESCUES=30 — all three file pins EQUAL measured sets member-by-member (not just count); rescues = action_d2 - profile_unreach holds. Pin move 153->60 is monotonic (93 left, 0 entered) consistent with WP01 SUGGESTS addition. NFR-002 per-member ledger: all 30 rescues covered in wiring-table ledger; 20 neither-channel deferred list == measured action_d2 ∩ profile_unreach exactly; 93-move carries paired SUGGESTS justification. D19 adjudication HONEST: action_d2 measured genuinely 50 (old=50, unchanged, WP02 topology action-inert) NOT green-washed to plan's stale 60; real contribution neither-channel 48->20 (old ad2=50, old rescues=2 -> 48; new 50-30=20) verified; SUPERSEDED markers on 39->39 profile prose accurate. Allowlist sweep correct: agent_profile_seed_urns removed (genuine cross-file consumer repository.py:25/889, WP01-added, base had 0 refs); 8 kept-noted incl PROFILE_CHANNEL_RELATIONS (docstring-only ref) + partition_delivery (same-file call only) — no manufactured importers; body_hash refreshed; _baselines.yaml 19->18. T015 cross-check non-vacuous: scoped to section, fails-loud on missing headers, bite-proven by dropped-row simulation. Scope clean: WP03 commit touches exactly 4 owned files, zero frozen/WP02 goldens; ruff clean; mypy 1 pre-existing reachability_fixtures import-not-found (in base, untouched); 70 targeted tests pass."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (terminal, NFR-002 review-gated). Independently RE-MEASURED via canonical helpers only (profile_channel_reachable/action_channel_reachable): PROFILE_UNREACHABLE=60, ACTION_UNREACHABLE_D2=50, PROFILE_RESCUES=30 — all three file pins EQUAL measured sets member-by-member (not just count); rescues = action_d2 - profile_unreach holds. Pin move 153->60 is monotonic (93 left, 0 entered) consistent with WP01 SUGGESTS addition. NFR-002 per-member ledger: all 30 rescues covered in wiring-table ledger; 20 neither-channel deferred list == measured action_d2 ∩ profile_unreach exactly; 93-move carries paired SUGGESTS justification. D19 adjudication HONEST: action_d2 measured genuinely 50 (old=50, unchanged, WP02 topology action-inert) NOT green-washed to plan's stale 60; real contribution neither-channel 48->20 (old ad2=50, old rescues=2 -> 48; new 50-30=20) verified; SUPERSEDED markers on 39->39 profile prose accurate. Allowlist sweep correct: agent_profile_seed_urns removed (genuine cross-file consumer repository.py:25/889, WP01-added, base had 0 refs); 8 kept-noted incl PROFILE_CHANNEL_RELATIONS (docstring-only ref) + partition_delivery (same-file call only) — no manufactured importers; body_hash refreshed; _baselines.yaml 19->18. T015 cross-check non-vacuous: scoped to section, fails-loud on missing headers, bite-proven by dropped-row simulation. Scope clean: WP03 commit touches exactly 4 owned files, zero frozen/WP02 goldens; ruff clean; mypy 1 pre-existing reachability_fixtures import-not-found (in base, untouched); 70 targeted tests pass.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1615973,
+      "shell_pid_created_at": "1785396343.87",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYS0191A2XM2D2ZSAQ5AZ3DR",
       "last_transition_at": "2026-07-30T07:50:14.314103+00:00",
-      "shell_pid": 1516541,
-      "shell_pid_created_at": "1785392088.74"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP04 ready: reference-pointer + delivery-table helpers extracted to context_renderers/ (shim for 3 test importers); ArtifactRepository Protocol, 12 type:ignore net-removed; consumer tests byte-identical green (153 passed across full targeted sweep); mypy --strict clean except 1 pre-existing unrelated error (issue #3078). One pre-existing unrelated test failure also found and filed (issue #3079), not fixed here (out of scope).",
+        "Review passed: extraction byte-identical (all moved symbols AST-identical base->new modules incl cache+_Gate+support consts; context.py imports back, shim resolves, no stale cache ref); consumer sweep green (41+79 passed, matches baseline, NFR-001); 12->0 type:ignore[attr-defined] (10 context.py + 2 progressive_disclosure.py), zero new suppressions, mypy --strict clean + ruff clean (NFR-005); ArtifactRepository Protocol sound (covariant, 2-method structural, not Any-laundering; service-shaped sites use concrete DoctrineService); progressive_disclosure.py edit type-only + documented cross-boundary (WP01-owned); scope disciplined (Refs #2532 not Closes, remaining :object params are non-ignore-site functions left untouched); #3078 + #3079 confirmed genuinely pre-existing (red on base 3a48dce74 pre-WP04, WP04 doesnt touch those paths), filed per DIR-013."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: extraction byte-identical (all moved symbols AST-identical base->new modules incl cache+_Gate+support consts; context.py imports back, shim resolves, no stale cache ref); consumer sweep green (41+79 passed, matches baseline, NFR-001); 12->0 type:ignore[attr-defined] (10 context.py + 2 progressive_disclosure.py), zero new suppressions, mypy --strict clean + ruff clean (NFR-005); ArtifactRepository Protocol sound (covariant, 2-method structural, not Any-laundering; service-shaped sites use concrete DoctrineService); progressive_disclosure.py edit type-only + documented cross-boundary (WP01-owned); scope disciplined (Refs #2532 not Closes, remaining :object params are non-ignore-site functions left untouched); #3078 + #3079 confirmed genuinely pre-existing (red on base 3a48dce74 pre-WP04, WP04 doesnt touch those paths), filed per DIR-013.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1594269,
+      "shell_pid_created_at": "1785394958.37",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYS015X1HTMZR7M70SKGRAGQ",
       "last_transition_at": "2026-07-30T07:50:11.105321+00:00",
-      "shell_pid": 1382414,
-      "shell_pid_created_at": "1785388878.99"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP05 ready: 3 emit sites routed+registered (DOCUMENT_WRITERS 1->4), discovery gate + both-shape self-mutation battery green. Added regression test for pack_assembler force-dedup path (was uncovered; old code actually crashed on enum serialization, not just leaked provenance) -- test file outside owned_files, rationale-backed. C1+C2+C3/A1+A2 closed; C4 (Protocol typing) is WP04's job -- do not close #3075/#2977 from this WP.",
+        "Review passed (reviewer-renata, opus-independent): 3 emit sites routed through graph_document_to_dict + registered (1->4); AST discovery gate GENUINELY non-vacuous (both shapes red independently, model_dump fixture non-overlapping); pack_assembler crash+leak covered; C4 left for WP04, no Closes claimed; 31 tests + ruff + mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata, opus-independent): 3 emit sites routed through graph_document_to_dict + registered (1->4); AST discovery gate GENUINELY non-vacuous (both shapes red independently, model_dump fixture non-overlapping); pack_assembler crash+leak covered; C4 left for WP04, no Closes claimed; 31 tests + ruff + mypy clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1484559,
+      "shell_pid_created_at": "1785391143.4",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
     },
     "WP06": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYS016QGCPWYY426ECGJKD19",
       "last_transition_at": "2026-07-30T07:50:11.952631+00:00",
-      "shell_pid": 1382414,
-      "shell_pid_created_at": "1785388878.99"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP06 ready: DRGGraphSchemaError structured at both sites; _post_validate hook (both load paths); twin verified no-op",
+        "Review passed (reviewer-renata, opus-independent): T024 DRGGraphSchemaError structured at both sites (fail-closed preserved, separate preceding arm); T025 _post_validate hook at all 3 entry points inside _include_item gate + before write, asset fix; T026 twin verified no-op (green, no manufactured diff); 22-test backstop, ruff+mypy clean. Closes #3062."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata, opus-independent): T024 DRGGraphSchemaError structured at both sites (fail-closed preserved, separate preceding arm); T025 _post_validate hook at all 3 entry points inside _include_item gate + before write, asset fix; T026 twin verified no-op (green, no manufactured diff); 22-test backstop, ruff+mypy clean. Closes #3062.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1482124,
+      "shell_pid_created_at": "1785391090.88",
+      "subtasks": {
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
+      }
     },
     "WP07": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYS017FWFAREEXFAEHB06CBB",
       "last_transition_at": "2026-07-30T07:50:12.732541+00:00",
-      "shell_pid": 1419586,
-      "shell_pid_created_at": "1785389879.35"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP07 ready: fixture excludes context-state.json; first_load hermetic; matrix green ambient present+absent",
+        "Review passed (reviewer-renata, opus-independent): FR-009 fix (ignore_patterns context-state.json) verified red-first + hermetic both ways (10 passed present+absent); scope clean, no src/context.py change."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata, opus-independent): FR-009 fix (ignore_patterns context-state.json) verified red-first + hermetic both ways (10 passed present+absent); scope clean, no src/context.py change.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1456758,
+      "shell_pid_created_at": "1785390667.67",
+      "subtasks": {
+        "T027": "done",
+        "T028": "done"
+      }
     }
   }
 }

@@ -71,12 +71,29 @@ def _persist_review_artifact_override(
     from specify_cli.status import emit_inner_state_changed
     from specify_cli.status import ReviewOverride, WPInnerStateDelta
 
-    # Resolve the emit target from the caller-resolved artifact path (stored
-    # topology), never ``Path.cwd()`` (C-003 / #2647). Review artifacts live at
-    # ``<feature_dir>/tasks/<wp-slug>/review-cycle-N.md`` so ``parents[2]`` is the
-    # kitty-specs feature_dir and its directory name is the mission slug.
-    feature_dir = artifact_path.parents[2]
-    mission_slug = feature_dir.name
+    # WP01 (#2959) partition-correct override write: the override annotation MUST
+    # land on the SAME partition the merge review-artifact gate READS, or a
+    # coord-topology mission that took a review rejection can never be merged (the
+    # override is written to a surface the gate never consults — the deadlock).
+    # That gate resolves each WP's lane state from its COORD ``STATUS_STATE`` home
+    # (``post_merge/review_artifact_consistency.py`` → ``resolve_artifact_surface``),
+    # so resolve the emit target through the kind-aware placement seam
+    # (``STATUS_STATE``) — the SAME authority the gate consumes — rather than
+    # deriving it from the PRIMARY artifact path (``artifact_path.parents[2]``,
+    # which is the primary tasks/ tree). Review artifacts live at
+    # ``<feature_dir>/tasks/<wp-slug>/review-cycle-N.md`` so ``parents[2].name`` is
+    # the (partition-invariant) mission slug; the seam then routes the write to
+    # the coord husk for a materialised coord topology and to the primary dir for
+    # every other topology. ``emit_inner_state_changed`` stays partition-agnostic
+    # (other callers depend on it); the reroute is at THIS caller only, mirroring
+    # the proven per-leg pattern in ``tasks_dependency_graph.py:120-135``.
+    # ``placement_seam(...).read_dir`` is typed ``-> Path`` but mypy widens it to
+    # ``Any`` through the ``follow_imports=skip`` boundary on ``specify_cli.*``;
+    # bind explicitly so the declared ``Path`` narrows back.
+    mission_slug = artifact_path.parents[2].name
+    feature_dir: Path = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.STATUS_STATE
+    )
     timestamp = now_utc_stamp()
     override = ReviewOverride(at=timestamp, actor=actor, wp_id=wp_id, reason=reason)
     emit_inner_state_changed(

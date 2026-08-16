@@ -3,7 +3,7 @@
 # DO NOT EDIT MANUALLY
 
 spec_kitty:
-  version: 3.2.6
+  version: 3.2.6rc2
   initialized_at: '2026-04-07T09:10:40.826207'
   last_upgraded_at: '2026-06-11T05:07:36.243731'
   schema_version: 3
@@ -297,3 +297,57 @@ migrations:
     applied_at: '2026-06-15T06:30:20.619977'
     result: success
     notes: 'surface_repair_wiring: probed 214 tool surface(s)'
+  - id: 3.2.6_decisions_event_log_merge_driver
+    applied_at: '2026-08-09T17:54:49.956396'
+    result: success
+    notes: Configured git merge.spec-kitty-event-log.name; Configured git merge.spec-kitty-event-log.driver
+  - id: 3.2.6_gate_artifact_merge_drivers
+    applied_at: '2026-08-09T17:54:50.063590'
+    result: success
+    notes: 'Configured git merge.spec-kitty-acceptance-matrix.name; Configured git
+      merge.spec-kitty-acceptance-matrix.driver; Added .gitattributes entry: kitty-specs/**/issue-matrix.md
+      merge=spec-kitty-issue-matrix; Configured git merge.spec-kitty-issue-matrix.name;
+      Configured git merge.spec-kitty-issue-matrix.driver'
+  - id: 3.2.6_issue_matrix_driver_repoint
+    applied_at: '2026-08-09T17:54:50.132052'
+    result: success
+    notes: Configured git merge.spec-kitty-issue-matrix.name
+  - id: 3.2.6_meta_traces_merge_drivers
+    applied_at: '2026-08-09T17:54:50.287645'
+    result: success
+    notes: Configured git merge.spec-kitty-meta.name; Configured git merge.spec-kitty-meta.driver;
+      Configured git merge.spec-kitty-traces.name; Configured git merge.spec-kitty-traces.driver
+  - id: 3.2.7_review_cycle_merge_driver
+    applied_at: '2026-08-09T17:54:50.372904'
+    result: success
+    notes: Configured git merge.spec-kitty-review-cycle.name; Configured git merge.spec-kitty-review-cycle.driver
+  - id: normalize_activation_absence
+    applied_at: '2026-08-09T17:54:50.867796'
+    result: success
+    notes: 'Normalized absent activation keys to [] in /private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260809-175108-qc7maU/spec-kitty/.kittify/charter/charter.yaml:
+      [''activated_glossary_packs'', ''activated_mission_step_contracts'']'
+  - id: unify_charter_activation_promote_answers
+    applied_at: '2026-08-09T17:54:52.660062'
+    result: success
+    notes: Promoted ['041-tests-as-scaffold-not-friction', '042-common-docs', '043-close-defect-class-by-construction',
+      '044-canonical-sources-and-unification', '045-prs-only-and-read-intent', '046-readable-consistent-prs']
+      into activated_directives; Promoted ['delete-the-assertion-not-the-test', 'architectural-gate-non-vacuity',
+      'frozen-baseline-shrink-only-ratchet', 'canonical-source-unification', 'pr-agent-worktree-isolation',
+      'ownership-map-leeway', 'reviewer-implementer-role-separation'] into activated_tactics;
+      Promoted ['adversarial-squad-cadence', 'planning-and-tracking'] into activated_styleguides;
+      Promoted ['github-tracker', 'terminology-guard'] into activated_toolguides;
+      Promoted ['mission-tracer-files', 'post-merge-arch-gate-adjudication'] into
+      activated_procedures
+  - id: consolidate_charter_bundle_fold
+    applied_at: '2026-08-09T17:54:52.876688'
+    result: success
+    notes: 'Relocated activation keys onto existing /private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260809-175108-qc7maU/spec-kitty/.kittify/charter/charter.yaml;
+      Deleted /private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260809-175108-qc7maU/spec-kitty/.kittify/charter/governance.yaml;
+      Deleted /private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260809-175108-qc7maU/spec-kitty/.kittify/charter/directives.yaml;
+      Deleted /private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260809-175108-qc7maU/spec-kitty/.kittify/charter/metadata.yaml;
+      Deleted /private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260809-175108-qc7maU/spec-kitty/.kittify/charter/references.yaml;
+      Updated .kittify/config.yaml: removed activated_* keys, added charter: pointer'
+  - id: verdict_provenance_backfill
+    applied_at: '2026-08-09T17:54:53.389876'
+    result: success
+    notes: Backfilled 17 stranded verdict event(s) across 351 mission(s) scanned

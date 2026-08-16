@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "mission_slug": "worktree-owned-root-3328-01KZRG01",
+  "mission_id": "01KZRG011AR66KDMYJHGGDEJ1V",
+  "mission_branch": "kitty/mission-worktree-owned-root-3328-01KZRG01",
+  "target_branch": "fix/worktree-owned-root-3328-v2",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/core/checkout_ownership.py",
+        "src/specify_cli/git/commit_helpers.py",
+        "tests/core/test_checkout_ownership.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/mission_runtime/__init__.py",
+        "src/specify_cli/core/mission_creation.py",
+        "tests/agent/test_agent_feature.py",
+        "tests/architectural/test_mission_runtime_surface.py",
+        "tests/mission_runtime/test_create_time_write_target.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/agent/test_context_validation_unit.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/*-checkout-ownership-for-mission-create-and-next.md",
+        "docs/adr/3.x/index.md",
+        "docs/development/3-2-docs-retrieval-index.yaml",
+        "docs/development/3-2-page-inventory.yaml",
+        "scripts/docs/freshen_adr_inventory.py",
+        "tests/docs/test_freshen_adr_inventory.py"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_create.py",
+        "tests/architectural/test_no_production_worktree_guard_bypass.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/mission_runtime/resolution.py",
+        "src/runtime/next/decision.py",
+        "src/runtime/next/runtime_bridge.py",
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "tests/architectural/surface_resolution_audit/inventory.md",
+        "tests/architectural/test_single_mission_surface_resolver.py",
+        "tests/e2e/test_worktree_owned_root_concurrency.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-08-12T01:41:22.441214+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP06"
+  ],
+  "planning_commit_sha": "e2ccc677ada73af3423700e535ccfde15a04e143"
+}

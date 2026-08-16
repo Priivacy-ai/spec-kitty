@@ -1545,11 +1545,11 @@ activated_directives:
 - 038-structured-prompt-boundary
 - 039-lynn-cole-engineering-culture
 - 040-recurring-bug-structural-intervention
+- 041-tests-as-scaffold-not-friction
+- 042-common-docs
 - 043-close-defect-class-by-construction
 - 044-canonical-sources-and-unification
 - 045-prs-only-and-read-intent
-- 041-tests-as-scaffold-not-friction
-- 042-common-docs
 - 046-readable-consistent-prs
 - 047-audience-oriented-writing
 - use-c4-model-techniques
@@ -1655,10 +1655,10 @@ activated_tactics:
 - usage-examples-sync
 - work-package-completion-validation
 - zombies-tdd
+- delete-the-assertion-not-the-test
 - architectural-gate-non-vacuity
 - frozen-baseline-shrink-only-ratchet
 - canonical-source-unification
-- delete-the-assertion-not-the-test
 - paula-patterns-architecture-scout-review
 - pr-agent-worktree-isolation
 - clean-linear-commit-history
@@ -1703,8 +1703,8 @@ activated_toolguides:
 - python-mutation-tools
 - python-review-checks
 - typescript-mutation-tools
-- terminology-guard
 - github-tracker
+- terminology-guard
 - gherkin
 - sonar
 activated_paradigms:
@@ -1765,3 +1765,5 @@ activated_agent_profiles:
 - minutes-maker-mahad
 - scribe-sally
 - synthesizer-sam
+activated_mission_step_contracts: []
+activated_glossary_packs: []

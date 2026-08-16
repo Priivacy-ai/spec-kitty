@@ -35,12 +35,8 @@ def _strict_validate(event_type: str, payload: dict[str, Any]) -> None:
     from spec_kitty_events.conformance import validate_event
 
     result = validate_event(payload, event_type, strict=True)
-    assert not result.model_violations, (
-        f"{event_type}: model_violations={[(v.field, v.message) for v in result.model_violations]}"
-    )
-    assert not result.schema_violations, (
-        f"{event_type}: schema_violations={[(v.json_path, v.message) for v in result.schema_violations]}"
-    )
+    assert not result.model_violations, f"{event_type}: model_violations={[(v.field, v.message) for v in result.model_violations]}"
+    assert not result.schema_violations, f"{event_type}: schema_violations={[(v.json_path, v.message) for v in result.schema_violations]}"
 
 
 def _strict_validate_saas_projection(event_type: str, payload: dict[str, Any]) -> None:
@@ -89,9 +85,7 @@ def test_emit_mission_created_local_payload_passes_strict_validation(tmp_path: P
     "event_type",
     ["SpecifyStarted", "PlanStarted", "TasksStarted"],
 )
-def test_emit_artifact_phase_started_payload_passes_strict_validation(
-    tmp_path: Path, event_type: str
-) -> None:
+def test_emit_artifact_phase_started_payload_passes_strict_validation(tmp_path: Path, event_type: str) -> None:
     from specify_cli.status.lifecycle_events import emit_artifact_phase
 
     feature_dir = tmp_path / "kitty-specs" / "demo-mission"
@@ -225,11 +219,25 @@ def isolated_emitter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
 
     from specify_cli.sync.emitter import EventEmitter
+    from specify_cli.sync.project_identity import ProjectIdentity
+    from specify_cli.sync.project_store import ProjectSyncStore
     from specify_cli.sync.queue import OfflineQueue
+    from uuid import UUID
 
-    queue = OfflineQueue(db_path=tmp_path / "outbox.sqlite")
-    emitter = EventEmitter(queue=queue)
-    return emitter
+    project_uuid = UUID("aaaaaaaa-0000-0000-0000-000000000001")
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(project_uuid)
+    authority = store.layout_generation()
+    authority.begin_cutover("producer-conformance-tests")
+    authority.publish_project_only("producer-conformance-tests", verify_exact=lambda: True)
+    identity = ProjectIdentity(
+        project_uuid=project_uuid,
+        project_slug="producer-conformance",
+        node_id="producer-node",
+        build_id="bbbbbbbb-0000-0000-0000-000000000002",
+    )
+    with store.unit_of_work() as unit:
+        yield EventEmitter(queue=OfflineQueue(unit, authority), _identity=identity)
 
 
 def _payload_of_last_emitted(emitter, event_type: str, **fields: Any) -> dict[str, Any]:
@@ -286,9 +294,7 @@ def test_emit_wp_status_changed_done_with_evidence_passes_strict_validation(
                 "verdict": "approved",
                 "reference": "review:abc",
             },
-            "repos": [
-                {"repo": "demo/repo", "branch": "main", "commit": "a" * 40}
-            ],
+            "repos": [{"repo": "demo/repo", "branch": "main", "commit": "a" * 40}],
         },
     )
     _strict_validate("WPStatusChanged", payload)

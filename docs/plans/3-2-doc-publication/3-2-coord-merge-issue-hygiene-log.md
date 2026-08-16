@@ -1,9 +1,12 @@
 ---
 title: 3.2 Coordination & Merge Cluster — Issue Hygiene Log
 description: 'Issue-hygiene action log for the coordination-merge-stabilization mission (WP01 / FR-011): the tracker cleanup performed on 2026-06-12 against the repo.'
-doc_status: draft
-updated: '2026-06-12'
+doc_status: deprecated
+updated: '2026-08-12'
 ---
+
+> ⚠ **Retired 2026-08-12 (`doc_status: deprecated`).** Working note for the 3.2 documentation mission `spec-kitty-3-2-docs-01KS4KSZ` (14/14 WPs done 2026-05-21); the docs are published (now 3.2.6). Content preserved as an audit-trail record.
+
 # 3.2 Coordination & Merge Cluster — Issue Hygiene Log
 
 Mission: `coordination-merge-stabilization-01KTXRVR`, WP01 (FR-011). All actions performed 2026-06-12 against `Priivacy-ai/spec-kitty`, following the Debbie/Paula validation pass (2026-06-12). Authoritative disposition: `kitty-specs/coordination-merge-stabilization-01KTXRVR/validation/cluster-validation-brief.md` §2 and research.md R8.

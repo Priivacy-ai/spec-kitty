@@ -130,6 +130,7 @@ def _planning_claim_commit(repo_root: Path, wp_path: Path, wp_id: str) -> str | 
 def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> FeatureTopology:
     """Gather the full lane worktree topology for a feature."""
     from mission_runtime import MissionArtifactKind, placement_seam
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
     from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.persistence import read_lanes_json
 
@@ -144,9 +145,33 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
     # read-side-placement-seam-migration WP07: routed through
     # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
     # instead of the kind-blind ``resolve_planning_read_dir``.
-    feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(
-        MissionArtifactKind.LANE_STATE
-    )
+    seam = placement_seam(main_repo_root, mission_slug)
+    feature_dir = seam.read_dir(MissionArtifactKind.LANE_STATE)
+    # FR-006 (#2698): the per-WP LANE rendered into the review handoff is a
+    # STATUS_STATE/COORD-partition kind, NOT a PRIMARY-partition one. Reading it
+    # off ``feature_dir`` (the PRIMARY dir above) renders every WP as stale
+    # ``planned`` on a coord-topology mission, because status transitions land on
+    # the coord husk, never the PRIMARY status log. Route the lane read through
+    # the SAME seam's STATUS_STATE projection — the coord husk for a coord
+    # mission, and identical to ``feature_dir`` for flat topologies (structural
+    # no-op). Identity/lanes.json/tasks stay on ``feature_dir`` (C-002: only the
+    # STATUS-partition read moves; PRIMARY reads are untouched). Per-leg pattern
+    # mirrors ``tasks_dependency_graph._check_dependent_warnings``.
+    #
+    # Degrade (WP07 discriminating-negative contract, #2698): materializing the
+    # topology is a read-only *rendering* concern, so a mission whose coord
+    # branch was deleted/cleaned up must still render — not crash. When the
+    # STATUS_STATE projection is unreachable (coord branch declared in meta.json
+    # but absent from git) fall back to the PRIMARY ``feature_dir``: the per-WP
+    # lane degrades to its lanes.json default, which is the honest value once the
+    # live coord status is genuinely gone. Live coord → true lanes (the fix
+    # above); deleted coord → graceful PRIMARY fallback. The seam's fail-loud
+    # NFR-002 behavior stays scoped to coord-partition WRITE/lifecycle paths, not
+    # read-only handoff rendering.
+    try:
+        status_feature_dir = seam.read_dir(MissionArtifactKind.STATUS_STATE)
+    except CoordinationBranchDeleted:
+        status_feature_dir = feature_dir
     identity = resolve_mission_identity(feature_dir)
     lanes_manifest = read_lanes_json(feature_dir)
     graph = build_dependency_graph(feature_dir)
@@ -204,7 +229,7 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
                     )
                 ),
                 dependencies=graph.get(wp_id, []),
-                lane=_read_canonical_lane_or_default(feature_dir, wp_id),
+                lane=_read_canonical_lane_or_default(status_feature_dir, wp_id),
                 worktree_exists=worktree_exists,
                 commits_ahead_of_base=commits_ahead,
             )

@@ -631,58 +631,79 @@ def _scan_project(
     )
 
 
-def _pending_migrations_for(project: ProjectStatus) -> tuple[MigrationStep, ...]:
-    """Return pending migration steps for a STALE/LEGACY project.
+def _migration_step_from(migration: Any) -> MigrationStep:
+    """Convert a registry ``BaseMigration`` into a contract ``MigrationStep``.
 
-    Returns an empty tuple if the registry does not expose the needed data
-    (WP07 may not have landed yet).
+    ``target_schema_version`` is read from the migration when present and
+    otherwise inferred best-effort from the target version's major component so
+    the JSON contract always carries an integer.
+
+    Args:
+        migration: A registry migration instance.
+
+    Returns:
+        The corresponding :class:`MigrationStep`.
+    """
+    schema_int: int | None = getattr(migration, "target_schema_version", None)
+    if schema_int is None:
+        try:
+            from packaging.version import Version
+
+            schema_int = int(Version(migration.target_version).major)
+        except Exception:  # noqa: BLE001
+            schema_int = 0
+
+    files_raw = getattr(migration, "files_modified", None)
+    files: tuple[Path, ...] | None = None
+    if files_raw is not None:
+        try:
+            files = tuple(Path(f) for f in files_raw)
+        except Exception:  # noqa: BLE001
+            files = None
+
+    return MigrationStep(
+        migration_id=str(migration.migration_id),
+        target_schema_version=int(schema_int),
+        description=str(getattr(migration, "description", "")),
+        files_modified=files,
+    )
+
+
+def _pending_migrations_for(
+    project: ProjectStatus, target_version: str | None = None
+) -> tuple[MigrationStep, ...]:
+    """Return the pending migration steps a real upgrade run would apply.
+
+    Drives the preview through the *same* selector the real run uses
+    (:meth:`VersionDetector.applicable_migrations` →
+    :meth:`MigrationRegistry.get_applicable`) so the compat preview can never
+    diverge from the applied set (FR-009). When ``target_version`` is omitted it
+    defaults to the installed CLI version, matching the real run's default
+    target.
+
+    Returns an empty tuple when the project root is unknown or the registry is
+    unavailable (fail-open: an empty preview beats a crash).
 
     Args:
         project: Project status snapshot.
+        target_version: Version the real run would target; defaults to the
+            installed CLI version.
 
     Returns:
-        Tuple of :class:`MigrationStep` instances.
+        Tuple of :class:`MigrationStep` instances, in application order.
     """
     _ensure_registry_loaded()
+    if project.project_root is None:
+        return ()
+    if target_version is None:
+        from specify_cli import __version__
+
+        target_version = __version__
     try:
-        from specify_cli.upgrade.registry import MigrationRegistry
+        from specify_cli.upgrade.detector import VersionDetector
 
-        migrations = MigrationRegistry.get_all()
-        steps: list[MigrationStep] = []
-        for m in migrations:
-            try:
-                from packaging.version import Version
-
-                target_v = Version(m.target_version)
-                # Only include schema-changing migrations targeting > current schema
-                current = project.schema_version or 0
-                # Convert packaging version to schema int best-effort
-                # (use major.minor.micro → schema int mapping via description)
-                schema_int: int | None = getattr(m, "target_schema_version", None)
-                if schema_int is None:
-                    # Attempt to infer: if target version > REQUIRED_SCHEMA_VERSION
-                    schema_int = int(target_v.major) if target_v else 0
-
-                if isinstance(schema_int, int) and schema_int > current:
-                    files_raw = getattr(m, "files_modified", None)
-                    files: tuple[Path, ...] | None = None
-                    if files_raw is not None:
-                        try:
-                            files = tuple(Path(f) for f in files_raw)
-                        except Exception:  # noqa: BLE001
-                            files = None
-
-                    steps.append(
-                        MigrationStep(
-                            migration_id=str(m.migration_id),
-                            target_schema_version=schema_int,
-                            description=str(getattr(m, "description", "")),
-                            files_modified=files,
-                        )
-                    )
-            except Exception:  # noqa: BLE001, S112
-                continue
-        return tuple(steps)
+        migrations = VersionDetector(project.project_root).applicable_migrations(target_version)
+        return tuple(_migration_step_from(m) for m in migrations)
     except Exception:  # noqa: BLE001
         return ()
 
@@ -1024,7 +1045,11 @@ def _plan_impl(
         fr023_case = Fr023Case.INSTALL_METHOD_UNKNOWN
 
     # --- Step 9: Pending migrations ---
-    pending_migrations = _pending_migrations_for(project_status) if decision == Decision.BLOCK_PROJECT_MIGRATION else ()  # noqa: SIM108
+    # Computed via the real detector (FR-009) but still gated on the block
+    # decision here to keep the general per-command compat check off the
+    # migration-discovery hot path. The `upgrade` preview overrides this with
+    # the unconditional real set (see cli/commands/upgrade.py).
+    pending_migrations = _pending_migrations_for(project_status, cli_status.installed_version) if decision == Decision.BLOCK_PROJECT_MIGRATION else ()  # noqa: SIM108
 
     # --- Step 10: Exit code ---
     exit_code = _EXIT_CODE_MAP.get(decision, 0)

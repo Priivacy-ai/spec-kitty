@@ -15,6 +15,7 @@ from typing import Any
 
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.constructor import DuplicateKeyError
 
 # The additive PID-reuse identity baseline (C-007), historically co-written
 # alongside ``shell_pid`` at claim-write time (D3b); WP05
@@ -85,6 +86,13 @@ class FrontmatterManager:
         self.yaml.preserve_quotes = False  # Don't preserve quotes - let YAML decide
         self.yaml.width = 4096  # Prevent line wrapping
         self.yaml.indent(mapping=2, sequence=2, offset=0)
+        # Fail closed on duplicate frontmatter keys (WP09, FR-007/C-002). The
+        # round-trip loader already defaults to this, but pinning it explicitly
+        # makes the guard a hard invariant of this canonical boundary: a future
+        # ``typ``/config change cannot silently reintroduce YAML last-wins
+        # semantics. Duplicates raise ``DuplicateKeyError``, translated into a
+        # legible ``FrontmatterError`` (see ``read`` / ``_format_duplicate_key_error``).
+        self.yaml.allow_duplicate_keys = False
 
     def read(self, file_path: Path) -> tuple[dict[str, Any], str]:
         """Read frontmatter and body from a markdown file.
@@ -123,6 +131,11 @@ class FrontmatterManager:
             frontmatter = self.yaml.load(frontmatter_text)
             if frontmatter is None:
                 frontmatter = {}
+        except DuplicateKeyError as e:
+            # Fail closed *legibly* (WP09, FR-007): a single ruamel raise names
+            # only the FIRST duplicate. Enumerate every duplicated key via WP03's
+            # raw-text detector so the operator sees each offending key and line.
+            raise FrontmatterError(self._format_duplicate_key_error(file_path, content, e)) from e
         except Exception as e:
             raise FrontmatterError(f"Invalid YAML in {file_path}: {e}") from e
 
@@ -141,6 +154,36 @@ class FrontmatterManager:
         body = "\n".join(lines[closing_idx + 1 :])
 
         return frontmatter, body
+
+    @staticmethod
+    def _format_duplicate_key_error(file_path: Path, content: str, error: DuplicateKeyError) -> str:
+        """Build a legible duplicate-key message naming every offending key.
+
+        Consumes WP03's raw-text detector
+        (:func:`specify_cli.status.dup_key_repair.find_duplicate_keys_in_text`)
+        to enumerate ALL duplicated top-level keys with their 1-based line
+        numbers -- ruamel's own raise names only the first. The import is
+        deferred to break the ``frontmatter`` <-> ``status`` package cycle
+        (``status`` sits above this foundational boundary and imports it back).
+
+        Falls back to ruamel's own message for a duplicate the top-level
+        scanner does not enumerate (e.g. a *nested* duplicate key), so the key
+        stays named in every case.
+        """
+        # Deferred import (cycle break): see docstring. Routed through the
+        # ``status`` facade (SR-2 module-boundary rule) — safe here because this
+        # is a function-scoped import, so the facade is fully initialized by the
+        # time this read path runs.
+        from specify_cli.status import find_duplicate_keys_in_text
+
+        duplicates = find_duplicate_keys_in_text(content)
+        if duplicates:
+            detail = "; ".join(
+                f"'{key}' (lines {', '.join(str(occ.line_index + 1) for occ in occurrences)})"
+                for key, occurrences in duplicates.items()
+            )
+            return f"Duplicate frontmatter key(s) in {file_path}: {detail}"
+        return f"Duplicate frontmatter key in {file_path}: {error}"
 
     def write(self, file_path: Path, frontmatter: dict[str, Any], body: str) -> None:
         """Write frontmatter and body to a markdown file.

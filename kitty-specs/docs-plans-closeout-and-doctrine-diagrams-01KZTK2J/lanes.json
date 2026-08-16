@@ -1,0 +1,208 @@
+{
+  "version": 1,
+  "mission_slug": "docs-plans-closeout-and-doctrine-diagrams-01KZTK2J",
+  "mission_id": "01KZTK2JS1J16X3JD67SWG9T5X",
+  "mission_branch": "kitty/mission-docs-plans-closeout-and-doctrine-diagrams-01KZTK2J",
+  "target_branch": "feat/docs-plans-tier3-closeout",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "packs/built-in/directives/042-common-docs.directive.yaml",
+        "packs/built-in/styleguides/common-docs.styleguide.yaml",
+        "packs/built-in/styleguides/docs-freshness-sla.styleguide.yaml",
+        "packs/built-in/tactics/common-docs-curation.tactic.yaml",
+        "packs/built-in/tactics/common-docs-scaffold.tactic.yaml",
+        "packs/built-in/tactics/common-docs-write.tactic.yaml",
+        "scripts/docs/frontmatter_backfill.py",
+        "tests/docs/test_doc_status_durable.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/plans/engineering-notes/2173-infra-logic-separation/**",
+        "docs/plans/engineering-notes/2342-retro-summary-nfr/**",
+        "docs/plans/engineering-notes/2841-residual-2917-mission-scope.md",
+        "docs/plans/engineering-notes/2917-runtime-state-birth-cutover-research.md",
+        "docs/plans/engineering-notes/3-2-0-training-bugs-2007/**",
+        "docs/plans/engineering-notes/3-2-3-surface-resolution-cluster/**",
+        "docs/plans/engineering-notes/3-2-x-goal-corroboration/**",
+        "docs/plans/engineering-notes/883-mission-type-authority-brief.md",
+        "docs/plans/engineering-notes/883-research-synthesis.md",
+        "docs/plans/engineering-notes/context-factory-readwrite-symmetry/**",
+        "docs/plans/engineering-notes/coord-splitbrain-rootcause.md",
+        "docs/plans/engineering-notes/coord-trust-mission-scope.md",
+        "docs/plans/engineering-notes/index.md",
+        "docs/plans/engineering-notes/naming-identity-ssot-strangler/**",
+        "docs/plans/engineering-notes/runtime_and_state_overhaul/**",
+        "docs/plans/engineering-notes/triage/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/plans/doctrine/3179-public-api-surface-scoping.md",
+        "docs/plans/doctrine/391-doctrine-usage-test.md",
+        "docs/plans/doctrine/built-in-doctrine-repo-coupling-audit.md",
+        "docs/plans/doctrine/charter-activation-reachability-assessment.md",
+        "docs/plans/doctrine/charter-path-resolution-gaps.md",
+        "docs/plans/doctrine/creed-and-values-design-as-proposed.md",
+        "docs/plans/doctrine/creed-and-values-design-hardened.md",
+        "docs/plans/doctrine/delivery-reachability-wiring-table.md",
+        "docs/plans/doctrine/doctrine-artifact-selection-preflight.md",
+        "docs/plans/doctrine/doctrine-inclusion-assessment.md",
+        "docs/plans/doctrine/doctrine-migration-architecture-review.md",
+        "docs/plans/doctrine/index.md",
+        "docs/plans/doctrine/manifesto-tier-primary-drivers.md",
+        "docs/plans/doctrine/manifesto-tier-verdict-and-handover.md",
+        "docs/plans/doctrine/mission-b-proposed-scope.md",
+        "docs/plans/doctrine/missions-reader-inventory-01KZ6G6H.md",
+        "docs/plans/doctrine/next-slice-wheel-mission-types-public-api-research.md",
+        "docs/plans/doctrine/org-doctrine-layer-architecture-review.md",
+        "docs/plans/doctrine/runtime-charter-doctrine-boundary.md",
+        "docs/plans/doctrine/squad-reports/**",
+        "docs/plans/doctrine/wp-prompt-governance-atdd-findings.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/plans/investigations/2026-04-14-windows-compatibility-hardening-mission-review.md",
+        "docs/plans/investigations/2684-task-move-cluster-scoping.md",
+        "docs/plans/investigations/2684-task-move-cluster-spec.md",
+        "docs/plans/investigations/index.md",
+        "docs/plans/investigations/issue-1040-scope-assessment.md",
+        "docs/plans/investigations/issue-1111-analysis.md",
+        "docs/plans/investigations/loop-friction-fastfollow-spec.md",
+        "docs/plans/investigations/mission-next-compatibility.md",
+        "docs/plans/investigations/mission-type-step-model-unification.md",
+        "docs/plans/investigations/model-first-schema-generation.md",
+        "docs/plans/investigations/wp-runtime-state-eviction-scope.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "docs/plans/3-2-doc-publication/**",
+        "docs/plans/refactor/epic-1111-slice-landing-plan.md",
+        "docs/plans/refactor/index.md",
+        "docs/plans/refactor/slice-f-gap-analysis.md",
+        "docs/plans/refactor/slice-f-mission-debrief.md",
+        "docs/plans/refactor/tasks-py-degod-followup-mission-debrief.md",
+        "docs/plans/refactor/wp04-resection-classification-audit.md",
+        "docs/plans/reviews/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/plans/domains/api-dashboard-domain-plan.md",
+        "docs/plans/domains/packs-extraction-domain-plan.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "docs/development/3-2-docs-retrieval-index.yaml",
+        "docs/development/3-2-page-inventory.yaml",
+        "docs/plans/3-2-x-approach.md",
+        "docs/plans/3-2-x-executive-overview.md",
+        "docs/plans/3-2-x-milestone-roadmap.md",
+        "docs/plans/3-2-x-open-core-delivery-plan.md",
+        "docs/plans/doctrine-charter-domain-plan.md",
+        "docs/plans/domains/doctrine-charter-domain-plan.md",
+        "docs/plans/domains/index.md",
+        "docs/plans/domains/saas-hosted-sync-domain-plan.md",
+        "docs/plans/index.md",
+        "docs/plans/saas-hosted-sync-domain-plan.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-08-12T17:12:02.007380+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "777e8bbedf15cea2b50ed27e294ccde3f9c85ff2"
+}

@@ -1,10 +1,12 @@
 ---
 title: Dialectic synthesis — 3.2.x design under white-team + red-team
 description: 'Dialectic synthesis of the 3.2.x design under white-team corroboration and red-team refutation: what survives the adversarial test and what does not (2026-06-16).'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # Dialectic synthesis — 3.2.x design under white-team + red-team
+
+> **Retired (deprecated).** Design shipped/superseded via the open-core delivery plan §1 "Status re-read (verified)" (G1–G3 goal corroboration folded into the plan) — see `docs/plans/3-2-x-open-core-delivery-plan.md`. Preserved as a historical record.
 
 **Date:** 2026-06-16. **Method:** a white-team squad corroborated the 3.2.x design/goals; a red-team
 squad was then mandated to refute them. This is the synthesis — what survives the adversarial test,
@@ -33,18 +35,22 @@ what is refuted, and what remains genuinely contested. (Inputs: `corroboration-*
 | 10 | Defer all of #1878 (coord/primary) to 3.3.x | **REFUTED on sequence** | The write/entry side *authors* identity + is the "highest blast radius" (white team's own §4) + holds the unrecoverable #1827. The read SSOT can't be more consistent than the write SSOT feeding it. Pull a bounded write-side slice *forward*. |
 
 ## What survives → the defensible 3.2.x core
+
 - The **static `branch_naming`/`mid8()` seam** as the identity SSOT (already shipped).
 - A **cheap routing rider**: route the ~14–26 bare `mission_id[:8]` sites through `resolve_mid8`/`mid8()`, plus a **ratchet extension as an anti-regression *tripwire*** (scoped honestly: partial, syntax-level, not a completeness guarantee).
 - The DIR-031 bounded-context guardrails; the "cycle stays open" honesty about G1.
 
 ## What is refuted/revised → drop or reframe
+
 - **Drop "thread the `ExecutionContext` everywhere"** as a mission spine. It is a *builder redesign* (fix the internal `branch_name`/`branch_ref` inconsistency; make the composite genuinely immutable) — a separate, later, carefully-sequenced effort, applied only at the 2 sites that already hold a context, **after** the freeze and **after** the write-side authority is consistent.
 - **Reframe the ratchet** from "the mechanism / can-never-regrow" to "a cheap regression tripwire" that measures syntax; pair it with shape-aware detection or accept its limits.
 - **Stop citing the confounded metrics** ("−76% status", "cooled") as proof; the honest statement is "per-authority complexity improved; system-level reduction is unproven; adoption has not retired any legacy path."
 
 ## Genuinely contested (needs a neutral follow-up, not a verdict here)
+
 - **Status coupling: relabel (Goodhart) vs correct facade-adoption** — needs a coupling-*quality* analysis (does the facade hide internals, or just rename the import?).
 - **Whether per-authority cooling amid system growth counts as "progress"** — depends on whether the growth is unrelated feature work (likely substantial) vs strangler-induced duplication.
 
 ## Implications for 3.2.x scope (operator decision — see §below)
+
 The red team did **not** refute that the engineering is real; it refuted the **framing, the metrics-as-proof, and the sequencing**. The synthesis points to: **lead 3.2.1 with the high-impact/P0 work (#1716/#1827/#1832 + a bounded #1878 write-side slice), demote the naming work to a cheap routing+tripwire rider, and treat the `ExecutionContext` freeze as its own redesign** — pending a *neutral* scoping pass (not a confirmatory one). The naming slice remains a legitimate *low-risk opener* if quick-win value + establishing the ratchet pattern is explicitly preferred over impact — but that should be a chosen trade-off, not a data-driven conclusion.

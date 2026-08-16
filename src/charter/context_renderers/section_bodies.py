@@ -145,6 +145,51 @@ def _has_fence_close(
     )
 
 
+def _close_fence_if_matched(
+    line: str, fence_marker: str, fence_length: int
+) -> tuple[str | None, int]:
+    """Return the updated ``(marker, length)`` fence state after *line*.
+
+    When *line* closes the active fence the state resets to ``(None, 0)``;
+    otherwise the existing state is returned unchanged.
+    """
+
+    if _is_fence_close(line, fence_marker, fence_length):
+        return None, 0
+    return fence_marker, fence_length
+
+
+def _heading_offset_if_match(
+    line: str, heading_level: int, offset: int
+) -> int | None:
+    """Return *offset* when *line* is a heading at or above *heading_level*."""
+
+    heading_match = re.match(r"^(#{1,6})\s+", line)
+    if heading_match is not None and len(heading_match.group(1)) <= heading_level:
+        return offset
+    return None
+
+
+def _open_fence_if_started(
+    line: str, lines: list[str], index: int
+) -> tuple[str | None, int, bool]:
+    """Return ``(marker, length, unclosed)`` for a fence opened by *line*.
+
+    ``marker``/``length`` are ``(None, 0)`` when *line* does not open a fence.
+    ``unclosed`` is ``True`` when the opened fence never closes among the
+    remaining lines — signalling the caller should treat this position as the
+    end of the section.
+    """
+
+    fence_match = _FENCE_OPEN_RE.match(line)
+    if fence_match is None:
+        return None, 0, False
+    fence_marker = fence_match.group(1)[0]
+    fence_length = len(fence_match.group(1))
+    unclosed = not _has_fence_close(lines, index + 1, fence_marker, fence_length)
+    return fence_marker, fence_length, unclosed
+
+
 def _find_next_section_start(body: str, heading_level: int) -> int | None:
     """Return the next same-or-higher heading offset outside code fences."""
 
@@ -155,23 +200,18 @@ def _find_next_section_start(body: str, heading_level: int) -> int | None:
     lines = body.splitlines(keepends=True)
     for index, line in enumerate(lines):
         if fence_marker is not None:
-            if _is_fence_close(line, fence_marker, fence_length):
-                fence_marker = None
-                fence_length = 0
+            fence_marker, fence_length = _close_fence_if_matched(
+                line, fence_marker, fence_length
+            )
         else:
-            heading_match = re.match(r"^(#{1,6})\s+", line)
-            if (
-                heading_match is not None
-                and len(heading_match.group(1)) <= heading_level
-            ):
+            heading_offset = _heading_offset_if_match(line, heading_level, offset)
+            if heading_offset is not None:
+                return heading_offset
+            fence_marker, fence_length, unclosed = _open_fence_if_started(
+                line, lines, index
+            )
+            if unclosed:
                 return offset
-
-            fence_match = _FENCE_OPEN_RE.match(line)
-            if fence_match is not None:
-                fence_marker = fence_match.group(1)[0]
-                fence_length = len(fence_match.group(1))
-                if not _has_fence_close(lines, index + 1, fence_marker, fence_length):
-                    return offset
 
         offset += len(line)
 

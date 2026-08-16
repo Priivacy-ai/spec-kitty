@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "c528bf6a823c5929abd8246f1ca5450e035fc388",
-  "coordination_branch": "kitty/mission-unshim-wave1-01KWKVHB",
   "created_at": "2026-07-03T11:24:02.351923+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Unshim Wave 1 — category_4 shim deletion + category_7 orphan triage",
   "mission_id": "01KWKVHBDFFK6MTH0TFJQ8GBES",
   "mission_number": 160,
@@ -14,7 +13,7 @@
   "slug": "unshim-wave1-01KWKVHB",
   "status_phase": "1",
   "target_branch": "tidy/unshim-wave1",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-03T12:55:27.599905+00:00"
 }

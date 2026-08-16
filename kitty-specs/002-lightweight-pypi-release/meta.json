@@ -1,5 +1,6 @@
 {
   "created_at": "2025-11-02T15:37:41Z",
+  "flattened": false,
   "friendly_name": "Lightweight PyPI Release Workflow",
   "mission_id": "01KN2371WNZX28ME4MN97B67PJ",
   "mission_number": 2,
@@ -8,5 +9,6 @@
   "slug": "002-lightweight-pypi-release",
   "source_description": "ad a pypi release but leak no secrets into the git repo",
   "status_phase": "1",
-  "target_branch": "main"
+  "target_branch": "main",
+  "topology": "single_branch"
 }

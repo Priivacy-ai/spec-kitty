@@ -389,6 +389,19 @@ def test_site_within_frozen_ceiling_passes_ratchet() -> None:
     assert ratchet_violations(current={"tests/charter": 30}, baseline={"tests/charter": 40}) == []
 
 
+def test_one_site_above_current_frozen_ceiling_fails_ratchet() -> None:
+    """No spare ceiling may hide one fresh violation in an existing directory."""
+    baseline = load_baseline()
+    directory = "tests/architectural"
+    poisoned = dict(baseline)
+    poisoned[directory] += 1
+
+    violations = ratchet_violations(poisoned, baseline)
+
+    assert len(violations) == 1
+    assert directory in violations[0]
+
+
 def test_convert_counts_by_dir_excludes_escaped_and_keep_sites() -> None:
     sites = [
         GoldenCountSite("tests/foo/test_a.py", 10, "<module>", "Lane", 10, "convert", escaped=False),

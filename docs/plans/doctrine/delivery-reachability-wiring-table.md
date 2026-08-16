@@ -1,7 +1,7 @@
 ---
 title: "Delivery-reachability wiring table (FR-015)"
 description: "Per candidate artefact: proposed inbound source, its measured action-reachability (WP08 helper), and the C-007 wire/defer disposition; the deferred set is the decision surface."
-doc_status: active
+doc_status: deprecated
 updated: '2026-07-29'
 related:
   - kitty-specs/doctrine-delivery-reachability-01KYMXD6/spec.md
@@ -10,6 +10,8 @@ related:
 ---
 
 # Delivery-reachability wiring table (FR-015, WP09)
+
+> **Retired (deprecated).** Design shipped via merged mission `doctrine-delivery-reachability-01KYMXD6` (15 WPs). Preserved as a historical record.
 
 This is the enumerated wiring table FR-015 requires. Its purpose is to make
 "obvious" a **computation** rather than a judgement, so this work package does
@@ -70,8 +72,8 @@ Rows 8–10 are the re-adjudication of PR #3007's three still-inert wirings: eac
 already carries an inbound edge, but its source is itself action-unreachable
 (measured **False**), so the target reaches nobody. That is precisely the
 incidence-vs-reachability gap this mission exists to close — an inbound edge is
-**not** reachability (R-6). They are **not** re-wired (that would repeat the
-#3007 error); they are recorded here and deferred.
+**not** reachability (R-6). They are **not** re-wired (that would repeat the #3007
+error); they are recorded here and deferred.
 
 ### Why only ONE edge is authored
 
@@ -291,56 +293,56 @@ edge is upgraded and no walk is deepened here.
 
 ### Full deferred set (50), by kind — directive 4 · paradigm 3 · procedure 4 · styleguide 3 · tactic 28 · toolguide 8
 
-  - `directive:DIRECTIVE_035`
-  - `directive:DIRECTIVE_038`
-  - `directive:DIRECTIVE_039`
-  - `directive:DIRECTIVE_044`
-  - `paradigm:atomic-design`
-  - `paradigm:c4-incremental-detail-modeling` — Family C: topology authored, delivery pending
-  - `paradigm:structured-prompt-driven-development`
-  - `procedure:documentation-gap-prioritization` — Family C candidate EXCLUDED as non-attested (see Family C section)
-  - `procedure:drill-down-documentation` — Family C: topology authored, delivery pending
-  - `procedure:event-storming-discovery`
-  - `procedure:migrate-project-guidance-to-spec-kitty-charter`
-  - `styleguide:deployable-skill-authoring`
-  - `styleguide:java-conventions`
-  - `styleguide:reasons-canvas-writing`
-  - `tactic:analysis-extract-before-interpret`
-  - `tactic:architecture-diagram-review-checklist` — Family C: topology authored, delivery pending
-  - `tactic:atomic-design-review-checklist`
-  - `tactic:atomic-state-ownership`
-  - `tactic:c4-zoom-in-architecture-documentation` — Family C: topology authored, delivery pending
-  - `tactic:canonical-source-unification`
-  - `tactic:chain-of-responsibility-rule-pipeline`
-  - `tactic:code-documentation-analysis` — Family C: topology authored, delivery pending
-  - `tactic:compositional-stream-boundaries`
-  - `tactic:cross-cutting-state-via-store`
-  - `tactic:mutation-testing-workflow`
-  - `tactic:occurrence-classification-workflow`
-  - `tactic:ownership-map-leeway`
-  - `tactic:pr-agent-worktree-isolation`
-  - `tactic:reasons-canvas-fill`
-  - `tactic:reasons-canvas-review`
-  - `tactic:refactoring-encapsulate-record` — Family B: topology authored, delivery pending
-  - `tactic:refactoring-encapsulate-variable` — Family B: topology authored, delivery pending
-  - `tactic:refactoring-extract-first-order-concept` — Family B: topology authored, delivery pending
-  - `tactic:refactoring-move-field` — Family B: topology authored, delivery pending
-  - `tactic:refactoring-move-method` — Family B: topology authored, delivery pending
-  - `tactic:refactoring-state-pattern-for-behavior` — Family B: topology authored, delivery pending
-  - `tactic:refactoring-strangler-fig` — Family B: topology authored, delivery pending
-  - `tactic:reference-architectural-patterns`
-  - `tactic:secure-regex-catastrophic-backtracking`
-  - `tactic:terminology-extraction-mapping`
-  - `tactic:test-readability-clarity-check`
-  - `tactic:zombies-tdd`
-  - `toolguide:contextive`
-  - `toolguide:github-tracker`
-  - `toolguide:maven-review-checks`
-  - `toolguide:mermaid-diagramming` — Family C: topology authored, delivery pending
-  - `toolguide:plantuml-diagramming` — Family C: topology authored, delivery pending
-  - `toolguide:python-mutation-tools`
-  - `toolguide:terminology-guard`
-  - `toolguide:typescript-mutation-tools`
+- `directive:DIRECTIVE_035`
+- `directive:DIRECTIVE_038`
+- `directive:DIRECTIVE_039`
+- `directive:DIRECTIVE_044`
+- `paradigm:atomic-design`
+- `paradigm:c4-incremental-detail-modeling` — Family C: topology authored, delivery pending
+- `paradigm:structured-prompt-driven-development`
+- `procedure:documentation-gap-prioritization` — Family C candidate EXCLUDED as non-attested (see Family C section)
+- `procedure:drill-down-documentation` — Family C: topology authored, delivery pending
+- `procedure:event-storming-discovery`
+- `procedure:migrate-project-guidance-to-spec-kitty-charter`
+- `styleguide:deployable-skill-authoring`
+- `styleguide:java-conventions`
+- `styleguide:reasons-canvas-writing`
+- `tactic:analysis-extract-before-interpret`
+- `tactic:architecture-diagram-review-checklist` — Family C: topology authored, delivery pending
+- `tactic:atomic-design-review-checklist`
+- `tactic:atomic-state-ownership`
+- `tactic:c4-zoom-in-architecture-documentation` — Family C: topology authored, delivery pending
+- `tactic:canonical-source-unification`
+- `tactic:chain-of-responsibility-rule-pipeline`
+- `tactic:code-documentation-analysis` — Family C: topology authored, delivery pending
+- `tactic:compositional-stream-boundaries`
+- `tactic:cross-cutting-state-via-store`
+- `tactic:mutation-testing-workflow`
+- `tactic:occurrence-classification-workflow`
+- `tactic:ownership-map-leeway`
+- `tactic:pr-agent-worktree-isolation`
+- `tactic:reasons-canvas-fill`
+- `tactic:reasons-canvas-review`
+- `tactic:refactoring-encapsulate-record` — Family B: topology authored, delivery pending
+- `tactic:refactoring-encapsulate-variable` — Family B: topology authored, delivery pending
+- `tactic:refactoring-extract-first-order-concept` — Family B: topology authored, delivery pending
+- `tactic:refactoring-move-field` — Family B: topology authored, delivery pending
+- `tactic:refactoring-move-method` — Family B: topology authored, delivery pending
+- `tactic:refactoring-state-pattern-for-behavior` — Family B: topology authored, delivery pending
+- `tactic:refactoring-strangler-fig` — Family B: topology authored, delivery pending
+- `tactic:reference-architectural-patterns`
+- `tactic:secure-regex-catastrophic-backtracking`
+- `tactic:terminology-extraction-mapping`
+- `tactic:test-readability-clarity-check`
+- `tactic:zombies-tdd`
+- `toolguide:contextive`
+- `toolguide:github-tracker`
+- `toolguide:maven-review-checks`
+- `toolguide:mermaid-diagramming` — Family C: topology authored, delivery pending
+- `toolguide:plantuml-diagramming` — Family C: topology authored, delivery pending
+- `toolguide:python-mutation-tools`
+- `toolguide:terminology-guard`
+- `toolguide:typescript-mutation-tools`
 
 ## Composition ledger (NFR-002) — profile-channel walk-activation (mission `doctrine-delivery-activation-01KYQVQK`, WP01 + WP03)
 
@@ -415,26 +417,26 @@ mission the profile channel rescued only 2 of the 50, so the neither-channel set
 was 48. After WP01 it rescues 30, so the neither-channel deferred set drops to
 **20**:
 
-  - `directive:DIRECTIVE_035`
-  - `directive:DIRECTIVE_038`
-  - `directive:DIRECTIVE_039`
-  - `paradigm:atomic-design`
-  - `paradigm:structured-prompt-driven-development`
-  - `procedure:documentation-gap-prioritization`
-  - `procedure:migrate-project-guidance-to-spec-kitty-charter`
-  - `styleguide:deployable-skill-authoring`
-  - `styleguide:java-conventions`
-  - `tactic:analysis-extract-before-interpret`
-  - `tactic:atomic-design-review-checklist`
-  - `tactic:atomic-state-ownership`
-  - `tactic:chain-of-responsibility-rule-pipeline`
-  - `tactic:compositional-stream-boundaries`
-  - `tactic:cross-cutting-state-via-store`
-  - `tactic:reasons-canvas-fill`
-  - `tactic:reasons-canvas-review`
-  - `tactic:reference-architectural-patterns`
-  - `tactic:secure-regex-catastrophic-backtracking`
-  - `toolguide:maven-review-checks`
+- `directive:DIRECTIVE_035`
+- `directive:DIRECTIVE_038`
+- `directive:DIRECTIVE_039`
+- `paradigm:atomic-design`
+- `paradigm:structured-prompt-driven-development`
+- `procedure:documentation-gap-prioritization`
+- `procedure:migrate-project-guidance-to-spec-kitty-charter`
+- `styleguide:deployable-skill-authoring`
+- `styleguide:java-conventions`
+- `tactic:analysis-extract-before-interpret`
+- `tactic:atomic-design-review-checklist`
+- `tactic:atomic-state-ownership`
+- `tactic:chain-of-responsibility-rule-pipeline`
+- `tactic:compositional-stream-boundaries`
+- `tactic:cross-cutting-state-via-store`
+- `tactic:reasons-canvas-fill`
+- `tactic:reasons-canvas-review`
+- `tactic:reference-architectural-patterns`
+- `tactic:secure-regex-catastrophic-backtracking`
+- `toolguide:maven-review-checks`
 
 ### Reconciliation note — the "50 vs 60" / "39→39" stale prose (WP03, D19)
 
@@ -492,6 +494,39 @@ real inbound edges by the deferred orphan-wiring doctrine mission — they are N
 rescues and carry no ledger row here. (`directive:RECONCILE_CHANGE_SCOPE_TENSIONS`
 is one of the ten: it is wired only by hand-authored `reconciles_tension` overlay
 edges the profile channel does not walk.)
+
+### Mission `drg-reachability-metric-wiring-01KZS5VR` (WP01, #3009 point 3) — profile-channel rescue +1 / -10
+
+Six genuine traced edges land (`_CURATED_ARTIFACT_EDGES`, `src/doctrine/drg/migration/extractor.py`
+— see the companion-metric section near the end of this document for the full
+edge table). Two members move the profile-channel pins:
+
+- **`_PROFILE_UNREACHABLE` 62 → 60** (`-2`). `directive:RECONCILE_CHANGE_SCOPE_TENSIONS`
+  becomes profile-reachable via `directive:DIRECTIVE_024 --suggests--> RECONCILE`
+  and `directive:DIRECTIVE_025 --suggests--> RECONCILE` (both 024/025 are
+  themselves profile-reachable, so the closure reaches RECONCILE). `procedure:
+  glossary-maintenance-workflow` becomes profile-reachable via
+  `agent_profile:lexical-larry --suggests--> glossary-maintenance-workflow`
+  (larry is a profile-channel seed).
+- **`_PROFILE_RESCUES` 37 → 28** (`-10` leave, `+1` enters). TEN members leave:
+  `tactic:mutation-testing-workflow`, the seven `refactoring-*` Fowler tactics
+  (`tactic:refactoring-encapsulate-record`, `tactic:refactoring-encapsulate-variable`,
+  `tactic:refactoring-extract-first-order-concept`, `tactic:refactoring-move-field`,
+  `tactic:refactoring-move-method`, `tactic:refactoring-state-pattern-for-behavior`,
+  `tactic:refactoring-strangler-fig`) and `toolguide:python-mutation-tools` /
+  `toolguide:typescript-mutation-tools` all became action-`d=2`-reachable (the
+  new `procedure:refactoring --suggests--> directive:DISCIPLINED_REFACTORING`
+  and `directive:DIRECTIVE_030 --suggests--> directive:USE_MUTATION_TESTING_TO_
+  VALIDATE_TEST_QUALITY` edges cascade their tactic families into the action
+  channel at the bootstrap depth), so the action channel now covers them and
+  they leave the profile-only rescue set. ONE member enters:
+  `procedure:glossary-maintenance-workflow` (see above) — it stays
+  action-`d=2`-unreachable but is now profile-reachable, so it moves from
+  `_PROFILE_UNREACHABLE` into `_PROFILE_RESCUES`.
+- `directive:RECONCILE_CHANGE_SCOPE_TENSIONS` leaves BOTH `_ACTION_UNREACHABLE_D2`
+  and `_PROFILE_UNREACHABLE` (it is reachable at both depths via edges 2/3 — see
+  the companion-metric section), so it does **not** enter `_PROFILE_RESCUES`
+  (defined as the set difference of the two).
 
 ## Composition ledger (NFR-004) — counts this WP moves
 
@@ -1058,8 +1093,8 @@ record the disposition here (2026-07-29):
 | `DIRECTIVE_044` canonical-sources-and-unification | **genuinely universal → always-on candidate** | applies to *"whenever an agent selects a template/skill/command… whenever a split-brain is discovered"* — i.e. ~all agent work — yet no action scopes it | **DEFER to #3064** — the universal engineering-hygiene rule belongs in the default `charter.yml` / empty-charter always-on set; the always-on **activation-model** decision is #3064's, not edge-authoring. |
 
 **No graph change.** Family F authors zero edges and moves zero counts; the four
-directives stay in the deferred set (now understood as intentionally-gated /
-#3064-owned, not defects). This closes the #3063 operator interview: Families A–E
+directives stay in the deferred set (now understood as intentionally-gated / #3064-owned,
+not defects). This closes the #3063 operator interview: Families A–E
 authored, F accepted, and the four depth-gated artefacts accepted (see the
 depth-gated note above). All residual delivery/activation work is owned by the
 fast-follow walk-update mission and #3064.
@@ -1096,3 +1131,137 @@ following counts — each measured via `load_built_in_graph()` /
   dogfood `.kittify/charter/charter.yaml`, and `agent_profile`/`asset` are not
   activation kinds, so the action-channel activated-unreachable pins do not move.
 - **Glossary term count UNCHANGED (108)** — no glossary edits.
+
+## Composition ledger (NFR-002/NFR-004) — reachability companion metric (mission `drg-reachability-metric-wiring-01KZS5VR`, WP01, #3009 point 3)
+
+This mission adds the **action-only whole-graph reachability companion guard**
+(`_ACTION_UNREACHABLE_SHIPPED`, `tests/doctrine/drg/test_reachability.py`,
+`test_shipped_graph_action_reachability_is_the_pinned_membership`) — the #3009
+point-3 deliverable — and wires the six genuine, traced inbound edges that make
+its residual orphans reachable. Every number below is measured against the
+regenerated `packs/built-in` graph via the canonical
+`action_channel_reachable`/`profile_channel_reachable` helpers (C-001; no
+hand-rolled walk).
+
+### The six curated edges (`_CURATED_ARTIFACT_EDGES`, `src/doctrine/drg/migration/extractor.py`)
+
+| # | Edge | Relation | Trace (artifact text) |
+|---|---|---|---|
+| 1 | `procedure:refactoring` → `directive:DISCIPLINED_REFACTORING` | `suggests` | `refactoring.procedure.yaml` step 2 ("Select the relevant refactoring tactics") already cites 9 Fowler tactics; the directive holds 7 disjoint ones plus the "name the smell first" discipline. |
+| 2 | `directive:DIRECTIVE_024` → `directive:RECONCILE_CHANGE_SCOPE_TENSIONS` | `suggests` | The reconciler's own `scope` names DIRECTIVE_024 as a trigger. |
+| 3 | `directive:DIRECTIVE_025` → `directive:RECONCILE_CHANGE_SCOPE_TENSIONS` | `suggests` | Same scope sentence, names DIRECTIVE_025. |
+| 4 | `directive:DIRECTIVE_030` → `directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY` | `suggests` | DIRECTIVE_030 governs the coverage gate; the mutation-testing directive critiques coverage-as-proxy, deepening the same gate. |
+| 5 | `agent_profile:researcher-robbie` → `procedure:spike-timebox-policy` | `requires` | Robbie's structured `operating-procedures` field lists `spike-timebox-policy` directly. |
+| 6a | `agent_profile:lexical-larry` → `procedure:glossary-maintenance-workflow` | `suggests` | Larry is the diagnostic "feeder into" the workflow; `curator-carla` owns its acceptance — `suggests`, not `requires` (larry feeds, does not own). |
+| 6b | `agent_profile:minutes-maker-mahad` → `procedure:meeting-minutes-pipeline` | `requires` | Mahad's own text: "the primary agent for the meeting-minutes-pipeline procedure." |
+
+Zero new nodes; zero new orphans (C-003). `spec-kitty doctrine regenerate-graph
+--check` confirms determinism (byte-identical fragments across two runs).
+
+### The companion metric moves: `_ACTION_UNREACHABLE_SHIPPED` 88 → 75
+
+Primary definition (action-only, whole-graph, excludes `_BY_DESIGN_UNREACHABLE_KINDS`
+and the action/profile traversal-root seeds — see the guard contract,
+`kitty-specs/drg-reachability-metric-wiring-01KZS5VR/contracts/reachability-companion-guard.md`):
+**88 → 75** (`-13`), asserted total & disjoint into `_DEAD_DOCTRINE_SHIPPED`
+(**38 → 34**, `-4`) and `_PROFILE_DELIVERED_SHIPPED` (**50 → 41**, `-9`).
+
+**`_WIRED_THIS_MISSION` — the thirteen URNs this mission makes action-reachable**
+(pinned in `test_reachability.py`; each asserted action-reachable AND named
+here — the anti-null-delta forcing mechanism, Debbie Item 1):
+
+- `directive:DISCIPLINED_REFACTORING` — reachable via edge 1 (the already
+  action-scoped `procedure:refactoring`). Was profile-channel reachable
+  already, so it leaves `_ACTION_UNREACHABLE_SHIPPED` but was never a member of
+  `_DEAD_DOCTRINE_SHIPPED` (it moves from `_PROFILE_DELIVERED_SHIPPED`, not
+  `_DEAD_DOCTRINE_SHIPPED`, into full action-reachability).
+- `directive:RECONCILE_CHANGE_SCOPE_TENSIONS` — reachable via edges 2/3. Was
+  reachable from **neither** channel pre-wiring, so it leaves
+  `_DEAD_DOCTRINE_SHIPPED` (one of the four `_DEAD_DOCTRINE_SHIPPED` departures).
+- `directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY` — reachable via
+  edge 4 (the already action-scoped `DIRECTIVE_030`). Was profile-channel
+  reachable already (same shape as DISCIPLINED_REFACTORING above); moves from
+  `_PROFILE_DELIVERED_SHIPPED` into full action-reachability.
+- `tactic:refactoring-encapsulate-record`, `tactic:refactoring-encapsulate-variable`,
+  `tactic:refactoring-extract-first-order-concept`, `tactic:refactoring-move-field`,
+  `tactic:refactoring-move-method`, `tactic:refactoring-state-pattern-for-behavior`,
+  `tactic:refactoring-strangler-fig` — the seven Fowler tactics cascaded into
+  action context by `directive:DISCIPLINED_REFACTORING`'s pre-existing
+  `suggests` edges (family-B overlay, ledger entry 10) once edge 1 makes the
+  directive itself action-reachable. All seven were `_PROFILE_DELIVERED_SHIPPED`
+  members (reachable via the profile channel already); they move into full
+  action-reachability, not out of `_DEAD_DOCTRINE_SHIPPED`.
+- `tactic:mutation-testing-workflow`, `toolguide:python-mutation-tools`,
+  `toolguide:typescript-mutation-tools` — cascaded into action context by
+  `directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY`'s pre-existing
+  `suggests` edges (family-D overlay, ledger entry 12) once edge 4 makes the
+  directive action-reachable. All three were `_PROFILE_DELIVERED_SHIPPED`
+  members; same move as the refactoring family.
+
+Net: **four** `_DEAD_DOCTRINE_SHIPPED` departures — `directive:RECONCILE_CHANGE_
+SCOPE_TENSIONS`, `procedure:spike-timebox-policy`, `procedure:glossary-
+maintenance-workflow`, `procedure:meeting-minutes-pipeline` — the four members
+reachable from **neither** channel pre-wiring that a curated edge now delivers.
+The other **nine** `_ACTION_UNREACHABLE_SHIPPED` departures (the `_WIRED_THIS_
+MISSION` tactics/toolguides plus the two remaining directives) were already
+`_PROFILE_DELIVERED_SHIPPED` — genuinely unreachable from actions, but never
+"dead doctrine" (a profile already surfaces them) — so wiring them shrinks the
+**action-only primary pin** (`_ACTION_UNREACHABLE_SHIPPED`) without moving
+`_DEAD_DOCTRINE_SHIPPED`.
+
+`procedure:spike-timebox-policy` (edge 5) and `procedure:meeting-minutes-pipeline`
+(edge 6b) are **not** `_WIRED_THIS_MISSION` members — they leave
+`_ACTION_UNREACHABLE_SHIPPED`'s `_DEAD_DOCTRINE_SHIPPED` partition (now
+profile-reachable) but stay action-unreachable, so they are not among the
+thirteen the action channel newly reaches; they are, however, part of the
+`_ACTION_UNREACHABLE_SHIPPED` measured 88→75 delta's dead-doctrine subset move
+and are named here for that reason.
+
+### C-003 verification — no new residual/defect member
+
+Diffing the before/after `_ACTION_UNREACHABLE_SHIPPED` sets (measured, not
+assumed): the `entered` set is **empty** — no node newly joins the whole-graph
+unreachable measure. The `left` set is exactly the thirteen `_WIRED_THIS_MISSION`
+URNs above. Same verification for the incidence orphan sets
+(`_INTENTIONAL_ORPHANS`/`_ACTIVATED_BUT_ORPHANED`/`_AWAITING_REFERENCES`,
+`tests/doctrine/drg/migration/test_extractor_projection.py`): `directive:
+RECONCILE_CHANGE_SCOPE_TENSIONS` leaves `_ACTIVATED_BUT_ORPHANED` (29 → 26 pure
+orphans); `directive:DISCIPLINED_REFACTORING` and `directive:USE_MUTATION_
+TESTING_TO_VALIDATE_TEST_QUALITY` leave `_AWAITING_REFERENCES`. All three were
+already resolved by the hand-authored overlay in the *shipped* graph (ledger
+entries 10/12), so `_SHIPPED_ORPHANS`/`DOCUMENTED_ORPHAN_RESIDUAL` are
+UNCHANGED at 21 — already tight (no slack) before this wiring, and still tight
+after.
+
+### Activated-only action pins (`_ACTION_UNREACHABLE_D1`/`_D2`, `_ACTION_D1_D2_SPREAD`)
+
+The whole-graph companion metric above is one measure; the pre-existing
+**activated-only** pins in `tests/doctrine/drg/test_reachability.py` are a
+different, narrower one (this project's `.kittify/config.yaml` activation set
+intersected with unreachability). They move too, and by a DIFFERENT count than
+the whole-graph companion — activation is a subset, so only the activated
+members of `_WIRED_THIS_MISSION` count here:
+
+- **`_ACTION_UNREACHABLE_D1` 77 → 76** (`-1`). Only `directive:RECONCILE_
+  CHANGE_SCOPE_TENSIONS` leaves — it is the sole `_WIRED_THIS_MISSION` member
+  that is BOTH charter-activated AND reachable at the compact depth (`d=1`),
+  because `DIRECTIVE_024`/`DIRECTIVE_025` (edges 2/3's sources) are themselves
+  `d=1`-reachable.
+- **`_ACTION_UNREACHABLE_D2` 67 → 56** (`-11`). RECONCILE plus TEN activated
+  cascaded members leave at the bootstrap depth: the seven `refactoring-*`
+  Fowler tactics, `tactic:mutation-testing-workflow`, `toolguide:python-
+  mutation-tools` and `toolguide:typescript-mutation-tools` (edges 1/4 cascade
+  their pre-existing family-B/family-D `suggests` edges into `d=2` reach once
+  the two new directives become action-reachable). `directive:DISCIPLINED_
+  REFACTORING` and `directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY`
+  are NOT charter-activated in this project, so the two directives themselves
+  never entered this activated-only pin — only their cascaded activated
+  members move it.
+- **`_ACTION_D1_D2_SPREAD` 10 → 20** (`+10`). The ten activated members that
+  leave `_ACTION_UNREACHABLE_D2` but NOT `_ACTION_UNREACHABLE_D1` (they are
+  reachable only at the bootstrap depth) join the pre-existing d1↔d2 spread
+  instead of leaving D1 too.
+
+All three moves are measured against the regenerated graph via
+`action_channel_reachable` (no hand-rolled walk); see the constant docstrings
+in `test_reachability.py` for the full per-member derivation.

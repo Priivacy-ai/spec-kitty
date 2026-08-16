@@ -185,13 +185,43 @@ class TestAuthLoginDispatch:
 
 class TestAuthLoginConfigErrors:
 
-    def test_missing_saas_url_exits_nonzero(self, monkeypatch):
+    def test_missing_env_and_config_exits_nonzero(self, monkeypatch):
+        # #3406 FR-005: with NEITHER SPEC_KITTY_SAAS_URL nor a configured
+        # `[sync].server_url`, login refuses rather than silently targeting the
+        # descriptive dev default. The remedy names both ways to set a server.
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
         result = runner.invoke(app, ["login"])
 
         assert result.exit_code != 0
+        assert "No sync server is configured" in result.stdout
         assert "SPEC_KITTY_SAAS_URL" in result.stdout
-        assert "https://app.spec-kitty.ai) and try again." in result.stdout
+        assert "spec-kitty sync server" in result.stdout
+
+    def test_missing_env_uses_configured_sync_server_url(self, monkeypatch):
+        # #3406 FR-005: the actual bug. When the env var is unset but the user
+        # already set a server via `spec-kitty sync server`, login must use that
+        # configured server_url (the same target sync uses) instead of erroring.
+        from specify_cli.sync.config import SyncConfig
+
+        monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+        SyncConfig().set_server_url("https://configured.example")
+
+        async def _noop(*_args, **_kwargs):
+            return None
+
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(
+            "specify_cli.cli.commands._auth_login._run_browser_flow",
+            new=AsyncMock(side_effect=_noop),
+        ) as mock_browser:
+            mock_factory.return_value.is_authenticated = False
+            result = runner.invoke(app, ["login"])
+
+        assert result.exit_code == 0, result.stdout
+        assert mock_browser.called
+        # Login resolved the configured server_url and handed it to the flow.
+        assert mock_browser.call_args.args[1] == "https://configured.example"
 
 
 # ---------------------------------------------------------------------------

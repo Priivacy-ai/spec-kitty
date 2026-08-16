@@ -133,7 +133,7 @@
      "deprecated": false,
      "commands": {
       "move-task": {
-       "help": "Move task between lanes (planned → doing → for_review → approved → done).\n\nExamples:\n    spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json\n    spec-kitty agent tasks move-task WP02 --to for_review --agent claude --shell-pid $$\n    spec-kitty agent tasks move-task WP03 --to approved --note \"Review passed\"\n    spec-kitty agent tasks move-task WP03 --to done --done-override-reason \"Branch deleted after hotfix merge\"\n    spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file feedback.md",
+       "help": "Move task between lanes (planned → doing → for_review → approved → done).\n\nReview-rejection edges (a backward move out of review — ``--to planned`` from\nin_progress/for_review/in_review/approved, or ``in_review → in_progress``) MUST\ncarry a rationale: pass ``--review-feedback-file`` (or ``--note``). That\nrationale is emitted as the status event's ``review_ref``/reason and is\nrequired by the shared status contract; a rejection emitted without it is\naccepted locally but silently rejected by hosted sync, so it never propagates.\n\nExamples:\n    spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json\n    spec-kitty agent tasks move-task WP02 --to for_review --agent claude --shell-pid $$\n    spec-kitty agent tasks move-task WP03 --to approved --note \"Review passed\"\n    spec-kitty agent tasks move-task WP03 --to done --done-override-reason \"Branch deleted after hotfix merge\"\n    spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file feedback.md",
        "hidden": false,
        "deprecated": false
       },
@@ -669,7 +669,7 @@
      "deprecated": false
     },
     "coordination": {
-     "help": "Run the WP04 #1348 coordination + sparse-checkout health checks.\n\nIterates over every mission under ``kitty-specs/`` whose ``meta.json``\ndeclares a ``coordination_branch`` field, runs the coord-worktree\nand lane-sparse-checkout health checks, and prints findings.\n\nAlso runs the minimum git-version (RR-01) check.\n\nExits with code 1 if any ``error`` finding is emitted; ``warning``\nfindings exit 0 but are still printed.\n\nWith ``--fix``, automatically flattens missions that have a stale\n``coordination_branch`` key (branch never created or already deleted),\nre-derives topology, and attempts the Gap-1 coord-vs-target fast-forward\n(FR-009) -- which fails loud with a unified diff and mutates nothing when\nthe coord branch has diverged or its worktree is dirty. Safe to run on\n100%-done missions before ``spec-kitty next`` or ``spec-kitty merge``.\n\nWith ``--check-staleness``, also reports Gap-1 coord-branch-vs-target\nstaleness (FR-008) — non-blocking either way.\n\nExamples:\n    spec-kitty doctor coordination\n    spec-kitty doctor coordination --fix\n    spec-kitty doctor coordination --json\n    spec-kitty doctor coordination --check-staleness",
+     "help": "Run the WP04 #1348 coordination + sparse-checkout health checks.\n\nIterates over every mission under ``kitty-specs/`` whose ``meta.json``\ndeclares a ``coordination_branch`` field, runs the coord-worktree\nand lane-sparse-checkout health checks, and prints findings.\n\nAlso runs the minimum git-version (RR-01) check.\n\nExits with code 1 if any ``error`` finding is emitted; ``warning``\nfindings exit 0 but are still printed.\n\nWith ``--fix``, automatically flattens missions that have a stale\n``coordination_branch`` key (branch never created or already deleted),\nre-derives topology, and attempts the Gap-1 coord-vs-target fast-forward\n(FR-009) -- which fails loud with a unified diff and mutates nothing when\nthe coord branch has diverged or its worktree is dirty. Safe to run on\n100%-done missions before ``spec-kitty next`` or ``spec-kitty merge``.\n\nWith ``--check-staleness``, also reports Gap-1 coord-branch-vs-target\nstaleness (FR-008) — non-blocking either way.\n\nWith ``--mission <handle>``, scopes every per-mission check (and the\n``--fix`` Gap-1 fast-forward) to the single mission the shared resolver maps\nthe handle to. An unresolvable / ambiguous handle fails closed with exit 1.\n\nExamples:\n    spec-kitty doctor coordination\n    spec-kitty doctor coordination --fix\n    spec-kitty doctor coordination --json\n    spec-kitty doctor coordination --check-staleness\n    spec-kitty doctor coordination --mission 083-my-mission",
      "hidden": false,
      "deprecated": false
     },
@@ -679,7 +679,7 @@
      "deprecated": false
     },
     "review-cycle-reconcile": {
-     "help": "Find review-cycle / arbiter-override records stranded under a retired\nresolver path, ahead of WP13's consumer-unification (FR-008).\n\nEvery retired resolver comes from this mission's own verdict-seam census\nfragment (``tests/architectural/census/verdict_seam_IC08.yaml``), not a\nguessed set. Reports two DISTINCT stranded classes per finding: a\ndeleted-coordination-branch mission (absorbed to PRIMARY, the measured\n45-mission corpus) and a live-coordination-branch mission still carrying a\npre-ADR PRIMARY record. Never a bare count — every finding names its\nmission, WP, retired resolver, and resolved directory.\n\nInformational only: always exits 0. No ``--fix`` — a stranded record may\nhave a legitimate divergent sibling, and this command does not pick a\nwinner.\n\nExamples:\n    spec-kitty doctor review-cycle-reconcile\n    spec-kitty doctor review-cycle-reconcile --mission my-mission-01ABCD\n    spec-kitty doctor review-cycle-reconcile --json",
+     "help": "Find review-cycle / arbiter-override records stranded under a retired\nresolver path, ahead of WP13's consumer-unification (FR-008).\n\nEvery retired resolver comes from WP08's reviewed retirement set, not a\nguessed set. Reports two DISTINCT stranded classes per finding: a\ndeleted-coordination-branch mission (absorbed to PRIMARY, the measured\n45-mission corpus) and a live-coordination-branch mission still carrying a\npre-ADR PRIMARY record. Never a bare count — every finding names its\nmission, WP, retired resolver, and resolved directory.\n\nInformational only: always exits 0. No ``--fix`` — a stranded record may\nhave a legitimate divergent sibling, and this command does not pick a\nwinner.\n\nExamples:\n    spec-kitty doctor review-cycle-reconcile\n    spec-kitty doctor review-cycle-reconcile --mission my-mission-01ABCD\n    spec-kitty doctor review-cycle-reconcile --json",
      "hidden": false,
      "deprecated": false
     }
@@ -949,11 +949,6 @@
    "hidden": false,
    "deprecated": false,
    "commands": {
-    "list": {
-     "help": "List activated mission types for the current project (FR-016).\n\nAlias for ``spec-kitty charter mission-type list``.\n\nReturns only mission types that are explicitly activated in this\nproject's charter (activation-filtered).  For all doctrine-layer\ntypes regardless of activation, use ``spec-kitty doctrine mission-type list``.",
-     "hidden": false,
-     "deprecated": false
-    },
     "current": {
      "help": "Show currently active mission for a mission (auto-detects mission from cwd).",
      "hidden": false,
@@ -993,6 +988,11 @@
      "help": "[REMOVED] Switch active mission - this command was removed in v0.8.0.",
      "hidden": false,
      "deprecated": true
+    },
+    "list": {
+     "help": "List activated mission types for the current project (FR-016).\n\nAlias for ``spec-kitty charter mission-type list``.\n\nReturns only mission types that are explicitly activated in this\nproject's charter (activation-filtered).  For all doctrine-layer\ntypes regardless of activation, use ``spec-kitty doctrine mission-type list``.",
+     "hidden": false,
+     "deprecated": false
     },
     "show": {
      "help": "Show the fully resolved MissionType definition for this project (FR-017).\n\nDisplays all fields of the activated mission type:\nid, display_name, action_sequence, template_set,\nsource_layer, extends.\n\nExits with code 1 and lists registered IDs when ``mission_type_id``\nis not an activated type.",
@@ -1006,11 +1006,6 @@
    "hidden": false,
    "deprecated": false,
    "commands": {
-    "list": {
-     "help": "List activated mission types for the current project (FR-016).\n\nAlias for ``spec-kitty charter mission-type list``.\n\nReturns only mission types that are explicitly activated in this\nproject's charter (activation-filtered).  For all doctrine-layer\ntypes regardless of activation, use ``spec-kitty doctrine mission-type list``.",
-     "hidden": false,
-     "deprecated": false
-    },
     "current": {
      "help": "Show currently active mission for a mission (auto-detects mission from cwd).",
      "hidden": false,
@@ -1050,6 +1045,11 @@
      "help": "[REMOVED] Switch active mission - this command was removed in v0.8.0.",
      "hidden": false,
      "deprecated": true
+    },
+    "list": {
+     "help": "List activated mission types for the current project (FR-016).\n\nAlias for ``spec-kitty charter mission-type list``.\n\nReturns only mission types that are explicitly activated in this\nproject's charter (activation-filtered).  For all doctrine-layer\ntypes regardless of activation, use ``spec-kitty doctrine mission-type list``.",
+     "hidden": false,
+     "deprecated": false
     },
     "show": {
      "help": "Show the fully resolved MissionType definition for this project (FR-017).\n\nDisplays all fields of the activated mission type:\nid, display_name, action_sequence, template_set,\nsource_layer, extends.\n\nExits with code 1 and lists registered IDs when ``mission_type_id``\nis not an activated type.",
@@ -1193,6 +1193,11 @@
    "hidden": false,
    "deprecated": false
   },
+  "regen": {
+   "help": "Regenerate the committed generated agent-command + skill fixtures from source (#3447).",
+   "hidden": false,
+   "deprecated": false
+  },
   "research": {
    "help": "Execute Phase 0 research workflow to scaffold artifacts.",
    "hidden": false,
@@ -1281,7 +1286,7 @@
      "deprecated": false
     },
     "import-history": {
-     "help": "Materialize existing local mission/WP history into the SaaS projection (#2262).\n\nA first sync registers a remote project/build but leaves it with zero\nmaterialized missions — the SaaS materializer deliberately refuses to\nfabricate a WorkPackage from a status event with no prior create. This\ncommand emits the missing ``MissionCreated → WPCreated[] → WPStatusChanged[]``\nstream (INV-3) so historical work populates the projection.\n\nDry-run (default) runs the full read-only pipeline — SELECT → AUDIT\n(fail-closed) → SCAN → IDENTITY → SYNTHESIZE — and previews the envelope\nstream that would be materialized. ``--apply`` additionally attaches\nprovenance, server-preflights the whole stream (fail-closed), and uploads it\nin chunks to the SaaS projection under the real persisted project UUID.\n\nImport is once-and-frozen: each event carries a deterministic id, so\nre-running after the on-disk facts change (e.g. after fixing a malformed WP\nthe dry-run flagged as skipped) re-sends the same id and the server drops the\nupdated payload as a duplicate rather than overwriting. Resolve any skipped\nor incomplete missions the dry-run reports before the first ``--apply``.",
+     "help": "Materialize existing local mission/WP history into the SaaS projection (#2262).\n\nA first sync registers a remote project/build but leaves it with zero\nmaterialized missions — the SaaS materializer deliberately refuses to\nfabricate a WorkPackage from a status event with no prior create. This\ncommand emits the missing ``MissionCreated → WPCreated[] → WPStatusChanged[]``\nstream (INV-3) so historical work populates the projection.\n\nThis is an explicit three-step flow using the same ``--mission`` selector:\n(1) ``--dry-run`` previews the synthesized cohort with zero staging/egress;\n(2) ``--confirm-history`` stages and confirms those exact local bytes, prints\na history action ID, and performs zero egress; (3) ``--apply\n--history-action-id <ID>`` preflights and uploads only that confirmed cohort.\nSkipping Step 2 or changing the cohort/authority fails closed.\n\nImport is once-and-frozen: each event carries a deterministic id, so\nre-running after the on-disk facts change (e.g. after fixing a malformed WP\nthe dry-run flagged as skipped) re-sends the same id and the server drops the\nupdated payload as a duplicate rather than overwriting. Resolve any skipped\nor incomplete missions the dry-run reports before the first ``--apply``.",
      "hidden": false,
      "deprecated": false
     },
@@ -1311,12 +1316,37 @@
      "deprecated": false
     },
     "purge": {
-     "help": "Remove a project's retained event data from every store that holds it (FR-016/FR-017).\n\n**Dry-run by default.** Reports per-store, per-delivery-state counts and changes\nnothing; what it predicts is exactly what ``--apply`` then deletes. Deletion is\nonly ever the operator's explicit act (C-002) — nothing here runs unattended.\n\nFour stores hold a project's data and all four are covered: the event journal,\nthe delivery ledger (removed, not retained — an orphan ledger row can quote the\nproject it belonged to), the body-upload queue (verbatim ``spec.md`` /\n``plan.md`` text, not envelopes), and this checkout's queued local-commit frames\n(whose ``changed_files`` are mission slugs).\n\nEvery count in the differential is measured by re-reading the stores rather than\nby adding up what the purge reports deleting, and the report names the\npopulations a targeted purge cannot reach instead of quietly leaving them out.\n\n``--all`` is per-checkout for the local-commit frames and the report says so:\nthe other three stores are machine-global, but there is no registry of checkouts,\nso another checkout's queued frames are neither listed nor touched.\n\nExamples:\n    spec-kitty sync purge --project acme-migration\n    spec-kitty sync purge --project acme-migration --apply --report purge.json\n    spec-kitty sync purge --all\n    spec-kitty sync purge --all --apply --confirm \"purge all events\"",
+     "help": "Remove a project's retained event data from every store that holds it (FR-016/FR-017).\n\n**Dry-run by default.** Reports per-store, per-delivery-state counts and changes\nnothing; what it predicts is exactly what ``--apply`` then deletes. Deletion is\nonly ever the operator's explicit act (C-002) — nothing here runs unattended.\n\nFour stores hold a project's data and all four are covered: the event journal,\nthe delivery ledger (removed, not retained — an orphan ledger row can quote the\nproject it belonged to), the body-upload queue (verbatim ``spec.md`` /\n``plan.md`` text, not envelopes), and this checkout's queued local-commit frames\n(whose ``changed_files`` are mission slugs).\n\nEvery count in the differential is measured by re-reading the stores rather than\nby adding up what the purge reports deleting, and the report names the\npopulations a targeted purge cannot reach instead of quietly leaving them out.\n\n``--all`` is bounded to the active project's routed store and this checkout's\nlocal-commit frames. Another project store or checkout is neither listed nor\ntouched.\n\nExamples:\n    spec-kitty sync purge --project acme-migration\n    spec-kitty sync purge --project acme-migration --apply --report purge.json\n    spec-kitty sync purge --all\n    spec-kitty sync purge --all --apply --confirm \"purge all events\"",
+     "hidden": false,
+     "deprecated": false
+    },
+    "project-store-preview": {
+     "help": "Inventory immutable legacy sources, including committed WAL content.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "project-store-migrate": {
+     "help": "Copy, verify, atomically cut over, and resume one migration.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "project-store-status": {
+     "help": "Show durable migration phase without opening legacy sources.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "project-store-quarantine": {
+     "help": "Inspect permanently non-deliverable migration quarantine records.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "project-store-history": {
+     "help": "Preview, explicitly confirm, or disclose migrated sealed history.",
      "hidden": false,
      "deprecated": false
     },
     "migrate": {
-     "help": "Migrate legacy hash-scoped queue DBs into the append-only event journal.\n\nLifts every currently-queued payload from the legacy ``queue.db`` and each\nscoped ``queues/queue-<digest>.db`` into the WP03 event journal, recording\nper-source provenance and quarantining divergent-duplicate collisions into\nthe migration-audit store. Import opens source DBs read-only.\n\nOn a clean migration (no conflicts, no source errors) the migrated rows are\nthen deleted from their source queues so the legacy-row boundary converges\nand ``sync now`` / ``sync opt-in`` stop refusing (#2665). Pass\n``--no-cleanup`` to skip that step and inspect first.\n\nDivergent-duplicate conflicts (same ``event_id``, different payload than the\njournal) block cleanup by default. Pass ``--resolve-conflicts keep-journal``\nto resolve them journal-wins: each conflicting source payload is archived to\nthe audit quarantine and the source row removed, so the boundary can\nconverge. The journal is never overwritten. Exits non-zero when unresolved\nconflicts still block cleanup (SC-011).\n\nConvergence also projects each row's stored identity into the journal's\n``project_uuid``/``project_slug``/``repo_slug`` columns (#3030 H4). A row with a\nNULL ``project_uuid`` is permanently unselectable, so before this ran every\npre-mission row — including the operator's own consenting project's history —\nwas undeliverable forever. Identity is only recovered from the row's own stored\nenvelope, never invented, so a row that carries none stays NULL and stays\nunselectable.\n\n``--backfill-consent-index`` additionally maps path-keyed consent records onto\nthe uuid index. That one is opt-in because it writes machine-global consent\nstate and the uuid index outranks a repo default, so it can flip a project from\ndenied to delivering; every mapped project and every unresolvable record is\nlisted.\n\nExamples:\n    spec-kitty sync migrate\n    spec-kitty sync migrate --no-cleanup\n    spec-kitty sync migrate --resolve-conflicts keep-journal",
+     "help": "Refuse the retired shared-store migration and point to copy-only cutover.",
      "hidden": false,
      "deprecated": false
     },

@@ -25,7 +25,10 @@ from specify_cli.coordination.status_service import (
     read_event_stream_log,
     wp_lane_actor_from_events,
 )
-from specify_cli.coordination.transaction import BookkeepingTransaction
+from specify_cli.coordination.transaction import (
+    BookkeepingTransaction,
+    BookkeepingWorktreeMissing,
+)
 from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes.branch_naming import (
     coord_mission_dir_name as _seam_coord_mission_dir_name,
@@ -35,6 +38,7 @@ from specify_cli.lanes.branch_naming import (
 from specify_cli.status import emit as _emit
 from specify_cli.status.adapters import fire_dossier_sync
 from specify_cli.status.models import (
+    CurrentWpState,
     DoneEvidence,
     EventStream,
     GuardContext,
@@ -42,6 +46,7 @@ from specify_cli.status.models import (
     Lane,
     StatusEvent,
     TransitionRequest,
+    WPInnerStateDelta,
     actor_identity_str,
 )
 from specify_cli.status.reducer import reduce as _reduce_events
@@ -1085,7 +1090,8 @@ def read_current_wp_state_transactional(
         )
     )
     contract = _read_contract_from_transaction_target(identity, mission_slug)
-    events = read_event_log(contract)
+    stream = read_event_stream_log(contract)
+    events = stream.transitions
     if not events and not _transaction_topology_available(identity, mission_slug):
         from specify_cli.status.lane_reader import (  # noqa: PLC0415
             CanonicalStatusNotFoundError,
@@ -1107,7 +1113,7 @@ def read_current_wp_state_transactional(
             # signals, ...) is a real error and MUST propagate — the former
             # broad ``except Exception`` silently converted genesis-corruption
             # signals into "unseeded WP" (#1736 dormant mask 1).
-            return Lane.GENESIS, None
+            return CurrentWpState(Lane.GENESIS, None, None)
         if resolved_lane == Lane.UNINITIALIZED:
             # #2675/WP05: ``Lane.UNINITIALIZED`` is now a real ``Lane`` member,
             # so ``Lane("uninitialized")`` no longer raises here and the
@@ -1116,11 +1122,11 @@ def read_current_wp_state_transactional(
             # explicitly instead of relying on the now-dead ``ValueError``
             # branch: an absent-from-snapshot WP still means "unseeded" ->
             # GENESIS, per FR-008d/R7.
-            return Lane.GENESIS, None
-        return resolved_lane, None
-    # Local annotation re-narrows the cross-module (``Any``) helper result.
-    lane_actor: tuple[Lane, str | None] = wp_lane_actor_from_events(events, wp_id)
-    return lane_actor
+            return CurrentWpState(Lane.GENESIS, None, None)
+        return CurrentWpState(resolved_lane, None, None)
+    # Single in-transaction reduction (transitions + annotations) surfaces the
+    # reduced role slot alongside lane/actor on the value object (C-002).
+    return wp_lane_actor_from_events(events, wp_id, stream.annotations)
 
 
 def _read_contract_routes_through_coordination(
@@ -1479,6 +1485,123 @@ def emit_status_transition_transactional(
             event=event,
         )
         return event
+
+
+def emit_inner_state_changed_transactional(
+    feature_dir: Path,
+    wp_id: str,
+    delta: WPInnerStateDelta,
+    *,
+    actor: str,
+    mission_slug: str,
+    at: str | None = None,
+    repo_root: Path | None = None,
+    operation: str | None = None,
+    capability: GuardCapability = GuardCapability.STANDARD,
+) -> InnerStateChanged:
+    """Persist AND commit one off-axis ``InnerStateChanged`` annotation (FR-007).
+
+    The commit-durable sibling of
+    :func:`specify_cli.status.emit.emit_inner_state_changed`. On a coordination
+    topology the annotation rides a ``BookkeepingTransaction`` — the SAME atomic
+    emit+commit seam :func:`emit_status_transition_transactional` uses for a lane
+    hop — so the coord ``status.events.jsonl`` / ``status.json`` are committed on
+    the coordination ref and a caller such as ``move-task`` returns a clean tree
+    (#2939) rather than one dirtied by a written-but-uncommitted annotation.
+
+    On a coord-less topology (``SINGLE_BRANCH`` / ``LANES`` / flat — i.e. no
+    ``coordination_branch`` declared in meta) it delegates to the uncommitted
+    ``emit_inner_state_changed`` so the primary-write behaviour is byte-identical
+    to the pre-fix path (no-op parity — the #2939 asymmetry only exists on
+    coord, where the lane hop commits but the annotation did not). The
+    coord-vs-primary decision reads the identity's own ``coordination_branch``
+    directly, NOT the shared ``_transaction_topology_available`` authority
+    :func:`emit_status_transition_transactional` gates on: that predicate's
+    legacy-meta fallback arm (``identity.transaction_meta_exists``) is trivially
+    true for a coord-less mission whose ``mission_slug`` already embeds its
+    ``mid8`` (the modern 083+ naming convention — the "transaction dir" and the
+    primary feature dir compose to the SAME on-disk name), which would wrongly
+    route a coord-less annotation into ``BookkeepingTransaction.acquire`` and
+    trip its destination-ref protected-branch policy gate
+    (``test_flat_topology_annotation_still_lands``, #2939 regression coverage).
+    Reusing it here was tried and reverted for that reason; the bare
+    ``coordination_branch is None`` check stays the correct, narrower predicate
+    for THIS off-axis annotation path.
+
+    Regardless of which predicate decides "attempt a transaction", the coord
+    worktree may still turn out to be unmaterializable (e.g. a
+    ``coordination_branch`` declared in meta but deleted, or never created) —
+    ``BookkeepingTransaction.acquire`` then raises ``BookkeepingWorktreeMissing``.
+    Unlike the sibling lane-hop transition (an authoritative state change that
+    is deliberately fail-closed on an unresolvable coord worktree, #1848/SC-001
+    — see ``FallbackCoordWorktreeUnresolved``), an ``InnerStateChanged``
+    annotation is auxiliary/best-effort metadata: a runtime annotation emit
+    must never hard-fail ``move-task`` just because the coord worktree isn't
+    materialized. So ``BookkeepingWorktreeMissing`` is caught here and degrades
+    to the same uncommitted ``emit_inner_state_changed`` write, rather than
+    propagating and hard-failing the caller (#3460). This catch is scoped to
+    THIS function only — the lane-hop transition and its batch sibling keep
+    raising ``BookkeepingWorktreeMissing`` unchanged (pinned by
+    ``test_transactional_emit_fails_closed_when_coordination_branch_missing``
+    and its batch counterpart).
+
+    ``emit_inner_state_changed`` itself is UNCHANGED and stays partition-agnostic
+    (#2939): the durability decision lives here, at the commit layer.
+    """
+    request = TransitionRequest(
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        actor=actor,
+        repo_root=repo_root,
+    )
+    identity = _identity_for_request(request)
+
+    def _uncommitted_emit() -> InnerStateChanged:
+        return _emit.emit_inner_state_changed(
+            feature_dir,
+            wp_id,
+            delta,
+            actor=actor,
+            mission_slug=mission_slug,
+            at=at,
+            repo_root=repo_root,
+        )
+
+    if identity.coordination_branch is None:
+        return _uncommitted_emit()
+
+    annotation = _annotate(
+        wp_id,
+        delta,
+        actor=actor,
+        at=at or now_utc_iso(),
+        event_id=_emit._generate_ulid(),
+    )
+    # WP04/FR-004 parity: a legacy mission (no ULID) supplies the explicit
+    # f"legacy-{slug}" worktree-lock identifier ONLY — never persisted to an event.
+    _txn_mission_id = identity.mission_id or f"legacy-{mission_slug}"
+    try:
+        with BookkeepingTransaction.acquire(
+            repo_root=identity.repo_root,
+            mission_id=_txn_mission_id,
+            mission_slug=mission_slug,
+            mid8=identity.mid8,
+            destination_ref=identity.destination_ref,
+            operation=operation or f"inner-state annotation {wp_id}",
+            capability=capability,
+        ) as txn:
+            txn.append_events([annotation])
+            txn.defer_outbound(
+                _deferred_resolved_binding_fan_out(annotation, mission_slug)
+            )
+    except BookkeepingWorktreeMissing:
+        # #3460: the coord worktree could not be materialized (e.g. a declared
+        # ``coordination_branch`` that was deleted or never created). This
+        # annotation is auxiliary — degrade to the uncommitted primary write
+        # instead of hard-failing move-task (see docstring).
+        return _uncommitted_emit()
+    return annotation
 
 
 def emit_status_transition_batch_transactional(

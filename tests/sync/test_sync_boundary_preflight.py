@@ -78,6 +78,21 @@ def _scoped_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("USERPROFILE", str(tmp_path))
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "AppData"))
+    project_uuid = "aaaaaaaa-0000-0000-0000-00000000000a"
+    (tmp_path / ".kittify").mkdir(parents=True)
+    (tmp_path / ".kittify" / "config.yaml").write_text(
+        f"project:\n  uuid: {project_uuid}\n  slug: preflight-test\n  node_id: preflight-node\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
+    from specify_cli.sync.project_store import ProjectSyncStore
+
+    store = ProjectSyncStore(project_uuid)
+    authority = store.layout_generation()
+    authority.begin_cutover("preflight-test")
+    authority.publish_project_only("preflight-test", verify_exact=lambda: True)
+    with store.unit_of_work():
+        pass
     return tmp_path
 
 
@@ -194,9 +209,7 @@ def test_collect_foreground_identity_none_when_unauthenticated(tmp_path: Path) -
 # ---------------------------------------------------------------------------
 
 
-def test_run_preflight_ok_on_coherent_host(
-    tmp_path: Path, patched_legacy_counts
-) -> None:
+def test_run_preflight_ok_on_coherent_host(tmp_path: Path, patched_legacy_counts) -> None:
     """No owner record, empty legacy queue, authed foreground → ok=True."""
     patched_legacy_counts({})
     foreground = _make_foreground()
@@ -209,9 +222,7 @@ def test_run_preflight_ok_on_coherent_host(
     assert result.auth_present is True
 
 
-def test_run_preflight_is_read_only(
-    tmp_path: Path, patched_legacy_counts, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_run_preflight_is_read_only(tmp_path: Path, patched_legacy_counts, monkeypatch: pytest.MonkeyPatch) -> None:
     """Preflight must not touch ``write_owner_record`` or HTTP libraries."""
     patched_legacy_counts({})
 
@@ -232,9 +243,7 @@ def test_run_preflight_is_read_only(
     assert result.ok is True
 
 
-def test_run_preflight_is_read_only_on_default_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_run_preflight_is_read_only_on_default_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Regression: ``run_preflight(foreground=None)`` must not migrate legacy rows.
 
     Cycle-2 reviewer reproduction: the previous implementation called
@@ -266,11 +275,7 @@ def test_run_preflight_is_read_only_on_default_path(
     #    ``read_queue_scope_from_credentials``: [user]/[server] tables.
     credentials = spec_kitty_dir / "credentials"
     credentials.write_text(
-        "[user]\n"
-        'username = "tester@example.com"\n'
-        'team_slug = "t-private"\n'
-        "[server]\n"
-        'url = "https://spec-kitty-dev.fly.dev"\n',
+        '[user]\nusername = "tester@example.com"\nteam_slug = "t-private"\n[server]\nurl = "https://spec-kitty-dev.fly.dev"\n',
         encoding="utf-8",
     )
 
@@ -318,25 +323,18 @@ def test_run_preflight_is_read_only_on_default_path(
     result = run_preflight(repo_root=tmp_path, foreground=None, require_auth=True)
 
     # 4a. Legacy DB row count MUST be unchanged.
-    assert _legacy_count() == 1, (
-        "run_preflight() must not migrate legacy rows on the default code path"
-    )
+    assert _legacy_count() == 1, "run_preflight() must not migrate legacy rows on the default code path"
 
     # 4b. No scoped queue DB file should have been created.
     scoped_queue_dir = spec_kitty_dir / "queues"
     if scoped_queue_dir.exists():
         scoped_dbs = list(scoped_queue_dir.glob("queue-*.db"))
-        assert scoped_dbs == [], (
-            f"run_preflight() must not create a scoped DB on the default path; "
-            f"found: {scoped_dbs!r}"
-        )
+        assert scoped_dbs == [], f"run_preflight() must not create a scoped DB on the default path; found: {scoped_dbs!r}"
 
-    # 4c. The preflight should report the legacy row so the operator can
-    #     act on it. We do not assert on ``ok`` here — that depends on
-    #     the live ``detect_legacy_rows_for_scope`` reading the legacy
-    #     DB; the contract under test is the read-only guarantee.
-    assert result.legacy_event_rows >= 1
-    assert result.legacy_rows_for_scope >= 1
+    # 4c. Post-cutover residue is migration diagnosis only, never a live queue.
+    assert result.legacy_event_rows == 0
+    assert result.legacy_rows_for_scope == 0
+    assert result.project_store_diagnostic is None
 
 
 # ---------------------------------------------------------------------------
@@ -398,14 +396,10 @@ def test_run_preflight_refuses_on_per_field_mismatch(
     result = run_preflight(repo_root=tmp_path, foreground=foreground, require_auth=True)
     assert result.ok is False
     fields = [m.field for m in result.mismatches]
-    assert field_name in fields, (
-        f"Expected {field_name!r} in mismatches; got {fields!r}"
-    )
+    assert field_name in fields, f"Expected {field_name!r} in mismatches; got {fields!r}"
 
 
-def test_run_preflight_accepts_daemon_executable_symlink(
-    tmp_path: Path, patched_legacy_counts
-) -> None:
+def test_run_preflight_accepts_daemon_executable_symlink(tmp_path: Path, patched_legacy_counts) -> None:
     """Regression: pipx-installed CLIs may record symlinked ``sys.executable``."""
     patched_legacy_counts({})
     symlink = tmp_path / Path(sys.executable).name
@@ -444,9 +438,7 @@ def test_canonical_mismatch_field_names_are_exact() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_run_preflight_refuses_on_orphan_record(
-    tmp_path: Path, patched_legacy_counts
-) -> None:
+def test_run_preflight_refuses_on_orphan_record(tmp_path: Path, patched_legacy_counts) -> None:
     """Owner record with a dead PID becomes an orphan → ok=False."""
     patched_legacy_counts({})
     dead_pid = _spawn_then_reap_pid()
@@ -466,29 +458,26 @@ def test_run_preflight_refuses_on_orphan_record(
 # ---------------------------------------------------------------------------
 
 
-def test_run_preflight_refuses_on_legacy_event_rows(
-    tmp_path: Path, patched_legacy_counts
-) -> None:
+def test_run_preflight_refuses_on_legacy_event_rows(tmp_path: Path, patched_legacy_counts) -> None:
+    """The retired detector cannot reauthorize or contaminate live counts."""
     patched_legacy_counts({"sync_events": 3})
     foreground = _make_foreground()
     result = run_preflight(repo_root=tmp_path, foreground=foreground, require_auth=True)
-    assert result.ok is False
-    assert result.legacy_event_rows == 3
+    assert result.ok is True
+    assert result.legacy_event_rows == 0
     assert result.legacy_body_upload_rows == 0
-    assert result.legacy_rows_for_scope == 3
+    assert result.legacy_rows_for_scope == 0
 
 
-def test_run_preflight_refuses_on_legacy_body_upload_rows(
-    tmp_path: Path, patched_legacy_counts
-) -> None:
-    """Body-upload rows trigger refusal independently of event rows."""
+def test_run_preflight_refuses_on_legacy_body_upload_rows(tmp_path: Path, patched_legacy_counts) -> None:
+    """Legacy body residue is likewise diagnosis-only after cutover."""
     patched_legacy_counts({"body_upload_queue": 2})
     foreground = _make_foreground()
     result = run_preflight(repo_root=tmp_path, foreground=foreground, require_auth=True)
-    assert result.ok is False
+    assert result.ok is True
     assert result.legacy_event_rows == 0
-    assert result.legacy_body_upload_rows == 2
-    assert result.legacy_rows_for_scope == 2
+    assert result.legacy_body_upload_rows == 0
+    assert result.legacy_rows_for_scope == 0
 
 
 # ---------------------------------------------------------------------------
@@ -496,9 +485,7 @@ def test_run_preflight_refuses_on_legacy_body_upload_rows(
 # ---------------------------------------------------------------------------
 
 
-def test_run_preflight_refuses_when_auth_required_and_absent(
-    tmp_path: Path, patched_legacy_counts
-) -> None:
+def test_run_preflight_refuses_when_auth_required_and_absent(tmp_path: Path, patched_legacy_counts) -> None:
     """``require_auth=True`` + no auth on foreground → ok=False."""
     patched_legacy_counts({})
     foreground = _make_foreground(server_url=None, team_or_user=None)
@@ -508,9 +495,7 @@ def test_run_preflight_refuses_when_auth_required_and_absent(
     assert result.auth_required is True
 
 
-def test_run_preflight_allows_unauthenticated_when_not_required(
-    tmp_path: Path, patched_legacy_counts
-) -> None:
+def test_run_preflight_allows_unauthenticated_when_not_required(tmp_path: Path, patched_legacy_counts) -> None:
     """``require_auth=False`` + no auth → ok=True (everything else clean)."""
     patched_legacy_counts({})
     foreground = _make_foreground(server_url=None, team_or_user=None)
@@ -597,9 +582,7 @@ def test_preflight_result_render_within_25_lines() -> None:
     result.render(console)
     text = buf.getvalue()
     lines = text.splitlines()
-    assert len(lines) <= 25, (
-        f"render exceeded 25 lines at 80 columns: {len(lines)}\n{text}"
-    )
+    assert len(lines) <= 25, f"render exceeded 25 lines at 80 columns: {len(lines)}\n{text}"
     # And the header line must be present.
     assert any("Sync boundary refused" in ln for ln in lines)
 
@@ -669,9 +652,7 @@ def test_preflight_result_is_frozen() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_run_preflight_performance_budget(
-    tmp_path: Path, patched_legacy_counts
-) -> None:
+def test_run_preflight_performance_budget(tmp_path: Path, patched_legacy_counts) -> None:
     """A coherent-host preflight completes in ≤ 100 ms."""
     patched_legacy_counts({})
     foreground = _make_foreground()
@@ -688,9 +669,7 @@ def test_run_preflight_performance_budget(
 # ---------------------------------------------------------------------------
 
 
-def test_run_preflight_when_owner_record_missing(
-    tmp_path: Path, patched_legacy_counts
-) -> None:
+def test_run_preflight_when_owner_record_missing(tmp_path: Path, patched_legacy_counts) -> None:
     """No owner record means no mismatches even when foreground is auth'd."""
     patched_legacy_counts({})
     assert not owner_record_path().exists()
@@ -705,9 +684,7 @@ def test_run_preflight_when_owner_record_missing(
 # ---------------------------------------------------------------------------
 
 
-def test_run_preflight_never_calls_rehydrate_membership(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_run_preflight_never_calls_rehydrate_membership(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Regression for review-cycle-3.
 
     The preflight contract (``contracts/sync-boundary-preflight.md``) says
@@ -784,10 +761,7 @@ def test_run_preflight_never_calls_rehydrate_membership(
 
     # Tripwire 1: rehydrate must NEVER be called from preflight.
     def _rehydrate_tripwire(self: TokenManager, *, force: bool = False) -> bool:
-        raise AssertionError(
-            "TokenManager.rehydrate_membership_if_needed must not be called "
-            "during preflight (would issue GET /api/v1/me)"
-        )
+        raise AssertionError("TokenManager.rehydrate_membership_if_needed must not be called during preflight (would issue GET /api/v1/me)")
 
     monkeypatch.setattr(
         TokenManager,
@@ -800,10 +774,7 @@ def test_run_preflight_never_calls_rehydrate_membership(
     from specify_cli.sync import _team as team_mod
 
     def _resolve_tripwire(*args: Any, **kwargs: Any) -> Any:
-        raise AssertionError(
-            "resolve_private_team_id_for_ingress must not be called during "
-            "preflight (transitively invokes rehydrate_membership_if_needed)"
-        )
+        raise AssertionError("resolve_private_team_id_for_ingress must not be called during preflight (transitively invokes rehydrate_membership_if_needed)")
 
     monkeypatch.setattr(
         team_mod,
@@ -823,10 +794,7 @@ def test_run_preflight_never_calls_rehydrate_membership(
 
     # Tripwire 3: never let the legacy helper fire on the preflight path.
     def _read_queue_scope_from_session_tripwire() -> str | None:
-        raise AssertionError(
-            "read_queue_scope_from_session must not be called during preflight "
-            "(transitively invokes rehydrate_membership_if_needed)"
-        )
+        raise AssertionError("read_queue_scope_from_session must not be called during preflight (transitively invokes rehydrate_membership_if_needed)")
 
     monkeypatch.setattr(
         queue_mod,
@@ -848,9 +816,7 @@ def test_run_preflight_never_calls_rehydrate_membership(
 
     # Execute: run_preflight with foreground=None so the full code path
     # that collects identity (and used to fire the rehydrate) runs.
-    result = run_preflight(
-        repo_root=tmp_path, foreground=None, require_auth=True
-    )
+    result = run_preflight(repo_root=tmp_path, foreground=None, require_auth=True)
 
     # The contract under test is "no SaaS round-trip", surfaced as
     # "rehydrate tripwires did not fire". The preflight should still

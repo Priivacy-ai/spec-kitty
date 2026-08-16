@@ -265,11 +265,21 @@ def test_sc008_off_axis_emit_lands_at_stored_topology_from_foreign_cwd(
 
 
 # ---------------------------------------------------------------------------
-# Arm 3: SC-007 — the two in_review -> * edges are force-free
+# Arm 3: SC-007 — the in_review -> * rewind edges.
+#
+# #3307 re-point: `in_review -> planned` is a member of the shared
+# `spec-kitty-events` review-rejection family (`* -> planned`), which the wire
+# contract the SaaS ingestion endpoint enforces declares `force=True`-required
+# regardless of local evidence. FR-015/SC-007 formerly asserted it force-free
+# from the CLI-local FSM; emitting `force=False` produced contract-invalid events
+# hosted sync silently dropped, so the emit path now gates on both validators and
+# persists `force=True` (the structured rewind rationale still travels on the
+# wire). `in_review -> in_progress` is NOT in the mandatory-force family and stays
+# force-free (below).
 # ---------------------------------------------------------------------------
 
 
-def test_sc007_in_review_to_planned_is_force_free(
+def test_sc007_in_review_to_planned_is_force_promoted_by_wire_contract(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, feature_dir = _build_mission(
@@ -290,7 +300,8 @@ def test_sc007_in_review_to_planned_is_force_free(
     last = read_events(feature_dir)[-1]
     assert last.from_lane == Lane.IN_REVIEW
     assert last.to_lane == Lane.PLANNED
-    assert not last.force, "in_review -> planned persisted force=True (SC-007 violated)"
+    # #3307: review-rejection family edge — force=True per the shared wire contract.
+    assert last.force, "in_review -> planned must persist force=True (#3307 wire contract)"
 
 
 def test_sc007_in_review_to_in_progress_is_force_free(

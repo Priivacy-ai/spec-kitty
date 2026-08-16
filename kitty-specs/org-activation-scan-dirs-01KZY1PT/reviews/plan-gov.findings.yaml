@@ -1,0 +1,119 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: org-activation-scan-dirs-01KZY1PT
+findings:
+  - id: PLAN-GOV-001
+    lens: Directive
+    severity: 3
+    title: "Charter Check's 'Single canonical authority: Pass' overlooks an existing, closer org-layout precedent (FR-013) and a third, still-divergent org-resolution path"
+    evidence:
+      - artifact: "plan.md § Charter Check ('Single canonical authority... Pass')"
+      - artifact: "plan.md § The Seam ('No CLI surface. `charter activate` itself... is unchanged')"
+      - code: "src/charter/pack_manager.py:238-256 (_resolve_org_layer_dir, docstring: 'FR-013 unifies the charter activation subsystem with runtime, which resolves org packs from the flat <pack>/<plural>/ layout... Flat is therefore the canonical, preferred layout. The legacy nested <pack>/doctrine/<plural>/org/ layout is kept as a fallback')"
+      - code: "src/charter/kind_vocabulary.py:219-228 (_layer_scan_dirs / _layer_candidate_dir, org layer resolves to <root>/doctrine/<plural>/org — a third, distinct shape)"
+      - code: "src/charter/drg.py:376,397 (_resolve_activated_urns_for_kind calls resolve_artifact_urn with org_roots only, never layer_roots)"
+      - code: "src/specify_cli/cli/commands/charter/activate.py:87-116,433 (_source_urn / cascade path calls resolve_artifact_urn with layer_roots only, never org_roots)"
+    claim: >
+      The plan's Charter Check marks "Single canonical authority" as a clean Pass and
+      "The Seam" asserts the fix's blast radius is fully contained to
+      `_org_scan_dirs`/`_scan_roots`/`resolve_artifact_urn`. Live-code verification shows this
+      undersells the actual state of the "charter activation subsystem": there are at least
+      three parallel, non-unified mechanisms for locating an org pack's artifacts inside this
+      subsystem — (1) `_org_scan_dirs`'s `org_roots` param (the one this mission fixes, adding a
+      flat-plus-legacy-built-in additive scan), (2) `_layer_scan_dirs`'s `layer_roots["org"]` param
+      (a THIRD directory shape, `<root>/doctrine/<plural>/org`, used by the CLI's own
+      `charter activate` cascade helper `_source_urn`/`_drg_id_to_config_id` via
+      `resolve_layer_roots`, and never combined with `org_roots` at any call site), and (3)
+      `CharterPackManager._resolve_org_layer_dir` (pack_manager.py:238-256), whose docstring
+      states outright that a past mission (FR-013) already "unified the charter activation
+      subsystem with runtime" onto flat-preferred-with-nested-fallback resolution — a precedent
+      this plan neither cites nor reconciles with. The net effect: this mission's fix corrects the
+      DRG activation-filter path (`drg.py`'s `_resolve_activated_urns_for_kind`, which is what
+      `filter_graph_by_activation` uses and what the spec's Acceptance Scenarios test), but the
+      same command's cascade-warning/DRG-id-mapping path (`activate.py`'s `_source_urn`, invoked
+      whenever `--cascade` is used) still resolves org roots exclusively via `layer_roots`'s
+      `<root>/doctrine/<plural>/org` shape and would still silently fail to resolve a
+      flat-layout org artifact after this fix lands. The plan does not mention this second
+      pathway exists, so a reader trusting "The Seam"'s completeness claim would not know a
+      related, adjacent defect remains open in the very command this mission is about.
+    remediation: >
+      Before or alongside implementation, add a short note to the plan (Charter Check or a new
+      "Related, Not Fixed" subsection) naming the `layer_roots`/`_layer_scan_dirs` cascade path
+      as a distinct, still-divergent org-resolution mechanism that this mission's C-001 file set
+      does not touch and does not close — explicitly deferred, not silently missed — and likewise
+      note `CharterPackManager._resolve_org_layer_dir`'s FR-013 precedent as prior art the chosen
+      additive-scan shape diverges from. This keeps the "reconcile, don't add a second authority"
+      principle honestly accounted for without expanding this mission's bounded scope.
+
+  - id: PLAN-GOV-002
+    lens: Campsite scope
+    severity: 3
+    title: "Campsite-Clean Scope misses that _scan_roots's own docstring (the caller The Seam cites as 'unchanged') will be stale after the fix"
+    evidence:
+      - artifact: "plan.md § Campsite-Clean Scope ('no other adjacent Sonar/lint debt on the touched surface was found that would change that conclusion')"
+      - artifact: "plan.md § The Seam ('Its caller (`_scan_roots`, `:142-180`)... are unchanged')"
+      - code: "src/charter/kind_vocabulary.py:158-160 (_scan_roots docstring: '``org_roots`` preserves the legacy package-shaped root contract where each root contributes ``<root>/<plural>/built-in`` -- this nested layout is still live for org packs')"
+    claim: >
+      `_scan_roots` (the immediate caller of `_org_scan_dirs`, cited by the plan's "The Seam"
+      section as staying unchanged) carries a docstring that makes a present-tense, factual claim
+      about what `org_roots` contributes: only `<root>/<plural>/built-in`. Once FR-001's fix
+      lands, `org_roots` will additionally contribute the flat `<root>/<plural>` layout, making
+      this sentence stale and misleading to the next reader of the same file — exactly the
+      "doc/code disagreement is a doc defect" class the charter's Documentation Structure section
+      names. This is adjacent, domain-matched debt directly caused by the change (not an
+      unrelated neighboring helper like `_built_in_scan_dir`/`_layer_scan_dirs`, which C-003
+      correctly leaves alone), sitting in the same file and same function the plan is already
+      touching, so updating it would not expand C-001's file set at all. The plan's
+      Campsite-Clean Scope section asserts no such debt was found; it was there to find.
+    remediation: >
+      Add one line to the implementing WP's scope (or to plan.md's Campsite-Clean Scope section)
+      instructing the fix to also update `_scan_roots`'s docstring sentence describing
+      `org_roots`'s contract, so it accurately describes both the flat and legacy entries after
+      the change — a same-file, same-function-neighborhood correction, not scope creep.
+
+  - id: PLAN-GOV-003
+    lens: Proportionality
+    severity: 2
+    title: "'Nothing Generated' and 'No Contract Movement' sections mostly restate 'The Seam' without new information, for a mission billed as ~5 LOC"
+    evidence:
+      - artifact: "plan.md § Nothing Generated"
+      - artifact: "plan.md § No Contract Movement"
+      - artifact: "plan.md § The Seam"
+    claim: >
+      Both sections exist to state, in different words, the same conclusion "The Seam" already
+      established: no CLI, schema, kernel, or contract surface is touched by this change. "No
+      Contract Movement" even cross-references "The Seam" directly ("the defect and its fix are
+      fully contained in one resolution helper") rather than adding independent information.
+      For a mission the plan itself repeatedly frames as a ~5 LOC, one-function, one-WP fix, three
+      separate sections making the same negative claim is process weight not clearly earned by
+      the diff's size — the kind of generic template completeness the Proportionality lens is
+      meant to catch, even though each individual sentence is accurate.
+    remediation: >
+      Merge "Nothing Generated" and "No Contract Movement" into a single short paragraph appended
+      to "The Seam" (or drop them if "The Seam"'s own closing sentence already covers the same
+      ground), keeping the accurate content but removing the duplicated section-level ceremony.
+
+  - id: PLAN-GOV-004
+    lens: Ledger
+    severity: 1
+    title: "Plan's tracer-friction entry correctly avoids a duplicate ledger entry, but does not cross-link the still-relevant SK-09/SK-11 branch/identity entries already logged for this same mission"
+    evidence:
+      - artifact: "kitty-specs/org-activation-scan-dirs-01KZY1PT/tracer-tooling-friction.md § Plan phase (2026-08-13)"
+      - artifact: "the workspace's tooling-defect ledger (SK-09, SK-11)"
+    claim: >
+      This is a minor, non-blocking observation rather than a defect: the plan phase's own
+      tracer-friction entry correctly judges that `spec-kitty plan --json`'s "blocked" /
+      placeholder-Technical-Context result is expected, documented behavior and not a new ledger
+      entry — that reasoning is sound and I could not find any live-code contradiction of it.
+      The only gap is that neither plan.md nor the plan-phase tracer entry references back to
+      SK-09/SK-11 (already logged earlier in this same mission's own specify-phase friction, for
+      the `single_branch` topology / protected-`main` / missing-git-identity blockers) even though
+      those are the only ledger entries genuinely relevant to this mission's tooling path so far.
+      A future reader of plan.md alone (without also reading tracer-tooling-friction.md) has no
+      pointer to them.
+    remediation: >
+      Optional, cosmetic: add a one-line cross-reference from plan.md's own Tracer Files section
+      to SK-09/SK-11 so a reader of plan.md alone knows this mission already hit and resolved
+      those two tooling defects at the specify phase.

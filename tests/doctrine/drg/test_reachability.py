@@ -38,10 +38,9 @@ import pytest
 from charter import pack_context
 from charter.pack_context import (
     charter_activated_urns,
-    partition_activated_unreachable,
 )
 from doctrine.drg.loader import load_built_in_graph
-from doctrine.drg.models import DRGGraph, Relation
+from doctrine.drg.models import DRGGraph, NodeKind, Relation
 from doctrine.drg.query import resolve_context
 from doctrine.drg.reachability import (
     PROFILE_CHANNEL_RELATIONS,
@@ -89,7 +88,20 @@ _NORMALIZATION_DELTA = 31
 #: chain, which lands inside the d=2 bound but not d=1) and
 #: ``styleguide:mutation-aware-test-design`` (a 2-hop suggests chain out of the
 #: action-scoped DIRECTIVE_030). The pre-existing 7 are unchanged.
-_ACTION_D1_D2_SPREAD = 10
+#:
+#: Mission drg-reachability-metric-wiring-01KZS5VR (WP01, #3009 point 3): 10 -> 20
+#: (measured against the regenerated graph). Edges 1/4 (``procedure:refactoring
+#: --suggests--> DISCIPLINED_REFACTORING`` and ``DIRECTIVE_030 --suggests-->
+#: USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY``) deliver their cascaded
+#: activated tactic families ONLY at the bootstrap depth (d=2) -- the extra
+#: ``suggests`` hop from the newly-wired directive to its tactics exceeds the
+#: compact d=1 budget. Ten activated members join the spread: the seven
+#: ``refactoring-*`` Fowler tactics, ``tactic:mutation-testing-workflow``,
+#: ``toolguide:python-mutation-tools`` and ``toolguide:typescript-mutation-tools``.
+#: ``directive:RECONCILE_CHANGE_SCOPE_TENSIONS`` (edges 2/3) is reachable at BOTH
+#: depths, so it leaves both ``_ACTION_UNREACHABLE_D1`` and ``_D2`` and does not
+#: enter the spread. See the wiring-table ledger for the per-member accounting.
+_ACTION_D1_D2_SPREAD = 20
 
 # ---------------------------------------------------------------------------
 # WP03 SUPERSEDING NOTE (mission ``doctrine-delivery-activation-01KYQVQK``)
@@ -339,7 +351,12 @@ _ACTION_UNREACHABLE_D1: frozenset[str] = frozenset(
         "directive:DIRECTIVE_048",
         "directive:DIRECTIVE_049",
         "directive:DIRECTIVE_050",
-        "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
+        # ``directive:RECONCILE_CHANGE_SCOPE_TENSIONS`` LEFT this set: mission
+        # drg-reachability-metric-wiring-01KZS5VR (WP01) wires
+        # ``DIRECTIVE_024``/``DIRECTIVE_025 --suggests--> RECONCILE`` (edges
+        # 2/3), and both 024 and 025 are themselves d1-reachable, so RECONCILE
+        # is reachable at BOTH depths -- it leaves ``_ACTION_UNREACHABLE_D1``
+        # AND ``_D2`` (see below), and does not enter the d1<->d2 spread.
         "directive:USE_C4_MODEL_TECHNIQUES",
         "procedure:glossary-maintenance-workflow",
         "styleguide:divio-type-discipline",
@@ -357,6 +374,23 @@ _ACTION_UNREACHABLE_D1: frozenset[str] = frozenset(
 
 #: Activated artefacts (node form) NOT reachable via the action channel at
 #: d=2 (bootstrap). A strict subset of the d=1 set (bootstrap reaches more).
+#:
+#: Mission drg-reachability-metric-wiring-01KZS5VR (WP01, #3009 point 3):
+#: ELEVEN members leave (measured against the regenerated graph).
+#: ``directive:RECONCILE_CHANGE_SCOPE_TENSIONS`` (see the D1 note above) plus
+#: TEN activated tactics/toolguides that edges 1/4 cascade into action context
+#: ONLY at the bootstrap depth (they join the d1<->d2 spread instead of
+#: leaving D1 too): the seven ``refactoring-*`` Fowler tactics
+#: (encapsulate-record/-variable, extract-first-order-concept, move-field,
+#: move-method, state-pattern-for-behavior, strangler-fig, all cascaded from
+#: ``directive:DISCIPLINED_REFACTORING`` via edge 1), ``tactic:mutation-
+#: testing-workflow``, ``toolguide:python-mutation-tools`` and
+#: ``toolguide:typescript-mutation-tools`` (cascaded from
+#: ``directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY`` via edge 4).
+#: Neither DISCIPLINED_REFACTORING nor USE_MUTATION_TESTING_TO_VALIDATE_TEST_
+#: QUALITY is itself charter-activated, so the two new directives never
+#: entered this activated-only pin to begin with -- only their cascaded
+#: activated members move it. See the wiring-table ledger.
 _ACTION_UNREACHABLE_D2: frozenset[str] = frozenset(
     {
         "directive:DIRECTIVE_035",
@@ -383,19 +417,11 @@ _ACTION_UNREACHABLE_D2: frozenset[str] = frozenset(
         "tactic:code-documentation-analysis",
         "tactic:compositional-stream-boundaries",
         "tactic:cross-cutting-state-via-store",
-        "tactic:mutation-testing-workflow",
         "tactic:occurrence-classification-workflow",
         "tactic:ownership-map-leeway",
         "tactic:pr-agent-worktree-isolation",
         "tactic:reasons-canvas-fill",
         "tactic:reasons-canvas-review",
-        "tactic:refactoring-encapsulate-record",
-        "tactic:refactoring-encapsulate-variable",
-        "tactic:refactoring-extract-first-order-concept",
-        "tactic:refactoring-move-field",
-        "tactic:refactoring-move-method",
-        "tactic:refactoring-state-pattern-for-behavior",
-        "tactic:refactoring-strangler-fig",
         "tactic:reference-architectural-patterns",
         "tactic:secure-regex-catastrophic-backtracking",
         "tactic:terminology-extraction-mapping",
@@ -406,9 +432,7 @@ _ACTION_UNREACHABLE_D2: frozenset[str] = frozenset(
         "toolguide:maven-review-checks",
         "toolguide:mermaid-diagramming",
         "toolguide:plantuml-diagramming",
-        "toolguide:python-mutation-tools",
         "toolguide:terminology-guard",
-        "toolguide:typescript-mutation-tools",
         # Writing-comms/diagramming activation (commit 9a99801f1, #3009): the same
         # seventeen additions as _ACTION_UNREACHABLE_D1 (canonical node form) -- all
         # seventeen remain action-unreachable at d=2 too, so the d1<->d2 spread is
@@ -418,7 +442,11 @@ _ACTION_UNREACHABLE_D2: frozenset[str] = frozenset(
         "directive:DIRECTIVE_048",
         "directive:DIRECTIVE_049",
         "directive:DIRECTIVE_050",
-        "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
+        # ``directive:RECONCILE_CHANGE_SCOPE_TENSIONS`` LEFT this set (see the
+        # D1 note); ``tactic:mutation-testing-workflow`` and the seven
+        # ``refactoring-*`` tactics + ``toolguide:python-/typescript-mutation-
+        # tools`` also left -- all eleven are the drg-reachability-metric-
+        # wiring-01KZS5VR (WP01) move, listed on the D1 block above.
         "directive:USE_C4_MODEL_TECHNIQUES",
         "procedure:glossary-maintenance-workflow",
         "styleguide:divio-type-discipline",
@@ -560,8 +588,23 @@ _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
         # additions ARE profile-reachable and appear in _PROFILE_RESCUES instead
         # (USE_C4_MODEL_TECHNIQUES is one of them -- diagram-daisy requires it -- so
         # it is NOT listed here).
-        "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
-        "procedure:glossary-maintenance-workflow",
+        #
+        # Mission drg-reachability-metric-wiring-01KZS5VR (WP01, #3009 point 3):
+        # TWO members leave this pin (62 -> 60, measured). ``directive:RECONCILE_
+        # CHANGE_SCOPE_TENSIONS`` becomes profile-reachable via edges 2/3
+        # (``DIRECTIVE_024``/``DIRECTIVE_025 --suggests--> RECONCILE``, and both
+        # 024/025 are themselves profile-reachable). ``procedure:glossary-
+        # maintenance-workflow`` becomes profile-reachable via edge 6a
+        # (``agent_profile:lexical-larry --suggests--> glossary-maintenance-
+        # workflow``, and larry is a profile-channel seed). ``procedure:spike-
+        # timebox-policy`` and ``procedure:meeting-minutes-pipeline`` (edges 5/6b)
+        # are NOT charter-activated, so they were never members of this
+        # activated-only pin to begin with. RECONCILE leaves BOTH this pin and
+        # ``_ACTION_UNREACHABLE_D2``, so it does NOT enter ``_PROFILE_RESCUES``
+        # (defined as the set difference of the two); glossary-maintenance-
+        # workflow stays action-d2-unreachable, so it DOES enter rescues (see
+        # below) with a matching wiring-table ledger row in the EXISTING
+        # NFR-002 profile-channel walk-activation section.
         "styleguide:divio-type-discipline",
         "styleguide:docs-accessibility",
         "styleguide:docs-freshness-sla",
@@ -596,28 +639,34 @@ _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
 #: writing-audience-catalog); their delivering profile edges and ledger rows are
 #: recorded in the set body and the wiring table's profile-channel walk-activation
 #: ledger.
+#:
+#: Mission drg-reachability-metric-wiring-01KZS5VR (WP01, #3009 point 3): 37 → 28
+#: (measured). TEN members LEAVE: ``tactic:mutation-testing-workflow``, the seven
+#: ``refactoring-*`` Fowler tactics and ``toolguide:python-/typescript-mutation-
+#: tools`` all became action-d2-reachable (edges 1/4 cascade them into the action
+#: channel at the bootstrap depth -- see ``_ACTION_UNREACHABLE_D2``'s note), so
+#: the action channel now covers them and they are no longer profile-only
+#: rescues. ONE member ENTERS: ``procedure:glossary-maintenance-workflow`` (edge
+#: 6a) stays action-d2-unreachable but becomes profile-reachable, so it moves
+#: from ``_PROFILE_UNREACHABLE`` into this set -- ledger row added to the
+#: EXISTING NFR-002 profile-channel walk-activation section below (not a new
+#: section), so ``test_every_profile_rescue_member_has_a_ledger_row`` keeps
+#: finding it.
 _PROFILE_RESCUES: frozenset[str] = frozenset(
     {
         "directive:DIRECTIVE_044",
         "paradigm:c4-incremental-detail-modeling",
         "procedure:drill-down-documentation",
         "procedure:event-storming-discovery",
+        "procedure:glossary-maintenance-workflow",
         "styleguide:reasons-canvas-writing",
         "tactic:architecture-diagram-review-checklist",
         "tactic:c4-zoom-in-architecture-documentation",
         "tactic:canonical-source-unification",
         "tactic:code-documentation-analysis",
-        "tactic:mutation-testing-workflow",
         "tactic:occurrence-classification-workflow",
         "tactic:ownership-map-leeway",
         "tactic:pr-agent-worktree-isolation",
-        "tactic:refactoring-encapsulate-record",
-        "tactic:refactoring-encapsulate-variable",
-        "tactic:refactoring-extract-first-order-concept",
-        "tactic:refactoring-move-field",
-        "tactic:refactoring-move-method",
-        "tactic:refactoring-state-pattern-for-behavior",
-        "tactic:refactoring-strangler-fig",
         "tactic:terminology-extraction-mapping",
         "tactic:test-readability-clarity-check",
         "tactic:zombies-tdd",
@@ -625,9 +674,7 @@ _PROFILE_RESCUES: frozenset[str] = frozenset(
         "toolguide:github-tracker",
         "toolguide:mermaid-diagramming",
         "toolguide:plantuml-diagramming",
-        "toolguide:python-mutation-tools",
         "toolguide:terminology-guard",
-        "toolguide:typescript-mutation-tools",
         # Writing-comms/diagramming activation (commit 9a99801f1, #3009): seven of
         # the seventeen newly-activated artefacts are rescued by the profile channel
         # -- action-d2-unreachable yet delivered by an activated writing-comms
@@ -677,26 +724,6 @@ def _raw_activated_map() -> Mapping[str, list[str]]:
     return raw
 
 
-def _describe(name: str, measured: frozenset[str], pinned: frozenset[str]) -> str:
-    appeared = sorted(measured - pinned)
-    healed = sorted(pinned - measured)
-    lines = [f"{name} drifted from its pinned membership."]
-    if appeared:
-        lines.append(
-            "  NEWLY UNREACHABLE (measured, not pinned) — an activated artefact "
-            "no traversal reaches; wire it to a reachable source or record why:\n"
-            + "\n".join(f"    + {urn}" for urn in appeared)
-        )
-    if healed:
-        lines.append(
-            "  NO LONGER UNREACHABLE (pinned, not measured) — drop it from the "
-            "pin; if it became reachable only by C-009 normalization, that is "
-            "NOT progress (NFR-004 ledger):\n"
-            + "\n".join(f"    - {urn}" for urn in healed)
-        )
-    return "\n".join(lines)
-
-
 @pytest.fixture(scope="module")
 def graph() -> DRGGraph:
     return load_built_in_graph()
@@ -721,25 +748,8 @@ class TestActionChannelReachability:
             direct |= resolve_context(graph, seed, depth=_ACTION_D1_DEPTH).artifact_urns
         assert action_channel_reachable(graph, seeds, _ACTION_D1_DEPTH) == frozenset(direct)
 
-    def test_unreachable_at_d1_is_the_pinned_membership(self, graph: DRGGraph) -> None:
-        reachable = action_channel_reachable(graph, action_seed_urns(graph), _ACTION_D1_DEPTH)
-        measured = _activated() - reachable
-        assert measured == _ACTION_UNREACHABLE_D1, _describe(
-            "_ACTION_UNREACHABLE_D1", measured, _ACTION_UNREACHABLE_D1
-        )
 
-    def test_unreachable_at_d2_is_the_pinned_membership(self, graph: DRGGraph) -> None:
-        reachable = action_channel_reachable(graph, action_seed_urns(graph), _ACTION_D2_DEPTH)
-        measured = _activated() - reachable
-        assert measured == _ACTION_UNREACHABLE_D2, _describe(
-            "_ACTION_UNREACHABLE_D2", measured, _ACTION_UNREACHABLE_D2
-        )
 
-    def test_bootstrap_depth_only_relaxes_the_steady_state(self) -> None:
-        """d=2 reaches a superset, so its unreachable set is d=1's minus a spread
-        of exactly 7 (R-2) — never a set d=1 did not already contain."""
-        assert _ACTION_UNREACHABLE_D2 <= _ACTION_UNREACHABLE_D1
-        assert len(_ACTION_UNREACHABLE_D1 - _ACTION_UNREACHABLE_D2) == _ACTION_D1_D2_SPREAD
 
     def test_common_docs_cluster_and_asset_are_action_reachable(self, graph: DRGGraph) -> None:
         """FR-015 / WP09 acceptance (spec User Story 4, scenario 3): every wired
@@ -815,10 +825,20 @@ class TestActionChannelReachability:
             "family-D delivered members still unreachable at d=2: "
             f"{missing_d2}"
         )
-        # The mutation hub (a NEW non-scoped directive) and the DIRECTIVE_041
-        # fan-out are INERT by design: their members stay unreachable. Guards
-        # against a future edit that accidentally makes the mutation family eager.
-        assert "tactic:mutation-testing-workflow" not in r_d2
+        # The DIRECTIVE_041 fan-out is INERT by design: its members stay
+        # unreachable. Guards against a future edit that accidentally makes
+        # that family eager.
+        #
+        # ``tactic:mutation-testing-workflow`` WAS inert here too (the mutation
+        # hub was a non-scoped directive with no inbound edge), but mission
+        # drg-reachability-metric-wiring-01KZS5VR (WP01, #3009 point 3) wires
+        # ``directive:DIRECTIVE_030 --suggests--> USE_MUTATION_TESTING_TO_
+        # VALIDATE_TEST_QUALITY`` (DIRECTIVE_030 IS action-scoped at
+        # implement/review), which cascades the mutation hub's own pre-existing
+        # ``suggests`` edges into d=2 action reach. That is this mission's
+        # intended delivery (see ``_WIRED_THIS_MISSION``), not a regression —
+        # the assertion below now pins the opposite of the old one.
+        assert "tactic:mutation-testing-workflow" in r_d2
         assert "styleguide:quadruple-a-test-format" not in r_d2
 
 
@@ -861,30 +881,119 @@ class TestProfileChannelReachability:
         retires)."""
         assert profile_channel_reachable(graph, frozenset()) == frozenset()
 
-    def test_profile_unreachable_is_the_pinned_membership(self, graph: DRGGraph) -> None:
-        reachable = profile_channel_reachable(graph, agent_profile_seed_urns(graph))
-        measured = _activated() - reachable
-        assert measured == _PROFILE_UNREACHABLE, _describe(
-            "_PROFILE_UNREACHABLE", measured, _PROFILE_UNREACHABLE
-        )
 
-    def test_profile_channel_rescues_activated_artefacts_the_action_channel_misses(
+
+
+@pytest.mark.doctrine
+class TestSixEdgesReachabilityWiring:
+    """T003 (WP01, mission drg-reachability-metric-wiring-01KZS5VR, #3009 point 3).
+
+    Behavioral, red-first reach assertions for the six curated edges
+    (``_CURATED_ARTIFACT_EDGES``, ``src/doctrine/drg/migration/extractor.py``) —
+    each proves a reachability TRANSITION via the canonical helpers, not a
+    frozenset-literal edit (the real ATDD artifact per the contract's
+    anti-requirements: set-equality alone does not force these edges to exist).
+    """
+
+    def test_disciplined_refactoring_is_action_reachable_via_refactoring_procedure(
         self, graph: DRGGraph
     ) -> None:
-        """The load-bearing R-3 fact: the profile channel is a distinct entry
-        vector. These activated artefacts are unreachable from every action at
-        d=2 yet reachable because a profile ``requires`` them."""
-        rescues = _ACTION_UNREACHABLE_D2 - _PROFILE_UNREACHABLE
-        assert rescues == _PROFILE_RESCUES, _describe(
-            "_PROFILE_RESCUES", rescues, _PROFILE_RESCUES
+        """Edge 1: ``procedure:refactoring --suggests--> DISCIPLINED_REFACTORING``.
+
+        Was action-unreachable before this mission (see
+        ``_ACTION_UNREACHABLE_D1``/``D2``'s WP01 note); the already action-scoped
+        refactoring procedure now suggests it.
+        """
+        reach = action_channel_reachable(graph, action_seed_urns(graph), _ACTION_D2_DEPTH)
+        assert "directive:DISCIPLINED_REFACTORING" in reach
+
+    def test_reconcile_change_scope_tensions_is_action_reachable_via_024_and_025(
+        self, graph: DRGGraph
+    ) -> None:
+        """Edges 2/3: ``DIRECTIVE_024``/``DIRECTIVE_025 --suggests--> RECONCILE``.
+
+        RECONCILE leaves ``_ACTIVATED_BUT_ORPHANED`` (incidence,
+        ``test_extractor_projection.py``) AND both ``_ACTION_UNREACHABLE_D1``/
+        ``D2`` (reachability, this module) — it is reachable at BOTH depths
+        because 024 and 025 are themselves d1-reachable.
+        """
+        for depth in (_ACTION_D1_DEPTH, _ACTION_D2_DEPTH):
+            reach = action_channel_reachable(graph, action_seed_urns(graph), depth)
+            assert "directive:RECONCILE_CHANGE_SCOPE_TENSIONS" in reach
+
+    def test_use_mutation_testing_is_action_reachable_via_directive_030(
+        self, graph: DRGGraph
+    ) -> None:
+        """Edge 4: ``DIRECTIVE_030 --suggests--> USE_MUTATION_TESTING_...``.
+
+        Was action-unreachable before this mission; the already action-scoped
+        test-quality-gate directive now suggests it, cascading the mutation
+        tactic/toolguide family into action context at the bootstrap depth.
+        """
+        reach = action_channel_reachable(graph, action_seed_urns(graph), _ACTION_D2_DEPTH)
+        assert "directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY" in reach
+
+    def test_spike_timebox_policy_is_profile_reachable_via_researcher_robbie(
+        self, graph: DRGGraph
+    ) -> None:
+        """Edge 5: ``agent_profile:researcher-robbie --requires--> spike-timebox-
+        policy``, robbie's structured ``operating-procedures`` field entry."""
+        reach = profile_channel_reachable(graph, agent_profile_seed_urns(graph))
+        assert "procedure:spike-timebox-policy" in reach
+
+    def test_glossary_maintenance_workflow_is_profile_reachable_via_lexical_larry(
+        self, graph: DRGGraph
+    ) -> None:
+        """Edge 6a: ``agent_profile:lexical-larry --suggests--> glossary-
+        maintenance-workflow`` (larry FEEDS the workflow; ``suggests``, not
+        ``requires`` — carla owns acceptance). ``suggests`` is in
+        ``PROFILE_CHANNEL_RELATIONS``, so it still confers reachability."""
+        reach = profile_channel_reachable(graph, agent_profile_seed_urns(graph))
+        assert "procedure:glossary-maintenance-workflow" in reach
+
+    def test_meeting_minutes_pipeline_is_profile_reachable_via_minutes_maker_mahad(
+        self, graph: DRGGraph
+    ) -> None:
+        """Edge 6b: ``agent_profile:minutes-maker-mahad --requires--> meeting-
+        minutes-pipeline`` — mahad's own text: "the primary agent for" it."""
+        reach = profile_channel_reachable(graph, agent_profile_seed_urns(graph))
+        assert "procedure:meeting-minutes-pipeline" in reach
+
+    def test_removing_the_disciplined_refactoring_edge_reintroduces_unreachability(
+        self, graph: DRGGraph
+    ) -> None:
+        """SC-001 delete-edge negative control (Renata F3).
+
+        Removing edge 1 from a COPY of the shipped graph must revert
+        ``directive:DISCIPLINED_REFACTORING`` to action-unreachable — proof the
+        helper genuinely traverses the live edge set rather than reading a
+        cached/pinned answer. ``DISCIPLINED_REFACTORING``'s only other inbound
+        edges are profile-channel ``suggests`` edges from implementer profiles
+        (family-B overlay), which do not confer ACTION reachability, so this
+        edge is its sole action-channel entry point (a clean single-edge
+        dependency, unlike RECONCILE which has two independent suggests
+        sources).
+        """
+        trimmed_edges = [
+            e
+            for e in graph.edges
+            if not (
+                e.source == "procedure:refactoring"
+                and e.target == "directive:DISCIPLINED_REFACTORING"
+                and e.relation is Relation.SUGGESTS
+            )
+        ]
+        assert len(trimmed_edges) == len(graph.edges) - 1, "expected to remove exactly one edge"
+        trimmed_graph = graph.model_copy(update={"edges": trimmed_edges})
+        reach = action_channel_reachable(
+            trimmed_graph, action_seed_urns(trimmed_graph), _ACTION_D2_DEPTH
         )
-        assert rescues, "the profile channel must rescue at least one activated artefact"
-        # Delivered to nobody by the action channel, delivered by the profile
-        # channel: exactly the two-channel model (R-3), proven from the graph.
-        profile_reachable = profile_channel_reachable(graph, agent_profile_seed_urns(graph))
-        action_d2 = action_channel_reachable(graph, action_seed_urns(graph), _ACTION_D2_DEPTH)
-        assert rescues <= profile_reachable
-        assert not (rescues & action_d2)
+        assert "directive:DISCIPLINED_REFACTORING" not in reach
+        # The companion guard (T006) must independently name it too: its
+        # ``measured`` set is exactly ``activatable-kind and not action-reachable``,
+        # so the deleted edge must resurface the URN there as well.
+        measured, _dead, _profile_delivered = _shipped_reachability_partition(trimmed_graph)
+        assert "directive:DISCIPLINED_REFACTORING" in measured
 
 
 #: The wiring-table composition ledger this WP authored for the profile-channel
@@ -920,73 +1029,205 @@ def _profile_channel_ledger_text() -> str:
     return text[start:end]
 
 
-@pytest.mark.doctrine
-class TestProfileRescuesHaveLedgerCoverage:
-    """T015 cross-check: every ``_PROFILE_RESCUES`` member is named in the ledger.
 
-    NFR-002 for the reachability pins is REVIEW-gated, not CI-gated (D18):
-    ``measured == pin`` greens on any pasted value. This cross-check does NOT
-    validate that a pin value is *numerically correct* — that remains the
-    reviewer's per-member ledger-vs-diff comparison. It catches only the most
-    common regression class: a pin edited without a matching wiring-table ledger
-    row. A green here means "every rescued member is documented", never "the
-    numbers are right".
+
+# ---------------------------------------------------------------------------
+# T006 (WP01, mission drg-reachability-metric-wiring-01KZS5VR, #3009 point 3):
+# the action-only whole-graph reachability companion guard.
+# ---------------------------------------------------------------------------
+
+#: Kinds that are unreachable BY DESIGN (edgeless-by-construction / resolved by
+#: URN presence, not traversal), so their members must never inflate the
+#: companion metric. See contract Alphonso Axis-1 (``anti_pattern`` exclusion
+#: rationale) and data-model.md.
+_BY_DESIGN_UNREACHABLE_KINDS: frozenset[NodeKind] = frozenset(
+    {
+        NodeKind.MISSION_STEP_CONTRACT,
+        NodeKind.ASSET,
+        NodeKind.ANTI_PATTERN,
+        NodeKind.TEMPLATE,
+        NodeKind.MISSION_TYPE,
+        NodeKind.GLOSSARY_PACK,
+    }
+)
+
+
+def _shipped_reachability_partition(
+    graph: DRGGraph,
+) -> tuple[frozenset[str], frozenset[str], frozenset[str]]:
+    """Compute ``(measured, dead, profile_delivered)`` per the companion-guard
+    contract (``contracts/reachability-companion-guard.md``).
+
+    Lives IN the test module, not ``src/`` (Renata F7 — the dead-symbol arch
+    gate would flag a ``src/`` helper with no non-test caller). Calls the
+    canonical ``action_channel_reachable``/``profile_channel_reachable``
+    helpers only — no reimplemented traversal (R-1/C-001).
+    """
+    action_seeds = action_seed_urns(graph)
+    profile_seeds = agent_profile_seed_urns(graph)
+    action_reach = action_channel_reachable(graph, action_seeds, _ACTION_D2_DEPTH)
+    profile_reach = profile_channel_reachable(graph, profile_seeds)
+    kind_of = {n.urn: n.kind for n in graph.nodes}
+    measured = {
+        n.urn
+        for n in graph.nodes
+        if n.urn not in action_reach and kind_of[n.urn] not in _BY_DESIGN_UNREACHABLE_KINDS
+    } - action_seeds - profile_seeds
+    dead = frozenset(u for u in measured if u not in profile_reach)
+    profile_delivered = frozenset(measured - dead)
+    return frozenset(measured), dead, profile_delivered
+
+
+#: NOTE (softened per the operator's PR #3342 landing decision, consistent
+#: with mission ``assertive-test-suite-sanitation-01KZME3P``'s "test plausible
+#: graph behavior, not exact ever-growing membership"): the exact-membership
+#: pins that used to live here (``_DEAD_DOCTRINE_SHIPPED``,
+#: ``_PROFILE_DELIVERED_SHIPPED``, ``_ACTION_UNREACHABLE_SHIPPED``) were
+#: dropped. The companion metric is now asserted by
+#: ``TestReachabilityCompanionGuard.test_partition_is_total_and_disjoint``
+#: (live totality + disjointness of the measured action-unreachable set) and
+#: the fixed anti-gaming gate below (every ``_WIRED_THIS_MISSION`` member is
+#: independently proven action-reachable and ledger-named).
+
+#: The thirteen URNs THIS mission makes action-reachable: the anti-null-delta
+#: forcing pin (Debbie Item 1). This pin is asserted action-reachable
+#: independently below (``TestActionUnreachableShippedLedgerCoverage``),
+#: which reds if the edges are not genuinely authored.
+_WIRED_THIS_MISSION: frozenset[str] = frozenset(
+    {
+        "directive:DISCIPLINED_REFACTORING",
+        "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
+        "directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        "tactic:mutation-testing-workflow",
+        "tactic:refactoring-encapsulate-record",
+        "tactic:refactoring-encapsulate-variable",
+        "tactic:refactoring-extract-first-order-concept",
+        "tactic:refactoring-move-field",
+        "tactic:refactoring-move-method",
+        "tactic:refactoring-state-pattern-for-behavior",
+        "tactic:refactoring-strangler-fig",
+        "toolguide:python-mutation-tools",
+        "toolguide:typescript-mutation-tools",
+    }
+)
+
+
+@pytest.mark.doctrine
+class TestReachabilityCompanionGuard:
+    """T006: the #3009-point-3 action-only whole-graph companion guard.
+
+    Softened per the operator's landing decision on PR #3342 (consistent with
+    mission ``assertive-test-suite-sanitation-01KZME3P``'s "test plausible
+    graph behavior, not exact ever-growing membership"): this class asserts
+    the live action-unreachable measured set is total and disjoint across its
+    dead/profile-delivered partition, NOT an exact-membership pin against a
+    frozen literal. The fixed anti-gaming gate
+    (``TestActionUnreachableShippedLedgerCoverage``) still forces every
+    ``_WIRED_THIS_MISSION`` member to be genuinely action-reachable and
+    ledger-named.
     """
 
-    def test_every_profile_rescue_member_has_a_ledger_row(self) -> None:
-        ledger = _profile_channel_ledger_text()
-        missing = sorted(m for m in _PROFILE_RESCUES if f"`{m}`" not in ledger)
+    def test_partition_is_total_and_disjoint(self, graph: DRGGraph) -> None:
+        """Debbie #1 totality: the two subsets must exactly cover the measured
+        action-unreachable set with no overlap, so the "which members are
+        genuinely dead" claim cannot silently drift from the partition."""
+        measured, dead, profile_delivered = _shipped_reachability_partition(graph)
+        assert dead | profile_delivered == measured
+        assert not (dead & profile_delivered)
+
+    def test_by_design_kind_is_excluded_even_though_unreachable(self, graph: DRGGraph) -> None:
+        """Renata F4: proves the ``_BY_DESIGN_UNREACHABLE_KINDS`` filter branch,
+        not just the happy path. A ``mission_step_contract`` node ships with
+        ``edges: []`` by construction (resolved by presence, never traversal),
+        so it is genuinely unreachable from either channel — yet it must be
+        ABSENT from ``measured`` because its kind is excluded by design."""
+        sample = next(n.urn for n in graph.nodes if n.kind is NodeKind.MISSION_STEP_CONTRACT)
+        action_reach = action_channel_reachable(
+            graph, action_seed_urns(graph), _ACTION_D2_DEPTH
+        )
+        assert sample not in action_reach, "fixture assumption: the sample must be unreachable"
+        measured, _dead, _profile_delivered = _shipped_reachability_partition(graph)
+        assert sample not in measured
+
+    def test_measured_calls_canonical_helpers_not_a_reimplemented_walk(
+        self, graph: DRGGraph
+    ) -> None:
+        """R-1: the partition helper must be a thin composition of the
+        canonical helpers, not an independent walk that could drift."""
+        action_reach = action_channel_reachable(
+            graph, action_seed_urns(graph), _ACTION_D2_DEPTH
+        )
+        measured, _dead, _profile_delivered = _shipped_reachability_partition(graph)
+        for urn in measured:
+            assert urn not in action_reach
+
+
+#: The companion-metric ledger section (mission-scoped, at the end of the
+#: wiring-table doc). Section-scoped (not a whole-document scan) so a forgotten
+#: row genuinely fails rather than passing on an incidental mention elsewhere.
+_COMPANION_LEDGER_SECTION_START = (
+    "## Composition ledger (NFR-002/NFR-004) — reachability companion metric "
+    "(mission `drg-reachability-metric-wiring-01KZS5VR`, WP01, #3009 point 3)"
+)
+
+
+def _companion_ledger_text() -> str:
+    """The reachability companion-metric ledger section, as raw markdown.
+
+    This section is the LAST one in the document (T007), so it runs to EOF —
+    unlike the profile-channel ledger's start/end pair.
+    """
+    text = _WIRING_TABLE_PATH.read_text(encoding="utf-8")
+    start = text.find(_COMPANION_LEDGER_SECTION_START)
+    assert start != -1, (
+        "reachability companion-metric ledger header not found in "
+        f"{_WIRING_TABLE_PATH} — the T007 ledger section is missing"
+    )
+    return text[start:]
+
+
+@pytest.mark.doctrine
+class TestActionUnreachableShippedLedgerCoverage:
+    """T007 mechanical cross-check (analog to ``TestProfileRescuesHaveLedgerCoverage``).
+
+    Un-gameable as an ENSEMBLE, not in isolation (contract anti-requirements):
+    the live action-unreachable measured set alone does not force the six
+    edges to exist — an implementer could otherwise claim delivery with
+    nothing genuinely wired. This class is the anti-null-delta forcing
+    mechanism (Debbie Item 1): it asserts every ``_WIRED_THIS_MISSION``
+    member is BOTH genuinely action-reachable AND named in a wiring-table
+    row, so the action-side delta is CI-gated, not merely review-gated.
+    """
+
+    def test_wired_this_mission_members_are_action_reachable(self, graph: DRGGraph) -> None:
+        measured, _dead, _profile_delivered = _shipped_reachability_partition(graph)
+        still_unreachable = sorted(_WIRED_THIS_MISSION & measured)
+        assert not still_unreachable, (
+            "these _WIRED_THIS_MISSION members are still in the live "
+            "action-unreachable measured set -- the wiring did not take "
+            f"effect: {still_unreachable}"
+        )
+
+    def test_action_unreachable_shipped_members_have_ledger_coverage(self) -> None:
+        ledger = _companion_ledger_text()
+        missing = sorted(m for m in _WIRED_THIS_MISSION if f"`{m}`" not in ledger)
         assert not missing, (
-            "Every _PROFILE_RESCUES member must be named (backtick-quoted) in the "
-            "profile-channel walk-activation ledger of "
-            f"{_WIRING_TABLE_PATH.name}. Missing ledger rows for:\n"
-            + "\n".join(f"    - {m}" for m in missing)
-            + "\n\nAdd a ledger entry (which family/edge delivers it, which WP wired "
-            "the edge) before moving the pin — a pin move without a ledger row is an "
-            "NFR-002 violation."
+            "Every _WIRED_THIS_MISSION member (a live action-unreachable "
+            "measured-set departure) must be named (backtick-quoted) in the "
+            f"reachability companion-metric ledger section of "
+            f"{_WIRING_TABLE_PATH.name}. "
+            "Missing ledger rows for:\n" + "\n".join(f"    - {m}" for m in missing)
         )
 
     def test_cross_check_is_not_vacuous(self) -> None:
-        """The cross-check must have real bite: a fabricated missing member is
-        caught. Guards against the ledger text going empty/unparseable and the
+        """Guards against the ledger text going empty/unparseable and the
         membership check silently passing over nothing (D18 vacuity risk)."""
-        ledger = _profile_channel_ledger_text()
-        fabricated = "tactic:__definitely-not-a-real-rescued-member__"
+        ledger = _companion_ledger_text()
+        fabricated = "tactic:__definitely-not-wired-this-mission__"
         assert f"`{fabricated}`" not in ledger
-        # A member NOT in the ledger would be flagged — proving the assertion in
-        # the sibling test is load-bearing, not always-true.
-        pretend_rescues = frozenset({fabricated})
-        missing = sorted(m for m in pretend_rescues if f"`{m}`" not in ledger)
+        pretend = frozenset({fabricated})
+        missing = sorted(m for m in pretend if f"`{m}`" not in ledger)
         assert missing == [fabricated]
-
-
-@pytest.mark.doctrine
-class TestC009NormalizationSwingExcluded:
-    """The store->node slug reconciliation is declared, and never banked.
-
-    The swing size is pinned by ``_NORMALIZATION_DELTA`` (31 as of the
-    writing-comms/diagramming activation) rather than baked into names here, so a
-    later count change touches only the constant.
-    """
-
-    def test_normalization_delta_is_the_declared_swing(self, graph: DRGGraph) -> None:
-        node_urns = graph.node_urns()
-        reachable = action_channel_reachable(graph, action_seed_urns(graph), _ACTION_D1_DEPTH)
-        partition = partition_activated_unreachable(_raw_activated_map(), node_urns, reachable)
-        assert partition.normalization_delta == _NORMALIZATION_DELTA
-
-    def test_pinned_sets_carry_no_store_form_not_a_node_slug(self, graph: DRGGraph) -> None:
-        """The pinned progress sets are all node form, so the ``not_a_node``
-        store slugs (the C-009 swing) cannot inflate them (C-009)."""
-        node_urns = graph.node_urns()
-        reachable = action_channel_reachable(graph, action_seed_urns(graph), _ACTION_D1_DEPTH)
-        not_a_node = partition_activated_unreachable(
-            _raw_activated_map(), node_urns, reachable
-        ).not_a_node
-        assert not_a_node  # the swing exists...
-        for pinned in (_ACTION_UNREACHABLE_D1, _ACTION_UNREACHABLE_D2, _PROFILE_UNREACHABLE):
-            assert not (pinned & not_a_node)  # ...but is excluded from every pin
-            assert pinned <= node_urns
 
 
 @pytest.mark.doctrine

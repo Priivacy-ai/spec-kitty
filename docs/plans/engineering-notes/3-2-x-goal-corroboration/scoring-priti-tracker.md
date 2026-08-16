@@ -1,7 +1,7 @@
 ---
 title: 3.2.1 LEAD-slice scoring — NEUTRAL tracker / ROI / dependency-readiness pass (planner-priti)
 description: Planner Priti's neutral 3.2.1 lead-slice scoring on tracker reality, dependency-readiness, ROI (impact over effort), and Eisenhower importance/urgency.
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # 3.2.1 LEAD-slice scoring — NEUTRAL tracker / ROI / dependency-readiness pass (planner-priti)
@@ -114,8 +114,7 @@ low thematic fit for a *G2-lead*.
 
 **#1878 bounded slice (Σ26).** Sev 4 / Impact 4 / Fit 5: it is the keystone — the read SSOT *cannot be
 more consistent than the write SSOT feeding it* (synthesis verdict 10, alphonso R3). Dep 3 / ROI 3 /
-SeqRisk 3: "bounded" is aspirational until scoped; the umbrella (#1878, P2) contains #1716/#1827/#1357/
-#1887/#1834 — a real risk that a "bounded" slice grows. The right move is to pull a *named* sliver
+SeqRisk 3: "bounded" is aspirational until scoped; the umbrella (#1878, P2) contains #1716/#1827/#1357/#1887/#1834 — a real risk that a "bounded" slice grows. The right move is to pull a *named* sliver
 forward (#1827 is the cleanest such sliver), not to open the umbrella.
 
 **#1619/#1666 epic slice (Σ23) — lowest.** Sev 5 (P0 epic) but Evid 3 and ROI 2 and Dep 2 and SeqRisk 2
@@ -191,7 +190,7 @@ self-contained even though it logically wants the write-side cleanup around it).
 
 ## 4. FINAL ranked recommendation for the 3.2.1 LEAD slice
 
-### Recommended LEAD: **#1832 (implement read-path "no workspace resolved")** — paired with **#1993** as its enabling seam.
+### Recommended LEAD: **#1832 (implement read-path "no workspace resolved")** — paired with **#1993** as its enabling seam
 
 **Trade-off stated plainly.** I am choosing **highest-ROI live-bug-on-the-SSOT-seam** over both (a) the
 operator's safe naming-first opener and (b) the highest-*severity* item (#1716). Here is the honest
@@ -223,7 +222,7 @@ cost of that call:
 
 **Trade-off vs the lead.** #1827 has the **highest user pain** in the set (unrecoverable-by-tool;
 manual `meta.json` surgery required) and is the cleanest *named* write-side sliver to pull forward from
-#1878. I rank it second, not first, only because (a) it lives in the `merge.py` god-module (maxCC 102),
+issue #1878. I rank it second, not first, only because (a) it lives in the `merge.py` god-module (maxCC 102),
 so the fix carries more regression surface and effort than #1832, and (b) the synthesis's keystone logic
 says the write side wants #1716's topology coherence around it to be durable. If the operator weights
 **"never ship a stabilization cycle with an unrecoverable bug in the field"** above ROI — a legitimate

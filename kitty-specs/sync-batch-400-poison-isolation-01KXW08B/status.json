@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KXW881PYHX6RNEJWS5QA04AR",
       "last_transition_at": "2026-07-19T03:55:46.270816+00:00",
+      "review_result": {
+        "reference": "Approved: 14 tests green (reviewer re-ran; gate blind to core/ per F9), pure core/ leaf, key-adjacency no role-sniffing, non-tautological assertions, ruff+mypy clean. 2 non-blocking cross-WP nits.",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
       "shell_pid": 1596481,
       "shell_pid_created_at": "1784429538.95",
       "subtasks": {
@@ -44,6 +49,11 @@
       "lane": "done",
       "last_event_id": "01KXW88MQZVJ84EK0616CQYNGY",
       "last_transition_at": "2026-07-19T03:56:05.759139+00:00",
+      "review_result": {
+        "reference": "APPROVED (P0). Mutation-tested: right-before-left flip REDs ordering; _is_poison_400->False REDs anchor. Recursion correct (no idempotency/reorder violation), drain-harness real, culprit rejected non-terminal, T011 marker-only (no weakened assertion), CC<15, 0 suppressions, 184 delivery green, 2 sync reds pre-existing. Follow-up: transport-error {exc} detail lost in seam (diagnostic-only).",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
       "shell_pid": 1659957,
       "shell_pid_created_at": "1784430307.1",
       "subtasks": {
@@ -66,6 +76,11 @@
       "lane": "done",
       "last_event_id": "01KXW88849Y4EHWGN0WFXZ1TJS",
       "last_transition_at": "2026-07-19T03:55:52.841544+00:00",
+      "review_result": {
+        "reference": "Approved: 13 tests green (reviewer adjudicated FSM from source; reading correct — pinned real graph, a superset of the imprecise prose), test-only diff, no production change. Nits: T014 force-independence framing tautological (legality assertion carries it); WP prose to refine.",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
       "shell_pid": 1604460,
       "shell_pid_created_at": "1784429585.61",
       "subtasks": {
@@ -81,6 +96,11 @@
       "lane": "done",
       "last_event_id": "01KXW88EFE58B7V777R5YY3Q9E",
       "last_transition_at": "2026-07-19T03:55:59.342492+00:00",
+      "review_result": {
+        "reference": "Approved: failed_transient traced through process_batch_results (no DELETE, no retry bump — non-poisoning); adjudicated details path byte-unchanged; dormant fn untouched; RED-first isolated to status string; ruff/mypy clean. 6 parallel reds all verified pre-existing (4 real-port flakes + 2 CI-env).",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
       "shell_pid": 1604460,
       "shell_pid_created_at": "1784429585.61",
       "subtasks": {
@@ -98,6 +118,11 @@
       "lane": "done",
       "last_event_id": "01KXW88V3Q53TDA5AKQHP1RVFR",
       "last_transition_at": "2026-07-19T03:56:12.279850+00:00",
+      "review_result": {
+        "reference": "Approved: behavior-identical rewire (textually equal, #2735 196 passed no shift), T017 spy + T018 AST guard both red-first-proven load-bearing (allowlists gap_analysis.py), out-of-map minimal (WP04 fix intact), 3 sync reds pre-existing. Charter suppression-cleanup applied (7cf74df8c): 0 type:ignore, ruff+mypy clean.",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
       "shell_pid": 1721789,
       "shell_pid_created_at": "1784431319.17",
       "subtasks": {

@@ -34,6 +34,7 @@ guards:
    straight past. Caught behaviourally by
    :func:`test_a_delivered_prefix_must_not_starve_the_undelivered_tail`.
 """
+
 from __future__ import annotations
 
 import json
@@ -43,11 +44,14 @@ import pytest
 
 from specify_cli.cli.commands.sync import _EVENT_SYNC_DISPATCH_BATCH_LIMIT
 from specify_cli.delivery.dispatcher import dispatch
-from specify_cli.delivery.ledger import SqliteDeliveryLedger
+from specify_cli.delivery.interfaces import DeliveryTarget
 from specify_cli.delivery.receivers import StubReceiver
-from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
+from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
+from specify_cli.sync.consent import record_project_opt_in, record_project_opt_out
+from specify_cli.sync.layout_generation import LayoutMode
+from specify_cli.sync.project_store import ProjectSyncStore
 
 pytestmark = [pytest.mark.fast]
 
@@ -68,11 +72,25 @@ def _consent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home = tmp_path / "home"
     home.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
-    from specify_cli.sync.consent import set_project_consent
-
-    set_project_consent(CONSENTED_UUID, True)
-    set_project_consent(NONCONSENTED_UUID, False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    consenting = ProjectSyncStore(CONSENTED_UUID)
+    blocked = ProjectSyncStore(NONCONSENTED_UUID)
+    for store in (consenting, blocked):
+        authority = store.layout_generation()
+        if authority.read_state().mode is LayoutMode.LEGACY:
+            authority.begin_cutover("wp07-liveness-fixture")
+            authority.publish_project_only("wp07-liveness-fixture", verify_exact=lambda: True)
+    record_project_opt_in(CONSENTED_UUID, actor="wp07-liveness-test")
+    record_project_opt_out(NONCONSENTED_UUID, actor="wp07-liveness-test")
+    with consenting.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO project_target_admissions "
+            "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, binding_audience) "
+            "VALUES (?, 'https://hosted.example.com', 'operator@example.com', 'team', 1, "
+            "'admitted', '1', 'private-teamspace:team')",
+            (CONSENTED_UUID,),
+        )
 
 
 def _event(event_id: str, uuid: str, created_at: str) -> Event:
@@ -86,6 +104,29 @@ def _event(event_id: str, uuid: str, created_at: str) -> Event:
     )
 
 
+def _store(uuid: str) -> ProjectSyncStore:
+    return ProjectSyncStore(uuid)
+
+
+def _append(store: ProjectSyncStore, event: Event) -> None:
+    with store.unit_of_work() as unit:
+        EventJournal(unit, store.layout_generation()).append(event)
+
+
+def _append_many(store: ProjectSyncStore, events: list[Event]) -> None:
+    with store.unit_of_work() as unit:
+        journal = EventJournal(unit, store.layout_generation())
+        for event in events:
+            journal.append(event)
+
+
+def _target(store: ProjectSyncStore) -> DeliveryTarget:
+    with store.unit_of_work() as unit:
+        target = ProjectDeliveryTargetRegistry(store).get_current(unit)
+    assert target is not None
+    return target
+
+
 def test_sc002_ten_consented_events_ship_behind_a_2000_row_backlog(
     tmp_path: Path,
 ) -> None:
@@ -97,38 +138,36 @@ def test_sc002_ten_consented_events_ship_behind_a_2000_row_backlog(
     operator's 10 events behind it. ``_should_stop_sync_loop`` then breaks on that
     empty selection and reports "nothing to deliver" — permanently.
     """
-    journal = EventJournal(tmp_path / "journal.db")
+    consenting_store = _store(CONSENTED_UUID)
+    blocked_store = _store(NONCONSENTED_UUID)
 
-    # 2,000 non-consented rows, all strictly OLDER than the consented ones so FIFO
-    # ordering puts them first.
-    for i in range(BACKLOG):
-        journal.append(
-            _event(f"evt-blocked-{i:05d}", NONCONSENTED_UUID, f"2026-06-01T00:00:{i % 60:02d}.{i:05d}Z")
-        )
+    # The retired shared journal put this older backlog in front of the operator's
+    # rows.  Project-owned storage now isolates it physically, so the same scale
+    # assertion proves it cannot fill the consenting project's dispatch window.
+    _append_many(
+        blocked_store,
+        [_event(f"evt-blocked-{i:05d}", NONCONSENTED_UUID, f"2026-06-01T00:00:{i % 60:02d}.{i:05d}Z") for i in range(BACKLOG)],
+    )
     consented_ids = []
     for i in range(CONSENTED):
         event_id = f"evt-consented-{i:02d}"
         consented_ids.append(event_id)
-        journal.append(_event(event_id, CONSENTED_UUID, f"2026-07-01T00:00:{i:02d}Z"))
+        _append(
+            consenting_store,
+            _event(event_id, CONSENTED_UUID, f"2026-07-01T00:00:{i:02d}Z"),
+        )
 
-    ledger = SqliteDeliveryLedger(":memory:")
-    registry = SqliteDeliveryTargetRegistry(":memory:")
-    target = registry.register(
-        url="https://hosted.example.com",
-        team_slug="team",
-        user_email="operator@example.com",
-    )
+    target = _target(consenting_store)
     receiver = StubReceiver()
 
     assert BACKLOG > BATCH_LIMIT, (
-        "precondition: the backlog must exceed the batch window, or the window "
-        "cannot be filled with excluded rows and this test proves nothing"
+        "precondition: the backlog must exceed the batch window, or the window cannot be filled with excluded rows and this test proves nothing"
     )
     summary = dispatch(
-        journal=journal,
-        ledger=ledger,
+        store=consenting_store,
         receiver=receiver,
         target=target,
+        context=consenting_store.create_context(),
         limit=BATCH_LIMIT,
     )
 
@@ -139,33 +178,34 @@ def test_sc002_ten_consented_events_ship_behind_a_2000_row_backlog(
         "the drain permanently (NFR-002)"
     )
     assert summary.selected == CONSENTED, (
-        "selection must contain only the consented project's rows — the backlog is "
-        f"filtered out of the universe, not merely skipped: selected={summary.selected}"
+        f"selection must contain only the consented project's rows — the backlog is filtered out of the universe, not merely skipped: selected={summary.selected}"
     )
-    assert not any(eid.startswith("evt-blocked-") for eid in delivered), (
-        "no non-consented event may ship"
-    )
+    assert not any(eid.startswith("evt-blocked-") for eid in delivered), "no non-consented event may ship"
 
 
 def test_the_backlog_is_left_in_the_journal_undeleted(tmp_path: Path) -> None:
     """C-002: filtering is not deletion. The rows stay for the operator to purge."""
-    journal = EventJournal(tmp_path / "journal.db")
-    for i in range(50):
-        journal.append(
-            _event(f"evt-blocked-{i:05d}", NONCONSENTED_UUID, f"2026-06-01T00:00:{i:02d}Z")
-        )
-    journal.append(_event("evt-consented-0", CONSENTED_UUID, "2026-07-01T00:00:00Z"))
-
-    ledger = SqliteDeliveryLedger(":memory:")
-    registry = SqliteDeliveryTargetRegistry(":memory:")
-    target = registry.register(
-        url="https://hosted.example.com",
-        team_slug="team",
-        user_email="operator@example.com",
+    consenting_store = _store(CONSENTED_UUID)
+    blocked_store = _store(NONCONSENTED_UUID)
+    _append_many(
+        blocked_store,
+        [_event(f"evt-blocked-{i:05d}", NONCONSENTED_UUID, f"2026-06-01T00:00:{i:02d}Z") for i in range(50)],
     )
-    dispatch(journal=journal, ledger=ledger, receiver=StubReceiver(), target=target)
+    _append(
+        consenting_store,
+        _event("evt-consented-0", CONSENTED_UUID, "2026-07-01T00:00:00Z"),
+    )
+    dispatch(
+        store=consenting_store,
+        receiver=StubReceiver(),
+        target=_target(consenting_store),
+        context=consenting_store.create_context(),
+    )
 
-    assert journal.count() == 51, "non-consented rows must remain in the journal"
+    with blocked_store.unit_of_work() as blocked_unit, consenting_store.unit_of_work() as consenting_unit:
+        remaining = EventJournal(blocked_unit, blocked_store.layout_generation()).count()
+        remaining += EventJournal(consenting_unit, consenting_store.layout_generation()).count()
+    assert remaining == 51, "non-consented rows must remain in the journal"
 
 
 def test_a_delivered_prefix_must_not_starve_the_undelivered_tail(
@@ -199,50 +239,42 @@ def test_a_delivered_prefix_must_not_starve_the_undelivered_tail(
     prefix = limit + 10
     tail = 5
 
-    journal = EventJournal(tmp_path / "journal.db")
-    ledger = SqliteDeliveryLedger(":memory:")
-    registry = SqliteDeliveryTargetRegistry(":memory:")
-    target = registry.register(
-        url="https://hosted.example.com",
-        team_slug="team",
-        user_email="operator@example.com",
-    )
+    store = _store(CONSENTED_UUID)
+    target = _target(store)
 
     # Oldest rows first, so FIFO ordering puts the delivered prefix at the head of
     # the universe — the position from which it can crowd out the tail.
     for i in range(prefix):
-        journal.append(
-            _event(f"evt-old-{i:04d}", CONSENTED_UUID, f"2026-06-01T00:00:{i % 60:02d}.{i:04d}Z")
-        )
+        _append(store, _event(f"evt-old-{i:04d}", CONSENTED_UUID, f"2026-06-01T00:00:{i % 60:02d}.{i:04d}Z"))
 
     # Drain them for real, so "already delivered" is genuine ledger state rather
     # than hand-written rows.
     first = dispatch(
-        journal=journal,
-        ledger=ledger,
+        store=store,
         receiver=StubReceiver(),
         target=target,
+        context=store.create_context(),
         limit=prefix,
     )
-    assert first.delivered == prefix, (
-        f"precondition: the prefix must actually be delivered, got {first.delivered}"
-    )
+    assert first.delivered == prefix, f"precondition: the prefix must actually be delivered, got {first.delivered}"
 
     tail_ids = [f"evt-new-{i:04d}" for i in range(tail)]
     for i, event_id in enumerate(tail_ids):
-        journal.append(_event(event_id, CONSENTED_UUID, f"2026-07-01T00:00:{i:02d}Z"))
+        _append(
+            store,
+            _event(event_id, CONSENTED_UUID, f"2026-07-01T00:00:{i:02d}Z"),
+        )
 
     assert prefix > limit, (
-        "precondition: the delivered prefix must exceed the window, or a truncated "
-        "read would still reach the tail and the test would prove nothing"
+        "precondition: the delivered prefix must exceed the window, or a truncated read would still reach the tail and the test would prove nothing"
     )
 
     receiver = StubReceiver()
     summary = dispatch(
-        journal=journal,
-        ledger=ledger,
+        store=store,
         receiver=receiver,
         target=target,
+        context=store.create_context(),
         limit=limit,
     )
 

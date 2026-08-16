@@ -729,12 +729,17 @@ def set_purpose_summary(
 
 
 def set_change_mode(
-    feature_dir: Path,
+    feature_dir: str | Path,
     mode: str,
 ) -> dict[str, Any]:
     """Set ``change_mode`` field.
 
     Validates *mode* is in :data:`VALID_CHANGE_MODES` before writing.
+
+    *feature_dir* accepts a :class:`~pathlib.Path` or a plain ``str``; the
+    latter is coerced to ``Path`` so a caller (e.g. the documented shell
+    one-liner in the bulk-edit classification skill) that passes a bare string
+    does not trip a ``TypeError`` deep inside the path-joining reader (#3436).
 
     Raises:
         ValueError: If *mode* is not a recognized change mode.
@@ -744,6 +749,7 @@ def set_change_mode(
         raise ValueError(
             f"Invalid change_mode {mode!r}; valid values: {sorted(VALID_CHANGE_MODES)}"
         )
+    feature_dir = Path(feature_dir)
     meta = _require_meta(feature_dir)
 
     meta["change_mode"] = mode

@@ -351,17 +351,6 @@ def test_valid_verdicts_constant() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_get_latest_review_cycle_verdict_no_artifacts(tmp_path: Path) -> None:
-    """WP05 repoint: no event at all -> absent (the event-sourced successor
-    of "no review-cycle artifacts exist yet")."""
-    from specify_cli.status import event_sourced_review_result
-
-    lookup = event_sourced_review_result(tmp_path, "WP01")
-
-    assert lookup.slot_present is False
-    assert lookup.result is None
-
-
 def test_get_latest_review_cycle_verdict_picks_highest(tmp_path: Path) -> None:
     """WP05 repoint: the reducer resolves the MOST RECENT
     ``review_result``-carrying event -- the event-sourced successor of

@@ -1,0 +1,172 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: false
+phase: pr
+lens_group: contract
+mission: up-mission-type-seam-01KZY1JB
+findings:
+  - id: PR-CONTRACT-001
+    lens: silent-success-across-the-union
+    severity: 4
+    title: "mission-type show crashes uncaught on the exact CL-003 empty-action-sequence case it was built to guard against"
+    evidence:
+      - code: "src/specify_cli/cli/commands/mission_type.py:1450-1462"
+      - code: "src/charter/mission_type_profiles.py:194-256"
+      - code: "src/charter/mission_type_profiles.py:259-305"
+      - code: "src/specify_cli/cli/commands/charter/mission_type.py:151-160"
+    claim: >
+      `show_mission_type` (`spec-kitty mission-type show <id>`, one of WP07's four
+      CLI surfaces) calls `resolve_mission_type_context(...).action_sequence`
+      inside a `try/except UnknownMissionTypeError` block only
+      (mission_type.py:1450-1458). `MissionTypeEmptyActionSequenceError` and
+      `UnknownMissionTypeError` are both declared as direct `ValueError`
+      subclasses with no inheritance relationship between them
+      (mission_type_profiles.py:194 and :259) — `except UnknownMissionTypeError`
+      does NOT catch `MissionTypeEmptyActionSequenceError`. For an activated
+      org/project mission type whose own (and inherited, via `extends`) action
+      sequence is empty — the exact CL-003 scenario this mission exists to make
+      loud instead of silent — `resolve_mission_type_context(...).action_sequence`
+      raises `MissionTypeEmptyActionSequenceError`, which propagates UNCAUGHT out
+      of `show_mission_type` as a raw Python traceback instead of the clean
+      `console.print(...); typer.Exit(1)` pattern. The sibling CLI surface in the
+      SAME PR, `charter_mission_type_list` (mission_type.py:151-160), explicitly
+      catches this exact exception and renders it cleanly — proving the intent
+      was to handle it, and that this second call site was simply missed. No
+      test in the diff (`tests/specify_cli/cli/commands/test_mission_type_template_set_cli.py`,
+      `tests/cli/test_charter_mission_type_commands.py`) exercises `mission-type show`
+      against an empty-action-sequence org/project type; only the non-empty
+      happy path (`test_sc001_org_pack_mission_type_resolves_across_all_four_cli_surfaces`)
+      and the unregistered-id path (`test_mission_type_show_rejects_an_unknown_id`)
+      are covered.
+    remediation: >
+      In `show_mission_type` (mission_type.py:1450), add
+      `except MissionTypeEmptyActionSequenceError as exc:` (imported alongside
+      `UnknownMissionTypeError`) that renders
+      `console.print(f"[red]Error:[/red] {exc}")` and `raise typer.Exit(1) from exc`,
+      mirroring `charter_mission_type_list`'s handling. Add a regression test
+      analogous to `test_sc001_org_pack_mission_type_resolves_across_all_four_cli_surfaces`
+      but with an org/project mission-type YAML carrying no `action_sequence`,
+      asserting `mission-type show <id>` exits 1 with a clean message instead of
+      a traceback.
+
+  - id: PR-CONTRACT-002
+    lens: silent-success-across-the-union
+    severity: 4
+    title: "charter activate mission-type silently swallows malformed-YAML and unreadable-directory failures in the very org/project layers WP05 newly wired in, masking them as a generic 'unknown ID'"
+    evidence:
+      - code: "src/charter/pack_manager.py:317-338"
+      - code: "src/charter/pack_manager.py:361-377"
+      - code: "src/charter/pack_manager.py:778-840"
+      - code: "src/doctrine/missions/mission_type_repository.py:358-394"
+      - code: "src/charter/pack_manager.py:618-643"
+    claim: >
+      WP05 (`_resolve_layer_candidate`, pack_manager.py:317-338, confirmed by
+      `git diff origin/main...HEAD -- src/charter/pack_manager.py`) newly wires
+      org/project mission-type directories into `CharterPackManager.list_available_detailed`
+      (pack_manager.py:778-840) — the availability catalog `activate()`
+      (pack_manager.py:618-643, via `manager.activate(...)` in `activate_cmd`)
+      checks BEFORE allowing `charter activate mission-type <id>`. That scan
+      routes through `scan_dir.rglob(glob)` (pack_manager.py:831) plus
+      `_declared_id` (pack_manager.py:361-377), which catches
+      `(OSError, YAMLError, TypeError)` and returns `None` — silently SKIPPING
+      the file — on any parse failure, and `Path.rglob` itself silently
+      swallows `PermissionError` during the directory walk (standard pathlib
+      scandir behaviour, the same behaviour `_scan_mission_types_dir`'s own
+      docstring names explicitly, mission_type_repository.py:381-388). So a
+      malformed org/project `mission_types/<id>.yaml`, OR an org/project
+      `mission_types/` directory that exists but is unreadable, is invisible
+      to `list_available`: the id simply does not appear in `available`, and
+      `plan_activation` then raises the generic `UnknownActivationIdError`
+      ("unknown ID") — NOT the real cause. Contrast this with
+      `_scan_mission_types_dir` (mission_type_repository.py:358-394), which
+      WP03 built in the SAME mission SPECIFICALLY to close this exact class of
+      collapse: it uses `iterdir()` (not `glob`/`rglob`) precisely because
+      "`Path.glob("*.yaml")` does NOT [raise on unreadable dirs]... which
+      would collapse 'exists but unreadable' into the same `[]` as 'does not
+      exist' — exactly the forbidden collapse this WP exists to close"
+      (mission_type_repository.py:381-388), and it wraps YAML parse failures
+      with the offending file's path named in the error
+      (`_load_layered_mission_type_file`, mission_type_repository.py:312-355).
+      `resolve_layered_mission_types` — the path `_resolve_action_slot` and
+      `resolve_layered_roster` actually use post-activation — DOES loud-fail
+      on the identical malformed file or unreadable directory. So for the
+      SAME broken org/project file, `charter activate mission-type <id>`
+      (pre-activation availability check) reports a misleading "unknown ID",
+      while any subsequent resolution of that same layer (`mission-type list`,
+      `mission-type show`, mission creation) loud-fails with the real cause —
+      an inconsistent, union-only-visible diagnostic gap between WP03's new
+      loud scanner and WP05's new caller of the old tolerant scanner. No test
+      in `tests/charter/test_pack_manager.py`'s new
+      `TestResolveLayerCandidateMissionTypeLayers`/`TestMissionTypeOrgLayerResolves`
+      classes exercises a malformed or unreadable org/project mission-type
+      file through `list_available`/`activate`.
+    remediation: >
+      Route the `kind is None` (mission-type) branch of
+      `CharterPackManager.list_available_detailed` through
+      `doctrine.missions.mission_type_repository.resolve_layered_mission_types`
+      (or an equivalent `iterdir()`-based, exception-propagating scan) instead
+      of the glob+broad-except `_declared_id` path, so a malformed YAML or
+      unreadable org/project `mission_types/` directory raises the same loud,
+      file-naming error during `charter activate mission-type` that it already
+      does during subsequent resolution — never a generic "unknown ID". Add
+      regression coverage mirroring
+      `tests/doctrine/missions/test_mission_type_repository.py`'s malformed-YAML
+      / unreadable-directory tests, but through `manager.activate(...)`.
+
+  - id: PR-CONTRACT-003
+    lens: cache-identity-across-independently-constructed-pack-contexts
+    severity: 3
+    title: "resolve_layered_mission_types caches user-editable org/project content with the same unconditional functools.cache used for immutable built-in content, without documenting or guarding the resulting staleness"
+    evidence:
+      - code: "src/doctrine/missions/mission_type_repository.py:60-97"
+      - code: "src/doctrine/missions/mission_type_repository.py:397-478"
+      - code: "tests/doctrine/missions/test_mission_type_repository.py:467-488"
+      - code: "src/specify_cli/cli/commands/charter/mission_type.py:56-114"
+    claim: >
+      `MissionTypeRepository.default()`'s `functools.cache` (mission_type_repository.py:60-97)
+      is explicitly justified as safe because "production never mutates the
+      bundled `mission_types/`/`mission-steps/` trees mid-process" — the
+      built-in tree is shipped, read-only content. WP03's new
+      `resolve_layered_mission_types` (mission_type_repository.py:397-478)
+      reuses the identical unconditional `functools.cache` pattern, but now
+      ALSO scans org and project layer directories
+      (`<pack_root>/mission_types/*.yaml`, `.kittify/missions/mission_types/*.yaml`)
+      — content that IS user-editable during a process's lifetime, unlike the
+      built-in tree. The docstring's own module-level comment
+      (mission_type_repository.py:283-295) only defends against
+      cross-PROJECT poisoning ("threading a project-dependent value through
+      that cls-keyed cache would poison it for every later PROJECT resolved
+      in the same process") — it never addresses same-project staleness
+      across TIME. The union's own regression test
+      `test_same_key_is_a_cache_hit` (tests/doctrine/missions/test_mission_type_repository.py:467-488)
+      proves the staleness directly: it mutates an org-layer YAML file AFTER
+      a first resolution and asserts the SECOND resolution (same
+      `(dirs, pack_context)` key) still returns the FIRST (stale) result. None
+      of the union's new CLI call sites — `_layered_lookup_inputs` /
+      `resolve_layered_roster` / `resolve_mission_type_source_layer`
+      (mission_type.py:56-114), or `_resolve_action_slot`
+      (mission_type_profiles.py:862-956) — ever call
+      `resolve_layered_mission_types.cache_clear()` /
+      `MissionTypeRepository.cache_clear()`, and no new CLI surface documents
+      that its output reflects only the FIRST resolution of an org/project
+      mission-type roster within a process's lifetime. For a normal one-shot
+      CLI invocation this is low-risk (repo state does not change mid-command
+      in any traced call path), but any longer-lived process embedding these
+      charter APIs (a test suite across many fixtures, or a future
+      daemon/orchestrator-api consumer) would silently serve a stale
+      org/project roster after an on-disk mission-type edit, with no
+      operator-facing signal that the data is stale — the same
+      "no contribution / wrong answer without saying so" risk theme lens 1
+      targets, but rooted in caching rather than validation.
+    remediation: >
+      Either (a) document explicitly, next to `resolve_layered_mission_types`'s
+      docstring, that its cache is safe only for the "one process per CLI
+      invocation" model and is NOT safe across an on-disk org/project
+      mission-type edit within a long-lived process — mirroring the explicit
+      safety claim `MissionTypeRepository.default()` makes for its
+      built-in-only cache — and name the required `cache_clear()` call site
+      for any long-lived host; or (b) key the cache (or add an invalidation
+      check) on a cheap freshness signal for the org/project directories
+      (e.g. directory mtime) so a long-lived process cannot silently serve a
+      stale roster after an on-disk edit.
+complete: true

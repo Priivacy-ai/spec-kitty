@@ -560,6 +560,90 @@ class TestDecideNext:
 
 
 # ---------------------------------------------------------------------------
+# decide_next -- owned-checkout (effective_root) threading (#3328)
+# ---------------------------------------------------------------------------
+
+
+class TestDecideNextOwnedCheckout:
+    """``decide_next``'s ``effective_root`` fork threads the kwarg into
+    ``runtime_bridge.decide_next_via_runtime`` instead of calling the plain
+    3-positional-arg form. A monkeypatched stand-in isolates this one
+    dispatch decision from the (separately unit-tested, tests/next/
+    test_runtime_bridge_unit.py) owned-checkout resolution itself."""
+
+    def test_effective_root_threads_to_runtime_bridge(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import runtime.next.runtime_bridge as runtime_bridge_module
+
+        captured: dict[str, object] = {}
+
+        def _fake_decide_next_via_runtime(
+            agent: str,
+            mission_slug: str,
+            result: str,
+            repo_root: Path,
+            *,
+            effective_root: Path | None = None,
+        ) -> Decision:
+            captured["args"] = (agent, mission_slug, result, repo_root)
+            captured["effective_root"] = effective_root
+            return Decision(
+                kind=DecisionKind.terminal,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission="software-dev",
+                mission_state="done",
+                timestamp="2026-01-01T00:00:00+00:00",
+            )
+
+        monkeypatch.setattr(
+            runtime_bridge_module, "decide_next_via_runtime", _fake_decide_next_via_runtime
+        )
+
+        owned_root = tmp_path / "owned-checkout"
+        decoy_repo_root = tmp_path / "decoy-primary-never-read"
+
+        decision = decide_next(
+            "claude", "owned-mission", "success", decoy_repo_root, effective_root=owned_root
+        )
+
+        assert decision.kind == DecisionKind.terminal
+        assert captured["args"] == ("claude", "owned-mission", "success", decoy_repo_root)
+        assert captured["effective_root"] == owned_root
+
+    def test_without_effective_root_uses_the_plain_three_positional_form(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Anti-vacuity: omitting ``effective_root`` must NOT thread the kwarg
+        at all -- proving the two call shapes genuinely diverge rather than
+        ``effective_root=None`` being passed unconditionally either way."""
+        import runtime.next.runtime_bridge as runtime_bridge_module
+
+        captured: dict[str, object] = {}
+
+        def _fake_decide_next_via_runtime(*args: object, **kwargs: object) -> Decision:
+            captured["args"] = args
+            captured["kwargs"] = kwargs
+            return Decision(
+                kind=DecisionKind.terminal,
+                agent=str(args[0]),
+                mission_slug=str(args[1]),
+                mission="software-dev",
+                mission_state="done",
+                timestamp="2026-01-01T00:00:00+00:00",
+            )
+
+        monkeypatch.setattr(
+            runtime_bridge_module, "decide_next_via_runtime", _fake_decide_next_via_runtime
+        )
+
+        decide_next("claude", "plain-mission", "success", tmp_path)
+
+        assert captured["kwargs"] == {}
+
+
+# ---------------------------------------------------------------------------
 # Atomic task step alias tests
 # ---------------------------------------------------------------------------
 

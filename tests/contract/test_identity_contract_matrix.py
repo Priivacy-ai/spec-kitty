@@ -53,7 +53,7 @@ Design notes
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -74,6 +74,7 @@ from specify_cli.sync.config import SyncConfig
 from specify_cli.sync.emitter import EventEmitter
 from specify_cli.sync.git_metadata import GitMetadata, GitMetadataResolver
 from specify_cli.sync.project_identity import ProjectIdentity
+from specify_cli.sync.project_store import ProjectSyncStore
 from specify_cli.sync.queue import OfflineQueue
 
 pytestmark = [pytest.mark.fast]
@@ -295,7 +296,9 @@ def test_legacy_wp_status_event_without_mission_id_is_valid() -> None:
 
 
 @pytest.fixture()
-def local_emitter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> EventEmitter:
+def local_emitter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[EventEmitter]:
     """Construct a real EventEmitter wired to in-memory / tmp backing stores.
 
     Mirrors the ``tests/sync/conftest.py::emitter`` fixture but standalone so
@@ -314,7 +317,6 @@ def local_emitter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> EventEmitt
     tm.get_current_session.return_value = session
     monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: tm)
 
-    queue = OfflineQueue(db_path=tmp_path / "test_queue.db")
     clock = LamportClock(value=0, node_id="test-node-id", _storage_path=tmp_path / "clock.json")
     config = MagicMock(spec=SyncConfig)
     config.get_server_url.return_value = "https://test.spec-kitty.dev"
@@ -332,14 +334,20 @@ def local_emitter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> EventEmitt
     git_resolver = MagicMock(spec=GitMetadataResolver)
     git_resolver.resolve.return_value = git_metadata
 
-    return EventEmitter(
-        clock=clock,
-        config=config,
-        queue=queue,
-        ws_client=None,
-        _identity=identity,
-        _git_resolver=git_resolver,
-    )
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(identity.project_uuid)
+    authority = store.layout_generation()
+    authority.begin_cutover("identity-contract-tests")
+    authority.publish_project_only("identity-contract-tests", verify_exact=lambda: True)
+    with store.unit_of_work() as unit:
+        yield EventEmitter(
+            clock=clock,
+            config=config,
+            queue=OfflineQueue(unit, authority, max_queue_size=1000),
+            ws_client=None,
+            _identity=identity,
+            _git_resolver=git_resolver,
+        )
 
 
 def test_saas_mission_created_emits_mission_id_as_aggregate(

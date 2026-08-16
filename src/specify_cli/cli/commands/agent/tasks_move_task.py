@@ -524,6 +524,46 @@ def _lane_deliverable_paths(worktree_path: Path, porcelain: str) -> tuple[Path, 
     return tuple(paths)
 
 
+def _drop_lane_coord_residue(
+    worktree_path: Path, paths: tuple[Path, ...]
+) -> tuple[Path, ...]:
+    """Seam-A guard for the raw lane-deliverable commit (#2549 / FR-003 / T012).
+
+    ``_mt_commit_lane_deliverables`` commits lane deliverables through a RAW
+    ``safe_commit`` on the LANE branch -- it BYPASSES the kind-aware
+    ``commit_for_mission`` classifier (and the ``BookkeepingTransaction`` Seam-A
+    guard) entirely. The ``_filter_runtime_state_paths`` deny-list only strips
+    spec-kitty's ``.spec-kitty/`` / ``.kittify/`` runtime dirs -- it does NOT
+    exclude a coord-partition artifact (``status.events.jsonl`` / ``status.json``
+    / ``acceptance-matrix.json`` / ``issue-matrix.md``). So if a coord-residue
+    file ever surfaces in the lane worktree's ``git status`` (e.g. a
+    ``move-task --force`` that materialised a status snapshot into a lane whose
+    sparse-checkout exclusion is absent/stale), the raw commit would land it on
+    the LANE ref -- the residual #2549 leak.
+
+    This filter routes the deliverable set through Seam A: a coord-partition
+    artifact (:func:`~specify_cli.coordination.coherence.is_coord_residue_churn`)
+    is DROPPED from the lane commit so it never lands on the lane branch (the
+    coord-owned status log is authored on the coordination branch by the
+    transactional emitter, never carried on a lane; the lane's copy is stale
+    residue). Every genuine PRIMARY deliverable (code, ``tasks/WP*.md``) is
+    preserved. Withdrawn Trigger A is respected: this NEVER touches the
+    status->coord routing, only status->LANE.
+    """
+    from specify_cli.coordination.coherence import is_coord_residue_churn
+
+    kept: list[Path] = []
+    for path in paths:
+        try:
+            rel = path.relative_to(worktree_path).as_posix()
+        except ValueError:
+            rel = path.name
+        if is_coord_residue_churn(rel):
+            continue
+        kept.append(path)
+    return tuple(kept)
+
+
 def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
     """Commit finished lane deliverables before a review transition (#2335).
 
@@ -571,6 +611,9 @@ def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
     if not filtered:
         return
     paths = _lane_deliverable_paths(worktree_path, filtered)
+    # Seam-A (#2549 / FR-003 / T012): never let a coord-partition artifact land
+    # on the lane branch via this raw ``safe_commit`` path.
+    paths = _drop_lane_coord_residue(worktree_path, paths)
     if not paths:
         return
 
@@ -2129,31 +2172,36 @@ def _mt_reassignment_binding_fields(st: _MoveTaskState) -> dict[str, Any]:
 
 
 def _build_claim_review_override(
-    st: _MoveTaskState, ports: TasksPorts, existing_fields: Mapping[str, Any]
+    st: _MoveTaskState, ports: TasksPorts
 ) -> dict[str, Any]:
     """Compute the rollback-to-``planned`` off-axis field additions.
 
     Campsite extraction (WP02, verdict-seam-boundary-hardening-01KZG179,
     T007/NFR-004): pulled out of :func:`_mt_emit_runtime_state` (cc=14, close
-    to the 15 ceiling) so that function keeps headroom. Pure with respect to
-    ``existing_fields`` — reads it to decide the claim-release defaults but
-    never mutates it; the caller merges the returned dict via
-    ``fields.update(...)``.
+    to the 15 ceiling) so that function keeps headroom.
 
     - The ``subtasks`` reset (if any) re-blocks the review gate off the
       snapshot (#2513, via the log — not the checkbox).
-    - ``#2512``: a rollback to ``planned`` RELEASES the prior claim so the
-      rolled-back WP exposes no live claim marker. Field repro: an agent
-      process was killed (macOS idle-sleep) leaving ``agent``/``shell_pid``
-      behind; the rollback reset the lane but not the claim, so the next
-      resume failed ``LANE_ALLOCATION_FAILED``. With the god-write cut the
-      claim now lives in the reduced snapshot (the claim transition's
-      ``policy_metadata``), and it was released in NEITHER surface — so the
-      release is emitted here off-axis as an ``InnerStateChanged`` clearing
-      both slots (empty ``agent`` / zero ``shell_pid`` fold to a falsy,
-      released snapshot slot). Skipped when the SAME move re-plants a fresh
-      claim (an explicit ``--agent``/``--shell-pid`` override already set the
-      field in ``existing_fields``).
+    - ``#2512`` / partition-authority-residuals (#2960 follow-up): a rollback
+      to ``planned`` RELEASES the prior claim so the rolled-back WP exposes no
+      live claim marker. Field repro: an agent process was killed (macOS
+      idle-sleep) leaving ``agent``/``shell_pid`` behind; the rollback reset
+      the lane but not the claim, so the next resume failed
+      ``LANE_ALLOCATION_FAILED``. With the god-write cut the claim now lives
+      in the reduced snapshot (the claim transition's ``policy_metadata``),
+      and it was released in NEITHER surface — so the release is emitted here
+      off-axis as an ``InnerStateChanged`` carrying the explicit
+      ``release_runtime_claim=True`` marker (see ``WPInnerStateDelta`` /
+      ``_apply_annotation_delta``), which the reducer honors as a real clear
+      of the claim triple, DISTINCT from a bare ``agent=""`` corruption
+      no-op (#2960). Set UNCONDITIONALLY — a SAME-move re-plant of a fresh
+      claim (an explicit ``--agent``/``--shell-pid`` override, already staged
+      in the caller's ``fields`` dict before this helper's return value is
+      merged in) still wins: the reducer applies the release clear BEFORE its
+      replace-slot loop, so a concrete value present in the same delta
+      overwrites the just-cleared slot. This helper therefore no longer needs
+      to inspect the caller's existing fields to decide whether to release —
+      the override precedence lives in the reducer, not here.
     - The ``review`` runtime slot records durable evidence that a REJECTED
       review was superseded by an approval override
       (``_persist_review_artifact_override``). A rollback to ``planned`` --
@@ -2170,10 +2218,7 @@ def _build_claim_review_override(
     reset = _mt_rollback_subtasks_reset(st, ports)
     if reset:
         additions["subtasks"] = reset
-    if "agent" not in existing_fields:
-        additions["agent"] = ""
-    if "shell_pid" not in existing_fields:
-        additions["shell_pid"] = 0
+    additions["release_runtime_claim"] = True
     additions["review"] = ReviewOverride(at="", actor="", wp_id="", reason="")
     return additions
 
@@ -2197,7 +2242,33 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
     Every emit resolves its write target from ``st.feature_dir`` — resolved from
     stored topology in :func:`_mt_resolve_targets` — never ``Path.cwd()``
     (SC-008 / #2647; ``emit_inner_state_changed`` re-canonicalizes it there too).
+
+    FR-007 (#2939): on a durable-commit move-task (``st.resolved_auto_commit``
+    True) the post-transition annotation is emitted through the commit-durable
+    ``emit_inner_state_changed_transactional`` — the sibling of the lane hop's
+    own ``emit_status_transition_transactional`` — so on a coordination
+    topology the coord ``status.events.jsonl`` / ``status.json`` are committed in
+    their OWN atomic status transaction (mirroring the transition), leaving no
+    dirty status tree when ``move-task`` returns. On a coord-less topology it
+    degrades to the same uncommitted write the pre-fix path used (no-op parity).
+
+    ``st.resolved_auto_commit`` False (``--no-auto-commit`` / a caller that
+    intentionally bypasses the commit/router leg entirely) skips the
+    transactional path altogether and calls the plain, uncommitted
+    ``emit_inner_state_changed`` directly — the annotation still gets
+    written+materialized, it just is not routed through a
+    ``BookkeepingTransaction`` that would try to resolve/materialize a coord
+    worktree the caller never asked to touch (regression #3460: a coord
+    mission with a declared-but-not-yet-materialized coordination worktree
+    made the transactional emit raise ``BookkeepingWorktreeMissing`` even
+    though auto_commit was off and no commit was ever wanted).
+
+    The generic ``emit_inner_state_changed`` stays partition-agnostic (untouched);
+    the durability decision lives at this caller/commit layer.
     """
+    from specify_cli.coordination.status_transition import (
+        emit_inner_state_changed_transactional,
+    )
     from specify_cli.status import emit_inner_state_changed
 
     fields: dict[str, Any] = {}
@@ -2223,12 +2294,17 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
     if st.tracker_ref_values:
         fields["tracker_refs"] = list(st.tracker_ref_values)
     if st.target_lane == Lane.PLANNED:
-        fields.update(_build_claim_review_override(st, ports, fields))
+        fields.update(_build_claim_review_override(st, ports))
 
     delta = WPInnerStateDelta(**fields)
     if delta.is_empty():
         return
-    emit_inner_state_changed(
+    emitter = (
+        emit_inner_state_changed_transactional
+        if st.resolved_auto_commit
+        else emit_inner_state_changed
+    )
+    emitter(
         st.feature_dir,
         st.task_id,
         delta,

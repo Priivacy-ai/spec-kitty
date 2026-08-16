@@ -1,9 +1,12 @@
 ---
 title: 'Test Execution Report — PR #305 (feature/agent-profile-implementation)'
 description: 'Test execution report for PR #305 (agent-profile-implementation): the suites run, the results, and any failures captured in a field-table record.'
-doc_status: draft
-updated: '2026-04-05'
+doc_status: deprecated
+updated: '2026-08-12'
 ---
+
+> ⚠ **Retired 2026-08-12 (`doc_status: deprecated`).** Per-PR review working note for PR #305 (agent-profile-implementation); the agent-profile system shipped as mission `045-agent-profile-system` (#136 / #1975). Content preserved as an audit-trail record.
+
 # Test Execution Report — PR #305 (feature/agent-profile-implementation)
 
 | Field | Value |

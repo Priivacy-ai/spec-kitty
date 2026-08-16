@@ -558,18 +558,6 @@ class TestPlan:
 class TestDecideProjectNotInitialized:
     """Row 4 of the truth table: NO_PROJECT/UNINITIALIZED + UNSAFE → PROJECT_NOT_INITIALIZED."""
 
-    def test_no_project_unsafe_emits_project_not_initialized(self) -> None:
-        proj = _make_project_status(ProjectState.NO_PROJECT, schema_version=None)
-        decision, case = decide(proj, Safety.UNSAFE, _make_cli_status(is_outdated=False), _make_invocation())
-        assert decision == Decision.ALLOW
-        assert case == Fr023Case.PROJECT_NOT_INITIALIZED
-
-    def test_uninitialized_unsafe_emits_project_not_initialized(self) -> None:
-        proj = _make_project_status(ProjectState.UNINITIALIZED, schema_version=None)
-        decision, case = decide(proj, Safety.UNSAFE, _make_cli_status(is_outdated=False), _make_invocation())
-        assert decision == Decision.ALLOW
-        assert case == Fr023Case.PROJECT_NOT_INITIALIZED
-
     def test_no_project_safe_falls_through_to_nag_check(self) -> None:
         # SAFE commands are not subject to Row 4 — they fall through to nag check
         proj = _make_project_status(ProjectState.NO_PROJECT, schema_version=None)

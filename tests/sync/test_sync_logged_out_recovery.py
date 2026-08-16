@@ -64,7 +64,19 @@ def _mock_unauth_sync_now(monkeypatch):
     sync attempt. We stub the preflight here so the recovery layer keeps
     being exercised by these tests; the preflight itself has dedicated
     test coverage in ``test_sync_boundary_preflight.py``.
+
+    WP12 retired the destructive ``service.sync_now()`` event drain; the
+    journal dispatcher (``_run_event_sync_dispatch``) is now the sole event
+    path. The "logged out with pending work" shape these tests exercise is
+    now: ``queue.size() > 0`` (pending-work signal) plus an empty
+    :class:`DispatchSummary` (nothing attempted), which
+    ``_enforce_sync_now_exit_from_dispatch`` routes through the
+    teamspace-aware recovery layer under test. The dispatcher and the
+    retained-work probe are stubbed so the real project store in this
+    checkout never leaks into the outcome (same seam as
+    ``tests/agent/cli/commands/test_sync.py::TestSyncNowExitCodes``).
     """
+    from specify_cli.delivery.dispatcher import DispatchSummary
     from specify_cli.sync import feature_flags as ff
     from specify_cli.sync.preflight import PreflightResult
 
@@ -87,20 +99,26 @@ def _mock_unauth_sync_now(monkeypatch):
         ),
     )
 
+    # Pending work exists (queue.size() == 1) but the dispatcher attempts
+    # nothing (empty summary, selected == 0): the exact "logged out, work
+    # pending" shape that must route through teamspace-aware recovery.
     fake_service = MagicMock()
     fake_service.queue.size.return_value = 1
-
-    fake_result = MagicMock(
-        total_events=0,
-        synced_count=0,
-        duplicate_count=0,
-        error_count=0,
-        failed_results=(),
-    )
-    fake_service.sync_now.return_value = fake_result
+    fake_service.drain_body_uploads_only.return_value = None
     monkeypatch.setattr(
         "specify_cli.sync.background.get_sync_service",
         lambda: fake_service,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.sync._run_event_sync_dispatch",
+        lambda: DispatchSummary.empty(),
+    )
+    # Keep the checkout's real project journal out of the outcome: retained
+    # work with selected == 0 short-circuits to a strict exit 1 before the
+    # recovery layer these tests assert on.
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.sync._event_sync_retained_work_present",
+        lambda: False,
     )
     return fake_service
 

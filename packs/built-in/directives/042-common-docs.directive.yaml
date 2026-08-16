@@ -24,9 +24,11 @@ procedures:
     of truth — the page-inventory rollup is a generated lockfile derived FROM
     frontmatter, never a parallel hand-maintained authority.
   - Use the namespaced frontmatter key `doc_status` (vocabulary
-    draft / active / deprecated / superseded) for the documentation *lifecycle*;
-    the bare key `status` is prohibited as a doc-lifecycle field because it
-    collides with the work-package lane status model. Architecture Decision
+    draft / active / deprecated / superseded / durable) for the documentation
+    *lifecycle*; `durable` is the reserved, never-retire value for domain
+    throughlines that are re-verified on domain change rather than aged out or
+    retired. The bare key `status` is prohibited as a doc-lifecycle field because
+    it collides with the work-package lane status model. Architecture Decision
     Records are the one sanctioned exception — ADR frontmatter uses `status` for
     the MADR *decision* status (Proposed / Accepted / Deprecated / Superseded),
     the established MADR convention.

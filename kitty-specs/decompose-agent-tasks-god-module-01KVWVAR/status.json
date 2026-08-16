@@ -24,6 +24,7 @@
       "lane": "done",
       "last_event_id": "01KVXA0GDTZBHREG3Z2CX3PETE",
       "last_transition_at": "2026-06-24T17:14:27.130199+00:00",
+      "review_result": null,
       "shell_pid": 2230095
     },
     "WP02": {
@@ -33,6 +34,7 @@
       "lane": "done",
       "last_event_id": "01KVXA0JGDSJ541QTRTKKSNTNM",
       "last_transition_at": "2026-06-24T17:14:29.261252+00:00",
+      "review_result": null,
       "shell_pid": 2273815
     },
     "WP03": {
@@ -42,6 +44,7 @@
       "lane": "done",
       "last_event_id": "01KVXA16083PSC0R5E7XPNZGYZ",
       "last_transition_at": "2026-06-24T17:14:49.224487+00:00",
+      "review_result": null,
       "shell_pid": 2346201
     },
     "WP04": {
@@ -51,6 +54,7 @@
       "lane": "done",
       "last_event_id": "01KVXA0NS1AJAYHPJ97ZP05243",
       "last_transition_at": "2026-06-24T17:14:32.609944+00:00",
+      "review_result": null,
       "shell_pid": 2384810
     },
     "WP05": {
@@ -60,6 +64,7 @@
       "lane": "done",
       "last_event_id": "01KVXA0QTR1AYH3YGNKTWDC6GK",
       "last_transition_at": "2026-06-24T17:14:34.712271+00:00",
+      "review_result": null,
       "shell_pid": 2433942
     },
     "WP06": {
@@ -69,6 +74,7 @@
       "lane": "done",
       "last_event_id": "01KVXA0SV5BJQS80DE61PNAN9H",
       "last_transition_at": "2026-06-24T17:14:36.773418+00:00",
+      "review_result": null,
       "shell_pid": 2503927
     },
     "WP07": {
@@ -78,6 +84,7 @@
       "lane": "done",
       "last_event_id": "01KVXA17QCX8ANJE8V66SVSERW",
       "last_transition_at": "2026-06-24T17:14:50.989012+00:00",
+      "review_result": null,
       "shell_pid": 2627222
     }
   }

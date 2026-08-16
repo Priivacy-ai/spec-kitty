@@ -32,6 +32,11 @@
         "Review passed (opus reviewer-renata): all acceptance + anti-patterns clean; 13 missions flipped; red-first genuine; dogfood lock 5/5."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (opus reviewer-renata): all acceptance + anti-patterns clean; 13 missions flipped; red-first genuine; dogfood lock 5/5.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 3966022,
       "shell_pid_created_at": "1784989016.78",
@@ -57,6 +62,11 @@
         "Review passed (opus reviewer-renata): FR-002/003/006 correct, red-first proven, :949 audit inert, guard leeway edit necessary-not-weakening, 236+24 tests green. Tracer file backfill noted as hygiene."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (opus reviewer-renata): FR-002/003/006 correct, red-first proven, :949 audit inert, guard leeway edit necessary-not-weakening, 236+24 tests green. Tracer file backfill noted as hygiene.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 3978865,
       "shell_pid_created_at": "1784989221.62",
@@ -85,6 +95,11 @@
         "Genuine port routing (resolve_placement_only/placement_seam) on all 3 writers; ambient refs demoted to degrade-path; kind_for_mission_file replaces hardcoded filename set. Red-first genuine (base lacks placement_seam/_classify + mission_slug param; decision_log assertion-red). Fail-open preserved on detached HEAD. Two WP09 cross-owned edits ruled minimal-necessary leeway (no concurrent overlap). Gates: 85 passed, ruff clean, mypy errors pre-existing."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Genuine port routing (resolve_placement_only/placement_seam) on all 3 writers; ambient refs demoted to degrade-path; kind_for_mission_file replaces hardcoded filename set. Red-first genuine (base lacks placement_seam/_classify + mission_slug param; decision_log assertion-red). Fail-open preserved on detached HEAD. Two WP09 cross-owned edits ruled minimal-necessary leeway (no concurrent overlap). Gates: 85 passed, ruff clean, mypy errors pre-existing.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 4158100,
       "shell_pid_created_at": "1784992663.78",
@@ -110,6 +125,11 @@
         "Review passed: #1716 emit HEAD-fallback genuinely closed (zero production _current_branch call sites in status_transition.py; except arm routes coord_branch else CWD-invariant get_feature_target_branch). Red-first genuine (drain-token + negative-probe tests exercise the real except arm, red if fix reverted). Already-fixed claim TRUE: claim/subtask dual-write retirement predates branch base (workflow_executor commit 85a909301 2026-07-23 vs base 2026-07-25, unmodified here); lock-in test asserts event-sourced path + byte-stable WP file. Cross-owned edits (WP05 drain flip LEFT->DRAINED, WP06 allow-list WS#1 shrink-only removal) are necessary+minimal, no gate weakening. mark-status raw-event nuance is a genuine out-of-scope deferred-followup (snapshot never regresses; WP04 untouched tasks_mark_status.py). Gates: 350 pytest passed, ruff clean, mypy 4 errors identical to base (pre-existing baseline noise)."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: #1716 emit HEAD-fallback genuinely closed (zero production _current_branch call sites in status_transition.py; except arm routes coord_branch else CWD-invariant get_feature_target_branch). Red-first genuine (drain-token + negative-probe tests exercise the real except arm, red if fix reverted). Already-fixed claim TRUE: claim/subtask dual-write retirement predates branch base (workflow_executor commit 85a909301 2026-07-23 vs base 2026-07-25, unmodified here); lock-in test asserts event-sourced path + byte-stable WP file. Cross-owned edits (WP05 drain flip LEFT->DRAINED, WP06 allow-list WS#1 shrink-only removal) are necessary+minimal, no gate weakening. mark-status raw-event nuance is a genuine out-of-scope deferred-followup (snapshot never regresses; WP04 untouched tasks_mark_status.py). Gates: 350 pytest passed, ruff clean, mypy 4 errors identical to base (pre-existing baseline noise).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 4108895,
       "shell_pid_created_at": "1784991742.54",
@@ -137,6 +157,11 @@
         "Premise independently verified: stale_detection.py + task_metadata_validation.py have ZERO commits base..HEAD; frontmatter.py has only the comment-only WP05 commit. Reader already consumes reduced snapshot (check_wp_staleness via _resolve_claim_liveness_inputs, C-001 snapshot-wins), task_metadata_validation has no liveness reader (shell_pid is inert audit-note only), no live frontmatter author of shell_pid/agent remains (dual-write _mt_dual_write_wp_file deleted upstream; claim writes 0 runtime bytes). Lock-in test drives real CLI claim; byte-identical WP-file assertion is load-bearing and would RED on any reintroduced dual-write. Gates: 21 passed; ruff clean; mypy clean on both changed files (lane_test_utils.py:82 error is pre-existing baseline, unchanged). Reported pre-existing repair_lane_mismatch parse_frontmatter/build_document padding bug confirmed pre-existing + out of C-002 scope; flagged for follow-up ticket."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Premise independently verified: stale_detection.py + task_metadata_validation.py have ZERO commits base..HEAD; frontmatter.py has only the comment-only WP05 commit. Reader already consumes reduced snapshot (check_wp_staleness via _resolve_claim_liveness_inputs, C-001 snapshot-wins), task_metadata_validation has no liveness reader (shell_pid is inert audit-note only), no live frontmatter author of shell_pid/agent remains (dual-write _mt_dual_write_wp_file deleted upstream; claim writes 0 runtime bytes). Lock-in test drives real CLI claim; byte-identical WP-file assertion is load-bearing and would RED on any reintroduced dual-write. Gates: 21 passed; ruff clean; mypy clean on both changed files (lane_test_utils.py:82 error is pre-existing baseline, unchanged). Reported pre-existing repair_lane_mismatch parse_frontmatter/build_document padding bug confirmed pre-existing + out of C-002 scope; flagged for follow-up ticket.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 4183886,
       "shell_pid_created_at": "1784993179.92",
@@ -163,6 +188,11 @@
         "Review passed: whole-tree scan_scope() walks all src/ minus per-file rationale-carrying BOUNDARY_SANCTIONED_MODULES + pinned prefixes; strictly broader than retired 17-module allowlist (kept only as _RETIRED_CHECKOUT_GRAMMAR_ALLOWLIST for T030 parity, not gating). Plant-a-violation T030 tests red on doc_state.py/acceptance (asserted outside old scope). def-vs-call (T027) scoped to direct enclosing fn; anti-false-negative test proves a differently-named fn in same file still reds. All 5 sanctioned/allow-list rationales verified TRUE against source (policy.py re-wraps caller ref for commit_guard; safe_commit_cmd only checkout-read gated to non-mission; runtime_bridge_io/decision_log/bookkeeping_commit are bootstrap-window degrades to caller-supplied refs). Traces=both-sides-divergent (lane-appended #2095), spec-kitty-traces driver pre-existed across 4 surfaces; guard pin replaced with fail-closed split asserting driver-registration per divergent dir. decisions.events.jsonl wired to spec-kitty-event-log across all 4 surfaces (registry/.gitattributes/init/migration); structurally identical to status.events.jsonl (event_id+at envelope = exactly merge_event_payloads requires); T013b superset lints green. Migration idempotent (per-line ensure_line + detect true if any driver line missing -> upgraded repos pick up new line). 56 gate tests pass, ruff clean, sole mypy error confirmed pre-existing baseline (line36 on base). 9 arch failures all file-path-disjoint from WP06 (trace to sibling WP02/WP04 test files). Out-of-owned-files leeway = minimal necessary 4 driver surfaces + guard; artifacts.py correctly untouched."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: whole-tree scan_scope() walks all src/ minus per-file rationale-carrying BOUNDARY_SANCTIONED_MODULES + pinned prefixes; strictly broader than retired 17-module allowlist (kept only as _RETIRED_CHECKOUT_GRAMMAR_ALLOWLIST for T030 parity, not gating). Plant-a-violation T030 tests red on doc_state.py/acceptance (asserted outside old scope). def-vs-call (T027) scoped to direct enclosing fn; anti-false-negative test proves a differently-named fn in same file still reds. All 5 sanctioned/allow-list rationales verified TRUE against source (policy.py re-wraps caller ref for commit_guard; safe_commit_cmd only checkout-read gated to non-mission; runtime_bridge_io/decision_log/bookkeeping_commit are bootstrap-window degrades to caller-supplied refs). Traces=both-sides-divergent (lane-appended #2095), spec-kitty-traces driver pre-existed across 4 surfaces; guard pin replaced with fail-closed split asserting driver-registration per divergent dir. decisions.events.jsonl wired to spec-kitty-event-log across all 4 surfaces (registry/.gitattributes/init/migration); structurally identical to status.events.jsonl (event_id+at envelope = exactly merge_event_payloads requires); T013b superset lints green. Migration idempotent (per-line ensure_line + detect true if any driver line missing -> upgraded repos pick up new line). 56 gate tests pass, ruff clean, sole mypy error confirmed pre-existing baseline (line36 on base). 9 arch failures all file-path-disjoint from WP06 (trace to sibling WP02/WP04 test files). Out-of-owned-files leeway = minimal necessary 4 driver surfaces + guard; artifacts.py correctly untouched.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 18770,
       "shell_pid_created_at": "1784994999.21",
@@ -191,6 +221,11 @@
         "Read-side enforcement real: read_dir now delegates to resolve_artifact_surface; DELETED coord branch fails loud via existing CoordinationBranchDeleted. #2906 guards folded (shared declared_read_surface predicate), not double-guarded. Degrade-vs-fail-loud distinction correct and tested both branches. Red-first genuine for the enforcement delta; T033 honest lock-in per WP02 CONFIRMED-INERT. traces/ read leg closed via documented leeway in generator.py. Gates green: 47 arch + 323 acceptance/mission_runtime; ruff+mypy clean. Cleanup commit removed only planning artifacts."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Read-side enforcement real: read_dir now delegates to resolve_artifact_surface; DELETED coord branch fails loud via existing CoordinationBranchDeleted. #2906 guards folded (shared declared_read_surface predicate), not double-guarded. Degrade-vs-fail-loud distinction correct and tested both branches. Red-first genuine for the enforcement delta; T033 honest lock-in per WP02 CONFIRMED-INERT. traces/ read leg closed via documented leeway in generator.py. Gates green: 47 arch + 323 acceptance/mission_runtime; ruff+mypy clean. Cleanup commit removed only planning artifacts.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 135379,
       "shell_pid_created_at": "1784999332.09",
@@ -219,6 +254,11 @@
         "Review passed: agent mission repair (Gap-2). Registered+reachable on live mission app (repair in registered_commands, --help exits 0, --mission primary, no --feature). Forward-only+fail-loud: divergent->Exit(1)+mission-scoped diff+zero mutation; TOCTOU _is_ff_candidate re-check before ff-only merge; dirty/missing worktree refuses. Reuses _is_ff_candidate/_fast_forward_finding/_coord_vs_target_shas verbatim (no fork); bidirectional FF is correct (either partition may be stale). Red-first genuine (real-git fixtures, only locate_project_root patched). Gates: 69 tests pass, ruff+mypy clean; mypy re-narrow idiom matches sibling mission_feature_resolution.py (not a suppression). C-002/C-003: _coordination_doctor.py unchanged. repair_repo distinctness adjudicated in module docstring (tracer handoff to orchestrator per commit d239385e8 - write-placement guard blocked lane commit; hygiene not blocker)."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: agent mission repair (Gap-2). Registered+reachable on live mission app (repair in registered_commands, --help exits 0, --mission primary, no --feature). Forward-only+fail-loud: divergent->Exit(1)+mission-scoped diff+zero mutation; TOCTOU _is_ff_candidate re-check before ff-only merge; dirty/missing worktree refuses. Reuses _is_ff_candidate/_fast_forward_finding/_coord_vs_target_shas verbatim (no fork); bidirectional FF is correct (either partition may be stale). Red-first genuine (real-git fixtures, only locate_project_root patched). Gates: 69 tests pass, ruff+mypy clean; mypy re-narrow idiom matches sibling mission_feature_resolution.py (not a suppression). C-002/C-003: _coordination_doctor.py unchanged. repair_repo distinctness adjudicated in module docstring (tracer handoff to orchestrator per commit d239385e8 - write-placement guard blocked lane commit; hygiene not blocker).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 4063943,
       "shell_pid_created_at": "1784991000.39",
@@ -245,6 +285,11 @@
         "IC-08 crux approved. Timing deviation (pre->post-target) SOUND: canonicalize_feature_dir->resolve_canonical_root (paths.py:432-446) empirically DOES redirect a worktree .git back to main-repo root, so a pre-target _flip_phase would write stale main-repo meta.json; post-target flip on target_feature_dir writes the fresh file. Resume-heal genuinely closes the merged-but-unstamped window: phase driver re-runs _run_birth_cutover unconditionally, cutover_mission idempotent (deterministic-id seed skip + status_phase-written-last flip). IC-09 predicate keys on independent evidence: eligibility unconditional (only planning_artifact_only skips), seed on event-log deterministic ids, NOT has_evictable_state/status_phase; born-mission real-entry anchor reds without wiring (green-wash-proof). verify_backfill parity preserved (phantom direction still fail-closed). _phase_commit_and_assert filter LEGIT: birth_cutover_meta_path only added when flipped=>exists=>never dropped; #2804 guard unmodified+green. C-004 sole-writer extended not forked. Red-first 5/8 confirmed; 856 merge/migration/WP06-gate pass; ruff clean; mypy 2 pre-existing (identical on parent)."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "IC-08 crux approved. Timing deviation (pre->post-target) SOUND: canonicalize_feature_dir->resolve_canonical_root (paths.py:432-446) empirically DOES redirect a worktree .git back to main-repo root, so a pre-target _flip_phase would write stale main-repo meta.json; post-target flip on target_feature_dir writes the fresh file. Resume-heal genuinely closes the merged-but-unstamped window: phase driver re-runs _run_birth_cutover unconditionally, cutover_mission idempotent (deterministic-id seed skip + status_phase-written-last flip). IC-09 predicate keys on independent evidence: eligibility unconditional (only planning_artifact_only skips), seed on event-log deterministic ids, NOT has_evictable_state/status_phase; born-mission real-entry anchor reds without wiring (green-wash-proof). verify_backfill parity preserved (phantom direction still fail-closed). _phase_commit_and_assert filter LEGIT: birth_cutover_meta_path only added when flipped=>exists=>never dropped; #2804 guard unmodified+green. C-004 sole-writer extended not forked. Red-first 5/8 confirmed; 856 merge/migration/WP06-gate pass; ruff clean; mypy 2 pre-existing (identical on parent).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 218865,
       "shell_pid_created_at": "1785001421.97",
@@ -272,6 +317,11 @@
         "Re-keyed test_dogfood_corpus_backfilled.py off event-log evidence (annotation or non-empty policy_metadata), never has_evictable_state()/status_phase. Added test_backfill_migration_coexistence.py proving legacy migration + WP09 birth-cutover coexist idempotently in both orders. Anti-vacuity fixture proves the retired predicate misses a drifted un-birth-stamped mission while the re-key reds on it. Full migration suite (197 tests) green; ruff+mypy clean on both owned files. No production code touched."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED: re-keyed acceptance lock is genuinely non-vacuous. Predicate keys on independent status.events.jsonl evidence (InnerStateChanged annotations OR non-empty policy_metadata claims), never has_evictable_state() nor status_phase; bootstrap genesis->planned anchor exclusion proven empirically over the ~285-mission corpus. Anti-vacuity test T049 truly reds on a born-un-reconciled mission (forbidden predicate confirmed blind via real read_legacy_runtime; new predicate sees it; 'not cut over' assertion fires). Birth invariant complete (phase>=1 + non-empty snapshot + verify_backfill parity). 5 migration-coexistence tests on the shared cutover_mission spine with production-shaped fixtures. Test-only scope (commit 22d22008d, 2 owned files, no production edits). Gates: 11 passed, ruff+mypy clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 246649,
       "shell_pid_created_at": "1785003347.04",

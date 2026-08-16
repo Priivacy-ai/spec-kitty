@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "b145c998f7ba764a96d0ff641585c23c02fa13ae",
-  "coordination_branch": "kitty/mission-sync-strict-json-auth-01KWA6KN",
   "created_at": "2026-06-29T17:25:08.320110+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Fix sync strict-JSON ingress-skip auth",
   "mission_id": "01KWA6KNJZSYQ764MC086QPFS1",
   "mission_number": 153,
@@ -14,5 +13,5 @@
   "slug": "sync-strict-json-auth-01KWA6KN",
   "status_phase": "1",
   "target_branch": "fix/sync-strict-json-auth",
-  "topology": "coord"
+  "topology": "lanes"
 }

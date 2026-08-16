@@ -55,7 +55,7 @@ class TestMissionOriginBoundValidPayload:
 
 
 class TestMissionOriginBoundMissingFields:
-    """Missing required fields are rejected."""
+    """Missing fields reject transport after the pre-validation audit capture."""
 
     def test_missing_provider_rejected(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Omitting provider causes validation failure (returns None)."""
@@ -75,7 +75,7 @@ class TestMissionOriginBoundMissingFields:
             payload=payload,
         )
         assert event is None
-        assert temp_queue.size() == 0
+        assert temp_queue.size() == 1
 
     def test_missing_title_rejected(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Omitting title causes validation failure."""
@@ -94,6 +94,7 @@ class TestMissionOriginBoundMissingFields:
             payload=payload,
         )
         assert event is None
+        assert temp_queue.size() == 1
 
     def test_missing_external_issue_id_rejected(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Omitting external_issue_id causes validation failure."""
@@ -112,10 +113,11 @@ class TestMissionOriginBoundMissingFields:
             payload=payload,
         )
         assert event is None
+        assert temp_queue.size() == 1
 
 
 class TestMissionOriginBoundInvalidValues:
-    """Invalid field values are rejected by validators."""
+    """Invalid values are captured locally but rejected by validators."""
 
     def test_invalid_mission_slug_rejected(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         r"""mission_slug not matching ^\d{3}-[a-z0-9-]+$ is rejected."""
@@ -128,7 +130,7 @@ class TestMissionOriginBoundInvalidValues:
             title="Test",
         )
         assert event is None
-        assert temp_queue.size() == 0
+        assert temp_queue.size() == 1
 
     def test_invalid_provider_rejected(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Provider 'github' is not in the allowed set {jira, linear}."""
@@ -141,10 +143,10 @@ class TestMissionOriginBoundInvalidValues:
             title="Test",
         )
         assert event is None
-        assert temp_queue.size() == 0
+        assert temp_queue.size() == 1
 
     def test_empty_title_rejected(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        """Empty string title fails len(v) >= 1 validator."""
+        """Typed payload construction rejects empty title before durable capture."""
         event = emitter.emit_mission_origin_bound(
             mission_slug="061-ticket-first-mission-origin-binding",
             provider="jira",
@@ -157,7 +159,7 @@ class TestMissionOriginBoundInvalidValues:
         assert temp_queue.size() == 0
 
     def test_empty_external_issue_key_rejected(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        """Empty external_issue_key is rejected."""
+        """Typed payload construction rejects an empty key before durable capture."""
         event = emitter.emit_mission_origin_bound(
             mission_slug="061-ticket-first-mission-origin-binding",
             provider="jira",
@@ -244,9 +246,7 @@ class TestMissionOriginBoundEventRouting:
         assert event is not None
         assert event["causation_id"] is None
 
-    def test_emission_is_fire_and_forget(
-        self, temp_queue: OfflineQueue, mock_auth
-    ):
+    def test_emission_is_fire_and_forget(self, temp_queue: OfflineQueue, mock_auth):
         """Even with a broken clock, emit never raises -- returns None."""
         del mock_auth  # side-effect-only (installs fake TokenManager)
         from unittest.mock import MagicMock

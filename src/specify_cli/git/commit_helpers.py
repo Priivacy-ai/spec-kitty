@@ -82,6 +82,11 @@ from kernel.paths import to_posix
 from specify_cli.core.commit_guard import GuardCapability, GuardVerdict, ProtectionState
 from kernel.clock import now_utc_iso
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
+from kernel.git_topology import (
+    GitTopologyError,
+    git_common_dir,
+    git_toplevel,
+)
 from specify_cli.git.protection_policy import ProtectionPolicy
 
 logger = logging.getLogger(__name__)
@@ -609,29 +614,47 @@ def _read_worktree_head(worktree_root: Path) -> str | None:
 def _is_worktree_of(repo_root: Path, worktree_root: Path) -> bool:
     """Return ``True`` iff ``worktree_root`` is a worktree of ``repo_root``.
 
-    Uses ``git -C <worktree_root> rev-parse --show-toplevel`` to confirm
-    ``worktree_root`` is inside *some* git working tree, then compares the
-    common dir of ``worktree_root`` and ``repo_root`` — if they share a common
-    ``.git`` repository, they are linked. A failing rev-parse means
-    ``worktree_root`` is not a git worktree at all.
+    Uses the unified :func:`~kernel.git_topology.git_toplevel` primitive
+    to confirm ``worktree_root`` is the toplevel of *some* git working tree, then
+    compares the common dir of ``worktree_root`` and ``repo_root`` — if they share
+    a common ``.git`` repository, they are linked. A failing probe (the primitive
+    raising :class:`GitTopologyError`) means ``worktree_root`` is not a git
+    worktree at all (mission write-path-integrity-01KZZD69 WP01, #3373).
     """
-    toplevel = _run_git_text(worktree_root, ["rev-parse", "--show-toplevel"])
-    if toplevel is None:
+    try:
+        toplevel = git_toplevel(worktree_root)
+    except GitTopologyError:
+        return False
+    resolved_worktree_root = worktree_root.resolve()
+    # Toplevel guard (NESTED-preserving — do NOT delete, #3373 T005): a checkout
+    # whose git toplevel is not itself is nested inside another working tree.
+    # Folding it to "not a worktree" here is what keeps the ownership
+    # comparator's NESTED refusal reachable — deleting this as "redundant with
+    # the common-dir compare below" silently regresses NESTED (a nested checkout
+    # shares its parent's common dir, so the compare alone would call it linked).
+    if toplevel != resolved_worktree_root:
         return False
     # If worktree_root and repo_root resolve to the same directory, they are
     # trivially "the same" worktree.
-    if Path(toplevel).resolve() == repo_root.resolve() == worktree_root.resolve():
+    if resolved_worktree_root == repo_root.resolve():
         return True
-    # Otherwise, they must share the same common git dir.
-    wt_common = _run_git_text(worktree_root, ["rev-parse", "--git-common-dir"])
-    repo_common = _run_git_text(repo_root, ["rev-parse", "--git-common-dir"])
-    if wt_common is None or repo_common is None:
+    # Otherwise, they must share the same (canonicalized) common git dir.
+    try:
+        wt_common = git_common_dir(worktree_root)
+        repo_common = git_common_dir(repo_root)
+    except GitTopologyError:
         return False
-    # rev-parse --git-common-dir may return relative paths; resolve them
-    # against the respective working dirs.
-    wt_common_path = (worktree_root / wt_common).resolve()
-    repo_common_path = (repo_root / repo_common).resolve()
-    return wt_common_path == repo_common_path
+    return wt_common == repo_common
+
+
+def is_worktree_of(repo_root: Path, worktree_root: Path) -> bool:
+    """Return whether ``worktree_root`` belongs to ``repo_root``'s repository.
+
+    This public wrapper preserves the fail-closed comparator used internally by
+    :func:`safe_commit` while allowing preflight validation to reuse the same
+    git-topology authority.
+    """
+    return _is_worktree_of(repo_root, worktree_root)
 
 
 def _destination_ref_exists(worktree_root: Path, destination_ref: str) -> bool:
@@ -1226,10 +1249,14 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
             from specify_cli.sync.local_commit import emit_local_commit  # noqa: PLC0415
 
             emit_local_commit(
-                repo_root=repo_root,
+                # LocalCommit is checkout-local runtime state.  A commit made
+                # in a caller-owned linked checkout must not materialize its
+                # queue under the coordination/primary repository; doing so
+                # mutates the caller's supposedly read-only primary snapshot.
+                repo_root=worktree_root,
                 git_hash=new_sha,
                 mission_id=_derive_mission_id(mission_specs_files),
-                build_id=_get_current_build_id(repo_root),
+                build_id=_get_current_build_id(worktree_root),
                 changed_files=mission_specs_files,
                 committed_at=now_utc_iso(),
             )

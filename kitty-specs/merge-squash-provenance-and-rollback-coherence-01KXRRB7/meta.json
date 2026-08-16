@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "4e08eb630e726073b123d786748b02b8cfdb8030",
-  "coordination_branch": "kitty/mission-merge-squash-provenance-and-rollback-coherence-01KXRRB7",
   "created_at": "2026-07-17T19:20:09.545467+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "merge squash provenance and rollback coherence",
   "mission_id": "01KXRRB728GV0KHE04NJBYEV2S",
   "mission_number": 184,
@@ -13,7 +12,7 @@
   "slug": "merge-squash-provenance-and-rollback-coherence-01KXRRB7",
   "status_phase": "1",
   "target_branch": "fix/red-handling-policy-and-drg-regression-marks",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-17T21:18:39.998348+00:00"
 }

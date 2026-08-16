@@ -2,7 +2,7 @@
 title: Spec Kitty slash commands reference — CLI quick reference
 description: Quick reference guide for Spec Kitty slash commands. Learn how to invoke specify, plan, tasks, implement, review, accept, and merge within AI coding agents.
 doc_status: active
-updated: '2026-06-09'
+updated: '2026-08-15'
 ---
 # Slash Command Reference
 
@@ -34,6 +34,14 @@ Syntax format in this reference:
 - `kitty-specs/<feature>/spec.md`
 - `kitty-specs/<feature>/meta.json`
 - `kitty-specs/<feature>/checklists/requirements.md`
+
+**Optional handoff-packet intake**: if `spec-kitty intake` staged a brief
+whose YAML frontmatter declares `handoff_packet: 1` (an upstream requirements
+tool's export), `/spec-kitty.specify` adopts that packet's FR/AC ids verbatim
+instead of re-minting them — the discovery interview above still runs. A
+packet-less brief, an unrecognised version, or malformed frontmatter all
+degrade to today's plain-prose intake; the command never fails because the
+overlay is absent or invalid. See [Handoff Packet v1](../contracts/handoff-packet-v1.md).
 
 **Related**: `/spec-kitty.plan`, `/spec-kitty.charter`
 

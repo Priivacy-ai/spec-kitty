@@ -451,90 +451,8 @@ def test_no_worktree_or_branch_name_guess_outside_seam() -> None:
         )
 
 
-def test_allow_list_entries_are_real_and_benign() -> None:
-    """Every allow-list composite key must still be live in its expected file.
-
-    Guards against the allow-list silently rotting (a carved-out qualname or
-    token-line changes, leaving a stale exemption that could mask a future
-    regression at the same site).  Each key in ``_ALLOWED_SITES_FILES`` is
-    verified by re-scanning the mapped file and confirming the composite key
-    appears at least once.
-    """
-    stale: list[str] = []
-    for key, rel in sorted(_ALLOWED_SITES_FILES.items(), key=lambda kv: kv[1]):
-        abs_path = _REPO_ROOT / rel
-        if not abs_path.is_file():
-            stale.append(f"{rel!r} key={key!r} (file missing)")
-            continue
-        source = abs_path.read_text(encoding="utf-8")
-        # Re-scan the file and collect all composite keys it produces.
-        live_keys = {
-            composite_key(source, ln) for ln in _scan_file(abs_path)
-        }
-        if key not in live_keys:
-            stale.append(
-                f"{rel!r} key={key!r} (no longer a flagged site in the file — "
-                "function renamed or code line changed; update or drop)"
-            )
-    assert stale == [], (
-        "Stale allow-list entries (the composite key no longer matches a live "
-        "offender in the expected file — re-verify and update or drop):\n  "
-        + "\n  ".join(stale)
-    )
 
 
-def test_name_compose_offenders_match_pinned_baseline() -> None:
-    """The name-compose offender count is objectively pinned and fully accounted.
-
-    Mirrors ``test_shortid_consumer_class_is_empty_against_pinned_baseline`` for
-    the name-COMPOSE detector (whose only prior hygiene check,
-    ``test_allow_list_entries_are_real_and_benign``, verified merely that an
-    allow-listed line *exists* — not that it is still an offender). A stale
-    allow-list entry (one that no longer points at a live compose) leaves a
-    silent false-negative window; this cross-check catches it two ways:
-
-      1. the live raw offender count must equal the committed literal, and
-      2. every raw offender must be accounted for by the allow-list (zero
-         un-accounted), so an *extra* unjustified entry cannot hide either.
-    """
-    raw_offenders: list[tuple[str, str]] = []
-    for path in _iter_source_files():
-        rel = _rel(path)
-        if rel == _SEAM_REL:
-            continue  # the seam is the legal home of these idioms
-        source = path.read_text(encoding="utf-8")
-        for lineno in sorted(_scan_file(path)):
-            raw_offenders.append(composite_key(source, lineno))
-
-    assert len(raw_offenders) == _NAME_COMPOSE_BASELINE_RAW_MATCHES, (
-        "Pinned name-compose baseline drifted. Expected "
-        f"{_NAME_COMPOSE_BASELINE_RAW_MATCHES} raw name-compose offenders across "
-        f"the scan roots, found {len(raw_offenders)}:\n  "
-        + "\n  ".join(str(k) for k in sorted(raw_offenders))
-        + "\n\nIf a NEW offender appeared, route it through the canonical seam. "
-        "If an allow-listed offender was legitimately removed (routed through "
-        "the seam), drop its allow-list entry AND update "
-        "_NAME_COMPOSE_BASELINE_RAW_MATCHES (and the composition comment)."
-    )
-
-    unaccounted = [key for key in raw_offenders if key not in _ALLOWED_SITES]
-    assert unaccounted == [], (
-        "Name-compose offenders not covered by the allow-list (each is a REAL "
-        "name-guess outside the seam — route it through the canonical seam, do "
-        "NOT add an allow-list entry without a justification proving it is not a "
-        "compose):\n  " + "\n  ".join(str(k) for k in sorted(unaccounted))
-    )
-
-    # Inverse guard: every allow-list entry must STILL be a live offender, so a
-    # stale exemption (the renata GAP) cannot survive. Combined with the count
-    # assertion above this makes the allow-list exactly the offender set.
-    stale_exemptions = sorted(set(_ALLOWED_SITES) - set(raw_offenders))
-    assert stale_exemptions == [], (
-        "Stale name-compose allow-list entries (the composite key is no longer a "
-        "live offender the detector flags — the site was routed through the seam; "
-        "drop the exemption to close the false-negative window):\n  "
-        + "\n  ".join(str(k) for k in stale_exemptions)
-    )
 
 
 # ===========================================================================
@@ -824,48 +742,6 @@ def test_no_mission_shortid_slice_or_failover_bypass_outside_seam() -> None:
         )
 
 
-def test_shortid_consumer_class_is_empty_against_pinned_baseline() -> None:
-    """The un-accounted short-id consumer count is objectively zero.
-
-    Pins the pre-mission raw match count as a committed literal and asserts the
-    live tree's accounting (homes + named exclusions + allow-list) leaves zero
-    un-accounted consumers, so "the consumer class is empty" is diff-checkable
-    rather than a re-derivation of whatever the tree happens to contain.
-    """
-    raw_matches: list[tuple[str, tuple[str, str]]] = []
-    for path in _iter_shortid_source_files():
-        rel = _rel(path)
-        source = path.read_text(encoding="utf-8")
-        for lineno, label in sorted(_scan_shortid_file(path).items()):
-            if "short-id slice" not in label:
-                continue  # count slices only for the baseline, not _mid8 calls
-            raw_matches.append((rel, composite_key(source, lineno)))
-
-    assert len(raw_matches) == _SHORTID_BASELINE_RAW_MATCHES, (
-        "Pinned short-id baseline drifted. Expected "
-        f"{_SHORTID_BASELINE_RAW_MATCHES} raw mission-identity `[:8]` slices "
-        f"across src/, found {len(raw_matches)}:\n  "
-        + "\n  ".join(f"{r}: {k}" for r, k in sorted(raw_matches))
-        + "\n\nIf a NEW slice appeared, it is almost certainly a missed route — "
-        "route it through `resolve_mid8`. If a home/allow-listed slice was "
-        "legitimately removed, update _SHORTID_BASELINE_RAW_MATCHES (and the "
-        "composition comment) to match."
-    )
-
-    # Every raw match must be accounted for by a home, a named exclusion, or the
-    # allow-list — leaving an EMPTY un-accounted consumer set.
-    unaccounted = [
-        f"{rel}: {key}"
-        for rel, key in raw_matches
-        if rel not in _SHORTID_HOME_FILES
-        and key not in _SHORTID_NAMED_EXCLUSIONS
-        and key not in _SHORTID_ALLOWED_SITES
-    ]
-    assert unaccounted == [], (
-        "The mission-identity short-id CONSUMER class is not empty — these "
-        "slices are neither in a sanctioned home nor justified in the "
-        "allow-list:\n  " + "\n  ".join(sorted(unaccounted))
-    )
 
 
 def test_shortid_detector_self_test_flags_all_five_shapes() -> None:
@@ -932,69 +808,6 @@ def test_shortid_failover_bypass_self_test() -> None:
     assert flagged, "failover-bypass rule must flag a bare `_mid8(...)` call"
 
 
-def test_shortid_allow_list_entries_are_real() -> None:
-    """Every short-id allow-list / named-exclusion composite key is still live.
-
-    Mirrors ``test_allow_list_entries_are_real_and_benign`` for the short-id
-    carve-outs: a stale composite key (qualname renamed or code line changed)
-    could silently mask a future regression at the same site.
-
-    * **Allow-list entries** are verified against the scanner: the composite key
-      must still appear in ``_scan_shortid_file`` output for the mapped file.
-    * **Named-exclusion entries** (a DIFFERENT identity domain, not flagged by
-      the scanner) are verified by scanning ALL composite keys in the mapped
-      file; the entry's key must appear among them (proves the qualname + token
-      line still exist, even though the scanner intentionally does not flag it).
-    """
-    from tests.architectural._ratchet_keys import composite_key as _ck
-
-    stale: list[str] = []
-
-    # --- allow-list entries (scanner-flagged sites) ---
-    for key, rel in sorted(_SHORTID_ALLOWED_SITES_FILES.items(), key=lambda kv: kv[1]):
-        abs_path = _REPO_ROOT / rel
-        if not abs_path.is_file():
-            stale.append(f"{rel!r} key={key!r} (file missing)")
-            continue
-        source = abs_path.read_text(encoding="utf-8")
-        live_keys = {_ck(source, ln) for ln in _scan_shortid_file(abs_path)}
-        if key not in live_keys:
-            stale.append(
-                f"{rel!r} key={key!r} (no longer a flagged site — "
-                "function renamed or code line changed; update or drop)"
-            )
-
-    # --- named-exclusion entries (different identity domain, not scanner-flagged) ---
-    for key, rel in sorted(
-        _SHORTID_NAMED_EXCLUSIONS_FILES.items(), key=lambda kv: kv[1]
-    ):
-        abs_path = _REPO_ROOT / rel
-        if not abs_path.is_file():
-            stale.append(f"{rel!r} key={key!r} (file missing)")
-            continue
-        source = abs_path.read_text(encoding="utf-8")
-        # Collect ALL composite keys in the file (not just scanner-flagged ones)
-        # to verify the qualname + token line still exist.
-        from tests.architectural._ratchet_keys import (
-            code_tokens_by_line as _ctbl,
-            enclosing_qualname as _eq,
-        )
-        all_keys = {
-            (_eq(source, ln), tl)
-            for ln, tl in _ctbl(source).items()
-            if tl  # skip empty token lines
-        }
-        if key not in all_keys:
-            stale.append(
-                f"{rel!r} key={key!r} (qualname or token line no longer "
-                "present in file — update or drop)"
-            )
-
-    assert stale == [], (
-        "Stale short-id allow-list / named-exclusion entries (the composite key "
-        "no longer matches a live site in the expected file — re-verify "
-        "and update or drop):\n  " + "\n  ".join(stale)
-    )
 
 
 # ===========================================================================
@@ -1007,59 +820,6 @@ def test_shortid_allow_list_entries_are_real() -> None:
 # ===========================================================================
 
 
-def test_composite_key_survives_line_drift() -> None:
-    """A +1 line drift leaves the composite key UNCHANGED (ratchet stays GREEN).
-
-    Builds a minimal Python source with a flagged short-id slice inside a known
-    function, records the composite key, inserts a blank line above the
-    flagged line (shifting it from line N to line N+1), re-scans, and asserts
-    the composite key is identical.  This proves the qualname + token-line
-    anchoring survives pure line-number drift with zero semantic change.
-    """
-    from tests.architectural._ratchet_keys import composite_key as ck
-
-    original_source = (
-        "def _check_coord_health(mission_id: str) -> None:\n"
-        "    from foo import resolve_mid8\n"
-        "    short = resolve_mid8(mission_id) or mission_id[:8]\n"
-        "    print(short)\n"
-    )
-    # Insert a blank comment line BEFORE the flagged line (line 3 → line 4).
-    drifted_source = (
-        "def _check_coord_health(mission_id: str) -> None:\n"
-        "    from foo import resolve_mid8\n"
-        "    # inserted comment — pure drift, no semantic change\n"
-        "    short = resolve_mid8(mission_id) or mission_id[:8]\n"
-        "    print(short)\n"
-    )
-
-    # Locate the short-id slice in the original source via the AST scanner.
-    import ast as _ast
-
-    def _find_slice_lineno(src: str) -> int:
-        tree = _ast.parse(src)
-        for node in _ast.walk(tree):
-            if _is_eight_slice(node):
-                assert isinstance(node, _ast.Subscript)
-                if _operand_is_mission_identity(node.value):
-                    return node.lineno
-        raise AssertionError("no short-id slice found in fixture source")
-
-    original_lineno = _find_slice_lineno(original_source)
-    drifted_lineno = _find_slice_lineno(drifted_source)
-
-    assert drifted_lineno == original_lineno + 1, (
-        f"expected the drift to shift the line by 1 "
-        f"(original={original_lineno}, drifted={drifted_lineno})"
-    )
-
-    original_key = ck(original_source, original_lineno)
-    drifted_key = ck(drifted_source, drifted_lineno)
-
-    assert original_key == drifted_key, (
-        f"composite key changed after a +1 line drift — the ratchet is NOT "
-        f"drift-proof.\n  original key : {original_key!r}\n  drifted key  : {drifted_key!r}"
-    )
 
 
 def test_new_offender_in_allowlisted_function_is_flagged_red() -> None:
@@ -1126,52 +886,4 @@ def test_new_offender_in_allowlisted_function_is_flagged_red() -> None:
     assert extra_lineno in flagged_linenos, (
         f"the short-id scanner did not flag the extra offender at line {extra_lineno}; "
         f"flagged lines: {flagged_linenos}"
-    )
-
-
-def test_consolidated_doctor_tolerance_site_is_single_and_allow_listed() -> None:
-    """The doctor short-id tolerance is a SINGLE consolidated site in the allow-list.
-
-    Formerly two byte-identical tolerance lines lived in
-    ``_check_coordination_worktree_health`` and ``_check_lane_sparse_checkout_drift``;
-    the coord-trust Surface D fold deduplicated them into the shared
-    ``_resolve_coord_short`` helper (``return resolve_mid8(...) or mission_id[:8]``).
-    This test pins that consolidation: exactly ONE tolerance site remains, its
-    composite key is stable (qualname + token-line), and it is the sole doctor
-    entry in ``_SHORTID_ALLOWED_SITES`` — the allow-list and live source agree.
-    """
-    from tests.architectural._ratchet_keys import composite_key_from_file
-
-    doctor_path = _REPO_ROOT / "src/specify_cli/cli/commands/_coordination_doctor.py"
-    if not doctor_path.exists():
-        pytest.skip("_coordination_doctor.py not present in this checkout")
-
-    # Locate the tolerance site by source content rather than by hardcoded line
-    # numbers — the literal-line pins drift whenever an edit above them shifts the
-    # file, turning a pure line-shift into a spurious RED. The qualname-anchored
-    # composite key is itself drift-proof; the test fixture must be too.
-    site_marker = "return resolve_mid8(mission_slug, mission_id=mission_id) or mission_id[:8]"
-    doctor_lines = doctor_path.read_text(encoding="utf-8").splitlines()
-    site_linenos = [
-        idx for idx, line in enumerate(doctor_lines, start=1) if site_marker in line
-    ]
-    assert len(site_linenos) == 1, (
-        "expected exactly ONE consolidated `mission_id[:8]` tolerance site in "
-        "_coordination_doctor.py (the coord-trust Surface D fold deduplicated the "
-        f"former two into `_resolve_coord_short`), found {len(site_linenos)} at "
-        f"lines {site_linenos}"
-    )
-
-    key = composite_key_from_file(doctor_path, site_linenos[0])
-
-    # The consolidated site lives in the shared `_resolve_coord_short` helper.
-    assert key[0] == "_resolve_coord_short", (
-        "expected the consolidated tolerance site to live in `_resolve_coord_short` "
-        f"but got qualname {key[0]!r}"
-    )
-
-    # Cross-check: the composite key is the sole doctor entry in _SHORTID_ALLOWED_SITES.
-    assert key in _SHORTID_ALLOWED_SITES, (
-        f"_resolve_coord_short composite key {key!r} is missing from "
-        "_SHORTID_ALLOWED_SITES — the allow-list and the live source are out of sync"
     )

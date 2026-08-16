@@ -702,6 +702,56 @@ def _sweep_one_with_path(record: DaemonIdentityRecord) -> tuple[bool, str, str |
     return False, cleanup_path, "process_gone_but_port_still_listening"
 
 
+def _classify_reset_action(
+    record: DaemonIdentityRecord, *, include_operator_required: bool
+) -> str:
+    """Classify a record into a ``reset_orphans`` loop action.
+
+    Pure decision/partition helper extracted from ``reset_orphans`` to keep
+    its complexity within budget (Sonar S3776 / ruff C901); touches no
+    process state and sends no signals. Returns one of
+    ``"skip_never_touch"``, ``"skip_operator_required"``, or ``"sweep"``.
+    """
+    is_safe_auto = record.cleanup_class == CleanupClass.SAFE_AUTO
+    is_operator_required = record.cleanup_class == CleanupClass.OPERATOR_REQUIRED
+
+    if not is_safe_auto and not is_operator_required:
+        # never_touch — callers should not pass these, but skip gracefully.
+        return "skip_never_touch"
+
+    if is_operator_required and not include_operator_required:
+        return "skip_operator_required"
+
+    return "sweep"
+
+
+def _skipped_entry(record: DaemonIdentityRecord) -> SkippedEntry:
+    """Build the ``SkippedEntry`` for an operator-required record."""
+    return SkippedEntry(
+        pid=record.pid,
+        port=record.port,
+        cleanup_class=record.cleanup_class.value,
+        skip_reason=record.skip_reason.value if record.skip_reason is not None else None,
+    )
+
+
+def _swept_entry(record: DaemonIdentityRecord, cleanup_path: str) -> SweptEntry:
+    """Build the ``SweptEntry`` for a successfully-swept record."""
+    reason_str = (
+        f"{record.cleanup_class.value} stale-version"
+        if record.package_version is not None
+        else record.cleanup_class.value
+    )
+    return SweptEntry(
+        pid=record.pid,
+        port=record.port,
+        package_version=record.package_version,
+        protocol_version=record.protocol_version,
+        cleanup_path=cleanup_path,
+        reason=reason_str,
+    )
+
+
 def reset_orphans(
     records: list[DaemonIdentityRecord],
     *,
@@ -728,12 +778,11 @@ def reset_orphans(
     failed: list[FailedEntry] = []
 
     for record in records:
-        # Determine actionability.
-        is_safe_auto = record.cleanup_class == CleanupClass.SAFE_AUTO
-        is_operator_required = record.cleanup_class == CleanupClass.OPERATOR_REQUIRED
+        action = _classify_reset_action(
+            record, include_operator_required=include_operator_required
+        )
 
-        if not is_safe_auto and not is_operator_required:
-            # never_touch — callers should not pass these, but skip gracefully.
+        if action == "skip_never_touch":
             logger.warning(
                 "reset_orphans: skipping never_touch record on port %d "
                 "(skip_reason=%s)",
@@ -742,15 +791,8 @@ def reset_orphans(
             )
             continue
 
-        if is_operator_required and not include_operator_required:
-            skipped.append(
-                SkippedEntry(
-                    pid=record.pid,
-                    port=record.port,
-                    cleanup_class=record.cleanup_class.value,
-                    skip_reason=record.skip_reason.value if record.skip_reason is not None else None,
-                )
-            )
+        if action == "skip_operator_required":
+            skipped.append(_skipped_entry(record))
             continue
 
         # Hard guard before any signal (NFR-001, C-002, C-004).
@@ -758,21 +800,7 @@ def reset_orphans(
 
         ok, cleanup_path, failure_reason = _sweep_one_with_path(record)
         if ok:
-            reason_str = (
-                f"{record.cleanup_class.value} stale-version"
-                if record.package_version is not None
-                else record.cleanup_class.value
-            )
-            swept.append(
-                SweptEntry(
-                    pid=record.pid,
-                    port=record.port,
-                    package_version=record.package_version,
-                    protocol_version=record.protocol_version,
-                    cleanup_path=cleanup_path,
-                    reason=reason_str,
-                )
-            )
+            swept.append(_swept_entry(record, cleanup_path))
         else:
             failed.append(
                 FailedEntry(

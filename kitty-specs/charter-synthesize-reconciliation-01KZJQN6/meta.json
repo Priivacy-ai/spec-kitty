@@ -27,6 +27,7 @@
   "slug": "charter-synthesize-reconciliation-01KZJQN6",
   "status_phase": "1",
   "target_branch": "fix/charter-synthesize-reconciliation",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-08-09T18:40:53.335921+00:00"
 }

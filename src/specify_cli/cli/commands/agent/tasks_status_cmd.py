@@ -301,7 +301,12 @@ def _st_gated_runtime_fields(feature_dir: Path, wp_id: str | None) -> tuple[str,
 
 
 def _st_resolve_execution_mode(
-    front: str, main_repo_root: Path, mission_slug: str, wp_id: str | None
+    front: str,
+    main_repo_root: Path,
+    mission_slug: str,
+    wp_id: str | None,
+    *,
+    mission_anchor_root: Path | None = None,
 ) -> tuple[str, str]:
     """Resolve ``(execution_mode, workspace_kind)`` for one WP row (verbatim fallbacks)."""
     from specify_cli.cli.commands.agent import tasks as _tasks
@@ -311,7 +316,12 @@ def _st_resolve_execution_mode(
         # default path as the "resolver could not classify" arm below.
         return extract_scalar(front, "execution_mode") or "code_change", "unknown"
     try:
-        workspace = _tasks.resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
+        workspace = _tasks.resolve_workspace_for_wp(
+            main_repo_root,
+            mission_slug,
+            wp_id,
+            mission_anchor_root=mission_anchor_root,
+        )
         return workspace.execution_mode, workspace.resolution_kind
     except MissingLanesError:
         # Without lanes.json the resolver cannot return a workspace, but we still
@@ -364,7 +374,11 @@ def _st_load_work_packages(st: _StatusState) -> None:
             wp_deps = []
         st.wp_dependencies[wp_id or wp_file.stem] = wp_deps
         execution_mode, workspace_kind = _st_resolve_execution_mode(
-            front, st.main_repo_root, st.mission_slug, wp_id
+            front,
+            st.main_repo_root,
+            st.mission_slug,
+            wp_id,
+            mission_anchor_root=st.mission_anchor_root,
         )
         # Route agent/shell_pid + the resolved-binding actuals through the ONE
         # reconstruction reader (SC-007). The authored ``agent_profile`` stays

@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .models import (
     AgentAssignment,
+    CurrentWpState,
     DoneEvidence,
     EventStream,
     GuardContext,
@@ -136,7 +137,11 @@ from .wp_metadata import (
     WPMetadata,
     _Builder,
     read_authored_wp_frontmatter,
+    read_authored_wp_frontmatter_lenient,
     read_wp_frontmatter,
+)
+from .wp_status_metadata import (
+    WPStatusChangeMetadata,
 )
 from .wp_review import (
     resolve_event_stream_review,
@@ -270,6 +275,12 @@ from .doctor_husks import (
     registered_worktree_paths,
     scan_workspace_husks,
 )
+from .dup_key_repair import (
+    DuplicateKeyRepairError,
+    detect_duplicate_key_artifacts,
+    find_duplicate_keys_in_text,
+    plan_artifact_repair,
+)
 # WP03/WP04 (runtime-state-birth-cutover-all-paths-01KYH654): the cut-over
 # predicate reaches its src/ consumer (``cli.commands.cutover_guard``) through
 # this package surface, not by importing the submodule directly -- the status
@@ -322,6 +333,7 @@ __all__ = [
     # the facade instead of re-implementing the decode locally (C-002).
     "review_result_from_state",
     "AgentAssignment",
+    "CurrentWpState",
     "actor_identity_str",
     "ALLOWED_TRANSITIONS",
     "EventStream",
@@ -346,6 +358,7 @@ __all__ = [
     "read_event_stream",
     "read_event_stream_from_text",
     "read_authored_wp_frontmatter",
+    "read_authored_wp_frontmatter_lenient",
     "CoordAuthorityUnavailable",
     "EventLogMergeError",
     "FeatureStatusLockTimeoutError",
@@ -388,6 +401,10 @@ __all__ = [
     "materialize_snapshot",
     "repo_root_for_lifecycle_log",
     "run_doctor",
+    "DuplicateKeyRepairError",
+    "detect_duplicate_key_artifacts",
+    "find_duplicate_keys_in_text",
+    "plan_artifact_repair",
     "start_implementation_status",
     "start_review_status",
     "CanonicalStatusNotFoundError",
@@ -475,6 +492,7 @@ __all__ = [
     "fire_dossier_sync",
     "fire_resolved_binding_fanout",
     "fire_saas_fanout",
+    "WPStatusChangeMetadata",
     "read_events",
     "read_events_from_text",
     "read_events_raw",

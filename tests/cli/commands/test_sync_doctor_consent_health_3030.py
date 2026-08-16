@@ -30,6 +30,7 @@ renderer that ``doctor`` never called, fully unit-tested one layer down, and the
 operator surface rendered nothing; a helper-level test here would re-open exactly
 that hole, and a later relocation would orphan the helper with the suite still green.
 """
+
 from __future__ import annotations
 
 import os
@@ -128,9 +129,7 @@ def checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
     monkeypatch.chdir(repo)
-    monkeypatch.setattr(
-        sync_module, "_check_server_connection", lambda _url: ("[dim]Disabled[/dim]", "")
-    )
+    monkeypatch.setattr(sync_module, "_check_server_connection", lambda _url: ("[dim]Disabled[/dim]", ""))
     from specify_cli.cli.commands._auth_recovery import RecoveryOutcome
 
     monkeypatch.setattr(
@@ -155,14 +154,18 @@ def _flat(output: str) -> str:
 def _index_path() -> Path:
     from specify_cli.sync.config import SyncConfig
 
-    return SyncConfig().config_file
+    return Path(SyncConfig().config_file)
 
 
 def _record_consent() -> None:
     """A healthy index holding a real grant — the state a fault must not read as absent."""
-    from specify_cli.sync.consent import set_project_consent
+    from specify_cli.sync.config import SyncConfig
+    from specify_cli.sync.consent import record_project_opt_in
 
-    set_project_consent(PROJECT, True)
+    record_project_opt_in(PROJECT, actor="doctor-consent-health-test")
+    # This suite diagnoses the retired machine index as legacy evidence. Seed that
+    # evidence directly; it is never allowed to grant hosted-sync authority.
+    SyncConfig()._save({"sync": {"project_consent": {PROJECT: {"enabled": True}}}})
 
 
 def _project_config(repo: Path, text: str) -> None:
@@ -191,7 +194,8 @@ def test_re_recording_consent_on_a_corrupt_index_is_refused() -> None:
     project's bytes on disk, asserted against a project the call never names — lives in
     ``tests/sync/test_consent_write_refusal_3030.py``.
     """
-    from specify_cli.sync.config import ConfigNotReadableError, SyncConfig
+    from specify_cli.sync.config import SyncConfig
+    from specify_cli.sync.consent import LegacyConsentMigrationRequiredError
 
     _record_consent()
     path = _index_path()
@@ -202,7 +206,7 @@ def test_re_recording_consent_on_a_corrupt_index_is_refused() -> None:
     # real observation rather than an artefact of the setup.
     path.write_text(original + "\n[sync\nbroken = ", encoding="utf-8")
 
-    with pytest.raises(ConfigNotReadableError):
+    with pytest.raises(LegacyConsentMigrationRequiredError):
         SyncConfig().set_project_consent("bbbbbbbb-0000-0000-0000-000000000002", True)
 
     surviving = path.read_text(encoding="utf-8")
@@ -266,13 +270,11 @@ def test_doctor_says_re_recording_consent_is_refused_rather_than_destructive() -
     flat = _flat(result.output)
     assert "your other projects' records are safe" in flat
     assert "nothing is delivered until the file itself is repaired" in flat
-    assert "discarding every other project's record" not in flat, (
-        "the doctor still describes a hazard that no longer exists"
-    )
+    assert "discarding every other project's record" not in flat, "the doctor still describes a hazard that no longer exists"
 
 
 def test_a_readable_index_is_stated_rather_than_left_silent() -> None:
-    """"Healthy" and "never checked" must not render identically.
+    """ "Healthy" and "never checked" must not render identically.
 
     That equivalence is the incident's own false-green, and this whole section is a
     remedy for it — so the section must print on the healthy path too.
@@ -313,9 +315,7 @@ def test_a_readable_index_is_stated_rather_than_left_silent() -> None:
         ("unusable", f'project:\n  uuid: {PROJECT}\nsync:\n  enabled: "false"\n', "CORRECT THE FIELD VALUE"),
     ],
 )
-def test_doctor_names_the_action_for_each_project_local_fault_kind(
-    checkout: Path, label: str, config_text: str, action: str
-) -> None:
+def test_doctor_names_the_action_for_each_project_local_fault_kind(checkout: Path, label: str, config_text: str, action: str) -> None:
     """Each kind renders, and each names what the operator must do.
 
     ``unusable`` is the one FR-027 added and the one most easily mistaken for
@@ -414,10 +414,7 @@ def test_the_action_is_true_for_both_producers_of_the_same_kind(checkout: Path) 
     # wrong-shape fault exists in this run, so its presence would mean the advice is
     # still hedging across two states and telling half its readers something false.
     assert "syntax does not parse" in flat
-    assert "top level is not a mapping" not in flat, (
-        "the unparseable advice still spans the wrong-shape state, which is the "
-        "divergence this unification removed"
-    )
+    assert "top level is not a mapping" not in flat, "the unparseable advice still spans the wrong-shape state, which is the divergence this unification removed"
     # And the detail, which names the actual file and error, is printed for each.
     assert "not valid TOML" in flat
     assert "could not be parsed" in flat

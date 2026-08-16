@@ -16,7 +16,7 @@ steps:
     examples:
       - "The CLI's resolve_planning_read_dir() return value is the canonical read surface;
         a parallel path used by a gate command is the non-canonical copy."
-      - "src/doctrine/missions/<type>/templates/ is the canonical template surface; a copy
+      - "packs/built-in/missions/<type>/templates/ is the canonical template surface; a copy
         inside kitty-specs/ is a historical snapshot, not the authority."
   - title: Map all non-canonical call sites
     description: >
@@ -58,6 +58,15 @@ failure_modes:
     in a future change without a CI failure."
   - "Wrong canonical surface: choosing the surface based on recency or size rather than
     what the framework resolver actually routes through."
+  - "Seam-bypass via stale comment: a 'can't reuse the seam' (or 'the existing resolver
+    doesn't support this case') comment justifying a new non-canonical copy is a red flag,
+    not a fact — verify the seam's real, current signature before accepting it. The
+    comment is frequently stale relative to the seam's actual capabilities, or asserted
+    without checking. The correct move when the seam genuinely lacks a capability is to
+    parameterize the seam so the canonical surface covers the new case — the same
+    Parity-instead-of-unification and Fallback-preservation failure modes above describe
+    what happens if a duplicate is allow-listed instead: the split-brain grows rather
+    than resolving."
 references:
   - name: Canonical Sources and Unification
     type: directive

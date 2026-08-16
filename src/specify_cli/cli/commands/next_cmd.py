@@ -22,15 +22,24 @@ from __future__ import annotations
 
 import contextlib
 from contextvars import ContextVar
+import functools
 import io
 import importlib
+import inspect
 import json
 import sys
+from collections.abc import Callable
 from pathlib import Path
+from typing import Annotated, Any, NoReturn, TypeVar, cast
 
 import typer
 from mission_runtime import MissionArtifactKind, placement_seam
-from typing import Annotated, NoReturn
+
+from specify_cli.core.checkout_ownership import (
+    CheckoutOwnershipError,
+    error_for_claim,
+    resolve_ownership_claim,
+)
 
 from specify_cli.context.mission_resolver import (
     MissionNotFoundError as _SelectorMissionNotFoundError,
@@ -42,6 +51,9 @@ from specify_cli.core.paths import (
     locate_project_root,
 )
 from runtime.next._runtime_pkg_notice import maybe_emit_runtime_pkg_notice
+
+
+_Command = TypeVar("_Command", bound=Callable[..., Any])
 
 
 _VALID_RESULTS = ("success", "failed", "blocked")
@@ -60,11 +72,22 @@ def _next_placement_seam(repo_root: Path, mission_slug: str):
     )
 
 
-def decide_next(agent: str, mission_slug: str, result: str, repo_root):
+def decide_next(
+    agent: str,
+    mission_slug: str,
+    result: str,
+    repo_root,
+    *,
+    effective_root: Path | None = None,
+):
     """Patchable lazy wrapper for the next mutation engine."""
     from runtime.next.decision import decide_next as _decide_next
 
-    return _decide_next(agent, mission_slug, result, repo_root)
+    if effective_root is None:
+        return _decide_next(agent, mission_slug, result, repo_root)
+    return _decide_next(
+        agent, mission_slug, result, repo_root, effective_root=effective_root
+    )
 
 
 def _runtime_bridge_module():
@@ -74,7 +97,45 @@ def _runtime_bridge_module():
     )
 
 
-@require_main_repo
+def _require_main_repo_unless_owned(func: _Command) -> _Command:
+    """Preserve the legacy guard unless the caller explicitly opts in.
+
+    The owned path bypasses only the syntactic ``.worktrees`` guard. The
+    command body validates the claim against git topology before any runtime
+    or mission operation. Keeping the guarded call as the no-opt-in branch
+    makes that historical behavior byte-for-byte identical.
+    """
+    guarded = require_main_repo(func)
+    signature = inspect.signature(func)
+
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        bound = signature.bind_partial(*args, **kwargs)
+        if bound.arguments.get("owned_checkout") is not None:
+            return func(*args, **kwargs)
+        return guarded(*args, **kwargs)
+
+    return cast(_Command, wrapper)
+
+
+def _emit_checkout_ownership_error(error: CheckoutOwnershipError, *, json_output: bool) -> None:
+    """Render the shared ownership refusal contract and exit fail-closed."""
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "success": False,
+                    "error_code": error.error_code,
+                    "error": str(error),
+                }
+            )
+        )
+    else:
+        print(f"Error: {error}", file=sys.stderr)
+    raise typer.Exit(1)
+
+
+@_require_main_repo_unless_owned
 def next_step(
     agent: Annotated[str | None, typer.Option("--agent", help="Agent name (required for advancing mode)")] = None,
     result: Annotated[
@@ -88,6 +149,13 @@ def next_step(
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON decision only")] = False,
     answer: Annotated[str | None, typer.Option("--answer", help="Answer to a pending decision")] = None,
     decision_id: Annotated[str | None, typer.Option("--decision-id", help="Decision ID (required if multiple pending)")] = None,
+    owned_checkout: Annotated[
+        Path | None,
+        typer.Option(
+            "--owned-checkout",
+            help="Explicit checkout root owned by this invocation",
+        ),
+    ] = None,
 ) -> None:
     """Decide and emit the next agent action for the current mission.
 
@@ -103,18 +171,31 @@ def next_step(
         spec-kitty next --agent claude --mission 034-my-feature --answer "yes" --result success --json
         spec-kitty next --agent claude --mission 034-my-feature --answer "approve" --decision-id "input:review" --result success --json
     """
-    _maybe_emit_runtime_notice(json_output)
-
-    located_root = locate_project_root()
-    if located_root is None:
+    ambient_root = locate_project_root()
+    if ambient_root is None:
         print("Error: Could not locate project root", file=sys.stderr)
         raise typer.Exit(1)
+    located_root = ambient_root
     raw_handle = mission.strip() if mission else ""
     if not raw_handle:
         _emit_mission_not_found_error("", json_output)
         raise typer.Exit(1)
-    repo_root = located_root
+    repo_root = ambient_root
     _MISSION_ANCHOR_ROOT.set(None)
+
+    effective_root: Path | None = None
+    if owned_checkout is not None:
+        claim = resolve_ownership_claim(
+            owned_checkout,
+            resolved_primary=ambient_root,
+        )
+        refusal = error_for_claim(claim)
+        if refusal is not None:
+            _emit_checkout_ownership_error(refusal, json_output=json_output)
+        repo_root = claim.claimed_checkout
+        effective_root = claim.claimed_checkout
+
+    _maybe_emit_runtime_notice(json_output)
 
     # FR-006 caller contract: charter preflight runs BEFORE any state
     # mutation. On failure, print blocked_reason and exit 1 — the runtime
@@ -166,12 +247,28 @@ def next_step(
         _emit_mission_not_found_error(_exc.handle, json_output)
         raise typer.Exit(1) from _exc
     _validate_result_and_answer(result, answer, json_output)
-    answered_id = _maybe_handle_answer(agent, mission_slug, answer, decision_id, repo_root, json_output)
+    answered_id = _maybe_handle_answer(
+        agent,
+        mission_slug,
+        answer,
+        decision_id,
+        repo_root,
+        json_output,
+        effective_root=effective_root,
+    )
 
     # Query mode: bare call without --result remains read-only and does not
     # require agent identity.
     if result is None:
-        _run_query_mode(agent, mission_slug, repo_root, json_output, answered_id, answer)
+        _run_query_mode(
+            agent,
+            mission_slug,
+            repo_root,
+            json_output,
+            answered_id,
+            answer,
+            effective_root=effective_root,
+        )
         return  # No event emitted, no DAG advancement
 
     if not agent:
@@ -181,15 +278,34 @@ def next_step(
     # WP05 (#843): pair the previous issuance's `started` lifecycle record
     # BEFORE we advance the runtime. This must run before decide_next so the
     # pair is observable even if decide_next raises.
-    _pair_previous_lifecycle_record(agent, mission_slug, result, repo_root)
+    _pair_previous_lifecycle_record(
+        agent, mission_slug, result, repo_root, effective_root=effective_root
+    )
 
-    decision = decide_next(agent, mission_slug, result, repo_root)
-    _emit_mission_next_invoked(agent, result, mission_slug, repo_root, decision)
+    decision = decide_next(
+        agent, mission_slug, result, repo_root, effective_root=effective_root
+    )
+    _emit_mission_next_invoked(
+        agent,
+        result,
+        mission_slug,
+        repo_root,
+        decision,
+        effective_root=effective_root,
+    )
 
     # WP05 (#843): write the `started` lifecycle record AFTER the decision is
     # finalised but BEFORE returning to the agent, so the record exists iff
     # the agent actually saw the issued action.
-    _write_issuance_lifecycle_record(agent, mission_slug, repo_root, decision)
+    _write_issuance_lifecycle_record(
+        agent,
+        mission_slug,
+        repo_root,
+        decision,
+        effective_root=effective_root,
+    )
+    if effective_root is not None:
+        _commit_owned_next_mutations(effective_root, mission_slug)
 
     _print_decision(decision, json_output, answered_id, answer)
 
@@ -200,11 +316,64 @@ def next_step(
         raise typer.Exit(1)
 
 
+def _commit_owned_next_mutations(effective_root: Path, mission_slug: str) -> None:
+    """Durably close the explicit-root advancement changeset.
+
+    Runtime advancement writes mission scaffolding/events plus the lifecycle
+    record before returning its decision.  The ordinary path retains its
+    historical behavior; the opted-in ownership contract must leave the owned
+    checkout clean and therefore commits only those two declared surfaces to
+    that mission's seam-resolved primary target.
+    """
+    from mission_runtime import MissionArtifactKind, mission_context_for
+    from specify_cli.core.commit_guard import GuardCapability
+    from specify_cli.git.commit_helpers import safe_commit
+    from specify_cli.missions._read_path_resolver import compose_meta_json_path
+
+    mission_dir = compose_meta_json_path(effective_root, mission_slug).parent
+    lifecycle = effective_root / "kitty-ops" / "lifecycle.jsonl"
+    mission_files = tuple(
+        path for path in sorted(mission_dir.rglob("*")) if path.is_file()
+    )
+    paths = mission_files + ((lifecycle,) if lifecycle.is_file() else ())
+    if not paths:
+        return
+    target = mission_context_for(
+        effective_root,
+        mission_slug,
+        effective_root=effective_root,
+    ).artifact(MissionArtifactKind.PRIMARY_METADATA).commit_target
+    if target is None:
+        raise RuntimeError(
+            f"Owned checkout {effective_root} has no primary commit target for {mission_slug}"
+        )
+    try:
+        safe_commit(
+            repo_root=effective_root,
+            worktree_root=effective_root,
+            target=target,
+            message=f"chore(next): persist {mission_slug} advancement [skip ci]",
+            paths=paths,
+            capability=GuardCapability.STANDARD,
+        )
+    except RuntimeError as exc:
+        # safe_commit's benign no-op sentinel: the staged tree already
+        # matches HEAD (e.g. a terminal owned advance that writes no new
+        # mission content and appends no lifecycle record). That is a
+        # successful no-op here, not a command failure. Any OTHER
+        # RuntimeError (protection refusal, HEAD mismatch, genuine commit
+        # failure, ...) must stay fail-closed and propagate unchanged.
+        if "empty changeset" not in str(exc):
+            raise
+
+
 def _pair_previous_lifecycle_record(
     agent: str,
     mission_slug: str,
     result: str,
     repo_root: object,
+    *,
+    effective_root: Path | None = None,
 ) -> None:
     """Write the paired ``completed`` / ``failed`` record for the prior issuance.
 
@@ -291,6 +460,8 @@ def _write_issuance_lifecycle_record(
     mission_slug: str,
     repo_root: object,
     decision: object,
+    *,
+    effective_root: Path | None = None,
 ) -> None:
     """Write a ``started`` lifecycle record for the action just issued.
 
@@ -416,7 +587,12 @@ def _run_charter_preflight_for_next(repo_root, *, advancing: bool, json_output: 
         run_preflight_for_dashboard(repo_root)
 
 
-def _resolve_mission_slug(mission: str | None, repo_root: Path) -> str:
+def _resolve_mission_slug(
+    mission: str | None,
+    repo_root: Path,
+    *,
+    effective_root: Path | None = None,
+) -> str:
     mission_norm = mission.strip() if isinstance(mission, str) else None
     if not mission_norm:
         raise typer.BadParameter("--mission <slug> is required")
@@ -582,6 +758,8 @@ def _maybe_handle_answer(
     decision_id: str | None,
     repo_root: object,
     json_output: bool,
+    *,
+    effective_root: Path | None = None,
 ) -> str | None:
     if answer is None:
         return None
@@ -595,7 +773,14 @@ def _maybe_handle_answer(
     redirect = contextlib.redirect_stderr(stderr_buffer) if stderr_buffer is not None else contextlib.nullcontext()
     try:
         with redirect:
-            return _handle_answer(agent, mission_slug, answer, decision_id, repo_root)
+            return _handle_answer(
+                agent,
+                mission_slug,
+                answer,
+                decision_id,
+                repo_root,
+                effective_root=effective_root,
+            )
     except ActionContextError as exc:
         # FR-001 / C-IC02: the decision-answer path must preserve the typed
         # read-path code IDENTICALLY to the query path — not flatten it into a
@@ -622,6 +807,8 @@ def _run_query_mode(
     json_output: bool,
     answered_id: str | None,
     answer: str | None,
+    *,
+    effective_root: Path | None = None,
 ) -> None:
     runtime_bridge = _runtime_bridge_module()
     QueryModeValidationError = runtime_bridge.QueryModeValidationError
@@ -631,7 +818,17 @@ def _run_query_mode(
     from runtime.next.runtime_bridge import MissionNotFoundError
 
     try:
-        decision = runtime_bridge.query_current_state(agent, mission_slug, repo_root)
+        if effective_root is None:
+            decision = runtime_bridge.query_current_state(
+                agent, mission_slug, repo_root
+            )
+        else:
+            decision = runtime_bridge.query_current_state(
+                agent,
+                mission_slug,
+                repo_root,
+                effective_root=effective_root,
+            )
     except ActionContextError as exc:
         # FR-001 / C-IC02: the resolver produced a precise typed read-path error
         # (e.g. COORDINATION_BRANCH_DELETED). Surface its code + checked paths +
@@ -664,7 +861,15 @@ def _run_query_mode(
     _print_decision(decision, json_output, answered_id, answer)
 
 
-def _emit_mission_next_invoked(agent: str, result: str, mission_slug: str, repo_root: object, decision) -> None:
+def _emit_mission_next_invoked(
+    agent: str,
+    result: str,
+    mission_slug: str,
+    repo_root: object,
+    decision,
+    *,
+    effective_root: Path | None = None,
+) -> None:
     from specify_cli.mission_v1.events import emit_event
 
     # WP09/FR-001 (kind-correct): ``mission-events.jsonl`` is a legacy
@@ -713,6 +918,8 @@ def _handle_answer(
     answer: str,
     decision_id: str | None,
     repo_root: object,
+    *,
+    effective_root: Path | None = None,
 ) -> str:
     """Handle the --answer flow for pending decisions.
 

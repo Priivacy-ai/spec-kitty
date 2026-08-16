@@ -1,0 +1,219 @@
+schema_version: test-sanitation/v1
+inventory:
+  commit: 28ae75ea998c898aba57364db7a06d2088bd2af2
+  test_config_content_matches_checkout: true
+  proof_command: git diff --quiet 28ae75ea998c898aba57364db7a06d2088bd2af2 -- tests .github/workflows/ci-quality.yml pyproject.toml pytest.ini tox.ini setup.cfg uv.lock
+  proof_exit: 0
+census:
+  source_units: 29766
+  collected_nodes: 37444
+  collection_exit: 0
+  collection_states: {collected: 29753, deselected: 0, error: 0, ignored: 0, zero_node: 13}
+  reconciliation_complete: true
+  unreconciled_or_duplicate_nodes: 0
+  compact_bytes: 23465927
+  compact_tables: [paths, parent_source_functions, marker_sets, reasons]
+manifests:
+  docstring_normalized_strict_groups: 173
+  strict_group_members: 365
+  inert_candidates: 15
+  structural_source_ast_text_scanner_files: 234
+  promoted_semantic_groups: 0
+  candidate_owner_reconciliation_complete: true
+  unowned_candidates: 0
+environment_ids:
+  local_base: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+  local_base_execution: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+  ci_regression: 8d4b0ec6f34bf221c05bf5d67d4498ab7fdaf83798f25ec6791e836d6e4d0e09
+  ci_quarantine: d9351dc38c139f8d2c79a6716b633a068e1fa64fb58083de2779d2ff1bde7004
+  sibling_e2e_prepared_local: d2e994e2d7465d82a398fbd8ee7c93fb4efb789b0724c312099488742869fb52
+base_execution:
+  inventory_commit: 28ae75ea998c898aba57364db7a06d2088bd2af2
+  route_id: full-parallel
+  command: [.venv/bin/pytest, tests/, -n, auto, --dist, loadfile, -p, no:cacheprovider, --durations=200, --ignore=tests/sync/test_orphan_sweep.py]
+  env: {PWHEADLESS: "1"}
+  environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+  harness_patch_hash: null
+  started_at: 2026-08-10T08:17:59.453215Z
+  ended_at: 2026-08-10T08:43:38.174467Z
+  wall_seconds: 1538.7777970419265
+  exit_code: 1
+  census_node_count: 37444
+  selected_node_count: 37435
+  route_excluded_node_count: 9
+  primary_outcomes: {passed: 37295, failed: 27, error: 0, skipped: 108, xfailed: 5, xpassed: 0, not_run: 9}
+  supplemental_phase_errors: 3
+  reconciliation: 37435 selected terminal outcomes + 9 exact frozen-route exclusions = 37444 unique census identities; teardown errors remain attached phase records
+  census_sha256: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  ordered_nodeids_sha256: ca300aeab6a2eec09e567d9919611838479aeebb2726c97185a5ce7ab9a54447
+  raw_event_bytes: 27053805
+  raw_event_storage: external-content-addressed
+  raw_event_sha256: 67120f918ecef7e45791aa81d3c6823b1546820f478e53fa24d075f1adbfb60c
+  compact_summary_bytes: 53687
+historical_pre_capture_aggregate:
+  command_equivalent_route: full-parallel
+  counts: {passed: 37298, failed: 24, skipped: 108, xfailed: 5, errors_reported: 2}
+  wall_seconds: 1689.48
+  note: Aggregate-only precursor retained for drift context; it is not exact identity evidence and its errors were supplemental phase reports.
+commands:
+  snapshot: .venv/bin/python docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/audit.py snapshot --root . --inventory-sha 28ae75ea998c898aba57364db7a06d2088bd2af2 --output docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/base-census.json
+  validate: .venv/bin/python docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/audit.py validate docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/base-census.json docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/base-workloads.yaml docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/base-full-suite-summary.txt
+  selftest: .venv/bin/python docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/audit.py selftest
+selftest:
+  valid: true
+  count: 149
+  checks:
+    - action_type_rejected
+    - aggregate_empty_shard
+    - aggregate_malformed_candidate_controlled_error
+    - aggregate_malformed_controlled_error
+    - base_execution_aggregate_only_rejected
+    - base_execution_count_mismatch_rejected
+    - base_execution_duplicate_node_rejected
+    - base_execution_resigned_duplicate_phase_rejected
+    - base_execution_resigned_exit_code_rejected
+    - base_execution_resigned_failed_identity_rejected
+    - base_execution_resigned_phase_removal_rejected
+    - base_execution_resigned_raw_path_rejected
+    - base_execution_resigned_raw_sha_rejected
+    - base_execution_resigned_timestamps_rejected
+    - base_execution_unaccounted_default_rejected
+    - base_execution_unknown_node_rejected
+    - byte_identical
+    - candidate_route_environment_rejected
+    - candidate_route_events_authority_rejected
+    - candidate_route_required_authority_rejected
+    - candidate_route_role_authority_rejected
+    - candidate_route_selector_ignores_authority_rejected
+    - candidate_route_selector_markers_authority_rejected
+    - candidate_route_selector_paths_authority_rejected
+    - ci_provenance_authority_sha256_rejected
+    - ci_provenance_job_id_rejected
+    - ci_provenance_kind_rejected
+    - ci_provenance_source_commit_rejected
+    - ci_provenance_source_path_rejected
+    - ci_provenance_source_sha256_rejected
+    - ci_provenance_step_name_rejected
+    - ci_provenance_step_sha256_rejected
+    - ci_recomputed_hash_base_mapping_rejected
+    - ci_recomputed_hash_cwd_rejected
+    - ci_recomputed_hash_env_rejected
+    - ci_recomputed_hash_environment_id_rejected
+    - ci_recomputed_hash_events_rejected
+    - ci_recomputed_hash_fabricated_command_rejected
+    - ci_recomputed_hash_head_mapping_rejected
+    - ci_recomputed_hash_required_rejected
+    - ci_recomputed_hash_role_rejected
+    - ci_recomputed_hash_selector_environment_rejected
+    - ci_recomputed_hash_selector_ignores_rejected
+    - ci_recomputed_hash_selector_markers_rejected
+    - ci_recomputed_hash_selector_paths_rejected
+    - ci_recomputed_hash_wrapper_rejected
+    - collection_crash_fails_closed
+    - collection_error
+    - combined_relational_bypass_rejected
+    - committed_positive_delete_valid
+    - deselected_class_parameter_family
+    - divergent_dimension_coverage_rejected
+    - divergent_dimension_must_vary
+    - divergent_empty_node_row_rejected
+    - divergent_empty_node_rows_rejected
+    - divergent_family_fails
+    - divergent_member_coverage_rejected
+    - divergent_unknown_identity_rejected
+    - duplicate_candidate_id_rejected
+    - duplicate_dag_edge_rejected
+    - duplicate_deep_membership_fails
+    - duplicate_environment_id_rejected
+    - dynamic_ignore
+    - equivalence_dimension_type_rejected
+    - evidence_nested_authority_evidence_rejected
+    - evidence_nested_base_evidence_rejected
+    - evidence_nested_caller_evidence_rejected
+    - evidence_nested_cost_evidence_rejected
+    - evidence_nested_overlap_evidence_rejected
+    - evidence_nested_routing_evidence_rejected
+    - evidence_route_environment_rejected
+    - evidence_route_role_rejected
+    - evidence_scalar_member_rejected
+    - evidence_type_authority_evidence_rejected
+    - evidence_type_base_evidence_rejected
+    - evidence_type_caller_evidence_rejected
+    - evidence_type_causal_probe_rejected
+    - evidence_type_cost_evidence_rejected
+    - evidence_type_overlap_evidence_rejected
+    - evidence_type_routing_evidence_rejected
+    - evidence_vacuous_authority_evidence_rejected
+    - evidence_vacuous_base_evidence_rejected
+    - evidence_vacuous_caller_evidence_rejected
+    - evidence_vacuous_cost_evidence_rejected
+    - evidence_vacuous_overlap_evidence_rejected
+    - evidence_vacuous_routing_evidence_rejected
+    - exact_duplicate
+    - explicit_empty_census
+    - fabricated_observation_node_rejected
+    - inherited_marker
+    - ledger_types_refs_keep_family_rejected
+    - local_provenance_authority_sha256_rejected
+    - local_provenance_kind_rejected
+    - local_provenance_repository_rejected
+    - local_provenance_source_commit_rejected
+    - malformed_shard_fails_without_crash
+    - measurement_artifact_hash_rejected
+    - measurement_call_rejected
+    - measurement_collection_rejected
+    - measurement_compute_rejected
+    - measurement_environment_id_rejected
+    - measurement_outcome_rejected
+    - measurement_route_id_rejected
+    - measurement_setup_rejected
+    - measurement_wall_rejected
+    - modifyitems_crash_fails_closed
+    - null_collected_observation_rejected
+    - observation_candidate_membership_rejected
+    - outcome_collection_temp_root_normalization
+    - outcome_raw_atomic_write
+    - outcome_report_temp_root_normalization
+    - outcome_validation_failure_leaves_raw_absent
+    - recursive_nested_once
+    - same_name_membership
+    - static_ignore
+    - survivor_type_rejected
+    - temporary_expires_type_rejected
+    - temporary_hic_approval_type_rejected
+    - temporary_issue_type_rejected
+    - temporary_owner_type_rejected
+    - temporary_renewal_type_rejected
+    - unknown_candidate_route_rejected
+    - unknown_evidence_route_rejected
+    - unowned_fails
+    - valid_divergent_family_expansion
+    - valid_empty_environment
+    - valid_empty_markers
+    - valid_exact_base_execution
+    - valid_source_only_null_observation
+    - valid_temporary
+    - valid_tracked_ci_provenance
+    - valid_typed_measurement
+    - workload_argv_authority_rejected
+    - workload_base_mapping_authority_rejected
+    - workload_cwd_authority_rejected
+    - workload_duplicate_argv_env_edge_rejected
+    - workload_env_authority_rejected
+    - workload_events_authority_rejected
+    - workload_head_mapping_authority_rejected
+    - workload_required_authority_rejected
+    - workload_role_authority_rejected
+    - workload_selector_environment_authority_rejected
+    - workload_selector_ignores_authority_rejected
+    - workload_selector_markers_authority_rejected
+    - workload_selector_paths_authority_rejected
+    - workload_self_signed_renamed_route_rejected
+    - workload_self_signed_unknown_owner_rejected
+    - zero_function_file_not_empty_root
+    - zero_node
+raw_artifacts:
+  base-census.json: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+  base-workloads.yaml: e9ea483bc776f1741fe33c7c039689805e4823cec16663b07db6b8721a9b7ed0
+  bootstrap-failure.txt: 0f288e5ea1009eeaf7f4f5b37a71b881b3aa73572adb838836277ff6cccb1955
+  base-full-suite-summary.txt: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1

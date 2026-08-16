@@ -2,12 +2,15 @@
 title: 3.2.x Milestone — Roadmap
 description: 'Operator-facing roadmap for the 3.2.x milestone: the epic dependency spine, degod/unshim wave status, milestone census, exit criteria, and watch items.'
 doc_status: active
-updated: '2026-08-04'
+updated: '2026-08-12'
 related:
 - docs/changelog/index.md
 - docs/plans/index.md
+- docs/plans/code-quality/index.md
 - docs/plans/testing/qa-tidy-first-sequencing.md
 - docs/plans/doctrine/manifesto-program-delivery-sequence.md
+- docs/plans/domains/saas-hosted-sync-domain-plan.md
+- docs/plans/domains/doctrine-charter-domain-plan.md
 - docs/changelog/release-goals.md
 ---
 # 3.2.x Milestone — Roadmap
@@ -16,7 +19,46 @@ related:
 
 ## Intent of 3.2.x
 
-3.2.x is the **stabilization + structural debt paydown** cycle: (G1) deepen Doctrine/Charter/DRG impact on runtime execution, (G2) strangle the core domains — naming, identity, read/write paths — onto canonical SSOTs by *adopting* the existing execution-context machinery rather than building new construction, and (G3) land the DevEx enablers that make (G1)/(G2) enforceable. No new shadow paths. The milestone stays open until all three goals hold (full declaration: [`docs/release-goals/3.2.x.md`](../changelog/3.2.x.md)). Everything experience-shaped — UX, dashboard, SaaS tie-in — is deliberately deferred to 3.3.x, which builds on the SSOTs this cycle establishes.
+3.2.x is the **stabilization + structural debt paydown** cycle: (G1) deepen Doctrine/Charter/DRG impact on runtime execution, (G2) strangle the core domains — naming, identity, read/write paths — onto canonical SSOTs by *adopting* the existing execution-context machinery rather than building new construction, and (G3) land the DevEx enablers that make (G1)/(G2) enforceable. No new shadow paths. The milestone stays open until all three goals hold (full declaration: [`docs/release-goals/3.2.x.md`](../changelog/3.2.x.md)). Everything experience-shaped — UX, dashboard, SaaS tie-in — is deliberately deferred to 3.3.x, which builds on the SSOTs this cycle establishes. The SaaS deferral covers the hosted *product launch* (the #1800 / #1091 / #3322 epics, all milestone 3.3.x), **not** the core **sync and consent integrity P0s** (#3178 / #3278 / #3307), which are in-cycle 3.2.x stabilization work; the [SaaS & Hosted Sync — Domain Plan](domains/saas-hosted-sync-domain-plan.md) is the domain's canonical map of that split.
+
+## Addendum 2026-08-12 — release-posture refresh (CI green except the standing Sonar backlog)
+
+*Read-only observation grounded in the 2026-08-12 CI Quality run (`workflow_dispatch`
+on `main`, commit `f6b90d34e`) and the live SonarCloud project. It updates the release
+posture the [2026-07-30 addendum](#addendum-2026-07-30--verified-status-re-read--spine-re-anchoring)
+recorded ("`main` NOT tag-ready, CI red 10+ consecutive runs"), which has since gone
+stale in the milestone's favour.*
+
+**Health signal has converged toward the stabilization goal.** Since the 07-30 note:
+coverage recovered **47% -> 84.1%** (a project high), reliability bugs cleared
+**34 -> 0** (2026-08-11), duplication holds at **0.5%**, and CI Quality on normal `main`
+pushes is **green**. The dedicated Playwright `ui-e2e` and `ci-windows` workflows are
+green on the head commit. Full measurement and cluster analysis:
+[Code Quality — Working Collection](code-quality/index.md).
+
+**The one red is honest, not a regression.** The `workflow_dispatch` CI Quality run
+fails only on the SonarCloud quality gate, and only on `new_security_rating = C`. All
+21 vulnerabilities predate any current release candidate (created 2026-06-24 ->
+2026-07-30); the head commit contributed none. Sonar runs only on
+`workflow_dispatch`/`schedule`, so it surfaces the accumulated backlog rather than a
+change — an honest standing red per
+[ADR 2026-07-17-1](../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md).
+
+**The debt is the roadmap's own scoped paydown.** The security backlog (17 `S6350`
+subprocess findings) and the worst complexity files map almost 1:1 onto the
+**QUEUED** Wave 2 (coord-authority) and Wave 4 (sync adapters) degod slices — see the
+[debt -> wave mapping](code-quality/index.md#how-the-debt-maps-onto-the-roadmap). The 3
+`S2083` BLOCKER path-traversal vulns (`merge/bookkeeping_projection.py`,
+`skills/verifier.py`) are **not** on a wave and are a ~90-min targeted fix.
+
+**Implication for tagging.** A patch **release candidate** (e.g. `3.2.6-rc1`) is
+cuttable on code-health grounds: every functional gate — all test suites,
+`e2e-cross-cutting`, blocking regression, `ui-e2e`, Windows — is green, and the Sonar
+gate is a known standing backlog, not a candidate regression. This does **not** close
+the 3.2.x milestone: the degod spine (Waves 2-4) and the P0 book (#2160, #1619) remain
+open per the exit criteria below. Cutting an rc is a checkpoint inside the cycle, not
+its completion. Recommended before the *final* 3.2.6 tag: triage the 3 `S2083` blockers
+and note the remaining Sonar backlog as known/deferred in the release notes.
 
 ## Addendum 2026-07-30 — verified status re-read + spine re-anchoring
 
@@ -367,7 +409,7 @@ Derived from the epics' own done-conditions; the milestone closes when all hold:
 - **#2345 / #1790 — dedup decision MADE; #1790 still OPEN.** The dedup was resolved by picking **#2345** as the canonical ticket (CLOSED 2026-07-05 — bind the `occurrence_map_complete` guard at plan/tasks-finalize so bulk-edit schema errors fail before implement). Its sibling **#1790** (validate `occurrence_map.yaml` at authoring + add a rich-occurrences schema example) remains OPEN and should be dispositioned as the authoring-side residual rather than re-litigated as a duplicate.
 - **Milestone-drift on critical-path items** — resolved for the known set on 2026-07-04 (#1239/#1231/#1734/#825 and #2034 all pulled into 3.2.x by operator ruling), but the class remains live: a critical-path issue filed without a milestone silently escapes the burn count. The sub-issue milestone sweep (executed 2026-07-04, see next steps) is the standing counter-measure.
 - **#2071 children are audit-fed.** The epic forbids pre-creating children; exit criterion 4 has open-ended scope until the audit's ticket set is complete. Watch for scope creep into #1931 territory (hygiene items belong in the campsite epic, not the blocker).
-- **#1797 ↔ #2071 intra-pair sequencing (tidy-first enabler).** The spine lists #1797 (degod/unshim) and #2071 (test-QA) as peer blockers of #1619 but leaves their *relative* sequencing implicit. Ruling ([`qa-tidy-first-sequencing.md`](testing/qa-tidy-first-sequencing.md)): they are **not merely parallel** — a **targeted** subset of #1797 is a cheap enabler of #2071, while the bulk stays independent. Only *structure-induced* test friction (fragile-because-god-module, per the [CaaCS co-change ranking](test-change-coupling-caacs.md)) is cheapened by degod; *test-intrinsic* friction (CT3/4/5 #2074/#2075/#2076, CT7 #2564, quarantine #2295/#2309/#2342, legacy-contract #2553/#2323) is not. Do **not** gate #2071 behind the full degod program. Order: (1) a small dead-code/deshim sweep first (`#2463`, `#2293`, `#2499`, `#2561`, + the `#2559` dead-code-gate tooling) — it deletes code *and its tests*, near-zero risk; (2) fold CaaCS-implicated god-surface degod **into** the QA mission as campsite-first WPs (route full decompositions `#2059`/`#2057`/`#2056`/`#2532` to their own #1797 slices); (3) fix genuinely-clean-but-badly-written tests directly.
+- **#1797 ↔ #2071 intra-pair sequencing (tidy-first enabler).** The spine lists #1797 (degod/unshim) and #2071 (test-QA) as peer blockers of #1619 but leaves their *relative* sequencing implicit. Ruling ([`qa-tidy-first-sequencing.md`](testing/qa-tidy-first-sequencing.md)): they are **not merely parallel** — a **targeted** subset of #1797 is a cheap enabler of #2071, while the bulk stays independent. Only *structure-induced* test friction (fragile-because-god-module, per the [CaaCS co-change ranking](testing/test-change-coupling-caacs.md)) is cheapened by degod; *test-intrinsic* friction (CT3/4/5 #2074/#2075/#2076, CT7 #2564, quarantine #2295/#2309/#2342, legacy-contract #2553/#2323) is not. Do **not** gate #2071 behind the full degod program. Order: (1) a small dead-code/deshim sweep first (`#2463`, `#2293`, `#2499`, `#2561`, + the `#2559` dead-code-gate tooling) — it deletes code *and its tests*, near-zero risk; (2) fold CaaCS-implicated god-surface degod **into** the QA mission as campsite-first WPs (route full decompositions `#2059`/`#2057`/`#2056`/`#2532` to their own #1797 slices); (3) fix genuinely-clean-but-badly-written tests directly.
 - **Wave-numbering homonyms — confirmed, not hypothetical.** Mission names and the roadmap's Wave 0–4 are distinct namespaces: PR #2308 is literally titled "Wave 2 tasks.py degod" yet delivered the roadmap's **Wave 1**, and "Unshim Wave 1/2" (PRs #2325/#2328) map to roadmap Waves 1∥/2∥ (plus the Wave-3 category_7 slice in #2325). Anchor all status claims to issue/PR numbers, never wave labels.
 - **Avoid multi-path split-brain bugfix.** #2385/#1873/#2105 are the same underlying defect (upgrade-run auto-commit doesn't cover every touched checkout) surfacing at different call sites; fixing them independently risks exactly the kind of divergent-husk split-brain regression this milestone is paying down elsewhere. **#2392** is the counter-measure: one canonical `commit_touched_checkout` seam, applied symmetrically, instead of N partial patches. PR #2387 (an earlier single-path attempt) was redirected to `pr:needs-revision` for this reason — it should be re-pointed at the #2392 design rather than landed as-is. #2367's two seams (#2367-A vcs-lock stop-gap, #2367-B merge-snapshot rollback) are deliberately kept OUT of the consolidation and tracked separately.
 - **Instructed-not-enforced / metadata split-brain.** #2399 and #2093 are the same "canonical authority exists in name, bound only by prompt instruction or hardcoded frontmatter copy" defect class as #2364 (dispatch-time model-discipline rule) and the sibling framing epic #1868 (different concrete domain — package layering, mission identity, guard capability, daemon identity, CI suite map, versioned contracts — not agent-profile/WP-metadata authority). **#2400** (P1) is the counter-measure, clustering #2399 + #2093 under one sub-epic instead of three unrelated parent epics (#2399 was under #1799 alone; #2093 under #1676; the WP-claim slice #1841 and doc-only companion #1840 under #1808). The pair is mutually coupled, not independently sequenceable: land #2093's intent/binding split and #2399's resolve→materialize→record mechanism together, or the half that lands first has nothing to bind against.

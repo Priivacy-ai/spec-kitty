@@ -113,7 +113,8 @@ def _build_doctrine_service(
     omit the argument and get the built-in-plus-project baseline.
     """
     from doctrine.service import DoctrineService
-    from charter.context import infer_repo_languages  # noqa: PLC0415 — patch seam, see module docstring
+    # Patch seam, see module docstring.
+    from charter.context import infer_repo_languages  # noqa: PLC0415
 
     # No built_in_root kwarg: the repositories self-resolve
     # ``packs/built-in/<kind>`` via the built_in_dir seam (default None is

@@ -1,0 +1,19 @@
+{
+  "coordination_branch": null,
+  "created_at": "2026-08-10T20:49:24.910815+00:00",
+  "flattened": false,
+  "friendly_name": "Charter & Sync Sonar Remediation",
+  "mission_id": "01KZPPZWXE9HP26RSQCJ433RKB",
+  "mission_number": null,
+  "mission_slug": "charter-sync-sonar-remediation-01KZPPZW",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The src/charter and src/specify_cli/sync modules carry 80 open Sonar findings (charter 45 incl. a super-linear-backtracking regex BLOCKER; sync 35). This mission clears them the same way the doctrine sweep (#3232) did: hoist duplicate literals to constants, extract tested helpers to bring over-complex functions to the <=15 ceiling, fix malformed suppression-comment syntax, remove unused params, and simplify the ReDoS regex \u2014 all behavior-preserving, no new suppressions, each extracted helper tested.",
+  "purpose_tldr": "Clear the SonarCloud maintainability backlog for the charter and sync modules (80 findings: complexity, duplicate literals, suppression-comment syntax, unused params, plus one ReDoS-class BLOCKER regex) via behavior-preserving refactors with no new suppressions.",
+  "slug": "charter-sync-sonar-remediation-01KZPPZW",
+  "status_phase": "1",
+  "target_branch": "fix/charter-sync-sonar-remediation",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-10T21:09:24.818571+00:00"
+}

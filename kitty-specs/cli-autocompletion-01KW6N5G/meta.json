@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "0e1ea5ce04cd0e147ed1deec29a47267b053d7bf",
-  "coordination_branch": "kitty/mission-cli-autocompletion-01KW6N5G",
   "created_at": "2026-06-28T08:22:34.979748+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "CLI Autocompletion",
   "mission_id": "01KW6N5G722JFC1HZSA6X22S2W",
   "mission_number": 153,
@@ -14,5 +13,5 @@
   "slug": "cli-autocompletion-01KW6N5G",
   "status_phase": "1",
   "target_branch": "feat/cli-autocompletion",
-  "topology": "coord"
+  "topology": "lanes"
 }

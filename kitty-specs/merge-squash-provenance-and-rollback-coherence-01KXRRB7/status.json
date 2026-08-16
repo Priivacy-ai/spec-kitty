@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KXT4HG4S8KV6CKXKMZP15VYW",
       "last_transition_at": "2026-07-18T08:12:32.793850+00:00",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE: non-vacuous both-sides-divergence red; real -X theirs; scope-clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3350592,
       "shell_pid_created_at": "1784323111.43",
       "tracker_refs": [
@@ -37,6 +42,11 @@
       "lane": "done",
       "last_event_id": "01KXT4HPS3229DWDP68NX5T1CZ",
       "last_transition_at": "2026-07-18T08:12:39.587710+00:00",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE: non-vacuity triple-guarded; binding contract = resume idempotency/event_id byte-stability (not vacuous count); contract-routed reads; scope-clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3388769,
       "shell_pid_created_at": "1784324383.02",
       "tracker_refs": [
@@ -50,6 +60,11 @@
       "lane": "done",
       "last_event_id": "01KXT4HX9FQD6G2CPAX4YX4EGS",
       "last_transition_at": "2026-07-18T08:12:46.255855+00:00",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE: FR-003/004/005 spec-faithful; driver self-heal generalized to registry (not cloned); #1732 preserved; red integrity intact; #2709 set green under correct install. Gate skipped: pre-review gate confounded by driver-subprocess needing up-to-date install (env artifact), independently reviewed green.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3872736,
       "shell_pid_created_at": "1784354321.61",
       "tracker_refs": [
@@ -63,6 +78,11 @@
       "lane": "done",
       "last_event_id": "01KXT4J3VWDDEJDSF1SK67SYEW",
       "last_transition_at": "2026-07-18T08:12:52.988714+00:00",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE: Option A correct (coord-worktree revert, ref from resolve_placement_only, AC-B3/F1 safe); durable-log resume via coordination_branch_ref; ratchets 18 green; scope-clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3874028,
       "shell_pid_created_at": "1784354365.14",
       "tracker_refs": [
@@ -75,6 +95,11 @@
       "lane": "done",
       "last_event_id": "01KXT4JA9EGE9BK2C1EQ3YQJRW",
       "last_transition_at": "2026-07-18T08:12:59.566489+00:00",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE: no-blind-copy lint + driver-registry-completeness lint both non-vacuous (3 self-mutations proven RED incl. future-artifact); glob set from independent MissionArtifactKind registry (non-tautology); campsite-clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 4036093,
       "shell_pid_created_at": "1784358506.8",
       "tracker_refs": [
@@ -87,6 +112,11 @@
       "lane": "done",
       "last_event_id": "01KXT4JGT4959FS87ABM2WXC36",
       "last_transition_at": "2026-07-18T08:13:06.244121+00:00",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE: property guard non-vacuous (fails if resume trusts completed_wps), event_id byte-stability not vacuous count; ledger retirement is genuine supersession (contract covered end-to-end by designated repro); scope-clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "tracker_refs": [
         "2711"
       ]

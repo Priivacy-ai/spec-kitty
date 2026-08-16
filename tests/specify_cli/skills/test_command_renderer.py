@@ -46,6 +46,7 @@ from specify_cli.skills.command_renderer import (
     ensure_skill_frontmatter,
     render,
 )
+from specify_cli.skills.render_versions import FIXTURE_SKILL_RENDER_VERSION
 
 # ---------------------------------------------------------------------------
 # Test constants
@@ -69,7 +70,9 @@ _LEGACY_COMMAND_TEMPLATES_DIR = Path(__file__).parent.parent.parent.parent / "sr
 SNAPSHOTS_DIR = Path(__file__).parent / "__snapshots__"
 
 # Fixed version string used for all snapshot renders so the output is stable.
-_TEST_VERSION = "3.0.0"
+# Sourced from the shared pin so this suite and `spec-kitty regen` can never
+# diverge (#3447, FR-005).
+_TEST_VERSION = FIXTURE_SKILL_RENDER_VERSION
 SNAPSHOT_AGENTS: tuple[str, ...] = ("codex", "vibe")
 
 # Whether to update snapshots instead of asserting against them.
@@ -129,11 +132,35 @@ def _render_and_compare(template_path: Path, agent_key: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("template_path", _all_templates(), ids=_command_name)
-@pytest.mark.parametrize("agent_key", SNAPSHOT_AGENTS)
-def test_snapshot(template_path: Path, agent_key: str) -> None:
-    """Representative agent renders must match their committed snapshots."""
-    _render_and_compare(template_path, agent_key)
+# Narrowed gate (#3447 WP05, SC-005): the full codex/vibe x N snapshot grid is
+# replaced by ONE canonical snapshot + the structural coverage of
+# ``test_deterministic`` and the NFR path tests, so a source-prompt edit
+# regenerates at most one snapshot instead of ~2 per command.
+_CANONICAL_SKILL_AGENT = "codex"
+_CANONICAL_SKILL_COMMAND = "specify"
+
+
+def test_canonical_skill_snapshot() -> None:
+    """The canonical (codex/specify) skill render is byte-stable.
+
+    Regenerate with ``spec-kitty regen`` (or ``PYTEST_UPDATE_SNAPSHOTS=1``) when
+    an intended template change alters it.
+    """
+    template = TEMPLATES_DIR / _CANONICAL_SKILL_COMMAND / "prompt.md"
+    assert template.exists(), f"canonical template missing: {template}"
+    _render_and_compare(template, _CANONICAL_SKILL_AGENT)
+
+
+def test_only_canonical_snapshot_is_committed() -> None:
+    """Post-narrowing, exactly one canonical skill snapshot is committed."""
+    committed = sorted(
+        p.relative_to(SNAPSHOTS_DIR).as_posix()
+        for p in SNAPSHOTS_DIR.rglob("*")
+        if p.is_file() and p.name != "__init__.py"
+    )
+    assert committed == ["codex/specify.SKILL.md"], (
+        f"Expected only the canonical codex/specify.SKILL.md snapshot, found: {committed}"
+    )
 
 
 # ---------------------------------------------------------------------------

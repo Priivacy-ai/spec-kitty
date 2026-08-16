@@ -1,0 +1,81 @@
+{
+  "event_count": 28,
+  "last_event_id": "01KZWSV8PKFMPRE4Y912Z3NQXB",
+  "materialized_at": "2026-08-13T05:34:45.459076+00:00",
+  "mission_number": "",
+  "mission_slug": "mission-a-p0-consistency-01KZWHY1",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZWSV59D92VN0FF1E2W627K4",
+      "last_transition_at": "2026-08-13T05:34:41.965665+00:00",
+      "review_result": {
+        "reference": "Review passed: emit_captured re-pointed to persisted record (event findings_status/counts flow from the read-back record, verified in lifecycle_events.py); JSON + event both built from persisted, C-002 Path return unchanged (writer.py untouched); spy test asserts the captured event OBJECT's findings_status=has_findings and len(gaps)=1 against on-disk YAML (non-fakeable, not the reported JSON); out-of-map test_retrospect.py edit is a necessary companion fix (read-back requires mocks to persist via _persisting_write_gen_record delegating to the real writer), assertions and mode-capture preserved, no sibling WP owns that file; regression repro deleted+relocated with unit/fast marks matching siblings, pytest -m regression -k 3320 collects nothing; retrospect suite 95 passed; ruff+mypy clean on production, 3 mypy errors in test_retrospect.py confirmed pre-existing on base (lines 217/335/998).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1841441,
+      "shell_pid_created_at": "1786594172.23"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZWSV6H6X0A0ZB8063EFV3TG",
+      "last_transition_at": "2026-08-13T05:34:43.238505+00:00",
+      "review_result": {
+        "reference": "Review passed: C-003 discriminator confirmed live at matrix.py::_is_empty_scaffold -- 'return criterion.description == SCAFFOLD_TODO_MARKER' (never notes, never criterion_id). overall_verdict routes pending-check through _pending_dominant_criterion_results with the >=1-non-scaffold fallback so all-scaffold and empty-AC-001-only matrices stay pending; fail/negative-invariant precedence (lines 295-302) unchanged. Guard tests proven NON-FAKEABLE via mutation: notes-based impl reds test_partial_authoring, criterion_id-based impl reds test_real_ac001. NFR-005: repro relocated tests/regression->tests/acceptance, regression mark dropped, canonical marks + guard docstring added; 'pytest -m regression -k 3231 --collect-only' selects nothing (36710 deselected). ruff+mypy clean; acceptance suite 64 passed; downstream consumers 971 passed 1 skipped. Scope = 3 owned files only; no dead code.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1865132,
+      "shell_pid_created_at": "1786595369.48"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZWSV7KK53E04DAK0RH66DG7",
+      "last_transition_at": "2026-08-13T05:34:44.339960+00:00",
+      "review_result": {
+        "reference": "Review passed: root fix C-008 verified — ProjectMetadata gains schema_version field; load() reads spec_kitty.schema_version, save() writes it back when not None (None writes no key), _mask_volatile_metadata schema_version entry dropped; fix reached from live save() path via _record_migration_result on the failed-migration branch. C-004 honored: planner.py/safety.py/runner.py 0 diff lines. FIXTURE-SPLIT VALIDATED against compat/planner.py: decide() Row 3 blocks STALE-OR-LEGACY+UNSAFE identically, classify() maps schema<min→STALE, and 'plan' is unregistered→UNSAFE, so a STALE fixture ALWAYS SystemExit(4)s for plan even post-fix — assertions 1(preserve) and 2(gate-passable) genuinely cannot coexist on one fixture; the STALE→preserve / REQUIRED→gate-passable split is correct and non-fakeable. Assertion(1) pins preserve via _STALE=MIN_SUPPORTED-1 (!=REQUIRED). Assertion(2) confirmed RED-first: base metadata.py yields get_project_schema_version→None (KeyError/SystemExit(4)); GREEN post-fix. Injection non-vacuous (stub target 3.2.1 vs fixture 3.2.0, result.success is False asserted). NFR-005: #3334 regression repro deleted, -m regression -k 3334 collects nothing. ruff/mypy clean; tests/upgrade+compat 1237 passed.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1867925,
+      "shell_pid_created_at": "1786595499.48"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZWSV8PKFMPRE4Y912Z3NQXB",
+      "last_transition_at": "2026-08-13T05:34:45.459076+00:00",
+      "review_result": {
+        "reference": "Review passed. Reader-recipe confirmed: _execution_has_begun uses resolve_status_surface_with_anchor(repo_root, mission_slug).read_dir + has_event_log guard + read-only get_all_wp_lanes; reducer.materialize appears ONLY in a docstring (grep-confirmed), no raw planning_dir event-log read. Trigger is execution-STATE (any(lane != Lane.PLANNED)), not lanes.json/planning_commit_sha presence, so the benign pre-execution re-finalize keeps regenerating. Red-first confirmed by reverting the call site to _capture_target_branch_tip: differing-real-SHA preservation test went RED (got new tip 063c023.. vs seeded deadbeef..), relocated None-tip repro went RED (clobbered to None); pre-execution regeneration test correctly stayed green. read-does-not-write test is non-fakeable: injecting reducer.materialize() into the helper made it RED (status.json created). Single-write freeze preserved (one write_lanes_json, no re-capture/second commit). NFR-005: repro relocated to tests/specify_cli/cli/commands/agent/, marker dropped, pytest -m regression -k 3311 collects nothing (36725 deselected). ruff clean; mypy adds zero new errors (base has identical 6 no-any-return baseline; new type:ignore scoped+justified). Finalize suite 163 passed. No dead code (guard on live _compute_and_write_lanes path).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1933206,
+      "shell_pid_created_at": "1786597437.21"
+    }
+  }
+}

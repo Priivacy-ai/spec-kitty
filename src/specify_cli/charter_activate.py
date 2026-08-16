@@ -136,57 +136,69 @@ def scan_inflight_missions(
     if not removed_steps:
         return []
 
+    # Collect all in-flight WPs across all missions once, then map them to
+    # each removed step (conservative: all removed steps get the same set).
+    all_inflight = _collect_inflight_missions(mission_specs_dir)
+
+    # Build one StepRemovalWarning per removed step, sharing the inflight list.
+    return [
+        StepRemovalWarning(
+            removed_step_id=step_id,
+            affected_missions=list(all_inflight),  # copy per step
+        )
+        for step_id in removed_steps
+    ]
+
+
+def _collect_inflight_missions(mission_specs_dir: Path) -> list[AffectedMission]:
+    """Return in-flight WPs across every mission under ``mission_specs_dir``.
+
+    Extracted from :func:`scan_inflight_missions` (S3776) so the per-mission
+    scan is its own testable unit. Silently yields nothing when the directory
+    is absent — the caller treats that as "no in-flight WPs found".
+    """
+    if not mission_specs_dir.is_dir():
+        return []
+
+    all_inflight: list[AffectedMission] = []
+    for mission_dir in sorted(mission_specs_dir.iterdir()):
+        if not mission_dir.is_dir():
+            continue
+        all_inflight.extend(_inflight_missions_for(mission_dir))
+    return all_inflight
+
+
+def _inflight_missions_for(mission_dir: Path) -> list[AffectedMission]:
+    """Return in-flight WPs for a single mission directory.
+
+    Skips missions with no ``status.events.jsonl``, an empty event log, or a
+    corrupt one (best-effort scan — a broken mission must not abort the
+    whole warning scan).
+    """
     from specify_cli.status import read_events  # noqa: PLC0415 — lazy; avoids heavy import
     from specify_cli.status import reduce  # noqa: PLC0415
 
-    # Collect all in-flight WPs across all missions once, then map them to
-    # each removed step (conservative: all removed steps get the same set).
-    all_inflight: list[AffectedMission] = []
+    events_file = mission_dir / "status.events.jsonl"
+    if not events_file.exists():
+        return []
 
-    if mission_specs_dir.is_dir():
-        for mission_dir in sorted(mission_specs_dir.iterdir()):
-            if not mission_dir.is_dir():
-                continue
+    # Determine mission slug from meta.json (prefer) or directory name.
+    mission_slug = _read_mission_slug(mission_dir)
 
-            events_file = mission_dir / "status.events.jsonl"
-            if not events_file.exists():
-                continue
+    try:
+        events = read_events(mission_dir)
+    except Exception:  # noqa: BLE001, S112 — best-effort scan; skip corrupt files
+        return []
 
-            # Determine mission slug from meta.json (prefer) or directory name.
-            mission_slug = _read_mission_slug(mission_dir)
+    if not events:
+        return []
 
-            try:
-                events = read_events(mission_dir)
-            except Exception:  # noqa: BLE001, S112 — best-effort scan; skip corrupt files
-                continue
-
-            if not events:
-                continue
-
-            snapshot = reduce(events)
-
-            for wp_id, wp_state in snapshot.work_packages.items():
-                lane = wp_state.get("lane", "")
-                if lane in _INFLIGHT_LANES:
-                    all_inflight.append(
-                        AffectedMission(
-                            mission_slug=mission_slug,
-                            wp_id=wp_id,
-                            current_lane=lane,
-                        )
-                    )
-
-    # Build one StepRemovalWarning per removed step, sharing the inflight list.
-    warnings: list[StepRemovalWarning] = []
-    for step_id in removed_steps:
-        warnings.append(
-            StepRemovalWarning(
-                removed_step_id=step_id,
-                affected_missions=list(all_inflight),  # copy per step
-            )
-        )
-
-    return warnings
+    snapshot = reduce(events)
+    return [
+        AffectedMission(mission_slug=mission_slug, wp_id=wp_id, current_lane=lane)
+        for wp_id, wp_state in snapshot.work_packages.items()
+        if (lane := wp_state.get("lane", "")) in _INFLIGHT_LANES
+    ]
 
 
 def _read_mission_slug(mission_dir: Path) -> str:

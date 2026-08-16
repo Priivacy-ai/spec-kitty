@@ -187,24 +187,34 @@ def delete_scalar(frontmatter: str, key: str) -> str:
 
 
 def set_scalar(frontmatter: str, key: str, value: str) -> str:
-    """Replace or insert a scalar value while preserving trailing comments."""
+    """Replace an EXISTING scalar value while preserving trailing comments.
+
+    FR-006 (mission upgrade-atomicity-recovery, WP08): the append-on-miss
+    branch is RETIRED. This writer once appended ``key: value`` inline when the
+    key was absent -- the latent mechanism behind the #3372 duplicate
+    ``review_feedback`` key (invalid-YAML dual-write). The symbol is retained
+    because ``task_utils/__init__.py`` and ``cli/commands/agent/workflow.py``
+    re-export it, but it now FAILS CLOSED on a miss: an absent key raises
+    :class:`TaskCliError` rather than materialising a new inline key, so no path
+    can re-introduce the dual-key. The canonical review path stores a
+    ``review-cycle://`` pointer on the event log, never an inline frontmatter
+    key.
+
+    Raises:
+        TaskCliError: When *key* is not already present in *frontmatter*
+            (the retired append-on-miss path).
+    """
     match = match_frontmatter_line(frontmatter, key)
-    replacement_line = f'{key}: "{value}"'
-    if match:
-        prefix = match.group(1)
-        comment = match.group(3)
-        comment_suffix = f"{comment}" if comment else ""
-        return frontmatter[: match.start()] + f'{prefix}"{value}"{comment_suffix}' + frontmatter[match.end() :]
-
-    insertion = f"{replacement_line}\n"
-    history_match = re.search(r"^\s*history:\s*$", frontmatter, flags=re.MULTILINE)
-    if history_match:
-        idx = history_match.start()
-        return frontmatter[:idx] + insertion + frontmatter[idx:]
-
-    if frontmatter and not frontmatter.endswith("\n"):
-        frontmatter += "\n"
-    return frontmatter + insertion
+    if match is None:
+        raise TaskCliError(
+            f"set_scalar refuses to append a new inline '{key}' frontmatter key "
+            f"(FR-006: the append-on-miss writer is retired to prevent the #3372 "
+            f"duplicate-key regression). It may only update an existing key."
+        )
+    prefix = match.group(1)
+    comment = match.group(3)
+    comment_suffix = f"{comment}" if comment else ""
+    return frontmatter[: match.start()] + f'{prefix}"{value}"{comment_suffix}' + frontmatter[match.end() :]
 
 
 def split_frontmatter(text: str) -> tuple[str, str, str]:

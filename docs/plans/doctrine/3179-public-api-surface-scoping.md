@@ -1,7 +1,7 @@
 ---
 title: '2026-08-10 — #3179 doctrine public API surface — scoping brief'
 description: 'Pre-spec scope for the doctrine public-API mission (#3179): reach-through inventory, charter-facade gap map, lazy-import ratchet, and the #3101 wheel-cutover precondition.'
-doc_status: active
+doc_status: deprecated
 updated: '2026-08-10'
 related:
 - docs/plans/doctrine/index.md
@@ -10,6 +10,8 @@ related:
 ---
 
 # #3179 — Doctrine public API surface — scoping brief
+
+> **Retired (deprecated).** Design shipped via merged mission `doctrine-public-api-surface-01KZPDSR` (#3179; #3101/#3176/#3182). Preserved as a historical record.
 
 **Tier: EVIDENCE / pre-spec.** Squad-gathered scope for a future `/spec-kitty.specify`.
 Not an AUTHORITY doc — the citable sequencing statement remains

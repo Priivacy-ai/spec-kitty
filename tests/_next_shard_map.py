@@ -43,7 +43,6 @@ _NEXT_SHARD_2_FILES: tuple[str, ...] = (
     "tests/next/test_mission_run_back_reference.py",
     "tests/next/test_next_command_integration.py",
     "tests/next/test_prompt_builder_unit.py",
-    "tests/next/test_retrospective_terminus_wiring.py",
     "tests/next/test_runtime_bridge_unit.py",
 )
 _NEXT_SHARD_3_FILES: tuple[str, ...] = (
@@ -106,7 +105,6 @@ _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
 )
 _RUNTIME_SHARD_2_FILES: tuple[str, ...] = (
     "tests/runtime/test_banner_visibility.py",
-    "tests/runtime/test_bridge_compat_surface.py",
     "tests/runtime/test_bridge_composition.py",
     "tests/runtime/test_bridge_decision_builder.py",
     "tests/runtime/test_bridge_io.py",
@@ -116,7 +114,6 @@ _RUNTIME_SHARD_2_FILES: tuple[str, ...] = (
     "tests/runtime/test_e2e_runtime_integration.py",
     "tests/runtime/test_package_exports.py",
     "tests/runtime/test_resolver_unit.py",
-    "tests/runtime/test_runtime_bridge_family_arch.py",
 )
 _RUNTIME_SHARD_3_FILES: tuple[str, ...] = (
     "tests/runtime/test_bootstrap_unit.py",

@@ -14,9 +14,8 @@
   "accepted_by": "stijn",
   "accepted_from_commit": "6db376b505b13186c11d34145a3fcd2dc607037b",
   "baseline_merge_commit": "673df58911de5bc8f5035041a8f3408fd5d5b16b",
-  "coordination_branch": "kitty/mission-annoying-bugs-sweep-01KYHQ9F",
   "created_at": "2026-07-27T12:02:44.651800+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Annoying Bugs Sweep",
   "mission_id": "01KYHQ9F9BCK9E301PQJG6T7QZ",
   "mission_number": null,
@@ -28,7 +27,7 @@
   "slug": "annoying-bugs-sweep-01KYHQ9F",
   "status_phase": "1",
   "target_branch": "fix/annoying-bugs-sweep",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-27T13:50:54.783267+00:00"
 }

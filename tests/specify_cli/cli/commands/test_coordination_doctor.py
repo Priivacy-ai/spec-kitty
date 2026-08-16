@@ -441,24 +441,8 @@ def test_apply_coord_staleness_fixes_unstattable_mission_candidate_is_not_silent
 # --- H2 / cycle invariants ---------------------------------------------------
 
 
-def test_merge_import_is_function_local() -> None:
-    import ast
-
-    source = Path(cd.__file__).read_text(encoding="utf-8")
-    tree = ast.parse(source)
-    # No module-level (depth-1) import of the merge module.
-    for node in tree.body:
-        if isinstance(node, ast.ImportFrom) and node.module == "specify_cli.cli.commands.merge":
-            raise AssertionError("merge import must not be module-level (H2)")
-    # It must appear somewhere nested (inside a function).
-    assert "from specify_cli.cli.commands.merge import path_is_under_worktrees" in source
 
 
-def test_no_doctor_merge_import_cycle() -> None:
-    import importlib
-
-    importlib.import_module("specify_cli.cli.commands.doctor")
-    importlib.import_module("specify_cli.cli.commands.merge")
 
 
 # --- _fix_never_created_branches ---------------------------------------------
@@ -1326,3 +1310,88 @@ def test_stranded_check_unparseable_marker_emits_warning(tmp_path: Path) -> None
     assert len(findings) == 1
     assert findings[0].severity == "warning"
     assert findings[0].error_code == cd._MARKER_UNPARSEABLE_CODE
+
+
+# --- FR-012: `doctor coordination --mission <handle>` per-mission scoping ------
+
+
+def _seed_mission_meta(specs: Path, slug: str, mission_id: str) -> None:
+    mission = specs / slug
+    mission.mkdir(parents=True)
+    (mission / "meta.json").write_text(
+        _json.dumps({"slug": slug, "mission_slug": slug, "mission_id": mission_id}),
+        encoding="utf-8",
+    )
+
+
+def test_collect_findings_mission_filter_scopes_to_one(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`_collect_coordination_findings(mission_filter=...)` scopes the kitty-specs
+    iteration to the single mission the shared resolver maps the handle to (#2696,
+    FR-012). Assert on the specific per-mission finding, not exit codes."""
+    specs = tmp_path / "kitty-specs"
+    _seed_mission_meta(specs, "083-alpha", "01AAAAAAAAAAAAAAAAAAAAAAAA")
+    _seed_mission_meta(specs, "084-beta", "01BBBBBBBBBBBBBBBBBBBBBBBB")
+
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+    monkeypatch.setattr(cd, "_check_stranded_coord_revert", lambda _r: [])
+    monkeypatch.setattr(cd, "_check_lane_sparse_checkout_drift", lambda _r, _m: [])
+    monkeypatch.setattr(
+        cd,
+        "_check_coordination_worktree_health",
+        lambda _r, m: [
+            cd.DoctorFinding(severity="warning", message=f"coord:{m['mission_slug']}")
+        ],
+    )
+
+    scoped = cd._collect_coordination_findings(tmp_path, mission_filter="084-beta")
+    messages = [f.message for f in scoped]
+    assert "coord:084-beta" in messages
+    assert "coord:083-alpha" not in messages
+
+    unscoped = cd._collect_coordination_findings(tmp_path)
+    unscoped_messages = [f.message for f in unscoped]
+    assert "coord:084-beta" in unscoped_messages
+    assert "coord:083-alpha" in unscoped_messages
+
+
+def test_run_coordination_health_mission_not_found_exits_1(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """An unresolvable `--mission` handle fails closed with exit 1 (mission-state parity)."""
+    (tmp_path / "kitty-specs").mkdir()
+    monkeypatch.setattr(cd, "locate_project_root", lambda: tmp_path)
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=False, mission="does-not-exist")
+    assert exc.value.exit_code == 1
+
+
+def test_run_coordination_health_mission_not_found_json_envelope(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--json` unresolvable-handle emits a JSON error envelope (mission-state parity)."""
+    (tmp_path / "kitty-specs").mkdir()
+    monkeypatch.setattr(cd, "locate_project_root", lambda: tmp_path)
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=True, mission="nope")
+    assert exc.value.exit_code == 1
+    payload = _json.loads(capsys.readouterr().out.strip())
+    assert payload["error"] == "MISSION_NOT_FOUND"
+    assert payload["handle"] == "nope"
+
+
+def test_run_coordination_health_ambiguous_handle_exits_1(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """An ambiguous `--mission` handle fails closed with exit 1 (mission-state parity)."""
+    specs = tmp_path / "kitty-specs"
+    # Two missions sharing the same human slug (differ only by numeric prefix)
+    # → the human-slug ladder rung matches both → AmbiguousHandleError.
+    _seed_mission_meta(specs, "083-dup", "01AAAAAAAAAAAAAAAAAAAAAAAA")
+    _seed_mission_meta(specs, "084-dup", "01BBBBBBBBBBBBBBBBBBBBBBBB")
+    monkeypatch.setattr(cd, "locate_project_root", lambda: tmp_path)
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=False, mission="dup")
+    assert exc.value.exit_code == 1

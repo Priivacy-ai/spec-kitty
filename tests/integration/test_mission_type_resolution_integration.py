@@ -282,6 +282,7 @@ def test_software_development_mission_resolves_exact_configured_templates(
 
 def _assert_domain_mission_resolves_authored_templates(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
     mission_type: str,
     expected_template_set: dict[str, str],
 ) -> None:
@@ -289,6 +290,7 @@ def _assert_domain_mission_resolves_authored_templates(
     stage a real mission of *mission_type*, resolve its bundle, and confirm
     every authored artifact_key/template_file pair resolves to a real,
     readable, package-default-tier template file."""
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "empty-global-home"))
     feature_dir = _stage_mission(tmp_path, mission_type)
     bundle = resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
 
@@ -301,12 +303,15 @@ def _assert_domain_mission_resolves_authored_templates(
         assert result.path.read_bytes()
 
 
-def test_research_mission_resolves_authored_templates(tmp_path: Path) -> None:
+def test_research_mission_resolves_authored_templates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """S-C Concern B (WP03, C-003/C-010): a real research mission resolves its
     authored ``spec``/``plan`` templates to the research-vocabulary files, at the
     package-default tier — the creatability proof for the ``research`` type."""
     _assert_domain_mission_resolves_authored_templates(
         tmp_path,
+        monkeypatch,
         "research",
         {
             "spec": "research-spec-template.md",
@@ -315,7 +320,9 @@ def test_research_mission_resolves_authored_templates(tmp_path: Path) -> None:
     )
 
 
-def test_documentation_mission_resolves_authored_templates(tmp_path: Path) -> None:
+def test_documentation_mission_resolves_authored_templates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """S-C Concern B (mission-step-creatability-01KXQA6R WP02, reconciled by
     WP05, C-003/C-010): a real documentation mission resolves its authored
     ``spec``/``plan`` templates to the documentation-vocabulary files, at the
@@ -323,6 +330,7 @@ def test_documentation_mission_resolves_authored_templates(tmp_path: Path) -> No
     type, mirroring ``test_research_mission_resolves_authored_templates``."""
     _assert_domain_mission_resolves_authored_templates(
         tmp_path,
+        monkeypatch,
         "documentation",
         {
             "spec": "documentation-spec-template.md",
@@ -331,7 +339,9 @@ def test_documentation_mission_resolves_authored_templates(tmp_path: Path) -> No
     )
 
 
-def test_plan_mission_resolves_authored_templates(tmp_path: Path) -> None:
+def test_plan_mission_resolves_authored_templates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """S-C Concern B (mission-step-creatability-01KXQA6R WP04, reconciled by
     WP05, C-003/C-010): a real plan mission resolves its authored
     ``spec``/``plan`` templates to the plan-vocabulary files, at the
@@ -339,6 +349,7 @@ def test_plan_mission_resolves_authored_templates(tmp_path: Path) -> None:
     mirroring ``test_research_mission_resolves_authored_templates``."""
     _assert_domain_mission_resolves_authored_templates(
         tmp_path,
+        monkeypatch,
         "plan",
         {
             "spec": "plan-spec-skeleton.md",

@@ -35,7 +35,8 @@ steps:
     description: >
       Open the file with in-file YAML frontmatter as the per-page source of
       truth: title; the namespaced doc_status (draft | active | deprecated |
-      superseded) — never a bare status key; updated: YYYY-MM-DD; a description of
+      superseded | durable — durable is the reserved never-retire value for domain
+      throughlines) — never a bare status key; updated: YYYY-MM-DD; a description of
       50-180 characters for SEO; and a related: list of resolvable repo-relative
       .md paths (empty list if there are none yet). A freshly scaffolded page
       normally starts at doc_status: draft. Do not create a sidecar metadata

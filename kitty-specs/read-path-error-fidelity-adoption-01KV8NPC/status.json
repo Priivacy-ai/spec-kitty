@@ -1,5 +1,5 @@
 {
-  "event_count": 79,
+  "event_count": 80,
   "last_event_id": "01KV96C9NH6DCC8YVYXQJTMDAJ",
   "materialized_at": "2026-06-16T21:46:10.481470+00:00",
   "mission_number": "141",
@@ -24,6 +24,7 @@
       "lane": "done",
       "last_event_id": "01KV96C6418VZ6V8Y5KXS7FZ0J",
       "last_transition_at": "2026-06-16T21:46:06.849766+00:00",
+      "review_result": null,
       "shell_pid": 2420540,
       "subtasks": {
         "T001": "done",
@@ -42,6 +43,7 @@
       "lane": "done",
       "last_event_id": "01KV96C7XEJ4NGRW8E4DWRZ9TC",
       "last_transition_at": "2026-06-16T21:46:08.686849+00:00",
+      "review_result": null,
       "shell_pid": 2585018,
       "subtasks": {
         "T007": "done",
@@ -60,6 +62,7 @@
       "lane": "done",
       "last_event_id": "01KV96C8BMW2VJRFYE5QEFZ10D",
       "last_transition_at": "2026-06-16T21:46:09.140172+00:00",
+      "review_result": null,
       "shell_pid": 2566958,
       "subtasks": {
         "T013": "done",
@@ -78,6 +81,7 @@
       "lane": "done",
       "last_event_id": "01KV96C8SA1H539EAZQS4XF75V",
       "last_transition_at": "2026-06-16T21:46:09.578276+00:00",
+      "review_result": null,
       "shell_pid": 2566958,
       "subtasks": {
         "T020": "done",
@@ -94,6 +98,7 @@
       "lane": "done",
       "last_event_id": "01KV96C97CM5CZC8Y1VQG5AMFS",
       "last_transition_at": "2026-06-16T21:46:10.028462+00:00",
+      "review_result": null,
       "shell_pid": 2564771,
       "subtasks": {
         "T024": "done",
@@ -111,6 +116,7 @@
       "lane": "done",
       "last_event_id": "01KV96C6M10YEJP7D0AEJATEMG",
       "last_transition_at": "2026-06-16T21:46:07.361561+00:00",
+      "review_result": null,
       "shell_pid": 2298074,
       "subtasks": {
         "T029": "done",
@@ -125,6 +131,7 @@
       "lane": "done",
       "last_event_id": "01KV96C71T7WRZQHHKN8EGNXBX",
       "last_transition_at": "2026-06-16T21:46:07.802445+00:00",
+      "review_result": null,
       "shell_pid": 2305513,
       "subtasks": {
         "T032": "done",
@@ -139,6 +146,7 @@
       "lane": "done",
       "last_event_id": "01KV96C7FR3TDRW7TA9QVF42W5",
       "last_transition_at": "2026-06-16T21:46:08.248444+00:00",
+      "review_result": null,
       "shell_pid": 2293897,
       "subtasks": {
         "T035": "done",
@@ -152,6 +160,12 @@
       "lane": "done",
       "last_event_id": "01KV96C9NH6DCC8YVYXQJTMDAJ",
       "last_transition_at": "2026-06-16T21:46:10.481470+00:00",
+      "review_result": {
+        "feedback_path": "/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260809-175108-qc7maU/spec-kitty/kitty-specs/read-path-error-fidelity-adoption-01KV8NPC/tasks/WP09-orchestrator-typed-error-fail-closed/review-cycle-2.md",
+        "reference": "review-cycle://read-path-error-fidelity-adoption-01KV8NPC/WP09-orchestrator-typed-error-fail-closed/review-cycle-2.md",
+        "reviewer": "unknown",
+        "verdict": "changes_requested"
+      },
       "shell_pid": 2615089,
       "subtasks": {
         "T039": "done",

@@ -104,9 +104,7 @@ _WATCHED_GLOBALS: tuple[_WatchedGlobal, ...] = _WATCHED_SINGLETONS + _WATCHED_CA
 # inventory E51 (test_target_authority.py) and E52
 # (test_target_authority_wiring.py) write the same key, so one watch covers
 # both rows.
-_WATCHED_ENV_KEYS: tuple[tuple[str, str], ...] = (
-    ("E51/E52", "SPEC_KITTY_SAAS_URL"),
-)
+_WATCHED_ENV_KEYS: tuple[tuple[str, str], ...] = (("E51/E52", "SPEC_KITTY_SAAS_URL"),)
 
 # WP04 inventory entries this guard deliberately does NOT watch, and why.
 # Reported every session by ``pytest_terminal_summary`` (H8 / NFR-008) so the
@@ -114,8 +112,7 @@ _WATCHED_ENV_KEYS: tuple[tuple[str, str], ...] = (
 _UNWATCHED_ENTRIES: tuple[tuple[str, str], ...] = (
     (
         "E15, E16",
-        "not reachable -- frozen str constants (E15) / function-local variables that "
-        "structurally cannot be promoted to a module global (E16); nothing to snapshot",
+        "not reachable -- frozen str constants (E15) / function-local variables that structurally cannot be promoted to a module global (E16); nothing to snapshot",
     ),
     (
         "E17, E18, E19",
@@ -402,52 +399,16 @@ _PINNED_LEAKS: tuple[_PinnedLeak, ...] = (
     # reproduces" for both.
     #   - tests/sync/test_issue_598_hang_fixes.py::TestBackgroundStopBounded::test_stop_does_not_hang_when_sync_is_slow
     #   - tests/sync/test_issue_598_hang_fixes.py::TestBackgroundStopBounded::test_stop_emits_structured_warning_when_sync_times_out
-    # [#3167 cone] Do not re-pin, do not widen these four markers, and un-pin ONLY on
-    # a leak that provably stopped as a consequence of the change removing it -- see
-    # the "#3167 CONE HAZARD" block above for the ordering constraint that makes that
-    # binding rather than advisory. At #3167 (both arms) this entry ERRORS as a PARTIAL
-    # match in the full serial sweep and PASSES in isolation; the observability comes
-    # from an unpinned leak in a file #3167 does not own. Pre-existing, unowned.
-    # NARROWED 2026-08-06 (#3130 fold, landing pass for #3209; per the
-    # guard's own instruction -- "remove ONLY the markers that no longer
-    # reproduce ... or investigate why a marker that should still be present
-    # is not"). The test now calls reset_runtime()/reset_sync_service() in a
-    # finally after _emit_project_init_event, which provably fixes two of
-    # the four original markers -- re-running confirms both are now
-    # genuinely absent, not merely unobservable:
-    #   - [E27] (_service singleton)
-    #   - target=None (the anonymous thread)
-    # The other two do NOT reliably clear and are kept. [E26] keeps its
-    # existing marker_baselines entry (history below, unchanged). The
-    # async-loop thread is NEW evidence, not previously distinguished from
-    # the anonymous one: debug instrumentation showed
-    # specify_cli.sync.runtime._runtime is already back to None by the time
-    # this test's own finally block runs -- something OTHER than this test's
-    # cleanup resets the singleton mid-test (most likely a background
-    # final-sync retry churn -- this test's own stderr shows "Final sync
-    # failed after local command success") without joining the thread it
-    # abandons, so this test has no reachable handle to retry the join.
-    # Filed as its own issue rather than chased further here (production-code
-    # async-lifecycle tracing, not test hygiene): Priivacy-ai/spec-kitty#3237.
-    _PinnedLeak(
-        "tests/sync/test_lifecycle_readiness.py::test_init_emits_project_init_event_offline",
-        ("[E26]", "spec-kitty-sync-async-loop"),
-        "#3130",
-        "two of the original four leaks per #3130's own row 11 remain: E26 (_runtime: "
-        "SyncRuntime -> None, unobservable on a clean baseline -- see marker_baselines "
-        "below) and the async-loop thread (orphaned by a mid-test singleton reset this "
-        "test's own cleanup cannot reach -- filed as #3237). round-3 review: this WP's "
-        "first pin modelled three of the four and omitted [E26] -- re-derived from "
-        "#3130's leaked-symbol column, not from one local run's output. round-5 review: "
-        "[E26] is ALSO structurally unobservable whenever nothing earlier in the same "
-        "worker/process has already set _runtime non-None -- true of every default-"
-        "alphabetical-order run, since this pin's only in-cone producer "
-        "(tracker/test_saas_client_consent_gate_3030.py) sorts after it -- so [E26] "
-        "carries its own marker_baselines entry (unobservable_when='clean', the "
-        "OPPOSITE polarity from the whole-pin requires_clean_baseline case; see "
-        "_MarkerBaseline's docstring for why)",
-        marker_baselines={"[E26]": _MarkerBaseline(baseline_watch="E26", unobservable_when="clean")},
-    ),
+    # UN-PINNED on both sides of the 2026-08-12 reconciliation merge, for
+    # convergent reasons. Main (2026-08-11, WP08 assertive sanitation): the
+    # lifecycle readiness oracle now replaces incidental runtime attachment
+    # with a no-thread fake and restores the exact prior emitter; its former
+    # pin was itself order-flaky. Branch (2026-08-12): the project-init node
+    # now uses the canonical ProjectSyncStore and its existing finally block
+    # leaves all watched runtime globals and threads clean — the guard's
+    # self-proving isolated run rejected the old pin with "this run left
+    # NOTHING dirty" before this entry was removed.
+    #   - tests/sync/test_lifecycle_readiness.py::test_init_emits_project_init_event_offline
     # UN-PINNED 2026-08-06 (#3130 fold, landing pass for #3209; per the
     # "un-pinning requires a leak that provably stopped as a consequence of
     # the change, attributed per node id" rule the #3167-cone block above
@@ -790,10 +751,7 @@ def _compute_dirty_lines(before: dict[str, object], after: dict[str, object]) ->
         before_val = before["globals"][entry.inventory_id]
         after_val = after["globals"][entry.inventory_id]
         if before_val != after_val:
-            dirty.append(
-                f"  - [{entry.inventory_id}] {entry.module_path}.{entry.attr_path} "
-                f"({entry.description}): before={before_val!r} after={after_val!r}"
-            )
+            dirty.append(f"  - [{entry.inventory_id}] {entry.module_path}.{entry.attr_path} ({entry.description}): before={before_val!r} after={after_val!r}")
 
     for label, var_name in _WATCHED_ENV_KEYS:
         before_val = before["env"][label]

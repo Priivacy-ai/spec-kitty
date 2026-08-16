@@ -202,18 +202,20 @@ def test_f007_lane_state_parity_no_genesis_misread(
     """
     repo, lane = sparse_lane_repo
 
-    primary_lane, primary_actor = read_current_wp_state_transactional(
+    _primary = read_current_wp_state_transactional(
         feature_dir=repo / "kitty-specs" / _MISSION_SLUG,
         mission_slug=_MISSION_SLUG,
         wp_id="WP01",
         repo_root=repo,
     )
-    lane_lane, lane_actor = read_current_wp_state_transactional(
+    primary_lane, primary_actor = _primary.lane, _primary.actor
+    _lane = read_current_wp_state_transactional(
         feature_dir=lane / "kitty-specs" / _MISSION_SLUG,
         mission_slug=_MISSION_SLUG,
         wp_id="WP01",
         repo_root=lane,
     )
+    lane_lane, lane_actor = _lane.lane, _lane.actor
 
     assert primary_lane == Lane.IN_PROGRESS
     assert lane_lane == primary_lane, (

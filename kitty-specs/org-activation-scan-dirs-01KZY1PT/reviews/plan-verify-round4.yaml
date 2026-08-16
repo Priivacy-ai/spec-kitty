@@ -1,0 +1,44 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+round: 4
+final: true
+results:
+  - id: PLAN-FRESH3-001
+    status: resolved
+    reason: >-
+      Structure Decision (plan.md:436-440) now reads "one function's behavior edited in
+      place (`_org_scan_dirs`), plus a docstring update on its caller (`_scan_roots`)",
+      matching the remediation and no longer contradicting the tree comment three lines
+      above it.
+  - id: PLAN-FRESH3-002
+    status: resolved
+    reason: >-
+      Technical Context's Scale/Scope line (plan.md:54-58) now reads "One function's
+      behavior changed (`_org_scan_dirs`), ~5 LOC, in one file ... plus a docstring-only
+      update to that function's caller (`_scan_roots`, see Campsite-Clean Scope)", closing
+      the fourth echo before the reader reaches The Seam or Campsite-Clean Scope.
+findings_source: plan-verify-round4 (final anchored verification pass, R5a)
+notes: >-
+  Independent full-file sweep (`_org_scan_dirs`, `_scan_roots`, "only", "sole", "one
+  function", "5 LOC", "unchanged") re-read every hit's surrounding sentence; found no
+  sixth echo of the contradiction pattern. Also confirmed the fixer's self-reported fifth
+  echo (Campsite-Clean Scope's "no campsite-clean work beyond the `_org_scan_dirs` fix
+  itself" line) was genuinely fixed in commit 8d95c69b1 — it now reads "no campsite-clean
+  tidy-up of `_built_in_scan_dir` or `_layer_scan_dirs` beyond the `_org_scan_dirs` fix
+  itself" with an added parenthetical carving out the mandatory `_scan_roots` docstring
+  edit as separate adjacent debt, not a neighboring-helper tidy-up. The Seam's "sole
+  *behavioral* edit" (plan.md:131) and "call-chain logic ... unchanged" (plan.md:132) are
+  correctly scoped (behavior/logic, not the whole function) and already carry the
+  docstring-edit caveat from round 2 — not new echoes.
+
+  Spot-checked citations outside any prior round's scrutiny against the live source tree:
+  `_scan_roots` def (kind_vocabulary.py:142), its stale docstring sentence (:158),
+  `_org_scan_dirs` def (:200), `resolve_artifact_urn` def (:253), `drg.py`'s
+  `_resolve_activated_urns_for_kind` try/except-continue shape (:333-380),
+  `pack_manager.py`'s `_resolve_org_layer_dir` flat-then-nested fallback (:238-253),
+  `compiler.py`'s `_resolve_config_activated_ids` no-try/except docstring claim
+  (:112-149), `activate.py`'s `_source_urn` def/call-site (:87, :466), and
+  `consistency_check.py`'s two differing catch behaviors (:744-748 bare continue vs.
+  :812-819 error-append). All line numbers and described behaviors matched the current
+  source exactly — no drift found.

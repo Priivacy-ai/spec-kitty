@@ -55,6 +55,17 @@ globally disabled, no auth, capture disabled outright), is what decides the
 outcome. A fix that disables capture wholesale would also fail the
 consenting half of this test.
 
+MIGRATION NOTE (per-project store cutover): the machine-global shared journal
+this file was written against no longer exists. Capture now lands each event
+in the store owned by the event's own ``project_uuid``
+(``EventEmitter._queue_event_locally`` -> ``ProjectSyncStore``), and consent is
+resolved from the UUID-owned project decision, never a stubbed gate. The #3031
+Defect 3 invariant is preserved in its post-cutover form: a non-consenting
+project's events never appear in another project's journal (the shared-store
+disclosure surface is gone by construction, asserted below), and the drain
+seam (``consented_project_uuids``) never selects the non-consenting project's
+UUID, so its locally captured rows can never ship.
+
 Doctrinal tension, named rather than resolved here: ``event_journal/journal.py``
 documents the journal write as deliberately unconditional for Teamspace-bound
 families — FR-017 / C-008, enforced by ``TeamspaceBoundDropError`` so a
@@ -77,16 +88,17 @@ from collections.abc import Iterator
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
-from uuid import uuid4
+from uuid import UUID
 
 import pytest
 
 from specify_cli.event_journal import (
-    CaptureGateState,
     get_journal,
     reset_coalesce_strategy,
     reset_journal_cache,
 )
+from specify_cli.sync.consent import consented_project_uuids, record_project_opt_in
+from specify_cli.sync.project_store import ProjectSyncStore
 
 if TYPE_CHECKING:
     from specify_cli.sync.emitter import EventEmitter
@@ -94,6 +106,11 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.fast
 
 _OCCURRED_AT = "2026-06-29T00:00:00+00:00"
+
+# Fixed UUIDs so each emitter's project-owned store can be reopened for the
+# journal assertions below.
+_CONSENTING_UUID = "aaaaaaaa-3031-0000-0000-0000000000aa"
+_NONCONSENTING_UUID = "bbbbbbbb-3031-0000-0000-0000000000bb"
 
 
 @pytest.fixture(autouse=True)
@@ -111,6 +128,11 @@ def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[
     """
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path))
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    # Live per-project capture requires the machine layout to have completed
+    # the project-store cutover; publish it for this isolated runtime root.
+    authority = ProjectSyncStore(_CONSENTING_UUID).layout_generation()
+    authority.begin_cutover("capture-gap-3031-tests")
+    authority.publish_project_only("capture-gap-3031-tests", verify_exact=lambda: True)
     reset_journal_cache()
     reset_coalesce_strategy()
     yield
@@ -118,7 +140,7 @@ def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[
     reset_coalesce_strategy()
 
 
-def _stub_emitter(*, project_slug: str, build_id: str) -> EventEmitter:
+def _stub_emitter(*, project_slug: str, build_id: str, project_uuid: str) -> EventEmitter:
     """A real ``EventEmitter`` with a stubbed identity/git resolver.
 
     Mirrors ``tests/delivery/test_dispatch_project_consent_3030.py``'s
@@ -132,53 +154,47 @@ def _stub_emitter(*, project_slug: str, build_id: str) -> EventEmitter:
 
     em = EventEmitter()
     em._identity = SimpleNamespace(
-        build_id=build_id, project_uuid=uuid4(), project_slug=project_slug
+        build_id=build_id, project_uuid=UUID(project_uuid), project_slug=project_slug
     )
     em._get_git_metadata = lambda: GitMetadata()
     return em
 
 
-def _consenting_gate(_team_slug: str | None, **_kwargs: object) -> CaptureGateState:
-    """The per-project consent signal open (``checkout_enabled=True``)."""
-    return CaptureGateState(
-        saas_enabled=False, checkout_enabled=True, authenticated=False, team_slug=None
-    )
-
-
-def _non_consenting_gate(_team_slug: str | None, **_kwargs: object) -> CaptureGateState:
-    """The per-project consent signal closed — the #3031 incident shape.
-
-    ``saas_enabled`` and ``authenticated`` are held identical to
-    ``_consenting_gate`` above; ``checkout_enabled`` is the ONLY field that
-    differs, so a fix that keys capture on the wrong axis (e.g. SaaS-enabled,
-    or auth) rather than per-project consent cannot pass this test by
-    accident.
-    """
-    return CaptureGateState(
-        saas_enabled=False, checkout_enabled=False, authenticated=False, team_slug=None
-    )
+def _read_journal_event_ids(project_uuid: str) -> set[str]:
+    """All event ids captured in *project_uuid*'s own project-owned journal."""
+    store = ProjectSyncStore(project_uuid)
+    with store.unit_of_work() as unit:
+        journal = get_journal(unit=unit, authority=store.layout_generation())
+        return {event.event_id for event in journal.read_all()}
 
 
 def test_non_consenting_project_event_never_reaches_the_journal() -> None:
-    """#3031 Defect 3: a non-consenting project's events must never reach the journal.
+    """#3031 Defect 3, post-cutover form: no shared journal, no drain selection.
 
     Previously red: both emitters' events landed in the same machine-global
-    journal file. ``EventEmitter._capture_to_journal`` called
-    ``capture_teamspace_bound`` unconditionally (``sync/emitter.py:1961``),
-    and ``capture_teamspace_bound`` itself only ever used ``gate`` to compute
-    the *recorded* ``drain_blocked_reason`` column (``classify_drain_blocked_reason``,
-    ``event_journal/journal.py:400``) before an unconditional
-    ``journal.append(event)`` (``event_journal/journal.py:402``) — the write
-    itself never consulted ``gate.checkout_enabled``. So the non-consenting
-    project's event used to be captured exactly like its consenting
-    sibling's, differing only in the ``drain_blocked_reason`` value stamped
-    on the row already sitting in the journal. The write now gates on
-    ``checkout_enabled`` directly.
+    journal file, and only a ``drain_blocked_reason`` column separated the
+    non-consenting project's row from disclosure. The cutover removed that
+    surface: each event is captured only in the store owned by its own
+    ``project_uuid``, and the drain seam (``consented_project_uuids``) never
+    selects a UUID without an explicit recorded opt-in. Consent here is the
+    REAL UUID-owned decision — the consenting project records an explicit
+    opt-in, the non-consenting sibling records nothing — so a fix that keys
+    the outcome on any other axis (SaaS flag, auth, capture disabled
+    wholesale) cannot pass both halves of this test by accident.
     """
-    consenting = _stub_emitter(project_slug="engagement-assistant", build_id="build-consenting-1")
-    consenting._capture_gate_state = _consenting_gate
-    nonconsenting = _stub_emitter(project_slug="client-confidential", build_id="build-confidential-1")
-    nonconsenting._capture_gate_state = _non_consenting_gate
+    # Real per-project consent: explicit opt-in for exactly one project.
+    record_project_opt_in(_CONSENTING_UUID, actor="tester")
+
+    consenting = _stub_emitter(
+        project_slug="engagement-assistant",
+        build_id="build-consenting-1",
+        project_uuid=_CONSENTING_UUID,
+    )
+    nonconsenting = _stub_emitter(
+        project_slug="client-confidential",
+        build_id="build-confidential-1",
+        project_uuid=_NONCONSENTING_UUID,
+    )
 
     consenting_envelope = consenting._emit(
         event_type="ErrorLogged",
@@ -197,25 +213,31 @@ def test_non_consenting_project_event_never_reaches_the_journal() -> None:
 
     assert consenting_envelope is not None, "the consenting project's emit must succeed"
     assert nonconsenting_envelope is not None, (
-        "emit itself must not raise for a non-consenting project — the gap is "
-        "at capture time, not at emission"
+        "emit itself must not raise for a non-consenting project — capture is "
+        "local durability in the project's OWN store, never disclosure"
     )
 
-    # Both emitters have SaaS globally disabled (is_saas_sync_enabled() is
-    # False), so both resolve team_slug=None and therefore share the SAME
-    # producer-scoped journal file — the incident's shared-store premise,
-    # asserted by construction rather than by inspecting internals.
-    journal = get_journal(team_slug=None)
+    consenting_journal_ids = _read_journal_event_ids(_CONSENTING_UUID)
 
-    assert journal.read_by_id(consenting_envelope["event_id"]) is not None, (
-        "sanity: the consenting project's event must be captured — this "
-        "proves checkout_enabled is what decides the outcome below, not "
-        "capture being disabled wholesale"
+    assert consenting_envelope["event_id"] in consenting_journal_ids, (
+        "sanity: the consenting project's event must be captured in its own "
+        "project-owned journal — this proves per-project consent is what "
+        "decides the outcome below, not capture being disabled wholesale"
     )
-    assert journal.read_by_id(nonconsenting_envelope["event_id"]) is None, (
+    assert nonconsenting_envelope["event_id"] not in consenting_journal_ids, (
         "#3031 Defect 3: 'a non-consenting project's events must never reach "
-        "the journal.' The non-consenting emitter's CaptureGateState "
-        "(checkout_enabled=False) must gate the journal WRITE itself, not "
-        "merely the drain_blocked_reason recorded on a row that gets written "
-        "regardless"
+        "the journal.' Post-cutover the journal is project-owned; the "
+        "non-consenting project's event must never appear in ANOTHER "
+        "project's journal — the shared-store disclosure surface the "
+        "incident turned on must stay gone"
+    )
+
+    # And the egress half of the invariant: the drain seam selects only
+    # explicitly opted-in project UUIDs, so the non-consenting project's
+    # locally captured rows can never ship.
+    assert consented_project_uuids([_CONSENTING_UUID, _NONCONSENTING_UUID]) == frozenset(
+        {_CONSENTING_UUID}
+    ), (
+        "the drain seam must select exactly the explicitly opted-in project — "
+        "absence of a recorded decision is not consent"
     )

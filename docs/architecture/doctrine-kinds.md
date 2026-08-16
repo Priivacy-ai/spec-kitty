@@ -2,7 +2,7 @@
 title: Doctrine artifact kinds
 description: What each doctrine artifact kind is for, with a real built-in example of each — sourced directly from the charter kind-vocabulary code.
 doc_status: active
-updated: '2026-07-20'
+updated: '2026-08-12'
 type: explanation
 audience: docs/context/audience/internal/lead-developer.md
 related:
@@ -30,19 +30,100 @@ and cross-checked against the running CLI. You can reproduce the same list yours
 # Passing an invalid kind makes the CLI print the full valid list back at you
 spec-kitty charter activate bogus-kind some-id
 # Error: Unknown kind 'bogus-kind'. Valid kinds: agent-profile, directive,
-# mission-step-contract, mission-type, paradigm, procedure, styleguide, tactic,
-# toolguide.
+# glossary-pack, mission-step-contract, mission-type, paradigm, procedure,
+# styleguide, tactic, toolguide.
 ```
 
 Strip `mission-type` from that list (it is a *mission* concept, not a doctrine artifact kind —
-see [the mission system](mission-system.md)) and you have the eight doctrine
-artifact kinds documented below: **directive, tactic, styleguide, toolguide, paradigm, procedure,
-agent_profile, mission_step_contract**.
+see [the mission system](mission-system.md)) and you have the **nine charter-activatable**
+doctrine artifact kinds: **directive, tactic, styleguide, toolguide, paradigm, procedure,
+agent_profile, mission_step_contract, glossary_pack**. Those nine are the activation vocabulary;
+they are part of a larger **twelve-member `ArtifactKind` enum** — the remaining three
+(`template`, `asset`, `anti_pattern`) are real kinds handled specially, not separately activated
+(see the note below and the [schema overview](#schema-at-a-glance)). All twelve are documented on
+this page.
 
-> **A note on `template` and `asset`.** If you read `src/doctrine/artifact_kinds.py` directly,
-> you will see two more members of the `ArtifactKind` enum: `template` and `asset`. Both are real
-> and both are handled by the doctrine system — but neither is one of the eight kinds above,
-> and the CLI error message above is the proof: `template` and `asset` do not appear in the
+## Schema at a glance
+
+The **`ArtifactKind` vocabulary** below is generated from the frozen enum
+(`src/doctrine/artifact_kinds.py`) via `list(ArtifactKind)` and kept honest by the drift guard
+(`tests/docs/diagram_drift/`, FR-004) — the twelve members are introspected, never hand-typed, so
+this list cannot silently fall out of step with the code (as the stale "eight" prose once did).
+
+```plantuml
+@startyaml
+title Doctrine artifact kinds — the ArtifactKind vocabulary (12 members)
+ArtifactKind:
+  - directive
+  - tactic
+  - styleguide
+  - toolguide
+  - paradigm
+  - procedure
+  - agent_profile
+  - mission_step_contract
+  - template
+  - asset
+  - glossary_pack
+  - anti_pattern
+@endyaml
+```
+
+Most kinds are a thin marker with a small governed body; the richest schema is the **agent
+profile**, so it earns a full diagram. `AgentProfileSchema` is a Pydantic model with **kebab-case
+aliases** (the guard normalizes each field via `FieldInfo.alias or name`) and a genuinely **nested**
+value object, `AgentSpecialization` — the diagram expands that sub-map so the guard exercises its
+transitive-recursion path on real, shipped content.
+
+```plantuml
+@startyaml
+title Agent profile schema — AgentProfileSchema (kebab-aliased) with nested AgentSpecialization
+AgentProfileSchema:
+  profile-id: "<str>"
+  name: "<str>"
+  description: "<str | null>"
+  schema-version: "<str | null>"
+  purpose: "<str>"
+  role: "<str | null>"
+  roles: "<list[str] | null>"
+  avatar-image: "<str | null>"
+  sentinel: "<bool>"
+  tags: "<list>"
+  capabilities: "<list>"
+  routing-priority: "<int | null>"
+  max-concurrent-tasks: "<int | null>"
+  applies_to_languages: "<list>"
+  model: "<str | null>"
+  effort: "<str | null>"
+  context-sources: "<AgentContextSources | null>"
+  specialization:
+    AgentSpecialization:
+      primary-focus: "<str>"
+      secondary-awareness: "<list | str>"
+      avoidance-boundary: "<str>"
+      success-definition: "<str>"
+  collaboration: "<AgentCollaboration | null>"
+  mode-defaults: "<list>"
+  initialization-declaration: "<str | null>"
+  specialization-context: "<AgentSpecializationContext | null>"
+  directive-references: "<list>"
+  tactic-references: "<list>"
+  toolguide-references: "<list>"
+  styleguide-references: "<list>"
+  self-review-protocol: "<SelfReviewProtocol | null>"
+@endyaml
+```
+
+The four unexpanded nested value objects (`context-sources`, `collaboration`,
+`specialization-context`, `self-review-protocol`) are shown as typed references rather than inlined —
+a deliberate diagram-author choice, like drawing a foreign key instead of copying the whole table.
+
+> **A note on `template`, `asset`, and `anti_pattern` (the three non-activatable kinds).** If you
+> read `src/doctrine/artifact_kinds.py` directly, you will see three members of the `ArtifactKind`
+> enum beyond the nine activatable kinds: `template`, `asset`, and `anti_pattern` — the exact set in
+> `_NON_AUGMENTATION_ELIGIBLE_KINDS`. All three are real and handled by the doctrine system — but
+> none is one of the nine activatable kinds above, and the CLI error message above is the proof:
+> `template` and `asset` do not appear in the
 > "Valid kinds" list because they are explicitly excluded from `CHARTER_KIND_TOKENS` (the set
 > `charter activate`/`deactivate`/`list`/`context --include` operate over). `template` is
 > mission-scoped (it ships as part of a mission type's own template set, not as a
@@ -55,14 +136,19 @@ agent_profile, mission_step_contract**.
 > `docs_structural_lint.py.asset.yaml`). Resolve it — from any installation, no charter step
 > required — with `spec-kitty doctrine asset path common-docs-structural-lint` (or list every
 > resolvable asset and its source tier with `spec-kitty doctrine asset list`). Both are worth
-> knowing exist; neither is part of the eight-kind activation vocabulary this page and its
+> knowing exist; neither is part of the nine-kind activation vocabulary this page and its
 > companion how-to cover — see [The asset kind](#the-asset-kind) below for how to author and
 > resolve one, and [Delivery verdicts: which kinds reach a mission](#delivery-verdicts-which-kinds-reach-a-mission)
-> for why the shipped asset arrives without being activated.
+> for why the shipped asset arrives without being activated. `anti_pattern` is the third: it is a
+> DRG **node kind** (`NodeKind.ANTI_PATTERN`) with **no backing artifact schema** — a marker node
+> that `rejects` edges point at — documented under [Anti-pattern](#anti-pattern) below. **Audit
+> note:** `template` was reviewed for a dedicated schema diagram and consciously left as this note
+> — it is mission-scoped file selection, not a standalone authored schema, so it carries no
+> `@startyaml` model diagram (its shape is "a file in a mission type's template set").
 
 ## The asset kind
 
-The eight kinds above are the **activation vocabulary** — you author one, `charter activate` it,
+The nine activatable kinds are the **activation vocabulary** — you author one, `charter activate` it,
 and it becomes eligible for injection into governed mission context. The `asset` kind sits outside
 that vocabulary on purpose. An asset is not a rule, a technique, or a persona; it is a **blob** —
 a file whose bytes are the payload (an image, a font, a template fixture, or a shipped script such
@@ -105,7 +191,7 @@ reachable artifact points at it through a `requires`/`suggests` edge. That is ho
 the `ALL` gate but has no bundle slot — its selection is mission-scoped file resolution, a stated
 exclusion rather than asset's untreated twin.)
 
-## The eight doctrine artifact kinds
+## The doctrine artifact kinds
 
 ### Directive
 
@@ -231,16 +317,49 @@ evaluation, prompt binding, and delegation hooks. Mission step contracts are wha
 type's abstract action sequence (specify → plan → tasks → implement → review) into concrete,
 executable steps — each step can delegate to a directive, tactic, or procedure.
 
-**Location.** `src/doctrine/missions/built_in_step_contracts/*.step-contract.yaml`
+**Location.** `packs/built-in/missions/built_in_step_contracts/*.step-contract.yaml`
 (project overlay: `.kittify/doctrine/mission_step_contracts/`).
 
 **Example.** `specify` action, software-dev mission
-(`src/doctrine/missions/built_in_step_contracts/specify.step-contract.yaml`). Its `bootstrap`
+(`packs/built-in/missions/built_in_step_contracts/specify.step-contract.yaml`). Its `bootstrap`
 step loads charter context; `capture_intent` delegates to directives
 `010-specification-fidelity-requirement` and `037-living-documentation-sync`; `map_examples`
 delegates to the `example-mapping-workshop` procedure; `validate_requirements` delegates to the
 `requirements-validation-workflow` tactic. This is the contract that makes `/spec-kitty.specify`
 pull in exactly that doctrine, in that order.
+
+### Glossary pack
+
+**Purpose.** A bundled set of canonical terminology — term definitions, aliases, and the scopes
+they apply in — activated as a unit so a mission speaks one precise vocabulary. Where a single
+term lives on a `glossary` node and its applicability on a `glossary_scope` node in the DRG, a
+**glossary pack** is the activatable artifact that packages a coherent group of them (the ninth
+member of the charter-activation vocabulary — it *is* charter-activatable via the `glossary-pack`
+token, unlike `template`/`asset`/`anti_pattern`).
+
+**Location.** `packs/built-in/glossary_packs/*.glossary-pack.yaml` (project overlay:
+`.kittify/doctrine/glossary_packs/`). Activate it like any other kind: `spec-kitty charter activate
+glossary-pack <id>`.
+
+**Why it is a pack, not loose terms.** Terminology drifts fastest when definitions are scattered;
+bundling the canonical terms for a domain into one activatable pack keeps a mission's language
+internally consistent and lets the glossary integrity pipeline check the group as a whole.
+
+### Anti-pattern
+
+**Purpose.** A named bad practice or smell that good doctrine should steer away from. Unlike the
+nine activatable kinds, an **anti-pattern is not an authored artifact schema you activate** — it is
+a **DRG node kind** (`NodeKind.ANTI_PATTERN`) with **no backing model class**: a marker node that
+other artifacts point at with `rejects` edges (see [Doctrine relationships](doctrine-relationships.md)).
+A paradigm such as `domain-driven-design`, for example, authors `rejects` edges naming the
+`anemic-domain-model` anti-pattern node.
+
+**Not to be confused with `styleguides` `AntiPattern`.** The styleguide models define an inline
+`AntiPattern` example type (`src/doctrine/styleguides/models.py`) — a small structured example
+*embedded in a styleguide body*. That is a different concept from the DRG `anti_pattern` kind: the
+styleguide `AntiPattern` is a backed Pydantic example type inside another artifact; the DRG
+`anti_pattern` is a bare node kind (a string, no class) that exists only as a graph target. The
+drift guard binds each separately so the two are never conflated.
 
 ## Where to go next
 

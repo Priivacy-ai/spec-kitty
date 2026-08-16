@@ -2,7 +2,7 @@
 title: Coverage signals — reconciling the three "coverage" numbers
 description: 'Why SonarCloud coverage, new_coverage, and the internal diff-coverage CI gate disagree — and how to tell an expected scope difference from a real coverage regression.'
 doc_status: active
-updated: '2026-07-08'
+updated: '2026-08-15'
 audience: docs/context/audience/internal/lead-developer.md
 type: explanation
 related:
@@ -63,6 +63,44 @@ That is roughly **247 Python files** — a strict subset of the **~969 tracked
 **1305 files** in total under `src/`, spanning all seven top-level packages:
 `specify_cli`, `doctrine`, `charter`, `runtime`, `glossary`, `kernel`,
 `mission_runtime`).
+
+### Remedy: `git mv` into a critical-path dir needs `fast`-marked coverage
+
+Moving (`git mv`) a module *into* one of the critical-path directories above
+subjects its relocated lines to the enforced 90% diff-coverage floor — but the
+coverage numerator that floor is judged against does not come from "however
+the module is tested somewhere in the suite." Each critical-path directory has
+its own dedicated CI coverage job scoped by a `fast`-only pytest marker filter
+(for example `kernel-tests` runs `pytest tests/kernel/ -m "fast and not
+windows_ci" --cov=src/kernel --cov-report=xml:.../coverage-kernel.xml`; the
+`doctrine`, `charter`, `status`, `merge`, and `next` critical-path directories
+each have an analogous per-directory job). The `diff-coverage` job
+(`.github/workflows/ci-quality.yml`) then downloads every job's
+`coverage-*.xml` artifact and runs `diff-cover` over the combined set with
+`--include <critical-paths>`.
+
+If the moved module's real tests carry a non-`fast` marker (`git_repo`,
+`non_sandbox`, `integration`), they never execute inside that directory's
+`fast`-only job, so the module's lines are effectively absent from — or
+reported near-0% in — the aggregated XML, and `diff-cover` fails the
+critical-path move even though the module is well-tested elsewhere in the
+suite by its non-fast parity tests.
+
+**Fix:** add a `pytest.mark.fast` test module in `tests/<critical-path-dir>/`
+that covers the moved module with mocked/stubbed dependencies (no real
+subprocess/filesystem/git calls), reaching the module's own coverage floor via
+that directory's `fast`-only job. Keep the original real-integration tests
+(`git_repo`/`non_sandbox`/`integration`-marked) where they already are — the
+new fast module is additive, not a replacement.
+
+This is a fresh trap (PR #3437, mission `write-path-integrity`): moving
+`git_topology` into `src/kernel/` to fix a layer inversion left it at 34%
+diff-coverage because `kernel-tests` (`-m fast`) could not run the module's
+real-git `git_repo`-marked parity tests in `tests/git/test_git_topology.py`.
+Adding `tests/kernel/test_git_topology_fast.py` — `pytest.mark.fast`, with
+`subprocess.run` mocked — brought the module to 100% line coverage in
+`coverage-kernel.xml`, which satisfied both the `diff-coverage` gate and
+`kernel-tests`' own 90% floor over `--cov=src/kernel`.
 
 ## Why the numbers differ (the evidence)
 

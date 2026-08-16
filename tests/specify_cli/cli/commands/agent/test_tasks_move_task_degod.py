@@ -127,9 +127,10 @@ def test_rollback_subtask_reset_uses_authored_frontmatter_roster(tmp_path: Path)
 def test_build_claim_review_override_defaults_release_and_resets_subtasks(
     tmp_path: Path,
 ) -> None:
-    """No pre-existing claim fields: the release defaults (empty ``agent``,
-    zero ``shell_pid``) apply, the authored subtask roster resets to
-    ``planned``, and the ``review`` slot is an all-empty release sentinel."""
+    """No pre-existing claim fields: the release marker
+    (``release_runtime_claim=True``) applies, the authored subtask roster
+    resets to ``planned``, and the ``review`` slot is an all-empty release
+    sentinel."""
     feature_dir = tmp_path / "kitty-specs" / "demo"
     (feature_dir / "tasks").mkdir(parents=True)
     (feature_dir / "tasks.md").write_text("# Tasks\n\nNo checkbox rows.\n", encoding="utf-8")
@@ -142,22 +143,27 @@ def test_build_claim_review_override_defaults_release_and_resets_subtasks(
         fs=SimpleNamespace(planning_read_dir=lambda _handle, *, kind: feature_dir)
     )
 
-    additions = _build_claim_review_override(st, ports, {})
+    additions = _build_claim_review_override(st, ports)
 
     assert additions["subtasks"] == {"T001": Lane.PLANNED}
-    assert additions["agent"] == ""
-    assert additions["shell_pid"] == 0
+    assert additions["release_runtime_claim"] is True
     assert additions["review"] == ReviewOverride(at="", actor="", wp_id="", reason="")
     assert additions["review"].complete is False
 
 
-def test_build_claim_review_override_skips_defaults_when_already_set(
+def test_build_claim_review_override_release_marker_independent_of_existing_fields(
     tmp_path: Path,
 ) -> None:
-    """#2512: an explicit ``--agent``/``--shell-pid`` override on the SAME move
-    already replanted a fresh claim in ``existing_fields`` — the helper must
-    not clobber it with the release defaults. The ``review`` release sentinel
-    still applies unconditionally (independent of the claim triple)."""
+    """partition-authority-residuals (#2960 follow-up): the release marker is
+    set UNCONDITIONALLY by this pure builder — it no longer inspects the
+    caller's already-staged fields to decide whether to release. Precedence
+    over a SAME-move fresh claim re-plant (an explicit ``--agent``/
+    ``--shell-pid`` override) is the reducer's job: ``_apply_annotation_delta``
+    applies the release clear BEFORE its replace-slot loop, so a concrete
+    value present in the same delta wins (see
+    ``test_rollback_with_explicit_agent_replants_claim`` for the end-to-end
+    proof). An empty authored subtask roster resets nothing; the review
+    sentinel still applies unconditionally."""
     feature_dir = tmp_path / "kitty-specs" / "demo"
     (feature_dir / "tasks").mkdir(parents=True)
     (feature_dir / "tasks.md").write_text("# Tasks\n\nNo checkbox rows.\n", encoding="utf-8")
@@ -169,12 +175,10 @@ def test_build_claim_review_override_skips_defaults_when_already_set(
     ports = SimpleNamespace(
         fs=SimpleNamespace(planning_read_dir=lambda _handle, *, kind: feature_dir)
     )
-    existing_fields = {"agent": "fresh-claimer", "shell_pid": 4242}
 
-    additions = _build_claim_review_override(st, ports, existing_fields)
+    additions = _build_claim_review_override(st, ports)
 
-    assert "agent" not in additions
-    assert "shell_pid" not in additions
+    assert additions["release_runtime_claim"] is True
     assert "subtasks" not in additions, "an empty authored roster resets nothing"
     assert additions["review"] == ReviewOverride(at="", actor="", wp_id="", reason="")
 
@@ -183,12 +187,19 @@ def test_runtime_state_persistence_error_propagates(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A move cannot report success when its authoritative annotation is lost."""
-    import specify_cli.status as status_module
+    import specify_cli.coordination.status_transition as status_transition_module
 
     def _fail(*_args: object, **_kwargs: object) -> None:
         raise OSError("disk full")
 
-    monkeypatch.setattr(status_module, "emit_inner_state_changed", _fail)
+    # FR-007 (#2939): ``_mt_emit_runtime_state`` now routes the post-transition
+    # annotation through the commit-durable ``emit_inner_state_changed_transactional``
+    # seam (which commits on a coord topology, delegates to the uncommitted
+    # ``emit_inner_state_changed`` otherwise). The propagation contract is unchanged;
+    # only the intercept point moves to the new seam.
+    monkeypatch.setattr(
+        status_transition_module, "emit_inner_state_changed_transactional", _fail
+    )
     st = SimpleNamespace(
         claim_emitted=False,
         agent="codex",
@@ -205,6 +216,11 @@ def test_runtime_state_persistence_error_propagates(
         mission_slug="demo",
         main_repo_root=tmp_path,
         json_output=True,
+        # #3460: ``_mt_emit_runtime_state`` now branches on ``resolved_auto_commit``
+        # to pick the transactional vs. uncommitted emitter. This test exercises
+        # the durable-commit leg (the patched ``emit_inner_state_changed_transactional``),
+        # so it must be True here.
+        resolved_auto_commit=True,
     )
 
     with pytest.raises(OSError, match="disk full"):

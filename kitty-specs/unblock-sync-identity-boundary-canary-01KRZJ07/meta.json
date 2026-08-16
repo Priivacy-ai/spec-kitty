@@ -12,6 +12,7 @@
   "accepted_by": "robert",
   "accepted_from_commit": "4863f4757090e436308b4c6b5ce69ea0d18c3f57",
   "created_at": "2026-05-19T07:25:29.772025+00:00",
+  "flattened": false,
   "friendly_name": "Unblock Sync Identity-Boundary Canary",
   "mission_id": "01KRZJ079AYV48V0Y41EACAC79",
   "mission_number": null,
@@ -22,6 +23,7 @@
   "slug": "unblock-sync-identity-boundary-canary-01KRZJ07",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-05-19T09:58:14.518198+00:00"
 }

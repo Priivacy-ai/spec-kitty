@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KZX6F78PHP8TSPMZ2GSFHWK0",
+  "completed_at": "2026-08-13T09:19:54.701582+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "WP10 approved: owned suites 71 passed; ruff + strict mypy clean on 3 owned src files; review artifact committed"
+}

@@ -122,6 +122,7 @@ def render_command_template(
     extension: str,
     *,
     repo_root: Path | None = None,
+    version: str | None = None,
 ) -> str:
     """Render a single command template for an agent.
 
@@ -130,6 +131,12 @@ def render_command_template(
     When omitted, callers are treated as inactive (block content stripped),
     which preserves byte-for-byte parity with pre-WP04 output for any caller
     that has not been updated to pass ``repo_root``.
+
+    ``version`` pins the ``spec-kitty-command-version`` marker to an explicit
+    string instead of the live CLI version (mission #3447, FR-005). It lets the
+    fixture-parity test and ``spec-kitty regen`` render byte-identical committed
+    baselines from the shared pin without monkeypatching ``_get_cli_version``.
+    When ``None`` the live CLI version is used, preserving existing behaviour.
     """
     from charter.spdd_reasons import apply_spdd_blocks_for_project  # noqa: PLC0415
 
@@ -166,7 +173,7 @@ def render_command_template(
     if frontmatter_clean:
         frontmatter_clean = rewrite_paths(frontmatter_clean)
 
-    version_marker = f"<!-- spec-kitty-command-version: {_get_cli_version()} -->\n"
+    version_marker = f"<!-- spec-kitty-command-version: {version or _get_cli_version()} -->\n"
 
     if agent_key in AGENT_COMMAND_CONFIG:
         rendered_body = prepend_agent_upgrade_check(rendered_body)

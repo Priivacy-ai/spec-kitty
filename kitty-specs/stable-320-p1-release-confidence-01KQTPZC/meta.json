@@ -1,5 +1,6 @@
 {
   "created_at": "2026-05-05T00:00:31.416377+00:00",
+  "flattened": false,
   "friendly_name": "Stable 3.2.0 P1 Release Confidence",
   "mission_id": "01KQTPZCNQT0M1G3P1YFN2SE86",
   "mission_number": 113,
@@ -11,5 +12,6 @@
   "source_description": "../start-here.md",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git"
 }

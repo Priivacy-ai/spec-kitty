@@ -1,5 +1,6 @@
 {
   "created_at": "2026-05-21T10:40:26.043209+00:00",
+  "flattened": false,
   "friendly_name": "Identity-Boundary CI Gate (Rerun)",
   "mission_id": "01KS51YKDSHF73EBDMFSFH3RMP",
   "mission_number": null,
@@ -9,5 +10,6 @@
   "purpose_tldr": "Pin the identity-boundary canary protocol as a required CI gate across spec-kitty, saas, and events repos.",
   "slug": "identity-boundary-ci-gate-rerun-01KS51YK",
   "status_phase": "1",
-  "target_branch": "mission/identity-boundary-ci-gate-rerun"
+  "target_branch": "mission/identity-boundary-ci-gate-rerun",
+  "topology": "lanes"
 }

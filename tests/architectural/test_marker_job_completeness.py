@@ -37,36 +37,44 @@ Honest three-state split (re-derived live at implement, 2026-07-04, NFR-004;
       orphan carriers by path — e.g. `tests/delivery/` reaches no path gate —
       make an explicit `-m regression` job their required CI home rather than a
       silent CI_INVISIBLE entry.)
-  ROUTED-BY-PATH (14): adversarial, agent, asyncio, distribution, doctrine,
-      e2e, flaky, no_git_tmp_path, no_readiness_stub, non_sandbox,
+  ROUTED-BY-PATH (13): adversarial, agent, asyncio, distribution, doctrine,
+      e2e, no_git_tmp_path, no_readiness_stub, non_sandbox,
       requires_symlinks, stress, timeout, upgrade
       (each has >=1 collected carrier and ZERO orphan carriers — verified via
       the orphan model; NOT hand-asserted. The spec's illustrative
-      `flaky`/`non_sandbox`/`timeout`/`asyncio`/`stress` invisible-guesses were
+      `non_sandbox`/`timeout`/`asyncio`/`stress` invisible-guesses were
       SUPERSEDED by this live derivation: their carriers all reach a path gate,
       so they are routed-by-path, not invisible — shrink-preferred, C-003.)
-  CI_INVISIBLE (12): the ``CI_INVISIBLE`` ledger below — markers with ZERO
+  CI_INVISIBLE (13): the ``CI_INVISIBLE`` ledger below — markers with ZERO
       collected carriers today (reserved/opt-out markers no gate selects).
 
 The name-level completeness here is complementary to the set-level orphan
-ratchet (``test_gate_coverage.py``): that pins every test's marker SET reaches a
+route oracle (``test_ci_collection_completeness.py``): that pins every test's marker SET reaches a
 gate; this pins every registered marker NAME has a routing home (Decision 4).
 """
 
 from __future__ import annotations
 
 import ast
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+import yaml
 
 from tests.architectural import _gate_coverage as gc
 from tests.architectural._workflow_fixtures import write_workflow
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    from typing import Any
 
 pytestmark = pytest.mark.architectural
+
+_ROUTE_MANIFEST = (
+    Path(__file__).resolve().parents[2]
+    / "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/"
+    "wp07-route-manifest.yaml"
+)
 
 # ``unit``/``contract`` are the authoring-taxonomy defaults the mission routes;
 # they are structurally ineligible for any routing exemption.
@@ -82,6 +90,11 @@ _ORCH_REASON = (
 # empirical basis (zero carriers) and WHY the marker exists. Additions are LOUD
 # (this test names an unrouted marker); removals silent (C-003 shrink-only).
 CI_INVISIBLE: dict[str, str] = {
+    "flaky": (
+        "Mutation/forking instability debt marker retained in the taxonomy; "
+        "the sanitation census removed its final carrier, so zero collected "
+        "tests currently carry it."
+    ),
     "platform_darwin": (
         "macOS-only tests; no suite-running workflow configures a macOS runner "
         "and no collected test carries the marker (reserved OS marker)."
@@ -240,6 +253,20 @@ def test_unit_and_contract_are_routed_by_marker_live() -> None:
 def test_ci_invisible_keys_are_registered_live() -> None:
     """Reverse containment on live data: no stale ledger entry."""
     assert set(CI_INVISIBLE) <= _live_registered()
+
+
+def test_wp07_changed_classes_have_one_owner_and_only_secondary_overlap() -> None:
+    """Route role is explicit: one owner; every overlap is a secondary role."""
+    manifest: dict[str, Any] = yaml.safe_load(_ROUTE_MANIFEST.read_text(encoding="utf-8"))
+    routes = {route["route_id"]: route for route in manifest["routes"]}
+    secondary_roles = {"coverage", "platform", "hard_gate"}
+    for class_id, changed_class in manifest["changed_classes"].items():
+        owner = routes[changed_class["owner_route"]]
+        assert owner["role"] == "owner", f"{class_id} owner is not role=owner"
+        for route_id in changed_class["secondary_routes"]:
+            assert routes[route_id]["role"] in secondary_roles, (
+                f"{class_id} overlap {route_id} is not an explicit secondary role"
+            )
 
 
 # ---------------------------------------------------------------------------

@@ -45,7 +45,7 @@ Test type (unit vs integration) is a runner-mechanics concern. It is expressed t
 |--------|---------|
 | `pytest.mark.fast` | Pure-logic test — no subprocess, no git, sub-second |
 | `pytest.mark.git_repo` | Creates a real git repository |
-| `pytest.mark.slow` | Slow subprocess/CLI invocation (>5s) |
+| `pytest.mark.slow` | Measured slow path: normally >5s call time, or a deliberately serial external/subprocess workload |
 | `*_unit.py` filename | Mock-boundary unit test; always carries `fast` marker |
 | `*_integration.py` filename | Real git/subprocess integration; carries `git_repo` or `slow` |
 
@@ -92,7 +92,8 @@ pytest -m slow
 pytest tests/merge/
 
 # Full suite
-pytest
+pytest tests/ -n auto --dist loadfile --ignore=tests/sync/test_orphan_sweep.py
+pytest tests/sync/test_orphan_sweep.py -q  # serial process-safety owner
 
 # Single file
 pytest tests/lanes/test_compute.py -v
@@ -296,15 +297,26 @@ The structural design is recorded in:
 
 ## Pytest venv fixture
 
-The shared `.pytest_cache/spec-kitty-test-venv` is created once and reused
-across all pytest invocations. To prevent races between parallel test
-processes (e.g., the mission-review gates run contract + architectural
-suites concurrently), creation is wrapped in a file lock at
-`.pytest_cache/spec-kitty-test-venv.lock`.
+The shared `.pytest_cache/spec-kitty-test-venv` is content-addressed and reused
+across pytest invocations. One process builds in an isolated staging directory,
+publishes atomically, and maintains a lease heartbeat; sibling workers wait for
+that validated publication instead of timing out behind a valid slow builder.
+Stale owners and incomplete staging/final directories are recovered
+automatically. Do not delete the cache merely because another worker is building.
 
-If you see a "Timed out acquiring lock" error and no test process is
-running, the lock file is stale (likely from a killed pytest process).
-Remove it: `rm .pytest_cache/spec-kitty-test-venv.lock`.
+## Sanitation and CI-route policy
 
-See WP02 of the `review-merge-gate-hardening-3-2-x-01KRC57C` mission for
-the original fix.
+- Runtime is evidence, not a marker guess. A test is treated as slow when measured
+  collection/setup/call or external-process cost warrants the serial/slow route;
+  a `slow` name alone neither protects nor condemns it.
+- Accepted red-first reproductions use `pytest.mark.regression` and the blocking
+  `regression-tests` job. The job discovers the current marker set, treats pytest
+  exit 5 as an honest empty set, and remains in `quality-gate`; it never retries,
+  skips, xfails, or quarantines a correctness failure.
+- Quarantine is a Tier-3, visibility-only environmental mechanism. Its owner
+  manifest is currently empty. Deterministic correctness failures and timing
+  thresholds are never moved there to obtain green CI.
+- Stable nonempty narrow classes use explicit owned paths. Empty or genuinely
+  dynamic marker sets may use generic marker discovery only with an explicit
+  empty-set contract. Architectural route guards verify every required suite is
+  still blocking and no deleted literal owner survives.

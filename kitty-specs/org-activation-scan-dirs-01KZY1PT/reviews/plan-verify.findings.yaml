@@ -1,0 +1,80 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: org-activation-scan-dirs-01KZY1PT
+findings:
+  - id: PLAN-VERIFY-001
+    lens: Gates
+    severity: 3
+    title: Gate Set row mischaracterizes Commitlint as blocking when the actual step is continue-on-error/advisory-only
+    evidence:
+      - artifact: "plan.md § Gate Set (row: `Commitlint`)"
+      - code: ".github/workflows/ci-quality.yml:672-675"
+      - code: ".github/workflows/ci-quality.yml:976-985"
+      - code: ".github/workflows/ci-quality.yml:987-990"
+    claim: >
+      plan.md's Gate Set table lists "Commitlint | Applies | Repo-wide conventional-commit
+      check on commit messages; the `spec-kitty safe-commit` commit for this plan (and later,
+      the WP's own commits) must carry a conventional-commit-shaped subject" with no advisory
+      caveat. Reading the actual workflow: the `lint` job's "[ENFORCED] Run commit message
+      linting" step (id `commitlint`) carries `continue-on-error: true`
+      (ci-quality.yml:672-675); its `has_failures` output is consumed only by the PR-comment
+      `lint-feedback` job (ci-quality.yml:987-990), and the only step in `lint` that turns a
+      `continue-on-error` failure into an actual job failure is the explicit outcome check at
+      :976-985, which names only `bandit` and `pip_audit` — commitlint is not included. So
+      commitlint has the exact same continue-on-error/advisory-only shape as `ruff check` and
+      `mypy --strict`, which this same Gate Set table (two and three rows below) correctly
+      labels "Advisory, not blocking" with the continue-on-error caveat spelled out. The
+      Commitlint row is inconsistent with the standard the table applies to its sibling
+      rows, and could lead a reader to believe a malformed commit message fails CI when it
+      does not.
+    remediation: >
+      Change the Commitlint row's "Applies?" value to "Applies (advisory, not blocking)" and
+      add the same continue-on-error caveat used for the ruff/mypy rows, citing
+      ci-quality.yml:672-675 (continue-on-error on the commitlint step) and the outcome-check
+      at :976-985 (which never names commitlint). If the plan means to keep the *house-rule*
+      obligation on the WP's own commits regardless of CI enforcement, state that
+      explicitly as a house rule (per CLAUDE.md) rather than implying the CI gate itself
+      blocks on it.
+  - id: PLAN-VERIFY-002
+    lens: Red-first stated per WP
+    severity: 3
+    title: Red-First Discipline hedges between two failure modes when only one is reachable for FR-002's own specified test shape
+    evidence:
+      - artifact: "plan.md § Red-First Discipline (WP Sequencing), step 2"
+      - artifact: "spec.md § Requirements, row FR-002"
+      - code: "src/charter/drg.py:371-381"
+    claim: >
+      plan.md step 2 says the expected pre-fix failure mode is "either a raised ...
+      `UnknownArtifactIdError` (if the test calls `resolve_artifact_urn` directly as a
+      sub-assertion) or, at the `filter_graph_by_activation` level, the org directive's node
+      being absent from the returned graph." But FR-002 (spec.md) explicitly constrains the
+      regression test to "the full `activate()` → `filter_graph_by_activation()` round trip,
+      not a direct `resolve_artifact_urn()` call" — i.e. it explicitly rules out the
+      "direct sub-assertion" branch that the plan's first disjunct depends on. Tracing the
+      actual code: `_resolve_activated_urns_for_kind` (src/charter/drg.py:371-381) calls
+      `resolve_artifact_urn` inside a `try`/`except UnknownArtifactIdError: continue` at
+      :379-380 — the exception is swallowed there and never propagates out of
+      `filter_graph_by_activation`. For the round-trip test shape FR-002 actually specifies,
+      the `UnknownArtifactIdError`-raised branch can never be observed; only the "org node
+      absent from the filtered graph" assertion failure is reachable. The plan's own
+      "either/or" framing therefore offers, as a live possibility for FR-002's own test, a
+      failure mode that cannot occur given FR-002's own constraint, and never states which
+      one is actually correct — exactly the vagueness a red-first step is supposed to
+      eliminate. (Separately, `pack_manager.CharterPackManager.activate`'s own ID-validation
+      step, `list_available` → `_resolve_org_layer_dir`
+      (src/charter/pack_manager.py:238-253), already resolves the flat org layout correctly
+      via a wholly different scan path than `_org_scan_dirs`, so the `activate()` write itself
+      succeeds pre-fix — it is only the later `filter_graph_by_activation` step, going through
+      `_org_scan_dirs`, that drops the node. This confirms the round trip's only reachable red
+      is the node-absent assertion, never a raised exception surfacing to the test.)
+    remediation: >
+      Rewrite step 2 to state unconditionally (no "either/or") that the expected pre-fix red
+      for FR-002's round-trip test is the assertion that the org directive's node is absent
+      from `filter_graph_by_activation`'s output graph, because
+      `_resolve_activated_urns_for_kind` (drg.py:379-380) swallows `UnknownArtifactIdError`
+      before it can reach a round-trip caller. If the plan wants to also record a
+      `resolve_artifact_urn`-raises assertion, attribute it explicitly to FR-003 (the
+      unit-level test, which per spec.md Acceptance Scenario 2 does call
+      `resolve_artifact_urn` directly), not to FR-002's own red-first attribution.

@@ -2,7 +2,7 @@
 title: 'Doctrine relationships: lineage, delegation, augmentation, and action resolution'
 description: "How Spec Kitty models each DRG relation type — lineage, delegation, augmentation, obligation, scope, and the tension edges — as a typed graph edge, not as artifact fields."
 doc_status: active
-updated: '2026-07-22'
+updated: '2026-08-12'
 ---
 # Doctrine relationships: lineage, delegation, augmentation, and action resolution
 
@@ -27,6 +27,80 @@ registry in
 human readers, and the two are kept in parity by
 `tests/doctrine/test_relation_doc_parity.py` (FR-006/FR-012/NFR-003/NFR-004),
 which now scopes **all 15 relations**, not a subset.
+
+## DRG schema at a glance
+
+The graph itself is two small records — a **node** and a typed **edge** — over two
+closed vocabularies. The schema diagram below is **generated from the frozen code
+models** (`src/doctrine/drg/models.py`) and kept honest by the drift guard
+(`tests/docs/diagram_drift/`, FR-004): every field and every enum member is
+introspected from the live model (`list(NodeKind)`, `list(Relation)`), never
+hand-copied, so this picture cannot silently drift from the code.
+
+```plantuml
+@startyaml
+title Doctrine Reference Graph — DRGNode, DRGEdge, and the NodeKind / Relation vocabularies
+DRGNode:
+  urn: "<kind>:<id>"
+  kind: "<NodeKind>"
+  label: "<str>"
+  provenance: "<Provenance>"
+  tags: "<list[str]>"
+DRGEdge:
+  source: "<urn>"
+  target: "<urn>"
+  relation: "<Relation>"
+  when: "<condition | null>"
+  reason: "<str | null>"
+  provenance: "<Provenance>"
+NodeKind:
+  - directive
+  - tactic
+  - paradigm
+  - styleguide
+  - toolguide
+  - procedure
+  - agent_profile
+  - mission_step_contract
+  - template
+  - asset
+  - action
+  - glossary_scope
+  - glossary
+  - glossary_pack
+  - mission_type
+  - anti_pattern
+Relation:
+  - requires
+  - suggests
+  - applies
+  - scope
+  - vocabulary
+  - instantiates
+  - replaces
+  - delegates_to
+  - specializes_from
+  - enhances
+  - overrides
+  - refines
+  - in_tension_with
+  - reconciles_tension
+  - rejects
+@endyaml
+```
+
+A **`DRGNode`** is an addressable artefact (its `urn` is `<kind>:<id>`, where
+`<kind>` is one of the `NodeKind` members); a **`DRGEdge`** is a directional,
+typed relationship whose `relation` is one of the `Relation` members. Everything
+below — lineage, delegation, augmentation, the action-resolution relations, and
+the tension vocabulary — is just a `relation` value on an edge.
+
+> **Prose counts are narrative, not guarded.** The "15" (relations) and "16"
+> (node kinds) that appear in this page's prose are human-facing narration; they
+> are **diagram-unguarded**. The drift guard enforces the *diagram ↔ model* match
+> by introspecting `list(Relation)` / `list(NodeKind)` — it does not read the prose
+> literal. If a member is added or removed, update the diagram (the guard will
+> fail until you do) and refresh the prose counts by hand.
 
 ## The three relationship families
 
@@ -74,11 +148,11 @@ or produce.
 
 ### Requirement — `requires`
 
-A directional, hard-dependency edge: resolving or activating the source artifact pulls in the target as a mandatory prerequisite. ``resolve_action_context`` walks ``requires`` edges transitively, with no depth limit, from an action's ``scope``-resolved artifacts; ``charter activate --cascade`` follows the same edge to pull in artifacts that must also be active. It is the second-most-emitted relation in the built-in graph (321 edges) and is the mandatory counterpart to ``suggests``, not a stronger synonym for it.
+A directional, hard-dependency edge: resolving or activating the source artifact pulls in the target as a mandatory prerequisite. ``resolve_action_context`` walks ``requires`` edges transitively, with no depth limit, from an action's ``scope``-resolved artifacts; ``charter activate --cascade`` follows the same edge to pull in artifacts that must also be active. It is the second-most-emitted relation in the built-in graph (323 edges) and is the mandatory counterpart to ``suggests``, not a stronger synonym for it.
 
 ### Suggestion — `suggests`
 
-A directional, soft-recommendation edge: the source artifact points at content that is relevant but not mandatory. ``resolve_action_context`` walks ``suggests`` edges only up to a bounded hop depth -- unlike the unbounded transitive walk used for ``requires`` -- and the charter cascade treats a ``suggests`` target as optional, something an operator may accept or skip. It is the most-emitted relation in the built-in graph (445 edges); the boundedness of the walk, not the edge count, is what distinguishes it from ``requires``.
+A directional, soft-recommendation edge: the source artifact points at content that is relevant but not mandatory. ``resolve_action_context`` walks ``suggests`` edges only up to a bounded hop depth -- unlike the unbounded transitive walk used for ``requires`` -- and the charter cascade treats a ``suggests`` target as optional, something an operator may accept or skip. It is the most-emitted relation in the built-in graph (450 edges); the boundedness of the walk, not the edge count, is what distinguishes it from ``requires``.
 
 ### Application — `applies`
 

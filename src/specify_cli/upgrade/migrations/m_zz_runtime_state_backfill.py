@@ -35,16 +35,16 @@ order**, which is **alphabetical module-discovery order**
 imports them -- verified empirically). FR-010 requires this migration to run
 strictly **after** the charter-fold migrations
 (``m_unify_charter_activation.py`` / ``m_unify_charter_activation_finalize.py``,
-both ``target_version = "3.2.6"``). Two ways to get this wrong:
+both ``target_version = "3.2.6rc1"``). Two ways to get this wrong:
 
-1. **A ``target_version`` above ``"3.2.6"``** (e.g. ``"3.3.1"``, matching the
+1. **A ``target_version`` above ``"3.2.6rc1"``** (e.g. ``"3.3.1"``, matching the
    pre-flight brief's original filename): the installed/unreleased package
    version is ``3.2.6`` (see ``pyproject.toml``), and
    ``MigrationRegistry.get_applicable()`` only includes a migration when
    ``target <= to_version`` -- a higher ``target_version`` is **silently
    skipped** by real upgrades, and separately HARD-FAILs
    ``tests/architectural/test_migration_chain_integrity.py`` (chain end ahead of
-   ``pyproject.toml``). Fix: tie the version at ``"3.2.6"``, shipping within the
+   ``pyproject.toml``). Fix: tie the version at ``"3.2.6rc1"``, shipping within the
    same, still-unreleased cycle as the charter folds and
    ``m_3_2_6_meta_traces_merge_drivers.py``.
 2. **A numeric-prefix filename at the tied version** (e.g.
@@ -97,11 +97,18 @@ from specify_cli.migration.runtime_state_cutover import (
 )
 
 from ..registry import MigrationRegistry
-from .base import BaseMigration, MigrationResult
+from .base import BaseMigration, MigrationResult, PartialWrite
 
 #: Corpus root, relative to the project root -- the canonical enumeration
 #: mirrors ``backfill_runtime_state_repo``/``cutover_repo``: no divergent glob.
 _KITTY_SPECS_DIRNAME = "kitty-specs"
+
+#: The two per-mission files :func:`cutover_mission` can persist: the seed
+#: event log (written by the backfill/seed phase) and ``meta.json`` (written by
+#: the ``status_phase`` flip). Named constants so the report-on-abort derivation
+#: (:func:`_partial_writes`) and any reader agree on the exact basenames (S1192).
+_STATUS_EVENTS_FILENAME = "status.events.jsonl"
+_META_FILENAME = "meta.json"
 
 #: ``meta.json`` key read by the cheap ``detect()`` skip-hint. Kept as a
 #: constant (not re-imported from the reused helper's private module symbol)
@@ -227,6 +234,40 @@ def _cutover_corpus(
     return results, None
 
 
+def _partial_writes(results: list[CutoverResult], project_path: Path) -> list[PartialWrite]:
+    """Enumerate every file the aborted walk already persisted (FR-005, US2-AC1).
+
+    report-on-abort — NOT a corpus rollback (the "already-flipped missions stay
+    flipped" per-mission design is intentional, research D-03). ``_cutover_corpus``
+    stops right after appending the failing mission's result, so *results* holds
+    exactly the missions visited up to and including the failure; anything sorted
+    after it was never touched and correctly never appears here.
+
+    The two per-mission paths are DERIVED from the mission slug and *project_path*
+    (``<project>/kitty-specs/<slug>/<file>``) rather than re-read off
+    :class:`CutoverResult` (which carries no path) — matching how the corpus walk
+    enumerates missions in the first place (:func:`_iter_mission_dirs`). A mission
+    is recorded per file it actually wrote THIS run: the event log iff it seeded
+    (``seeded_count > 0``) and ``meta.json`` iff it flipped (``flipped``). A
+    mission that failed verify before writing either (the common live-run abort
+    case: the divergent rows pre-existed, so the idempotent re-seed adds nothing
+    and the flip is unreachable) contributes no phantom path.
+    """
+    kitty_specs = project_path / _KITTY_SPECS_DIRNAME
+    writes: list[PartialWrite] = []
+    for result in results:
+        mission_dir = kitty_specs / result.slug
+        if result.seeded_count > 0:
+            writes.append(
+                PartialWrite(mission=result.slug, path=str(mission_dir / _STATUS_EVENTS_FILENAME))
+            )
+        if result.flipped:
+            writes.append(
+                PartialWrite(mission=result.slug, path=str(mission_dir / _META_FILENAME))
+            )
+    return writes
+
+
 def _summarize_changes(results: list[CutoverResult], *, dry_run: bool) -> list[str]:
     """Build the ``changes_made`` summary. Empty means a clean no-op (INV-4).
 
@@ -264,7 +305,7 @@ class RuntimeStateBackfillMigration(BaseMigration):
         "flip), aborting the whole step on the first mission whose verify "
         "fails (FR-010, NFR-005)."
     )
-    target_version = "3.2.6"
+    target_version = "3.2.6rc1"
     runs_on_worktrees = False
 
     def detect(self, project_path: Path) -> bool:
@@ -283,7 +324,11 @@ class RuntimeStateBackfillMigration(BaseMigration):
 
         results, abort_message = _cutover_corpus(missions, dry_run=dry_run)
         if abort_message is not None:
-            return MigrationResult(success=False, errors=[abort_message])
+            return MigrationResult(
+                success=False,
+                errors=[abort_message],
+                partial_writes=_partial_writes(results, project_path),
+            )
 
         return MigrationResult(
             success=True, changes_made=_summarize_changes(results, dry_run=dry_run)

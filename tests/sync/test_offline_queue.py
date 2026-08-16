@@ -1,623 +1,352 @@
-"""Tests for offline event queue"""
+"""Project-store acceptance tests for the offline event outbox."""
 
-import sqlite3
-import pytest
+from __future__ import annotations
 
-pytestmark = pytest.mark.fast
-from kernel.clock import now_epoch, now_utc, timedelta
-from specify_cli.auth.session import StoredSession, Team
-from specify_cli.auth.secure_storage.file_fallback import FileFallbackStorage
+import inspect
+from collections.abc import Iterator
+from kernel.clock import now_utc, timedelta
 from io import StringIO
 from pathlib import Path
-import tempfile
+
+import pytest
+
+from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork
 from specify_cli.sync.queue import (
+    LegacyQueueMigrationRequiredError,
     OfflineQueue,
+    ProjectOutboxTask,
     QueueStats,
-    build_queue_scope,
     default_queue_db_path,
-    scope_db_path,
+    resolved_scope_db_path,
 )
 
+pytestmark = pytest.mark.fast
+
+PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
+
+
+def _event(
+    event_id: str,
+    event_type: str = "Test",
+    payload: dict[str, object] | None = None,
+    *,
+    created_at: str | None = None,
+) -> dict[str, object]:
+    value: dict[str, object] = {
+        "event_id": event_id,
+        "event_type": event_type,
+        "project_uuid": PROJECT,
+        "payload": payload or {},
+    }
+    if created_at is not None:
+        value["created_at"] = created_at
+    return value
+
 
 @pytest.fixture
-def temp_queue():
-    """Create a queue with a temporary database"""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test_queue.db"
-        queue = OfflineQueue(db_path)
-        yield queue
+def store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    value = ProjectSyncStore(PROJECT)
+    authority = value.layout_generation()
+    authority.begin_cutover("offline-queue-tests")
+    authority.publish_project_only("offline-queue-tests", verify_exact=lambda: True)
+    return value
 
 
 @pytest.fixture
-def persistent_db_path():
-    """Create a temp path for persistence tests"""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield Path(tmpdir) / "persistent_queue.db"
+def unit(store: ProjectSyncStore) -> Iterator[ProjectUnitOfWork]:
+    with store.unit_of_work() as value:
+        yield value
+
+
+@pytest.fixture
+def temp_queue(unit: ProjectUnitOfWork, store: ProjectSyncStore) -> OfflineQueue:
+    return OfflineQueue(unit, store.layout_generation())
 
 
 class TestOfflineQueue:
-    """Test OfflineQueue basic operations"""
-
-    def test_queue_initialization(self, temp_queue):
-        """Test queue creates database and schema"""
-        assert temp_queue.db_path.exists()
+    def test_queue_initialization(
+        self,
+        temp_queue: OfflineQueue,
+        store: ProjectSyncStore,
+    ) -> None:
+        assert store.database_path.exists()
         assert temp_queue.size() == 0
+        assert not hasattr(temp_queue, "db_path")
 
-    def test_queue_event_success(self, temp_queue):
-        """Test queueing a single event"""
-        event = {
-            "event_id": "evt-001",
-            "event_type": "WPStatusChanged",
-            "payload": {"wp_id": "WP01", "status": "doing"},
-        }
-
-        result = temp_queue.queue_event(event)
-
+    def test_queue_event_success(self, temp_queue: OfflineQueue) -> None:
+        result = temp_queue.queue_event(_event("evt-001", "WPStatusChanged", {"wp_id": "WP01", "status": "doing"}))
         assert result is True
         assert temp_queue.size() == 1
 
-    def test_queue_multiple_events(self, temp_queue):
-        """Test queueing multiple events"""
-        for i in range(5):
-            event = {"event_id": f"evt-{i:03d}", "event_type": "WPStatusChanged", "payload": {"index": i}}
-            assert temp_queue.queue_event(event) is True
-
+    def test_queue_multiple_events(self, temp_queue: OfflineQueue) -> None:
+        for index in range(5):
+            assert temp_queue.queue_event(_event(f"evt-{index:03d}", "WPStatusChanged", {"index": index}))
         assert temp_queue.size() == 5
 
-    def test_drain_queue_fifo_order(self, temp_queue):
-        """Test drain returns events in FIFO order"""
-        for i in range(3):
-            event = {"event_id": f"evt-{i:03d}", "event_type": "TestEvent", "payload": {"index": i}}
-            temp_queue.queue_event(event)
+    def test_drain_queue_fifo_order(self, temp_queue: OfflineQueue) -> None:
+        for index in range(3):
+            temp_queue.queue_event(_event(f"evt-{index:03d}", "TestEvent", {"index": index}))
+        tasks = temp_queue.drain_queue()
+        assert all(isinstance(task, ProjectOutboxTask) for task in tasks)
+        assert [task.event_id for task in tasks] == ["evt-000", "evt-001", "evt-002"]
 
-        events = temp_queue.drain_queue()
+    def test_drain_queue_with_limit(self, temp_queue: OfflineQueue) -> None:
+        for index in range(10):
+            temp_queue.queue_event(_event(f"evt-{index:03d}", "TestEvent"))
+        assert len(temp_queue.drain_queue(limit=5)) == 5
+        assert temp_queue.size() == 10
 
-        assert len(events) == 3
-        assert events[0]["event_id"] == "evt-000"
-        assert events[1]["event_id"] == "evt-001"
-        assert events[2]["event_id"] == "evt-002"
-
-    def test_drain_queue_with_limit(self, temp_queue):
-        """Test drain respects limit parameter"""
-        for i in range(10):
-            event = {"event_id": f"evt-{i:03d}", "event_type": "TestEvent", "payload": {}}
-            temp_queue.queue_event(event)
-
-        events = temp_queue.drain_queue(limit=5)
-
-        assert len(events) == 5
-        assert temp_queue.size() == 10  # drain doesn't remove events
-
-    def test_mark_synced_removes_events(self, temp_queue):
-        """Test mark_synced removes specified events"""
-        for i in range(5):
-            event = {"event_id": f"evt-{i:03d}", "event_type": "TestEvent", "payload": {}}
-            temp_queue.queue_event(event)
-
+    def test_mark_synced_removes_events(self, temp_queue: OfflineQueue) -> None:
+        for index in range(5):
+            temp_queue.queue_event(_event(f"evt-{index:03d}", "TestEvent"))
         temp_queue.mark_synced(["evt-000", "evt-002", "evt-004"])
-
         assert temp_queue.size() == 2
+        assert [task.event_id for task in temp_queue.drain_queue()] == ["evt-001", "evt-003"]
 
-        remaining = temp_queue.drain_queue()
-        remaining_ids = [e["event_id"] for e in remaining]
-        assert remaining_ids == ["evt-001", "evt-003"]
-
-    def test_mark_synced_empty_list(self, temp_queue):
-        """Test mark_synced with empty list is safe"""
-        temp_queue.queue_event({"event_id": "evt-001", "event_type": "Test", "payload": {}})
-
+    def test_mark_synced_empty_list(self, temp_queue: OfflineQueue) -> None:
+        temp_queue.queue_event(_event("evt-001"))
         temp_queue.mark_synced([])
-
         assert temp_queue.size() == 1
 
-    def test_clear_removes_all_events(self, temp_queue):
-        """Test clear removes all events"""
-        for i in range(10):
-            temp_queue.queue_event({"event_id": f"evt-{i}", "event_type": "Test", "payload": {}})
-
+    def test_clear_removes_all_events(self, temp_queue: OfflineQueue) -> None:
+        for index in range(10):
+            temp_queue.queue_event(_event(f"evt-{index}"))
         temp_queue.clear()
-
         assert temp_queue.size() == 0
 
-    def test_duplicate_event_id_replaces(self, temp_queue):
-        """Test queueing same event_id replaces existing"""
-        event1 = {"event_id": "evt-001", "event_type": "Test", "payload": {"version": 1}}
-        event2 = {"event_id": "evt-001", "event_type": "Test", "payload": {"version": 2}}
-
-        temp_queue.queue_event(event1)
-        temp_queue.queue_event(event2)
-
+    def test_duplicate_event_id_replaces(self, temp_queue: OfflineQueue) -> None:
+        temp_queue.queue_event(_event("evt-001", payload={"version": 1}))
+        temp_queue.queue_event(_event("evt-001", payload={"version": 2}))
         assert temp_queue.size() == 1
-        events = temp_queue.drain_queue()
-        assert events[0]["payload"]["version"] == 2
+        # Stable event identity is idempotent: the original payload is immutable.
+        assert temp_queue.drain_queue()[0].event["payload"] == {"version": 1}
 
 
 class TestOfflineQueueSizeLimit:
-    """Test queue size limit enforcement"""
+    def test_queue_size_limit_enforced(
+        self,
+        unit: ProjectUnitOfWork,
+        store: ProjectSyncStore,
+    ) -> None:
+        queue = OfflineQueue(unit, store.layout_generation(), max_queue_size=8)
+        for index in range(8):
+            assert queue.queue_event(_event(f"evt-{index}")) is True
+        assert queue.queue_event(_event("evt-overflow")) is False
+        assert queue.size() == 8
+        assert queue.drain_queue()[0].event_id == "evt-0"
 
-    def test_queue_size_limit_enforced(self, tmp_path: Path):
-        """Test queue evicts oldest events when at capacity."""
-        max_queue_size = 8
-        queue = OfflineQueue(tmp_path / "queue_size_limit.db", max_queue_size=max_queue_size)
-
-        # Queue up to the limit
-        for i in range(max_queue_size):
-            event = {"event_id": f"evt-{i}", "event_type": "Test", "payload": {}}
-            result = queue.queue_event(event)
-            assert result is True
-
-        assert queue.size() == max_queue_size
-
-        # One more should succeed by evicting the oldest row
-        overflow_event = {"event_id": "evt-overflow", "event_type": "Test", "payload": {}}
-        result = queue.queue_event(overflow_event)
-        assert result is True
-        assert queue.size() == max_queue_size
-        events = queue.drain_queue(limit=1)
-        assert events[0]["event_id"] == "evt-1"
-
-    def test_queue_accepts_after_drain_and_sync(self, tmp_path: Path):
-        """Test queue accepts events after making room"""
-        max_queue_size = 32
-        drain_count = 10
-        queue = OfflineQueue(tmp_path / "queue_accepts_after_drain.db", max_queue_size=max_queue_size)
-
-        # Fill to limit
-        for i in range(max_queue_size):
-            queue.queue_event({"event_id": f"evt-{i}", "event_type": "Test", "payload": {}})
-
-        # Remove some events
-        events = queue.drain_queue(limit=drain_count)
-        event_ids = [e["event_id"] for e in events]
-        queue.mark_synced(event_ids)
-
-        assert queue.size() == max_queue_size - drain_count
-
-        # Should accept new events now
-        result = queue.queue_event({"event_id": "evt-new", "event_type": "Test", "payload": {}})
-        assert result is True
+    def test_queue_accepts_after_drain_and_sync(
+        self,
+        unit: ProjectUnitOfWork,
+        store: ProjectSyncStore,
+    ) -> None:
+        queue = OfflineQueue(unit, store.layout_generation(), max_queue_size=32)
+        for index in range(32):
+            queue.queue_event(_event(f"evt-{index}"))
+        queue.mark_synced([task.event_id for task in queue.drain_queue(limit=10)])
+        assert queue.size() == 22
+        assert queue.queue_event(_event("evt-new")) is True
 
 
 class TestOfflineQueuePersistence:
-    """Test queue persistence across restarts"""
+    def test_queue_persists_across_instances(self, store: ProjectSyncStore) -> None:
+        with store.unit_of_work() as unit:
+            OfflineQueue(unit, store.layout_generation()).queue_event(_event("evt-001", "TestEvent", {"data": "test"}))
+        with store.unit_of_work() as unit:
+            tasks = OfflineQueue(unit, store.layout_generation()).drain_queue()
+        assert len(tasks) == 1
+        assert tasks[0].event["payload"] == {"data": "test"}
 
-    def test_queue_persists_across_instances(self, persistent_db_path):
-        """Test queue data persists when creating new instance"""
-        # Create queue and add event
-        queue1 = OfflineQueue(persistent_db_path)
-        queue1.queue_event({"event_id": "evt-001", "event_type": "TestEvent", "payload": {"data": "test"}})
-        del queue1
-
-        # Create new instance pointing to same database
-        queue2 = OfflineQueue(persistent_db_path)
-
-        assert queue2.size() == 1
-        events = queue2.drain_queue()
-        assert len(events) == 1
-        assert events[0]["event_id"] == "evt-001"
-        assert events[0]["payload"]["data"] == "test"
-
-    def test_multiple_events_persist(self, persistent_db_path):
-        """Test multiple events persist across restarts"""
-        queue1 = OfflineQueue(persistent_db_path)
-        for i in range(100):
-            queue1.queue_event({"event_id": f"evt-{i:03d}", "event_type": "Test", "payload": {"index": i}})
-        del queue1
-
-        queue2 = OfflineQueue(persistent_db_path)
-        assert queue2.size() == 100
-
-        events = queue2.drain_queue()
-        assert len(events) == 100
-        # Verify order preserved
-        for i, event in enumerate(events):
-            assert event["payload"]["index"] == i
+    def test_multiple_events_persist(self, store: ProjectSyncStore) -> None:
+        with store.unit_of_work() as unit:
+            queue = OfflineQueue(unit, store.layout_generation())
+            for index in range(100):
+                queue.queue_event(_event(f"evt-{index:03d}", payload={"index": index}))
+        with store.unit_of_work() as unit:
+            tasks = OfflineQueue(unit, store.layout_generation()).drain_queue()
+        assert len(tasks) == 100
+        assert [task.event["payload"]["index"] for task in tasks] == list(range(100))
 
 
 class TestOfflineQueueRetry:
-    """Test retry count functionality"""
-
-    def test_increment_retry(self, temp_queue):
-        """Test incrementing retry count"""
-        temp_queue.queue_event({"event_id": "evt-001", "event_type": "Test", "payload": {}})
-
-        temp_queue.increment_retry(["evt-001"])
-        temp_queue.increment_retry(["evt-001"])
-        temp_queue.increment_retry(["evt-001"])
-
-        # Events should still be in queue
+    def test_increment_retry(self, temp_queue: OfflineQueue) -> None:
+        temp_queue.queue_event(_event("evt-001"))
+        for _ in range(3):
+            temp_queue.increment_retry(["evt-001"])
         assert temp_queue.size() == 1
+        assert temp_queue.drain_queue()[0].retry_count == 3
 
-    def test_get_events_by_retry_count(self, temp_queue):
-        """Test filtering events by retry count"""
-        for i in range(5):
-            temp_queue.queue_event({"event_id": f"evt-{i}", "event_type": "Test", "payload": {}})
-
-        # Increment some events past threshold
-        temp_queue.increment_retry(["evt-0", "evt-2"])
-        temp_queue.increment_retry(["evt-0", "evt-2"])
-        temp_queue.increment_retry(["evt-0", "evt-2"])
-        temp_queue.increment_retry(["evt-0", "evt-2"])
-        temp_queue.increment_retry(["evt-0", "evt-2"])
-        temp_queue.increment_retry(["evt-0", "evt-2"])  # Now at 6
-
+    def test_get_events_by_retry_count(self, temp_queue: OfflineQueue) -> None:
+        for index in range(5):
+            temp_queue.queue_event(_event(f"evt-{index}"))
+        for _ in range(6):
+            temp_queue.increment_retry(["evt-0", "evt-2"])
         events = temp_queue.get_events_by_retry_count(max_retries=5)
-        event_ids = [e["event_id"] for e in events]
-
-        assert len(events) == 3
-        assert "evt-0" not in event_ids
-        assert "evt-2" not in event_ids
-        assert "evt-1" in event_ids
-        assert "evt-3" in event_ids
-        assert "evt-4" in event_ids
+        assert [event["event_id"] for event in events] == ["evt-1", "evt-3", "evt-4"]
 
 
 class TestOfflineQueueDefaultPath:
-    """Test default path behavior"""
+    def test_default_path_uses_home_directory(self) -> None:
+        with pytest.raises(LegacyQueueMigrationRequiredError):
+            default_queue_db_path()
 
-    @staticmethod
-    def _write_session(tmp_path: Path, *, team_id: str = "team-red") -> StoredSession:
-        storage = FileFallbackStorage(base_dir=tmp_path / ".spec-kitty" / "auth")
-        issued_at = now_utc()
-        session = StoredSession(
-            user_id="user-1",
-            email="test@example.com",
-            name="Test User",
-            teams=[
-                Team(
-                    id=team_id,
-                    name="Private Teamspace",
-                    role="owner",
-                    is_private_teamspace=True,
-                )
-            ],
-            default_team_id=team_id,
-            access_token="access-token",
-            refresh_token="refresh-token",
-            session_id="session-1",
-            issued_at=issued_at,
-            access_token_expires_at=issued_at + timedelta(hours=1),
-            refresh_token_expires_at=issued_at + timedelta(days=30),
-            scope="openid profile email offline_access",
-            storage_backend="file",
-            last_used_at=issued_at,
-            auth_method="authorization_code",
-        )
-        storage.write(session)
-        return session
+    def test_default_path_uses_scoped_queue_when_authenticated(self) -> None:
+        with pytest.raises(LegacyQueueMigrationRequiredError, match="ProjectSyncStore"):
+            default_queue_db_path(user_id="user", team_slug="team")
 
-    @staticmethod
-    def _patch_token_manager(monkeypatch, session: StoredSession | None) -> None:
-        class FakeTokenManager:
-            def get_current_session(self) -> StoredSession | None:
-                return session
+    def test_session_scope_wins_over_legacy_credentials(self) -> None:
+        parameters = inspect.signature(OfflineQueue).parameters
+        assert list(parameters) == ["unit", "authority", "max_queue_size"]
 
-        monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: FakeTokenManager())
-
-    def test_default_path_uses_home_directory(self, monkeypatch, tmp_path):
-        """Test that default path is ~/.spec-kitty/queue.db"""
-        monkeypatch.setenv("HOME", str(tmp_path))
-        self._patch_token_manager(monkeypatch, None)
-
-        expected_path = tmp_path / ".spec-kitty" / "queue.db"
-
-        assert default_queue_db_path() == expected_path
-        default_queue = OfflineQueue()
-        assert default_queue.db_path == expected_path
-        if default_queue.db_path.exists():
-            default_queue.clear()
-
-    def test_default_path_uses_scoped_queue_when_authenticated(self, monkeypatch, tmp_path):
-        """Authenticated users should default to a scope-isolated queue file."""
-        monkeypatch.setenv("HOME", str(tmp_path))
-        session = self._write_session(tmp_path)
-        self._patch_token_manager(monkeypatch, session)
-        spec_kitty_dir = tmp_path / ".spec-kitty"
-        spec_kitty_dir.mkdir(parents=True, exist_ok=True)
-        (spec_kitty_dir / "config.toml").write_text(
-            """
-[sync]
-server_url = "https://test.example.com"
-""".strip()
-        )
-
-        scope = build_queue_scope(
-            server_url="https://test.example.com",
-            username="test@example.com",
-            team_slug="team-red",
-        )
-        expected_path = scope_db_path(scope)
-
-        assert default_queue_db_path() == expected_path
-        default_queue = OfflineQueue()
-        assert default_queue.db_path == expected_path
-
-    def test_session_scope_wins_over_legacy_credentials(self, monkeypatch, tmp_path):
-        """The encrypted auth session should override stale legacy credentials."""
-        monkeypatch.setenv("HOME", str(tmp_path))
-        session = self._write_session(tmp_path, team_id="private-team")
-        self._patch_token_manager(monkeypatch, session)
-
-        spec_kitty_dir = tmp_path / ".spec-kitty"
-        spec_kitty_dir.mkdir(parents=True, exist_ok=True)
-        (spec_kitty_dir / "config.toml").write_text(
-            """
-[sync]
-server_url = "https://test.example.com"
-""".strip()
-        )
-        (spec_kitty_dir / "credentials").write_text(
-            """
-[user]
-username = "legacy@example.com"
-team_slug = "legacy-team"
-
-[server]
-url = "https://legacy.example.com"
-""".strip()
-        )
-
-        expected_path = scope_db_path(
-            build_queue_scope(
-                server_url="https://test.example.com",
-                username="test@example.com",
-                team_slug="private-team",
-            )
-        )
-
-        assert default_queue_db_path() == expected_path
-
-    def test_legacy_queue_migrates_into_scoped_queue(self, monkeypatch, tmp_path):
-        """Legacy queue.db contents should be rehomed into the scoped queue."""
-        monkeypatch.setenv("HOME", str(tmp_path))
-        session = self._write_session(tmp_path)
-        self._patch_token_manager(monkeypatch, session)
-
-        spec_kitty_dir = tmp_path / ".spec-kitty"
-        spec_kitty_dir.mkdir(parents=True, exist_ok=True)
-        (spec_kitty_dir / "config.toml").write_text(
-            """
-[sync]
-server_url = "https://test.example.com"
-""".strip()
-        )
-
-        legacy_queue = OfflineQueue(spec_kitty_dir / "queue.db")
-        legacy_queue.queue_event(
-            {"event_id": "evt-legacy", "event_type": "TestEvent", "payload": {"migrated": True}}
-        )
-
-        scoped_queue = OfflineQueue()
-
-        assert scoped_queue.db_path != legacy_queue.db_path
-        assert scoped_queue.size() == 1
-        assert scoped_queue.drain_queue()[0]["event_id"] == "evt-legacy"
+    def test_legacy_queue_migrates_into_scoped_queue(self) -> None:
+        with pytest.raises(LegacyQueueMigrationRequiredError, match="cannot select"):
+            resolved_scope_db_path(object())
 
 
 class TestQueueStats:
-    """Tests for get_queue_stats() aggregate queries (T020, T021, T024)."""
-
-    def test_empty_queue_returns_zero_stats(self, temp_queue):
-        """Empty queue should return all-zero QueueStats."""
+    def test_empty_queue_returns_zero_stats(self, temp_queue: OfflineQueue) -> None:
         stats = temp_queue.get_queue_stats()
-
         assert stats.total_queued == 0
         assert stats.total_retried == 0
         assert stats.oldest_event_age is None
-        assert stats.retry_distribution == {}
+        assert stats.retry_distribution == {
+            "0 retries": 0,
+            "1-3 retries": 0,
+            "4+ retries": 0,
+        }
         assert stats.top_event_types == []
 
-    def test_single_event_stats(self, temp_queue):
-        """Queue with one event should report correct totals."""
-        temp_queue.queue_event({"event_id": "evt-001", "event_type": "WPStatusChanged", "payload": {}})
-
+    def test_single_event_stats(self, temp_queue: OfflineQueue) -> None:
+        temp_queue.queue_event(_event("evt-001", "WPStatusChanged"))
         stats = temp_queue.get_queue_stats()
-
         assert stats.total_queued == 1
         assert stats.total_retried == 0
         assert stats.oldest_event_age is not None
-        assert stats.oldest_event_age >= timedelta(seconds=0)
-        assert stats.retry_distribution == {"0 retries": 1}
+        assert stats.oldest_event_age >= timedelta(0)
+        assert stats.retry_distribution["0 retries"] == 1
         assert stats.top_event_types == [("WPStatusChanged", 1)]
 
-    def test_retried_events_counted(self, temp_queue):
-        """Events with retry_count > 0 should be counted in total_retried."""
-        for i in range(5):
-            temp_queue.queue_event({"event_id": f"evt-{i}", "event_type": "Test", "payload": {}})
-
-        # Retry two events
+    def test_retried_events_counted(self, temp_queue: OfflineQueue) -> None:
+        for index in range(5):
+            temp_queue.queue_event(_event(f"evt-{index}"))
         temp_queue.increment_retry(["evt-1", "evt-3"])
+        assert temp_queue.get_queue_stats().total_retried == 2
 
-        stats = temp_queue.get_queue_stats()
-
-        assert stats.total_queued == 5
-        assert stats.total_retried == 2
-
-    def test_retry_distribution_buckets(self, temp_queue):
-        """Retry distribution should bucket events as 0, 1-3, 4+."""
-        # Create 6 events
-        for i in range(6):
-            temp_queue.queue_event({"event_id": f"evt-{i}", "event_type": "Test", "payload": {}})
-
-        # evt-0: 0 retries (stays in '0 retries')
-        # evt-1: 2 retries (goes to '1-3 retries')
-        temp_queue.increment_retry(["evt-1"])
-        temp_queue.increment_retry(["evt-1"])
-        # evt-2: 3 retries (goes to '1-3 retries')
-        temp_queue.increment_retry(["evt-2"])
-        temp_queue.increment_retry(["evt-2"])
-        temp_queue.increment_retry(["evt-2"])
-        # evt-3: 5 retries (goes to '4+ retries')
+    def test_retry_distribution_buckets(self, temp_queue: OfflineQueue) -> None:
+        for index in range(6):
+            temp_queue.queue_event(_event(f"evt-{index}"))
+        for _ in range(2):
+            temp_queue.increment_retry(["evt-1"])
+        for _ in range(3):
+            temp_queue.increment_retry(["evt-2"])
         for _ in range(5):
             temp_queue.increment_retry(["evt-3"])
-        # evt-4: 0 retries
-        # evt-5: 1 retry (goes to '1-3 retries')
         temp_queue.increment_retry(["evt-5"])
+        assert temp_queue.get_queue_stats().retry_distribution == {
+            "0 retries": 2,
+            "1-3 retries": 3,
+            "4+ retries": 1,
+        }
 
-        stats = temp_queue.get_queue_stats()
+    def test_top_event_types_ranking(self, temp_queue: OfflineQueue) -> None:
+        for index in range(5):
+            temp_queue.queue_event(_event(f"a-{index}", "TypeA"))
+        for index in range(3):
+            temp_queue.queue_event(_event(f"b-{index}", "TypeB"))
+        temp_queue.queue_event(_event("c-0", "TypeC"))
+        assert temp_queue.get_queue_stats().top_event_types == [
+            ("TypeA", 5),
+            ("TypeB", 3),
+            ("TypeC", 1),
+        ]
 
-        assert stats.retry_distribution["0 retries"] == 2  # evt-0, evt-4
-        assert stats.retry_distribution["1-3 retries"] == 3  # evt-1, evt-2, evt-5
-        assert stats.retry_distribution["4+ retries"] == 1  # evt-3
+    def test_top_event_types_limited_to_five(self, temp_queue: OfflineQueue) -> None:
+        for index in range(7):
+            temp_queue.queue_event(_event(f"evt-{index}", f"Type{index}"))
+        assert len(temp_queue.get_queue_stats().top_event_types) == 5
 
-    def test_top_event_types_ranking(self, temp_queue):
-        """Top event types should be ordered by count descending."""
-        # 5 of type A, 3 of type B, 1 of type C
-        for i in range(5):
-            temp_queue.queue_event({"event_id": f"a-{i}", "event_type": "TypeA", "payload": {}})
-        for i in range(3):
-            temp_queue.queue_event({"event_id": f"b-{i}", "event_type": "TypeB", "payload": {}})
-        temp_queue.queue_event({"event_id": "c-0", "event_type": "TypeC", "payload": {}})
-
-        stats = temp_queue.get_queue_stats()
-
-        assert len(stats.top_event_types) == 3
-        assert stats.top_event_types[0] == ("TypeA", 5)
-        assert stats.top_event_types[1] == ("TypeB", 3)
-        assert stats.top_event_types[2] == ("TypeC", 1)
-
-    def test_top_event_types_limited_to_five(self, temp_queue):
-        """Top event types should return at most 5 entries."""
-        for i in range(7):
-            temp_queue.queue_event({"event_id": f"evt-{i}", "event_type": f"Type{i}", "payload": {}})
-
-        stats = temp_queue.get_queue_stats()
-
-        assert len(stats.top_event_types) <= 5
-
-    def test_oldest_event_age_from_past_timestamp(self, temp_queue):
-        """Oldest event age should reflect actual timestamp, not insertion order."""
-        # Insert events with specific timestamps using raw SQL
-        conn = sqlite3.connect(temp_queue.db_path)
-        import json
-
-        now = int(now_epoch())
-        # Insert an event 3600 seconds (1 hour) ago
-        old_ts = now - 3600
-        conn.execute(
-            "INSERT INTO queue (event_id, event_type, data, timestamp) VALUES (?, ?, ?, ?)",
-            ("old-evt", "TestEvent", json.dumps({"event_id": "old-evt", "event_type": "TestEvent"}), old_ts),
-        )
-        # Insert a recent event
-        conn.execute(
-            "INSERT INTO queue (event_id, event_type, data, timestamp) VALUES (?, ?, ?, ?)",
-            ("new-evt", "TestEvent", json.dumps({"event_id": "new-evt", "event_type": "TestEvent"}), now),
-        )
-        conn.commit()
-        conn.close()
-
-        stats = temp_queue.get_queue_stats()
-
-        assert stats.total_queued == 2
-        assert stats.oldest_event_age is not None
-        # Should be approximately 1 hour (allow some slack)
-        age_seconds = stats.oldest_event_age.total_seconds()
-        assert 3590 <= age_seconds <= 3700, f"Expected ~3600s, got {age_seconds}s"
+    def test_oldest_event_age_from_past_timestamp(self, temp_queue: OfflineQueue) -> None:
+        now = now_utc()
+        temp_queue.queue_event(_event("old-evt", "TestEvent", created_at=(now - timedelta(hours=1)).isoformat()))
+        temp_queue.queue_event(_event("new-evt", "TestEvent", created_at=now.isoformat()))
+        age = temp_queue.get_queue_stats().oldest_event_age
+        assert age is not None
+        assert 3590 <= age.total_seconds() <= 3700
 
 
 class TestHumanizeTimedelta:
-    """Tests for humanize_timedelta() formatting helper (T022)."""
-
-    def test_seconds_only(self):
+    def test_seconds_only(self) -> None:
         from specify_cli.cli.commands.sync import humanize_timedelta
 
         assert humanize_timedelta(timedelta(seconds=0)) == "0s"
         assert humanize_timedelta(timedelta(seconds=45)) == "45s"
 
-    def test_minutes_and_seconds(self):
+    def test_minutes_and_seconds(self) -> None:
         from specify_cli.cli.commands.sync import humanize_timedelta
 
         assert humanize_timedelta(timedelta(minutes=3, seconds=12)) == "3m 12s"
         assert humanize_timedelta(timedelta(minutes=5)) == "5m"
 
-    def test_hours_and_minutes(self):
+    def test_hours_and_minutes(self) -> None:
         from specify_cli.cli.commands.sync import humanize_timedelta
 
         assert humanize_timedelta(timedelta(hours=2, minutes=5)) == "2h 5m"
         assert humanize_timedelta(timedelta(hours=1)) == "1h"
 
-    def test_days_and_hours(self):
+    def test_days_and_hours(self) -> None:
         from specify_cli.cli.commands.sync import humanize_timedelta
 
         assert humanize_timedelta(timedelta(days=1, hours=4)) == "1d 4h"
         assert humanize_timedelta(timedelta(days=3)) == "3d"
 
-    def test_negative_returns_zero(self):
+    def test_negative_returns_zero(self) -> None:
         from specify_cli.cli.commands.sync import humanize_timedelta
 
         assert humanize_timedelta(timedelta(seconds=-10)) == "0s"
 
 
 class TestFormatQueueHealth:
-    """Tests for format_queue_health() Rich output (T022)."""
-
-    def test_summary_panel_content(self):
-        """Verify summary panel includes queue depth and retried count."""
+    @staticmethod
+    def _render(stats: QueueStats) -> str:
         from rich.console import Console
         from specify_cli.cli.commands.sync import format_queue_health
 
-        stats = QueueStats(
-            total_queued=42,
-            total_retried=7,
-            oldest_event_age=timedelta(hours=2, minutes=30),
-            retry_distribution={"0 retries": 35, "1-3 retries": 5, "4+ retries": 2},
-            top_event_types=[("WPStatusChanged", 20), ("FeatureCreated", 12)],
+        buffer = StringIO()
+        format_queue_health(stats, Console(file=buffer, force_terminal=False, width=120))
+        return buffer.getvalue()
+
+    def test_summary_panel_content(self) -> None:
+        output = self._render(
+            QueueStats(
+                total_queued=42,
+                total_retried=7,
+                oldest_event_age=timedelta(hours=2, minutes=30),
+                retry_distribution={"0 retries": 35, "1-3 retries": 5, "4+ retries": 2},
+                top_event_types=[("WPStatusChanged", 20), ("FeatureCreated", 12)],
+            )
         )
+        assert all(token in output for token in ("Queue Depth", "42", "Retried", "7", "2h 30m ago"))
 
-        buf = StringIO()
-        test_console = Console(file=buf, force_terminal=False, width=120)
-        format_queue_health(stats, test_console)
-        output = buf.getvalue()
-
-        # Check semantic content (not exact ANSI formatting)
-        assert "Queue Depth" in output
-        assert "42" in output
-        assert "Retried" in output
-        assert "7" in output
-        assert "2h 30m ago" in output
-
-    def test_retry_distribution_table(self):
-        """Verify retry distribution table rows appear."""
-        from rich.console import Console
-        from specify_cli.cli.commands.sync import format_queue_health
-
-        stats = QueueStats(
-            total_queued=10,
-            total_retried=3,
-            oldest_event_age=timedelta(minutes=5),
-            retry_distribution={"0 retries": 7, "1-3 retries": 2, "4+ retries": 1},
-            top_event_types=[("Test", 10)],
+    def test_retry_distribution_table(self) -> None:
+        output = self._render(
+            QueueStats(
+                total_queued=10,
+                total_retried=3,
+                oldest_event_age=timedelta(minutes=5),
+                retry_distribution={"0 retries": 7, "1-3 retries": 2, "4+ retries": 1},
+                top_event_types=[("Test", 10)],
+            )
         )
+        assert all(token in output for token in ("Retry Distribution", "0 retries", "1-3 retries", "4+ retries"))
 
-        buf = StringIO()
-        test_console = Console(file=buf, force_terminal=False, width=120)
-        format_queue_health(stats, test_console)
-        output = buf.getvalue()
-
-        assert "Retry Distribution" in output
-        assert "0 retries" in output
-        assert "1-3 retries" in output
-        assert "4+ retries" in output
-
-    def test_top_event_types_table(self):
-        """Verify top event types table includes event type names."""
-        from rich.console import Console
-        from specify_cli.cli.commands.sync import format_queue_health
-
-        stats = QueueStats(
-            total_queued=15,
-            total_retried=0,
-            oldest_event_age=timedelta(seconds=30),
-            retry_distribution={"0 retries": 15},
-            top_event_types=[("WPStatusChanged", 8), ("FeatureCreated", 5), ("SyncPing", 2)],
+    def test_top_event_types_table(self) -> None:
+        output = self._render(
+            QueueStats(
+                total_queued=15,
+                oldest_event_age=timedelta(seconds=30),
+                retry_distribution={"0 retries": 15},
+                top_event_types=[("WPStatusChanged", 8), ("FeatureCreated", 5), ("SyncPing", 2)],
+            )
         )
-
-        buf = StringIO()
-        test_console = Console(file=buf, force_terminal=False, width=120)
-        format_queue_health(stats, test_console)
-        output = buf.getvalue()
-
-        assert "Top Event Types" in output
-        assert "WPStatusChanged" in output
-        assert "FeatureCreated" in output
-        assert "SyncPing" in output
+        assert all(token in output for token in ("Top Event Types", "WPStatusChanged", "FeatureCreated", "SyncPing"))

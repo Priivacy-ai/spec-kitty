@@ -222,6 +222,7 @@ def register_commands(app: typer.Typer) -> None:
     from . import profiles_cmd as profiles_cmd_module
     from . import profile_invocation as profile_invocation_module
     from . import reconcile as reconcile_module
+    from . import regen as regen_module
     from . import research as research_module
     from . import review as review_module
     from . import safe_commit_cmd as safe_commit_module
@@ -269,6 +270,10 @@ def register_commands(app: typer.Typer) -> None:
     app.command()(lifecycle_module.tasks)
     app.command(name="lint")(lint_module.lint_command)
     app.command(name="materialize")(materialize_module.materialize)
+    app.command(
+        name="regen",
+        help="Regenerate the committed generated agent-command + skill fixtures from source (#3447).",
+    )(regen_module.regen)
     app.command()(merge_module.merge)
     app.command(name="merge-driver-event-log", hidden=True)(merge_driver_module.merge_driver_event_log)
     app.command(name="merge-driver-meta", hidden=True)(merge_driver_module.merge_driver_meta)

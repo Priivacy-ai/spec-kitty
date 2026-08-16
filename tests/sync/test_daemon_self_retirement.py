@@ -58,12 +58,6 @@ def _mtime(path: Path) -> float | None:
         return None
 
 
-def _unused_local_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(("127.0.0.1", 0))
-        return int(sock.getsockname()[1])
-
-
 def _wait_for_daemon_health(port: int, proc: subprocess.Popen[str]) -> None:
     url = f"http://127.0.0.1:{port}/api/health"
     deadline = time.monotonic() + 10.0
@@ -348,7 +342,6 @@ class TestRunSyncDaemonWiring:
     @pytest.mark.skipif(os.name == "nt", reason="POSIX signal semantics only")
     def test_sigterm_exits_without_deadlocking_server_shutdown(self, tmp_path: Path) -> None:
         """SIGTERM must stop the daemon instead of deadlocking serve_forever()."""
-        port = _unused_local_port()
         env = os.environ.copy()
         env["HOME"] = str(tmp_path)
         env["LOCALAPPDATA"] = str(tmp_path / "AppData")
@@ -360,18 +353,41 @@ class TestRunSyncDaemonWiring:
             else f"{src_dir}{os.pathsep}{env['PYTHONPATH']}"
         )
 
+        # Bind in the parent and transfer the live listener to the child. This
+        # removes the usual "find a free port, close it, then bind later" race
+        # without retrying a failure or weakening the signal oracle.
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        port = int(listener.getsockname()[1])
+        listener_fd = listener.fileno()
         script = (
-            "from specify_cli.sync.daemon import run_sync_daemon\n"
-            f"run_sync_daemon({port}, 'tok')\n"
+            "import socket\n"
+            "from http.server import HTTPServer\n"
+            "from specify_cli.sync import daemon\n"
+            f"listener = socket.socket(fileno={listener_fd})\n"
+            "def inherited_server(port, handler):\n"
+            "    server = HTTPServer(('127.0.0.1', port), handler, bind_and_activate=False)\n"
+            "    server.socket.close()\n"
+            "    server.socket = listener\n"
+            "    server.server_address = listener.getsockname()\n"
+            "    server.server_name = '127.0.0.1'\n"
+            "    server.server_port = port\n"
+            "    return server\n"
+            "daemon.create_loopback_server = inherited_server\n"
+            f"daemon.run_sync_daemon({port}, 'tok')\n"
         )
         proc = subprocess.Popen(  # noqa: S603
             [sys.executable, "-c", script],
             cwd=Path(__file__).resolve().parents[2],
             env=env,
+            pass_fds=(listener_fd,),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
         )
+        listener.close()
         try:
             _wait_for_daemon_health(port, proc)
             owner_path = tmp_path / ".spec-kitty" / "sync" / "daemon" / "owner.json"

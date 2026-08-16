@@ -13,9 +13,14 @@ All public methods:
 
 from __future__ import annotations
 
+import hashlib
+import json as json_module
 import logging
+import secrets
+from kernel.clock import UTC, datetime, now_utc, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
@@ -29,6 +34,24 @@ from specify_cli.saas_client.errors import (
     SaasNotFoundError,
     SaasTimeoutError,
 )
+from specify_cli.auth import get_token_manager
+from specify_cli.auth.session import require_private_team_id
+from specify_cli.identity.project import resolve_identity
+from specify_cli.sync.project_store import ProjectStoreError, ProjectSyncStore
+from specify_cli.sync.transport_attempts import (
+    DeliveryAttemptState,
+    DeliveryOutcome,
+    LogicalOperationDecision,
+    LogicalOperationDisposition,
+    LogicalOperationRepeatability,
+    LogicalOperationRequest,
+    allocate_logical_delivery_operation,
+    mark_delivery_result_unknown,
+    mark_transport_started,
+    record_logical_operation_result,
+    restart_delivery_attempt,
+)
+from specify_cli.sync.transport_lease import TransportLeaseContext, acquire_project_transport_lease
 
 if TYPE_CHECKING:
     pass
@@ -53,6 +76,30 @@ SAAS_EGRESS_IDENTIFIER_KINDS = "mission and decision identifiers"
 _TIMEOUT_DEFAULT = 5.0
 _TIMEOUT_PREREQ_PROBE = 0.5
 _TIMEOUT_DISCUSSION = 10.0
+
+
+def _normalize_origin(url: str) -> str:
+    parts = urlsplit(url.strip())
+    if parts.scheme.lower() not in {"http", "https"} or parts.hostname is None:
+        raise ValueError("SaaS URL must contain an http(s) origin")
+    host = parts.hostname.encode("idna").decode("ascii").lower()
+    default_port = 443 if parts.scheme.lower() == "https" else 80
+    netloc = host if parts.port in {None, default_port} else f"{host}:{parts.port}"
+    return urlunsplit((parts.scheme.lower(), netloc, "", "", ""))
+
+
+def _authenticated_authority_for_token(token: str) -> tuple[str, str, str] | None:
+    """Resolve exact account, Private and Collaborative Teamspaces from auth."""
+    session = get_token_manager().get_current_session()
+    if session is None or not secrets.compare_digest(session.access_token, token):
+        return None
+    private_teamspace_id = require_private_team_id(session)
+    if private_teamspace_id is None:
+        return None
+    collaborative_ids = {team.id.strip() for team in session.teams if not team.is_private_teamspace and isinstance(team.id, str) and team.id.strip()}
+    if len(collaborative_ids) != 1:
+        return None
+    return session.user_id, private_teamspace_id, collaborative_ids.pop()
 
 
 def _map_http_error(resp: httpx.Response, context: str) -> SaasClientError:
@@ -179,18 +226,7 @@ class SaasClient:
         timeout: float | None = None,
     ) -> httpx.Response:
         """Issue a GET request, mapping exceptions to ``SaasClientError``."""
-        self._refuse_unless_project_consents()
-        url = f"{self._base_url}{path}"
-        effective_timeout = timeout if timeout is not None else self._timeout
-        try:
-            resp = self._http.get(url, timeout=effective_timeout)
-        except httpx.TimeoutException as exc:
-            raise SaasTimeoutError(f"GET {url} timed out after {effective_timeout}s") from exc
-        except httpx.RequestError as exc:
-            raise SaasClientError(f"GET {url} failed: {exc}") from exc
-        if not resp.is_success:
-            raise _map_http_error(resp, f"GET {url}")
-        return resp
+        return self._execute_logical_request("GET", path, timeout=timeout)
 
     def _post(
         self,
@@ -200,26 +236,346 @@ class SaasClient:
         timeout: float | None = None,
     ) -> httpx.Response:
         """Issue a POST request with a JSON body, mapping exceptions to ``SaasClientError``."""
+        return self._execute_logical_request("POST", path, json=json, timeout=timeout)
+
+    def _execute_logical_request(
+        self,
+        method: str,
+        path: str,
+        *,
+        json: object | None = None,
+        timeout: float | None = None,
+    ) -> httpx.Response:
+        """Run one hosted invocation through durable allocation and WP06 state."""
         self._refuse_unless_project_consents()
+        authority = _authenticated_authority_for_token(self._token)
+        if authority is None:
+            raise SaasConsentError("target_authority_mismatch: token-matched account, Private Teamspace, and one Collaborative Teamspace are required")
+        account_identity, private_teamspace_id, collaborative_teamspace_id = authority
         url = f"{self._base_url}{path}"
         effective_timeout = timeout if timeout is not None else self._timeout
+        disclosed = json_module.dumps(
+            {"method": method, "url": url, "json": json},
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        repeatability = LogicalOperationRepeatability.REPEATABLE_READ if method == "GET" else LogicalOperationRepeatability.IDEMPOTENT_WRITE
+        payload_hash = hashlib.sha256(disclosed.encode("utf-8")).hexdigest()  # noqa: TID251
+        semantic_key = f"{method}:{url}"
+        if repeatability is LogicalOperationRepeatability.IDEMPOTENT_WRITE:
+            semantic_key = f"{semantic_key}:payload:{payload_hash}"
+        request = LogicalOperationRequest(
+            write_kind=f"generic_saas_{method.lower()}",
+            semantic_key=semantic_key,
+            # Native transport body checksum, not charter/doctrine content.
+            payload_hash=payload_hash,
+            payload_reference=disclosed,
+            repeatability=repeatability,
+            reconciliation_policy="native_identity_retry",
+            deadline_at=(now_utc() + timedelta(seconds=min(max(effective_timeout * 4, 5.0), 300.0))).isoformat(),
+            recover_with_persisted_deadline=True,
+            collaborative_teamspace_id=collaborative_teamspace_id,
+        )
         try:
-            resp = self._http.post(url, json=json, timeout=effective_timeout)
-        except httpx.TimeoutException as exc:
-            raise SaasTimeoutError(f"POST {url} timed out after {effective_timeout}s") from exc
-        except httpx.RequestError as exc:
-            raise SaasClientError(f"POST {url} failed: {exc}") from exc
+            store = self._project_transport_store(
+                account_identity=account_identity,
+                private_teamspace_id=private_teamspace_id,
+            )
+            decision = allocate_logical_delivery_operation(store, request)
+            if decision.disposition is LogicalOperationDisposition.TERMINAL_PRIOR:
+                if decision.outcome in {DeliveryOutcome.DELIVERED, DeliveryOutcome.DUPLICATE}:
+                    if decision.terminal_response_reference is None:
+                        raise SaasClientError("Hosted operation terminal response requires operator recovery")
+                    return httpx.Response(
+                        200,
+                        content=decision.terminal_response_reference.encode("utf-8"),
+                        headers={"Content-Type": "application/json"},
+                        request=httpx.Request(method, url),
+                    )
+                if decision.terminal_refusal_category == "project_not_admitted":
+                    raise SaasConsentError(self._generic_refusal_message(decision.terminal_refusal_reference))
+                raise SaasClientError(f"Hosted operation is terminal: {decision.diagnostic}")
+            if not decision.may_resend:
+                raise SaasClientError(f"Hosted operation requires recovery: {decision.diagnostic}")
+            resp, outcome, category = self._send_generic_operation(
+                store,
+                decision,
+                method=method,
+                url=url,
+                json=json,
+                effective_timeout=effective_timeout,
+                repeatability=repeatability,
+                authority=authority,
+            )
+        except SaasClientError:
+            raise
+        except ProjectStoreError as exc:
+            raise SaasClientError(f"Hosted operation requires recovery: {exc}") from exc
+        except ValueError as exc:
+            raise SaasClientError(f"Hosted operation request is invalid: {exc}") from exc
         if not resp.is_success:
-            raise _map_http_error(resp, f"POST {url}")
+            if category == "project_not_admitted":
+                raise SaasConsentError(self._generic_refusal_message(self._generic_refusal_reference(resp)))
+            raise _map_http_error(resp, f"{method} {url}")
         return resp
 
+    def _send_generic_operation(
+        self,
+        store: ProjectSyncStore,
+        decision: LogicalOperationDecision,
+        *,
+        method: str,
+        url: str,
+        json: object | None,
+        effective_timeout: float,
+        repeatability: LogicalOperationRepeatability,
+        authority: tuple[str, str, str],
+    ) -> tuple[httpx.Response, DeliveryOutcome, str | None]:
+        """Start, send, and persist one operation under one continuous lease."""
+        deadline = self._decision_deadline(decision.deadline_at)
+        lease_timeout = min(5.0, max(0.0, self._remaining_seconds(deadline)))
+        with acquire_project_transport_lease(store, lock_timeout_seconds=lease_timeout) as lease:
+            with lease.unit_of_work() as (unit, context):
+                if decision.state is DeliveryAttemptState.RETRYABLE_NO_EFFECT:
+                    restart_delivery_attempt(unit, context, decision.attempt_id)
+                else:
+                    mark_transport_started(unit, context, decision.attempt_id)
+            request_timeout = min(effective_timeout, self._remaining_seconds(deadline))
+            if request_timeout <= 0:
+                with lease.unit_of_work() as (unit, context):
+                    record_logical_operation_result(
+                        unit,
+                        context,
+                        result_id=f"{decision.attempt_id}:result",
+                        attempt_id=decision.attempt_id,
+                        outcome=DeliveryOutcome.RETRYABLE_NO_EFFECT,
+                    )
+                raise SaasTimeoutError(f"{method} {url} exceeded its persisted deadline before I/O")
+            try:
+                if _authenticated_authority_for_token(self._token) != authority:
+                    raise SaasConsentError("target_authority_mismatch: authenticated authority changed before transport")
+                if method == "GET":
+                    response = self._http.get(url, timeout=request_timeout)
+                else:
+                    response = self._http.post(
+                        url,
+                        json=json,
+                        headers={"Idempotency-Key": decision.native_identity or decision.attempt_id},
+                        timeout=request_timeout,
+                    )
+            except httpx.TimeoutException as exc:
+                self._record_generic_transport_exception(lease, decision.attempt_id, exc)
+                raise SaasTimeoutError(f"{method} {url} timed out after {request_timeout}s") from exc
+            except httpx.RequestError as exc:
+                self._record_generic_transport_exception(lease, decision.attempt_id, exc)
+                raise SaasClientError(f"{method} {url} failed: {exc}") from exc
+
+            outcome, category = self._classify_generic_response(
+                response,
+                native_identity=decision.native_identity or decision.attempt_id,
+                is_write=repeatability is LogicalOperationRepeatability.IDEMPOTENT_WRITE,
+            )
+            response_reference = self._response_reference(response) if outcome in {DeliveryOutcome.DELIVERED, DeliveryOutcome.DUPLICATE} else None
+            refusal_reference = self._generic_refusal_reference(response) if outcome is DeliveryOutcome.REFUSED and category == "project_not_admitted" else None
+            with lease.unit_of_work() as (unit, context):
+                record_logical_operation_result(
+                    unit,
+                    context,
+                    result_id=f"{decision.attempt_id}:result",
+                    attempt_id=decision.attempt_id,
+                    outcome=outcome,
+                    terminal_refusal_category=category,
+                    response_reference=response_reference,
+                    refusal_reference=refusal_reference,
+                )
+        return response, outcome, category
+
+    def _project_transport_store(
+        self,
+        *,
+        account_identity: str,
+        private_teamspace_id: str,
+    ) -> ProjectSyncStore:
+        if self._project_root is None:
+            raise SaasConsentError("project_not_admitted: no owning project was supplied")
+        identity = resolve_identity(self._project_root)
+        if identity.project_uuid is None:
+            raise SaasConsentError("project_not_admitted: owning project has no canonical UUID")
+        store = ProjectSyncStore(str(identity.project_uuid))
+        try:
+            context = store.create_context()
+        except ProjectStoreError as exc:
+            raise SaasConsentError(f"project_not_admitted: project transport store is unavailable ({exc})") from exc
+        target = context.target_audience
+        if (
+            context.consent_generation is None
+            or context.epoch_id is None
+            or target is None
+            or context.admission_generation is None
+            or context.binding_audience is None
+        ):
+            raise SaasConsentError("project_not_admitted: exact hosted target authority is unavailable")
+        if (
+            target.target_identity != _normalize_origin(self._base_url)
+            or target.account_identity != account_identity
+            or target.private_teamspace_id != private_teamspace_id
+        ):
+            raise SaasConsentError("target_authority_mismatch: admitted target does not match the SaaS client")
+        return store
+
+    @staticmethod
+    def _response_body(response: httpx.Response) -> dict[str, object] | None:
+        try:
+            body = response.json()
+        except Exception:
+            return None
+        return body if isinstance(body, dict) else None
+
+    @staticmethod
+    def _response_reference(response: httpx.Response) -> str:
+        return json_module.dumps(
+            response.json(),
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+
+    @classmethod
+    def _generic_refusal_reference(cls, response: httpx.Response) -> str:
+        body = cls._response_body(response) or {}
+        envelope = {
+            key: body[key]
+            for key in (
+                "error_category",
+                "idempotency_key",
+                "message",
+                "retryable",
+                "status",
+            )
+            if key in body
+        }
+        return json_module.dumps(
+            {"http_status": response.status_code, "envelope": envelope},
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+
+    @staticmethod
+    def _generic_refusal_message(reference: str | None) -> str:
+        if reference is None:
+            return "project_not_admitted: hosted target refused this project"
+        try:
+            value = json_module.loads(reference)
+            envelope = value["envelope"]
+            message = envelope.get("message")
+        except (KeyError, TypeError, json_module.JSONDecodeError):
+            return "project_not_admitted: hosted target refused this project"
+        return str(message) if isinstance(message, str) and message else "project_not_admitted: hosted target refused this project"
+
+    @staticmethod
+    def _decision_deadline(value: str | None) -> datetime:
+        if value is None:
+            raise ValueError("durable operation has no deadline")
+        parsed = datetime.fromisoformat(value)
+        if parsed.tzinfo is None:
+            raise ValueError("durable operation deadline must include a timezone")
+        return parsed.astimezone(UTC)
+
+    @staticmethod
+    def _remaining_seconds(deadline: datetime) -> float:
+        return (deadline - now_utc()).total_seconds()
+
+    @classmethod
+    def _classify_generic_response(
+        cls,
+        response: httpx.Response,
+        *,
+        native_identity: str,
+        is_write: bool,
+    ) -> tuple[DeliveryOutcome, str | None]:
+        if response.is_success:
+            if is_write and cls._is_exact_idempotency_replay(
+                response,
+                native_identity=native_identity,
+            ):
+                return DeliveryOutcome.DUPLICATE, None
+            return DeliveryOutcome.DELIVERED, None
+        body = cls._response_body(response)
+        category = body.get("error_category") if body is not None else None
+        correlated = body is not None and body.get("idempotency_key") == native_identity
+        if (
+            body is not None
+            and is_write
+            and category == "project_not_admitted"
+            and correlated
+            and body.get("status") == "rejected"
+            and body.get("retryable") is False
+        ):
+            return DeliveryOutcome.REFUSED, "project_not_admitted"
+        if response.status_code in {401, 429}:
+            return DeliveryOutcome.RETRYABLE_NO_EFFECT, None
+        if response.status_code >= 500 and correlated and body is not None and body.get("effect_certainty") == "no_effect":
+            return DeliveryOutcome.RETRYABLE_NO_EFFECT, None
+        return DeliveryOutcome.UNKNOWN, None
+
+    @staticmethod
+    def _is_exact_idempotency_replay(
+        response: httpx.Response,
+        *,
+        native_identity: str,
+    ) -> bool:
+        """Require replay evidence correlated to the exact native request."""
+        headers = getattr(response, "headers", None)
+        if not isinstance(headers, (httpx.Headers, dict)):
+            return False
+        replayed = headers.get("Idempotency-Replayed")
+        if not isinstance(replayed, str) or replayed.strip().lower() != "true":
+            return False
+        try:
+            request = response.request
+        except (AttributeError, RuntimeError):
+            return False
+        request_headers = getattr(request, "headers", None)
+        return isinstance(request_headers, (httpx.Headers, dict)) and request_headers.get("Idempotency-Key") == native_identity
+
+    @staticmethod
+    def _record_generic_transport_exception(
+        lease: TransportLeaseContext,
+        attempt_id: str,
+        error: httpx.RequestError,
+    ) -> None:
+        with lease.unit_of_work() as (unit, context):
+            if isinstance(error, (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout)):
+                record_logical_operation_result(
+                    unit,
+                    context,
+                    result_id=f"{attempt_id}:result",
+                    attempt_id=attempt_id,
+                    outcome=DeliveryOutcome.RETRYABLE_NO_EFFECT,
+                )
+            else:
+                mark_delivery_result_unknown(
+                    unit,
+                    context,
+                    attempt_id=attempt_id,
+                    reason="request outcome is unknown after transport failure",
+                )
+
     def _resolve_team_slug(self, team_slug: str | None = None) -> str:
-        slug = (team_slug or self._team_slug or "").strip()
-        if not slug:
-            raise SaasAuthError("SaaS team_slug is required for Teamspace-scoped Decision Moment endpoints")
+        authority = _authenticated_authority_for_token(self._token)
+        if authority is None:
+            raise SaasAuthError("Exactly one token-matched Collaborative Teamspace is required")
+        slug = authority[2]
+        if team_slug is not None and team_slug.strip() != slug:
+            raise SaasConsentError("target_authority_mismatch: collaborative team path substitution refused")
+        if self._team_slug is not None and self._team_slug.strip() != slug:
+            raise SaasConsentError("target_authority_mismatch: collaborative team path substitution refused")
         return slug
 
     def _team_path(self, team_slug: str | None, path: str) -> str:
+        self._refuse_unless_project_consents()
         return f"/a/{self._resolve_team_slug(team_slug)}/collaboration{path}"
 
     # ------------------------------------------------------------------
@@ -362,25 +718,19 @@ class SaasClient:
         data: dict[str, Any] = resp.json()
 
         raw_messages = data.get("messages", []) or []
-        messages = cast(
-            list[DiscussionMessage],
-            [
-                {
-                    "author": str(m.get("author") or m.get("author_display_name") or ""),
-                    "text": str(m.get("text", "")),
-                    "timestamp": m.get("timestamp") or m.get("ts") or None,
-                }
-                for m in raw_messages
-                if isinstance(m, dict)
-            ],
-        )
+        messages: list[DiscussionMessage] = [
+            {
+                "author": str(m.get("author") or m.get("author_display_name") or ""),
+                "text": str(m.get("text", "")),
+                "timestamp": m.get("timestamp") or m.get("ts") or None,
+            }
+            for m in raw_messages
+            if isinstance(m, dict)
+        ]
 
         raw_participants = data.get("participants", []) or []
         participants = [
-            str(p.get("display_name") or p.get("teamspace_user_id") or p.get("slack_user_id"))
-            if isinstance(p, dict)
-            else str(p)
-            for p in raw_participants
+            str(p.get("display_name") or p.get("teamspace_user_id") or p.get("slack_user_id")) if isinstance(p, dict) else str(p) for p in raw_participants
         ]
 
         return DiscussionData(

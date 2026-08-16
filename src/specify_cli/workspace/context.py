@@ -18,12 +18,12 @@ from __future__ import annotations
 
 import json
 import re
-import subprocess
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
 from specify_cli.core.atomic import atomic_write
+from kernel.git_topology import GitTopologyError, git_toplevel
 from specify_cli.lanes.branch_naming import worktree_dir_name, worktree_path as _seam_worktree_path
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.ownership.inference import infer_execution_mode, score_execution_mode_signals
@@ -77,27 +77,22 @@ def verify_workspace_toplevel(workspace_path: Path) -> WorkspaceResolutionError 
     Last-line defense for workspace paths arriving from other resolver
     lineages (#1833 R4). Returns a structured error on mismatch or git
     failure, ``None`` when the path is the toplevel of its own working tree.
+
+    The toplevel probe is delegated to the unified
+    :func:`~kernel.git_topology.git_toplevel` primitive (mission
+    write-path-integrity-01KZZD69 WP01, #3373); the primitive's typed failure is
+    mapped to this site's ``git-toplevel`` structured error, preserving the
+    is-worktree assertion contract.
     """
-    result = subprocess.run(
-        ["git", "-C", str(workspace_path), "rev-parse", "--show-toplevel"],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0:
+    try:
+        actual_toplevel = git_toplevel(workspace_path)
+    except GitTopologyError as exc:
         return WorkspaceResolutionError(
             workspace_path=workspace_path,
             failed_check="git-toplevel",
-            detail=f"git rev-parse --show-toplevel failed: {result.stderr.strip()}.",
+            detail=f"git rev-parse --show-toplevel failed: {exc}.",
         )
-    actual_toplevel = Path(result.stdout.strip())
-    try:
-        same = actual_toplevel.resolve() == workspace_path.resolve()
-    except OSError:
-        same = False
-    if not same:
+    if actual_toplevel != workspace_path.resolve():
         return WorkspaceResolutionError(
             workspace_path=workspace_path,
             failed_check="git-toplevel",
@@ -764,6 +759,8 @@ def resolve_workspace_for_wp(
     wp_id: str,
     *,
     mission_anchor_root: Path | None = None,
+    write_intent: bool = False,
+    current_cwd: Path | None = None,
 ) -> ResolvedWorkspace:
     """Resolve the real workspace/branch contract for a work package.
 
@@ -774,6 +771,54 @@ def resolve_workspace_for_wp(
     4. `lanes.json` lane mapping for code_change
 
     The returned path may not exist yet; callers can inspect `.exists`.
+
+    Seam-B checkout-identity (write-path-integrity WP03, #3128 / FR-005). This is
+    the single WP-mutation chokepoint that ``implement`` and ``review`` both
+    funnel through. It is invoked ~20 times as a pure read vehicle, so the
+    checkout-identity refusal keys on **explicit write-intent, never action-name**
+    (C-007): only the true ``implement`` / ``review`` WP-write call sites pass
+    ``write_intent=True``. When set, and the resolved workspace is a real lane
+    worktree the invoking checkout does not own, this raises
+    :class:`~mission_runtime.checkout_identity.CheckoutIdentityError` (a distinct
+    exception NOT subclassing ``ActionContextError``). Reads (``write_intent``
+    left ``False``), planning writes resolving to the primary checkout, and the
+    mission's own worktrees are never refused. The comparison is pure-path — no
+    git subprocess is invoked (NFR-004). ``current_cwd`` defaults to the process
+    CWD; it is injectable for tests.
+    """
+    resolved = _resolve_workspace_for_wp_impl(
+        repo_root,
+        mission_slug,
+        wp_id,
+        mission_anchor_root=mission_anchor_root,
+    )
+    if write_intent:
+        from mission_runtime import enforce_checkout_identity
+        from specify_cli.core.paths import get_main_repo_root
+
+        enforce_checkout_identity(
+            current_cwd=current_cwd if current_cwd is not None else Path.cwd(),
+            workspace_path=resolved.worktree_path,
+            primary_root=get_main_repo_root(repo_root),
+            resolution_kind=resolved.resolution_kind,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+        )
+    return resolved
+
+
+def _resolve_workspace_for_wp_impl(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    *,
+    mission_anchor_root: Path | None = None,
+) -> ResolvedWorkspace:
+    """Resolve the ResolvedWorkspace for a WP (pure resolution, no identity gate).
+
+    The Seam-B checkout-identity refusal is layered on by the public
+    :func:`resolve_workspace_for_wp` wrapper so every one of this function's
+    early-return arms is gated identically without duplicating the check.
     """
     normalized_wp = get_normalized_wp(
         repo_root,

@@ -25,7 +25,12 @@ _ESC = "\x1b["
 def _forced() -> tuple[CliConsole, io.StringIO]:
     """A colour-forced CliConsole writing to an in-memory buffer."""
     buf = io.StringIO()
-    return CliConsole(file=buf, force_terminal=True), buf
+    return CliConsole(
+        file=buf,
+        force_terminal=True,
+        no_color=False,
+        color_system="standard",
+    ), buf
 
 
 # ── emit_json ────────────────────────────────────────────────────
@@ -96,7 +101,12 @@ def test_set_plain_true_strips_colour_from_human_output() -> None:
     assert "delivered 1" in plain  # substring is contiguous again
 
 
-def test_set_plain_false_restores_colour() -> None:
+def test_set_plain_false_restores_colour(monkeypatch: pytest.MonkeyPatch) -> None:
+    # ``set_plain(False)`` deliberately re-runs Rich's terminal detection.
+    # Make that input explicit instead of inheriting the test runner's
+    # NO_COLOR/TERM policy.
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("TERM", "xterm-256color")
     c, buf = _forced()
     c.set_plain(True)
     c.set_plain(False)
@@ -117,7 +127,12 @@ def test_set_plain_does_not_change_width() -> None:
 def test_vanilla_console_print_json_would_leak_ansi() -> None:
     """The bug the seam fixes: stock Rich colourises JSON under forced colour."""
     buf = io.StringIO()
-    Console(file=buf, force_terminal=True).print_json(json.dumps({"id": "x"}))
+    Console(
+        file=buf,
+        force_terminal=True,
+        no_color=False,
+        color_system="standard",
+    ).print_json(json.dumps({"id": "x"}))
     out = buf.getvalue()
     assert _ESC in out  # stock Rich leaks ANSI ...
     with pytest.raises(json.JSONDecodeError):

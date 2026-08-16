@@ -244,6 +244,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         operation: str,
         timeout: float = 30.0,
         capability: GuardCapability = GuardCapability.STANDARD,
+        commit_to_primary_target: bool = False,
     ) -> BookkeepingTransaction:
         """Construct, lock, and run the pre-flight policy gate.
 
@@ -291,6 +292,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 operation=operation,
                 lock_cm=lock_cm,
                 capability=capability,
+                commit_to_primary_target=commit_to_primary_target,
             )
         except Exception:
             lock_cm.__exit__(None, None, None)
@@ -310,6 +312,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         operation: str,
         lock_cm: AbstractContextManager[Path],
         capability: GuardCapability = GuardCapability.STANDARD,
+        commit_to_primary_target: bool = False,
     ) -> BookkeepingTransaction:
         safe_mission_slug = _validate_safe_segment("mission_slug", mission_slug)
         safe_mid8 = _validate_safe_segment("mid8", mid8)
@@ -427,21 +430,36 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                     or allow_coord_resolution_to_report_missing_branch
                 ):
                     raise BookkeepingPolicyRefused(caller_verdict)
-            # New topology — create coord worktree on first call.
-            try:
-                worktree_root = CoordinationWorkspace.resolve(
-                    repo_root, safe_mission_slug, safe_mid8,
-                )
-            except Exception as exc:  # noqa: BLE001 — domain error surface
-                raise BookkeepingWorktreeMissing(
-                    f"Failed to resolve coordination worktree for "
-                    f"{safe_mission_slug}-{safe_mid8}: {exc}"
-                ) from exc
-            # Status events must be committed to the coordination branch,
-            # not the caller-supplied destination (which may be "main").
-            # Mirror the legacy path's destination_ref override (lines above).
-            effective_normalized_ref = _normalize_ref(coord_branch)
-            effective_destination_ref = effective_normalized_ref
+            if commit_to_primary_target:
+                # write-path-integrity WP02 / FR-001: the caller is committing a
+                # PRIMARY-partition planning artifact that MUST land on the
+                # mission's own ``destination_ref`` (its primary target branch),
+                # NOT the coordination branch. The primary target branch is
+                # already checked out at ``repo_root`` when ``implement`` runs
+                # the planning auto-commit, so we honour the caller-supplied ref
+                # and commit from the primary checkout -- the SAME "worktree_root
+                # = repo_root, keep the caller's destination_ref" shape the
+                # modern coordination-less arm above uses. This is what stops a
+                # PRIMARY ``lanes.json`` being silently redirected onto the
+                # coordination branch (the #3371 add/add root cause). The coord
+                # redirect below is skipped entirely.
+                worktree_root = repo_root
+            else:
+                # New topology — create coord worktree on first call.
+                try:
+                    worktree_root = CoordinationWorkspace.resolve(
+                        repo_root, safe_mission_slug, safe_mid8,
+                    )
+                except Exception as exc:  # noqa: BLE001 — domain error surface
+                    raise BookkeepingWorktreeMissing(
+                        f"Failed to resolve coordination worktree for "
+                        f"{safe_mission_slug}-{safe_mid8}: {exc}"
+                    ) from exc
+                # Status events must be committed to the coordination branch,
+                # not the caller-supplied destination (which may be "main").
+                # Mirror the legacy path's destination_ref override (lines above).
+                effective_normalized_ref = _normalize_ref(coord_branch)
+                effective_destination_ref = effective_normalized_ref
 
         # 3. Compute the feature_dir + status files INSIDE the resolved
         # worktree.  Both paths (coord and legacy lane) host the

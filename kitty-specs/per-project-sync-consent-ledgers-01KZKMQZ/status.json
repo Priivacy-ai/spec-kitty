@@ -1,0 +1,408 @@
+{
+  "event_count": 132,
+  "last_event_id": "01KZXDHEHZEWSF0N99JFG638BT",
+  "materialized_at": "2026-08-13T11:18:55.295410+00:00",
+  "mission_number": "",
+  "mission_slug": "per-project-sync-consent-ledgers-01KZKMQZ",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 11,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "agent": "codex-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZM8N9TZAXVBANB7WN157PW2",
+      "last_transition_at": "2026-08-09T22:00:28.767949+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP01 evidence package complete: ADR accepted; shrink-only store and consent-writer censuses; named sender/layout inventories; reusable A/B incident harness. Red evidence commit 355437de9 failed only on absent ADR; green commit 730873bed. Verification: 337 passed, 2 expected xfailed; ruff clean.",
+        "Cycle-2 reroll closes all six review findings. Exact behavioral gate: PWHEADLESS=1 .venv/bin/python -m pytest -q tests/architectural/test_project_store_boundary.py tests/architectural/test_sync_writer_census.py tests/architectural/test_egress_consent_boundary.py tests/architectural/test_unfiltered_journal_read_boundary.py tests/sync/test_project_consent_incident_baseline.py tests/delivery/test_consented_batch_3030.py tests/delivery/test_dispatch_project_consent_3030.py tests/delivery/test_dispatch_window_consent_3030.py tests/specify_cli/invocation/test_propagator_consent_gate_3030.py tests/specify_cli/saas_client/test_client_consent_gate_3030.py tests/specify_cli/sync/test_local_commit_consent_gate_3030.py tests/sync/test_body_drain_consent_3030.py tests/sync/test_body_upload_consent_3030.py tests/sync/test_consent_fault_vocabulary_3030.py tests/sync/test_consent_field_fault_3030.py tests/sync/test_consent_read_fault_3030.py tests/sync/test_consent_resolver_3030.py tests/sync/test_consent_write_refusal_3030.py tests/sync/test_daemon_publish_consent_3030.py tests/sync/test_history_import_consent_3030.py tests/sync/test_ws_publish_consent_3030.py tests/sync/tracker/test_saas_client_consent_gate_3030.py -W error => 337 passed, 2 xfailed. Strict mypy exact four-file command => Success: no issues found in 4 source files. Ruff check exact four Python files => All checks passed. Targeted four-file warning-strict suite => 49 passed, 2 xfailed. Commits: 2e98d36e8 and 47bf72ba9.",
+        "Cycle-3 reroll closes every executable cycle-2 non-vacuity finding using the default collectors. Commits 33b856e63 and 5e81849a0. Warning-strict focused four-file suite: 54 passed, 2 xfailed in 41.66s. Warning-strict full WP01/#3030 suite (same 22 paths recorded in cycle 2, including tests/specify_cli/sync/test_local_commit_consent_3030.py): 342 passed, 2 xfailed in 59.44s; the increase from 337 is five cycle-3 bite tests. Strict mypy exact four files: Success, no issues. Ruff format/check exact four files: unchanged/all checks passed. Documentation metadata plus isolated lifecycle: 678 passed in 33.66s; lifecycle residual remains accepted #3130/#3237 pin. git diff --check clean. No source, deploy, push, or external mutation.",
+        "Cycle-4 reroll closes the value-flow masks in commits 97599b69e and b9ff3e4d6. Exact focused gate: 58 passed, 2 xfailed. Full 22-surface consent regression: 346 passed, 2 xfailed under -W error. Docs/lifecycle controls: 678 passed under -W error; accepted #3130/#3237 lifecycle pin only. Ruff format/check, strict mypy (4 changed files), and git diff --check all clean.",
+        "Cycle-5 reroll closes local-import/runtime binding, grant rebind, transitive sender alias, unresolved SQL, relational result-write, and mutable-attribute identity gaps in ce54b7081 and 04676fe6a. Red-first replay reproduced all exact blockers. Final focused: 62 passed, 2 xfailed. Full 22-surface WP01/#3030 matrix: 350 passed, 2 xfailed under -W error. Docs/lifecycle: 678 passed under -W error; accepted #3130/#3237 pin only. Ruff format/check, strict mypy over four owned files, git diff --check, and final 7-test store replay all clean.",
+        "Cycle-6 traceability-only reroll is commit 2ee80fbe0: 13 searchable TODO(#3280) comments at the reviewer-named analyzer seams, with zero behavior/test changes. Human-in-Charge deferred branch/path merging, alternate assignment forms, and deeper result/identity flow to Priivacy-ai/spec-kitty#3280. Eventual PR disclosure must link #3280 and state WP01 proves the enumerated incident controls/exact mutation specimens, not general path-sensitive Python semantics. Focused warning-strict gate: 62 passed, 2 xfailed. Ruff format/check, strict mypy, git diff --check, and explicit comment-only 13:0 diff checks clean; prior unchanged full 350/2 and docs/lifecycle 678 evidence retained.",
+        "Review passed: HiC-authorized traceability reroll verified at 2ee80fbe0. Exactly 13 searchable TODO(#3280) comments are correctly placed; all four Python ASTs are unchanged, preserving every exact cycle-5 blocker closure. Priivacy-ai/spec-kitty#3280 is open; the mission issue matrix records deferred-with-followup ownership and the eventual PR disclosure. Focused warning-strict gate: 62 passed, 2 xfailed; strict mypy, Ruff check/format, git diff --check, and clean-worktree checks passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Review passed: HiC-authorized traceability reroll verified at 2ee80fbe0. Exactly 13 searchable TODO(#3280) comments are correctly placed; all four Python ASTs are unchanged, preserving every exact cycle-5 blocker closure. Priivacy-ai/spec-kitty#3280 is open; the mission issue matrix records deferred-with-followup ownership and the eventual PR disclosure. Focused warning-strict gate: 62 passed, 2 xfailed; strict mypy, Ruff check/format, git diff --check, and clean-worktree checks passed.",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1091,
+      "shell_pid_created_at": "1786272735.189561",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      },
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262"
+      ]
+    },
+    "WP02": {
+      "actor": "user",
+      "agent": "codex",
+      "agent_profile": "architect-alphonso",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZMEZR8BYWBGRE4Y0S12AE0C",
+      "last_transition_at": "2026-08-09T23:51:02.667276+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Cycle 2 ready: red 89d89fff8, fix 22e203738, clean lane 10dccf3bf, planning evidence e4eea6401; 135 focused/runtime/state passed, 62 architecture passed + 2 documented xfails; Ruff check/format and strict mypy clean.",
+        "Review passed: cycle-1 blockers independently closed. Red-first 89d89fff8 reproduced 20 failures/29 passes; final 10dccf3bf passed 135 warning-strict focused checks and 62 architecture checks with 2 documented strict xfails, Ruff format/check, strict mypy, and diff-check. Opaque result and transaction-SQL boundary, atomic rollback/savepoints, exact aggregate PRAGMAs/FKs, persisted non-forgeable context capabilities, fail-closed store-only layout authority, real process serialization, and both writer orderings verified. Anti-patterns: dead code N/A (staged aggregate for dependent WPs); synthetic fixtures PASS; silent empty returns PASS; FR coverage PASS; frozen surface PASS; locked decisions PASS; shared-file ownership PASS; production fragility PASS. All 13 TODO(#3280) disclosures remain unchanged."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Review passed: cycle-1 blockers independently closed. Red-first 89d89fff8 reproduced 20 failures/29 passes; final 10dccf3bf passed 135 warning-strict focused checks and 62 architecture checks with 2 documented strict xfails, Ruff format/check, strict mypy, and diff-check. Opaque result and transaction-SQL boundary, atomic rollback/savepoints, exact aggregate PRAGMAs/FKs, persisted non-forgeable context capabilities, fail-closed store-only layout authority, real process serialization, and both writer orderings verified. Anti-patterns: dead code N/A (staged aggregate for dependent WPs); synthetic fixtures PASS; silent empty returns PASS; FR coverage PASS; frozen surface PASS; locked decisions PASS; shared-file ownership PASS; production fragility PASS. All 13 TODO(#3280) disclosures remain unchanged.",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1091,
+      "shell_pid_created_at": "1786272735.189561",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      },
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262"
+      ]
+    },
+    "WP03": {
+      "actor": "user",
+      "agent": "codex",
+      "agent_profile": "architect-alphonso",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZMK2869P6RYG3TERY46P3EK",
+      "last_transition_at": "2026-08-10T01:02:18.825564+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP03 ready: owned 27 passed; #3030 consent 57 passed; architecture/dependencies 114 passed, 2 expected xfails; Ruff and mypy --strict clean; commits 8b463beea and 7f9366cea.",
+        "APPROVED cycle 1: sole project-store grant authority, transactional consent epochs/history capability revalidation, deny-only atomic hints, retired legacy writers, and #3030 denial defenses match the locked contract. Verified RED at 8b463beea; GREEN 27 owned + 57 incident + 114 architecture (2 expected xfails); Ruff, mypy --strict, diff-check, and adversarial stale-authority probes pass."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED cycle 1: sole project-store grant authority, transactional consent epochs/history capability revalidation, deny-only atomic hints, retired legacy writers, and #3030 denial defenses match the locked contract. Verified RED at 8b463beea; GREEN 27 owned + 57 incident + 114 architecture (2 expected xfails); Ruff, mypy --strict, diff-check, and adversarial stale-authority probes pass.",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1091,
+      "shell_pid_created_at": "1786272735.189561",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      },
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262"
+      ]
+    },
+    "WP04": {
+      "actor": "user",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZN7FQE3CVT6QAATM57X1PNP",
+      "last_transition_at": "2026-08-10T06:59:11.939065+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation bea905e79; 251 owned/authorized tests passed with 2 expected architecture xfails; 16 independent incident controls passed; Ruff, strict mypy, compileall, and diff checks passed.",
+        "Cycle 2 closes forged/stale history authority, physical body purge, status queue ownership/UoW validation, deterministic clock evidence, and Ruff format debt. Gates: 254 passed/2 xfailed baseline; 23 extended controls; 65 normal pytest; Ruff and strict mypy green.",
+        "Cycle 3 binds status context and every repository to the exact verified UoW store capability, makes direct UoW construction fail closed, and restores the real A/B incident spy without compatibility constructors. Gates: 256 passed/2 xfailed baseline; 24 extended controls; 67 normal pytest; 48 passed/2 xfailed architecture; Ruff and strict mypy green.",
+        "Cycle 4 ready: status context carries a private store-minted authority snapshot and status rejects genuine identity transplants before journal/ledger/body reads. Validation: status report 30 passed; WP04 owned matrix 275 passed, 2 xfailed; Ruff check/format, strict source mypy, compileall, and diff-check clean.",
+        "Review passed: cycle-4 fix binds ProjectSyncContext status-report authority to a store-minted snapshot and validates before journal/ledger/body queue reads; focused pytest tests/delivery/test_status_report.py -W error passed 30/30. Known unrelated sync queue migration collection failures and allocator recovery evidence are documented as deferred issue-matrix follow-ups."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Review passed: cycle-4 fix binds ProjectSyncContext status-report authority to a store-minted snapshot and validates before journal/ledger/body queue reads; focused pytest tests/delivery/test_status_report.py -W error passed 30/30. Known unrelated sync queue migration collection failures and allocator recovery evidence are documented as deferred issue-matrix follow-ups.",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 0,
+      "shell_pid_created_at": "1786272735.189561",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      },
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262"
+      ]
+    },
+    "WP05": {
+      "actor": "user",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 5,
+      "lane": "approved",
+      "last_event_id": "01KZN88TXWWGM2BAC7RFAGDCHW",
+      "last_transition_at": "2026-08-10T07:12:54.716939+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP05 ready after WP04 approval: target-scoped admission ratchets repinned in 8dcfe7945/f2cc9cf15; focused architecture gate tests/architectural/test_egress_consent_boundary.py passed 38/40 with 2 expected xfails; implementer reported focused WP05 suite 37 passed, Ruff clean, targeted mypy clean. Force used only because lane-c history contains prior managed-lane kitty-specs artifacts despite current cleanup; not used to bypass code review or validation.",
+        "Ready for review: WP05 source implementation plus post-WP04 architecture ratchet transfer complete. Focused admission/target suite passed 49/49; architecture gate tests/architectural/test_egress_consent_boundary.py tests/architectural/test_project_store_boundary.py tests/architectural/test_sync_writer_census.py passed 52/52 with 2 expected xfails after repinning ProjectDeliveryTargetRegistry/admission_operations as WP05-owned and retiring legacy SqliteDeliveryTargetRegistry direct sqlite floors. Force used only because this worktree is also the draft PR aggregate branch containing committed mission artifacts.",
+        "Review passed: WP05 target-scoped admission and canonical refusal contract reviewed after WP04 approval. Focused suite passed 49/49; architecture gate passed 52/52 with 2 expected xfails. Checked that admission operation writers and ProjectDeliveryTargetRegistry are ProjectSyncStore-bound WP05 sites, and legacy SqliteDeliveryTargetRegistry direct sqlite/commit floors are retired. No production app.spec-kitty.ai mutation performed. Force used only because this worktree is also the draft PR aggregate branch containing committed mission artifacts.",
+        "Arbiter force used only for known historic lane kitty-specs planning commits: current tree was restored to mission planning artifacts, no source bypass. WP05 ready after WP04 approval: approved WP04 ancestry present; WP05 ratchet repin 8dcfe7945; lane planning cleanup 46348e776; focused admission/contract/delivery suites passed 49/49; project-store/egress architectural ratchets passed 48/48 with 2 expected xfails.",
+        "Race repair: WP05 was already approved by review event 01KZN87RCF9JTT3XK5768ZCVXZ; a queued force transition subsequently moved approved -> for_review while resolving lane-artifact history. Restoring the approved verdict; no new source or review bypass."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 1091,
+      "shell_pid_created_at": "1786272735.189561",
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      },
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262",
+        "Priivacy-ai/spec-kitty-saas#585"
+      ]
+    },
+    "WP06": {
+      "actor": "user",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 6,
+      "lane": "approved",
+      "last_event_id": "01KZPFVDFNP0KKVSJB3JYPNQS8",
+      "last_transition_at": "2026-08-10T18:44:38.005809+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: WP06 adapter-neutral durable transport-attempt/lease protocol implemented in owned files through d170c656b. T026-T030 marked done: durable attempts persist before I/O with native identity; project-scoped cross-process lease gates transport/result; opt-out cancels prepared attempts and terminalizes in-flight/unknown orphans; subprocess-death and response-before-result windows preserve original identity and block late success/resend after terminal_unknown. Validation: WP06 owned suites 9/9 passed; Ruff check/format clean; strict mypy clean for transport_attempts.py and transport_lease.py; workflow validation passed. Baseline caveat: project-store savepoint failure reproduces at pre-WP06 head 14ac8b31 and is owned by Priivacy-ai/spec-kitty#3309; WP06 intentionally did not edit/fix #3309. Force used only because lane-d history contains managed-lane kitty-specs status artifact(s), not to bypass code review or validation.",
+        "Ready for review cycle 2: live PID-bound lease proof, exact persisted authority checks, original result attribution, kill-switch-aware lease eligibility, settlement-owned opt-out fencing, mandatory deadline/policy behavior, non-public terminalization, and T030 subprocess/fork coverage. Evidence: owned tests 29/29; adjacent consent/admission/store 77/78 with only pre-existing #3309; Ruff format/check clean; strict mypy clean.",
+        "Status recovery only: cycle-2 remediation is committed on draft PR #3293 at 9a34bb5ee/73d61158f but the submission transition was omitted. Restoring for_review so the canonical review action can inspect the submitted product; no product change and no verdict implied.",
+        "Ready for review cycle 3: corrupt recovery metadata fails closed to OPERATOR_REVIEW/no resend; native identity scope is (write_kind,native_identity) per project; duplicate outcome persists idempotent success; refusal persists category and blocks replay; same-attempt reprepare fails at protocol boundary. Evidence: owned tests 40/40; adjacent consent/admission/store 77/78 with only pre-existing #3309; Ruff format/check clean; strict mypy clean; diff check clean.",
+        "Ready for review cycle 4: malformed typed recovery metadata now fails closed; REFUSED requires non-empty category and successful outcomes reject refusal categories; status-history review refs repaired via #3281. Evidence: owned tests 52/52; adjacent sweep 77/78 with only pre-existing #3309; Ruff format/check clean; strict mypy clean; git diff --check clean; status validate passed.",
+        "Review cycle 4 approved: product commit 3137b5d7e (patch-equivalent governed 5411e2925) meets T026-T030. Typed malformed recovery metadata fails closed to OPERATOR_REVIEW with may_resend=false and no garbage identity; categorized refusal and delivered/duplicate category rules are atomic and truthful. Owned suite 52/52; adjacent store/admission/consent sweep 80/81 with only pre-existing Priivacy-ai/spec-kitty#3309; Ruff format/check and strict mypy pass; status and WP workflow validation pass. Lifecycle repair refs are truthful and tracked by Priivacy-ai/spec-kitty#3281. Force bypasses only lane-d's inherited unrelated kitty-specs status ancestry; it does not bypass product, test, or review gates. No adapter integration is credited; WP07/WP08 remain unallocated."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Review cycle 4 approved: product commit 3137b5d7e (patch-equivalent governed 5411e2925) meets T026-T030. Typed malformed recovery metadata fails closed to OPERATOR_REVIEW with may_resend=false and no garbage identity; categorized refusal and delivered/duplicate category rules are atomic and truthful. Owned suite 52/52; adjacent store/admission/consent sweep 80/81 with only pre-existing Priivacy-ai/spec-kitty#3309; Ruff format/check and strict mypy pass; status and WP workflow validation pass. Lifecycle repair refs are truthful and tracked by Priivacy-ai/spec-kitty#3281. Force bypasses only lane-d's inherited unrelated kitty-specs status ancestry; it does not bypass product, test, or review gates. No adapter integration is credited; WP07/WP08 remain unallocated.",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 64936,
+      "shell_pid_created_at": "1786343378.968437",
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done"
+      },
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262",
+        "Priivacy-ai/spec-kitty-saas#585"
+      ]
+    },
+    "WP07": {
+      "actor": "user",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KZRT3YW5CXXE6F5VV99QVN0X",
+      "last_transition_at": "2026-08-11T16:22:32.582032+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for independent review on aggregate d908f4ec: T031-T035 complete; reviewed integrations da3c9d126, be5d811c1, e46fecebd; gates 79 focused, 360 broad, 151 adapters, 85 protocol; independent aggregate verdict PASS. Force is limited to inherited unrelated WP08 baseline-tests.json (a7c57066) falsely classified as WP07-owned after the first force-free refusal; WP08 artifact untouched.",
+        "Whole-WP07 review rejected at e0cebb9ac: six required fixture-migration setup errors, one terminal-parking projection failure, and one WP08-preservation/#3108 positive failure; see structured review artifact.",
+        "Cycle-2 ready for independent whole-WP07 review: remediation 99a78d9b2, refreshed analysis 265160219, authoritative 1539-pass selected gate, exact prior blockers closed. Force is limited to the known false-ownership classification of untouched WP08 baseline-tests.json (SHA-256 a2d6372430cf637031515c00ffe1f679b1d1ca354586945a37a4650be9fa0921) after the force-free attempt first labeled it unrelated and then blocked; no product, subtask, test, evidence, or review gate is bypassed.",
+        "Cycle-3 narrow typing correction df30292f1 is ready for independent review: isolated and aggregate strict mypy pass, authoritative selected-path gate passes, and reviewed runtime behavior is unchanged.",
+        "Cycle-3 independent review PASS on b86de058b3: isolated and aggregate strict mypy pass, authoritative selected-path gate 1539 passed/1 skipped/2 xfailed with one unchanged warning, Ruff/format/diff clean, and all anti-pattern checks pass."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Cycle-3 independent review PASS on b86de058b3: isolated and aggregate strict mypy pass, authoritative selected-path gate 1539 passed/1 skipped/2 xfailed with one unchanged warning, Ruff/format/diff clean, and all anti-pattern checks pass.",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 64936,
+      "shell_pid_created_at": "1786343378.968437",
+      "subtasks": {
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done",
+        "T035": "done"
+      },
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262",
+        "Priivacy-ai/spec-kitty#3030",
+        "Priivacy-ai/spec-kitty#3108",
+        "Priivacy-ai/spec-kitty#3135"
+      ]
+    },
+    "WP08": {
+      "actor": "user",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZRV04SBNVYRV6M25FY3D147",
+      "last_transition_at": "2026-08-11T16:37:56.139627+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP08 current-head evidence complete on 2be07dae: 536-pass combined gate with only filed #3318 deselected, strict mypy/Ruff/diff clean, and T036-T039 authority/isolation behavior independently pre-reviewed.",
+        "Independent WP08 whole-package review PASS on 7e97cfa84: owned/architecture 194 passed with #3318 deselected and 2 expected xfails, non-overlapping WP06/WP07 delegation 354 passed/1 skip, strict mypy/Ruff/diff clean, and all authority/isolation anti-pattern checks pass."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Independent WP08 whole-package review PASS on 7e97cfa84: owned/architecture 194 passed with #3318 deselected and 2 expected xfails, non-overlapping WP06/WP07 delegation 354 passed/1 skip, strict mypy/Ruff/diff clean, and all authority/isolation anti-pattern checks pass.",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 64936,
+      "shell_pid_created_at": "1786343378.968437",
+      "subtasks": {
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T039": "done"
+      },
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262",
+        "Priivacy-ai/spec-kitty#3030"
+      ]
+    },
+    "WP09": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "claude",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KZX1CH4ZE928V5RP496A9VHJ",
+      "last_transition_at": "2026-08-13T07:46:31.199923+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Resume after unblocking: implementation already landed on active branch (commit 7ddfd660c); lifecycle regularization per program handoff",
+        "Implementation landed as 7ddfd660c (revocation matrix 1161 lines, crash matrix 606 lines, barrier harness 2392 lines); verified at head: 191 passed locally (test_transport_revocation_matrix.py + test_transport_crash_matrix.py); T040-T043 verified done",
+        "Independent adversarial review of commit 7ddfd660c. T040: five barrier phases are real file-based rendezvous barriers bound to project/attempt/native-correlation/family with cross-identity marker rejection (no sleep-based races; sleeps are only bounded polling on marker files); censuses updated with per-symbol sink classification of every discovered sink into the ten matrix families, final owners corrected to WP07/WP08, and the daemon-publish 3030 regression migrated to the admitted-project canonical protocol. T041: both revoke orderings proven for all ten families; started-ordering crossed with delivered/duplicate/refused/timeout, exact-byte closed wire envelopes, durable attempt/result generation assertions, project-B physical isolation via ProjectSyncStore open-tracking, and late-success fencing after terminal_unknown. T042: real subprocess kills (SIGKILL, negative returncode asserted) at all five windows x ten families with truthful outcomes, native-identity-preserving recovery plans, no-resend on uncertainty, and fail-closed target/admission generation change while queued. T043: the compound pause-during-response -> kill -> immediate opt-out -> terminal_unknown -> late-recovery sequence runs as one test per family with no resend (poisoned sink), no success promotion, no old-generation rewrite, and project B live. Reviewer mutants (13 forgery oracles, poisoned sinks, partial-byte rejection) make the assertions non-fakeable. Gates: 191/191 matrix tests pass, 67 passed + 2 pre-existing xfails on the other owned suites, ruff and mypy clean. Non-blocking notes: account/team authority change is represented only via admission-row generations in the queued fail-closed test (delegated WP06 control), and pause-before-start ordering is not crossed with outcomes (structurally no transport occurs)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "subtasks": {
+        "T040": "done",
+        "T041": "done",
+        "T042": "done",
+        "T043": "done"
+      },
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262",
+        "Priivacy-ai/spec-kitty#3030"
+      ]
+    },
+    "WP10": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "claude",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KZX6NCK3B4AVJ9AZTS6258P0",
+      "last_transition_at": "2026-08-13T09:18:44.323328+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "implementation already landed (94dff4366 WAL-aware cutover); lifecycle regularization",
+        "Implementation landed as 94dff4366 (project_store_migration.py 1749 lines, daemon_protocol.py, CLI cutover commands); verified at head: 71 passed across the 7 WP10-owned migration/cutover/command test modules; full fast-sync 2788 green includes them",
+        "Independent adversarial review of WP10 (commit 94dff4366). T044: inventory copies main/WAL/SHM bytes into a 0700/0600 private staging area with pre/post fingerprint equality, opens only the copy read-only, materializes committed WAL state via SQLite backup, and fails closed on locked/changed/generated-column/incompatible sources; verification identity is the logical snapshot digest, not inode bytes. T045: canonical UUID attribution with payload/column conflict detection, divergent-duplicate poisoning ahead of schema/relation filtering, sealed migration epochs, named quarantine with a closed reason vocabulary and no sender API, migrated_refusal only for refusals and no grant promotion. T046: cutover runs copy+exact-verify inside publish_project_only under the sole machine layout lock; WP04 writers unmodified; both orderings proven (writer-commit-wins captured once via quiesced re-snapshot; cutover-wins redirects the blocked writer exactly once, including a live-thread test through the lock). T047: versioned authenticated loopback quiesce/restart handshake failing closed on identity drift; durable monotonic phases with idempotent resume; post-cutover writes surfaced only as post_cutover_residue diagnosis. T048: preview/migrate/status/doctor/quarantine/history commands wired; retired shared migrate refuses before consent access; history disclosure requires explicit actor+idempotency confirmation and a persisted capability before WP07 transport. Gates: owned suites 71 passed; ruff and strict mypy clean on all three owned source files. Non-blocking: hard-kill test mutates os.environ SPEC_KITTY_HOME without restore; DaemonCutoverProtocol.restart without an injected seam returns a daemon_protocol=0 acknowledgement (unreachable via discovery); non-UTF8 legacy payloads are wrapped as JSON legacy_bytes (identity hashes preserved). --force used only because assignee metadata records the implementing agent 'claude'."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "subtasks": {
+        "T044": "done",
+        "T045": "done",
+        "T046": "done",
+        "T047": "done",
+        "T048": "done"
+      },
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262",
+        "Priivacy-ai/spec-kitty#3030"
+      ]
+    },
+    "WP11": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "claude",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KZXDHEHZEWSF0N99JFG638BT",
+      "last_transition_at": "2026-08-13T11:18:55.295410+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP11 coordinated core acceptance: starting implementation",
+        "WP11 landed as 8fcc9f66b: attestation+manifest builder (fail-closed, tested), six-project exact-byte omission proof, stale-generation parking, contract pins re-attested at SaaS 4e15aa5c, cross-platform isolation with mutant control, seeded benchmark with correctness gate, evidence workflow (workflow_dispatch, 90-day retention), docs+matrices. 42 passed/1 skipped across new suites; fast-sync 2799 green",
+        "Independent review cycle 1: approve (--force solely to override assignee metadata: WP11 assigned to 'claude', reviewer is reviewer-renata; no gate bypassed). Manifest builder fail-closed (floating refs, dirty checkouts, digest drift, mocked tombstones, duplicate ownership, missing/expired retention refused; one-byte tamper, byte-determinism, immutability proven via real CLI subprocess tests). SaaS pin 4e15aa5c/57e66b0f verified against sibling; contract byte-identical at sibling HEAD 15ad3463. Six-project omission proof at the real _HttpReceiver poster boundary, positive controls, omission-only. Stale-generation parking terminal/correlated/no-revival with acceptance control. T052 census with genuine failing mutant control; KNOWN_NO_EFFECT retry pin matches production WP06 mapping. Benchmark: raw samples + runtime metadata, trip-tested zero-denied-payload gate, no wall-clock test assertions. Workflow dispatch-only, pinned inputs, 90-day retention. Gates: 42 passed/1 legitimately-skipped; ruff + mypy --strict clean. Non-blocking: acceptance-matrix pending-row notes say WP11 modules 'not yet present in this checkout' though this commit adds them."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "subtasks": {
+        "T049": "done",
+        "T050": "done",
+        "T051": "done",
+        "T052": "done",
+        "T053": "done",
+        "T054": "done"
+      },
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262",
+        "Priivacy-ai/spec-kitty-saas#585",
+        "Priivacy-ai/spec-kitty-saas#584",
+        "Priivacy-ai/spec-kitty-saas#609"
+      ]
+    }
+  }
+}

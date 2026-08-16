@@ -21,9 +21,8 @@
   "accepted_by": "claude",
   "accepted_from_commit": "188d3488169162720af9a536f62824224a554acb",
   "baseline_merge_commit": "e4ff3f0536a65675cfa493a3e3adefdc9a9c495e",
-  "coordination_branch": "kitty/mission-charter-pack-usage-journey-01KYWWTF",
   "created_at": "2026-07-31T20:11:04.026065+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Charter Pack Usage Journey",
   "mission_id": "01KYWWTFYSB4YYWYP5N6HSPX6H",
   "mission_number": null,
@@ -35,7 +34,7 @@
   "slug": "charter-pack-usage-journey-01KYWWTF",
   "status_phase": "1",
   "target_branch": "feat/charter-pack-usage-journey",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-08-01T23:23:08.933313+00:00"
 }

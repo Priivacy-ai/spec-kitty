@@ -1,5 +1,5 @@
 {
-  "event_count": 42,
+  "event_count": 44,
   "last_event_id": "01KP6A0EM9X19S1MH56YW6H8SZ",
   "materialized_at": "2026-04-14T15:33:24.233107+00:00",
   "mission_number": "84",
@@ -24,6 +24,12 @@
       "lane": "done",
       "last_event_id": "01KP6A0E654BNQ6NVV1NMJC3D9",
       "last_transition_at": "2026-04-14T15:33:23.781272+00:00",
+      "review_result": {
+        "feedback_path": "/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260809-175108-qc7maU/spec-kitty/kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/tasks/WP01-unified-bundle-manifest/review-cycle-4.md",
+        "reference": "review-cycle://unified-charter-bundle-chokepoint-01KP5Q2G/WP01-unified-bundle-manifest/review-cycle-4.md",
+        "reviewer": "unknown",
+        "verdict": "changes_requested"
+      },
       "shell_pid": 81819,
       "subtasks": {
         "T001": "done",
@@ -81,6 +87,12 @@
       "lane": "done",
       "last_event_id": "01KP6A0EM9X19S1MH56YW6H8SZ",
       "last_transition_at": "2026-04-14T15:33:24.233107+00:00",
+      "review_result": {
+        "feedback_path": "/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260809-175108-qc7maU/spec-kitty/kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/tasks/WP04-migration-unified-bundle/review-cycle-3.md",
+        "reference": "review-cycle://unified-charter-bundle-chokepoint-01KP5Q2G/WP04-migration-unified-bundle/review-cycle-3.md",
+        "reviewer": "unknown",
+        "verdict": "changes_requested"
+      },
       "shell_pid": 29586,
       "subtasks": {
         "T025": "done",

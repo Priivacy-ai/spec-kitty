@@ -1,7 +1,7 @@
 ---
 title: Naming/Identity & Read-Path SSOT — Related-Ticket Discovery Sweep (planner-priti)
 description: Planner Priti's related-ticket discovery sweep for the naming/identity and read-path SSOT work, under the decision-documentation directive.
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # Naming/Identity & Read-Path SSOT — Related-Ticket Discovery Sweep (planner-priti)
@@ -37,8 +37,7 @@ updated: '2026-06-16'
 
 ## 1. Headline
 
-The prior pass + capstone already nailed the **core 4-ticket slice** (#2000, #1971,
-#1993, #1888) and correctly fenced #1878 write-side out. This deeper sweep surfaces
+The prior pass + capstone already nailed the **core 4-ticket slice** (#2000, #1971, #1993, #1888) and correctly fenced #1878 write-side out. This deeper sweep surfaces
 **two material upgrades to scope** and a cluster of confirm-out-of-scope items:
 
 1. **#1900 (C-002 topology-ratchet drain) is now UNBLOCKED and should be a confirmed
@@ -119,9 +118,7 @@ and not in Priti's prior-pass table. Relation keys to SSOTs A–E.
 
 ## 3. Newly surfaced beyond the prior pass (the callout)
 
-The prior pass (its §1 table) covered: #1878, #1868, #1619, #1666, #1929, #1908,
-#1899, #1915, #1918, #1949, #1978, #1917, #1916, #2000, #1971, #1993, #1888, #1900,
-#1716, #1887, #1827, #1357, #1766, #1979, #1890, #1832. **NEW this sweep** (material
+The prior pass (its §1 table) covered: #1878, #1868, #1619, #1666, #1929, #1908, #1899, #1915, #1918, #1949, #1978, #1917, #1916, #2000, #1971, #1993, #1888, #1900, #1716, #1887, #1827, #1357, #1766, #1979, #1890, #1832. **NEW this sweep** (material
 to the surface, absent from both prior tables):
 
 | id | state | why it is new + material |
@@ -143,18 +140,15 @@ to the surface, absent from both prior tables):
 
 **Net: ~16 newly-surfaced tickets beyond the prior pass.** Of these, exactly **one
 changes the slice** (#1900 upgraded to confirmed fold-in; #1681 adopted as evidence/
-ratchet seed). The rest harden the OUT-OF-SCOPE fence (the write-side cluster
-#1829/#1828/#1914/#1834, the legacy-cleanup cluster #1057–#1060, the ownership-policy
-cluster #1162/#1979, the MC-layer mission #1746, and the different-oracle lints
-#1923/#1927).
+ratchet seed). The rest harden the OUT-OF-SCOPE fence (the write-side cluster #1829/#1828/#1914/#1834, the legacy-cleanup cluster #1057–#1060, the ownership-policy
+cluster #1162/#1979, the MC-layer mission #1746, and the different-oracle lints #1923/#1927).
 
 ---
 
 ## 4. Closes performed this sweep
 
 **None.** (Cleanup closes are claim-exempt, but I performed none.) Rationale
-(DIR-003): the seven provably-done identity tickets (#1899/#1915/#1918/#1949/#1978/
-#1917/#1916) were **already closed by the prior pass** with evidence comments — no
+(DIR-003): the seven provably-done identity tickets (#1899/#1915/#1918/#1949/#1978/#1917/#1916) were **already closed by the prior pass** with evidence comments — no
 double-close needed. **#1681** is already CLOSED; I deliberately did **not** reopen it
 (a reopen is a scope decision for spec time, not a discovery-sweep cleanup), but I
 flag its no-resolution-comment closure as a **provenance gap** the mission should
@@ -166,8 +160,7 @@ work, or live follow-ups. Conservatism applied per the brief.
 
 ## 5. Refined 3.2.1 scope recommendation
 
-**The 4-ticket core slice STANDS** — #2000 (WP04), #1971 (WP03), #1993 (WP02),
-#1888 (WP01) are confirmed correct, cohesive, and parallelizable into ≥3 lanes. The
+**The 4-ticket core slice STANDS** — #2000 (WP04), #1971 (WP03), #1993 (WP02), #1888 (WP01) are confirmed correct, cohesive, and parallelizable into ≥3 lanes. The
 capstone's WP decomposition (WP01 verify-and-close → WP02 lanes-dir seam → WP03
 project-root → WP04 routing+ratchet capstone) holds.
 

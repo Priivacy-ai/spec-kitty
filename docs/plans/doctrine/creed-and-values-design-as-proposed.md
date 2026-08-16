@@ -1,7 +1,7 @@
 ---
 title: Creed and FoundationalValues — design as proposed (operator input record)
 description: "Verbatim record of the operator's creed/FoundationalValues design — value-impact deltas and a generalized impacts edge — plus the corpus evidence measured against it."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-07-26'
 related:
 - docs/plans/doctrine/manifesto-tier-verdict-and-handover.md
@@ -9,6 +9,8 @@ related:
 - docs/plans/doctrine/index.md
 ---
 # Creed and FoundationalValues — design as proposed
+
+> **Retired (deprecated).** Superseded by the canonical creed AUTHORITY doc [foundational-values-and-creed.md](foundational-values-and-creed.md). Preserved as a historical record.
 
 > ⚠️ **RECORD — the operator's input design, kept verbatim. The build target is
 > [`foundational-values-and-creed.md`](foundational-values-and-creed.md).** Known-stale figures

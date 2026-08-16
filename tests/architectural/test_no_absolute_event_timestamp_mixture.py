@@ -34,8 +34,7 @@ rule against the same tree gets the same answer:
    fixture data, comments are not in scope) -- only one reaching an event's
    ``at`` field this way.
 2. **``now()``-generated**: an ``at=`` argument whose expression contains a
-   call to ``datetime.now``/``datetime.utcnow``/``now_utc_iso`` (by call
-   name, the same name-based convention ``test_verdict_seam_census.py`` uses)
+   call to ``datetime.now``/``datetime.utcnow``/``now_utc_iso`` (by call name)
    -- directly, or INDIRECTLY via a call, anywhere in the same test function,
    to one of five production entry points that have **no ``at`` parameter at
    all** (``start_implementation_status``, ``start_review_status``,
@@ -146,8 +145,7 @@ def _repo_root() -> Path:
 
 
 # ---------------------------------------------------------------------------
-# T007 signal 1/2 -- literal + now()-call shape detection (AST primitives;
-# mirrors test_verdict_seam_census.py's own call-name-based style).
+# T007 signal 1/2 -- literal + now()-call shape detection (AST primitives).
 # ---------------------------------------------------------------------------
 
 _ISO_PREFIX_RE: re.Pattern[str] = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:")
@@ -187,8 +185,7 @@ def _call_name(call: ast.Call) -> str | None:
 
 
 def _joined_string_literal(node: ast.AST) -> str | None:
-    """Best-effort literal text of a ``Constant`` or an f-string's constant
-    parts (mirrors test_verdict_seam_census.py's identically-named helper)."""
+    """Best-effort literal text of a ``Constant`` or an f-string's constant parts."""
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return node.value
     if isinstance(node, ast.JoinedStr):
@@ -224,9 +221,8 @@ def _at_kwarg(call: ast.Call) -> ast.expr | None:
 # ---------------------------------------------------------------------------
 # T007 signal 1 (helper-default leg) -- same-file one-hop resolution for a
 # helper (like ``_event``) whose OWN body computes ``at = at or <fallback>``
-# when the caller omits ``at=``. One hop only, scoped to the SAME module --
-# mirrors test_verdict_seam_census.py's same-module one-hop closure
-# discipline, never an iterated cross-file resolution.
+# when the caller omits ``at=``. One hop only, scoped to the SAME module,
+# never an iterated cross-file resolution.
 # ---------------------------------------------------------------------------
 
 
@@ -321,8 +317,7 @@ def _classify_test_function(
 
 
 # ---------------------------------------------------------------------------
-# Test-function discovery (mirrors test_verdict_seam_census.py's ClassDef-
-# aware walk).
+# Test-function discovery (ClassDef-aware walk).
 # ---------------------------------------------------------------------------
 
 

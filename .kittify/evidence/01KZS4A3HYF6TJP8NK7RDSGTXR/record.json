@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KZS4A3HYF6TJP8NK7RDSGTXR",
+  "completed_at": "2026-08-11T20:10:20.646917+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "/tmp/core-3328-wp04-prime-review-final.md"
+}

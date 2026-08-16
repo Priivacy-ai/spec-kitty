@@ -1371,6 +1371,12 @@ def _saas_fan_out(
         )
         return
 
+    # WPStatusChangeMetadata lives in the CORE status layer (not sync/INTEGRATION),
+    # so importing it here does not cross the CORE→INTEGRATION boundary that
+    # test_integration_boundary.py enforces; the actual SaaS wiring still routes
+    # only through the status/adapters observer registry (fire_saas_fanout).
+    from specify_cli.status.wp_status_metadata import WPStatusChangeMetadata
+
     fire_saas_fanout(
         wp_id=event.wp_id,
         from_lane=str(event.from_lane),
@@ -1384,16 +1390,9 @@ def _saas_fan_out(
         actor=event.actor,
         mission_slug=mission_slug,
         mission_id=event.mission_id,
-        causation_id=event.event_id,
-        policy_metadata=policy_metadata,
-        force=event.force,
-        reason=event.reason,
-        review_ref=event.review_ref,
-        execution_mode=event.execution_mode,
-        evidence=event.evidence.to_dict() if event.evidence else None,
         # Producer occurrence time: thread the canonical local lane-transition
         # time so SaaS persists Event.occurred_at = StatusEvent.at, not the
         # sync-emission clock (Rule R-T-01 in spec-kitty-events).
-        occurred_at=event.at,
+        metadata=WPStatusChangeMetadata.from_status_event(event, policy_metadata=policy_metadata),
         ensure_daemon=ensure_sync_daemon,
     )

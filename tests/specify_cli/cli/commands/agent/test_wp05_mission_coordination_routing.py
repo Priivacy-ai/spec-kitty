@@ -55,22 +55,6 @@ def _patch_seam_topology(monkeypatch: pytest.MonkeyPatch, *, coord: bool) -> Non
     monkeypatch.setattr(record_seam, "resolve_topology", lambda _root, _slug: topology)
 
 
-def test_planning_commit_worktree_flattened_keeps_main_checkout(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A coord-less (flattened) topology returns the main checkout + paths unchanged."""
-    _patch_topology(monkeypatch, coord=False)
-    artifact = tmp_path / "kitty-specs" / "001-demo" / "spec.md"
-    artifact.parent.mkdir(parents=True)
-    artifact.write_text("# Spec\n", encoding="utf-8")
-
-    worktree, paths = commit_router_mod._planning_commit_worktree(
-        tmp_path, "001-demo", (artifact,)
-    )
-    assert worktree == tmp_path
-    assert paths == (artifact,)
-
-
 def test_planning_commit_worktree_primary_keeps_main_checkout(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

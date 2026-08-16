@@ -1,88 +1,89 @@
-"""#2665 — `sync opt-in` auto-converges legacy queue residue on enable.
+"""WP10 retirement controls for automatic shared-store convergence."""
 
-These unit tests pin the reporting branches of
-``_auto_converge_legacy_on_enable`` with the runtime open and the convergence
-engine mocked, so the CLI wiring is covered without a live runtime.
-"""
 from __future__ import annotations
+
+from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from specify_cli.cli.commands import sync as sync_cmd
-from specify_cli.sync.migrate_journal import (
-    CleanupOutcome,
-    CleanupResult,
-    ConvergeResult,
-    MigrationConflict,
-    MigrationResult,
-)
+
 
 pytestmark = pytest.mark.fast
 
 
-class _FakeRuntime:
-    journal = object()
-    target = None
-
-    def close(self) -> None:  # pragma: no cover - trivial
-        return None
-
-
-def test_auto_converge_reports_converged_rows(monkeypatch: pytest.MonkeyPatch, capsys) -> None:
-    monkeypatch.setattr(sync_cmd, "_open_event_sync_runtime", lambda *a, **k: _FakeRuntime())
-
-    def _fake_converge(*_a, **_k):
-        return ConvergeResult(
-            migration=MigrationResult(),
-            cleanup=CleanupResult(
-                ran=True,
-                outcomes=[CleanupOutcome(digest="legacy", is_legacy=True, deleted=7)],
-            ),
-        )
-
-    monkeypatch.setattr("specify_cli.sync.migrate_journal.converge_legacy_runtime", _fake_converge)
-
-    sync_cmd._auto_converge_legacy_on_enable()
-
-    out = capsys.readouterr().out
-    assert "Converged 7 legacy queue row" in out
-
-
-def test_auto_converge_surfaces_conflicts(monkeypatch: pytest.MonkeyPatch, capsys) -> None:
-    monkeypatch.setattr(sync_cmd, "_open_event_sync_runtime", lambda *a, **k: _FakeRuntime())
-    conflict = MigrationConflict(
-        event_id="dup", source_digest="legacy", existing_sha="a", incoming_sha="b"
+def test_retired_auto_convergence_is_guidance_only(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        sync_cmd,
+        "_open_event_sync_runtime",
+        lambda: pytest.fail("retired convergence opened a legacy runtime"),
     )
 
-    def _fake_converge(*_a, **_k):
-        return ConvergeResult(migration=MigrationResult(conflicts=[conflict]), cleanup=None)
+    sync_cmd._auto_converge_legacy_on_enable()
 
-    monkeypatch.setattr("specify_cli.sync.migrate_journal.converge_legacy_runtime", _fake_converge)
+    output = capsys.readouterr().out
+    assert "Automatic legacy convergence is retired" in output
+    assert "project-store-preview" in output
+
+
+def test_opt_in_never_invokes_legacy_convergence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    routing = SimpleNamespace(
+        repo_root=tmp_path,
+        repo_slug="repo",
+        project_slug="project",
+        project_uuid="44444444-4444-4444-8444-444444444444",
+    )
+    monkeypatch.setattr(sync_cmd, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr(sync_cmd, "_require_daemon_owner_coherence", lambda _name: None)
+    monkeypatch.setattr(
+        sync_cmd,
+        "enforce_teamspace_mission_state_ready",
+        lambda **_kwargs: None,
+    )
+    monkeypatch.setattr(sync_cmd, "_require_active_checkout", lambda: routing)
+    monkeypatch.setattr(
+        sync_cmd,
+        "_auto_converge_legacy_on_enable",
+        lambda: pytest.fail("opt-in invoked retired legacy convergence"),
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.routing.enable_checkout_sync",
+        lambda *_args, **_kwargs: routing,
+    )
+
+    sync_cmd.opt_in(checkout_only=True)
+
+
+def test_retired_auto_convergence_does_not_import_legacy_engine(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "specify_cli.sync.migrate_journal.converge_legacy_runtime",
+        lambda *_args, **_kwargs: pytest.fail("legacy engine was invoked"),
+    )
 
     sync_cmd._auto_converge_legacy_on_enable()
 
-    out = capsys.readouterr().out
-    assert "resolve-conflicts keep-journal" in out
 
+def test_retired_auto_convergence_never_opens_project_or_source_store(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        sync_cmd,
+        "_open_project_dispatch_runtime",
+        lambda: pytest.fail("retired compatibility seam opened a project store"),
+    )
+    monkeypatch.setattr(
+        sync_cmd,
+        "_open_event_sync_runtime",
+        lambda: pytest.fail("retired compatibility seam opened a legacy store"),
+    )
 
-def test_auto_converge_swallows_runtime_open_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    def _boom(*_a, **_k):
-        raise RuntimeError("runtime unavailable")
-
-    monkeypatch.setattr(sync_cmd, "_open_event_sync_runtime", _boom)
-    # Must not raise — the coherence gate downstream reports the incoherence.
-    sync_cmd._auto_converge_legacy_on_enable()
-
-
-def test_auto_converge_swallows_converge_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A failure INSIDE converge (not just opening the runtime) is swallowed too,
-    so opt-in defers to the coherence gate instead of aborting with a traceback.
-    """
-    monkeypatch.setattr(sync_cmd, "_open_event_sync_runtime", lambda *a, **k: _FakeRuntime())
-
-    def _boom(*_a, **_k):
-        raise RuntimeError("journal API contract error mid-converge")
-
-    monkeypatch.setattr("specify_cli.sync.migrate_journal.converge_legacy_runtime", _boom)
-    # Must not raise — the runtime is still closed and control returns cleanly.
     sync_cmd._auto_converge_legacy_on_enable()

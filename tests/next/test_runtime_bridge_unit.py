@@ -1489,3 +1489,470 @@ class TestQueryCurrentStateTypedErrorPassthrough:
 
         with pytest.raises(MissionNotFoundError):
             query_current_state(agent="claude", mission_slug="no-such-mission", repo_root=tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# Owned-checkout (``--owned-checkout`` / ``effective_root``) threading —
+# checkout-ownership landing branch (#3328). These classes drive the exact
+# branches the landing PR's acceptance proof
+# (tests/e2e/test_worktree_owned_root_concurrency.py) exercises only through
+# the INSTALLED CLI as a subprocess — invisible to pytest-cov, and that e2e
+# module sits outside every coverage-collecting CI job's ``paths`` anyway
+# (it is not under tests/next/ or tests/specify_cli/next/). Driving the same
+# functions in-process here, in a module already wired into
+# integration-tests-next's ``--cov=src/runtime/next`` collection, closes that
+# visibility gap without touching product code.
+# ---------------------------------------------------------------------------
+
+
+class TestOwnedCoordWorkspaceRetry:
+    """``_resolve_owned_coordination_workspace`` / ``_is_transient_git_
+    worktree_contention``: the bounded-retry classifier for concurrent
+    ``git worktree add`` shared-registry contention (two owned missions
+    racing ``CoordinationWorkspace.resolve`` concurrently). Mirrors
+    tests/e2e/test_worktree_owned_root_concurrency.py's in-process retry
+    assertions, but from a module pytest-cov actually attributes to the
+    diff-coverage critical-path gate."""
+
+    def test_happy_path_returns_without_any_retry(self, tmp_path: Path) -> None:
+        from runtime.next.runtime_bridge import _resolve_owned_coordination_workspace
+
+        expected = tmp_path / "coord"
+
+        class _Workspace:
+            calls = 0
+
+            @classmethod
+            def resolve(cls, _root: Path, _slug: str, _mid8: str) -> Path:
+                cls.calls += 1
+                return expected
+
+        result = _resolve_owned_coordination_workspace(
+            _Workspace, tmp_path, "happy-path-01KZTEST", "01KZTEST"
+        )
+
+        assert result == expected
+        assert _Workspace.calls == 1
+
+    def test_permanent_git_error_reraises_immediately(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A permanent (non-lock) git failure is re-raised on the first
+        attempt, never retry-masked."""
+        from runtime.next.runtime_bridge import _resolve_owned_coordination_workspace
+
+        permanent = subprocess.CalledProcessError(
+            128, ["git", "worktree", "add"], stderr="fatal: permanent worktree failure"
+        )
+
+        class _PermanentlyBrokenWorkspace:
+            calls = 0
+
+            @classmethod
+            def resolve(cls, _root: Path, _slug: str, _mid8: str) -> Path:
+                cls.calls += 1
+                raise permanent
+
+        monkeypatch.setattr(time, "sleep", lambda _seconds: None)
+        with pytest.raises(subprocess.CalledProcessError) as raised:
+            _resolve_owned_coordination_workspace(
+                _PermanentlyBrokenWorkspace, tmp_path, "permanent-failure-01KZTEST", "01KZTEST"
+            )
+        assert raised.value is permanent
+        assert _PermanentlyBrokenWorkspace.calls == 1
+
+    def test_permission_denied_lock_wording_is_never_retried(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Lock wording alone cannot make a permanent permission error
+        retryable — the classifier requires the SPECIFIC known contention
+        diagnostics, not any mention of ``.lock``."""
+        from runtime.next.runtime_bridge import _resolve_owned_coordination_workspace
+
+        permission_denied = subprocess.CalledProcessError(
+            128,
+            ["git", "worktree", "add"],
+            stderr="fatal: could not lock config file .git/config: Permission denied",
+        )
+
+        class _PermissionDeniedWorkspace:
+            calls = 0
+
+            @classmethod
+            def resolve(cls, _root: Path, _slug: str, _mid8: str) -> Path:
+                cls.calls += 1
+                raise permission_denied
+
+        monkeypatch.setattr(time, "sleep", lambda _seconds: None)
+        with pytest.raises(subprocess.CalledProcessError) as raised:
+            _resolve_owned_coordination_workspace(
+                _PermissionDeniedWorkspace, tmp_path, "permission-denied-01KZTEST", "01KZTEST"
+            )
+        assert raised.value is permission_denied
+        assert _PermissionDeniedWorkspace.calls == 1
+
+    def test_known_git_lock_contention_recovers_within_bound(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Known ``config.lock`` contention retries and recovers within the
+        fixed 20-attempt bound."""
+        from runtime.next.runtime_bridge import _resolve_owned_coordination_workspace
+
+        expected = tmp_path / "coord"
+
+        class _TransientWorkspace:
+            calls = 0
+
+            @classmethod
+            def resolve(cls, _root: Path, _slug: str, _mid8: str) -> Path:
+                cls.calls += 1
+                if cls.calls < 3:
+                    raise subprocess.CalledProcessError(
+                        128,
+                        ["git", "worktree", "add"],
+                        stderr="fatal: Unable to create '/repo/.git/config.lock': File exists.",
+                    )
+                return expected
+
+        monkeypatch.setattr(time, "sleep", lambda _seconds: None)
+        result = _resolve_owned_coordination_workspace(
+            _TransientWorkspace, tmp_path, "transient-contention-01KZTEST", "01KZTEST"
+        )
+
+        assert result == expected
+        assert _TransientWorkspace.calls == 3
+
+    def test_persistent_contention_reraises_the_exact_error_after_bound(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Persistent recognized contention keeps its terminal exception
+        identity after exhausting all 20 attempts — never silently swallowed."""
+        from runtime.next.runtime_bridge import _resolve_owned_coordination_workspace
+
+        terminal = subprocess.CalledProcessError(
+            128,
+            ["git", "worktree", "add"],
+            stderr="fatal: could not lock config file .git/config: File exists",
+        )
+
+        class _PersistentlyContendedWorkspace:
+            calls = 0
+
+            @classmethod
+            def resolve(cls, _root: Path, _slug: str, _mid8: str) -> Path:
+                cls.calls += 1
+                raise terminal
+
+        monkeypatch.setattr(time, "sleep", lambda _seconds: None)
+        with pytest.raises(subprocess.CalledProcessError) as raised:
+            _resolve_owned_coordination_workspace(
+                _PersistentlyContendedWorkspace,
+                tmp_path,
+                "persistent-contention-01KZTEST",
+                "01KZTEST",
+            )
+        assert raised.value is terminal
+        assert _PersistentlyContendedWorkspace.calls == 20
+
+
+class TestIsTransientGitWorktreeContention:
+    """Direct branch coverage for the lock-diagnostic classifier itself,
+    independent of the retry loop above."""
+
+    def test_non_128_returncode_is_never_transient(self) -> None:
+        from runtime.next.runtime_bridge import _is_transient_git_worktree_contention
+
+        exc = subprocess.CalledProcessError(
+            1, ["git", "worktree", "add"], stderr="fatal: unrelated failure"
+        )
+        assert _is_transient_git_worktree_contention(exc) is False
+
+    @pytest.mark.parametrize(
+        "stderr",
+        [
+            "fatal: Unable to create '/repo/.git/config.lock': File exists.",
+            "fatal: could not lock config file .git/config: File exists",
+            "fatal: another git process seems to be running in this "
+            "repository; lock held",
+        ],
+        ids=[
+            "config-lock-file-exists",
+            "could-not-lock-file-exists",
+            "another-git-process-lock",
+        ],
+    )
+    def test_recognized_lock_wordings_are_transient(self, stderr: str) -> None:
+        from runtime.next.runtime_bridge import _is_transient_git_worktree_contention
+
+        exc = subprocess.CalledProcessError(128, ["git", "worktree", "add"], stderr=stderr)
+        assert _is_transient_git_worktree_contention(exc) is True
+
+    def test_returncode_128_with_unrelated_message_is_not_transient(self) -> None:
+        from runtime.next.runtime_bridge import _is_transient_git_worktree_contention
+
+        exc = subprocess.CalledProcessError(
+            128, ["git", "worktree", "add"], stderr="fatal: not a git repository"
+        )
+        assert _is_transient_git_worktree_contention(exc) is False
+
+
+class TestMissionRoutesThroughCoordinationOwnedCheckout:
+    """``_mission_routes_through_coordination``'s ``effective_root`` fork:
+    reads the stored topology off ``mission_context_for(effective_root=...)``
+    instead of the primary-folding ``placement_seam``."""
+
+    def test_owned_checkout_reads_topology_via_mission_context_for(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        import mission_runtime
+        from mission_runtime import MissionArtifactKind
+        from runtime.next.runtime_bridge import _mission_routes_through_coordination
+
+        feature_dir = tmp_path / "owned-feature"
+        feature_dir.mkdir()
+        (feature_dir / "meta.json").write_text(
+            json.dumps(
+                {
+                    "mission_type": "software-dev",
+                    "topology": "coord",
+                    "coordination_branch": "kitty/mission-owned-x",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        class _FakeArtifact:
+            read_dir = feature_dir
+
+        class _FakeMissionContext:
+            def artifact(self, kind: object) -> _FakeArtifact:
+                assert kind is MissionArtifactKind.PRIMARY_METADATA
+                return _FakeArtifact()
+
+        calls: list[tuple[Path, str, Path | None]] = []
+
+        def _fake_mission_context_for(repo_root, mission_slug, *, effective_root=None):
+            calls.append((repo_root, mission_slug, effective_root))
+            return _FakeMissionContext()
+
+        monkeypatch.setattr(mission_runtime, "mission_context_for", _fake_mission_context_for)
+
+        owned_root = tmp_path / "owned-checkout"
+        decoy_repo_root = tmp_path / "decoy-primary-never-read"
+
+        result = _mission_routes_through_coordination(
+            "owned-mission", decoy_repo_root, effective_root=owned_root
+        )
+
+        assert result is True
+        assert calls == [(decoy_repo_root, "owned-mission", owned_root)]
+
+
+class TestWrapWithDecisionGitLogOwnedCheckout:
+    """Owned-checkout fork of ``_wrap_with_decision_git_log`` (#3328): the
+    coordination-branch/mission-id read forks through
+    ``mission_context_for(effective_root=...)`` instead of the
+    primary-folding helpers, and the coord ``worktree_root`` selection forks
+    between the already-materialized ``.exists()`` fast path and the
+    retry-guarded ``_resolve_owned_coordination_workspace`` composition
+    path."""
+
+    @staticmethod
+    def _install_owned_mission_context(
+        monkeypatch: pytest.MonkeyPatch,
+        *,
+        primary_metadata_dir: Path,
+        coordination_branch: str,
+        mission_id: str,
+    ) -> None:
+        import mission_runtime
+        from mission_runtime import MissionArtifactKind
+
+        class _FakeArtifact:
+            def __init__(self, *, read_dir: Path | None = None, commit_target: object = None) -> None:
+                self.read_dir = read_dir
+                self.commit_target = commit_target
+
+        class _FakeMissionContext:
+            def artifact(self, kind: object) -> _FakeArtifact:
+                if kind is MissionArtifactKind.STATUS_STATE:
+                    return _FakeArtifact(commit_target=SimpleNamespace(ref=coordination_branch))
+                assert kind is MissionArtifactKind.PRIMARY_METADATA
+                return _FakeArtifact(read_dir=primary_metadata_dir)
+
+        monkeypatch.setattr(
+            mission_runtime, "mission_context_for", lambda *_a, **_k: _FakeMissionContext()
+        )
+        monkeypatch.setattr(
+            "specify_cli.mission_metadata.resolve_mission_identity",
+            lambda _dir: SimpleNamespace(mission_id=mission_id),
+        )
+
+    def test_materialized_worktree_root_is_used_as_is(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """When the coord worktree candidate already exists on disk, the
+        owned fork trusts it directly and never composes a fresh one."""
+        from runtime.next import runtime_bridge
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+
+        monkeypatch.setattr(
+            runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True
+        )
+        primary_metadata_dir = tmp_path / "primary-metadata"
+        primary_metadata_dir.mkdir()
+        mission_id = "01K3PW7QRSTVXYZ23456789ABC"
+        mission_slug = "owned-materialized-mission"
+        self._install_owned_mission_context(
+            monkeypatch,
+            primary_metadata_dir=primary_metadata_dir,
+            coordination_branch="kitty/mission-owned-materialized",
+            mission_id=mission_id,
+        )
+        worktree_root_candidate = CoordinationWorkspace.worktree_path(
+            tmp_path, mission_slug, mission_id[:8]
+        )
+        worktree_root_candidate.mkdir(parents=True)
+
+        def _must_not_run(*_a: object, **_k: object) -> Path:
+            raise AssertionError(
+                "_resolve_owned_coordination_workspace must not run when the "
+                "candidate worktree already exists on disk"
+            )
+
+        monkeypatch.setattr(runtime_bridge, "_resolve_owned_coordination_workspace", _must_not_run)
+
+        emitter = SimpleNamespace()
+        owned_root = tmp_path / "owned-checkout"
+        wrapped = runtime_bridge._wrap_with_decision_git_log(
+            emitter, mission_slug, tmp_path, effective_root=owned_root
+        )
+
+        assert wrapped._worktree_root == worktree_root_candidate
+
+    def test_unmaterialized_worktree_root_resolves_via_owned_retry_helper(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """When the coord worktree candidate does NOT yet exist, the owned
+        fork composes it through ``_resolve_owned_coordination_workspace``
+        (the bounded-retry helper) instead of the non-owned
+        ``CoordinationWorkspace.resolve`` call."""
+        from runtime.next import runtime_bridge
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+
+        monkeypatch.setattr(
+            runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True
+        )
+        primary_metadata_dir = tmp_path / "primary-metadata"
+        primary_metadata_dir.mkdir()
+        mission_id = "01K3PW7QRSTVXYZ23456789ABC"
+        mission_slug = "owned-unmaterialized-mission"
+        self._install_owned_mission_context(
+            monkeypatch,
+            primary_metadata_dir=primary_metadata_dir,
+            coordination_branch="kitty/mission-owned-unmaterialized",
+            mission_id=mission_id,
+        )
+        # Deliberately do NOT create the candidate worktree dir: .exists() is
+        # False, so the owned fork must run the retry-guarded composer.
+        resolved_via_retry_helper = tmp_path / "resolved-via-retry-helper"
+
+        def _fake_resolve(_cls: object, _root: Path, _slug: str, _mid8: str) -> Path:
+            return resolved_via_retry_helper
+
+        monkeypatch.setattr(CoordinationWorkspace, "resolve", classmethod(_fake_resolve))
+
+        emitter = SimpleNamespace()
+        owned_root = tmp_path / "owned-checkout"
+        wrapped = runtime_bridge._wrap_with_decision_git_log(
+            emitter, mission_slug, tmp_path, effective_root=owned_root
+        )
+
+        assert wrapped._worktree_root == resolved_via_retry_helper
+
+    def test_non_owned_unmaterialized_worktree_root_uses_plain_resolve(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Anti-vacuity / control: WITHOUT ``effective_root`` (the historical,
+        non-owned call shape), an unmaterialized coord candidate still goes
+        through the plain ``CoordinationWorkspace.resolve`` call -- never the
+        owned retry-guarded composer. Proves the two branches genuinely
+        diverge on ``effective_root``, not on ``coord_routing_topology``
+        alone."""
+        from runtime.next import runtime_bridge
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+
+        monkeypatch.setattr(
+            runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True
+        )
+        mission_id = "01K3PW7QRSTVXYZ23456789ABC"
+        mission_slug = "non-owned-unmaterialized-mission"
+        monkeypatch.setattr(
+            runtime_bridge,
+            "_resolve_coordination_branch",
+            lambda *_a, **_k: "kitty/mission-non-owned-unmaterialized",
+        )
+        monkeypatch.setattr(
+            runtime_bridge, "_resolve_mission_ulid", lambda *_a, **_k: mission_id
+        )
+
+        def _must_not_run(*_a: object, **_k: object) -> Path:
+            raise AssertionError(
+                "_resolve_owned_coordination_workspace must not run without "
+                "effective_root -- that is the owned-checkout-only path"
+            )
+
+        monkeypatch.setattr(
+            runtime_bridge, "_resolve_owned_coordination_workspace", _must_not_run
+        )
+        resolved_via_plain_resolve = tmp_path / "resolved-via-plain-resolve"
+
+        def _fake_resolve(_cls: object, _root: Path, _slug: str, _mid8: str) -> Path:
+            return resolved_via_plain_resolve
+
+        monkeypatch.setattr(CoordinationWorkspace, "resolve", classmethod(_fake_resolve))
+
+        emitter = SimpleNamespace()
+        wrapped = runtime_bridge._wrap_with_decision_git_log(emitter, mission_slug, tmp_path)
+
+        assert wrapped._worktree_root == resolved_via_plain_resolve
+
+
+class TestDecideNextViaRuntimeOwnedCheckout:
+    """End-to-end owned-checkout thread through ``decide_next_via_runtime`` ->
+    ``_dn_bootstrap`` -> ``_wrap_with_decision_git_log`` for a real
+    (coord-less) scaffolded mission. Complements the narrower unit tests
+    above by proving the ``effective_root`` fork composes across the whole
+    bootstrap phase without mocking ``mission_context_for``."""
+
+    @pytest.fixture(autouse=True)
+    def _disable_sync_emitter(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from runtime.next import runtime_bridge
+        from runtime.next._internal_runtime.events import NullEmitter
+
+        class LocalOnlyEmitter(NullEmitter):
+            def seed_from_snapshot(self, *_args: object, **_kwargs: object) -> None:
+                return None
+
+        monkeypatch.setattr(
+            runtime_bridge.SyncRuntimeEventEmitter,
+            "for_feature",
+            staticmethod(lambda **_: LocalOnlyEmitter()),
+        )
+
+    def test_owned_checkout_resolves_and_advances_the_mission(self, tmp_path: Path) -> None:
+        from runtime.next.runtime_bridge import decide_next_via_runtime
+
+        owned_root = _scaffold_project(tmp_path, mission_slug="042-owned-feature")
+        decoy_repo_root = tmp_path / "decoy-primary-never-read"
+
+        decision = decide_next_via_runtime(
+            "claude",
+            "042-owned-feature",
+            "success",
+            decoy_repo_root,
+            effective_root=owned_root,
+        )
+
+        assert decision.mission_slug == "042-owned-feature"
+        assert decision.kind in ("step", "terminal", "blocked", "decision_required")

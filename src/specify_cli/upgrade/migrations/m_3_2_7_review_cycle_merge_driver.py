@@ -8,15 +8,15 @@ clones, the same way those two migrations registered ``spec-kitty-event-log``.
 
 **Module name vs. ``target_version`` (deliberately not the same number).**
 This module is named ``m_3_2_7_...`` (the WP's prescribed filename/id), but
-``target_version`` below is pinned to ``"3.2.6"`` -- the same reasoning
+``target_version`` below is pinned to ``"3.2.6rc1"`` -- the same reasoning
 ``m_3_2_6_issue_matrix_driver_repoint.py`` documents: the installed package
-on this branch is still ``3.2.6`` (``pyproject.toml``,
-``CHANGELOG.md``'s still-open "Unreleased - 3.2.6" section), and
+on this branch is ``3.2.6rc1`` (``pyproject.toml``, the release-candidate
+build that ships this cycle's migrations), and
 ``spec-kitty upgrade``/``test_discovered_migration_targets_do_not_exceed_
 package_version`` skip/flag any migration whose ``target_version`` exceeds
-the installed package version -- targeting the unreleased ``3.2.7`` would
-mean this migration silently never runs for a user upgrading to the current
-release.
+the installed package version -- targeting the unreleased ``3.2.7`` (or even
+the not-yet-final ``3.2.6``) would mean this migration silently never runs
+for a user upgrading to the current release candidate.
 
 Unlike its siblings, the driver this migration seeds does NOT union or
 field-merge -- ``merge_driver_review_cycle`` (see that function's docstring
@@ -68,6 +68,6 @@ class ReviewCycleMergeDriverMigration(MergeDriverSeedingMigration):
 
     migration_id = "3.2.7_review_cycle_merge_driver"
     description = "Install a fail-closed git merge driver for review-cycle-*.md"
-    target_version = "3.2.6"
+    target_version = "3.2.6rc1"
     drivers = _DRIVERS
     dry_run_summary = "Would install the review-cycle-*.md merge driver and .gitattributes entry"

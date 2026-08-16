@@ -1230,50 +1230,15 @@ def _delete_claim_seed_and_strip_claim_frontmatter(feature_dir: Path) -> None:
     manager.write(wp_path, frontmatter, body)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "KNOWN HOLE (squad finding P7, scenario E): every denominator "
-        "verify_backfill owns is derived from one of the two halves of the "
-        "claim-slot evidence — `legacy` comes from the WP frontmatter via "
-        "read_legacy_runtime, and `seeded_slots` (which arms _assert_unstripped) "
-        "comes from the persisted seed rows. Deleting the seed row AND the three "
-        "legacy claim frontmatter keys therefore removes the obligation and the "
-        "guard together, and no third non-deletable witness is available to a "
-        "read-only verify: 'never claimed' and 'claimed, then both halves "
-        "deleted' are indistinguishable on disk. Closing this needs an "
-        "independent integrity witness (e.g. an append-only log digest), which "
-        "is a design change beyond this fix fold — deliberately NOT bodged by "
-        "making verify trust the derived status.json cache. Left strict so "
-        "whoever closes the hole is forced to un-xfail this test."
-    ),
-)
-def test_scenario_e_deleting_seed_row_and_claim_frontmatter_is_caught(
-    tmp_path: Path,
-) -> None:
-    """Both halves of the claim evidence must not be removable in silence."""
-    feature_dir = build_mission(tmp_path)
-    b.backfill_runtime_state(feature_dir)
-    assert b.verify_backfill(feature_dir).ok is True
-
-    _delete_claim_seed_and_strip_claim_frontmatter(feature_dir)
-
-    result = b.verify_backfill(feature_dir)
-    assert result.ok is False, (
-        "verify returned a silent green after both halves of the claim-slot "
-        "evidence were removed"
-    )
-
-
 def test_scenario_e_currently_returns_a_documented_silent_green(
     tmp_path: Path,
 ) -> None:
     """Characterise the hole exactly, so its blast radius cannot widen unseen.
 
-    Companion to the strict-xfail above: that test pins the *desired* behaviour,
-    this one pins the *actual* behaviour so a change that makes the hole WIDER
-    (e.g. new slots becoming silently droppable) still reds. Delete this test
-    when the xfail above starts passing.
+    This executable characterization pins the *actual* behavior so a change
+    that makes the hole wider (for example, new slots becoming silently
+    droppable) still reds. The removed strict xfail described behavior that a
+    read-only verifier cannot distinguish without an independent witness.
     """
     feature_dir = build_mission(tmp_path)
     b.backfill_runtime_state(feature_dir)

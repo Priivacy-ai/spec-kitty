@@ -15,6 +15,7 @@ from specify_cli.intake.errors import (
     IntakeFileUnreadableError,
     IntakeTooLargeError,
 )
+from specify_cli.intake.packet import parse_handoff_packet
 from specify_cli.intake.scanner import (
     load_max_brief_bytes,
     read_brief,
@@ -61,6 +62,26 @@ def _resolve_repo_root() -> Path:
         return Path.cwd().resolve()
 
 
+def _commit_brief(
+    repo_root: Path,
+    content: str,
+    source_file: str,
+    source_agent: str | None = None,
+) -> None:
+    """Write the brief pair, overlaying handoff-packet provenance when present."""
+    packet = parse_handoff_packet(content)
+    agent = source_agent
+    if agent is None and packet is not None and packet.source_tool:
+        agent = packet.source_tool
+    write_mission_brief(
+        repo_root,
+        content,
+        source_file,
+        source_agent=agent,
+        packet_meta=packet.sidecar_fields() if packet is not None else None,
+    )
+
+
 def _write_brief_from_candidate(
     repo_root: Path,
     found_path: Path,
@@ -93,7 +114,9 @@ def _write_brief_from_candidate(
     except IntakeFileUnreadableError as exc:
         err_console.print(f"[red]Could not read file: {exc.__cause__}[/red]")
         raise typer.Exit(1) from None
-    write_mission_brief(repo_root, content, str(found_path), source_agent=source_agent_value)
+    _commit_brief(
+        repo_root, content, str(found_path), source_agent=source_agent_value
+    )
     console.print("[green]\u2713[/green] Brief written to .kittify/mission-brief.md")
     console.print("[green]\u2713[/green] Provenance written to .kittify/brief-source.yaml")
 
@@ -249,6 +272,6 @@ def intake(
             raise typer.Exit(1) from None
         source_file = path
 
-    write_mission_brief(repo_root, content, source_file)
+    _commit_brief(repo_root, content, source_file)
     console.print("[green]\u2713[/green] Brief written to .kittify/mission-brief.md")
     console.print("[green]\u2713[/green] Provenance written to .kittify/brief-source.yaml")

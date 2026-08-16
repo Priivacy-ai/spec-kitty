@@ -76,8 +76,10 @@ STUB_ENDPOINT_URL = "http://localhost/__spec-kitty-delivery-stub__" + BATCH_ENDP
 _H_AUTHORIZATION = "Authorization"
 _H_CONTENT_ENCODING = "Content-Encoding"
 _H_CONTENT_TYPE = "Content-Type"
+_H_SYNC_PROTOCOL = "X-Spec-Kitty-Sync-Protocol"
 _GZIP = "gzip"
 _JSON = "application/json"
+_SYNC_PROTOCOL_VERSION = "2.0"
 
 _NON_BATCH_BODY_ERROR = "non-batch response shape (no 'results' list)"
 _OVERSIZED_ERROR = "payload too large (oversized, permanent)"
@@ -102,6 +104,15 @@ class DeliveryOutcome(StrEnum):
     REJECTED = "rejected"
     TERMINAL_FAILED = "terminal_failed"
     TRANSIENT = "transient"
+
+
+class DeliveryEffectCertainty(StrEnum):
+    """Receiver's typed statement about whether the remote side may have effect."""
+
+    ACCEPTED_PENDING = "accepted_pending"
+    KNOWN_NO_EFFECT = "known_no_effect"
+    POSSIBLY_EFFECTIVE = "possibly_effective"
+    TERMINAL = "terminal"
 
 
 @dataclass(frozen=True)
@@ -132,7 +143,9 @@ class DeliveryResult:
     outcome: DeliveryOutcome
     http_status: int | None = None
     error: str | None = None
+    error_category: str | None = None
     raw: Mapping[str, Any] | None = None
+    effect_certainty: DeliveryEffectCertainty = DeliveryEffectCertainty.POSSIBLY_EFFECTIVE
 
 
 # -- §4 gates: per-receiver declarative data, evaluated by a shared helper ------
@@ -342,7 +355,7 @@ def default_http_poster(url: str, *, data: bytes, headers: Mapping[str, str], ti
 #: single event), so *every* server refusal became ``REJECTED`` and was retried
 #: forever with no ceiling — the "4,141 rejected / 0 terminal failures" signal in
 #: the 2026-07-27 incident (folds spec-kitty#3005).
-TERMINAL_REJECTION_CATEGORIES: frozenset[str] = frozenset({"project_not_consented", "project_refused"})
+TERMINAL_REJECTION_CATEGORIES: frozenset[str] = frozenset({"project_not_admitted", "project_not_consented", "project_refused"})
 
 _CROSS_PROJECT_ERROR = "refused before send: batch spans more than one project ({projects}); authorization and delivery must be scoped to the same project"
 
@@ -361,7 +374,8 @@ def _event_project(event: OutboundEvent) -> str | None:
     containing a legacy identity-less row. Denying unresolvable identity is the
     mint's and the selection seam's job, where the stored column is the authority.
     """
-    return resolve_envelope_project(event.payload)
+    value = resolve_envelope_project(event.payload)
+    return str(value) if value is not None else None
 
 
 def _cross_project_refusal(
@@ -414,13 +428,43 @@ _PER_EVENT_OUTCOME: dict[str, DeliveryOutcome] = {
 
 def _build_payload(events: Sequence[OutboundEvent]) -> bytes:
     """Serialize the batch body exactly as the wire contract expects (§3.1)."""
-    return json.dumps({"events": [dict(e.payload) for e in events]}).encode("utf-8")
+    return json.dumps(
+        {"events": [dict(e.payload) for e in events]},
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+
+
+def disclosed_event_payload_bytes(event: OutboundEvent) -> bytes:
+    """Serialize one event's exact disclosed envelope for durable identity hashing.
+
+    The HTTP request wraps these event envelopes in ``{"events": [...]}``. WP07's
+    per-item attempts must hash what can actually reach SaaS, not the raw journal
+    bytes that may have been decoded or wrapped before disclosure.
+    """
+    return json.dumps(
+        dict(event.payload),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
 
 
 def _error_text(entry: Mapping[str, Any]) -> str | None:
     """Pull a rejection reason, accepting both ``error_message`` and ``error`` (§3.2)."""
     reason = entry.get("error_message") or entry.get("error")
     return None if reason is None else str(reason)
+
+
+def _error_category(entry: Mapping[str, Any] | None) -> str | None:
+    if entry is None:
+        return None
+    for field in ("error_category", "category", "code"):
+        value = entry.get(field)
+        if isinstance(value, str) and value.strip():
+            return value.strip().lower()
+    return None
 
 
 def _looks_like_batch_response(body: Mapping[str, Any] | None) -> bool:
@@ -434,6 +478,7 @@ def _all_outcome(
     http_status: int | None,
     error: str | None,
     body: Mapping[str, Any] | None,
+    effect_certainty: DeliveryEffectCertainty = DeliveryEffectCertainty.POSSIBLY_EFFECTIVE,
 ) -> list[DeliveryResult]:
     """Map every event in a batch to the same outcome (batch-level classification)."""
     return [
@@ -442,35 +487,59 @@ def _all_outcome(
             outcome=outcome,
             http_status=http_status,
             error=error,
+            error_category=None,
             raw=body,
+            effect_certainty=effect_certainty,
         )
         for event in events
     ]
 
 
 def _map_single_ok(event: OutboundEvent, entry: Mapping[str, Any] | None) -> DeliveryResult:
-    """Map one per-event 200 result. Absent entry → ``pending`` (not silent success)."""
+    """Map one per-event 200 result. Absent entry is uncertain, not pending."""
     if entry is None:
-        return DeliveryResult(event_id=event.event_id, outcome=DeliveryOutcome.PENDING, http_status=200)
+        return DeliveryResult(
+            event_id=event.event_id,
+            outcome=DeliveryOutcome.TRANSIENT,
+            http_status=200,
+            error="missing per-event result",
+            effect_certainty=DeliveryEffectCertainty.POSSIBLY_EFFECTIVE,
+        )
     status = str(entry.get("status", "")).strip().lower()
     outcome = _PER_EVENT_OUTCOME.get(status)
     if outcome is None:
         return DeliveryResult(
             event_id=event.event_id,
-            outcome=DeliveryOutcome.REJECTED,
+            outcome=DeliveryOutcome.TRANSIENT,
             http_status=200,
             error=_error_text(entry) or f"unknown per-event status: {status!r}",
             raw=entry,
+            effect_certainty=DeliveryEffectCertainty.POSSIBLY_EFFECTIVE,
         )
     error = _error_text(entry) if outcome is DeliveryOutcome.REJECTED else None
-    if outcome is DeliveryOutcome.REJECTED:
-        category = str(entry.get("error_category", "")).strip().lower()
-        if category in TERMINAL_REJECTION_CATEGORIES:
-            # FR-014: a refusal the server will never accept is terminal, not
-            # retryable. Without this the event re-POSTs on every drain forever
-            # and is reported as a non-failure.
-            outcome = DeliveryOutcome.TERMINAL_FAILED
-    return DeliveryResult(event_id=event.event_id, outcome=outcome, http_status=200, error=error, raw=entry)
+    error_category = _error_category(entry)
+    effect_certainty = DeliveryEffectCertainty.POSSIBLY_EFFECTIVE
+    if outcome is DeliveryOutcome.PENDING:
+        effect_certainty = DeliveryEffectCertainty.ACCEPTED_PENDING
+    elif outcome is DeliveryOutcome.REJECTED:
+        effect_certainty = DeliveryEffectCertainty.KNOWN_NO_EFFECT
+    elif outcome is DeliveryOutcome.TERMINAL_FAILED:
+        effect_certainty = DeliveryEffectCertainty.TERMINAL
+    if outcome is DeliveryOutcome.REJECTED and error_category in TERMINAL_REJECTION_CATEGORIES:
+        # FR-014: a refusal the server will never accept is terminal, not
+        # retryable. Without this the event re-POSTs on every drain forever
+        # and is reported as a non-failure.
+        outcome = DeliveryOutcome.TERMINAL_FAILED
+        effect_certainty = DeliveryEffectCertainty.TERMINAL
+    return DeliveryResult(
+        event_id=event.event_id,
+        outcome=outcome,
+        http_status=200,
+        error=error,
+        error_category=error_category,
+        raw=entry,
+        effect_certainty=effect_certainty,
+    )
 
 
 def _map_ok_results(events: Sequence[OutboundEvent], body: Mapping[str, Any] | None) -> list[DeliveryResult]:
@@ -509,13 +578,21 @@ def _map_400(events: Sequence[OutboundEvent], body: Mapping[str, Any] | None) ->
     for event in events:
         detail = by_id.get(event.event_id)
         reason = _detail_reason(detail, top_error) if detail is not None else top_error
+        error_category = _error_category(detail)
+        outcome = DeliveryOutcome.REJECTED
+        effect_certainty = DeliveryEffectCertainty.KNOWN_NO_EFFECT
+        if error_category in TERMINAL_REJECTION_CATEGORIES:
+            outcome = DeliveryOutcome.TERMINAL_FAILED
+            effect_certainty = DeliveryEffectCertainty.TERMINAL
         out.append(
             DeliveryResult(
                 event_id=event.event_id,
-                outcome=DeliveryOutcome.REJECTED,
+                outcome=outcome,
                 http_status=400,
                 error=reason,
+                error_category=error_category,
                 raw=body,
+                effect_certainty=effect_certainty,
             )
         )
     return out
@@ -543,7 +620,14 @@ def _map_batch_failure(events: Sequence[OutboundEvent], *, http_status: int, bod
     transient failure").
     """
     if _is_oversized(http_status, body) and len(events) == 1:
-        return _all_outcome(events, DeliveryOutcome.TERMINAL_FAILED, http_status=http_status, error=_OVERSIZED_ERROR, body=body)
+        return _all_outcome(
+            events,
+            DeliveryOutcome.TERMINAL_FAILED,
+            http_status=http_status,
+            error=_OVERSIZED_ERROR,
+            body=body,
+            effect_certainty=DeliveryEffectCertainty.TERMINAL,
+        )
     if _is_oversized(http_status, body):
         return _all_outcome(
             events,
@@ -551,6 +635,7 @@ def _map_batch_failure(events: Sequence[OutboundEvent], *, http_status: int, bod
             http_status=http_status,
             error=_BATCH_OVERSIZED_ERROR,
             body=body,
+            effect_certainty=DeliveryEffectCertainty.KNOWN_NO_EFFECT,
         )
     if http_status == 400:
         return _map_400(events, body)
@@ -670,7 +755,12 @@ class _HttpReceiver:
         the mapped result so it is not lost behind the bare ``transport failure``
         constant.
         """
-        headers = {**self.auth_headers(), _H_CONTENT_ENCODING: _GZIP, _H_CONTENT_TYPE: _JSON}
+        headers = {
+            **self.auth_headers(),
+            _H_CONTENT_ENCODING: _GZIP,
+            _H_CONTENT_TYPE: _JSON,
+            _H_SYNC_PROTOCOL: _SYNC_PROTOCOL_VERSION,
+        }
         payload = gzip.compress(_build_payload(events))
         try:
             response = self._poster(self.endpoint_url, data=payload, headers=headers, timeout=BATCH_TIMEOUT_SECONDS)
@@ -866,6 +956,7 @@ __all__ = [
     "STUB_ENDPOINT_URL",
     "default_http_poster",
     "DeliveryOutcome",
+    "DeliveryEffectCertainty",
     "OutboundEvent",
     "DeliveryResult",
     "GateKind",
@@ -873,6 +964,7 @@ __all__ = [
     "ReceiverGate",
     "GateDecision",
     "DeliveryReceiver",
+    "disclosed_event_payload_bytes",
     "HttpResponse",
     "HttpPoster",
     "evaluate_gates",

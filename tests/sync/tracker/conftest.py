@@ -32,6 +32,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from specify_cli.tracker import saas_client as _saas_mod
+from specify_cli.sync.consent import record_project_opt_in
+from specify_cli.sync.project_store import ProjectSyncStore
 
 
 class _LegacyAuthClientShim:
@@ -52,6 +54,18 @@ class _LegacyAuthClientShim:
         return True
 
 
+def _adapt_legacy_runtime_target(sync_config: Any) -> None:
+    """Map an old mock's URL accessor onto the canonical resolver seam."""
+    if sync_config is None:
+        return
+    resolved = sync_config.resolve_runtime_target().resolved_server_url
+    if isinstance(resolved, str):
+        return
+    legacy_url = sync_config.get_server_url()
+    if isinstance(legacy_url, str):
+        sync_config.resolve_runtime_target.return_value.resolved_server_url = legacy_url
+
+
 @pytest.fixture(autouse=True)
 def _patch_saas_token_bridges(monkeypatch, request):
     """Route the sync token bridges through a test-controlled fake.
@@ -65,6 +79,9 @@ def _patch_saas_token_bridges(monkeypatch, request):
 
     # Try to resolve the fixture lazily; not every test file defines it.
     fake_store: Any
+    tmp_path = request.getfixturevalue("tmp_path")
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     try:
         fake_store = request.getfixturevalue("mock_credential_store")
     except Exception:
@@ -75,9 +92,7 @@ def _patch_saas_token_bridges(monkeypatch, request):
 
     # Expose a legacy-compatible auth-client attribute on the module so older
     # tracker tests can still swap in a MagicMock class if needed.
-    monkeypatch.setattr(
-        _saas_mod, "AuthClient", _LegacyAuthClientShim, raising=False
-    )
+    monkeypatch.setattr(_saas_mod, "AuthClient", _LegacyAuthClientShim, raising=False)
 
     def _fetch_access_token_sync() -> str | None:
         try:
@@ -104,7 +119,18 @@ def _patch_saas_token_bridges(monkeypatch, request):
         return True
 
     monkeypatch.setattr(_saas_mod, "_fetch_access_token_sync", _fetch_access_token_sync)
-    monkeypatch.setattr(_saas_mod, "_current_team_slug_sync", _current_team_slug_sync)
+
+    def _hosted_authority(_token: str):
+        team_slug = _current_team_slug_sync()
+        if not team_slug:
+            return None
+        return _saas_mod._HostedTrackerAuthority(
+            account_identity="legacy-account",
+            private_teamspace_id="legacy-private-teamspace",
+            collaborative_team_slug=team_slug,
+        )
+
+    monkeypatch.setattr(_saas_mod, "_hosted_authority_for_token", _hosted_authority)
     monkeypatch.setattr(_saas_mod, "_force_refresh_sync", _force_refresh_sync)
 
     # Also patch the legacy ``SaaSTrackerClient.__init__`` to accept (and
@@ -130,7 +156,6 @@ def _patch_saas_token_bridges(monkeypatch, request):
 
     def _consenting_project_root():
         if "path" not in consenting_root:
-            tmp_path = request.getfixturevalue("tmp_path")
             root = tmp_path / "legacy-tracker-consenting-checkout"
             (root / ".kittify").mkdir(parents=True, exist_ok=True)
             (root / ".kittify" / "config.yaml").write_text(
@@ -165,7 +190,24 @@ def _patch_saas_token_bridges(monkeypatch, request):
         # unattributed — and therefore refusing — client.
         if "project_root" not in kwargs:
             kwargs["project_root"] = _consenting_project_root()
+        _adapt_legacy_runtime_target(sync_config)
         real_init(self, sync_config=sync_config, timeout=timeout, **kwargs)
+        if kwargs.get("project_root") == consenting_root.get("path"):
+            project_uuid = "6f1c2f2e-59a1-4a1f-9a2e-0f1c2f2e59a1"
+            record_project_opt_in(project_uuid, actor="legacy-tracker-client-fixture")
+            with ProjectSyncStore(project_uuid).unit_of_work() as unit:
+                unit.execute(
+                    "INSERT INTO project_target_admissions "
+                    "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+                    "configuration_generation, admission_state, admission_generation, binding_audience) "
+                    "VALUES (?, ?, 'legacy-account', 'legacy-private-teamspace', 1, "
+                    "'admitted', 'legacy-admission', 'legacy-binding') "
+                    "ON CONFLICT(project_uuid) DO UPDATE SET target_identity = excluded.target_identity, "
+                    "account_identity = excluded.account_identity, private_teamspace_id = excluded.private_teamspace_id, "
+                    "configuration_generation = excluded.configuration_generation, admission_state = excluded.admission_state, "
+                    "admission_generation = excluded.admission_generation, binding_audience = excluded.binding_audience",
+                    (project_uuid, self._base_url.rstrip("/")),
+                )
         # Legacy tests inspect ``client._credential_store``; preserve that.
         self._credential_store = credential_store if credential_store is not None else fake_store
 

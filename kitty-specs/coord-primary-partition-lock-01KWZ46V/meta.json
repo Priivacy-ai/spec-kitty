@@ -14,9 +14,8 @@
   "accepted_by": "stijn",
   "accepted_from_commit": "c96a82a8061e7fc74c21d2a724b13041b4262b3b",
   "baseline_merge_commit": "af66f080e96436896464bc808a4ce3f62110b305",
-  "coordination_branch": "kitty/mission-coord-primary-partition-lock-01KWZ46V",
   "created_at": "2026-07-07T20:27:14.428680+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Coord/Primary Partition Regression Lock",
   "mission_id": "01KWZ46VKW8D26H9WB940FH5PS",
   "mission_number": 168,
@@ -28,7 +27,7 @@
   "slug": "coord-primary-partition-lock-01KWZ46V",
   "status_phase": "1",
   "target_branch": "design/coord-primary-partition-lock",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-07T21:58:00.474200+00:00"
 }

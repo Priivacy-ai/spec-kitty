@@ -1,0 +1,78 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+mission: org-activation-scan-dirs-01KZY1PT
+round: 3
+note: >
+  R6 gate: round-2 fresh sweep (reviews/spec-fresh-round2.yaml) found 2 findings
+  (severity 3, severity 2). Early-stop check: round-1 fresh sweep had 1 finding at
+  severity>=3 (SPEC-FRESH-001, sev4); round-2 fresh sweep also has 1 finding at
+  severity>=3 (SPEC-FRESH2-001, sev3) — the count did NOT reduce, so per the
+  early-stop rule this is treated as "rounds end" rather than continuing the
+  full R4->R5 loop. Both remaining findings are <=3 (severity 3 and severity 2),
+  so per the gate's "Only <=3 left" branch: this is the FINAL fix round, followed
+  by a single R5a anchored verification only (no fresh sweep, no further rounds).
+  All resolved -> phase passes. Anything still unresolved -> HALT.
+derived_from:
+  - reviews/spec-fresh-round2.yaml
+findings:
+  - id: SPEC-FRESH2-001
+    source: fresh-sweep-round2
+    lens: fresh-sweep
+    severity: 3
+    title: "Net-effect's new FR-021 parenthetical contradicts the doc's own \"selective by design\" framing of the identical scenario, and mischaracterizes the causal mechanism"
+    evidence:
+      - artifact: "spec.md § Problem restated, \"Net effect\" paragraph, round-2 parenthetical: \"(Separately, and *not* fixed by this mission: activating some other, unrelated built-in or project artifact by stem can also evict an org-pack artifact that was never itself explicitly activated — ... so that path evicts the org artifact regardless of `_org_scan_dirs`. ... see Acceptance Scenario 5.)\""
+      - artifact: "spec.md § User Story 1 (unchanged across rounds): \"...but activating something other than the org stem itself cannot surface it; the per-artifact-ID gate is selective by design, not something this mission changes.\""
+      - artifact: "spec.md § Acceptance Scenario 5 (unchanged across rounds): \"Activating only the unrelated built-in stem, without ever activating the org stem itself, does not surface the org node — the per-artifact-ID gate in `_node_is_activated` step 3 ... is selective by design, not a defect this mission changes.\""
+      - code: "src/charter/activation_engine.py:258-268 (plan_activation: `if current is None:` materializes `default_ids` then appends the newly-activated stem — a general property of the allow-list gate, triggered by activating ANY artifact of a kind whose activation set was previously unset, not specific to org packs or to default.yaml's completeness)"
+      - code: "src/charter/drg.py:467-473 (`_node_is_activated` step 3: any URN absent from the resolved set is excluded once the gate is non-`None` — the general mechanism Acceptance Scenario 5 attributes to \"selective by design\")"
+    claim: >
+      The round-2 parenthetical in the "Net effect" paragraph frames "activating some other,
+      unrelated ... artifact by stem can also evict an org-pack artifact that was never
+      itself explicitly activated" as a second, unfixed defect ("Separately, and *not*
+      fixed by this mission" / "it does not change that ... behavior"), and pins the cause
+      on "`CharterPackManager.activate`'s FR-021 default-pack materialization ... draws
+      from the STATIC shipped `default.yaml` ... which by construction can never list a
+      third-party org artifact's ID". But this is the exact same scenario that both User
+      Story 1 and Acceptance Scenario 5 — unchanged, pre-existing text — explicitly call
+      "selective by design, not a defect this mission changes." The document now gives two
+      incompatible characterizations of one behavior: defect-flavored ("evicts", "not fixed
+      by this mission") in one place, intended-design ("selective by design, not a defect")
+      in two others. The causal framing is also narrower than reality: the eviction is not
+      really about default.yaml failing to list org IDs (a "completeness" gap implying it
+      could in principle be fixed by listing them) — it is the general property that ANY
+      artifact not on an armed allow-list gets excluded, which would equally evict an
+      unlisted built-in or project artifact, not just org ones.
+    remediation: >
+      Align the parenthetical with the existing "selective by design, not a defect this
+      mission changes" language from User Story 1 / Acceptance Scenario 5 instead of using
+      separate "defect"/"not fixed" phrasing for the same behavior. Correct the causal claim
+      to attribute the eviction to the per-artifact-ID allow-list gate's general behavior
+      (`_node_is_activated` step 3), not specifically to default.yaml's inability to
+      enumerate org IDs.
+
+  - id: SPEC-FRESH2-002
+    source: fresh-sweep-round2
+    lens: fresh-sweep
+    severity: 2
+    title: Newly-surfaced FR-021 eviction behavior isn't mirrored into Out of Scope, unlike every other deferred finding in this spec
+    evidence:
+      - artifact: "spec.md § Problem restated, \"Net effect\" paragraph (round-2 parenthetical introducing the FR-021 default-pack-materialization eviction behavior)"
+      - artifact: "spec.md § Out of Scope (unchanged across rounds) — lists #3384, the typo/unknown-stem swallow (with its own Edge Cases mirror), the neighboring-helper refactor, and the activated_* config-key/gate-logic changes, each as its own bullet with rationale"
+    claim: >
+      Every other deferred/out-of-scope item this spec documents gets its own bullet in
+      the "Out of Scope" section (mirroring its mention elsewhere, e.g. the typo-swallow
+      edge case is both an Edge Case bullet and an Out-of-Scope bullet). The FR-021
+      default-pack-materialization eviction behavior — introduced in round 2's Net Effect
+      paragraph — breaks that pattern: it appears only in one parenthetical (and by
+      implication in Acceptance Scenario 5's closing sentence, which predates round 2) and
+      has no Out-of-Scope bullet, no VC-NNN entry, and no linked tracking issue.
+    remediation: >
+      Once SPEC-FRESH2-001's wording is reconciled (this same behavior described consistently
+      as "selective by design," not a defect), decide whether it still needs its own
+      Out-of-Scope bullet for completeness/consistency with the document's own pattern — if
+      it is genuinely by-design and not a deferred defect, a short Out-of-Scope-style note
+      ("the per-artifact-ID gate's general selectivity is unchanged by this mission — see
+      Acceptance Scenario 5") is enough; it does not need a VC-NNN entry or tracked issue
+      since it is not a defect being deferred, only a documented pre-existing gate property.

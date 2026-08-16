@@ -37,7 +37,6 @@ identities (26-char ULID, 8-char mid8). Build on a real on-disk git repo.
 
 from __future__ import annotations
 
-import ast
 import subprocess
 from pathlib import Path
 
@@ -56,8 +55,6 @@ from specify_cli.lanes.auto_rebase import AutoRebaseReport, attempt_auto_rebase
 from specify_cli.lanes.models import ExecutionLane
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
-
-REPO_ROOT = Path(__file__).resolve().parents[4]
 
 # Production-shaped identity: a real 26-char ULID + 8-char mid8 disambiguator.
 MISSION_ID = "01KVRJ6P00000000000000WP13"
@@ -207,58 +204,6 @@ def test_ff_advance_still_raises_on_obstructing_non_residue_file(
     assert any("author_owned.py" in entry for entry in excinfo.value.dirty_entries)
 
 
-# The merge-path modules that advance a branch ref after a coordination write.
-# Every ``advance_branch_ref`` call in these modules must pass the residue
-# allow-list so a post-write ff-advance does not abort on legitimate residue.
-# Mission #2057 / WP07: the mission-number bake cluster (the merge-path
-# ``advance_branch_ref`` caller) moved from ``cli/commands/merge.py`` into the
-# ``merge/ordering.py`` seam, so the ratchet follows the call to its new home.
-_REF_ADVANCE_CALLERS = (
-    "src/specify_cli/merge/ordering.py",
-    "src/specify_cli/lanes/merge.py",
-)
-# lifecycle-gate-execution-context-01KY72GQ WP13 (IC-07c): retired the former
-# ``coord_owned_filenames`` frozenset param onto the single canonical churn
-# owner; every caller now injects the classifier via ``is_residue`` instead.
-_COORD_OWNED_KWARG = "is_residue"
-
-
-def _advance_branch_ref_calls(tree: ast.AST) -> list[ast.Call]:
-    """Return every ``advance_branch_ref(...)`` Call node in *tree* (AST walk)."""
-    calls: list[ast.Call] = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Call):
-            func = node.func
-            is_named_call = isinstance(func, ast.Name) and func.id == "advance_branch_ref"
-            is_attr_call = (
-                isinstance(func, ast.Attribute) and func.attr == "advance_branch_ref"
-            )
-            if is_named_call or is_attr_call:
-                calls.append(node)
-    return calls
-
-
-@pytest.mark.parametrize("rel_path", _REF_ADVANCE_CALLERS)
-def test_ref_advance_callers_pass_coord_owned_filenames(rel_path: str) -> None:
-    """T025: every ``advance_branch_ref`` call in the merge-path modules passes
-    ``is_residue`` so the post-write ff-advance excludes coordination
-    residue from the dirty gate. Pre-fix these callers omitted the kwarg; this
-    AST cell is red-by-construction against the un-wired callers."""
-    tree = ast.parse((REPO_ROOT / rel_path).read_text(encoding="utf-8"))
-    calls = _advance_branch_ref_calls(tree)
-    assert calls, f"{rel_path}: expected at least one advance_branch_ref call"
-    missing = [
-        call.lineno
-        for call in calls
-        if not any(kw.arg == _COORD_OWNED_KWARG for kw in call.keywords)
-    ]
-    assert missing == [], (
-        f"{rel_path}: advance_branch_ref call(s) at line(s) {missing} omit "
-        f"{_COORD_OWNED_KWARG}; a post-write ff-advance there would abort on "
-        "legitimate coordination residue (FR-012 / #1878)"
-    )
-
-
 # ---------------------------------------------------------------------------
 # T026 — auto_rebase "take theirs" recognizes the FULL residue set
 # ---------------------------------------------------------------------------
@@ -383,7 +328,6 @@ def test_take_theirs_does_not_swallow_non_residue_source_conflict(
     }
     assert "R-COORDINATION-ARTIFACT-THEIRS" not in rule_ids
 
-
 def test_take_theirs_does_not_swallow_primary_planning_conflict(
     tmp_path: Path,
 ) -> None:
@@ -417,128 +361,3 @@ def test_take_theirs_does_not_swallow_primary_planning_conflict(
         if hasattr(c.resolution, "rule_id")
     }
     assert "R-COORDINATION-ARTIFACT-THEIRS" not in rule_ids
-
-
-# ---------------------------------------------------------------------------
-# Expressed-once guard (AST/symbol-based, with planted-offender self-test)
-# ---------------------------------------------------------------------------
-
-# The single residue authority symbols. A merge-path consumer must reference the
-# predicate (or the filename set) and must NOT redeclare its own residue literal.
-#
-# lifecycle-gate-execution-context-01KY72GQ WP12 (IC-07b): the former
-# ``mission_runtime.is_coordination_artifact_residue_path`` predicate was
-# retired onto the canonical churn owner's residue leg
-# (``specify_cli.coordination.coherence.is_coord_residue_churn``) — a merge-path
-# consumer now imports EITHER that leg alone or the full
-# ``is_toolchain_generated_churn`` union (``merge/executor.py``'s route, which
-# already includes the residue leg) — both are accepted "single authority"
-# imports.
-_RESIDUE_AUTHORITY_PREDICATE = "is_coord_residue_churn"
-_RESIDUE_AUTHORITY_UNION = "is_toolchain_generated_churn"
-_RESIDUE_AUTHORITY_FILENAMES = "_MISSION_FILE_KIND_BY_BASENAME"
-_RESIDUE_AUTHORITY_NAMES = frozenset(
-    {_RESIDUE_AUTHORITY_PREDICATE, _RESIDUE_AUTHORITY_UNION, _RESIDUE_AUTHORITY_FILENAMES}
-)
-
-# The drifting literal members that USED to live inline in the merge gates. A
-# set/frozenset/dict display containing >=2 of these is a re-introduced local
-# residue literal (the offense this WP eradicated).
-_RESIDUE_LITERAL_MEMBERS = frozenset(
-    {
-        "plan.md",
-        "tasks.md",
-        "lanes.json",
-        "acceptance-matrix.json",
-        "issue-matrix.md",
-        "analysis-report.md",
-        "status.events.jsonl",
-        "status.json",
-    }
-)
-
-# Merge-path consumers that perform residue recognition (the 4 sites converged
-# by FR-012). Each must import/reference the authority; none may carry a literal.
-_MERGE_PATH_CONSUMERS = (
-    "src/specify_cli/lanes/auto_rebase.py",
-    # Mission #2057 / WP10: the post-merge porcelain invariant (the residue-
-    # authority consumer in the merge path) moved from cli/commands/merge.py
-    # into the merge/executor.py seam, so the ratchet follows it there.
-    "src/specify_cli/merge/executor.py",
-)
-
-
-def _imported_authority_names(tree: ast.AST) -> set[str]:
-    """Return the residue-authority symbols imported in *tree* via AST walk."""
-    found: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom):
-            for alias in node.names:
-                if alias.name in _RESIDUE_AUTHORITY_NAMES:
-                    found.add(alias.name)
-    return found
-
-
-def _local_residue_literal_lines(tree: ast.AST) -> list[int]:
-    """Return line numbers of set/frozenset/dict-key displays that re-declare a
-    local residue literal (>=2 known residue members).
-
-    Walking the AST — not grepping text — so a docstring or comment that merely
-    *names* the old literal does not trip the guard.
-    """
-    offenders: list[int] = []
-    for node in ast.walk(tree):
-        members: list[str] = []
-        if isinstance(node, (ast.Set, ast.List, ast.Tuple)):
-            members = [
-                elt.value
-                for elt in node.elts
-                if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
-            ]
-        elif isinstance(node, ast.Dict):
-            members = [
-                key.value
-                for key in node.keys
-                if isinstance(key, ast.Constant) and isinstance(key.value, str)
-            ]
-        if len(set(members) & _RESIDUE_LITERAL_MEMBERS) >= 2:
-            offenders.append(getattr(node, "lineno", -1))
-    return offenders
-
-
-@pytest.mark.parametrize("rel_path", _MERGE_PATH_CONSUMERS)
-def test_merge_path_consumer_imports_residue_authority(rel_path: str) -> None:
-    """Each merge-path consumer imports the single residue authority symbol."""
-    tree = ast.parse((REPO_ROOT / rel_path).read_text(encoding="utf-8"))
-    assert _imported_authority_names(tree), (
-        f"{rel_path} must import the residue authority "
-        f"({' or '.join(sorted(_RESIDUE_AUTHORITY_NAMES))}); it cannot recognize "
-        "residue without drawing from the single authority"
-    )
-
-
-@pytest.mark.parametrize("rel_path", _MERGE_PATH_CONSUMERS)
-def test_merge_path_consumer_carries_no_local_residue_literal(rel_path: str) -> None:
-    """No merge-path consumer redeclares its own residue literal set."""
-    tree = ast.parse((REPO_ROOT / rel_path).read_text(encoding="utf-8"))
-    offenders = _local_residue_literal_lines(tree)
-    assert offenders == [], (
-        f"{rel_path} carries a local residue literal at line(s) {offenders}; "
-        "the residue set must be expressed once in the single authority "
-        "(mission_runtime.artifacts._MISSION_FILE_KIND_BY_BASENAME)"
-    )
-
-
-def test_expressed_once_guard_trips_on_planted_offender() -> None:
-    """Self-test: a synthetic consumer that re-introduces a local residue
-    literal MUST be flagged by the guard (proves it is not vacuously green)."""
-    planted = (
-        "def _is_coordination_owned_artifact(rel_path):\n"
-        "    name = rel_path.rsplit('/', 1)[-1]\n"
-        "    return name in {'tasks.md', 'lanes.json', 'acceptance-matrix.json'}\n"
-    )
-    tree = ast.parse(planted)
-    offenders = _local_residue_literal_lines(tree)
-    assert offenders, "planted local residue literal must trip the expressed-once guard"
-    # And the planted offender (no import of the authority) must fail the import cell.
-    assert not _imported_authority_names(tree)

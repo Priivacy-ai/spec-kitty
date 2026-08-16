@@ -1,0 +1,164 @@
+"""FR-011 (#3339): a failed mission-create must be atomic for git side-effects.
+
+WP12 — mission-create checkout restore. A ``create_mission_core`` that fails
+*after* minting the coordination branch must:
+
+  (a) leave the operator on their ORIGINAL branch/checkout, and
+  (b) delete the orphan coordination branch it minted.
+
+These tests drive a real git repository (``git init`` + subprocess), so they
+carry the ``git_repo`` marker.
+"""
+
+from __future__ import annotations
+
+import subprocess
+from pathlib import Path
+
+import pytest
+
+from specify_cli.core.git_ops import get_current_branch
+from specify_cli.core.mission_creation import (
+    _restore_git_state_after_failed_create,
+    create_mission_core,
+)
+
+from tests._factories import provision_test_charter
+
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+_ORIGINAL_BRANCH = "operator-work"
+_COORDINATION_GLOB = "kitty/mission-*"
+
+
+def _init_git_repo(repo: Path) -> None:
+    (repo / ".kittify").mkdir(exist_ok=True)
+    # WP04 fail-closed: create_mission_core requires a provisioned charter.
+    provision_test_charter(repo)
+    (repo / "kitty-specs").mkdir(exist_ok=True)
+    subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "init", "--allow-empty"], cwd=repo, capture_output=True, check=True
+    )
+    # Deterministic, operator-named branch so the assertion is decoupled from
+    # the ambient git ``init.defaultBranch`` (master vs main).
+    subprocess.run(
+        ["git", "branch", "-M", _ORIGINAL_BRANCH], cwd=repo, capture_output=True, check=True
+    )
+
+
+def _mission_summary(slug: str) -> dict[str, str]:
+    title = slug.replace("-", " ").strip() or "test mission"
+    return {
+        "friendly_name": title.title(),
+        "purpose_tldr": f"Deliver {title} cleanly for the team.",
+        "purpose_context": (
+            f"This mission delivers {title} so product and engineering can move "
+            "forward with a clear outcome and shared understanding."
+        ),
+    }
+
+
+def _coordination_branches(repo: Path) -> list[str]:
+    result = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo),
+            "branch",
+            "--list",
+            _COORDINATION_GLOB,
+            "--format=%(refname:short)",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def test_failed_create_restores_branch_and_leaves_no_orphan(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """AC2 / FR-011: a create that fails AFTER the coordination branch is minted
+    restores the operator's original branch and leaves no orphan branch."""
+    _init_git_repo(tmp_path)
+    assert get_current_branch(tmp_path) == _ORIGINAL_BRANCH
+    assert _coordination_branches(tmp_path) == []
+
+    # Inject a failure that fires AFTER the coordination branch is minted:
+    # ``write_meta`` runs immediately after the mint + topology corroboration.
+    boom = RuntimeError("injected failure after branch mint")
+
+    def _explode(*_args: object, **_kwargs: object) -> None:
+        raise boom
+
+    monkeypatch.setattr("specify_cli.mission_metadata.write_meta", _explode)
+
+    with pytest.raises(RuntimeError, match="injected failure after branch mint"):
+        create_mission_core(
+            tmp_path,
+            "atomicity-check",
+            allow_worktree_context=True,
+            **_mission_summary("atomicity-check"),
+        )
+
+    # (a) operator is back on their original branch.
+    assert get_current_branch(tmp_path) == _ORIGINAL_BRANCH
+    # (b) no orphan coordination branch remains.
+    assert _coordination_branches(tmp_path) == []
+
+
+def test_restore_helper_switches_back_and_deletes_new_branches(tmp_path: Path) -> None:
+    """Focused coverage: the rollback helper restores the checkout and deletes
+    the coordination branch that appeared during the aborted create."""
+    _init_git_repo(tmp_path)
+    pre = frozenset(_coordination_branches(tmp_path))  # empty
+    orphan = "kitty/mission-simulated-abcd1234"
+    subprocess.run(
+        ["git", "-C", str(tmp_path), "branch", orphan], capture_output=True, text=True, check=True
+    )
+    subprocess.run(
+        ["git", "-C", str(tmp_path), "checkout", orphan], capture_output=True, text=True, check=True
+    )
+    assert get_current_branch(tmp_path) == orphan
+
+    _restore_git_state_after_failed_create(
+        tmp_path,
+        original_branch=_ORIGINAL_BRANCH,
+        pre_existing_coordination_branches=pre,
+    )
+
+    assert get_current_branch(tmp_path) == _ORIGINAL_BRANCH
+    assert _coordination_branches(tmp_path) == []
+
+
+def test_restore_helper_preserves_pre_existing_coordination_branches(tmp_path: Path) -> None:
+    """The rollback deletes only NEW coordination branches, never one that was
+    already present before the aborted create (no collateral deletion)."""
+    _init_git_repo(tmp_path)
+    keep = "kitty/mission-keep-me-00000000"
+    subprocess.run(
+        ["git", "-C", str(tmp_path), "branch", keep], capture_output=True, text=True, check=True
+    )
+    pre = frozenset(_coordination_branches(tmp_path))  # {keep}
+    new = "kitty/mission-new-11111111"
+    subprocess.run(
+        ["git", "-C", str(tmp_path), "branch", new], capture_output=True, text=True, check=True
+    )
+
+    _restore_git_state_after_failed_create(
+        tmp_path,
+        original_branch=_ORIGINAL_BRANCH,  # already on it
+        pre_existing_coordination_branches=pre,
+    )
+
+    remaining = _coordination_branches(tmp_path)
+    assert keep in remaining
+    assert new not in remaining

@@ -14,7 +14,22 @@ Patching strategy:
   source path using sys.modules injection.
 - Tests for _action_sequence() patch existing_mission_types() directly
   (at charter.mission_type_profiles.existing_mission_types) and inject
-  MissionTypeRepository via sys.modules for the inner import.
+  resolve_layered_mission_types via sys.modules for the inner import.
+
+WP04 update (mission up-mission-type-seam-01KZY1JB, FR-002): ``_resolve_action_slot``
+now calls the new, layered ``doctrine.missions.mission_type_repository.resolve_layered_mission_types``
+factory (WP03) instead of the built-in-only ``MissionTypeRepository.default()`` --
+a repository-call swap, not argument-threading (see that function's own
+docstring). The ``sys.modules`` injection below was updated to expose
+``resolve_layered_mission_types`` on the fake module instead of
+``MissionTypeRepository``; ``resolve_layered_mission_types`` returns a
+dict-like roster (here, the same ``mock_repo`` object used before, since it
+already exposes the ``.get(id)`` interface the roster needs). This file is
+not in WP04's ``owned_files`` -- it predates this mission
+(``mission-step-authority``/T035) -- but the repository-call swap is a real,
+unavoidable collision with its sys.modules-injection mocking strategy; see
+``kitty-specs/up-mission-type-seam-01KZY1JB/tracer-tooling-friction.md`` for
+the same unowned-file-collision pattern WP05 hit and resolved the same way.
 """
 
 from __future__ import annotations
@@ -114,17 +129,23 @@ def _restore_modules(saved: dict) -> None:
 def _inject_mission_type_repository_mock(
     mock_repo: MagicMock,
 ) -> dict:
-    """Inject a mock MissionTypeRepository module into sys.modules.
+    """Inject a mock ``resolve_layered_mission_types`` module into sys.modules.
+
+    WP04: ``_resolve_action_slot`` calls
+    ``doctrine.missions.mission_type_repository.resolve_layered_mission_types``
+    (WP03's layered factory), not ``MissionTypeRepository.default()`` --
+    a repository-call swap. *mock_repo* already exposes the ``.get(id)``
+    interface the returned roster needs, so it doubles as the fake factory's
+    return value unchanged.
 
     Returns saved_modules for cleanup.
     """
-    mock_repo_cls = MagicMock()
-    mock_repo_cls.default.return_value = mock_repo
+    mock_resolve_layered = MagicMock(return_value=mock_repo)
 
     # Need both the package and the specific module
     fake_pkg = types.ModuleType("doctrine.missions")
     fake_module = types.ModuleType("doctrine.missions.mission_type_repository")
-    fake_module.MissionTypeRepository = mock_repo_cls  # type: ignore[attr-defined]
+    fake_module.resolve_layered_mission_types = mock_resolve_layered  # type: ignore[attr-defined]
 
     saved: dict = {}
     for key in ("doctrine.missions", "doctrine.missions.mission_type_repository"):
@@ -267,7 +288,13 @@ class TestResolveActionSequence:
         assert isinstance(result, list)
 
     def test_not_cached_across_calls(self, tmp_path: Path) -> None:
-        """_action_sequence() reads fresh from disk on each invocation (FR-007)."""
+        """_action_sequence() calls the layered factory once per invocation
+        (FR-007) -- ``_resolve_action_slot`` itself applies no additional
+        caching on top of whatever the injected factory does.
+
+        WP04: the factory is now ``resolve_layered_mission_types``, not
+        ``MissionTypeRepository.default()`` (repository-call swap, FR-002).
+        """
         software_dev = _make_mission_type(
             "software-dev",
             ["specify", "plan", "tasks", "implement", "review"],
@@ -275,16 +302,17 @@ class TestResolveActionSequence:
 
         call_count = 0
 
-        def counting_repo_factory() -> MagicMock:
+        def counting_roster_factory(
+            mission_types_dirs: object, pack_context: object
+        ) -> MagicMock:
             nonlocal call_count
             call_count += 1
             return _make_repo(software_dev)
 
-        mock_repo_cls = MagicMock()
-        mock_repo_cls.default.side_effect = counting_repo_factory
+        mock_resolve_layered = MagicMock(side_effect=counting_roster_factory)
 
         fake_module = types.ModuleType("doctrine.missions.mission_type_repository")
-        fake_module.MissionTypeRepository = mock_repo_cls  # type: ignore[attr-defined]
+        fake_module.resolve_layered_mission_types = mock_resolve_layered  # type: ignore[attr-defined]
 
         saved: dict = {}
         for key in ("doctrine.missions.mission_type_repository",):
@@ -301,7 +329,10 @@ class TestResolveActionSequence:
         finally:
             _restore_modules(saved)
 
-        # MissionTypeRepository.default() should be called twice (no caching)
+        # resolve_layered_mission_types() should be called twice (once per
+        # top-level _action_sequence() call; the *real* factory is itself
+        # process-cached via functools.cache, but that is the factory's own
+        # concern, not something _resolve_action_slot adds on top).
         assert call_count == 2
 
     def test_extends_chain_resolved_when_own_sequence_empty(self, tmp_path: Path) -> None:

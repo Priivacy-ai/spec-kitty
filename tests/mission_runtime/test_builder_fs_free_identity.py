@@ -143,3 +143,29 @@ def test_resolve_mission_id_bootstrap_sentinel_not_routed_through_resolve(
         tmp_path, "bootstrap-mission-no-meta-yet", resolver=empty_resolver
     )
     assert mission_id == "legacy-bootstrap-mission-no-meta-yet"
+
+
+def test_resolve_mission_id_bootstrap_sentinel_reads_owned_checkout(
+    tmp_path: Path,
+) -> None:
+    """The ``effective_root`` (owned-checkout) fork of the identity leg (#3328).
+
+    Mirrors the carve-out test above, but drives the ``effective_root``
+    branch: ``primary_root`` is deliberately a DIFFERENT, never-created path
+    (proving it is never read once ``effective_root`` is supplied, C-002),
+    and the meta read is anchored on ``compose_meta_json_path(effective_root,
+    ...)`` instead of the canonicalizer chain. No ``meta.json`` exists at the
+    owned root either, so the same ``legacy-<slug>`` sentinel carve-out
+    applies.
+    """
+    owned_root = tmp_path / "owned-checkout"
+    owned_root.mkdir()
+    decoy_primary_root = tmp_path / "decoy-primary-never-read"
+
+    mission_id = _resolve_mission_id(
+        decoy_primary_root,
+        "owned-bootstrap-mission-no-meta-yet",
+        effective_root=owned_root,
+    )
+
+    assert mission_id == "legacy-owned-bootstrap-mission-no-meta-yet"

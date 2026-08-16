@@ -53,6 +53,13 @@ from mission_runtime.lifecycle_phase import (
 )
 from mission_runtime.mission_resolver_port import MissionResolver
 
+# Seam-B checkout-identity refusal (WP03, #3128 / FR-005) lives in
+# ``mission_runtime.checkout_identity`` and is surfaced on the package root via
+# ``mission_runtime/__init__.py``; consumers import it from there (see
+# ``workspace.context.resolve_workspace_for_wp``). It is intentionally NOT
+# re-exported from this module — a second unimported surface here is dead public
+# API (test_no_dead_symbols).
+
 
 ActionName = Literal[
     "specify",
@@ -83,6 +90,7 @@ __all__ = [
     "placement_seam",
     "resolve_action_context",
     "resolve_artifact_surface",
+    "resolve_create_time_write_target",
     # resolve_context_for_mission: demoted — no cross-module src/ from-import
     # callers (WP01 harden-dead-symbol-gate-01KW0RJR).
     "resolve_placement_only",
@@ -211,6 +219,55 @@ _MISSION_LEVEL_ACTIONS: frozenset[str] = frozenset(
         "status",
     }
 )
+
+
+def read_dir_for(
+    effective_root: Path | None,
+    primary_root: Path,
+    mission_slug: str,
+    *,
+    kind: MissionArtifactKind,
+    resolver: MissionResolver | None = None,
+) -> Path:
+    """Resolve the primary meta-bearing read dir for a mission (single fork authority).
+
+    Collapses the ``effective_root is None ? <legacy primary compose> :
+    compose_meta_json_path(effective_root, …).parent`` fork that recurred across
+    the coord/topology resolvers in this module (mission
+    write-path-integrity-01KZZD69 WP01, #3373, T004). One helper now owns the
+    derivation so no site re-inlines it and the read stays drift-free.
+
+    * The default (``effective_root is None``) arm delegates to
+      :func:`resolve_planning_read_dir` for the PRIMARY-partition ``kind`` these
+      sites read (``PRIMARY_METADATA``). That is byte-identical to the prior
+      inline ``_compose_primary_feature_dir(_canonicalize_primary_read_handle(
+      primary_root, mission_slug, resolver=resolver))`` — because
+      :func:`resolve_planning_read_dir`'s PRIMARY leg IS exactly that composition
+      (the ``resolver`` is threaded to the same single injected walk, no bypass).
+    * The opted-in (owned-checkout) arm composes the ``meta.json`` dir directly
+      against the already-validated ``effective_root`` — never re-folding it
+      through ``get_main_repo_root`` (#3328 / C-002) — matching the prior inline
+      ``compose_meta_json_path(effective_root, mission_slug).parent``.
+
+    ``kind`` MUST be a PRIMARY-partition kind (``meta.json`` lives only on the
+    primary checkout); passing a STATUS-partition kind would route the default
+    arm through the topology-aware seam instead and is a caller error.
+    """
+    from specify_cli.missions._read_path_resolver import (
+        compose_meta_json_path,
+        resolve_planning_read_dir,
+    )
+
+    # Explicit ``Path`` binds absorb the ``Any`` the ``specify_cli.*`` package
+    # boundary erases these returns to (follow_imports=skip) — mirroring the
+    # existing typed-local pattern elsewhere in this module.
+    if effective_root is None:
+        planning_dir: Path = resolve_planning_read_dir(
+            primary_root, mission_slug, kind=kind, resolver=resolver
+        )
+        return planning_dir
+    meta_dir: Path = compose_meta_json_path(effective_root, mission_slug).parent
+    return meta_dir
 
 
 def build_execution_context(
@@ -2194,6 +2251,28 @@ def coord_read_dir_for(
     if resolved.surface_kind is not TopologySurface.COORD:
         return None
     return resolved.path
+
+
+def resolve_create_time_write_target(planning_branch: str) -> CommitTarget:
+    """Return the explicit target used before mission identity is readable.
+
+    Mission creation derives ``planning_branch`` only after exact-checkout
+    ownership validation. During that narrow bootstrap interval no mission
+    metadata exists for :func:`placement_seam` to inspect, so this pure seam
+    carries the already-authoritative short branch into commit routing without
+    consulting CWD, environment, topology, or a fallback repository root.
+    """
+    if (
+        not planning_branch
+        or planning_branch != planning_branch.strip()
+        or planning_branch.startswith("refs/heads/")
+    ):
+        raise ActionContextError(
+            "CREATE_TIME_TARGET_INVALID",
+            "Create-time planning branch must be a non-empty short branch name "
+            "without the 'refs/heads/' prefix.",
+        )
+    return CommitTarget(ref=planning_branch)
 
 
 def placement_seam(

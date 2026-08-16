@@ -1,0 +1,268 @@
+# review-findings/v1 — R2 merge/dedup output (mechanical, orchestrator's own hands).
+# Source files: pr.boundary.findings.yaml, pr.contract.findings.yaml, pr.tests.findings.yaml.
+# No duplicates found across the three lens groups — all 7 findings cite distinct
+# file:line evidence and make distinct claims. PR-CONTRACT-003 and PR-TESTS-002 both
+# touch the resolve_layered_mission_types cache but from different angles (production
+# staleness risk vs. test-isolation discipline) and are kept as separate findings per
+# the R2 "mechanical only, do not drop for disagreement" rule — R3 judges overlap, not R2.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: merged
+mission: up-mission-type-seam-01KZY1JB
+findings:
+  - id: PR-BOUNDARY-001
+    source_group: boundary
+    lens: "private-symbol boundary crossing (mission-specific derived lens)"
+    severity: 3
+    title: "resolve_mission_type_source_layer imports a leading-underscore private helper directly, bypassing the facade discipline applied one line above it"
+    evidence:
+      - code: "src/specify_cli/cli/commands/charter/mission_type.py:106"
+      - code: "src/specify_cli/cli/commands/charter/mission_type.py:84"
+      - code: "src/charter/mission_type_profiles.py:827"
+      - code: "src/charter/mission_type_profiles.py:73-82"
+    claim: >
+      `resolve_mission_type_source_layer` (src/specify_cli/cli/commands/charter/mission_type.py:97-114)
+      does `from charter.mission_type_profiles import _resolve_action_sequence_layer` — a
+      leading-underscore symbol never listed in `charter.mission_type_profiles.__all__`
+      (src/charter/mission_type_profiles.py:73-82) and never re-exported through any charter
+      facade. This is inconsistent with the pattern the SAME function applies one line above
+      it (`resolve_layered_roster`, mission_type.py:76-94), which reaches
+      `resolve_layered_mission_types` only via the `charter.missions` facade door WP07
+      deliberately widened for that exact purpose (src/charter/missions.py). No existing gate
+      catches this: `tests/architectural/test_layer_rules.py` enforces package-level direction
+      only; `tests/architectural/test_events_tracker_public_imports.py` only guards
+      `spec_kitty_events._internal`/`spec_kitty_tracker._internal`; ruff's selected rule set
+      does not include a private-member-import check (confirmed clean on this file). Because
+      it is a "private" name by convention, a future refactor or removal of
+      `_resolve_action_sequence_layer` would have no signal telling the refactorer that
+      `specify_cli` now depends on it directly.
+    remediation: >
+      Rename `_resolve_action_sequence_layer` to a public name (e.g.
+      `resolve_action_sequence_layer`) in src/charter/mission_type_profiles.py and add it to
+      that module's `__all__`, then update both the in-module caller
+      (mission_type_profiles.py:949) and the cross-module caller (mission_type.py:106) to the
+      new public name.
+
+  - id: PR-BOUNDARY-002
+    source_group: boundary
+    lens: "facade widening / public-surface hygiene"
+    severity: 1
+    title: "MissionTypeEmptyActionSequenceError is imported by name from two other src/ modules but is missing from charter.mission_type_profiles.__all__"
+    evidence:
+      - code: "src/charter/mission_type_profiles.py:73-82"
+      - code: "src/charter/mission_type_profiles.py:259"
+      - code: "src/specify_cli/cli/commands/charter/mission_type.py:32"
+      - code: "src/specify_cli/cli/commands/charter/activate.py"
+    claim: >
+      `class MissionTypeEmptyActionSequenceError` (mission_type_profiles.py:259) is imported
+      by explicit name from `src/specify_cli/cli/commands/charter/mission_type.py:32` and
+      referenced in `src/specify_cli/cli/commands/charter/activate.py`'s
+      `except UnknownMissionTypeError` handler comment, i.e. it is a genuinely public,
+      cross-module-depended-on symbol, yet it was never added to
+      `charter.mission_type_profiles.__all__`. `from module import Name` works regardless of
+      `__all__`, so this has no runtime effect, but it leaves the module's own documented
+      public contract silently out of sync with what other modules actually depend on — the
+      same category of drift `__all__` exists to prevent for `UnknownMissionTypeError`, the
+      class this new error was deliberately modeled on.
+    remediation: >
+      Add `"MissionTypeEmptyActionSequenceError"` to `charter.mission_type_profiles.__all__`,
+      alongside `UnknownMissionTypeError`, which it mirrors.
+
+  - id: PR-CONTRACT-001
+    source_group: contract
+    lens: silent-success-across-the-union
+    severity: 4
+    title: "mission-type show crashes uncaught on the exact CL-003 empty-action-sequence case it was built to guard against"
+    evidence:
+      - code: "src/specify_cli/cli/commands/mission_type.py:1450-1462"
+      - code: "src/charter/mission_type_profiles.py:194-256"
+      - code: "src/charter/mission_type_profiles.py:259-305"
+      - code: "src/specify_cli/cli/commands/charter/mission_type.py:151-160"
+    claim: >
+      `show_mission_type` (`spec-kitty mission-type show <id>`, one of WP07's four CLI
+      surfaces) calls `resolve_mission_type_context(...).action_sequence` inside a
+      `try/except UnknownMissionTypeError` block only (mission_type.py:1450-1458).
+      `MissionTypeEmptyActionSequenceError` and `UnknownMissionTypeError` are both declared as
+      direct `ValueError` subclasses with no inheritance relationship between them —
+      `except UnknownMissionTypeError` does NOT catch `MissionTypeEmptyActionSequenceError`.
+      For an activated org/project mission type whose own (and inherited, via `extends`)
+      action sequence is empty — the exact CL-003 scenario this mission exists to make loud
+      instead of silent — `resolve_mission_type_context(...).action_sequence` raises
+      `MissionTypeEmptyActionSequenceError`, which propagates UNCAUGHT out of
+      `show_mission_type` as a raw Python traceback instead of the clean
+      `console.print(...); typer.Exit(1)` pattern. The sibling CLI surface in the SAME PR,
+      `charter_mission_type_list` (mission_type.py:151-160), explicitly catches this exact
+      exception and renders it cleanly — proving the intent was to handle it, and that this
+      second call site was simply missed. No test in the diff exercises `mission-type show`
+      against an empty-action-sequence org/project type.
+    remediation: >
+      In `show_mission_type` (mission_type.py:1450), add
+      `except MissionTypeEmptyActionSequenceError as exc:` (imported alongside
+      `UnknownMissionTypeError`) that renders `console.print(f"[red]Error:[/red] {exc}")` and
+      `raise typer.Exit(1) from exc`, mirroring `charter_mission_type_list`'s handling. Add a
+      regression test analogous to
+      `test_sc001_org_pack_mission_type_resolves_across_all_four_cli_surfaces` but with an
+      org/project mission-type YAML carrying no `action_sequence`, asserting `mission-type
+      show <id>` exits 1 with a clean message instead of a traceback.
+
+  - id: PR-CONTRACT-002
+    source_group: contract
+    lens: silent-success-across-the-union
+    severity: 4
+    title: "charter activate mission-type silently swallows malformed-YAML and unreadable-directory failures in the very org/project layers WP05 newly wired in, masking them as a generic 'unknown ID'"
+    evidence:
+      - code: "src/charter/pack_manager.py:317-338"
+      - code: "src/charter/pack_manager.py:361-377"
+      - code: "src/charter/pack_manager.py:778-840"
+      - code: "src/doctrine/missions/mission_type_repository.py:358-394"
+      - code: "src/charter/pack_manager.py:618-643"
+    claim: >
+      WP05 (`_resolve_layer_candidate`, pack_manager.py:317-338) newly wires org/project
+      mission-type directories into `CharterPackManager.list_available_detailed`
+      (pack_manager.py:778-840) — the availability catalog `activate()` checks BEFORE allowing
+      `charter activate mission-type <id>`. That scan routes through `scan_dir.rglob(glob)`
+      plus `_declared_id` (pack_manager.py:361-377), which catches
+      `(OSError, YAMLError, TypeError)` and returns `None` — silently SKIPPING the file — on
+      any parse failure, and `Path.rglob` itself silently swallows `PermissionError` during
+      the directory walk. So a malformed org/project `mission_types/<id>.yaml`, OR an
+      org/project `mission_types/` directory that exists but is unreadable, is invisible to
+      `list_available`: the id simply does not appear, and `plan_activation` then raises the
+      generic `UnknownActivationIdError` — NOT the real cause. Contrast this with
+      `_scan_mission_types_dir` (mission_type_repository.py:358-394), which WP03 built in the
+      SAME mission SPECIFICALLY to close this exact class of collapse (uses `iterdir()`, wraps
+      parse failures naming the file). `resolve_layered_mission_types` — the path
+      `_resolve_action_slot` and `resolve_layered_roster` actually use post-activation — DOES
+      loud-fail on the identical malformed file or unreadable directory. So for the SAME
+      broken org/project file, `charter activate mission-type <id>` (pre-activation
+      availability check) reports a misleading "unknown ID", while any subsequent resolution
+      of that same layer (`mission-type list`, `mission-type show`, mission creation)
+      loud-fails with the real cause — an inconsistent, union-only-visible diagnostic gap
+      between WP03's new loud scanner and WP05's new caller of the old tolerant scanner.
+    remediation: >
+      Route the `kind is None` (mission-type) branch of
+      `CharterPackManager.list_available_detailed` through
+      `doctrine.missions.mission_type_repository.resolve_layered_mission_types` (or an
+      equivalent `iterdir()`-based, exception-propagating scan) instead of the
+      glob+broad-except `_declared_id` path, so a malformed YAML or unreadable org/project
+      `mission_types/` directory raises the same loud, file-naming error during `charter
+      activate mission-type` that it already does during subsequent resolution. Add
+      regression coverage mirroring
+      `tests/doctrine/missions/test_mission_type_repository.py`'s malformed-YAML /
+      unreadable-directory tests, but through `manager.activate(...)`.
+
+  - id: PR-CONTRACT-003
+    source_group: contract
+    lens: cache-identity-across-independently-constructed-pack-contexts
+    severity: 3
+    title: "resolve_layered_mission_types caches user-editable org/project content with the same unconditional functools.cache used for immutable built-in content, without documenting or guarding the resulting staleness"
+    evidence:
+      - code: "src/doctrine/missions/mission_type_repository.py:60-97"
+      - code: "src/doctrine/missions/mission_type_repository.py:397-478"
+      - code: "tests/doctrine/missions/test_mission_type_repository.py:467-488"
+      - code: "src/specify_cli/cli/commands/charter/mission_type.py:56-114"
+    claim: >
+      `MissionTypeRepository.default()`'s `functools.cache` is explicitly justified as safe
+      because production never mutates the bundled, read-only built-in tree mid-process.
+      WP03's new `resolve_layered_mission_types` reuses the identical unconditional
+      `functools.cache` pattern, but now ALSO scans org and project layer directories —
+      content that IS user-editable during a process's lifetime. The module-level comment
+      only defends against cross-PROJECT poisoning, never same-project staleness across TIME.
+      The union's own regression test `test_same_key_is_a_cache_hit` proves the staleness
+      directly: it mutates an org-layer YAML file AFTER a first resolution and asserts the
+      SECOND resolution (same cache key) still returns the FIRST (stale) result. None of the
+      union's new CLI call sites ever call `resolve_layered_mission_types.cache_clear()` /
+      `MissionTypeRepository.cache_clear()` outside test code, and no new CLI surface
+      documents that its output reflects only the FIRST resolution of an org/project
+      mission-type roster within a process's lifetime. Low-risk for a normal one-shot CLI
+      invocation, but any longer-lived process embedding these charter APIs (a test suite
+      across many fixtures, or a future daemon/orchestrator-api consumer) would silently serve
+      a stale org/project roster after an on-disk mission-type edit, with no operator-facing
+      signal that the data is stale.
+    remediation: >
+      Either (a) document explicitly, next to `resolve_layered_mission_types`'s docstring,
+      that its cache is safe only for the "one process per CLI invocation" model and is NOT
+      safe across an on-disk org/project mission-type edit within a long-lived process,
+      naming the required `cache_clear()` call site for any long-lived host; or (b) key the
+      cache (or add an invalidation check) on a cheap freshness signal for the org/project
+      directories (e.g. directory mtime) so a long-lived process cannot silently serve a stale
+      roster after an on-disk edit.
+
+  - id: PR-TESTS-001
+    source_group: tests
+    lens: cross-wp-vacuity
+    severity: 4
+    title: "New golden-parity regression class in test_runtime_seam.py cannot fail even when WP04's PackContext-threading is fully reverted"
+    evidence:
+      - code: "tests/runtime/test_runtime_seam.py:184-233"
+      - code: "src/charter/mission_type_profiles.py:917-925 (_resolve_action_slot, calls resolve_layered_mission_types)"
+      - code: "src/charter/mission_type_profiles.py:1036 (_resolve_template_set_slot, threads pack_context)"
+    claim: >
+      `TestGoldenParityUnaffectedByPackContextThreading.test_builtin_type_unaffected_by_real_pack_context_with_org_root`
+      (parametrized over the 4 built-in mission types) constructs a real `PackContext` whose
+      `org_root` directory is created via `(org_root / "mission_types").mkdir(parents=True)`
+      but never has any YAML file written into it. Because the org layer therefore always
+      scans to `[]`, the test's assertions hold identically whether WP04's PackContext-
+      threading exists or not. Verified empirically in a disposable worktree
+      (`git worktree add --detach /tmp/pr-tests-check HEAD`): with
+      `src/charter/mission_type_profiles.py` edited so `_resolve_action_slot` calls
+      `MissionTypeRepository.default()` instead of
+      `resolve_layered_mission_types(mission_types_dirs, pack_context)`, and
+      `_resolve_template_set_slot` calls
+      `MissionStepRepository.default().resolve_all_for_mission_type(mission_type,
+      pack_context=None)` instead of `pack_context=pack_context` — i.e. WP04's entire FR-002
+      contribution reverted — `uv run pytest tests/runtime/test_runtime_seam.py -k
+      TestGoldenParityUnaffectedByPackContextThreading` still reports `4 passed, 0 failed`,
+      and the full file reports `27 passed`. The class's own docstring already concedes it is
+      "not a red-first pin", but its stated purpose — proving a real org pack root never
+      perturbs built-in output — is not actually provable by this test as written, since the
+      org root never contributes any content for the merge logic to (mis)apply.
+    remediation: >
+      Give the org root real, non-colliding content so the layered-merge code path is
+      actually exercised end to end, and assert on it. E.g. write a distinct custom
+      mission-type YAML into `org_root / "mission_types" / "unrelated-custom.yaml"` (an id
+      that shares nothing with any built-in type) and assert that
+      `resolve_mission_type_context(tmp_path, mission_type="unrelated-custom")` through the
+      same patched PackContext actually resolves it. That addition would have failed under
+      the exact WP04-revert performed above (a non-built-in id becomes unresolvable once
+      `pack_context` is no longer threaded into `_resolve_action_slot`), giving the class a
+      genuine failing case for the dependency it claims to guard.
+
+  - id: PR-TESTS-002
+    source_group: tests
+    lens: cache-clear-discipline
+    severity: 2
+    title: "tests/charter/test_mission_type_profiles.py never clears resolve_layered_mission_types' cache, unlike every other new/changed test file that patches PackContext.from_config"
+    evidence:
+      - code: "tests/charter/test_mission_type_profiles.py:483-613 (TestPackContextProjection — no cache_clear call anywhere in the class or file)"
+      - code: "tests/charter/test_mission_type_profiles.py:654-706 (TestEmptyActionSequenceLoudFail — same)"
+      - code: "tests/cli/test_charter_mission_type_commands.py:169,182 (MissionTypeRepository.cache_clear() before AND after, via try/finally)"
+      - code: "tests/cli/test_doctrine_commands.py:232-240 (same before/after pattern)"
+      - code: "tests/specify_cli/cli/commands/test_mission_type_template_set_cli.py:163-172 (same before/after pattern)"
+      - code: "tests/doctrine/missions/test_mission_type_repository.py (TestLayeredMissionTypesCacheKeyAndClear.setup_method/teardown_method — same discipline at the doctrine layer)"
+      - code: "src/doctrine/missions/mission_type_repository.py:453-478 (resolve_layered_mission_types, @functools.cache keyed on (mission_types_dirs, pack_context))"
+    claim: >
+      Every other new/changed test file that patches `charter.pack_context.PackContext.from_config`
+      and then drives resolution through the module-level `resolve_layered_mission_types`
+      cache also calls `MissionTypeRepository.cache_clear()` (or the doctrine-layer test
+      file's own setup/teardown equivalent) before and/or after the patched call.
+      `tests/charter/test_mission_type_profiles.py`'s `TestPackContextProjection`,
+      `TestEmptyActionSequenceLoudFail`, and `TestMissionCreatePropagatesEmptyActionSequenceError`
+      classes do the same patch-and-resolve dance but never call `cache_clear()` anywhere in
+      the file. Correctness currently survives only because `PackContext` is a frozen,
+      field-hashed dataclass and every test's fields are derived from pytest's per-test-unique
+      `tmp_path`, so no two tests in this file can ever construct an *equal* `PackContext` and
+      collide on the same cache entry — an incidental, not a designed, protection. A test
+      added later that reuses a fixed/shared root, or that mutates on-disk files under an
+      already-resolved `pack_context` expecting a fresh read, would silently read a stale
+      cached roster with no test-order signal to explain why, in a file whose sibling test
+      files already carry the cache-clear guard specifically to prevent exactly that.
+    remediation: >
+      Add the same `MissionTypeRepository.cache_clear()` before/after (or a class-level
+      setup_method/teardown_method) discipline used in
+      `tests/cli/test_charter_mission_type_commands.py`, `tests/cli/test_doctrine_commands.py`,
+      and `tests/specify_cli/cli/commands/test_mission_type_template_set_cli.py` to
+      `TestPackContextProjection`, `TestEmptyActionSequenceLoudFail`, and
+      `TestMissionCreatePropagatesEmptyActionSequenceError` in
+      `tests/charter/test_mission_type_profiles.py`, so the file's isolation is guaranteed by
+      explicit test hygiene rather than by incidental dataclass-hash uniqueness.

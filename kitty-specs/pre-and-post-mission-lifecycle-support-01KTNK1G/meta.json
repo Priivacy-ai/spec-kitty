@@ -1,6 +1,6 @@
 {
-  "coordination_branch": "kitty/mission-pre-and-post-mission-lifecycle-support-01KTNK1G",
   "created_at": "2026-06-09T07:02:39.496578+00:00",
+  "flattened": true,
   "friendly_name": "pre and post mission lifecycle support",
   "mission_id": "01KTNK1G481QA8GK4MFEHBE9AK",
   "mission_number": null,
@@ -10,5 +10,6 @@
   "purpose_tldr": "pre and post mission lifecycle support",
   "slug": "pre-and-post-mission-lifecycle-support-01KTNK1G",
   "status_phase": "1",
-  "target_branch": "main"
+  "target_branch": "main",
+  "topology": "single_branch"
 }

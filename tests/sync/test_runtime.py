@@ -19,6 +19,7 @@ from specify_cli.sync.runtime import (
     reset_runtime,
     _auto_start_enabled,
 )
+from specify_cli.sync.consent import record_project_opt_in
 
 # Captured from its defining module at import time, i.e. before any fixture runs, so
 # this name is the real resolver even inside a test that ``tests/sync/conftest.py``'s
@@ -50,10 +51,21 @@ def _consent_gate(answer: bool) -> Iterator[None]:
 
 @pytest.fixture(autouse=True)
 def reset_singleton():
-    """Reset runtime singleton before and after each test."""
-    reset_runtime()
-    yield
-    reset_runtime()
+    """Isolate runtime tests without destroying prior worker state."""
+    from specify_cli.sync import runtime as runtime_module
+
+    prior_runtime = runtime_module._runtime
+    runtime_module._runtime = None
+    try:
+        yield
+    finally:
+        current_runtime = runtime_module._runtime
+        runtime_module._runtime = None
+        try:
+            if current_runtime is not None and current_runtime is not prior_runtime:
+                current_runtime.stop()
+        finally:
+            runtime_module._runtime = prior_runtime
 
 
 @pytest.fixture(autouse=True)
@@ -116,9 +128,7 @@ class TestAutoStartEnabled:
         ):
             assert _auto_start_enabled() is False
 
-    def test_explicit_project_auto_start_still_wins_over_the_denial(
-        self, tmp_path, monkeypatch
-    ):
+    def test_explicit_project_auto_start_still_wins_over_the_denial(self, tmp_path, monkeypatch):
         """The denials must not swallow an explicit local opt-in."""
         monkeypatch.chdir(tmp_path)
         config_dir = tmp_path / ".kittify"
@@ -149,13 +159,9 @@ class TestAutoStartEnabled:
         (config_dir / "config.yaml").write_text("agents:\n  available: []\n")
 
         with _consent_gate(False):
-            assert _auto_start_enabled() is False, (
-                "no sync section is not a local grant; a denying gate must be obeyed"
-            )
+            assert _auto_start_enabled() is False, "no sync section is not a local grant; a denying gate must be obeyed"
         with _consent_gate(True):
-            assert _auto_start_enabled() is True, (
-                "and the deny above must come from the gate, not from the missing section"
-            )
+            assert _auto_start_enabled() is True, "and the deny above must come from the gate, not from the missing section"
 
     def test_absent_auto_start_key_defers_to_the_consent_gate(self, tmp_path, monkeypatch):
         """A ``sync`` section that omits ``auto_start`` decides nothing either.
@@ -170,9 +176,7 @@ class TestAutoStartEnabled:
         (config_dir / "config.yaml").write_text("sync:\n  server_url: https://example.com\n")
 
         with _consent_gate(False):
-            assert _auto_start_enabled() is False, (
-                "a sync section without auto_start is not an opt-in to auto-start"
-            )
+            assert _auto_start_enabled() is False, "a sync section without auto_start is not an opt-in to auto-start"
         with _consent_gate(True):
             assert _auto_start_enabled() is True
 
@@ -215,13 +219,9 @@ class TestAutoStartEnabled:
         (config_dir / "config.yaml").write_text("invalid: yaml: content: [")
 
         with _consent_gate(False):
-            assert _auto_start_enabled() is False, (
-                "an unreadable config is not an opt-in to anything"
-            )
+            assert _auto_start_enabled() is False, "an unreadable config is not an opt-in to anything"
         with _consent_gate(True):
-            assert _auto_start_enabled() is True, (
-                "no exception escaped the parse failure: the gate was still consulted"
-            )
+            assert _auto_start_enabled() is True, "no exception escaped the parse failure: the gate was still consulted"
 
 
 class TestAutoStartWithoutTheConsentFixture:
@@ -241,7 +241,7 @@ class TestAutoStartWithoutTheConsentFixture:
     """
 
     @staticmethod
-    def _checkout(tmp_path: Path, monkeypatch, *, sync_enabled: bool | None) -> None:
+    def _checkout(tmp_path: Path, monkeypatch, *, explicit_opt_in: bool) -> None:
         """A fresh checkout under a fresh HOME with no machine-global sync config.
 
         Mirrors ``tests/sync/test_sync_consent_default_deny.py::isolated_machine``:
@@ -256,18 +256,19 @@ class TestAutoStartWithoutTheConsentFixture:
         monkeypatch.setenv("HOME", str(home))
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
 
+        project_uuid = str(uuid4())
         lines = [
             "project:",
-            f"  uuid: {uuid4()}",
+            f"  uuid: {project_uuid}",
             "  slug: engagement-assistant",
             "  node_id: node12345678",
             "  repo_slug: regnology-example/engagement-assistant",
             "  build_id: 8a4a7da6-a97c-4bb4-893a-b31664abfee4",
         ]
-        if sync_enabled is not None:
-            lines += ["sync:", f"  enabled: {str(sync_enabled).lower()}"]
         (repo / ".kittify" / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
         monkeypatch.chdir(repo)
+        if explicit_opt_in:
+            record_project_opt_in(project_uuid, actor="runtime-auto-start-test")
 
     def test_no_consent_record_denies_auto_start(self, tmp_path, monkeypatch):
         """The incident's state: identity resolves, nobody ever opted in -> no daemon.
@@ -277,7 +278,7 @@ class TestAutoStartWithoutTheConsentFixture:
         is not consent. Verified against the production resolver, not against a
         patched seam.
         """
-        self._checkout(tmp_path, monkeypatch, sync_enabled=None)
+        self._checkout(tmp_path, monkeypatch, explicit_opt_in=False)
 
         with patch(
             "specify_cli.sync.runtime.is_sync_enabled_for_checkout",
@@ -288,12 +289,12 @@ class TestAutoStartWithoutTheConsentFixture:
     def test_project_config_consent_grants_auto_start(self, tmp_path, monkeypatch):
         """POSITIVE CONTROL for the test above — it must not be allowed to pass alone.
 
-        Same fixture, same real resolver, one line of ``sync.enabled: true`` added.
+        Same fixture and real resolver, plus one explicit UUID-owned project opt-in.
         Without this, a denial from any unrelated cause — an unresolvable project
         root, a stray consent fault, the restore silently not taking — would read as
         the FR-002 denial being proven.
         """
-        self._checkout(tmp_path, monkeypatch, sync_enabled=True)
+        self._checkout(tmp_path, monkeypatch, explicit_opt_in=True)
 
         with patch(
             "specify_cli.sync.runtime.is_sync_enabled_for_checkout",
@@ -319,13 +320,9 @@ class TestAutoStartDenialNamesItsCause:
 
     def _visible(self, caplog) -> str:
         """Everything an operator without debug logging would see."""
-        return "\n".join(
-            r.getMessage() for r in caplog.records if r.levelno >= logging.INFO
-        )
+        return "\n".join(r.getMessage() for r in caplog.records if r.levelno >= logging.INFO)
 
-    def test_unresolvable_project_root_is_reported_as_such(
-        self, tmp_path, monkeypatch, caplog
-    ):
+    def test_unresolvable_project_root_is_reported_as_such(self, tmp_path, monkeypatch, caplog):
         monkeypatch.chdir(tmp_path)
         with (
             caplog.at_level(logging.DEBUG, logger="specify_cli.sync.runtime"),
@@ -334,17 +331,10 @@ class TestAutoStartDenialNamesItsCause:
             assert _auto_start_enabled() is False
 
         visible = self._visible(caplog)
-        assert "project root" in visible, (
-            f"the real cause is invisible above debug; operator saw: {visible!r}"
-        )
-        assert "via config" not in visible, (
-            "reporting a config cause sends the operator to edit a file that was "
-            "never consulted"
-        )
+        assert "project root" in visible, f"the real cause is invisible above debug; operator saw: {visible!r}"
+        assert "via config" not in visible, "reporting a config cause sends the operator to edit a file that was never consulted"
 
-    def test_config_denial_is_still_reported_as_a_config_denial(
-        self, tmp_path, monkeypatch, caplog
-    ):
+    def test_config_denial_is_still_reported_as_a_config_denial(self, tmp_path, monkeypatch, caplog):
         """The honest case must stay honest: a real config opt-out names the config.
 
         Without this, 'stop claiming config' could be satisfied by never mentioning
@@ -359,13 +349,9 @@ class TestAutoStartDenialNamesItsCause:
             assert _auto_start_enabled() is False
 
         visible = self._visible(caplog)
-        assert "auto_start" in visible, (
-            f"a genuine config opt-out must name the config key; operator saw: {visible!r}"
-        )
+        assert "auto_start" in visible, f"a genuine config opt-out must name the config key; operator saw: {visible!r}"
 
-    def test_start_does_not_restate_a_cause_it_cannot_know(
-        self, tmp_path, monkeypatch, caplog
-    ):
+    def test_start_does_not_restate_a_cause_it_cannot_know(self, tmp_path, monkeypatch, caplog):
         """``start()`` receives only a boolean, so it must not name a cause.
 
         This is the assertion that would have caught the original defect: the lie
@@ -426,9 +412,7 @@ class TestSyncRuntime:
         # authenticated".
         fake_tm = MagicMock()
         fake_tm.is_authenticated = False
-        monkeypatch.setattr(
-            "specify_cli.auth.get_token_manager", lambda: fake_tm
-        )
+        monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
 
         with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
             mock_get_service.return_value = mock_service
@@ -445,17 +429,18 @@ class TestSyncRuntime:
                 # its authenticated-websocket siblings below); stop() joins it.
                 runtime.stop()
 
-    def test_attach_emitter_wires_ws_client(self):
-        """attach_emitter wires existing ws_client to emitter."""
+    def test_attach_emitter_does_not_inject_raw_ws_client(self):
+        """attach_emitter cannot expose the runtime transport around WP06."""
         runtime = SyncRuntime()
         mock_ws = MagicMock()
         runtime.ws_client = mock_ws
 
         mock_emitter = MagicMock()
+        mock_emitter.ws_client = None
         runtime.attach_emitter(mock_emitter)
 
         assert runtime.emitter is mock_emitter
-        assert mock_emitter.ws_client is mock_ws
+        assert mock_emitter.ws_client is None
 
     def test_attach_emitter_without_ws_client(self):
         """attach_emitter stores emitter even without ws_client."""
@@ -466,10 +451,11 @@ class TestSyncRuntime:
         assert runtime.emitter is mock_emitter
         # ws_client not set since it was None
 
-    def test_attach_emitter_sets_project_identity_on_existing_ws_client(self):
-        """attach_emitter injects the emitter identity into the websocket client."""
+    def test_attach_emitter_does_not_mutate_raw_websocket_identity(self):
+        """Emitter identity cannot turn a runtime socket into a direct sender."""
         runtime = SyncRuntime()
         mock_ws = MagicMock()
+        mock_ws._project_identity = None
         runtime.ws_client = mock_ws
 
         identity = MagicMock()
@@ -489,7 +475,7 @@ class TestSyncRuntime:
 
         runtime.attach_emitter(mock_emitter)
 
-        assert mock_ws._project_identity is identity
+        assert mock_ws._project_identity is None
 
     def test_attach_emitter_emits_build_registered_once_and_wakes_background(self):
         """attach_emitter emits one BuildRegistered and wakes background sync."""
@@ -531,9 +517,7 @@ class TestSyncRuntime:
         # Mock TokenManager to return unauthenticated (skip WebSocket)
         fake_tm = MagicMock()
         fake_tm.is_authenticated = False
-        monkeypatch.setattr(
-            "specify_cli.auth.get_token_manager", lambda: fake_tm
-        )
+        monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
 
         with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
             mock_get_service.return_value = mock_service
@@ -624,9 +608,7 @@ class TestUnauthenticatedBehavior:
 
         fake_tm = MagicMock()
         fake_tm.is_authenticated = False
-        monkeypatch.setattr(
-            "specify_cli.auth.get_token_manager", lambda: fake_tm
-        )
+        monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
 
         with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
             mock_get_service.return_value = mock_service
@@ -652,9 +634,7 @@ class TestUnauthenticatedBehavior:
 
         fake_tm = MagicMock()
         fake_tm.is_authenticated = True
-        monkeypatch.setattr(
-            "specify_cli.auth.get_token_manager", lambda: fake_tm
-        )
+        monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
 
         with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
             mock_get_service.return_value = mock_service
@@ -671,6 +651,7 @@ class TestUnauthenticatedBehavior:
                         patch.object(SyncRuntime, "_ensure_async_loop") as mock_ensure_loop,
                         patch("asyncio.run_coroutine_threadsafe") as mock_run_coroutine_threadsafe,
                     ):
+
                         def fake_ensure_loop():
                             runtime._async_loop = MagicMock()
 
@@ -692,9 +673,7 @@ class TestUnauthenticatedBehavior:
 
         fake_tm = MagicMock()
         fake_tm.is_authenticated = True
-        monkeypatch.setattr(
-            "specify_cli.auth.get_token_manager", lambda: fake_tm
-        )
+        monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
 
         with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
             mock_get_service.return_value = mock_service
@@ -709,6 +688,7 @@ class TestUnauthenticatedBehavior:
                         patch.object(SyncRuntime, "_ensure_async_loop") as mock_ensure_loop,
                         patch("asyncio.run_coroutine_threadsafe") as mock_run_coroutine_threadsafe,
                     ):
+
                         def fake_ensure_loop():
                             runtime._async_loop = MagicMock()
 

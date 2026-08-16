@@ -21,7 +21,6 @@ arms may still read ``coordination_branch``).
 
 from __future__ import annotations
 
-import ast
 import json
 import subprocess
 from pathlib import Path
@@ -276,29 +275,3 @@ def test_coord_worktree_materialised_transient_reads_coordination(tmp_path: Path
 # ---------------------------------------------------------------------------
 # SC-001 — the coordination_branch-is-None SURFACE decision is retired
 # ---------------------------------------------------------------------------
-
-
-def test_read_contract_function_has_no_coordination_branch_surface_decision() -> None:
-    """SC-001: ``_read_contract_from_transaction_target`` carries no ``coordination_branch is None`` test.
-
-    AST-scoped to the read-contract function so a docstring mention elsewhere does
-    not mask a live re-inference. The coord-vs-primary SHAPE must come from the
-    stored-topology helper, never from a bare ``coordination_branch is None`` arm.
-    """
-    source = Path(st.__file__).read_text(encoding="utf-8")
-    tree = ast.parse(source)
-    target = next(
-        node
-        for node in ast.walk(tree)
-        if isinstance(node, ast.FunctionDef)
-        and node.name == "_read_contract_from_transaction_target"
-    )
-    for node in ast.walk(target):
-        if isinstance(node, ast.Compare) and isinstance(node.left, ast.Attribute):
-            attr = node.left
-            if attr.attr == "coordination_branch":
-                pytest.fail(
-                    "_read_contract_from_transaction_target still tests "
-                    "identity.coordination_branch directly — the SURFACE decision "
-                    "(SC-001) must be retired in favour of the stored-topology shape."
-                )

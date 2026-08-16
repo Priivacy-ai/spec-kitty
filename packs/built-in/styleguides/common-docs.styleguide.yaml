@@ -7,7 +7,7 @@ applies_to_languages: []
 principles:
   - "Single root, 13 sections. All documentation lives under one Common Docs root with the 13-section structure: index, context, architecture, adr, plans, api, configuration, integrations, security, guides, operations, migrations, changelog. Each directory carries its own index.md. No second documentation root and no per-version shadow tree."
   - "Frontmatter is the per-page source of truth. In-file YAML frontmatter is the sole authority for per-page metadata. The page-inventory rollup is regenerated FROM frontmatter as a freshness-gated lockfile; it is never a parallel hand-maintained store."
-  - "Lifecycle key is doc_status, never status. The frontmatter lifecycle key is the namespaced doc_status with the controlled vocabulary draft | active | deprecated | superseded. The bare key status is prohibited in frontmatter because it collides with the work-package lane status model. The freshness date is carried by updated: YYYY-MM-DD."
+  - "Lifecycle key is doc_status, never status. The frontmatter lifecycle key is the namespaced doc_status with the controlled vocabulary draft | active | deprecated | superseded | durable. durable is the reserved, never-retire value for domain throughlines — re-verified on domain change rather than aged out or retired. The bare key status is prohibited in frontmatter because it collides with the work-package lane status model. The freshness date is carried by updated: YYYY-MM-DD."
   - "SEO description is bounded. Frontmatter carries a description string of 50-180 characters (inclusive) consumed by the SEO post-processing step; descriptions outside that band are rejected."
   - "Cross-references use related: resolvable paths. Cross-references are a related: frontmatter list of repo-relative .md paths that each resolve to an existing file. The dead citation_refs sidecar field is not reintroduced."
   - "Audience is named via a resolvable audience: path. Every documentation page touched by a change declares its target reader through an audience: frontmatter field — one resolvable repo-relative .md path (or a list of paths) targeting a persona under docs/context/audience/. This is the machine-checkable form of DIRECTIVE_047's audience-oriented-writing rule. The field is required on touched pages only and is deliberately NOT added to frontmatter_required_fields, so untouched legacy pages are never red-lined for lacking it (C-012)."
@@ -148,6 +148,7 @@ structural_lint_config:
     reference_policy: development/
     point_in_time: plans/engineering-notes/
     ops_runbook: operations/
+    generated_report: reports/
     generated_nav: pinned  # stays at its pinned path (e.g. 3-2-page-inventory.yaml, toc.yml); C-004
     doctrine_artifact: src/doctrine/
   # Dated-filename patterns identifying a point-in-time document
@@ -243,6 +244,7 @@ structural_lint_config:
     - migrations
     - changelog
     - development
+    - reports
   # Sanctioned NON-content directories under docs/ — nav/scaffolding zones that
   # are exempt from sanctioned-section membership (they hold assets/templates,
   # not curated documentation pages).

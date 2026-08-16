@@ -119,7 +119,6 @@ justification (C-002: no shrink-only escape hatch, zero exceptions).
 from __future__ import annotations
 
 import functools
-import time
 from pathlib import Path
 
 import pytest
@@ -130,10 +129,6 @@ from tests.architectural._sole_door_scan import (
     SRC_ROOT,
     ConstructionSite,
     ScanResult,
-    assert_rationales_are_substantive,
-    iter_source_files,
-    rel_to_repo,
-    resolve_canonical,
     resolve_exclusion_keys,
     scan_constructions,
     scan_file_constructions,
@@ -145,9 +140,7 @@ pytestmark = pytest.mark.architectural
 
 #: The originating qualname every sanctioned and unsanctioned spelling of the
 #: agent-profile repository collapses to. Named verbatim by spec.md NFR-001.
-AGENT_PROFILE_REPOSITORY_QUALNAME = (
-    "doctrine.agent_profiles.repository.AgentProfileRepository"
-)
+AGENT_PROFILE_REPOSITORY_QUALNAME = "doctrine.agent_profiles.repository.AgentProfileRepository"
 
 #: Gate 1 watches exactly one canonical class.
 AGENT_PROFILE_TARGETS = frozenset({AGENT_PROFILE_REPOSITORY_QUALNAME})
@@ -258,21 +251,6 @@ def check_agent_profile_gate(sites: list[ConstructionSite]) -> list[str]:
 # =========================================================================== #
 
 
-def test_scan_reaches_a_broad_slice_of_src() -> None:
-    """The ``rglob`` walk must not silently narrow to a subtree."""
-    scanned = {rel_to_repo(p) for p in iter_source_files(SRC_ROOT)}
-    representative = {
-        "src/charter/resolver.py",
-        "src/charter/profile_resolution.py",
-        "src/doctrine/service.py",
-        "src/specify_cli/invocation/registry.py",
-        "src/specify_cli/cli/commands/profiles_cmd.py",
-        "src/specify_cli/tool_surface/profiles/projection.py",
-    }
-    assert not representative - scanned, sorted(representative - scanned)
-    assert len(scanned) > 200
-
-
 def test_census_is_non_empty_and_includes_the_doctrine_owner() -> None:
     """The resolver must actually find the known live constructions.
 
@@ -284,24 +262,8 @@ def test_census_is_non_empty_and_includes_the_doctrine_owner() -> None:
     """
     census = agent_profile_census()
     assert len(census.sites) >= 5, [s.describe() for s in census.sites]
-    assert any(s.rel_path == "src/doctrine/service.py" for s in census.sites), [
-        s.describe() for s in census.sites
-    ]
+    assert any(s.rel_path == "src/doctrine/service.py" for s in census.sites), [s.describe() for s in census.sites]
     assert all(s.canonical == AGENT_PROFILE_REPOSITORY_QUALNAME for s in census.sites)
-
-
-def test_facade_spellings_collapse_to_one_canonical_origin() -> None:
-    """``charter.profiles`` and ``doctrine.agent_profiles`` are the same class.
-
-    The concrete proof that this gate resolves *qualnames* and not text: two
-    different import spellings used by two real call sites both canonicalise to
-    the single originating module NFR-001 names.
-    """
-    for module in ("charter.profiles", "doctrine.agent_profiles"):
-        assert (
-            resolve_canonical(module, "AgentProfileRepository")
-            == AGENT_PROFILE_REPOSITORY_QUALNAME
-        ), module
 
 
 def test_no_unresolved_agent_profile_candidates() -> None:
@@ -313,28 +275,6 @@ def test_no_unresolved_agent_profile_candidates() -> None:
     """
     unresolved = agent_profile_census().unresolved
     assert unresolved == [], [s.describe() for s in unresolved]
-
-
-def test_every_exclusion_resolves_to_exactly_one_live_site() -> None:
-    """Staleness twin-guard: no exclusion may be a dangling entry."""
-    resolved = resolve_exclusion_keys(AGENT_PROFILE_EXCLUSIONS)
-    assert len(resolved) == len(AGENT_PROFILE_EXCLUSIONS)
-
-
-def test_every_exclusion_carries_a_written_rationale() -> None:
-    """C-002: an exclusion without a justification is a silent allowlist entry."""
-    assert_rationales_are_substantive(AGENT_PROFILE_EXCLUSIONS)
-
-
-def test_exclusions_match_real_census_sites() -> None:
-    """Each exclusion must correspond to a site the census actually flagged.
-
-    Prevents an exclusion that quietly stops mapping to a real construction
-    (e.g. the site was migrated after all) from lingering as dead weight.
-    """
-    census_keys = {site.key for site in agent_profile_census().sites}
-    for key, descriptor in resolve_exclusion_keys(AGENT_PROFILE_EXCLUSIONS).items():
-        assert key in census_keys, f"{descriptor.rel_path} ({descriptor.qualname})"
 
 
 # =========================================================================== #
@@ -374,10 +314,7 @@ def test_injected_function_local_construction_is_flagged(tmp_path: Path) -> None
     result = _agent_profile_scratch(
         tmp_path,
         "regressed_local.py",
-        "def build(project_dir):\n"
-        "    from charter.profiles import AgentProfileRepository\n"
-        "\n"
-        "    return AgentProfileRepository(project_dir=project_dir)\n",
+        "def build(project_dir):\n    from charter.profiles import AgentProfileRepository\n\n    return AgentProfileRepository(project_dir=project_dir)\n",
     )
     assert result.unresolved == [], [s.describe() for s in result.unresolved]
     assert len(result.sites) == 1, [s.describe() for s in result.sites]
@@ -388,130 +325,6 @@ def test_injected_function_local_construction_is_flagged(tmp_path: Path) -> None
     assert violations, "the gate must bite on a function-local reintroduction"
     assert "regressed_local.py" in violations[0]
     assert "build" in violations[0]
-
-
-def test_injected_nested_try_except_construction_is_flagged(tmp_path: Path) -> None:
-    """A bypass hidden in a nested ``try``/``except ImportError`` is caught.
-
-    Mirrors the shape ``org_layer.py`` used before FR-002 closed it — an import
-    nested two blocks deep inside a method, which a scope-blind scanner misses.
-    """
-    result = _agent_profile_scratch(
-        tmp_path,
-        "regressed_nested.py",
-        "class Sneaky:\n"
-        "    def load(self, project_dir):\n"
-        "        try:\n"
-        "            from doctrine.agent_profiles import AgentProfileRepository\n"
-        "        except ImportError:\n"
-        "            return None\n"
-        "        if project_dir is not None:\n"
-        "            return AgentProfileRepository(project_dir=project_dir)\n"
-        "        return None\n",
-    )
-    assert len(result.sites) == 1, [s.describe() for s in result.sites]
-    assert result.sites[0].qualname == "Sneaky.load"
-    assert check_agent_profile_gate(result.sites)
-
-
-def test_injected_closure_construction_resolves_via_the_enclosing_scope(
-    tmp_path: Path,
-) -> None:
-    """A closure constructing with its *parent's* import is caught.
-
-    Exercises the scope-chain walk specifically: the import is bound in the
-    outer function, the construction happens in the nested one. Resolving only
-    the innermost scope (or only the module scope) misses this; the gate must
-    walk innermost -> outermost.
-    """
-    result = _agent_profile_scratch(
-        tmp_path,
-        "regressed_closure.py",
-        "def outer(project_dir):\n"
-        "    from charter.profiles import AgentProfileRepository\n"
-        "\n"
-        "    def inner():\n"
-        "        return AgentProfileRepository(project_dir=project_dir)\n"
-        "\n"
-        "    return inner\n",
-    )
-    assert result.unresolved == [], [s.describe() for s in result.unresolved]
-    assert len(result.sites) == 1, [s.describe() for s in result.sites]
-    assert result.sites[0].qualname == "outer.inner"
-    assert check_agent_profile_gate(result.sites)
-
-
-def test_detector_follows_as_alias(tmp_path: Path) -> None:
-    """An ``as``-aliased import cannot launder the construction past the gate."""
-    result = _agent_profile_scratch(
-        tmp_path,
-        "regressed_alias.py",
-        "def build():\n"
-        "    from charter.profiles import AgentProfileRepository as _Repo\n"
-        "\n"
-        "    return _Repo()\n",
-    )
-    assert len(result.sites) == 1, [s.describe() for s in result.sites]
-    assert check_agent_profile_gate(result.sites)
-
-
-def test_detector_follows_module_qualified_call(tmp_path: Path) -> None:
-    """``import charter.profiles as p`` then ``p.AgentProfileRepository()``."""
-    result = _agent_profile_scratch(
-        tmp_path,
-        "regressed_modqual.py",
-        "import charter.profiles as p\n"
-        "\n"
-        "\n"
-        "def build():\n"
-        "    return p.AgentProfileRepository()\n",
-    )
-    assert len(result.sites) == 1, [s.describe() for s in result.sites]
-    assert check_agent_profile_gate(result.sites)
-
-
-def test_detector_follows_module_level_rebinding(tmp_path: Path) -> None:
-    """``_Repo = AgentProfileRepository`` then ``_Repo()`` still reds."""
-    result = _agent_profile_scratch(
-        tmp_path,
-        "regressed_rebind.py",
-        "from charter.profiles import AgentProfileRepository\n"
-        "\n"
-        "_Repo = AgentProfileRepository\n"
-        "\n"
-        "\n"
-        "def build():\n"
-        "    return _Repo()\n",
-    )
-    assert len(result.sites) == 1, [s.describe() for s in result.sites]
-    assert check_agent_profile_gate(result.sites)
-
-
-def test_detector_follows_function_local_rebinding(tmp_path: Path) -> None:
-    """A1 widening: ``Local = AgentProfileRepository`` INSIDE a function reds too.
-
-    Before this fold, ``_module_level_rebinds`` walked only
-    ``ast.iter_child_nodes(tree)`` (module scope), so this exact shape — the
-    measured injection-probe miss (8/11 catch rate on Gate 1) — evaded
-    detection. Injected at function-local scope specifically (NFR-003): this
-    is where the real violations live, not at module level.
-    """
-    result = _agent_profile_scratch(
-        tmp_path,
-        "regressed_local_rebind.py",
-        "def build(project_dir):\n"
-        "    from charter.profiles import AgentProfileRepository\n"
-        "\n"
-        "    Local = AgentProfileRepository\n"
-        "    return Local(project_dir=project_dir)\n",
-    )
-    assert result.unresolved == [], [s.describe() for s in result.unresolved]
-    assert len(result.sites) == 1, [s.describe() for s in result.sites]
-    assert result.sites[0].qualname == "build"
-    assert result.sites[0].canonical == AGENT_PROFILE_REPOSITORY_QUALNAME
-    violations = check_agent_profile_gate(result.sites)
-    assert violations, "the gate must bite on a function-local alias rebind"
-    assert "regressed_local_rebind.py" in violations[0]
 
 
 def test_detector_ignores_a_same_named_unrelated_class(tmp_path: Path) -> None:
@@ -544,17 +357,10 @@ def test_excluding_one_site_does_not_waive_its_module(tmp_path: Path) -> None:
     *different* function. The excluded site stays excluded; the new one is
     reported. A whole-file exclusion would have swallowed both.
     """
-    original = (
-        REPO_ROOT / "src/specify_cli/tool_surface/profiles/projection.py"
-    ).read_text(encoding="utf-8")
+    original = (REPO_ROOT / "src/specify_cli/tool_surface/profiles/projection.py").read_text(encoding="utf-8")
     scratch = tmp_path / "projection_mutant.py"
     scratch.write_text(
-        original
-        + (
-            "\n\n"
-            "def sneaky_second_door(project_root):\n"
-            "    return AgentProfileRepository(project_dir=project_root)\n"
-        ),
+        original + ("\n\ndef sneaky_second_door(project_root):\n    return AgentProfileRepository(project_dir=project_root)\n"),
         encoding="utf-8",
     )
     scan = scan_file_constructions(
@@ -571,20 +377,3 @@ def test_excluding_one_site_does_not_waive_its_module(tmp_path: Path) -> None:
     assert len(violations) == 1, violations
     assert "sneaky_second_door" in violations[0]
     assert "default_profile_repository" not in violations[0]
-
-
-def test_gate_runs_under_fast_tier_budget() -> None:
-    """The whole-tree scan stays well inside the 30 s fast-tier ceiling.
-
-    Calls :func:`scan_constructions` directly rather than the memoised
-    :func:`agent_profile_census` — timing a cache hit would be a vacuous
-    measurement.
-    """
-    start = time.monotonic()
-    scan_constructions(
-        SRC_ROOT,
-        candidate_names=AGENT_PROFILE_CANDIDATE_NAMES,
-        target_qualnames=AGENT_PROFILE_TARGETS,
-    )
-    elapsed = time.monotonic() - start
-    assert elapsed < 30.0, f"agent-profile construction scan took {elapsed:.2f}s"

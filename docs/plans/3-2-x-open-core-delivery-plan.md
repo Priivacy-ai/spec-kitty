@@ -8,10 +8,14 @@ related:
 - docs/plans/3-2-x-milestone-roadmap.md
 - docs/changelog/3.2.x.md
 - docs/development/how-to/manage-issue-tracker.md
+- docs/plans/domains/doctrine-charter-domain-plan.md
+- docs/plans/domains/saas-hosted-sync-domain-plan.md
 - docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
 ---
 
 # 3.2.x Open-Core Delivery Plan
+
+> **Related domain plans (durable throughlines):** this plan is the release-scoped, PO-facing view. Its "SaaS" scope is the open-core doctrine/charter split (see the [Doctrine & Charter — Domain Plan](domains/doctrine-charter-domain-plan.md)); the hosted product surface and its P0 cluster live in the [SaaS & Hosted Sync — Domain Plan](domains/saas-hosted-sync-domain-plan.md), which this plan's remaining-work table does not cover.
 
 *Synthesis for the product owner, 2026-07-30. Supersedes the "G2 is the blocking
 spine / G1 is off-spine" framing of the [milestone roadmap](3-2-x-milestone-roadmap.md)

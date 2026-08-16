@@ -137,10 +137,10 @@ def _reduce_coord_lanes(repo: Path, feature_dir: Path) -> tuple[Lane, Lane]:
     reduction of the coordination worktree's rolled-back WORKING-tree event log.
     Both legs are git-reducible — no marker/doctor surface is consulted.
     """
-    committed_lane, _ = wp_lane_actor_from_events(
+    committed_lane = wp_lane_actor_from_events(
         _committed_coord_events(repo, feature_dir), WP_ID
-    )
-    working_lane, _ = wp_lane_actor_from_events(_working_coord_events(repo), WP_ID)
+    ).lane
+    working_lane = wp_lane_actor_from_events(_working_coord_events(repo), WP_ID).lane
     return committed_lane, working_lane
 
 

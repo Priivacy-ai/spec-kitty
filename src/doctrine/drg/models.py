@@ -152,6 +152,8 @@ class Relation(StrEnum):
 #: check (``docs/architecture/doctrine-relationships.md``) read from -- do
 #: not duplicate this mapping anywhere else.
 RELATION_DESCRIPTIONS: dict[Relation, str] = {
+    # re-pinned 2026-08-12: +2 requires / +5 suggests from the #3009 curated
+    # edges (#3342) -- measured against the shipped built-in graph.
     Relation.REQUIRES: (
         "A directional, hard-dependency edge: resolving or activating the "
         "source artifact pulls in the target as a mandatory prerequisite. "
@@ -159,7 +161,7 @@ RELATION_DESCRIPTIONS: dict[Relation, str] = {
         "with no depth limit, from an action's ``scope``-resolved artifacts; "
         "``charter activate --cascade`` follows the same edge to pull in "
         "artifacts that must also be active. It is the second-most-emitted "
-        "relation in the built-in graph (321 edges) and is the mandatory "
+        "relation in the built-in graph (323 edges) and is the mandatory "
         "counterpart to ``suggests``, not a stronger synonym for it."
     ),
     Relation.SUGGESTS: (
@@ -169,7 +171,7 @@ RELATION_DESCRIPTIONS: dict[Relation, str] = {
         "unlike the unbounded transitive walk used for ``requires`` -- and "
         "the charter cascade treats a ``suggests`` target as optional, "
         "something an operator may accept or skip. It is the most-emitted "
-        "relation in the built-in graph (445 edges); the boundedness of the "
+        "relation in the built-in graph (450 edges); the boundedness of the "
         "walk, not the edge count, is what distinguishes it from ``requires``."
     ),
     Relation.APPLIES: (

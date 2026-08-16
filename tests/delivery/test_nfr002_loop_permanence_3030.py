@@ -31,6 +31,7 @@ spin, which is exactly the shape of the tempting cheap fix the SC-002 pin warns
 about: "loop a few more times and it'll pick them up". Mutant
 ``mutG_loop_retries_on_empty`` does precisely that and this file reds under it.
 """
+
 from __future__ import annotations
 
 import json
@@ -43,15 +44,17 @@ import pytest
 
 from specify_cli.cli.commands import sync as sync_module
 from specify_cli.delivery import dispatcher as dispatcher_module
-from specify_cli.delivery.ledger import SqliteDeliveryLedger
 from specify_cli.delivery.receivers import (
     DeliveryOutcome,
     DeliveryResult,
     OutboundEvent,
 )
-from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
+from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
+from specify_cli.sync.consent import record_project_opt_in, record_project_opt_out
+from specify_cli.sync.layout_generation import LayoutMode
+from specify_cli.sync.project_store import ProjectSyncStore
 
 if TYPE_CHECKING:
     from specify_cli.delivery.interfaces import DeliveryTarget
@@ -88,12 +91,7 @@ class _RecordingIngress:
     def deliver(self, batch: Sequence[OutboundEvent]) -> list[DeliveryResult]:
         events = list(batch)
         self.batches.append(tuple(event.event_id for event in events))
-        return [
-            DeliveryResult(
-                event_id=event.event_id, outcome=DeliveryOutcome.SUCCESS, http_status=200
-            )
-            for event in events
-        ]
+        return [DeliveryResult(event_id=event.event_id, outcome=DeliveryOutcome.SUCCESS, http_status=200) for event in events]
 
 
 @pytest.fixture(autouse=True)
@@ -101,10 +99,28 @@ def _consent_records(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home = tmp_path / "home"
     home.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
-    from specify_cli.sync.consent import set_project_consent
-
-    set_project_consent(CONSENTED, True)
+    # The WP06 transport lease binds egress eligibility only while the machine
+    # kill switch is armed (arming is NOT consent — #3030; the per-project
+    # consent rows below still decide what ships).
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    for project_uuid in (CONSENTED, NEVER_OPTED_IN):
+        store = ProjectSyncStore(project_uuid)
+        authority = store.layout_generation()
+        if authority.read_state().mode is LayoutMode.LEGACY:
+            authority.begin_cutover("nfr002-test")
+            authority.publish_project_only("nfr002-test", verify_exact=lambda: True)
+    record_project_opt_in(CONSENTED, actor="nfr002-test")
+    record_project_opt_out(NEVER_OPTED_IN, actor="nfr002-test")
+    store = ProjectSyncStore(CONSENTED)
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO project_target_admissions "
+            "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, binding_audience) "
+            "VALUES (?, 'https://hosted.example.com', 'operator@example.com', 'team', 1, "
+            "'admitted', '1', 'private-teamspace:team')",
+            (CONSENTED,),
+        )
 
 
 def _event(event_id: str, uuid: str, *, ordinal: int) -> Event:
@@ -120,21 +136,19 @@ def _event(event_id: str, uuid: str, *, ordinal: int) -> Event:
 
 
 @pytest.fixture
-def ledger() -> SqliteDeliveryLedger:
-    led = SqliteDeliveryLedger(":memory:")
-    yield led
-    led.close()
-
-
-@pytest.fixture
 def target() -> DeliveryTarget:
-    registry = SqliteDeliveryTargetRegistry(":memory:")
-    yield registry.register(
-        url="https://hosted.example.com",
-        team_slug="team",
-        user_email="operator@example.com",
-    )
-    registry.close()
+    store = ProjectSyncStore(CONSENTED)
+    with store.unit_of_work() as unit:
+        current = ProjectDeliveryTargetRegistry(store).get_current(unit)
+    assert current is not None
+    return current
+
+
+def _append_many(store: ProjectSyncStore, events: list[Event]) -> None:
+    with store.unit_of_work() as unit:
+        journal = EventJournal(unit, store.layout_generation())
+        for event in events:
+            journal.append(event)
 
 
 @pytest.fixture
@@ -167,7 +181,6 @@ def counted_dispatch(monkeypatch: pytest.MonkeyPatch) -> list[int | None]:
 
 def test_an_empty_selection_ends_the_pass_after_one_dispatch(
     tmp_path: Path,
-    ledger: SqliteDeliveryLedger,
     target: DeliveryTarget,
     counted_dispatch: list[int | None],
 ) -> None:
@@ -180,12 +193,16 @@ def test_an_empty_selection_ends_the_pass_after_one_dispatch(
     permanent rather than a delay: within a pass nothing looks again, and the next
     `sync now` re-reads the same store to the same answer.
     """
-    journal = EventJournal(tmp_path / "journal.db")
-    for index in range(12):
-        journal.append(_event(f"evt-denied-{index}", NEVER_OPTED_IN, ordinal=index))
+    del tmp_path
+    store = ProjectSyncStore(CONSENTED)
+    denied_store = ProjectSyncStore(NEVER_OPTED_IN)
+    _append_many(
+        denied_store,
+        [_event(f"evt-denied-{index}", NEVER_OPTED_IN, ordinal=index) for index in range(12)],
+    )
 
     ingress = _RecordingIngress()
-    runtime = SimpleNamespace(journal=journal, ledger=ledger)
+    runtime = SimpleNamespace(store=store, context=store.create_context())
 
     summary = sync_module._run_dispatch_batches(runtime, ingress, target)
 
@@ -202,12 +219,12 @@ def test_an_empty_selection_ends_the_pass_after_one_dispatch(
     assert summary.selected == 0
     assert summary.delivered == 0
     assert ingress.batches == [], "no POST may be issued for an empty selection"
-    assert journal.count() == 12, "C-002: filtering is not deletion"
+    with denied_store.unit_of_work() as unit:
+        assert EventJournal(unit, denied_store.layout_generation()).count() == 12, "C-002: filtering is not deletion"
 
 
 def test_the_first_pass_is_the_only_chance_a_consented_backlog_gets(
     tmp_path: Path,
-    ledger: SqliteDeliveryLedger,
     target: DeliveryTarget,
     counted_dispatch: list[int | None],
     monkeypatch: pytest.MonkeyPatch,
@@ -225,17 +242,23 @@ def test_the_first_pass_is_the_only_chance_a_consented_backlog_gets(
     first load-bearing — if repetition could rescue a starved window, delivering on
     the first pass would be an optimisation rather than the whole requirement.
     """
-    journal = EventJournal(tmp_path / "journal.db")
-    for index in range(8):
-        journal.append(_event(f"evt-denied-{index}", NEVER_OPTED_IN, ordinal=index))
+    del tmp_path
+    store = ProjectSyncStore(CONSENTED)
+    denied_store = ProjectSyncStore(NEVER_OPTED_IN)
+    _append_many(
+        denied_store,
+        [_event(f"evt-denied-{index}", NEVER_OPTED_IN, ordinal=index) for index in range(8)],
+    )
     consented_ids = [f"evt-ok-{index}" for index in range(4)]
-    for index, event_id in enumerate(consented_ids):
-        journal.append(_event(event_id, CONSENTED, ordinal=8 + index))
+    _append_many(
+        store,
+        [_event(event_id, CONSENTED, ordinal=8 + index) for index, event_id in enumerate(consented_ids)],
+    )
 
     # The window is exactly the deliverable population, so a window occupied by
     # non-consented rows is a detectable under-fill rather than a rounding error.
     monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", len(consented_ids))
-    runtime = SimpleNamespace(journal=journal, ledger=ledger)
+    runtime = SimpleNamespace(store=store, context=store.create_context())
 
     first_ingress = _RecordingIngress()
     first = sync_module._run_dispatch_batches(runtime, first_ingress, target)
@@ -245,9 +268,7 @@ def test_the_first_pass_is_the_only_chance_a_consented_backlog_gets(
         "yields an empty selection, the loop breaks on it, and these four never ship "
         f"(NFR-002). delivered={first.delivered}"
     )
-    assert set(consented_ids) == {
-        event_id for batch in first_ingress.batches for event_id in batch
-    }
+    assert set(consented_ids) == {event_id for batch in first_ingress.batches for event_id in batch}
 
     second_ingress = _RecordingIngress()
     second = sync_module._run_dispatch_batches(runtime, second_ingress, target)
@@ -257,4 +278,6 @@ def test_the_first_pass_is_the_only_chance_a_consented_backlog_gets(
         "remedy for a window the predicate mis-filled, which is why starvation is "
         "permanent rather than delayed"
     )
-    assert journal.count() == 12
+    with store.unit_of_work() as unit, denied_store.unit_of_work() as denied_unit:
+        assert EventJournal(unit, store.layout_generation()).count() == 4
+        assert EventJournal(denied_unit, denied_store.layout_generation()).count() == 8

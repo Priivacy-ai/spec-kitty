@@ -758,7 +758,6 @@ _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset(
         SymbolKey("LEDGER_INDEX_NAME", "00ff2374543242c1a9bb343f02ce2a4119d806a11f317a6b569f631332aeebca"),  # specify_cli.delivery.ledger::LEDGER_INDEX_NAME
         SymbolKey("LedgerRow", "8120a15f278fab95a5e1eda3af4bc646b746555a8f4ac31e9bcf44559b0da3e3"),  # specify_cli.delivery.ledger::LedgerRow
         SymbolKey("TERMINAL_STATUSES", "39cfb0bb7ccf29fe7683659c8e5648022bc1fa98b30069fdee81822c103fe7bd"),  # specify_cli.delivery.ledger::TERMINAL_STATUSES
-        SymbolKey("init_ledger", "95d75b9f2c0c5692072a02c2145128f9fe47e82e9a47120235d5c77bfae3f4ec"),  # specify_cli.delivery.ledger::init_ledger
         SymbolKey("BATCH_ENDPOINT_PATH", "ca95ace141f4fdf0e9b45beded0c05ad7eacbf89e4d6d3db6035fd7d17fcc644"),  # specify_cli.delivery.receivers::BATCH_ENDPOINT_PATH
         # BATCH_TIMEOUT_SECONDS left the allowlist: sync.history_import.upload now
         # imports it (reusing the canonical delivery timeout, #2884).
@@ -793,15 +792,10 @@ _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset(
         SymbolKey("TERMINAL_FAILURES_KEY", "59fcb2d13859d17054c2b2ec3102d40e6e06a507128e071bca2079e3fa8a9640"),
         # specify_cli.delivery.status_report::evaluate_gc_suggestion
         SymbolKey("evaluate_gc_suggestion", "ec86dd1fd2dac37f7f480eb7e3d7b6f5454ba1b5231f574c5d3232894751e64a"),
-        # specify_cli.event_journal.coalesce::CoalescingStrategy
-        SymbolKey("CoalescingStrategy", "04e781848fa8cfb8dd5dbf2b31dac5d5a1a519a59861d405dde3d9c9dd03dbd4"),
         # specify_cli.event_journal.coalesce::DeliveredAnywhereQuery
         SymbolKey("DeliveredAnywhereQuery", "006197fe8e8930ae3340613069f631fd0478c9aed0b95416e3c951db65c9c70b"),
-        SymbolKey("SUPERSEDED_TABLE", "0692924492f1bdbd44f223bb9f42c90fc80d9f5f5aa324dc6b291d597565d346"),  # specify_cli.event_journal.coalesce::SUPERSEDED_TABLE
         SymbolKey("SupersedeMarker", "28103221c51dc7ad13004841818581069756ef63456a93fd398760b0e9934968"),  # specify_cli.event_journal.coalesce::SupersedeMarker
         SymbolKey("install", "49e1cbe2531458103c6492184d179bc70a1707789487b439a4815b4e21ec58ef"),  # specify_cli.event_journal.coalesce::install
-        # specify_cli.event_journal.coalesce::read_supersede_markers
-        SymbolKey("read_supersede_markers", "5aef05a234dd7a63b420970cc73a1d2cdf3b2b2acf8aa65add08722b4a5d2905"),
         SymbolKey("JOURNAL_SUBDIR", "43ec497396ce60afcd8ef2916a2646172c1c3775c05813cb212642144d8e1d62"),  # specify_cli.event_journal.journal::JOURNAL_SUBDIR
         # specify_cli.event_journal.models::ORDERED_COLUMNS — re-keyed AGAIN for
         # #3030, which appended repo_slug after the T012 re-key below had already
@@ -823,8 +817,11 @@ _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset(
         SymbolKey("SourceDb", "359bad378deef3920559bea9d89645c9a7aa2d84ff0c14ae315047fb9e5a3e22"),  # specify_cli.sync.migrate_journal::SourceDb
         SymbolKey("SourceOutcome", "e5222067e3eba9771531b0a8364d898136c13fbfa5757cbd3b40a50cf8ce30a2"),  # specify_cli.sync.migrate_journal::SourceOutcome
         SymbolKey("UNKNOWN_PREFIX", "8f1aac4b29244ee6faa6b237b3fdbe471d1ea66cdd9afd0370727053535c2791"),  # specify_cli.sync.migrate_journal::UNKNOWN_PREFIX
-        # specify_cli.sync.migrate_journal::discover_source_dbs
-        SymbolKey("discover_source_dbs", "b62fbc49144c13965d68cc210612005523d6b3fdf2cb224737ab11bfb035197d"),
+        # discover_source_dbs REMOVED (#3497 landing): now has a real external
+        # caller -- layout_generation.py's has_legacy_data()/_conservation_ok()
+        # import and call it directly (the "real reader", not a retired stub) --
+        # so the allowlist grant is stale and must be removed (reverse
+        # containment: a symbol with a caller cannot stay allowlisted).
         # specify_cli.sync.migrate_journal::migration_target_token
         SymbolKey("migration_target_token", "bce7a50af7aefac52a1f1b1319dba5f0ba128f8d67ac449c16e9cf1986cbf6a0"),
     }
@@ -842,6 +839,36 @@ _CATEGORY_C_SYNC_RESET_RESULT_ENTRIES: frozenset[SymbolKey] = frozenset(
         SymbolKey("FailedEntry", "0e1aa316dd07e92dedc924494897d393b9e8410bb718b8884698933da58900e9"),  # specify_cli.sync.orphan_sweep::FailedEntry
         SymbolKey("SkippedEntry", "d55962bfd4eb368c36e7204231f5dd79c7c677768ca27db70fc0c0d21950547f"),  # specify_cli.sync.orphan_sweep::SkippedEntry
         SymbolKey("SweptEntry", "e74ae7b75e826cf7e213e08728c1ef15d7ba42dad631136512d9ed2527f1304f"),  # specify_cli.sync.orphan_sweep::SweptEntry
+    }
+)
+
+
+# ---------- C. legacy->journal capture cutover mission (#3425/#3497) ----------
+# ``layout_generation.py``'s machine layout-generation authority (WP01/WP03)
+# introduces this small public error/config surface for a genuinely-
+# unrecoverable resolution: ``NO_AUTO_CUTOVER_ENV`` names the operator
+# escape-hatch env var read internally by ``_auto_cutover_disabled()`` and
+# echoed into the refusal message; ``LayoutAutoCutoverRefusedError`` and
+# ``LayoutCutoverIncompleteError`` are raised by ``resolve_layout_for_write``.
+# Both errors propagate to ``emitter.py``'s ``_route_event`` catch-all
+# (deliberately generic per the "never silently swallow" contract -- see the
+# comment at ``emitter.py:_queue_event_locally``) rather than being caught by
+# name anywhere else in src/, so no other src/ file imports these symbols by
+# name. All three are exercised directly by
+# ``tests/sync/test_layout_cutover.py`` (T014 escape-hatch /
+# ``pytest.raises(LayoutAutoCutoverRefusedError)`` /
+# ``pytest.raises(LayoutCutoverIncompleteError)``) and
+# ``tests/sync/test_emitter_observability.py`` (Part B resolve-before-UoW).
+# Follow-up tracker: #3497.
+
+_CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE: frozenset[SymbolKey] = frozenset(
+    {
+        # specify_cli.sync.layout_generation::NO_AUTO_CUTOVER_ENV
+        SymbolKey("NO_AUTO_CUTOVER_ENV", "42000b4d43af2be0fe49519580844ae591d5d1757bdd182da765aad0e1098434"),
+        # specify_cli.sync.layout_generation::LayoutAutoCutoverRefusedError
+        SymbolKey("LayoutAutoCutoverRefusedError", "4e1aab01c345a9525ac411f202313dfdaa3f3f83711f0d87912e26ce7f235249"),
+        # specify_cli.sync.layout_generation::LayoutCutoverIncompleteError
+        SymbolKey("LayoutCutoverIncompleteError", "b8ea000a40231fd78125c048552b171d12b7ef0d94ddfbcd1954beac76f20505"),
     }
 )
 
@@ -1273,6 +1300,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057
     | _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY
     | _CATEGORY_C_SYNC_RESET_RESULT_ENTRIES
+    | _CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE
     | _CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE
     | _CATEGORY_C_MISSION_TYPE_DRG_EDGES_FACADE_REEXPORT
     | _CATEGORY_C_URN_RESOLUTION_LANE

@@ -28,6 +28,11 @@
       "last_transition_at": "2026-08-04T14:55:45.807595+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260804",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "subtasks": {
         "T001": "done",
@@ -47,6 +52,11 @@
       "last_transition_at": "2026-08-04T17:39:33.020863+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260804",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "subtasks": {
         "T005": "done",
@@ -69,6 +79,11 @@
       "last_transition_at": "2026-08-04T22:04:20.442107+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20260804",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "subtasks": {
         "T012": "done",
@@ -89,6 +104,11 @@
       "last_transition_at": "2026-08-04T22:54:23.699708+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20260804",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "subtasks": {
         "T017": "done",

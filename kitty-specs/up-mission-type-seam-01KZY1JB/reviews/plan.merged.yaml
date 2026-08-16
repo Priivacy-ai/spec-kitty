@@ -1,0 +1,279 @@
+# review-findings/v1 — merged (R2), mechanical dedup only. Orchestrator-authored, no subagent.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: merged
+mission: up-mission-type-seam-01KZY1JB
+source_files:
+  - reviews/plan-gov.findings.yaml
+  - reviews/plan-arch.findings.yaml
+  - reviews/plan-verify.findings.yaml
+dedup_notes: >
+  PLAN-GOV-001 (gov, severity 4) and PLAN-VERIFY-003 (verify, severity 3) make substantially
+  the same claim against the same artifact section (plan.md § Summary, paragraph 1) and the
+  same code citation (src/charter/mission_type_profiles.py:793-799/807): both assert the
+  Summary's "mission is None today ... falls through to line 807" story is internally
+  contradictory / factually wrong about live code, since line 795's `if mission is None: raise
+  UnknownMissionTypeError` makes line 807 unreachable in that case. Kept under the original
+  PLAN-GOV-001 id (higher severity, 4), evidence unioned from both, original PLAN-VERIFY-003
+  retained below for audit-trail completeness with a cross-reference. No other findings
+  overlapped. Ids not renumbered.
+findings:
+  - id: PLAN-GOV-001
+    lens: "directive (ATDD / red-first discipline, C-011); cross-confirmed independently by verify/PLAN-VERIFY-003"
+    severity: 4
+    title: "Plan's Summary misdescribes the mission's own \"dominant risk\" mechanism, contradicting the exact code it cites"
+    evidence:
+      - artifact: "plan.md § Summary, paragraph 1"
+      - code: "src/charter/mission_type_profiles.py:788-799 (guard + raise)"
+      - code: "src/charter/mission_type_profiles.py:807 (return list(mission.action_sequence or []) — only reachable when mission is not None)"
+      - cross_reference: "Independently raised by the verify lens as PLAN-VERIFY-003, same artifact section and code citations; see that entry below for the second, independently-worded derivation."
+    claim: >
+      The plan's Summary states that today, for "a genuinely-registered-but-unprojected type,"
+      _resolve_action_slot's `if not is_registered: return []` guard (line 788-789) "never even
+      fires," and instead "the type falls through to `list(mission.action_sequence or [])` at
+      line 807, and `mission` is `None` today because `MissionTypeRepository.default()` never
+      contains it." This is false as a description of the live code the plan itself cites: lines
+      793-799 read `mission = repo.get(mission_type); if mission is None: raise
+      UnknownMissionTypeError(...)`. When `mission is None`, execution raises at line 799 — it
+      never reaches line 807, and could not (attribute access on `None` would raise
+      AttributeError even if the raise weren't there first). Today, an activated-but-not-built-in
+      mission type hard-fails loudly via UnknownMissionTypeError; it does not silently degrade to
+      `[]`. The real CL-003 risk (which the plan's own IC-05 section states correctly, consistent
+      with spec.md) is prospective: once IC-01/IC-02 land, `mission` will no longer be `None` for
+      such a type (the new layered lookup will find it), and the risk becomes
+      `mission.action_sequence` itself being `None`/empty for a type with no declared steps — a
+      state that cannot occur under today's code, only after this mission's own change is
+      partially applied. The Summary conflates today's actual failure mode (loud raise) with a
+      state this mission would newly introduce if it shipped IC-01/IC-02 without IC-05
+      atomically. This sits in the plan's own foundational framing of why the mission exists,
+      exactly the "contradicts existing code" case the severity rubric names at level 4. It also
+      risks the tasks phase writing NFR-005's red-first test against the wrong pre-fix state
+      (expecting today's unmodified code to silently return `[]`, when it would instead raise
+      `UnknownMissionTypeError` today, before IC-01/IC-02 exist).
+    remediation: >
+      Rewrite the Summary's second paragraph to state the risk prospectively and correctly: today,
+      an activated non-built-in type hard-fails via UnknownMissionTypeError (mission is None,
+      raised at mission_type_profiles.py:799) — that is the current, correct, loud behavior. The
+      actual CL-003 risk is that once IC-01/IC-02's layered lookup makes `mission` resolvable for
+      such a type, `_resolve_action_slot`'s final `return list(mission.action_sequence or [])`
+      (line 807) would newly silently degrade to `[]` for a type whose YAML omits
+      `action_sequence` — which is exactly why CL-003/NFR-005 requires IC-05's loud-fail to land
+      atomically with IC-01/IC-02, not why today's code is already silently broken. Align this
+      paragraph with IC-05's own (correct) framing so a reader does not carry two contradictory
+      mental models of the same defect through the document, and so the red-first test (NFR-005)
+      is written against the right target state (post-IC-01/IC-02, pre-IC-05), not against a
+      "mission is None" scenario that cannot produce a silent `[]`.
+
+  - id: PLAN-ARCH-001
+    lens: "Layer-rule compliance of the new lookup's import graph (primary lens)"
+    severity: 3
+    title: >-
+      Plan mischaracterizes _resolve_action_slot as "hardcoding pack_context=None" —
+      it has no pack_context parameter at all, so the stated fix mechanism is wrong
+      for one of the seam's two twin functions
+    evidence:
+      - artifact: "plan.md § Summary (line 17-18: '...both hardcode pack_context=None.')"
+      - artifact: "plan.md § IC-02 (Purpose: '...instead of their current hardcoded pack_context=None.')"
+      - code: "src/charter/mission_type_profiles.py:762-767 (def _resolve_action_slot(mission_type: str, *, registered: list[str], is_registered: bool) -> list[str]: — no pack_context parameter exists anywhere in the signature or body)"
+      - code: "src/charter/mission_type_profiles.py:793 (repo = MissionTypeRepository.default() — a zero-argument classmethod call; there is no argument to override)"
+      - code: "src/charter/mission_type_profiles.py:876-878 (_resolve_template_set_slot's call site — .resolve_all_for_mission_type(mission_type, pack_context=None) — this IS a genuine hardcoded pack_context=None argument)"
+    claim: >-
+      The plan's Summary and IC-02 both state that "_resolve_action_slot /
+      _resolve_template_set_slot ... both hardcode pack_context=None," and IC-02's
+      stated remedy is to "hand [PackContext] to _resolve_action_slot ... instead
+      of their current hardcoded pack_context=None." Live re-verification shows
+      this is only true for _resolve_template_set_slot. _resolve_action_slot takes
+      no pack_context argument whatsoever — its builtin-only-ness comes entirely
+      from calling MissionTypeRepository.default() (a zero-arg classmethod bound to
+      the built-in-only cache), not from a hardcoded default value on a parameter
+      that exists. IC-02's own "Affected surfaces" bullet does separately state the
+      correct fix ("call IC-01's new factory instead of MissionTypeRepository.default()"),
+      but the "hardcoded pack_context=None" framing sitting right next to it, repeated
+      in the Summary, could lead an implementer to look for a parameter to flip on
+      _resolve_action_slot rather than recognizing they must swap which repository/
+      factory object is called entirely — a structurally larger edit than adding an
+      argument. This is the mission's dominant-risk code path (CL-003), so an
+      imprecise premise here carries above-average rework cost.
+    remediation: >-
+      In plan.md's Summary and IC-02, replace "both hardcode pack_context=None"
+      with an accurate, per-function statement: _resolve_template_set_slot hardcodes
+      pack_context=None in its call to MissionStepRepository.resolve_all_for_mission_type;
+      _resolve_action_slot has no pack_context parameter at all and must be changed to
+      call IC-01's new layered factory (or a new MissionTypeRepository classmethod)
+      in place of MissionTypeRepository.default(), which is a repository-swap, not an
+      argument-threading change. State both mechanisms explicitly so the tasks phase
+      does not treat them as the same edit shape.
+
+  - id: PLAN-ARCH-002
+    lens: "Contracts (charter.missions facade-table entry verification)"
+    severity: 3
+    title: >-
+      "The Seam" section asserts as verified fact that a new charter.missions
+      facade-table entry IS needed, but this depends on a design choice IC-01
+      explicitly leaves open — and the sibling module's own precedent suggests
+      it may not be needed at all
+    evidence:
+      - artifact: "plan.md § The Seam, 'Facade re-export decision (verified, not assumed)' ('this mission DOES need a new charter.missions facade-table entry naming the new factory symbol')"
+      - artifact: "plan.md § IC-01, Risks ('The factory's exact per-call signature ... is a tasks-phase implementation choice this plan deliberately leaves open ... both shapes satisfy FR-001's stated cache-key contract')"
+      - code: "src/charter/missions.py:24-42 (MissionTypeRepository is already re-exported by identity)"
+      - code: "src/doctrine/missions/mission_step_repository.py:63-66 (__all__ = [\"StepKey\", \"MissionStepRepository\"] — the sibling module's own module-level cache function _resolve_all_for_mission_type_cached is NOT exported)"
+      - code: "src/doctrine/missions/mission_step_repository.py:446-470 (_resolve_all_for_mission_type_cached is private; external callers reach it only via the already-public MissionStepRepository.resolve_all_for_mission_type instance method)"
+    claim: >-
+      "The Seam" section treats "a new facade-table entry is required" as a settled,
+      verified conclusion (numbered steps 1-3 follow immediately, including editing
+      the architectural test file's _FACADE_TABLE). But IC-01's own Risks bullet says
+      the factory's shape — a bare module-level function callers reach directly, vs.
+      MissionTypeRepository gaining a new classmethod (mirroring default()'s existing
+      shape) that wraps the module-level cache internally — is not yet decided. The
+      sibling module (mission_step_repository.py) already answers this question for
+      its own analogous cache: the module-level @functools.cache function is kept
+      private (absent from __all__), and every external caller reaches it only through
+      the already-exported MissionStepRepository class's instance method. If this
+      mission's new factory follows that same established convention (e.g. a new
+      MissionTypeRepository.layered(...) classmethod wrapping a private module-level
+      cache), no new facade-table entry is needed at all, since MissionTypeRepository
+      itself is already in _FACADE_TABLE["charter.missions"] by identity. The plan's
+      "verified, not assumed" framing overclaims certainty on a question it separately,
+      correctly, defers to the tasks phase.
+    remediation: >-
+      Either (a) resolve IC-01's open design question in this plan before asserting the
+      facade conclusion — pick the classmethod-on-MissionTypeRepository shape (matching
+      the sibling convention and requiring zero facade-table churn) or the bare-function
+      shape (requiring the facade-table edit as currently described) — or (b) soften "The
+      Seam" section's language to state the facade-table-entry need is conditional on
+      IC-01's still-open per-call-signature decision, not a verified fact, so a reviewer
+      does not sign off on redundant work (adding + testing a facade row that IC-01's own
+      chosen shape may later make unnecessary).
+
+  - id: PLAN-ARCH-003
+    lens: "Canonical source / reflexivity (project-layer collision risk, IC-04)"
+    severity: 2
+    title: >-
+      IC-04's stated risk narrative overstates how much protection the CL-004a
+      deletion actually buys against the `.kittify/missions/mission_types/`
+      collision it describes
+    evidence:
+      - artifact: "plan.md § IC-04, Risks ('this mission's own CL-004a deletion (IC-06) removes the one live consumer that could have collided here ... Because IC-06 deletes that scanner's only caller in the same PR, this collision risk is eliminated by the mission's own scope')"
+      - code: "src/specify_cli/mission.py:78 (_mission_dir_if_valid: `return path if path.is_dir() and (path / \"mission.yaml\").exists() else None`)"
+    claim: >-
+      IC-04 frames the CL-004a/IC-06 deletion of discover_missions/list_cmd as what
+      "eliminates" the risk that `.kittify/missions/mission_types/` could be
+      misinterpreted as a mission instance named `mission_types`. Live re-check of
+      `_mission_dir_if_valid` shows the actual guard is independent of that deletion:
+      a candidate directory is only accepted as a mission instance if it contains a
+      file literally named `mission.yaml`. The new roster directory contains flat
+      `*.yaml` files named after mission-type ids (e.g. `qa.yaml`), not a file named
+      `mission.yaml`, so `_mission_dir_if_valid` would already reject it as a mission
+      instance regardless of whether `discover_missions`/`list_cmd` still existed.
+      The plan's conclusion (no collision) is correct, but the stated reason (IC-06's
+      deletion is what eliminates the risk) is not — the real protection is the
+      pre-existing `mission.yaml`-presence check, which this mission does not touch
+      and would have protected the roster directory even if CL-004a were out of scope.
+    remediation: >-
+      Rewrite IC-04's Risks bullet to cite the true protection: `_mission_dir_if_valid`
+      (src/specify_cli/mission.py:78) only recognizes a subdirectory of
+      `.kittify/missions/` as a mission instance when it contains a file named
+      `mission.yaml`; a roster directory of `*.yaml` files named after mission-type
+      ids never satisfies that check. Keep noting the CL-004a deletion as good hygiene
+      (dead code removal), but stop presenting it as the mechanism that prevents the
+      collision — it is not the operative safeguard.
+
+  - id: PLAN-VERIFY-001
+    lens: Gates
+    severity: 4
+    title: "Gate Set omits the enforced `diff-coverage` (critical-path, 90%) gate that directly targets this mission's own touched files"
+    evidence:
+      - artifact: "plan.md § Gate Set (Included / Excluded tables, and the closing '\"The two coverage floors...\"' paragraph)"
+      - code: ".github/workflows/ci-quality.yml:3403-3406 (job header, comment: \"diff-coverage: PR-only diff coverage gate (90% on critical-path changed lines)\")"
+      - code: ".github/workflows/ci-quality.yml:3456-3516 (step \"diff-coverage (critical-path, enforced)\"; critical_paths array includes 'src/doctrine/*' and 'src/charter/*'; `uv run diff-cover ... --fail-under=90 --include \"${critical_paths[@]}\"`)"
+      - code: ".github/workflows/ci-quality.yml:4338-4394 (`quality-gate`'s `needs:` list includes `diff-coverage`, so it is a blocking member of the merge-readiness gate)"
+    claim: >
+      plan.md's Gate Set section never mentions `diff-coverage` anywhere (grep confirms zero
+      hits), neither in the "Included" table nor the "Excluded, and why" table. This is a real
+      gap: `diff-coverage` is an `[ENFORCED]`, PR-scoped job in `quality-gate`'s blocking `needs:`
+      list that runs `diff-cover --fail-under=90` specifically over changed lines under
+      `src/doctrine/*` and `src/charter/*` (verbatim entries in its `critical_paths` array) — the
+      exact two directories this mission's own Technical Context/Project Structure sections name
+      as the primary touch points (`src/doctrine/missions/mission_type_repository.py`,
+      `src/charter/mission_type_profiles.py`, `src/charter/pack_manager.py`,
+      `src/charter/resolver.py`, `src/charter/missions.py`). This is a stronger, more directly
+      applicable 90% new-code floor than either of the two 90% floors plan.md does address
+      (kernel-tests, mission-loader-coverage) and it is not among the correctly-verified
+      "does not apply" set — it squarely DOES apply, on the diff, to this mission's own files.
+      The lens instruction is explicit that every enforced gate must be stated as included (with
+      why) or excluded (with a stated reason); this gate is neither.
+    remediation: >
+      Add a row to the "Included, and why" table: `diff-coverage` (critical-path, enforced),
+      citing `ci-quality.yml:3456-3516`, with the reason that `src/doctrine/*` and `src/charter/*`
+      are both in its `critical_paths` list and this mission changes lines in both, so every new
+      branch/line this mission adds in `mission_type_repository.py`, `mission_type_profiles.py`,
+      `pack_manager.py`, `resolver.py`, and `missions.py` must clear 90% diff coverage measured by
+      `diff-cover` against `origin/<base>`, independent of and in addition to the job-local 55%
+      `fast-tests-charter` floor already named.
+
+  - id: PLAN-VERIFY-002
+    lens: Gates
+    severity: 3
+    title: "SonarCloud Quality Gate is listed as an included/enforced PR gate, but the live workflow never runs it on `pull_request` or `push`, and it is not a `quality-gate` dependency"
+    evidence:
+      - artifact: "plan.md § Gate Set, Included table, row \"SonarCloud Quality Gate\", citing `ci-quality.yml:3568-...`"
+      - code: ".github/workflows/ci-quality.yml:3568-3573 (job `sonarcloud`, comment: \"Temporarily limited to schedule/manual runs ... PRs skip Sonar entirely to keep review latency low, and pushes skip it so main can report test/build health.\")"
+      - code: ".github/workflows/ci-quality.yml:3625 (`if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')` — gates the whole job, including its \"[ENFORCED] SonarCloud Quality Gate\" step at line 4011)"
+      - code: ".github/workflows/ci-quality.yml:4338-4394 (`quality-gate`'s `needs:` list does not include `sonarcloud` at all)"
+    claim: >
+      plan.md's cited line (3568) is the `sonarcloud` job header, not the "SonarCloud Quality
+      Gate" step (which is actually at line 4011). More importantly, the job's own `if:` condition
+      restricts it to `schedule` / `workflow_dispatch` events only — it is explicitly disabled for
+      both `pull_request` and `push` per the job's own comment — and `sonarcloud` is absent from
+      `quality-gate`'s blocking `needs:` list. This means the "SonarCloud Quality Gate" step will
+      never execute, and could never block, this mission's actual PR. plan.md's stated
+      justification for including it ("Sonar's project gate is dominated by new-code coverage...
+      this plan's per-IC test surface is written to satisfy that, not merely to 'run the tests'")
+      cites a gate that provides zero real enforcement on this PR — the actual enforced new-code
+      floor for this mission's files is `diff-coverage` (see PLAN-VERIFY-001), which the plan omits
+      entirely while crediting Sonar for the same concern.
+    remediation: >
+      Move "SonarCloud Quality Gate" to the "Excluded, and why" table with the reason "job-level
+      `if:` restricts it to schedule/workflow_dispatch; not a `quality-gate` dependency; provides
+      no enforcement on this mission's PR." Replace it in the "Included" table with the real
+      enforced new-code-coverage mechanism, `diff-coverage` (PLAN-VERIFY-001's remediation), so the
+      "every new branch/helper needs a directly-testing unit test" justification points at a gate
+      that actually runs.
+
+  - id: PLAN-VERIFY-004
+    lens: Gates
+    severity: 3
+    title: "Project Structure's touched-test-file list names a test file that does not exist, for the FR-006–FR-009/CL-004a test surface"
+    evidence:
+      - artifact: "plan.md § Project Structure (Source Code), tests tree: `tests/specify_cli/cli/commands/test_mission_type.py  # EXTEND: show_mission_type / mission_type_list ...`"
+      - artifact: "plan.md § IC-06 Test surface: \"`tests/specify_cli/cli/commands/test_mission_type.py` gains one assertion that `list_mission_types` ... is the sole `\"list\"` command registered on the app\""
+      - code: "find tests -iname '*mission_type*' — no `tests/specify_cli/cli/commands/test_mission_type.py` exists; the closest existing files in that directory are `test_mission_type_rendering.py`, `test_mission_type_force_delete_branch.py`, `test_mission_type_template_set_cli.py`, and `tests/cli/test_charter_mission_type_commands.py` covers the charter-facing command."
+    claim: >
+      Plan.md's opening note claims "All file:line citations below were re-verified against this
+      checkout's live `src/` and `tests/` trees during planning," and this file is listed with an
+      "EXTEND" verb (implying it already exists) in both the Project Structure tree and IC-06/IC-07's
+      test-surface descriptions — but `tests/specify_cli/cli/commands/test_mission_type.py` is not
+      present in the live tree. An implementer following the plan literally would either create a
+      new file under that unclaimed name (fragmenting coverage away from the three existing,
+      closely-related test files in the same directory) or waste time locating a file that isn't
+      there.
+    remediation: >
+      Either (a) name the actual existing file(s) to extend — most likely
+      `tests/specify_cli/cli/commands/test_mission_type_rendering.py` for `show_mission_type`
+      output-shape assertions, plus `tests/cli/test_charter_mission_type_commands.py` for the
+      `list`-command-uniqueness assertion — or (b) if a new file is genuinely intended, change the
+      verb from "EXTEND" to "NEW" and state that explicitly so the tasks phase does not inherit the
+      same false assumption.
+
+  - id: PLAN-VERIFY-003
+    lens: "Revert discipline / U1-without-U2 silent-wrong red-first test (retained for audit trail; duplicate of PLAN-GOV-001, see dedup_notes above — not sent to refuter separately)"
+    severity: 3
+    title: "Plan's own Summary narrative of the CL-003 dominant-risk mechanism is internally contradictory and does not match the live code path it cites"
+    duplicate_of: PLAN-GOV-001
+    evidence:
+      - artifact: "plan.md § Summary, paragraph 1"
+      - code: "src/charter/mission_type_profiles.py:793-799"
+      - code: "src/charter/mission_type_profiles.py:807"
+    claim: "See PLAN-GOV-001 — same claim, same evidence, independently derived by the verify lens."
+    remediation: "See PLAN-GOV-001."

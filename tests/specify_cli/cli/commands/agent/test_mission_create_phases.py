@@ -170,6 +170,7 @@ def test_run_create_core_phase_returns_result(monkeypatch: pytest.MonkeyPatch, t
         purpose_tldr=None,
         purpose_context=None,
         force_recreate_coordination_branch=False,
+        owned_checkout=None,
         json_output=True,
     )
     assert out is result
@@ -192,6 +193,7 @@ def test_run_create_core_phase_handles_creation_error(monkeypatch: pytest.Monkey
             purpose_tldr=None,
             purpose_context=None,
             force_recreate_coordination_branch=False,
+            owned_checkout=None,
             json_output=True,
         )
 

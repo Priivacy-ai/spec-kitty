@@ -19,16 +19,31 @@ uploads cleanly.
 
 from __future__ import annotations
 
+import gzip
+import json
+from typing import Any, cast
+
 import pytest
 
 import specify_cli.migration.envelope_seam as envelope_seam
-from specify_cli.delivery.receivers import StubReceiver
+import specify_cli.sync.history_import.pipeline as history_pipeline
+from specify_cli.delivery.interfaces import DeliveryTarget, TargetIdentity
+from specify_cli.delivery.receivers import TeamspaceReceiver
+from specify_cli.delivery.targets import compute_target_id
+from specify_cli.migration.envelope_seam import build_teamspace_envelope
+from specify_cli.sync.consent import allocate_capture_sequence, record_project_opt_in
+from specify_cli.sync.history_disclosure import (
+    confirm_history_disclosure,
+    preview_sealed_history,
+)
 from specify_cli.sync.history_import.pipeline import (
     ImportAuditBlocked,
     apply_import,
     build_import_plan,
     describe_plan,
 )
+from specify_cli.sync.project_context import AdmissionState
+from specify_cli.sync.project_store import ProjectSyncStore
 from tests.sync.test_history_import_scan import (
     _build_legacy_shape_mission,
     _build_prefixed_shape_mission,
@@ -326,12 +341,20 @@ def test_describe_empty_plan(tmp_path, monkeypatch):
 class _AcceptingResponse:
     status_code = 200
 
+    def __init__(self, payload):
+        self._payload = payload
+
     def json(self):
-        return {"accepted": True, "event_count": 0, "reconciliation": {}}
+        return self._payload
 
 
 def _accepting_poster(url, *, data, headers, timeout):
-    return _AcceptingResponse()
+    del timeout
+    raw = gzip.decompress(data) if headers.get("Content-Encoding") == "gzip" else data
+    events = json.loads(raw.decode("utf-8"))["events"]
+    if url.endswith("/preflight/"):
+        return _AcceptingResponse({"results": [{"event_id": envelope["event_id"], "status": "success"} for envelope in events]})
+    return _AcceptingResponse({"results": [{"event_id": envelope["event_id"], "status": "success"} for envelope in events]})
 
 
 def test_apply_import_uploads_every_envelope_under_the_real_uuid(tmp_path, monkeypatch):
@@ -362,19 +385,141 @@ def test_apply_import_uploads_every_envelope_under_the_real_uuid(tmp_path, monke
         wp_specs=_PREFIXED_WP_SPECS,
     )
     _patch_selection(monkeypatch, mission_dirs=[legacy_dir, prefixed_dir], blockers=[])
-    stub = StubReceiver()
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    plan = build_import_plan(tmp_path, mission=None, apply=True)
+    assert plan.identity is not None
+    project_uuid = str(plan.identity.project_uuid)
+    store = ProjectSyncStore(project_uuid)
+    with store.unit_of_work() as unit:
+        for envelope in plan.envelopes:
+            assignment = allocate_capture_sequence(unit)
+            unit.execute(
+                "INSERT INTO journal_entries (entry_id, project_uuid, epoch_id, capture_sequence, payload_json) VALUES (?, ?, ?, ?, ?)",
+                (
+                    envelope["event_id"],
+                    project_uuid,
+                    assignment.epoch_id,
+                    assignment.capture_sequence,
+                    json.dumps(envelope, sort_keys=True, separators=(",", ":")),
+                ),
+            )
+    record_project_opt_in(project_uuid, actor="test:history-import")
+    server_url = "https://app.spec-kitty.ai"
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO project_target_admissions "
+            "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, binding_audience) "
+            "VALUES (?, ?, 'account-1', 'teamspace-1', 1, 'admitted', '1', "
+            "'private-teamspace:teamspace-1')",
+            (project_uuid, server_url),
+        )
+    context = store.create_context()
+    capability = confirm_history_disclosure(
+        store,
+        preview_sealed_history(store),
+        actor="test:history-import",
+        idempotency_key="apply-import-e2e",
+        context=context,
+    )
+    audience = context.target_audience
+    assert audience is not None
+    target_identity = TargetIdentity(
+        target_identity=audience.target_identity,
+        account_identity=audience.account_identity,
+        private_teamspace_id=audience.private_teamspace_id,
+        project_uuid=audience.project_uuid,
+        configuration_generation=audience.configuration_generation,
+    )
+    target = DeliveryTarget(
+        target_id=compute_target_id(
+            target_identity=target_identity.target_identity,
+            account_identity=target_identity.account_identity,
+            private_teamspace_id=target_identity.private_teamspace_id,
+            project_uuid=target_identity.project_uuid,
+            configuration_generation=target_identity.configuration_generation,
+        ),
+        identity=target_identity,
+        admission_state=AdmissionState.ADMITTED,
+        admission_generation=1,
+        binding_audience="private-teamspace:teamspace-1",
+        last_error_category=None,
+    )
+    receiver = TeamspaceReceiver(
+        resolved_server_url=server_url,
+        auth_token="tok",
+        poster=_accepting_poster,
+    )
 
     result = apply_import(
         tmp_path,
         mission=None,
-        receiver=stub,
-        server_url="http://teamspace.test",
+        receiver=receiver,
+        server_url=server_url,
         auth_token="tok",
         poster=_accepting_poster,
+        project_context=context,
+        target=target,
+        history_capability=capability,
     )
 
     assert result.plan.identity is not None and result.plan.identity.is_synthetic is False  # INV-5
     assert result.report.ok
     assert result.report.success == result.plan.total_events
-    assert set(stub.received_event_ids()) == {env["event_id"] for env in result.plan.envelopes}
     assert len(result.manifest) == result.plan.total_events
+
+
+def test_apply_without_confirmed_authority_fails_closed_without_type_error(
+    tmp_path,
+    monkeypatch,
+):
+    """Legacy CLI callers get a named refusal until WP10 supplies authority."""
+    envelope = cast(
+        dict[str, Any],
+        build_teamspace_envelope(
+            event_id="history-1",
+            event_type="WPStatusChanged",
+            aggregate_id="WP01",
+            aggregate_type="WorkPackage",
+            payload={"wp_id": "WP01"},
+            timestamp="2026-08-01T00:00:00+00:00",
+            build_id="history-import-pipeline-test",
+            node_id="history-import-pipeline-test",
+            lamport_clock=1,
+            project_uuid="11111111-2222-4333-8444-555555555555",
+            project_slug="history-import-pipeline-test",
+            repo_slug=None,
+            correlation_id="history-1",
+        ).model_dump(),
+    )
+    plan = history_pipeline.ImportPlan(
+        identity=None,
+        scans=(object(),),  # type: ignore[arg-type]
+        envelopes=(envelope,),
+    )
+    monkeypatch.setattr(history_pipeline, "build_import_plan", lambda *args, **kwargs: plan)
+    monkeypatch.setattr(history_pipeline, "validate_import_envelopes", lambda envelopes: None)
+    calls: list[str] = []
+
+    def poster(url, *, data, headers, timeout):
+        del data, headers, timeout
+        calls.append(url)
+        return _AcceptingResponse({})
+
+    receiver = TeamspaceReceiver(
+        resolved_server_url="https://app.spec-kitty.ai",
+        auth_token="tok",
+        poster=poster,
+    )
+    result = apply_import(
+        tmp_path,
+        mission=None,
+        receiver=receiver,
+        server_url="https://app.spec-kitty.ai",
+        auth_token="tok",
+        poster=poster,
+    )
+
+    assert result.report.refused
+    assert "confirmed history capability" in result.report.rejected_samples[0]
+    assert calls == []

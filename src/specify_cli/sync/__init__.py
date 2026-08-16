@@ -30,6 +30,10 @@ from specify_cli.core.env import is_truthy
 _EVENTS_MODULE = ".events"
 _FEATURE_FLAGS_MODULE = ".feature_flags"
 _LOCAL_COMMIT_MODULE = ".local_commit"
+_BATCH_MODULE = ".batch"
+_BACKGROUND_MODULE = ".background"
+_RUNTIME_MODULE = ".runtime"
+_DAEMON_MODULE = ".daemon"
 
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     # Keep package init cheap. Importing a sync submodule such as
@@ -53,34 +57,41 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "emit_diff_summary_recorded": (_EVENTS_MODULE, "emit_diff_summary_recorded"),
     "emit_proof_event": (_EVENTS_MODULE, "emit_proof_event"),
     "OfflineQueue": (".queue", "OfflineQueue"),
+    "ProjectOutboxTask": (".queue", "ProjectOutboxTask"),
+    "OfflineBodyUploadQueue": (".body_queue", "OfflineBodyUploadQueue"),
+    "ProjectSyncStore": (".project_store", "ProjectSyncStore"),
+    "ProjectUnitOfWork": (".project_store", "ProjectUnitOfWork"),
+    "LayoutGenerationAuthority": (".layout_generation", "LayoutGenerationAuthority"),
+    "LayoutWritePermit": (".layout_generation", "LayoutWritePermit"),
+    "LayoutTestHooks": (".layout_generation", "LayoutTestHooks"),
     "SAAS_SYNC_ENV_VAR": (_FEATURE_FLAGS_MODULE, "SAAS_SYNC_ENV_VAR"),
     "is_saas_sync_enabled": (_FEATURE_FLAGS_MODULE, "is_saas_sync_enabled"),
     "saas_sync_disabled_message": (_FEATURE_FLAGS_MODULE, "saas_sync_disabled_message"),
     # Lazy-loaded names that require heavier optional/runtime dependencies.
-    "BatchEventResult": (".batch", "BatchEventResult"),
-    "BatchSyncResult": (".batch", "BatchSyncResult"),
+    "BatchEventResult": (_BATCH_MODULE, "BatchEventResult"),
+    "BatchSyncResult": (_BATCH_MODULE, "BatchSyncResult"),
     # NOTE (#3030 FR-012): ``batch_sync`` and ``sync_all_queued_events`` are
     # deliberately absent. They are the retired queue-backed event drain, which
     # carries no per-project consent; the journal dispatcher
     # (``delivery/dispatcher.py``) is the sole event drain. Re-exporting them
     # reinstates the cross-project leak — guarded by
     # ``tests/sync/test_no_queue_drain_constructed_3030.py``.
-    "categorize_error": (".batch", "categorize_error"),
-    "format_sync_summary": (".batch", "format_sync_summary"),
-    "generate_failure_report": (".batch", "generate_failure_report"),
-    "write_failure_report": (".batch", "write_failure_report"),
+    "categorize_error": (_BATCH_MODULE, "categorize_error"),
+    "format_sync_summary": (_BATCH_MODULE, "format_sync_summary"),
+    "generate_failure_report": (_BATCH_MODULE, "generate_failure_report"),
+    "write_failure_report": (_BATCH_MODULE, "write_failure_report"),
     "WebSocketClient": (".client", "WebSocketClient"),
     "SyncConfig": (".config", "SyncConfig"),
-    "BackgroundSyncService": (".background", "BackgroundSyncService"),
-    "get_sync_service": (".background", "get_sync_service"),
-    "reset_sync_service": (".background", "reset_sync_service"),
-    "SyncRuntime": (".runtime", "SyncRuntime"),
-    "get_runtime": (".runtime", "get_runtime"),
-    "reset_runtime": (".runtime", "reset_runtime"),
-    "SyncDaemonStatus": (".daemon", "SyncDaemonStatus"),
-    "ensure_sync_daemon_running": (".daemon", "ensure_sync_daemon_running"),
-    "get_sync_daemon_status": (".daemon", "get_sync_daemon_status"),
-    "stop_sync_daemon": (".daemon", "stop_sync_daemon"),
+    "BackgroundSyncService": (_BACKGROUND_MODULE, "BackgroundSyncService"),
+    "get_sync_service": (_BACKGROUND_MODULE, "get_sync_service"),
+    "reset_sync_service": (_BACKGROUND_MODULE, "reset_sync_service"),
+    "SyncRuntime": (_RUNTIME_MODULE, "SyncRuntime"),
+    "get_runtime": (_RUNTIME_MODULE, "get_runtime"),
+    "reset_runtime": (_RUNTIME_MODULE, "reset_runtime"),
+    "SyncDaemonStatus": (_DAEMON_MODULE, "SyncDaemonStatus"),
+    "ensure_sync_daemon_running": (_DAEMON_MODULE, "ensure_sync_daemon_running"),
+    "get_sync_daemon_status": (_DAEMON_MODULE, "get_sync_daemon_status"),
+    "stop_sync_daemon": (_DAEMON_MODULE, "stop_sync_daemon"),
     # LocalCommit core (WP05): SyncState and frame lifecycle.
     "SyncState": (_LOCAL_COMMIT_MODULE, "SyncState"),
     "load_sync_state": (_LOCAL_COMMIT_MODULE, "load_sync_state"),
@@ -105,6 +116,13 @@ __all__ = [
     "WebSocketClient",
     "SyncConfig",
     "OfflineQueue",
+    "ProjectOutboxTask",
+    "OfflineBodyUploadQueue",
+    "ProjectSyncStore",
+    "ProjectUnitOfWork",
+    "LayoutGenerationAuthority",
+    "LayoutWritePermit",
+    "LayoutTestHooks",
     "BatchEventResult",
     "BatchSyncResult",
     "categorize_error",
@@ -223,13 +241,25 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
     from specify_cli.sync.feature_flags import is_saas_sync_enabled
     from specify_cli.sync.queue import (
         OfflineQueue,
-        read_queue_scope_from_credentials,
         read_queue_scope_from_session,
     )
+    from specify_cli.sync.project_store import ProjectSyncStore
 
     if not is_saas_sync_enabled():
         return
-    scope = read_queue_scope_from_session() or read_queue_scope_from_credentials()
+    # Direct sync ingress is fail-closed to the Private Teamspace. Do NOT fall
+    # back to the credentials file's team_slug: it stores whatever team was last
+    # written (often a shared/primary team, e.g. `stijn`, not `stijn-private`),
+    # so when the session read transiently returns None (a token refresh in
+    # flight, a rehydrate miss) the old `session() or credentials()` silently
+    # rerouted ingress to that team. That forks the producer-scoped journal
+    # (`journal-<scope>.db`) and materializes the project under the wrong team on
+    # the server, so the private->shared share can never find it (#738/#911).
+    # `read_queue_scope_from_session` already fails closed (returns None rather
+    # than a shared team, per `require_private_team_id`); honour that here and
+    # skip queueing when the Private Teamspace can't be resolved, rather than
+    # attribute the event to the wrong scope.
+    scope = read_queue_scope_from_session()
     if not scope:
         return
 
@@ -244,11 +274,7 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
     event_type = envelope.get("event_type")
     payload = envelope.get("payload")
     aggregate_type = envelope.get("aggregate_type")
-    if (
-        not isinstance(event_type, str)
-        or not isinstance(payload, Mapping)
-        or not isinstance(aggregate_type, str)
-    ):
+    if not isinstance(event_type, str) or not isinstance(payload, Mapping) or not isinstance(aggregate_type, str):
         return
 
     repo_root = repo_root_for_lifecycle_log(log_path)
@@ -278,7 +304,9 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
 
     validate_outbound_payload(event, "envelope")
     EventModel(**event)
-    OfflineQueue().queue_event(event)
+    store = ProjectSyncStore(str(identity.project_uuid))
+    with store.unit_of_work() as unit:
+        OfflineQueue(unit, store.layout_generation()).queue_event(event)
 
     # -----------------------------------------------------------------------
     # Daemon/WebSocket push for MissionCreated envelopes (FR-005, WP03)
@@ -338,36 +366,22 @@ def register_default_handlers() -> None:
             derivation of checkout → project, and it already carries the FR-022 /
             FR-023 hardening: an unreadable or non-mapping ``.kittify/config.yaml``
             yields ``project_uuid=None`` instead of raising, and an unidentifiable
-            project is never consentable (NFR-001), so it answers
-            :attr:`~specify_cli.invocation.adapters.EgressConsent.NOT_CONSENTABLE`
-            here.
+            project is never consentable (NFR-001), so it denies here.
 
-            **Whether that project consents, and the split mapping** come from one
-            call to ``consent.resolve_project_consent`` — the single consent
-            authority, keyed on the project's own uuid — the same authority the
-            drain (``delivery/selection.py``) and the emitter reach through
-            ``consent.consented_project_uuids`` (whose ``granted`` field is this
-            call's own ``.granted``; egress-single-authority mission Decision 2).
-            Deliberately NOT ``effective_sync_enabled``: that chain also honours the
-            repo-slug-keyed ``[sync.repo_defaults]`` record, which FR-019 condemns
-            precisely because it is keyed on a mutable git remote and cannot speak
-            for a project. One consent authority, one split-mapping, both live here
-            and nowhere else (C-003) — ``egress.py``'s ``_egress_decision`` obtains
-            the member this function returns through the registry seam rather than
-            re-deriving any of this (C-004).
+            **Whether that project consents** comes from one call to
+            ``consent.resolve_project_consent`` — the same authority used by the drain
+            and emitter, walking the one declared precedence chain. Deliberately NOT
+            ``effective_sync_enabled``: that chain also honours the repo-slug-keyed
+            ``[sync.repo_defaults]`` record, which FR-019 condemns precisely because
+            it is keyed on a mutable git remote and cannot speak for a project. One
+            authority and one split mapping preserve the current main contract.
 
-            Asked for *this* uuid specifically, rather than for a returned set being
-            non-empty — the same discipline ``consented_project_uuids`` already
-            requires of its callers, now enforced by construction: a single-uuid
-            call cannot be satisfied by a bystander project's grant.
-
-            Returns an :class:`~specify_cli.invocation.adapters.EgressConsent`
-            member, never a bare bool. The seam maps a raise to ``UNANSWERABLE`` (a
-            refusal); this function itself never raises.
+            Returns an ``EgressConsent`` member, never a bare bool. The registry seam
+            maps a raise to ``UNANSWERABLE``; this resolver classifies ordinary
+            absence, refusal, grant, and non-consentable paths explicitly.
 
             Imports at call time (not closure) so that test patches on
-            ``specify_cli.sync.routing`` / ``specify_cli.sync.consent`` are
-            respected.
+            ``specify_cli.sync.routing`` / ``specify_cli.sync.consent`` are respected.
             """
             from specify_cli.sync.consent import ConsentLevel, resolve_project_consent
             from specify_cli.sync.routing import resolve_checkout_sync_routing_readonly
@@ -375,18 +389,12 @@ def register_default_handlers() -> None:
             routing = resolve_checkout_sync_routing_readonly(path)
             if routing is None or not routing.project_uuid:
                 return EgressConsent.NOT_CONSENTABLE
-
             uuid = str(routing.project_uuid)
             decision = resolve_project_consent(uuid, checkout_roots=[routing.repo_root])
             if decision.granted:
                 return EgressConsent.GRANTED
             if decision.level is ConsentLevel.ABSENT:
                 return EgressConsent.NO_RECORD
-            # PROJECT_LOCAL / MACHINE_INDEX / ENV (an actual recorded refusal) or
-            # UNDETERMINED (the record could not be read, FR-020) — both are
-            # reported as a recorded refusal, consciously, matching today's
-            # behaviour (data-model Decision 2 / post-plan m2), not a silent
-            # catch-all.
             return EgressConsent.RECORDED_REFUSAL
 
         register_egress_consent_resolver(_egress_consent_resolver)
@@ -460,14 +468,38 @@ if not is_truthy(os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT")):
             aggregate_id: str,
             aggregate_type: str,
             payload: dict[str, object],
+            project_context: object,
+            project_unit: object,
+            project_layout: object,
         ) -> dict[str, object]:
+            from specify_cli.sync.layout_generation import LayoutGenerationAuthority
+            from specify_cli.sync.project_context import (
+                ProjectSyncContext,
+                validate_project_sync_context_authority,
+            )
+            from specify_cli.sync.project_store import ProjectUnitOfWork
             from specify_cli.sync.events import get_emitter
 
+            if not isinstance(project_context, ProjectSyncContext):
+                raise TypeError("dossier emission requires a store-minted ProjectSyncContext")
+            if not isinstance(project_unit, ProjectUnitOfWork):
+                raise TypeError("dossier emission requires the active project unit of work")
+            if not isinstance(project_layout, LayoutGenerationAuthority):
+                raise TypeError("dossier emission requires the project layout authority")
+            validate_project_sync_context_authority(project_context)
+            if project_unit.store_identity is not project_context.store_identity:
+                raise ValueError("dossier project unit does not match the explicit project context")
+            # Forward the sealed authority object to the explicit local-capture
+            # seam. That seam never falls back to cwd/cached identity or direct
+            # remote routing.
             result = get_emitter()._emit(
                 event_type=event_type,
                 aggregate_id=aggregate_id,
                 aggregate_type=aggregate_type,
                 payload=payload,
+                project_context=project_context,
+                project_unit=project_unit,
+                project_layout=project_layout,
             )
             return result if result is not None else {}
 

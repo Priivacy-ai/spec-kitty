@@ -161,6 +161,26 @@ def actor_identity_str(actor: ActorField) -> str:
 
 
 @dataclass(frozen=True)
+class CurrentWpState:
+    """Current WP state resolved from a single in-transaction reduction.
+
+    Returned by ``read_current_wp_state_transactional`` and derived by
+    ``wp_lane_actor_from_events`` from the SAME reduction (C-002: no second
+    reduce, no split-brain identity reader). ``role`` is the already-reduced
+    resolved-binding ``role`` slot — carried, never re-derived by splitting the
+    actor string (#2861). It may be blank/``None`` (a binding-less claim records
+    no role, so collision detection downstream is best-effort).
+
+    An unseeded WP (no events / absent from the snapshot) yields
+    ``CurrentWpState(Lane.GENESIS, None, None)``.
+    """
+
+    lane: Lane
+    actor: str | None
+    role: str | None
+
+
+@dataclass(frozen=True)
 class RepoEvidence:
     """Evidence of code changes in a repository."""
 
@@ -509,11 +529,33 @@ class WPInnerStateDelta:
     agent_profile_version: str | None = None
     model: str | None = None
     provider: str | None = None
+    # Explicit claim-release marker (WP: partition-authority residuals, #2960
+    # follow-up). A bare ``agent=""`` (or any blank scalar) is, by design, a
+    # NO-OP over the reducer's blank-protection guard (see __post_init__ /
+    # _apply_annotation_delta) — it must never clobber a real recorded value.
+    # But a legitimate claim RELEASE (e.g. ``move-task --to planned``) needs a
+    # way to say "clear the claim triple for real", which a per-field string
+    # sentinel cannot express cleanly because the group is mixed-type
+    # (``shell_pid`` is ``int | None``, not ``str | None``). This single
+    # explicit ``bool`` flag is that signal: when ``True`` the reducer clears
+    # ``agent``/``shell_pid``/``shell_pid_created_at`` (the claim triple,
+    # FR-004) to falsy, distinct from — and unaffected by — the bare
+    # empty-string no-op guard. It is a first-class part of the delta
+    # contract: any caller can emit it, and the reducer honors it regardless
+    # of which transition (or no transition at all) accompanies the
+    # annotation. Not a member of ``_SCALAR_FIELDS`` (it is not a ``str |
+    # None`` scalar) and not folded through ``_REPLACE_SLOTS`` — it is applied
+    # as its own explicit step in ``_apply_annotation_delta`` (reducer.py).
+    release_runtime_claim: bool = False
 
     #: Single authoritative list of the pure ``str | None`` scalar fields that
     #: round-trip trivially on the wire. Backs ``to_dict``/``from_dict`` (one
     #: source of truth — D-14). A new scalar slot is added here once; the two
     #: serializers pick it up as data. NOT a dataclass field (``ClassVar``).
+    #: ``release_runtime_claim`` is deliberately EXCLUDED: it is a ``bool``,
+    #: not a ``str | None`` scalar, and it must never be routed through the
+    #: ``""`` -> ``None`` blank-protection normalization below (a ``bool`` has
+    #: no ``""`` state to normalize).
     _SCALAR_FIELDS: ClassVar[tuple[str, ...]] = (
         "shell_pid_created_at",
         "agent",
@@ -525,13 +567,40 @@ class WPInnerStateDelta:
         "provider",
     )
 
+    def __post_init__(self) -> None:
+        """Write-boundary normalization (#2960 / FR-014).
+
+        An empty-string scalar runtime slot is meaningless — it carries no
+        attribution. Normalize ``""`` -> ``None`` for every ``str | None`` scalar
+        field so the append-only log **never records a blanking delta**: a stray
+        ``agent: ""`` (or any blank scalar) can no longer clobber a real recorded
+        value when the reducer folds it. This is the durable net; the reducer's
+        empty-string no-op guard is the read-side belt-and-braces for logs that
+        were written before this normalization existed.
+        """
+        for name in self._SCALAR_FIELDS:
+            if getattr(self, name) == "":
+                object.__setattr__(self, name, None)
+
     def is_empty(self) -> bool:
         """True when the delta touches no slot (all fields ``None``).
 
         Iterates the dataclass fields directly, so a newly-added optional field
         is covered automatically with no hand-maintained list to keep in sync.
+
+        ``release_runtime_claim`` is the one field this scan does NOT apply the
+        ``is None`` check to: it is a ``bool`` (default ``False``, never
+        ``None``), so it is checked separately — ``True`` alone makes the delta
+        non-empty (a real claim-release request must actually be emitted); the
+        default ``False`` never manufactures a non-empty delta on its own.
         """
-        return all(getattr(self, f.name) is None for f in fields(self))
+        if self.release_runtime_claim:
+            return False
+        return all(
+            getattr(self, f.name) is None
+            for f in fields(self)
+            if f.name != "release_runtime_claim"
+        )
 
     def to_dict(self) -> dict[str, Any]:
         """Emit only present fields so the reducer's "absent leaves slot
@@ -558,6 +627,8 @@ class WPInnerStateDelta:
             value = getattr(self, name)
             if value is not None:
                 d[name] = value
+        if self.release_runtime_claim:
+            d["release_runtime_claim"] = True
         return d
 
     @classmethod
@@ -583,6 +654,7 @@ class WPInnerStateDelta:
                 else None
             ),
             review=review,
+            release_runtime_claim=bool(data.get("release_runtime_claim", False)),
             **scalars,
         )
 

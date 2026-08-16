@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "755507c63f0ead9568721923c037e4fbddd8bb0b",
-  "coordination_branch": "kitty/mission-mission-type-drg-edges-01KXKY2N",
   "created_at": "2026-07-15T22:24:08.656957+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Mission-Type DRG Edges",
   "mission_id": "01KXKY2NEGZKPW556M7SVN1RR0",
   "mission_number": 180,
@@ -13,7 +12,7 @@
   "slug": "mission-type-drg-edges-01KXKY2N",
   "status_phase": "1",
   "target_branch": "feat/mission-type-drg-edges",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-16T08:04:15.639335+00:00"
 }

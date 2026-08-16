@@ -16,10 +16,14 @@ WP03 addition (T017):
 
 from __future__ import annotations
 
-from specify_cli.core.constants import RETROSPECTIVE_FILENAME
+from specify_cli.core.constants import (
+    KITTIFY_DIR,
+    KITTY_SPECS_DIR,
+    RETROSPECTIVE_FILENAME,
+)
 from kernel.clock import UTC, date, datetime, now_utc_iso, parse_iso
 from specify_cli.core.utils import safe_is_dir
-from specify_cli.mission_metadata import load_meta_or_empty
+from specify_cli.mission_metadata import META_FILENAME, load_meta_or_empty
 from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 import json
 import logging
@@ -293,24 +297,64 @@ def _top_n_reason_counts(counter: dict[str, int], limit: int) -> list[ReasonCoun
 # ---------------------------------------------------------------------------
 
 
-def _iter_mission_dirs(project_path: Path) -> Generator[Path, None, None]:
-    """Yield each mission directory under .kittify/missions/."""
-    missions_root = project_path / ".kittify" / "missions"
-    if not safe_is_dir(missions_root):
+def iter_mission_instance_dirs(project_path: Path) -> Generator[Path, None, None]:
+    """Yield each canonical mission-instance directory under ``kitty-specs/*``.
+
+    FR-013 (#2717): mission records live in the canonical ``kitty-specs/<slug>/``
+    home, NOT in the ``.kittify/missions/`` support/registry root. Anchoring
+    discovery on the registry omitted the real ``retrospective.yaml`` records
+    (the registry may hold only a thin, partial mission subset) and could scan
+    support siblings (``doctrine``, ``charter``, ``glossaries``, …) as missions.
+
+    A directory qualifies as a mission instance when it lives directly under
+    ``<project>/kitty-specs/`` and carries a ``meta.json`` or a
+    ``retrospective.yaml``. The ``.kittify`` tree is intentionally never
+    scanned here — legacy in-registry records are resolved by
+    :func:`_resolve_summary_record_path` via ``mission_id`` instead.
+
+    This is the single canonical instance iterator shared by both diagnostic
+    discovery sites (C-005 / NFR-004): ``build_summary`` and the
+    ``retrospect summary`` per-mission table.
+    """
+    specs_root = project_path / KITTY_SPECS_DIR
+    if not safe_is_dir(specs_root):
         return
-    for entry in sorted(missions_root.iterdir()):
-        if safe_is_dir(entry):
+    for entry in sorted(specs_root.iterdir()):
+        if not safe_is_dir(entry):
+            continue
+        if (entry / META_FILENAME).exists() or (entry / RETROSPECTIVE_FILENAME).exists():
             yield entry
+
+
+def legacy_registry_record_dir(project_path: Path, mission_id: str) -> Path:
+    """Legacy in-registry mission-record directory keyed by ``mission_id``.
+
+    Back-compat only: records never relocated out of
+    ``.kittify/missions/<mission_id>/`` (pre-#1771). The canonical mission-record
+    home is ``kitty-specs/<slug>/`` — see :func:`iter_mission_instance_dirs`.
+    Single-sourced (C-005) so both retrospective diagnostic discovery sites
+    (``_resolve_summary_record_path`` and ``retrospect summary``'s per-mission
+    table) derive the legacy path identically instead of hand-rolling it twice.
+    """
+    return project_path / KITTIFY_DIR / "missions" / str(mission_id)
 
 
 def _resolve_summary_record_path(project_path: Path, mission_dir: Path) -> Path:
     """Resolve the retrospective.yaml path to read for a discovered mission dir.
 
-    FR-006 (#1771): the record now lives in the tracked feature_dir
-    (``kitty-specs/<slug>/retrospective.yaml``). The mission registry under
-    ``.kittify/missions/<id>/`` is still used for discovery (it carries
-    ``meta.json``), but the record is read from the tracked home — falling back
-    to the legacy in-registry path for pre-relocation records.
+    FR-006 (#1771) + FR-013 (#2717): discovery now anchors on the canonical
+    ``kitty-specs/<slug>/`` home (``mission_dir``), so the record is normally
+    the in-place ``mission_dir/retrospective.yaml``. Resolution order:
+
+    1. The writer-canonical tracked path for the mission slug, when present.
+    2. The in-place ``mission_dir/retrospective.yaml`` (mission_dir *is* the
+       canonical kitty-specs home under the FR-013 iterator).
+    3. Back-compat: the legacy in-registry record
+       ``.kittify/missions/<mission_id>/retrospective.yaml`` for records that
+       were never relocated out of the registry (pre-#1771).
+
+    When no record exists, the in-place path is returned so the caller
+    classifies the mission as no-retrospective.
     """
     # load_meta_or_empty (post-#2091 silent contract) absorbs a missing or
     # malformed meta.json to {}; mission_slug stays None, matching the prior
@@ -323,9 +367,18 @@ def _resolve_summary_record_path(project_path: Path, mission_dir: Path) -> Path:
         tracked: Path = canonical_record_path(project_path, mission_slug)
         if tracked.exists():
             return tracked
-    # Back-compat: legacy in-registry record path.
-    legacy: Path = mission_dir / RETROSPECTIVE_FILENAME
-    return legacy
+    in_place: Path = mission_dir / RETROSPECTIVE_FILENAME
+    if in_place.exists():
+        return in_place
+    # Back-compat: legacy in-registry record path keyed by mission_id.
+    mission_id = meta.get("mission_id")
+    if mission_id:
+        legacy_registry: Path = (
+            legacy_registry_record_dir(project_path, mission_id) / RETROSPECTIVE_FILENAME
+        )
+        if legacy_registry.exists():
+            return legacy_registry
+    return in_place
 
 
 # ---------------------------------------------------------------------------
@@ -377,7 +430,7 @@ def build_summary(
     pending_proposals = 0
     superseded_proposals = 0
 
-    for mission_dir in _iter_mission_dirs(project_path):
+    for mission_dir in iter_mission_instance_dirs(project_path):
         retro_path = _resolve_summary_record_path(project_path, mission_dir)
 
         if not retro_path.exists():

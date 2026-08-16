@@ -82,6 +82,16 @@ _REPLACE_SLOTS: tuple[str, ...] = (
     "provider",
 )
 
+#: The "claim triple" (FR-004) released by an explicit
+#: ``WPInnerStateDelta.release_runtime_claim`` marker (partition-authority
+#: residuals follow-up to #2960). Deliberately narrower than
+#: :data:`_REPLACE_SLOTS`: ``assignee`` and the resolved-binding actuals
+#: (``role``/``agent_profile``/``agent_profile_version``/``model``/
+#: ``provider``) are NOT part of "the claim" and are left untouched by a
+#: release — only the runtime-claim identity (who/what process holds the WP)
+#: is cleared. See :func:`_apply_annotation_delta`.
+_CLAIM_RELEASE_SLOTS: tuple[str, ...] = ("agent", "shell_pid", "shell_pid_created_at")
+
 SNAPSHOT_FILENAME = "status.json"
 
 
@@ -182,7 +192,9 @@ def _wp_state_from_event(
         if shell_pid_created_at is not None:
             state["shell_pid_created_at"] = shell_pid_created_at
         agent = meta.get("agent")
-        if agent is not None:
+        # Truthiness, not ``is not None`` (#2960 / FR-014): an empty ``agent``
+        # sidecar is a no-op, never a blank written over a real slot.
+        if agent:
             state["agent"] = agent
 
     # review_result exception (T025/T026, WP07): see the docstring above.
@@ -207,6 +219,27 @@ def _wp_state_from_event(
 
 def _apply_annotation_delta(state: dict[str, Any], delta: WPInnerStateDelta) -> None:
     """Fold a typed :class:`WPInnerStateDelta` into a per-WP snapshot dict.
+
+    **Claim release (``release_runtime_claim``, partition-authority residuals
+    follow-up to #2960/WP10) is applied FIRST, before the replace-slot loop
+    below.** #2960 taught ``WPInnerStateDelta.__post_init__`` to normalize a
+    bare ``agent=""`` (or any blank scalar) to ``None`` at the write boundary,
+    and taught the replace-slot loop's ``value != ""`` guard to no-op on a
+    stray blank that slips through anyway — both exist so a corrupted/blanking
+    delta can never clobber a real recorded value. That protection is
+    correctly indiscriminate: it cannot tell a corruption-shaped blank from a
+    *legitimate* claim release (e.g. ``move-task --to planned`` releasing a
+    stale ``agent``/``shell_pid`` on rollback), because both look identical on
+    the wire (an absent/empty scalar). ``release_runtime_claim`` is the
+    explicit, unambiguous signal that disambiguates the two: when ``True`` it
+    clears :data:`_CLAIM_RELEASE_SLOTS` (``agent``/``shell_pid``/
+    ``shell_pid_created_at``) to falsy — a REAL clear, not a no-op — while a
+    bare ``agent=""`` with ``release_runtime_claim`` absent/``False`` remains
+    the #2960 no-op. Applying the release BEFORE the replace-slot loop lets a
+    concrete value carried in the SAME delta (e.g. an explicit ``--agent``
+    replant on the same rollback move) win over the release: the loop below
+    overwrites whatever the release just cleared whenever the delta also
+    carries a present, non-empty value for that slot.
 
     Per-field merge rules (only present delta fields are applied; absent fields
     leave the slot untouched):
@@ -258,9 +291,15 @@ def _apply_annotation_delta(state: dict[str, Any], delta: WPInnerStateDelta) -> 
 
     Never increments ``force_count``.
     """
+    if delta.release_runtime_claim:
+        for name in _CLAIM_RELEASE_SLOTS:
+            state[name] = None
     for name in _REPLACE_SLOTS:
         value = getattr(delta, name)
-        if value is not None:
+        # Empty strings are a no-op for string replace-slots (#2960 / FR-014):
+        # ``""`` must never clobber a real recorded value. ``value != ""`` keeps
+        # the non-string slots intact (e.g. ``shell_pid == 0`` still folds).
+        if value is not None and value != "":
             state[name] = value
     if delta.subtasks is not None:
         current_subtasks: dict[str, str] = dict(state.get("subtasks") or {})

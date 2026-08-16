@@ -1,0 +1,18 @@
+{
+  "created_at": "2026-08-12T10:20:55.265768+00:00",
+  "flattened": false,
+  "friendly_name": "Doctrine Schema Diagrams and PlantUML Rendering",
+  "mission_id": "01KZTQTH31ERP3NRGTWEGPJY6R",
+  "mission_number": null,
+  "mission_slug": "doctrine-schema-diagrams-01KZTQTH",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Scope B of the docs-plans/doctrine split. Adds local build-time PlantUML rendering to the DocFX docsite (own ADR, amends R-04/#1839, cites the existing plantuml-diagramming toolguide), authors @startyaml schema diagrams of the doctrine artefacts generated from the frozen code models with an automated drift guard, fills the genuinely-thin artefact kinds, and adds small pointer-only README.md files to the doctrine source modules so agents and maintainers reach the canonical docs in one hop. Makes the codebase legible for future review/spec work.",
+  "purpose_tldr": "Give the doctrine artefacts code-grounded schema diagrams, add local PlantUML rendering to the docsite, and add per-module code-to-docs READMEs.",
+  "slug": "doctrine-schema-diagrams-01KZTQTH",
+  "status_phase": "1",
+  "target_branch": "feat/doctrine-schema-diagrams-impl",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-12T17:47:38.217127+00:00"
+}

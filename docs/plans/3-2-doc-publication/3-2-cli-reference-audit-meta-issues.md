@@ -1,9 +1,12 @@
 ---
 title: 3.2 CLI Reference Audit — Meta-Issues
 description: Enumerates every observed mismatch between the live spec-kitty Typer surface, its rendered --help text, and the CLI-reference docs, with a schema for the findings.
-doc_status: draft
-updated: '2026-05-21'
+doc_status: deprecated
+updated: '2026-08-12'
 ---
+
+> ⚠ **Retired 2026-08-12 (`doc_status: deprecated`).** Working note for the 3.2 documentation mission `spec-kitty-3-2-docs-01KS4KSZ` (14/14 WPs done 2026-05-21); the docs are published (now 3.2.6). Content preserved as an audit-trail record.
+
 # 3.2 CLI Reference Audit — Meta-Issues
 
 This file enumerates every observed mismatch between the live `spec-kitty` Typer surface, its rendered `--help` text, and the documentation that references it. Rows here are the canonical artefact for FR-010 of mission `spec-kitty-3-2-docs-01KS4KSZ`. They are **not** runtime tickets; each row is a candidate for a follow-up code or doc fix outside this mission, which is constrained by C-002 (no Typer code edits) and C-006 (all CLI/help mismatches land here).

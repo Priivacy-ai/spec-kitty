@@ -273,6 +273,33 @@ def test_meta_classifier_unknown_key(tmp_path: Path) -> None:
     assert "UNKNOWN_SHAPE" in _codes(findings)
 
 
+def test_meta_classifier_coordination_keys_not_unknown_shape(tmp_path: Path) -> None:
+    """Writer-canonical coordination keys must NOT be flagged UNKNOWN_SHAPE (#2696, FR-011).
+
+    The coordination write-path stamps ``coordination_branch`` / ``topology`` /
+    ``flattened`` / ``pr_bound`` onto ``meta.json``; before FR-011 the audit
+    shape registry (a hand-rolled frozenset) had drifted from the writer schema
+    and reported every one of these canonical keys as an ``UNKNOWN_SHAPE``
+    false positive. Assert on the specific keys (findings are INFO severity, so
+    exit codes are not the signal).
+    """
+    coord_keys: dict[str, object] = {
+        "coordination_branch": "kitty/mission-demo-01ABCDEF",
+        "topology": "COORD",
+        "flattened": False,
+        "pr_bound": True,
+    }
+    data = {**_MODERN_META, **coord_keys}
+    _write_json(tmp_path / "meta.json", data)
+    findings = classify_meta_json(tmp_path)
+    unknown_details = [f.detail or "" for f in findings if f.code == "UNKNOWN_SHAPE"]
+    offenders = [key for key in coord_keys if any(key in d for d in unknown_details)]
+    assert offenders == [], (
+        f"coordination keys wrongly flagged UNKNOWN_SHAPE: {offenders} "
+        f"(all UNKNOWN_SHAPE details: {unknown_details})"
+    )
+
+
 # ---------------------------------------------------------------------------
 # T012/status_events.jsonl classifier
 # ---------------------------------------------------------------------------

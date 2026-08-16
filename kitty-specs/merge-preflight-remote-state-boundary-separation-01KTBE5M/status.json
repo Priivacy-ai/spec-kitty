@@ -1,5 +1,5 @@
 {
-  "event_count": 24,
+  "event_count": 25,
   "last_event_id": "01KTBR4N8CXYR4GHAYJPZYHDSV",
   "materialized_at": "2026-06-05T11:19:21.612992+00:00",
   "mission_number": "",
@@ -24,6 +24,7 @@
       "lane": "done",
       "last_event_id": "01KTBR4N6TH666GPMFFQPFXH51",
       "last_transition_at": "2026-06-05T11:19:21.562167+00:00",
+      "review_result": null,
       "shell_pid": 52775
     },
     "WP02": {
@@ -33,6 +34,7 @@
       "lane": "done",
       "last_event_id": "01KTBR4N7CM233KG83T15RRDFE",
       "last_transition_at": "2026-06-05T11:19:21.580620+00:00",
+      "review_result": null,
       "shell_pid": 57432
     },
     "WP03": {
@@ -42,6 +44,12 @@
       "lane": "done",
       "last_event_id": "01KTBR4N7WYC3077HFJ6SETT47",
       "last_transition_at": "2026-06-05T11:19:21.597027+00:00",
+      "review_result": {
+        "feedback_path": "/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260809-175108-qc7maU/spec-kitty/kitty-specs/merge-preflight-remote-state-boundary-separation-01KTBE5M/tasks/WP03-test-coverage/review-cycle-2.md",
+        "reference": "review-cycle://merge-preflight-remote-state-boundary-separation-01KTBE5M/WP03-test-coverage/review-cycle-2.md",
+        "reviewer": "unknown",
+        "verdict": "changes_requested"
+      },
       "shell_pid": 58728
     },
     "WP04": {
@@ -51,6 +59,7 @@
       "lane": "done",
       "last_event_id": "01KTBR4N8CXYR4GHAYJPZYHDSV",
       "last_transition_at": "2026-06-05T11:19:21.612992+00:00",
+      "review_result": null,
       "shell_pid": 59686
     }
   }

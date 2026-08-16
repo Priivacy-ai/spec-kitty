@@ -14,6 +14,7 @@
       }
     ]
   },
+  "flattened": false,
   "friendly_name": "documentation parity sprint",
   "mission_id": "01KN2371WVZGV7TH7WMR2CN9Q2",
   "mission_number": 56,
@@ -23,5 +24,6 @@
   "source_description": "Documentation mission to bring docs.spec-kitty.ai up to parity with v2.1.x capabilities using Divio 4-type system. Distill 8 distributed skills into user-facing guides.",
   "status_phase": "1",
   "target_branch": "fix/skill-audit-and-expansion",
+  "topology": "single_branch",
   "vcs": "git"
 }

@@ -133,6 +133,36 @@ jobs:
       - name: Auto-link glossary terms (FR-011)
         run: python3 scripts/docs/glossary_linker.py --site-dir docs/_site
 
+      # Render @startyaml schema diagrams to inline SVG. AFTER glossary_linker
+      # (its <pre><code> skip keeps the fence source unpolluted) and BEFORE the
+      # redirect-stub + seo_verify steps. The pinned jar runs ONLY inside a
+      # digest-pinned JRE under docker --network=none (zero doctrine egress);
+      # host java is never used (no setup-java). See the plantuml-schema-diagram ADR.
+      - name: Render PlantUML schema diagrams (FR-001, no-egress)
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, pathlib, subprocess, time, urllib.request
+          pins = json.loads(pathlib.Path("scripts/docs/plantuml_pins.json").read_text())
+          jar = pathlib.Path("plantuml.jar")
+          if not jar.exists():
+              last = None
+              for attempt in range(5):  # GitHub release downloads flake with RemoteDisconnected
+                  try:
+                      urllib.request.urlretrieve(pins["plantuml_jar_url"], jar)
+                      last = None
+                      break
+                  except Exception as exc:  # noqa: BLE001 - retry any transient download error
+                      last = exc
+                      time.sleep(2 * (attempt + 1))
+              if last is not None:
+                  raise SystemExit(f"plantuml.jar download failed after retries: {last}")
+          got = hashlib.sha256(jar.read_bytes()).hexdigest()
+          if got != pins["plantuml_jar_sha256"].lower():
+              raise SystemExit(f"plantuml.jar sha256 mismatch: {got}")
+          subprocess.run(["docker", "pull", pins["jre_image_digest"]], check=True)
+          PY
+          python3 scripts/docs/plantuml_render.py docs/_site
+
       - name: Inject redirect stubs into _site (FR-006, no-404)
         run: python3 scripts/docs/redirect_stub_generator.py generate --site-dir docs/_site
 

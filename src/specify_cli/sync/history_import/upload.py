@@ -6,20 +6,22 @@ than hand-rolling HTTP:
 
 * **PROVENANCE (stage 6):** a per-envelope ``envelope_sha256`` manifest, hashed
   with the same canonical-JSON shape the migration dry-run uses.
-* **PREFLIGHT (stage 7):** POST each chunk to ``/api/v1/events/preflight/`` and
-  gate on ``accepted`` — the server validates shape/ingress without mutating
-  state. Every chunk is preflighted *before* any chunk uploads, so a *preflight*
-  rejection anywhere leaves the projection untouched (fail-closed, INV-6).
+* **PREFLIGHT (stage 7):** POST each chunk's exact proof-bearing
+  ``HistoryPreflightRequest`` to ``/api/v1/events/preflight/`` and require a
+  correlated result for every event. The server validates shape/ingress without
+  mutating state. Every chunk is preflighted *before* any chunk uploads, so a
+  *preflight* rejection anywhere leaves the projection untouched (fail-closed,
+  INV-6).
 * **UPLOAD (stage 8):** chunk the stream mission-atomically (no mission ever
   straddles a chunk boundary — see :func:`_chunked`) and hand each chunk to a
-  :class:`DeliveryReceiver` (gzip + POST + response mapping + poison-batch
-  bisection all live there). Delivery stops at the first chunk that reports any
+  :class:`DeliveryReceiver` (canonical batch encoding, POST, response mapping,
+  and poison-batch bisection all live there). Delivery stops at the first chunk that reports any
   failure outcome, so a mid-upload delivery failure leaves at most a partial —
   and because chunks are Lamport-ordered and mission-atomic, any delivered
   prefix is a valid ordered prefix of whole missions (never an orphan). The
-  report flags that state (``UploadReport.partial``) and a re-run completes
-  idempotently: the server dedups on ``event_id``, so already-ingested events
-  return ``duplicate``.
+  report flags that state (``UploadReport.partial``). A re-run preserves the
+  same durable attempt/native identity; it never mints a fresh identity merely
+  to reach server-side deduplication.
 
 The transport is injectable: production passes an authed ``TeamspaceReceiver``
 and the default ``requests`` poster; tests pass a ``StubReceiver`` and a fake
@@ -41,12 +43,13 @@ and a gate placed at the delivery call alone would have leaked every one of them
 
 from __future__ import annotations
 
-import gzip
+import hashlib
 import json
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import requests
 
@@ -54,24 +57,53 @@ from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.delivery.consent_gate import (
     ConsentAnswer,
     ConsentedBatch,
+    ProjectTransportDisclosure,
+    ProjectTransportRefusal,
     UnconsentedDelivery,
     consented_batch,
+    default_transport_deadline,
+    execute_project_transport_batch,
     resolve_consent_answer,
     resolve_envelope_project,
+    stable_transport_id,
 )
+from specify_cli.delivery.interfaces import DeliveryTarget
 from specify_cli.delivery.receivers import (
     BATCH_TIMEOUT_SECONDS,
+    DeliveryEffectCertainty,
     DeliveryOutcome,
     DeliveryReceiver,
     DeliveryResult,
     HttpPoster,
     OutboundEvent,
     default_http_poster,
+    disclosed_event_payload_bytes,
 )
+from specify_cli.delivery.targets import canonicalize_url, compute_target_id
 from specify_cli.migration.envelope_seam import envelope_sha256
 from specify_cli.status import MISSION_CREATED
+from specify_cli.sync.history_disclosure import (
+    HistoryDisclosureCapability,
+    HistoryDisclosureError,
+    revalidate_history_disclosure,
+)
+from specify_cli.sync.project_context import (
+    AdmissionState,
+    ProjectSyncContext,
+    validate_project_sync_context_authority,
+)
+from specify_cli.sync.project_store import ProjectStoreError, ProjectSyncStore
+from specify_cli.sync.transport_attempts import (
+    DeliveryAttemptSpec,
+    DeliveryOutcome as TransportDeliveryOutcome,
+    DeliveryTerminalResultProjection,
+    DeliveryTerminalResultStatus,
+    get_delivery_terminal_result_projection,
+)
+from specify_cli.sync.transport_lease import acquire_project_transport_lease
 
 _PREFLIGHT_ENDPOINT_PATH = "/api/v1/events/preflight/"
+_SYNC_PROTOCOL_VERSION = "2.0"
 # One delivery timeout policy for the whole SaaS transport: reuse the receiver's
 # canonical batch timeout rather than re-declaring the same 60s value (#2884).
 _PREFLIGHT_TIMEOUT_SECONDS = BATCH_TIMEOUT_SECONDS
@@ -137,36 +169,197 @@ class PreflightRejected(RuntimeError):
         super().__init__(f"server preflight rejected the batch: {reconciliation}")
 
 
+class HistoryTransportAuthorityError(RuntimeError):
+    """The exact confirmed history cohort cannot use this project target."""
+
+
+@dataclass(frozen=True, slots=True)
+class _PreflightResponse:
+    status_code: int
+    payload: Mapping[str, Any] | None
+    error: str | None = None
+    expected_event_ids: tuple[str, ...] = ()
+
+    @property
+    def accepted(self) -> bool:
+        if self.status_code != 200 or self.payload is None:
+            return False
+        results = _correlated_preflight_results(self.payload)
+        if results is None or set(results) != set(self.expected_event_ids):
+            return False
+        return all(str(result.get("status") or "").strip().lower() in {"success", "duplicate"} for result in results.values())
+
+
+def _admission_bound_event(
+    envelope: Envelope,
+    *,
+    project_context: ProjectSyncContext,
+) -> dict[str, Any]:
+    """Return the pinned SaaS ``EventWrite`` for one exact local envelope."""
+    validate_project_sync_context_authority(project_context)
+    project_uuid = project_context.project_uuid.storage_token
+    raw_admission_generation = project_context.admission_generation
+    binding_audience = project_context.binding_audience
+    if raw_admission_generation is None or binding_audience is None:
+        raise HistoryTransportAuthorityError("history event write requires current admission generation and binding audience")
+    try:
+        admission_generation = int(raw_admission_generation)
+    except (TypeError, ValueError) as exc:
+        raise HistoryTransportAuthorityError("history admission generation is not a positive integer") from exc
+    if admission_generation < 1:
+        raise HistoryTransportAuthorityError("history admission generation is not a positive integer")
+    supplied = {
+        "project_uuid": project_uuid,
+        "admission_generation": admission_generation,
+        "binding_audience": binding_audience,
+    }
+    for key, expected in supplied.items():
+        current = envelope.get(key)
+        if current is not None and str(current) != str(expected):
+            raise HistoryTransportAuthorityError(f"history event carries a conflicting {key}")
+    return {**dict(envelope), **supplied}
+
+
+def _canonical_request_bytes(payload: Mapping[str, Any]) -> bytes:
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+
+
+def _correlated_preflight_results(
+    payload: Mapping[str, Any],
+) -> dict[str, Mapping[str, Any]] | None:
+    raw = payload.get("results")
+    if not isinstance(raw, list):
+        return None
+    correlated: dict[str, Mapping[str, Any]] = {}
+    for item in raw:
+        if not isinstance(item, Mapping):
+            return None
+        event_id = item.get("event_id")
+        if not isinstance(event_id, str) or not event_id.strip() or event_id in correlated:
+            return None
+        correlated[event_id] = item
+    return correlated
+
+
+def _preflight_request(
+    envelopes: Sequence[Envelope],
+    *,
+    server_url: str,
+    auth_token: str,
+    project_context: ProjectSyncContext,
+    history_capability: HistoryDisclosureCapability,
+) -> tuple[str, bytes, dict[str, str]]:
+    url = server_url.rstrip("/") + _PREFLIGHT_ENDPOINT_PATH
+    body = _canonical_request_bytes(
+        {
+            "history_action_id": history_capability.action_id,
+            "preview_hash": history_capability.preview_hash,
+            "events": [
+                _admission_bound_event(
+                    envelope,
+                    project_context=project_context,
+                )
+                for envelope in envelopes
+            ],
+        }
+    )
+    return (
+        url,
+        body,
+        {
+            "Authorization": f"Bearer {auth_token}",
+            "Content-Type": "application/json",
+            "X-Spec-Kitty-Sync-Protocol": _SYNC_PROTOCOL_VERSION,
+        },
+    )
+
+
+def _post_server_preflight(
+    envelopes: Sequence[Envelope],
+    *,
+    server_url: str,
+    auth_token: str,
+    poster: HttpPoster,
+    project_context: ProjectSyncContext,
+    history_capability: HistoryDisclosureCapability,
+) -> _PreflightResponse:
+    """Perform only the HTTP call; reachable solely inside the WP06 gate."""
+    url, body, headers = _preflight_request(
+        envelopes,
+        server_url=server_url,
+        auth_token=auth_token,
+        project_context=project_context,
+        history_capability=history_capability,
+    )
+    try:
+        response = poster(
+            url,
+            data=body,
+            headers=headers,
+            timeout=_PREFLIGHT_TIMEOUT_SECONDS,
+        )
+    except requests.RequestException:
+        # The canonical gate owns uncertainty for an exception after the
+        # attempt becomes in-flight.  Do not translate it before that fence.
+        raise
+    try:
+        payload = response.json()
+    except Exception:
+        return _PreflightResponse(
+            status_code=response.status_code,
+            payload=None,
+            error=f"preflight response was not JSON (HTTP {response.status_code})",
+            expected_event_ids=tuple(str(envelope["event_id"]) for envelope in envelopes),
+        )
+    if not isinstance(payload, Mapping):
+        return _PreflightResponse(
+            status_code=response.status_code,
+            payload=None,
+            error=f"preflight response was not an object (HTTP {response.status_code})",
+            expected_event_ids=tuple(str(envelope["event_id"]) for envelope in envelopes),
+        )
+    return _PreflightResponse(
+        response.status_code,
+        dict(payload),
+        expected_event_ids=tuple(str(envelope["event_id"]) for envelope in envelopes),
+    )
+
+
 def run_server_preflight(
     envelopes: Sequence[Envelope],
     *,
     server_url: str,
     auth_token: str,
     poster: HttpPoster = default_http_poster,
+    project_context: ProjectSyncContext | None = None,
+    target: DeliveryTarget | None = None,
+    history_capability: HistoryDisclosureCapability | None = None,
 ) -> dict[str, Any]:
-    """POST ``{"events": [...]}`` to the preflight endpoint; raise if not accepted."""
-    url = server_url.rstrip("/") + _PREFLIGHT_ENDPOINT_PATH
-    body = gzip.compress(json.dumps({"events": [dict(env) for env in envelopes]}, separators=(",", ":")).encode("utf-8"))
-    headers = {
-        "Authorization": f"Bearer {auth_token}",
-        "Content-Encoding": "gzip",
-        "Content-Type": "application/json",
-    }
+    """Preflight one exact confirmed cohort through a durable WP06 attempt."""
+    if project_context is None or target is None or history_capability is None:
+        raise PreflightRejected({"error": "history preflight requires exact project context, target, and confirmed capability"})
     try:
-        response = poster(url, data=body, headers=headers, timeout=_PREFLIGHT_TIMEOUT_SECONDS)
+        response = _run_gated_preflight_chunk(
+            envelopes,
+            all_envelopes=envelopes,
+            server_url=server_url,
+            auth_token=auth_token,
+            poster=poster,
+            project_context=project_context,
+            target=target,
+            history_capability=history_capability,
+        )
     except requests.RequestException as exc:
-        # A transport failure (unreachable host, timeout, TLS reset) during
-        # preflight must fail closed as a graceful rejection, not escape as a raw
-        # traceback — the delivery path maps the same error to a batch failure
-        # (receivers.py::_attempt_batch_send); preflight now matches (#2884).
         raise PreflightRejected({"error": f"preflight transport failed: {exc}"}) from exc
-    try:
-        payload = response.json()
-    except Exception as exc:  # non-JSON (5xx / proxy error) is a hard, fail-closed stop
-        raise PreflightRejected({"error": f"preflight response was not JSON (HTTP {response.status_code})"}) from exc
-    if response.status_code != 200 or not payload.get("accepted"):
-        raise PreflightRejected(payload)
-    return dict(payload)
+    if not response.accepted:
+        raise PreflightRejected(response.payload or {"error": response.error or "preflight rejected"})
+    assert response.payload is not None
+    return dict(response.payload)
 
 
 def validate_import_envelopes(envelopes: Sequence[Envelope]) -> None:
@@ -247,7 +440,7 @@ class UploadReport:
 ConsentPredicate = Callable[[Sequence[str | None]], frozenset[str]]
 
 
-def _refusal_report(envelopes: Sequence[Envelope], exc: UnconsentedDelivery) -> UploadReport:
+def _refusal_report(envelopes: Sequence[Envelope], exc: Exception) -> UploadReport:
     """Turn a local consent refusal into a non-zero, self-explaining report.
 
     Not an exception escaping to the CLI, deliberately: ``_run_import_apply``
@@ -262,6 +455,16 @@ def _refusal_report(envelopes: Sequence[Envelope], exc: UnconsentedDelivery) -> 
         rejected_samples=[str(exc)],
         refused=True,
     )
+
+
+def _missing_authority_error(
+    envelopes: Sequence[Envelope],
+    *,
+    surface: str,
+) -> HistoryTransportAuthorityError:
+    projects = sorted({str(project) for project in (resolve_envelope_project(envelope) for envelope in envelopes) if project})
+    named = ", ".join(projects) if projects else "<unresolvable project>"
+    return HistoryTransportAuthorityError(f"{surface} refused for {named}: exact project context, target, and confirmed history capability are required")
 
 
 def _consent_answer(
@@ -322,6 +525,534 @@ def _consented_batches(
     ]
 
 
+def _canonical_event_json(envelope: Envelope) -> str:
+    return json.dumps(dict(envelope), sort_keys=True, separators=(",", ":"))
+
+
+def _assert_target_matches_context(
+    context: ProjectSyncContext,
+    target: DeliveryTarget,
+) -> None:
+    validate_project_sync_context_authority(context)
+    audience = context.target_audience
+    if audience is None or context.admission_state is not AdmissionState.ADMITTED or context.admission_generation is None or context.binding_audience is None:
+        raise HistoryTransportAuthorityError("history disclosure requires a currently admitted project target")
+    expected_target_id = compute_target_id(
+        target_identity=target.target_identity,
+        account_identity=target.account_identity,
+        private_teamspace_id=target.private_teamspace_id,
+        project_uuid=target.project_uuid,
+        configuration_generation=target.configuration_generation,
+    )
+    expected = (
+        context.project_uuid.storage_token,
+        audience.target_identity,
+        audience.account_identity,
+        audience.private_teamspace_id,
+        audience.project_uuid.storage_token,
+        audience.configuration_generation,
+        str(context.admission_generation),
+        context.binding_audience,
+    )
+    actual = (
+        target.project_uuid.storage_token,
+        target.target_identity,
+        target.account_identity,
+        target.private_teamspace_id,
+        target.project_uuid.storage_token,
+        target.configuration_generation,
+        str(target.admission_generation),
+        target.binding_audience,
+    )
+    if target.target_id != expected_target_id or target.admission_state is not AdmissionState.ADMITTED:
+        raise HistoryTransportAuthorityError("history target is not the canonical admitted audience")
+    if actual != expected:
+        raise HistoryTransportAuthorityError("history target does not match the immutable project context")
+
+
+def _origin(value: str) -> tuple[str, str, int | None]:
+    parsed = urlsplit(canonicalize_url(value))
+    return parsed.scheme.lower(), (parsed.hostname or "").lower(), parsed.port
+
+
+def _assert_receiver_matches_target(
+    receiver: DeliveryReceiver,
+    target: DeliveryTarget,
+) -> None:
+    endpoint = getattr(receiver, "endpoint_url", None)
+    try:
+        matches = isinstance(endpoint, str) and _origin(endpoint) == _origin(target.target_identity)
+    except ValueError:
+        matches = False
+    if not matches:
+        raise HistoryTransportAuthorityError("history receiver endpoint does not match the admitted target")
+
+
+def _assert_history_authority(
+    envelopes: Sequence[Envelope],
+    *,
+    project_context: ProjectSyncContext,
+    target: DeliveryTarget,
+    history_capability: HistoryDisclosureCapability,
+    server_url: str | None = None,
+) -> None:
+    """Revalidate the exact sealed cohort and target without retaining a UoW."""
+    _assert_target_matches_context(project_context, target)
+    project_uuid = project_context.project_uuid.storage_token
+    if history_capability.project_uuid != project_uuid:
+        raise HistoryTransportAuthorityError("history capability belongs to another project")
+    if server_url is not None and canonicalize_url(server_url) != canonicalize_url(target.target_identity):
+        raise HistoryTransportAuthorityError("history server URL does not match the admitted target")
+    event_ids = tuple(str(envelope.get("event_id") or "") for envelope in envelopes)
+    if event_ids != history_capability.row_ids:
+        raise HistoryTransportAuthorityError("history envelopes do not equal the capability's exact ordered cohort")
+    if any(resolve_envelope_project(envelope) != project_uuid for envelope in envelopes):
+        raise HistoryTransportAuthorityError("history cohort contains an envelope from another project")
+
+    store = ProjectSyncStore(project_uuid)
+    with store.unit_of_work() as unit:
+        try:
+            revalidate_history_disclosure(unit, history_capability)
+        except HistoryDisclosureError as exc:
+            raise HistoryTransportAuthorityError(str(exc)) from exc
+        placeholders = ", ".join("?" for _ in event_ids)
+        query = (
+            f"SELECT entry_id, payload_json FROM journal_entries WHERE project_uuid = ? AND entry_id IN ({placeholders}) "  # noqa: S608 - capability-count placeholders only
+            "ORDER BY capture_sequence, entry_id"
+        )
+        rows = unit.execute(
+            query,
+            (project_uuid, *event_ids),
+        ).fetchall()
+    persisted = tuple((str(row[0]), str(row[1])) for row in rows)
+    disclosed = tuple((str(envelope["event_id"]), _canonical_event_json(envelope)) for envelope in envelopes)
+    if persisted != disclosed:
+        raise HistoryTransportAuthorityError("history envelopes differ from the exact confirmed local rows")
+
+
+def _event_payload_bytes(envelope: Envelope, *, sink: str) -> bytes:
+    if sink == "history_upload":
+        event = OutboundEvent(
+            event_id=str(envelope["event_id"]),
+            payload=envelope,
+        )
+        return disclosed_event_payload_bytes(event)
+    return _canonical_request_bytes(dict(envelope))
+
+
+def _history_disclosures(
+    envelopes: Sequence[Envelope],
+    *,
+    sink: str,
+    project_context: ProjectSyncContext,
+    target: DeliveryTarget,
+    history_capability: HistoryDisclosureCapability,
+) -> list[ProjectTransportDisclosure]:
+    epoch_id = project_context.epoch_id
+    consent_generation = project_context.consent_generation
+    if not isinstance(epoch_id, int) or not isinstance(consent_generation, int):
+        raise HistoryTransportAuthorityError("history transport requires a current consenting project epoch")
+    disclosures: list[ProjectTransportDisclosure] = []
+    for envelope in envelopes:
+        native_identity = str(envelope["event_id"])
+        wire_event = _admission_bound_event(
+            envelope,
+            project_context=project_context,
+        )
+        disclosed_item: Mapping[str, Any]
+        if sink == "history_preflight":
+            disclosed_item = {
+                "history_action_id": history_capability.action_id,
+                "preview_hash": history_capability.preview_hash,
+                "event": wire_event,
+            }
+        else:
+            disclosed_item = wire_event
+        disclosed_bytes = _event_payload_bytes(disclosed_item, sink=sink)
+        payload_hash = (
+            "sha256:"
+            + hashlib.sha256(  # noqa: TID251 - exact wire disclosure digest
+                disclosed_bytes
+            ).hexdigest()
+        )
+        disclosures.append(
+            ProjectTransportDisclosure(
+                project_uuid=project_context.project_uuid.storage_token,
+                epoch_id=epoch_id,
+                consent_generation=consent_generation,
+                target_identity=target.target_identity,
+                account_identity=target.account_identity,
+                private_teamspace_id=target.private_teamspace_id,
+                target_project_uuid=target.project_uuid.storage_token,
+                target_generation=target.configuration_generation,
+                admission_generation=str(target.admission_generation),
+                binding_audience=str(target.binding_audience),
+                write_kind=sink,
+                native_identity=native_identity,
+                payload_hash=payload_hash,
+                payload_reference=json.dumps(
+                    {
+                        "history_action_id": history_capability.action_id,
+                        "preview_hash": history_capability.preview_hash,
+                        "native_identity": native_identity,
+                        "disclosed_sha256": payload_hash,
+                        "sink": sink,
+                        "target_id": target.target_id,
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                attempt_id=f"{sink}:"
+                + stable_transport_id(
+                    history_capability.action_id,
+                    target.target_id,
+                    native_identity,
+                    payload_hash,
+                ),
+                deadline_at=default_transport_deadline(),
+                reconciliation_policy="native_identity_retry",
+            )
+        )
+    return disclosures
+
+
+def _preflight_classification(
+    response: _PreflightResponse,
+    disclosures: Sequence[ProjectTransportDisclosure],
+) -> Mapping[str, tuple[str, str | None]]:
+    if response.status_code == 200 and response.payload is not None:
+        results = _correlated_preflight_results(response.payload)
+        if results is None:
+            return {
+                disclosure.attempt_id: (
+                    TransportDeliveryOutcome.UNKNOWN.value,
+                    None,
+                )
+                for disclosure in disclosures
+            }
+        mapped: dict[str, tuple[str, str | None]] = {}
+        for disclosure in disclosures:
+            result = results.get(disclosure.native_identity)
+            if result is None:
+                mapped[disclosure.attempt_id] = (
+                    TransportDeliveryOutcome.UNKNOWN.value,
+                    None,
+                )
+                continue
+            status = str(result.get("status") or "").strip().lower()
+            category = _canonical_preflight_error_category(result)
+            outcome: tuple[str, str | None]
+            if status == "success":
+                outcome = (TransportDeliveryOutcome.DELIVERED.value, None)
+            elif status == "duplicate":
+                outcome = (TransportDeliveryOutcome.DUPLICATE.value, None)
+            elif status == "pending":
+                outcome = (TransportDeliveryOutcome.PENDING.value, None)
+            elif status == "rejected":
+                outcome = (
+                    TransportDeliveryOutcome.REFUSED.value,
+                    category or "preflight_rejected",
+                )
+            else:
+                outcome = (TransportDeliveryOutcome.UNKNOWN.value, None)
+            mapped[disclosure.attempt_id] = outcome
+        return mapped
+    if response.status_code == 400:
+        details = _preflight_error_details(response.payload)
+        return {
+            disclosure.attempt_id: (
+                (TransportDeliveryOutcome.REFUSED.value if disclosure.native_identity in details else TransportDeliveryOutcome.RETRYABLE_NO_EFFECT.value),
+                (
+                    _canonical_preflight_error_category(details.get(disclosure.native_identity)) or "preflight_rejected"
+                    if disclosure.native_identity in details
+                    else None
+                ),
+            )
+            for disclosure in disclosures
+        }
+    outcome = (TransportDeliveryOutcome.UNKNOWN.value, None)
+    if response.status_code == 413:
+        # The receiver authoritatively rejected this request without applying
+        # any event. Keep the stable per-event attempts recoverable so WP10 can
+        # retry a smaller chunk under the same native identities; terminalizing
+        # here would make size recovery impossible.
+        outcome = (TransportDeliveryOutcome.RETRYABLE_NO_EFFECT.value, None)
+    return {disclosure.attempt_id: outcome for disclosure in disclosures}
+
+
+def _canonical_preflight_error_category(
+    payload: Mapping[str, Any] | None,
+) -> str | None:
+    if payload is None:
+        return None
+    for category_field in ("error_category", "category", "code"):
+        category = payload.get(category_field)
+        if isinstance(category, str) and category.strip():
+            return category.strip().lower()
+    return None
+
+
+def _preflight_error_details(
+    payload: Mapping[str, Any] | None,
+) -> dict[str, Mapping[str, Any]]:
+    if payload is None:
+        return {}
+    raw: object = payload.get("results", payload.get("details"))
+    if isinstance(raw, str) and raw.strip():
+        try:
+            raw = json.loads(raw)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return {}
+    if not isinstance(raw, list):
+        return {}
+    return {
+        str(detail["event_id"]): detail
+        for detail in raw
+        if isinstance(detail, Mapping) and isinstance(detail.get("event_id"), str) and str(detail["event_id"]).strip()
+    }
+
+
+def _attempt_spec(
+    disclosure: ProjectTransportDisclosure,
+) -> DeliveryAttemptSpec:
+    return DeliveryAttemptSpec(
+        attempt_id=disclosure.attempt_id,
+        write_kind=disclosure.write_kind,
+        native_identity=disclosure.native_identity,
+        payload_hash=disclosure.payload_hash,
+        payload_reference=disclosure.payload_reference,
+        deadline_at=disclosure.deadline_at,
+        reconciliation_policy=disclosure.reconciliation_policy,
+    )
+
+
+def _exact_terminal_history(
+    disclosures: Sequence[ProjectTransportDisclosure],
+    *,
+    target: DeliveryTarget,
+) -> tuple[DeliveryTerminalResultProjection, ...] | None:
+    """Project exact prior terminal truth, or ``None`` when every row is absent."""
+    store = ProjectSyncStore(disclosures[0].project_uuid)
+    try:
+        with (
+            acquire_project_transport_lease(store) as lease,
+            lease.unit_of_work() as (unit, context),
+        ):
+            _assert_target_matches_context(context, target)
+            projections = tuple(
+                get_delivery_terminal_result_projection(
+                    unit,
+                    context,
+                    _attempt_spec(disclosure),
+                )
+                for disclosure in disclosures
+            )
+    except (ProjectStoreError, TypeError, ValueError) as exc:
+        raise HistoryTransportAuthorityError(f"history terminal result projection refused: {exc}") from exc
+    statuses = {projection.status for projection in projections}
+    if statuses == {DeliveryTerminalResultStatus.ABSENT}:
+        return None
+    if statuses != {DeliveryTerminalResultStatus.TERMINAL}:
+        raise HistoryTransportAuthorityError("history terminal result cohort is mixed or nonterminal; recover the original attempts")
+    return projections
+
+
+def _prior_preflight_response(
+    disclosures: Sequence[ProjectTransportDisclosure],
+    *,
+    target: DeliveryTarget,
+) -> _PreflightResponse | None:
+    projections = _exact_terminal_history(disclosures, target=target)
+    if projections is None:
+        return None
+    results: list[dict[str, object]] = []
+    for disclosure, projection in zip(disclosures, projections, strict=True):
+        if projection.outcome is TransportDeliveryOutcome.DELIVERED:
+            results.append({"event_id": disclosure.native_identity, "status": "success"})
+        elif projection.outcome is TransportDeliveryOutcome.DUPLICATE:
+            results.append({"event_id": disclosure.native_identity, "status": "duplicate"})
+        elif projection.outcome is TransportDeliveryOutcome.REFUSED:
+            results.append(
+                {
+                    "event_id": disclosure.native_identity,
+                    "status": "rejected",
+                    "error_category": projection.terminal_refusal_category or "preflight_rejected",
+                    "retryable": False,
+                }
+            )
+        else:
+            raise HistoryTransportAuthorityError("history preflight terminal projection contains nonterminal truth")
+    return _PreflightResponse(
+        status_code=200,
+        payload={"results": results, "terminal_history_replay": True},
+        expected_event_ids=tuple(disclosure.native_identity for disclosure in disclosures),
+    )
+
+
+def _run_gated_preflight_chunk(
+    chunk: Sequence[Envelope],
+    *,
+    all_envelopes: Sequence[Envelope],
+    server_url: str,
+    auth_token: str,
+    poster: HttpPoster,
+    project_context: ProjectSyncContext,
+    target: DeliveryTarget,
+    history_capability: HistoryDisclosureCapability,
+    restart_attempts: bool = False,
+) -> _PreflightResponse:
+    disclosures = _history_disclosures(
+        chunk,
+        sink="history_preflight",
+        project_context=project_context,
+        target=target,
+        history_capability=history_capability,
+    )
+    if not restart_attempts:
+        prior = _prior_preflight_response(disclosures, target=target)
+        if prior is not None:
+            return prior
+
+    def send() -> _PreflightResponse:
+        # Revalidate the full confirmed cohort while the WP06 transport lease is
+        # held, then close the UoW before bytes cross the network.
+        _assert_history_authority(
+            all_envelopes,
+            project_context=project_context,
+            target=target,
+            history_capability=history_capability,
+            server_url=server_url,
+        )
+        return _post_server_preflight(
+            chunk,
+            server_url=server_url,
+            auth_token=auth_token,
+            poster=poster,
+            project_context=project_context,
+            history_capability=history_capability,
+        )
+
+    result = execute_project_transport_batch(
+        disclosures,
+        send=send,
+        classify=lambda value: _preflight_classification(
+            value
+            if isinstance(value, _PreflightResponse)
+            else _PreflightResponse(
+                0,
+                None,
+                "uncorrelated response",
+                tuple(disclosure.native_identity for disclosure in disclosures),
+            ),
+            disclosures,
+        ),
+        restart_attempt_ids=(frozenset(disclosure.attempt_id for disclosure in disclosures) if restart_attempts else frozenset()),
+    )
+    if isinstance(result, ProjectTransportRefusal):
+        raise HistoryTransportAuthorityError(f"{result.category}: {result.diagnostic}")
+    if not isinstance(result, _PreflightResponse):
+        raise HistoryTransportAuthorityError("history preflight returned an uncorrelated result")
+    if result.status_code == 413 and len(chunk) > 1:
+        midpoint = len(chunk) // 2
+        for smaller_chunk in (chunk[:midpoint], chunk[midpoint:]):
+            split_result = _run_gated_preflight_chunk(
+                smaller_chunk,
+                all_envelopes=all_envelopes,
+                server_url=server_url,
+                auth_token=auth_token,
+                poster=poster,
+                project_context=project_context,
+                target=target,
+                history_capability=history_capability,
+                restart_attempts=True,
+            )
+            if not split_result.accepted:
+                return split_result
+        return _PreflightResponse(
+            status_code=200,
+            payload={
+                "results": [{"event_id": str(envelope["event_id"]), "status": "success"} for envelope in chunk],
+                "split_preflight": True,
+            },
+            expected_event_ids=tuple(str(envelope["event_id"]) for envelope in chunk),
+        )
+    return result
+
+
+def _delivery_classification(
+    value: object,
+    disclosures: Sequence[ProjectTransportDisclosure],
+) -> Mapping[str, tuple[str, str | None]]:
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+        raise TypeError("history receiver returned a non-sequence result")
+    results = list(value)
+    if any(not isinstance(result, DeliveryResult) for result in results):
+        raise TypeError("history receiver returned a non-DeliveryResult value")
+    expected = [disclosure.native_identity for disclosure in disclosures]
+    actual = [result.event_id for result in results]
+    if len(actual) != len(set(actual)) or set(actual) != set(expected):
+        raise ValueError("history receiver result identities are not an exact bijection")
+    by_id = {result.event_id: result for result in results}
+    mapped: dict[str, tuple[str, str | None]] = {}
+    for disclosure in disclosures:
+        result = by_id[disclosure.native_identity]
+        outcome: tuple[str, str | None]
+        if result.outcome is DeliveryOutcome.SUCCESS:
+            outcome = (TransportDeliveryOutcome.DELIVERED.value, None)
+        elif result.outcome is DeliveryOutcome.DUPLICATE:
+            outcome = (TransportDeliveryOutcome.DUPLICATE.value, None)
+        elif result.outcome is DeliveryOutcome.TERMINAL_FAILED:
+            category = None
+            if isinstance(result.raw, Mapping):
+                category = _canonical_preflight_error_category(result.raw)
+            outcome = (
+                TransportDeliveryOutcome.REFUSED.value,
+                category or "history_upload_terminal_refusal",
+            )
+        elif result.outcome in {DeliveryOutcome.PENDING, DeliveryOutcome.REJECTED}:
+            if result.effect_certainty is DeliveryEffectCertainty.KNOWN_NO_EFFECT:
+                outcome = (TransportDeliveryOutcome.RETRYABLE_NO_EFFECT.value, None)
+            elif result.effect_certainty is DeliveryEffectCertainty.ACCEPTED_PENDING:
+                outcome = (TransportDeliveryOutcome.PENDING.value, None)
+            else:
+                outcome = (TransportDeliveryOutcome.UNKNOWN.value, None)
+        else:
+            outcome = (TransportDeliveryOutcome.UNKNOWN.value, None)
+        mapped[disclosure.attempt_id] = outcome
+    return mapped
+
+
+def _prior_upload_results(
+    disclosures: Sequence[ProjectTransportDisclosure],
+    *,
+    target: DeliveryTarget,
+) -> list[DeliveryResult] | None:
+    projections = _exact_terminal_history(disclosures, target=target)
+    if projections is None:
+        return None
+    outcomes = {projection.outcome for projection in projections}
+    if not outcomes <= {
+        TransportDeliveryOutcome.DELIVERED,
+        TransportDeliveryOutcome.DUPLICATE,
+    }:
+        categories = sorted(
+            {
+                projection.terminal_refusal_category or (projection.outcome.value if projection.outcome is not None else "missing_outcome")
+                for projection in projections
+            }
+        )
+        raise HistoryTransportAuthorityError("history upload terminal result is not replayable: " + ", ".join(categories))
+    return [
+        DeliveryResult(
+            event_id=disclosure.native_identity,
+            outcome=(DeliveryOutcome.SUCCESS if projection.outcome is TransportDeliveryOutcome.DELIVERED else DeliveryOutcome.DUPLICATE),
+            effect_certainty=DeliveryEffectCertainty.TERMINAL,
+            raw={"terminal_history_replay": True},
+        )
+        for disclosure, projection in zip(disclosures, projections, strict=True)
+    ]
+
+
 def upload_envelopes(
     envelopes: Sequence[Envelope],
     *,
@@ -329,6 +1060,9 @@ def upload_envelopes(
     chunk_size: int = _IMPORT_CHUNK_SIZE,
     checkout_root: Path | None = None,
     consent_predicate: ConsentPredicate | None = None,
+    project_context: ProjectSyncContext | None = None,
+    target: DeliveryTarget | None = None,
+    history_capability: HistoryDisclosureCapability | None = None,
 ) -> UploadReport:
     """Chunk the stream (mission-atomically) and deliver, stopping on failure.
 
@@ -337,6 +1071,23 @@ def upload_envelopes(
     the partial state. Consent is resolved and the batches minted before the
     first chunk is handed to the receiver (FR-028).
     """
+    if not envelopes:
+        return UploadReport()
+    if project_context is None or target is None or history_capability is None:
+        return _refusal_report(
+            envelopes,
+            _missing_authority_error(envelopes, surface="history upload"),
+        )
+    try:
+        _assert_receiver_matches_target(receiver, target)
+        _assert_history_authority(
+            envelopes,
+            project_context=project_context,
+            target=target,
+            history_capability=history_capability,
+        )
+    except HistoryTransportAuthorityError as exc:
+        return _refusal_report(envelopes, exc)
     chunks = list(_chunked(envelopes, chunk_size))
     _assert_batches_within_cap(chunks)
     answer = _consent_answer(envelopes, checkout_root=checkout_root, consent_predicate=consent_predicate)
@@ -345,7 +1096,15 @@ def upload_envelopes(
     except UnconsentedDelivery as exc:
         return _refusal_report(envelopes, exc)
     report = UploadReport()
-    _deliver_chunks(batches, receiver, report)
+    _deliver_chunks(
+        batches,
+        receiver,
+        report,
+        all_envelopes=envelopes,
+        project_context=project_context,
+        target=target,
+        history_capability=history_capability,
+    )
     return report
 
 
@@ -359,6 +1118,9 @@ def run_import_upload(
     chunk_size: int = _IMPORT_CHUNK_SIZE,
     checkout_root: Path | None = None,
     consent_predicate: ConsentPredicate | None = None,
+    project_context: ProjectSyncContext | None = None,
+    target: DeliveryTarget | None = None,
+    history_capability: HistoryDisclosureCapability | None = None,
 ) -> UploadReport:
     """Preflight every chunk, then (only if all pass) upload chunks in order.
 
@@ -373,11 +1135,28 @@ def run_import_upload(
     mission-atomic and carry monotonic per-mission Lamport clocks, so any
     delivered prefix is a valid ordered prefix of whole missions (a
     WPStatusChanged never lands before its WPCreated), never an orphan — and a
-    re-run completes idempotently (the server dedups on ``event_id``). Note the
-    import-once payload freeze: a fixed deterministic ``event_id`` means
-    re-running after the on-disk facts change re-sends the *same* id, so the
-    updated payload is dropped as a duplicate rather than overwriting.
+    retry uses the same durable attempt/native identity. If that attempt already
+    has a terminal result, the canonical recovery API must project it; this
+    adapter never creates a fresh attempt to force another request.
     """
+    if not envelopes:
+        return UploadReport()
+    if project_context is None or target is None or history_capability is None:
+        return _refusal_report(
+            envelopes,
+            _missing_authority_error(envelopes, surface="history import"),
+        )
+    try:
+        _assert_receiver_matches_target(receiver, target)
+        _assert_history_authority(
+            envelopes,
+            project_context=project_context,
+            target=target,
+            history_capability=history_capability,
+            server_url=server_url,
+        )
+    except HistoryTransportAuthorityError as exc:
+        return _refusal_report(envelopes, exc)
     chunks = list(_chunked(envelopes, chunk_size))
     _assert_batches_within_cap(chunks)
     # The consent gate runs BEFORE the preflight. ``run_server_preflight`` POSTs
@@ -391,16 +1170,49 @@ def run_import_upload(
     except UnconsentedDelivery as exc:
         return _refusal_report(envelopes, exc)
     for chunk in chunks:
-        run_server_preflight(chunk, server_url=server_url, auth_token=auth_token, poster=poster)
+        try:
+            response = _run_gated_preflight_chunk(
+                chunk,
+                all_envelopes=envelopes,
+                server_url=server_url,
+                auth_token=auth_token,
+                poster=poster,
+                project_context=project_context,
+                target=target,
+                history_capability=history_capability,
+            )
+        except HistoryTransportAuthorityError as exc:
+            return _refusal_report(envelopes, exc)
+        except requests.RequestException as exc:
+            raise PreflightRejected({"error": f"preflight transport failed: {exc}"}) from exc
+        if not response.accepted:
+            raise PreflightRejected(response.payload or {"error": response.error or "preflight rejected"})
     report = UploadReport()
-    _deliver_chunks(batches, receiver, report)
+    _deliver_chunks(
+        batches,
+        receiver,
+        report,
+        all_envelopes=envelopes,
+        project_context=project_context,
+        target=target,
+        history_capability=history_capability,
+    )
     return report
 
 
 # ── internals ─────────────────────────────────────────────────────────────────
 
 
-def _deliver_chunks(batches: Sequence[ConsentedBatch], receiver: DeliveryReceiver, report: UploadReport) -> None:
+def _deliver_chunks(
+    batches: Sequence[ConsentedBatch],
+    receiver: DeliveryReceiver,
+    report: UploadReport,
+    *,
+    all_envelopes: Sequence[Envelope],
+    project_context: ProjectSyncContext,
+    target: DeliveryTarget,
+    history_capability: HistoryDisclosureCapability,
+) -> None:
     """Deliver chunks in order, stopping at the first chunk with a failure.
 
     A chunk whose delivery reports any outcome outside {success, duplicate,
@@ -411,8 +1223,83 @@ def _deliver_chunks(batches: Sequence[ConsentedBatch], receiver: DeliveryReceive
     re-run resumes idempotently (the server dedups on ``event_id``).
     """
     for index, batch in enumerate(batches):
+        events = list(batch)
+        wire_events = [
+            OutboundEvent(
+                event_id=event.event_id,
+                payload=_admission_bound_event(
+                    event.payload,
+                    project_context=project_context,
+                ),
+            )
+            for event in events
+        ]
+        wire_batch = consented_batch(
+            wire_events,
+            answer=batch.answer,
+            event_projects=batch.event_projects,
+        )
+        disclosures = _history_disclosures(
+            [event.payload for event in events],
+            sink="history_upload",
+            project_context=project_context,
+            target=target,
+            history_capability=history_capability,
+        )
+
+        def send(
+            current_batch: ConsentedBatch = batch,
+            current_wire_batch: ConsentedBatch = wire_batch,
+        ) -> Sequence[DeliveryResult]:
+            _assert_history_authority(
+                all_envelopes,
+                project_context=project_context,
+                target=target,
+                history_capability=history_capability,
+            )
+            del current_batch
+            return receiver.deliver(current_wire_batch)
+
+        def classify(
+            value: object,
+            current_disclosures: tuple[ProjectTransportDisclosure, ...] = tuple(disclosures),
+        ) -> Mapping[str, tuple[str, str | None]]:
+            return _delivery_classification(value, current_disclosures)
+
         failures_before = report.rejected
-        for result in receiver.deliver(batch):
+        try:
+            prior_results = _prior_upload_results(disclosures, target=target)
+        except HistoryTransportAuthorityError as exc:
+            report.rejected += len(events)
+            report.refused = True
+            report.rejected_samples.append(str(exc))
+            report.delivered_through_chunk = index
+            report.undelivered_event_count = sum(len(later) for later in batches[index + 1 :])
+            report.partial = report.undelivered_event_count > 0
+            return
+        result_value: object = (
+            prior_results
+            if prior_results is not None
+            else execute_project_transport_batch(
+                disclosures,
+                send=send,
+                classify=classify,
+            )
+        )
+        if isinstance(result_value, ProjectTransportRefusal):
+            refused = HistoryTransportAuthorityError(f"{result_value.category}: {result_value.diagnostic}")
+            report.rejected += len(events)
+            report.refused = True
+            report.rejected_samples.append(str(refused))
+            report.delivered_through_chunk = index
+            report.undelivered_event_count = sum(len(later) for later in batches[index + 1 :])
+            report.partial = report.undelivered_event_count > 0
+            return
+        if not isinstance(result_value, Sequence) or isinstance(result_value, (str, bytes)):
+            raise TypeError("history receiver returned an uncorrelated result")
+        for result in result_value:
+            if not isinstance(result, DeliveryResult):
+                raise TypeError("history receiver returned a non-DeliveryResult value")
             _tally(report, result)
         if report.rejected > failures_before:
             report.delivered_through_chunk = index

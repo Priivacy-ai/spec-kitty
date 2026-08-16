@@ -30,8 +30,9 @@ from charter.pack_manager import (
     YAML_KEY_MAP,
     AvailableArtifact,
     CharterPackManager,
+    _resolve_layer_candidate,
 )
-from doctrine.artifact_kinds import CHARTER_KIND_TOKENS
+from doctrine.artifact_kinds import CHARTER_KIND_TOKENS, ArtifactKind
 
 pytestmark = pytest.mark.unit
 
@@ -339,3 +340,88 @@ class TestActivationDelegation:
         assert "plan_activation(" in src
         assert "plan_deactivation(" in src
         assert "commit_plan(" in src
+
+
+# ---------------------------------------------------------------------------
+# _resolve_layer_candidate (S3776 decomposition of _scan_layer_dirs, WP03)
+# ---------------------------------------------------------------------------
+
+
+class TestResolveLayerCandidate:
+    """Pins the per-``(layer, kind, layered)`` directory-layout rules that
+    ``_scan_layer_dirs`` (previously a single 16-cognitive-complexity ``if``/
+    ``elif`` chain) delegates to. Each branch is exercised in isolation.
+    """
+
+    def test_project_layer_layered_uses_project_kind_dir(self, tmp_path: Path) -> None:
+        candidate = _resolve_layer_candidate(
+            "project", tmp_path, ArtifactKind.DIRECTIVE, "doctrine/directives", layered=True
+        )
+        assert candidate == tmp_path / "doctrine" / "directive"
+
+    def test_org_layer_layered_delegates_to_org_layer_resolver(self, tmp_path: Path) -> None:
+        # No flat ``tmp_path/directives`` dir exists, so the org resolver's
+        # nested-layout fallback applies (see ``_resolve_org_layer_dir``).
+        candidate = _resolve_layer_candidate(
+            "org", tmp_path, ArtifactKind.DIRECTIVE, "doctrine/directives", layered=True
+        )
+        assert candidate == tmp_path / "doctrine/directives" / "org"
+
+    def test_built_in_layer_layered_delegates_to_built_in_dir(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        sentinel = tmp_path / "sentinel-built-in"
+        monkeypatch.setattr(
+            "charter.pack_manager.built_in_dir", lambda kind: sentinel if kind is ArtifactKind.DIRECTIVE else None
+        )
+        candidate = _resolve_layer_candidate(
+            "built-in", tmp_path, ArtifactKind.DIRECTIVE, "doctrine/directives", layered=True
+        )
+        assert candidate == sentinel
+
+    def test_layered_without_kind_falls_back_to_generic_join(self, tmp_path: Path) -> None:
+        """Defensive branch: ``_scan_layout_for`` never actually returns
+        ``layered=True`` with ``kind is None`` today (``kind is None`` implies
+        the flat ``mission-type`` layout), but the pre-extraction code carried
+        this fallback and the refactor must not silently drop it.
+        """
+        candidate = _resolve_layer_candidate(
+            "org", tmp_path, None, "some/base/dir", layered=True
+        )
+        assert candidate == tmp_path / "some/base/dir" / "org"
+
+    def test_flat_built_in_layer_uses_missions_root(self, tmp_path: Path) -> None:
+        candidate = _resolve_layer_candidate(
+            "built-in", tmp_path, None, "missions/mission_types", layered=False
+        )
+        from doctrine.missions.repository import MissionTemplateRepository
+
+        assert candidate == MissionTemplateRepository.default_missions_root() / "mission_types"
+
+    def test_flat_kind_org_layer_resolves_to_pack_root_mission_types(self, tmp_path: Path) -> None:
+        """FR-003: an org pack's flat mission-type roster lives at
+        ``<org_pack_root>/mission_types/`` (CL-005). This supersedes the
+        pre-FR-003 ``else: continue`` behaviour this test used to pin — a
+        flat (``layered=False``) kind in the org layer now resolves to a real
+        directory instead of ``None``. See
+        ``docs/adr/3.x/2026-08-13-1-mission-type-roster-layering-seam.md``."""
+        candidate = _resolve_layer_candidate(
+            "org", tmp_path, None, "missions/mission_types", layered=False
+        )
+        assert candidate == tmp_path / "mission_types"
+
+    def test_flat_kind_project_layer_resolves_to_kittify_missions_mission_types(
+        self, tmp_path: Path
+    ) -> None:
+        """FR-005: a project's flat mission-type roster lives at
+        ``.kittify/missions/mission_types/`` — a flat sibling of, not nested
+        inside, ``.kittify/missions/<mission_name>/`` (CL-005). ``root`` here
+        is already ``repo_root / ".kittify"`` (see
+        ``specify_cli.cli.commands.charter._layer_roots.resolve_layer_roots``).
+        This supersedes the pre-FR-003/FR-005 ``else: continue`` behaviour
+        this test used to pin — a flat (``layered=False``) kind in the
+        project layer now resolves to a real directory instead of ``None``."""
+        candidate = _resolve_layer_candidate(
+            "project", tmp_path, None, "missions/mission_types", layered=False
+        )
+        assert candidate == tmp_path / "missions" / "mission_types"

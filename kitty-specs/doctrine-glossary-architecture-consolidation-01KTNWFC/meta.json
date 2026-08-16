@@ -15,6 +15,7 @@
   "accepted_from_commit": "bd4f359f24a42a33c99e24c5d7f992c44eee209c",
   "baseline_merge_commit": "f6c359559f3d6527d40867949af5664bb54e3495",
   "created_at": "2026-06-09T09:47:31.307711+00:00",
+  "flattened": false,
   "friendly_name": "Doctrine, Glossary & Architecture Consolidation",
   "mission_id": "01KTNWFC3B1ZGFR9FTT77X7H2Y",
   "mission_number": 131,
@@ -24,5 +25,6 @@
   "purpose_tldr": "Consolidate Spec Kitty's planning/tracking doctrine, glossary, and architecture documentation into coherent, governed artefacts.",
   "slug": "doctrine-glossary-architecture-consolidation-01KTNWFC",
   "status_phase": "1",
-  "target_branch": "feat/doctrine-glossary-consolidation-01KTNWFC"
+  "target_branch": "feat/doctrine-glossary-consolidation-01KTNWFC",
+  "topology": "lanes"
 }

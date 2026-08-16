@@ -1149,6 +1149,8 @@ class TestSaasFanOut:
 
     def test_saas_called_when_available(self):
         """emit_wp_status_changed is called when sync module is available."""
+        from specify_cli.sync.events import WPStatusChangeMetadata
+
         event = self._make_event(
             from_lane=Lane.CLAIMED,
             to_lane=Lane.IN_PROGRESS,
@@ -1166,14 +1168,16 @@ class TestSaasFanOut:
             actor="test-actor",
             mission_slug="034-test-feature",
             mission_id=None,
-            causation_id="01HXYZ0000000000000000SAAS",
-            policy_metadata=None,
-            force=False,
-            reason=None,
-            review_ref=None,
-            execution_mode="worktree",
-            evidence=None,
-            occurred_at=event.at,
+            metadata=WPStatusChangeMetadata(
+                causation_id="01HXYZ0000000000000000SAAS",
+                policy_metadata=None,
+                force=False,
+                reason=None,
+                review_ref=None,
+                execution_mode="worktree",
+                evidence=None,
+                occurred_at=event.at,
+            ),
             ensure_daemon=True,
         )
 

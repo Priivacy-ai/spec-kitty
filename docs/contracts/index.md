@@ -2,16 +2,25 @@
 title: Contracts
 description: 'Contract-ownership boundary registry for Spec Kitty: the seeded contract manifest and its validation schema, checked by the doctor contracts gate.'
 doc_status: active
-updated: '2026-07-07'
+updated: '2026-08-14'
 related:
 - docs/api/cli-commands.md
 - docs/index.md
+- docs/contracts/handoff-packet-v1.md
 ---
 # Contracts
 
 This section holds the **Contract Registry** for the contract-ownership
 boundary (#2441): the single, canonical manifest of ownership contracts that
 Spec Kitty enforces, plus the schema that validates it.
+
+It also holds the **handoff packet** payload contract that external
+requirements tools use to seed `/spec-kitty.specify` without losing
+requirement identity:
+
+- `handoff-packet-v1.md` — optional YAML-frontmatter overlay on a Markdown
+  brief. Frontmatter is additive; unknown versions degrade to prose intake.
+  Parser: `src/specify_cli/intake/packet.py`.
 
 ## Files
 
@@ -23,6 +32,9 @@ Spec Kitty enforces, plus the schema that validates it.
   validated against: required fields, allowed `kind`/`status`/`enforcement`
   ranges, well-formed semver and tracker references, resolvable anchors, and the
   DIR-041 self-consistency rule that forbids positional `file:line` anchoring.
+- `handoff-packet-v1.md` — optional YAML-frontmatter overlay that lets an
+  upstream requirements tool seed `/spec-kitty.specify` without losing FR/AC
+  identity. Unknown versions degrade to prose intake.
 
 ## Validation
 
