@@ -8,10 +8,10 @@
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "commit ea030c62f: test requests canonical_home, own setenv removed; discover() returns to 40 members",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-16T13:45:22.532366+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
