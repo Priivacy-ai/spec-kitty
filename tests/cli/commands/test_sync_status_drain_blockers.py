@@ -75,7 +75,7 @@ def test_drain_blocked_counts_zero_when_all_ready() -> None:
 
 
 def test_queue_get_drain_blocked_counts_persists_through_drain_round_trip(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    canonical_home: None,
 ) -> None:
     """``get_drain_blocked_counts`` reflects what's currently durable on disk.
 
@@ -92,11 +92,13 @@ def test_queue_get_drain_blocked_counts_persists_through_drain_round_trip(
     per-worker home other ``tests/cli`` and ``tests/sync`` cases reuse across
     the whole pytest session; an earlier test that auto-resolves the machine
     layout to ``PROJECT_ONLY`` would make this test's own ``begin_cutover``
-    call fail with "layout is already project-only". Pin the home explicitly
-    (matching ``tests/sync/test_layout_cutover.py``'s ``_isolate`` pattern) so
-    this test always starts from a fresh LEGACY record.
+    call fail with "layout is already project-only". Isolation to this test's
+    own ``tmp_path/home`` is provided by requesting the canonical
+    ``SPEC_KITTY_HOME`` owner (``canonical_home``, R1a #3121) so this test
+    always starts from a fresh LEGACY record — the owner establishes an
+    equivalent per-test home without this test carrying its own pin.
     """
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
+    del canonical_home  # the ONE SPEC_KITTY_HOME owner (R1a #3121) pins the home
     store = ProjectSyncStore("aaaaaaaa-0000-0000-8000-000000000107")
     authority = store.layout_generation()
     authority.begin_cutover("status-drain-blockers")

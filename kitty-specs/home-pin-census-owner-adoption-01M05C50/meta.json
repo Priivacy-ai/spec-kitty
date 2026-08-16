@@ -23,7 +23,6 @@
   "purpose_context": "This mission advances home pin census owner adoption on kitty/fix-home-pin-census-owner-adoption-3121 so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "home pin census owner adoption",
   "slug": "home-pin-census-owner-adoption-01M05C50",
-  "status_phase": "1",
   "target_branch": "kitty/fix-home-pin-census-owner-adoption-3121",
   "topology": "single_branch",
   "vcs": "git",
