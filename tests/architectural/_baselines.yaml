@@ -312,6 +312,14 @@ test_no_dead_symbols:
   # only (this section is NOT read by test_ratchet_baselines). Target = 0 once
   # a later mission wires each remaining helper.
   category_c_delivery_rail_forward_api: 18
+  # justification: 3 operator-config-ergonomics public-API symbols (landed via
+  # #3506) that are contract-declared/public but have no static src/ importer
+  # yet: UnresolvedEnvTokenError (raised only on the inject_defaults=False
+  # policy no current caller uses), OperatorEnvFileUnreadableError (fail-loud
+  # startup error caught nowhere by design), RedactedVar (redact()'s public
+  # return-element type). Same public-but-unwired shape as #1928. Wire-or-prune
+  # tracked under #3508 (FR-303). Target = 0 once each is wired or pruned.
+  category_c_operator_config_public_api: 3
   # category_c_upstream_status_service removed by execution-context-unification
   # WP09 (#1622/#391): the 2 truly-dead functions (append_event_log_batch,
   # read_wp_lane_actor) were deleted and the 3 internally-used types

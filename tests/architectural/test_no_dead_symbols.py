@@ -649,6 +649,64 @@ _CATEGORY_C_QUALITY_DEBT_1928: frozenset[SymbolKey] = frozenset(
 )
 
 
+# ---------- C. operator-config public API (mission operator-config-ergonomics) ----------
+# Three symbols authored by the operator-config-ergonomics mission (landed via
+# #3506) that are deliberate, contract-declared public API but have no static
+# src/ importer yet -- the same "public-but-unwired" shape as #1928 above:
+#   * ``UnresolvedEnvTokenError`` -- raised only on the ``inject_defaults=False``
+#     expansion policy (env-expander.md C-EXP-2/4); no current caller uses that
+#     policy, so nothing in src/ catches it yet.
+#   * ``OperatorEnvFileUnreadableError`` -- fail-loud error raised by the
+#     pre-import env-file loader; it propagates to CLI startup and is caught
+#     nowhere by design (fail-loud, C-LDR-3).
+#   * ``RedactedVar`` -- public return-element type of ``redact()``; callers
+#     iterate the returned list without importing the class name.
+# Manufacturing a fake src/ importer is the anti-pattern this gate warns
+# against, so they are allow-listed. Wire-or-prune tracked under #3508 (FR-303).
+
+_CATEGORY_C_OPERATOR_CONFIG_PUBLIC_API: frozenset[SymbolKey] = frozenset(
+    {
+        # kernel.env_expand::UnresolvedEnvTokenError
+        SymbolKey("UnresolvedEnvTokenError", "f412b46e47e99106738049c8591d9ea8b15465c31a052bb7d547384e137f810e"),
+        # specify_cli.bootstrap.env_file::OperatorEnvFileUnreadableError
+        SymbolKey("OperatorEnvFileUnreadableError", "ac46a6871a178702eda203f7e033f223c04d010efe92e84ca2a5c7f9bc669d8c"),
+        # specify_cli.core.secret_redaction::RedactedVar
+        SymbolKey("RedactedVar", "203ae262daee894e8872ca42a54de0774b5c8461f97be8ee26ac19329f8657d3"),
+    }
+)
+
+
+# ---------- C. doctor auto-discovery seam (mission operator-config-ergonomics) ----------
+# All six symbols are LIVE, not dead -- the gate only counts cross-file src/
+# ``__all__`` importers, and both reach-paths here are invisible to it:
+#   * each ``register(app)`` is invoked by doctor.py's ``_auto_discover_doctor_
+#     siblings()`` via ``getattr(module, "register")`` (a dynamic string
+#     lookup, mirroring the migration ``auto_discover_migrations`` seam);
+#   * each ``run_*`` is called intra-module by its own ``register`` shell.
+# Manufacturing a fake src/ importer is the anti-pattern this gate warns
+# against, so they are allow-listed (same rationale as the branch-naming
+# failover seam below). The eventual root fix is a structural auto-exempt for
+# the doctor-register seam, mirroring ``_is_registered_migration_class`` so
+# future ``_*_doctor.py`` siblings never need a hand entry -- tracked in #3508.
+
+_CATEGORY_C_DOCTOR_AUTO_DISCOVERY_SEAM: frozenset[SymbolKey] = frozenset(
+    {
+        # specify_cli.cli.commands._channel_doctor::register
+        SymbolKey("register", "3e40fc6641735900c4b86d367c7daf205425df768e6a63e9be1e789ee6fb3da7"),
+        # specify_cli.cli.commands._channel_doctor::run_channel_report
+        SymbolKey("run_channel_report", "7b85d1bda9aae6c822e97bf6fdcf592fddc365a48710197d103e836fdfd71333"),
+        # specify_cli.cli.commands._env_file_doctor::register
+        SymbolKey("register", "5e2e984810eb13ddc42d05b32070af2f41f4561ada6a87415b01d0d942c75aca"),
+        # specify_cli.cli.commands._env_file_doctor::run_env_file_health
+        SymbolKey("run_env_file_health", "a01d73dc1ffe6ecc2db7561a3707c98e425a77aee9b722a8687f0f9601f97fb9"),
+        # specify_cli.cli.commands._provenance_doctor::register
+        SymbolKey("register", "52eac1277179077d9735c9e67756fade67aab73d384883645f69da6800f997d7"),
+        # specify_cli.cli.commands._provenance_doctor::run_provenance_audit
+        SymbolKey("run_provenance_audit", "a657b0dbc7e8d2b82fc80e005592413230902a240d550c1b12be39cd4cd66b2e"),
+    }
+)
+
+
 # ---------- C. Branch-naming legacy-failover seam ----------
 # Both symbols are LIVE -- the gate only counts cross-file src/ ``__all__``
 # importers, so a test-only hook and an intra-module env read are invisible
@@ -1320,6 +1378,8 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT
     | _CATEGORY_C_UPSTREAM_SESSION_PRESENCE
     | _CATEGORY_C_QUALITY_DEBT_1928
+    | _CATEGORY_C_OPERATOR_CONFIG_PUBLIC_API
+    | _CATEGORY_C_DOCTOR_AUTO_DISCOVERY_SEAM
     | _CATEGORY_C_BRANCH_NAMING_FAILOVER_SEAM
     | _CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT
     | _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057
