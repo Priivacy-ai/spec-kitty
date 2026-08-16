@@ -97,6 +97,98 @@ if TYPE_CHECKING:
 
 _console = Console(stderr=True)
 
+# --- Process-level captured-failure surface (WP05, IC-05 / FR-001 + FR-010) ---
+#
+# The machine-observable half of the emitter's non-fatal capture contract. ``_emit``
+# still never raises (its ~30 ``emit_*`` callers assume emission cannot throw); a
+# capture that cannot land is recorded here, out-of-band, so the command epilogue
+# (WP04's consumer) can inspect it WITHOUT a filesystem rescan — mirroring
+# ``AgentProfileRepository.skipped_profiles``. The human-readable warning is the
+# complementary, throttled half (a residual systemic fault is loud-once-and-counted,
+# never a per-event storm). The signal is strictly a flag/counter — never an
+# exception threaded back through the ``emit_*`` surface.
+_SITE_JOURNAL_CAPTURE = "event journal capture"
+_SITE_EXPLICIT_CONTEXT_CAPTURE = "Explicit-context event capture"
+
+
+@dataclass(frozen=True, slots=True)
+class CapturedFailure:
+    """One unrecoverable capture failure, safe to surface at the command epilogue.
+
+    Carries only a ``site`` label and an exception ``summary`` — never the event
+    envelope, payload, correlation ids, or credential material. The emitter is the
+    identity-selection surface; this record must not become an exfiltration channel.
+    """
+
+    site: str
+    summary: str
+
+
+class _CapturedFailureRegistry:
+    """Per-invocation record of swallowed capture failures + warning throttle.
+
+    ``record`` counts every failure (INV-1 must see the true count) and returns
+    whether the human warning should print — at most once per distinct
+    ``(site, exception-type)`` key so a burst cannot become a per-event storm.
+    Recording happens before the console decision so the count stays exact even
+    when the warning is throttled or the console is suppressed.
+    """
+
+    __slots__ = ("_records", "_warned_keys")
+
+    def __init__(self) -> None:
+        self._records: list[CapturedFailure] = []
+        self._warned_keys: set[str] = set()
+
+    def record(self, site: str, exc: BaseException) -> bool:
+        self._records.append(CapturedFailure(site=site, summary=repr(exc)))
+        key = f"{site}:{type(exc).__name__}"
+        if key in self._warned_keys:
+            return False
+        self._warned_keys.add(key)
+        return True
+
+    def snapshot(self) -> tuple[CapturedFailure, ...]:
+        return tuple(self._records)
+
+    def reset(self) -> None:
+        self._records.clear()
+        self._warned_keys.clear()
+
+
+_captured_failures_registry = _CapturedFailureRegistry()
+
+
+def captured_failures() -> tuple[CapturedFailure, ...]:
+    """Return the capture failures recorded since the last reset (no rescan)."""
+    return _captured_failures_registry.snapshot()
+
+
+def reset_captured_failures() -> None:
+    """Clear the process-level capture-failure surface.
+
+    Call at command entry so the flag is per-invocation and never leaks across a
+    long-lived process or across missions — a later clean command must not report
+    someone else's failure.
+    """
+    _captured_failures_registry.reset()
+
+
+def _record_capture_failure(site: str, exc: BaseException) -> None:
+    """Record a swallowed capture failure, then warn (throttled) — record first.
+
+    Record-then-warn ordering keeps the counter exact even when the warning is
+    suppressed by the throttle. Both swallow sites route through here so a mixed
+    burst across the two sites is bounded (one warning per distinct site), never
+    doubled or per-event.
+    """
+    should_warn = _captured_failures_registry.record(site, exc)
+    if should_warn:
+        _console.print(
+            f"[yellow]Warning: {site} failed: {exc} "
+            f"(repeats suppressed; see the end-of-command capture summary)[/yellow]"
+        )
+
 
 def _get_project_identity() -> ProjectIdentity:
     """Lazily load and resolve project identity.
@@ -2112,7 +2204,10 @@ class EventEmitter:
         try:
             self._queue_event_locally(event)
         except Exception as exc:
-            _console.print(f"[yellow]Warning: event journal capture failed: {exc}[/yellow]")
+            # Record into the process-level surface first (so the count is exact
+            # even when the console warning is throttled), then warn. Stays
+            # non-fatal + capture-is-local: no re-raise, no consent coupling.
+            _record_capture_failure(_SITE_JOURNAL_CAPTURE, exc)
 
     def _emit(
         self,
@@ -2332,7 +2427,12 @@ class EventEmitter:
                 raise RuntimeError("canonical project outbox refused dossier event capture")
             return event
         except Exception as exc:
-            _console.print(f"[yellow]Warning: Explicit-context event capture failed: {exc}[/yellow]")
+            # Live-reproduced swallow (``mission create`` hit this five times while
+            # authoring this mission). Record into the same process-level surface
+            # first, then still ``return None`` (explicit-context contract: a refused
+            # capture yields ``None``). The internal refusal ``RuntimeError`` stays
+            # caught here — now observable, never stderr-only.
+            _record_capture_failure(_SITE_EXPLICIT_CONTEXT_CAPTURE, exc)
             return None
 
     def _get_team_slug(self) -> str | None:
@@ -2538,6 +2638,17 @@ class EventEmitter:
             logger.debug("Event %s has no project-owned outbox", event.get("event_id"))
             return False
         store = ProjectSyncStore(project_uuid)
+        # Resolve/drive the machine layout cutover BEFORE opening this write's
+        # unit-of-work (WP03 live-path completion, IC-05 / FR-003). The layout
+        # lock is not re-entrant: driven from inside an open UoW the cutover copy
+        # contends on the held store lock and cannot land, which surfaced
+        # ``LayoutCutoverIncompleteError`` on the live emit path. Out here the lock
+        # is free, so a legacy-with-data root completes its cutover to PROJECT_ONLY
+        # and the write below lands in the project store. Greenfield / already-
+        # migrated roots return in a single peek; only legacy data drives a copy.
+        # A genuinely-unrecoverable resolution (escape hatch, foreign migration)
+        # propagates to the caller's now-observable capture site, never silently.
+        store.layout_generation().resolve_layout_for_write()
         with store.unit_of_work() as unit:
             return OfflineQueue(unit, store.layout_generation()).queue_event(event)
 

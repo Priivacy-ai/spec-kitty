@@ -172,12 +172,63 @@ def _read_json(path: Path) -> Mapping[str, Any] | None:
     return value if isinstance(value, Mapping) else None
 
 
-def read_queue_scope_from_credentials(credentials_path: Path | None = None) -> str | None:
-    data = _read_json(credentials_path or _credentials_path())
-    if data is None:
+def _piped_scope_from_toml_credentials(path: Path) -> str | None:
+    """Build the canonical ``server|user|team`` scope from a TOML credentials file.
+
+    This is an **auth/identity signal**, not a physical-store selector: the
+    returned string is split back into ``(user, team)`` by
+    ``preflight._read_scope_identity_local_only`` (which expects the
+    ``server|user|team`` order) and is used by the FR-011 gate purely as a
+    truthiness test. It never derives a queue DB path — the authoritative store
+    is selected by ProjectSyncStore via ``_derive_queue_scope`` (FR-009 / C-003).
+
+    Defensive by contract: a missing/corrupt/incomplete file yields ``None``
+    rather than raising, mirroring the ``_read_json`` posture above.
+    """
+    try:
+        data = toml.load(path)
+    except (toml.TomlDecodeError, OSError, TypeError):
         return None
-    explicit = data.get("queue_scope")
-    return str(explicit) if isinstance(explicit, str) and explicit.strip() else None
+    if not isinstance(data, Mapping):
+        return None
+    user_data = data.get("user")
+    server_data = data.get("server")
+    if not isinstance(user_data, Mapping) or not isinstance(server_data, Mapping):
+        return None
+    username = user_data.get("username")
+    server_url = server_data.get("url")
+    if not isinstance(username, str) or not username.strip():
+        return None
+    if not isinstance(server_url, str) or not server_url.strip():
+        return None
+    team_slug = user_data.get("team_slug")
+    team = team_slug if isinstance(team_slug, str) and team_slug.strip() else "no-team"
+    return f"{server_url}|{username}|{team}"
+
+
+def read_queue_scope_from_credentials(credentials_path: Path | None = None) -> str | None:
+    """Return a queue-scope **auth signal** from the on-disk credentials, or ``None``.
+
+    Two supported forms, JSON-explicit winning where present (preserves #3293):
+
+    1. JSON with an explicit ``queue_scope`` string — returned verbatim.
+    2. The supported TOML credential form (``[user]`` / ``[server]`` tables) —
+       parsed back into the canonical ``server|user|team`` piped scope that
+       ``preflight._read_scope_identity_local_only`` splits on (preflight.py:479).
+
+    Restoring form (2) fixes the #3425 credential regression (FR-004): a
+    genuinely-authenticated host again yields a truthy scope so the FR-011 auth
+    gate stops refusing it. This function stays a pure, side-effect-free read: no
+    migration, no SaaS round-trip, no path resolution. The value is an auth signal
+    only — it must never steer physical-store selection (FR-009 / C-003).
+    """
+    path = credentials_path or _credentials_path()
+    data = _read_json(path)
+    if data is not None:
+        explicit = data.get("queue_scope")
+        if isinstance(explicit, str) and explicit.strip():
+            return str(explicit)
+    return _piped_scope_from_toml_credentials(path)
 
 
 def read_queue_scope_from_session(*, allow_rehydrate: bool = True) -> str | None:

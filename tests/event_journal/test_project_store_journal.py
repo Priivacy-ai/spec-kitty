@@ -93,14 +93,21 @@ def test_stale_legacy_permit_redirects_once_before_capture(
     monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime))
     store = ProjectSyncStore(PROJECT_A)
     authority = store.layout_generation()
+    # Hold the machine CUTOVER_PENDING under a *foreign* (operator-owned) migration
+    # id so the live capture resolves to a LEGACY (pending) permit that must wait
+    # for publication. Post cutover-flip (WP03/IC-02) a first write on an
+    # unencumbered root resolves straight to project_only, so this pending hold is
+    # how we still exercise the stale-legacy-permit → redirect-once seam.
+    authority.begin_cutover("operator-owned-race")
     observed_destinations: list[LayoutDestination] = []
 
     def publish_cutover_between_issue_and_revalidate(
         permit: LayoutWritePermit,
     ) -> None:
+        if observed_destinations:
+            return
         observed_destinations.append(permit.destination)
-        authority.begin_cutover("wp04-race")
-        authority.publish_project_only("wp04-race", verify_exact=lambda: True)
+        authority.publish_project_only("operator-owned-race", verify_exact=lambda: True)
 
     with store.unit_of_work() as unit:
         receipt = EventJournal(unit, authority).append(
