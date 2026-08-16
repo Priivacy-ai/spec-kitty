@@ -61,12 +61,12 @@ Contract null sink, EUID checks и repo-relative census работают на Wi
 
 ### Подзадачи
 
-- [ ] T001 Создать charter-required GitHub issue с исходными командами и counts (WP01)
-- [ ] T002 Закоммитить RED-first acceptance tests до implementation fixes (WP01)
-- [ ] T003 Выполнить tidy-first только внутри owned files либо записать `none found` evidence (WP01)
-- [ ] T004 Заменить `/dev/null`, безопасно ограничить EUID oracle и нормализовать только actual repo-relative paths (WP01)
-- [ ] T005 Добиться `0 collection errors` для семи файлов и зелёных dependent gates (WP01)
-- [ ] T006 Убить обязательные mutations, прогнать targeted pytest/Ruff/py_compile/diff-check и передать в review (WP01)
+- [x] T001 Создать charter-required GitHub issue с исходными командами и counts (WP01)
+- [x] T002 Закоммитить RED-first acceptance tests до implementation fixes (WP01)
+- [x] T003 Выполнить tidy-first только внутри owned files либо записать `none found` evidence (WP01)
+- [x] T004 Заменить `/dev/null`, безопасно ограничить EUID oracle и нормализовать только actual repo-relative paths (WP01)
+- [x] T005 Добиться `0 collection errors` для семи файлов и зелёных dependent gates (WP01)
+- [x] T006 Убить обязательные mutations, прогнать targeted pytest/Ruff/py_compile/diff-check и передать в review (WP01)
 
 ### Параллельность
 
@@ -88,13 +88,13 @@ Missing sink и raw topology predicate классифицированы неза
 
 ### Подзадачи
 
-- [ ] T007 Закоммитить RED для текущих missing sink/raw predicate сигналов (WP02)
-- [ ] T008 Выполнить tidy-first и read-only baseline текущей code map (WP02)
-- [ ] T009 Классифицировать и исправить каждый owning architecture boundary без blanket allowlist (WP02)
-- [ ] T010 Синхронизировать точечные inventories и все три code map artifacts в production commit (WP02)
-- [ ] T011 Доказать negative/mutation sensitivity и targeted GREEN (WP02)
-- [ ] T012 На финальном SHA выполнить полные contract/architecture gates и external E2E access/result check (WP02)
-- [ ] T013 Обновить mission evidence, issue и tracers; зафиксировать `implementation_complete`, `local_ready`, `e2e_ready`, `release_ready` (WP02)
+- [x] T007 Закоммитить RED для текущих missing sink/raw predicate сигналов (WP02)
+- [x] T008 Выполнить tidy-first и read-only baseline текущей code map (WP02)
+- [x] T009 Классифицировать и исправить каждый owning architecture boundary без blanket allowlist (WP02)
+- [x] T010 Синхронизировать точечные inventories и все три code map artifacts в production commit (WP02)
+- [x] T011 Доказать negative/mutation sensitivity и targeted GREEN (WP02)
+- [x] T012 На финальном SHA выполнить полные contract/architecture gates и external E2E access/result check (WP02)
+- [x] T013 Обновить mission evidence, issue и tracers; зафиксировать `implementation_complete`, `local_ready`, `e2e_ready`, `release_ready` (WP02)
 
 ### Параллельность
 
@@ -126,22 +126,22 @@ production fix и не меняет local-ready verdict.
 
 ### Подзадачи
 
-- [ ] T014 Снять current residual packet на approved WP02 SHA и закоммитить
+- [x] T014 Снять current residual packet на approved WP02 SHA и закоммитить
   test-only RED до любых GREEN-правок; отдельно записать, что width в полном
   окружении зелёный, а `--confcutdir` — диагностический режим.
-- [ ] T015 Исправить только path/hash seams: `.as_posix()` для actual census keys,
+- [x] T015 Исправить только path/hash seams: `.as_posix()` для actual census keys,
   newline-normalized seed digest с mixed-newline guard; сохранить независимые
   static expected values. Добавить targeted negative tests.
-- [ ] T016 Зафиксировать прежний `pytest.param` id явным `id=...`, оставить
+- [x] T016 Зафиксировать прежний `pytest.param` id явным `id=...`, оставить
   capability skip fail-closed и доказать, что committed floor не shrink'ится.
-- [ ] T017 Пометить только настоящий cardinality-only site, запустить штатный
+- [x] T017 Пометить только настоящий cardinality-only site, запустить штатный
   `--freeze-baseline`, сверить ceilings с merge-base evidence и не уменьшать floor.
-- [ ] T018 Выполнить все mutations: slash mismatch, raw CRLF/LF drift, удаление
+- [x] T018 Выполнить все mutations: slash mismatch, raw CRLF/LF drift, удаление
   explicit id и снятие cardinality marker; затем targeted pytest/Ruff/py_compile/
   diff-check.
-- [ ] T019 На неизменённом SHA выполнить полный `tests/contract` и
+- [x] T019 На неизменённом SHA выполнить полный `tests/contract` и
   `tests/architectural`; collection/errors/failures сохранить дословно.
-- [ ] T020 Обновить hard-gate result и acceptance matrix (`local_ready` только при
+- [x] T020 Обновить hard-gate result и acceptance matrix (`local_ready` только при
   полном зелёном architecture), закрыть tracers и передать SHA-bound handoff.
 
 ### Owned files
@@ -200,10 +200,10 @@ negative/mutation tests.
 
 ### Подзадачи
 
-- [ ] T021 Зафиксировать RED raw root-walk/stale token и положительные controls (WP04)
-- [ ] T022 Перевести status transition на canonical resolver-first путь (WP04)
-- [ ] T023 Синхронизировать live authority token и rationale (WP04)
-- [ ] T024 Убить mutations и выполнить targeted GREEN (WP04)
+- [x] T021 Зафиксировать RED raw root-walk/stale token и положительные controls (WP04)
+- [x] T022 Перевести status transition на canonical resolver-first путь (WP04)
+- [x] T023 Синхронизировать live authority token и rationale (WP04)
+- [x] T024 Убить mutations и выполнить targeted GREEN (WP04)
 
 ### Owned files
 
@@ -236,10 +236,10 @@ green-wash.
 
 ### Подзадачи
 
-- [ ] T025 Зафиксировать RED diagnostic path и lock hash (WP05)
-- [ ] T026 Нормализовать только POSIX diagnostic keys (WP05)
-- [ ] T027 Обновить deterministic code-map lock (WP05)
-- [ ] T028 Убить mutations и выполнить targeted GREEN (WP05)
+- [x] T025 Зафиксировать RED diagnostic path и lock hash (WP05)
+- [x] T026 Нормализовать только POSIX diagnostic keys (WP05)
+- [x] T027 Обновить deterministic code-map lock (WP05)
+- [x] T028 Убить mutations и выполнить targeted GREEN (WP05)
 
 ### Owned files
 
@@ -276,10 +276,10 @@ handoff.
 
 ### Подзадачи
 
-- [ ] T029 Выполнить полный gate на exact SHA (WP06)
-- [ ] T030 Классифицировать новые residuals (WP06)
-- [ ] T031 Обновить acceptance matrix и hard-gate result (WP06)
-- [ ] T032 Дополнить tracers и SHA-bound handoff (WP06)
+- [x] T029 Выполнить полный gate на exact SHA (WP06)
+- [x] T030 Классифицировать новые residuals (WP06)
+- [x] T031 Обновить acceptance matrix и hard-gate result (WP06)
+- [x] T032 Дополнить tracers и SHA-bound handoff (WP06)
 
 ### Owned files
 
@@ -314,13 +314,13 @@ cardinality-only site, добавленный WP04: assertion проверяет
 
 ### Подзадачи
 
-- [ ] T033 Воспроизвести полный residual и сравнить список convert-sites с
+- [x] T033 Воспроизвести полный residual и сравнить список convert-sites с
   merge-base/WP03 (WP07)
-- [ ] T034 Добавить marker только на assertion WP04, не меняя проверяемую
+- [x] T034 Добавить marker только на assertion WP04, не меняя проверяемую
   authority-семантику (WP07)
-- [ ] T035 Временно снять marker, получить ожидаемый RED, восстановить его и
+- [x] T035 Временно снять marker, получить ожидаемый RED, восстановить его и
   прогнать targeted gate, Ruff, py_compile и diff-check (WP07)
-- [ ] T036 Зафиксировать provenance, новый SHA и handoff для повторного WP06
+- [x] T036 Зафиксировать provenance, новый SHA и handoff для повторного WP06
   полного contract/architecture gate (WP07)
 
 ### Owned files

@@ -192,7 +192,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Полный gate выявил WP04 residual; WP06 отложен до отдельного WP07",
-        "WP06 complete: final immutable SHA bcc33914d; contract 305/3, architecture 2120/5/2xfail, 0 failures/errors; local_ready=true; E2E remains blocked"
+        "WP06 complete: final immutable SHA bcc33914d; contract 305/3, architecture 2120/5/2xfail, 0 failures/errors; local_ready=true; E2E remains blocked",
+        "Review passed: final local acceptance docs match immutable bcc33914d; contract 305/3 skip and architecture 2120/5/2 xfail with zero failures/errors; E2E remains blocked"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
