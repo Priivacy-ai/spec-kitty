@@ -25,6 +25,8 @@ tests/sync/test_background.py::CP001
 tests/sync/test_batch_error_surfacing.py::CP001
 tests/sync/test_diagnose.py::CP001
 tests/sync/test_edge_cases.py::CP001
+tests/sync/test_emitter_observability.py::CP001
+tests/sync/test_emitter_observability.py::CP002
 tests/sync/test_envelope_id_formats.py::CP001
 tests/sync/test_events.py::CP001
 tests/sync/test_final_sync_diagnostics.py::CP001
