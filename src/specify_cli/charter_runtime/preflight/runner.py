@@ -226,7 +226,12 @@ def _build_checks(freshness: CharterFreshness) -> list[CharterPreflightCheck]:
     payload = freshness.to_dict()
     for layer_key, layer_label in _LAYER_ORDER:
         sub = payload[layer_key]
-        state = str(sub.get("state", "missing"))
+        # Fail-closed default: an absent ``state`` must NOT be advisory-eligible.
+        # ``FreshnessSubState.state`` is always set today, so this only guards a
+        # future freshness regression — but on a preflight safety gate the safe
+        # fallback is a blocking value (``invalid``), never advisory-eligible
+        # ``missing``.
+        state = str(sub.get("state", "invalid"))
         detail = sub.get("detail") or _default_detail(layer_label, state, sub.get("last_change"))
         remediation = sub.get("remediation")
         result.append(
