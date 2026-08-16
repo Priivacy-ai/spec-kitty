@@ -10,6 +10,12 @@ tombstones:
 - - delivery/test_per_project_report_3030.py
   - _home
   - monkeypatch . setenv ( , str ( home ) )
+- - sync/test_legacy_queue_precondition_3030.py
+  - test_a_credentials_read_failure_is_not_evidence
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+- - sync/test_routing.py
+  - test_opt_out_purge_targets_the_same_stores_the_drain_reads
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
 - - upgrade/migrations/test_m_0_6_7_ensure_missions.py
   - test_detect_skips_when_global_runtime_is_configured
   - monkeypatch . setenv ( , str ( home ) )

@@ -72,3 +72,22 @@ tombstones:
       - monkeypatch . setenv ( , str ( home ) )
     reason: *upgrade_home
     evidence: *r1b_op3
+  - key:
+      - sync/test_legacy_queue_precondition_3030.py
+      - test_a_credentials_read_failure_is_not_evidence
+      - monkeypatch . setenv ( , str ( tmp_path / ) )
+    reason: >-
+      Converged onto canonical_home via per-test usefixtures. The inline SPEC_KITTY_HOME=tmp_path/home
+      pin was redundant: the very next call (_project_only -> _route_project) re-pins SPEC_KITTY_HOME
+      to tmp_path/"runtime", so the home pin never took effect during the assertion. Sibling
+      non-member pin at :26 (tmp_path/"runtime") left untouched. Surgical JC member.
+    evidence: &r1b_op4 "kitty/fix-home-pin-census-owner-adoption-3121 R1b op4"
+  - key:
+      - sync/test_routing.py
+      - test_opt_out_purge_targets_the_same_stores_the_drain_reads
+      - monkeypatch . setenv ( , str ( tmp_path / ) )
+    reason: >-
+      Converged onto canonical_home via per-test usefixtures; the inline pin set the identical
+      tmp_path/"home". The seven sibling non-member pins in this file (str(home/".spec-kitty"),
+      a different value) are left untouched. Surgical JC member.
+    evidence: *r1b_op4
