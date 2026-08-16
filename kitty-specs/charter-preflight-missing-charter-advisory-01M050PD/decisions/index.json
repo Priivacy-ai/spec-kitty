@@ -1,0 +1,29 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-08-16T17:09:48.902061Z",
+      "decision_id": "01M05RT3Q6HZYY4BCV9YS8JZAC",
+      "final_answer": "In scope - wire dashboard too",
+      "input_key": "dashboard_legacy_bundle_in_scope",
+      "mission_id": "01M050PDBP9JSR82AYQNHYWERD",
+      "mission_slug": "charter-preflight-missing-charter-advisory-01M050PD",
+      "opened_by": "cli",
+      "options": [
+        "In scope - wire dashboard too",
+        "Out of scope - next/implement only"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Should this plan include wiring the new legacy-bundle detection into the dashboard's warning banner too, or is that out of scope for this mission?",
+      "rationale": null,
+      "resolved_at": "2026-08-16T17:09:53.553511Z",
+      "resolved_by": null,
+      "slot_key": "plan.scope.dashboard-legacy-bundle-warning",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M050PDBP9JSR82AYQNHYWERD",
+  "version": 1
+}

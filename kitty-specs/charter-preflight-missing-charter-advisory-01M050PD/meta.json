@@ -1,0 +1,32 @@
+{
+  "accept_commit": "e029efcc256a7a77241764056e5c6798924e3a24",
+  "acceptance_history": [
+    {
+      "accept_commit": "e029efcc256a7a77241764056e5c6798924e3a24",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-16T18:01:58.976581+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "bad48371bfa7395a0bb4a519abadcc1716391982"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-08-16T18:01:58.976581+00:00",
+  "accepted_by": "robert",
+  "accepted_from_commit": "bad48371bfa7395a0bb4a519abadcc1716391982",
+  "baseline_merge_commit": "9787175c1242eeda73fcb04946f0f566beed6a73",
+  "created_at": "2026-08-16T10:08:21.880025+00:00",
+  "flattened": true,
+  "friendly_name": "Charter Preflight Missing-Charter Advisory Mode",
+  "mission_id": "01M050PDBP9JSR82AYQNHYWERD",
+  "mission_number": null,
+  "mission_slug": "charter-preflight-missing-charter-advisory-01M050PD",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "spec-kitty next and spec-kitty implement currently hard-block (exit 1) any repo whose charter state is fully absent or a legacy charter.md-only bundle, even though specify/plan already tolerate a missing charter and a working advisory exemption already exists in the preflight runner for the dashboard path. This mission wires that exemption into the shared next/implement preflight hook for the fully-absent case, and adds a new advisory path (with a stronger warning) for the legacy-bundle case, without weakening any other blocking condition (invalid YAML, stale synthesis, etc.).",
+  "purpose_tldr": "Stop spec-kitty next/implement from hard-blocking projects with no charter or a legacy charter.md-only bundle, matching specify/plan's existing tolerance.",
+  "slug": "charter-preflight-missing-charter-advisory-01M050PD",
+  "status_phase": "1",
+  "target_branch": "fix/charter-preflight-missing-charter-advisory",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-16T17:22:11.301742+00:00"
+}

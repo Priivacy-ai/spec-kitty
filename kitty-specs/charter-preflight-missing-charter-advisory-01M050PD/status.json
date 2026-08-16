@@ -1,0 +1,36 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M05VVQ8CNAKM22E8Q2GAY3RC",
+  "materialized_at": "2026-08-16T18:03:07.404379+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-preflight-missing-charter-advisory-01M050PD",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M05VVQ8CNAKM22E8Q2GAY3RC",
+      "last_transition_at": "2026-08-16T18:03:07.404379+00:00",
+      "review_result": {
+        "reference": "Verified personally (not just implementer claims): (1) row-2 tie-break correct — _is_legacy_charter_bundle checked before _is_optional_missing_charter_fresh_project, matches contract table; (2) _is_optional_missing_charter_fresh_project body confirmed byte-for-byte unchanged via diff; (3) NFR-001 predicate body read directly — single Path.exists() call, enforced by a monkeypatched call-count test; (4) all 4 test files exercise real consumer entry points (run_preflight_or_abort, run_preflight_for_dashboard) with the real runner, not mocks, incl. non-regression tests for invalid-yaml/row-4 residue and mutual exclusivity; (5) grepped src/ for allow_missing_charter/_is_legacy_charter_bundle — no duplicate impl outside runner.py/hook.py; (6) ran mandated regression command myself: 54/54 passed; (7) ran mypy --strict on both touched modules myself: 2 findings, confirmed pre-existing by isolating base-branch version (same errors, earlier line numbers) — matches filed issue #3513; ruff check clean on all touched files; (8) CHANGELOG entry present in docs/changelog/CHANGELOG.md, which is the real target of the CHANGELOG.md symlink; (9) git diff --stat matches exactly the 7 declared owned_files, no scope creep; (10) gh issue view confirmed #3498 assigned to robertDouglass (HiC) and #3513 filed with accurate mypy-finding description. Issue-matrix verdicts set: #3498 fixed, #2831 fixed, #1665 verified-already-fixed (non-regression preserved).",
+        "reviewer": "Robert Douglass",
+        "verdict": "approved"
+      },
+      "shell_pid": 36675,
+      "shell_pid_created_at": "1786901006.500072"
+    }
+  }
+}
