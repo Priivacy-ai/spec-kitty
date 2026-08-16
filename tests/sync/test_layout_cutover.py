@@ -45,7 +45,7 @@ from specify_cli.sync.layout_generation import (
 )
 from specify_cli.sync.project_store import ProjectSyncStore
 
-pytestmark = pytest.mark.integration
+pytestmark = pytest.mark.fast
 
 OWNER = "cccccccc-0000-0000-0000-000000000003"
 OTHER_OWNER = "dddddddd-0000-0000-0000-000000000004"
