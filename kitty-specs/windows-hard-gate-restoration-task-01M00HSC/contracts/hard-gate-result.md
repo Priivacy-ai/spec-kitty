@@ -17,9 +17,10 @@
 | `e2e_ready` | `false` | Внешний набор не запускался без доступа |
 | `release_ready` | `false` | Требует `e2e_ready=true`; локальный pass его не заменяет |
 
-`overall_verdict=blocked` в acceptance matrix относится только к внешней
-публикационной готовности. Локальный hard-gate результат принят: это не
-product failure и не незавершённый локальный кодовый пакет.
+`overall_verdict=pass` в acceptance matrix означает принятие локальной
+mission readiness. Это не превращает внешний gate в pass: `e2e_access` остаётся
+`blocked`, а `e2e_ready` и `release_ready` — `false`. Поэтому публикационная
+готовность всё ещё заблокирована, хотя локальный hard-gate результат принят.
 
 ## Полные воспроизводимые gates
 
