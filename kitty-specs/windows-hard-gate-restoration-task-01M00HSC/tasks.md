@@ -264,6 +264,9 @@ green-wash.
 
 **Зависимости**: WP07 approved; WP07 последовательно зависит от WP04 и WP05.
 
+WP06 нельзя завершать до approved WP07: полный gate выявил residual,
+добавленный WP04 уже после предыдущего baseline.
+
 ### Результат
 
 Полные contract/architecture gates выполнены на одном неизменённом SHA;

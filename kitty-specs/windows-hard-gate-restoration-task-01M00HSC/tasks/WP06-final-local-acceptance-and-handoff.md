@@ -2,8 +2,7 @@
 work_package_id: WP06
 title: Полная local acceptance и SHA-bound handoff
 dependencies:
-- WP04
-- WP05
+- WP07
 requirement_refs:
 - FR-009
 - FR-010
