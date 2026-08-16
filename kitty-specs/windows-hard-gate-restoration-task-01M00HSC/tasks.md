@@ -2,7 +2,7 @@
 
 ## Обзор
 
-Работа разделена на три последовательных пакета без параллельного ownership. Первый устраняет Windows portability и collection defects в test/gate harness. Второй на уже честном oracle классифицирует реальные architecture drifts, исправляет topology boundary и синхронизирует code map. После их принятия полный Windows architecture packet выявил четыре остаточных baseline-класса; третий пакет закрывает только их и повторяет полную локальную приёмку. Внешний E2E остаётся отдельным release-gate.
+Работа разделена на последовательные пакеты без параллельного ownership. Первый устраняет Windows portability и collection defects в test/gate harness. Второй на уже честном oracle классифицирует реальные architecture drifts, исправляет topology boundary и синхронизирует code map. Третий пакет закрыл свои четыре Windows-stable класса, но полный architecture packet на его SHA выявил четыре новые группы residual/root-cause. Они вынесены в WP04–WP05, после чего WP06 повторит полную локальную приёмку и оформит handoff. Внешний E2E остаётся отдельным release-gate.
 
 ## Индекс подзадач
 
@@ -28,6 +28,18 @@
 | T018 | Убить mutations, выполнить targeted GREEN и статические проверки | WP03 | Нет |
 | T019 | Выполнить полный contract/architecture gate на неизменённом SHA | WP03 | Нет |
 | T020 | Обновить acceptance matrix, hard-gate result, tracers и SHA-bound handoff | WP03 | Нет |
+| T021 | Зафиксировать RED для raw root-walk и stale authority token | WP04 | Нет |
+| T022 | Перевести status transition на resolver-first anchor path | WP04 | Нет |
+| T023 | Синхронизировать live authority token и проверить отсутствие stale entries | WP04 | Нет |
+| T024 | Убить boundary/allowlist mutations и выполнить targeted GREEN | WP04 | Нет |
+| T025 | Зафиксировать RED для Windows diagnostic path и lock hash | WP05 | Нет |
+| T026 | Нормализовать POSIX diagnostic keys без изменения filesystem semantics | WP05 | Нет |
+| T027 | Сделать code-map lock deterministic по LF-нормализованным bytes | WP05 | Нет |
+| T028 | Убить hash/path mutations и выполнить targeted GREEN | WP05 | Нет |
+| T029 | Выполнить полный contract/architecture gate на exact SHA | WP06 | Нет |
+| T030 | Классифицировать новые residuals и не скрывать их текущим пакетом | WP06 | Нет |
+| T031 | Обновить acceptance matrix и hard-gate result | WP06 | Нет |
+| T032 | Дополнить tracers и подготовить SHA-bound handoff | WP06 | Нет |
 
 ## WP01 — Windows portability и collection closure
 
@@ -166,12 +178,122 @@ WP03 последовательен после WP02. Если полный run �
 останавливается и создаётся отдельный follow-up WP, а не добавляется широкая
 allowlist или operator exception.
 
+## WP04 — Resolver-first boundary и authority allowlist closure
+
+**Приоритет**: P1
+
+**Prompt**: `tasks/WP04-resolver-and-authority-boundaries.md`
+
+**Зависимости**: WP03; выполняется последовательно после WP03 и не параллельно
+с WP05 на общих архитектурных тестах.
+
+### Результат
+
+Raw `parent.parent` anchor derivation заменён canonical resolver-first путём с
+сохранением fail-loud поведения. Authority allowlist отражает точный live
+call-site, а stale token и новый boundary bypass ловятся независимыми
+negative/mutation tests.
+
+### Подзадачи
+
+- [ ] T021 Зафиксировать RED raw root-walk/stale token и положительные controls (WP04)
+- [ ] T022 Перевести status transition на canonical resolver-first путь (WP04)
+- [ ] T023 Синхронизировать live authority token и rationale (WP04)
+- [ ] T024 Убить mutations и выполнить targeted GREEN (WP04)
+
+### Owned files
+
+- `src/specify_cli/coordination/status_transition.py`
+- `tests/architectural/test_no_write_side_rederivation.py`
+- `tests/architectural/test_resolution_authority_gates.py`
+- `tests/architectural/resolution_gate_allowlist.yaml`
+
+### Ограничения
+
+- Не скрывать raw join blanket allowlist-ом.
+- Не проглатывать ошибки, кроме документированного `MissionNotFound` legacy callback.
+- Историческое ownership approved WP01 для двух тестовых файлов считается
+  последовательным follow-up; coordination note обязателен в handoff.
+
+## WP05 — Cross-platform diagnostics и deterministic code-map lock
+
+**Приоритет**: P1
+
+**Prompt**: `tasks/WP05-cross-platform-diagnostics-and-codemap-lock.md`
+
+**Зависимости**: WP03; можно готовить независимо от WP04, но финальная приёмка
+ждёт оба пакета.
+
+### Результат
+
+Диагностические repo-relative keys одинаковы на Windows и POSIX, а code-map
+lock сравнивается с каноническими LF-нормализованными bytes без semantic
+green-wash.
+
+### Подзадачи
+
+- [ ] T025 Зафиксировать RED diagnostic path и lock hash (WP05)
+- [ ] T026 Нормализовать только POSIX diagnostic keys (WP05)
+- [ ] T027 Обновить deterministic code-map lock (WP05)
+- [ ] T028 Убить mutations и выполнить targeted GREEN (WP05)
+
+### Owned files
+
+- `tests/architectural/test_topology_resolution_boundary.py`
+- `docs/codemap/codemap.lock`
+
+### Ограничения
+
+- `test_no_write_side_rederivation.py` остаётся approved WP04 surface; его
+  diagnostic helper меняется только последовательно и с rationale.
+- JSON/HTML code map являются read-only inputs, если не доказан semantic
+  boundary change.
+- Не менять frozen glossary seed и не расширять allowlist ради Windows.
+- Историческое ownership approved WP01/WP02 закрывается только sequential
+  coordination note; параллельная запись запрещена.
+
+## WP06 — Полная local acceptance и SHA-bound handoff
+
+**Приоритет**: P1
+
+**Prompt**: `tasks/WP06-final-local-acceptance-and-handoff.md`
+
+**Зависимости**: WP04 и WP05 approved.
+
+### Результат
+
+Полные contract/architecture gates выполнены на одном неизменённом SHA;
+acceptance matrix различает implementation, local, E2E и release readiness.
+Любой новый residual снова выносится в follow-up, а не скрывается в текущем
+handoff.
+
+### Подзадачи
+
+- [ ] T029 Выполнить полный gate на exact SHA (WP06)
+- [ ] T030 Классифицировать новые residuals (WP06)
+- [ ] T031 Обновить acceptance matrix и hard-gate result (WP06)
+- [ ] T032 Дополнить tracers и SHA-bound handoff (WP06)
+
+### Owned files
+
+- `kitty-specs/windows-hard-gate-restoration-task-01M00HSC/acceptance-matrix.json`
+- `kitty-specs/windows-hard-gate-restoration-task-01M00HSC/contracts/hard-gate-result.md`
+- `kitty-specs/windows-hard-gate-restoration-task-01M00HSC/traces/approach.md`
+- `kitty-specs/windows-hard-gate-restoration-task-01M00HSC/traces/design-decisions.md`
+- `kitty-specs/windows-hard-gate-restoration-task-01M00HSC/traces/tooling-friction.md`
+
+### Ограничения
+
+- `local_ready=true` только при полном architecture `0 failed, 0 errors` и
+  нулевой collection error.
+- Отсутствующий внешний E2E не превращать в `e2e_ready` или `release_ready`.
+
 ## Общая готовность
 
 - Оба пакета соблюдают отдельный RED commit до implementation commit.
 - Никакой blanket skip, count-floor reduction, wildcard allowlist или operator exception не добавлен.
 - Contract и architecture suites на окончательном SHA имеют `0 failed`, `0 errors`;
-  до WP03 acceptance matrix честно показывает `local_ready=false`.
+  до WP06 acceptance matrix честно показывает `local_ready=false`.
 - External E2E отсутствие доступа допускает `implementation_complete=true`, но оставляет `e2e_ready=false` и `release_ready=false`.
 - Handoff указывает exact SHA, после которого файлы не менялись.
 - Beads не используется до отдельного исправления task-local resolver; глобальная DB не изменяется.

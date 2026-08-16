@@ -8,7 +8,8 @@
     {
       "lane_id": "lane-b",
       "wp_ids": [
-        "WP02"
+        "WP02",
+        "WP05"
       ],
       "write_scope": [
         "docs/codemap/codemap.html",
@@ -37,11 +38,14 @@
       "lane_id": "lane-a",
       "wp_ids": [
         "WP01",
-        "WP03"
+        "WP03",
+        "WP04"
       ],
       "write_scope": [
+        "src/specify_cli/coordination/status_transition.py",
         "tests/architectural/_gate_coverage.py",
         "tests/architectural/_golden_count_baseline.json",
+        "tests/architectural/resolution_gate_allowlist.yaml",
         "tests/architectural/test_ci_quality_path_filters.py",
         "tests/architectural/test_cli_console_render_width.py",
         "tests/architectural/test_doctrine_census.py",
@@ -76,12 +80,35 @@
         "lane-b"
       ],
       "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "acceptance-matrix.json",
+        "contracts/hard-gate-result.md",
+        "traces/approach.md",
+        "traces/design-decisions.md",
+        "traces/tooling-friction.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 3
     }
   ],
-  "computed_at": "2026-08-15T18:22:06.584425+00:00",
+  "computed_at": "2026-08-16T03:42:38.514253+00:00",
   "computed_from": "dependency_graph+ownership",
-  "planning_artifact_wps": [],
-  "planning_commit_sha": "49ebf250765f57702026b2db70ce5070372057dd",
+  "planning_artifact_wps": [
+    "WP06"
+  ],
+  "planning_commit_sha": "ecaaf269c575dc7c8d04536eed796a5810e70a92",
   "collapse_report": {
     "events": [
       {
@@ -89,12 +116,24 @@
         "wp_b": "WP03",
         "rule": "write_scope_overlap",
         "evidence": "overlapping globs: 'tests/contract/test_machine_facing_canonical_fields.py' vs 'tests/contract/test_machine_facing_canonical_fields.py', 'tests/review/test_pre_review_gate_engine.py' vs 'tests/review/test_pre_review_gate_engine.py', 'tests/architectural/test_doctrine_census.py' vs 'tests/architectural/test_doctrine_census.py', 'tests/architectural/test_glossary_pack_no_regression.py' vs 'tests/architectural/test_glossary_pack_no_regression.py', 'tests/architectural/test_golden_count_ban.py' vs 'tests/architectural/test_golden_count_ban.py', 'tests/architectural/test_kernel_no_doctrine_import.py' vs 'tests/architectural/test_kernel_no_doctrine_import.py', 'tests/architectural/test_mission_exit_baseline.py' vs 'tests/architectural/test_mission_exit_baseline.py'"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP04",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/architectural/test_no_write_side_rederivation.py' vs 'tests/architectural/test_no_write_side_rederivation.py', 'tests/architectural/test_resolution_authority_gates.py' vs 'tests/architectural/test_resolution_authority_gates.py'"
+      },
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP05",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/architectural/test_topology_resolution_boundary.py' vs 'tests/architectural/test_topology_resolution_boundary.py', 'docs/codemap/codemap.lock' vs 'docs/codemap/codemap.lock'"
       }
     ],
-    "total_merges": 1,
+    "total_merges": 3,
     "independent_wps_collapsed": 0,
     "by_rule": {
-      "write_scope_overlap": 1
+      "write_scope_overlap": 3
     }
   }
 }

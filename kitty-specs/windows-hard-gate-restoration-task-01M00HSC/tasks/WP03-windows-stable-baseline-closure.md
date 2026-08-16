@@ -177,3 +177,7 @@ Review blocker, если baseline просто расширен без evidence,
 floor сокращён, `--confcutdir` выдан за full gate или acceptance matrix заявляет
 `local_ready=true` при любом architecture failure/error.
 
+
+## Activity Log
+
+- 2026-08-16T03:40:15Z – codex – shell_pid=1220 – Полный architecture gate на GREEN SHA 06026d6d0: 2107 passed, 5 skipped, 2 xfailed, 1 warning, 8 failed. WP03-локальные четыре класса зелёные; выявлены четыре новые группы: raw status_transition parent.parent anchor, Windows diagnostic path, stale authority token, CRLF-sensitive codemap lock. Зафиксировано в tasks/review-cycle-1-WP03.md; требуется follow-up WP04–WP05 и финальный WP06, local_ready=false.
