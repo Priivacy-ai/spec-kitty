@@ -17,6 +17,9 @@ requirement_refs:
 planning_base_branch: kitty/fix-home-pin-census-owner-adoption-3121
 merge_target_branch: kitty/fix-home-pin-census-owner-adoption-3121
 branch_strategy: Planning artifacts for this mission were generated on kitty/fix-home-pin-census-owner-adoption-3121. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into kitty/fix-home-pin-census-owner-adoption-3121 unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-home-pin-census-owner-adoption-01M05C50
+base_commit: 871db23cdf3839270a2c33fb16ff0e88bf268d69
+created_at: '2026-08-16T13:37:30.096496+00:00'
 subtasks:
 - T001
 - T002
