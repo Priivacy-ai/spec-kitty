@@ -588,6 +588,16 @@
    "hidden": false,
    "deprecated": false,
    "commands": {
+    "channel": {
+     "help": "Report the active release channel (stable vs. prerelease-opt-in).\n\nReads SPEC_KITTY_PRERELEASE (default OFF — stable channel). Never\nmutates state.\n\nExamples:\n    spec-kitty doctor channel\n    spec-kitty doctor channel --json",
+     "hidden": false,
+     "deprecated": false
+    },
+    "env-file": {
+     "help": "Report ``.kitty.env`` operator env-file health (presence/tier/ignore).\n\nReads the repo- and home-tier ``.kitty.env`` files and the\nconfig.yaml ``env_file`` pointer, and reports which governed vars\nare set and from which tier -- names/presence only for anything not\non the printable-var allowlist (C-SEC-1), values never leaked.\nRead-only -- never mutates state.\n\nExamples:\n    spec-kitty doctor env-file\n    spec-kitty doctor env-file --json",
+     "hidden": false,
+     "deprecated": false
+    },
     "provenance": {
      "help": "Flag committed absolute built-in-pack source_path leaks (C-PRV-5).\n\nScans .kittify/charter/charter.yaml's catalog and\n.kittify/agent_profiles_manifest.json for a source_path that should\nbe a ${SPEC_KITTY_PACKS_ROOT}/built-in/... token but is not, and\nprints a heal hint for each. Read-only -- never mutates state.\n\nExamples:\n    spec-kitty doctor provenance\n    spec-kitty doctor provenance --json",
      "hidden": false,
