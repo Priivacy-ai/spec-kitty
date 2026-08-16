@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#1665": {
+      "evidence_ref": "PR #1665 established fail-closed mutation-gate behavior. test_charter_md_never_exempts_stale_or_invalid_residue plus the real next/implement invalid-charter tests prove stale/invalid state still blocks and implement performs no worktree allocation.",
+      "fr": null,
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": null,
+      "scope": "non-regression",
+      "source_file": "spec.md",
+      "title": "Fix 3.2 CLI UX rough edges",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#2831": {
+      "evidence_ref": "_is_optional_missing_charter_stack first proves the canonical missing/built-in-only shape; _is_legacy_charter_bundle then selects display copy only. Real next/implement tests assert the legacy warning reaches stderr; the dashboard command test asserts persistence; the executable-command test generates charter.yaml with --no-from-interview.",
+      "fr": "FR-002,FR-003",
+      "nfr": "NFR-001,NFR-002",
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": "SC-002,SC-003",
+      "scope": "folded",
+      "source_file": "spec.md",
+      "title": "Implement gate false-fails with 'charter_source missing' despite charter sync passing",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#3498": {
+      "evidence_ref": "run_preflight_or_abort opts in and emits advisories; next_cmd replays JSON-safe stderr and renders query results. Real hook tests plus all four advancing/query human/JSON wrapper modes assert continuation, warning delivery, and clean JSON stdout. Baseline live hook exited 1 with all three missing-layer reasons.",
+      "fr": "FR-001,FR-005",
+      "nfr": "NFR-002",
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": "SC-001,SC-004",
+      "scope": "primary",
+      "source_file": "spec.md",
+      "title": "implement hard-blocks on missing project charter, inconsistent with specify/plan which explicitly tolerate it",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
