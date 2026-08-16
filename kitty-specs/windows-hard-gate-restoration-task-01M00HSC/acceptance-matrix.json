@@ -4,145 +4,224 @@
   "mission_type": "software-dev",
   "overall_verdict": "blocked",
   "implementation_complete": true,
-  "local_ready": false,
+  "local_ready": true,
   "e2e_access": "blocked",
   "e2e_ready": false,
   "release_ready": false,
   "current_gate_snapshot": {
-    "verified_at": "2026-08-16T03:45:41Z",
-    "contract": "305 passed, 3 skipped",
-    "architecture_collection": "2116 collected; 2107 passed, 5 skipped, 2 xfailed, 1 warning, 8 failed",
-    "residual_classes": [
-      "Windows separators in doctrine/kernel census keys",
-      "CRLF checkout versus LF glossary seed digest",
-      "stale golden-count ceilings and one unannotated cardinality site",
-      "Windows capability fallback changes committed mission-exit node-id",
-      "Raw status_transition parent.parent mission-anchor derivation",
-      "Windows separator in checkout-grammar diagnostic path",
-      "Stale RealCoordCommitRouter.feature_write_dir authority token",
-      "CRLF checkout versus LF-normalized codemap lock SHA-256"
+    "verified_at": "2026-08-16T15:54:27Z",
+    "product_sha": "bcc33914d45319aacbed6e049bf8cada500b091b",
+    "source_sha": "6cc416c427edaa40c13fdf8a341e446be91bb3a5",
+    "followup_sha": "eae4dc006129f81bd0b0934d019a40d7d9dca42a",
+    "integration_worktree": "C:\\spkhg\\.worktrees\\windows-hard-gate-restoration-task-01M00HSC-integration",
+    "integration_branch": "detached HEAD (integration of lane-b and WP07)",
+    "contract": "305 passed, 3 skipped, 0 failed, 0 errors; 179.41s",
+    "architecture_collection": "2120 passed, 5 skipped, 2 xfailed, 0 failed, 0 errors, 14 warnings; 4140.66s",
+    "residual_classes": [],
+    "diagnostic_only": "Официальный запуск CLI width guard зелёный; остались одна диагностическая UserWarning и 13 предупреждений record_property/xunit2, failures/errors нет.",
+    "false_red_notes": [
+      "Запуски из несвязанного cwd искали kitty-specs под этим cwd и давали ложный project-root red; authoritative runs выполнены из корня integration worktree.",
+      "Финальный architecture run включает approved WP07 marker и заменяет предыдущий 25-site residual run."
     ],
-    "diagnostic_only": "CLI width red under --confcutdir; official run with tests/conftest.py is 3 passed, 1 warning",
-    "next_work_package": "WP04"
+    "external_blockers": [
+      "Canonical Priivacy-ai/spec-kitty-end-to-end-testing недоступен; e2e_ready и release_ready остаются false."
+    ],
+    "next_work_package": null
   },
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Contract-\u0442\u0435\u0441\u0442\u044b \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u044e\u0442 \u043f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0435\u043d\u043d\u044b\u0439 null sink \u0438 \u0437\u0430\u043a\u0440\u044b\u0432\u0430\u0435\u043c\u044b\u0439 \u043f\u043e\u0442\u043e\u043a.",
+      "description": "Contract-тесты используют платформенный null sink и закрываемый поток.",
       "proof_type": "automated_test",
-      "evidence": "tests/contract/test_machine_facing_canonical_fields.py::test_contract_null_sink_is_platform_owned_and_closed",
+      "evidence": "tests/contract/test_machine_facing_canonical_fields.py::test_contract_null_sink_is_platform_owned_and_closed; final contract gate",
       "pass_fail": "pass",
       "verified_by": "codex-parent",
-      "verified_at": "2026-08-15T12:00:00Z",
-      "notes": "WP01 targeted contract oracle \u043f\u0440\u043e\u0445\u043e\u0434\u0438\u0442."
+      "verified_at": "2026-08-16T15:54:27Z",
+      "notes": "На финальном SHA полный contract gate зелёный."
     },
     {
       "criterion_id": "FR-002",
-      "description": "Collection \u043d\u0435 \u0437\u0430\u0432\u0438\u0441\u0438\u0442 \u043e\u0442 \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u044e\u0449\u0438\u0445 POSIX EUID/resource/signal API.",
+      "description": "Collection не зависит от отсутствующих POSIX EUID/resource/signal API.",
       "proof_type": "automated_test",
-      "evidence": "WP01 seven-file collect-only: 170 collected, 0 errors; capability-gated architecture packet",
+      "evidence": "WP01 seven-file collect-only: 170 collected, 0 errors; capability-gated architecture packet; final architecture gate",
       "pass_fail": "pass",
       "verified_by": "codex-parent",
-      "verified_at": "2026-08-15T12:00:00Z",
-      "notes": "\u041d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0435 Windows capability \u043f\u0440\u043e\u0432\u0435\u0440\u044f\u044e\u0442\u0441\u044f \u044f\u0432\u043d\u044b\u043c skip/oracle."
+      "verified_at": "2026-08-16T15:54:27Z",
+      "notes": "Недоступные Windows capability проверяются явным skip/oracle."
     },
     {
       "criterion_id": "FR-003",
-      "description": "\u0410\u0440\u0445\u0438\u0442\u0435\u043a\u0442\u0443\u0440\u043d\u044b\u0435 inventory \u0438 census \u0441\u0440\u0430\u0432\u043d\u0438\u0432\u0430\u044e\u0442 repo-relative \u043f\u0443\u0442\u0438 \u0432 POSIX-\u043f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0438.",
+      "description": "Архитектурные inventory и census сравнивают repo-relative пути в POSIX-представлении.",
       "proof_type": "automated_test",
-      "evidence": "WP02 targeted architecture packet: 39 passed; test_actual_repo_relative_key_matches_static_posix_oracle",
+      "evidence": "WP02 path-oracle and separator mutation; final architecture gate 2120 passed",
       "pass_fail": "pass",
       "verified_by": "codex-parent",
-      "verified_at": "2026-08-15T12:00:00Z",
-      "notes": "Windows separator mutation \u043e\u0431\u043d\u0430\u0440\u0443\u0436\u0438\u0432\u0430\u0435\u0442\u0441\u044f."
+      "verified_at": "2026-08-16T15:54:27Z",
+      "notes": "Windows separator mutation обнаруживается."
     },
     {
       "criterion_id": "FR-004",
-      "description": "Drift \u0440\u0430\u0437\u0434\u0435\u043b\u0451\u043d \u043d\u0430 Windows-\u043f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435, stale inventory \u0438 \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0439 boundary bypass.",
+      "description": "Drift разделён на Windows-представление, stale inventory и реальный boundary bypass.",
       "proof_type": "code_review",
-      "evidence": "WP02 RED 0a96951f: 6 failures/3 positive controls; GREEN 048678182 and follow-up d0148304e",
+      "evidence": "WP02 RED/GREEN and approved review; WP04/WP05/WP07 residual classification; final residual_classes=[]",
       "pass_fail": "pass",
       "verified_by": "reviewer-renata",
-      "verified_at": "2026-08-15T12:00:00Z",
-      "notes": "\u041d\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e\u0435 \u0440\u0435\u0432\u044c\u044e APPROVE."
+      "verified_at": "2026-08-16T15:54:27Z",
+      "notes": "Каждый подтверждённый residual закрыт отдельным follow-up либо классифицирован как expected warning/false-red."
     },
     {
       "criterion_id": "FR-005",
-      "description": "mission_creation \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442 canonical topology authority \u0432\u043c\u0435\u0441\u0442\u043e \u0441\u044b\u0440\u043e\u0433\u043e predicate.",
+      "description": "mission_creation использует canonical topology authority вместо сырого predicate.",
       "proof_type": "automated_test",
-      "evidence": "mission_creation.py AST oracle; test_topology_resolution_boundary.py; raw-predicate mutation killed",
+      "evidence": "mission_creation.py AST oracle; test_topology_resolution_boundary.py; raw-predicate mutation killed; final architecture gate",
       "pass_fail": "pass",
       "verified_by": "reviewer-renata",
-      "verified_at": "2026-08-15T12:00:00Z",
-      "notes": "\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442\u0441\u044f is_under_worktrees_segment."
+      "verified_at": "2026-08-16T15:54:27Z",
+      "notes": "Используется canonical is_under_worktrees_segment."
     },
     {
       "criterion_id": "FR-006",
-      "description": "\u0420\u0430\u043d\u0435\u0435 \u043f\u0440\u043e\u0431\u043b\u0435\u043c\u043d\u044b\u0435 Windows-\u0444\u0430\u0439\u043b\u044b \u0441\u043e\u0431\u0438\u0440\u0430\u044e\u0442\u0441\u044f \u0431\u0435\u0437 platform-specific import errors.",
+      "description": "Ранее проблемные Windows-файлы собираются без platform-specific import errors.",
       "proof_type": "automated_test",
-      "evidence": "WP01 seven-file collect-only: 170 collected, 0 errors",
+      "evidence": "Seven-file collect-only: 170 collected, 0 errors; final architecture collection без errors",
       "pass_fail": "pass",
       "verified_by": "codex-parent",
-      "verified_at": "2026-08-15T12:00:00Z",
-      "notes": "Full suite baseline failures \u043d\u0435 \u043e\u0442\u043d\u043e\u0441\u044f\u0442\u0441\u044f \u043a collection portability."
+      "verified_at": "2026-08-16T15:54:27Z",
+      "notes": "Full run выполнен из корня integration worktree."
     },
     {
       "criterion_id": "FR-007",
-      "description": "\u0418\u0441\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043d\u044b\u0435 guards \u043e\u0441\u0442\u0430\u044e\u0442\u0441\u044f non-vacuous \u0438 \u043f\u0430\u0434\u0430\u044e\u0442 \u043d\u0430 mutation/negative cases.",
+      "description": "Исправленные guards остаются non-vacuous и падают на mutation/negative cases.",
       "proof_type": "automated_test",
-      "evidence": "Inventory-row deletion and raw-predicate restoration mutations both failed as expected, then GREEN restored",
+      "evidence": "Inventory deletion, raw-predicate restoration, separator and WP07 marker mutations дали ожидаемый RED и были восстановлены",
       "pass_fail": "pass",
       "verified_by": "reviewer-renata",
-      "verified_at": "2026-08-15T12:00:00Z",
-      "notes": "Positive controls \u0442\u0430\u043a\u0436\u0435 \u043f\u0440\u043e\u0445\u043e\u0434\u044f\u0442."
+      "verified_at": "2026-08-16T15:54:27Z",
+      "notes": "Положительные controls также проходят."
     },
     {
       "criterion_id": "FR-008",
-      "description": "codemap JSON, HTML \u0438 lock \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u043d\u044b \u0441 callers/impact/tests.",
+      "description": "codemap JSON, HTML и lock синхронизированы с callers/impact/tests.",
       "proof_type": "automated_test",
-      "evidence": "Codemap parity: 15/15 nodes, 28/28 edges; codemap.lock SHA-256 exact",
+      "evidence": "Codemap JSON/HTML parity and lock SHA-256 exact on final product SHA; 15/15 nodes and 28/28 edges",
       "pass_fail": "pass",
       "verified_by": "reviewer-renata",
-      "verified_at": "2026-08-15T12:00:00Z",
-      "notes": "\u041a\u0430\u0440\u0442\u0430 \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0430 \u0432 \u0442\u043e\u043c \u0436\u0435 production commit."
+      "verified_at": "2026-08-16T15:54:27Z",
+      "notes": "Карта проверена в финальном handoff."
     },
     {
       "criterion_id": "FR-009",
-      "description": "\u041b\u043e\u043a\u0430\u043b\u044c\u043d\u0430\u044f \u0438 \u0432\u043d\u0435\u0448\u043d\u044f\u044f \u0433\u043e\u0442\u043e\u0432\u043d\u043e\u0441\u0442\u044c \u0440\u0430\u0437\u0434\u0435\u043b\u0435\u043d\u044b: \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u0435 E2E-\u0434\u043e\u0441\u0442\u0443\u043f\u0430 \u043d\u0435 \u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u0441\u044f release-pass.",
+      "description": "Локальная и внешняя готовность разделены: отсутствие E2E-доступа не становится release-pass.",
       "proof_type": "code_review",
-      "evidence": "contracts/hard-gate-result.md; \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0435 gates \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u044b, e2e_access=blocked, e2e_ready=false, release_ready=false",
+      "evidence": "acceptance-matrix.json and contracts/hard-gate-result.md; local_ready=true, e2e_access=blocked, e2e_ready=false, release_ready=false",
       "pass_fail": "pass",
       "verified_by": "codex-parent",
-      "verified_at": "2026-08-15T12:00:00Z",
-      "notes": "\u0412\u043d\u0435\u0448\u043d\u0438\u0439 Priivacy-ai/spec-kitty-end-to-end-testing \u043d\u0435 \u043e\u0431\u044a\u044f\u0432\u043b\u044f\u0435\u0442\u0441\u044f \u043f\u0440\u043e\u0439\u0434\u0435\u043d\u043d\u044b\u043c."
+      "verified_at": "2026-08-16T15:54:27Z",
+      "notes": "Внешний Priivacy-ai/spec-kitty-end-to-end-testing не объявляется пройденным."
     },
     {
       "criterion_id": "FR-010",
-      "description": "Handoff \u0441\u043e\u0434\u0435\u0440\u0436\u0438\u0442 SHA, worktree, branch, \u043a\u043e\u043c\u0430\u043d\u0434\u044b, counts \u0438 baseline blockers.",
+      "description": "Handoff содержит SHA, worktree, branch, команды, counts и baseline blockers.",
       "proof_type": "code_review",
-      "evidence": "RED 0a96951f, GREEN 048678182, follow-up d0148304e; WP01 RED/GREEN; review APPROVE; parent gate packet",
+      "evidence": "Final SHA bcc33914d45319aacbed6e049bf8cada500b091b; source 6cc416c42; follow-up eae4dc006; final contract/architecture logs",
       "pass_fail": "pass",
       "verified_by": "codex-parent",
-      "verified_at": "2026-08-15T12:00:00Z",
-      "notes": "Unrelated full-suite baseline failures \u043f\u0435\u0440\u0435\u0447\u0438\u0441\u043b\u0435\u043d\u044b \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e \u0438 \u043d\u0435 \u0441\u043a\u0440\u044b\u0442\u044b."
+      "verified_at": "2026-08-16T15:54:27Z",
+      "notes": "Исторические false-red, expected skip/xfail и внешние blockers перечислены отдельно."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Каждый residual финального architecture gate классифицирован, а новый cardinality-site закрыт узким marker без подъёма ceiling.",
+      "proof_type": "automated_test",
+      "evidence": "WP07 RED: 25 non-escaped convert-sites; GREEN eae4dc006: 24; снятие marker снова красное; final architecture 0 failed",
+      "pass_fail": "pass",
+      "verified_by": "codex-parent",
+      "verified_at": "2026-08-16T15:54:27Z",
+      "notes": "Golden-count ceiling не повышался, соседние assertions и allowlist не менялись."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Repo-relative пути и parametrized node-id стабильны на Windows.",
+      "proof_type": "automated_test",
+      "evidence": "Final architecture gate: 2120 passed, 5 skipped, 2 xfailed; Windows capability/node-id and POSIX-path mutation packets green",
+      "pass_fail": "pass",
+      "verified_by": "codex-parent",
+      "verified_at": "2026-08-16T15:54:27Z",
+      "notes": "Ожидаемые skip/xfail сохранены, platform fallback не скрывает дефект."
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "Полный contract gate завершается без failures и errors.",
+      "proof_type": "automated_test",
+      "evidence": "windows-hard-gate-contract-bcc33914d-cwd.txt: 305 passed, 3 skipped",
+      "pass_fail": "pass",
+      "verified_by": "codex-parent",
+      "verified_at": "2026-08-16T15:54:27Z",
+      "notes": "179.41s; запуск из корня integration worktree."
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "Полный architecture gate завершается без failures и errors при нулевой collection error.",
+      "proof_type": "automated_test",
+      "evidence": "windows-hard-gate-architecture-bcc33914d-cwd.txt: 2120 passed, 5 skipped, 2 xfailed",
+      "pass_fail": "pass",
+      "verified_by": "codex-parent",
+      "verified_at": "2026-08-16T15:54:27Z",
+      "notes": "4140.66s; полный run, не confcut/targeted substitute."
+    },
+    {
+      "criterion_id": "NFR-005",
+      "description": "Перед финальным SHA выполнены targeted checks, затем полный contract и architecture run.",
+      "proof_type": "code_review",
+      "evidence": "WP01–WP07 RED/GREEN/mutation handoffs plus final contract and architecture logs",
+      "pass_fail": "pass",
+      "verified_by": "codex-parent",
+      "verified_at": "2026-08-16T15:54:27Z",
+      "notes": "Полный architecture run выполнен после закрытия WP07."
+    },
+    {
+      "criterion_id": "NFR-006",
+      "description": "local_ready выставлен только после полного зелёного architecture gate и нулевой collection error.",
+      "proof_type": "code_review",
+      "evidence": "Final product_sha=bcc33914d45319aacbed6e049bf8cada500b091b; local_ready=true",
+      "pass_fail": "pass",
+      "verified_by": "codex-parent",
+      "verified_at": "2026-08-16T15:54:27Z",
+      "notes": "E2E и release остаются false из-за blocked access."
     }
   ],
   "negative_invariants": [
     {
       "invariant_id": "NI-001",
-      "description": "mission_creation \u043d\u0435 \u0441\u043e\u0434\u0435\u0440\u0436\u0438\u0442 raw topology predicate.",
+      "description": "mission_creation не содержит raw topology predicate.",
       "verification_method": "custom_command",
       "verification_command": "AST oracle in tests/architectural/test_topology_resolution_boundary.py",
       "result": "confirmed_absent",
-      "evidence": "Raw-predicate mutation fails 2 tests; restored GREEN passes."
+      "evidence": "Raw-predicate mutation fails; restored GREEN passes."
     },
     {
       "invariant_id": "NI-002",
-      "description": "\u041e\u0431\u0435 canonical inventory \u0441\u0442\u0440\u043e\u043a\u0438 \u0440\u0435\u0430\u043b\u044c\u043d\u043e \u043f\u043e\u043a\u0440\u044b\u0432\u0430\u044e\u0442\u0441\u044f audit \u0438 \u043d\u0435 \u044f\u0432\u043b\u044f\u044e\u0442\u0441\u044f \u0434\u0435\u043a\u043e\u0440\u0430\u0442\u0438\u0432\u043d\u044b\u043c\u0438.",
+      "description": "Обе canonical inventory строки реально покрываются audit и не являются декоративными.",
       "verification_method": "custom_command",
       "verification_command": "Delete-row mutation against both inventory files",
       "result": "confirmed_absent",
       "evidence": "Mutation produced 4 expected failures before restoration."
+    },
+    {
+      "invariant_id": "NI-003",
+      "description": "Снятие golden-count marker на WP04 assertion снова обнаруживается recurrence guard.",
+      "verification_method": "mutation_test",
+      "verification_command": "Remove '# golden-count: cardinality-is-contract' and run test_convert_sites_do_not_exceed_frozen_baseline",
+      "result": "confirmed_absent",
+      "evidence": "Mutation produced 25 non-escaped convert-sites against frozen ceiling 24; marker restored before final SHA."
+    },
+    {
+      "invariant_id": "NI-004",
+      "description": "Недоступный внешний E2E не превращается в release pass.",
+      "verification_method": "state_assertion",
+      "verification_command": "Inspect acceptance-matrix.json e2e_access/e2e_ready/release_ready",
+      "result": "confirmed_absent",
+      "evidence": "e2e_access=blocked, e2e_ready=false, release_ready=false despite local_ready=true."
     }
   ]
 }

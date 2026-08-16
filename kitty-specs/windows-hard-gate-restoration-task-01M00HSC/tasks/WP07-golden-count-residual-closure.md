@@ -142,3 +142,7 @@ Merge target: `codex/setup-plan-hard-gates`.
 Реализация выполняется в task-owned worktree, вычисленном через `lanes.json`;
 planning checkout остаётся только для Spec Kitty metadata и не используется
 для code edits.
+
+## Activity Log
+
+- 2026-08-16T05:59:49Z – codex – shell_pid=20156 – Review: commit eae4dc006 меняет только одну строку в approved WP04 test_resolution_authority_gates.py; RED 25-site failure воспроизведён, marker GREEN даёт 24, его снятие снова RED; baseline unchanged, targeted 2/2, Ruff, py_compile и diff-check зелёные; shared-file follow-up согласован последовательно.

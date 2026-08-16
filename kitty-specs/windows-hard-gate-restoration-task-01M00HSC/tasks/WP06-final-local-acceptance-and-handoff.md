@@ -24,7 +24,7 @@ history:
 - at: '2026-08-16T03:33:31Z'
   actor: codex
   action: Follow-up acceptance package добавлен; запускается только после approved WP04 и WP05.
-agent_profile: python-pedro
+agent_profile: reviewer-renata
 authoritative_surface: acceptance-matrix.json
 create_intent:
 - acceptance-matrix.json
@@ -40,7 +40,7 @@ owned_files:
 - traces/approach.md
 - traces/design-decisions.md
 - traces/tooling-friction.md
-role: implementer
+role: reviewer
 tags:
 - acceptance
 - handoff
@@ -70,3 +70,21 @@ tracker_refs: []
 - Acceptance matrix не green-wash'ит `local_ready`, E2E и release.
 - Документы по-русски, ссылки на evidence и exact commands присутствуют.
 - Planning checkout и product lanes clean; следующий шаг однозначен.
+
+## Финальный пакет evidence
+
+- Immutable integration SHA: `bcc33914d45319aacbed6e049bf8cada500b091b`.
+- Contract: `305 passed, 3 skipped, 0 failed, 0 errors` за `179.41s`.
+- Architecture: `2120 passed, 5 skipped, 2 xfailed, 0 failed, 0 errors,
+  14 warnings` за `4140.66s`; collection завершена без ошибок.
+- Integration worktree: `C:\spkhg\.worktrees\windows-hard-gate-restoration-task-01M00HSC-integration`.
+- WP07 marker-only follow-up `eae4dc006` закрывает 25-site residual без подъёма
+  frozen ceiling; mutation снятия marker снова красная.
+- Acceptance matrix и hard-gate contract обновлены: `local_ready=true`, но
+  `e2e_access=blocked`, `e2e_ready=false`, `release_ready=false`.
+- Ложные red-запуски из несвязанного cwd вынесены в отдельную заметку; в
+  readiness учитывается только запуск из корня integration worktree.
+
+## Activity Log
+
+- 2026-08-16T15:54:27Z — codex — final local acceptance recorded on bcc33914d; full contract and architecture suites green; external E2E remains blocked.

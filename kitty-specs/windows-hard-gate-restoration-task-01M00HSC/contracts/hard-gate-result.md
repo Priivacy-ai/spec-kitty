@@ -1,60 +1,72 @@
 # Контракт публикационного hard-gate результата
 
-**Дата**: 2026-08-14
-**Тип**: Reference
+**Дата финальной проверки**: 2026-08-16
+**Финальный product SHA**: `bcc33914d45319aacbed6e049bf8cada500b091b`
+**Исходный approved SHA**: `6cc416c427edaa40c13fdf8a341e446be91bb3a5`
+**Follow-up SHA**: `eae4dc006129f81bd0b0934d019a40d7d9dca42a`
+**Integration worktree**: `C:\spkhg\.worktrees\windows-hard-gate-restoration-task-01M00HSC-integration`
+**Integration branch**: detached HEAD, собран из lane-b и approved WP07
 
-## Завершённость реализации и локальная готовность
+## Статусы
 
-`implementation_complete=true` означает, что оба implementation package приняты и task-owned tree clean. Это состояние не заменяет локальные или внешние gates.
+| Поле | Значение | Основание |
+|---|---|---|
+| `implementation_complete` | `true` | WP01–WP07 approved, task-owned product lanes clean |
+| `local_ready` | `true` | Полные contract/architecture suites на одном immutable SHA: 0 failures, 0 errors |
+| `e2e_access` | `blocked` | Нет доступа к canonical `Priivacy-ai/spec-kitty-end-to-end-testing` |
+| `e2e_ready` | `false` | Внешний набор не запускался без доступа |
+| `release_ready` | `false` | Требует `e2e_ready=true`; локальный pass его не заменяет |
 
-`local_ready=true` допустим только при одновременном выполнении:
+`overall_verdict=blocked` в acceptance matrix относится только к внешней
+публикационной готовности. Локальный hard-gate результат принят: это не
+product failure и не незавершённый локальный кодовый пакет.
 
-- contract: `0 failed`, `0 errors`;
-- architecture: `0 failed`, `0 errors`;
-- collection: `0 errors`;
-- code map parity и hashes совпадают;
-- task-owned worktree clean на указанном commit.
+## Полные воспроизводимые gates
 
-## Cross-repo готовность
+Команды запускались из корня integration worktree с task Python:
 
-| Access | Tests | Результат |
-|--------|-------|-----------|
-| pass | pass | `e2e_ready=true` |
-| pass | fail | `e2e_ready=false`, product/test failure |
-| blocked | not_run | `e2e_ready=false`, external blocker |
-| not_run | not_run | `e2e_ready=false`, incomplete evidence |
+```powershell
+$py = 'C:\codex-scratch\spklw-planning\.venv\Scripts\python.exe'
+$env:PYTHONPATH = 'C:\spkhg\.worktrees\windows-hard-gate-restoration-task-01M00HSC-integration\src'
+& $py -m pytest tests/contract -q --junitxml=C:\Users\Ruslan\AppData\Local\Temp\windows-hard-gate-contract-bcc33914d-cwd.xml
+& $py -m pytest tests/architectural -q --junitxml=C:\Users\Ruslan\AppData\Local\Temp\windows-hard-gate-architecture-bcc33914d-cwd.xml
+```
 
-`release_ready=true` требует одновременно `implementation_complete=true`, `local_ready=true` и `e2e_ready=true`. Никакое локальное состояние не заменяет `e2e_ready=true`.
+Результаты:
+
+- contract: `305 passed, 3 skipped, 0 failed, 0 errors` за `179.41s`;
+- architecture: `2120 passed, 5 skipped, 2 xfailed, 0 failed, 0 errors,
+  14 warnings` за `4140.66s`;
+- collection architecture завершена без ошибок;
+- codemap JSON↔HTML parity и lock SHA-256 совпадают;
+- task-owned integration tree clean на указанном SHA.
+
+Предупреждения не скрыты: один диагностический `UserWarning` width guard и
+13 `PytestWarning` о `record_property` с `xunit2`. Они не являются failures или
+errors и не меняют readiness.
+
+## Residual и follow-up
+
+Предыдущий полный run на `6cc416c42` дал единственный новый residual: 25
+неэкранированных `convert`-sites при frozen ceiling 24. WP07 добавил только
+маркер `golden-count: cardinality-is-contract` на легитимную assertion
+уникальности authority-записи. Ceiling не повышался. Снятие маркера снова
+делает recurrence guard красным; после восстановления marker полный финальный
+architecture gate зелёный.
+
+## False-red и границы доказательств
+
+Некоторые диагностические запуски из `C:\Users\Ruslan` или временного
+worktree искали `kitty-specs` под текущим cwd и давали ложные project-root
+ошибки. В acceptance учитывается только запуск из корня integration worktree,
+где project root и mission metadata разрешились корректно.
+
+Внешний E2E намеренно не подменён локальным smoke, зеркалом или operator
+exception. До получения canonical доступа публикационная готовность остаётся
+`false`.
 
 ## Privacy
 
-В отчёте разрешены команды, публичные repo identifiers, commit SHA и test counts. Запрещены токены, auth headers, cookies и содержимое credential files.
-
-## Текущий snapshot после полного gate WP03
-
-На GREEN SHA WP03 `06026d6d0` состояние реализации `implementation_complete=true`,
-но `local_ready=false`: полный contract gate подтверждён как `305 passed, 3 skipped`,
-а полный architecture run дал `2107 passed, 5 skipped, 2 xfailed, 1 warning,
-8 failed`.
-
-WP03 закрыл четыре подтверждённых residual-класса:
-
-- Windows-разделители в ключах doctrine/kernel census;
-- CRLF checkout против LF-ориентира glossary seed без изменения самого seed;
-- stale golden-count ceilings и один новый cardinality-only site;
-- изменение parametrized node-id у capability fallback.
-
-Полный gate выявил четыре новые группы, вынесенные в WP04–WP05:
-
-- raw `parent.parent` mission-anchor derivation в `status_transition`;
-- Windows-разделитель в checkout-grammar diagnostic path;
-- stale exact token для `RealCoordCommitRouter.feature_write_dir`;
-- CRLF-sensitive сравнение SHA-256 code-map lock.
-
-CLI width guard проверен официальным запуском с корневым `tests/conftest.py` и дал
-`3 passed, 1 warning`; его красный результат в диагностическом `--confcutdir`
-режиме не считается локальным failure.
-
-До завершения WP06 acceptance matrix должна оставаться `local_ready=false`.
-`e2e_access=blocked`, `e2e_ready=false` и `release_ready=false` сохраняются
-независимо от локального результата.
+В отчёте присутствуют только команды, пути workspace, публичные
+идентификаторы, SHA и test counts. Токены, cookies, auth headers и credential
+files не читались и не выводились.
