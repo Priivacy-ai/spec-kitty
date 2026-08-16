@@ -345,14 +345,22 @@ url = "{CONFIG_URL}"
 """.strip(),
         encoding="utf-8",
     )
-    # The resolver derives the same opaque scope from the URL + identity, while
-    # retired credentials metadata is no longer consulted as live authority.
+    # The resolver derives the same opaque scope from the URL + identity. With
+    # credential parsing restored (#3425 revert-guard, queue.py
+    # ``read_queue_scope_from_credentials``), the credentials file now yields a
+    # visible piped "server|user|team" auth signal — a different string shape
+    # than the sha256 ``derived_queue_scope`` — so the diagnostic status is
+    # STALE_NON_AUTHORITATIVE (visible-but-non-matching), not ABSENT. That still
+    # satisfies "not a live target authority": the cached value is a diagnostic
+    # only and never drives ``queue_db_path``, which stays derived purely from
+    # the resolved URL + identity (proven by the T004 physical-store invariance
+    # test in tests/sync/test_credential_scope_signal.py).
     expected = build_queue_scope(
         server_url=CONFIG_URL, username="alice@example.com", team_slug="team-red"
     )
     target = resolve_sync_target(user_id="alice@example.com", team_slug="team-red")
     assert target.derived_queue_scope == expected
-    assert target.active_queue_scope_status is QueueScopeStatus.ABSENT
+    assert target.active_queue_scope_status is QueueScopeStatus.STALE_NON_AUTHORITATIVE
 
 
 def test_session_scope_read_returning_value_is_consulted(
