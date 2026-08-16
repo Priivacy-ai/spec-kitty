@@ -4,6 +4,7 @@ agents:
   available:
   - claude
   - codex
+  - cursor
   auto_commit: false
   lint_on_edit: true
 project:
