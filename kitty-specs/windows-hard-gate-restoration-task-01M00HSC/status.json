@@ -85,16 +85,18 @@
     },
     "WP03": {
       "actor": "codex",
-      "agent": "",
+      "agent": "codex",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "codex",
       "force_count": 0,
       "lane": "in_progress",
       "last_event_id": "01M04AR7GH619M7TR09WZF292K",
       "last_transition_at": "2026-08-16T03:44:52.753098+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Полный architecture gate выявил четыре follow-up класса; WP03 targeted-GREEN сохранён, local_ready=false."
+        "Полный architecture gate выявил четыре follow-up класса; WP03 targeted-GREEN сохранён, local_ready=false.",
+        "WP03 scope itself завершён targeted-GREEN; full-gate residuals вынесены в WP04–WP05, продолжаю независимый review перед последовательным follow-up."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -102,13 +104,13 @@
       "shell_pid": 0,
       "shell_pid_created_at": "1786818147.3320794",
       "subtasks": {
-        "T014": "planned",
-        "T015": "planned",
-        "T016": "planned",
-        "T017": "planned",
-        "T018": "planned",
-        "T019": "planned",
-        "T020": "planned"
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
       }
     },
     "WP04": {

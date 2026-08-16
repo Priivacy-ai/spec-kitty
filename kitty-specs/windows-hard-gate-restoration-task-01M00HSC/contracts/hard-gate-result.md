@@ -30,24 +30,31 @@
 
 В отчёте разрешены команды, публичные repo identifiers, commit SHA и test counts. Запрещены токены, auth headers, cookies и содержимое credential files.
 
-## Текущий snapshot после расширения scope
+## Текущий snapshot после полного gate WP03
 
-На approved WP02 SHA состояние реализации `implementation_complete=true`, но
-`local_ready=false`: полный contract gate подтверждён как `305 passed, 3 skipped`,
-а architecture collection собрала `2116` тестов, однако полный assertion run ещё
-не дал чистого `0 failed, 0 errors` результата.
+На GREEN SHA WP03 `06026d6d0` состояние реализации `implementation_complete=true`,
+но `local_ready=false`: полный contract gate подтверждён как `305 passed, 3 skipped`,
+а полный architecture run дал `2107 passed, 5 skipped, 2 xfailed, 1 warning,
+8 failed`.
 
-В отдельный WP03 вынесены четыре подтверждённых residual-класса:
+WP03 закрыл четыре подтверждённых residual-класса:
 
 - Windows-разделители в ключах doctrine/kernel census;
 - CRLF checkout против LF-ориентира glossary seed без изменения самого seed;
 - stale golden-count ceilings и один новый cardinality-only site;
 - изменение parametrized node-id у capability fallback.
 
+Полный gate выявил четыре новые группы, вынесенные в WP04–WP05:
+
+- raw `parent.parent` mission-anchor derivation в `status_transition`;
+- Windows-разделитель в checkout-grammar diagnostic path;
+- stale exact token для `RealCoordCommitRouter.feature_write_dir`;
+- CRLF-sensitive сравнение SHA-256 code-map lock.
+
 CLI width guard проверен официальным запуском с корневым `tests/conftest.py` и дал
 `3 passed, 1 warning`; его красный результат в диагностическом `--confcutdir`
 режиме не считается локальным failure.
 
-До завершения WP03 acceptance matrix должна оставаться `local_ready=false`.
+До завершения WP06 acceptance matrix должна оставаться `local_ready=false`.
 `e2e_access=blocked`, `e2e_ready=false` и `release_ready=false` сохраняются
 независимо от локального результата.

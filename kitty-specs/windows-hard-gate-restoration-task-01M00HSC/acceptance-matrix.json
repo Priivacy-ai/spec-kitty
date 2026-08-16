@@ -9,17 +9,21 @@
   "e2e_ready": false,
   "release_ready": false,
   "current_gate_snapshot": {
-    "verified_at": "2026-08-15T15:00:00Z",
+    "verified_at": "2026-08-16T03:45:41Z",
     "contract": "305 passed, 3 skipped",
-    "architecture_collection": "2116 collected; full assertion run not yet clean",
+    "architecture_collection": "2116 collected; 2107 passed, 5 skipped, 2 xfailed, 1 warning, 8 failed",
     "residual_classes": [
       "Windows separators in doctrine/kernel census keys",
       "CRLF checkout versus LF glossary seed digest",
       "stale golden-count ceilings and one unannotated cardinality site",
-      "Windows capability fallback changes committed mission-exit node-id"
+      "Windows capability fallback changes committed mission-exit node-id",
+      "Raw status_transition parent.parent mission-anchor derivation",
+      "Windows separator in checkout-grammar diagnostic path",
+      "Stale RealCoordCommitRouter.feature_write_dir authority token",
+      "CRLF checkout versus LF-normalized codemap lock SHA-256"
     ],
     "diagnostic_only": "CLI width red under --confcutdir; official run with tests/conftest.py is 3 passed, 1 warning",
-    "next_work_package": "WP03"
+    "next_work_package": "WP04"
   },
   "criteria": [
     {
